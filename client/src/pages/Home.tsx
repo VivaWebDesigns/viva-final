@@ -43,7 +43,7 @@ const faqs = [
   },
   {
     q: "¿Necesito tener Google Business?",
-    a: "No te preocupes. Si no tienes Google Business, nosotros lo creamos y configuramos por ti. Si ya lo tienes, lo optimizamos para que aparezca en las primeras posiciones del mapa local.",
+    a: "Si no tienes uno, te guiaremos a través del proceso de configuración y verificación. Si ya tienes uno, lo optimizaremos para mejorar tu visibilidad en las búsquedas locales y en Google Maps.",
   },
   {
     q: "¿Puedo pagar en partes?",
