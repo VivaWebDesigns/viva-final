@@ -32,7 +32,7 @@ export default function Footer() {
             <h3 className="text-white font-bold text-sm uppercase tracking-wider mb-6">Enlaces</h3>
             <ul className="space-y-3">
               <li><Link href="/" className="text-gray-500 text-sm hover:text-white transition-colors duration-200" data-testid="link-footer-home">Inicio</Link></li>
-              <li><Link href="/paquetes" className="text-gray-500 text-sm hover:text-white transition-colors duration-200" data-testid="link-footer-paquetes">Paquetes</Link></li>
+              <li><Link href="/paquetes#paquetes-list" className="text-gray-500 text-sm hover:text-white transition-colors duration-200" data-testid="link-footer-paquetes">Paquetes</Link></li>
               <li><Link href="/paquetes/empieza" className="text-gray-500 text-sm hover:text-white transition-colors duration-200" data-testid="link-footer-empieza">Plan Empieza</Link></li>
               <li><Link href="/paquetes/crece" className="text-gray-500 text-sm hover:text-white transition-colors duration-200" data-testid="link-footer-crece">Plan Crece</Link></li>
               <li><Link href="/paquetes/domina" className="text-gray-500 text-sm hover:text-white transition-colors duration-200" data-testid="link-footer-domina">Plan Domina</Link></li>
