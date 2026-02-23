@@ -301,7 +301,7 @@ export default function Home() {
       </section>
 
       {/* SECTION 6 – HOW IT WORKS */}
-      <section className="py-20 lg:py-32 bg-white dark:bg-gray-950" data-testid="section-process">
+      <section id="como-funciona" className="scroll-mt-20 py-20 lg:py-32 bg-white dark:bg-gray-950" data-testid="section-process">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center max-w-3xl mx-auto mb-16">
             <motion.p variants={fadeUp} className="text-[hsl(340,82%,52%)] font-bold text-sm uppercase tracking-widest mb-4">
