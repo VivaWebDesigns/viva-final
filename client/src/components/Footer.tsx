@@ -90,6 +90,9 @@ export default function Footer() {
           <p className="text-gray-600 text-sm text-center sm:text-left" data-testid="text-footer-statement">
             Soporte en español. Sin contratos complicados. Sin términos confusos.
           </p>
+          <p className="text-gray-600 text-xs text-center sm:text-left mt-3" data-testid="text-service-area">
+            Trabajamos en: [Ciudad / Área de servicio]
+          </p>
         </div>
       </div>
     </footer>

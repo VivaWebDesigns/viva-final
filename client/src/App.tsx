@@ -14,6 +14,7 @@ import PaqueteCrece from "@/pages/PaqueteCrece";
 import PaqueteDomina from "@/pages/PaqueteDomina";
 import Contacto from "@/pages/Contacto";
 import NotFound from "@/pages/not-found";
+import JsonLd from "@/components/JsonLd";
 
 function Router() {
   return (
@@ -34,6 +35,7 @@ function App() {
     <HelmetProvider>
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
+          <JsonLd />
           <div className="min-h-screen flex flex-col">
             <Navigation />
             <main className="flex-1">
