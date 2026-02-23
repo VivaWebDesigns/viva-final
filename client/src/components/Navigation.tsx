@@ -59,7 +59,7 @@ export default function Navigation() {
       data-testid="nav-main"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-[56px] md:h-[60px]">
+        <div className="flex items-center justify-between h-[62px] md:h-[60px]">
           <Link href="/" className="flex items-center gap-2 flex-shrink-0" data-testid="link-logo">
             <img src={logoImg} alt="Viva Web Designs" className="h-14 md:h-12 w-auto object-contain" />
           </Link>
