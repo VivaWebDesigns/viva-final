@@ -124,6 +124,19 @@ export default function Home() {
                 </Button>
               </a>
             </motion.div>
+
+            <motion.div variants={fadeUp} className="flex flex-wrap gap-x-5 gap-y-2 mt-6">
+              {[
+                "Si no tienes fotos, nosotros te ayudamos.",
+                "Te respondemos rápido.",
+                "Todo en español. Sin complicaciones.",
+              ].map((item) => (
+                <span key={item} className="flex items-center gap-1.5 text-sm text-white/60">
+                  <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
+                  {item}
+                </span>
+              ))}
+            </motion.div>
           </motion.div>
         </div>
       </section>
@@ -155,6 +168,21 @@ export default function Home() {
               Eso está costándote trabajos.
             </motion.p>
           </motion.div>
+
+          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }} className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-12">
+            <Link href="/paquetes">
+              <Button size="lg" className="rounded-full bg-[#1DB954] text-white font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-paquetes-problem">
+                Ver Paquetes
+                <ArrowRight className="w-5 h-5" />
+              </Button>
+            </Link>
+            <a href="https://wa.me/1234567890?text=Hola%2C%20me%20interesa%20saber%20más%20sobre%20sus%20servicios" target="_blank" rel="noopener noreferrer">
+              <Button size="lg" variant="outline" className="rounded-full text-[#111] dark:text-white border-gray-300 dark:border-gray-600 font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-whatsapp-problem">
+                <SiWhatsapp className="w-5 h-5" />
+                WhatsApp
+              </Button>
+            </a>
+          </motion.div>
         </div>
       </section>
 
@@ -185,6 +213,21 @@ export default function Home() {
                 <p className="text-gray-600 dark:text-gray-400 leading-relaxed">{item.desc}</p>
               </motion.div>
             ))}
+          </motion.div>
+
+          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }} className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-12">
+            <Link href="/paquetes">
+              <Button size="lg" className="rounded-full bg-[#1DB954] text-white font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-paquetes-solution">
+                Ver Paquetes
+                <ArrowRight className="w-5 h-5" />
+              </Button>
+            </Link>
+            <a href="https://wa.me/1234567890?text=Hola%2C%20me%20interesa%20saber%20más%20sobre%20sus%20servicios" target="_blank" rel="noopener noreferrer">
+              <Button size="lg" variant="outline" className="rounded-full text-[#111] dark:text-white border-gray-300 dark:border-gray-600 font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-whatsapp-solution">
+                <SiWhatsapp className="w-5 h-5" />
+                WhatsApp
+              </Button>
+            </a>
           </motion.div>
         </div>
       </section>
@@ -354,6 +397,21 @@ export default function Home() {
               </ul>
             </motion.div>
           </motion.div>
+
+          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }} className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-12">
+            <Link href="/paquetes">
+              <Button size="lg" className="rounded-full bg-[#1DB954] text-white font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-paquetes-beforeafter">
+                Ver Paquetes
+                <ArrowRight className="w-5 h-5" />
+              </Button>
+            </Link>
+            <a href="https://wa.me/1234567890?text=Hola%2C%20me%20interesa%20saber%20más%20sobre%20sus%20servicios" target="_blank" rel="noopener noreferrer">
+              <Button size="lg" variant="outline" className="rounded-full text-white border-white/30 bg-white/5 font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-whatsapp-beforeafter">
+                <SiWhatsapp className="w-5 h-5" />
+                WhatsApp
+              </Button>
+            </a>
+          </motion.div>
         </div>
       </section>
 
@@ -382,6 +440,21 @@ export default function Home() {
                 <p className="text-gray-600 dark:text-gray-400 leading-relaxed text-sm">{item.desc}</p>
               </motion.div>
             ))}
+          </motion.div>
+
+          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }} className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-12">
+            <Link href="/paquetes">
+              <Button size="lg" className="rounded-full bg-[#1DB954] text-white font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-paquetes-process">
+                Ver Paquetes
+                <ArrowRight className="w-5 h-5" />
+              </Button>
+            </Link>
+            <a href="https://wa.me/1234567890?text=Hola%2C%20me%20interesa%20saber%20más%20sobre%20sus%20servicios" target="_blank" rel="noopener noreferrer">
+              <Button size="lg" variant="outline" className="rounded-full text-[#111] dark:text-white border-gray-300 dark:border-gray-600 font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-whatsapp-process">
+                <SiWhatsapp className="w-5 h-5" />
+                WhatsApp
+              </Button>
+            </a>
           </motion.div>
         </div>
       </section>
@@ -420,6 +493,21 @@ export default function Home() {
               </motion.div>
             ))}
           </motion.div>
+
+          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }} className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-12">
+            <Link href="/paquetes">
+              <Button size="lg" className="rounded-full bg-[#1DB954] text-white font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-paquetes-testimonials">
+                Ver Paquetes
+                <ArrowRight className="w-5 h-5" />
+              </Button>
+            </Link>
+            <a href="https://wa.me/1234567890?text=Hola%2C%20me%20interesa%20saber%20más%20sobre%20sus%20servicios" target="_blank" rel="noopener noreferrer">
+              <Button size="lg" variant="outline" className="rounded-full text-[#111] dark:text-white border-gray-300 dark:border-gray-600 font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-whatsapp-testimonials">
+                <SiWhatsapp className="w-5 h-5" />
+                WhatsApp
+              </Button>
+            </a>
+          </motion.div>
         </div>
       </section>
 
@@ -439,6 +527,21 @@ export default function Home() {
             {faqs.map((faq) => (
               <FAQItem key={faq.q} q={faq.q} a={faq.a} />
             ))}
+          </motion.div>
+
+          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }} className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-12">
+            <Link href="/paquetes">
+              <Button size="lg" className="rounded-full bg-[#1DB954] text-white font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-paquetes-faq">
+                Ver Paquetes
+                <ArrowRight className="w-5 h-5" />
+              </Button>
+            </Link>
+            <a href="https://wa.me/1234567890?text=Hola%2C%20me%20interesa%20saber%20más%20sobre%20sus%20servicios" target="_blank" rel="noopener noreferrer">
+              <Button size="lg" variant="outline" className="rounded-full text-[#111] dark:text-white border-gray-300 dark:border-gray-600 font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-whatsapp-faq">
+                <SiWhatsapp className="w-5 h-5" />
+                WhatsApp
+              </Button>
+            </a>
           </motion.div>
         </div>
       </section>

@@ -198,6 +198,31 @@ export default function Contacto() {
 
                     <FormField
                       control={form.control}
+                      name="service"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-gray-700 dark:text-gray-300 font-semibold">¿Cuál es tu servicio principal?</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                            <FormControl>
+                              <SelectTrigger className="h-12 bg-[#f5f5f5] dark:bg-[#111] border-gray-200 dark:border-gray-700" data-testid="select-service">
+                                <SelectValue placeholder="Selecciona tu servicio" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {["Pintura", "Electricidad", "Landscaping", "Plomería", "Vidrio", "Otro"].map((option) => (
+                                <SelectItem key={option} value={option}>
+                                  {option}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
                       name="message"
                       render={({ field }) => (
                         <FormItem>
