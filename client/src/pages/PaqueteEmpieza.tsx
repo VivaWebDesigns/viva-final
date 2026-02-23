@@ -1,6 +1,7 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, CheckCircle2, Phone, Zap, Globe, Search, FileText, MessageSquare, Shield } from "lucide-react";
+import { ArrowRight, CheckCircle2, Zap, Globe, Search, FileText, MessageSquare, Shield, Phone, Smartphone, Rocket, Star } from "lucide-react";
+import { SiWhatsapp } from "react-icons/si";
 import { motion } from "framer-motion";
 import SEO from "@/components/SEO";
 
@@ -14,23 +15,54 @@ const stagger = {
 };
 
 const included = [
-  { icon: Globe, title: "Sitio Web Profesional", desc: "1-3 páginas con diseño moderno, responsivo y optimizado para móviles. Tu negocio se verá profesional." },
-  { icon: Search, title: "SEO Básico", desc: "Optimización fundamental para que Google entienda tu negocio y empiece a mostrarte en resultados locales." },
-  { icon: FileText, title: "Google Business Profile", desc: "Configuración y optimización de tu perfil de Google para aparecer en Google Maps y búsquedas locales." },
-  { icon: MessageSquare, title: "Formulario de Contacto", desc: "Formulario funcional para que tus clientes potenciales te contacten directamente desde tu sitio web." },
-  { icon: Shield, title: "Hosting y SSL Incluido", desc: "Tu sitio web siempre en línea, rápido y seguro con certificado SSL sin costo adicional." },
-  { icon: Zap, title: "Soporte por Email", desc: "Equipo de soporte disponible por email para resolver cualquier duda o problema con tu sitio." },
+  {
+    icon: Globe,
+    title: "Sitio Web Profesional (1–3 Páginas)",
+    desc: "Ya no tendrás que dar solo tu número de teléfono. Tendrás un sitio web profesional donde tus clientes pueden ver tu trabajo, saber quién eres y contactarte al instante. Esto genera confianza antes de que te llamen.",
+    why: "Un cliente que ve un sitio profesional confía más y te llama más rápido.",
+  },
+  {
+    icon: Smartphone,
+    title: "Diseño Móvil Optimizado",
+    desc: "El 80% de tus clientes te buscan desde su teléfono. Tu sitio se verá perfecto en cualquier dispositivo — rápido, limpio y fácil de navegar.",
+    why: "Si tu sitio no se ve bien en el teléfono, pierdes clientes antes de que te contacten.",
+  },
+  {
+    icon: Phone,
+    title: "WhatsApp + Click-to-Call",
+    desc: "Botones visibles para que tus clientes te llamen o te escriban por WhatsApp con un solo toque. Sin barreras, sin formularios complicados.",
+    why: "Entre más fácil sea contactarte, más llamadas recibes.",
+  },
+  {
+    icon: Search,
+    title: "Optimización SEO Básica",
+    desc: "Configuramos tu sitio para que Google entienda qué haces y dónde trabajas. Títulos, descripciones y estructura optimizada para búsquedas locales.",
+    why: "Sin SEO básico, Google no sabe que existes. Con él, empiezas a aparecer.",
+  },
+  {
+    icon: FileText,
+    title: "Google Business Profile",
+    desc: "Creamos o optimizamos tu perfil de Google para que aparezcas en Google Maps cuando alguien busque servicios como los tuyos en tu área.",
+    why: "Google Maps es donde la mayoría de clientes locales buscan contratistas.",
+  },
+  {
+    icon: Shield,
+    title: "Hosting + SSL + Soporte",
+    desc: "Tu sitio web siempre en línea, rápido y seguro con certificado SSL incluido. Más soporte por email para cualquier duda o cambio que necesites.",
+    why: "Un sitio caído o inseguro aleja clientes. El tuyo estará siempre listo.",
+  },
 ];
 
 export default function PaqueteEmpieza() {
   return (
     <div className="overflow-x-hidden">
       <SEO
-        title="Plan Empieza - Tu Primera Presencia Digital"
-        description="El plan perfecto para contratistas que están empezando. Sitio web profesional, SEO básico y Google Business Profile desde $497/mes."
+        title="Plan Empieza - Tu Primera Presencia Profesional Online"
+        description="El plan perfecto para contratistas que están empezando. Sitio web profesional, SEO básico, Google Business Profile y Click-to-Call desde $497/mes."
         path="/paquetes/empieza"
       />
 
+      {/* HERO */}
       <section className="relative pt-32 pb-20 lg:pt-40 lg:pb-28 bg-gradient-to-br from-[hsl(160,100%,30%)] via-[hsl(160,100%,25%)] to-[hsl(160,100%,20%)] overflow-hidden" data-testid="section-empieza-hero">
         <div className="absolute inset-0 opacity-20">
           <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[hsl(160,100%,50%)] rounded-full blur-[180px] -translate-y-1/2 translate-x-1/4" />
@@ -42,11 +74,11 @@ export default function PaqueteEmpieza() {
               <span className="text-sm text-white/90 font-medium">Plan Empieza</span>
             </motion.div>
             <motion.h1 variants={fadeUp} className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-tight mb-6" data-testid="text-empieza-title">
-              Tu Primera Presencia{" "}
-              <span className="text-teal-200">Profesional en Internet</span>
+              Deja de perder clientes por no tener{" "}
+              <span className="text-teal-200">presencia profesional.</span>
             </motion.h1>
             <motion.p variants={fadeUp} className="text-lg sm:text-xl text-white/80 leading-relaxed mb-8 max-w-2xl">
-              El primer paso para que tus clientes te encuentren. Un sitio web profesional que genera confianza y te pone en el mapa.
+              Tu primer sitio web profesional. Todo lo que necesitas para que tus clientes te encuentren, confíen en ti y te llamen.
             </motion.p>
             <motion.p variants={fadeUp} className="text-4xl font-extrabold text-white mb-8">
               desde $497<span className="text-lg font-medium text-white/70">/mes</span>
@@ -54,14 +86,14 @@ export default function PaqueteEmpieza() {
             <motion.div variants={fadeUp} className="flex flex-col sm:flex-row items-start gap-4">
               <Link href="/contacto">
                 <Button size="lg" className="bg-white text-[hsl(160,100%,25%)] font-bold text-lg gap-2" data-testid="button-empieza-cta">
-                  Empezar Ahora
+                  Quiero Empezar
                   <ArrowRight className="w-5 h-5" />
                 </Button>
               </Link>
-              <a href="tel:+1234567890">
-                <Button size="lg" variant="outline" className="text-white border-white/40 font-bold text-lg gap-2 bg-white/10" data-testid="button-empieza-call">
-                  <Phone className="w-5 h-5" />
-                  (555) 123-4567
+              <a href="https://wa.me/1234567890?text=Hola%2C%20me%20interesa%20el%20Plan%20Empieza" target="_blank" rel="noopener noreferrer">
+                <Button size="lg" variant="outline" className="text-white border-white/40 font-bold text-lg gap-2 bg-white/10" data-testid="button-empieza-whatsapp">
+                  <SiWhatsapp className="w-5 h-5" />
+                  Hablar por WhatsApp
                 </Button>
               </a>
             </motion.div>
@@ -69,45 +101,23 @@ export default function PaqueteEmpieza() {
         </div>
       </section>
 
-      <section className="py-20 lg:py-32 bg-white dark:bg-gray-950" data-testid="section-empieza-features">
+      {/* WHO IT'S FOR */}
+      <section className="py-20 lg:py-32 bg-white dark:bg-gray-950" data-testid="section-empieza-ideal">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center max-w-3xl mx-auto mb-16">
-            <motion.p variants={fadeUp} className="text-[hsl(160,100%,37%)] font-bold text-sm uppercase tracking-widest mb-4">Qué Incluye</motion.p>
-            <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-gray-900 dark:text-white leading-tight">
-              Todo Lo Que Necesitas Para <span className="text-[hsl(160,100%,37%)]">Empezar</span>
-            </motion.h2>
-          </motion.div>
-
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {included.map((item) => (
-              <motion.div key={item.title} variants={fadeUp} className="p-8 rounded-md bg-gray-50 dark:bg-gray-900">
-                <div className="w-14 h-14 rounded-md bg-teal-50 dark:bg-teal-950/30 flex items-center justify-center mb-6">
-                  <item.icon className="w-7 h-7 text-[hsl(160,100%,37%)]" />
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">{item.title}</h3>
-                <p className="text-gray-600 dark:text-gray-400 leading-relaxed text-sm">{item.desc}</p>
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
-      </section>
-
-      <section className="py-20 lg:py-32 bg-gray-50 dark:bg-gray-900" data-testid="section-empieza-ideal">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger}>
-            <motion.p variants={fadeUp} className="text-[hsl(160,100%,37%)] font-bold text-sm uppercase tracking-widest mb-4 text-center">Ideal Para</motion.p>
-            <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl font-extrabold text-gray-900 dark:text-white leading-tight mb-8 text-center">
-              ¿Es Este Plan Para Ti?
-            </motion.h2>
-            <motion.div variants={fadeUp} className="bg-white dark:bg-gray-800 rounded-md p-8 lg:p-10">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+            <motion.div variants={fadeUp}>
+              <p className="text-[hsl(160,100%,37%)] font-bold text-sm uppercase tracking-widest mb-4">¿Para Quién Es?</p>
+              <h2 className="text-3xl sm:text-4xl font-extrabold text-gray-900 dark:text-white leading-tight mb-6" data-testid="text-empieza-ideal-title">
+                Este plan es para ti si...
+              </h2>
               <ul className="space-y-4">
                 {[
-                  "Estás empezando tu negocio de contratista",
-                  "No tienes sitio web o el que tienes no se ve profesional",
-                  "Quieres que tus clientes te encuentren en Google",
-                  "Necesitas un formulario para recibir cotizaciones",
-                  "Tu presupuesto de marketing es limitado pero quieres empezar",
-                  "Quieres verte tan profesional como las empresas grandes",
+                  "Estás empezando tu negocio y necesitas verte profesional desde el día uno",
+                  "No tienes sitio web, o el que tienes no te representa",
+                  "Quieres que tus clientes te encuentren en Google en tu área",
+                  "Necesitas un número de WhatsApp y teléfono visible para recibir llamadas",
+                  "Tu presupuesto es limitado pero sabes que necesitas presencia online",
+                  "Quieres dejar de depender solo de referencias y boca a boca",
                 ].map((item) => (
                   <li key={item} className="flex items-start gap-3">
                     <CheckCircle2 className="w-6 h-6 text-[hsl(160,100%,37%)] flex-shrink-0 mt-0.5" />
@@ -116,31 +126,123 @@ export default function PaqueteEmpieza() {
                 ))}
               </ul>
             </motion.div>
+            <motion.div variants={fadeUp} className="bg-gradient-to-br from-[hsl(160,100%,37%)] to-[hsl(160,100%,28%)] rounded-md p-1">
+              <div className="bg-white dark:bg-gray-900 rounded-md p-8 lg:p-10 text-center">
+                <Zap className="w-16 h-16 text-[hsl(160,100%,37%)] mx-auto mb-6" />
+                <h3 className="text-2xl font-extrabold text-gray-900 dark:text-white mb-3">Plan Empieza</h3>
+                <p className="text-gray-600 dark:text-gray-400 mb-6">Tu base profesional para competir</p>
+                <p className="text-5xl font-extrabold text-[hsl(160,100%,30%)] mb-2">$497</p>
+                <p className="text-gray-500 text-sm">por mes</p>
+              </div>
+            </motion.div>
           </motion.div>
         </div>
       </section>
 
+      {/* WHAT'S INCLUDED — BENEFIT DRIVEN */}
+      <section className="py-20 lg:py-32 bg-gray-50 dark:bg-gray-900" data-testid="section-empieza-features">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center max-w-3xl mx-auto mb-16">
+            <motion.p variants={fadeUp} className="text-[hsl(160,100%,37%)] font-bold text-sm uppercase tracking-widest mb-4">Qué Incluye</motion.p>
+            <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-gray-900 dark:text-white leading-tight" data-testid="text-empieza-features-title">
+              Todo Lo Que Necesitas Para <span className="text-[hsl(160,100%,37%)]">Empezar Bien</span>
+            </motion.h2>
+          </motion.div>
+
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="space-y-8">
+            {included.map((item, i) => (
+              <motion.div key={item.title} variants={fadeUp} className="bg-white dark:bg-gray-800 rounded-md p-8 lg:p-10">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                  <div className="lg:col-span-1">
+                    <div className="w-14 h-14 rounded-md bg-teal-50 dark:bg-teal-950/30 flex items-center justify-center">
+                      <item.icon className="w-7 h-7 text-[hsl(160,100%,37%)]" />
+                    </div>
+                  </div>
+                  <div className="lg:col-span-7">
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{item.title}</h3>
+                    <p className="text-gray-600 dark:text-gray-400 leading-relaxed">{item.desc}</p>
+                  </div>
+                  <div className="lg:col-span-4 bg-teal-50 dark:bg-teal-950/20 rounded-md p-4">
+                    <p className="text-sm font-semibold text-[hsl(160,100%,30%)] dark:text-[hsl(160,100%,45%)]">
+                      <span className="font-extrabold">¿Por qué importa?</span>{" "}
+                      {item.why}
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* UPGRADE COMPARISON */}
+      <section className="py-20 lg:py-32 bg-white dark:bg-gray-950" data-testid="section-empieza-upgrade">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger}>
+            <motion.div variants={fadeUp} className="text-center mb-12">
+              <p className="text-[hsl(340,82%,52%)] font-bold text-sm uppercase tracking-widest mb-4">¿Necesitas Más?</p>
+              <h2 className="text-3xl sm:text-4xl font-extrabold text-gray-900 dark:text-white leading-tight" data-testid="text-empieza-upgrade-title">
+                Cuando estés listo para crecer, el <span className="text-[hsl(340,82%,52%)]">Plan Crece</span> te espera
+              </h2>
+            </motion.div>
+
+            <motion.div variants={fadeUp} className="bg-gradient-to-r from-[hsl(340,82%,52%)] to-[hsl(340,82%,42%)] rounded-md p-1">
+              <div className="bg-white dark:bg-gray-900 rounded-md p-8 lg:p-10">
+                <div className="flex items-center gap-3 mb-6">
+                  <Rocket className="w-8 h-8 text-[hsl(340,82%,52%)]" />
+                  <div>
+                    <h3 className="text-xl font-extrabold text-gray-900 dark:text-white">Plan Crece</h3>
+                    <div className="flex items-center gap-2">
+                      <Star className="w-4 h-4 text-[hsl(340,82%,52%)] fill-[hsl(340,82%,52%)]" />
+                      <span className="text-sm font-bold text-[hsl(340,82%,52%)]">Más Popular</span>
+                    </div>
+                  </div>
+                </div>
+                <p className="text-gray-600 dark:text-gray-400 leading-relaxed mb-6">
+                  Todo lo del Plan Empieza más: hasta 5 páginas, galería de trabajo, portafolio, página de reseñas, SEO avanzado, optimización por servicio, estrategia de reseñas y soporte prioritario por WhatsApp.
+                </p>
+                <div className="flex flex-col sm:flex-row items-start gap-4">
+                  <Link href="/paquetes/crece">
+                    <Button size="lg" className="bg-[hsl(340,82%,52%)] text-white font-bold text-lg gap-2" data-testid="button-empieza-ver-crece">
+                      Ver Plan Crece
+                      <ArrowRight className="w-5 h-5" />
+                    </Button>
+                  </Link>
+                  <Link href="/paquetes">
+                    <Button size="lg" variant="outline" className="font-bold text-lg gap-2" data-testid="button-empieza-comparar">
+                      Comparar Todos Los Planes
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* STRONG CTA */}
       <section className="py-20 lg:py-28 bg-gradient-to-r from-[hsl(160,100%,37%)] to-[hsl(160,100%,28%)]" data-testid="section-empieza-cta-bottom">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger}>
             <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white leading-tight mb-6">
-              Da El Primer Paso Hoy
+              Cada día sin presencia online es dinero que dejas en la mesa.
             </motion.h2>
             <motion.p variants={fadeUp} className="text-xl text-white/90 mb-10 max-w-2xl mx-auto">
-              Tu competencia ya tiene presencia en internet. Es hora de que tú también la tengas.
+              Tu competencia ya tiene página web. Tus clientes están buscando servicios en Google ahora mismo. ¿Van a encontrarte a ti?
             </motion.p>
             <motion.div variants={fadeUp} className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link href="/contacto">
                 <Button size="lg" className="bg-white text-[hsl(160,100%,25%)] font-bold text-lg gap-2" data-testid="button-empieza-cta-bottom">
-                  Empieza Ahora
+                  Quiero Empezar Hoy
                   <ArrowRight className="w-5 h-5" />
                 </Button>
               </Link>
-              <Link href="/paquetes">
-                <Button size="lg" variant="outline" className="text-white border-white/40 font-bold text-lg gap-2 bg-white/10" data-testid="button-empieza-ver-paquetes">
-                  Ver Todos Los Paquetes
+              <a href="https://wa.me/1234567890?text=Hola%2C%20me%20interesa%20el%20Plan%20Empieza" target="_blank" rel="noopener noreferrer">
+                <Button size="lg" variant="outline" className="text-white border-white/40 font-bold text-lg gap-2 bg-white/10" data-testid="button-empieza-whatsapp-bottom">
+                  <SiWhatsapp className="w-5 h-5" />
+                  Hablar por WhatsApp
                 </Button>
-              </Link>
+              </a>
             </motion.div>
           </motion.div>
         </div>
