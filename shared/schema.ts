@@ -6,9 +6,11 @@ import { z } from "zod";
 export const contacts = pgTable("contacts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
-  email: text("email").notNull(),
+  email: text("email"),
   phone: text("phone").notNull(),
   business: text("business"),
+  city: text("city"),
+  trade: text("trade"),
   service: text("service"),
   message: text("message"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
