@@ -1,6 +1,6 @@
 import { Link } from "wouter";
-import { Phone, Mail, MapPin } from "lucide-react";
-import { SiFacebook, SiInstagram, SiTiktok } from "react-icons/si";
+import { Phone, Mail } from "lucide-react";
+import { SiFacebook, SiInstagram, SiTiktok, SiWhatsapp } from "react-icons/si";
 import logoImg from "@assets/20BD1DF0-9B30-47F2-8E16-D17C4A22B42A_1771857217327.PNG";
 
 export default function Footer() {
@@ -27,20 +27,13 @@ export default function Footer() {
           </div>
 
           <div>
-            <h3 className="text-white font-bold text-lg mb-6">Paquetes</h3>
-            <ul className="space-y-3">
-              <li><Link href="/paquetes/empieza" className="text-gray-400 text-sm transition-colors" data-testid="link-footer-empieza">Plan Empieza</Link></li>
-              <li><Link href="/paquetes/crece" className="text-gray-400 text-sm transition-colors" data-testid="link-footer-crece">Plan Crece</Link></li>
-              <li><Link href="/paquetes/domina" className="text-gray-400 text-sm transition-colors" data-testid="link-footer-domina">Plan Domina</Link></li>
-              <li><Link href="/paquetes" className="text-gray-400 text-sm transition-colors" data-testid="link-footer-comparar">Comparar Paquetes</Link></li>
-            </ul>
-          </div>
-
-          <div>
-            <h3 className="text-white font-bold text-lg mb-6">Enlaces</h3>
+            <h3 className="text-white font-bold text-lg mb-6">Enlaces Rápidos</h3>
             <ul className="space-y-3">
               <li><Link href="/" className="text-gray-400 text-sm transition-colors" data-testid="link-footer-home">Inicio</Link></li>
               <li><Link href="/paquetes" className="text-gray-400 text-sm transition-colors" data-testid="link-footer-paquetes">Paquetes</Link></li>
+              <li><Link href="/paquetes/empieza" className="text-gray-400 text-sm transition-colors" data-testid="link-footer-empieza">Plan Empieza</Link></li>
+              <li><Link href="/paquetes/crece" className="text-gray-400 text-sm transition-colors" data-testid="link-footer-crece">Plan Crece</Link></li>
+              <li><Link href="/paquetes/domina" className="text-gray-400 text-sm transition-colors" data-testid="link-footer-domina">Plan Domina</Link></li>
               <li><Link href="/contacto" className="text-gray-400 text-sm transition-colors" data-testid="link-footer-contact">Contacto</Link></li>
             </ul>
           </div>
@@ -49,36 +42,59 @@ export default function Footer() {
             <h3 className="text-white font-bold text-lg mb-6">Contacto</h3>
             <ul className="space-y-4">
               <li className="flex items-start gap-3">
+                <SiWhatsapp className="w-5 h-5 text-[#25D366] flex-shrink-0 mt-0.5" />
+                <div>
+                  <a href="https://wa.me/1234567890" target="_blank" rel="noopener noreferrer" className="text-white text-sm font-semibold" data-testid="link-footer-whatsapp">WhatsApp</a>
+                </div>
+              </li>
+              <li className="flex items-start gap-3">
                 <Phone className="w-5 h-5 text-[hsl(340,82%,52%)] flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-gray-400 text-sm">Llámanos</p>
                   <a href="tel:+1234567890" className="text-white text-sm font-semibold" data-testid="link-footer-phone">(555) 123-4567</a>
                 </div>
               </li>
               <li className="flex items-start gap-3">
                 <Mail className="w-5 h-5 text-[hsl(340,82%,52%)] flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-gray-400 text-sm">Email</p>
                   <a href="mailto:info@vivawebdesigns.com" className="text-white text-sm font-semibold" data-testid="link-footer-email">info@vivawebdesigns.com</a>
                 </div>
               </li>
-              <li className="flex items-start gap-3">
-                <MapPin className="w-5 h-5 text-[hsl(340,82%,52%)] flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-gray-400 text-sm">Ubicación</p>
-                  <p className="text-white text-sm font-semibold">Servicio en todo EE.UU.</p>
-                </div>
+            </ul>
+          </div>
+
+          <div>
+            <h3 className="text-white font-bold text-lg mb-6">Redes Sociales</h3>
+            <ul className="space-y-3">
+              <li>
+                <a href="#" className="flex items-center gap-3 text-gray-400 text-sm transition-colors" data-testid="link-footer-fb">
+                  <SiFacebook className="w-4 h-4" />
+                  Facebook
+                </a>
+              </li>
+              <li>
+                <a href="#" className="flex items-center gap-3 text-gray-400 text-sm transition-colors" data-testid="link-footer-ig">
+                  <SiInstagram className="w-4 h-4" />
+                  Instagram
+                </a>
+              </li>
+              <li>
+                <a href="#" className="flex items-center gap-3 text-gray-400 text-sm transition-colors" data-testid="link-footer-tk">
+                  <SiTiktok className="w-4 h-4" />
+                  TikTok
+                </a>
               </li>
             </ul>
           </div>
         </div>
 
-        <div className="mt-16 pt-8 border-t border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-gray-500 text-sm" data-testid="text-copyright">
-            &copy; {new Date().getFullYear()} Viva Web Designs. Todos los derechos reservados.
-          </p>
-          <p className="text-gray-500 text-sm">
-            Hecho con orgullo para la comunidad latina.
+        <div className="mt-16 pt-8 border-t border-gray-800">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-4">
+            <p className="text-gray-500 text-sm" data-testid="text-copyright">
+              &copy; {new Date().getFullYear()} Viva Web Designs. Todos los derechos reservados.
+            </p>
+          </div>
+          <p className="text-gray-500 text-sm text-center sm:text-left" data-testid="text-footer-statement">
+            Soporte en español. Sin contratos complicados. Sin términos confusos.
           </p>
         </div>
       </div>
