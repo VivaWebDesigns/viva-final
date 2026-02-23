@@ -295,8 +295,8 @@ export default function Home() {
                 )}
                 <div className={`rounded-2xl border bg-white dark:bg-[#0d0d0d] flex flex-col flex-1 transition-all duration-300 ${pkg.popular ? "border-[#1DB954]/40 shadow-xl shadow-[#1DB954]/5 hover:shadow-2xl hover:shadow-[#1DB954]/10" : "border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-lg"}`}>
                   <div className="p-8 lg:p-10 text-center">
-                    <div className={`w-12 h-12 mx-auto rounded-xl flex items-center justify-center mb-5 ${pkg.popular ? "bg-[#1DB954]/10" : "bg-gray-100 dark:bg-gray-800"}`}>
-                      <pkg.icon className={`w-6 h-6 ${pkg.popular ? "text-[#1DB954]" : "text-gray-500 dark:text-gray-400"}`} />
+                    <div className={`w-12 h-12 mx-auto rounded-xl flex items-center justify-center mb-5 bg-[#1DB954]/10`}>
+                      <pkg.icon className={`w-6 h-6 text-[#1DB954]`} />
                     </div>
                     <h3 className="text-2xl font-extrabold text-[#111] dark:text-white mb-1">{pkg.name}</h3>
                     <p className="text-gray-500 dark:text-gray-400 text-xs leading-snug max-w-[220px] mx-auto mb-8">{pkg.subLabel}</p>
