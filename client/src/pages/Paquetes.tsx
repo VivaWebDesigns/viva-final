@@ -197,16 +197,19 @@ export default function Paquetes() {
             </motion.h2>
           </motion.div>
 
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
             {[
               {
                 name: "Empieza",
+                subLabel: "Base profesional",
                 slug: "empieza",
                 icon: Zap,
                 tagline: "Tu primera presencia profesional en internet",
-                price: "desde $497/mes",
-                borderColor: "border-gray-200",
+                price: "Desde $497",
+                microcopy: "Perfecto para comenzar.",
+                borderColor: "border-gray-200 dark:border-gray-700",
                 iconColor: "text-[#1DB954]",
+                muted: true,
                 features: [
                   "Sitio web profesional de 1–3 páginas",
                   "Diseño responsivo y moderno",
@@ -218,10 +221,12 @@ export default function Paquetes() {
               },
               {
                 name: "Crece",
+                subLabel: "La opción más elegida por contratistas que quieren crecer",
                 slug: "crece",
                 icon: Rocket,
                 tagline: "Más llamadas, más clientes, más ingresos",
-                price: "desde $997/mes",
+                price: "Desde $997",
+                microcopy: "Inversión inteligente para crecer.",
                 borderColor: "border-[#1DB954]",
                 iconColor: "text-[#1DB954]",
                 popular: true,
@@ -236,12 +241,15 @@ export default function Paquetes() {
               },
               {
                 name: "Domina",
+                subLabel: "Máximo posicionamiento",
                 slug: "domina",
                 icon: Crown,
                 tagline: "Domina tu mercado y deja atrás a la competencia",
-                price: "desde $1,997/mes",
-                borderColor: "border-gray-200",
+                price: "Desde $1,997",
+                microcopy: "Construido para liderar tu mercado.",
+                borderColor: "border-gray-200 dark:border-gray-700",
                 iconColor: "text-[#1DB954]",
+                premium: true,
                 features: [
                   "Todo lo del plan Crece",
                   "Páginas ilimitadas + blog",
@@ -255,41 +263,47 @@ export default function Paquetes() {
               <motion.div
                 key={pkg.slug}
                 variants={fadeUp}
-                className={`relative rounded-md border-2 ${pkg.borderColor} bg-white dark:bg-[#111] flex flex-col shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] ${pkg.popular ? "ring-2 ring-[#1DB954] shadow-xl" : ""}`}
+                className={`relative flex flex-col ${pkg.popular ? "lg:scale-105 lg:z-10" : ""}`}
                 data-testid={`card-paquete-${pkg.slug}`}
               >
                 {pkg.popular && (
-                  <div className="absolute top-0 right-0 bg-[#1DB954] text-white text-xs font-bold px-4 py-1.5 rounded-bl-md uppercase tracking-wider flex items-center gap-1" data-testid="badge-popular-card">
-                    <Star className="w-3 h-3 fill-white" />
-                    Más Popular
+                  <div className="flex justify-center mb-3">
+                    <span className="bg-[#1DB954] text-white text-xs font-bold px-5 py-1.5 rounded-full uppercase tracking-widest flex items-center gap-1.5 shadow-lg" data-testid="badge-popular-card">
+                      <Star className="w-3 h-3 fill-white" />
+                      Más Popular
+                    </span>
                   </div>
                 )}
 
-                <div className="bg-white dark:bg-[#111] p-8 border-b border-gray-100 dark:border-gray-800">
-                  <div className={`w-14 h-14 rounded-md bg-[#1DB954]/10 flex items-center justify-center mb-4`}>
-                    <pkg.icon className={`w-7 h-7 ${pkg.iconColor}`} />
+                <div className={`rounded-xl border-2 ${pkg.borderColor} bg-white dark:bg-[#111] flex flex-col flex-1 transition-all duration-300 ${pkg.popular ? "ring-2 ring-[#1DB954] shadow-xl hover:shadow-2xl" : pkg.premium ? "shadow-lg hover:shadow-xl" : "shadow-sm hover:shadow-lg"} ${pkg.muted ? "opacity-90 hover:opacity-100" : ""}`}>
+                  <div className={`p-8 border-b border-gray-100 dark:border-gray-800 ${pkg.popular ? "bg-[#1DB954]/5" : pkg.premium ? "bg-gradient-to-br from-[#111]/5 to-transparent" : ""}`}>
+                    <div className={`w-14 h-14 rounded-xl ${pkg.popular ? "bg-[#1DB954]/10" : pkg.premium ? "bg-[#111]/10 dark:bg-white/10" : "bg-gray-100 dark:bg-gray-800"} flex items-center justify-center mb-4`}>
+                      <pkg.icon className={`w-7 h-7 ${pkg.popular ? "text-[#1DB954]" : pkg.premium ? "text-[#111] dark:text-white" : "text-gray-400 dark:text-gray-500"}`} />
+                    </div>
+                    <h3 className={`text-2xl font-extrabold mb-1 ${pkg.popular ? "text-[#1DB954]" : "text-[#111] dark:text-white"}`}>{pkg.name}</h3>
+                    <p className="text-gray-500 dark:text-gray-400 text-xs leading-snug mb-5">{pkg.subLabel}</p>
+                    <p className="text-3xl font-extrabold text-[#111] dark:text-white" data-testid={`text-price-${pkg.slug}`}>{pkg.price}</p>
+                    <p className="text-gray-400 dark:text-gray-500 text-xs mt-1.5 italic">{pkg.microcopy}</p>
                   </div>
-                  <h3 className="text-2xl font-extrabold text-[#111] dark:text-white mb-1">{pkg.name}</h3>
-                  <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">{pkg.tagline}</p>
-                  <p className="text-3xl font-extrabold text-[#111] dark:text-white">{pkg.price}</p>
-                </div>
 
-                <div className="p-8 flex-1 flex flex-col">
-                  <ul className="space-y-3 mb-8 flex-1">
-                    {pkg.features.map((feature) => (
-                      <li key={feature} className="flex items-start gap-3">
-                        <CheckCircle2 className={`w-5 h-5 ${pkg.iconColor} flex-shrink-0 mt-0.5`} />
-                        <span className="text-gray-700 dark:text-gray-300 text-sm">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  <div className="p-8 flex-1 flex flex-col">
+                    <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">{pkg.tagline}</p>
+                    <ul className="space-y-3 mb-8 flex-1">
+                      {pkg.features.map((feature) => (
+                        <li key={feature} className="flex items-start gap-3">
+                          <CheckCircle2 className={`w-5 h-5 ${pkg.iconColor} flex-shrink-0 mt-0.5`} />
+                          <span className="text-gray-700 dark:text-gray-300 text-sm">{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
 
-                  <Link href={`/paquetes/${pkg.slug}`}>
-                    <Button size="lg" className={`w-full font-bold text-lg gap-2 rounded-full ${pkg.popular ? "bg-[#1DB954] hover:bg-[#1aa34a] text-white hover:shadow-lg transition-all duration-200" : "bg-[#111] dark:bg-white text-white dark:text-[#111] hover:shadow-lg transition-all duration-200"}`} data-testid={`button-ver-${pkg.slug}`}>
-                      Ver Detalles
-                      <ArrowRight className="w-5 h-5" />
-                    </Button>
-                  </Link>
+                    <Link href={`/paquetes/${pkg.slug}`}>
+                      <Button size="lg" className={`w-full font-bold text-lg gap-2 rounded-full hover:shadow-lg transition-all duration-200 ${pkg.popular ? "bg-[#1DB954] hover:bg-[#1aa34a] text-white" : pkg.premium ? "bg-[#111] dark:bg-white text-white dark:text-[#111]" : "bg-white dark:bg-[#111] text-[#111] dark:text-white border-2 border-gray-200 dark:border-gray-700 hover:border-[#1DB954]"}`} data-testid={`button-ver-${pkg.slug}`}>
+                        Ver Detalles
+                        <ArrowRight className="w-5 h-5" />
+                      </Button>
+                    </Link>
+                  </div>
                 </div>
               </motion.div>
             ))}
