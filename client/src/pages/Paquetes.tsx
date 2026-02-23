@@ -283,6 +283,7 @@ export default function Paquetes() {
                     <h3 className={`text-2xl font-extrabold mb-1 ${pkg.popular ? "text-[#1DB954]" : "text-[#111] dark:text-white"}`}>{pkg.name}</h3>
                     <p className="text-gray-500 dark:text-gray-400 text-xs leading-snug mb-5">{pkg.subLabel}</p>
                     <p className="text-3xl font-extrabold text-[#111] dark:text-white" data-testid={`text-price-${pkg.slug}`}>{pkg.price}</p>
+                    <p className="text-[10px] text-gray-400 dark:text-gray-500 font-medium mt-1">Más plan mensual requerido.</p>
                     <p className="text-gray-400 dark:text-gray-500 text-xs mt-1.5 italic">{pkg.microcopy}</p>
                   </div>
 

@@ -80,9 +80,10 @@ export default function PaqueteEmpieza() {
             <motion.p variants={fadeUp} className="text-lg sm:text-xl text-white/80 leading-relaxed mb-8 max-w-2xl">
               Tu primer sitio web profesional. Todo lo que necesitas para que tus clientes te encuentren, confíen en ti y te llamen.
             </motion.p>
-            <motion.p variants={fadeUp} className="text-4xl font-extrabold text-white mb-8">
-              desde $497<span className="text-lg font-medium text-white/70">/mes</span>
+            <motion.p variants={fadeUp} className="text-4xl font-extrabold text-white mb-2">
+              desde $497
             </motion.p>
+            <motion.p variants={fadeUp} className="text-xs text-white/60 font-medium mb-8">Más plan mensual requerido.</p>
             <motion.div variants={fadeUp} className="flex flex-col sm:flex-row items-start gap-4">
               <Link href="/contacto">
                 <Button size="lg" className="bg-[#1DB954] text-white font-bold text-lg gap-2 rounded-full transition-all duration-200 hover:shadow-lg" data-testid="button-empieza-cta">
@@ -131,8 +132,8 @@ export default function PaqueteEmpieza() {
                 <Zap className="w-16 h-16 text-[#1DB954] mx-auto mb-6" />
                 <h3 className="text-2xl font-extrabold text-[#111] dark:text-white mb-3">Plan Empieza</h3>
                 <p className="text-gray-600 dark:text-gray-400 mb-6">Tu base profesional para competir</p>
-                <p className="text-5xl font-extrabold text-[#1DB954] mb-2">$497</p>
-                <p className="text-gray-500 text-sm">por mes</p>
+                <p className="text-5xl font-extrabold text-[#1DB954] mb-1">$497</p>
+                <p className="text-[10px] text-gray-400 font-medium mb-4">Más plan mensual requerido.</p>
               </div>
             </motion.div>
           </motion.div>
