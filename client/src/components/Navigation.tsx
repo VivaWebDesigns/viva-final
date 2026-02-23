@@ -68,7 +68,7 @@ export default function Navigation() {
             {navLinks.map((link) => (
               <Link
                 key={link.href}
-                href={link.href.startsWith("/#") ? "/" : link.href}
+                href={link.href.includes("#") ? link.href : link.href}
                 className={`text-[13px] font-semibold tracking-wide transition-colors duration-200 ${
                   isActive(link.href)
                     ? "text-[#1DB954]"
@@ -106,7 +106,7 @@ export default function Navigation() {
             {navLinks.map((link) => (
               <Link
                 key={link.href}
-                href={link.href.startsWith("/#") ? "/" : link.href}
+                href={link.href.includes("#") ? link.href : link.href}
                 className={`block text-lg font-semibold py-3 transition-colors ${
                   isActive(link.href)
                     ? "text-[#1DB954]"
