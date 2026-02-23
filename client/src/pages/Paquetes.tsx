@@ -309,6 +309,9 @@ export default function Paquetes() {
               </motion.div>
             ))}
           </motion.div>
+          <motion.p initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ delay: 0.4 }} className="text-center text-sm text-gray-400 dark:text-gray-500 mt-8" data-testid="text-payment-reassurance">
+            También ofrecemos opciones de pago en partes. <a href="https://wa.me/1234567890?text=Hola%2C%20quiero%20saber%20sobre%20opciones%20de%20pago" target="_blank" rel="noopener noreferrer" className="underline hover:text-[#1DB954] transition-colors">Pregúntanos por WhatsApp.</a>
+          </motion.p>
         </div>
       </section>
 
