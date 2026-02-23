@@ -101,7 +101,7 @@ export default function Paquetes() {
               </span>
             </motion.h1>
             <motion.p variants={fadeUp} className="text-lg sm:text-xl text-gray-300 max-w-2xl mx-auto">
-              Te ayudamos a verte profesional, aparecer en Google y conseguir más llamadas.
+              Te ayudamos a crear una imagen profesional, mejorar tu visibilidad en Google y generar más llamadas.
             </motion.p>
           </motion.div>
         </div>
