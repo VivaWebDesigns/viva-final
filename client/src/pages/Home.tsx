@@ -84,8 +84,8 @@ export default function Home() {
   return (
     <div className="overflow-x-hidden">
       <SEO
-        title="Marketing Digital para Contratistas Latinos"
-        description="Creamos sitios web profesionales para contratistas latinos que quieren aparecer en Google y competir con empresas grandes. Más llamadas, más trabajos, más crecimiento."
+        title="Marketing Digital para Contratistas"
+        description="Creamos sitios web profesionales para contratistas que quieren aparecer en Google y competir con empresas grandes. Más llamadas, más trabajos, más crecimiento."
         path="/"
       />
 
@@ -107,7 +107,7 @@ export default function Home() {
             </motion.h1>
 
             <motion.p variants={fadeUp} className="text-lg sm:text-xl text-gray-300 leading-relaxed mb-10 max-w-2xl" data-testid="text-hero-subtitle">
-              Creamos sitios web profesionales para contratistas latinos que quieren aparecer en Google y competir con empresas grandes.
+              Creamos sitios web profesionales para contratistas que quieren aparecer en Google y competir con empresas grandes.
             </motion.p>
 
             <motion.div variants={fadeUp} className="flex flex-col sm:flex-row items-start gap-4">
