@@ -63,9 +63,9 @@ export default function PaqueteEmpieza() {
       />
 
       {/* HERO */}
-      <section className="relative pt-32 pb-20 lg:pt-40 lg:pb-28 bg-gradient-to-br from-[hsl(160,100%,30%)] via-[hsl(160,100%,25%)] to-[hsl(160,100%,20%)] overflow-hidden" data-testid="section-empieza-hero">
+      <section className="relative pt-32 pb-20 lg:pt-40 lg:pb-28 bg-[#111] overflow-hidden" data-testid="section-empieza-hero">
         <div className="absolute inset-0 opacity-20">
-          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[hsl(160,100%,50%)] rounded-full blur-[180px] -translate-y-1/2 translate-x-1/4" />
+          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[#1DB954] rounded-full blur-[180px] -translate-y-1/2 translate-x-1/4" />
         </div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" animate="visible" variants={stagger} className="max-w-3xl">
@@ -75,7 +75,7 @@ export default function PaqueteEmpieza() {
             </motion.div>
             <motion.h1 variants={fadeUp} className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-tight mb-6" data-testid="text-empieza-title">
               Deja de perder clientes por no tener{" "}
-              <span className="text-teal-200">presencia profesional.</span>
+              <span className="text-emerald-200">presencia profesional.</span>
             </motion.h1>
             <motion.p variants={fadeUp} className="text-lg sm:text-xl text-white/80 leading-relaxed mb-8 max-w-2xl">
               Tu primer sitio web profesional. Todo lo que necesitas para que tus clientes te encuentren, confíen en ti y te llamen.
@@ -85,13 +85,13 @@ export default function PaqueteEmpieza() {
             </motion.p>
             <motion.div variants={fadeUp} className="flex flex-col sm:flex-row items-start gap-4">
               <Link href="/contacto">
-                <Button size="lg" className="bg-white text-[hsl(160,100%,25%)] font-bold text-lg gap-2" data-testid="button-empieza-cta">
+                <Button size="lg" className="bg-[#1DB954] text-white font-bold text-lg gap-2 rounded-full transition-all duration-200 hover:shadow-lg" data-testid="button-empieza-cta">
                   Quiero Empezar
                   <ArrowRight className="w-5 h-5" />
                 </Button>
               </Link>
               <a href="https://wa.me/1234567890?text=Hola%2C%20me%20interesa%20el%20Plan%20Empieza" target="_blank" rel="noopener noreferrer">
-                <Button size="lg" variant="outline" className="text-white border-white/40 font-bold text-lg gap-2 bg-white/10" data-testid="button-empieza-whatsapp">
+                <Button size="lg" variant="outline" className="text-white border-white/40 font-bold text-lg gap-2 bg-white/10 rounded-full transition-all duration-200 hover:shadow-lg" data-testid="button-empieza-whatsapp">
                   <SiWhatsapp className="w-5 h-5" />
                   Hablar por WhatsApp
                 </Button>
@@ -102,12 +102,12 @@ export default function PaqueteEmpieza() {
       </section>
 
       {/* WHO IT'S FOR */}
-      <section className="py-20 lg:py-32 bg-white dark:bg-gray-950" data-testid="section-empieza-ideal">
+      <section className="py-24 lg:py-40 bg-white dark:bg-[#0d0d0d]" data-testid="section-empieza-ideal">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <motion.div variants={fadeUp}>
-              <p className="text-[hsl(160,100%,37%)] font-bold text-sm uppercase tracking-widest mb-4">¿Para Quién Es?</p>
-              <h2 className="text-3xl sm:text-4xl font-extrabold text-gray-900 dark:text-white leading-tight mb-6" data-testid="text-empieza-ideal-title">
+              <p className="text-[#1DB954] font-bold text-sm uppercase tracking-widest mb-4">¿Para Quién Es?</p>
+              <h2 className="text-3xl sm:text-4xl font-extrabold text-[#111] dark:text-white leading-tight mb-6" data-testid="text-empieza-ideal-title">
                 Este plan es para ti si...
               </h2>
               <ul className="space-y-4">
@@ -120,18 +120,18 @@ export default function PaqueteEmpieza() {
                   "Quieres dejar de depender solo de referencias y boca a boca",
                 ].map((item) => (
                   <li key={item} className="flex items-start gap-3">
-                    <CheckCircle2 className="w-6 h-6 text-[hsl(160,100%,37%)] flex-shrink-0 mt-0.5" />
+                    <CheckCircle2 className="w-6 h-6 text-[#1DB954] flex-shrink-0 mt-0.5" />
                     <span className="text-gray-700 dark:text-gray-300 font-medium">{item}</span>
                   </li>
                 ))}
               </ul>
             </motion.div>
-            <motion.div variants={fadeUp} className="bg-gradient-to-br from-[hsl(160,100%,37%)] to-[hsl(160,100%,28%)] rounded-md p-1">
-              <div className="bg-white dark:bg-gray-900 rounded-md p-8 lg:p-10 text-center">
-                <Zap className="w-16 h-16 text-[hsl(160,100%,37%)] mx-auto mb-6" />
-                <h3 className="text-2xl font-extrabold text-gray-900 dark:text-white mb-3">Plan Empieza</h3>
+            <motion.div variants={fadeUp} className="bg-gradient-to-br from-[#1DB954] to-[#1aa34a] rounded-md p-1">
+              <div className="bg-white dark:bg-[#111] rounded-md p-8 lg:p-10 text-center">
+                <Zap className="w-16 h-16 text-[#1DB954] mx-auto mb-6" />
+                <h3 className="text-2xl font-extrabold text-[#111] dark:text-white mb-3">Plan Empieza</h3>
                 <p className="text-gray-600 dark:text-gray-400 mb-6">Tu base profesional para competir</p>
-                <p className="text-5xl font-extrabold text-[hsl(160,100%,30%)] mb-2">$497</p>
+                <p className="text-5xl font-extrabold text-[#1DB954] mb-2">$497</p>
                 <p className="text-gray-500 text-sm">por mes</p>
               </div>
             </motion.div>
@@ -140,12 +140,12 @@ export default function PaqueteEmpieza() {
       </section>
 
       {/* WHAT'S INCLUDED — BENEFIT DRIVEN */}
-      <section className="py-20 lg:py-32 bg-gray-50 dark:bg-gray-900" data-testid="section-empieza-features">
+      <section className="py-24 lg:py-40 bg-[#f5f5f5] dark:bg-[#111]" data-testid="section-empieza-features">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center max-w-3xl mx-auto mb-16">
-            <motion.p variants={fadeUp} className="text-[hsl(160,100%,37%)] font-bold text-sm uppercase tracking-widest mb-4">Qué Incluye</motion.p>
-            <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-gray-900 dark:text-white leading-tight" data-testid="text-empieza-features-title">
-              Todo Lo Que Necesitas Para <span className="text-[hsl(160,100%,37%)]">Empezar Bien</span>
+            <motion.p variants={fadeUp} className="text-[#1DB954] font-bold text-sm uppercase tracking-widest mb-4">Qué Incluye</motion.p>
+            <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#111] dark:text-white leading-tight" data-testid="text-empieza-features-title">
+              Todo Lo Que Necesitas Para <span className="text-[#1DB954]">Empezar Bien</span>
             </motion.h2>
           </motion.div>
 
@@ -154,16 +154,16 @@ export default function PaqueteEmpieza() {
               <motion.div key={item.title} variants={fadeUp} className="bg-white dark:bg-gray-800 rounded-md p-8 lg:p-10">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
                   <div className="lg:col-span-1">
-                    <div className="w-14 h-14 rounded-md bg-teal-50 dark:bg-teal-950/30 flex items-center justify-center">
-                      <item.icon className="w-7 h-7 text-[hsl(160,100%,37%)]" />
+                    <div className="w-14 h-14 rounded-md bg-emerald-50 dark:bg-emerald-950/30 flex items-center justify-center">
+                      <item.icon className="w-7 h-7 text-[#1DB954]" />
                     </div>
                   </div>
                   <div className="lg:col-span-7">
-                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{item.title}</h3>
+                    <h3 className="text-xl font-bold text-[#111] dark:text-white mb-2">{item.title}</h3>
                     <p className="text-gray-600 dark:text-gray-400 leading-relaxed">{item.desc}</p>
                   </div>
-                  <div className="lg:col-span-4 bg-teal-50 dark:bg-teal-950/20 rounded-md p-4">
-                    <p className="text-sm font-semibold text-[hsl(160,100%,30%)] dark:text-[hsl(160,100%,45%)]">
+                  <div className="lg:col-span-4 bg-[#1DB954]/5 rounded-md p-4">
+                    <p className="text-sm font-semibold text-[#1DB954]">
                       <span className="font-extrabold">¿Por qué importa?</span>{" "}
                       {item.why}
                     </p>
@@ -176,25 +176,25 @@ export default function PaqueteEmpieza() {
       </section>
 
       {/* UPGRADE COMPARISON */}
-      <section className="py-20 lg:py-32 bg-white dark:bg-gray-950" data-testid="section-empieza-upgrade">
+      <section className="py-24 lg:py-40 bg-white dark:bg-[#0d0d0d]" data-testid="section-empieza-upgrade">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger}>
             <motion.div variants={fadeUp} className="text-center mb-12">
-              <p className="text-[hsl(340,82%,52%)] font-bold text-sm uppercase tracking-widest mb-4">¿Necesitas Más?</p>
-              <h2 className="text-3xl sm:text-4xl font-extrabold text-gray-900 dark:text-white leading-tight" data-testid="text-empieza-upgrade-title">
-                Cuando estés listo para crecer, el <span className="text-[hsl(340,82%,52%)]">Plan Crece</span> te espera
+              <p className="text-[#1DB954] font-bold text-sm uppercase tracking-widest mb-4">¿Necesitas Más?</p>
+              <h2 className="text-3xl sm:text-4xl font-extrabold text-[#111] dark:text-white leading-tight" data-testid="text-empieza-upgrade-title">
+                Cuando estés listo para crecer, el <span className="text-[#1DB954]">Plan Crece</span> te espera
               </h2>
             </motion.div>
 
-            <motion.div variants={fadeUp} className="bg-gradient-to-r from-[hsl(340,82%,52%)] to-[hsl(340,82%,42%)] rounded-md p-1">
-              <div className="bg-white dark:bg-gray-900 rounded-md p-8 lg:p-10">
+            <motion.div variants={fadeUp} className="border-2 border-[#1DB954] rounded-md p-1">
+              <div className="bg-white dark:bg-[#111] rounded-md p-8 lg:p-10">
                 <div className="flex items-center gap-3 mb-6">
-                  <Rocket className="w-8 h-8 text-[hsl(340,82%,52%)]" />
+                  <Rocket className="w-8 h-8 text-[#1DB954]" />
                   <div>
-                    <h3 className="text-xl font-extrabold text-gray-900 dark:text-white">Plan Crece</h3>
+                    <h3 className="text-xl font-extrabold text-[#111] dark:text-white">Plan Crece</h3>
                     <div className="flex items-center gap-2">
-                      <Star className="w-4 h-4 text-[hsl(340,82%,52%)] fill-[hsl(340,82%,52%)]" />
-                      <span className="text-sm font-bold text-[hsl(340,82%,52%)]">Más Popular</span>
+                      <Star className="w-4 h-4 text-[#1DB954] fill-[#1DB954]" />
+                      <span className="text-sm font-bold text-[#1DB954]">Más Popular</span>
                     </div>
                   </div>
                 </div>
@@ -203,13 +203,13 @@ export default function PaqueteEmpieza() {
                 </p>
                 <div className="flex flex-col sm:flex-row items-start gap-4">
                   <Link href="/paquetes/crece">
-                    <Button size="lg" className="bg-[hsl(340,82%,52%)] text-white font-bold text-lg gap-2" data-testid="button-empieza-ver-crece">
+                    <Button size="lg" className="bg-[#1DB954] text-white font-bold text-lg gap-2 rounded-full transition-all duration-200 hover:shadow-lg" data-testid="button-empieza-ver-crece">
                       Ver Plan Crece
                       <ArrowRight className="w-5 h-5" />
                     </Button>
                   </Link>
                   <Link href="/paquetes">
-                    <Button size="lg" variant="outline" className="font-bold text-lg gap-2" data-testid="button-empieza-comparar">
+                    <Button size="lg" variant="outline" className="font-bold text-lg gap-2 rounded-full transition-all duration-200 hover:shadow-lg" data-testid="button-empieza-comparar">
                       Comparar Todos Los Planes
                     </Button>
                   </Link>
@@ -221,7 +221,7 @@ export default function PaqueteEmpieza() {
       </section>
 
       {/* STRONG CTA */}
-      <section className="py-20 lg:py-28 bg-gradient-to-r from-[hsl(160,100%,37%)] to-[hsl(160,100%,28%)]" data-testid="section-empieza-cta-bottom">
+      <section className="py-24 lg:py-40 bg-[#111]" data-testid="section-empieza-cta-bottom">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger}>
             <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white leading-tight mb-6">
@@ -232,13 +232,13 @@ export default function PaqueteEmpieza() {
             </motion.p>
             <motion.div variants={fadeUp} className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link href="/contacto">
-                <Button size="lg" className="bg-white text-[hsl(160,100%,25%)] font-bold text-lg gap-2" data-testid="button-empieza-cta-bottom">
+                <Button size="lg" className="bg-[#1DB954] text-white font-bold text-lg gap-2 rounded-full transition-all duration-200 hover:shadow-lg" data-testid="button-empieza-cta-bottom">
                   Quiero Empezar Hoy
                   <ArrowRight className="w-5 h-5" />
                 </Button>
               </Link>
               <a href="https://wa.me/1234567890?text=Hola%2C%20me%20interesa%20el%20Plan%20Empieza" target="_blank" rel="noopener noreferrer">
-                <Button size="lg" variant="outline" className="text-white border-white/40 font-bold text-lg gap-2 bg-white/10" data-testid="button-empieza-whatsapp-bottom">
+                <Button size="lg" variant="outline" className="text-white border-white/40 font-bold text-lg gap-2 bg-white/10 rounded-full transition-all duration-200 hover:shadow-lg" data-testid="button-empieza-whatsapp-bottom">
                   <SiWhatsapp className="w-5 h-5" />
                   Hablar por WhatsApp
                 </Button>

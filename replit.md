@@ -5,7 +5,7 @@ Marketing agency website targeting Latino contractors (painters, electricians, l
 
 ## Brand
 - **Company**: Viva Web Designs
-- **Colors**: Primary pink/magenta (hsl 340 82% 52%), secondary teal/green (hsl 160 100% 37%), accent amber
+- **Colors**: Primary emerald green (#1DB954, hsl 141 73% 42%), secondary deep charcoal (#111111), backgrounds white (#FFFFFF) and light gray (#F5F5F5)
 - **Fonts**: Plus Jakarta Sans (body), Montserrat (headings), Inter (fallback)
 - **Tone**: Confident, professional, clear, direct, Spanish-first
 

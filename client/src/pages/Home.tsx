@@ -68,7 +68,7 @@ function FAQItem({ q, a }: { q: string; a: string }) {
         className="w-full flex items-center justify-between py-6 text-left gap-4"
         data-testid={`button-faq-${q.slice(1, 15).replace(/\s/g, "-").toLowerCase()}`}
       >
-        <span className="text-lg font-bold text-gray-900 dark:text-white">{q}</span>
+        <span className="text-lg font-bold text-[#111] dark:text-white">{q}</span>
         <ChevronDown className={`w-5 h-5 text-gray-500 flex-shrink-0 transition-transform duration-300 ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
@@ -91,16 +91,16 @@ export default function Home() {
 
       {/* SECTION 1 – HERO */}
       <section className="relative min-h-[90vh] flex items-center overflow-hidden" data-testid="section-hero">
-        <div className="absolute inset-0 bg-gray-950">
+        <div className="absolute inset-0 bg-[#111]">
           <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=1920&q=80')] bg-cover bg-center opacity-30" />
-          <div className="absolute inset-0 bg-gradient-to-r from-gray-950/90 via-gray-950/70 to-gray-950/50" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#111]/90 via-[#111]/70 to-[#111]/50" />
         </div>
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-32 lg:py-40">
           <motion.div initial="hidden" animate="visible" variants={stagger} className="max-w-3xl">
             <motion.h1 variants={fadeUp} className="text-4xl sm:text-5xl lg:text-7xl font-extrabold text-white leading-[1.1] tracking-tight mb-6" data-testid="text-hero-title">
               Más llamadas.{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[hsl(340,82%,60%)] to-[hsl(340,82%,45%)]">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#1DB954] to-[#22c55e]">
                 Más trabajos.
               </span>{" "}
               Más crecimiento.
@@ -112,13 +112,13 @@ export default function Home() {
 
             <motion.div variants={fadeUp} className="flex flex-col sm:flex-row items-start gap-4">
               <Link href="/paquetes">
-                <Button size="lg" className="bg-[hsl(340,82%,52%)] text-white font-bold text-lg gap-2" data-testid="button-hero-paquetes">
+                <Button size="lg" className="rounded-full bg-[#1DB954] text-white font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-hero-paquetes">
                   Ver Paquetes
                   <ArrowRight className="w-5 h-5" />
                 </Button>
               </Link>
               <a href="https://wa.me/1234567890?text=Hola%2C%20me%20interesa%20saber%20más%20sobre%20sus%20servicios" target="_blank" rel="noopener noreferrer">
-                <Button size="lg" variant="outline" className="text-white border-white/30 font-bold text-lg gap-2 bg-white/5 backdrop-blur-sm" data-testid="button-hero-whatsapp">
+                <Button size="lg" variant="outline" className="rounded-full text-white border-white/30 font-bold text-lg gap-2 bg-white/5 backdrop-blur-sm hover:shadow-lg transition-all duration-200" data-testid="button-hero-whatsapp">
                   <SiWhatsapp className="w-5 h-5" />
                   Hablar por WhatsApp
                 </Button>
@@ -129,12 +129,12 @@ export default function Home() {
       </section>
 
       {/* SECTION 2 – PROBLEM */}
-      <section className="py-20 lg:py-32 bg-white dark:bg-gray-950" data-testid="section-problem">
+      <section className="py-24 lg:py-40 bg-white dark:bg-[#0d0d0d]" data-testid="section-problem">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="max-w-3xl mx-auto">
-            <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-gray-900 dark:text-white leading-tight mb-10 text-center" data-testid="text-problem-title">
+            <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#111] dark:text-white leading-tight mb-10 text-center" data-testid="text-problem-title">
               ¿Tu negocio depende solo de{" "}
-              <span className="text-[hsl(340,82%,52%)]">referencias?</span>
+              <span className="text-[#1DB954]">referencias?</span>
             </motion.h2>
 
             <motion.div variants={fadeUp} className="space-y-5 mb-10">
@@ -159,12 +159,12 @@ export default function Home() {
       </section>
 
       {/* SECTION 3 – SOLUTION POSITIONING */}
-      <section className="py-20 lg:py-32 bg-gray-50 dark:bg-gray-900" data-testid="section-solution">
+      <section className="py-24 lg:py-40 bg-[#f5f5f5] dark:bg-[#111]" data-testid="section-solution">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center max-w-3xl mx-auto mb-16">
-            <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-gray-900 dark:text-white leading-tight mb-6" data-testid="text-solution-title">
+            <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#111] dark:text-white leading-tight mb-6" data-testid="text-solution-title">
               Te ayudamos a verte profesional y{" "}
-              <span className="text-[hsl(160,100%,37%)]">generar más llamadas.</span>
+              <span className="text-[#1DB954]">generar más llamadas.</span>
             </motion.h2>
             <motion.p variants={fadeUp} className="text-lg text-gray-600 dark:text-gray-400 leading-relaxed">
               No vendemos páginas web. Construimos presencia digital que genera confianza y posicionamiento local.
@@ -173,15 +173,15 @@ export default function Home() {
 
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
-              { icon: Image, title: "Imagen Profesional", desc: "Tu negocio se verá como las empresas grandes. Sitios web modernos que generan confianza al instante.", color: "bg-pink-50 dark:bg-pink-950/30", iconColor: "text-[hsl(340,82%,52%)]" },
-              { icon: Eye, title: "Visibilidad en Google", desc: "Aparece cuando tus clientes buscan servicios en tu área. SEO local y Google Maps optimizado.", color: "bg-teal-50 dark:bg-teal-950/30", iconColor: "text-[hsl(160,100%,37%)]" },
-              { icon: PhoneCall, title: "Más Llamadas", desc: "Todo lo que hacemos está diseñado para un resultado: que tu teléfono suene más con clientes reales.", color: "bg-amber-50 dark:bg-amber-950/30", iconColor: "text-amber-500" },
+              { icon: Image, title: "Imagen Profesional", desc: "Tu negocio se verá como las empresas grandes. Sitios web modernos que generan confianza al instante.", color: "bg-emerald-50 dark:bg-emerald-950/30", iconColor: "text-[#1DB954]" },
+              { icon: Eye, title: "Visibilidad en Google", desc: "Aparece cuando tus clientes buscan servicios en tu área. SEO local y Google Maps optimizado.", color: "bg-emerald-50 dark:bg-emerald-950/30", iconColor: "text-[#1DB954]" },
+              { icon: PhoneCall, title: "Más Llamadas", desc: "Todo lo que hacemos está diseñado para un resultado: que tu teléfono suene más con clientes reales.", color: "bg-emerald-50 dark:bg-emerald-950/30", iconColor: "text-[#1DB954]" },
             ].map((item) => (
               <motion.div key={item.title} variants={fadeUp} className={`p-8 lg:p-10 rounded-md ${item.color} text-center`}>
                 <div className="w-16 h-16 mx-auto rounded-full bg-white dark:bg-gray-800 flex items-center justify-center mb-6">
                   <item.icon className={`w-8 h-8 ${item.iconColor}`} />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">{item.title}</h3>
+                <h3 className="text-xl font-bold text-[#111] dark:text-white mb-3">{item.title}</h3>
                 <p className="text-gray-600 dark:text-gray-400 leading-relaxed">{item.desc}</p>
               </motion.div>
             ))}
@@ -190,13 +190,13 @@ export default function Home() {
       </section>
 
       {/* SECTION 4 – PACKAGES PREVIEW */}
-      <section className="py-20 lg:py-32 bg-white dark:bg-gray-950" data-testid="section-packages">
+      <section className="py-24 lg:py-40 bg-white dark:bg-[#0d0d0d]" data-testid="section-packages">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center max-w-3xl mx-auto mb-16">
-            <motion.p variants={fadeUp} className="text-[hsl(340,82%,52%)] font-bold text-sm uppercase tracking-widest mb-4">
+            <motion.p variants={fadeUp} className="text-[#1DB954] font-bold text-sm uppercase tracking-widest mb-4">
               Nuestros Paquetes
             </motion.p>
-            <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-gray-900 dark:text-white leading-tight" data-testid="text-packages-title">
+            <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#111] dark:text-white leading-tight" data-testid="text-packages-title">
               Elige Tu Plan
             </motion.h2>
           </motion.div>
@@ -208,16 +208,16 @@ export default function Home() {
                 slug: "empieza",
                 icon: Zap,
                 desc: "Tu primera presencia profesional en internet para empezar a generar confianza.",
-                color: "from-[hsl(160,100%,37%)] to-[hsl(160,100%,28%)]",
-                borderColor: "border-[hsl(160,100%,37%)]",
+                color: "from-[#1DB954] to-[#17a44a]",
+                borderColor: "border-[#1DB954]",
               },
               {
                 name: "Crece",
                 slug: "crece",
                 icon: Rocket,
                 desc: "Marketing completo para recibir más llamadas y superar a tu competencia.",
-                color: "from-[hsl(340,82%,52%)] to-[hsl(340,82%,42%)]",
-                borderColor: "border-[hsl(340,82%,52%)]",
+                color: "from-[#1DB954] to-[#15903e]",
+                borderColor: "border-[#1DB954]",
                 popular: true,
               },
               {
@@ -225,13 +225,13 @@ export default function Home() {
                 slug: "domina",
                 icon: Crown,
                 desc: "El paquete premium para ser la opción #1 en tu mercado local.",
-                color: "from-amber-500 to-amber-600",
-                borderColor: "border-amber-500",
+                color: "from-[#1DB954] to-[#1aa34a]",
+                borderColor: "border-[#1DB954]",
               },
             ].map((pkg) => (
-              <motion.div key={pkg.slug} variants={fadeUp} className={`relative rounded-md border-2 ${pkg.borderColor} overflow-hidden bg-white dark:bg-gray-900 flex flex-col`} data-testid={`card-package-${pkg.slug}`}>
+              <motion.div key={pkg.slug} variants={fadeUp} className={`relative rounded-md border-2 ${pkg.borderColor} overflow-hidden bg-white dark:bg-[#111] flex flex-col`} data-testid={`card-package-${pkg.slug}`}>
                 {pkg.popular && (
-                  <div className="absolute top-0 right-0 bg-[hsl(340,82%,52%)] text-white text-xs font-bold px-4 py-1.5 rounded-bl-md uppercase tracking-wider flex items-center gap-1" data-testid="badge-popular">
+                  <div className="absolute top-0 right-0 bg-[#1DB954] text-white text-xs font-bold px-4 py-1.5 rounded-bl-md uppercase tracking-wider flex items-center gap-1" data-testid="badge-popular">
                     <Star className="w-3 h-3 fill-white" />
                     Más Popular
                   </div>
@@ -243,7 +243,7 @@ export default function Home() {
                 <div className="p-8 flex-1 flex flex-col">
                   <p className="text-gray-600 dark:text-gray-400 leading-relaxed mb-8 flex-1">{pkg.desc}</p>
                   <Link href={`/paquetes/${pkg.slug}`}>
-                    <Button size="lg" className={`w-full font-bold text-lg gap-2 ${pkg.popular ? "bg-[hsl(340,82%,52%)] text-white" : "bg-gray-900 dark:bg-white text-white dark:text-gray-900"}`} data-testid={`button-ver-${pkg.slug}`}>
+                    <Button size="lg" className={`w-full rounded-full font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200 ${pkg.popular ? "bg-[#1DB954] text-white" : "bg-[#111] dark:bg-white text-white dark:text-[#111]"}`} data-testid={`button-ver-${pkg.slug}`}>
                       Ver Detalles
                       <ArrowRight className="w-5 h-5" />
                     </Button>
@@ -256,11 +256,11 @@ export default function Home() {
       </section>
 
       {/* SECTION 5 – BEFORE / AFTER */}
-      <section className="py-20 lg:py-32 bg-gray-950" data-testid="section-before-after">
+      <section className="py-24 lg:py-40 bg-[#111]" data-testid="section-before-after">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center mb-16">
             <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white leading-tight" data-testid="text-before-after-title">
-              Antes vs <span className="text-[hsl(160,100%,45%)]">Después</span>
+              Antes vs <span className="text-[#1DB954]">Después</span>
             </motion.h2>
           </motion.div>
 
@@ -281,8 +281,8 @@ export default function Home() {
               </ul>
             </motion.div>
 
-            <motion.div variants={fadeUp} className="rounded-md border border-[hsl(160,100%,37%)]/30 bg-[hsl(160,100%,37%)]/10 p-8 lg:p-10" data-testid="card-after">
-              <div className="text-[hsl(160,100%,50%)] font-bold text-sm uppercase tracking-widest mb-6">Después</div>
+            <motion.div variants={fadeUp} className="rounded-md border border-[#1DB954]/30 bg-[#1DB954]/10 p-8 lg:p-10" data-testid="card-after">
+              <div className="text-[#1DB954] font-bold text-sm uppercase tracking-widest mb-6">Después</div>
               <ul className="space-y-5">
                 {[
                   "Imagen profesional",
@@ -290,7 +290,7 @@ export default function Home() {
                   "Más clientes llamando",
                 ].map((item) => (
                   <li key={item} className="flex items-start gap-3">
-                    <CheckCircle2 className="w-6 h-6 text-[hsl(160,100%,45%)] flex-shrink-0 mt-0.5" />
+                    <CheckCircle2 className="w-6 h-6 text-[#1DB954] flex-shrink-0 mt-0.5" />
                     <span className="text-gray-200 text-lg font-medium">{item}</span>
                   </li>
                 ))}
@@ -301,13 +301,13 @@ export default function Home() {
       </section>
 
       {/* SECTION 6 – HOW IT WORKS */}
-      <section id="como-funciona" className="scroll-mt-20 py-20 lg:py-32 bg-white dark:bg-gray-950" data-testid="section-process">
+      <section id="como-funciona" className="scroll-mt-20 py-24 lg:py-40 bg-white dark:bg-[#0d0d0d]" data-testid="section-process">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center max-w-3xl mx-auto mb-16">
-            <motion.p variants={fadeUp} className="text-[hsl(340,82%,52%)] font-bold text-sm uppercase tracking-widest mb-4">
+            <motion.p variants={fadeUp} className="text-[#1DB954] font-bold text-sm uppercase tracking-widest mb-4">
               Nuestro Proceso
             </motion.p>
-            <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-gray-900 dark:text-white leading-tight" data-testid="text-process-title">
+            <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#111] dark:text-white leading-tight" data-testid="text-process-title">
               Así Funciona
             </motion.h2>
           </motion.div>
@@ -321,7 +321,7 @@ export default function Home() {
             ].map((item) => (
               <motion.div key={item.step} variants={fadeUp} className="text-center relative">
                 <div className="text-7xl font-extrabold text-gray-100 dark:text-gray-800 mb-4">{item.step}</div>
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-3">{item.title}</h3>
+                <h3 className="text-lg font-bold text-[#111] dark:text-white mb-3">{item.title}</h3>
                 <p className="text-gray-600 dark:text-gray-400 leading-relaxed text-sm">{item.desc}</p>
               </motion.div>
             ))}
@@ -330,15 +330,15 @@ export default function Home() {
       </section>
 
       {/* SECTION 7 – TESTIMONIALS */}
-      <section className="py-20 lg:py-32 bg-gray-50 dark:bg-gray-900" data-testid="section-testimonials">
+      <section className="py-24 lg:py-40 bg-[#f5f5f5] dark:bg-[#111]" data-testid="section-testimonials">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center max-w-3xl mx-auto mb-16">
-            <motion.p variants={fadeUp} className="text-[hsl(340,82%,52%)] font-bold text-sm uppercase tracking-widest mb-4">
+            <motion.p variants={fadeUp} className="text-[#1DB954] font-bold text-sm uppercase tracking-widest mb-4">
               Testimonios
             </motion.p>
-            <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-gray-900 dark:text-white leading-tight" data-testid="text-testimonials-title">
+            <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#111] dark:text-white leading-tight" data-testid="text-testimonials-title">
               Lo que dicen nuestros{" "}
-              <span className="text-[hsl(340,82%,52%)]">clientes</span>
+              <span className="text-[#1DB954]">clientes</span>
             </motion.h2>
           </motion.div>
 
@@ -352,11 +352,11 @@ export default function Home() {
                 </div>
                 <p className="text-gray-700 dark:text-gray-300 leading-relaxed mb-6 italic">"{t.text}"</p>
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[hsl(340,82%,52%)] to-[hsl(160,100%,37%)] flex items-center justify-center text-white font-bold">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#1DB954] to-[#22c55e] flex items-center justify-center text-white font-bold">
                     {t.name.split(" ").map(n => n[0]).join("")}
                   </div>
                   <div>
-                    <p className="font-bold text-gray-900 dark:text-white">{t.name}</p>
+                    <p className="font-bold text-[#111] dark:text-white">{t.name}</p>
                     <p className="text-sm text-gray-500 dark:text-gray-400">{t.business} · {t.trade}</p>
                   </div>
                 </div>
@@ -367,13 +367,13 @@ export default function Home() {
       </section>
 
       {/* SECTION 8 – FAQ */}
-      <section className="py-20 lg:py-32 bg-white dark:bg-gray-950" data-testid="section-faq">
+      <section className="py-24 lg:py-40 bg-white dark:bg-[#0d0d0d]" data-testid="section-faq">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center mb-16">
-            <motion.p variants={fadeUp} className="text-[hsl(340,82%,52%)] font-bold text-sm uppercase tracking-widest mb-4">
+            <motion.p variants={fadeUp} className="text-[#1DB954] font-bold text-sm uppercase tracking-widest mb-4">
               Preguntas Frecuentes
             </motion.p>
-            <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-gray-900 dark:text-white leading-tight" data-testid="text-faq-title">
+            <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#111] dark:text-white leading-tight" data-testid="text-faq-title">
               ¿Tienes Preguntas?
             </motion.h2>
           </motion.div>
@@ -387,7 +387,7 @@ export default function Home() {
       </section>
 
       {/* SECTION 9 – FINAL CTA */}
-      <section className="py-20 lg:py-28 bg-gradient-to-r from-[hsl(340,82%,52%)] to-[hsl(340,82%,42%)]" data-testid="section-cta">
+      <section className="py-24 lg:py-40 bg-[#111]" data-testid="section-cta">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger}>
             <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white leading-tight mb-6" data-testid="text-cta-title">
@@ -398,7 +398,7 @@ export default function Home() {
             </motion.p>
             <motion.div variants={fadeUp}>
               <Link href="/contacto">
-                <Button size="lg" className="bg-white text-[hsl(340,82%,45%)] font-bold text-lg gap-2" data-testid="button-cta-bottom">
+                <Button size="lg" className="rounded-full bg-[#1DB954] text-white font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-bottom">
                   Comenzar Ahora
                   <ArrowRight className="w-5 h-5" />
                 </Button>

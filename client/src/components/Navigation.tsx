@@ -53,28 +53,26 @@ export default function Navigation() {
     <nav
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         scrolled
-          ? "bg-white/95 dark:bg-gray-950/95 backdrop-blur-md shadow-sm"
-          : "bg-white/95 dark:bg-gray-950/95 backdrop-blur-md"
+          ? "bg-white/95 dark:bg-[#0d0d0d]/95 backdrop-blur-md shadow-md"
+          : "bg-white/80 dark:bg-[#0d0d0d]/80 backdrop-blur-sm"
       }`}
       data-testid="nav-main"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-[72px]">
-          {/* Logo — left */}
           <Link href="/" className="flex items-center gap-2 flex-shrink-0" data-testid="link-logo">
             <img src={logoImg} alt="Viva Web Designs" className="h-10 w-auto" />
           </Link>
 
-          {/* Menu — center */}
-          <div className="hidden md:flex items-center gap-8">
+          <div className="hidden md:flex items-center gap-10">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href.startsWith("/#") ? "/" : link.href}
-                className={`text-sm font-semibold tracking-wide transition-colors ${
+                className={`text-[13px] font-semibold tracking-wide transition-colors duration-200 ${
                   isActive(link.href)
-                    ? "text-[hsl(340,82%,52%)]"
-                    : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+                    ? "text-[#1DB954]"
+                    : "text-[#111] dark:text-gray-300 hover:text-[#1DB954]"
                 }`}
                 onClick={() => handleNavClick(link.href)}
                 data-testid={`link-nav-${link.label.toLowerCase().replace(/\s/g, "-")}`}
@@ -84,18 +82,16 @@ export default function Navigation() {
             ))}
           </div>
 
-          {/* CTA — right */}
           <div className="hidden md:block">
             <Link href="/contacto">
-              <Button className="bg-[hsl(340,82%,52%)] text-white font-bold px-6" data-testid="button-cta-nav">
+              <Button className="bg-[#1DB954] hover:bg-[#1aa34a] text-white font-bold px-6 rounded-full transition-all duration-200 hover:shadow-lg" data-testid="button-cta-nav">
                 Comenzar
               </Button>
             </Link>
           </div>
 
-          {/* Mobile toggle */}
           <button
-            className="md:hidden p-2 text-gray-700 dark:text-gray-300"
+            className="md:hidden p-2 text-[#111] dark:text-gray-300"
             onClick={() => setIsOpen(!isOpen)}
             data-testid="button-mobile-menu"
           >
@@ -104,18 +100,17 @@ export default function Navigation() {
         </div>
       </div>
 
-      {/* Mobile menu */}
       {isOpen && (
-        <div className="md:hidden bg-white dark:bg-gray-950 border-t border-gray-100 dark:border-gray-800" data-testid="nav-mobile-menu">
+        <div className="md:hidden bg-white dark:bg-[#0d0d0d] border-t border-gray-100 dark:border-gray-800" data-testid="nav-mobile-menu">
           <div className="px-4 py-6 space-y-1">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href.startsWith("/#") ? "/" : link.href}
-                className={`block text-lg font-semibold py-3 ${
+                className={`block text-lg font-semibold py-3 transition-colors ${
                   isActive(link.href)
-                    ? "text-[hsl(340,82%,52%)]"
-                    : "text-gray-700 dark:text-gray-300"
+                    ? "text-[#1DB954]"
+                    : "text-[#111] dark:text-gray-300"
                 }`}
                 onClick={() => handleNavClick(link.href)}
                 data-testid={`link-mobile-${link.label.toLowerCase().replace(/\s/g, "-")}`}
@@ -125,7 +120,7 @@ export default function Navigation() {
             ))}
             <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
               <Link href="/contacto" onClick={() => setIsOpen(false)}>
-                <Button className="w-full bg-[hsl(340,82%,52%)] text-white font-bold text-lg" data-testid="button-cta-mobile">
+                <Button className="w-full bg-[#1DB954] hover:bg-[#1aa34a] text-white font-bold text-lg rounded-full" data-testid="button-cta-mobile">
                   Comenzar
                 </Button>
               </Link>

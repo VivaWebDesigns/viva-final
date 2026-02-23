@@ -46,7 +46,7 @@ function FAQItem({ q, a }: { q: string; a: string }) {
         className="w-full flex items-center justify-between py-6 text-left gap-4"
         data-testid={`button-faq-${q.slice(1, 20).replace(/\s/g, "-").toLowerCase()}`}
       >
-        <span className="text-lg font-bold text-gray-900 dark:text-white">{q}</span>
+        <span className="text-lg font-bold text-[#111] dark:text-white">{q}</span>
         <ChevronDown className={`w-5 h-5 text-gray-500 flex-shrink-0 transition-transform duration-300 ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
@@ -61,12 +61,12 @@ function FAQItem({ q, a }: { q: string; a: string }) {
 function CellDisplay({ value, highlight }: { value: CellValue; highlight?: boolean }) {
   if (typeof value === "boolean") {
     return value ? (
-      <Check className={`w-6 h-6 mx-auto ${highlight ? "text-[hsl(340,82%,52%)]" : "text-[hsl(160,100%,37%)]"}`} />
+      <Check className={`w-6 h-6 mx-auto ${highlight ? "text-[#1DB954]" : "text-[#1DB954]"}`} />
     ) : (
       <X className="w-6 h-6 mx-auto text-gray-300 dark:text-gray-600" />
     );
   }
-  return <span className={`text-sm font-semibold ${highlight ? "text-[hsl(340,82%,52%)]" : "text-gray-900 dark:text-white"}`}>{value}</span>;
+  return <span className={`text-sm font-semibold ${highlight ? "text-[#1DB954]" : "text-[#111] dark:text-white"}`}>{value}</span>;
 }
 
 export default function Paquetes() {
@@ -79,16 +79,16 @@ export default function Paquetes() {
       />
 
       {/* HERO */}
-      <section className="relative pt-32 pb-20 lg:pt-40 lg:pb-28 bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 overflow-hidden" data-testid="section-paquetes-hero">
+      <section className="relative pt-32 pb-20 lg:pt-40 lg:pb-28 bg-[#111] overflow-hidden" data-testid="section-paquetes-hero">
         <div className="absolute inset-0 opacity-15">
-          <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-[hsl(340,82%,52%)] rounded-full blur-[180px] -translate-y-1/2 translate-x-1/4" />
-          <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-[hsl(160,100%,37%)] rounded-full blur-[160px] translate-y-1/3 -translate-x-1/4" />
+          <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-[#1DB954] rounded-full blur-[180px] -translate-y-1/2 translate-x-1/4" />
+          <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-[#1DB954] rounded-full blur-[160px] translate-y-1/3 -translate-x-1/4" />
         </div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <motion.div initial="hidden" animate="visible" variants={stagger}>
             <motion.h1 variants={fadeUp} className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-tight mb-6" data-testid="text-paquetes-title">
               Elige el paquete ideal para{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[hsl(340,82%,60%)] to-[hsl(160,100%,45%)]">
+              <span className="text-[#1DB954]">
                 tu negocio
               </span>
             </motion.h1>
@@ -100,13 +100,13 @@ export default function Paquetes() {
       </section>
 
       {/* COMPARISON TABLE */}
-      <section className="py-20 lg:py-32 bg-white dark:bg-gray-950" data-testid="section-comparison">
+      <section className="py-24 lg:py-40 bg-white dark:bg-[#0d0d0d]" data-testid="section-comparison">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center mb-12">
-            <motion.p variants={fadeUp} className="text-[hsl(340,82%,52%)] font-bold text-sm uppercase tracking-widest mb-4">
+            <motion.p variants={fadeUp} className="text-[#1DB954] font-bold text-sm uppercase tracking-widest mb-4">
               Comparación
             </motion.p>
-            <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl font-extrabold text-gray-900 dark:text-white leading-tight" data-testid="text-comparison-title">
+            <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl font-extrabold text-[#111] dark:text-white leading-tight" data-testid="text-comparison-title">
               ¿Qué incluye cada plan?
             </motion.h2>
           </motion.div>
@@ -116,38 +116,38 @@ export default function Paquetes() {
             <div className="hidden md:block overflow-hidden rounded-md border border-gray-200 dark:border-gray-700" data-testid="table-comparison-desktop">
               <table className="w-full">
                 <thead>
-                  <tr className="bg-gray-50 dark:bg-gray-900">
+                  <tr className="bg-[#f5f5f5] dark:bg-[#111]">
                     <th className="text-left py-5 px-6 text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider w-[35%]"></th>
                     <th className="text-center py-5 px-4 w-[21.67%]">
                       <div className="flex flex-col items-center gap-1">
-                        <Zap className="w-6 h-6 text-[hsl(160,100%,37%)]" />
-                        <span className="text-lg font-extrabold text-gray-900 dark:text-white">Empieza</span>
+                        <Zap className="w-6 h-6 text-[#1DB954]" />
+                        <span className="text-lg font-extrabold text-[#111] dark:text-white">Empieza</span>
                       </div>
                     </th>
                     <th className="text-center py-5 px-4 w-[21.67%] relative">
-                      <div className="absolute -top-0 left-1/2 -translate-x-1/2 bg-[hsl(340,82%,52%)] text-white text-[10px] font-bold px-3 py-1 rounded-b-md uppercase tracking-wider flex items-center gap-1" data-testid="badge-popular-table">
+                      <div className="absolute -top-0 left-1/2 -translate-x-1/2 bg-[#1DB954] text-white text-[10px] font-bold px-3 py-1 rounded-b-md uppercase tracking-wider flex items-center gap-1" data-testid="badge-popular-table">
                         <Star className="w-3 h-3 fill-white" />
                         Más Popular
                       </div>
                       <div className="flex flex-col items-center gap-1">
-                        <Rocket className="w-6 h-6 text-[hsl(340,82%,52%)]" />
-                        <span className="text-lg font-extrabold text-[hsl(340,82%,52%)]">Crece</span>
+                        <Rocket className="w-6 h-6 text-[#1DB954]" />
+                        <span className="text-lg font-extrabold text-[#1DB954]">Crece</span>
                       </div>
                     </th>
                     <th className="text-center py-5 px-4 w-[21.67%]">
                       <div className="flex flex-col items-center gap-1">
-                        <Crown className="w-6 h-6 text-amber-500" />
-                        <span className="text-lg font-extrabold text-gray-900 dark:text-white">Domina</span>
+                        <Crown className="w-6 h-6 text-[#1DB954]" />
+                        <span className="text-lg font-extrabold text-[#111] dark:text-white">Domina</span>
                       </div>
                     </th>
                   </tr>
                 </thead>
                 <tbody>
                   {comparisonRows.map((row, i) => (
-                    <tr key={row.label} className={`${i % 2 === 0 ? "bg-white dark:bg-gray-950" : "bg-gray-50/50 dark:bg-gray-900/50"} border-t border-gray-100 dark:border-gray-800`} data-testid={`row-comparison-${i}`}>
+                    <tr key={row.label} className={`${i % 2 === 0 ? "bg-white dark:bg-[#0d0d0d]" : "bg-[#f5f5f5]/50 dark:bg-[#111]/50"} border-t border-gray-100 dark:border-gray-800`} data-testid={`row-comparison-${i}`}>
                       <td className="py-4 px-6 text-sm font-medium text-gray-700 dark:text-gray-300">{row.label}</td>
                       <td className="py-4 px-4 text-center"><CellDisplay value={row.empieza} /></td>
-                      <td className="py-4 px-4 text-center bg-pink-50/50 dark:bg-pink-950/10"><CellDisplay value={row.crece} highlight /></td>
+                      <td className="py-4 px-4 text-center bg-[#1DB954]/5"><CellDisplay value={row.crece} highlight /></td>
                       <td className="py-4 px-4 text-center"><CellDisplay value={row.domina} /></td>
                     </tr>
                   ))}
@@ -158,20 +158,20 @@ export default function Paquetes() {
             {/* Mobile comparison cards */}
             <div className="md:hidden space-y-8" data-testid="table-comparison-mobile">
               {[
-                { name: "Empieza", icon: Zap, color: "border-[hsl(160,100%,37%)]", iconColor: "text-[hsl(160,100%,37%)]", key: "empieza" as const },
-                { name: "Crece", icon: Rocket, color: "border-[hsl(340,82%,52%)]", iconColor: "text-[hsl(340,82%,52%)]", key: "crece" as const, popular: true },
-                { name: "Domina", icon: Crown, color: "border-amber-500", iconColor: "text-amber-500", key: "domina" as const },
+                { name: "Empieza", icon: Zap, color: "border-gray-200", iconColor: "text-[#1DB954]", key: "empieza" as const },
+                { name: "Crece", icon: Rocket, color: "border-[#1DB954]", iconColor: "text-[#1DB954]", key: "crece" as const, popular: true },
+                { name: "Domina", icon: Crown, color: "border-gray-200", iconColor: "text-[#1DB954]", key: "domina" as const },
               ].map((plan) => (
-                <div key={plan.name} className={`rounded-md border-2 ${plan.color} overflow-hidden bg-white dark:bg-gray-900 relative`}>
+                <div key={plan.name} className={`rounded-md border-2 ${plan.color} overflow-hidden bg-white dark:bg-[#111] relative`}>
                   {plan.popular && (
-                    <div className="absolute top-0 right-0 bg-[hsl(340,82%,52%)] text-white text-[10px] font-bold px-3 py-1 rounded-bl-md uppercase tracking-wider flex items-center gap-1">
+                    <div className="absolute top-0 right-0 bg-[#1DB954] text-white text-[10px] font-bold px-3 py-1 rounded-bl-md uppercase tracking-wider flex items-center gap-1">
                       <Star className="w-3 h-3 fill-white" />
                       Más Popular
                     </div>
                   )}
                   <div className="p-5 flex items-center gap-3 border-b border-gray-100 dark:border-gray-800">
                     <plan.icon className={`w-6 h-6 ${plan.iconColor}`} />
-                    <h3 className="text-xl font-extrabold text-gray-900 dark:text-white">{plan.name}</h3>
+                    <h3 className="text-xl font-extrabold text-[#111] dark:text-white">{plan.name}</h3>
                   </div>
                   <div className="divide-y divide-gray-100 dark:divide-gray-800">
                     {comparisonRows.map((row) => (
@@ -189,10 +189,10 @@ export default function Paquetes() {
       </section>
 
       {/* PACKAGE CARDS */}
-      <section className="py-20 lg:py-32 bg-gray-50 dark:bg-gray-900" data-testid="section-paquetes-cards">
+      <section className="py-24 lg:py-40 bg-[#f5f5f5] dark:bg-[#111]" data-testid="section-paquetes-cards">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center mb-16">
-            <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl font-extrabold text-gray-900 dark:text-white leading-tight" data-testid="text-cards-title">
+            <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl font-extrabold text-[#111] dark:text-white leading-tight" data-testid="text-cards-title">
               Conoce Cada Plan a Detalle
             </motion.h2>
           </motion.div>
@@ -205,9 +205,8 @@ export default function Paquetes() {
                 icon: Zap,
                 tagline: "Tu primera presencia profesional en internet",
                 price: "desde $497/mes",
-                color: "from-[hsl(160,100%,37%)] to-[hsl(160,100%,28%)]",
-                borderColor: "border-[hsl(160,100%,37%)]",
-                iconColor: "text-[hsl(160,100%,37%)]",
+                borderColor: "border-gray-200",
+                iconColor: "text-[#1DB954]",
                 features: [
                   "Sitio web profesional de 1–3 páginas",
                   "Diseño responsivo y moderno",
@@ -223,9 +222,8 @@ export default function Paquetes() {
                 icon: Rocket,
                 tagline: "Más llamadas, más clientes, más ingresos",
                 price: "desde $997/mes",
-                color: "from-[hsl(340,82%,52%)] to-[hsl(340,82%,42%)]",
-                borderColor: "border-[hsl(340,82%,52%)]",
-                iconColor: "text-[hsl(340,82%,52%)]",
+                borderColor: "border-[#1DB954]",
+                iconColor: "text-[#1DB954]",
                 popular: true,
                 features: [
                   "Todo lo del plan Empieza",
@@ -242,9 +240,8 @@ export default function Paquetes() {
                 icon: Crown,
                 tagline: "Domina tu mercado y deja atrás a la competencia",
                 price: "desde $1,997/mes",
-                color: "from-amber-500 to-amber-600",
-                borderColor: "border-amber-500",
-                iconColor: "text-amber-500",
+                borderColor: "border-gray-200",
+                iconColor: "text-[#1DB954]",
                 features: [
                   "Todo lo del plan Crece",
                   "Páginas ilimitadas + blog",
@@ -258,23 +255,23 @@ export default function Paquetes() {
               <motion.div
                 key={pkg.slug}
                 variants={fadeUp}
-                className={`relative rounded-md border-2 ${pkg.borderColor} bg-white dark:bg-gray-900 overflow-hidden flex flex-col`}
+                className={`relative rounded-md border-2 ${pkg.borderColor} bg-white dark:bg-[#111] flex flex-col shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] ${pkg.popular ? "ring-2 ring-[#1DB954] shadow-xl" : ""}`}
                 data-testid={`card-paquete-${pkg.slug}`}
               >
                 {pkg.popular && (
-                  <div className="absolute top-0 right-0 bg-[hsl(340,82%,52%)] text-white text-xs font-bold px-4 py-1.5 rounded-bl-md uppercase tracking-wider flex items-center gap-1" data-testid="badge-popular-card">
+                  <div className="absolute top-0 right-0 bg-[#1DB954] text-white text-xs font-bold px-4 py-1.5 rounded-bl-md uppercase tracking-wider flex items-center gap-1" data-testid="badge-popular-card">
                     <Star className="w-3 h-3 fill-white" />
                     Más Popular
                   </div>
                 )}
 
-                <div className={`bg-gradient-to-r ${pkg.color} p-8`}>
-                  <div className="w-14 h-14 rounded-md bg-white/20 backdrop-blur-sm flex items-center justify-center mb-4">
-                    <pkg.icon className="w-7 h-7 text-white" />
+                <div className="bg-white dark:bg-[#111] p-8 border-b border-gray-100 dark:border-gray-800">
+                  <div className={`w-14 h-14 rounded-md bg-[#1DB954]/10 flex items-center justify-center mb-4`}>
+                    <pkg.icon className={`w-7 h-7 ${pkg.iconColor}`} />
                   </div>
-                  <h3 className="text-2xl font-extrabold text-white mb-1">{pkg.name}</h3>
-                  <p className="text-white/80 text-sm mb-4">{pkg.tagline}</p>
-                  <p className="text-3xl font-extrabold text-white">{pkg.price}</p>
+                  <h3 className="text-2xl font-extrabold text-[#111] dark:text-white mb-1">{pkg.name}</h3>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">{pkg.tagline}</p>
+                  <p className="text-3xl font-extrabold text-[#111] dark:text-white">{pkg.price}</p>
                 </div>
 
                 <div className="p-8 flex-1 flex flex-col">
@@ -288,7 +285,7 @@ export default function Paquetes() {
                   </ul>
 
                   <Link href={`/paquetes/${pkg.slug}`}>
-                    <Button size="lg" className={`w-full font-bold text-lg gap-2 ${pkg.popular ? "bg-[hsl(340,82%,52%)] text-white" : "bg-gray-900 dark:bg-white text-white dark:text-gray-900"}`} data-testid={`button-ver-${pkg.slug}`}>
+                    <Button size="lg" className={`w-full font-bold text-lg gap-2 rounded-full ${pkg.popular ? "bg-[#1DB954] hover:bg-[#1aa34a] text-white hover:shadow-lg transition-all duration-200" : "bg-[#111] dark:bg-white text-white dark:text-[#111] hover:shadow-lg transition-all duration-200"}`} data-testid={`button-ver-${pkg.slug}`}>
                       Ver Detalles
                       <ArrowRight className="w-5 h-5" />
                     </Button>
@@ -301,13 +298,13 @@ export default function Paquetes() {
       </section>
 
       {/* FAQ */}
-      <section className="py-20 lg:py-32 bg-white dark:bg-gray-950" data-testid="section-paquetes-faq">
+      <section className="py-24 lg:py-40 bg-white dark:bg-[#0d0d0d]" data-testid="section-paquetes-faq">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center mb-12">
-            <motion.p variants={fadeUp} className="text-[hsl(340,82%,52%)] font-bold text-sm uppercase tracking-widest mb-4">
+            <motion.p variants={fadeUp} className="text-[#1DB954] font-bold text-sm uppercase tracking-widest mb-4">
               Preguntas Frecuentes
             </motion.p>
-            <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl font-extrabold text-gray-900 dark:text-white leading-tight" data-testid="text-faq-title">
+            <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl font-extrabold text-[#111] dark:text-white leading-tight" data-testid="text-faq-title">
               ¿Tienes Dudas?
             </motion.h2>
           </motion.div>
@@ -321,7 +318,7 @@ export default function Paquetes() {
       </section>
 
       {/* FINAL CTA */}
-      <section className="py-20 lg:py-28 bg-gradient-to-r from-[hsl(340,82%,52%)] to-[hsl(340,82%,42%)]" data-testid="section-paquetes-cta">
+      <section className="py-24 lg:py-40 bg-[#111]" data-testid="section-paquetes-cta">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger}>
             <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white leading-tight mb-6" data-testid="text-cta-paquetes">
@@ -332,13 +329,13 @@ export default function Paquetes() {
             </motion.p>
             <motion.div variants={fadeUp} className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <a href="https://wa.me/1234567890?text=Hola%2C%20quiero%20saber%20cuál%20paquete%20es%20el%20mejor%20para%20mi%20negocio" target="_blank" rel="noopener noreferrer">
-                <Button size="lg" className="bg-[#25D366] text-white font-bold text-lg gap-2" data-testid="button-paquetes-whatsapp">
+                <Button size="lg" className="bg-[#25D366] text-white font-bold text-lg gap-2 rounded-full hover:shadow-lg transition-all duration-200" data-testid="button-paquetes-whatsapp">
                   <SiWhatsapp className="w-5 h-5" />
                   Escríbenos por WhatsApp
                 </Button>
               </a>
               <Link href="/contacto">
-                <Button size="lg" variant="outline" className="text-white border-white/40 font-bold text-lg gap-2 bg-white/10" data-testid="button-paquetes-contacto">
+                <Button size="lg" variant="outline" className="text-white border-white/40 font-bold text-lg gap-2 bg-white/10 rounded-full hover:shadow-lg transition-all duration-200" data-testid="button-paquetes-contacto">
                   Enviar Mensaje
                   <ArrowRight className="w-5 h-5" />
                 </Button>

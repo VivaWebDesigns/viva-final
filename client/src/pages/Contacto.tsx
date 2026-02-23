@@ -90,16 +90,16 @@ export default function Contacto() {
       />
 
       {/* HERO */}
-      <section className="relative pt-32 pb-20 lg:pt-40 lg:pb-28 bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 overflow-hidden" data-testid="section-contacto-hero">
+      <section className="relative pt-32 pb-20 lg:pt-40 lg:pb-28 bg-gradient-to-br from-[#111] via-[#111] to-[#111] overflow-hidden" data-testid="section-contacto-hero">
         <div className="absolute inset-0 opacity-15">
-          <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-[hsl(340,82%,52%)] rounded-full blur-[180px] -translate-y-1/3 -translate-x-1/4" />
-          <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-[hsl(160,100%,37%)] rounded-full blur-[160px] translate-y-1/3 translate-x-1/4" />
+          <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-[#1DB954] rounded-full blur-[180px] -translate-y-1/3 -translate-x-1/4" />
+          <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-[#1DB954] rounded-full blur-[160px] translate-y-1/3 translate-x-1/4" />
         </div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <motion.div initial="hidden" animate="visible" variants={stagger}>
             <motion.h1 variants={fadeUp} className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-tight mb-6" data-testid="text-contacto-title">
               Hablemos de{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[hsl(340,82%,60%)] to-[hsl(160,100%,45%)]">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#1DB954] to-[#22c55e]">
                 tu negocio.
               </span>
             </motion.h1>
@@ -111,7 +111,7 @@ export default function Contacto() {
       </section>
 
       {/* FORM SECTION */}
-      <section className="py-20 lg:py-32 bg-white dark:bg-gray-950" data-testid="section-contacto-form">
+      <section className="py-24 lg:py-40 bg-white dark:bg-[#0d0d0d]" data-testid="section-contacto-form">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-12 lg:gap-16">
             {/* FORM */}
@@ -133,7 +133,7 @@ export default function Contacto() {
                           <FormItem>
                             <FormLabel className="text-gray-700 dark:text-gray-300 font-semibold">Nombre *</FormLabel>
                             <FormControl>
-                              <Input placeholder="Tu nombre completo" className="h-12 bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700" data-testid="input-name" {...field} />
+                              <Input placeholder="Tu nombre completo" className="h-12 bg-[#f5f5f5] dark:bg-[#111] border-gray-200 dark:border-gray-700" data-testid="input-name" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -147,7 +147,7 @@ export default function Contacto() {
                           <FormItem>
                             <FormLabel className="text-gray-700 dark:text-gray-300 font-semibold">Teléfono *</FormLabel>
                             <FormControl>
-                              <Input placeholder="(555) 123-4567" className="h-12 bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700" data-testid="input-phone" {...field} />
+                              <Input placeholder="(555) 123-4567" className="h-12 bg-[#f5f5f5] dark:bg-[#111] border-gray-200 dark:border-gray-700" data-testid="input-phone" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -163,7 +163,7 @@ export default function Contacto() {
                           <FormItem>
                             <FormLabel className="text-gray-700 dark:text-gray-300 font-semibold">Ciudad</FormLabel>
                             <FormControl>
-                              <Input placeholder="Ej: Houston, TX" className="h-12 bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700" data-testid="input-city" {...field} value={field.value ?? ""} />
+                              <Input placeholder="Ej: Houston, TX" className="h-12 bg-[#f5f5f5] dark:bg-[#111] border-gray-200 dark:border-gray-700" data-testid="input-city" {...field} value={field.value ?? ""} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -178,7 +178,7 @@ export default function Contacto() {
                             <FormLabel className="text-gray-700 dark:text-gray-300 font-semibold">Tipo de Trabajo</FormLabel>
                             <Select onValueChange={field.onChange} value={field.value ?? ""}>
                               <FormControl>
-                                <SelectTrigger className="h-12 bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700" data-testid="select-trade">
+                                <SelectTrigger className="h-12 bg-[#f5f5f5] dark:bg-[#111] border-gray-200 dark:border-gray-700" data-testid="select-trade">
                                   <SelectValue placeholder="¿A qué te dedicas?" />
                                 </SelectTrigger>
                               </FormControl>
@@ -205,7 +205,7 @@ export default function Contacto() {
                           <FormControl>
                             <Textarea
                               placeholder="Cuéntanos un poco sobre tu negocio y qué necesitas..."
-                              className="min-h-[120px] bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700 resize-none"
+                              className="min-h-[120px] bg-[#f5f5f5] dark:bg-[#111] border-gray-200 dark:border-gray-700 resize-none"
                               data-testid="textarea-message"
                               {...field}
                               value={field.value ?? ""}
@@ -219,7 +219,7 @@ export default function Contacto() {
                     <Button
                       type="submit"
                       size="lg"
-                      className="w-full bg-[hsl(340,82%,52%)] text-white font-bold text-lg gap-2"
+                      className="w-full bg-[#1DB954] hover:bg-[#1aa34a] text-white font-bold text-lg gap-2 rounded-full transition-all duration-200 hover:shadow-lg"
                       disabled={mutation.isPending}
                       data-testid="button-submit-contact"
                     >
@@ -234,7 +234,7 @@ export default function Contacto() {
                     </Button>
 
                     <div className="flex items-center justify-center gap-2 pt-2">
-                      <MessageCircle className="w-4 h-4 text-[hsl(160,100%,37%)]" />
+                      <MessageCircle className="w-4 h-4 text-[#1DB954]" />
                       <p className="text-sm font-semibold text-gray-600 dark:text-gray-400" data-testid="text-reassurance">
                         Te respondemos rápido y en español.
                       </p>
@@ -256,12 +256,12 @@ export default function Contacto() {
                 {/* WhatsApp CTA */}
                 <div className="bg-[#25D366]/10 border-2 border-[#25D366]/30 rounded-md p-8 text-center" data-testid="card-whatsapp-cta">
                   <SiWhatsapp className="w-12 h-12 text-[#25D366] mx-auto mb-4" />
-                  <h3 className="text-xl font-extrabold text-gray-900 dark:text-white mb-2">¿Prefieres WhatsApp?</h3>
+                  <h3 className="text-xl font-extrabold text-[#111] dark:text-white mb-2">¿Prefieres WhatsApp?</h3>
                   <p className="text-gray-600 dark:text-gray-400 text-sm mb-6">
                     Escríbenos directo y te respondemos en minutos.
                   </p>
                   <a href="https://wa.me/1234567890?text=Hola%2C%20quiero%20información%20sobre%20sus%20servicios" target="_blank" rel="noopener noreferrer">
-                    <Button size="lg" className="w-full bg-[#25D366] text-white font-bold text-lg gap-2" data-testid="button-contacto-whatsapp">
+                    <Button size="lg" className="w-full bg-[#25D366] text-white font-bold text-lg gap-2 rounded-full transition-all duration-200 hover:shadow-lg" data-testid="button-contacto-whatsapp">
                       <SiWhatsapp className="w-5 h-5" />
                       Abrir WhatsApp
                     </Button>
@@ -270,33 +270,33 @@ export default function Contacto() {
 
                 {/* Contact info */}
                 <div className="space-y-6">
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">Información de Contacto</h3>
+                  <h3 className="text-xl font-bold text-[#111] dark:text-white">Información de Contacto</h3>
                   <a href="tel:+1234567890" className="flex items-start gap-4 group" data-testid="link-contacto-phone">
-                    <div className="w-12 h-12 rounded-md bg-pink-50 dark:bg-pink-950/30 flex items-center justify-center flex-shrink-0">
-                      <Phone className="w-6 h-6 text-[hsl(340,82%,52%)]" />
+                    <div className="w-12 h-12 rounded-md bg-emerald-50 dark:bg-emerald-950/30 flex items-center justify-center flex-shrink-0">
+                      <Phone className="w-6 h-6 text-[#1DB954]" />
                     </div>
                     <div>
-                      <p className="font-semibold text-gray-900 dark:text-white">Teléfono</p>
+                      <p className="font-semibold text-[#111] dark:text-white">Teléfono</p>
                       <p className="text-gray-600 dark:text-gray-400">(555) 123-4567</p>
                     </div>
                   </a>
 
                   <a href="mailto:info@vivawebdesigns.com" className="flex items-start gap-4 group" data-testid="link-contacto-email">
-                    <div className="w-12 h-12 rounded-md bg-teal-50 dark:bg-teal-950/30 flex items-center justify-center flex-shrink-0">
-                      <Mail className="w-6 h-6 text-[hsl(160,100%,37%)]" />
+                    <div className="w-12 h-12 rounded-md bg-emerald-50 dark:bg-emerald-950/30 flex items-center justify-center flex-shrink-0">
+                      <Mail className="w-6 h-6 text-[#1DB954]" />
                     </div>
                     <div>
-                      <p className="font-semibold text-gray-900 dark:text-white">Email</p>
+                      <p className="font-semibold text-[#111] dark:text-white">Email</p>
                       <p className="text-gray-600 dark:text-gray-400">info@vivawebdesigns.com</p>
                     </div>
                   </a>
 
                   <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-md bg-amber-50 dark:bg-amber-950/30 flex items-center justify-center flex-shrink-0">
-                      <MapPin className="w-6 h-6 text-amber-500" />
+                    <div className="w-12 h-12 rounded-md bg-emerald-50 dark:bg-emerald-950/30 flex items-center justify-center flex-shrink-0">
+                      <MapPin className="w-6 h-6 text-[#1DB954]" />
                     </div>
                     <div>
-                      <p className="font-semibold text-gray-900 dark:text-white">Ubicación</p>
+                      <p className="font-semibold text-[#111] dark:text-white">Ubicación</p>
                       <p className="text-gray-600 dark:text-gray-400">Servicio en todo EE.UU.</p>
                     </div>
                   </div>
@@ -306,7 +306,7 @@ export default function Contacto() {
                       <Clock className="w-6 h-6 text-blue-500" />
                     </div>
                     <div>
-                      <p className="font-semibold text-gray-900 dark:text-white">Horario</p>
+                      <p className="font-semibold text-[#111] dark:text-white">Horario</p>
                       <p className="text-gray-600 dark:text-gray-400">Lunes - Viernes: 8am - 6pm</p>
                       <p className="text-gray-600 dark:text-gray-400">Sábado: 9am - 2pm</p>
                     </div>
@@ -314,8 +314,8 @@ export default function Contacto() {
                 </div>
 
                 {/* Reassurance */}
-                <div className="bg-gray-50 dark:bg-gray-900 rounded-md p-8">
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">¿Por qué contactarnos?</h3>
+                <div className="bg-[#f5f5f5] dark:bg-[#111] rounded-md p-8">
+                  <h3 className="text-lg font-bold text-[#111] dark:text-white mb-4">¿Por qué contactarnos?</h3>
                   <ul className="space-y-3">
                     {[
                       "Consulta 100% gratis",
@@ -325,7 +325,7 @@ export default function Contacto() {
                       "Plan personalizado para tu negocio",
                     ].map((item) => (
                       <li key={item} className="flex items-center gap-3">
-                        <CheckCircle2 className="w-5 h-5 text-[hsl(160,100%,37%)] flex-shrink-0" />
+                        <CheckCircle2 className="w-5 h-5 text-[#1DB954] flex-shrink-0" />
                         <span className="text-gray-700 dark:text-gray-300 text-sm font-medium">{item}</span>
                       </li>
                     ))}

@@ -75,20 +75,20 @@ export default function PaqueteCrece() {
       />
 
       {/* HERO */}
-      <section className="relative pt-32 pb-20 lg:pt-40 lg:pb-28 bg-gradient-to-br from-[hsl(340,82%,45%)] via-[hsl(340,82%,40%)] to-[hsl(340,82%,35%)] overflow-hidden" data-testid="section-crece-hero">
+      <section className="relative pt-32 pb-20 lg:pt-40 lg:pb-28 bg-[#111] overflow-hidden" data-testid="section-crece-hero">
         <div className="absolute inset-0 opacity-20">
-          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[hsl(340,82%,65%)] rounded-full blur-[180px] -translate-y-1/2 translate-x-1/4" />
+          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[#1DB954] rounded-full blur-[180px] -translate-y-1/2 translate-x-1/4" />
         </div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" animate="visible" variants={stagger} className="max-w-3xl">
             <motion.div variants={fadeUp} className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 mb-6">
               <Rocket className="w-4 h-4 text-white" />
               <span className="text-sm text-white/90 font-medium">Plan Crece</span>
-              <span className="bg-white text-[hsl(340,82%,45%)] text-xs font-bold px-2 py-0.5 rounded-full uppercase">Más Popular</span>
+              <span className="bg-white text-[#1DB954] text-xs font-bold px-2 py-0.5 rounded-full uppercase">Más Popular</span>
             </motion.div>
             <motion.h1 variants={fadeUp} className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-tight mb-6" data-testid="text-crece-title">
               Deja de esperar que te recomienden.{" "}
-              <span className="text-pink-200">Haz que te encuentren.</span>
+              <span className="text-emerald-200">Haz que te encuentren.</span>
             </motion.h1>
             <motion.p variants={fadeUp} className="text-lg sm:text-xl text-white/80 leading-relaxed mb-8 max-w-2xl">
               El plan favorito de nuestros clientes. Todo lo que necesitas para aparecer en Google, generar confianza y recibir un flujo constante de llamadas.
@@ -98,13 +98,13 @@ export default function PaqueteCrece() {
             </motion.p>
             <motion.div variants={fadeUp} className="flex flex-col sm:flex-row items-start gap-4">
               <Link href="/contacto">
-                <Button size="lg" className="bg-white text-[hsl(340,82%,45%)] font-bold text-lg gap-2" data-testid="button-crece-cta">
+                <Button size="lg" className="bg-[#1DB954] text-white font-bold text-lg gap-2 rounded-full transition-all duration-200 hover:shadow-lg" data-testid="button-crece-cta">
                   Quiero Crecer
                   <ArrowRight className="w-5 h-5" />
                 </Button>
               </Link>
               <a href="https://wa.me/1234567890?text=Hola%2C%20me%20interesa%20el%20Plan%20Crece" target="_blank" rel="noopener noreferrer">
-                <Button size="lg" variant="outline" className="text-white border-white/40 font-bold text-lg gap-2 bg-white/10" data-testid="button-crece-whatsapp">
+                <Button size="lg" variant="outline" className="text-white border-white/40 font-bold text-lg gap-2 bg-white/10 rounded-full transition-all duration-200 hover:shadow-lg" data-testid="button-crece-whatsapp">
                   <SiWhatsapp className="w-5 h-5" />
                   Hablar por WhatsApp
                 </Button>
@@ -115,12 +115,12 @@ export default function PaqueteCrece() {
       </section>
 
       {/* WHO IT'S FOR */}
-      <section className="py-20 lg:py-32 bg-white dark:bg-gray-950" data-testid="section-crece-ideal">
+      <section className="py-24 lg:py-40 bg-white dark:bg-[#0d0d0d]" data-testid="section-crece-ideal">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <motion.div variants={fadeUp}>
-              <p className="text-[hsl(340,82%,52%)] font-bold text-sm uppercase tracking-widest mb-4">¿Para Quién Es?</p>
-              <h2 className="text-3xl sm:text-4xl font-extrabold text-gray-900 dark:text-white leading-tight mb-6" data-testid="text-crece-ideal-title">
+              <p className="text-[#1DB954] font-bold text-sm uppercase tracking-widest mb-4">¿Para Quién Es?</p>
+              <h2 className="text-3xl sm:text-4xl font-extrabold text-[#111] dark:text-white leading-tight mb-6" data-testid="text-crece-ideal-title">
                 Este plan es para ti si...
               </h2>
               <ul className="space-y-4">
@@ -133,22 +133,22 @@ export default function PaqueteCrece() {
                   "Estás listo para invertir en crecer y no solo sobrevivir",
                 ].map((item) => (
                   <li key={item} className="flex items-start gap-3">
-                    <CheckCircle2 className="w-6 h-6 text-[hsl(340,82%,52%)] flex-shrink-0 mt-0.5" />
+                    <CheckCircle2 className="w-6 h-6 text-[#1DB954] flex-shrink-0 mt-0.5" />
                     <span className="text-gray-700 dark:text-gray-300 font-medium">{item}</span>
                   </li>
                 ))}
               </ul>
             </motion.div>
-            <motion.div variants={fadeUp} className="bg-gradient-to-br from-[hsl(340,82%,52%)] to-[hsl(340,82%,42%)] rounded-md p-1">
-              <div className="bg-white dark:bg-gray-900 rounded-md p-8 lg:p-10 text-center">
+            <motion.div variants={fadeUp} className="bg-gradient-to-br from-[#1DB954] to-[#1aa34a] rounded-md p-1">
+              <div className="bg-white dark:bg-[#111] rounded-md p-8 lg:p-10 text-center">
                 <div className="flex items-center justify-center gap-2 mb-4">
-                  <Star className="w-5 h-5 text-[hsl(340,82%,52%)] fill-[hsl(340,82%,52%)]" />
-                  <span className="text-sm font-bold text-[hsl(340,82%,52%)] uppercase tracking-wider">Más Popular</span>
+                  <Star className="w-5 h-5 text-[#1DB954] fill-[#1DB954]" />
+                  <span className="text-sm font-bold text-[#1DB954] uppercase tracking-wider">Más Popular</span>
                 </div>
-                <Rocket className="w-16 h-16 text-[hsl(340,82%,52%)] mx-auto mb-6" />
-                <h3 className="text-2xl font-extrabold text-gray-900 dark:text-white mb-3">Plan Crece</h3>
+                <Rocket className="w-16 h-16 text-[#1DB954] mx-auto mb-6" />
+                <h3 className="text-2xl font-extrabold text-[#111] dark:text-white mb-3">Plan Crece</h3>
                 <p className="text-gray-600 dark:text-gray-400 mb-6">El favorito de contratistas serios</p>
-                <p className="text-5xl font-extrabold text-[hsl(340,82%,45%)] mb-2">$997</p>
+                <p className="text-5xl font-extrabold text-[#1DB954] mb-2">$997</p>
                 <p className="text-gray-500 text-sm">por mes</p>
               </div>
             </motion.div>
@@ -157,12 +157,12 @@ export default function PaqueteCrece() {
       </section>
 
       {/* WHAT'S INCLUDED — BENEFIT DRIVEN */}
-      <section className="py-20 lg:py-32 bg-gray-50 dark:bg-gray-900" data-testid="section-crece-features">
+      <section className="py-24 lg:py-40 bg-[#f5f5f5] dark:bg-[#111]" data-testid="section-crece-features">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center max-w-3xl mx-auto mb-16">
-            <motion.p variants={fadeUp} className="text-[hsl(340,82%,52%)] font-bold text-sm uppercase tracking-widest mb-4">Qué Incluye</motion.p>
-            <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-gray-900 dark:text-white leading-tight" data-testid="text-crece-features-title">
-              Todo Para Que Tu Negocio <span className="text-[hsl(340,82%,52%)]">Crezca de Verdad</span>
+            <motion.p variants={fadeUp} className="text-[#1DB954] font-bold text-sm uppercase tracking-widest mb-4">Qué Incluye</motion.p>
+            <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#111] dark:text-white leading-tight" data-testid="text-crece-features-title">
+              Todo Para Que Tu Negocio <span className="text-[#1DB954]">Crezca de Verdad</span>
             </motion.h2>
           </motion.div>
 
@@ -171,16 +171,16 @@ export default function PaqueteCrece() {
               <motion.div key={item.title} variants={fadeUp} className="bg-white dark:bg-gray-800 rounded-md p-8 lg:p-10">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
                   <div className="lg:col-span-1">
-                    <div className="w-14 h-14 rounded-md bg-pink-50 dark:bg-pink-950/30 flex items-center justify-center">
-                      <item.icon className="w-7 h-7 text-[hsl(340,82%,52%)]" />
+                    <div className="w-14 h-14 rounded-md bg-emerald-50 dark:bg-emerald-950/30 flex items-center justify-center">
+                      <item.icon className="w-7 h-7 text-[#1DB954]" />
                     </div>
                   </div>
                   <div className="lg:col-span-7">
-                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{item.title}</h3>
+                    <h3 className="text-xl font-bold text-[#111] dark:text-white mb-2">{item.title}</h3>
                     <p className="text-gray-600 dark:text-gray-400 leading-relaxed">{item.desc}</p>
                   </div>
-                  <div className="lg:col-span-4 bg-pink-50 dark:bg-pink-950/20 rounded-md p-4">
-                    <p className="text-sm font-semibold text-[hsl(340,82%,40%)] dark:text-[hsl(340,82%,60%)]">
+                  <div className="lg:col-span-4 bg-[#1DB954]/5 rounded-md p-4">
+                    <p className="text-sm font-semibold text-[#1DB954]">
                       <span className="font-extrabold">¿Por qué importa?</span>{" "}
                       {item.why}
                     </p>
@@ -193,23 +193,23 @@ export default function PaqueteCrece() {
       </section>
 
       {/* UPGRADE COMPARISON */}
-      <section className="py-20 lg:py-32 bg-white dark:bg-gray-950" data-testid="section-crece-upgrade">
+      <section className="py-24 lg:py-40 bg-white dark:bg-[#0d0d0d]" data-testid="section-crece-upgrade">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger}>
             <motion.div variants={fadeUp} className="text-center mb-12">
-              <p className="text-amber-500 font-bold text-sm uppercase tracking-widest mb-4">¿Quieres Más Poder?</p>
-              <h2 className="text-3xl sm:text-4xl font-extrabold text-gray-900 dark:text-white leading-tight" data-testid="text-crece-upgrade-title">
-                Si quieres dominar tu mercado, el <span className="text-amber-500">Plan Domina</span> es tu siguiente paso
+              <p className="text-[#1DB954] font-bold text-sm uppercase tracking-widest mb-4">¿Quieres Más Poder?</p>
+              <h2 className="text-3xl sm:text-4xl font-extrabold text-[#111] dark:text-white leading-tight" data-testid="text-crece-upgrade-title">
+                Si quieres dominar tu mercado, el <span className="text-[#1DB954]">Plan Domina</span> es tu siguiente paso
               </h2>
             </motion.div>
 
-            <motion.div variants={fadeUp} className="bg-gradient-to-r from-amber-500 to-amber-600 rounded-md p-1">
-              <div className="bg-white dark:bg-gray-900 rounded-md p-8 lg:p-10">
+            <motion.div variants={fadeUp} className="border-2 border-[#1DB954] rounded-md p-1">
+              <div className="bg-white dark:bg-[#111] rounded-md p-8 lg:p-10">
                 <div className="flex items-center gap-3 mb-6">
-                  <Crown className="w-8 h-8 text-amber-500" />
+                  <Crown className="w-8 h-8 text-[#1DB954]" />
                   <div>
-                    <h3 className="text-xl font-extrabold text-gray-900 dark:text-white">Plan Domina</h3>
-                    <span className="text-sm font-bold text-amber-500 uppercase tracking-wider">Premium</span>
+                    <h3 className="text-xl font-extrabold text-[#111] dark:text-white">Plan Domina</h3>
+                    <span className="text-sm font-bold text-[#1DB954] uppercase tracking-wider">Premium</span>
                   </div>
                 </div>
                 <p className="text-gray-600 dark:text-gray-400 leading-relaxed mb-6">
@@ -217,13 +217,13 @@ export default function PaqueteCrece() {
                 </p>
                 <div className="flex flex-col sm:flex-row items-start gap-4">
                   <Link href="/paquetes/domina">
-                    <Button size="lg" className="bg-amber-500 text-white font-bold text-lg gap-2" data-testid="button-crece-ver-domina">
+                    <Button size="lg" className="bg-[#1DB954] text-white font-bold text-lg gap-2 rounded-full transition-all duration-200 hover:shadow-lg" data-testid="button-crece-ver-domina">
                       Ver Plan Domina
                       <ArrowRight className="w-5 h-5" />
                     </Button>
                   </Link>
                   <Link href="/paquetes">
-                    <Button size="lg" variant="outline" className="font-bold text-lg gap-2" data-testid="button-crece-comparar">
+                    <Button size="lg" variant="outline" className="font-bold text-lg gap-2 rounded-full transition-all duration-200 hover:shadow-lg" data-testid="button-crece-comparar">
                       Comparar Todos Los Planes
                     </Button>
                   </Link>
@@ -235,7 +235,7 @@ export default function PaqueteCrece() {
       </section>
 
       {/* STRONG CTA */}
-      <section className="py-20 lg:py-28 bg-gradient-to-r from-[hsl(340,82%,52%)] to-[hsl(340,82%,42%)]" data-testid="section-crece-cta-bottom">
+      <section className="py-24 lg:py-40 bg-[#111]" data-testid="section-crece-cta-bottom">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger}>
             <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white leading-tight mb-6">
@@ -246,13 +246,13 @@ export default function PaqueteCrece() {
             </motion.p>
             <motion.div variants={fadeUp} className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link href="/contacto">
-                <Button size="lg" className="bg-white text-[hsl(340,82%,45%)] font-bold text-lg gap-2" data-testid="button-crece-cta-bottom">
+                <Button size="lg" className="bg-[#1DB954] text-white font-bold text-lg gap-2 rounded-full transition-all duration-200 hover:shadow-lg" data-testid="button-crece-cta-bottom">
                   Quiero Crecer Hoy
                   <ArrowRight className="w-5 h-5" />
                 </Button>
               </Link>
               <a href="https://wa.me/1234567890?text=Hola%2C%20me%20interesa%20el%20Plan%20Crece" target="_blank" rel="noopener noreferrer">
-                <Button size="lg" variant="outline" className="text-white border-white/40 font-bold text-lg gap-2 bg-white/10" data-testid="button-crece-whatsapp-bottom">
+                <Button size="lg" variant="outline" className="text-white border-white/40 font-bold text-lg gap-2 bg-white/10 rounded-full transition-all duration-200 hover:shadow-lg" data-testid="button-crece-whatsapp-bottom">
                   <SiWhatsapp className="w-5 h-5" />
                   Hablar por WhatsApp
                 </Button>
