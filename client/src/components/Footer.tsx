@@ -13,7 +13,7 @@ export default function Footer() {
               <img src={logoImg} alt="Viva Web Designs" className="h-12 w-auto brightness-110" />
             </Link>
             <p className="text-gray-500 text-sm leading-relaxed mb-8">
-              Ayudamos a contratistas latinos a crecer su negocio con marketing digital que genera resultados reales.
+              Ayudamos a contratistas a crecer su negocio con marketing digital que genera resultados reales.
             </p>
             <div className="flex items-center gap-3">
               <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-500 hover:text-[#0D9488] hover:bg-white/10 transition-all duration-200" aria-label="Facebook" data-testid="link-facebook">
