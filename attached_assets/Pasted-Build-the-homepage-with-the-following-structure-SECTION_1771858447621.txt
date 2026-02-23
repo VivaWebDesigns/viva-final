@@ -1,0 +1,146 @@
+Build the homepage with the following structure:
+
+SECTION 1 – HERO
+
+Headline:
+"Más llamadas. Más trabajos. Más crecimiento."
+
+Subheadline:
+Creamos sitios web profesionales para contratistas latinos que quieren aparecer en Google y competir con empresas grandes.
+
+Primary Button:
+"Ver Paquetes"
+
+Secondary Button:
+"Hablar por WhatsApp"
+
+Include strong visual space for a contractor working image background (subtle dark overlay).
+
+---
+
+SECTION 2 – PROBLEM SECTION
+
+Headline:
+¿Tu negocio depende solo de referencias?
+
+Bullet points:
+• No apareces en Google Maps
+• No tienes página profesional
+• Los clientes no confían si no te encuentran online
+• Otras compañías se ven más grandes que tú
+
+Close with:
+Eso está costándote trabajos.
+
+---
+
+SECTION 3 – SOLUTION POSITIONING
+
+Headline:
+Te ayudamos a verte profesional y generar más llamadas.
+
+Short paragraph explaining:
+No vendemos páginas web. Construimos presencia digital que genera confianza y posicionamiento local.
+
+Add 3 icon blocks:
+
+1. Imagen Profesional
+2. Visibilidad en Google
+3. Más Llamadas
+
+---
+
+SECTION 4 – PACKAGES PREVIEW
+
+Display 3 cards:
+
+EMPIEZA
+CRECE (highlight as MOST POPULAR)
+DOMINA
+
+Each card includes:
+Short 1 sentence description
+CTA: "Ver Detalles"
+
+---
+
+SECTION 5 – BEFORE / AFTER
+
+Headline:
+Antes vs Después
+
+Left side:
+Sin página profesional
+Pocas llamadas
+Competencia dominando Google
+
+Right side:
+Imagen profesional
+Más visibilidad
+Más clientes llamando
+
+Make this visually split.
+
+---
+
+SECTION 6 – HOW IT WORKS
+
+Headline:
+Así Funciona
+
+Step 1 – Analizamos tu negocio
+Step 2 – Construimos tu sitio profesional
+Step 3 – Optimizamos para Google
+Step 4 – Empiezas a recibir más llamadas
+
+Keep it simple and clean.
+
+---
+
+SECTION 7 – TESTIMONIALS
+
+Headline:
+Lo que dicen nuestros clientes
+
+Add 3 placeholder testimonials in Spanish from contractors.
+
+---
+
+SECTION 8 – FAQ
+
+Add these questions:
+
+• ¿Cuánto tiempo tarda?
+• ¿Necesito tener Google Business?
+• ¿Puedo pagar en partes?
+• ¿Qué pasa si no tengo fotos?
+• ¿Incluye soporte en español?
+
+Write confident but clear answers.
+
+---
+
+SECTION 9 – FINAL CTA
+
+Headline:
+Tu competencia ya está invirtiendo en su presencia online.
+
+Subheadline:
+¿Vas a seguir esperando?
+
+Button:
+"Comenzar Ahora"
+
+Strong closing tone.
+
+---
+
+FOOTER
+
+Include:
+• Enlaces rápidos
+• WhatsApp
+• Email
+• Redes sociales
+• Statement:
+Soporte en español. Sin contratos complicados. Sin términos confusos.

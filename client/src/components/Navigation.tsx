@@ -6,14 +6,18 @@ import logoImg from "@assets/20BD1DF0-9B30-47F2-8E16-D17C4A22B42A_1771857217327.
 
 const navLinks = [
   { href: "/", label: "Inicio" },
-  { href: "/servicios", label: "Servicios" },
-  { href: "/nosotros", label: "Nosotros" },
+  { href: "/paquetes", label: "Paquetes" },
   { href: "/contacto", label: "Contacto" },
 ];
 
 export default function Navigation() {
   const [isOpen, setIsOpen] = useState(false);
   const [location] = useLocation();
+
+  const isActive = (href: string) => {
+    if (href === "/") return location === "/";
+    return location.startsWith(href);
+  };
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white/95 dark:bg-gray-950/95 backdrop-blur-md border-b border-gray-100 dark:border-gray-800" data-testid="nav-main">
@@ -29,7 +33,7 @@ export default function Navigation() {
                 key={link.href}
                 href={link.href}
                 className={`text-sm font-semibold tracking-wide uppercase transition-colors ${
-                  location === link.href
+                  isActive(link.href)
                     ? "text-[hsl(340,82%,52%)]"
                     : "text-gray-700 dark:text-gray-300"
                 }`}
@@ -70,7 +74,7 @@ export default function Navigation() {
                 key={link.href}
                 href={link.href}
                 className={`block text-lg font-semibold py-2 ${
-                  location === link.href
+                  isActive(link.href)
                     ? "text-[hsl(340,82%,52%)]"
                     : "text-gray-700 dark:text-gray-300"
                 }`}

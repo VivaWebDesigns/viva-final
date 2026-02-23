@@ -27,13 +27,12 @@ export default function Footer() {
           </div>
 
           <div>
-            <h3 className="text-white font-bold text-lg mb-6">Servicios</h3>
+            <h3 className="text-white font-bold text-lg mb-6">Paquetes</h3>
             <ul className="space-y-3">
-              <li><Link href="/servicios" className="text-gray-400 text-sm transition-colors" data-testid="link-footer-web">Sitios Web Profesionales</Link></li>
-              <li><Link href="/servicios" className="text-gray-400 text-sm transition-colors" data-testid="link-footer-seo">SEO y Google Maps</Link></li>
-              <li><Link href="/servicios" className="text-gray-400 text-sm transition-colors" data-testid="link-footer-social">Redes Sociales</Link></li>
-              <li><Link href="/servicios" className="text-gray-400 text-sm transition-colors" data-testid="link-footer-google">Google Ads</Link></li>
-              <li><Link href="/servicios" className="text-gray-400 text-sm transition-colors" data-testid="link-footer-brand">Branding y Logo</Link></li>
+              <li><Link href="/paquetes/empieza" className="text-gray-400 text-sm transition-colors" data-testid="link-footer-empieza">Plan Empieza</Link></li>
+              <li><Link href="/paquetes/crece" className="text-gray-400 text-sm transition-colors" data-testid="link-footer-crece">Plan Crece</Link></li>
+              <li><Link href="/paquetes/domina" className="text-gray-400 text-sm transition-colors" data-testid="link-footer-domina">Plan Domina</Link></li>
+              <li><Link href="/paquetes" className="text-gray-400 text-sm transition-colors" data-testid="link-footer-comparar">Comparar Paquetes</Link></li>
             </ul>
           </div>
 
@@ -41,8 +40,7 @@ export default function Footer() {
             <h3 className="text-white font-bold text-lg mb-6">Enlaces</h3>
             <ul className="space-y-3">
               <li><Link href="/" className="text-gray-400 text-sm transition-colors" data-testid="link-footer-home">Inicio</Link></li>
-              <li><Link href="/servicios" className="text-gray-400 text-sm transition-colors" data-testid="link-footer-services">Servicios</Link></li>
-              <li><Link href="/nosotros" className="text-gray-400 text-sm transition-colors" data-testid="link-footer-about">Nosotros</Link></li>
+              <li><Link href="/paquetes" className="text-gray-400 text-sm transition-colors" data-testid="link-footer-paquetes">Paquetes</Link></li>
               <li><Link href="/contacto" className="text-gray-400 text-sm transition-colors" data-testid="link-footer-contact">Contacto</Link></li>
             </ul>
           </div>

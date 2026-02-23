@@ -6,9 +6,12 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { HelmetProvider } from "react-helmet-async";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
+import WhatsAppButton from "@/components/WhatsAppButton";
 import Home from "@/pages/Home";
-import Servicios from "@/pages/Servicios";
-import Nosotros from "@/pages/Nosotros";
+import Paquetes from "@/pages/Paquetes";
+import PaqueteEmpieza from "@/pages/PaqueteEmpieza";
+import PaqueteCrece from "@/pages/PaqueteCrece";
+import PaqueteDomina from "@/pages/PaqueteDomina";
 import Contacto from "@/pages/Contacto";
 import NotFound from "@/pages/not-found";
 
@@ -16,8 +19,10 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
-      <Route path="/servicios" component={Servicios} />
-      <Route path="/nosotros" component={Nosotros} />
+      <Route path="/paquetes" component={Paquetes} />
+      <Route path="/paquetes/empieza" component={PaqueteEmpieza} />
+      <Route path="/paquetes/crece" component={PaqueteCrece} />
+      <Route path="/paquetes/domina" component={PaqueteDomina} />
       <Route path="/contacto" component={Contacto} />
       <Route component={NotFound} />
     </Switch>
@@ -36,6 +41,7 @@ function App() {
             </main>
             <Footer />
           </div>
+          <WhatsAppButton />
           <Toaster />
         </TooltipProvider>
       </QueryClientProvider>
