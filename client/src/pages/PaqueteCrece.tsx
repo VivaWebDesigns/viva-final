@@ -96,7 +96,7 @@ export default function PaqueteCrece() {
             <motion.p variants={fadeUp} className="text-4xl font-extrabold text-white mb-2">
               desde $997
             </motion.p>
-            <motion.p variants={fadeUp} className="text-xs text-white/60 font-medium mb-8">Más plan mensual requerido.</p>
+            <motion.p variants={fadeUp} className="text-xs text-white/60 font-medium mb-8">Más plan mensual requerido.</motion.p>
             <motion.div variants={fadeUp} className="flex flex-col sm:flex-row items-start gap-4">
               <Link href="/contacto">
                 <Button size="lg" className="bg-[#1DB954] text-white font-bold text-lg gap-2 rounded-full transition-all duration-200 hover:shadow-lg" data-testid="button-crece-cta">
