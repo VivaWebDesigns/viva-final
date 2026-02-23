@@ -299,7 +299,7 @@ export default function Paquetes() {
                     </ul>
 
                     <Link href={`/paquetes/${pkg.slug}`}>
-                      <Button size="lg" className={`w-full font-bold text-lg gap-2 rounded-full hover:shadow-lg transition-all duration-200 ${pkg.popular ? "bg-[#1DB954] hover:bg-[#1aa34a] text-white" : pkg.premium ? "bg-[#111] dark:bg-white text-white dark:text-[#111]" : "border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0d0d0d] text-[#111] dark:text-white hover:border-[#1DB954]"}`} data-testid={`button-ver-${pkg.slug}`}>
+                      <Button size="lg" className={`w-full rounded-full font-bold text-lg gap-2 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 ${pkg.popular ? "bg-[#1DB954] text-white shadow-[#1DB954]/20 hover:bg-[#1aa34a]" : pkg.premium ? "bg-[#111] dark:bg-white text-white dark:text-[#111] shadow-xl" : "bg-white dark:bg-[#0d0d0d] text-[#111] dark:text-white border border-[#111]/10 dark:border-white/10 hover:border-[#111]/20"}`} data-testid={`button-ver-${pkg.slug}`}>
                         Ver Detalles
                         <ArrowRight className="w-5 h-5" />
                       </Button>
