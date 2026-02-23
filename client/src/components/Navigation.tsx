@@ -51,17 +51,17 @@ export default function Navigation() {
 
   return (
     <nav
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 border-b border-gray-200 dark:border-gray-800 ${
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 border-b border-gray-100 dark:border-gray-800 ${
         scrolled
-          ? "bg-white dark:bg-[#0d0d0d] backdrop-blur-md shadow-sm"
-          : "bg-white dark:bg-[#0d0d0d]"
+          ? "bg-[#FAFAFA] dark:bg-[#0d0d0d] backdrop-blur-md shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
+          : "bg-[#FAFAFA] dark:bg-[#0d0d0d]"
       }`}
       data-testid="nav-main"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-[56px] md:h-[60px]">
+        <div className="flex items-center justify-between h-[52px] md:h-[56px]">
           <Link href="/" className="flex items-center gap-2 flex-shrink-0" data-testid="link-logo">
-            <img src={logoImg} alt="Viva Web Designs" className="h-14 md:h-12 w-auto object-contain" />
+            <img src={logoImg} alt="Viva Web Designs" className="h-[64px] md:h-[52px] w-auto object-contain" />
           </Link>
 
           <div className="hidden md:flex items-center gap-10">
