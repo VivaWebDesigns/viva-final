@@ -1,6 +1,6 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Star, ArrowRight, CheckCircle2, XCircle, Phone, Search, Image, MessageSquare, ChevronDown, Zap, Rocket, Crown, Eye, PhoneCall } from "lucide-react";
+import { Star, ArrowRight, CheckCircle2, XCircle, Phone, Search, Image, MessageSquare, ChevronDown, Zap, Rocket, Crown, Eye, PhoneCall, Shield } from "lucide-react";
 import { SiWhatsapp } from "react-icons/si";
 import { motion } from "framer-motion";
 import { useState } from "react";
@@ -266,6 +266,44 @@ export default function Home() {
                 </div>
               </motion.div>
             ))}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* SUPPORT PLAN */}
+      <section className="py-16 lg:py-20 bg-[#f5f5f5] dark:bg-[#111]" data-testid="section-support-plan">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center">
+            <motion.div variants={fadeUp} className="inline-flex items-center gap-2 bg-white dark:bg-[#0d0d0d] border border-gray-200 dark:border-gray-700 rounded-full px-5 py-2 mb-6 shadow-sm">
+              <Shield className="w-4 h-4 text-[#1DB954]" />
+              <span className="text-xs font-bold text-[#111] dark:text-white uppercase tracking-widest">Plan de Soporte y Crecimiento</span>
+            </motion.div>
+            <motion.p variants={fadeUp} className="text-gray-500 dark:text-gray-400 text-sm max-w-xl mx-auto mb-6">
+              Para mantener tu sitio funcionando correctamente y protegido, todos los paquetes incluyen este plan mensual.
+            </motion.p>
+            <motion.p variants={fadeUp} className="text-2xl sm:text-3xl font-extrabold text-[#111] dark:text-white mb-2" data-testid="text-support-price">
+              $97 <span className="text-base font-semibold text-gray-400">por mes</span>
+            </motion.p>
+            <motion.p variants={fadeUp} className="text-gray-400 dark:text-gray-500 text-xs italic mb-8">
+              Tu sitio no solo se construye. Se mantiene, se protege y evoluciona.
+            </motion.p>
+            <motion.div variants={fadeUp} className="flex flex-wrap justify-center gap-x-6 gap-y-3 text-sm text-gray-600 dark:text-gray-300">
+              {[
+                "Hosting profesional y rápido",
+                "Certificado SSL de seguridad",
+                "Copias de seguridad automáticas",
+                "Monitoreo de seguridad",
+                "Actualizaciones técnicas",
+                "Optimización básica de velocidad",
+                "Hasta 1 hora de cambios al mes",
+                "Soporte en español",
+              ].map((item) => (
+                <span key={item} className="flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[#1DB954] flex-shrink-0" />
+                  {item}
+                </span>
+              ))}
+            </motion.div>
           </motion.div>
         </div>
       </section>
