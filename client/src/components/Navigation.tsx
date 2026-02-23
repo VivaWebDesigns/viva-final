@@ -6,7 +6,7 @@ import logoImg from "@assets/20BD1DF0-9B30-47F2-8E16-D17C4A22B42A_1771857217327.
 
 const navLinks = [
   { href: "/", label: "Inicio" },
-  { href: "/paquetes", label: "Paquetes" },
+  { href: "/paquetes#paquetes-list", label: "Paquetes" },
   { href: "/#como-funciona", label: "Cómo Funciona" },
   { href: "/contacto", label: "Contacto" },
 ];
@@ -33,17 +33,17 @@ export default function Navigation() {
     if (href.startsWith("/#")) {
       const id = href.slice(2);
       if (location === "/") {
-        const el = document.getElementById(id);
-        if (el) {
-          el.scrollIntoView({ behavior: "smooth" });
-          return;
-        }
+        setTimeout(() => {
+          const el = document.getElementById(id);
+          if (el) el.scrollIntoView({ behavior: "smooth" });
+        }, 100);
+        return;
       } else {
         setLocation("/");
         setTimeout(() => {
           const el = document.getElementById(id);
           if (el) el.scrollIntoView({ behavior: "smooth" });
-        }, 300);
+        }, 500);
         return;
       }
     }

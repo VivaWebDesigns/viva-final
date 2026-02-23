@@ -244,7 +244,7 @@ export default function Home() {
             </motion.h2>
           </motion.div>
 
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-10 items-end">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-10 items-end" id="paquetes">
             {[
               {
                 name: "Empieza",
