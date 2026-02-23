@@ -197,7 +197,7 @@ export default function Paquetes() {
             </motion.h2>
           </motion.div>
 
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-10 items-end">
             {[
               {
                 name: "Empieza",
@@ -205,11 +205,9 @@ export default function Paquetes() {
                 slug: "empieza",
                 icon: Zap,
                 tagline: "Tu primera presencia profesional en internet",
+                positioning: "Para contratistas que quieren dar el primer paso con una imagen profesional.",
                 price: "Desde $497",
                 microcopy: "Perfecto para comenzar.",
-                borderColor: "border-gray-200 dark:border-gray-700",
-                iconColor: "text-[#1DB954]",
-                muted: true,
                 features: [
                   "Sitio web profesional de 1–3 páginas",
                   "Diseño responsivo y moderno",
@@ -225,10 +223,9 @@ export default function Paquetes() {
                 slug: "crece",
                 icon: Rocket,
                 tagline: "Más llamadas, más clientes, más ingresos",
+                positioning: "Para negocios listos para invertir en crecimiento real y medible.",
                 price: "Desde $997",
                 microcopy: "Inversión inteligente para crecer.",
-                borderColor: "border-[#1DB954]",
-                iconColor: "text-[#1DB954]",
                 popular: true,
                 features: [
                   "Todo lo del plan Empieza",
@@ -245,10 +242,9 @@ export default function Paquetes() {
                 slug: "domina",
                 icon: Crown,
                 tagline: "Domina tu mercado y deja atrás a la competencia",
+                positioning: "Para líderes que quieren dominar su mercado sin dejar nada al azar.",
                 price: "Desde $1,997",
                 microcopy: "Construido para liderar tu mercado.",
-                borderColor: "border-gray-200 dark:border-gray-700",
-                iconColor: "text-[#1DB954]",
                 premium: true,
                 features: [
                   "Todo lo del plan Crece",
@@ -263,7 +259,7 @@ export default function Paquetes() {
               <motion.div
                 key={pkg.slug}
                 variants={fadeUp}
-                className={`relative flex flex-col ${pkg.popular ? "lg:scale-105 lg:z-10" : ""}`}
+                className={`relative flex flex-col ${pkg.popular ? "lg:scale-[1.06] lg:z-10" : ""}`}
                 data-testid={`card-paquete-${pkg.slug}`}
               >
                 {pkg.popular && (
@@ -275,31 +271,35 @@ export default function Paquetes() {
                   </div>
                 )}
 
-                <div className={`rounded-xl border-2 ${pkg.borderColor} bg-white dark:bg-[#111] flex flex-col flex-1 transition-all duration-300 ${pkg.popular ? "ring-2 ring-[#1DB954] shadow-xl hover:shadow-2xl" : pkg.premium ? "shadow-lg hover:shadow-xl" : "shadow-sm hover:shadow-lg"} ${pkg.muted ? "opacity-90 hover:opacity-100" : ""}`}>
-                  <div className={`p-8 border-b border-gray-100 dark:border-gray-800 ${pkg.popular ? "bg-[#1DB954]/5" : pkg.premium ? "bg-gradient-to-br from-[#111]/5 to-transparent" : ""}`}>
-                    <div className={`w-14 h-14 rounded-xl ${pkg.popular ? "bg-[#1DB954]/10" : pkg.premium ? "bg-[#111]/10 dark:bg-white/10" : "bg-gray-100 dark:bg-gray-800"} flex items-center justify-center mb-4`}>
-                      <pkg.icon className={`w-7 h-7 ${pkg.popular ? "text-[#1DB954]" : pkg.premium ? "text-[#111] dark:text-white" : "text-gray-400 dark:text-gray-500"}`} />
+                <div className={`rounded-2xl border bg-white dark:bg-[#0d0d0d] flex flex-col flex-1 transition-all duration-300 ${pkg.popular ? "border-[#1DB954]/40 shadow-xl shadow-[#1DB954]/5 hover:shadow-2xl hover:shadow-[#1DB954]/10" : "border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-lg"}`}>
+                  <div className="p-8 lg:p-10">
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-5 ${pkg.popular ? "bg-[#1DB954]/10" : "bg-gray-100 dark:bg-gray-800"}`}>
+                      <pkg.icon className={`w-6 h-6 ${pkg.popular ? "text-[#1DB954]" : "text-gray-500 dark:text-gray-400"}`} />
                     </div>
-                    <h3 className={`text-2xl font-extrabold mb-1 ${pkg.popular ? "text-[#1DB954]" : "text-[#111] dark:text-white"}`}>{pkg.name}</h3>
-                    <p className="text-gray-500 dark:text-gray-400 text-xs leading-snug mb-5">{pkg.subLabel}</p>
-                    <p className="text-3xl font-extrabold text-[#111] dark:text-white" data-testid={`text-price-${pkg.slug}`}>{pkg.price}</p>
-                    <p className="text-[10px] text-gray-400 dark:text-gray-500 font-medium mt-1">Más plan mensual requerido.</p>
-                    <p className="text-gray-400 dark:text-gray-500 text-xs mt-1.5 italic">{pkg.microcopy}</p>
+                    <h3 className="text-2xl font-extrabold text-[#111] dark:text-white mb-1">{pkg.name}</h3>
+                    <p className="text-gray-500 dark:text-gray-400 text-xs leading-snug mb-6">{pkg.subLabel}</p>
+
+                    <div className="border-t border-gray-100 dark:border-gray-800 pt-6 mb-6">
+                      <p className="text-3xl font-extrabold text-[#111] dark:text-white" data-testid={`text-price-${pkg.slug}`}>{pkg.price}</p>
+                      <p className="text-[10px] text-gray-400 dark:text-gray-500 font-medium mt-1">Más plan mensual requerido.</p>
+                      <p className="text-gray-400 dark:text-gray-500 text-xs mt-1.5 italic">{pkg.microcopy}</p>
+                    </div>
                   </div>
 
-                  <div className="p-8 flex-1 flex flex-col">
-                    <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">{pkg.tagline}</p>
-                    <ul className="space-y-3 mb-8 flex-1">
+                  <div className="px-8 lg:px-10 pb-8 lg:pb-10 flex-1 flex flex-col">
+                    <p className="text-[#1DB954] text-xs font-semibold uppercase tracking-wider mb-4">{pkg.positioning}</p>
+
+                    <ul className="space-y-3.5 mb-10 flex-1">
                       {pkg.features.map((feature) => (
                         <li key={feature} className="flex items-start gap-3">
-                          <CheckCircle2 className={`w-5 h-5 ${pkg.iconColor} flex-shrink-0 mt-0.5`} />
+                          <CheckCircle2 className="w-5 h-5 text-[#1DB954] flex-shrink-0 mt-0.5" />
                           <span className="text-gray-700 dark:text-gray-300 text-sm">{feature}</span>
                         </li>
                       ))}
                     </ul>
 
                     <Link href={`/paquetes/${pkg.slug}`}>
-                      <Button size="lg" className={`w-full font-bold text-lg gap-2 rounded-full hover:shadow-lg transition-all duration-200 ${pkg.popular ? "bg-[#1DB954] hover:bg-[#1aa34a] text-white" : pkg.premium ? "bg-[#111] dark:bg-white text-white dark:text-[#111]" : "bg-white dark:bg-[#111] text-[#111] dark:text-white border-2 border-gray-200 dark:border-gray-700 hover:border-[#1DB954]"}`} data-testid={`button-ver-${pkg.slug}`}>
+                      <Button size="lg" className={`w-full font-bold text-lg gap-2 rounded-full hover:shadow-lg transition-all duration-200 ${pkg.popular ? "bg-[#1DB954] hover:bg-[#1aa34a] text-white" : pkg.premium ? "bg-[#111] dark:bg-white text-white dark:text-[#111]" : "border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0d0d0d] text-[#111] dark:text-white hover:border-[#1DB954]"}`} data-testid={`button-ver-${pkg.slug}`}>
                         Ver Detalles
                         <ArrowRight className="w-5 h-5" />
                       </Button>

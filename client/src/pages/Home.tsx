@@ -244,7 +244,7 @@ export default function Home() {
             </motion.h2>
           </motion.div>
 
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-10 items-end">
             {[
               {
                 name: "Empieza",
@@ -252,10 +252,9 @@ export default function Home() {
                 slug: "empieza",
                 icon: Zap,
                 desc: "Tu primera presencia profesional en internet para empezar a generar confianza.",
+                positioning: "Para contratistas que quieren dar el primer paso con una imagen profesional.",
                 price: "Desde $497",
                 microcopy: "Perfecto para comenzar.",
-                borderColor: "border-gray-200 dark:border-gray-700",
-                muted: true,
               },
               {
                 name: "Crece",
@@ -263,9 +262,9 @@ export default function Home() {
                 slug: "crece",
                 icon: Rocket,
                 desc: "Marketing completo para recibir más llamadas y superar a tu competencia.",
+                positioning: "Para negocios listos para invertir en crecimiento real y medible.",
                 price: "Desde $997",
                 microcopy: "Inversión inteligente para crecer.",
-                borderColor: "border-[#1DB954]",
                 popular: true,
               },
               {
@@ -274,13 +273,18 @@ export default function Home() {
                 slug: "domina",
                 icon: Crown,
                 desc: "El paquete premium para ser la opción #1 en tu mercado local.",
+                positioning: "Para líderes que quieren dominar su mercado sin dejar nada al azar.",
                 price: "Desde $1,997",
                 microcopy: "Construido para liderar tu mercado.",
-                borderColor: "border-gray-200 dark:border-gray-700",
                 premium: true,
               },
             ].map((pkg) => (
-              <motion.div key={pkg.slug} variants={fadeUp} className={`relative flex flex-col ${pkg.popular ? "md:scale-105 md:z-10" : ""}`} data-testid={`card-package-${pkg.slug}`}>
+              <motion.div
+                key={pkg.slug}
+                variants={fadeUp}
+                className={`relative flex flex-col ${pkg.popular ? "md:scale-[1.06] md:z-10" : ""}`}
+                data-testid={`card-package-${pkg.slug}`}
+              >
                 {pkg.popular && (
                   <div className="flex justify-center mb-3">
                     <span className="bg-[#1DB954] text-white text-xs font-bold px-5 py-1.5 rounded-full uppercase tracking-widest flex items-center gap-1.5 shadow-lg" data-testid="badge-popular">
@@ -289,19 +293,26 @@ export default function Home() {
                     </span>
                   </div>
                 )}
-                <div className={`rounded-xl border-2 ${pkg.borderColor} overflow-hidden bg-white dark:bg-[#111] flex flex-col flex-1 transition-all duration-300 ${pkg.popular ? "ring-2 ring-[#1DB954] shadow-xl hover:shadow-2xl" : pkg.premium ? "shadow-lg hover:shadow-xl" : "shadow-sm hover:shadow-lg"} ${pkg.muted ? "opacity-90 hover:opacity-100" : ""}`}>
-                  <div className={`p-8 text-center ${pkg.popular ? "bg-[#1DB954]/5" : pkg.premium ? "bg-gradient-to-br from-[#111]/5 to-transparent" : ""}`}>
-                    <pkg.icon className={`w-10 h-10 mx-auto mb-3 ${pkg.popular ? "text-[#1DB954]" : pkg.premium ? "text-[#111] dark:text-white" : "text-gray-400 dark:text-gray-500"}`} />
-                    <h3 className={`text-2xl font-extrabold mb-1 ${pkg.popular ? "text-[#1DB954]" : "text-[#111] dark:text-white"}`}>{pkg.name}</h3>
-                    <p className="text-gray-500 dark:text-gray-400 text-xs leading-snug max-w-[220px] mx-auto mb-5">{pkg.subLabel}</p>
-                    <p className={`text-3xl font-extrabold ${pkg.popular ? "text-[#111] dark:text-white" : "text-[#111] dark:text-white"}`} data-testid={`text-price-${pkg.slug}`}>{pkg.price}</p>
-                    <p className="text-[10px] text-gray-400 dark:text-gray-500 font-medium mt-1">Más plan mensual requerido.</p>
-                    <p className="text-gray-400 dark:text-gray-500 text-xs mt-1.5 italic">{pkg.microcopy}</p>
+                <div className={`rounded-2xl border bg-white dark:bg-[#0d0d0d] flex flex-col flex-1 transition-all duration-300 ${pkg.popular ? "border-[#1DB954]/40 shadow-xl shadow-[#1DB954]/5 hover:shadow-2xl hover:shadow-[#1DB954]/10" : "border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-lg"}`}>
+                  <div className="p-8 lg:p-10 text-center">
+                    <div className={`w-12 h-12 mx-auto rounded-xl flex items-center justify-center mb-5 ${pkg.popular ? "bg-[#1DB954]/10" : "bg-gray-100 dark:bg-gray-800"}`}>
+                      <pkg.icon className={`w-6 h-6 ${pkg.popular ? "text-[#1DB954]" : "text-gray-500 dark:text-gray-400"}`} />
+                    </div>
+                    <h3 className="text-2xl font-extrabold text-[#111] dark:text-white mb-1">{pkg.name}</h3>
+                    <p className="text-gray-500 dark:text-gray-400 text-xs leading-snug max-w-[220px] mx-auto mb-8">{pkg.subLabel}</p>
+
+                    <div className="border-t border-gray-100 dark:border-gray-800 pt-6 pb-2">
+                      <p className="text-3xl font-extrabold text-[#111] dark:text-white" data-testid={`text-price-${pkg.slug}`}>{pkg.price}</p>
+                      <p className="text-[10px] text-gray-400 dark:text-gray-500 font-medium mt-1">Más plan mensual requerido.</p>
+                      <p className="text-gray-400 dark:text-gray-500 text-xs mt-1.5 italic">{pkg.microcopy}</p>
+                    </div>
                   </div>
-                  <div className="p-8 flex-1 flex flex-col border-t border-gray-100 dark:border-gray-800">
+
+                  <div className="px-8 lg:px-10 pb-8 lg:pb-10 flex-1 flex flex-col">
+                    <p className="text-[#1DB954] text-xs font-semibold uppercase tracking-wider mb-3">{pkg.positioning}</p>
                     <p className="text-gray-600 dark:text-gray-400 leading-relaxed mb-8 flex-1 text-sm">{pkg.desc}</p>
                     <Link href={`/paquetes/${pkg.slug}`}>
-                      <Button size="lg" className={`w-full rounded-full font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200 ${pkg.popular ? "bg-[#1DB954] hover:bg-[#1aa34a] text-white" : pkg.premium ? "bg-[#111] dark:bg-white text-white dark:text-[#111]" : "bg-white dark:bg-[#111] text-[#111] dark:text-white border-2 border-gray-200 dark:border-gray-700 hover:border-[#1DB954]"}`} data-testid={`button-ver-${pkg.slug}`}>
+                      <Button size="lg" className={`w-full rounded-full font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200 ${pkg.popular ? "bg-[#1DB954] hover:bg-[#1aa34a] text-white" : pkg.premium ? "bg-[#111] dark:bg-white text-white dark:text-[#111]" : "border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0d0d0d] text-[#111] dark:text-white hover:border-[#1DB954]"}`} data-testid={`button-ver-${pkg.slug}`}>
                         Ver Detalles
                         <ArrowRight className="w-5 h-5" />
                       </Button>
