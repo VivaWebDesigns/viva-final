@@ -61,12 +61,20 @@ function FAQItem({ q, a }: { q: string; a: string }) {
 function CellDisplay({ value, highlight }: { value: CellValue; highlight?: boolean }) {
   if (typeof value === "boolean") {
     return value ? (
-      <Check className={`w-6 h-6 mx-auto ${highlight ? "text-[#1DB954]" : "text-[#1DB954]"}`} />
+      <div className="w-full flex justify-end pr-2">
+        <Check className={`w-6 h-6 ${highlight ? "text-[#1DB954]" : "text-[#1DB954]"}`} />
+      </div>
     ) : (
-      <X className="w-6 h-6 mx-auto text-gray-300 dark:text-gray-600" />
+      <div className="w-full flex justify-end pr-2">
+        <X className="w-6 h-6 text-gray-300 dark:text-gray-600" />
+      </div>
     );
   }
-  return <span className={`text-sm font-semibold ${highlight ? "text-[#1DB954]" : "text-[#111] dark:text-white"}`}>{value}</span>;
+  return (
+    <div className="w-full flex justify-end pr-2">
+      <span className={`text-sm font-semibold ${highlight ? "text-[#1DB954]" : "text-[#111] dark:text-white"}`}>{value}</span>
+    </div>
+  );
 }
 
 export default function Paquetes() {
