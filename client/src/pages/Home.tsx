@@ -100,7 +100,7 @@ export default function Home() {
           <motion.div initial="hidden" animate="visible" variants={stagger} className="max-w-3xl">
             <motion.h1 variants={fadeUp} className="text-4xl sm:text-5xl lg:text-7xl font-extrabold text-white leading-[1.1] tracking-tight mb-6" data-testid="text-hero-title">
               Más llamadas.{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#1DB954] to-[#22c55e]">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#0D9488] to-[#14B8A6]">
                 Más trabajos.
               </span>{" "}
               Más crecimiento.
@@ -112,7 +112,7 @@ export default function Home() {
 
             <motion.div variants={fadeUp} className="flex flex-col sm:flex-row items-start gap-4">
               <Link href="/paquetes">
-                <Button size="lg" className="rounded-full bg-[#1DB954] text-white font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-hero-paquetes">
+                <Button size="lg" className="rounded-full bg-[#0D9488] text-white font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-hero-paquetes">
                   Ver Paquetes
                   <ArrowRight className="w-5 h-5" />
                 </Button>
@@ -147,7 +147,7 @@ export default function Home() {
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="max-w-3xl mx-auto">
             <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#111] dark:text-white leading-tight mb-10 text-center" data-testid="text-problem-title">
               ¿Tu negocio depende solo de{" "}
-              <span className="text-[#1DB954]">referencias?</span>
+              <span className="text-[#0D9488]">referencias?</span>
             </motion.h2>
 
             <motion.div variants={fadeUp} className="space-y-5 mb-10">
@@ -171,7 +171,7 @@ export default function Home() {
 
           <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }} className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-12">
             <Link href="/paquetes">
-              <Button size="lg" className="rounded-full bg-[#1DB954] text-white font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-paquetes-problem">
+              <Button size="lg" className="rounded-full bg-[#0D9488] text-white font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-paquetes-problem">
                 Ver Paquetes
                 <ArrowRight className="w-5 h-5" />
               </Button>
@@ -192,7 +192,7 @@ export default function Home() {
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center max-w-3xl mx-auto mb-16">
             <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#111] dark:text-white leading-tight mb-6" data-testid="text-solution-title">
               Te ayudamos a verte profesional y{" "}
-              <span className="text-[#1DB954]">generar más llamadas.</span>
+              <span className="text-[#0D9488]">generar más llamadas.</span>
             </motion.h2>
             <motion.p variants={fadeUp} className="text-lg text-gray-600 dark:text-gray-400 leading-relaxed">
               No vendemos páginas web. Construimos presencia digital que genera confianza y posicionamiento local.
@@ -201,9 +201,9 @@ export default function Home() {
 
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
-              { icon: Image, title: "Imagen Profesional", desc: "Tu negocio se verá como las empresas grandes. Sitios web modernos que generan confianza al instante.", color: "bg-emerald-50 dark:bg-emerald-950/30", iconColor: "text-[#1DB954]" },
-              { icon: Eye, title: "Visibilidad en Google", desc: "Aparece cuando tus clientes buscan servicios en tu área. SEO local y Google Maps optimizado.", color: "bg-emerald-50 dark:bg-emerald-950/30", iconColor: "text-[#1DB954]" },
-              { icon: PhoneCall, title: "Más Llamadas", desc: "Todo lo que hacemos está diseñado para un resultado: que tu teléfono suene más con clientes reales.", color: "bg-emerald-50 dark:bg-emerald-950/30", iconColor: "text-[#1DB954]" },
+              { icon: Image, title: "Imagen Profesional", desc: "Tu negocio se verá como las empresas grandes. Sitios web modernos que generan confianza al instante.", color: "bg-teal-50 dark:bg-teal-950/30", iconColor: "text-[#10B981]" },
+              { icon: Eye, title: "Visibilidad en Google", desc: "Aparece cuando tus clientes buscan servicios en tu área. SEO local y Google Maps optimizado.", color: "bg-teal-50 dark:bg-teal-950/30", iconColor: "text-[#10B981]" },
+              { icon: PhoneCall, title: "Más Llamadas", desc: "Todo lo que hacemos está diseñado para un resultado: que tu teléfono suene más con clientes reales.", color: "bg-teal-50 dark:bg-teal-950/30", iconColor: "text-[#10B981]" },
             ].map((item) => (
               <motion.div key={item.title} variants={fadeUp} className={`p-8 lg:p-10 rounded-md ${item.color} text-center`}>
                 <div className="w-16 h-16 mx-auto rounded-full bg-white dark:bg-gray-800 flex items-center justify-center mb-6">
@@ -217,7 +217,7 @@ export default function Home() {
 
           <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }} className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-12">
             <Link href="/paquetes">
-              <Button size="lg" className="rounded-full bg-[#1DB954] text-white font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-paquetes-solution">
+              <Button size="lg" className="rounded-full bg-[#0D9488] text-white font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-paquetes-solution">
                 Ver Paquetes
                 <ArrowRight className="w-5 h-5" />
               </Button>
@@ -236,7 +236,7 @@ export default function Home() {
       <section className="py-24 lg:py-40 bg-white dark:bg-[#0d0d0d]" data-testid="section-packages">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center max-w-3xl mx-auto mb-16">
-            <motion.p variants={fadeUp} className="text-[#1DB954] font-bold text-sm uppercase tracking-widest mb-4">
+            <motion.p variants={fadeUp} className="text-[#0D9488] font-bold text-sm uppercase tracking-widest mb-4">
               Nuestros Paquetes
             </motion.p>
             <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#111] dark:text-white leading-tight" data-testid="text-packages-title">
@@ -287,16 +287,16 @@ export default function Home() {
               >
                 {pkg.popular && (
                   <div className="flex justify-center mb-3">
-                    <span className="bg-[#1DB954] text-white text-xs font-bold px-5 py-1.5 rounded-full uppercase tracking-widest flex items-center gap-1.5 shadow-lg" data-testid="badge-popular">
+                    <span className="bg-[#0D9488] text-white text-xs font-bold px-5 py-1.5 rounded-full uppercase tracking-widest flex items-center gap-1.5 shadow-lg" data-testid="badge-popular">
                       <Star className="w-3 h-3 fill-white" />
                       Más Popular
                     </span>
                   </div>
                 )}
-                <div className={`rounded-2xl border bg-white dark:bg-[#0d0d0d] flex flex-col flex-1 transition-all duration-300 ${pkg.popular ? "border-[#1DB954]/40 shadow-xl shadow-[#1DB954]/5 hover:shadow-2xl hover:shadow-[#1DB954]/10" : "border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-lg"}`}>
+                <div className={`rounded-2xl border bg-white dark:bg-[#0d0d0d] flex flex-col flex-1 transition-all duration-300 ${pkg.popular ? "border-[#0D9488]/40 shadow-xl shadow-[#0D9488]/5 hover:shadow-2xl hover:shadow-[#0D9488]/10" : "border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-lg"}`}>
                   <div className="p-8 lg:p-10 text-center">
-                    <div className={`w-12 h-12 mx-auto rounded-xl flex items-center justify-center mb-5 bg-[#1DB954]/10`}>
-                      <pkg.icon className={`w-6 h-6 text-[#1DB954]`} />
+                    <div className={`w-12 h-12 mx-auto rounded-xl flex items-center justify-center mb-5 bg-[#10B981]/10`}>
+                      <pkg.icon className={`w-6 h-6 text-[#10B981]`} />
                     </div>
                     <h3 className="text-2xl font-extrabold text-[#111] dark:text-white mb-1">{pkg.name}</h3>
                     <p className="text-gray-500 dark:text-gray-400 text-xs leading-snug max-w-[220px] mx-auto mb-8">{pkg.subLabel}</p>
@@ -309,10 +309,10 @@ export default function Home() {
                   </div>
 
                   <div className="px-8 lg:px-10 pb-8 lg:pb-10 flex-1 flex flex-col">
-                    <p className="text-[#1DB954] text-xs font-semibold uppercase tracking-wider mb-3">{pkg.positioning}</p>
+                    <p className="text-[#0D9488] text-xs font-semibold uppercase tracking-wider mb-3">{pkg.positioning}</p>
                     <p className="text-gray-600 dark:text-gray-400 leading-relaxed mb-8 flex-1 text-sm">{pkg.desc}</p>
                     <Link href={`/paquetes/${pkg.slug}`}>
-                      <Button size="lg" className={`w-full rounded-full font-bold text-lg gap-2 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 ${pkg.popular ? "bg-[#1DB954] text-white shadow-[#1DB954]/20 hover:bg-[#1aa34a]" : pkg.premium ? "bg-[#111] dark:bg-white text-white dark:text-[#111] shadow-xl" : "bg-white dark:bg-[#0d0d0d] text-[#111] dark:text-white border border-[#111]/10 dark:border-white/10 hover:border-[#111]/20"}`} data-testid={`button-ver-${pkg.slug}`}>
+                      <Button size="lg" className={`w-full rounded-full font-bold text-lg gap-2 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 ${pkg.popular ? "bg-[#0D9488] text-white shadow-[#0D9488]/20 hover:bg-[#0F766E]" : pkg.premium ? "bg-[#111] dark:bg-white text-white dark:text-[#111] shadow-xl" : "bg-white dark:bg-[#0d0d0d] text-[#111] dark:text-white border border-[#111]/10 dark:border-white/10 hover:border-[#111]/20"}`} data-testid={`button-ver-${pkg.slug}`}>
                         Ver Detalles
                         <ArrowRight className="w-5 h-5" />
                       </Button>
@@ -323,7 +323,7 @@ export default function Home() {
             ))}
           </motion.div>
           <motion.p initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ delay: 0.4 }} className="text-center text-sm text-gray-400 dark:text-gray-500 mt-8" data-testid="text-payment-reassurance">
-            También ofrecemos opciones de pago en partes. <a href="https://wa.me/1234567890?text=Hola%2C%20quiero%20saber%20sobre%20opciones%20de%20pago" target="_blank" rel="noopener noreferrer" className="underline hover:text-[#1DB954] transition-colors">Pregúntanos por WhatsApp.</a>
+            También ofrecemos opciones de pago en partes. <a href="https://wa.me/1234567890?text=Hola%2C%20quiero%20saber%20sobre%20opciones%20de%20pago" target="_blank" rel="noopener noreferrer" className="underline hover:text-[#0D9488] transition-colors">Pregúntanos por WhatsApp.</a>
           </motion.p>
         </div>
       </section>
@@ -333,7 +333,7 @@ export default function Home() {
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center">
             <motion.div variants={fadeUp} className="inline-flex items-center gap-2 bg-white dark:bg-[#0d0d0d] border border-gray-200 dark:border-gray-700 rounded-full px-5 py-2 mb-6 shadow-sm">
-              <Shield className="w-4 h-4 text-[#1DB954]" />
+              <Shield className="w-4 h-4 text-[#10B981]" />
               <span className="text-xs font-bold text-[#111] dark:text-white uppercase tracking-widest">Plan de Soporte y Crecimiento</span>
             </motion.div>
             <motion.p variants={fadeUp} className="text-gray-500 dark:text-gray-400 text-sm max-w-xl mx-auto mb-6">
@@ -357,7 +357,7 @@ export default function Home() {
                 "Soporte en español",
               ].map((item) => (
                 <span key={item} className="flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-[#1DB954] flex-shrink-0" />
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[#10B981] flex-shrink-0" />
                   {item}
                 </span>
               ))}
@@ -371,7 +371,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center mb-16">
             <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white leading-tight" data-testid="text-before-after-title">
-              Antes vs <span className="text-[#1DB954]">Después</span>
+              Antes vs <span className="text-[#0D9488]">Después</span>
             </motion.h2>
           </motion.div>
 
@@ -392,8 +392,8 @@ export default function Home() {
               </ul>
             </motion.div>
 
-            <motion.div variants={fadeUp} className="rounded-md border border-[#1DB954]/30 bg-[#1DB954]/10 p-8 lg:p-10" data-testid="card-after">
-              <div className="text-[#1DB954] font-bold text-sm uppercase tracking-widest mb-6">Después</div>
+            <motion.div variants={fadeUp} className="rounded-md border border-[#0D9488]/30 bg-[#0D9488]/10 p-8 lg:p-10" data-testid="card-after">
+              <div className="text-[#0D9488] font-bold text-sm uppercase tracking-widest mb-6">Después</div>
               <ul className="space-y-5">
                 {[
                   "Imagen profesional",
@@ -401,7 +401,7 @@ export default function Home() {
                   "Más clientes llamando",
                 ].map((item) => (
                   <li key={item} className="flex items-start gap-3">
-                    <CheckCircle2 className="w-6 h-6 text-[#1DB954] flex-shrink-0 mt-0.5" />
+                    <CheckCircle2 className="w-6 h-6 text-[#10B981] flex-shrink-0 mt-0.5" />
                     <span className="text-gray-200 text-lg font-medium">{item}</span>
                   </li>
                 ))}
@@ -411,7 +411,7 @@ export default function Home() {
 
           <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }} className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-12">
             <Link href="/paquetes">
-              <Button size="lg" className="rounded-full bg-[#1DB954] text-white font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-paquetes-beforeafter">
+              <Button size="lg" className="rounded-full bg-[#0D9488] text-white font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-paquetes-beforeafter">
                 Ver Paquetes
                 <ArrowRight className="w-5 h-5" />
               </Button>
@@ -430,7 +430,7 @@ export default function Home() {
       <section id="como-funciona" className="scroll-mt-20 py-24 lg:py-40 bg-white dark:bg-[#0d0d0d]" data-testid="section-process">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center max-w-3xl mx-auto mb-16">
-            <motion.p variants={fadeUp} className="text-[#1DB954] font-bold text-sm uppercase tracking-widest mb-4">
+            <motion.p variants={fadeUp} className="text-[#0D9488] font-bold text-sm uppercase tracking-widest mb-4">
               Nuestro Proceso
             </motion.p>
             <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#111] dark:text-white leading-tight" data-testid="text-process-title">
@@ -455,7 +455,7 @@ export default function Home() {
 
           <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }} className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-12">
             <Link href="/paquetes">
-              <Button size="lg" className="rounded-full bg-[#1DB954] text-white font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-paquetes-process">
+              <Button size="lg" className="rounded-full bg-[#0D9488] text-white font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-paquetes-process">
                 Ver Paquetes
                 <ArrowRight className="w-5 h-5" />
               </Button>
@@ -474,12 +474,12 @@ export default function Home() {
       <section className="py-24 lg:py-40 bg-[#f5f5f5] dark:bg-[#111]" data-testid="section-testimonials">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center max-w-3xl mx-auto mb-16">
-            <motion.p variants={fadeUp} className="text-[#1DB954] font-bold text-sm uppercase tracking-widest mb-4">
+            <motion.p variants={fadeUp} className="text-[#0D9488] font-bold text-sm uppercase tracking-widest mb-4">
               Testimonios
             </motion.p>
             <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#111] dark:text-white leading-tight" data-testid="text-testimonials-title">
               Lo que dicen nuestros{" "}
-              <span className="text-[#1DB954]">clientes</span>
+              <span className="text-[#0D9488]">clientes</span>
             </motion.h2>
           </motion.div>
 
@@ -493,7 +493,7 @@ export default function Home() {
                 </div>
                 <p className="text-gray-700 dark:text-gray-300 leading-relaxed mb-6 italic">"{t.text}"</p>
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#1DB954] to-[#22c55e] flex items-center justify-center text-white font-bold">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#0D9488] to-[#14B8A6] flex items-center justify-center text-white font-bold">
                     {t.name.split(" ").map(n => n[0]).join("")}
                   </div>
                   <div>
@@ -507,7 +507,7 @@ export default function Home() {
 
           <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }} className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-12">
             <Link href="/paquetes">
-              <Button size="lg" className="rounded-full bg-[#1DB954] text-white font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-paquetes-testimonials">
+              <Button size="lg" className="rounded-full bg-[#0D9488] text-white font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-paquetes-testimonials">
                 Ver Paquetes
                 <ArrowRight className="w-5 h-5" />
               </Button>
@@ -526,7 +526,7 @@ export default function Home() {
       <section className="py-24 lg:py-40 bg-white dark:bg-[#0d0d0d]" data-testid="section-faq">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center mb-16">
-            <motion.p variants={fadeUp} className="text-[#1DB954] font-bold text-sm uppercase tracking-widest mb-4">
+            <motion.p variants={fadeUp} className="text-[#0D9488] font-bold text-sm uppercase tracking-widest mb-4">
               Preguntas Frecuentes
             </motion.p>
             <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#111] dark:text-white leading-tight" data-testid="text-faq-title">
@@ -542,7 +542,7 @@ export default function Home() {
 
           <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }} className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-12">
             <Link href="/paquetes">
-              <Button size="lg" className="rounded-full bg-[#1DB954] text-white font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-paquetes-faq">
+              <Button size="lg" className="rounded-full bg-[#0D9488] text-white font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-paquetes-faq">
                 Ver Paquetes
                 <ArrowRight className="w-5 h-5" />
               </Button>
@@ -569,7 +569,7 @@ export default function Home() {
             </motion.p>
             <motion.div variants={fadeUp}>
               <Link href="/contacto">
-                <Button size="lg" className="rounded-full bg-[#1DB954] text-white font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-bottom">
+                <Button size="lg" className="rounded-full bg-[#0D9488] text-white font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-bottom">
                   Comenzar Ahora
                   <ArrowRight className="w-5 h-5" />
                 </Button>

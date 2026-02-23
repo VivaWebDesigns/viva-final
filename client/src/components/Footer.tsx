@@ -16,13 +16,13 @@ export default function Footer() {
               Ayudamos a contratistas latinos a crecer su negocio con marketing digital que genera resultados reales.
             </p>
             <div className="flex items-center gap-3">
-              <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-500 hover:text-[#1DB954] hover:bg-white/10 transition-all duration-200" aria-label="Facebook" data-testid="link-facebook">
+              <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-500 hover:text-[#0D9488] hover:bg-white/10 transition-all duration-200" aria-label="Facebook" data-testid="link-facebook">
                 <SiFacebook className="w-5 h-5" />
               </a>
-              <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-500 hover:text-[#1DB954] hover:bg-white/10 transition-all duration-200" aria-label="Instagram" data-testid="link-instagram">
+              <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-500 hover:text-[#0D9488] hover:bg-white/10 transition-all duration-200" aria-label="Instagram" data-testid="link-instagram">
                 <SiInstagram className="w-5 h-5" />
               </a>
-              <a href="https://tiktok.com" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-500 hover:text-[#1DB954] hover:bg-white/10 transition-all duration-200" aria-label="TikTok" data-testid="link-tiktok">
+              <a href="https://tiktok.com" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-500 hover:text-[#0D9488] hover:bg-white/10 transition-all duration-200" aria-label="TikTok" data-testid="link-tiktok">
                 <SiTiktok className="w-5 h-5" />
               </a>
             </div>
@@ -48,11 +48,11 @@ export default function Footer() {
                 <a href="https://wa.me/1234567890" target="_blank" rel="noopener noreferrer" className="text-gray-400 text-sm hover:text-white transition-colors duration-200" data-testid="link-footer-whatsapp">WhatsApp</a>
               </li>
               <li className="flex items-start gap-3">
-                <Phone className="w-5 h-5 text-[#1DB954] flex-shrink-0 mt-0.5" />
+                <Phone className="w-5 h-5 text-[#10B981] flex-shrink-0 mt-0.5" />
                 <a href="tel:+1234567890" className="text-gray-400 text-sm hover:text-white transition-colors duration-200" data-testid="link-footer-phone">(555) 123-4567</a>
               </li>
               <li className="flex items-start gap-3">
-                <Mail className="w-5 h-5 text-[#1DB954] flex-shrink-0 mt-0.5" />
+                <Mail className="w-5 h-5 text-[#10B981] flex-shrink-0 mt-0.5" />
                 <a href="mailto:info@vivawebdesigns.com" className="text-gray-400 text-sm hover:text-white transition-colors duration-200" data-testid="link-footer-email">info@vivawebdesigns.com</a>
               </li>
             </ul>

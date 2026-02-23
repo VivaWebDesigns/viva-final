@@ -77,18 +77,18 @@ export default function PaqueteCrece() {
       {/* HERO */}
       <section className="relative pt-32 pb-20 lg:pt-40 lg:pb-28 bg-[#111] overflow-hidden" data-testid="section-crece-hero">
         <div className="absolute inset-0 opacity-20">
-          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[#1DB954] rounded-full blur-[180px] -translate-y-1/2 translate-x-1/4" />
+          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[#0D9488] rounded-full blur-[180px] -translate-y-1/2 translate-x-1/4" />
         </div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" animate="visible" variants={stagger} className="max-w-3xl">
             <motion.div variants={fadeUp} className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 mb-6">
               <Rocket className="w-4 h-4 text-white" />
               <span className="text-sm text-white/90 font-medium">Plan Crece</span>
-              <span className="bg-white text-[#1DB954] text-xs font-bold px-2 py-0.5 rounded-full uppercase">Más Popular</span>
+              <span className="bg-white text-[#0D9488] text-xs font-bold px-2 py-0.5 rounded-full uppercase">Más Popular</span>
             </motion.div>
             <motion.h1 variants={fadeUp} className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-tight mb-6" data-testid="text-crece-title">
               Deja de esperar que te recomienden.{" "}
-              <span className="text-emerald-200">Haz que te encuentren.</span>
+              <span className="text-teal-200">Haz que te encuentren.</span>
             </motion.h1>
             <motion.p variants={fadeUp} className="text-lg sm:text-xl text-white/80 leading-relaxed mb-8 max-w-2xl">
               El plan favorito de nuestros clientes. Todo lo que necesitas para aparecer en Google, generar confianza y recibir un flujo constante de llamadas.
@@ -99,7 +99,7 @@ export default function PaqueteCrece() {
             <motion.p variants={fadeUp} className="text-xs text-white/60 font-medium mb-8">Más plan mensual requerido.</motion.p>
             <motion.div variants={fadeUp} className="flex flex-col sm:flex-row items-start gap-4">
               <Link href="/contacto">
-                <Button size="lg" className="bg-[#1DB954] text-white font-bold text-lg gap-2 rounded-full transition-all duration-200 hover:shadow-lg" data-testid="button-crece-cta">
+                <Button size="lg" className="bg-[#0D9488] text-white font-bold text-lg gap-2 rounded-full transition-all duration-200 hover:shadow-lg" data-testid="button-crece-cta">
                   Quiero Crecer
                   <ArrowRight className="w-5 h-5" />
                 </Button>
@@ -120,7 +120,7 @@ export default function PaqueteCrece() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <motion.div variants={fadeUp}>
-              <p className="text-[#1DB954] font-bold text-sm uppercase tracking-widest mb-4">¿Para Quién Es?</p>
+              <p className="text-[#0D9488] font-bold text-sm uppercase tracking-widest mb-4">¿Para Quién Es?</p>
               <h2 className="text-3xl sm:text-4xl font-extrabold text-[#111] dark:text-white leading-tight mb-6" data-testid="text-crece-ideal-title">
                 Este plan es para ti si...
               </h2>
@@ -134,22 +134,22 @@ export default function PaqueteCrece() {
                   "Estás listo para invertir en crecer y no solo sobrevivir",
                 ].map((item) => (
                   <li key={item} className="flex items-start gap-3">
-                    <CheckCircle2 className="w-6 h-6 text-[#1DB954] flex-shrink-0 mt-0.5" />
+                    <CheckCircle2 className="w-6 h-6 text-[#10B981] flex-shrink-0 mt-0.5" />
                     <span className="text-gray-700 dark:text-gray-300 font-medium">{item}</span>
                   </li>
                 ))}
               </ul>
             </motion.div>
-            <motion.div variants={fadeUp} className="bg-gradient-to-br from-[#1DB954] to-[#1aa34a] rounded-md p-1">
+            <motion.div variants={fadeUp} className="bg-gradient-to-br from-[#0D9488] to-[#0F766E] rounded-md p-1">
               <div className="bg-white dark:bg-[#111] rounded-md p-8 lg:p-10 text-center">
                 <div className="flex items-center justify-center gap-2 mb-4">
-                  <Star className="w-5 h-5 text-[#1DB954] fill-[#1DB954]" />
-                  <span className="text-sm font-bold text-[#1DB954] uppercase tracking-wider">Más Popular</span>
+                  <Star className="w-5 h-5 text-[#0D9488] fill-[#0D9488]" />
+                  <span className="text-sm font-bold text-[#0D9488] uppercase tracking-wider">Más Popular</span>
                 </div>
-                <Rocket className="w-16 h-16 text-[#1DB954] mx-auto mb-6" />
+                <Rocket className="w-16 h-16 text-[#0D9488] mx-auto mb-6" />
                 <h3 className="text-2xl font-extrabold text-[#111] dark:text-white mb-3">Plan Crece</h3>
                 <p className="text-gray-600 dark:text-gray-400 mb-6">El favorito de contratistas serios</p>
-                <p className="text-5xl font-extrabold text-[#1DB954] mb-1">$997</p>
+                <p className="text-5xl font-extrabold text-[#0D9488] mb-1">$997</p>
                 <p className="text-[10px] text-gray-400 font-medium mb-4">Más plan mensual requerido.</p>
               </div>
             </motion.div>
@@ -161,9 +161,9 @@ export default function PaqueteCrece() {
       <section className="py-24 lg:py-40 bg-[#f5f5f5] dark:bg-[#111]" data-testid="section-crece-features">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center max-w-3xl mx-auto mb-16">
-            <motion.p variants={fadeUp} className="text-[#1DB954] font-bold text-sm uppercase tracking-widest mb-4">Qué Incluye</motion.p>
+            <motion.p variants={fadeUp} className="text-[#0D9488] font-bold text-sm uppercase tracking-widest mb-4">Qué Incluye</motion.p>
             <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#111] dark:text-white leading-tight" data-testid="text-crece-features-title">
-              Todo Para Que Tu Negocio <span className="text-[#1DB954]">Crezca de Verdad</span>
+              Todo Para Que Tu Negocio <span className="text-[#0D9488]">Crezca de Verdad</span>
             </motion.h2>
           </motion.div>
 
@@ -172,16 +172,16 @@ export default function PaqueteCrece() {
               <motion.div key={item.title} variants={fadeUp} className="bg-white dark:bg-gray-800 rounded-md p-8 lg:p-10">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
                   <div className="lg:col-span-1">
-                    <div className="w-14 h-14 rounded-md bg-emerald-50 dark:bg-emerald-950/30 flex items-center justify-center">
-                      <item.icon className="w-7 h-7 text-[#1DB954]" />
+                    <div className="w-14 h-14 rounded-md bg-teal-50 dark:bg-teal-950/30 flex items-center justify-center">
+                      <item.icon className="w-7 h-7 text-[#10B981]" />
                     </div>
                   </div>
                   <div className="lg:col-span-7">
                     <h3 className="text-xl font-bold text-[#111] dark:text-white mb-2">{item.title}</h3>
                     <p className="text-gray-600 dark:text-gray-400 leading-relaxed">{item.desc}</p>
                   </div>
-                  <div className="lg:col-span-4 bg-[#1DB954]/5 rounded-md p-4">
-                    <p className="text-sm font-semibold text-[#1DB954]">
+                  <div className="lg:col-span-4 bg-[#10B981]/5 rounded-md p-4">
+                    <p className="text-sm font-semibold text-[#10B981]">
                       <span className="font-extrabold">¿Por qué importa?</span>{" "}
                       {item.why}
                     </p>
@@ -198,19 +198,19 @@ export default function PaqueteCrece() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger}>
             <motion.div variants={fadeUp} className="text-center mb-12">
-              <p className="text-[#1DB954] font-bold text-sm uppercase tracking-widest mb-4">¿Quieres Más Poder?</p>
+              <p className="text-[#0D9488] font-bold text-sm uppercase tracking-widest mb-4">¿Quieres Más Poder?</p>
               <h2 className="text-3xl sm:text-4xl font-extrabold text-[#111] dark:text-white leading-tight" data-testid="text-crece-upgrade-title">
-                Si quieres dominar tu mercado, el <span className="text-[#1DB954]">Plan Domina</span> es tu siguiente paso
+                Si quieres dominar tu mercado, el <span className="text-[#0D9488]">Plan Domina</span> es tu siguiente paso
               </h2>
             </motion.div>
 
-            <motion.div variants={fadeUp} className="border-2 border-[#1DB954] rounded-md p-1">
+            <motion.div variants={fadeUp} className="border-2 border-[#0D9488] rounded-md p-1">
               <div className="bg-white dark:bg-[#111] rounded-md p-8 lg:p-10">
                 <div className="flex items-center gap-3 mb-6">
-                  <Crown className="w-8 h-8 text-[#1DB954]" />
+                  <Crown className="w-8 h-8 text-[#0D9488]" />
                   <div>
                     <h3 className="text-xl font-extrabold text-[#111] dark:text-white">Plan Domina</h3>
-                    <span className="text-sm font-bold text-[#1DB954] uppercase tracking-wider">Premium</span>
+                    <span className="text-sm font-bold text-[#0D9488] uppercase tracking-wider">Premium</span>
                   </div>
                 </div>
                 <p className="text-gray-600 dark:text-gray-400 leading-relaxed mb-6">
@@ -218,7 +218,7 @@ export default function PaqueteCrece() {
                 </p>
                 <div className="flex flex-col sm:flex-row items-start gap-4">
                   <Link href="/paquetes/domina">
-                    <Button size="lg" className="bg-[#1DB954] text-white font-bold text-lg gap-2 rounded-full transition-all duration-200 hover:shadow-lg" data-testid="button-crece-ver-domina">
+                    <Button size="lg" className="bg-[#0D9488] text-white font-bold text-lg gap-2 rounded-full transition-all duration-200 hover:shadow-lg" data-testid="button-crece-ver-domina">
                       Ver Plan Domina
                       <ArrowRight className="w-5 h-5" />
                     </Button>
@@ -240,7 +240,7 @@ export default function PaqueteCrece() {
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center">
             <motion.div variants={fadeUp} className="inline-flex items-center gap-2 bg-white dark:bg-[#0d0d0d] border border-gray-200 dark:border-gray-700 rounded-full px-5 py-2 mb-6 shadow-sm">
-              <Shield className="w-4 h-4 text-[#1DB954]" />
+              <Shield className="w-4 h-4 text-[#10B981]" />
               <span className="text-xs font-bold text-[#111] dark:text-white uppercase tracking-widest">Plan de Soporte y Crecimiento</span>
             </motion.div>
             <motion.p variants={fadeUp} className="text-gray-500 dark:text-gray-400 text-sm max-w-xl mx-auto mb-6">
@@ -265,7 +265,7 @@ export default function PaqueteCrece() {
                 "Revisión básica de visibilidad en Google",
               ].map((item) => (
                 <span key={item} className="flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-[#1DB954] flex-shrink-0" />
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[#10B981] flex-shrink-0" />
                   {item}
                 </span>
               ))}
@@ -286,7 +286,7 @@ export default function PaqueteCrece() {
             </motion.p>
             <motion.div variants={fadeUp} className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link href="/contacto">
-                <Button size="lg" className="bg-[#1DB954] text-white font-bold text-lg gap-2 rounded-full transition-all duration-200 hover:shadow-lg" data-testid="button-crece-cta-bottom">
+                <Button size="lg" className="bg-[#0D9488] text-white font-bold text-lg gap-2 rounded-full transition-all duration-200 hover:shadow-lg" data-testid="button-crece-cta-bottom">
                   Quiero Crecer Hoy
                   <ArrowRight className="w-5 h-5" />
                 </Button>

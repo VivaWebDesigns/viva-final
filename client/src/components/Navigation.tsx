@@ -71,8 +71,8 @@ export default function Navigation() {
                 href={link.href.includes("#") ? link.href : link.href}
                 className={`text-[13px] font-semibold tracking-wide transition-colors duration-200 ${
                   isActive(link.href)
-                    ? "text-[#1DB954]"
-                    : "text-[#111] dark:text-gray-300 hover:text-[#1DB954]"
+                    ? "text-[#0D9488]"
+                    : "text-[#111] dark:text-gray-300 hover:text-[#0D9488]"
                 }`}
                 onClick={() => handleNavClick(link.href)}
                 data-testid={`link-nav-${link.label.toLowerCase().replace(/\s/g, "-")}`}
@@ -84,7 +84,7 @@ export default function Navigation() {
 
           <div className="hidden md:block">
             <Link href="/contacto">
-              <Button className="bg-[#1DB954] hover:bg-[#1aa34a] text-white font-bold px-6 rounded-full transition-all duration-200 hover:shadow-lg" data-testid="button-cta-nav">
+              <Button className="bg-[#0D9488] hover:bg-[#0F766E] text-white font-bold px-6 rounded-full transition-all duration-200 hover:shadow-lg" data-testid="button-cta-nav">
                 Comenzar
               </Button>
             </Link>
@@ -109,7 +109,7 @@ export default function Navigation() {
                 href={link.href.includes("#") ? link.href : link.href}
                 className={`block text-lg font-semibold py-3 transition-colors ${
                   isActive(link.href)
-                    ? "text-[#1DB954]"
+                    ? "text-[#0D9488]"
                     : "text-[#111] dark:text-gray-300"
                 }`}
                 onClick={() => handleNavClick(link.href)}
@@ -120,7 +120,7 @@ export default function Navigation() {
             ))}
             <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
               <Link href="/contacto" onClick={() => setIsOpen(false)}>
-                <Button className="w-full bg-[#1DB954] hover:bg-[#1aa34a] text-white font-bold text-lg rounded-full" data-testid="button-cta-mobile">
+                <Button className="w-full bg-[#0D9488] hover:bg-[#0F766E] text-white font-bold text-lg rounded-full" data-testid="button-cta-mobile">
                   Comenzar
                 </Button>
               </Link>

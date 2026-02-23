@@ -5,7 +5,7 @@ Marketing agency website targeting Latino contractors (painters, electricians, l
 
 ## Brand
 - **Company**: Viva Web Designs
-- **Colors**: Primary emerald green (#1DB954, hsl 141 73% 42%), secondary deep charcoal (#111111), backgrounds white (#FFFFFF) and light gray (#F5F5F5)
+- **Colors**: Primary deep teal (#0D9488, hsl 175 85% 30%), accent emerald (#10B981), hover teal (#0F766E), gradient teal (#14B8A6), secondary deep charcoal (#111111), backgrounds white (#FFFFFF) and light gray (#F5F5F5). WhatsApp green (#25D366) unchanged.
 - **Fonts**: Plus Jakarta Sans (body), Montserrat (headings), Inter (fallback)
 - **Tone**: Confident, professional, clear, direct, Spanish-first
 

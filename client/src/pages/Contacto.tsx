@@ -92,14 +92,14 @@ export default function Contacto() {
       {/* HERO */}
       <section className="relative pt-32 pb-20 lg:pt-40 lg:pb-28 bg-gradient-to-br from-[#111] via-[#111] to-[#111] overflow-hidden" data-testid="section-contacto-hero">
         <div className="absolute inset-0 opacity-15">
-          <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-[#1DB954] rounded-full blur-[180px] -translate-y-1/3 -translate-x-1/4" />
-          <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-[#1DB954] rounded-full blur-[160px] translate-y-1/3 translate-x-1/4" />
+          <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-[#0D9488] rounded-full blur-[180px] -translate-y-1/3 -translate-x-1/4" />
+          <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-[#0D9488] rounded-full blur-[160px] translate-y-1/3 translate-x-1/4" />
         </div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <motion.div initial="hidden" animate="visible" variants={stagger}>
             <motion.h1 variants={fadeUp} className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-tight mb-6" data-testid="text-contacto-title">
               Hablemos de{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#1DB954] to-[#22c55e]">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#0D9488] to-[#14B8A6]">
                 tu negocio.
               </span>
             </motion.h1>
@@ -244,7 +244,7 @@ export default function Contacto() {
                     <Button
                       type="submit"
                       size="lg"
-                      className="w-full bg-[#1DB954] hover:bg-[#1aa34a] text-white font-bold text-lg gap-2 rounded-full transition-all duration-200 hover:shadow-lg"
+                      className="w-full bg-[#0D9488] hover:bg-[#0F766E] text-white font-bold text-lg gap-2 rounded-full transition-all duration-200 hover:shadow-lg"
                       disabled={mutation.isPending}
                       data-testid="button-submit-contact"
                     >
@@ -259,7 +259,7 @@ export default function Contacto() {
                     </Button>
 
                     <div className="flex items-center justify-center gap-2 pt-2">
-                      <MessageCircle className="w-4 h-4 text-[#1DB954]" />
+                      <MessageCircle className="w-4 h-4 text-[#10B981]" />
                       <p className="text-sm font-semibold text-gray-600 dark:text-gray-400" data-testid="text-reassurance">
                         Te respondemos rápido y en español.
                       </p>
@@ -297,8 +297,8 @@ export default function Contacto() {
                 <div className="space-y-6">
                   <h3 className="text-xl font-bold text-[#111] dark:text-white">Información de Contacto</h3>
                   <a href="tel:+1234567890" className="flex items-start gap-4 group" data-testid="link-contacto-phone">
-                    <div className="w-12 h-12 rounded-md bg-emerald-50 dark:bg-emerald-950/30 flex items-center justify-center flex-shrink-0">
-                      <Phone className="w-6 h-6 text-[#1DB954]" />
+                    <div className="w-12 h-12 rounded-md bg-teal-50 dark:bg-teal-950/30 flex items-center justify-center flex-shrink-0">
+                      <Phone className="w-6 h-6 text-[#10B981]" />
                     </div>
                     <div>
                       <p className="font-semibold text-[#111] dark:text-white">Teléfono</p>
@@ -307,8 +307,8 @@ export default function Contacto() {
                   </a>
 
                   <a href="mailto:info@vivawebdesigns.com" className="flex items-start gap-4 group" data-testid="link-contacto-email">
-                    <div className="w-12 h-12 rounded-md bg-emerald-50 dark:bg-emerald-950/30 flex items-center justify-center flex-shrink-0">
-                      <Mail className="w-6 h-6 text-[#1DB954]" />
+                    <div className="w-12 h-12 rounded-md bg-teal-50 dark:bg-teal-950/30 flex items-center justify-center flex-shrink-0">
+                      <Mail className="w-6 h-6 text-[#10B981]" />
                     </div>
                     <div>
                       <p className="font-semibold text-[#111] dark:text-white">Email</p>
@@ -317,8 +317,8 @@ export default function Contacto() {
                   </a>
 
                   <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-md bg-emerald-50 dark:bg-emerald-950/30 flex items-center justify-center flex-shrink-0">
-                      <MapPin className="w-6 h-6 text-[#1DB954]" />
+                    <div className="w-12 h-12 rounded-md bg-teal-50 dark:bg-teal-950/30 flex items-center justify-center flex-shrink-0">
+                      <MapPin className="w-6 h-6 text-[#10B981]" />
                     </div>
                     <div>
                       <p className="font-semibold text-[#111] dark:text-white">Ubicación</p>
@@ -350,7 +350,7 @@ export default function Contacto() {
                       "Plan personalizado para tu negocio",
                     ].map((item) => (
                       <li key={item} className="flex items-center gap-3">
-                        <CheckCircle2 className="w-5 h-5 text-[#1DB954] flex-shrink-0" />
+                        <CheckCircle2 className="w-5 h-5 text-[#10B981] flex-shrink-0" />
                         <span className="text-gray-700 dark:text-gray-300 text-sm font-medium">{item}</span>
                       </li>
                     ))}

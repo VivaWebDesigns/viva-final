@@ -62,7 +62,7 @@ function CellDisplay({ value, highlight }: { value: CellValue; highlight?: boole
   if (typeof value === "boolean") {
     return value ? (
       <div className="w-full flex justify-end pr-2">
-        <Check className={`w-6 h-6 ${highlight ? "text-[#1DB954]" : "text-[#1DB954]"}`} />
+        <Check className={`w-6 h-6 ${highlight ? "text-[#10B981]" : "text-[#10B981]"}`} />
       </div>
     ) : (
       <div className="w-full flex justify-end pr-2">
@@ -72,7 +72,7 @@ function CellDisplay({ value, highlight }: { value: CellValue; highlight?: boole
   }
   return (
     <div className="w-full flex justify-end pr-2">
-      <span className={`text-sm font-semibold ${highlight ? "text-[#1DB954]" : "text-[#111] dark:text-white"}`}>{value}</span>
+      <span className={`text-sm font-semibold ${highlight ? "text-[#0D9488]" : "text-[#111] dark:text-white"}`}>{value}</span>
     </div>
   );
 }
@@ -89,14 +89,14 @@ export default function Paquetes() {
       {/* HERO */}
       <section className="relative pt-32 pb-20 lg:pt-40 lg:pb-28 bg-[#111] overflow-hidden" data-testid="section-paquetes-hero">
         <div className="absolute inset-0 opacity-15">
-          <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-[#1DB954] rounded-full blur-[180px] -translate-y-1/2 translate-x-1/4" />
-          <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-[#1DB954] rounded-full blur-[160px] translate-y-1/3 -translate-x-1/4" />
+          <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-[#0D9488] rounded-full blur-[180px] -translate-y-1/2 translate-x-1/4" />
+          <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-[#0D9488] rounded-full blur-[160px] translate-y-1/3 -translate-x-1/4" />
         </div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <motion.div initial="hidden" animate="visible" variants={stagger}>
             <motion.h1 variants={fadeUp} className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-tight mb-6" data-testid="text-paquetes-title">
               Elige el paquete ideal para{" "}
-              <span className="text-[#1DB954]">
+              <span className="text-[#0D9488]">
                 tu negocio
               </span>
             </motion.h1>
@@ -111,7 +111,7 @@ export default function Paquetes() {
       <section className="py-24 lg:py-40 bg-white dark:bg-[#0d0d0d]" data-testid="section-comparison">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center mb-12">
-            <motion.p variants={fadeUp} className="text-[#1DB954] font-bold text-sm uppercase tracking-widest mb-4">
+            <motion.p variants={fadeUp} className="text-[#0D9488] font-bold text-sm uppercase tracking-widest mb-4">
               Comparación
             </motion.p>
             <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl font-extrabold text-[#111] dark:text-white leading-tight" data-testid="text-comparison-title">
@@ -128,23 +128,23 @@ export default function Paquetes() {
                     <th className="text-left py-5 px-6 text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider w-[35%]"></th>
                     <th className="text-center py-5 px-4 w-[21.67%]">
                       <div className="flex flex-col items-center gap-1">
-                        <Zap className="w-6 h-6 text-[#1DB954]" />
+                        <Zap className="w-6 h-6 text-[#10B981]" />
                         <span className="text-lg font-extrabold text-[#111] dark:text-white">Empieza</span>
                       </div>
                     </th>
                     <th className="text-center py-5 px-4 w-[21.67%] relative">
-                      <div className="absolute -top-0 left-1/2 -translate-x-1/2 bg-[#1DB954] text-white text-[10px] font-bold px-3 py-1 rounded-b-md uppercase tracking-wider flex items-center gap-1" data-testid="badge-popular-table">
+                      <div className="absolute -top-0 left-1/2 -translate-x-1/2 bg-[#0D9488] text-white text-[10px] font-bold px-3 py-1 rounded-b-md uppercase tracking-wider flex items-center gap-1" data-testid="badge-popular-table">
                         <Star className="w-3 h-3 fill-white" />
                         Más Popular
                       </div>
                       <div className="flex flex-col items-center gap-1">
-                        <Rocket className="w-6 h-6 text-[#1DB954]" />
-                        <span className="text-lg font-extrabold text-[#1DB954]">Crece</span>
+                        <Rocket className="w-6 h-6 text-[#10B981]" />
+                        <span className="text-lg font-extrabold text-[#0D9488]">Crece</span>
                       </div>
                     </th>
                     <th className="text-center py-5 px-4 w-[21.67%]">
                       <div className="flex flex-col items-center gap-1">
-                        <Crown className="w-6 h-6 text-[#1DB954]" />
+                        <Crown className="w-6 h-6 text-[#10B981]" />
                         <span className="text-lg font-extrabold text-[#111] dark:text-white">Domina</span>
                       </div>
                     </th>
@@ -155,7 +155,7 @@ export default function Paquetes() {
                     <tr key={row.label} className={`${i % 2 === 0 ? "bg-white dark:bg-[#0d0d0d]" : "bg-[#f5f5f5]/50 dark:bg-[#111]/50"} border-t border-gray-100 dark:border-gray-800`} data-testid={`row-comparison-${i}`}>
                       <td className="py-4 px-6 text-sm font-medium text-gray-700 dark:text-gray-300">{row.label}</td>
                       <td className="py-4 px-4 text-center"><CellDisplay value={row.empieza} /></td>
-                      <td className="py-4 px-4 text-center bg-[#1DB954]/5"><CellDisplay value={row.crece} highlight /></td>
+                      <td className="py-4 px-4 text-center bg-[#0D9488]/5"><CellDisplay value={row.crece} highlight /></td>
                       <td className="py-4 px-4 text-center"><CellDisplay value={row.domina} /></td>
                     </tr>
                   ))}
@@ -166,13 +166,13 @@ export default function Paquetes() {
             {/* Mobile comparison cards */}
             <div className="md:hidden space-y-8" data-testid="table-comparison-mobile">
               {[
-                { name: "Empieza", icon: Zap, color: "border-gray-200", iconColor: "text-[#1DB954]", key: "empieza" as const },
-                { name: "Crece", icon: Rocket, color: "border-[#1DB954]", iconColor: "text-[#1DB954]", key: "crece" as const, popular: true },
-                { name: "Domina", icon: Crown, color: "border-gray-200", iconColor: "text-[#1DB954]", key: "domina" as const },
+                { name: "Empieza", icon: Zap, color: "border-gray-200", iconColor: "text-[#10B981]", key: "empieza" as const },
+                { name: "Crece", icon: Rocket, color: "border-[#0D9488]", iconColor: "text-[#10B981]", key: "crece" as const, popular: true },
+                { name: "Domina", icon: Crown, color: "border-gray-200", iconColor: "text-[#10B981]", key: "domina" as const },
               ].map((plan) => (
                 <div key={plan.name} className={`rounded-md border-2 ${plan.color} overflow-hidden bg-white dark:bg-[#111] relative`}>
                   {plan.popular && (
-                    <div className="absolute top-0 right-0 bg-[#1DB954] text-white text-[10px] font-bold px-3 py-1 rounded-bl-md uppercase tracking-wider flex items-center gap-1">
+                    <div className="absolute top-0 right-0 bg-[#0D9488] text-white text-[10px] font-bold px-3 py-1 rounded-bl-md uppercase tracking-wider flex items-center gap-1">
                       <Star className="w-3 h-3 fill-white" />
                       Más Popular
                     </div>
@@ -272,17 +272,17 @@ export default function Paquetes() {
               >
                 {pkg.popular && (
                   <div className="flex justify-center mb-3">
-                    <span className="bg-[#1DB954] text-white text-xs font-bold px-5 py-1.5 rounded-full uppercase tracking-widest flex items-center gap-1.5 shadow-lg" data-testid="badge-popular-card">
+                    <span className="bg-[#0D9488] text-white text-xs font-bold px-5 py-1.5 rounded-full uppercase tracking-widest flex items-center gap-1.5 shadow-lg" data-testid="badge-popular-card">
                       <Star className="w-3 h-3 fill-white" />
                       Más Popular
                     </span>
                   </div>
                 )}
 
-                <div className={`rounded-2xl border bg-white dark:bg-[#0d0d0d] flex flex-col flex-1 transition-all duration-300 ${pkg.popular ? "border-[#1DB954]/40 shadow-xl shadow-[#1DB954]/5 hover:shadow-2xl hover:shadow-[#1DB954]/10" : "border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-lg"}`}>
+                <div className={`rounded-2xl border bg-white dark:bg-[#0d0d0d] flex flex-col flex-1 transition-all duration-300 ${pkg.popular ? "border-[#0D9488]/40 shadow-xl shadow-[#0D9488]/5 hover:shadow-2xl hover:shadow-[#0D9488]/10" : "border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-lg"}`}>
                   <div className="p-8 lg:p-10">
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-5 bg-[#1DB954]/10`}>
-                      <pkg.icon className={`w-6 h-6 text-[#1DB954]`} />
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-5 bg-[#10B981]/10`}>
+                      <pkg.icon className={`w-6 h-6 text-[#10B981]`} />
                     </div>
                     <h3 className="text-2xl font-extrabold text-[#111] dark:text-white mb-1">{pkg.name}</h3>
                     <p className="text-gray-500 dark:text-gray-400 text-xs leading-snug mb-6">{pkg.subLabel}</p>
@@ -295,19 +295,19 @@ export default function Paquetes() {
                   </div>
 
                   <div className="px-8 lg:px-10 pb-8 lg:pb-10 flex-1 flex flex-col">
-                    <p className="text-[#1DB954] text-xs font-semibold uppercase tracking-wider mb-4">{pkg.positioning}</p>
+                    <p className="text-[#0D9488] text-xs font-semibold uppercase tracking-wider mb-4">{pkg.positioning}</p>
 
                     <ul className="space-y-3.5 mb-10 flex-1">
                       {pkg.features.map((feature) => (
                         <li key={feature} className="flex items-start gap-3">
-                          <CheckCircle2 className="w-5 h-5 text-[#1DB954] flex-shrink-0 mt-0.5" />
+                          <CheckCircle2 className="w-5 h-5 text-[#10B981] flex-shrink-0 mt-0.5" />
                           <span className="text-gray-700 dark:text-gray-300 text-sm">{feature}</span>
                         </li>
                       ))}
                     </ul>
 
                     <Link href={`/paquetes/${pkg.slug}`}>
-                      <Button size="lg" className={`w-full rounded-full font-bold text-lg gap-2 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 ${pkg.popular ? "bg-[#1DB954] text-white shadow-[#1DB954]/20 hover:bg-[#1aa34a]" : pkg.premium ? "bg-[#111] dark:bg-white text-white dark:text-[#111] shadow-xl" : "bg-white dark:bg-[#0d0d0d] text-[#111] dark:text-white border border-[#111]/10 dark:border-white/10 hover:border-[#111]/20"}`} data-testid={`button-ver-${pkg.slug}`}>
+                      <Button size="lg" className={`w-full rounded-full font-bold text-lg gap-2 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 ${pkg.popular ? "bg-[#0D9488] text-white shadow-[#0D9488]/20 hover:bg-[#0F766E]" : pkg.premium ? "bg-[#111] dark:bg-white text-white dark:text-[#111] shadow-xl" : "bg-white dark:bg-[#0d0d0d] text-[#111] dark:text-white border border-[#111]/10 dark:border-white/10 hover:border-[#111]/20"}`} data-testid={`button-ver-${pkg.slug}`}>
                         Ver Detalles
                         <ArrowRight className="w-5 h-5" />
                       </Button>
@@ -318,7 +318,7 @@ export default function Paquetes() {
             ))}
           </motion.div>
           <motion.p initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ delay: 0.4 }} className="text-center text-sm text-gray-400 dark:text-gray-500 mt-8" data-testid="text-payment-reassurance">
-            También ofrecemos opciones de pago en partes. <a href="https://wa.me/1234567890?text=Hola%2C%20quiero%20saber%20sobre%20opciones%20de%20pago" target="_blank" rel="noopener noreferrer" className="underline hover:text-[#1DB954] transition-colors">Pregúntanos por WhatsApp.</a>
+            También ofrecemos opciones de pago en partes. <a href="https://wa.me/1234567890?text=Hola%2C%20quiero%20saber%20sobre%20opciones%20de%20pago" target="_blank" rel="noopener noreferrer" className="underline hover:text-[#0D9488] transition-colors">Pregúntanos por WhatsApp.</a>
           </motion.p>
         </div>
       </section>
@@ -328,7 +328,7 @@ export default function Paquetes() {
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center">
             <motion.div variants={fadeUp} className="inline-flex items-center gap-2 bg-[#f5f5f5] dark:bg-[#111] border border-gray-200 dark:border-gray-700 rounded-full px-5 py-2 mb-6 shadow-sm">
-              <Shield className="w-4 h-4 text-[#1DB954]" />
+              <Shield className="w-4 h-4 text-[#10B981]" />
               <span className="text-xs font-bold text-[#111] dark:text-white uppercase tracking-widest">Plan de Soporte y Crecimiento</span>
             </motion.div>
             <motion.p variants={fadeUp} className="text-gray-500 dark:text-gray-400 text-sm max-w-xl mx-auto mb-6">
@@ -352,7 +352,7 @@ export default function Paquetes() {
                 "Soporte en español",
               ].map((item) => (
                 <span key={item} className="flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-[#1DB954] flex-shrink-0" />
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[#10B981] flex-shrink-0" />
                   {item}
                 </span>
               ))}
@@ -365,7 +365,7 @@ export default function Paquetes() {
       <section className="py-24 lg:py-40 bg-white dark:bg-[#0d0d0d]" data-testid="section-paquetes-faq">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center mb-12">
-            <motion.p variants={fadeUp} className="text-[#1DB954] font-bold text-sm uppercase tracking-widest mb-4">
+            <motion.p variants={fadeUp} className="text-[#0D9488] font-bold text-sm uppercase tracking-widest mb-4">
               Preguntas Frecuentes
             </motion.p>
             <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl font-extrabold text-[#111] dark:text-white leading-tight" data-testid="text-faq-title">
