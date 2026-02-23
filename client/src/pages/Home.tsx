@@ -31,7 +31,7 @@ const testimonials = [
   {
     name: "Roberto Hernández",
     business: "Hernández Electric",
-    text: "Invertí en Google Ads con Viva y en el primer mes recuperé 5 veces lo que gasté. Son los mejores para contratistas.",
+    text: "Mi negocio aparecía en la página 10 de Google. Con el nuevo sitio y la optimización de mapas, ahora estamos en los primeros resultados. Las llamadas de clientes nuevos han crecido muchísimo.",
     trade: "Electricista",
   },
 ];
