@@ -354,7 +354,7 @@ export default function Paquetes() {
               {t("paquetes.cta.subtitle")}
             </motion.p>
             <motion.div variants={fadeUp} className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <a href={`${whatsappUrl}?text=Hola%2C%20quiero%20saber%20cuál%20paquete%20es%20el%20mejor%20para%20mi%20negocio`} target="_blank" rel="noopener noreferrer">
+              <a href={`${whatsappUrl}?text=Hi%2C%20I%27d%20like%20to%20know%20which%20package%20is%20best%20for%20my%20business`} target="_blank" rel="noopener noreferrer">
                 <Button size="lg" className="bg-[#25D366] text-white font-bold text-lg gap-2 rounded-full hover:shadow-lg transition-all duration-200" data-testid="button-paquetes-whatsapp">
                   <SiWhatsapp className="w-5 h-5" />
                   {t("paquetes.cta.whatsapp")}

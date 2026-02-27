@@ -22,9 +22,9 @@ export function t(path: string): string {
       return `[MISSING: ${path}]`;
     }
 
-    if (typeof value === "object" && !Array.isArray(value) && "es" in (value as object)) {
+    if (typeof value === "object" && !Array.isArray(value) && "en" in (value as object)) {
       const node = value as { en: string; es: string };
-      return node.es;
+      return node.en;
     }
 
     return `[MISSING: ${path}]`;
@@ -40,8 +40,8 @@ export function tArr(path: string): string[] {
 
     if (Array.isArray(value)) {
       return value.map((item: unknown) => {
-        if (typeof item === "object" && item !== null && "es" in (item as object)) {
-          return (item as { es: string }).es;
+        if (typeof item === "object" && item !== null && "en" in (item as object)) {
+          return (item as { en: string }).en;
         }
         return String(item);
       });
@@ -63,8 +63,8 @@ export function tObjArr<T extends Record<string, unknown>>(path: string): T[] {
         if (typeof item !== "object" || item === null) return {} as T;
         const result: Record<string, unknown> = {};
         for (const [key, val] of Object.entries(item as Record<string, unknown>)) {
-          if (typeof val === "object" && val !== null && "es" in (val as object)) {
-            result[key] = (val as { es: string }).es;
+          if (typeof val === "object" && val !== null && "en" in (val as object)) {
+            result[key] = (val as { en: string }).en;
           } else if (typeof val === "boolean") {
             result[key] = val;
           } else {

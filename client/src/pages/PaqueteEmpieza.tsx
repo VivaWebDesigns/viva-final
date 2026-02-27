@@ -60,7 +60,7 @@ export default function PaqueteEmpieza() {
                   <ArrowRight className="w-5 h-5" />
                 </Button>
               </Link>
-              <a href={`${whatsappUrl}?text=Hola%2C%20me%20interesa%20el%20Plan%20Empieza`} target="_blank" rel="noopener noreferrer">
+              <a href={`${whatsappUrl}?text=Hi%2C%20I%27m%20interested%20in%20Plan%20Empieza`} target="_blank" rel="noopener noreferrer">
                 <Button size="lg" variant="outline" className="text-white border-white/40 font-bold text-lg gap-2 bg-white/10 rounded-full transition-all duration-200 hover:shadow-lg" data-testid="button-empieza-whatsapp">
                   <SiWhatsapp className="w-5 h-5" />
                   {t("empieza.hero.ctaWhatsapp")}
@@ -232,7 +232,7 @@ export default function PaqueteEmpieza() {
                   <ArrowRight className="w-5 h-5" />
                 </Button>
               </Link>
-              <a href={`${whatsappUrl}?text=Hola%2C%20me%20interesa%20el%20Plan%20Empieza`} target="_blank" rel="noopener noreferrer">
+              <a href={`${whatsappUrl}?text=Hi%2C%20I%27m%20interested%20in%20Plan%20Empieza`} target="_blank" rel="noopener noreferrer">
                 <Button size="lg" variant="outline" className="text-white border-white/40 font-bold text-lg gap-2 bg-white/10 rounded-full transition-all duration-200 hover:shadow-lg" data-testid="button-empieza-whatsapp-bottom">
                   <SiWhatsapp className="w-5 h-5" />
                   {t("empieza.cta.ctaWhatsapp")}

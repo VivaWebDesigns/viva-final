@@ -274,7 +274,7 @@ export default function Contacto() {
                   <p className="text-gray-600 dark:text-gray-400 text-sm mb-6">
                     {t("contacto.sidebar.whatsappDesc")}
                   </p>
-                  <a href={`${whatsappUrl}?text=Hola%2C%20quiero%20información%20sobre%20sus%20servicios`} target="_blank" rel="noopener noreferrer">
+                  <a href={`${whatsappUrl}?text=Hi%2C%20I%27d%20like%20information%20about%20your%20services`} target="_blank" rel="noopener noreferrer">
                     <Button size="lg" className="w-full bg-[#25D366] text-white font-bold text-lg gap-2 rounded-full transition-all duration-200 hover:shadow-lg" data-testid="button-contacto-whatsapp">
                       <SiWhatsapp className="w-5 h-5" />
                       {t("contacto.sidebar.whatsappBtn")}

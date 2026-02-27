@@ -121,7 +121,7 @@ export default function Home() {
                   <ArrowRight className="w-5 h-5" />
                 </Button>
               </Link>
-              <a href={`${whatsappUrl}?text=Hola%2C%20me%20interesa%20saber%20más%20sobre%20sus%20servicios`} target="_blank" rel="noopener noreferrer">
+              <a href={`${whatsappUrl}?text=Hi%2C%20I%27m%20interested%20in%20learning%20more%20about%20your%20services`} target="_blank" rel="noopener noreferrer">
                 <Button size="lg" variant="outline" className="rounded-full text-white border-white/30 font-bold text-lg gap-2 bg-white/5 backdrop-blur-sm hover:shadow-lg transition-all duration-200" data-testid="button-hero-whatsapp">
                   <SiWhatsapp className="w-5 h-5" />
                   {t("home.hero.ctaWhatsapp")}
@@ -171,7 +171,7 @@ export default function Home() {
                 <ArrowRight className="w-5 h-5" />
               </Button>
             </Link>
-            <a href={`${whatsappUrl}?text=Hola%2C%20me%20interesa%20saber%20más%20sobre%20sus%20servicios`} target="_blank" rel="noopener noreferrer">
+            <a href={`${whatsappUrl}?text=Hi%2C%20I%27m%20interested%20in%20learning%20more%20about%20your%20services`} target="_blank" rel="noopener noreferrer">
               <Button size="lg" variant="outline" className="rounded-full text-[#111] dark:text-white border-gray-300 dark:border-gray-600 font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-whatsapp-problem">
                 <SiWhatsapp className="w-5 h-5" />
                 {t("home.ctaButtons.whatsapp")}
@@ -216,7 +216,7 @@ export default function Home() {
                 <ArrowRight className="w-5 h-5" />
               </Button>
             </Link>
-            <a href={`${whatsappUrl}?text=Hola%2C%20me%20interesa%20saber%20más%20sobre%20sus%20servicios`} target="_blank" rel="noopener noreferrer">
+            <a href={`${whatsappUrl}?text=Hi%2C%20I%27m%20interested%20in%20learning%20more%20about%20your%20services`} target="_blank" rel="noopener noreferrer">
               <Button size="lg" variant="outline" className="rounded-full text-[#111] dark:text-white border-gray-300 dark:border-gray-600 font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-whatsapp-solution">
                 <SiWhatsapp className="w-5 h-5" />
                 {t("home.ctaButtons.whatsapp")}
@@ -363,7 +363,7 @@ export default function Home() {
                 <ArrowRight className="w-5 h-5" />
               </Button>
             </Link>
-            <a href={`${whatsappUrl}?text=Hola%2C%20me%20interesa%20saber%20más%20sobre%20sus%20servicios`} target="_blank" rel="noopener noreferrer">
+            <a href={`${whatsappUrl}?text=Hi%2C%20I%27m%20interested%20in%20learning%20more%20about%20your%20services`} target="_blank" rel="noopener noreferrer">
               <Button size="lg" variant="outline" className="rounded-full text-white border-white/30 bg-white/5 font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-whatsapp-beforeafter">
                 <SiWhatsapp className="w-5 h-5" />
                 {t("home.ctaButtons.whatsapp")}
@@ -402,7 +402,7 @@ export default function Home() {
                 <ArrowRight className="w-5 h-5" />
               </Button>
             </Link>
-            <a href={`${whatsappUrl}?text=Hola%2C%20me%20interesa%20saber%20más%20sobre%20sus%20servicios`} target="_blank" rel="noopener noreferrer">
+            <a href={`${whatsappUrl}?text=Hi%2C%20I%27m%20interested%20in%20learning%20more%20about%20your%20services`} target="_blank" rel="noopener noreferrer">
               <Button size="lg" variant="outline" className="rounded-full text-[#111] dark:text-white border-gray-300 dark:border-gray-600 font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-whatsapp-process">
                 <SiWhatsapp className="w-5 h-5" />
                 {t("home.ctaButtons.whatsapp")}
@@ -454,7 +454,7 @@ export default function Home() {
                 <ArrowRight className="w-5 h-5" />
               </Button>
             </Link>
-            <a href={`${whatsappUrl}?text=Hola%2C%20me%20interesa%20saber%20más%20sobre%20sus%20servicios`} target="_blank" rel="noopener noreferrer">
+            <a href={`${whatsappUrl}?text=Hi%2C%20I%27m%20interested%20in%20learning%20more%20about%20your%20services`} target="_blank" rel="noopener noreferrer">
               <Button size="lg" variant="outline" className="rounded-full text-[#111] dark:text-white border-gray-300 dark:border-gray-600 font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-whatsapp-testimonials">
                 <SiWhatsapp className="w-5 h-5" />
                 {t("home.ctaButtons.whatsapp")}
@@ -489,7 +489,7 @@ export default function Home() {
                 <ArrowRight className="w-5 h-5" />
               </Button>
             </Link>
-            <a href={`${whatsappUrl}?text=Hola%2C%20me%20interesa%20saber%20más%20sobre%20sus%20servicios`} target="_blank" rel="noopener noreferrer">
+            <a href={`${whatsappUrl}?text=Hi%2C%20I%27m%20interested%20in%20learning%20more%20about%20your%20services`} target="_blank" rel="noopener noreferrer">
               <Button size="lg" variant="outline" className="rounded-full text-[#111] dark:text-white border-gray-300 dark:border-gray-600 font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-whatsapp-faq">
                 <SiWhatsapp className="w-5 h-5" />
                 {t("home.ctaButtons.whatsapp")}
