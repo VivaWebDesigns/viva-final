@@ -271,12 +271,12 @@
         "price": { "en": "From $497", "es": "Desde $497" },
         "microcopy": { "en": "Perfect to get started.", "es": "Perfecto para comenzar." },
         "features": [
-          { "en": "Professional website of 1 page", "es": "Sitio web profesional de 1 página" },
-          { "en": "Responsive and modern design", "es": "Diseño responsivo y moderno" },
+          { "en": "Professional one-page website (Home, About, Services, Testimonials, Contact)", "es": "Sitio web profesional de una página (Inicio, Nosotros, Servicios, Testimonios, Contacto)" },
+          { "en": "Modern and responsive design", "es": "Diseño moderno y responsivo" },
           { "en": "Basic SEO optimization", "es": "Optimización SEO básica" },
-          { "en": "Google Business Profile optimized", "es": "Perfil de empresa de Google optimizado" },
-          { "en": "WhatsApp + Click-to-call", "es": "WhatsApp + Click-to-call" },
-          { "en": "Email support", "es": "Soporte por email" }
+          { "en": "WhatsApp + Click-to-Call integration", "es": "Integración de WhatsApp + Click-to-Call" },
+          { "en": "Email support", "es": "Soporte por correo electrónico" },
+          { "en": "Professional images included", "es": "Imágenes profesionales incluidas" }
         ]
       },
       "crece": {
