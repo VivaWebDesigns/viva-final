@@ -287,10 +287,11 @@
         "microcopy": { "en": "Smart investment to grow.", "es": "Inversión inteligente para crecer." },
         "features": [
           { "en": "Everything in Plan Empieza", "es": "Todo lo del plan Empieza" },
-          { "en": "Up to 5 pages + gallery + portfolio", "es": "Hasta 5 páginas + galería + portafolio" },
-          { "en": "Advanced local SEO + Google Maps", "es": "SEO local avanzado + Google Maps" },
-          { "en": "Reviews page + strategy", "es": "Página de reseñas + estrategia" },
-          { "en": "Service optimization", "es": "Optimización por servicio" },
+          { "en": "Up to 5 pages + gallery", "es": "Hasta 5 páginas + galería" },
+          { "en": "Advanced local SEO focused on Google rankings", "es": "SEO local avanzado enfocado en rankings de Google" },
+          { "en": "Google Business Profile setup & optimization", "es": "Configuración y optimización de Perfil de Empresa en Google" },
+          { "en": "Dedicated Reviews page + review growth strategy", "es": "Página de reseñas dedicada + estrategia de crecimiento de reseñas" },
+          { "en": "Individual service page optimization for “near me” searches", "es": "Optimización de páginas de servicio individuales para búsquedas \"cerca de mí\"" },
           { "en": "Priority WhatsApp support", "es": "Soporte prioritario por WhatsApp" }
         ]
       },
