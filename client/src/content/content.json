@@ -1,0 +1,776 @@
+{
+  "global": {
+    "company": { "en": "Viva Web Designs", "es": "Viva Web Designs" },
+    "phone": { "en": "(555) 123-4567", "es": "(555) 123-4567" },
+    "email": { "en": "info@vivawebdesigns.com", "es": "info@vivawebdesigns.com" },
+    "whatsappUrl": { "en": "https://wa.me/1234567890", "es": "https://wa.me/1234567890" },
+    "serviceArea": { "en": "[City / Service Area]", "es": "[Ciudad / Área de servicio]" }
+  },
+  "nav": {
+    "home": { "en": "Home", "es": "Inicio" },
+    "packages": { "en": "Packages", "es": "Paquetes" },
+    "howItWorks": { "en": "How It Works", "es": "Cómo Funciona" },
+    "contact": { "en": "Contact", "es": "Contacto" },
+    "cta": { "en": "Get Started", "es": "Comenzar" }
+  },
+  "footer": {
+    "tagline": { "en": "We help contractors grow their business with digital marketing that delivers real results.", "es": "Ayudamos a contratistas a crecer su negocio con marketing digital que genera resultados reales." },
+    "linksTitle": { "en": "Links", "es": "Enlaces" },
+    "contactTitle": { "en": "Contact", "es": "Contacto" },
+    "socialTitle": { "en": "Social Media", "es": "Redes Sociales" },
+    "copyright": { "en": "All rights reserved.", "es": "Todos los derechos reservados." },
+    "statement": { "en": "Support in Spanish. No complicated contracts. No confusing terms.", "es": "Soporte en español. Sin contratos complicados. Sin términos confusos." },
+    "serviceArea": { "en": "We serve: [City / Service Area]", "es": "Trabajamos en: [Ciudad / Área de servicio]" },
+    "links": {
+      "home": { "en": "Home", "es": "Inicio" },
+      "packages": { "en": "Packages", "es": "Paquetes" },
+      "planEmpieza": { "en": "Plan Empieza", "es": "Plan Empieza" },
+      "planCrece": { "en": "Plan Crece", "es": "Plan Crece" },
+      "planDomina": { "en": "Plan Domina", "es": "Plan Domina" },
+      "contact": { "en": "Contact", "es": "Contacto" }
+    },
+    "whatsapp": { "en": "WhatsApp", "es": "WhatsApp" }
+  },
+  "home": {
+    "seo": {
+      "title": { "en": "Digital Marketing for Contractors", "es": "Marketing Digital para Contratistas" },
+      "description": { "en": "We create professional websites for contractors who want to appear on Google and compete with big companies. More calls, more jobs, more growth.", "es": "Creamos sitios web profesionales para contratistas que quieren aparecer en Google y competir con empresas grandes. Más llamadas, más trabajos, más crecimiento." }
+    },
+    "hero": {
+      "title1": { "en": "More calls.", "es": "Más llamadas." },
+      "titleAccent": { "en": "More jobs.", "es": "Más trabajos." },
+      "title2": { "en": "More growth.", "es": "Más crecimiento." },
+      "subtitle": { "en": "We create professional websites for contractors who want to appear on Google and compete with big companies.", "es": "Creamos sitios web profesionales para contratistas que quieren aparecer en Google y competir con empresas grandes." },
+      "ctaPackages": { "en": "See Packages", "es": "Ver Paquetes" },
+      "ctaWhatsapp": { "en": "Chat on WhatsApp", "es": "Hablar por WhatsApp" },
+      "trust1": { "en": "No photos? We'll help you.", "es": "Si no tienes fotos, nosotros te ayudamos." },
+      "trust2": { "en": "We respond fast.", "es": "Te respondemos rápido." },
+      "trust3": { "en": "All in Spanish. No complications.", "es": "Todo en español. Sin complicaciones." }
+    },
+    "problem": {
+      "title1": { "en": "Does your business run only on", "es": "¿Tu negocio depende solo de" },
+      "titleAccent": { "en": "referrals?", "es": "referencias?" },
+      "items": [
+        { "en": "You don't appear on Google Maps", "es": "No apareces en Google Maps" },
+        { "en": "You don't have a professional page", "es": "No tienes página profesional" },
+        { "en": "Clients don't trust you if they can't find you online", "es": "Los clientes no confían si no te encuentran online" },
+        { "en": "Other companies look bigger than you", "es": "Otras compañías se ven más grandes que tú" }
+      ],
+      "conclusion": { "en": "That's costing you jobs.", "es": "Eso está costándote trabajos." }
+    },
+    "solution": {
+      "title1": { "en": "We help you look professional and", "es": "Te ayudamos a verte profesional y" },
+      "titleAccent": { "en": "generate more calls.", "es": "generar más llamadas." },
+      "subtitle": { "en": "We don't sell websites. We build digital presence that generates trust and local positioning.", "es": "No vendemos páginas web. Construimos presencia digital que genera confianza y posicionamiento local." },
+      "cards": [
+        {
+          "title": { "en": "Professional Image", "es": "Imagen Profesional" },
+          "desc": { "en": "Your business will look like the big companies. Modern websites that generate instant trust.", "es": "Tu negocio se verá como las empresas grandes. Sitios web modernos que generan confianza al instante." }
+        },
+        {
+          "title": { "en": "Google Visibility", "es": "Visibilidad en Google" },
+          "desc": { "en": "Appear when your clients search for services in your area. Local SEO and Google Maps optimized.", "es": "Aparece cuando tus clientes buscan servicios en tu área. SEO local y Google Maps optimizado." }
+        },
+        {
+          "title": { "en": "More Calls", "es": "Más Llamadas" },
+          "desc": { "en": "Everything we do is designed for one result: your phone rings more with real clients.", "es": "Todo lo que hacemos está diseñado para un resultado: que tu teléfono suene más con clientes reales." }
+        }
+      ]
+    },
+    "packages": {
+      "sectionLabel": { "en": "Our Packages", "es": "Nuestros Paquetes" },
+      "title": { "en": "Choose Your Plan", "es": "Elige Tu Plan" },
+      "paymentNote": { "en": "We also offer payment plans.", "es": "También ofrecemos opciones de pago en partes." },
+      "paymentNoteLink": { "en": "Ask us on WhatsApp.", "es": "Pregúntanos por WhatsApp." },
+      "monthlyRequired": { "en": "Plus required monthly plan.", "es": "Más plan mensual requerido." },
+      "badgePopular": { "en": "Most Popular", "es": "Más Popular" },
+      "viewDetails": { "en": "View Details", "es": "Ver Detalles" },
+      "empieza": {
+        "name": { "en": "Empieza", "es": "Empieza" },
+        "subLabel": { "en": "Professional base", "es": "Base profesional" },
+        "desc": { "en": "Your first professional online presence to start generating trust.", "es": "Tu primera presencia profesional en internet para empezar a generar confianza." },
+        "positioning": { "en": "For contractors who want to take the first step with a professional image.", "es": "Para contratistas que quieren dar el primer paso con una imagen profesional." },
+        "price": { "en": "From $497", "es": "Desde $497" },
+        "microcopy": { "en": "Perfect to get started.", "es": "Perfecto para comenzar." }
+      },
+      "crece": {
+        "name": { "en": "Crece", "es": "Crece" },
+        "subLabel": { "en": "The top choice for contractors who want to grow", "es": "La opción más elegida por contratistas que quieren crecer" },
+        "desc": { "en": "Complete marketing to receive more calls and beat your competition.", "es": "Marketing completo para recibir más llamadas y superar a tu competencia." },
+        "positioning": { "en": "For businesses ready to invest in real and measurable growth.", "es": "Para negocios listos para invertir en crecimiento real y medible." },
+        "price": { "en": "From $997", "es": "Desde $997" },
+        "microcopy": { "en": "Smart investment to grow.", "es": "Inversión inteligente para crecer." }
+      },
+      "domina": {
+        "name": { "en": "Domina", "es": "Domina" },
+        "subLabel": { "en": "Maximum positioning", "es": "Máximo posicionamiento" },
+        "desc": { "en": "The premium package to be the #1 option in your local market.", "es": "El paquete premium para ser la opción #1 en tu mercado local." },
+        "positioning": { "en": "For leaders who want to dominate their market leaving nothing to chance.", "es": "Para líderes que quieren dominar su mercado sin dejar nada al azar." },
+        "price": { "en": "From $1,997", "es": "Desde $1,997" },
+        "microcopy": { "en": "Built to lead your market.", "es": "Construido para liderar tu mercado." }
+      }
+    },
+    "support": {
+      "badgeLabel": { "en": "Support & Growth Plan", "es": "Plan de Soporte y Crecimiento" },
+      "description": { "en": "To keep your site running correctly and protected, all packages include this monthly plan.", "es": "Para mantener tu sitio funcionando correctamente y protegido, todos los paquetes incluyen este plan mensual." },
+      "price": { "en": "$97", "es": "$97" },
+      "priceUnit": { "en": "per month", "es": "por mes" },
+      "tagline": { "en": "Your site isn't just built. It's maintained, protected, and evolves.", "es": "Tu sitio no solo se construye. Se mantiene, se protege y evoluciona." },
+      "items": [
+        { "en": "Professional fast hosting", "es": "Hosting profesional y rápido" },
+        { "en": "SSL security certificate", "es": "Certificado SSL de seguridad" },
+        { "en": "Automatic backups", "es": "Copias de seguridad automáticas" },
+        { "en": "Security monitoring", "es": "Monitoreo de seguridad" },
+        { "en": "Technical updates", "es": "Actualizaciones técnicas" },
+        { "en": "Basic speed optimization", "es": "Optimización básica de velocidad" },
+        { "en": "Up to 1 hour of changes per month", "es": "Hasta 1 hora de cambios al mes" },
+        { "en": "Support in Spanish", "es": "Soporte en español" }
+      ]
+    },
+    "beforeAfter": {
+      "title1": { "en": "Before vs", "es": "Antes vs" },
+      "titleAccent": { "en": "After", "es": "Después" },
+      "beforeLabel": { "en": "Before", "es": "Antes" },
+      "afterLabel": { "en": "After", "es": "Después" },
+      "beforeItems": [
+        { "en": "No professional page", "es": "Sin página profesional" },
+        { "en": "Few calls", "es": "Pocas llamadas" },
+        { "en": "Competition dominating Google", "es": "Competencia dominando Google" }
+      ],
+      "afterItems": [
+        { "en": "Professional image", "es": "Imagen profesional" },
+        { "en": "More visibility", "es": "Más visibilidad" },
+        { "en": "More clients calling", "es": "Más clientes llamando" }
+      ]
+    },
+    "process": {
+      "sectionLabel": { "en": "Our Process", "es": "Nuestro Proceso" },
+      "title": { "en": "How It Works", "es": "Así Funciona" },
+      "steps": [
+        {
+          "step": { "en": "01", "es": "01" },
+          "title": { "en": "We analyze your business", "es": "Analizamos tu negocio" },
+          "desc": { "en": "We understand your market, competition and goals to create the perfect strategy.", "es": "Entendemos tu mercado, tu competencia y tus metas para crear la estrategia perfecta." }
+        },
+        {
+          "step": { "en": "02", "es": "02" },
+          "title": { "en": "We build your professional site", "es": "Construimos tu sitio profesional" },
+          "desc": { "en": "We design and develop a website that reflects the quality of your work.", "es": "Diseñamos y desarrollamos un sitio web que refleja la calidad de tu trabajo." }
+        },
+        {
+          "step": { "en": "03", "es": "03" },
+          "title": { "en": "We optimize for Google", "es": "Optimizamos para Google" },
+          "desc": { "en": "Local SEO, Google Maps and optimized profiles so they find you first.", "es": "SEO local, Google Maps y perfiles optimizados para que te encuentren primero." }
+        },
+        {
+          "step": { "en": "04", "es": "04" },
+          "title": { "en": "You start getting more calls", "es": "Empiezas a recibir más llamadas" },
+          "desc": { "en": "Your phone starts ringing with real clients who found you online.", "es": "Tu teléfono empieza a sonar con clientes reales que te encontraron online." }
+        }
+      ]
+    },
+    "testimonials": {
+      "sectionLabel": { "en": "Testimonials", "es": "Testimonios" },
+      "title1": { "en": "What our", "es": "Lo que dicen nuestros" },
+      "titleAccent": { "en": "clients say", "es": "clientes" },
+      "items": [
+        {
+          "name": { "en": "Carlos Mendoza", "es": "Carlos Mendoza" },
+          "business": { "en": "Mendoza Painting LLC", "es": "Mendoza Painting LLC" },
+          "text": { "en": "Before nobody found me on Google. Now I get 15-20 calls per week. Viva Web Designs changed everything for my business.", "es": "Antes nadie me encontraba en Google. Ahora recibo 15-20 llamadas por semana. Viva Web Designs cambió todo para mi negocio." },
+          "trade": { "en": "Painter", "es": "Pintor" }
+        },
+        {
+          "name": { "en": "María García", "es": "María García" },
+          "business": { "en": "García Landscaping", "es": "García Landscaping" },
+          "text": { "en": "My website looks incredible and my clients tell me it looks more professional than bigger companies. The calls don't stop.", "es": "Mi sitio web se ve increíble y mis clientes me dicen que se ve más profesional que empresas más grandes. Las llamadas no paran." },
+          "trade": { "en": "Landscaping", "es": "Jardinería" }
+        },
+        {
+          "name": { "en": "Roberto Hernández", "es": "Roberto Hernández" },
+          "business": { "en": "Hernández Electric", "es": "Hernández Electric" },
+          "text": { "en": "My business was on page 10 of Google. With the new site and maps optimization, we're now in the top results. Calls from new clients have grown tremendously.", "es": "Mi negocio aparecía en la página 10 de Google. Con el nuevo sitio y la optimización de mapas, ahora estamos en los primeros resultados. Las llamadas de clientes nuevos han crecido muchísimo." },
+          "trade": { "en": "Electrician", "es": "Electricista" }
+        }
+      ]
+    },
+    "faq": {
+      "sectionLabel": { "en": "Frequently Asked Questions", "es": "Preguntas Frecuentes" },
+      "title": { "en": "Got Questions?", "es": "¿Tienes Preguntas?" },
+      "items": [
+        {
+          "q": { "en": "How long does it take?", "es": "¿Cuánto tiempo tarda?" },
+          "a": { "en": "Depending on the package, your website can be ready in as little as 7-14 days. We work fast because we know every day without an online presence is money you're leaving on the table.", "es": "Dependiendo del paquete, tu sitio web puede estar listo en tan solo 7-14 días. Trabajamos rápido porque sabemos que cada día sin presencia online es dinero que estás dejando en la mesa." }
+        },
+        {
+          "q": { "en": "Do I need Google Business?", "es": "¿Necesito tener Google Business?" },
+          "a": { "en": "If you don't have one, we'll guide you through the setup and verification process. If you already have one, we'll optimize it to improve your visibility in local searches and on Google Maps.", "es": "Si no tienes uno, te guiaremos a través del proceso de configuración y verificación. Si ya tienes uno, lo optimizaremos para mejorar tu visibilidad en las búsquedas locales y en Google Maps." }
+        },
+        {
+          "q": { "en": "Can I pay in installments?", "es": "¿Puedo pagar en partes?" },
+          "a": { "en": "Yes. We understand you're investing in your business. We offer flexible payment plans so you can start without financial pressure. Let's talk and find the best option for you.", "es": "Sí. Entendemos que estás invirtiendo en tu negocio. Ofrecemos planes de pago flexibles para que puedas empezar sin presión financiera. Hablemos y encontramos la mejor opción para ti." }
+        },
+        {
+          "q": { "en": "What if I don't have photos?", "es": "¿Qué pasa si no tengo fotos?" },
+          "a": { "en": "No problem. We can use professional stock photos that look amazing, or guide you to take photos of your work with your phone. Many of our best sites started this way.", "es": "No hay problema. Podemos usar fotos profesionales de stock que se ven increíbles, o te guiamos para que tomes fotos de tu trabajo con tu teléfono. Muchos de nuestros mejores sitios empezaron así." }
+        },
+        {
+          "q": { "en": "Does it include Spanish support?", "es": "¿Incluye soporte en español?" },
+          "a": { "en": "Absolutely. Our entire team speaks Spanish. From the first call to ongoing support, you'll always communicate in your language. No barriers, no confusion.", "es": "Absolutamente. Todo nuestro equipo habla español. Desde la primera llamada hasta el soporte continuo, te comunicarás siempre en tu idioma. Sin barreras, sin confusiones." }
+        }
+      ]
+    },
+    "cta": {
+      "title": { "en": "Your competition is already investing in their online presence.", "es": "Tu competencia ya está invirtiendo en su presencia online." },
+      "subtitle": { "en": "Are you going to keep waiting?", "es": "¿Vas a seguir esperando?" },
+      "button": { "en": "Start Now", "es": "Comenzar Ahora" }
+    },
+    "ctaButtons": {
+      "verPaquetes": { "en": "See Packages", "es": "Ver Paquetes" },
+      "whatsapp": { "en": "WhatsApp", "es": "WhatsApp" }
+    }
+  },
+  "paquetes": {
+    "seo": {
+      "title": { "en": "Digital Marketing Packages for Contractors", "es": "Paquetes de Marketing Digital para Contratistas" },
+      "description": { "en": "Choose the ideal package for your business. Complete comparison of Empieza, Crece and Domina plans. From $497/month.", "es": "Elige el paquete ideal para tu negocio. Comparación completa de planes Empieza, Crece y Domina. Desde $497/mes." }
+    },
+    "hero": {
+      "title1": { "en": "Choose the ideal package for", "es": "Elige el paquete ideal para" },
+      "titleAccent": { "en": "your business", "es": "tu negocio" },
+      "subtitle": { "en": "We help you create a professional image, improve your Google visibility and generate more calls.", "es": "Te ayudamos a crear una imagen profesional, mejorar tu visibilidad en Google y generar más llamadas." }
+    },
+    "comparison": {
+      "sectionLabel": { "en": "Comparison", "es": "Comparación" },
+      "title": { "en": "What does each plan include?", "es": "¿Qué incluye cada plan?" },
+      "badgePopular": { "en": "Most Popular", "es": "Más Popular" },
+      "rows": [
+        { "label": { "en": "Pages included", "es": "Páginas incluidas" }, "empieza": { "en": "1", "es": "1" }, "crece": { "en": "Up to 6", "es": "Hasta 6" }, "domina": { "en": "Up to 12", "es": "Hasta 12" } },
+        { "label": { "en": "Mobile design", "es": "Diseño móvil" }, "empieza": true, "crece": true, "domina": true },
+        { "label": { "en": "WhatsApp + Click-to-call", "es": "WhatsApp + Click-to-call" }, "empieza": true, "crece": true, "domina": true },
+        { "label": { "en": "Gallery", "es": "Galería" }, "empieza": false, "crece": true, "domina": true },
+        { "label": { "en": "Portfolio", "es": "Portafolio" }, "empieza": false, "crece": false, "domina": true },
+        { "label": { "en": "Reviews page", "es": "Página de reseñas" }, "empieza": false, "crece": true, "domina": true },
+        { "label": { "en": "Google optimization", "es": "Optimización para Google" }, "empieza": { "en": "Basic", "es": "Básica" }, "crece": { "en": "Advanced", "es": "Avanzada" }, "domina": { "en": "Aggressive", "es": "Agresiva" } },
+        { "label": { "en": "Service optimization", "es": "Optimización por servicio" }, "empieza": false, "crece": true, "domina": true },
+        { "label": { "en": "Reviews strategy", "es": "Estrategia de reseñas" }, "empieza": false, "crece": true, "domina": true },
+        { "label": { "en": "Ideal for", "es": "Ideal para" }, "empieza": { "en": "Starting", "es": "Empezar" }, "crece": { "en": "Growing", "es": "Crecer" }, "domina": { "en": "Dominating", "es": "Dominar" } }
+      ]
+    },
+    "cards": {
+      "sectionTitle": { "en": "See Each Plan in Detail", "es": "Conoce Cada Plan a Detalle" },
+      "viewDetails": { "en": "View Details", "es": "Ver Detalles" },
+      "monthlyRequired": { "en": "Plus required monthly plan.", "es": "Más plan mensual requerido." },
+      "badgePopular": { "en": "Most Popular", "es": "Más Popular" },
+      "paymentNote": { "en": "We also offer payment plans.", "es": "También ofrecemos opciones de pago en partes." },
+      "paymentNoteLink": { "en": "Ask us on WhatsApp.", "es": "Pregúntanos por WhatsApp." },
+      "empieza": {
+        "name": { "en": "Empieza", "es": "Empieza" },
+        "subLabel": { "en": "Professional base", "es": "Base profesional" },
+        "positioning": { "en": "For contractors who want to take the first step with a professional image.", "es": "Para contratistas que quieren dar el primer paso con una imagen profesional." },
+        "price": { "en": "From $497", "es": "Desde $497" },
+        "microcopy": { "en": "Perfect to get started.", "es": "Perfecto para comenzar." },
+        "features": [
+          { "en": "Professional website of 1 page", "es": "Sitio web profesional de 1 página" },
+          { "en": "Responsive and modern design", "es": "Diseño responsivo y moderno" },
+          { "en": "Basic SEO optimization", "es": "Optimización SEO básica" },
+          { "en": "Google Business Profile optimized", "es": "Google Business Profile optimizado" },
+          { "en": "WhatsApp + Click-to-call", "es": "WhatsApp + Click-to-call" },
+          { "en": "Email support", "es": "Soporte por email" }
+        ]
+      },
+      "crece": {
+        "name": { "en": "Crece", "es": "Crece" },
+        "subLabel": { "en": "The top choice for contractors who want to grow", "es": "La opción más elegida por contratistas que quieren crecer" },
+        "positioning": { "en": "For businesses ready to invest in real and measurable growth.", "es": "Para negocios listos para invertir en crecimiento real y medible." },
+        "price": { "en": "From $997", "es": "Desde $997" },
+        "microcopy": { "en": "Smart investment to grow.", "es": "Inversión inteligente para crecer." },
+        "features": [
+          { "en": "Everything in Plan Empieza", "es": "Todo lo del plan Empieza" },
+          { "en": "Up to 5 pages + gallery + portfolio", "es": "Hasta 5 páginas + galería + portafolio" },
+          { "en": "Advanced local SEO + Google Maps", "es": "SEO local avanzado + Google Maps" },
+          { "en": "Reviews page + strategy", "es": "Página de reseñas + estrategia" },
+          { "en": "Service optimization", "es": "Optimización por servicio" },
+          { "en": "Priority WhatsApp support", "es": "Soporte prioritario por WhatsApp" }
+        ]
+      },
+      "domina": {
+        "name": { "en": "Domina", "es": "Domina" },
+        "subLabel": { "en": "Maximum positioning", "es": "Máximo posicionamiento" },
+        "positioning": { "en": "For leaders who want to dominate their market leaving nothing to chance.", "es": "Para líderes que quieren dominar su mercado sin dejar nada al azar." },
+        "price": { "en": "From $1,997", "es": "Desde $1,997" },
+        "microcopy": { "en": "Built to lead your market.", "es": "Construido para liderar tu mercado." },
+        "features": [
+          { "en": "Everything in Plan Crece", "es": "Todo lo del plan Crece" },
+          { "en": "Unlimited pages + blog", "es": "Páginas ilimitadas + blog" },
+          { "en": "Aggressive SEO + monthly content", "es": "SEO agresivo + contenido mensual" },
+          { "en": "Complete social media management", "es": "Gestión completa de redes sociales" },
+          { "en": "Automation and CRM", "es": "Automatización y CRM" },
+          { "en": "Professional branding + dedicated manager", "es": "Branding profesional + gerente dedicado" }
+        ]
+      }
+    },
+    "support": {
+      "badgeLabel": { "en": "Support & Growth Plan", "es": "Plan de Soporte y Crecimiento" },
+      "description": { "en": "To keep your site running correctly and protected, all packages include this monthly plan.", "es": "Para mantener tu sitio funcionando correctamente y protegido, todos los paquetes incluyen este plan mensual." },
+      "price": { "en": "$97", "es": "$97" },
+      "priceUnit": { "en": "per month", "es": "por mes" },
+      "tagline": { "en": "Your site isn't just built. It's maintained, protected, and evolves.", "es": "Tu sitio no solo se construye. Se mantiene, se protege y evoluciona." },
+      "items": [
+        { "en": "Professional fast hosting", "es": "Hosting profesional y rápido" },
+        { "en": "SSL security certificate", "es": "Certificado SSL de seguridad" },
+        { "en": "Automatic backups", "es": "Copias de seguridad automáticas" },
+        { "en": "Security monitoring", "es": "Monitoreo de seguridad" },
+        { "en": "Technical updates", "es": "Actualizaciones técnicas" },
+        { "en": "Basic speed optimization", "es": "Optimización básica de velocidad" },
+        { "en": "Up to 1 hour of changes per month", "es": "Hasta 1 hora de cambios al mes" },
+        { "en": "Support in Spanish", "es": "Soporte en español" }
+      ]
+    },
+    "faq": {
+      "sectionLabel": { "en": "Frequently Asked Questions", "es": "Preguntas Frecuentes" },
+      "title": { "en": "Got Questions?", "es": "¿Tienes Dudas?" },
+      "items": [
+        {
+          "q": { "en": "Can I change plans later?", "es": "¿Puedo cambiar de plan después?" },
+          "a": { "en": "Yes. You can upgrade your plan at any time. Just let us know and we adjust your service without complications.", "es": "Sí. Puedes subir de plan en cualquier momento. Simplemente avísanos y ajustamos tu servicio sin complicaciones." }
+        },
+        {
+          "q": { "en": "Is there a long-term contract?", "es": "¿Hay contrato a largo plazo?" },
+          "a": { "en": "No. All our plans are month-to-month. No long contracts, no fine print. You stay because you see results.", "es": "No. Todos nuestros planes son mes a mes. Sin contratos largos, sin letras chicas. Te quedas porque ves resultados." }
+        },
+        {
+          "q": { "en": "How long does it take to be ready?", "es": "¿Cuánto tiempo tarda en estar listo?" },
+          "a": { "en": "Depending on the package, your site can be ready in 7-14 days. We work fast because every day without an online presence is lost money.", "es": "Dependiendo del paquete, tu sitio puede estar listo en 7-14 días. Trabajamos rápido porque cada día sin presencia online es dinero perdido." }
+        },
+        {
+          "q": { "en": "Does it include Spanish support?", "es": "¿Incluye soporte en español?" },
+          "a": { "en": "Absolutely. Our entire team speaks Spanish. From the first call to ongoing support, always in your language.", "es": "Absolutamente. Todo nuestro equipo habla español. Desde la primera llamada hasta el soporte continuo, siempre en tu idioma." }
+        }
+      ]
+    },
+    "cta": {
+      "title": { "en": "Don't know which to choose?", "es": "¿No sabes cuál elegir?" },
+      "subtitle": { "en": "Write to us on WhatsApp and we'll help you choose the perfect plan for your business.", "es": "Escríbenos por WhatsApp y te ayudamos a elegir el plan perfecto para tu negocio." },
+      "whatsapp": { "en": "Write on WhatsApp", "es": "Escríbenos por WhatsApp" },
+      "contact": { "en": "Send Message", "es": "Enviar Mensaje" }
+    }
+  },
+  "empieza": {
+    "seo": {
+      "title": { "en": "Plan Empieza - Your First Professional Online Presence", "es": "Plan Empieza - Tu Primera Presencia Profesional Online" },
+      "description": { "en": "The perfect plan for contractors starting out. Professional website, basic SEO, Google Business Profile and Click-to-Call from $497/month.", "es": "El plan perfecto para contratistas que están empezando. Sitio web profesional, SEO básico, Google Business Profile y Click-to-Call desde $497/mes." }
+    },
+    "hero": {
+      "badge": { "en": "Plan Empieza", "es": "Plan Empieza" },
+      "title1": { "en": "Stop losing clients for not having", "es": "Deja de perder clientes por no tener" },
+      "titleAccent": { "en": "professional presence.", "es": "presencia profesional." },
+      "subtitle": { "en": "Your first professional website. Everything you need for your clients to find you, trust you and call you.", "es": "Tu primer sitio web profesional. Todo lo que necesitas para que tus clientes te encuentren, confíen en ti y te llamen." },
+      "price": { "en": "from $497", "es": "desde $497" },
+      "priceNote": { "en": "Plus required monthly plan.", "es": "Más plan mensual requerido." },
+      "ctaPrimary": { "en": "I Want to Start", "es": "Quiero Empezar" },
+      "ctaWhatsapp": { "en": "Chat on WhatsApp", "es": "Hablar por WhatsApp" }
+    },
+    "ideal": {
+      "sectionLabel": { "en": "Who Is It For?", "es": "¿Para Quién Es?" },
+      "title": { "en": "This plan is for you if...", "es": "Este plan es para ti si..." },
+      "items": [
+        { "en": "You're starting your business and need to look professional from day one", "es": "Estás empezando tu negocio y necesitas verte profesional desde el día uno" },
+        { "en": "You don't have a website, or the one you have doesn't represent you", "es": "No tienes sitio web, o el que tienes no te representa" },
+        { "en": "You want your clients to find you on Google in your area", "es": "Quieres que tus clientes te encuentren en Google en tu área" },
+        { "en": "You need a visible WhatsApp number and phone to receive calls", "es": "Necesitas un número de WhatsApp y teléfono visible para recibir llamadas" },
+        { "en": "Your budget is limited but you know you need an online presence", "es": "Tu presupuesto es limitado pero sabes que necesitas presencia online" },
+        { "en": "You want to stop depending only on referrals and word of mouth", "es": "Quieres dejar de depender solo de referencias y boca a boca" }
+      ],
+      "cardTitle": { "en": "Plan Empieza", "es": "Plan Empieza" },
+      "cardSubtitle": { "en": "Your professional base to compete", "es": "Tu base profesional para competir" },
+      "monthlyRequired": { "en": "Plus required monthly plan.", "es": "Más plan mensual requerido." }
+    },
+    "features": {
+      "sectionLabel": { "en": "What's Included", "es": "Qué Incluye" },
+      "title1": { "en": "Everything You Need To", "es": "Todo Lo Que Necesitas Para" },
+      "titleAccent": { "en": "Start Right", "es": "Empezar Bien" },
+      "whyLabel": { "en": "Why does it matter?", "es": "¿Por qué importa?" },
+      "items": [
+        {
+          "title": { "en": "Professional Website (1 Page)", "es": "Sitio Web Profesional (1 Página)" },
+          "desc": { "en": "You won't just have to give your phone number. You'll have a professional website where your clients can see your work, know who you are and contact you instantly. This generates trust before they call.", "es": "Ya no tendrás que dar solo tu número de teléfono. Tendrás un sitio web profesional donde tus clientes pueden ver tu trabajo, saber quién eres y contactarte al instante. Esto genera confianza antes de que te llamen." },
+          "why": { "en": "A client who sees a professional site trusts more and calls faster.", "es": "Un cliente que ve un sitio profesional confía más y te llama más rápido." }
+        },
+        {
+          "title": { "en": "Optimized Mobile Design", "es": "Diseño Móvil Optimizado" },
+          "desc": { "en": "80% of your clients search from their phone. Your site will look perfect on any device — fast, clean and easy to navigate.", "es": "El 80% de tus clientes te buscan desde su teléfono. Tu sitio se verá perfecto en cualquier dispositivo — rápido, limpio y fácil de navegar." },
+          "why": { "en": "If your site doesn't look good on the phone, you lose clients before they contact you.", "es": "Si tu sitio no se ve bien en el teléfono, pierdes clientes antes de que te contacten." }
+        },
+        {
+          "title": { "en": "WhatsApp + Click-to-Call", "es": "WhatsApp + Click-to-Call" },
+          "desc": { "en": "Visible buttons for clients to call or message you on WhatsApp with one tap. No barriers, no complicated forms.", "es": "Botones visibles para que tus clientes te llamen o te escriban por WhatsApp con un solo toque. Sin barreras, sin formularios complicados." },
+          "why": { "en": "The easier it is to contact you, the more calls you get.", "es": "Entre más fácil sea contactarte, más llamadas recibes." }
+        },
+        {
+          "title": { "en": "Basic SEO Optimization", "es": "Optimización SEO Básica" },
+          "desc": { "en": "We configure your site so Google understands what you do and where you work. Titles, descriptions and structure optimized for local searches.", "es": "Configuramos tu sitio para que Google entienda qué haces y dónde trabajas. Títulos, descripciones y estructura optimizada para búsquedas locales." },
+          "why": { "en": "Without basic SEO, Google doesn't know you exist. With it, you start to appear.", "es": "Sin SEO básico, Google no sabe que existes. Con él, empiezas a aparecer." }
+        },
+        {
+          "title": { "en": "Google Business Profile", "es": "Google Business Profile" },
+          "desc": { "en": "We create or optimize your Google profile so you appear on Google Maps when someone searches for services like yours in your area.", "es": "Creamos o optimizamos tu perfil de Google para que aparezcas en Google Maps cuando alguien busque servicios como los tuyos en tu área." },
+          "why": { "en": "Google Maps is where most local clients search for contractors.", "es": "Google Maps es donde la mayoría de clientes locales buscan contratistas." }
+        },
+        {
+          "title": { "en": "Hosting + SSL + Support", "es": "Hosting + SSL + Soporte" },
+          "desc": { "en": "Your website always online, fast and secure with SSL certificate included. Plus email support for any questions or changes you need.", "es": "Tu sitio web siempre en línea, rápido y seguro con certificado SSL incluido. Más soporte por email para cualquier duda o cambio que necesites." },
+          "why": { "en": "A down or insecure site drives clients away. Yours will always be ready.", "es": "Un sitio caído o inseguro aleja clientes. El tuyo estará siempre listo." }
+        }
+      ]
+    },
+    "upgrade": {
+      "sectionLabel": { "en": "Need More?", "es": "¿Necesitas Más?" },
+      "title1": { "en": "When you're ready to grow, the", "es": "Cuando estés listo para crecer, el" },
+      "titleAccent": { "en": "Plan Crece", "es": "Plan Crece" },
+      "title2": { "en": "is waiting for you", "es": "te espera" },
+      "creceTitle": { "en": "Plan Crece", "es": "Plan Crece" },
+      "crecePopular": { "en": "Most Popular", "es": "Más Popular" },
+      "creceDesc": { "en": "Everything in Plan Empieza plus: up to 5 pages, work gallery, portfolio, reviews page, advanced SEO, service optimization, reviews strategy and priority WhatsApp support.", "es": "Todo lo del Plan Empieza más: hasta 5 páginas, galería de trabajo, portafolio, página de reseñas, SEO avanzado, optimización por servicio, estrategia de reseñas y soporte prioritario por WhatsApp." },
+      "ctaCrece": { "en": "See Plan Crece", "es": "Ver Plan Crece" },
+      "ctaComparar": { "en": "Compare All Plans", "es": "Comparar Todos Los Planes" }
+    },
+    "support": {
+      "badgeLabel": { "en": "Support & Growth Plan", "es": "Plan de Soporte y Crecimiento" },
+      "description": { "en": "To keep your site running correctly and protected, all packages include this monthly plan.", "es": "Para mantener tu sitio funcionando correctamente y protegido, todos los paquetes incluyen este plan mensual." },
+      "price": { "en": "$97", "es": "$97" },
+      "priceUnit": { "en": "per month", "es": "por mes" },
+      "tagline": { "en": "Your site isn't just built. It's maintained, protected, and evolves.", "es": "Tu sitio no solo se construye. Se mantiene, se protege y evoluciona." },
+      "items": [
+        { "en": "Professional fast hosting", "es": "Hosting profesional y rápido" },
+        { "en": "SSL security certificate", "es": "Certificado SSL de seguridad" },
+        { "en": "Automatic backups", "es": "Copias de seguridad automáticas" },
+        { "en": "Security monitoring", "es": "Monitoreo de seguridad" },
+        { "en": "Technical updates", "es": "Actualizaciones técnicas" },
+        { "en": "Basic speed optimization", "es": "Optimización básica de velocidad" },
+        { "en": "Up to 1 hour of changes per month", "es": "Hasta 1 hora de cambios al mes" },
+        { "en": "Support in Spanish", "es": "Soporte en español" }
+      ]
+    },
+    "cta": {
+      "title": { "en": "Every day without an online presence is money you leave on the table.", "es": "Cada día sin presencia online es dinero que dejas en la mesa." },
+      "subtitle": { "en": "Your competition already has a website. Your clients are searching for services on Google right now. Will they find you?", "es": "Tu competencia ya tiene página web. Tus clientes están buscando servicios en Google ahora mismo. ¿Van a encontrarte a ti?" },
+      "ctaPrimary": { "en": "I Want to Start Today", "es": "Quiero Empezar Hoy" },
+      "ctaWhatsapp": { "en": "Chat on WhatsApp", "es": "Hablar por WhatsApp" }
+    }
+  },
+  "crece": {
+    "seo": {
+      "title": { "en": "Plan Crece - More Calls, More Clients, More Revenue", "es": "Plan Crece - Más Llamadas, Más Clientes, Más Ingresos" },
+      "description": { "en": "The most popular plan for contractors. Advanced SEO, work gallery, reviews strategy, service optimization and WhatsApp support from $997/month.", "es": "El plan más popular para contratistas. SEO avanzado, galería de trabajo, estrategia de reseñas, optimización por servicio y soporte por WhatsApp desde $997/mes." }
+    },
+    "hero": {
+      "badge": { "en": "Plan Crece", "es": "Plan Crece" },
+      "badgePopular": { "en": "Most Popular", "es": "Más Popular" },
+      "title1": { "en": "Stop waiting to be recommended.", "es": "Deja de esperar que te recomienden." },
+      "titleAccent": { "en": "Make them find you.", "es": "Haz que te encuentren." },
+      "subtitle": { "en": "Our clients' favorite plan. Everything you need to appear on Google, generate trust and receive a constant flow of calls.", "es": "El plan favorito de nuestros clientes. Todo lo que necesitas para aparecer en Google, generar confianza y recibir un flujo constante de llamadas." },
+      "price": { "en": "from $997", "es": "desde $997" },
+      "priceNote": { "en": "Plus required monthly plan.", "es": "Más plan mensual requerido." },
+      "ctaPrimary": { "en": "I Want to Grow", "es": "Quiero Crecer" },
+      "ctaWhatsapp": { "en": "Chat on WhatsApp", "es": "Hablar por WhatsApp" }
+    },
+    "ideal": {
+      "sectionLabel": { "en": "Who Is It For?", "es": "¿Para Quién Es?" },
+      "title": { "en": "This plan is for you if...", "es": "Este plan es para ti si..." },
+      "items": [
+        { "en": "You already have a business but want more clients consistently", "es": "Ya tienes un negocio pero quieres más clientes de forma consistente" },
+        { "en": "Your competition appears on Google and you don't — and you're tired of that", "es": "Tu competencia aparece en Google y tú no — y estás cansado de eso" },
+        { "en": "You know your work is good but need more people to see it", "es": "Sabes que tu trabajo es bueno pero necesitas que más gente lo vea" },
+        { "en": "You want to show your portfolio and reviews to generate trust", "es": "Quieres mostrar tu portafolio y tus reseñas para generar confianza" },
+        { "en": "You need to appear when someone searches for your service in your area", "es": "Necesitas aparecer cuando alguien busca tu servicio en tu área" },
+        { "en": "You're ready to invest in growing, not just surviving", "es": "Estás listo para invertir en crecer y no solo sobrevivir" }
+      ],
+      "cardBadge": { "en": "Most Popular", "es": "Más Popular" },
+      "cardTitle": { "en": "Plan Crece", "es": "Plan Crece" },
+      "cardSubtitle": { "en": "The favorite of serious contractors", "es": "El favorito de contratistas serios" },
+      "monthlyRequired": { "en": "Plus required monthly plan.", "es": "Más plan mensual requerido." }
+    },
+    "features": {
+      "sectionLabel": { "en": "What's Included", "es": "Qué Incluye" },
+      "title1": { "en": "Everything For Your Business To", "es": "Todo Para Que Tu Negocio" },
+      "titleAccent": { "en": "Truly Grow", "es": "Crezca de Verdad" },
+      "whyLabel": { "en": "Why does it matter?", "es": "¿Por qué importa?" },
+      "items": [
+        {
+          "title": { "en": "Complete Website (Up to 5 Pages)", "es": "Sitio Web Completo (Hasta 5 Páginas)" },
+          "desc": { "en": "A professional website with dedicated pages for each service you offer. Your clients will find exactly what they're looking for — and call you.", "es": "Un sitio web profesional con páginas dedicadas para cada servicio que ofreces. Tus clientes encontrarán exactamente lo que buscan — y te llamarán." },
+          "why": { "en": "More pages = more opportunities to appear on Google for different searches.", "es": "Más páginas = más oportunidades de aparecer en Google para diferentes búsquedas." }
+        },
+        {
+          "title": { "en": "Gallery + Work Portfolio", "es": "Galería + Portafolio de Trabajo" },
+          "desc": { "en": "Show your best work with professional photos organized by project. Your clients will see the quality of your work before calling you.", "es": "Muestra tu mejor trabajo con fotos profesionales organizadas por proyecto. Tus clientes podrán ver la calidad de lo que haces antes de llamarte." },
+          "why": { "en": "Clients want to see your work. A portfolio converts curious visitors into calls.", "es": "Los clientes quieren ver tu trabajo. Un portafolio convierte curiosos en llamadas." }
+        },
+        {
+          "title": { "en": "Reviews Page + Strategy", "es": "Página de Reseñas + Estrategia" },
+          "desc": { "en": "Dedicated page to show your best Google reviews, plus an automated system to ask clients to leave a review after each job.", "es": "Página dedicada a mostrar tus mejores reseñas de Google, más un sistema automatizado para pedirle a tus clientes que te dejen una reseña después de cada trabajo." },
+          "why": { "en": "Reviews are the most powerful social proof. More reviews = more trust = more calls.", "es": "Las reseñas son la prueba social más poderosa. Más reseñas = más confianza = más llamadas." }
+        },
+        {
+          "title": { "en": "Advanced Local SEO", "es": "SEO Local Avanzado" },
+          "desc": { "en": "Complete local SEO strategy: keyword research, optimization for each service you offer, optimized content and technical structure to dominate your area.", "es": "Estrategia completa de SEO local: investigación de palabras clave, optimización por cada servicio que ofreces, contenido optimizado y estructura técnica para dominar tu área." },
+          "why": { "en": "Advanced SEO gets you where basic doesn't reach — in the top positions of Google.", "es": "El SEO avanzado te pone donde el básico no llega — en las primeras posiciones de Google." }
+        },
+        {
+          "title": { "en": "Google Maps Optimized", "es": "Google Maps Optimizado" },
+          "desc": { "en": "Aggressive optimization of your Google profile to appear in the local map top 3. Categories, photos, posts and review responses.", "es": "Optimización agresiva de tu perfil de Google para aparecer en el top 3 del mapa local. Categorías, fotos, publicaciones y respuestas a reseñas." },
+          "why": { "en": "46% of Google searches are local. If you're not on the map, you don't exist.", "es": "El 46% de las búsquedas en Google son locales. Si no estás en el mapa, no existes." }
+        },
+        {
+          "title": { "en": "Service Optimization", "es": "Optimización por Servicio" },
+          "desc": { "en": "Each service you offer has its own optimized page. If you do painting, drywall and stucco, you'll have a page focused on each to capture more searches.", "es": "Cada servicio que ofreces tiene su propia página optimizada. Si haces pintura, drywall y stucco, tendrás una página enfocada en cada uno para captar más búsquedas." },
+          "why": { "en": "One page per service multiplies your chances of appearing on Google.", "es": "Una página por servicio multiplica tus oportunidades de aparecer en Google." }
+        },
+        {
+          "title": { "en": "WhatsApp + Click-to-Call + Form", "es": "WhatsApp + Click-to-Call + Formulario" },
+          "desc": { "en": "Multiple ways for clients to contact you: WhatsApp, direct call and quote form. Every button visible and ready to generate a lead.", "es": "Múltiples formas para que te contacten: WhatsApp, llamada directa y formulario de cotización. Cada botón visible y listo para generar un lead." },
+          "why": { "en": "Every client has their preferred way to contact you. Give them all the options.", "es": "Cada cliente tiene su forma preferida de contactarte. Dale todas las opciones." }
+        },
+        {
+          "title": { "en": "Priority WhatsApp Support", "es": "Soporte Prioritario por WhatsApp" },
+          "desc": { "en": "Direct access to your marketing team via WhatsApp. Fast responses, agile changes and barrier-free communication.", "es": "Acceso directo a tu equipo de marketing por WhatsApp. Respuestas rápidas, cambios ágiles y comunicación sin barreras." },
+          "why": { "en": "When you need something, you won't wait 48 hours for an email. We respond fast.", "es": "Cuando necesites algo, no vas a esperar 48 horas por un email. Te respondemos rápido." }
+        }
+      ]
+    },
+    "upgrade": {
+      "sectionLabel": { "en": "Want More Power?", "es": "¿Quieres Más Poder?" },
+      "title1": { "en": "If you want to dominate your market, the", "es": "Si quieres dominar tu mercado, el" },
+      "titleAccent": { "en": "Plan Domina", "es": "Plan Domina" },
+      "title2": { "en": "is your next step", "es": "es tu siguiente paso" },
+      "dominaTitle": { "en": "Plan Domina", "es": "Plan Domina" },
+      "dominaBadge": { "en": "Premium", "es": "Premium" },
+      "dominaDesc": { "en": "Everything in Plan Crece plus: unlimited pages with blog, aggressive SEO with monthly content, advanced paid search campaigns, complete social media management, automation and CRM, professional branding and a dedicated account manager.", "es": "Todo lo del Plan Crece más: páginas ilimitadas con blog, SEO agresivo con contenido mensual, campañas de búsqueda paga avanzada, gestión completa de redes sociales, automatización y CRM, branding profesional y un gerente de cuenta dedicado." },
+      "ctaDomina": { "en": "See Plan Domina", "es": "Ver Plan Domina" },
+      "ctaComparar": { "en": "Compare All Plans", "es": "Comparar Todos Los Planes" }
+    },
+    "support": {
+      "badgeLabel": { "en": "Support & Growth Plan", "es": "Plan de Soporte y Crecimiento" },
+      "description": { "en": "To keep your site running correctly and protected, all packages include this monthly plan.", "es": "Para mantener tu sitio funcionando correctamente y protegido, todos los paquetes incluyen este plan mensual." },
+      "price": { "en": "$97", "es": "$97" },
+      "priceUnit": { "en": "per month", "es": "por mes" },
+      "tagline": { "en": "Your site isn't just built. It's maintained, protected, and evolves.", "es": "Tu sitio no solo se construye. Se mantiene, se protege y evoluciona." },
+      "items": [
+        { "en": "Professional fast hosting", "es": "Hosting profesional y rápido" },
+        { "en": "SSL security certificate", "es": "Certificado SSL de seguridad" },
+        { "en": "Automatic backups", "es": "Copias de seguridad automáticas" },
+        { "en": "Security monitoring", "es": "Monitoreo de seguridad" },
+        { "en": "Technical updates", "es": "Actualizaciones técnicas" },
+        { "en": "Basic speed optimization", "es": "Optimización básica de velocidad" },
+        { "en": "Up to 1 hour of changes per month", "es": "Hasta 1 hora de cambios al mes" },
+        { "en": "Support in Spanish", "es": "Soporte en español" },
+        { "en": "Basic Google visibility review", "es": "Revisión básica de visibilidad en Google" }
+      ]
+    },
+    "cta": {
+      "title": { "en": "Your competition is growing. And you?", "es": "Tu competencia está creciendo. ¿Y tú?" },
+      "subtitle": { "en": "Every week you wait, calls go to another contractor. Plan Crece is designed to change that.", "es": "Cada semana que esperas, son llamadas que se van a otro contratista. El Plan Crece está diseñado para cambiar eso." },
+      "ctaPrimary": { "en": "I Want to Grow Today", "es": "Quiero Crecer Hoy" },
+      "ctaWhatsapp": { "en": "Chat on WhatsApp", "es": "Hablar por WhatsApp" }
+    }
+  },
+  "domina": {
+    "seo": {
+      "title": { "en": "Plan Domina - Be The #1 In Your Market", "es": "Plan Domina - Sé El #1 En Tu Mercado" },
+      "description": { "en": "The premium plan for contractors who want to dominate. Complete marketing: unlimited web, aggressive SEO, paid search, social media, CRM and dedicated manager from $1,997/month.", "es": "El plan premium para contratistas que quieren dominar. Marketing completo: web ilimitada, SEO agresivo, búsqueda paga, redes sociales, CRM y gerente dedicado desde $1,997/mes." }
+    },
+    "hero": {
+      "badge": { "en": "Plan Domina", "es": "Plan Domina" },
+      "badgePremium": { "en": "Premium", "es": "Premium" },
+      "title1": { "en": "Don't compete.", "es": "No compitas." },
+      "titleAccent": { "en": "Dominate.", "es": "Domina." },
+      "subtitle": { "en": "The complete package for contractors who want to be the first and only option in their market. Comprehensive marketing that leaves nothing to chance.", "es": "El paquete completo para contratistas que quieren ser la primera y única opción en su mercado. Marketing integral que no deja nada al azar." },
+      "price": { "en": "from $1,997", "es": "desde $1,997" },
+      "priceNote": { "en": "Plus required monthly plan.", "es": "Más plan mensual requerido." },
+      "ctaPrimary": { "en": "I Want to Dominate", "es": "Quiero Dominar" },
+      "ctaWhatsapp": { "en": "Chat on WhatsApp", "es": "Hablar por WhatsApp" }
+    },
+    "ideal": {
+      "sectionLabel": { "en": "Who Is It For?", "es": "¿Para Quién Es?" },
+      "title": { "en": "This plan is for you if...", "es": "Este plan es para ti si..." },
+      "items": [
+        { "en": "You have an established business with a team and want to be #1 in your area", "es": "Tienes un negocio establecido con un equipo y quieres ser el #1 en tu área" },
+        { "en": "You're tired of seeing your competition above you on Google", "es": "Estás cansado de ver a tu competencia más arriba que tú en Google" },
+        { "en": "You want complete marketing: web, SEO, ads, social media and CRM", "es": "Quieres un marketing completo: web, SEO, ads, redes sociales y CRM" },
+        { "en": "You're ready to invest seriously because you know the return is worth it", "es": "Estás listo para invertir seriamente porque sabes que el retorno vale la pena" },
+        { "en": "You need a marketing partner who understands your business, not just a vendor", "es": "Necesitas un socio de marketing que entienda tu negocio, no solo un proveedor" },
+        { "en": "You want to automate your sales process and stop losing leads", "es": "Quieres automatizar tu proceso de ventas y dejar de perder leads" }
+      ],
+      "cardBadge": { "en": "Premium", "es": "Premium" },
+      "cardTitle": { "en": "Plan Domina", "es": "Plan Domina" },
+      "cardSubtitle": { "en": "The secret weapon of top contractors", "es": "El arma secreta de los contratistas #1" },
+      "monthlyRequired": { "en": "Plus required monthly plan.", "es": "Más plan mensual requerido." }
+    },
+    "features": {
+      "sectionLabel": { "en": "What's Included", "es": "Qué Incluye" },
+      "title1": { "en": "Complete Marketing To", "es": "Marketing Completo Para" },
+      "titleAccent": { "en": "Dominate Your Market", "es": "Dominar Tu Mercado" },
+      "whyLabel": { "en": "Why does it matter?", "es": "¿Por qué importa?" },
+      "items": [
+        {
+          "title": { "en": "Unlimited Website + Blog", "es": "Sitio Web Ilimitado + Blog" },
+          "desc": { "en": "No page limit. Integrated blog where we publish monthly articles that position you as the expert in your industry and attract organic Google traffic.", "es": "Sin límite de páginas. Blog integrado donde publicamos artículos mensuales que te posicionan como el experto en tu industria y atraen tráfico orgánico de Google." },
+          "why": { "en": "An active blog tells Google your site is relevant. More content = more positions = more clients.", "es": "Un blog activo le dice a Google que tu sitio es relevante. Más contenido = más posiciones = más clientes." }
+        },
+        {
+          "title": { "en": "Aggressive SEO + Monthly Content", "es": "SEO Agresivo + Contenido Mensual" },
+          "desc": { "en": "We don't just optimize — we dominate. Deep keyword research, new monthly content, continuous technical optimization and position monitoring against your competition.", "es": "No solo optimizamos — dominamos. Investigación profunda de keywords, contenido mensual nuevo, optimización técnica continua y monitoreo de posiciones contra tu competencia." },
+          "why": { "en": "Aggressive SEO puts you in top positions and keeps your competition behind.", "es": "El SEO agresivo te pone en las primeras posiciones y mantiene a tu competencia detrás." }
+        },
+        {
+          "title": { "en": "Advanced Paid Search Campaigns", "es": "Campañas de Búsqueda Paga Avanzada" },
+          "desc": { "en": "Fully managed search, display and remarketing campaigns. Continuous optimization of keywords, audiences and budget to maximize every dollar you invest.", "es": "Campañas de búsqueda, display y remarketing totalmente gestionadas. Optimización continua de keywords, audiencias y presupuesto para maximizar cada dólar que inviertes." },
+          "why": { "en": "Paid search campaigns generate immediate calls while SEO builds long-term results.", "es": "Las campañas de búsqueda paga generan llamadas inmediatas mientras el SEO construye resultados a largo plazo." }
+        },
+        {
+          "title": { "en": "Complete Social Media Management", "es": "Gestión Completa de Redes Sociales" },
+          "desc": { "en": "Content creation, weekly posts, stories, audience engagement and growth strategy on Facebook and Instagram.", "es": "Creación de contenido, publicaciones semanales, historias, engagement con tu audiencia y estrategia de crecimiento en Facebook e Instagram." },
+          "why": { "en": "Social media builds your brand and generates trust before they call you.", "es": "Las redes sociales construyen tu marca y generan confianza antes de que te llamen." }
+        },
+        {
+          "title": { "en": "Gallery + Portfolio + Reviews", "es": "Galería + Portafolio + Reseñas" },
+          "desc": { "en": "Everything from Plan Crece: professional work gallery, project-organized portfolio, reviews page with automated request strategy.", "es": "Todo lo del Plan Crece: galería profesional de tu trabajo, portafolio organizado por proyecto, página de reseñas con estrategia automatizada de solicitud." },
+          "why": { "en": "Complete social proof: your work, your reviews, your professionalism. All in one place.", "es": "Prueba social completa: tu trabajo, tus reseñas, tu profesionalismo. Todo en un solo lugar." }
+        },
+        {
+          "title": { "en": "Automation and CRM", "es": "Automatización y CRM" },
+          "desc": { "en": "Complete lead tracking system: automatic emails, reminders, sales pipeline and reports. Never lose a potential client due to lack of follow-up.", "es": "Sistema completo para seguimiento de leads: emails automáticos, recordatorios, pipeline de ventas y reportes. Nunca pierdas un cliente potencial por falta de seguimiento." },
+          "why": { "en": "80% of sales are lost due to lack of follow-up. With CRM, you don't lose a single one.", "es": "El 80% de las ventas se pierden por falta de seguimiento. Con CRM, no pierdes ni una." }
+        },
+        {
+          "title": { "en": "Complete Professional Branding", "es": "Branding Profesional Completo" },
+          "desc": { "en": "Logo design, color palette, typography, business cards and complete brand guide. Your business will have a visual identity that competes with the biggest companies.", "es": "Diseño de logo, paleta de colores, tipografía, tarjetas de presentación y guía de marca completa. Tu negocio tendrá una identidad visual que compite con las empresas más grandes." },
+          "why": { "en": "A professional brand differentiates you and justifies higher prices.", "es": "Una marca profesional te diferencia y justifica precios más altos." }
+        },
+        {
+          "title": { "en": "Weekly Performance Reports", "es": "Reportes Semanales de Rendimiento" },
+          "desc": { "en": "Every week you receive a clear report with the metrics that matter: calls generated, site visits, Google positions, ad performance and ROI.", "es": "Cada semana recibes un reporte claro con las métricas que importan: llamadas generadas, visitas al sitio, posiciones en Google, rendimiento de ads y ROI." },
+          "why": { "en": "You'll know exactly how much you're earning for every marketing dollar invested.", "es": "Sabrás exactamente cuánto estás ganando por cada dólar invertido en marketing." }
+        },
+        {
+          "title": { "en": "Dedicated Account Manager", "es": "Gerente de Cuenta Dedicado" },
+          "desc": { "en": "A dedicated marketing professional who knows your business, market and goals. Available via WhatsApp, phone and email. Your growth partner.", "es": "Un profesional de marketing dedicado que conoce tu negocio, tu mercado y tus metas. Disponible por WhatsApp, teléfono y email. Tu socio de crecimiento." },
+          "why": { "en": "You're not just another ticket. You have someone who cares about your results as much as you do.", "es": "No eres un ticket más. Tienes a alguien que se preocupa por tus resultados como tú." }
+        }
+      ]
+    },
+    "compare": {
+      "sectionLabel": { "en": "Not Sure?", "es": "¿No Estás Seguro?" },
+      "title": { "en": "Compare with our other plans", "es": "Compara con nuestros otros planes" },
+      "empiezaTitle": { "en": "Plan Empieza", "es": "Plan Empieza" },
+      "empiezaDesc": { "en": "Ideal if you're starting and only need your first professional online presence with basic SEO.", "es": "Ideal si estás empezando y solo necesitas tu primera presencia online profesional con SEO básico." },
+      "empiezaBtn": { "en": "See Plan Empieza", "es": "Ver Plan Empieza" },
+      "creceTitle": { "en": "Plan Crece", "es": "Plan Crece" },
+      "crecePopular": { "en": "Most Popular", "es": "Más Popular" },
+      "creceDesc": { "en": "Perfect if you want to grow with advanced SEO, portfolio, reviews and WhatsApp support.", "es": "Perfecto si quieres crecer con SEO avanzado, portafolio, reseñas y soporte por WhatsApp." },
+      "creceBtn": { "en": "See Plan Crece", "es": "Ver Plan Crece" },
+      "ctaComparar": { "en": "Compare All Plans", "es": "Comparar Todos Los Planes" }
+    },
+    "support": {
+      "badgeLabel": { "en": "Support & Growth Plan", "es": "Plan de Soporte y Crecimiento" },
+      "description": { "en": "To keep your site running correctly and protected, all packages include this monthly plan.", "es": "Para mantener tu sitio funcionando correctamente y protegido, todos los paquetes incluyen este plan mensual." },
+      "price": { "en": "$97", "es": "$97" },
+      "priceUnit": { "en": "per month", "es": "por mes" },
+      "tagline": { "en": "Your site isn't just built. It's maintained, protected, and evolves.", "es": "Tu sitio no solo se construye. Se mantiene, se protege y evoluciona." },
+      "items": [
+        { "en": "Professional fast hosting", "es": "Hosting profesional y rápido" },
+        { "en": "SSL security certificate", "es": "Certificado SSL de seguridad" },
+        { "en": "Automatic backups", "es": "Copias de seguridad automáticas" },
+        { "en": "Security monitoring", "es": "Monitoreo de seguridad" },
+        { "en": "Technical updates", "es": "Actualizaciones técnicas" },
+        { "en": "Basic speed optimization", "es": "Optimización básica de velocidad" },
+        { "en": "Up to 1 hour of changes per month", "es": "Hasta 1 hora de cambios al mes" },
+        { "en": "Support in Spanish", "es": "Soporte en español" },
+        { "en": "Basic Google visibility review", "es": "Revisión básica de visibilidad en Google" }
+      ]
+    },
+    "cta": {
+      "title": { "en": "Top contractors didn't get there by luck. They invested in marketing.", "es": "Los contratistas #1 no llegaron ahí por suerte. Invirtieron en marketing." },
+      "subtitle": { "en": "Plan Domina is for those ready to stop competing and start leading. Is that you?", "es": "El Plan Domina es para quienes están listos para dejar de competir y empezar a liderar. ¿Eres tú?" },
+      "ctaPrimary": { "en": "I Want to Dominate My Market", "es": "Quiero Dominar Mi Mercado" },
+      "ctaWhatsapp": { "en": "Chat on WhatsApp", "es": "Hablar por WhatsApp" }
+    }
+  },
+  "contacto": {
+    "seo": {
+      "title": { "en": "Contact - Let's Talk About Your Business", "es": "Contacto - Hablemos de Tu Negocio" },
+      "description": { "en": "Tell us about your contracting business. We respond fast and in Spanish. No commitment.", "es": "Cuéntanos sobre tu negocio de contratista. Te respondemos rápido y en español. Sin compromiso." }
+    },
+    "hero": {
+      "title1": { "en": "Let's talk about", "es": "Hablemos de" },
+      "titleAccent": { "en": "your business.", "es": "tu negocio." },
+      "subtitle": { "en": "Tell us what kind of work you do and what city you work in.", "es": "Cuéntanos qué tipo de trabajos haces y en qué ciudad trabajas." }
+    },
+    "form": {
+      "nameLabel": { "en": "Name *", "es": "Nombre *" },
+      "namePlaceholder": { "en": "Your full name", "es": "Tu nombre completo" },
+      "phoneLabel": { "en": "Phone *", "es": "Teléfono *" },
+      "phonePlaceholder": { "en": "(555) 123-4567", "es": "(555) 123-4567" },
+      "cityLabel": { "en": "City", "es": "Ciudad" },
+      "cityPlaceholder": { "en": "Ex: Houston, TX", "es": "Ej: Houston, TX" },
+      "tradeLabel": { "en": "Type of Work", "es": "Tipo de Trabajo" },
+      "tradePlaceholder": { "en": "What do you do?", "es": "¿A qué te dedicas?" },
+      "serviceLabel": { "en": "What is your main service?", "es": "¿Cuál es tu servicio principal?" },
+      "servicePlaceholder": { "en": "Select your service", "es": "Selecciona tu servicio" },
+      "messageLabel": { "en": "Message", "es": "Mensaje" },
+      "messagePlaceholder": { "en": "Tell us a bit about your business and what you need...", "es": "Cuéntanos un poco sobre tu negocio y qué necesitas..." },
+      "submit": { "en": "Send Message", "es": "Enviar Mensaje" },
+      "sending": { "en": "Sending...", "es": "Enviando..." },
+      "reassurance": { "en": "We respond fast and in Spanish.", "es": "Te respondemos rápido y en español." },
+      "successTitle": { "en": "Message Sent!", "es": "¡Mensaje Enviado!" },
+      "successDesc": { "en": "We received your information. We'll contact you very soon.", "es": "Recibimos tu información. Te contactaremos muy pronto." },
+      "errorTitle": { "en": "Error", "es": "Error" },
+      "errorDesc": { "en": "There was an error sending your message. Please try again.", "es": "Hubo un error al enviar tu mensaje. Por favor intenta de nuevo." }
+    },
+    "trades": [
+      { "en": "Painter", "es": "Pintor" },
+      { "en": "Electrician", "es": "Electricista" },
+      { "en": "Plumber", "es": "Plomero" },
+      { "en": "Landscaping / Gardening", "es": "Landscaping / Jardinería" },
+      { "en": "Framer", "es": "Framer / Enmarcador" },
+      { "en": "Glass Installer", "es": "Instalador de Vidrios" },
+      { "en": "General Remodeling", "es": "Remodelación General" },
+      { "en": "Roofing", "es": "Roofing / Techos" },
+      { "en": "HVAC / Air Conditioning", "es": "HVAC / Aire Acondicionado" },
+      { "en": "Concrete", "es": "Concrete / Concreto" },
+      { "en": "Fencing", "es": "Fencing / Cercas" },
+      { "en": "Cleaning", "es": "Cleaning / Limpieza" },
+      { "en": "Other", "es": "Otro" }
+    ],
+    "services": [
+      { "en": "Painting", "es": "Pintura" },
+      { "en": "Electrical", "es": "Electricidad" },
+      { "en": "Landscaping", "es": "Landscaping" },
+      { "en": "Plumbing", "es": "Plomería" },
+      { "en": "Glass", "es": "Vidrio" },
+      { "en": "Other", "es": "Otro" }
+    ],
+    "sidebar": {
+      "whatsappTitle": { "en": "Prefer WhatsApp?", "es": "¿Prefieres WhatsApp?" },
+      "whatsappDesc": { "en": "Write to us directly and we'll respond in minutes.", "es": "Escríbenos directo y te respondemos en minutos." },
+      "whatsappBtn": { "en": "Open WhatsApp", "es": "Abrir WhatsApp" },
+      "contactInfoTitle": { "en": "Contact Information", "es": "Información de Contacto" },
+      "phoneLabel": { "en": "Phone", "es": "Teléfono" },
+      "emailLabel": { "en": "Email", "es": "Email" },
+      "locationLabel": { "en": "Location", "es": "Ubicación" },
+      "locationValue": { "en": "Service throughout the U.S.", "es": "Servicio en todo EE.UU." },
+      "hoursLabel": { "en": "Hours", "es": "Horario" },
+      "hoursWeekday": { "en": "Monday - Friday: 8am - 6pm", "es": "Lunes - Viernes: 8am - 6pm" },
+      "hoursSaturday": { "en": "Saturday: 9am - 2pm", "es": "Sábado: 9am - 2pm" },
+      "whyTitle": { "en": "Why contact us?", "es": "¿Por qué contactarnos?" },
+      "whyItems": [
+        { "en": "100% free consultation", "es": "Consulta 100% gratis" },
+        { "en": "No commitment or pressure", "es": "Sin compromiso ni presión" },
+        { "en": "We respond fast", "es": "Te respondemos rápido" },
+        { "en": "All in Spanish", "es": "Todo en español" },
+        { "en": "Personalized plan for your business", "es": "Plan personalizado para tu negocio" }
+      ]
+    }
+  }
+}

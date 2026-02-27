@@ -7,7 +7,7 @@ export default function JsonLd() {
     "@id": "https://vivawebdesigns.com",
     name: "Viva Web Designs",
     description:
-      "Agencia de marketing digital especializada en contratistas latinos. Sitios web profesionales, SEO local y publicidad digital.",
+      "Agencia de marketing digital especializada en contratistas. Sitios web profesionales, SEO local y posicionamiento en Google.",
     url: "https://vivawebdesigns.com",
     telephone: "+1-555-123-4567",
     email: "info@vivawebdesigns.com",

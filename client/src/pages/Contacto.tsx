@@ -13,6 +13,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { t, tArr } from "@/content";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 30 },
@@ -23,24 +24,12 @@ const stagger = {
   visible: { transition: { staggerChildren: 0.1 } },
 };
 
-const tradeOptions = [
-  "Pintor",
-  "Electricista",
-  "Plomero",
-  "Landscaping / Jardinería",
-  "Framer / Enmarcador",
-  "Instalador de Vidrios",
-  "Remodelación General",
-  "Roofing / Techos",
-  "HVAC / Aire Acondicionado",
-  "Concrete / Concreto",
-  "Fencing / Cercas",
-  "Cleaning / Limpieza",
-  "Otro",
-];
-
 export default function Contacto() {
   const { toast } = useToast();
+  const tradeOptions = tArr("contacto.trades");
+  const serviceOptions = tArr("contacto.services");
+  const whyItems = tArr("contacto.sidebar.whyItems");
+  const whatsappUrl = t("global.whatsappUrl");
 
   const form = useForm<InsertContact>({
     resolver: zodResolver(insertContactSchema),
@@ -63,15 +52,15 @@ export default function Contacto() {
     },
     onSuccess: () => {
       toast({
-        title: "¡Mensaje Enviado!",
-        description: "Recibimos tu información. Te contactaremos muy pronto.",
+        title: t("contacto.form.successTitle"),
+        description: t("contacto.form.successDesc"),
       });
       form.reset();
     },
     onError: () => {
       toast({
-        title: "Error",
-        description: "Hubo un error al enviar tu mensaje. Por favor intenta de nuevo.",
+        title: t("contacto.form.errorTitle"),
+        description: t("contacto.form.errorDesc"),
         variant: "destructive",
       });
     },
@@ -84,8 +73,8 @@ export default function Contacto() {
   return (
     <div className="overflow-x-hidden">
       <SEO
-        title="Contacto - Hablemos de Tu Negocio"
-        description="Cuéntanos sobre tu negocio de contratista. Te respondemos rápido y en español. Sin compromiso."
+        title={t("contacto.seo.title")}
+        description={t("contacto.seo.description")}
         path="/contacto"
       />
 
@@ -98,13 +87,13 @@ export default function Contacto() {
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <motion.div initial="hidden" animate="visible" variants={stagger}>
             <motion.h1 variants={fadeUp} className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-tight mb-6" data-testid="text-contacto-title">
-              Hablemos de{" "}
+              {t("contacto.hero.title1")}{" "}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#0D9488] to-[#14B8A6]">
-                tu negocio.
+                {t("contacto.hero.titleAccent")}
               </span>
             </motion.h1>
             <motion.p variants={fadeUp} className="text-lg sm:text-xl text-gray-300 max-w-2xl mx-auto">
-              Cuéntanos qué tipo de trabajos haces y en qué ciudad trabajas.
+              {t("contacto.hero.subtitle")}
             </motion.p>
           </motion.div>
         </div>
@@ -131,9 +120,9 @@ export default function Contacto() {
                         name="name"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-gray-700 dark:text-gray-300 font-semibold">Nombre *</FormLabel>
+                            <FormLabel className="text-gray-700 dark:text-gray-300 font-semibold">{t("contacto.form.nameLabel")}</FormLabel>
                             <FormControl>
-                              <Input placeholder="Tu nombre completo" className="h-12 bg-[#f5f5f5] dark:bg-[#111] border-gray-200 dark:border-gray-700" data-testid="input-name" {...field} />
+                              <Input placeholder={t("contacto.form.namePlaceholder")} className="h-12 bg-[#f5f5f5] dark:bg-[#111] border-gray-200 dark:border-gray-700" data-testid="input-name" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -145,9 +134,9 @@ export default function Contacto() {
                         name="phone"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-gray-700 dark:text-gray-300 font-semibold">Teléfono *</FormLabel>
+                            <FormLabel className="text-gray-700 dark:text-gray-300 font-semibold">{t("contacto.form.phoneLabel")}</FormLabel>
                             <FormControl>
-                              <Input placeholder="(555) 123-4567" className="h-12 bg-[#f5f5f5] dark:bg-[#111] border-gray-200 dark:border-gray-700" data-testid="input-phone" {...field} />
+                              <Input placeholder={t("contacto.form.phonePlaceholder")} className="h-12 bg-[#f5f5f5] dark:bg-[#111] border-gray-200 dark:border-gray-700" data-testid="input-phone" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -161,9 +150,9 @@ export default function Contacto() {
                         name="city"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-gray-700 dark:text-gray-300 font-semibold">Ciudad</FormLabel>
+                            <FormLabel className="text-gray-700 dark:text-gray-300 font-semibold">{t("contacto.form.cityLabel")}</FormLabel>
                             <FormControl>
-                              <Input placeholder="Ej: Houston, TX" className="h-12 bg-[#f5f5f5] dark:bg-[#111] border-gray-200 dark:border-gray-700" data-testid="input-city" {...field} value={field.value ?? ""} />
+                              <Input placeholder={t("contacto.form.cityPlaceholder")} className="h-12 bg-[#f5f5f5] dark:bg-[#111] border-gray-200 dark:border-gray-700" data-testid="input-city" {...field} value={field.value ?? ""} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -175,11 +164,11 @@ export default function Contacto() {
                         name="trade"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-gray-700 dark:text-gray-300 font-semibold">Tipo de Trabajo</FormLabel>
+                            <FormLabel className="text-gray-700 dark:text-gray-300 font-semibold">{t("contacto.form.tradeLabel")}</FormLabel>
                             <Select onValueChange={field.onChange} value={field.value ?? ""}>
                               <FormControl>
                                 <SelectTrigger className="h-12 bg-[#f5f5f5] dark:bg-[#111] border-gray-200 dark:border-gray-700" data-testid="select-trade">
-                                  <SelectValue placeholder="¿A qué te dedicas?" />
+                                  <SelectValue placeholder={t("contacto.form.tradePlaceholder")} />
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
@@ -201,15 +190,15 @@ export default function Contacto() {
                       name="service"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-gray-700 dark:text-gray-300 font-semibold">¿Cuál es tu servicio principal?</FormLabel>
+                          <FormLabel className="text-gray-700 dark:text-gray-300 font-semibold">{t("contacto.form.serviceLabel")}</FormLabel>
                           <Select onValueChange={field.onChange} value={field.value ?? ""}>
                             <FormControl>
                               <SelectTrigger className="h-12 bg-[#f5f5f5] dark:bg-[#111] border-gray-200 dark:border-gray-700" data-testid="select-service">
-                                <SelectValue placeholder="Selecciona tu servicio" />
+                                <SelectValue placeholder={t("contacto.form.servicePlaceholder")} />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              {["Pintura", "Electricidad", "Landscaping", "Plomería", "Vidrio", "Otro"].map((option) => (
+                              {serviceOptions.map((option) => (
                                 <SelectItem key={option} value={option}>
                                   {option}
                                 </SelectItem>
@@ -226,10 +215,10 @@ export default function Contacto() {
                       name="message"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-gray-700 dark:text-gray-300 font-semibold">Mensaje</FormLabel>
+                          <FormLabel className="text-gray-700 dark:text-gray-300 font-semibold">{t("contacto.form.messageLabel")}</FormLabel>
                           <FormControl>
                             <Textarea
-                              placeholder="Cuéntanos un poco sobre tu negocio y qué necesitas..."
+                              placeholder={t("contacto.form.messagePlaceholder")}
                               className="min-h-[120px] bg-[#f5f5f5] dark:bg-[#111] border-gray-200 dark:border-gray-700 resize-none"
                               data-testid="textarea-message"
                               {...field}
@@ -249,11 +238,11 @@ export default function Contacto() {
                       data-testid="button-submit-contact"
                     >
                       {mutation.isPending ? (
-                        "Enviando..."
+                        t("contacto.form.sending")
                       ) : (
                         <>
                           <Send className="w-5 h-5" />
-                          Enviar Mensaje
+                          {t("contacto.form.submit")}
                         </>
                       )}
                     </Button>
@@ -261,7 +250,7 @@ export default function Contacto() {
                     <div className="flex items-center justify-center gap-2 pt-2">
                       <MessageCircle className="w-4 h-4 text-[#10B981]" />
                       <p className="text-sm font-semibold text-gray-600 dark:text-gray-400" data-testid="text-reassurance">
-                        Te respondemos rápido y en español.
+                        {t("contacto.form.reassurance")}
                       </p>
                     </div>
                   </form>
@@ -281,38 +270,38 @@ export default function Contacto() {
                 {/* WhatsApp CTA */}
                 <div className="bg-[#25D366]/10 border-2 border-[#25D366]/30 rounded-md p-8 text-center" data-testid="card-whatsapp-cta">
                   <SiWhatsapp className="w-12 h-12 text-[#25D366] mx-auto mb-4" />
-                  <h3 className="text-xl font-extrabold text-[#111] dark:text-white mb-2">¿Prefieres WhatsApp?</h3>
+                  <h3 className="text-xl font-extrabold text-[#111] dark:text-white mb-2">{t("contacto.sidebar.whatsappTitle")}</h3>
                   <p className="text-gray-600 dark:text-gray-400 text-sm mb-6">
-                    Escríbenos directo y te respondemos en minutos.
+                    {t("contacto.sidebar.whatsappDesc")}
                   </p>
-                  <a href="https://wa.me/1234567890?text=Hola%2C%20quiero%20información%20sobre%20sus%20servicios" target="_blank" rel="noopener noreferrer">
+                  <a href={`${whatsappUrl}?text=Hola%2C%20quiero%20información%20sobre%20sus%20servicios`} target="_blank" rel="noopener noreferrer">
                     <Button size="lg" className="w-full bg-[#25D366] text-white font-bold text-lg gap-2 rounded-full transition-all duration-200 hover:shadow-lg" data-testid="button-contacto-whatsapp">
                       <SiWhatsapp className="w-5 h-5" />
-                      Abrir WhatsApp
+                      {t("contacto.sidebar.whatsappBtn")}
                     </Button>
                   </a>
                 </div>
 
                 {/* Contact info */}
                 <div className="space-y-6">
-                  <h3 className="text-xl font-bold text-[#111] dark:text-white">Información de Contacto</h3>
+                  <h3 className="text-xl font-bold text-[#111] dark:text-white">{t("contacto.sidebar.contactInfoTitle")}</h3>
                   <a href="tel:+1234567890" className="flex items-start gap-4 group" data-testid="link-contacto-phone">
                     <div className="w-12 h-12 rounded-md bg-teal-50 dark:bg-teal-950/30 flex items-center justify-center flex-shrink-0">
                       <Phone className="w-6 h-6 text-[#10B981]" />
                     </div>
                     <div>
-                      <p className="font-semibold text-[#111] dark:text-white">Teléfono</p>
-                      <p className="text-gray-600 dark:text-gray-400">(555) 123-4567</p>
+                      <p className="font-semibold text-[#111] dark:text-white">{t("contacto.sidebar.phoneLabel")}</p>
+                      <p className="text-gray-600 dark:text-gray-400">{t("global.phone")}</p>
                     </div>
                   </a>
 
-                  <a href="mailto:info@vivawebdesigns.com" className="flex items-start gap-4 group" data-testid="link-contacto-email">
+                  <a href={`mailto:${t("global.email")}`} className="flex items-start gap-4 group" data-testid="link-contacto-email">
                     <div className="w-12 h-12 rounded-md bg-teal-50 dark:bg-teal-950/30 flex items-center justify-center flex-shrink-0">
                       <Mail className="w-6 h-6 text-[#10B981]" />
                     </div>
                     <div>
-                      <p className="font-semibold text-[#111] dark:text-white">Email</p>
-                      <p className="text-gray-600 dark:text-gray-400">info@vivawebdesigns.com</p>
+                      <p className="font-semibold text-[#111] dark:text-white">{t("contacto.sidebar.emailLabel")}</p>
+                      <p className="text-gray-600 dark:text-gray-400">{t("global.email")}</p>
                     </div>
                   </a>
 
@@ -321,8 +310,8 @@ export default function Contacto() {
                       <MapPin className="w-6 h-6 text-[#10B981]" />
                     </div>
                     <div>
-                      <p className="font-semibold text-[#111] dark:text-white">Ubicación</p>
-                      <p className="text-gray-600 dark:text-gray-400">Servicio en todo EE.UU.</p>
+                      <p className="font-semibold text-[#111] dark:text-white">{t("contacto.sidebar.locationLabel")}</p>
+                      <p className="text-gray-600 dark:text-gray-400">{t("contacto.sidebar.locationValue")}</p>
                     </div>
                   </div>
 
@@ -331,24 +320,18 @@ export default function Contacto() {
                       <Clock className="w-6 h-6 text-blue-500" />
                     </div>
                     <div>
-                      <p className="font-semibold text-[#111] dark:text-white">Horario</p>
-                      <p className="text-gray-600 dark:text-gray-400">Lunes - Viernes: 8am - 6pm</p>
-                      <p className="text-gray-600 dark:text-gray-400">Sábado: 9am - 2pm</p>
+                      <p className="font-semibold text-[#111] dark:text-white">{t("contacto.sidebar.hoursLabel")}</p>
+                      <p className="text-gray-600 dark:text-gray-400">{t("contacto.sidebar.hoursWeekday")}</p>
+                      <p className="text-gray-600 dark:text-gray-400">{t("contacto.sidebar.hoursSaturday")}</p>
                     </div>
                   </div>
                 </div>
 
                 {/* Reassurance */}
                 <div className="bg-[#f5f5f5] dark:bg-[#111] rounded-md p-8">
-                  <h3 className="text-lg font-bold text-[#111] dark:text-white mb-4">¿Por qué contactarnos?</h3>
+                  <h3 className="text-lg font-bold text-[#111] dark:text-white mb-4">{t("contacto.sidebar.whyTitle")}</h3>
                   <ul className="space-y-3">
-                    {[
-                      "Consulta 100% gratis",
-                      "Sin compromiso ni presión",
-                      "Te respondemos rápido",
-                      "Todo en español",
-                      "Plan personalizado para tu negocio",
-                    ].map((item) => (
+                    {whyItems.map((item) => (
                       <li key={item} className="flex items-center gap-3">
                         <CheckCircle2 className="w-5 h-5 text-[#10B981] flex-shrink-0" />
                         <span className="text-gray-700 dark:text-gray-300 text-sm font-medium">{item}</span>

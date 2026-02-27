@@ -1,0 +1,103 @@
+Refactor this React + Vite website so ALL copy is managed from ONE single content file that contains BOTH English (for you) and Spanish (for the live site). The live site must remain 100% Spanish.
+
+CRITICAL RULES
+- Do NOT change the site’s design, layout, routes, or styling.
+- Do NOT add a language toggle.
+- Do NOT create /en routes.
+- Do NOT remove any sections/pages.
+- Only refactor how text is stored and rendered.
+- Keep all functionality intact (forms, nav, modals, gallery lightbox, etc.).
+
+GOAL (ONE FILE, TWO LANGUAGES)
+- Create: /src/content/content.json
+- Every text string must have this structure:
+  { "en": "...", "es": "..." }
+- The website must ALWAYS render the Spanish value (.es).
+- English exists only so I can understand/edit faster.
+
+CONTENT STRUCTURE
+In /src/content/content.json, organize by page/section with stable keys:
+{
+  "global": { ... },
+  "nav": { ... },
+  "home": { ... },
+  "about": { ... },
+  "services": { ... },
+  "packages": { ... },
+  "gallery": { ... },
+  "contact": { ... },
+  "footer": { ... }
+}
+
+Example:
+{
+  "home": {
+    "hero": {
+      "title": { "en": "We build professional websites", "es": "Construimos sitios web profesionales" },
+      "subtitle": { "en": "More calls and better visibility", "es": "Más llamadas y mejor visibilidad" }
+    }
+  }
+}
+
+IMPLEMENTATION REQUIREMENTS
+
+1) Create Content Loader + Helper
+Create:
+- /src/content/index.ts
+
+It should:
+- import content.json as content
+- export a helper function t(path) that ALWAYS returns Spanish:
+
+Rules:
+- t("home.hero.title") returns content.home.hero.title.es
+- If a key is missing, return "[MISSING: home.hero.title]"
+- t() must never crash the app
+
+2) Replace Hard-Coded Visible Text Across the Site
+Go through pages/components and replace all visible strings with the new content system.
+
+Example replacements:
+- <h1>...</h1> -> <h1>{t("home.hero.title")}</h1>
+- <p>...</p> -> <p>{t("home.hero.subtitle")}</p>
+- Buttons, nav labels, footer text, form labels/placeholders, package descriptions, FAQs, gallery labels, etc.
+
+Do NOT move:
+- classNames/styles
+- route paths/URLs/slugs
+- image file paths (unless they include human-visible text labels)
+- business phone/address configs unless they are displayed copy
+
+3) Keep the Site Spanish-Only
+- Render Spanish everywhere by default using t()
+- No toggle UI
+- No language routing
+- English is never rendered in the UI
+
+4) Add Editing Guidance (for me)
+Create:
+- /src/content/README.md
+
+Include:
+- “Edit text in /src/content/content.json”
+- “English is for reference only”
+- “Website renders Spanish (.es) only”
+- “After editing content, republish/deploy”
+
+5) Performance / Safety
+- Ensure content.json is imported once (not reloaded repeatedly).
+- Ensure all components continue to render quickly.
+- No heavy libraries added.
+
+DELIVERABLES
+- Add /src/content/content.json
+- Add /src/content/index.ts with t() helper
+- Replace hard-coded strings across the site with t("...") lookups
+- Add /src/content/README.md
+- At the end, list:
+  - created files
+  - key updated files
+  - where I edit copy going forward
+
+IMPORTANT
+The site should look and behave EXACTLY the same after this refactor—only text sourcing changes.

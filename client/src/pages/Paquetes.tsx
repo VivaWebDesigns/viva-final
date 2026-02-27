@@ -5,6 +5,7 @@ import { SiWhatsapp } from "react-icons/si";
 import { motion } from "framer-motion";
 import { useState } from "react";
 import SEO from "@/components/SEO";
+import { t, tArr, tObjArr } from "@/content";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 30 },
@@ -16,26 +17,6 @@ const stagger = {
 };
 
 type CellValue = string | boolean;
-
-const comparisonRows: { label: string; empieza: CellValue; crece: CellValue; domina: CellValue }[] = [
-  { label: "Páginas incluidas", empieza: "1", crece: "Hasta 6", domina: "Hasta 12" },
-  { label: "Diseño móvil", empieza: true, crece: true, domina: true },
-  { label: "WhatsApp + Click-to-call", empieza: true, crece: true, domina: true },
-  { label: "Galería", empieza: false, crece: true, domina: true },
-  { label: "Portafolio", empieza: false, crece: false, domina: true },
-  { label: "Página de reseñas", empieza: false, crece: true, domina: true },
-  { label: "Optimización para Google", empieza: "Básica", crece: "Avanzada", domina: "Agresiva" },
-  { label: "Optimización por servicio", empieza: false, crece: true, domina: true },
-  { label: "Estrategia de reseñas", empieza: false, crece: true, domina: true },
-  { label: "Ideal para", empieza: "Empezar", crece: "Crecer", domina: "Dominar" },
-];
-
-const faqs = [
-  { q: "¿Puedo cambiar de plan después?", a: "Sí. Puedes subir de plan en cualquier momento. Simplemente avísanos y ajustamos tu servicio sin complicaciones." },
-  { q: "¿Hay contrato a largo plazo?", a: "No. Todos nuestros planes son mes a mes. Sin contratos largos, sin letras chicas. Te quedas porque ves resultados." },
-  { q: "¿Cuánto tiempo tarda en estar listo?", a: "Dependiendo del paquete, tu sitio puede estar listo en 7-14 días. Trabajamos rápido porque cada día sin presencia online es dinero perdido." },
-  { q: "¿Incluye soporte en español?", a: "Absolutamente. Todo nuestro equipo habla español. Desde la primera llamada hasta el soporte continuo, siempre en tu idioma." },
-];
 
 function FAQItem({ q, a }: { q: string; a: string }) {
   const [open, setOpen] = useState(false);
@@ -62,7 +43,7 @@ function CellDisplay({ value, highlight }: { value: CellValue; highlight?: boole
   if (typeof value === "boolean") {
     return value ? (
       <div className="w-full flex justify-end pr-2">
-        <Check className={`w-6 h-6 ${highlight ? "text-[#10B981]" : "text-[#10B981]"}`} />
+        <Check className="w-6 h-6 text-[#10B981]" />
       </div>
     ) : (
       <div className="w-full flex justify-end pr-2">
@@ -78,11 +59,55 @@ function CellDisplay({ value, highlight }: { value: CellValue; highlight?: boole
 }
 
 export default function Paquetes() {
+  const comparisonRows = tObjArr<{ label: string; empieza: CellValue; crece: CellValue; domina: CellValue }>("paquetes.comparison.rows");
+  const faqs = tObjArr<{ q: string; a: string }>("paquetes.faq.items");
+  const supportItems = tArr("paquetes.support.items");
+  const whatsappUrl = t("global.whatsappUrl");
+
+  const empiezaFeatures = tArr("paquetes.cards.empieza.features");
+  const creceFeatures = tArr("paquetes.cards.crece.features");
+  const dominaFeatures = tArr("paquetes.cards.domina.features");
+
+  const packages = [
+    {
+      name: t("paquetes.cards.empieza.name"),
+      subLabel: t("paquetes.cards.empieza.subLabel"),
+      slug: "empieza",
+      icon: Zap,
+      positioning: t("paquetes.cards.empieza.positioning"),
+      price: t("paquetes.cards.empieza.price"),
+      microcopy: t("paquetes.cards.empieza.microcopy"),
+      features: empiezaFeatures,
+    },
+    {
+      name: t("paquetes.cards.crece.name"),
+      subLabel: t("paquetes.cards.crece.subLabel"),
+      slug: "crece",
+      icon: Rocket,
+      positioning: t("paquetes.cards.crece.positioning"),
+      price: t("paquetes.cards.crece.price"),
+      microcopy: t("paquetes.cards.crece.microcopy"),
+      popular: true,
+      features: creceFeatures,
+    },
+    {
+      name: t("paquetes.cards.domina.name"),
+      subLabel: t("paquetes.cards.domina.subLabel"),
+      slug: "domina",
+      icon: Crown,
+      positioning: t("paquetes.cards.domina.positioning"),
+      price: t("paquetes.cards.domina.price"),
+      microcopy: t("paquetes.cards.domina.microcopy"),
+      premium: true,
+      features: dominaFeatures,
+    },
+  ];
+
   return (
     <div className="overflow-x-hidden">
       <SEO
-        title="Paquetes de Marketing Digital para Contratistas"
-        description="Elige el paquete ideal para tu negocio. Comparación completa de planes Empieza, Crece y Domina. Desde $497/mes."
+        title={t("paquetes.seo.title")}
+        description={t("paquetes.seo.description")}
         path="/paquetes"
       />
 
@@ -95,13 +120,13 @@ export default function Paquetes() {
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <motion.div initial="hidden" animate="visible" variants={stagger}>
             <motion.h1 variants={fadeUp} className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-tight mb-6" data-testid="text-paquetes-title">
-              Elige el paquete ideal para{" "}
+              {t("paquetes.hero.title1")}{" "}
               <span className="text-[#0D9488]">
-                tu negocio
+                {t("paquetes.hero.titleAccent")}
               </span>
             </motion.h1>
             <motion.p variants={fadeUp} className="text-lg sm:text-xl text-gray-300 max-w-2xl mx-auto">
-              Te ayudamos a crear una imagen profesional, mejorar tu visibilidad en Google y generar más llamadas.
+              {t("paquetes.hero.subtitle")}
             </motion.p>
           </motion.div>
         </div>
@@ -112,10 +137,10 @@ export default function Paquetes() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center mb-12">
             <motion.p variants={fadeUp} className="text-[#0D9488] font-bold text-sm uppercase tracking-widest mb-4">
-              Comparación
+              {t("paquetes.comparison.sectionLabel")}
             </motion.p>
             <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl font-extrabold text-[#111] dark:text-white leading-tight" data-testid="text-comparison-title">
-              ¿Qué incluye cada plan?
+              {t("paquetes.comparison.title")}
             </motion.h2>
           </motion.div>
 
@@ -129,23 +154,23 @@ export default function Paquetes() {
                     <th className="text-center py-5 px-4 w-[21.67%]">
                       <div className="flex flex-col items-center gap-1">
                         <Zap className="w-6 h-6 text-[#10B981]" />
-                        <span className="text-lg font-extrabold text-[#111] dark:text-white">Empieza</span>
+                        <span className="text-lg font-extrabold text-[#111] dark:text-white">{t("paquetes.cards.empieza.name")}</span>
                       </div>
                     </th>
                     <th className="text-center py-5 px-4 w-[21.67%] relative">
                       <div className="absolute -top-0 left-1/2 -translate-x-1/2 bg-[#0D9488] text-white text-[10px] font-bold px-3 py-1 rounded-b-md uppercase tracking-wider flex items-center gap-1" data-testid="badge-popular-table">
                         <Star className="w-3 h-3 fill-white" />
-                        Más Popular
+                        {t("paquetes.comparison.badgePopular")}
                       </div>
                       <div className="flex flex-col items-center gap-1">
                         <Rocket className="w-6 h-6 text-[#10B981]" />
-                        <span className="text-lg font-extrabold text-[#0D9488]">Crece</span>
+                        <span className="text-lg font-extrabold text-[#0D9488]">{t("paquetes.cards.crece.name")}</span>
                       </div>
                     </th>
                     <th className="text-center py-5 px-4 w-[21.67%]">
                       <div className="flex flex-col items-center gap-1">
                         <Crown className="w-6 h-6 text-[#10B981]" />
-                        <span className="text-lg font-extrabold text-[#111] dark:text-white">Domina</span>
+                        <span className="text-lg font-extrabold text-[#111] dark:text-white">{t("paquetes.cards.domina.name")}</span>
                       </div>
                     </th>
                   </tr>
@@ -166,26 +191,26 @@ export default function Paquetes() {
             {/* Mobile comparison cards */}
             <div className="md:hidden space-y-8" data-testid="table-comparison-mobile">
               {[
-                { name: "Empieza", icon: Zap, color: "border-gray-200", iconColor: "text-[#10B981]", key: "empieza" as const },
-                { name: "Crece", icon: Rocket, color: "border-[#0D9488]", iconColor: "text-[#10B981]", key: "crece" as const, popular: true },
-                { name: "Domina", icon: Crown, color: "border-gray-200", iconColor: "text-[#10B981]", key: "domina" as const },
+                { name: t("paquetes.cards.empieza.name"), icon: Zap, color: "border-gray-200", key: "empieza" as const },
+                { name: t("paquetes.cards.crece.name"), icon: Rocket, color: "border-[#0D9488]", key: "crece" as const, popular: true },
+                { name: t("paquetes.cards.domina.name"), icon: Crown, color: "border-gray-200", key: "domina" as const },
               ].map((plan) => (
                 <div key={plan.name} className={`rounded-md border-2 ${plan.color} overflow-hidden bg-white dark:bg-[#111] relative`}>
-                  {plan.popular && (
+                  {"popular" in plan && plan.popular && (
                     <div className="absolute top-0 right-0 bg-[#0D9488] text-white text-[10px] font-bold px-3 py-1 rounded-bl-md uppercase tracking-wider flex items-center gap-1">
                       <Star className="w-3 h-3 fill-white" />
-                      Más Popular
+                      {t("paquetes.comparison.badgePopular")}
                     </div>
                   )}
                   <div className="p-5 flex items-center gap-3 border-b border-gray-100 dark:border-gray-800">
-                    <plan.icon className={`w-6 h-6 ${plan.iconColor}`} />
+                    <plan.icon className="w-6 h-6 text-[#10B981]" />
                     <h3 className="text-xl font-extrabold text-[#111] dark:text-white">{plan.name}</h3>
                   </div>
                   <div className="divide-y divide-gray-100 dark:divide-gray-800">
                     {comparisonRows.map((row) => (
                       <div key={row.label} className="flex items-center justify-between px-5 py-3">
                         <span className="text-sm text-gray-600 dark:text-gray-400">{row.label}</span>
-                        <CellDisplay value={row[plan.key]} highlight={plan.popular} />
+                        <CellDisplay value={row[plan.key]} highlight={"popular" in plan && plan.popular} />
                       </div>
                     ))}
                   </div>
@@ -201,95 +226,38 @@ export default function Paquetes() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center mb-16">
             <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl font-extrabold text-[#111] dark:text-white leading-tight" data-testid="text-cards-title">
-              Conoce Cada Plan a Detalle
+              {t("paquetes.cards.sectionTitle")}
             </motion.h2>
           </motion.div>
 
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-10 items-end">
-            {[
-              {
-                name: "Empieza",
-                subLabel: "Base profesional",
-                slug: "empieza",
-                icon: Zap,
-                tagline: "Tu primera presencia profesional en internet",
-                positioning: "Para contratistas que quieren dar el primer paso con una imagen profesional.",
-                price: "Desde $497",
-                microcopy: "Perfecto para comenzar.",
-                features: [
-                  "Sitio web profesional de 1 página",
-                  "Diseño responsivo y moderno",
-                  "Optimización SEO básica",
-                  "Google Business Profile optimizado",
-                  "WhatsApp + Click-to-call",
-                  "Soporte por email",
-                ],
-              },
-              {
-                name: "Crece",
-                subLabel: "La opción más elegida por contratistas que quieren crecer",
-                slug: "crece",
-                icon: Rocket,
-                tagline: "Más llamadas, más clientes, más ingresos",
-                positioning: "Para negocios listos para invertir en crecimiento real y medible.",
-                price: "Desde $997",
-                microcopy: "Inversión inteligente para crecer.",
-                popular: true,
-                features: [
-                  "Todo lo del plan Empieza",
-                  "Hasta 5 páginas + galería + portafolio",
-                  "SEO local avanzado + Google Maps",
-                  "Página de reseñas + estrategia",
-                  "Optimización por servicio",
-                  "Soporte prioritario por WhatsApp",
-                ],
-              },
-              {
-                name: "Domina",
-                subLabel: "Máximo posicionamiento",
-                slug: "domina",
-                icon: Crown,
-                tagline: "Domina tu mercado y deja atrás a la competencia",
-                positioning: "Para líderes que quieren dominar su mercado sin dejar nada al azar.",
-                price: "Desde $1,997",
-                microcopy: "Construido para liderar tu mercado.",
-                premium: true,
-                features: [
-                  "Todo lo del plan Crece",
-                  "Páginas ilimitadas + blog",
-                  "SEO agresivo + contenido mensual",
-                  "Gestión completa de redes sociales",
-                  "Automatización y CRM",
-                  "Branding profesional + gerente dedicado",
-                ],
-              },
-            ].map((pkg) => (
+            {packages.map((pkg) => (
               <motion.div
                 key={pkg.slug}
                 variants={fadeUp}
-                className={`relative flex flex-col ${pkg.popular ? "lg:scale-[1.06] lg:z-10" : ""}`}
+                className={`relative flex flex-col ${"popular" in pkg && pkg.popular ? "lg:scale-[1.06] lg:z-10" : ""}`}
                 data-testid={`card-paquete-${pkg.slug}`}
               >
-                {pkg.popular && (
+                {"popular" in pkg && pkg.popular && (
                   <div className="flex justify-center mb-3">
                     <span className="bg-[#0D9488] text-white text-xs font-bold px-5 py-1.5 rounded-full uppercase tracking-widest flex items-center gap-1.5 shadow-lg" data-testid="badge-popular-card">
                       <Star className="w-3 h-3 fill-white" />
-                      Más Popular
+                      {t("paquetes.cards.badgePopular")}
                     </span>
                   </div>
                 )}
 
-                <div className={`rounded-2xl border bg-white dark:bg-[#0d0d0d] flex flex-col flex-1 transition-all duration-300 ${pkg.popular ? "border-[#0D9488]/40 shadow-xl shadow-[#0D9488]/5 hover:shadow-2xl hover:shadow-[#0D9488]/10" : "border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-lg"}`}>
+                <div className={`rounded-2xl border bg-white dark:bg-[#0d0d0d] flex flex-col flex-1 transition-all duration-300 ${"popular" in pkg && pkg.popular ? "border-[#0D9488]/40 shadow-xl shadow-[#0D9488]/5 hover:shadow-2xl hover:shadow-[#0D9488]/10" : "border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-lg"}`}>
                   <div className="p-8 lg:p-10">
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-5 bg-[#10B981]/10`}>
-                      <pkg.icon className={`w-6 h-6 text-[#10B981]`} />
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-5 bg-[#10B981]/10">
+                      <pkg.icon className="w-6 h-6 text-[#10B981]" />
                     </div>
                     <h3 className="text-2xl font-extrabold text-[#111] dark:text-white mb-1">{pkg.name}</h3>
                     <p className="text-gray-500 dark:text-gray-400 text-xs leading-snug mb-6">{pkg.subLabel}</p>
 
                     <div className="border-t border-gray-100 dark:border-gray-800 pt-6 mb-6">
                       <p className="text-3xl font-extrabold text-[#111] dark:text-white" data-testid={`text-price-${pkg.slug}`}>{pkg.price}</p>
-                      <p className="text-[10px] text-gray-400 dark:text-gray-500 font-medium mt-1">Más plan mensual requerido.</p>
+                      <p className="text-[10px] text-gray-400 dark:text-gray-500 font-medium mt-1">{t("paquetes.cards.monthlyRequired")}</p>
                       <p className="text-gray-400 dark:text-gray-500 text-xs mt-1.5 italic">{pkg.microcopy}</p>
                     </div>
                   </div>
@@ -307,8 +275,8 @@ export default function Paquetes() {
                     </ul>
 
                     <Link href={`/paquetes/${pkg.slug}`}>
-                      <Button size="lg" className={`w-full rounded-full font-bold text-lg gap-2 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 ${pkg.popular ? "bg-[#0D9488] text-white shadow-[#0D9488]/20 hover:bg-[#0F766E]" : pkg.premium ? "bg-[#111] dark:bg-white text-white dark:text-[#111] shadow-xl" : "bg-white dark:bg-[#0d0d0d] text-[#111] dark:text-white border border-[#111]/10 dark:border-white/10 hover:border-[#111]/20"}`} data-testid={`button-ver-${pkg.slug}`}>
-                        Ver Detalles
+                      <Button size="lg" className={`w-full rounded-full font-bold text-lg gap-2 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 ${"popular" in pkg && pkg.popular ? "bg-[#0D9488] text-white shadow-[#0D9488]/20 hover:bg-[#0F766E]" : "premium" in pkg && pkg.premium ? "bg-[#111] dark:bg-white text-white dark:text-[#111] shadow-xl" : "bg-white dark:bg-[#0d0d0d] text-[#111] dark:text-white border border-[#111]/10 dark:border-white/10 hover:border-[#111]/20"}`} data-testid={`button-ver-${pkg.slug}`}>
+                        {t("paquetes.cards.viewDetails")}
                         <ArrowRight className="w-5 h-5" />
                       </Button>
                     </Link>
@@ -318,7 +286,10 @@ export default function Paquetes() {
             ))}
           </motion.div>
           <motion.p initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ delay: 0.4 }} className="text-center text-sm text-gray-400 dark:text-gray-500 mt-8" data-testid="text-payment-reassurance">
-            También ofrecemos opciones de pago en partes. <a href="https://wa.me/1234567890?text=Hola%2C%20quiero%20saber%20sobre%20opciones%20de%20pago" target="_blank" rel="noopener noreferrer" className="underline hover:text-[#0D9488] transition-colors">Pregúntanos por WhatsApp.</a>
+            {t("paquetes.cards.paymentNote")}{" "}
+            <a href={`${whatsappUrl}?text=Hola%2C%20quiero%20saber%20sobre%20opciones%20de%20pago`} target="_blank" rel="noopener noreferrer" className="underline hover:text-[#0D9488] transition-colors">
+              {t("paquetes.cards.paymentNoteLink")}
+            </a>
           </motion.p>
         </div>
       </section>
@@ -329,28 +300,19 @@ export default function Paquetes() {
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center">
             <motion.div variants={fadeUp} className="inline-flex items-center gap-2 bg-[#f5f5f5] dark:bg-[#111] border border-gray-200 dark:border-gray-700 rounded-full px-5 py-2 mb-6 shadow-sm">
               <Shield className="w-4 h-4 text-[#10B981]" />
-              <span className="text-xs font-bold text-[#111] dark:text-white uppercase tracking-widest">Plan de Soporte y Crecimiento</span>
+              <span className="text-xs font-bold text-[#111] dark:text-white uppercase tracking-widest">{t("paquetes.support.badgeLabel")}</span>
             </motion.div>
             <motion.p variants={fadeUp} className="text-gray-500 dark:text-gray-400 text-sm max-w-xl mx-auto mb-6">
-              Para mantener tu sitio funcionando correctamente y protegido, todos los paquetes incluyen este plan mensual.
+              {t("paquetes.support.description")}
             </motion.p>
             <motion.p variants={fadeUp} className="text-2xl sm:text-3xl font-extrabold text-[#111] dark:text-white mb-2" data-testid="text-support-price">
-              $97 <span className="text-base font-semibold text-gray-400">por mes</span>
+              {t("paquetes.support.price")} <span className="text-base font-semibold text-gray-400">{t("paquetes.support.priceUnit")}</span>
             </motion.p>
             <motion.p variants={fadeUp} className="text-gray-400 dark:text-gray-500 text-xs italic mb-8">
-              Tu sitio no solo se construye. Se mantiene, se protege y evoluciona.
+              {t("paquetes.support.tagline")}
             </motion.p>
             <motion.div variants={fadeUp} className="flex flex-wrap justify-center gap-x-6 gap-y-3 text-sm text-gray-600 dark:text-gray-300">
-              {[
-                "Hosting profesional y rápido",
-                "Certificado SSL de seguridad",
-                "Copias de seguridad automáticas",
-                "Monitoreo de seguridad",
-                "Actualizaciones técnicas",
-                "Optimización básica de velocidad",
-                "Hasta 1 hora de cambios al mes",
-                "Soporte en español",
-              ].map((item) => (
+              {supportItems.map((item) => (
                 <span key={item} className="flex items-center gap-1.5">
                   <CheckCircle2 className="w-3.5 h-3.5 text-[#10B981] flex-shrink-0" />
                   {item}
@@ -366,10 +328,10 @@ export default function Paquetes() {
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center mb-12">
             <motion.p variants={fadeUp} className="text-[#0D9488] font-bold text-sm uppercase tracking-widest mb-4">
-              Preguntas Frecuentes
+              {t("paquetes.faq.sectionLabel")}
             </motion.p>
             <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl font-extrabold text-[#111] dark:text-white leading-tight" data-testid="text-faq-title">
-              ¿Tienes Dudas?
+              {t("paquetes.faq.title")}
             </motion.h2>
           </motion.div>
 
@@ -386,21 +348,21 @@ export default function Paquetes() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger}>
             <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white leading-tight mb-6" data-testid="text-cta-paquetes">
-              ¿No sabes cuál elegir?
+              {t("paquetes.cta.title")}
             </motion.h2>
             <motion.p variants={fadeUp} className="text-xl text-white/90 mb-10 max-w-2xl mx-auto">
-              Escríbenos por WhatsApp y te ayudamos a elegir el plan perfecto para tu negocio.
+              {t("paquetes.cta.subtitle")}
             </motion.p>
             <motion.div variants={fadeUp} className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <a href="https://wa.me/1234567890?text=Hola%2C%20quiero%20saber%20cuál%20paquete%20es%20el%20mejor%20para%20mi%20negocio" target="_blank" rel="noopener noreferrer">
+              <a href={`${whatsappUrl}?text=Hola%2C%20quiero%20saber%20cuál%20paquete%20es%20el%20mejor%20para%20mi%20negocio`} target="_blank" rel="noopener noreferrer">
                 <Button size="lg" className="bg-[#25D366] text-white font-bold text-lg gap-2 rounded-full hover:shadow-lg transition-all duration-200" data-testid="button-paquetes-whatsapp">
                   <SiWhatsapp className="w-5 h-5" />
-                  Escríbenos por WhatsApp
+                  {t("paquetes.cta.whatsapp")}
                 </Button>
               </a>
               <Link href="/contacto">
                 <Button size="lg" variant="outline" className="text-white border-white/40 font-bold text-lg gap-2 bg-white/10 rounded-full hover:shadow-lg transition-all duration-200" data-testid="button-paquetes-contacto">
-                  Enviar Mensaje
+                  {t("paquetes.cta.contact")}
                   <ArrowRight className="w-5 h-5" />
                 </Button>
               </Link>

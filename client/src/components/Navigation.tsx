@@ -3,12 +3,13 @@ import { Link, useLocation } from "wouter";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logoImg from "@assets/image_1_1771876016559.png";
+import { t } from "@/content";
 
 const navLinks = [
-  { href: "/", label: "Inicio" },
-  { href: "/paquetes#paquetes-list", label: "Paquetes" },
-  { href: "/#como-funciona", label: "Cómo Funciona" },
-  { href: "/contacto", label: "Contacto" },
+  { href: "/", labelKey: "nav.home" },
+  { href: "/paquetes#paquetes-list", labelKey: "nav.packages" },
+  { href: "/#como-funciona", labelKey: "nav.howItWorks" },
+  { href: "/contacto", labelKey: "nav.contact" },
 ];
 
 export default function Navigation() {
@@ -75,9 +76,9 @@ export default function Navigation() {
                     : "text-[#111] dark:text-gray-300 hover:text-[#0D9488]"
                 }`}
                 onClick={() => handleNavClick(link.href)}
-                data-testid={`link-nav-${link.label.toLowerCase().replace(/\s/g, "-")}`}
+                data-testid={`link-nav-${link.labelKey.split(".")[1]}`}
               >
-                {link.label}
+                {t(link.labelKey)}
               </Link>
             ))}
           </div>
@@ -85,7 +86,7 @@ export default function Navigation() {
           <div className="hidden md:block">
             <Link href="/contacto">
               <Button className="bg-[#0D9488] hover:bg-[#0F766E] text-white font-bold px-6 rounded-full transition-all duration-200 hover:shadow-lg" data-testid="button-cta-nav">
-                Comenzar
+                {t("nav.cta")}
               </Button>
             </Link>
           </div>
@@ -113,15 +114,15 @@ export default function Navigation() {
                     : "text-[#111] dark:text-gray-300"
                 }`}
                 onClick={() => handleNavClick(link.href)}
-                data-testid={`link-mobile-${link.label.toLowerCase().replace(/\s/g, "-")}`}
+                data-testid={`link-mobile-${link.labelKey.split(".")[1]}`}
               >
-                {link.label}
+                {t(link.labelKey)}
               </Link>
             ))}
             <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
               <Link href="/contacto" onClick={() => setIsOpen(false)}>
                 <Button className="w-full bg-[#0D9488] hover:bg-[#0F766E] text-white font-bold text-lg rounded-full" data-testid="button-cta-mobile">
-                  Comenzar
+                  {t("nav.cta")}
                 </Button>
               </Link>
             </div>
