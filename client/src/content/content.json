@@ -302,11 +302,12 @@
         "microcopy": { "en": "Built to lead your market.", "es": "Construido para liderar tu mercado." },
         "features": [
           { "en": "Everything in Plan Crece", "es": "Todo lo del plan Crece" },
-          { "en": "Unlimited pages + blog", "es": "Páginas ilimitadas + blog" },
-          { "en": "Aggressive SEO + monthly content", "es": "SEO agresivo + contenido mensual" },
-          { "en": "Complete social media management", "es": "Gestión completa de redes sociales" },
-          { "en": "Automation and CRM", "es": "Automatización y CRM" },
-          { "en": "Professional branding + dedicated manager", "es": "Branding profesional + gerente dedicado" }
+          { "en": "Up to 11 fully optimized pages + portfolio", "es": "Hasta 11 páginas optimizadas + portafolio" },
+          { "en": "Aggressive local SEO strategy", "es": "Estrategia de SEO local agresiva" },
+          { "en": "Advanced service-page optimization", "es": "Optimización avanzada de páginas de servicio" },
+          { "en": "Google Business Profile optimization support", "es": "Soporte de optimización de Perfil de Empresa en Google" },
+          { "en": "Professional branding package", "es": "Paquete de branding profesional" },
+          { "en": "Dedicated project support", "es": "Soporte de proyecto dedicado" }
         ]
       }
     },
