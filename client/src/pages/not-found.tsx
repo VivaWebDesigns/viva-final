@@ -1,21 +1,62 @@
-import { Card, CardContent } from "@/components/ui/card";
-import { AlertCircle } from "lucide-react";
+import { Link } from "wouter";
+import { Button } from "@/components/ui/button";
+import { ArrowRight } from "lucide-react";
+import { SiWhatsapp } from "react-icons/si";
+import { motion } from "framer-motion";
+import { t } from "@/content";
 
 export default function NotFound() {
-  return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-[#f5f5f5]">
-      <Card className="w-full max-w-md mx-4">
-        <CardContent className="pt-6">
-          <div className="flex mb-4 gap-2">
-            <AlertCircle className="h-8 w-8 text-red-500" />
-            <h1 className="text-2xl font-bold text-gray-900">404 Page Not Found</h1>
-          </div>
+  const whatsappUrl = t("global.whatsappUrl");
 
-          <p className="mt-4 text-sm text-gray-600">
-            Did you forget to add the page to the router?
+  return (
+    <div className="min-h-screen bg-[#111] flex items-center justify-center px-4" data-testid="page-not-found">
+      <div className="max-w-2xl mx-auto text-center">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+        >
+          <p className="text-[10rem] font-extrabold leading-none text-transparent bg-clip-text bg-gradient-to-br from-[#0D9488] to-[#14B8A6] select-none" data-testid="text-404">
+            404
           </p>
-        </CardContent>
-      </Card>
+
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-white mt-2 mb-4" data-testid="text-not-found-title">
+            Página no encontrada
+          </h1>
+
+          <p className="text-gray-400 text-lg mb-10 max-w-md mx-auto leading-relaxed">
+            Esta página no existe o fue movida. Vuelve al inicio y encuentra lo que necesitas.
+          </p>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Link href="/">
+              <Button
+                size="lg"
+                className="bg-[#0D9488] hover:bg-[#0F766E] text-white font-bold text-lg gap-2 rounded-full transition-all duration-200 hover:shadow-lg"
+                data-testid="button-go-home"
+              >
+                Ir al Inicio
+                <ArrowRight className="w-5 h-5" />
+              </Button>
+            </Link>
+            <a
+              href={`${whatsappUrl}?text=Hola%2C%20necesito%20ayuda`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Button
+                size="lg"
+                variant="outline"
+                className="text-white border-white/30 font-bold text-lg gap-2 bg-white/5 rounded-full transition-all duration-200 hover:shadow-lg"
+                data-testid="button-not-found-whatsapp"
+              >
+                <SiWhatsapp className="w-5 h-5" />
+                WhatsApp
+              </Button>
+            </a>
+          </div>
+        </motion.div>
+      </div>
     </div>
   );
 }
