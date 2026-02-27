@@ -17,7 +17,7 @@ const stagger = {
 const included = [
   {
     icon: Globe,
-    title: "Sitio Web Profesional (1–3 Páginas)",
+    title: "Sitio Web Profesional (1 Página)",
     desc: "Ya no tendrás que dar solo tu número de teléfono. Tendrás un sitio web profesional donde tus clientes pueden ver tu trabajo, saber quién eres y contactarte al instante. Esto genera confianza antes de que te llamen.",
     why: "Un cliente que ve un sitio profesional confía más y te llama más rápido.",
   },

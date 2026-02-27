@@ -18,11 +18,11 @@ const stagger = {
 type CellValue = string | boolean;
 
 const comparisonRows: { label: string; empieza: CellValue; crece: CellValue; domina: CellValue }[] = [
-  { label: "Páginas incluidas", empieza: "1–3", crece: "Hasta 5", domina: "Ilimitadas" },
+  { label: "Páginas incluidas", empieza: "1", crece: "Hasta 6", domina: "Hasta 12" },
   { label: "Diseño móvil", empieza: true, crece: true, domina: true },
   { label: "WhatsApp + Click-to-call", empieza: true, crece: true, domina: true },
   { label: "Galería", empieza: false, crece: true, domina: true },
-  { label: "Portafolio", empieza: false, crece: true, domina: true },
+  { label: "Portafolio", empieza: false, crece: false, domina: true },
   { label: "Página de reseñas", empieza: false, crece: true, domina: true },
   { label: "Optimización para Google", empieza: "Básica", crece: "Avanzada", domina: "Agresiva" },
   { label: "Optimización por servicio", empieza: false, crece: true, domina: true },
@@ -217,7 +217,7 @@ export default function Paquetes() {
                 price: "Desde $497",
                 microcopy: "Perfecto para comenzar.",
                 features: [
-                  "Sitio web profesional de 1–3 páginas",
+                  "Sitio web profesional de 1 página",
                   "Diseño responsivo y moderno",
                   "Optimización SEO básica",
                   "Google Business Profile optimizado",
