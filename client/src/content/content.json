@@ -597,12 +597,12 @@
       "sectionLabel": { "en": "Who Is It For?", "es": "¿Para Quién Es?" },
       "title": { "en": "This plan is for you if...", "es": "Este plan es para ti si..." },
       "items": [
-        { "en": "You have an established business with a team and want to be #1 in your area", "es": "Tienes un negocio establecido con un equipo y quieres ser el #1 en tu área" },
-        { "en": "You're tired of seeing your competition above you on Google", "es": "Estás cansado de ver a tu competencia más arriba que tú en Google" },
-        { "en": "You want complete marketing: web, SEO, ads, social media and CRM", "es": "Quieres un marketing completo: web, SEO, ads, redes sociales y CRM" },
-        { "en": "You're ready to invest seriously because you know the return is worth it", "es": "Estás listo para invertir seriamente porque sabes que el retorno vale la pena" },
-        { "en": "You need a marketing partner who understands your business, not just a vendor", "es": "Necesitas un socio de marketing que entienda tu negocio, no solo un proveedor" },
-        { "en": "You want to automate your sales process and stop losing leads", "es": "Quieres automatizar tu proceso de ventas y dejar de perder leads" }
+        { "en": "You’ve built a solid business and now want to lead your market", "es": "Has construido un negocio sólido y ahora quieres liderar tu mercado" },
+        { "en": "You’re tired of watching competitors show up above you on Google", "es": "Estás cansado de ver a la competencia aparecer por encima de ti en Google" },
+        { "en": "You want customers to see you as the most professional and trusted option", "es": "Quieres que los clientes te vean como la opción más profesional y confiable" },
+        { "en": "You’re ready to invest in real growth, not just a basic website", "es": "Estás listo para invertir en un crecimiento real, no solo en un sitio web básico" },
+        { "en": "You want a clear strategy to increase visibility and steady incoming calls", "es": "Quieres una estrategia clara para aumentar la visibilidad y las llamadas entrantes constantes" },
+        { "en": "You want a marketing partner focused on helping your business grow long-term", "es": "Quieres un socio de marketing enfocado en ayudar a tu negocio a crecer a largo plazo" }
       ],
       "cardBadge": { "en": "Premium", "es": "Premium" },
       "cardTitle": { "en": "Plan Domina", "es": "Plan Domina" },
