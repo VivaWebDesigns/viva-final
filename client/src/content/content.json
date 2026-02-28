@@ -415,9 +415,9 @@
           "why": { "en": "Without basic SEO, Google doesn't know you exist. With it, you start to appear.", "es": "Sin SEO básico, Google no sabe que existes. Con él, empiezas a aparecer." }
         },
         {
-          "title": { "en": "Google Business Profile", "es": "Google Business Profile" },
-          "desc": { "en": "We create or optimize your Google profile so you appear on Google Maps when someone searches for services like yours in your area.", "es": "Creamos o optimizamos tu perfil de Google para que aparezcas en Google Maps cuando alguien busque servicios como los tuyos en tu área." },
-          "why": { "en": "Google Maps is where most local clients search for contractors.", "es": "Google Maps es donde la mayoría de clientes locales buscan contratistas." }
+          "title": { "en": "Professional Images Included", "es": "Imágenes Profesionales Incluidas" },
+          "desc": { "en": "We provide high-quality professional images that make your website look clean, trustworthy, and established from day one.", "es": "Proporcionamos imágenes profesionales de alta calidad que hacen que su sitio web se vea limpio, confiable y establecido desde el primer día." },
+          "why": { "en": "Strong visuals help customers trust your business and feel confident contacting you.", "es": "Los elementos visuales fuertes ayudan a los clientes a confiar en su negocio y a sentirse seguros al contactarlo." }
         },
         {
           "title": { "en": "Hosting + SSL + Support", "es": "Hosting + SSL + Soporte" },
