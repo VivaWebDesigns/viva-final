@@ -616,49 +616,34 @@
       "whyLabel": { "en": "Why does it matter?", "es": "¿Por qué importa?" },
       "items": [
         {
-          "title": { "en": "Unlimited Website + Blog", "es": "Sitio Web Ilimitado + Blog" },
-          "desc": { "en": "No page limit. Integrated blog where we publish monthly articles that position you as the expert in your industry and attract organic Google traffic.", "es": "Sin límite de páginas. Blog integrado donde publicamos artículos mensuales que te posicionan como el experto en tu industria y atraen tráfico orgánico de Google." },
-          "why": { "en": "An active blog tells Google your site is relevant. More content = more positions = more clients.", "es": "Un blog activo le dice a Google que tu sitio es relevante. Más contenido = más posiciones = más clientes." }
+          "title": { "en": "Expanded Website (Up to 12 Pages)", "es": "Sitio Web Ampliado (Hasta 12 Páginas)" },
+          "desc": { "en": "A larger, fully built-out website that clearly presents your services, builds authority, and positions your company as established and professional.", "es": "Un sitio web más grande y completo que presenta claramente sus servicios, genera autoridad y posiciona a su empresa como establecida y profesional." },
+          "why": { "en": "A stronger website builds trust and gives you more opportunities to show up in local searches.", "es": "Un sitio web más sólido genera confianza y le brinda más oportunidades de aparecer en búsquedas locales." }
         },
         {
-          "title": { "en": "Aggressive SEO + Monthly Content", "es": "SEO Agresivo + Contenido Mensual" },
-          "desc": { "en": "We don't just optimize — we dominate. Deep keyword research, new monthly content, continuous technical optimization and position monitoring against your competition.", "es": "No solo optimizamos — dominamos. Investigación profunda de keywords, contenido mensual nuevo, optimización técnica continua y monitoreo de posiciones contra tu competencia." },
-          "why": { "en": "Aggressive SEO puts you in top positions and keeps your competition behind.", "es": "El SEO agresivo te pone en las primeras posiciones y mantiene a tu competencia detrás." }
+          "title": { "en": "Strong Local SEO Strategy", "es": "Estrategia de SEO Local Sólida" },
+          "desc": { "en": "In-depth keyword research and structured optimization across your website to help you compete in larger or more competitive areas.", "es": "Investigación profunda de palabras clave y optimización estructurada en todo su sitio web para ayudarlo a competir en áreas más grandes o competitivas." },
+          "why": { "en": "A stronger SEO strategy increases your visibility and helps you compete with bigger companies.", "es": "Una estrategia de SEO más sólida aumenta su visibilidad y lo ayuda a competir con empresas más grandes." }
         },
         {
-          "title": { "en": "Advanced Paid Search Campaigns", "es": "Campañas de Búsqueda Paga Avanzada" },
-          "desc": { "en": "Fully managed search, display and remarketing campaigns. Continuous optimization of keywords, audiences and budget to maximize every dollar you invest.", "es": "Campañas de búsqueda, display y remarketing totalmente gestionadas. Optimización continua de keywords, audiencias y presupuesto para maximizar cada dólar que inviertes." },
-          "why": { "en": "Paid search campaigns generate immediate calls while SEO builds long-term results.", "es": "Las campañas de búsqueda paga generan llamadas inmediatas mientras el SEO construye resultados a largo plazo." }
+          "title": { "en": "Service-Focused Optimization", "es": "Optimización Enfocada en Servicios" },
+          "desc": { "en": "Clear focus on ranking each service you offer so customers searching for specific jobs can find you.", "es": "Enfoque claro en posicionar cada servicio que ofrece para que los clientes que buscan trabajos específicos puedan encontrarlo." },
+          "why": { "en": "The more services optimized correctly, the more chances you have to appear in search results.", "es": "Cuanto más servicios se optimicen correctamente, más posibilidades tendrá de aparecer en los resultados de búsqueda." }
         },
         {
-          "title": { "en": "Complete Social Media Management", "es": "Gestión Completa de Redes Sociales" },
-          "desc": { "en": "Content creation, weekly posts, stories, audience engagement and growth strategy on Facebook and Instagram.", "es": "Creación de contenido, publicaciones semanales, historias, engagement con tu audiencia y estrategia de crecimiento en Facebook e Instagram." },
-          "why": { "en": "Social media builds your brand and generates trust before they call you.", "es": "Las redes sociales construyen tu marca y generan confianza antes de que te llamen." }
+          "title": { "en": "Google Business Profile Ongoing Optimization", "es": "Optimización Continua del Perfil de Empresa en Google" },
+          "desc": { "en": "Continued improvement and refinement of your Google Business Profile to strengthen your presence on Google Maps.", "es": "Mejora y refinamiento continuos de su Perfil de Empresa en Google para fortalecer su presencia en Google Maps." },
+          "why": { "en": "An optimized profile increases visibility, trust, and inbound calls.", "es": "Un perfil optimizado aumenta la visibilidad, la confianza y las llamadas entrantes." }
         },
         {
-          "title": { "en": "Gallery + Portfolio + Reviews", "es": "Galería + Portafolio + Reseñas" },
-          "desc": { "en": "Everything from Plan Crece: professional work gallery, project-organized portfolio, reviews page with automated request strategy.", "es": "Todo lo del Plan Crece: galería profesional de tu trabajo, portafolio organizado por proyecto, página de reseñas con estrategia automatizada de solicitud." },
-          "why": { "en": "Complete social proof: your work, your reviews, your professionalism. All in one place.", "es": "Prueba social completa: tu trabajo, tus reseñas, tu profesionalismo. Todo en un solo lugar." }
+          "title": { "en": "Professional Branding Upgrade", "es": "Mejora de Branding Profesional" },
+          "desc": { "en": "Refined logo presentation and visual consistency across your website to make your business look bigger and more established.", "es": "Presentación de logotipo refinada y consistencia visual en todo su sitio web para que su negocio se vea más grande y establecido." },
+          "why": { "en": "A strong brand builds confidence and allows you to compete at a higher level.", "es": "Una marca sólida genera confianza y le permite competir a un nivel superior." }
         },
         {
-          "title": { "en": "Automation and CRM", "es": "Automatización y CRM" },
-          "desc": { "en": "Complete lead tracking system: automatic emails, reminders, sales pipeline and reports. Never lose a potential client due to lack of follow-up.", "es": "Sistema completo para seguimiento de leads: emails automáticos, recordatorios, pipeline de ventas y reportes. Nunca pierdas un cliente potencial por falta de seguimiento." },
-          "why": { "en": "80% of sales are lost due to lack of follow-up. With CRM, you don't lose a single one.", "es": "El 80% de las ventas se pierden por falta de seguimiento. Con CRM, no pierdes ni una." }
-        },
-        {
-          "title": { "en": "Complete Professional Branding", "es": "Branding Profesional Completo" },
-          "desc": { "en": "Logo design, color palette, typography, business cards and complete brand guide. Your business will have a visual identity that competes with the biggest companies.", "es": "Diseño de logo, paleta de colores, tipografía, tarjetas de presentación y guía de marca completa. Tu negocio tendrá una identidad visual que compite con las empresas más grandes." },
-          "why": { "en": "A professional brand differentiates you and justifies higher prices.", "es": "Una marca profesional te diferencia y justifica precios más altos." }
-        },
-        {
-          "title": { "en": "Weekly Performance Reports", "es": "Reportes Semanales de Rendimiento" },
-          "desc": { "en": "Every week you receive a clear report with the metrics that matter: calls generated, site visits, Google positions, ad performance and ROI.", "es": "Cada semana recibes un reporte claro con las métricas que importan: llamadas generadas, visitas al sitio, posiciones en Google, rendimiento de ads y ROI." },
-          "why": { "en": "You'll know exactly how much you're earning for every marketing dollar invested.", "es": "Sabrás exactamente cuánto estás ganando por cada dólar invertido en marketing." }
-        },
-        {
-          "title": { "en": "Dedicated Account Manager", "es": "Gerente de Cuenta Dedicado" },
-          "desc": { "en": "A dedicated marketing professional who knows your business, market and goals. Available via WhatsApp, phone and email. Your growth partner.", "es": "Un profesional de marketing dedicado que conoce tu negocio, tu mercado y tus metas. Disponible por WhatsApp, teléfono y email. Tu socio de crecimiento." },
-          "why": { "en": "You're not just another ticket. You have someone who cares about your results as much as you do.", "es": "No eres un ticket más. Tienes a alguien que se preocupa por tus resultados como tú." }
+          "title": { "en": "Priority Project Support", "es": "Soporte de Proyecto Prioritario" },
+          "desc": { "en": "Direct, priority communication and hands-on support throughout the project.", "es": "Comunicación directa y prioritaria y apoyo práctico durante todo el proyecto." },
+          "why": { "en": "Serious businesses need responsive support and clear communication.", "es": "Los negocios serios necesitan un soporte receptivo y una comunicación clara." }
         }
       ]
     },
