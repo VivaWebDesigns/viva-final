@@ -8,7 +8,7 @@ import SEO from "@/components/SEO";
 import ScrollToTop from "@/components/ScrollToTop";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
-import WhatsAppButton from "@/components/WhatsAppButton";
+import BookDemoButton from "@/components/WhatsAppButton";
 import Home from "@/pages/Home";
 import Paquetes from "@/pages/Paquetes";
 import PaqueteEmpieza from "@/pages/PaqueteEmpieza";
@@ -46,7 +46,7 @@ function App() {
             </main>
             <Footer />
           </div>
-          <WhatsAppButton />
+          <BookDemoButton />
           <Toaster />
         </TooltipProvider>
       </QueryClientProvider>

@@ -1,10 +1,12 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, CheckCircle2, Zap, Globe, Search, FileText, Shield, Phone, Smartphone, Rocket, Star } from "lucide-react";
+import { ArrowRight, CheckCircle2, Zap, Globe, Search, FileText, Shield, Phone, Smartphone, Rocket, Star, CalendarDays } from "lucide-react";
 import { SiWhatsapp } from "react-icons/si";
 import { motion } from "framer-motion";
 import SEO from "@/components/SEO";
 import { t, tArr, tObjArr } from "@/content";
+
+const CALENDLY_URL = "https://calendly.com/admin-vivawebdesigns/30min";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 30 },
@@ -54,16 +56,10 @@ export default function PaqueteEmpieza() {
             </motion.p>
             <motion.p variants={fadeUp} className="text-xs text-white/60 font-medium mb-8">{t("empieza.hero.priceNote")}</motion.p>
             <motion.div variants={fadeUp} className="flex flex-col sm:flex-row items-start gap-4">
-              <Link href="/contacto">
+              <a href={CALENDLY_URL} target="_blank" rel="noopener noreferrer">
                 <Button size="lg" className="bg-[#0D9488] text-white font-bold text-lg gap-2 rounded-full transition-all duration-200 hover:shadow-lg" data-testid="button-empieza-cta">
-                  {t("empieza.hero.ctaPrimary")}
-                  <ArrowRight className="w-5 h-5" />
-                </Button>
-              </Link>
-              <a href={`${whatsappUrl}?text=Hi%2C%20I%27m%20interested%20in%20Plan%20Empieza`} target="_blank" rel="noopener noreferrer">
-                <Button size="lg" variant="outline" className="text-white border-white/40 font-bold text-lg gap-2 bg-white/10 rounded-full transition-all duration-200 hover:shadow-lg" data-testid="button-empieza-whatsapp">
-                  <SiWhatsapp className="w-5 h-5" />
-                  {t("empieza.hero.ctaWhatsapp")}
+                  <CalendarDays className="w-5 h-5" />
+                  Book a Demo
                 </Button>
               </a>
             </motion.div>
@@ -226,16 +222,10 @@ export default function PaqueteEmpieza() {
               {t("empieza.cta.subtitle")}
             </motion.p>
             <motion.div variants={fadeUp} className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link href="/contacto">
+              <a href={CALENDLY_URL} target="_blank" rel="noopener noreferrer">
                 <Button size="lg" className="bg-[#0D9488] text-white font-bold text-lg gap-2 rounded-full transition-all duration-200 hover:shadow-lg" data-testid="button-empieza-cta-bottom">
-                  {t("empieza.cta.ctaPrimary")}
-                  <ArrowRight className="w-5 h-5" />
-                </Button>
-              </Link>
-              <a href={`${whatsappUrl}?text=Hi%2C%20I%27m%20interested%20in%20Plan%20Empieza`} target="_blank" rel="noopener noreferrer">
-                <Button size="lg" variant="outline" className="text-white border-white/40 font-bold text-lg gap-2 bg-white/10 rounded-full transition-all duration-200 hover:shadow-lg" data-testid="button-empieza-whatsapp-bottom">
-                  <SiWhatsapp className="w-5 h-5" />
-                  {t("empieza.cta.ctaWhatsapp")}
+                  <CalendarDays className="w-5 h-5" />
+                  Book a Demo
                 </Button>
               </a>
             </motion.div>

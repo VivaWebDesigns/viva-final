@@ -1,20 +1,19 @@
-import { SiWhatsapp } from "react-icons/si";
-import { t } from "@/content";
+import { CalendarDays } from "lucide-react";
 
-export default function WhatsAppButton() {
-  const whatsappUrl = t("global.whatsappUrl");
+const CALENDLY_URL = "https://calendly.com/admin-vivawebdesigns/30min";
 
+export default function BookDemoButton() {
   return (
     <a
-      href={`${whatsappUrl}?text=Hi%2C%20I%27m%20interested%20in%20learning%20more%20about%20your%20services`}
+      href={CALENDLY_URL}
       target="_blank"
       rel="noopener noreferrer"
-      className="fixed bottom-6 right-6 z-50 flex items-center gap-2 bg-[#25D366] text-white rounded-full pl-4 pr-5 py-3 shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300"
-      aria-label="Contact via WhatsApp"
-      data-testid="button-whatsapp-float"
+      className="fixed bottom-6 right-6 z-50 flex items-center gap-2 bg-[#0D9488] text-white rounded-full pl-4 pr-5 py-3 shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300"
+      aria-label="Book a Demo"
+      data-testid="button-book-demo-float"
     >
-      <SiWhatsapp className="w-6 h-6" />
-      <span className="text-sm font-bold hidden sm:inline">{t("nav.cta")}</span>
+      <CalendarDays className="w-6 h-6" />
+      <span className="text-sm font-bold hidden sm:inline">Book a Demo</span>
     </a>
   );
 }
