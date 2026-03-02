@@ -15,12 +15,31 @@ export async function registerRoutes(
     try {
       const data = insertContactSchema.parse(req.body);
       const contact = await storage.createContact(data);
+
+      await resend.emails.send({
+        from: "Viva Web Designs <onboarding@resend.dev>",
+        to: "info@vivawebdesigns.com",
+        subject: `New Contact Form Submission — ${data.name}`,
+        html: `
+          <h2>New Contact Form Submission</h2>
+          <table cellpadding="8" style="border-collapse:collapse;font-family:sans-serif;font-size:15px;">
+            <tr><td><strong>Name</strong></td><td>${data.name}</td></tr>
+            <tr><td><strong>Phone</strong></td><td>${data.phone}</td></tr>
+            ${data.email ? `<tr><td><strong>Email</strong></td><td>${data.email}</td></tr>` : ""}
+            ${data.city ? `<tr><td><strong>City</strong></td><td>${data.city}</td></tr>` : ""}
+            ${data.trade ? `<tr><td><strong>Trade</strong></td><td>${data.trade}</td></tr>` : ""}
+            ${data.message ? `<tr><td><strong>Message</strong></td><td>${data.message}</td></tr>` : ""}
+          </table>
+        `,
+      });
+
       res.status(201).json(contact);
     } catch (error) {
       if (error instanceof ZodError) {
-        res.status(400).json({ message: "Datos inválidos", errors: error.errors });
+        res.status(400).json({ message: "Invalid data", errors: error.errors });
       } else {
-        res.status(500).json({ message: "Error interno del servidor" });
+        console.error("Contact form error:", error);
+        res.status(500).json({ message: "Internal server error" });
       }
     }
   });
