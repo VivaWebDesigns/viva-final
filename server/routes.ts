@@ -17,7 +17,7 @@ export async function registerRoutes(
       const contact = await storage.createContact(data);
 
       await resend.emails.send({
-        from: "Viva Web Designs <onboarding@resend.dev>",
+        from: "Viva Web Designs <info@vivawebdesigns.com>",
         to: "info@vivawebdesigns.com",
         subject: `New Contact Form Submission — ${data.name}`,
         html: `
