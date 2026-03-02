@@ -33,6 +33,8 @@ export default function Contacto() {
 
   const form = useForm<InsertContact>({
     resolver: zodResolver(insertContactSchema),
+    mode: "onSubmit",
+    reValidateMode: "onChange",
     defaultValues: {
       name: "",
       email: "",
