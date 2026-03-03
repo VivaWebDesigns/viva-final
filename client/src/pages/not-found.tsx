@@ -21,11 +21,11 @@ export default function NotFound() {
           </p>
 
           <h1 className="text-3xl sm:text-4xl font-extrabold text-white mt-2 mb-4" data-testid="text-not-found-title">
-            Page Not Found
+            {t("notFound.title")}
           </h1>
 
           <p className="text-gray-400 text-lg mb-10 max-w-md mx-auto leading-relaxed">
-            This page doesn't exist or has been moved. Head back home and find what you need.
+            {t("notFound.desc")}
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -35,12 +35,12 @@ export default function NotFound() {
                 className="bg-[#0D9488] hover:bg-[#0F766E] text-white font-bold text-lg gap-2 rounded-full transition-all duration-200 hover:shadow-lg"
                 data-testid="button-go-home"
               >
-                Go Home
+                {t("notFound.goHome")}
                 <ArrowRight className="w-5 h-5" />
               </Button>
             </Link>
             <a
-              href={`${whatsappUrl}?text=Hi%2C%20I%20need%20help`}
+              href={`${whatsappUrl}?text=${t("notFound.whatsappText")}`}
               target="_blank"
               rel="noopener noreferrer"
             >

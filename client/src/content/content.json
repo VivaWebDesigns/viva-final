@@ -684,6 +684,12 @@
       "ctaWhatsapp": { "en": "Chat on WhatsApp", "es": "Hablar por WhatsApp" }
     }
   },
+  "notFound": {
+    "title": { "en": "Page Not Found", "es": "Página No Encontrada" },
+    "desc": { "en": "This page doesn't exist or has been moved. Head back home and find what you need.", "es": "Esta página no existe o fue movida. Regresa al inicio y encuentra lo que necesitas." },
+    "goHome": { "en": "Go Home", "es": "Ir al Inicio" },
+    "whatsappText": { "en": "Hi%2C%20I%20need%20help", "es": "Hola%2C%20necesito%20ayuda" }
+  },
   "contacto": {
     "seo": {
       "title": { "en": "Contact - Let's Talk About Your Business", "es": "Contacto - Hablemos de Tu Negocio" },
