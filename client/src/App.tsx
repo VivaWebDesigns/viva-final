@@ -1,4 +1,4 @@
-import { Switch, Route, useLocation } from "wouter";
+import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -17,10 +17,6 @@ import PaqueteDomina from "@/pages/PaqueteDomina";
 import Contacto from "@/pages/Contacto";
 import NotFound from "@/pages/not-found";
 import JsonLd from "@/components/JsonLd";
-import DemoHub from "@/pages/DemoHub";
-import DemoEmpieza from "@/pages/DemoEmpieza";
-import DemoCrece from "@/pages/DemoCrece";
-import DemoDomina from "@/pages/DemoDomina";
 
 function Router() {
   return (
@@ -31,19 +27,12 @@ function Router() {
       <Route path="/paquetes/crece" component={PaqueteCrece} />
       <Route path="/paquetes/domina" component={PaqueteDomina} />
       <Route path="/contacto" component={Contacto} />
-      <Route path="/demo" component={DemoHub} />
-      <Route path="/demo/empieza" component={DemoEmpieza} />
-      <Route path="/demo/crece" component={DemoCrece} />
-      <Route path="/demo/domina" component={DemoDomina} />
       <Route component={NotFound} />
     </Switch>
   );
 }
 
 function App() {
-  const [location] = useLocation();
-  const isDemoRoute = location.startsWith("/demo");
-
   return (
     <HelmetProvider>
       <QueryClientProvider client={queryClient}>
@@ -51,13 +40,13 @@ function App() {
           <ScrollToTop />
           <JsonLd />
           <div className="min-h-screen flex flex-col">
-            {!isDemoRoute && <Navigation />}
+            <Navigation />
             <main className="flex-1">
               <Router />
             </main>
-            {!isDemoRoute && <Footer />}
+            <Footer />
           </div>
-          {!isDemoRoute && <BookDemoButton />}
+          <BookDemoButton />
           <Toaster />
         </TooltipProvider>
       </QueryClientProvider>
