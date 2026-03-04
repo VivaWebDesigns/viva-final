@@ -1,0 +1,110 @@
+Here’s a **copy/paste “Comprehensive Replit Prompt”** you can drop into Replit AI to build the full one-page site for **Charlotte Painting Pro** exactly how you described.
+
+```text
+You are building a ONE-PAGE marketing website for a Charlotte, NC painting company.
+
+Business details:
+- Company name: Charlotte Painting Pro
+- Owner: David Martinez (Latino; family-oriented)
+- Primary location: Charlotte, NC
+- Service area: Charlotte + surrounding areas (examples to include naturally: Matthews, Mint Hill, Pineville, Huntersville, Concord, Gastonia, Fort Mill)
+- Services: Interior Painting, Exterior Painting, Kitchen Cabinet Painting, Deck Staining & Painting
+- Goal: clean modern one-page site, mobile-first, fast loading, basic keyword structure (NOT full SEO strategy)
+- No blog, no service-area pages, no Google Business Profile setup, no map ranking strategy, no citations, no Apple Maps optimization.
+
+BUILD REQUIREMENTS (must follow exactly):
+1) One-page layout with sections in this order:
+   - Home (hero)
+   - About
+   - Services
+   - Reviews
+   - Contact (contact form at bottom)
+
+2) Navigation:
+   - Desktop: right-side dropdown menu or right-aligned menu button that opens a dropdown.
+   - Mobile: hamburger menu.
+   - Both must smooth-scroll to each section anchors (#home, #about, #services, #reviews, #contact).
+
+3) CTAs:
+   - Add multiple CTAs throughout the page (hero, services, reviews) that scroll to the contact form at bottom.
+   - CTA button text examples: “Get a Free Estimate”, “Request a Quote”, “Book a Paint Quote”.
+   - All CTA buttons must scroll to #contact.
+
+4) Click-to-call:
+   - A floating/sticky click-to-call button must always be visible on mobile (and optionally desktop).
+   - Use a placeholder phone number format like (704) 555-0123 and make it easy to change later in one place (a config constant).
+
+5) Branding:
+   - Create a simple clean logo for “Charlotte Painting Pro” using SVG (no external image needed).
+   - Provide 2 logo versions: full (icon + text) and compact (icon only).
+   - Color scheme: modern, trustworthy, trade-friendly.
+     - Pick a primary, secondary, accent, background, and text color.
+     - Apply consistently to buttons, links, icons, section accents, and highlights.
+   - Typography should look professional and not generic; choose readable modern font defaults (system fonts ok if no external).
+
+6) Imagery:
+   - Use a realistic-looking “stock” style hero image showing a friendly Latino contractor + family vibe (David and family) that does NOT look overly photoshopped.
+   - Since we cannot fetch real stock photos automatically without user assets, do this:
+     - Use a high-quality placeholder image slot with an “Image Replacement Note” inside the code comments explaining where to replace the image.
+     - Provide 2–3 alternative hero image prompt ideas (text only) that the user could use in an image generator.
+   - Also include 3 service card images (placeholders) and keep them consistent.
+
+7) Content + basic SEO structure:
+   - Write copy that is clearly targeted to Charlotte and surrounding areas, but don’t keyword-stuff.
+   - Include: one H1 on the page, logical H2s for sections, descriptive headings for services.
+   - Add a short “Service Area” list near Contact.
+   - Add meta title + meta description (Charlotte-focused).
+   - Add JSON-LD LocalBusiness schema with placeholders for address, phone, and opening hours.
+   - Add alt text for all images.
+
+8) Services section:
+   - Four service cards: Interior Painting, Exterior Painting, Kitchen Cabinet Painting, Deck Staining & Painting.
+   - Each card should include:
+     - Short benefit-driven description
+     - 3 bullet highlights
+     - A small CTA link/button that scrolls to #contact
+
+9) Reviews section:
+   - Include 5 sample reviews (clearly marked as examples) with names/initials and neighborhood mentions (Charlotte-area).
+   - Add a small note: “More reviews available upon request” (since we’re not doing GBP strategy here).
+
+10) Contact section:
+   - Contact form at bottom with fields:
+     - Name, Phone, Email, Zip Code, Service Needed (dropdown), Message
+   - Client-side validation (basic).
+   - Form submission should be a simple placeholder that shows a success message (no backend).
+   - Add clickable phone + email above the form.
+   - Include business hours block.
+   - Include “Free Estimates” microcopy and a short trust statement (insured, clean work, respect your home).
+
+11) Performance + UI:
+   - Must be fast, minimal dependencies.
+   - Mobile-first, responsive, accessible (good contrast, focus states).
+   - Smooth scroll, sticky header, nice spacing, modern card styling.
+   - No heavy animations.
+
+TECH STACK / IMPLEMENTATION:
+- Build with a simple, modern frontend (choose one):
+  A) Plain HTML/CSS/JS (preferred for speed and simplicity), OR
+  B) React + Vite if the project is already React.
+Pick the simplest option that matches the existing Replit project. If unsure, default to plain HTML/CSS/JS.
+
+DELIVERABLES:
+- Create the full one-page site with all sections and functionality.
+- Provide clean folder structure.
+- Put all editable business info (phone, email, service area, owner name) at the top in a single config area for easy edits.
+- Include comments telling me exactly where to:
+  - Replace phone number
+  - Replace email
+  - Replace hero image
+  - Replace reviews with real ones
+
+CONSTRAINTS:
+- Do NOT add extra pages.
+- Do NOT add blog.
+- Do NOT add “service area pages”.
+- Do NOT claim you set up Google Business Profile or map ranking strategies.
+- Keep the copy aligned to the “One-Page Website” package positioning: basic keyword structure but not full SEO campaign.
+
+Now build it.
+```
