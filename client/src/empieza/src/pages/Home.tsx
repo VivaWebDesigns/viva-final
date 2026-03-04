@@ -1,0 +1,502 @@
+import { Navigation } from "@/components/Navigation";
+import { ServiceCard } from "@/components/ServiceCard";
+import { ReviewCard } from "@/components/ReviewCard";
+import { ContactForm } from "@/components/ContactForm";
+import { Button } from "@/components/ui/button";
+import { Link } from "react-scroll";
+import { useRef, useEffect, useState } from "react";
+import { motion } from "framer-motion";
+import { useLanguage } from "@/hooks/use-language";
+import logoImg from "@assets/image_1_(5)_1772575534808.png";
+import {
+  Paintbrush,
+  Home as HomeIcon,
+  Layers,
+  Sun,
+  Phone,
+  Mail,
+  MapPin,
+  CheckCircle2,
+  ArrowRight,
+  ShieldCheck,
+  Clock,
+  Star,
+  X,
+  Fence,
+} from "lucide-react";
+import { SiTiktok, SiYoutube, SiFacebook, SiInstagram } from "react-icons/si";
+import heroVideo from "@/assets/videos/hero-painting.mp4";
+import aboutPhoto from "@assets/gabriel-tovar-En1Is3KsRZw-unsplash_1771517255358.jpg";
+import galleryKitchen1 from "@assets/AdobeStock_615565130_1771521960347.jpeg";
+import galleryLiving1 from "@assets/AdobeStock_470165599_1771521960348.jpeg";
+import galleryKitchen2 from "@assets/ChatGPT_Image_Feb_19,_2026,_12_19_17_PM_1771521960349.png";
+import galleryDoor from "@assets/ChatGPT_Image_Feb_19,_2026,_12_18_07_PM_1771521960349.png";
+import galleryExterior from "@assets/ChatGPT_Image_Feb_19,_2026,_12_15_32_PM_1771521960350.png";
+import galleryLiving2 from "@assets/AdobeStock_248267632_1771521960350.jpeg";
+import galleryPorch from "@assets/ChatGPT_Image_Feb_19,_2026,_02_18_31_PM_1771528760345.png";
+import galleryFence from "@assets/ChatGPT_Image_Feb_19,_2026,_02_23_09_PM_1771529000104.png";
+
+export default function Home() {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  const { t } = useLanguage();
+
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.playbackRate = 0.7;
+    }
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-background text-foreground">
+      <Navigation />
+
+      {/* Hero Section */}
+      <section id="home" className="relative min-h-[80vh] flex items-center">
+        <div className="absolute inset-0 z-0">
+          <video
+            ref={videoRef}
+            src={heroVideo}
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="w-full h-full object-cover"
+            data-testid="video-hero"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/70 to-black/50" />
+        </div>
+
+        <div className="container mx-auto px-4 md:px-6 relative z-10">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7 }}
+            className="max-w-3xl space-y-6"
+          >
+            <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold leading-tight text-white" style={{ fontFamily: 'var(--font-display)' }}>
+              {t("heroTitle").split("painting needs")[0]}
+              <span className="text-white/90">{t("heroTitle").includes("painting needs") ? "painting needs" : "necesidades de pintura"}</span>{" "}
+              {t("heroTitle").split("painting needs")[1] || t("heroTitle").split("necesidades de pintura")[1] || ""}
+            </h1>
+
+            <p className="text-lg md:text-xl text-white/70 max-w-2xl leading-relaxed">
+              {t("heroSubtitle")}
+            </p>
+
+            <div className="flex flex-col sm:flex-row flex-wrap gap-4 pt-4">
+              <Link to="contact" smooth={true} duration={500} offset={-50}>
+                <Button data-testid="button-hero-cta" className="bg-primary text-primary-foreground font-semibold px-8 h-12 text-base border border-primary">
+                  {t("getFreeEstimate")}
+                  <ArrowRight className="ml-2" size={18} />
+                </Button>
+              </Link>
+              <Link to="services" smooth={true} duration={500} offset={-80}>
+                <Button data-testid="button-hero-services" variant="outline" className="border-white/30 text-white font-semibold px-8 h-12 text-base bg-white/5 backdrop-blur-sm">
+                  {t("viewServices")}
+                </Button>
+              </Link>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* About Section */}
+      <section id="about" className="py-12 md:py-24">
+        <div className="container mx-auto px-4 md:px-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-center">
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+            >
+              <p className="text-primary font-semibold text-sm tracking-wider uppercase mb-3">{t("aboutUs")}</p>
+              <h2 className="text-3xl md:text-4xl font-bold mb-6" style={{ fontFamily: 'var(--font-display)' }}>
+                {t("hiDavid")}
+              </h2>
+              <p className="text-muted-foreground text-lg leading-relaxed mb-6">
+                {t("aboutP1")}
+              </p>
+              <p className="text-muted-foreground text-lg leading-relaxed mb-8">
+                {t("aboutP2")}
+              </p>
+
+              <div className="flex flex-wrap gap-8">
+                <div>
+                  <span className="block text-3xl font-bold text-primary" style={{ fontFamily: 'var(--font-display)' }}>15+</span>
+                  <span className="text-muted-foreground text-sm font-medium">{t("yearsExperience")}</span>
+                </div>
+                <div>
+                  <span className="block text-3xl font-bold text-primary" style={{ fontFamily: 'var(--font-display)' }}>500+</span>
+                  <span className="text-muted-foreground text-sm font-medium">{t("happyHomes")}</span>
+                </div>
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="relative"
+            >
+              <div className="rounded-md overflow-hidden shadow-lg">
+                <img
+                  src={aboutPhoto}
+                  alt="David Martinez and family"
+                  className="w-full h-[300px] md:h-[400px] object-cover object-[60%_center] md:object-[center_20%]"
+                  data-testid="img-about"
+                />
+              </div>
+              <div className="absolute -bottom-4 -left-4 bg-white border border-border p-4 rounded-md hidden md:flex items-center gap-3 shadow-md">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                  <CheckCircle2 size={20} />
+                </div>
+                <div>
+                  <span className="block text-foreground font-semibold text-sm">{t("satisfaction")}</span>
+                  <span className="text-muted-foreground text-xs">{t("satisfactionSub")}</span>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* Services Section */}
+      <section id="services" className="pt-16 pb-24 md:py-24 bg-secondary">
+        <div className="container mx-auto px-4 md:px-6">
+          <div className="text-center max-w-2xl mx-auto mb-16">
+            <p className="text-primary font-semibold text-sm tracking-wider uppercase mb-3">{t("ourExpertise")}</p>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4" style={{ fontFamily: 'var(--font-display)' }}>
+              {t("qualityServices")}
+            </h2>
+            <p className="text-muted-foreground">
+              {t("servicesSub")}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <ServiceCard
+              title={t("service1Title")}
+              description={t("service1Desc")}
+              benefits={[t("service1B1"), t("service1B2"), t("service1B3")]}
+              icon={Paintbrush}
+              delay={0.1}
+              imageUrl=""
+            />
+            <ServiceCard
+              title={t("service2Title")}
+              description={t("service2Desc")}
+              benefits={[t("service2B1"), t("service2B2"), t("service2B3")]}
+              icon={HomeIcon}
+              delay={0.2}
+              imageUrl=""
+            />
+            <ServiceCard
+              title={t("service3Title")}
+              description={t("service3Desc")}
+              benefits={[t("service3B1"), t("service3B2"), t("service3B3")]}
+              icon={Layers}
+              delay={0.3}
+              imageUrl=""
+            />
+            <ServiceCard
+              title={t("service4Title")}
+              description={t("service4Desc")}
+              benefits={[t("service4B1"), t("service4B2"), t("service4B3")]}
+              icon={Sun}
+              delay={0.4}
+              imageUrl=""
+            />
+            <ServiceCard
+              title={t("service5Title")}
+              description={t("service5Desc")}
+              benefits={[t("service5B1"), t("service5B2"), t("service5B3")]}
+              icon={Fence}
+              delay={0.5}
+              imageUrl=""
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* Why Us Section */}
+      <section className="py-24">
+        <div className="container mx-auto px-4 md:px-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+            >
+              <p className="text-primary font-semibold text-sm tracking-wider uppercase mb-3">{t("whyUs")}</p>
+              <h2 className="text-3xl md:text-4xl font-bold mb-6" style={{ fontFamily: 'var(--font-display)' }}>
+                {t("qualityCountOn")}
+              </h2>
+              <p className="text-muted-foreground text-lg leading-relaxed mb-6">
+                {t("whyUsP1")}
+              </p>
+              <p className="text-muted-foreground text-lg leading-relaxed mb-8">
+                {t("whyUsP2")}
+              </p>
+
+              <div className="flex flex-col sm:flex-row flex-wrap gap-4">
+                <div className="flex items-center gap-3 text-foreground/70">
+                  <ShieldCheck size={20} className="text-primary flex-shrink-0" />
+                  <span className="text-sm font-medium">{t("fullyInsured")}</span>
+                </div>
+                <div className="flex items-center gap-3 text-foreground/70">
+                  <Clock size={20} className="text-primary flex-shrink-0" />
+                  <span className="text-sm font-medium">{t("onTimeGuarantee")}</span>
+                </div>
+                <div className="flex items-center gap-3 text-foreground/70">
+                  <CheckCircle2 size={20} className="text-primary flex-shrink-0" />
+                  <span className="text-sm font-medium">{t("cleanWork")}</span>
+                </div>
+              </div>
+
+              <div className="mt-8">
+                <Link to="contact" smooth={true} duration={500} offset={-50}>
+                  <Button data-testid="button-why-cta" className="bg-primary text-primary-foreground font-semibold px-8 h-12">
+                    {t("contact")}
+                    <ArrowRight className="ml-2" size={18} />
+                  </Button>
+                </Link>
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="relative"
+            >
+              <div className="relative rounded-md overflow-hidden shadow-lg mb-4 cursor-pointer" onClick={() => setLightboxSrc(galleryKitchen1)}>
+                <img
+                  src={galleryKitchen1}
+                  alt="Beautiful kitchen with painted blue island"
+                  className="w-full h-[280px] object-cover"
+                  data-testid="img-why-us-1"
+                />
+                <div className="absolute bottom-0 right-0 z-10 bg-primary text-white px-4 py-2 rounded-tl-md shadow-lg text-center">
+                  <span className="block text-2xl font-bold" style={{ fontFamily: 'var(--font-display)' }}>15+</span>
+                  <span className="text-[10px] font-medium tracking-wider uppercase">{t("yearsExperience")}</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+
+                <div className="rounded-md overflow-hidden shadow-md cursor-pointer" onClick={() => setLightboxSrc(galleryExterior)}>
+                  <img src={galleryExterior} alt="Beautifully painted home exterior" className="w-full h-[160px] object-cover object-[center_35%]" data-testid="img-why-us-2" />
+                </div>
+                <div className="rounded-md overflow-hidden shadow-md cursor-pointer" onClick={() => setLightboxSrc(galleryLiving1)}>
+                  <img src={galleryLiving1} alt="Elegant living room interior" className="w-full h-[160px] object-cover" data-testid="img-why-us-3" />
+                </div>
+                <div className="rounded-md overflow-hidden shadow-md cursor-pointer" onClick={() => setLightboxSrc(galleryDoor)}>
+                  <img src={galleryDoor} alt="Beautiful blue front door" className="w-full h-[160px] object-cover" data-testid="img-why-us-4" />
+                </div>
+                <div className="rounded-md overflow-hidden shadow-md cursor-pointer" onClick={() => setLightboxSrc(galleryKitchen2)}>
+                  <img src={galleryKitchen2} alt="Kitchen with painted cabinets" className="w-full h-[160px] object-cover" data-testid="img-why-us-5" />
+                </div>
+                <div className="rounded-md overflow-hidden shadow-md cursor-pointer" onClick={() => setLightboxSrc(galleryPorch)}>
+                  <img src={galleryPorch} alt="Beautifully painted covered porch" className="w-full h-[160px] object-cover" data-testid="img-why-us-6" />
+                </div>
+                <div className="rounded-md overflow-hidden shadow-md cursor-pointer" onClick={() => setLightboxSrc(galleryFence)}>
+                  <img src={galleryFence} alt="Stained wooden fence" className="w-full h-[160px] object-cover" data-testid="img-why-us-7" />
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* Reviews Section */}
+      <section id="reviews" className="py-24 bg-secondary">
+        <div className="container mx-auto px-4 md:px-6">
+          <div className="text-center max-w-2xl mx-auto mb-16">
+            <p className="text-primary font-semibold text-sm tracking-wider uppercase mb-3">{t("reviews")}</p>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4" style={{ fontFamily: 'var(--font-display)' }}>
+              {t("whatClientsSay")}
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <ReviewCard
+              name={t("review1Name")}
+              location={t("review1Loc")}
+              text={t("review1Text")}
+              delay={0.1}
+            />
+            <ReviewCard
+              name={t("review2Name")}
+              location={t("review2Loc")}
+              text={t("review2Text")}
+              delay={0.2}
+            />
+            <ReviewCard
+              name={t("review3Name")}
+              location={t("review3Loc")}
+              text={t("review3Text")}
+              delay={0.3}
+            />
+            <ReviewCard
+              name={t("review4Name")}
+              location={t("review4Loc")}
+              text={t("review4Text")}
+              delay={0.4}
+            />
+            <ReviewCard
+              name={t("review5Name")}
+              location={t("review5Loc")}
+              text={t("review5Text")}
+              delay={0.5}
+            />
+          </div>
+
+          <p className="text-center text-muted-foreground/60 text-sm mt-8">
+            {t("sampleReviews")}
+          </p>
+
+          <div className="text-center mt-8">
+            <Link to="contact" smooth={true} duration={500} offset={-50}>
+              <Button data-testid="button-reviews-cta" className="bg-primary text-primary-foreground font-semibold px-8">
+                {t("bookQuote")}
+                <ArrowRight className="ml-2" size={18} />
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Contact Section */}
+      <section id="contact" className="py-24">
+        <div className="container mx-auto px-4 md:px-6">
+          <div className="text-center max-w-2xl mx-auto mb-16">
+            <p className="text-primary font-semibold text-sm tracking-wider uppercase mb-3">{t("contact")}</p>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4" style={{ fontFamily: 'var(--font-display)' }}>
+              {t("letUsHelp")}
+            </h2>
+            <p className="text-muted-foreground">
+              {t("contactSub")}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+            <a
+              href="mailto:quotes@charlottepaintingpro.com?subject=Website%20Inquiry"
+              data-testid="link-email"
+              className="group rounded-md border border-border bg-secondary p-6 flex items-center gap-5 shadow-sm hover:shadow-md transition-shadow"
+            >
+              <div className="w-12 h-12 rounded-md bg-primary/10 flex items-center justify-center text-primary">
+                <Mail size={24} />
+              </div>
+              <div className="flex-1">
+                <h4 className="font-semibold text-foreground text-sm mb-0.5">{t("emailUs")}</h4>
+                <p className="text-muted-foreground text-sm">quotes@charlottepaintingpro.com</p>
+              </div>
+              <ArrowRight size={18} className="text-muted-foreground/40 group-hover:text-primary transition-colors" />
+            </a>
+
+            <a
+              href="tel:7045550123"
+              data-testid="link-phone"
+              className="group rounded-md border border-border bg-secondary p-6 flex items-center gap-5 shadow-sm hover:shadow-md transition-shadow"
+            >
+              <div className="w-12 h-12 rounded-md bg-primary/10 flex items-center justify-center text-primary">
+                <Phone size={24} />
+              </div>
+              <div className="flex-1">
+                <h4 className="font-semibold text-foreground text-sm mb-0.5">{t("callUs")}</h4>
+                <p className="text-muted-foreground text-sm">(704) 555-0123</p>
+              </div>
+              <ArrowRight size={18} className="text-muted-foreground/40 group-hover:text-primary transition-colors" />
+            </a>
+          </div>
+
+          <div className="max-w-2xl mx-auto">
+            <ContactForm />
+          </div>
+
+          <div className="mt-12 text-center">
+            <div className="inline-flex items-center gap-3 text-muted-foreground text-sm">
+              <MapPin size={16} className="text-primary" />
+              Charlotte, Matthews, Mint Hill, Pineville, Huntersville, Concord, Gastonia, Fort Mill
+            </div>
+          </div>
+
+          <div className="mt-4 text-center">
+            <div className="inline-flex items-center gap-3 text-muted-foreground text-sm">
+              <Clock size={16} className="text-primary" />
+              {t("monSat")}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="border-t border-border py-10">
+        <div className="container mx-auto px-4 md:px-6">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+            <div className="flex items-center gap-2.5">
+              <img src={logoImg} alt="Charlotte Painting Pro" className="h-8 w-auto" />
+            </div>
+
+            <div className="flex items-center gap-4">
+              <a href="#" className="text-[#1877F2] hover:opacity-80 transition-opacity" aria-label="Facebook">
+                <SiFacebook size={20} />
+              </a>
+              <a href="#" className="text-[#E4405F] hover:opacity-80 transition-opacity" aria-label="Instagram">
+                <SiInstagram size={20} />
+              </a>
+              <a href="#" className="text-[#FF0000] hover:opacity-80 transition-opacity" aria-label="YouTube">
+                <SiYoutube size={22} />
+              </a>
+              <a href="#" className="text-[#000000] hover:opacity-80 transition-opacity" aria-label="TikTok">
+                <SiTiktok size={18} />
+              </a>
+            </div>
+
+            <p className="text-muted-foreground text-sm">
+              &copy; {new Date().getFullYear()} Charlotte Painting Pro. {t("rights")}
+            </p>
+          </div>
+        </div>
+      </footer>
+
+      {/* Sticky Mobile Call Button */}
+      <div className="fixed bottom-0 left-0 w-full p-3 bg-white/95 backdrop-blur-md border-t border-border md:hidden z-40">
+        <a href="tel:7045550123" data-testid="link-sticky-call">
+          <Button className="w-full bg-primary text-primary-foreground font-semibold h-12 text-base">
+            <Phone className="mr-2 h-4 w-4" /> {t("stickyCall")}
+          </Button>
+        </a>
+      </div>
+
+      {lightboxSrc && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setLightboxSrc(null)}
+          data-testid="lightbox-overlay"
+        >
+          <button
+            className="absolute top-4 right-4 text-white p-2"
+            onClick={() => setLightboxSrc(null)}
+            data-testid="button-lightbox-close"
+          >
+            <X size={32} />
+          </button>
+          <img
+            src={lightboxSrc}
+            alt="Enlarged gallery image"
+            className="max-w-full max-h-[90vh] object-contain rounded-md"
+            onClick={(e) => e.stopPropagation()}
+            data-testid="img-lightbox"
+          />
+        </div>
+      )}
+    </div>
+  );
+}
