@@ -2,24 +2,24 @@ import { Switch, Route } from "wouter";
 import { lazy, Suspense } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { LanguageProvider } from "@/i18n/LanguageContext";
+import { Toaster } from "@domina/components/ui/toaster";
+import { TooltipProvider } from "@domina/components/ui/tooltip";
+import { LanguageProvider } from "@domina/i18n/LanguageContext";
 
-const Home = lazy(() => import("@/pages/Home"));
-const Services = lazy(() => import("@/pages/Services"));
-const About = lazy(() => import("@/pages/About"));
-const Contact = lazy(() => import("@/pages/Contact"));
-const Gallery = lazy(() => import("@/pages/Gallery"));
-const InteriorPainting = lazy(() => import("@/pages/services/InteriorPainting"));
-const ExteriorPainting = lazy(() => import("@/pages/services/ExteriorPainting"));
-const KitchenCabinetPainting = lazy(() => import("@/pages/services/KitchenCabinetPainting"));
-const DeckStaining = lazy(() => import("@/pages/services/DeckStaining"));
-const FenceStaining = lazy(() => import("@/pages/services/FenceStaining"));
-const CommercialPainting = lazy(() => import("@/pages/services/CommercialPainting"));
-const Portfolio = lazy(() => import("@/pages/Portfolio"));
-const ProjectDetail = lazy(() => import("@/pages/ProjectDetail"));
-const NotFound = lazy(() => import("@/pages/not-found"));
+const Home = lazy(() => import("@domina/pages/Home"));
+const Services = lazy(() => import("@domina/pages/Services"));
+const About = lazy(() => import("@domina/pages/About"));
+const Contact = lazy(() => import("@domina/pages/Contact"));
+const Gallery = lazy(() => import("@domina/pages/Gallery"));
+const InteriorPainting = lazy(() => import("@domina/pages/services/InteriorPainting"));
+const ExteriorPainting = lazy(() => import("@domina/pages/services/ExteriorPainting"));
+const KitchenCabinetPainting = lazy(() => import("@domina/pages/services/KitchenCabinetPainting"));
+const DeckStaining = lazy(() => import("@domina/pages/services/DeckStaining"));
+const FenceStaining = lazy(() => import("@domina/pages/services/FenceStaining"));
+const CommercialPainting = lazy(() => import("@domina/pages/services/CommercialPainting"));
+const Portfolio = lazy(() => import("@domina/pages/Portfolio"));
+const ProjectDetail = lazy(() => import("@domina/pages/ProjectDetail"));
+const NotFound = lazy(() => import("@domina/pages/not-found"));
 
 function Router() {
   return (

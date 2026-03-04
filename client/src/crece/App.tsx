@@ -2,16 +2,16 @@ import { Switch, Route } from "wouter";
 import { lazy, Suspense } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { LanguageProvider } from "@/hooks/use-language";
+import { Toaster } from "@crece/components/ui/toaster";
+import { TooltipProvider } from "@crece/components/ui/tooltip";
+import { LanguageProvider } from "@crece/hooks/use-language";
 
-const Home = lazy(() => import("@/pages/Home"));
-const Services = lazy(() => import("@/pages/Services"));
-const About = lazy(() => import("@/pages/About"));
-const Contact = lazy(() => import("@/pages/Contact"));
-const Gallery = lazy(() => import("@/pages/Gallery"));
-const NotFound = lazy(() => import("@/pages/not-found"));
+const Home = lazy(() => import("@crece/pages/Home"));
+const Services = lazy(() => import("@crece/pages/Services"));
+const About = lazy(() => import("@crece/pages/About"));
+const Contact = lazy(() => import("@crece/pages/Contact"));
+const Gallery = lazy(() => import("@crece/pages/Gallery"));
+const NotFound = lazy(() => import("@crece/pages/not-found"));
 
 function Router() {
   return (

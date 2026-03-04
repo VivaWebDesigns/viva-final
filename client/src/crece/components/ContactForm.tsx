@@ -1,10 +1,10 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertInquirySchema, type InsertInquiry } from "@shared/schema";
-import { useCreateInquiry } from "@/hooks/use-inquiries";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { useCreateInquiry } from "@crece/hooks/use-inquiries";
+import { Button } from "@crece/components/ui/button";
+import { Input } from "@crece/components/ui/input";
+import { Textarea } from "@crece/components/ui/textarea";
 import {
   Form,
   FormControl,
@@ -12,11 +12,11 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+} from "@crece/components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@crece/components/ui/select";
 import { Loader2, Send } from "lucide-react";
-import { useLanguage } from "@/hooks/use-language";
-import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@crece/hooks/use-language";
+import { useToast } from "@crece/hooks/use-toast";
 
 export function ContactForm() {
   const { t, language } = useLanguage();

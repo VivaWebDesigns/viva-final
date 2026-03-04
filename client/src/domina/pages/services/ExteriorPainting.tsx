@@ -1,12 +1,12 @@
 import { useEffect, useRef } from "react";
-import { Navigation } from "@/components/Navigation";
-import { Footer } from "@/components/Footer";
-import { Button } from "@/components/ui/button";
+import { Navigation } from "@domina/components/Navigation";
+import { Footer } from "@domina/components/Footer";
+import { Button } from "@domina/components/ui/button";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { Link } from "wouter";
 import { ArrowRight, CheckCircle } from "lucide-react";
-import serviceExteriorParallax from "@/assets/images/parallax/exterior.webp";
-import { useLanguage } from "@/i18n/LanguageContext";
+import serviceExteriorParallax from "@domina/assets/images/parallax/exterior.webp";
+import { useLanguage } from "@domina/i18n/LanguageContext";
 
 export default function ExteriorPainting() {
   const { t } = useLanguage();

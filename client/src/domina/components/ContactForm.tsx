@@ -1,11 +1,11 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertInquirySchema, type InsertInquiry } from "@shared/schema";
-import { useCreateInquiry } from "@/hooks/use-inquiries";
-import { useLanguage } from "@/i18n/LanguageContext";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { useCreateInquiry } from "@domina/hooks/use-inquiries";
+import { useLanguage } from "@domina/i18n/LanguageContext";
+import { Button } from "@domina/components/ui/button";
+import { Input } from "@domina/components/ui/input";
+import { Textarea } from "@domina/components/ui/textarea";
 import {
   Form,
   FormControl,
@@ -13,8 +13,8 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+} from "@domina/components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@domina/components/ui/select";
 import { Loader2, Send } from "lucide-react";
 
 export function ContactForm() {

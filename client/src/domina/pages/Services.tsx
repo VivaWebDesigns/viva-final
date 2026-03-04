@@ -1,10 +1,10 @@
-import { Navigation } from "@/components/Navigation";
-import { Footer } from "@/components/Footer";
-import { Button } from "@/components/ui/button";
+import { Navigation } from "@domina/components/Navigation";
+import { Footer } from "@domina/components/Footer";
+import { Button } from "@domina/components/ui/button";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Link } from "wouter";
-import { useLanguage } from "@/i18n/LanguageContext";
+import { useLanguage } from "@domina/i18n/LanguageContext";
 import {
   PaintBucket,
   Home as HomeIcon,
@@ -18,19 +18,19 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import galleryKitchen1 from "@/assets/images/optimized/AdobeStock_615565130_1771521960347.webp";
-import galleryLiving1 from "@/assets/images/optimized/AdobeStock_470165599_1771521960348.webp";
-import galleryKitchen2 from "@/assets/images/optimized/ChatGPT_Image_Feb_19,_2026,_12_19_17_PM_1771521960349.webp";
-import galleryDoor from "@/assets/images/optimized/ChatGPT_Image_Feb_19,_2026,_12_18_07_PM_1771521960349.webp";
-import galleryExterior from "@/assets/images/optimized/ChatGPT_Image_Feb_19,_2026,_12_15_32_PM_1771521960350.webp";
-import galleryPorch from "@/assets/images/optimized/ChatGPT_Image_Feb_19,_2026,_02_18_31_PM_1771528760345.webp";
-import galleryFence from "@/assets/images/optimized/ChatGPT_Image_Feb_19,_2026,_02_23_09_PM_1771529000104.webp";
-import serviceInterior from "@/assets/images/optimized/image_1771599128923.webp";
-import serviceExterior from "@/assets/images/optimized/image_1771599160031.webp";
-import serviceCabinets from "@/assets/images/optimized/image_1771599217947.webp";
-import serviceDeck from "@/assets/images/optimized/image_1771599249175.webp";
-import serviceFence from "@/assets/images/optimized/image_1771599272316.webp";
-import serviceCommercial from "@/assets/images/optimized/ChatGPT_Image_Feb_20,_2026,_10_09_51_AM_1771600212443.webp";
+import galleryKitchen1 from "@domina/assets/images/optimized/AdobeStock_615565130_1771521960347.webp";
+import galleryLiving1 from "@domina/assets/images/optimized/AdobeStock_470165599_1771521960348.webp";
+import galleryKitchen2 from "@domina/assets/images/optimized/ChatGPT_Image_Feb_19,_2026,_12_19_17_PM_1771521960349.webp";
+import galleryDoor from "@domina/assets/images/optimized/ChatGPT_Image_Feb_19,_2026,_12_18_07_PM_1771521960349.webp";
+import galleryExterior from "@domina/assets/images/optimized/ChatGPT_Image_Feb_19,_2026,_12_15_32_PM_1771521960350.webp";
+import galleryPorch from "@domina/assets/images/optimized/ChatGPT_Image_Feb_19,_2026,_02_18_31_PM_1771528760345.webp";
+import galleryFence from "@domina/assets/images/optimized/ChatGPT_Image_Feb_19,_2026,_02_23_09_PM_1771529000104.webp";
+import serviceInterior from "@domina/assets/images/optimized/image_1771599128923.webp";
+import serviceExterior from "@domina/assets/images/optimized/image_1771599160031.webp";
+import serviceCabinets from "@domina/assets/images/optimized/image_1771599217947.webp";
+import serviceDeck from "@domina/assets/images/optimized/image_1771599249175.webp";
+import serviceFence from "@domina/assets/images/optimized/image_1771599272316.webp";
+import serviceCommercial from "@domina/assets/images/optimized/ChatGPT_Image_Feb_20,_2026,_10_09_51_AM_1771600212443.webp";
 
 interface ServiceBlockProps {
   title: string;

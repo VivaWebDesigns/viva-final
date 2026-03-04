@@ -1,6 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { api, type InsertInquiry } from "@shared/routes";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@crece/hooks/use-toast";
 
 export function useCreateInquiry() {
   const { toast } = useToast();

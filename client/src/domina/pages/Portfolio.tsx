@@ -1,14 +1,14 @@
 import { useEffect, useMemo } from "react";
-import { Navigation } from "@/components/Navigation";
-import { Footer } from "@/components/Footer";
-import { Button } from "@/components/ui/button";
+import { Navigation } from "@domina/components/Navigation";
+import { Footer } from "@domina/components/Footer";
+import { Button } from "@domina/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "wouter";
 import { ArrowRight, Camera, Phone } from "lucide-react";
 import {
   portfolioProjects,
-} from "@/data/portfolioProjects";
-import { useLanguage } from "@/i18n/LanguageContext";
+} from "@domina/data/portfolioProjects";
+import { useLanguage } from "@domina/i18n/LanguageContext";
 
 export default function Portfolio() {
   const { t } = useLanguage();

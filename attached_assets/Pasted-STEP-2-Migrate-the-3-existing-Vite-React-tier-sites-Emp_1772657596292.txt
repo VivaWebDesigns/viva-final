@@ -1,0 +1,68 @@
+STEP 2: Migrate the 3 existing Vite+React tier sites (Empieza, Crece, Domina) into this merged Vite MPA project.
+
+Important constraints:
+- Do NOT rewrite or redesign the tier websites.
+- Do NOT “recreate” them. We are importing the existing code.
+- Keep each tier isolated so edits to one tier do not affect the others.
+- Do NOT change the main site.
+
+MIGRATION PLAN:
+We will copy the code from each tier project into its folder:
+- Empieza -> /src/empieza/
+- Crece   -> /src/crece/
+- Domina  -> /src/domina/
+
+FOR EACH TIER (repeat for Empieza, then Crece, then Domina):
+
+A) Copy these from the tier project into the matching folder in this project:
+- the tier’s /src contents (components, pages, assets, styles)
+- any tier-specific files inside /public (images/icons) should be moved into THIS project’s /public under a tier-prefixed folder like:
+  /public/empieza/...
+  /public/crece/...
+  /public/domina/...
+
+B) Keep the tier entry points in place:
+- /src/empieza/main.jsx
+- /src/crece/main.jsx
+- /src/domina/main.jsx
+
+Update each tier’s main.jsx to match the tier project’s original bootstrap logic:
+- If the original uses ReactDOM.createRoot and renders <App />, do that.
+- If the original wraps in BrowserRouter, keep BrowserRouter for that tier only.
+- If the original wraps in providers (e.g., context, i18n, theme), keep those wrappers.
+
+C) Import CSS ONLY within the tier:
+- Each tier should import its own CSS in its own main.jsx (or App.jsx).
+- Do NOT import tier CSS into the main site.
+- Ensure no tier CSS is global across the whole repo.
+
+D) Fix imports after moving:
+- Update any absolute imports that were using aliases (like @/ or src/) to relative imports OR set up Vite resolve.alias to support them.
+- If multiple tiers use different alias conventions, prefer converting to relative imports inside each tier.
+
+E) Fix public asset paths:
+- Any references like /logo.png or /images/.. that were in the original /public must be updated to:
+  /empieza/logo.png (for Empieza)
+  /crece/logo.png
+  /domina/logo.png
+- Do the same for favicons if tiers used custom ones, but we will keep a single favicon for the merged site unless required.
+
+F) React Router handling (if used):
+- If the tier uses react-router-dom with <BrowserRouter>, it should still work when accessed via /empieza.html, /crece.html, /domina.html.
+- If the tier has internal routes (e.g. /gallery, /contact), ensure they work when served from that tier’s entry:
+  - Prefer using <HashRouter> ONLY if BrowserRouter breaks on Replit hosting.
+  - Otherwise keep BrowserRouter.
+
+G) Restore the “Demo Mode” top bar:
+- Keep the small Demo Mode bar present on each tier build.
+- If the original tier site already has its own header and you don’t want the demo bar inside the app UI, render the demo bar outside the app (in the HTML body) OR render it at the very top of the tier App as a fixed overlay with minimal height.
+
+DELIVERABLE:
+After migrating:
+- /empieza.html should show the real Empieza site (not placeholder)
+- /crece.html should show the real Crece site
+- /domina.html should show the real Domina site
+- Main / site remains unchanged
+- No tier styling leaks into the main site or other tiers
+
+If any tier fails to build due to import paths or missing assets, fix the minimum required to restore functionality without redesigning anything.

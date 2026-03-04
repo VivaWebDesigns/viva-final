@@ -1,6 +1,6 @@
-import { Navigation } from "@/components/Navigation";
-import { Footer } from "@/components/Footer";
-import { Button } from "@/components/ui/button";
+import { Navigation } from "@domina/components/Navigation";
+import { Footer } from "@domina/components/Footer";
+import { Button } from "@domina/components/ui/button";
 import { useEffect } from "react";
 import { motion } from "framer-motion";
 import { Link } from "wouter";
@@ -10,8 +10,8 @@ import {
   ShieldCheck,
   Clock,
 } from "lucide-react";
-import aboutPhoto from "@/assets/images/optimized/gabriel-tovar-En1Is3KsRZw-unsplash_1771517255358.webp";
-import { useLanguage } from "@/i18n/LanguageContext";
+import aboutPhoto from "@domina/assets/images/optimized/gabriel-tovar-En1Is3KsRZw-unsplash_1771517255358.webp";
+import { useLanguage } from "@domina/i18n/LanguageContext";
 
 export default function About() {
   const { t } = useLanguage();

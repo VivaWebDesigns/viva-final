@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { Menu, X, Phone, ChevronDown } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@domina/components/ui/button";
 import { AnimatePresence, motion } from "framer-motion";
-import { useLanguage } from "@/i18n/LanguageContext";
-import { LanguageToggle } from "@/components/LanguageToggle";
-import logoPng from "@assets/image_1_(5)_1772575534808_1772576521710.png";
+import { useLanguage } from "@domina/i18n/LanguageContext";
+import { LanguageToggle } from "@domina/components/LanguageToggle";
+import logoPng from "@assets/image_1_(5)_1772575534808.png";
 
 export function Navigation() {
   const { t } = useLanguage();

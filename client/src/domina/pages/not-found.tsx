@@ -1,6 +1,6 @@
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@domina/components/ui/card";
 import { AlertCircle } from "lucide-react";
-import { useLanguage } from "@/i18n/LanguageContext";
+import { useLanguage } from "@domina/i18n/LanguageContext";
 
 export default function NotFound() {
   const { t } = useLanguage();

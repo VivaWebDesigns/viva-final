@@ -1,12 +1,12 @@
 import { useEffect, useState, useCallback } from "react";
-import { Navigation } from "@/components/Navigation";
-import { Footer } from "@/components/Footer";
-import { Button } from "@/components/ui/button";
+import { Navigation } from "@domina/components/Navigation";
+import { Footer } from "@domina/components/Footer";
+import { Button } from "@domina/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useRoute } from "wouter";
 import { ArrowRight, X, ChevronLeft, ChevronRight, ChevronRight as Chevron, Phone } from "lucide-react";
-import { getProjectBySlug } from "@/data/portfolioProjects";
-import { useLanguage } from "@/i18n/LanguageContext";
+import { getProjectBySlug } from "@domina/data/portfolioProjects";
+import { useLanguage } from "@domina/i18n/LanguageContext";
 
 export default function ProjectDetail() {
   const { t } = useLanguage();

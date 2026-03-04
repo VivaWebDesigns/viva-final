@@ -1,4 +1,4 @@
-import { useLanguage, type Language } from "@/i18n/LanguageContext";
+import { useLanguage, type Language } from "@domina/i18n/LanguageContext";
 
 export function LanguageToggle() {
   const { language, setLanguage } = useLanguage();

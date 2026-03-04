@@ -25,3 +25,14 @@ export const insertContactSchema = createInsertSchema(contacts).omit({
 
 export type InsertContact = z.infer<typeof insertContactSchema>;
 export type Contact = typeof contacts.$inferSelect;
+
+export const insertInquirySchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  email: z.string().email("Valid email required"),
+  phone: z.string().min(1, "Phone is required"),
+  zipCode: z.string().optional(),
+  service: z.string().optional(),
+  message: z.string().optional(),
+});
+
+export type InsertInquiry = z.infer<typeof insertInquirySchema>;

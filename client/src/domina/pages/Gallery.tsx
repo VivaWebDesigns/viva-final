@@ -1,12 +1,12 @@
-import { Navigation } from "@/components/Navigation";
-import { Footer } from "@/components/Footer";
-import { Button } from "@/components/ui/button";
+import { Navigation } from "@domina/components/Navigation";
+import { Footer } from "@domina/components/Footer";
+import { Button } from "@domina/components/ui/button";
 import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Link } from "wouter";
 import { ArrowRight, X, ChevronLeft, ChevronRight } from "lucide-react";
-import { allProjects, SERVICE_CATEGORIES, type ServiceCategory } from "@/data/projects";
-import { useLanguage } from "@/i18n/LanguageContext";
+import { allProjects, SERVICE_CATEGORIES, type ServiceCategory } from "@domina/data/projects";
+import { useLanguage } from "@domina/i18n/LanguageContext";
 
 export default function Gallery() {
   const { t } = useLanguage();

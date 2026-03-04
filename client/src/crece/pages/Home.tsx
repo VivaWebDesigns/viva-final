@@ -1,12 +1,12 @@
-import { Navigation } from "@/components/Navigation";
-import { Footer } from "@/components/Footer";
-import { ServiceCard } from "@/components/ServiceCard";
-import { ReviewCard } from "@/components/ReviewCard";
-import { Button } from "@/components/ui/button";
+import { Navigation } from "@crece/components/Navigation";
+import { Footer } from "@crece/components/Footer";
+import { ServiceCard } from "@crece/components/ServiceCard";
+import { ReviewCard } from "@crece/components/ReviewCard";
+import { Button } from "@crece/components/ui/button";
 import { useRef, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Link } from "wouter";
-import { useLanguage } from "@/hooks/use-language";
+import { useLanguage } from "@crece/hooks/use-language";
 import {
   PaintBucket,
   Home as HomeIcon,
@@ -19,9 +19,9 @@ import {
   Clock,
   CheckCircle2,
 } from "lucide-react";
-import heroVideoWebm from "@/assets/videos/hero-painting-optimized.webm";
-import heroVideoMp4 from "@/assets/videos/hero-painting-optimized.mp4";
-import heroPoster from "@/assets/videos/poster.webp";
+import heroVideoWebm from "@crece/assets/videos/hero-painting-optimized.webm";
+import heroVideoMp4 from "@crece/assets/videos/hero-painting-optimized.mp4";
+import heroPoster from "@crece/assets/videos/poster.webp";
 
 export default function Home() {
   const { language, t } = useLanguage();

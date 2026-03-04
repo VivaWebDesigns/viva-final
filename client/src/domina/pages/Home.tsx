@@ -1,8 +1,8 @@
-import { Navigation } from "@/components/Navigation";
-import { Footer } from "@/components/Footer";
-import { ServiceCard } from "@/components/ServiceCard";
-import { ReviewCard } from "@/components/ReviewCard";
-import { Button } from "@/components/ui/button";
+import { Navigation } from "@domina/components/Navigation";
+import { Footer } from "@domina/components/Footer";
+import { ServiceCard } from "@domina/components/ServiceCard";
+import { ReviewCard } from "@domina/components/ReviewCard";
+import { Button } from "@domina/components/ui/button";
 import { useRef, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Link } from "wouter";
@@ -18,10 +18,10 @@ import {
   Clock,
   CheckCircle2,
 } from "lucide-react";
-import heroVideoWebm from "@/assets/videos/hero-painting-optimized.webm";
-import heroVideoMp4 from "@/assets/videos/hero-painting-optimized.mp4";
-import heroPoster from "@/assets/videos/poster.webp";
-import { useLanguage } from "@/i18n/LanguageContext";
+import heroVideoWebm from "@domina/assets/videos/hero-painting-optimized.webm";
+import heroVideoMp4 from "@domina/assets/videos/hero-painting-optimized.mp4";
+import heroPoster from "@domina/assets/videos/poster.webp";
+import { useLanguage } from "@domina/i18n/LanguageContext";
 
 export default function Home() {
   const videoRef = useRef<HTMLVideoElement>(null);

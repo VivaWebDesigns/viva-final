@@ -1,17 +1,17 @@
-import { Navigation } from "@/components/Navigation";
-import { Footer } from "@/components/Footer";
-import { Button } from "@/components/ui/button";
+import { Navigation } from "@crece/components/Navigation";
+import { Footer } from "@crece/components/Footer";
+import { Button } from "@crece/components/ui/button";
 import { useEffect } from "react";
 import { motion } from "framer-motion";
 import { Link } from "wouter";
-import { useLanguage } from "@/hooks/use-language";
+import { useLanguage } from "@crece/hooks/use-language";
 import {
   CheckCircle2,
   ArrowRight,
   ShieldCheck,
   Clock,
 } from "lucide-react";
-import aboutPhoto from "@/assets/images/optimized/gabriel-tovar-En1Is3KsRZw-unsplash_1771517255358.webp";
+import aboutPhoto from "@crece/assets/images/optimized/gabriel-tovar-En1Is3KsRZw-unsplash_1771517255358.webp";
 
 export default function About() {
   const { t, language } = useLanguage();

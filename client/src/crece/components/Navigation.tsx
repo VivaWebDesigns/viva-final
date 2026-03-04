@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { Menu, X, Phone, Languages } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@crece/components/ui/button";
 import { AnimatePresence, motion } from "framer-motion";
-import { useLanguage } from "@/hooks/use-language";
+import { useLanguage } from "@crece/hooks/use-language";
 import logoImg from "@assets/image_1_(5)_1772575534808_1772577273364.png";
 
 export function Navigation() {

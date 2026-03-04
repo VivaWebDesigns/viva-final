@@ -1,7 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { api } from "@shared/routes";
 import type { InsertInquiry } from "@shared/schema";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@domina/hooks/use-toast";
 
 export function useCreateInquiry() {
   const { toast } = useToast();

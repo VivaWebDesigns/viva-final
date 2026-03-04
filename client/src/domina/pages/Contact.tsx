@@ -1,7 +1,7 @@
-import { Navigation } from "@/components/Navigation";
-import { Footer } from "@/components/Footer";
-import { ContactForm } from "@/components/ContactForm";
-import { Button } from "@/components/ui/button";
+import { Navigation } from "@domina/components/Navigation";
+import { Footer } from "@domina/components/Footer";
+import { ContactForm } from "@domina/components/ContactForm";
+import { Button } from "@domina/components/ui/button";
 import { useEffect } from "react";
 import { motion } from "framer-motion";
 import {
@@ -13,7 +13,7 @@ import {
   ShieldCheck,
   CheckCircle2,
 } from "lucide-react";
-import { useLanguage } from "@/i18n/LanguageContext";
+import { useLanguage } from "@domina/i18n/LanguageContext";
 
 function scrollToFormIfHash() {
   if (window.location.hash === "#contact-form") {

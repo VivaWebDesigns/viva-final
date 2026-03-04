@@ -1,10 +1,10 @@
-import { Navigation } from "@/components/Navigation";
-import { Footer } from "@/components/Footer";
-import { ContactForm } from "@/components/ContactForm";
-import { Button } from "@/components/ui/button";
+import { Navigation } from "@crece/components/Navigation";
+import { Footer } from "@crece/components/Footer";
+import { ContactForm } from "@crece/components/ContactForm";
+import { Button } from "@crece/components/ui/button";
 import { useEffect } from "react";
 import { motion } from "framer-motion";
-import { useLanguage } from "@/hooks/use-language";
+import { useLanguage } from "@crece/hooks/use-language";
 import {
   Phone,
   Mail,
