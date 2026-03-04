@@ -36,8 +36,11 @@ export async function setupVite(server: Server, app: Express) {
 
     try {
       const mpaHtmlFiles: Record<string, string> = {
+        "/empieza": "empieza.html",
         "/empieza.html": "empieza.html",
+        "/crece": "crece.html",
         "/crece.html": "crece.html",
+        "/domina": "domina.html",
         "/domina.html": "domina.html",
       };
 
