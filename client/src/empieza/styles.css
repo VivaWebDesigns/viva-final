@@ -1,0 +1,107 @@
+.empieza-demo-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  background: #1e293b;
+  color: #f8fafc;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  height: 44px;
+  font-family: system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+
+.empieza-demo-bar .demo-label {
+  background: #f59e0b;
+  color: #1e293b;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.empieza-demo-bar a {
+  color: #cbd5e1;
+  text-decoration: none;
+  padding: 4px 10px;
+  border-radius: 4px;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.empieza-demo-bar a:hover {
+  background: #334155;
+  color: #f8fafc;
+}
+
+.empieza-demo-bar a.active {
+  background: #0d9488;
+  color: #fff;
+}
+
+.empieza-demo-bar .back-link {
+  margin-left: auto;
+  color: #94a3b8;
+  border: 1px solid #334155;
+}
+
+.empieza-demo-bar .back-link:hover {
+  background: #0f172a;
+  color: #f8fafc;
+}
+
+.empieza-placeholder {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f5f9;
+  padding-top: 44px;
+  font-family: system-ui, sans-serif;
+}
+
+.empieza-placeholder-inner {
+  text-align: center;
+  max-width: 480px;
+  padding: 40px 24px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+}
+
+.empieza-placeholder-inner .plan-badge {
+  display: inline-block;
+  background: #0d9488;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 4px 12px;
+  border-radius: 20px;
+  margin-bottom: 16px;
+  text-transform: uppercase;
+}
+
+.empieza-placeholder-inner h1 {
+  font-size: 24px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 12px;
+}
+
+.empieza-placeholder-inner p {
+  font-size: 15px;
+  color: #64748b;
+  line-height: 1.6;
+  margin: 0;
+}

@@ -35,19 +35,30 @@ export async function setupVite(server: Server, app: Express) {
     const url = req.originalUrl;
 
     try {
+      const mpaHtmlFiles: Record<string, string> = {
+        "/empieza.html": "empieza.html",
+        "/crece.html": "crece.html",
+        "/domina.html": "domina.html",
+      };
+
+      const urlPath = url.split("?")[0];
+      const mpaFile = mpaHtmlFiles[urlPath];
+
       const clientTemplate = path.resolve(
         import.meta.dirname,
         "..",
         "client",
-        "index.html",
+        mpaFile ?? "index.html",
       );
 
-      // always reload the index.html file from disk incase it changes
+      // always reload the html file from disk incase it changes
       let template = await fs.promises.readFile(clientTemplate, "utf-8");
-      template = template.replace(
-        `src="/src/main.tsx"`,
-        `src="/src/main.tsx?v=${nanoid()}"`,
-      );
+      if (!mpaFile) {
+        template = template.replace(
+          `src="/src/main.tsx"`,
+          `src="/src/main.tsx?v=${nanoid()}"`,
+        );
+      }
       const page = await vite.transformIndexHtml(url, template);
       res.status(200).set({ "Content-Type": "text/html" }).end(page);
     } catch (e) {
