@@ -1,0 +1,95 @@
+You are modifying an existing ONE-PAGE website project in Replit and converting it into a CLEAN 4-PAGE website.
+
+Business:
+- Charlotte Painting Pro
+- Owner: David Martinez
+- Location: Charlotte, NC
+- Services: Interior Painting, Exterior Painting, Kitchen Cabinet Painting, Deck & Fence Staining
+- Goal: Mobile-first, fast, modern, trustworthy. Keep the styling/branding from the current site.
+
+CRITICAL RULES:
+- Do NOT redesign from scratch.
+- Reuse the existing colors, fonts, buttons, spacing, and overall look.
+- Do NOT break anything that already works (header, footer, CTAs, contact form).
+- Keep all images working (only move them if needed).
+- Keep the contact form functionality exactly as it is today.
+
+NEW SITE STRUCTURE (4 PAGES):
+1) Home
+2) Services
+3) About
+4) Contact
+Reviews will NOT be its own page.
+
+NAVIGATION:
+- Update the header nav to link to these 4 pages:
+  Home | Services | About | Contact
+- Remove the old one-page “scroll to section” menu behavior.
+- Make sure mobile menu works the same way, just linking to pages.
+
+ROUTING / FILES:
+- If this is a plain HTML project: create 4 files: index.html, services.html, about.html, contact.html
+- If this is React/Vite: implement routes for /, /services, /about, /contact using the project’s existing routing approach (React Router if already present; if no router, add it cleanly).
+Choose the correct approach based on the current codebase.
+
+CONTENT MIGRATION (VERY IMPORTANT):
+- Take the existing one-page sections and distribute them across the new pages:
+
+HOME (index):
+- Keep the hero section (Charlotte-focused headline)
+- Keep a short “Services Preview” (4 cards, each linking to Services page)
+- Keep a compact Reviews/Testimonials section (3–6 reviews)
+- Keep a short “Why Choose Us” / trust section if it already exists
+- Keep a CTA section that links to Contact page
+
+SERVICES (services page):
+- Build a full services page with 4 service blocks:
+  Interior Painting
+  Exterior Painting
+  Kitchen Cabinet Painting
+  Deck & Fence Staining
+- Each service block must include:
+  - short description
+  - 3 bullet highlights
+  - a CTA button “Get a Free Estimate” that links to Contact page
+- Add a short service area mention near the bottom (Charlotte + nearby towns)
+
+ABOUT (about page):
+- Move the existing About content here
+- Include a realistic “family/owner” image section (use the existing image or a placeholder)
+- Write/keep copy that mentions David Martinez and family-owned values (professional, not cheesy)
+- Add a CTA button linking to Contact page
+
+CONTACT (contact page):
+- Move the existing contact form here (same exact form, same fields, same behavior)
+- Include click-to-call phone link and email above the form
+- Include service area list (Charlotte + surrounding: Matthews, Mint Hill, Pineville, Huntersville, Concord, Gastonia, Fort Mill)
+- Include business hours block
+- Add a small trust note (insured, clean work, respect your home)
+- Add 1–2 CTAs linking to the form anchor on this page
+
+CTA LINKING:
+- All “Get a Free Estimate / Request a Quote” buttons across ALL pages must go to:
+  contact.html#contact-form  (HTML)
+  OR /contact#contact-form   (React)
+- Add an id="contact-form" anchor on the contact form container.
+
+FOOTER:
+- Update footer links to the 4 pages.
+- Keep any existing branding, colors, and layout.
+
+SEO BASICS (LIGHT):
+- Each page needs:
+  - unique <title>
+  - meta description
+  - one H1 that matches the page intent
+- Keep SEO simple and local (Charlotte painting), no blog, no citations, no GBP strategy.
+
+QUALITY CHECKS (must do):
+- Confirm there are no broken links.
+- Confirm navigation works on desktop and mobile.
+- Confirm the site loads fast (no heavy new libraries).
+- Confirm the contact form still works and success message still appears.
+- Confirm CTAs go to the Contact form anchor.
+
+Now implement these changes in the project.

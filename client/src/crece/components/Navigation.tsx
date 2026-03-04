@@ -1,0 +1,148 @@
+import { useState, useEffect } from "react";
+import { Link, useLocation } from "wouter";
+import { Menu, X, Phone, Languages } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { AnimatePresence, motion } from "framer-motion";
+import { useLanguage } from "@/hooks/use-language";
+import logoImg from "@assets/image_1_(5)_1772575534808_1772577273364.png";
+
+export function Navigation() {
+  const { language, setLanguage, t } = useLanguage();
+  const [isOpen, setIsOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [location] = useLocation();
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 50);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const navLinks = [
+    { name: t("nav.home"), href: "/" },
+    { name: t("nav.services"), href: "/services" },
+    { name: t("nav.gallery"), href: "/gallery" },
+    { name: t("nav.about"), href: "/about" },
+    { name: t("nav.contact"), href: "/contact" },
+  ];
+
+  return (
+    <nav
+      data-testid="navigation"
+      className={`sticky top-0 w-full z-50 bg-white transition-shadow duration-300 py-3 ${
+        scrolled ? "shadow-md" : ""
+      }`}
+    >
+      <div className="container mx-auto px-4 md:px-6 flex justify-between items-center">
+        <Link
+          href="/"
+          className="cursor-pointer flex items-center gap-2.5 group"
+          data-testid="link-logo"
+          onClick={() => {
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
+        >
+          <img src={logoImg} alt="Charlotte Painting Pro" className="h-10 w-auto" />
+        </Link>
+
+        <div className="hidden md:flex items-center gap-8">
+          {navLinks.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className={`text-sm font-medium cursor-pointer transition-colors ${
+                location === link.href ? "text-primary" : "text-foreground/60 hover:text-foreground"
+              }`}
+              onClick={() => {
+                if (location === link.href) {
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }
+              }}
+              data-testid={`link-nav-${link.href.replace("/", "") || "home"}`}
+            >
+              {link.name}
+            </Link>
+          ))}
+          
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setLanguage(language === "en" ? "es" : "en")}
+            className="flex items-center gap-2 font-medium text-foreground/60 hover:text-foreground hover:bg-transparent"
+          >
+            EN/ES
+          </Button>
+
+          <Link href="/contact#contact-form">
+            <Button data-testid="button-nav-quote" className="bg-primary text-primary-foreground font-semibold">
+              {t("nav.getQuote")}
+            </Button>
+          </Link>
+        </div>
+
+        <div className="flex items-center gap-2 md:hidden">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setLanguage(language === "en" ? "es" : "en")}
+            className="flex items-center gap-1 p-2 text-foreground/60 hover:text-foreground hover:bg-transparent"
+          >
+            <span className="text-xs font-medium">EN/ES</span>
+          </Button>
+          
+          <button
+            className="p-2 text-foreground"
+            onClick={() => setIsOpen(!isOpen)}
+            aria-label="Toggle menu"
+            data-testid="button-mobile-menu"
+          >
+            {isOpen ? <X size={28} /> : <Menu size={28} />}
+          </button>
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="absolute top-full left-0 w-full bg-white border-t border-border md:hidden flex flex-col p-6 gap-1 shadow-lg"
+          >
+            {navLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`text-base font-medium py-3 border-b border-border/50 cursor-pointer ${
+                  location === link.href ? "text-primary" : "text-foreground/80"
+                }`}
+                onClick={() => {
+                  if (location === link.href) {
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }
+                  setIsOpen(false);
+                }}
+                data-testid={`link-mobile-${link.href.replace("/", "") || "home"}`}
+              >
+                {link.name}
+              </Link>
+            ))}
+            <Link
+              href="/contact#contact-form"
+              onClick={() => setIsOpen(false)}
+            >
+              <Button data-testid="button-mobile-quote" className="w-full bg-primary text-primary-foreground text-base font-semibold mt-4">
+                {t("nav.freeEstimate")}
+              </Button>
+            </Link>
+            <a href="tel:7045550123" className="flex items-center justify-center gap-2 text-muted-foreground font-medium py-3 mt-2" data-testid="link-mobile-phone">
+              <Phone size={16} /> (704) 555-0123
+            </a>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </nav>
+  );
+}
