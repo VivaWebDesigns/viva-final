@@ -11,7 +11,7 @@ export interface TierConfig {
 
 export const demoConfig: Record<DemoTier, TierConfig> = {
   empieza: {
-    url: "",
+    url: "https://viva-empieza-website.replit.app",
     name: "Empieza",
     color: "gray",
     tagline: "Base profesional",
