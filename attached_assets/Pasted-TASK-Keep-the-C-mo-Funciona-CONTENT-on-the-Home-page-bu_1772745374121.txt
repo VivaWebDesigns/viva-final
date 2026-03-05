@@ -1,0 +1,59 @@
+TASK: Keep the “Cómo Funciona” CONTENT on the Home page, but remove it from navigation as if it were a full page.
+
+IMPORTANT CONSTRAINTS:
+- Do NOT delete or change the “Cómo Funciona” section content/layout on the Home page.
+- Do NOT redesign anything.
+- Only remove the navigation behavior (menu link / route / hash scrolling) that treats it like a separate page.
+- Do NOT affect other links or sections.
+
+WHAT TO DO:
+
+1) Find how navigation is currently linking to “Cómo Funciona”
+   - Search the project for these strings:
+     - "Cómo Funciona"
+     - "Como Funciona"
+     - "how it works"
+     - "como-funciona"
+     - "#como-funciona"
+     - "/como-funciona"
+   - Identify every place it appears in:
+     - desktop navbar
+     - mobile/hamburger menu
+     - footer links (if any)
+     - any CTA buttons that jump to it
+
+2) Remove only the navigation item(s)
+   - Remove the “Cómo Funciona” item from the nav items array / navbar component.
+   - Remove it from the mobile menu list as well.
+   - If your nav uses a shared config (e.g., navLinks[]), remove the item once there so it disappears everywhere.
+   - Do NOT remove any other nav items and do NOT add replacements unless required for layout spacing.
+
+3) Ensure there is no “page-like” route for it
+   - If there is a dedicated route such as:
+     - /como-funciona
+     - /how-it-works
+     - or a Router <Route> pointing to a ComoFunciona page/component
+     Remove that route ONLY if it exists.
+   - If the route doesn’t exist and it’s only an anchor link on Home, do nothing here.
+
+4) Keep the Home page section intact
+   - Do NOT delete the section component or markup.
+   - If it has an id like id="como-funciona", leave it as-is (it’s fine to keep for internal use or future).
+   - Do NOT change headings, text, icons, spacing, or styling of that section.
+
+5) Prevent dead links (optional but recommended)
+   - After removing the nav link, search for any remaining references to "#como-funciona" or "/como-funciona" in the codebase.
+   - If any are found (footer/CTA/etc.), remove or update those links so there are no dead jumps.
+   - Do NOT change the content section itself.
+
+6) Verify
+   - Confirm “Cómo Funciona” no longer appears in:
+     - desktop nav
+     - mobile menu
+     - footer nav (if present)
+   - Confirm the “Cómo Funciona” section still displays on the Home page exactly as before.
+   - Confirm no console errors and navigation still works normally.
+
+DELIVERABLE:
+- Only changes are removal of the navigation link(s) and any associated “page-like” routing if it exists.
+- The “Cómo Funciona” content remains on the Home page unchanged.
