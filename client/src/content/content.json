@@ -149,23 +149,23 @@
       "steps": [
         {
           "step": { "en": "01", "es": "01" },
-          "title": { "en": "We analyze your business", "es": "Analizamos tu negocio" },
-          "desc": { "en": "We understand your market, competition and goals to create the perfect strategy.", "es": "Entendemos tu mercado, tu competencia y tus metas para crear la estrategia perfecta." }
+          "title": { "en": "We get to know your business", "es": "Conocemos tu negocio" },
+          "desc": { "en": "We understand your services, your clients, and how you want to present your company online.", "es": "Entendemos tus servicios, tus clientes y cómo quieres presentar tu empresa en línea." }
         },
         {
           "step": { "en": "02", "es": "02" },
-          "title": { "en": "We build your professional site", "es": "Construimos tu sitio profesional" },
-          "desc": { "en": "We design and develop a website that reflects the quality of your work.", "es": "Diseñamos y desarrollamos un sitio web que refleja la calidad de tu trabajo." }
+          "title": { "en": "We design and build your website", "es": "Diseñamos y construimos tu sitio web" },
+          "desc": { "en": "We create a clean, modern site that reflects the quality of your work and presents your business professionally.", "es": "Creamos un sitio limpio y moderno que refleja la calidad de tu trabajo y presenta tu negocio de forma profesional." }
         },
         {
           "step": { "en": "03", "es": "03" },
-          "title": { "en": "We optimize for Google", "es": "Optimizamos para Google" },
-          "desc": { "en": "Local SEO, Google Maps and optimized profiles so they find you first.", "es": "SEO local, Google Maps y perfiles optimizados para que te encuentren primero." }
+          "title": { "en": "We set up your online presence", "es": "Preparamos tu presencia en línea" },
+          "desc": { "en": "Your site is structured so customers can learn about your services and contact you easily.", "es": "Tu sitio está estructurado para que los clientes conozcan tus servicios y puedan contactarte fácilmente." }
         },
         {
           "step": { "en": "04", "es": "04" },
-          "title": { "en": "You start getting more calls", "es": "Empiezas a recibir más llamadas" },
-          "desc": { "en": "Your phone starts ringing with real clients who found you online.", "es": "Tu teléfono empieza a sonar con clientes reales que te encontraron online." }
+          "title": { "en": "Customers trust your business", "es": "Los clientes confían en tu negocio" },
+          "desc": { "en": "When people search for your company online, they find a professional site that builds trust and makes them want to hire you.", "es": "Cuando las personas buscan tu empresa en internet, encuentran un sitio profesional que genera confianza para contratarte." }
         }
       ]
     },
