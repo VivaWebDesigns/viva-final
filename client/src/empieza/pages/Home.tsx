@@ -484,15 +484,6 @@ export default function Home() {
         </div>
       </footer>
 
-      {/* Sticky Mobile Call Button */}
-      <div className="fixed bottom-0 left-0 w-full p-3 bg-white/95 backdrop-blur-md border-t border-border md:hidden z-40">
-        <a href="tel:7045550123" data-testid="link-sticky-call">
-          <Button className="w-full bg-primary text-primary-foreground font-semibold h-12 text-base">
-            <Phone className="mr-2 h-4 w-4" /> {t("stickyCall")}
-          </Button>
-        </a>
-      </div>
-
       {lightboxSrc && (
         <div
           className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4 cursor-pointer"
