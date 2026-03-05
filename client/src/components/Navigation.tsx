@@ -8,6 +8,7 @@ import { t } from "@/content";
 const navLinks = [
   { href: "/", labelKey: "nav.home" },
   { href: "/paquetes#paquetes-list", labelKey: "nav.packages" },
+  { href: "/#como-funciona", labelKey: "nav.howItWorks" },
   { href: "/contacto", labelKey: "nav.contact" },
 ];
 
