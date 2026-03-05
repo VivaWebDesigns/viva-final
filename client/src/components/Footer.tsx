@@ -1,7 +1,7 @@
 import { Link } from "wouter";
 import { Phone, Mail } from "lucide-react";
 import { SiFacebook, SiInstagram, SiTiktok, SiWhatsapp } from "react-icons/si";
-import logoImg from "@assets/20BD1DF0-9B30-47F2-8E16-D17C4A22B42A_1771857217327.PNG";
+import logoImg from "@assets/image_1_1772733178048.png";
 import { t } from "@/content";
 
 export default function Footer() {
@@ -11,7 +11,7 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
           <div className="lg:col-span-1">
             <Link href="/" className="inline-block mb-6">
-              <img src={logoImg} alt="Viva Web Designs" className="h-12 w-auto brightness-110" />
+              <img src={logoImg} alt="Viva Web Designs" className="h-16 w-auto" />
             </Link>
             <p className="text-gray-500 text-sm leading-relaxed mb-8">
               {t("footer.tagline")}
