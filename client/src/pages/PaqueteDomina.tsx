@@ -95,7 +95,11 @@ export default function PaqueteDomina() {
                 <h3 className="text-2xl font-extrabold text-[#111] dark:text-white mb-3">{t("domina.ideal.cardTitle")}</h3>
                 <p className="text-gray-600 dark:text-gray-400 mb-6">{t("domina.ideal.cardSubtitle")}</p>
                 <p className="text-5xl font-extrabold text-[#0D9488] mb-1">$1,997</p>
-                <p className="text-[10px] text-gray-400 font-medium mb-4">{t("domina.ideal.monthlyRequired")}</p>
+                <p className="text-[11px] text-gray-400 font-medium mt-1 mb-4">Configuración inicial del sitio</p>
+                <div className="mt-2 pt-4 border-t border-gray-100 dark:border-gray-800 mb-4">
+                  <p className="text-2xl font-extrabold text-[#111] dark:text-white">$97 <span className="text-base font-semibold text-gray-400">/ mes</span></p>
+                  <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">Hosting • soporte • mantenimiento • seguridad</p>
+                </div>
               </div>
             </motion.div>
           </motion.div>

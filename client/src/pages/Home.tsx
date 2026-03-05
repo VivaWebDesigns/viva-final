@@ -262,10 +262,13 @@ export default function Home() {
                     <h3 className="text-2xl font-extrabold text-[#111] dark:text-white mb-1">{pkg.name}</h3>
                     <p className="text-gray-500 dark:text-gray-400 text-xs leading-snug max-w-[220px] mx-auto mb-8">{pkg.subLabel}</p>
 
-                    <div className="border-t border-gray-100 dark:border-gray-800 pt-6 pb-2">
+                    <div className="border-t border-gray-100 dark:border-gray-800 pt-6 mb-6">
                       <p className="text-3xl font-extrabold text-[#111] dark:text-white" data-testid={`text-price-${pkg.slug}`}>{pkg.price}</p>
-                      <p className="text-[10px] text-gray-400 dark:text-gray-500 font-medium mt-1">{t("home.packages.monthlyRequired")}</p>
-                      <p className="text-gray-400 dark:text-gray-500 text-xs mt-1.5 italic">{pkg.microcopy}</p>
+                      <p className="text-[11px] text-gray-400 dark:text-gray-500 font-medium mt-1">Configuración inicial del sitio</p>
+                      <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
+                        <p className="text-2xl font-extrabold text-[#111] dark:text-white">$97 <span className="text-base font-semibold text-gray-400">/ mes</span></p>
+                        <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">Hosting • soporte • mantenimiento • seguridad</p>
+                      </div>
                     </div>
                   </div>
 
