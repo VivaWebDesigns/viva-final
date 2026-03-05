@@ -8,6 +8,7 @@ import { useRef, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useLanguage } from "@empieza/hooks/use-language";
 import logoImg from "@assets/image_1_(5)_1772575534808.png";
+import { SiWhatsapp } from "react-icons/si";
 import {
   Paintbrush,
   Home as HomeIcon,
@@ -384,7 +385,7 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
             <a
               href="mailto:quotes@charlottepaintingpro.com?subject=Website%20Inquiry"
               data-testid="link-email"
@@ -413,6 +414,23 @@ export default function Home() {
                 <p className="text-muted-foreground text-sm">(704) 555-0123</p>
               </div>
               <ArrowRight size={18} className="text-muted-foreground/40 group-hover:text-primary transition-colors" />
+            </a>
+
+            <a
+              href="https://wa.me/17045550123"
+              target="_blank"
+              rel="noopener noreferrer"
+              data-testid="link-whatsapp"
+              className="group rounded-md border border-border bg-secondary p-6 flex items-center gap-5 shadow-sm hover:shadow-md transition-shadow"
+            >
+              <div className="w-12 h-12 rounded-md bg-[#25D366]/10 flex items-center justify-center text-[#25D366]">
+                <SiWhatsapp size={24} />
+              </div>
+              <div className="flex-1">
+                <h4 className="font-semibold text-foreground text-sm mb-0.5">WhatsApp</h4>
+                <p className="text-muted-foreground text-sm">(704) 555-0123</p>
+              </div>
+              <ArrowRight size={18} className="text-muted-foreground/40 group-hover:text-[#25D366] transition-colors" />
             </a>
           </div>
 

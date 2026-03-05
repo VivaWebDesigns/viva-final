@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   CheckCircle2,
 } from "lucide-react";
+import { SiWhatsapp } from "react-icons/si";
 import { useLanguage } from "@domina/i18n/LanguageContext";
 
 function scrollToFormIfHash() {
@@ -64,7 +65,7 @@ export default function Contact() {
 
       <section className="pb-8">
         <div className="container mx-auto px-4 md:px-6 max-w-3xl">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <a
               href="mailto:quotes@charlottepaintingpro.com?subject=Website%20Inquiry"
               data-testid="link-email"
@@ -93,6 +94,23 @@ export default function Contact() {
                 <p className="text-muted-foreground text-sm">(704) 555-0123</p>
               </div>
               <ArrowRight size={18} className="text-muted-foreground/40 group-hover:text-primary transition-colors" />
+            </a>
+
+            <a
+              href="https://wa.me/17045550123"
+              target="_blank"
+              rel="noopener noreferrer"
+              data-testid="link-whatsapp"
+              className="group rounded-md border border-border bg-secondary p-6 flex items-center gap-5 shadow-sm hover:shadow-md transition-shadow"
+            >
+              <div className="w-12 h-12 rounded-md bg-[#25D366]/10 flex items-center justify-center text-[#25D366]">
+                <SiWhatsapp size={24} />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-foreground text-sm mb-0.5">WhatsApp</h3>
+                <p className="text-muted-foreground text-sm">(704) 555-0123</p>
+              </div>
+              <ArrowRight size={18} className="text-muted-foreground/40 group-hover:text-[#25D366] transition-colors" />
             </a>
           </div>
 
