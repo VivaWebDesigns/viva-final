@@ -66,35 +66,33 @@ export default function Contact() {
 
       <section className="pb-8">
         <div className="container mx-auto px-4 md:px-6 max-w-3xl">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
             <a
               href="mailto:quotes@charlottepaintingpro.com?subject=Website%20Inquiry"
               data-testid="link-email"
-              className="group rounded-md border border-border bg-secondary p-6 flex items-center gap-5 shadow-sm hover:shadow-md transition-shadow"
+              className="group rounded-md border border-border bg-secondary p-5 flex flex-col items-center text-center gap-3 shadow-sm hover:shadow-md transition-shadow"
             >
-              <div className="w-12 h-12 rounded-md bg-primary/10 flex items-center justify-center text-primary">
-                <Mail size={24} />
+              <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary/20 transition-colors">
+                <Mail size={20} />
               </div>
-              <div className="flex-1">
-                <h3 className="font-semibold text-foreground text-sm mb-0.5">{t("contact.email")}</h3>
-                <p className="text-muted-foreground text-sm">quotes@charlottepaintingpro.com</p>
+              <div>
+                <h3 className="font-semibold text-foreground text-sm mb-1">{t("contact.email")}</h3>
+                <p className="text-muted-foreground text-xs break-all">quotes@charlottepaintingpro.com</p>
               </div>
-              <ArrowRight size={18} className="text-muted-foreground/40 group-hover:text-primary transition-colors" />
             </a>
 
             <a
               href="tel:7045550123"
               data-testid="link-phone"
-              className="group rounded-md border border-border bg-secondary p-6 flex items-center gap-5 shadow-sm hover:shadow-md transition-shadow"
+              className="group rounded-md border border-border bg-secondary p-5 flex flex-col items-center text-center gap-3 shadow-sm hover:shadow-md transition-shadow"
             >
-              <div className="w-12 h-12 rounded-md bg-primary/10 flex items-center justify-center text-primary">
-                <Phone size={24} />
+              <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary/20 transition-colors">
+                <Phone size={20} />
               </div>
-              <div className="flex-1">
-                <h3 className="font-semibold text-foreground text-sm mb-0.5">{t("contact.call")}</h3>
-                <p className="text-muted-foreground text-sm">(704) 555-0123</p>
+              <div>
+                <h3 className="font-semibold text-foreground text-sm mb-1">{t("contact.call")}</h3>
+                <p className="text-muted-foreground text-xs">(704) 555-0123</p>
               </div>
-              <ArrowRight size={18} className="text-muted-foreground/40 group-hover:text-primary transition-colors" />
             </a>
 
             <a
@@ -102,16 +100,15 @@ export default function Contact() {
               target="_blank"
               rel="noopener noreferrer"
               data-testid="link-whatsapp"
-              className="group rounded-md border border-border bg-secondary p-6 flex items-center gap-5 shadow-sm hover:shadow-md transition-shadow"
+              className="group rounded-md border border-border bg-secondary p-5 flex flex-col items-center text-center gap-3 shadow-sm hover:shadow-md transition-shadow"
             >
-              <div className="w-12 h-12 rounded-md bg-[#25D366]/10 flex items-center justify-center text-[#25D366]">
-                <SiWhatsapp size={24} />
+              <div className="w-11 h-11 rounded-full bg-[#25D366]/10 flex items-center justify-center text-[#25D366] group-hover:bg-[#25D366]/20 transition-colors">
+                <SiWhatsapp size={20} />
               </div>
-              <div className="flex-1">
-                <h3 className="font-semibold text-foreground text-sm mb-0.5">WhatsApp</h3>
-                <p className="text-muted-foreground text-sm">(704) 555-0123</p>
+              <div>
+                <h3 className="font-semibold text-foreground text-sm mb-1">WhatsApp</h3>
+                <p className="text-muted-foreground text-xs">(704) 555-0123</p>
               </div>
-              <ArrowRight size={18} className="text-muted-foreground/40 group-hover:text-[#25D366] transition-colors" />
             </a>
           </div>
 
