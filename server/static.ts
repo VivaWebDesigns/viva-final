@@ -22,7 +22,7 @@ export function serveStatic(app: Express) {
   };
 
   app.use("/{*path}", (req, res) => {
-    const urlPath = req.path.split("?")[0];
+    const urlPath = req.originalUrl.split("?")[0];
     const mpaFile = mpaHtmlFiles[urlPath];
     const htmlFile = mpaFile ?? "index.html";
     res.sendFile(path.resolve(distPath, htmlFile));
