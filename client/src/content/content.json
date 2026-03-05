@@ -754,8 +754,8 @@
       "locationLabel": { "en": "Location", "es": "Ubicación" },
       "locationValue": { "en": "Service throughout the U.S.", "es": "Servicio en todo EE.UU." },
       "hoursLabel": { "en": "Hours", "es": "Horario" },
-      "hoursWeekday": { "en": "Monday - Friday: 8am - 6pm", "es": "Lunes - Viernes: 8am - 6pm" },
-      "hoursSaturday": { "en": "Saturday: 9am - 2pm", "es": "Sábado: 9am - 2pm" },
+      "hoursWeekday": { "en": "Monday - Friday: 8am - 6pm EST", "es": "Lunes - Viernes: 8am - 6pm EST" },
+      "hoursSaturday": { "en": "Saturday: 9am - 2pm EST", "es": "Sábado: 9am - 2pm EST" },
       "whyTitle": { "en": "Why contact us?", "es": "¿Por qué contactarnos?" },
       "whyItems": [
         { "en": "100% free consultation", "es": "Consulta 100% gratis" },
