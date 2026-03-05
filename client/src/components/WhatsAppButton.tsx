@@ -1,8 +1,15 @@
 import { CalendarDays } from "lucide-react";
 
+import { useLocation } from "wouter";
+
 const CALENDLY_URL = "https://calendly.com/admin-vivawebdesigns/30min";
 
 export default function BookDemoButton() {
+  const [location] = useLocation();
+  
+  // Hide on /demo page
+  if (location === "/demo") return null;
+
   return (
     <a
       href={CALENDLY_URL}
