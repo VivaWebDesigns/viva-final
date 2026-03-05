@@ -1,0 +1,109 @@
+Create a new page at the route **/demo** that serves as a demo hub for exploring the three example contractor websites.
+
+Do NOT modify any existing pages, layouts, demo switchers, navigation bars, or existing demo routes. The demo sites already exist and should remain unchanged.
+
+The new /demo page should only act as an entry point that links to the existing demos.
+
+Page structure:
+
+1. **Hero Section**
+
+Centered layout with clear heading and short explanation.
+
+Spanish text:
+
+Heading:
+Explora nuestros sitios de demostración
+
+Subheading:
+Cada demo muestra cómo puede verse el sitio web de tu negocio.
+
+English translation (not shown on page, for reference only):
+Explore our demo websites
+Each demo shows what your business website could look like.
+
+Below the text add a primary button:
+
+Ver los demos
+
+This button should scroll down to the demo selection section.
+
+2. **Demo Selection Section**
+
+Create a three-card grid (stacked vertically on mobile).
+
+Each card represents one demo site.
+
+Card 1:
+
+Title:
+Empieza
+
+Description:
+Ideal para contratistas que quieren una presencia profesional simple.
+
+Button:
+Ver Demo
+
+Button link:
+/empieza
+
+Card 2:
+
+Title:
+Crece
+
+Description:
+Diseñado para negocios que quieren generar más clientes.
+
+Button:
+Ver Demo
+
+Button link:
+/crece
+
+Card 3:
+
+Title:
+Domina
+
+Description:
+Un sitio completo creado para destacar y dominar en búsquedas locales.
+
+Button:
+Ver Demo
+
+Button link:
+/domina
+
+3. **Design Requirements**
+
+* Keep the design consistent with the existing site styles and typography.
+* Use the same card styling used elsewhere on the site if available.
+* Cards should have:
+
+  * subtle border
+  * light shadow
+  * rounded corners
+  * hover elevation
+* Buttons should match the site's primary CTA style.
+* On desktop display the three demo cards in a horizontal row.
+* On mobile stack them vertically.
+
+4. **Optional Small Note Under Cards**
+
+Add a subtle line below the demo grid:
+
+Spanish text:
+Cada demo incluye un selector superior para cambiar entre los ejemplos o volver al sitio principal.
+
+English translation (reference only):
+Each demo includes a top switcher that lets you view other demos or return to the main website.
+
+5. **Important Constraints**
+
+* Do not change any existing routes.
+* Do not modify the demo switcher bar.
+* Do not change the navigation.
+* Do not modify /empieza, /crece, or /domina.
+* Only add the new /demo page and link the buttons to the existing demo routes.

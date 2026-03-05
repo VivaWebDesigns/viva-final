@@ -15,6 +15,7 @@ import PaqueteEmpieza from "@/pages/PaqueteEmpieza";
 import PaqueteCrece from "@/pages/PaqueteCrece";
 import PaqueteDomina from "@/pages/PaqueteDomina";
 import Contacto from "@/pages/Contacto";
+import Demo from "@/pages/Demo";
 import NotFound from "@/pages/not-found";
 import JsonLd from "@/components/JsonLd";
 
@@ -27,6 +28,7 @@ function Router() {
       <Route path="/paquetes/crece" component={PaqueteCrece} />
       <Route path="/paquetes/domina" component={PaqueteDomina} />
       <Route path="/contacto" component={Contacto} />
+      <Route path="/demo" component={Demo} />
       <Route component={NotFound} />
     </Switch>
   );
