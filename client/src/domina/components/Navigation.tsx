@@ -287,11 +287,11 @@ export function Navigation() {
         target="_blank"
         rel="noopener noreferrer"
         data-testid="button-whatsapp-float"
-        style={{ position: "fixed", bottom: "24px", right: "24px", zIndex: 9000, width: "56px", height: "56px", borderRadius: "50%", background: "#25D366", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 16px rgba(37,211,102,0.45)", transition: "transform 0.2s" }}
+        style={{ position: "fixed", bottom: "16px", right: "16px", zIndex: 9000, width: "48px", height: "48px", borderRadius: "50%", background: "#25D366", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 16px rgba(37,211,102,0.45)", transition: "transform 0.2s" }}
         onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.12)")}
         onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")}
       >
-        <SiWhatsapp style={{ width: "30px", height: "30px", color: "#fff" }} />
+        <SiWhatsapp style={{ width: "26px", height: "26px", color: "#fff" }} />
       </a>
     )}
     </>
