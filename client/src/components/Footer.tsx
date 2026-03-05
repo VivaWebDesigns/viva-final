@@ -11,7 +11,7 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
           <div className="lg:col-span-1">
             <Link href="/" className="inline-block mb-6">
-              <img src={logoImg} alt="Viva Web Designs" className="h-16 w-auto" />
+              <img src={logoImg} alt="Viva Web Designs" className="h-10 lg:h-[51px] w-auto" />
             </Link>
             <p className="text-gray-500 text-sm leading-relaxed mb-8">
               {t("footer.tagline")}
