@@ -1,0 +1,62 @@
+TASK: Remove the “Cómo Funciona” page from the site completely.
+
+IMPORTANT:
+- Do NOT redesign anything.
+- Do NOT change styles, spacing, or copy anywhere except what’s required to remove this page and its links.
+- Do NOT remove any other pages.
+- Do NOT break routing/build.
+
+GOAL:
+- The “Cómo Funciona” page should no longer exist, and users should not see it anywhere in the UI.
+- Any old URL for that page should NOT show a blank/broken page. It should redirect cleanly.
+
+STEPS:
+
+1) Identify all implementations of the “Cómo Funciona” page:
+   - Search the codebase for these strings and route names:
+     - "Cómo Funciona"
+     - "Como Funciona"
+     - "como-funciona"
+     - "/como-funciona"
+     - "/c%C3%B3mo-funciona"
+     - "how-it-works"
+     - "How It Works"
+   - Also search for any component file names that match, e.g.:
+     - ComoFunciona, ComoFuncionaPage, HowItWorks, HowItWorksPage, Como-Funciona, etc.
+
+2) Remove the route:
+   - If React Router is used, remove the <Route> entry for the page and remove its import.
+   - If Next.js is used, delete the page file under /pages or /app that corresponds to the route.
+   - If a routes config is used, remove the route definition.
+
+3) Remove the page component:
+   - Delete the page component file(s) and any dedicated CSS/module files only used by that page.
+   - If the component is reused somewhere else, do NOT delete it—only remove the page wrapper and route.
+
+4) Remove navigation + footer links:
+   - Remove “Cómo Funciona” from:
+     - the top navigation menu (desktop and mobile)
+     - any hamburger/mobile drawer menus
+     - any footer navigation columns
+     - any in-page links or CTA buttons that lead to this page
+   - Ensure the nav still looks balanced (do not add new items unless needed). If removing the item creates an empty gap, simply close the gap.
+
+5) Handle deep links / old URLs:
+   - If the route used to be /como-funciona (or similar), implement a redirect:
+     - Redirect to the main site homepage “/” OR (preferred) redirect to “/paquetes” (or your pricing/packages page) if that’s the closest equivalent.
+   - If you already have a central redirects file or router guard, add the redirect there.
+   - Make sure direct visits to the old URL do not throw a 404 error in production.
+
+6) Remove any references in SEO/meta/sitemap:
+   - If you generate a sitemap, remove the “Cómo Funciona” URL from it.
+   - Remove any metadata entries (title/description) dedicated to this page if they exist.
+   - Remove internal linking references (e.g., “Learn more in Cómo Funciona”).
+
+7) Verify build + behavior:
+   - Run the app and confirm:
+     - “Cómo Funciona” no longer appears anywhere.
+     - /como-funciona (and any variant) redirects to the chosen destination.
+     - No broken imports, no console errors, no dead links.
+
+DELIVERABLE:
+- Commit the changes that remove the page, remove all UI links, and add the redirect, with no other changes.
