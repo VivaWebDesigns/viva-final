@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useLanguage } from "@domina/i18n/LanguageContext";
 import { LanguageToggle } from "@domina/components/LanguageToggle";
 import logoPng from "@assets/image_1_(5)_1772575534808.png";
+import { SiWhatsapp } from "react-icons/si";
 
 export function Navigation() {
   const { t } = useLanguage();
@@ -54,6 +55,7 @@ export function Navigation() {
   ];
 
   return (
+    <>
     <nav
       data-testid="navigation"
       className={`sticky top-[44px] w-full z-50 bg-white transition-shadow duration-300 py-3 ${
@@ -279,5 +281,19 @@ export function Navigation() {
         )}
       </AnimatePresence>
     </nav>
+    {!isOpen && (
+      <a
+        href="https://wa.me/17045550123"
+        target="_blank"
+        rel="noopener noreferrer"
+        data-testid="button-whatsapp-float"
+        style={{ position: "fixed", bottom: "24px", right: "24px", zIndex: 9000, width: "56px", height: "56px", borderRadius: "50%", background: "#25D366", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 16px rgba(37,211,102,0.45)", transition: "transform 0.2s" }}
+        onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.12)")}
+        onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")}
+      >
+        <SiWhatsapp style={{ width: "30px", height: "30px", color: "#fff" }} />
+      </a>
+    )}
+    </>
   );
 }
