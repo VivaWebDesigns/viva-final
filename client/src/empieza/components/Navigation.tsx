@@ -42,7 +42,7 @@ export function Navigation() {
           className="cursor-pointer flex items-center gap-2.5 group"
           data-testid="link-logo"
         >
-          <img src={logoImg} alt="Charlotte Painting Pro" className="h-10 md:h-12 w-auto" />
+          <img src={logoImg} alt="Charlotte Painting Pro" className="h-10 md:h-12 w-auto object-contain" />
         </Link>
 
         <div className="hidden md:flex items-center gap-8">

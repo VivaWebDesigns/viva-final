@@ -44,7 +44,7 @@ export function Navigation() {
             window.scrollTo({ top: 0, behavior: "smooth" });
           }}
         >
-          <img src={logoImg} alt="Charlotte Painting Pro" className="h-10 w-auto" />
+          <img src={logoImg} alt="Charlotte Painting Pro" className="h-10 md:h-12 w-auto object-contain" />
         </Link>
 
         <div className="hidden md:flex items-center gap-8">
