@@ -1,7 +1,7 @@
 import { Link } from "wouter";
 import { Phone, Mail } from "lucide-react";
 import { SiFacebook, SiInstagram, SiTiktok, SiWhatsapp } from "react-icons/si";
-import logoImg from "@assets/20BD1DF0-9B30-47F2-8E16-D17C4A22B42A_1771857217327.PNG";
+import logoImg from "@assets/image_1_1772733046434.png";
 import { t } from "@/content";
 
 export default function Footer() {
