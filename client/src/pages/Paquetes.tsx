@@ -261,6 +261,7 @@ export default function Paquetes() {
                       <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
                         <p className="text-2xl font-extrabold text-[#111] dark:text-white">$97 <span className="text-base font-semibold text-gray-400">/ mes</span></p>
                         <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">Hosting • soporte • mantenimiento • seguridad</p>
+                        <a href="#plan-soporte" className="text-[10px] text-[#0D9488] hover:underline mt-1 inline-block">Ver qué incluye</a>
                       </div>
                     </div>
                   </div>
@@ -298,7 +299,7 @@ export default function Paquetes() {
       </section>
 
       {/* SUPPORT PLAN */}
-      <section className="py-16 lg:py-20 bg-white dark:bg-[#0d0d0d]" data-testid="section-support-plan">
+      <section id="plan-soporte" className="py-16 lg:py-20 bg-white dark:bg-[#0d0d0d]" data-testid="section-support-plan">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center">
             <motion.div variants={fadeUp} className="inline-flex items-center gap-2 bg-[#f5f5f5] dark:bg-[#111] border border-gray-200 dark:border-gray-700 rounded-full px-5 py-2 mb-6 shadow-sm">
