@@ -70,21 +70,21 @@ export default function Contact() {
             <a
               href="mailto:quotes@charlottepaintingpro.com?subject=Website%20Inquiry"
               data-testid="link-email"
-              className="group rounded-md border border-border bg-secondary p-5 flex flex-col items-center text-center gap-3 shadow-sm hover:shadow-md transition-shadow"
+              className="group rounded-md border border-border bg-secondary p-3 flex flex-col items-center text-center gap-3 shadow-sm hover:shadow-md transition-shadow"
             >
               <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary/20 transition-colors">
                 <Mail size={20} />
               </div>
               <div>
                 <h3 className="font-semibold text-foreground text-sm mb-1">{t("contact.email")}</h3>
-                <p className="text-muted-foreground text-xs break-all">quotes@charlottepaintingpro.com</p>
+                <p className="text-muted-foreground text-xs">quotes@charlottepaintingpro.com</p>
               </div>
             </a>
 
             <a
               href="tel:7045550123"
               data-testid="link-phone"
-              className="group rounded-md border border-border bg-secondary p-5 flex flex-col items-center text-center gap-3 shadow-sm hover:shadow-md transition-shadow"
+              className="group rounded-md border border-border bg-secondary p-3 flex flex-col items-center text-center gap-3 shadow-sm hover:shadow-md transition-shadow"
             >
               <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary/20 transition-colors">
                 <Phone size={20} />
@@ -100,7 +100,7 @@ export default function Contact() {
               target="_blank"
               rel="noopener noreferrer"
               data-testid="link-whatsapp"
-              className="group rounded-md border border-border bg-secondary p-5 flex flex-col items-center text-center gap-3 shadow-sm hover:shadow-md transition-shadow"
+              className="group rounded-md border border-border bg-secondary p-3 flex flex-col items-center text-center gap-3 shadow-sm hover:shadow-md transition-shadow"
             >
               <div className="w-11 h-11 rounded-full bg-[#25D366]/10 flex items-center justify-center text-[#25D366] group-hover:bg-[#25D366]/20 transition-colors">
                 <SiWhatsapp size={20} />
