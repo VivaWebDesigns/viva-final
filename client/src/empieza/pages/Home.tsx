@@ -387,21 +387,6 @@ export default function Home() {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
             <a
-              href="mailto:quotes@charlottepaintingpro.com?subject=Website%20Inquiry"
-              data-testid="link-email"
-              className="group rounded-md border border-border bg-secondary p-6 flex items-center gap-5 shadow-sm hover:shadow-md transition-shadow"
-            >
-              <div className="w-12 h-12 rounded-md bg-primary/10 flex items-center justify-center text-primary">
-                <Mail size={24} />
-              </div>
-              <div className="flex-1">
-                <h4 className="font-semibold text-foreground text-sm mb-0.5">{t("emailUs")}</h4>
-                <p className="text-muted-foreground text-sm">quotes@charlottepaintingpro.com</p>
-              </div>
-              <ArrowRight size={18} className="text-muted-foreground/40 group-hover:text-primary transition-colors" />
-            </a>
-
-            <a
               href="tel:7045550123"
               data-testid="link-phone"
               className="group rounded-md border border-border bg-secondary p-6 flex items-center gap-5 shadow-sm hover:shadow-md transition-shadow"
@@ -431,6 +416,21 @@ export default function Home() {
                 <p className="text-muted-foreground text-sm">(704) 555-0123</p>
               </div>
               <ArrowRight size={18} className="text-muted-foreground/40 group-hover:text-[#25D366] transition-colors" />
+            </a>
+
+            <a
+              href="mailto:quotes@charlottepaintingpro.com?subject=Website%20Inquiry"
+              data-testid="link-email"
+              className="group rounded-md border border-border bg-secondary p-6 flex items-center gap-5 shadow-sm hover:shadow-md transition-shadow"
+            >
+              <div className="w-12 h-12 rounded-md bg-primary/10 flex items-center justify-center text-primary">
+                <Mail size={24} />
+              </div>
+              <div className="flex-1">
+                <h4 className="font-semibold text-foreground text-sm mb-0.5">{t("emailUs")}</h4>
+                <p className="text-muted-foreground text-sm">quotes@charlottepaintingpro.com</p>
+              </div>
+              <ArrowRight size={18} className="text-muted-foreground/40 group-hover:text-primary transition-colors" />
             </a>
           </div>
 

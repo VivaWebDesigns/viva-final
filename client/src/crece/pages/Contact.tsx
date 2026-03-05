@@ -68,20 +68,6 @@ export default function Contact() {
         <div className="container mx-auto px-4 md:px-6 max-w-3xl">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
             <a
-              href="mailto:quotes@charlottepaintingpro.com?subject=Website%20Inquiry"
-              data-testid="link-email"
-              className="group rounded-md border border-border bg-secondary p-3 flex flex-col items-center text-center gap-3 shadow-sm hover:shadow-md transition-shadow"
-            >
-              <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary/20 transition-colors">
-                <Mail size={20} />
-              </div>
-              <div>
-                <h3 className="font-semibold text-foreground text-sm mb-1">{t("contact.email")}</h3>
-                <p className="text-muted-foreground text-xs">quotes@charlottepaintingpro.com</p>
-              </div>
-            </a>
-
-            <a
               href="tel:7045550123"
               data-testid="link-phone"
               className="group rounded-md border border-border bg-secondary p-3 flex flex-col items-center text-center gap-3 shadow-sm hover:shadow-md transition-shadow"
@@ -110,20 +96,19 @@ export default function Contact() {
                 <p className="text-muted-foreground text-xs">(704) 555-0123</p>
               </div>
             </a>
-          </div>
 
-          <div className="flex flex-col sm:flex-row flex-wrap justify-center gap-6 mb-8">
-            <a href="#contact-form" className="inline-block">
-              <Button data-testid="button-scroll-to-form" className="bg-primary text-primary-foreground font-semibold px-8">
-                {t("contact.form.title")}
-                <ArrowRight className="ml-2" size={18} />
-              </Button>
-            </a>
-            <a href="tel:7045550123" className="inline-block">
-              <Button data-testid="button-call-cta" variant="outline" className="font-semibold px-8">
-                <Phone className="mr-2" size={16} />
-                {t("contact.form.cta")}
-              </Button>
+            <a
+              href="mailto:quotes@charlottepaintingpro.com?subject=Website%20Inquiry"
+              data-testid="link-email"
+              className="group rounded-md border border-border bg-secondary p-3 flex flex-col items-center text-center gap-3 shadow-sm hover:shadow-md transition-shadow"
+            >
+              <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary/20 transition-colors">
+                <Mail size={20} />
+              </div>
+              <div>
+                <h3 className="font-semibold text-foreground text-sm mb-1">{t("contact.email")}</h3>
+                <p className="text-muted-foreground text-xs">quotes@charlottepaintingpro.com</p>
+              </div>
             </a>
           </div>
         </div>
