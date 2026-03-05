@@ -259,8 +259,8 @@ export default function Paquetes() {
                       <p className="text-3xl font-extrabold text-[#111] dark:text-white" data-testid={`text-price-${pkg.slug}`}>{pkg.price}</p>
                       <p className="text-[11px] text-gray-400 dark:text-gray-500 font-medium mt-1">Configuración inicial del sitio</p>
                       <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
-                        <p className="text-xl font-extrabold text-[#111] dark:text-white">$97 <span className="text-sm font-semibold text-gray-400">/ mes</span></p>
-                        <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">Hosting • soporte • mantenimiento • seguridad</p>
+                        <p className="text-2xl font-extrabold text-[#111] dark:text-white">$97 <span className="text-base font-semibold text-gray-400">/ mes</span></p>
+                        <p className="text-[10px] text-gray-300 dark:text-gray-600 mt-1">Hosting • soporte • mantenimiento • seguridad</p>
                       </div>
                     </div>
                   </div>
