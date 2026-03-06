@@ -281,7 +281,7 @@ export default function Home() {
                     </div>
                   </div>
 
-                  <div className="px-8 lg:px-10 pb-8 lg:pb-10 flex-1 flex flex-col">
+                  <div className="px-8 lg:px-10 pb-8 lg:pb-10 flex-1 flex flex-col bg-[#ffffff]">
                     <p className="text-[#0D9488] text-xs font-semibold uppercase tracking-wider mb-3">{pkg.positioning}</p>
                     <p className="text-gray-600 dark:text-gray-400 leading-relaxed mb-8 flex-1 text-sm">{pkg.desc}</p>
                     <Link href={`/paquetes/${pkg.slug}`}>
