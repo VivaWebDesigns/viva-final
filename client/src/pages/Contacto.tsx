@@ -14,6 +14,23 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { t, tArr } from "@/content";
+import { useMemo } from "react";
+
+function useUtmParams() {
+  return useMemo(() => {
+    const params = new URLSearchParams(window.location.search);
+    return {
+      utmSource: params.get("utm_source") || undefined,
+      utmMedium: params.get("utm_medium") || undefined,
+      utmCampaign: params.get("utm_campaign") || undefined,
+      utmTerm: params.get("utm_term") || undefined,
+      utmContent: params.get("utm_content") || undefined,
+      referrer: document.referrer || undefined,
+      landingPage: window.location.href,
+      formPageUrl: window.location.pathname,
+    };
+  }, []);
+}
 
 const fadeUp = {
   hidden: { opacity: 0, y: 30 },
@@ -30,6 +47,7 @@ export default function Contacto() {
   const serviceOptions = tArr("contacto.services");
   const whyItems = tArr("contacto.sidebar.whyItems");
   const whatsappUrl = t("global.whatsappUrl");
+  const utm = useUtmParams();
 
   const form = useForm<InsertContact>({
     resolver: zodResolver(insertContactSchema),
@@ -48,7 +66,7 @@ export default function Contacto() {
 
   const mutation = useMutation({
     mutationFn: async (data: InsertContact) => {
-      const res = await apiRequest("POST", "/api/contacts", data);
+      const res = await apiRequest("POST", "/api/contacts", { ...data, ...utm });
       return res.json();
     },
     onSuccess: () => {
@@ -117,6 +135,7 @@ export default function Contacto() {
               <motion.div variants={fadeUp}>
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                    <input type="text" name="website_url" style={{ position: "absolute", left: "-9999px", opacity: 0, height: 0, width: 0 }} tabIndex={-1} autoComplete="off" aria-hidden="true" data-testid="input-honeypot" />
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                       <FormField
                         control={form.control}

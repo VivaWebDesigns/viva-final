@@ -1,0 +1,116 @@
+We are continuing the Viva Web Designs internal CRM/admin platform in Replit.
+
+PROJECT CONTEXT
+- Internal single-company CRM/admin platform for Viva Web Designs
+- NOT multi-tenant
+- Stack: React + TypeScript, Express + TypeScript, Node.js, PostgreSQL, Drizzle ORM
+- BetterAuth for authentication
+- Tailwind CSS + shadcn/ui + Framer Motion + Lucide React for backend/admin UI
+- Cloudflare R2 only for file storage, nothing permanently stored locally
+- Roles: Admin, Developer, Sales Rep
+- All work must be NON-DESTRUCTIVE
+- Keep architecture modular, performance-conscious, and organized by feature/domain
+- Every feature change must update the internal App Docs library
+
+PRIMARY GOAL
+Build the CRM data foundation and the direct connection between the public-facing website contact form and inbound lead creation in the CRM.
+
+IMPLEMENT THE FOLLOWING
+1. Build CRM schema and backend structure for:
+   - leads
+   - companies
+   - contacts
+   - lead statuses / pipeline-ready status references
+   - lead notes / activity timeline foundation
+   - lead source attribution fields
+   - optional tags / custom fields foundation if appropriate
+2. Ensure schema supports industry-standard client/contact data fields such as:
+   - company/business name
+   - DBA / trade name if useful
+   - primary contact first/last name
+   - email
+   - phone
+   - alternate phone
+   - website
+   - address fields
+   - city/state/zip
+   - country
+   - industry / business type
+   - preferred language
+   - notes
+   - source / medium / campaign / landing page / referrer
+   - form source URL
+   - consent/contact permissions if practical
+3. Build CRM list/detail UI foundations in the admin area:
+   - lead list
+   - lead detail
+   - company detail
+   - contact detail
+4. Build direct inbound form-to-CRM flow:
+   - frontend website contact form submission endpoint
+   - backend validation
+   - anti-spam/bot-safety foundation
+   - duplicate email/phone detection
+   - lead creation
+   - company/contact linkage
+   - source attribution capture (UTM/referrer/form source if available)
+   - audit logging
+   - optional initial notification trigger hook
+5. Specify and implement the system path:
+   Website Contact Form → API endpoint → validation/spam protection → dedupe → lead creation in CRM → source attribution capture → notification trigger hook → optional assignment hook
+6. Add a simple internal activity timeline foundation for CRM records so future prompts can add calls/emails/notes/tasks.
+
+LEAD SOURCE ATTRIBUTION REQUIREMENTS
+Capture and store where possible:
+- utm_source
+- utm_medium
+- utm_campaign
+- utm_term
+- utm_content
+- referrer
+- landing page URL
+- form page URL
+- source label
+- created from website contact form flag
+
+CRM UI REQUIREMENTS
+Use modular pages/components with:
+- searchable lead list
+- sortable/filterable list if practical
+- lead detail summary card
+- contact/company relationship display
+- source attribution section
+- notes/activity placeholder section
+- clean admin UI using shadcn/ui patterns
+
+BACKEND REQUIREMENTS
+- Split routes by CRM domain
+- Use validation schemas
+- Use service/repository patterns where helpful
+- Keep queries efficient and paginated where appropriate
+- Do not over-fetch
+- Add indexes for common lookup/search fields
+- Make duplicate detection safe and non-destructive
+
+APP DOCS REQUIREMENT
+Create/update docs for:
+- CRM schema overview
+- lead/company/contact relationships
+- website contact form to CRM flow
+- source attribution fields
+- deduplication logic
+- CRM API endpoints
+- admin CRM UI modules
+- changelog/release notes
+
+NON-DESTRUCTIVE RULE
+Do not remove existing auth/admin/docs/integrations work.
+Extend safely and preserve compatibility.
+
+DELIVERABLES
+- CRM schema/migrations
+- CRM routes/services/UI foundation
+- website form → CRM lead ingestion path
+- source attribution support
+- dedupe foundation
+- CRM App Docs updates

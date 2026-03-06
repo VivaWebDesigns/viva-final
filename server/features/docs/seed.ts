@@ -337,6 +337,278 @@ Third-party integration configuration. See Integrations System Overview.`,
 | CLOUDFLARE_R2_ENDPOINT | R2 endpoint URL |`,
   },
   {
+    title: "CRM Schema Overview",
+    slug: "crm-schema-overview",
+    categorySlug: "crm-leads",
+    status: "published",
+    content: `# CRM Schema Overview
+
+## Tables
+
+### crm_companies
+Stores business/company records linked to leads and contacts.
+| Column | Type | Notes |
+|--------|------|-------|
+| id | varchar (UUID) | Primary key |
+| name | text | Required |
+| dba | text | Trade/DBA name |
+| website, phone, email | text | Contact info |
+| address, city, state, zip, country | text | Location |
+| industry | text | Business type |
+| preferred_language | text | Default: es |
+| notes | text | Internal notes |
+
+### crm_contacts
+Individual people associated with companies and leads.
+| Column | Type | Notes |
+|--------|------|-------|
+| id | varchar (UUID) | Primary key |
+| company_id | varchar | FK → crm_companies |
+| first_name | text | Required |
+| last_name | text | |
+| email, phone, alt_phone | text | Contact info |
+| title | text | Job title |
+| preferred_language | text | Default: es |
+
+### crm_leads
+Sales opportunities with full attribution tracking.
+| Column | Type | Notes |
+|--------|------|-------|
+| id | varchar (UUID) | Primary key |
+| company_id | varchar | FK → crm_companies |
+| contact_id | varchar | FK → crm_contacts |
+| status_id | varchar | FK → crm_lead_statuses |
+| title | text | Lead title (required) |
+| value | numeric | Deal value |
+| source | text | contact_form, demo_inquiry, manual |
+| utm_source, utm_medium, utm_campaign | text | UTM attribution |
+| utm_term, utm_content | text | UTM attribution |
+| referrer, landing_page, form_page_url | text | Page attribution |
+| from_website_form | boolean | Auto-created flag |
+| assigned_to | text | FK → user |
+
+### crm_lead_statuses
+Pipeline status definitions.
+| Slug | Default Color | Closed? |
+|------|--------------|---------|
+| new | #3B82F6 | No |
+| contacted | #F59E0B | No |
+| qualified | #8B5CF6 | No |
+| proposal | #EC4899 | No |
+| won | #10B981 | Yes |
+| lost | #EF4444 | Yes |
+
+### crm_lead_notes
+Activity timeline entries for leads.
+Types: note, call, email, task, status_change, system
+
+### crm_tags / crm_lead_tags
+Tagging system for leads (many-to-many).
+
+## Indexes
+- crm_companies: name, email, phone
+- crm_contacts: email, phone, company_id
+- crm_leads: status_id, company_id, contact_id, created_at, assigned_to`,
+  },
+  {
+    title: "Lead/Company/Contact Relationships",
+    slug: "crm-relationships",
+    categorySlug: "crm-leads",
+    status: "published",
+    content: `# CRM Entity Relationships
+
+## Relationship Model
+\`\`\`
+Company (1) ←──→ (N) Contacts
+Company (1) ←──→ (N) Leads
+Contact (1) ←──→ (N) Leads
+Lead    (1) ←──→ (N) Notes
+Lead    (N) ←──→ (N) Tags
+\`\`\`
+
+## Key Relationships
+- A **Company** can have many Contacts and many Leads
+- A **Contact** belongs to at most one Company (optional)
+- A **Lead** belongs to at most one Company and one Contact (both optional)
+- A **Lead** has many Notes (activity timeline)
+- A **Lead** has many Tags (many-to-many via crm_lead_tags)
+
+## Nullable Foreign Keys
+All CRM foreign keys are nullable to support:
+- Leads without company info (e.g., individual inquiries)
+- Contacts without company association
+- Leads without assigned contact (e.g., from anonymous forms)
+
+## UI Navigation
+- Lead detail shows linked Company and Contact (clickable)
+- Company detail shows all linked Contacts and Leads
+- Contact detail shows linked Company and all Leads`,
+  },
+  {
+    title: "Website Contact Form to CRM Flow",
+    slug: "crm-form-to-lead-flow",
+    categorySlug: "contact-forms",
+    status: "published",
+    content: `# Website Contact Form → CRM Lead Flow
+
+## System Path
+\`\`\`
+Website Contact Form
+  → POST /api/contacts (with UTM attribution)
+  → Zod validation + honeypot spam check
+  → Save to legacy contacts table (preserves existing behavior)
+  → CRM Ingest Service:
+    1. Honeypot check (reject if filled)
+    2. Parse name → firstName + lastName
+    3. Deduplicate contact (email, then phone)
+    4. Create or find CRM contact
+    5. Create or find CRM company (from business name)
+    6. Link contact ↔ company
+    7. Get default lead status ("New")
+    8. Create CRM lead with full UTM attribution
+    9. Create system note on lead
+    10. Audit log the creation
+  → Email notification via Resend
+  → Return 201 to frontend
+\`\`\`
+
+## Dual Endpoints
+| Endpoint | Source | Notes |
+|----------|--------|-------|
+| POST /api/contacts | Main contact form (/contacto) | Full form fields |
+| POST /api/inquiries | Demo tier forms (empieza/crece/domina) | Simplified fields |
+
+Both endpoints write to legacy \`contacts\` table AND create CRM leads.
+
+## Non-Blocking Error Handling
+CRM ingest and email notification are wrapped in try/catch blocks. If either fails, the contact form still succeeds (non-blocking). Errors are logged to console.
+
+## Frontend UTM Capture
+The Contacto.tsx form uses \`useUtmParams()\` hook to capture:
+- URL params: utm_source, utm_medium, utm_campaign, utm_term, utm_content
+- Browser: document.referrer
+- Page: window.location.href (landing page), window.location.pathname (form page)
+
+These are merged with form data on submission.`,
+  },
+  {
+    title: "Source Attribution Fields",
+    slug: "crm-source-attribution",
+    categorySlug: "crm-leads",
+    status: "published",
+    content: `# Lead Source Attribution
+
+## UTM Parameters
+| Field | Column | Example |
+|-------|--------|---------|
+| Campaign Source | utm_source | google, facebook, newsletter |
+| Campaign Medium | utm_medium | cpc, email, social |
+| Campaign Name | utm_campaign | spring_2026, contractor_promo |
+| Campaign Term | utm_term | painting contractor |
+| Campaign Content | utm_content | ad_variation_a |
+
+## Page Attribution
+| Field | Column | Description |
+|-------|--------|-------------|
+| Referrer | referrer | Previous page URL (document.referrer) |
+| Landing Page | landing_page | First page visited (full URL) |
+| Form Page URL | form_page_url | Page path where form was submitted |
+
+## Source Metadata
+| Field | Column | Values |
+|-------|--------|--------|
+| Source Type | source | contact_form, demo_inquiry, manual |
+| Source Label | source_label | Human-readable label |
+| Website Form Flag | from_website_form | true if auto-created from form |
+
+## Testing Attribution
+Append UTM params to the contact page URL:
+\`\`\`
+/contacto?utm_source=google&utm_medium=cpc&utm_campaign=test
+\`\`\`
+The form will automatically capture these and include them in the CRM lead.`,
+  },
+  {
+    title: "Deduplication Logic",
+    slug: "crm-deduplication",
+    categorySlug: "crm-leads",
+    status: "published",
+    content: `# CRM Deduplication Logic
+
+## Contact Deduplication
+When a form submission arrives, the ingest service checks for existing CRM contacts:
+
+1. **Email match first**: If the submitted email matches an existing crm_contact email
+2. **Phone match fallback**: If no email match, check if phone matches
+
+## Behavior on Duplicate
+- **Contact found**: Reuses the existing contact record
+- **Missing fields filled**: If the existing contact is missing email/phone that the new submission has, the contact is updated
+- **New lead still created**: A new lead is always created (even for existing contacts)
+- **System note**: The lead note indicates "Contact already existed in CRM (duplicate detected)"
+
+## Company Deduplication
+- Companies are matched by exact name (case-insensitive via ilike)
+- If a matching company exists, it is reused
+- If the contact has no company link, it is linked to the found/created company
+
+## Design Decisions
+- **Non-destructive**: Duplicates never overwrite existing data
+- **Always creates a lead**: Even if contact exists, each form submission creates a new lead
+- **Safe merging**: Only fills empty fields, never overwrites populated ones
+- **Audit trail**: All duplicate detections are logged in audit_logs`,
+  },
+  {
+    title: "CRM API Endpoints",
+    slug: "crm-api-endpoints",
+    categorySlug: "api-reference",
+    status: "published",
+    content: `# CRM API Endpoints
+
+All CRM endpoints require authentication. Available to admin and sales_rep roles.
+
+## Leads
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /api/crm/leads | List leads (search, statusId, source, assignedTo, fromWebsiteForm, page, limit) |
+| POST | /api/crm/leads | Create lead |
+| GET | /api/crm/leads/:id | Get lead detail |
+| PUT | /api/crm/leads/:id | Update lead |
+| GET | /api/crm/leads/:id/notes | Get lead activity notes |
+| POST | /api/crm/leads/:id/notes | Add note to lead |
+| GET | /api/crm/leads/:id/tags | Get lead tags |
+| PUT | /api/crm/leads/:id/tags | Set lead tags |
+
+## Companies
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /api/crm/companies | List companies (search, page, limit) |
+| POST | /api/crm/companies | Create company |
+| GET | /api/crm/companies/:id | Get company detail |
+| PUT | /api/crm/companies/:id | Update company |
+
+## Contacts
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /api/crm/contacts | List contacts (search, page, limit) |
+| POST | /api/crm/contacts | Create contact |
+| GET | /api/crm/contacts/:id | Get contact detail |
+| PUT | /api/crm/contacts/:id | Update contact |
+
+## Reference Data
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /api/crm/statuses | List lead statuses |
+| GET | /api/crm/tags | List CRM tags |
+| POST | /api/crm/tags | Create CRM tag |
+
+## Pagination
+List endpoints return:
+\`\`\`json
+{ "items": [...], "total": 42, "page": 1, "limit": 50 }
+\`\`\``,
+  },
+  {
     title: "v1.0 — Foundation Release",
     slug: "v1-foundation-release",
     categorySlug: "changelog",
@@ -354,15 +626,27 @@ Third-party integration configuration. See Integrations System Overview.`,
 - Audit logging for sensitive actions
 - Feature-based file organization (client and server)
 
-## Database Tables Added
+## v1.1 — CRM Foundation (March 2026)
+- CRM schema: companies, contacts, leads, statuses, notes, tags
+- Lead list with search, filter by status/source, pagination
+- Lead detail with status management, notes/activity timeline
+- Company and contact detail pages
+- Website contact form → CRM lead pipeline (auto-creates leads)
+- UTM source attribution capture (utm_source, utm_medium, utm_campaign, etc.)
+- Contact deduplication (email/phone matching)
+- Honeypot anti-spam on contact forms
+- Dashboard updated with CRM stats and recent leads
+- 6 new CRM documentation articles
+
+## Database Tables
+### v1.0
 - user, session, account, verification (BetterAuth)
-- audit_logs
-- doc_categories, doc_articles, doc_tags, doc_article_tags, doc_revisions
+- audit_logs, doc_categories, doc_articles, doc_tags, doc_article_tags, doc_revisions
 - integration_records
 
-## Admin Navigation Sections (Placeholder)
-Dashboard, CRM, Sales Pipeline, Client Onboarding, Team Chat,
-Payments, Notifications, Integrations, Reports, Admin, App Docs
+### v1.1
+- crm_companies, crm_contacts, crm_leads, crm_lead_statuses
+- crm_lead_notes, crm_tags, crm_lead_tags
 
 ## Technical Notes
 - All existing marketing site functionality preserved

@@ -22,6 +22,7 @@ Marketing agency website targeting contractors (Spanish-first, conversion-optimi
 │   ├── features/           # Internal platform features
 │   │   ├── auth/           # Login, auth client, protected routes
 │   │   ├── admin/pages/    # Dashboard + placeholder pages
+│   │   ├── crm/            # CRM: LeadList, LeadDetail, CompanyDetail, ContactDetail
 │   │   ├── docs/           # App Docs library (CRUD)
 │   │   └── integrations/   # Integrations overview
 │   ├── layouts/            # AdminLayout (sidebar shell)
@@ -35,6 +36,7 @@ Marketing agency website targeting contractors (Spanish-first, conversion-optimi
 │   ├── features/           # Domain-based server features
 │   │   ├── auth/           # BetterAuth config + middleware
 │   │   ├── admin/          # Admin stats, seed, audit logs
+│   │   ├── crm/            # CRM storage, routes, ingest, seed
 │   │   ├── docs/           # Docs CRUD + seed data
 │   │   ├── integrations/   # Integration records + seed
 │   │   └── audit/          # Audit logging service
@@ -53,18 +55,50 @@ All marketing website copy managed from `client/src/content/content.json`.
 - `tBool("dotted.path")` — returns boolean value
 
 ## Database Tables
-- **contacts** — Lead capture from public forms
-- **user** — Internal platform users (BetterAuth + role)
-- **session** — Auth sessions (BetterAuth)
-- **account** — Auth accounts (BetterAuth)
-- **verification** — Email verification (BetterAuth)
-- **audit_logs** — Sensitive action audit trail
+### Legacy
+- **contacts** — Lead capture from public forms (preserved)
+
+### Auth (BetterAuth)
+- **user** — Internal platform users (+ role field)
+- **session** — Auth sessions
+- **account** — Auth accounts
+- **verification** — Email verification
+
+### CRM
+- **crm_companies** — Business records (name, dba, website, phone, email, address, industry, language)
+- **crm_contacts** — Individual people (firstName, lastName, email, phone, altPhone, title, companyId FK)
+- **crm_leads** — Sales opportunities (title, value, status, source, UTM attribution, contact/company FKs)
+- **crm_lead_statuses** — Pipeline stages (New, Contacted, Qualified, Proposal, Won, Lost)
+- **crm_lead_notes** — Activity timeline (note, call, email, task, status_change, system)
+- **crm_tags** — Tag definitions
+- **crm_lead_tags** — Lead-tag join table
+
+### Docs & Integrations
 - **doc_categories** — Doc library categories (21 seeded)
-- **doc_articles** — Doc articles with content
+- **doc_articles** — Doc articles with content (15 seeded including 6 CRM docs)
 - **doc_tags** — Tag definitions
 - **doc_article_tags** — Article-tag join table
 - **doc_revisions** — Content revision history
 - **integration_records** — Third-party integration config (Stripe, Mailgun, OpenAI, Cloudflare R2)
+
+### Platform
+- **audit_logs** — Sensitive action audit trail
+
+## CRM Form-to-Lead Pipeline
+```
+Website Contact Form → POST /api/contacts
+  → Zod validation + honeypot spam check
+  → Save to legacy contacts table
+  → CRM Ingest (non-blocking):
+    → Deduplicate contact (email, then phone)
+    → Create/find CRM contact + company
+    → Link contact ↔ company
+    → Create CRM lead with UTM attribution
+    → Create system note on lead
+    → Audit log
+  → Email notification via Resend
+```
+Frontend captures UTM params (utm_source, utm_medium, utm_campaign, utm_term, utm_content) + referrer + landing page from URL.
 
 ## Key Routes
 ### Marketing (Public)
@@ -73,8 +107,11 @@ All marketing website copy managed from `client/src/content/content.json`.
 
 ### Internal Platform (Protected)
 - `/login` — Login page
-- `/admin` — Dashboard
-- `/admin/crm` — CRM (placeholder)
+- `/admin` — Dashboard (stats + recent leads + quick actions)
+- `/admin/crm` — Lead list (searchable, filterable, paginated)
+- `/admin/crm/leads/:id` — Lead detail (status, attribution, notes, contact/company)
+- `/admin/crm/companies/:id` — Company detail (info, linked contacts/leads)
+- `/admin/crm/contacts/:id` — Contact detail (info, linked company/leads)
 - `/admin/pipeline` — Sales Pipeline (placeholder)
 - `/admin/onboarding` — Client Onboarding (placeholder)
 - `/admin/chat` — Team Chat (placeholder)
@@ -83,20 +120,30 @@ All marketing website copy managed from `client/src/content/content.json`.
 - `/admin/integrations` — Integrations overview (working)
 - `/admin/reports` — Reports (placeholder)
 - `/admin/settings` — Admin settings (placeholder)
-- `/admin/docs` — App Docs library (working)
+- `/admin/docs` — App Docs library (working, 15 articles)
 - `/admin/demo-builder` — Demo link generator
 
 ### API Endpoints
-- `POST /api/contacts` — Public contact form
-- `POST /api/inquiries` — Public demo inquiry
+- `POST /api/contacts` — Public contact form (+ CRM ingest)
+- `POST /api/inquiries` — Public demo inquiry (+ CRM ingest)
 - `ALL /api/auth/*` — BetterAuth (login, signup, session)
 - `GET /api/users/me` — Current user (auth required)
 - `GET /api/admin/stats` — Dashboard stats (auth)
 - `GET /api/admin/audit-logs` — Audit logs (admin only)
 - `POST /api/admin/seed-admin` — Create initial admin user
-- `POST /api/admin/seed-public` — Seed docs + integrations
+- `POST /api/admin/seed` — Seed docs + integrations + CRM statuses (admin)
 - `GET/POST/PUT/DELETE /api/docs/*` — Docs CRUD (admin/developer)
 - `GET/PUT /api/integrations/*` — Integrations CRUD (admin/developer)
+- `GET/POST /api/crm/leads` — Lead list/create (admin/sales_rep)
+- `GET/PUT /api/crm/leads/:id` — Lead detail/update
+- `GET/POST /api/crm/leads/:id/notes` — Lead notes
+- `GET/PUT /api/crm/leads/:id/tags` — Lead tags
+- `GET/POST /api/crm/companies` — Company list/create
+- `GET/PUT /api/crm/companies/:id` — Company detail/update
+- `GET/POST /api/crm/contacts` — Contact list/create
+- `GET/PUT /api/crm/contacts/:id` — Contact detail/update
+- `GET /api/crm/statuses` — Lead status list
+- `GET/POST /api/crm/tags` — CRM tags
 
 ## Environment Variables
 - `DATABASE_URL` — PostgreSQL connection string

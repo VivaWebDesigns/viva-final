@@ -30,6 +30,10 @@ const LoginPage = lazy(() => import("@features/auth/LoginPage"));
 const DashboardPage = lazy(() => import("@features/admin/pages/DashboardPage"));
 const DocsPage = lazy(() => import("@features/docs/DocsPage"));
 const IntegrationsPage = lazy(() => import("@features/integrations/IntegrationsPage"));
+const LeadListPage = lazy(() => import("@features/crm/LeadListPage"));
+const LeadDetailPage = lazy(() => import("@features/crm/LeadDetailPage"));
+const CompanyDetailPage = lazy(() => import("@features/crm/CompanyDetailPage"));
+const ContactDetailPage = lazy(() => import("@features/crm/ContactDetailPage"));
 
 function PageFallback() {
   return (
@@ -63,8 +67,15 @@ function AdminRouter() {
         <Suspense fallback={<PageFallback />}>
           <Switch>
             <Route path="/admin" component={DashboardPage} />
-            <Route path="/admin/crm">
-              <PlaceholderPage title="CRM" description="Customer relationship management and lead tracking. Track contacts, manage client relationships, and monitor engagement." icon={Users} />
+            <Route path="/admin/crm" component={LeadListPage} />
+            <Route path="/admin/crm/leads/:id">
+              {(params) => <LeadDetailPage id={params.id} />}
+            </Route>
+            <Route path="/admin/crm/companies/:id">
+              {(params) => <CompanyDetailPage id={params.id} />}
+            </Route>
+            <Route path="/admin/crm/contacts/:id">
+              {(params) => <ContactDetailPage id={params.id} />}
             </Route>
             <Route path="/admin/pipeline">
               <PlaceholderPage title="Sales Pipeline" description="Manage deals and track progress through your sales workflow. Visualize your pipeline stages and forecast revenue." icon={TrendingUp} />

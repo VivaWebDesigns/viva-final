@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { requireAuth, requireRole } from "../auth/middleware";
 import { db } from "../../db";
-import { user, contacts, docArticles, docCategories, integrationRecords, auditLogs } from "@shared/schema";
+import { user, contacts, docArticles, docCategories, integrationRecords, auditLogs, crmLeads, crmCompanies, crmContacts as crmContactsTable } from "@shared/schema";
 import { sql, desc, eq } from "drizzle-orm";
 import { auth } from "../auth/auth";
 import { logAudit } from "../audit/service";
@@ -14,6 +14,11 @@ router.get("/stats", requireRole("admin", "developer", "sales_rep"), async (_req
   const [articleCount] = await db.select({ count: sql<number>`count(*)::int` }).from(docArticles);
   const [categoryCount] = await db.select({ count: sql<number>`count(*)::int` }).from(docCategories);
   const [integrationCount] = await db.select({ count: sql<number>`count(*)::int` }).from(integrationRecords);
+  const [leadCount] = await db.select({ count: sql<number>`count(*)::int` }).from(crmLeads);
+  const [companyCount] = await db.select({ count: sql<number>`count(*)::int` }).from(crmCompanies);
+  const [crmContactCount] = await db.select({ count: sql<number>`count(*)::int` }).from(crmContactsTable);
+
+  const recentLeads = await db.select().from(crmLeads).orderBy(desc(crmLeads.createdAt)).limit(5);
 
   res.json({
     users: userCount.count,
@@ -21,6 +26,10 @@ router.get("/stats", requireRole("admin", "developer", "sales_rep"), async (_req
     articles: articleCount.count,
     categories: categoryCount.count,
     integrations: integrationCount.count,
+    leads: leadCount.count,
+    companies: companyCount.count,
+    crmContacts: crmContactCount.count,
+    recentLeads,
   });
 });
 
