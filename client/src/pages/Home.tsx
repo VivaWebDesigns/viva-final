@@ -197,9 +197,9 @@ export default function Home() {
             {solutionCards.map((item, i) => {
               const Icon = solutionIcons[i];
               return (
-                <motion.div key={item.title} variants={fadeUp} className="p-8 lg:p-10 rounded-md bg-teal-50 dark:bg-teal-950/30 text-center">
-                  <div className="w-16 h-16 mx-auto rounded-full bg-white dark:bg-gray-800 flex items-center justify-center mb-6">
-                    <Icon className="w-8 h-8 text-[#10B981]" />
+                <motion.div key={item.title} variants={fadeUp} className="p-8 lg:p-10 rounded-[20px] border border-[#efefef] bg-white dark:bg-[#0d0d0d] shadow-sm hover:shadow-lg transition-all duration-300 text-center">
+                  <div className="w-12 h-12 mx-auto rounded-xl bg-[#10B981]/10 flex items-center justify-center mb-6">
+                    <Icon className="w-6 h-6 text-[#10B981]" />
                   </div>
                   <h3 className="text-xl font-bold text-[#111] dark:text-white mb-3">{item.title}</h3>
                   <p className="text-gray-600 dark:text-gray-400 leading-relaxed">{item.desc}</p>
