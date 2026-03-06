@@ -263,7 +263,7 @@ export default function Home() {
                   {"popular" in pkg && pkg.popular && (
                     <div className="absolute inset-0 rounded-2xl bg-[#0D9488]/20 blur-3xl -z-10 pointer-events-none" />
                   )}
-                  <div className="p-8 lg:p-10 text-center">
+                  <div className="p-8 lg:p-10 text-center bg-[#ffffff]">
                     <div className="w-12 h-12 mx-auto rounded-xl flex items-center justify-center mb-5 bg-[#10B981]/10">
                       <pkg.icon className="w-6 h-6 text-[#10B981]" />
                     </div>
