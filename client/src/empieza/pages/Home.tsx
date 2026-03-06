@@ -10,20 +10,14 @@ import { useLanguage } from "@empieza/hooks/use-language";
 import logoImg from "@assets/image_1_(5)_1772575534808.png";
 import { SiWhatsapp } from "react-icons/si";
 import {
-  Paintbrush,
+  Paintbrush, PaintBucket,
   Home as HomeIcon,
-  Layers,
-  Sun,
-  Phone,
-  Mail,
-  MapPin,
-  CheckCircle2,
-  ArrowRight,
-  ShieldCheck,
-  Clock,
-  Star,
-  X,
-  Fence,
+  Layers, Sun,
+  Phone, Mail, MapPin, CheckCircle2, ArrowRight, ShieldCheck, Clock, Star, X, Fence,
+  Building2, Wrench, Droplets, Zap, AlertTriangle,
+  HardHat, Cloud, Shield, CircuitBoard, Lightbulb, Truck,
+  Leaf, Flower2, TreePine,
+  Thermometer, Fan, Wind, Hammer, ShowerHead,
 } from "lucide-react";
 import { SiTiktok, SiYoutube, SiFacebook, SiInstagram } from "react-icons/si";
 import heroVideo from "@empieza/assets/videos/hero-painting.mp4";
@@ -37,16 +31,49 @@ import galleryLiving2 from "@assets/AdobeStock_248267632_1771521960350.jpeg";
 import galleryPorch from "@assets/ChatGPT_Image_Feb_19,_2026,_02_18_31_PM_1771528760345.png";
 import galleryFence from "@assets/ChatGPT_Image_Feb_19,_2026,_02_23_09_PM_1771529000104.png";
 
+const ICON_MAP: Record<string, any> = {
+  PaintBucket, Paintbrush,
+  Home: HomeIcon,
+  Layers, Sun, Fence, Building2,
+  Wrench, Droplets, Zap, AlertTriangle, ShowerHead,
+  HardHat, Cloud, Shield, CircuitBoard, Lightbulb, Truck,
+  Leaf, Flower2, TreePine,
+  Thermometer, Fan, Wind, Hammer,
+};
+
 export default function Home() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const { t } = useLanguage();
+  const P = (window as any).__PREVIEW__?.payload ?? null;
 
   useEffect(() => {
-    if (videoRef.current) {
+    if (!P && videoRef.current) {
       videoRef.current.playbackRate = 0.7;
     }
+    if (P) {
+      document.title = `${P.businessName} | ${P.tradeName} in ${P.city}`;
+      const meta = document.querySelector('meta[name="description"]');
+      if (meta) meta.setAttribute("content", `${P.businessName} offers professional ${P.tradeNoun} services in ${P.city}. Get a free estimate today.`);
+    }
   }, []);
+
+  const phone     = P?.phone || "(704) 555-0123";
+  const email     = P?.email || "quotes@charlottepaintingpro.com";
+  const phoneRaw  = phone.replace(/\D/g, "");
+  const bizName   = P?.businessName || "Charlotte Painting Pro";
+  const serviceArea = P ? `${P.city} and surrounding area` : "Charlotte, Matthews, Mint Hill, Pineville, Huntersville, Concord, Gastonia, Fort Mill";
+
+  const defaultGallery = [galleryKitchen1, galleryExterior, galleryLiving1, galleryDoor, galleryKitchen2, galleryPorch, galleryFence];
+  const defaultGalleryAlts = [
+    "Beautiful kitchen with painted blue island",
+    "Beautifully painted home exterior",
+    "Elegant living room interior",
+    "Beautiful blue front door",
+    "Kitchen with painted cabinets",
+    "Beautifully painted covered porch",
+    "Stained wooden fence",
+  ];
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -55,16 +82,25 @@ export default function Home() {
       {/* Hero Section */}
       <section id="home" className="relative min-h-[80vh] flex items-center">
         <div className="absolute inset-0 z-0">
-          <video
-            ref={videoRef}
-            src={heroVideo}
-            autoPlay
-            loop
-            muted
-            playsInline
-            className="w-full h-full object-cover"
-            data-testid="video-hero"
-          />
+          {P?.heroImageUrl ? (
+            <img
+              src={P.heroImageUrl}
+              alt={P.tradeName}
+              className="w-full h-full object-cover"
+              data-testid="img-hero"
+            />
+          ) : (
+            <video
+              ref={videoRef}
+              src={heroVideo}
+              autoPlay
+              loop
+              muted
+              playsInline
+              className="w-full h-full object-cover"
+              data-testid="video-hero"
+            />
+          )}
           <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/70 to-black/50" />
         </div>
 
@@ -76,9 +112,15 @@ export default function Home() {
             className="max-w-3xl space-y-6"
           >
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold leading-tight text-white" style={{ fontFamily: 'var(--font-display)' }}>
-              {t("heroTitle").split("painting needs")[0]}
-              <span className="text-white/90">{t("heroTitle").includes("painting needs") ? "painting needs" : "necesidades de pintura"}</span>{" "}
-              {t("heroTitle").split("painting needs")[1] || t("heroTitle").split("necesidades de pintura")[1] || ""}
+              {P ? (
+                t("heroTitle")
+              ) : (
+                <>
+                  {t("heroTitle").split("painting needs")[0]}
+                  <span className="text-white/90">{t("heroTitle").includes("painting needs") ? "painting needs" : "necesidades de pintura"}</span>{" "}
+                  {t("heroTitle").split("painting needs")[1] || t("heroTitle").split("necesidades de pintura")[1] || ""}
+                </>
+              )}
             </h1>
 
             <p className="text-lg md:text-xl text-white/70 max-w-2xl leading-relaxed">
@@ -144,8 +186,8 @@ export default function Home() {
             >
               <div className="rounded-md overflow-hidden shadow-lg">
                 <img
-                  src={aboutPhoto}
-                  alt="David Martinez and family"
+                  src={P?.aboutImageUrl || aboutPhoto}
+                  alt={P ? `${bizName} team` : "David Martinez and family"}
                   className="w-full h-[300px] md:h-[400px] object-cover object-[60%_center] md:object-[center_20%]"
                   data-testid="img-about"
                 />
@@ -178,46 +220,27 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <ServiceCard
-              title={t("service1Title")}
-              description={t("service1Desc")}
-              benefits={[t("service1B1"), t("service1B2"), t("service1B3")]}
-              icon={Paintbrush}
-              delay={0.1}
-              imageUrl=""
-            />
-            <ServiceCard
-              title={t("service2Title")}
-              description={t("service2Desc")}
-              benefits={[t("service2B1"), t("service2B2"), t("service2B3")]}
-              icon={HomeIcon}
-              delay={0.2}
-              imageUrl=""
-            />
-            <ServiceCard
-              title={t("service3Title")}
-              description={t("service3Desc")}
-              benefits={[t("service3B1"), t("service3B2"), t("service3B3")]}
-              icon={Layers}
-              delay={0.3}
-              imageUrl=""
-            />
-            <ServiceCard
-              title={t("service4Title")}
-              description={t("service4Desc")}
-              benefits={[t("service4B1"), t("service4B2"), t("service4B3")]}
-              icon={Sun}
-              delay={0.4}
-              imageUrl=""
-            />
-            <ServiceCard
-              title={t("service5Title")}
-              description={t("service5Desc")}
-              benefits={[t("service5B1"), t("service5B2"), t("service5B3")]}
-              icon={Fence}
-              delay={0.5}
-              imageUrl=""
-            />
+            {P?.services ? (
+              P.services.map((s: any, i: number) => (
+                <ServiceCard
+                  key={i}
+                  title={s.title}
+                  description={s.description}
+                  benefits={s.benefits}
+                  icon={ICON_MAP[s.iconName] || Paintbrush}
+                  delay={(i + 1) * 0.1}
+                  imageUrl=""
+                />
+              ))
+            ) : (
+              <>
+                <ServiceCard title={t("service1Title")} description={t("service1Desc")} benefits={[t("service1B1"), t("service1B2"), t("service1B3")]} icon={Paintbrush} delay={0.1} imageUrl="" />
+                <ServiceCard title={t("service2Title")} description={t("service2Desc")} benefits={[t("service2B1"), t("service2B2"), t("service2B3")]} icon={HomeIcon} delay={0.2} imageUrl="" />
+                <ServiceCard title={t("service3Title")} description={t("service3Desc")} benefits={[t("service3B1"), t("service3B2"), t("service3B3")]} icon={Layers} delay={0.3} imageUrl="" />
+                <ServiceCard title={t("service4Title")} description={t("service4Desc")} benefits={[t("service4B1"), t("service4B2"), t("service4B3")]} icon={Sun} delay={0.4} imageUrl="" />
+                <ServiceCard title={t("service5Title")} description={t("service5Desc")} benefits={[t("service5B1"), t("service5B2"), t("service5B3")]} icon={Fence} delay={0.5} imageUrl="" />
+              </>
+            )}
           </div>
         </div>
       </section>
@@ -275,40 +298,28 @@ export default function Home() {
               transition={{ duration: 0.6, delay: 0.2 }}
               className="relative"
             >
-              <div className="relative rounded-md overflow-hidden shadow-lg mb-4 cursor-pointer" onClick={() => setLightboxSrc(galleryKitchen1)}>
-                <img
-                  src={galleryKitchen1}
-                  alt="Beautiful kitchen with painted blue island"
-                  className="w-full h-[280px] object-cover"
-                  data-testid="img-why-us-1"
-                />
-                <div className="absolute bottom-0 right-0 z-10 bg-primary text-white px-4 py-2 rounded-tl-md shadow-lg text-center">
-                  <span className="block text-2xl font-bold" style={{ fontFamily: 'var(--font-display)' }}>15+</span>
-                  <span className="text-[10px] font-medium tracking-wider uppercase">{t("yearsExperience")}</span>
-                </div>
-              </div>
+              {(() => {
+                const imgs = P?.galleryImages || defaultGallery.map((src, i) => ({ url: src, alt: defaultGalleryAlts[i] }));
+                return (
+                  <>
+                    <div className="relative rounded-md overflow-hidden shadow-lg mb-4 cursor-pointer" onClick={() => setLightboxSrc(imgs[0].url)}>
+                      <img src={imgs[0].url} alt={imgs[0].alt} className="w-full h-[280px] object-cover" data-testid="img-why-us-1" />
+                      <div className="absolute bottom-0 right-0 z-10 bg-primary text-white px-4 py-2 rounded-tl-md shadow-lg text-center">
+                        <span className="block text-2xl font-bold" style={{ fontFamily: 'var(--font-display)' }}>15+</span>
+                        <span className="text-[10px] font-medium tracking-wider uppercase">{t("yearsExperience")}</span>
+                      </div>
+                    </div>
 
-              <div className="grid grid-cols-2 gap-4">
-
-                <div className="rounded-md overflow-hidden shadow-md cursor-pointer" onClick={() => setLightboxSrc(galleryExterior)}>
-                  <img src={galleryExterior} alt="Beautifully painted home exterior" className="w-full h-[160px] object-cover object-[center_35%]" data-testid="img-why-us-2" />
-                </div>
-                <div className="rounded-md overflow-hidden shadow-md cursor-pointer" onClick={() => setLightboxSrc(galleryLiving1)}>
-                  <img src={galleryLiving1} alt="Elegant living room interior" className="w-full h-[160px] object-cover" data-testid="img-why-us-3" />
-                </div>
-                <div className="rounded-md overflow-hidden shadow-md cursor-pointer" onClick={() => setLightboxSrc(galleryDoor)}>
-                  <img src={galleryDoor} alt="Beautiful blue front door" className="w-full h-[160px] object-cover" data-testid="img-why-us-4" />
-                </div>
-                <div className="rounded-md overflow-hidden shadow-md cursor-pointer" onClick={() => setLightboxSrc(galleryKitchen2)}>
-                  <img src={galleryKitchen2} alt="Kitchen with painted cabinets" className="w-full h-[160px] object-cover" data-testid="img-why-us-5" />
-                </div>
-                <div className="rounded-md overflow-hidden shadow-md cursor-pointer" onClick={() => setLightboxSrc(galleryPorch)}>
-                  <img src={galleryPorch} alt="Beautifully painted covered porch" className="w-full h-[160px] object-cover" data-testid="img-why-us-6" />
-                </div>
-                <div className="rounded-md overflow-hidden shadow-md cursor-pointer" onClick={() => setLightboxSrc(galleryFence)}>
-                  <img src={galleryFence} alt="Stained wooden fence" className="w-full h-[160px] object-cover" data-testid="img-why-us-7" />
-                </div>
-              </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      {imgs.slice(1, 7).map((img: any, i: number) => (
+                        <div key={i} className="rounded-md overflow-hidden shadow-md cursor-pointer" onClick={() => setLightboxSrc(img.url)}>
+                          <img src={img.url} alt={img.alt} className="w-full h-[160px] object-cover" data-testid={`img-why-us-${i + 2}`} />
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                );
+              })()}
             </motion.div>
           </div>
         </div>
@@ -325,36 +336,19 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <ReviewCard
-              name={t("review1Name")}
-              location={t("review1Loc")}
-              text={t("review1Text")}
-              delay={0.1}
-            />
-            <ReviewCard
-              name={t("review2Name")}
-              location={t("review2Loc")}
-              text={t("review2Text")}
-              delay={0.2}
-            />
-            <ReviewCard
-              name={t("review3Name")}
-              location={t("review3Loc")}
-              text={t("review3Text")}
-              delay={0.3}
-            />
-            <ReviewCard
-              name={t("review4Name")}
-              location={t("review4Loc")}
-              text={t("review4Text")}
-              delay={0.4}
-            />
-            <ReviewCard
-              name={t("review5Name")}
-              location={t("review5Loc")}
-              text={t("review5Text")}
-              delay={0.5}
-            />
+            {P?.reviews ? (
+              P.reviews.map((r: any, i: number) => (
+                <ReviewCard key={i} name={r.name} location={r.location} text={r.text} delay={(i + 1) * 0.1} />
+              ))
+            ) : (
+              <>
+                <ReviewCard name={t("review1Name")} location={t("review1Loc")} text={t("review1Text")} delay={0.1} />
+                <ReviewCard name={t("review2Name")} location={t("review2Loc")} text={t("review2Text")} delay={0.2} />
+                <ReviewCard name={t("review3Name")} location={t("review3Loc")} text={t("review3Text")} delay={0.3} />
+                <ReviewCard name={t("review4Name")} location={t("review4Loc")} text={t("review4Text")} delay={0.4} />
+                <ReviewCard name={t("review5Name")} location={t("review5Loc")} text={t("review5Text")} delay={0.5} />
+              </>
+            )}
           </div>
 
           <p className="text-center text-muted-foreground/60 text-sm mt-8">
@@ -387,7 +381,7 @@ export default function Home() {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
             <a
-              href="tel:7045550123"
+              href={`tel:${phoneRaw}`}
               data-testid="link-phone"
               className="group rounded-md border border-border bg-secondary p-6 flex items-center gap-5 shadow-sm hover:shadow-md transition-shadow"
             >
@@ -396,13 +390,13 @@ export default function Home() {
               </div>
               <div className="flex-1">
                 <h4 className="font-semibold text-foreground text-sm mb-0.5">{t("callUs")}</h4>
-                <p className="text-muted-foreground text-sm">(704) 555-0123</p>
+                <p className="text-muted-foreground text-sm">{phone}</p>
               </div>
               <ArrowRight size={18} className="text-muted-foreground/40 group-hover:text-primary transition-colors" />
             </a>
 
             <a
-              href="https://wa.me/17045550123"
+              href={`https://wa.me/${phoneRaw}`}
               target="_blank"
               rel="noopener noreferrer"
               data-testid="link-whatsapp"
@@ -413,13 +407,13 @@ export default function Home() {
               </div>
               <div className="flex-1">
                 <h4 className="font-semibold text-foreground text-sm mb-0.5">WhatsApp</h4>
-                <p className="text-muted-foreground text-sm">(704) 555-0123</p>
+                <p className="text-muted-foreground text-sm">{phone}</p>
               </div>
               <ArrowRight size={18} className="text-muted-foreground/40 group-hover:text-[#25D366] transition-colors" />
             </a>
 
             <a
-              href="mailto:quotes@charlottepaintingpro.com?subject=Website%20Inquiry"
+              href={`mailto:${email}`}
               data-testid="link-email"
               className="group rounded-md border border-border bg-secondary p-6 flex items-center gap-5 shadow-sm hover:shadow-md transition-shadow"
             >
@@ -428,7 +422,7 @@ export default function Home() {
               </div>
               <div className="flex-1">
                 <h4 className="font-semibold text-foreground text-sm mb-0.5">{t("emailUs")}</h4>
-                <p className="text-muted-foreground text-sm">quotes@charlottepaintingpro.com</p>
+                <p className="text-muted-foreground text-sm">{email}</p>
               </div>
               <ArrowRight size={18} className="text-muted-foreground/40 group-hover:text-primary transition-colors" />
             </a>
@@ -441,7 +435,7 @@ export default function Home() {
           <div className="mt-12 text-center">
             <div className="inline-flex items-center gap-3 text-muted-foreground text-sm">
               <MapPin size={16} className="text-primary" />
-              Charlotte, Matthews, Mint Hill, Pineville, Huntersville, Concord, Gastonia, Fort Mill
+              {serviceArea}
             </div>
           </div>
 
@@ -459,26 +453,26 @@ export default function Home() {
         <div className="container mx-auto px-4 md:px-6">
           <div className="flex flex-col md:flex-row justify-between items-center gap-6">
             <div className="flex items-center gap-2.5">
-              <img src={logoImg} alt="Charlotte Painting Pro" className="h-8 w-auto" />
+              {P ? (
+                P.logoUrl ? (
+                  <img src={P.logoUrl} alt={bizName} className="h-8 w-auto" />
+                ) : (
+                  <span className="font-bold text-lg text-foreground" style={{ fontFamily: 'var(--font-display)' }}>{bizName}</span>
+                )
+              ) : (
+                <img src={logoImg} alt="Charlotte Painting Pro" className="h-8 w-auto" />
+              )}
             </div>
 
             <div className="flex items-center gap-4">
-              <a href="#" className="text-[#1877F2] hover:opacity-80 transition-opacity" aria-label="Facebook">
-                <SiFacebook size={20} />
-              </a>
-              <a href="#" className="text-[#E4405F] hover:opacity-80 transition-opacity" aria-label="Instagram">
-                <SiInstagram size={20} />
-              </a>
-              <a href="#" className="text-[#FF0000] hover:opacity-80 transition-opacity" aria-label="YouTube">
-                <SiYoutube size={22} />
-              </a>
-              <a href="#" className="text-[#000000] hover:opacity-80 transition-opacity" aria-label="TikTok">
-                <SiTiktok size={18} />
-              </a>
+              <a href="#" className="text-[#1877F2] hover:opacity-80 transition-opacity" aria-label="Facebook"><SiFacebook size={20} /></a>
+              <a href="#" className="text-[#E4405F] hover:opacity-80 transition-opacity" aria-label="Instagram"><SiInstagram size={20} /></a>
+              <a href="#" className="text-[#FF0000] hover:opacity-80 transition-opacity" aria-label="YouTube"><SiYoutube size={22} /></a>
+              <a href="#" className="text-[#000000] hover:opacity-80 transition-opacity" aria-label="TikTok"><SiTiktok size={18} /></a>
             </div>
 
             <p className="text-muted-foreground text-sm">
-              &copy; {new Date().getFullYear()} Charlotte Painting Pro. {t("rights")}
+              &copy; {new Date().getFullYear()} {bizName}. {t("rights")}
             </p>
           </div>
         </div>

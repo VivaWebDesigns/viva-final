@@ -10,7 +10,12 @@ export function Footer() {
       <div className="container mx-auto px-4 md:px-6 flex flex-col items-center gap-6">
         <div className="flex flex-col md:flex-row justify-between items-center w-full gap-6">
           <Link href="/" className="flex items-center" data-testid="link-footer-logo">
-            <img src={logoImg} alt="Charlotte Painting Pro" className="h-9 w-auto" />
+            {(() => {
+              const P = (window as any).__PREVIEW__?.payload;
+              if (P?.logoUrl) return <img src={P.logoUrl} alt={P.businessName} className="h-9 w-auto" />;
+              if (P?.businessName) return <span className="font-bold text-lg text-foreground" style={{ fontFamily: 'var(--font-display)' }}>{P.businessName}</span>;
+              return <img src={logoImg} alt="Charlotte Painting Pro" className="h-9 w-auto" />;
+            })()}
           </Link>
 
           <nav className="flex flex-wrap justify-center gap-6">
@@ -38,7 +43,7 @@ export function Footer() {
         </div>
 
         <p className="text-muted-foreground text-sm">
-          &copy; {new Date().getFullYear()} Charlotte Painting Pro. {t("footer.rights")}
+          &copy; {new Date().getFullYear()} {((window as any).__PREVIEW__?.payload?.businessName) || "Charlotte Painting Pro"}. {t("footer.rights")}
         </p>
       </div>
     </footer>

@@ -71,7 +71,12 @@ export function Navigation() {
             window.scrollTo({ top: 0, behavior: "smooth" });
           }}
         >
-          <img src={logoPng} alt="Charlotte Painting Pro" className="h-10 md:h-12 w-auto" />
+          {(() => {
+            const P = (window as any).__PREVIEW__?.payload;
+            if (P?.logoUrl) return <img src={P.logoUrl} alt={P.businessName} className="h-10 md:h-12 w-auto" />;
+            if (P?.businessName) return <span className="font-bold text-lg text-foreground" style={{ fontFamily: 'var(--font-display)' }}>{P.businessName}</span>;
+            return <img src={logoPng} alt="Charlotte Painting Pro" className="h-10 md:h-12 w-auto" />;
+          })()}
         </Link>
 
         <div className="hidden md:flex items-center gap-8">
