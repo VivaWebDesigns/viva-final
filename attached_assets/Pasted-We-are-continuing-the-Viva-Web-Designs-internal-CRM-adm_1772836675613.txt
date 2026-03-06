@@ -1,0 +1,91 @@
+We are continuing the Viva Web Designs internal CRM/admin platform in Replit.
+
+PROJECT CONTEXT
+- Internal single-company platform, NOT multi-tenant
+- React + TypeScript frontend
+- Express + TypeScript backend
+- PostgreSQL + Drizzle ORM
+- BetterAuth
+- Tailwind CSS + shadcn/ui + Framer Motion + Lucide React
+- Cloudflare R2 only for file/object storage
+- Roles: Admin, Developer, Sales Rep
+- NON-DESTRUCTIVE changes only
+- Modular architecture required
+- App Docs updates are mandatory
+
+PRIMARY GOAL
+Build the Sales Pipeline feature on top of the CRM foundation.
+
+IMPLEMENT THE FOLLOWING
+1. Add schema and backend support for:
+   - pipeline stages
+   - opportunities / deals
+   - deal values
+   - deal status
+   - assigned owner
+   - expected close date
+   - source lead linkage
+   - company/contact linkage
+   - notes/activity references
+2. Create a configurable pipeline stage system so stages can be managed rather than hard-coded.
+3. Build admin/backend UI for:
+   - pipeline board view
+   - opportunity list view
+   - opportunity detail page
+   - stage management screen (Admin/Developer only if appropriate)
+4. Support moving leads/opportunities through stages safely.
+5. Add activity tracking hooks for stage changes.
+6. Add unread/overdue/follow-up friendly fields such as:
+   - next action date
+   - follow-up reminder date
+   - assigned rep
+   - stage entered date if practical
+7. Add reporting-friendly structure for future dashboard work.
+
+PIPELINE UI REQUIREMENTS
+- Kanban-style pipeline board preferred
+- Clean cards showing:
+  - lead/company name
+  - owner
+  - value
+  - stage
+  - next action date
+- Detail drawer/page for deeper context
+- Filters for owner/stage/status if practical
+- Use shadcn/ui, Tailwind, and Framer Motion for a polished but lightweight UI
+
+BUSINESS LOGIC REQUIREMENTS
+- leads may be converted into opportunities safely
+- preserve lead history
+- log stage changes in timeline/activity
+- support manual reassignment of ownership
+- use role checks where needed
+
+PERFORMANCE REQUIREMENTS
+- avoid broad data fetches
+- paginate list endpoints
+- optimize board loading
+- avoid N+1 lookups
+- add indexes for common stage/owner/status queries
+
+APP DOCS REQUIREMENT
+Create/update docs for:
+- sales pipeline schema
+- opportunity lifecycle
+- stage system
+- lead → opportunity flow
+- API routes
+- UI modules
+- activity logging behavior
+- changelog/release notes
+
+NON-DESTRUCTIVE RULE
+Do not remove or break CRM/contact form/auth/docs foundations.
+Build incrementally and safely.
+
+DELIVERABLES
+- schema/migrations for pipeline/opportunities
+- board and list UI
+- opportunity detail workflow
+- activity logging hooks
+- App Docs updates

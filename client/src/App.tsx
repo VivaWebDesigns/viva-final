@@ -16,7 +16,7 @@ import { PreviewLangProvider } from "@/contexts/PreviewLangContext";
 import AdminLayout from "@/layouts/AdminLayout";
 import ProtectedRoute from "@features/auth/ProtectedRoute";
 import PlaceholderPage from "@features/admin/pages/PlaceholderPage";
-import { Users, TrendingUp, UserPlus, MessageSquare, CreditCard, Bell, BarChart3, Settings } from "lucide-react";
+import { UserPlus, MessageSquare, CreditCard, Bell, BarChart3, Settings } from "lucide-react";
 
 const Paquetes = lazy(() => import("@/pages/Paquetes"));
 const PaqueteEmpieza = lazy(() => import("@/pages/PaqueteEmpieza"));
@@ -34,6 +34,10 @@ const LeadListPage = lazy(() => import("@features/crm/LeadListPage"));
 const LeadDetailPage = lazy(() => import("@features/crm/LeadDetailPage"));
 const CompanyDetailPage = lazy(() => import("@features/crm/CompanyDetailPage"));
 const ContactDetailPage = lazy(() => import("@features/crm/ContactDetailPage"));
+const PipelineBoardPage = lazy(() => import("@features/pipeline/PipelineBoardPage"));
+const PipelineListPage = lazy(() => import("@features/pipeline/PipelineListPage"));
+const OpportunityDetailPage = lazy(() => import("@features/pipeline/OpportunityDetailPage"));
+const StageManagementPage = lazy(() => import("@features/pipeline/StageManagementPage"));
 
 function PageFallback() {
   return (
@@ -77,8 +81,15 @@ function AdminRouter() {
             <Route path="/admin/crm/contacts/:id">
               {(params) => <ContactDetailPage id={params.id} />}
             </Route>
-            <Route path="/admin/pipeline">
-              <PlaceholderPage title="Sales Pipeline" description="Manage deals and track progress through your sales workflow. Visualize your pipeline stages and forecast revenue." icon={TrendingUp} />
+            <Route path="/admin/pipeline" component={PipelineBoardPage} />
+            <Route path="/admin/pipeline/list" component={PipelineListPage} />
+            <Route path="/admin/pipeline/opportunities/:id">
+              {(params) => <OpportunityDetailPage id={params.id} />}
+            </Route>
+            <Route path="/admin/pipeline/stages">
+              <ProtectedRoute roles={["admin", "developer"]}>
+                <StageManagementPage />
+              </ProtectedRoute>
             </Route>
             <Route path="/admin/onboarding">
               <PlaceholderPage title="Client Onboarding" description="Streamlined client setup workflows. Manage onboarding checklists, collect assets, and track project kickoffs." icon={UserPlus} />

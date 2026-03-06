@@ -1,10 +1,11 @@
 import { Router } from "express";
 import { requireAuth, requireRole } from "../auth/middleware";
 import { db } from "../../db";
-import { user, contacts, docArticles, docCategories, integrationRecords, auditLogs, crmLeads, crmCompanies, crmContacts as crmContactsTable } from "@shared/schema";
+import { user, contacts, docArticles, docCategories, integrationRecords, auditLogs, crmLeads, crmCompanies, crmContacts as crmContactsTable, pipelineOpportunities } from "@shared/schema";
 import { sql, desc, eq } from "drizzle-orm";
 import { auth } from "../auth/auth";
 import { logAudit } from "../audit/service";
+import * as pipelineStorage from "../pipeline/storage";
 
 const router = Router();
 
@@ -17,6 +18,8 @@ router.get("/stats", requireRole("admin", "developer", "sales_rep"), async (_req
   const [leadCount] = await db.select({ count: sql<number>`count(*)::int` }).from(crmLeads);
   const [companyCount] = await db.select({ count: sql<number>`count(*)::int` }).from(crmCompanies);
   const [crmContactCount] = await db.select({ count: sql<number>`count(*)::int` }).from(crmContactsTable);
+  const [opportunityCount] = await db.select({ count: sql<number>`count(*)::int` }).from(pipelineOpportunities);
+  const pipelineStats = await pipelineStorage.getPipelineStats();
 
   const recentLeads = await db.select().from(crmLeads).orderBy(desc(crmLeads.createdAt)).limit(5);
 
@@ -29,6 +32,8 @@ router.get("/stats", requireRole("admin", "developer", "sales_rep"), async (_req
     leads: leadCount.count,
     companies: companyCount.count,
     crmContacts: crmContactCount.count,
+    opportunities: opportunityCount.count,
+    pipelineStats,
     recentLeads,
   });
 });

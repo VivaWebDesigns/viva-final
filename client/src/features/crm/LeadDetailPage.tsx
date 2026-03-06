@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import {
   ArrowLeft, Building2, User, Globe, Phone, Mail, MapPin,
   Calendar, Tag, MessageSquare, PhoneCall, MailIcon, ClipboardList,
-  RefreshCw, Bot, Send, ExternalLink,
+  RefreshCw, Bot, Send, ExternalLink, TrendingUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +19,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import type { CrmLead, CrmLeadStatus, CrmContact, CrmCompany, CrmLeadNote, CrmTag } from "@shared/schema";
+import { useToast } from "@/hooks/use-toast";
+import type { CrmLead, CrmLeadStatus, CrmContact, CrmCompany, CrmLeadNote, CrmTag, PipelineStage } from "@shared/schema";
 
 interface LeadDetail extends CrmLead {
   contact?: CrmContact | null;
@@ -47,6 +48,7 @@ const NOTE_TYPE_LABELS: Record<string, string> = {
 
 export default function LeadDetailPage({ id }: { id: string }) {
   const [, navigate] = useLocation();
+  const { toast } = useToast();
   const [noteContent, setNoteContent] = useState("");
   const [noteType, setNoteType] = useState("note");
 
@@ -106,6 +108,22 @@ export default function LeadDetailPage({ id }: { id: string }) {
     },
   });
 
+  const { data: pipelineStages } = useQuery<PipelineStage[]>({
+    queryKey: ["/api/pipeline/stages"],
+  });
+
+  const convertMutation = useMutation({
+    mutationFn: async (stageId: string) => {
+      const res = await apiRequest("POST", `/api/pipeline/convert-lead/${id}`, { stageId });
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      toast({ title: "Converted to opportunity" });
+      navigate(`/admin/pipeline/opportunities/${data.id}`);
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
   if (leadLoading) {
     return (
       <div className="space-y-4">
@@ -149,11 +167,36 @@ export default function LeadDetailPage({ id }: { id: string }) {
             Created {new Date(lead.createdAt).toLocaleDateString()}
           </p>
         </div>
-        {lead.value && (
-          <span className="text-lg font-semibold text-gray-900" data-testid="text-lead-value">
-            ${Number(lead.value).toLocaleString()}
-          </span>
-        )}
+        <div className="flex items-center gap-3 flex-shrink-0">
+          {lead.value && (
+            <span className="text-lg font-semibold text-gray-900" data-testid="text-lead-value">
+              ${Number(lead.value).toLocaleString()}
+            </span>
+          )}
+          {pipelineStages && pipelineStages.length > 0 && (
+            <Select
+              onValueChange={(stageId) => convertMutation.mutate(stageId)}
+              disabled={convertMutation.isPending}
+            >
+              <SelectTrigger className="w-auto" data-testid="button-convert-opportunity">
+                <div className="flex items-center gap-1.5">
+                  <TrendingUp className="w-4 h-4" />
+                  <span>{convertMutation.isPending ? "Converting..." : "Convert to Opportunity"}</span>
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                {pipelineStages.filter(s => !s.isClosed).map(stage => (
+                  <SelectItem key={stage.id} value={stage.id}>
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: stage.color }} />
+                      {stage.name}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -609,6 +609,368 @@ List endpoints return:
 \`\`\``,
   },
   {
+    title: "Sales Pipeline Schema",
+    slug: "pipeline-schema",
+    categorySlug: "sales-pipeline",
+    status: "published",
+    content: `# Sales Pipeline Schema
+
+## Tables
+
+### pipeline_stages
+Configurable pipeline stage definitions.
+| Column | Type | Notes |
+|--------|------|-------|
+| id | varchar (UUID) | Primary key |
+| name | text | Required (e.g., "Discovery") |
+| slug | text | Unique, URL-safe identifier |
+| color | text | Hex color for UI display |
+| sort_order | integer | Display order |
+| is_default | boolean | Default stage for new opportunities |
+| is_closed | boolean | Terminal stages (Won/Lost) |
+
+### pipeline_opportunities
+Sales deals/opportunities tracked through pipeline stages.
+| Column | Type | Notes |
+|--------|------|-------|
+| id | varchar (UUID) | Primary key |
+| title | text | Required |
+| value | numeric | Deal value in dollars |
+| stage_id | varchar | FK → pipeline_stages |
+| lead_id | varchar | FK → crm_leads (source lead) |
+| company_id | varchar | FK → crm_companies |
+| contact_id | varchar | FK → crm_contacts |
+| assigned_to | text | FK → user (owner) |
+| status | text | open, won, lost |
+| expected_close_date | timestamp | Forecasted close date |
+| next_action_date | timestamp | Next follow-up/action date |
+| follow_up_date | timestamp | Reminder date |
+| stage_entered_at | timestamp | When current stage was entered |
+| probability | integer | Win probability percentage |
+| source_lead_title | text | Original lead title (for history) |
+| notes | text | General notes |
+
+### pipeline_activities
+Activity timeline for opportunities (like CRM lead notes).
+| Column | Type | Notes |
+|--------|------|-------|
+| id | varchar (UUID) | Primary key |
+| opportunity_id | varchar | FK → pipeline_opportunities |
+| user_id | text | FK → user (who performed action) |
+| type | text | stage_change, note, call, email, task, system |
+| content | text | Activity description |
+| metadata | jsonb | Additional context (e.g., stage names) |
+
+## Indexes
+- pipeline_opportunities: stage_id, assigned_to, status, expected_close_date, created_at, lead_id, company_id
+- pipeline_activities: opportunity_id, created_at
+
+## Default Stages
+| Name | Slug | Color | Closed? |
+|------|------|-------|---------|
+| Discovery | discovery | #3B82F6 | No |
+| Proposal | proposal | #8B5CF6 | No |
+| Negotiation | negotiation | #F59E0B | No |
+| Closed Won | closed-won | #10B981 | Yes |
+| Closed Lost | closed-lost | #EF4444 | Yes |`,
+  },
+  {
+    title: "Opportunity Lifecycle",
+    slug: "pipeline-opportunity-lifecycle",
+    categorySlug: "sales-pipeline",
+    status: "published",
+    content: `# Opportunity Lifecycle
+
+## States
+An opportunity has two independent tracking dimensions:
+
+### Stage (Pipeline Position)
+Tracks where the deal is in the sales process:
+Discovery → Proposal → Negotiation → Closed Won / Closed Lost
+
+### Status (Deal Outcome)
+- **open** — Active deal in pipeline
+- **won** — Deal successfully closed
+- **lost** — Deal lost/abandoned
+
+## Lifecycle Flow
+\`\`\`
+Lead Created → [Convert to Opportunity]
+  → Discovery (open)
+  → Proposal (open)
+  → Negotiation (open)
+  → Closed Won (won) | Closed Lost (lost)
+\`\`\`
+
+## Stage Changes
+When an opportunity moves to a new stage:
+1. stage_id is updated to the new stage
+2. stage_entered_at is set to current timestamp
+3. If the new stage is marked "closed" (is_closed=true):
+   - Status auto-changes to "won" (closed-won) or "lost" (closed-lost)
+4. A stage_change activity is logged with from/to stage names
+
+## Reopening
+Won/Lost opportunities can be reopened:
+- Status reverts to "open"
+- Moved back to the default or first stage
+- Activity logged
+
+## Key Dates
+| Field | Purpose |
+|-------|---------|
+| expected_close_date | Revenue forecasting |
+| next_action_date | Task/follow-up tracking |
+| follow_up_date | Reminder scheduling |
+| stage_entered_at | Stage duration metrics |
+| created_at | Opportunity age tracking |`,
+  },
+  {
+    title: "Stage System",
+    slug: "pipeline-stage-system",
+    categorySlug: "sales-pipeline",
+    status: "published",
+    content: `# Pipeline Stage System
+
+## Overview
+Pipeline stages are fully configurable — they are database records, not hard-coded constants. Admin and Developer roles can add, edit, reorder, and delete stages.
+
+## Stage Properties
+| Property | Type | Purpose |
+|----------|------|---------|
+| name | text | Display name |
+| slug | text | URL-safe unique identifier |
+| color | hex | Visual color in board and badges |
+| sort_order | integer | Column order in kanban board |
+| is_default | boolean | Auto-assigned to new opportunities |
+| is_closed | boolean | Terminal stage (triggers status change) |
+
+## Default Stages (Seeded)
+1. Discovery (#3B82F6) — Default stage
+2. Proposal (#8B5CF6)
+3. Negotiation (#F59E0B)
+4. Closed Won (#10B981) — Closed
+5. Closed Lost (#EF4444) — Closed
+
+## Stage Management UI
+Located at /admin/pipeline/stages (Admin and Developer access).
+- Add new stages with name, color picker, and closed toggle
+- Delete stages (opportunities in that stage lose their stage assignment)
+- View sort order and stage metadata
+
+## Closed Stage Behavior
+When an opportunity moves to a closed stage:
+- If slug is "closed-won" → status set to "won"
+- Otherwise → status set to "lost"
+- This logic lives in the moveOpportunity storage function`,
+  },
+  {
+    title: "Lead → Opportunity Conversion",
+    slug: "pipeline-lead-conversion",
+    categorySlug: "sales-pipeline",
+    status: "published",
+    content: `# Lead → Opportunity Conversion
+
+## Overview
+CRM leads can be converted into pipeline opportunities. This creates a new opportunity linked back to the source lead, preserving the full history chain.
+
+## Conversion Flow
+\`\`\`
+Lead Detail Page
+  → Click "Convert to Opportunity"
+  → Select target pipeline stage
+  → POST /api/pipeline/convert-lead/:leadId
+  → Creates opportunity with:
+    - title from lead title
+    - value from lead value
+    - company/contact from lead associations
+    - assigned_to from lead assignment
+    - source_lead_title preserved for history
+  → System activity logged: "Created from lead: [title]"
+  → Navigate to new opportunity detail
+\`\`\`
+
+## Data Carried Over
+| Lead Field | Opportunity Field |
+|------------|------------------|
+| title | title |
+| value | value |
+| company_id | company_id |
+| contact_id | contact_id |
+| assigned_to | assigned_to |
+| notes | notes |
+| title | source_lead_title |
+
+## Important Notes
+- The lead is NOT deleted or modified
+- The opportunity gets a lead_id FK pointing back to the source lead
+- Multiple opportunities can be created from the same lead
+- The opportunity detail page shows a "Source Lead" link for traceability
+- Conversion is logged in audit_logs
+
+## API
+\`\`\`
+POST /api/pipeline/convert-lead/:leadId
+Body: { stageId: "uuid", title?: "override", value?: "override" }
+Returns: Created opportunity object
+\`\`\``,
+  },
+  {
+    title: "Pipeline API Routes",
+    slug: "pipeline-api-routes",
+    categorySlug: "api-reference",
+    status: "published",
+    content: `# Pipeline API Routes
+
+All pipeline endpoints require authentication.
+
+## Stages
+| Method | Path | Roles | Description |
+|--------|------|-------|-------------|
+| GET | /api/pipeline/stages | All | List all stages (sorted) |
+| POST | /api/pipeline/stages | Admin, Dev | Create stage |
+| PUT | /api/pipeline/stages/:id | Admin, Dev | Update stage |
+| DELETE | /api/pipeline/stages/:id | Admin | Delete stage |
+
+## Opportunities
+| Method | Path | Roles | Description |
+|--------|------|-------|-------------|
+| GET | /api/pipeline/opportunities | Admin, Sales | List (search, stageId, assignedTo, status, page, limit) |
+| GET | /api/pipeline/opportunities/board | Admin, Sales | Board data (grouped by stage) |
+| GET | /api/pipeline/opportunities/stats | Admin, Sales | Pipeline stats (value by stage) |
+| POST | /api/pipeline/opportunities | Admin, Sales | Create opportunity |
+| GET | /api/pipeline/opportunities/:id | Admin, Sales | Get detail |
+| PUT | /api/pipeline/opportunities/:id | Admin, Sales | Update opportunity |
+| PUT | /api/pipeline/opportunities/:id/stage | Admin, Sales | Move to stage (logs activity) |
+
+## Activities
+| Method | Path | Roles | Description |
+|--------|------|-------|-------------|
+| GET | /api/pipeline/opportunities/:id/activities | Admin, Sales | Activity timeline |
+| POST | /api/pipeline/opportunities/:id/activities | Admin, Sales | Add activity |
+
+## Lead Conversion
+| Method | Path | Roles | Description |
+|--------|------|-------|-------------|
+| POST | /api/pipeline/convert-lead/:leadId | Admin, Sales | Convert lead to opportunity |
+
+## Board Endpoint Response
+\`\`\`json
+{
+  "stages": [...],
+  "board": {
+    "stage-uuid-1": {
+      "stage": { ... },
+      "opportunities": [...]
+    }
+  }
+}
+\`\`\`
+
+## Pagination (List Endpoint)
+\`\`\`json
+{ "items": [...], "total": 42, "page": 1, "limit": 50 }
+\`\`\``,
+  },
+  {
+    title: "Pipeline UI Modules",
+    slug: "pipeline-ui-modules",
+    categorySlug: "ui-frontend",
+    status: "published",
+    content: `# Pipeline UI Modules
+
+## Frontend Files
+All pipeline UI lives in \`client/src/features/pipeline/\`:
+
+| File | Route | Description |
+|------|-------|-------------|
+| PipelineBoardPage.tsx | /admin/pipeline | Kanban board view |
+| PipelineListPage.tsx | /admin/pipeline/list | Table/list view |
+| OpportunityDetailPage.tsx | /admin/pipeline/opportunities/:id | Full detail page |
+| StageManagementPage.tsx | /admin/pipeline/stages | Stage config (Admin/Dev) |
+
+## Board View (PipelineBoardPage)
+- Columns for each stage (sorted by sort_order)
+- Cards show: title, company, value, probability, next action date
+- Hover reveals left/right arrow buttons to move between stages
+- Framer Motion for smooth card transitions
+- Stage header shows opportunity count and total value
+- Toggle to switch to list view
+
+## List View (PipelineListPage)
+- Searchable with filters for stage, status
+- Paginated results
+- Each row shows title, stage badge, value, dates
+- Click to navigate to detail
+
+## Detail Page (OpportunityDetailPage)
+- Summary: title, value, probability, dates, stage
+- Stage buttons to move between stages
+- Mark Won / Mark Lost / Reopen actions
+- Activity timeline (notes, calls, emails, stage changes)
+- Add activity form with type selector
+- Sidebar: linked company, contact, and source lead
+
+## Stage Management (StageManagementPage)
+- List of all stages with color dots and metadata
+- Add new stage form with name, color picker, closed toggle
+- Delete stages with confirmation
+- Admin/Developer only`,
+  },
+  {
+    title: "Pipeline Activity Logging",
+    slug: "pipeline-activity-logging",
+    categorySlug: "sales-pipeline",
+    status: "published",
+    content: `# Pipeline Activity Logging
+
+## Activity Types
+| Type | When Created | Auto? |
+|------|-------------|-------|
+| stage_change | Opportunity moves between stages | Auto |
+| system | Lead conversion, opportunity creation | Auto |
+| note | User adds a note | Manual |
+| call | User logs a call | Manual |
+| email | User logs an email | Manual |
+| task | User logs a task | Manual |
+
+## Auto-Generated Activities
+### Stage Change
+Created by moveOpportunity() in storage layer.
+\`\`\`json
+{
+  "type": "stage_change",
+  "content": "Moved from \\"Discovery\\" to \\"Proposal\\"",
+  "metadata": {
+    "fromStageId": "uuid",
+    "fromStageName": "Discovery",
+    "toStageId": "uuid",
+    "toStageName": "Proposal",
+    "newStatus": "open"
+  }
+}
+\`\`\`
+
+### Lead Conversion
+Created by convertLeadToOpportunity() in storage layer.
+\`\`\`json
+{
+  "type": "system",
+  "content": "Created from lead: \\"Company Name - Contact\\"",
+  "metadata": { "leadId": "uuid", "leadTitle": "..." }
+}
+\`\`\`
+
+### Opportunity Creation
+Created by POST /api/pipeline/opportunities route.
+
+## Audit Trail
+In addition to pipeline_activities, all pipeline mutations are logged in audit_logs with:
+- action: create, update, stage_change, convert_lead, delete
+- entity: pipeline_opportunity, pipeline_stage, pipeline_activity
+- metadata: relevant context (title, stage names, lead ID)`,
+  },
+  {
     title: "v1.0 — Foundation Release",
     slug: "v1-foundation-release",
     categorySlug: "changelog",
@@ -638,6 +1000,18 @@ List endpoints return:
 - Dashboard updated with CRM stats and recent leads
 - 6 new CRM documentation articles
 
+## v1.2 — Sales Pipeline (March 2026)
+- Pipeline schema: stages, opportunities, activities
+- Configurable pipeline stages (Discovery, Proposal, Negotiation, Closed Won, Closed Lost)
+- Kanban board view with click-to-move stage transitions
+- Opportunity list view with search, filters, pagination
+- Opportunity detail page with activity timeline and stage management
+- Stage management page (Admin/Developer only)
+- Lead → Opportunity conversion flow
+- Pipeline stats on dashboard (total value, deals by stage)
+- Mark Won / Mark Lost / Reopen actions
+- 7 new pipeline documentation articles
+
 ## Database Tables
 ### v1.0
 - user, session, account, verification (BetterAuth)
@@ -647,6 +1021,9 @@ List endpoints return:
 ### v1.1
 - crm_companies, crm_contacts, crm_leads, crm_lead_statuses
 - crm_lead_notes, crm_tags, crm_lead_tags
+
+### v1.2
+- pipeline_stages, pipeline_opportunities, pipeline_activities
 
 ## Technical Notes
 - All existing marketing site functionality preserved

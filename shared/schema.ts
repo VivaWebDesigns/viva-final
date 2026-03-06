@@ -269,6 +269,80 @@ export const crmLeadTags = pgTable("crm_lead_tags", {
   primaryKey({ columns: [t.leadId, t.tagId] }),
 ]);
 
+// ─── Pipeline Tables ─────────────────────────────────────────────────
+
+export const pipelineStages = pgTable("pipeline_stages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  color: text("color").notNull().default("#6B7280"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  isDefault: boolean("is_default").notNull().default(false),
+  isClosed: boolean("is_closed").notNull().default(false),
+});
+
+export const OPPORTUNITY_STATUSES = ["open", "won", "lost"] as const;
+export type OpportunityStatus = typeof OPPORTUNITY_STATUSES[number];
+
+export const pipelineOpportunities = pgTable("pipeline_opportunities", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  value: numeric("value"),
+  stageId: varchar("stage_id").references(() => pipelineStages.id),
+  leadId: varchar("lead_id").references(() => crmLeads.id),
+  companyId: varchar("company_id").references(() => crmCompanies.id),
+  contactId: varchar("contact_id").references(() => crmContacts.id),
+  assignedTo: text("assigned_to").references(() => user.id),
+  status: text("status").notNull().default("open"),
+  expectedCloseDate: timestamp("expected_close_date"),
+  nextActionDate: timestamp("next_action_date"),
+  followUpDate: timestamp("follow_up_date"),
+  stageEnteredAt: timestamp("stage_entered_at").defaultNow(),
+  probability: integer("probability").default(0),
+  sourceLeadTitle: text("source_lead_title"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (t) => [
+  index("pipeline_opp_stage_idx").on(t.stageId),
+  index("pipeline_opp_assigned_idx").on(t.assignedTo),
+  index("pipeline_opp_status_idx").on(t.status),
+  index("pipeline_opp_close_date_idx").on(t.expectedCloseDate),
+  index("pipeline_opp_created_idx").on(t.createdAt),
+  index("pipeline_opp_lead_idx").on(t.leadId),
+  index("pipeline_opp_company_idx").on(t.companyId),
+]);
+
+export const PIPELINE_ACTIVITY_TYPES = ["stage_change", "note", "call", "email", "task", "system"] as const;
+export type PipelineActivityType = typeof PIPELINE_ACTIVITY_TYPES[number];
+
+export const pipelineActivities = pgTable("pipeline_activities", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  opportunityId: varchar("opportunity_id").notNull().references(() => pipelineOpportunities.id),
+  userId: text("user_id").references(() => user.id),
+  type: text("type").notNull().default("note"),
+  content: text("content").notNull(),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("pipeline_act_opp_idx").on(t.opportunityId),
+  index("pipeline_act_created_idx").on(t.createdAt),
+]);
+
+// ─── Pipeline Zod Schemas & Types ────────────────────────────────────
+
+export const insertPipelineStageSchema = createInsertSchema(pipelineStages).omit({ id: true });
+export type InsertPipelineStage = z.infer<typeof insertPipelineStageSchema>;
+export type PipelineStage = typeof pipelineStages.$inferSelect;
+
+export const insertPipelineOpportunitySchema = createInsertSchema(pipelineOpportunities).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertPipelineOpportunity = z.infer<typeof insertPipelineOpportunitySchema>;
+export type PipelineOpportunity = typeof pipelineOpportunities.$inferSelect;
+
+export const insertPipelineActivitySchema = createInsertSchema(pipelineActivities).omit({ id: true, createdAt: true });
+export type InsertPipelineActivity = z.infer<typeof insertPipelineActivitySchema>;
+export type PipelineActivity = typeof pipelineActivities.$inferSelect;
+
 // ─── CRM Zod Schemas & Types ────────────────────────────────────────
 
 export const insertCrmCompanySchema = createInsertSchema(crmCompanies).omit({ id: true, createdAt: true, updatedAt: true });

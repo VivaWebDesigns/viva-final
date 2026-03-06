@@ -37,6 +37,7 @@ Marketing agency website targeting contractors (Spanish-first, conversion-optimi
 │   │   ├── auth/           # BetterAuth config + middleware
 │   │   ├── admin/          # Admin stats, seed, audit logs
 │   │   ├── crm/            # CRM storage, routes, ingest, seed
+│   │   ├── pipeline/       # Sales pipeline: stages, opportunities, activities
 │   │   ├── docs/           # Docs CRUD + seed data
 │   │   ├── integrations/   # Integration records + seed
 │   │   └── audit/          # Audit logging service
@@ -73,9 +74,14 @@ All marketing website copy managed from `client/src/content/content.json`.
 - **crm_tags** — Tag definitions
 - **crm_lead_tags** — Lead-tag join table
 
+### Sales Pipeline
+- **pipeline_stages** — Configurable pipeline stages (Discovery, Proposal, Negotiation, Closed Won, Closed Lost)
+- **pipeline_opportunities** — Deals/opportunities (title, value, stage, status, dates, probability, lead/company/contact FKs)
+- **pipeline_activities** — Activity timeline (stage_change, note, call, email, task, system)
+
 ### Docs & Integrations
 - **doc_categories** — Doc library categories (21 seeded)
-- **doc_articles** — Doc articles with content (15 seeded including 6 CRM docs)
+- **doc_articles** — Doc articles with content (22 seeded including 6 CRM + 7 pipeline docs)
 - **doc_tags** — Tag definitions
 - **doc_article_tags** — Article-tag join table
 - **doc_revisions** — Content revision history
@@ -112,7 +118,10 @@ Frontend captures UTM params (utm_source, utm_medium, utm_campaign, utm_term, ut
 - `/admin/crm/leads/:id` — Lead detail (status, attribution, notes, contact/company)
 - `/admin/crm/companies/:id` — Company detail (info, linked contacts/leads)
 - `/admin/crm/contacts/:id` — Contact detail (info, linked company/leads)
-- `/admin/pipeline` — Sales Pipeline (placeholder)
+- `/admin/pipeline` — Sales Pipeline board (kanban view)
+- `/admin/pipeline/list` — Opportunity list view
+- `/admin/pipeline/opportunities/:id` — Opportunity detail
+- `/admin/pipeline/stages` — Stage management (Admin/Developer only)
 - `/admin/onboarding` — Client Onboarding (placeholder)
 - `/admin/chat` — Team Chat (placeholder)
 - `/admin/payments` — Payments (placeholder)
@@ -144,6 +153,15 @@ Frontend captures UTM params (utm_source, utm_medium, utm_campaign, utm_term, ut
 - `GET/PUT /api/crm/contacts/:id` — Contact detail/update
 - `GET /api/crm/statuses` — Lead status list
 - `GET/POST /api/crm/tags` — CRM tags
+- `GET/POST /api/pipeline/stages` — Pipeline stages list/create
+- `PUT/DELETE /api/pipeline/stages/:id` — Stage update/delete
+- `GET/POST /api/pipeline/opportunities` — Opportunity list/create
+- `GET /api/pipeline/opportunities/board` — Kanban board data
+- `GET /api/pipeline/opportunities/stats` — Pipeline value stats
+- `GET/PUT /api/pipeline/opportunities/:id` — Opportunity detail/update
+- `PUT /api/pipeline/opportunities/:id/stage` — Move to stage
+- `GET/POST /api/pipeline/opportunities/:id/activities` — Activity timeline
+- `POST /api/pipeline/convert-lead/:leadId` — Convert lead to opportunity
 
 ## Environment Variables
 - `DATABASE_URL` — PostgreSQL connection string

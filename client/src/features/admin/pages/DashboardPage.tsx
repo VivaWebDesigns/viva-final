@@ -1,8 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { Users, FileText, BookOpen, Puzzle, Phone, Building2, UserCheck, TrendingUp, ArrowRight } from "lucide-react";
+import { Users, FileText, BookOpen, Puzzle, Phone, Building2, UserCheck, TrendingUp, ArrowRight, DollarSign, Target } from "lucide-react";
 import { useLocation } from "wouter";
 import type { CrmLead } from "@shared/schema";
+
+interface PipelineStats {
+  totalOpen: number;
+  totalValue: number;
+  byStage: { stageId: string; stageName: string; count: number; value: number }[];
+}
 
 interface Stats {
   users: number;
@@ -13,11 +19,14 @@ interface Stats {
   leads: number;
   companies: number;
   crmContacts: number;
+  opportunities: number;
+  pipelineStats: PipelineStats;
   recentLeads: CrmLead[];
 }
 
 const STAT_CARDS = [
   { key: "leads", label: "CRM Leads", icon: TrendingUp, color: "bg-teal-500" },
+  { key: "opportunities", label: "Opportunities", icon: Target, color: "bg-cyan-500" },
   { key: "companies", label: "Companies", icon: Building2, color: "bg-indigo-500" },
   { key: "crmContacts", label: "CRM Contacts", icon: UserCheck, color: "bg-emerald-500" },
   { key: "users", label: "Team Members", icon: Users, color: "bg-blue-500" },
@@ -39,7 +48,7 @@ export default function DashboardPage() {
         <p className="text-gray-500 text-sm mt-1">Platform overview</p>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 xl:grid-cols-8 gap-4 mb-8">
         {STAT_CARDS.map((card, i) => {
           const Icon = card.icon;
           const value = stats?.[card.key] ?? 0;
@@ -67,6 +76,44 @@ export default function DashboardPage() {
           );
         })}
       </div>
+
+      {stats?.pipelineStats && stats.pipelineStats.byStage.length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6" data-testid="card-pipeline-overview">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-gray-900">Pipeline Overview</h2>
+              {stats.pipelineStats.totalValue > 0 && (
+                <span className="flex items-center gap-1 text-sm font-medium text-green-600">
+                  <DollarSign className="w-3.5 h-3.5" />
+                  {stats.pipelineStats.totalValue.toLocaleString()} total value
+                </span>
+              )}
+            </div>
+            <button
+              onClick={() => setLocation("/admin/pipeline")}
+              className="text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1"
+              data-testid="link-view-pipeline"
+            >
+              View pipeline <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          <div className="flex gap-2">
+            {stats.pipelineStats.byStage.map((stage) => (
+              <div
+                key={stage.stageId}
+                className="flex-1 rounded-lg border border-gray-100 p-3 text-center"
+                data-testid={`pipeline-stage-${stage.stageId}`}
+              >
+                <p className="text-xs text-gray-500 mb-1 truncate">{stage.stageName}</p>
+                <p className="text-lg font-bold text-gray-900">{stage.count}</p>
+                {stage.value > 0 && (
+                  <p className="text-xs text-green-600 font-medium">${stage.value.toLocaleString()}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl border border-gray-200 p-6">
@@ -117,6 +164,17 @@ export default function DashboardPage() {
               <div>
                 <p className="text-sm font-medium text-gray-900">View CRM</p>
                 <p className="text-xs text-gray-500">Manage leads, contacts, and companies</p>
+              </div>
+            </button>
+            <button
+              onClick={() => setLocation("/admin/pipeline")}
+              className="w-full text-left p-3 rounded-lg hover:bg-gray-50 border border-gray-100 transition-colors flex items-center gap-3"
+              data-testid="link-quick-pipeline"
+            >
+              <Target className="w-5 h-5 text-cyan-500" />
+              <div>
+                <p className="text-sm font-medium text-gray-900">Sales Pipeline</p>
+                <p className="text-xs text-gray-500">Track deals through pipeline stages</p>
               </div>
             </button>
             <button

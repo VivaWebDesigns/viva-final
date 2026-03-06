@@ -4,10 +4,12 @@ import { adminRoutes } from "./admin";
 import { docsRoutes } from "./docs";
 import { integrationsRoutes } from "./integrations";
 import { crmRoutes } from "./crm";
+import { pipelineRoutes } from "./pipeline";
 import { requireRole } from "./auth/middleware";
 import { seedDocs } from "./docs/seed";
 import { seedIntegrations } from "./integrations/seed";
 import { seedCrmStatuses } from "./crm/seed";
+import { seedPipelineStages } from "./pipeline/seed";
 
 const router = Router();
 
@@ -16,13 +18,15 @@ router.use("/admin", adminRoutes);
 router.use("/docs", docsRoutes);
 router.use("/integrations", integrationsRoutes);
 router.use("/crm", crmRoutes);
+router.use("/pipeline", pipelineRoutes);
 
 router.post("/admin/seed", requireRole("admin"), async (_req, res) => {
   try {
     const docs = await seedDocs();
     const integrations = await seedIntegrations();
     const crm = await seedCrmStatuses();
-    res.json({ message: "Seed complete", docs, integrations, crm });
+    const pipeline = await seedPipelineStages();
+    res.json({ message: "Seed complete", docs, integrations, crm, pipeline });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }

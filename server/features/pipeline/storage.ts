@@ -1,0 +1,250 @@
+import { db } from "../../db";
+import {
+  pipelineStages, pipelineOpportunities, pipelineActivities,
+  crmLeads, crmCompanies, crmContacts, user,
+  type InsertPipelineStage, type InsertPipelineOpportunity, type InsertPipelineActivity,
+  type PipelineStage, type PipelineOpportunity, type PipelineActivity,
+} from "@shared/schema";
+import { eq, ilike, or, desc, asc, sql, and, count } from "drizzle-orm";
+
+interface PaginationParams {
+  page?: number;
+  limit?: number;
+}
+
+interface OpportunityFilters extends PaginationParams {
+  search?: string;
+  stageId?: string;
+  assignedTo?: string;
+  status?: string;
+}
+
+export async function getStages(): Promise<PipelineStage[]> {
+  return db.select().from(pipelineStages).orderBy(asc(pipelineStages.sortOrder));
+}
+
+export async function getStageById(id: string): Promise<PipelineStage | undefined> {
+  const [result] = await db.select().from(pipelineStages).where(eq(pipelineStages.id, id));
+  return result;
+}
+
+export async function getStageBySlug(slug: string): Promise<PipelineStage | undefined> {
+  const [result] = await db.select().from(pipelineStages).where(eq(pipelineStages.slug, slug));
+  return result;
+}
+
+export async function createStage(data: InsertPipelineStage): Promise<PipelineStage> {
+  const [result] = await db.insert(pipelineStages).values(data).returning();
+  return result;
+}
+
+export async function updateStage(id: string, data: Partial<InsertPipelineStage>): Promise<PipelineStage> {
+  const [result] = await db.update(pipelineStages).set(data).where(eq(pipelineStages.id, id)).returning();
+  return result;
+}
+
+export async function clearStageFromOpportunities(stageId: string): Promise<void> {
+  await db.update(pipelineOpportunities)
+    .set({ stageId: null, updatedAt: new Date() })
+    .where(eq(pipelineOpportunities.stageId, stageId));
+}
+
+export async function deleteStage(id: string): Promise<void> {
+  await db.delete(pipelineStages).where(eq(pipelineStages.id, id));
+}
+
+export async function upsertStage(data: InsertPipelineStage): Promise<PipelineStage> {
+  const existing = await getStageBySlug(data.slug);
+  if (existing) return existing;
+  return createStage(data);
+}
+
+export async function getOpportunities(filters: OpportunityFilters = {}) {
+  const { search, stageId, assignedTo, status, page = 1, limit = 50 } = filters;
+  const offset = (page - 1) * limit;
+  const conditions = [];
+
+  if (search) {
+    conditions.push(
+      or(
+        ilike(pipelineOpportunities.title, `%${search}%`),
+        ilike(pipelineOpportunities.notes, `%${search}%`),
+        ilike(pipelineOpportunities.sourceLeadTitle, `%${search}%`)
+      )
+    );
+  }
+  if (stageId) conditions.push(eq(pipelineOpportunities.stageId, stageId));
+  if (assignedTo) conditions.push(eq(pipelineOpportunities.assignedTo, assignedTo));
+  if (status) conditions.push(eq(pipelineOpportunities.status, status));
+
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const [items, totalResult] = await Promise.all([
+    where
+      ? db.select().from(pipelineOpportunities).where(where).orderBy(desc(pipelineOpportunities.createdAt)).limit(limit).offset(offset)
+      : db.select().from(pipelineOpportunities).orderBy(desc(pipelineOpportunities.createdAt)).limit(limit).offset(offset),
+    where
+      ? db.select({ total: count() }).from(pipelineOpportunities).where(where)
+      : db.select({ total: count() }).from(pipelineOpportunities),
+  ]);
+
+  return { items, total: totalResult[0]?.total ?? 0, page, limit };
+}
+
+export async function getOpportunitiesByStage() {
+  const stages = await getStages();
+  const allOpps = await db.select().from(pipelineOpportunities)
+    .where(eq(pipelineOpportunities.status, "open"))
+    .orderBy(asc(pipelineOpportunities.createdAt));
+
+  const board: Record<string, { stage: PipelineStage; opportunities: PipelineOpportunity[] }> = {};
+  for (const stage of stages) {
+    board[stage.id] = {
+      stage,
+      opportunities: allOpps.filter(o => o.stageId === stage.id),
+    };
+  }
+
+  return { stages, board };
+}
+
+export async function getOpportunityById(id: string): Promise<PipelineOpportunity | undefined> {
+  const [result] = await db.select().from(pipelineOpportunities).where(eq(pipelineOpportunities.id, id));
+  return result;
+}
+
+export async function createOpportunity(data: InsertPipelineOpportunity): Promise<PipelineOpportunity> {
+  const [result] = await db.insert(pipelineOpportunities).values({
+    ...data,
+    stageEnteredAt: new Date(),
+  }).returning();
+  return result;
+}
+
+export async function updateOpportunity(id: string, data: Partial<InsertPipelineOpportunity>): Promise<PipelineOpportunity> {
+  const [result] = await db.update(pipelineOpportunities).set({
+    ...data,
+    updatedAt: new Date(),
+  }).where(eq(pipelineOpportunities.id, id)).returning();
+  return result;
+}
+
+export async function moveOpportunity(
+  id: string,
+  newStageId: string,
+  userId?: string
+): Promise<{ opportunity: PipelineOpportunity; activity: PipelineActivity }> {
+  const existing = await getOpportunityById(id);
+  if (!existing) throw new Error("Opportunity not found");
+
+  const oldStage = existing.stageId ? await getStageById(existing.stageId) : null;
+  const newStage = await getStageById(newStageId);
+  if (!newStage) throw new Error("Stage not found");
+
+  const isClosed = newStage.isClosed;
+  const newStatus = isClosed
+    ? (newStage.slug === "closed-won" ? "won" : "lost")
+    : "open";
+
+  const opportunity = await updateOpportunity(id, {
+    stageId: newStageId,
+    stageEnteredAt: new Date(),
+    status: newStatus,
+  });
+
+  const activity = await addActivity({
+    opportunityId: id,
+    userId: userId || null,
+    type: "stage_change",
+    content: `Moved from "${oldStage?.name || "None"}" to "${newStage.name}"`,
+    metadata: {
+      fromStageId: existing.stageId,
+      fromStageName: oldStage?.name,
+      toStageId: newStageId,
+      toStageName: newStage.name,
+      newStatus,
+    },
+  });
+
+  return { opportunity, activity };
+}
+
+export async function convertLeadToOpportunity(
+  leadId: string,
+  stageId: string,
+  userId?: string,
+  extraData?: Partial<InsertPipelineOpportunity>
+): Promise<PipelineOpportunity> {
+  const lead = await db.select().from(crmLeads).where(eq(crmLeads.id, leadId)).then(r => r[0]);
+  if (!lead) throw new Error("Lead not found");
+
+  const opportunity = await createOpportunity({
+    title: extraData?.title || lead.title,
+    value: extraData?.value || lead.value,
+    stageId,
+    leadId,
+    companyId: lead.companyId,
+    contactId: lead.contactId,
+    assignedTo: extraData?.assignedTo || lead.assignedTo,
+    status: "open",
+    probability: extraData?.probability ?? 0,
+    sourceLeadTitle: lead.title,
+    notes: extraData?.notes || lead.notes,
+    expectedCloseDate: extraData?.expectedCloseDate || null,
+    nextActionDate: extraData?.nextActionDate || null,
+    followUpDate: extraData?.followUpDate || null,
+  });
+
+  await addActivity({
+    opportunityId: opportunity.id,
+    userId: userId || null,
+    type: "system",
+    content: `Created from lead: "${lead.title}"`,
+    metadata: { leadId, leadTitle: lead.title },
+  });
+
+  return opportunity;
+}
+
+export async function addActivity(data: InsertPipelineActivity): Promise<PipelineActivity> {
+  const [result] = await db.insert(pipelineActivities).values(data).returning();
+  return result;
+}
+
+export async function getActivities(opportunityId: string): Promise<PipelineActivity[]> {
+  return db.select().from(pipelineActivities)
+    .where(eq(pipelineActivities.opportunityId, opportunityId))
+    .orderBy(desc(pipelineActivities.createdAt));
+}
+
+export async function getOpportunityCount(): Promise<number> {
+  const [result] = await db.select({ total: count() }).from(pipelineOpportunities);
+  return result?.total ?? 0;
+}
+
+export async function getPipelineStats() {
+  const stages = await getStages();
+  const openOpps = await db.select().from(pipelineOpportunities)
+    .where(eq(pipelineOpportunities.status, "open"));
+
+  let totalValue = 0;
+  const byStage: { stageId: string; stageName: string; count: number; value: number }[] = [];
+
+  for (const stage of stages) {
+    const stageOpps = openOpps.filter(o => o.stageId === stage.id);
+    const stageValue = stageOpps.reduce((sum, o) => sum + parseFloat(o.value || "0"), 0);
+    totalValue += stageValue;
+    byStage.push({
+      stageId: stage.id,
+      stageName: stage.name,
+      count: stageOpps.length,
+      value: stageValue,
+    });
+  }
+
+  return {
+    totalOpen: openOpps.length,
+    totalValue,
+    byStage,
+  };
+}
