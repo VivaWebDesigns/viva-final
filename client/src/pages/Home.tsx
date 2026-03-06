@@ -62,17 +62,6 @@ export default function Home() {
       microcopy: t("home.packages.empieza.microcopy"),
     },
     {
-      name: t("home.packages.domina.name"),
-      subLabel: t("home.packages.domina.subLabel"),
-      slug: "domina",
-      icon: Crown,
-      desc: t("home.packages.domina.desc"),
-      positioning: t("home.packages.domina.positioning"),
-      price: t("home.packages.domina.price"),
-      microcopy: t("home.packages.domina.microcopy"),
-      popular: true,
-    },
-    {
       name: t("home.packages.crece.name"),
       subLabel: t("home.packages.crece.subLabel"),
       slug: "crece",
@@ -81,7 +70,19 @@ export default function Home() {
       positioning: t("home.packages.crece.positioning"),
       price: t("home.packages.crece.price"),
       microcopy: t("home.packages.crece.microcopy"),
+      popular: true,
+    },
+    {
+      name: t("home.packages.domina.name"),
+      subLabel: t("home.packages.domina.subLabel"),
+      slug: "domina",
+      icon: Crown,
+      desc: t("home.packages.domina.desc"),
+      positioning: t("home.packages.domina.positioning"),
+      price: t("home.packages.domina.price"),
+      microcopy: t("home.packages.domina.microcopy"),
       premium: true,
+      bestValue: true,
     },
   ];
 
@@ -250,7 +251,15 @@ export default function Home() {
                     </span>
                   </div>
                 )}
-                <div className={`rounded-2xl border bg-white dark:bg-[#0d0d0d] flex flex-col flex-1 transition-all duration-300 relative ${"popular" in pkg && pkg.popular ? "border-[#0D9488]/40 shadow-xl shadow-[#0D9488]/5 hover:shadow-2xl hover:shadow-[#0D9488]/10" : "border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-lg"}`}>
+                {"bestValue" in pkg && pkg.bestValue && (
+                  <div className="flex justify-center mb-3">
+                    <span className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold px-5 py-1.5 rounded-full uppercase tracking-widest flex items-center gap-1.5 shadow-lg" data-testid="badge-best-value">
+                      <Crown className="w-3 h-3 fill-white" />
+                      El Mejor Valor
+                    </span>
+                  </div>
+                )}
+                <div className={`rounded-2xl border bg-white dark:bg-[#0d0d0d] flex flex-col flex-1 transition-all duration-300 relative ${"popular" in pkg && pkg.popular ? "md:scale-[1.06] md:z-10 border-[#0D9488]/40 shadow-xl shadow-[#0D9488]/5 hover:shadow-2xl hover:shadow-[#0D9488]/10" : "border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-lg"}`}>
                   {"popular" in pkg && pkg.popular && (
                     <div className="absolute inset-0 rounded-2xl bg-[#0D9488]/5 blur-3xl -z-10 pointer-events-none" />
                   )}
