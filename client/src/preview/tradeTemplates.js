@@ -406,17 +406,42 @@ export const TRADE_KEYS = Object.keys(TRADES);
  * @param {string} opts.lang       - "en" | "es"
  * @param {string} opts.logoUrl    - optional external logo URL
  * @param {string} opts.heroImageUrl - optional custom hero image URL
+ * @param {string} opts.clientFirstName - prospect's first name (optional)
  */
+
+/**
+ * Builds a portfolio-style project list from galleryImages + services.
+ * Returns null for painting (uses the real portfolioProjects data file).
+ */
+function buildPortfolio(galleryImages, services, tradeName, city) {
+  if (!galleryImages) return null;
+  return galleryImages.slice(0, 6).map((img, i) => {
+    const svc = services[i % services.length];
+    return {
+      id:          String(i + 1),
+      title:       svc ? `${svc.title} — ${city}` : `${tradeName} Project ${i + 1}`,
+      location:    city,
+      services:    svc ? [svc.title] : [tradeName],
+      date:        `2025-${String(12 - (i % 12)).padStart(2, "0")}`,
+      imageUrl:    img.url,
+      imageAlt:    img.alt,
+      description: svc ? svc.description : `Professional ${tradeName} work completed in ${city}.`,
+    };
+  });
+}
+
 export function buildPreviewPayload(opts) {
-  const { tradeKey, name, city, phone, service, cta, lang, logoUrl, heroImageUrl } = opts;
+  const { tradeKey, name, city, phone, service, cta, lang, logoUrl, heroImageUrl, clientFirstName } = opts;
   const tpl = TRADES[tradeKey] || TRADES.painting;
   const l = lang === "es" ? "es" : "en";
   const tradeName = service || tpl.displayName[l];
   const bizName = name || (l === "es" ? "Contratista Profesional" : "Professional Contractor");
   const bizCity = city || (l === "es" ? "su ciudad" : "your city");
   const ctaText = cta || (l === "es" ? "Llama para cotización gratis" : "Get Your Free Estimate");
+  const svcList = tpl.services[l];
 
   return {
+    clientFirstName: clientFirstName || "",
     businessName:  bizName,
     city:          bizCity,
     phone:         phone || "(704) 555-0123",
@@ -430,7 +455,8 @@ export function buildPreviewPayload(opts) {
     heroImageUrl:  heroImageUrl || tpl.heroImageUrl,
     aboutImageUrl: tpl.aboutImageUrl,
     galleryImages: tpl.galleryImages,
-    services:      tpl.services[l],
+    services:      svcList,
     reviews:       tpl.reviews[l](bizCity),
+    portfolio:     buildPortfolio(tpl.galleryImages, svcList, tradeName, bizCity),
   };
 }

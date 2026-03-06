@@ -44,6 +44,8 @@ const ui = {
   en: {
     heading:         "Preview Link Generator",
     subheading:      "Fill in the prospect's details, select their trade and plan, then generate a personalized preview link. The trade automatically loads matching images, services, and reviews. Use the EN / ES button in the nav to set the preview language.",
+    labelFirstName:      "Client First Name",
+    placeholderFirstName:"e.g. Maria",
     labelTrade:      "Trade / Industry",
     tradeHint:       "Sets the hero image, services, gallery, and reviews automatically.",
     labelName:       "Business Name",
@@ -73,6 +75,8 @@ const ui = {
   es: {
     heading:         "Generador de Vista Previa",
     subheading:      "Llena los datos del prospecto, selecciona su oficio y plan, luego genera un enlace de vista previa personalizado. El oficio carga automáticamente imágenes, servicios y reseñas del sector. Usa EN / ES en la barra de navegación para el idioma de la vista previa.",
+    labelFirstName:      "Nombre del cliente",
+    placeholderFirstName:"Ej: Maria",
     labelTrade:      "Oficio / Industria",
     tradeHint:       "Configura automáticamente la imagen hero, servicios, galería y reseñas.",
     labelName:       "Nombre del negocio",
@@ -110,19 +114,21 @@ export default function AdminDemoBuilder() {
   const { lang } = usePreviewLang();
   const s = ui[lang];
 
-  const [trade,   setTrade]   = useState("painting");
-  const [name,    setName]    = useState("");
-  const [city,    setCity]    = useState("");
-  const [phone,   setPhone]   = useState("");
-  const [cta,     setCta]     = useState("");
-  const [logoUrl, setLogoUrl] = useState("");
-  const [pkg,     setPkg]     = useState("empieza");
+  const [trade,          setTrade]          = useState("painting");
+  const [clientFirstName,setClientFirstName] = useState("");
+  const [name,           setName]           = useState("");
+  const [city,           setCity]           = useState("");
+  const [phone,          setPhone]          = useState("");
+  const [cta,            setCta]            = useState("");
+  const [logoUrl,        setLogoUrl]        = useState("");
+  const [pkg,            setPkg]            = useState("empieza");
 
   const [generatedUrl, setGeneratedUrl] = useState("");
   const [copied,       setCopied]       = useState(false);
 
   function generateLink() {
     const payload = {
+      clientFirstName: clientFirstName.trim(),
       name:    name.trim(),
       city:    city.trim(),
       phone:   phone.trim(),
@@ -139,6 +145,7 @@ export default function AdminDemoBuilder() {
     } catch (_) {}
 
     const params = new URLSearchParams({ id, lang, trade });
+    if (payload.clientFirstName) params.set("clientFirstName", payload.clientFirstName);
     if (payload.name)    params.set("name",    payload.name);
     if (payload.city)    params.set("city",    payload.city);
     if (payload.phone)   params.set("phone",   payload.phone);
@@ -170,6 +177,14 @@ export default function AdminDemoBuilder() {
       </p>
 
       <div className="space-y-5 bg-card border border-border rounded-xl p-6">
+
+        {/* Client First Name */}
+        <div className="space-y-1.5">
+          <Label htmlFor="input-first-name">{s.labelFirstName}</Label>
+          <Input id="input-first-name" data-testid="input-first-name" placeholder={s.placeholderFirstName} value={clientFirstName} onChange={e => setClientFirstName(e.target.value)} />
+        </div>
+
+        <hr className="border-border" />
 
         {/* Trade selector */}
         <div className="space-y-1.5">
@@ -257,8 +272,10 @@ export default function AdminDemoBuilder() {
             <li>✅ Hero image — trade-appropriate Unsplash photo</li>
             <li>✅ About photo — trade-appropriate team photo</li>
             <li>✅ Gallery — 7 trade-appropriate work photos</li>
+            <li>✅ Portfolio — 6 trade-specific project cards (Domina)</li>
             <li>✅ 6 Services — trade-specific titles, descriptions &amp; benefits</li>
             <li>✅ 3 Reviews — trade-specific testimonials with {city || "city"} location</li>
+            {clientFirstName && <li>✅ Client name — "{clientFirstName}" saved in preview payload</li>}
           </ul>
         </div>
 

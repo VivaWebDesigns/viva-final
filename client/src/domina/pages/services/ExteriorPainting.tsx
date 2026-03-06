@@ -3,12 +3,13 @@ import { Navigation } from "@domina/components/Navigation";
 import { Footer } from "@domina/components/Footer";
 import { Button } from "@domina/components/ui/button";
 import { motion, useScroll, useTransform } from "framer-motion";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { ArrowRight, CheckCircle } from "lucide-react";
 import serviceExteriorParallax from "@domina/assets/images/parallax/exterior.webp";
 import { useLanguage } from "@domina/i18n/LanguageContext";
 
 export default function ExteriorPainting() {
+  const [, setLocation] = useLocation();
   const { t } = useLanguage();
   const containerRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({
@@ -43,6 +44,10 @@ export default function ExteriorPainting() {
     
     window.scrollTo(0, 0);
   }, []);
+
+  useEffect(() => { if ((window as any).__PREVIEW__) setLocation("/services"); }, [setLocation]);
+
+  if ((window as any).__PREVIEW__) return null;
 
   return (
     <div className="min-h-screen bg-background text-foreground">

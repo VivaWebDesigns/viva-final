@@ -300,16 +300,27 @@ export default function Gallery() {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [activeCategory, setActiveCategory] = useState<Category>("Interior");
 
+  const payload = (window as any).__PREVIEW__?.payload || null;
+  const previewImages: { url: string; alt: string }[] | null = payload?.galleryImages || null;
+
   useEffect(() => {
-    document.title = language === "en" ? "Project Gallery | Charlotte Painting Pro" : "Galería de Proyectos | Charlotte Painting Pro";
-    const meta = document.querySelector('meta[name="description"]');
-    if (meta) {
-      meta.setAttribute("content", language === "en" 
-        ? "Browse our gallery of completed painting projects across Charlotte, NC. Interior painting, exterior painting, cabinet refinishing, and deck & fence staining."
-        : "Explore nuestra galería de proyectos de pintura completados en Charlotte, NC. Pintura de interiores, pintura de exteriores, refinado de gabinetes y teñido de terrazas y cercas.");
+    if (payload) {
+      const biz = payload.businessName || "Professional Contractor";
+      const trade = payload.tradeName || "Services";
+      document.title = language === "en" ? `Project Gallery | ${biz}` : `Galería de Proyectos | ${biz}`;
+      const meta = document.querySelector('meta[name="description"]');
+      if (meta) meta.setAttribute("content", `Browse our gallery of completed ${trade} projects. Professional work in ${payload.city || "your area"}.`);
+    } else {
+      document.title = language === "en" ? "Project Gallery | Charlotte Painting Pro" : "Galería de Proyectos | Charlotte Painting Pro";
+      const meta = document.querySelector('meta[name="description"]');
+      if (meta) {
+        meta.setAttribute("content", language === "en"
+          ? "Browse our gallery of completed painting projects across Charlotte, NC. Interior painting, exterior painting, cabinet refinishing, and deck & fence staining."
+          : "Explore nuestra galería de proyectos de pintura completados en Charlotte, NC. Pintura de interiores, pintura de exteriores, refinado de gabinetes y teñido de terrazas y cercas.");
+      }
     }
     window.scrollTo(0, 0);
-  }, [language]);
+  }, [language, payload]);
 
   const filtered = galleryImages.filter((img) => img.category === activeCategory);
 
@@ -330,36 +341,41 @@ export default function Gallery() {
       </section>
 
 
-      <section className="pb-4">
-        <div className="container mx-auto px-4 md:px-6">
-          <div className="flex flex-wrap justify-center gap-3">
-            {categories.map((cat) => (
-              <Button
-                key={cat}
-                variant={activeCategory === cat ? "default" : "outline"}
-                onClick={() => setActiveCategory(cat)}
-                data-testid={`button-filter-${cat.toLowerCase().replace(/\s+/g, '-')}`}
-              >
-                {language === "en" ? cat : (
-                  cat === "Interior" ? "Interior" :
-                  cat === "Exterior" ? "Exterior" :
-                  cat === "Cabinets" ? "Gabinetes" :
-                  cat === "Deck" ? "Terraza" :
-                  cat === "Fence" ? "Cerca" :
-                  cat === "Commercial" ? "Comercial" : cat
-                )}
-              </Button>
-            ))}
+      {!previewImages && (
+        <section className="pb-4">
+          <div className="container mx-auto px-4 md:px-6">
+            <div className="flex flex-wrap justify-center gap-3">
+              {categories.map((cat) => (
+                <Button
+                  key={cat}
+                  variant={activeCategory === cat ? "default" : "outline"}
+                  onClick={() => setActiveCategory(cat)}
+                  data-testid={`button-filter-${cat.toLowerCase().replace(/\s+/g, '-')}`}
+                >
+                  {language === "en" ? cat : (
+                    cat === "Interior" ? "Interior" :
+                    cat === "Exterior" ? "Exterior" :
+                    cat === "Cabinets" ? "Gabinetes" :
+                    cat === "Deck" ? "Terraza" :
+                    cat === "Fence" ? "Cerca" :
+                    cat === "Commercial" ? "Comercial" : cat
+                  )}
+                </Button>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       <section className="py-12">
         <div className="container mx-auto px-4 md:px-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filtered.map((img, i) => (
+            {(previewImages || filtered).map((img, i) => {
+              const src = (img as any).url || (img as any).src;
+              const alt = (img as any).alt;
+              return (
               <motion.div
-                key={img.src}
+                key={src + i}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: i * 0.05 }}
@@ -369,8 +385,8 @@ export default function Gallery() {
               >
                 <div className="overflow-hidden">
                   <img
-                    src={img.src}
-                    alt={img.alt}
+                    src={src}
+                    alt={alt}
                     width={1200}
                     height={800}
                     loading="lazy"
@@ -378,6 +394,7 @@ export default function Gallery() {
                     data-testid={`img-gallery-${i}`}
                   />
                 </div>
+                {!previewImages && (
                 <div className="p-4">
                   <p className="text-foreground font-semibold text-sm">
                     {language === "en" ? img.caption : img.caption.replace("Kitchen Cabinet Refinish", "Refinado de Gabinetes de Cocina")
@@ -431,11 +448,13 @@ export default function Gallery() {
                     )}
                   </p>
                 </div>
+                )}
               </motion.div>
-            ))}
+              );
+            })}
           </div>
 
-          {filtered.length === 0 && (
+          {!previewImages && filtered.length === 0 && (
             <p className="text-center text-muted-foreground py-12">
               {t("gallery.noProjects")}
             </p>
@@ -484,7 +503,7 @@ export default function Gallery() {
               <ChevronLeft size={32} />
             </button>
           )}
-          {lightboxIndex < filtered.length - 1 && (
+          {lightboxIndex < (previewImages || filtered).length - 1 && (
             <button
               className="absolute right-4 top-1/2 -translate-y-1/2 text-white bg-black/40 hover:bg-black/60 rounded-full p-2 z-10 transition-colors"
               onClick={(e) => { e.stopPropagation(); setLightboxIndex(lightboxIndex + 1); }}
@@ -493,13 +512,21 @@ export default function Gallery() {
               <ChevronRight size={32} />
             </button>
           )}
-          <img
-            src={filtered[lightboxIndex].src}
-            alt={filtered[lightboxIndex].alt}
-            className="max-w-full max-h-[90vh] object-contain rounded-md"
-            onClick={(e) => e.stopPropagation()}
-            data-testid="img-lightbox"
-          />
+          {(() => {
+            const activeImages = previewImages || filtered;
+            const cur = activeImages[lightboxIndex];
+            const src = (cur as any).url || (cur as any).src;
+            const alt = (cur as any).alt;
+            return (
+              <img
+                src={src}
+                alt={alt}
+                className="max-w-full max-h-[90vh] object-contain rounded-md"
+                onClick={(e) => e.stopPropagation()}
+                data-testid="img-lightbox"
+              />
+            );
+          })()}
         </div>
       )}
     </div>

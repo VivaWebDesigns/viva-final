@@ -13,16 +13,28 @@ export default function Gallery() {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [activeCategory, setActiveCategory] = useState<ServiceCategory>("Interior");
 
+  const payload = (window as any).__PREVIEW__?.payload || null;
+  const previewGalleryImages: { url: string; alt: string }[] | null = payload?.galleryImages || null;
+
   useEffect(() => {
-    document.title = "Project Gallery | Charlotte Painting Pro";
-    const meta = document.querySelector('meta[name="description"]');
-    if (meta) {
-      meta.setAttribute("content", "Browse our gallery of completed painting projects across Charlotte, NC. Interior painting, exterior painting, cabinet refinishing, and deck & fence staining.");
+    if (payload) {
+      const biz = payload.businessName || "Your Business";
+      document.title = `Project Gallery | ${biz}`;
+      const meta = document.querySelector('meta[name="description"]');
+      if (meta) meta.setAttribute("content", `Browse our gallery of completed ${payload.tradeName || "contractor"} projects in ${payload.city || "your area"}.`);
+    } else {
+      document.title = "Project Gallery | Charlotte Painting Pro";
+      const meta = document.querySelector('meta[name="description"]');
+      if (meta) {
+        meta.setAttribute("content", "Browse our gallery of completed painting projects across Charlotte, NC. Interior painting, exterior painting, cabinet refinishing, and deck & fence staining.");
+      }
     }
     window.scrollTo(0, 0);
   }, []);
 
-  const filtered = allProjects.filter((img) => img.category === activeCategory);
+  const filtered = previewGalleryImages
+    ? previewGalleryImages.map((g, i) => ({ id: i, src: g.url, alt: g.alt, caption: g.alt, category: "Interior" as ServiceCategory, location: "" }))
+    : allProjects.filter((img) => img.category === activeCategory);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -55,7 +67,7 @@ export default function Gallery() {
         </div>
       </section>
 
-      <section className="pb-4">
+      {!previewGalleryImages && <section className="pb-4">
         <div className="container mx-auto px-4 md:px-6">
           <div className="flex flex-wrap justify-center gap-3">
             {SERVICE_CATEGORIES.map((cat) => (
@@ -70,7 +82,7 @@ export default function Gallery() {
             ))}
           </div>
         </div>
-      </section>
+      </section>}
 
       <section className="py-12">
         <div className="container mx-auto px-4 md:px-6">

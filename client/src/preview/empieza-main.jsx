@@ -25,6 +25,7 @@ function resolveClientData() {
     } catch (_) {}
   }
   return {
+    clientFirstName: params.get("clientFirstName") || "",
     name:      params.get("name")     || "",
     city:      params.get("city")     || "",
     phone:     params.get("phone")    || "",
@@ -42,15 +43,16 @@ const lang   = client.lang === "es" ? "es" : "en";
 
 // --- 2. Build the full payload using trade template + client overrides ---------
 const payload = buildPreviewPayload({
-  tradeKey:     client.trade || "painting",
-  name:         client.name,
-  city:         client.city,
-  phone:        client.phone,
-  service:      client.service,
-  cta:          client.cta,
+  tradeKey:        client.trade || "painting",
+  clientFirstName: client.clientFirstName,
+  name:            client.name,
+  city:            client.city,
+  phone:           client.phone,
+  service:         client.service,
+  cta:             client.cta,
   lang,
-  logoUrl:      client.logoUrl,
-  heroImageUrl: client.heroImageUrl,
+  logoUrl:         client.logoUrl,
+  heroImageUrl:    client.heroImageUrl,
 });
 
 // --- 3. Build tOverrides (text strings for the empieza t() system) -------------

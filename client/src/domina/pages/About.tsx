@@ -15,12 +15,20 @@ import { useLanguage } from "@domina/i18n/LanguageContext";
 
 export default function About() {
   const { t } = useLanguage();
+  const payload = (window as any).__PREVIEW__?.payload || null;
 
   useEffect(() => {
-    document.title = "About Us | Charlotte Painting Pro";
-    const meta = document.querySelector('meta[name="description"]');
-    if (meta) {
-      meta.setAttribute("content", "Meet David Martinez, owner of Charlotte Painting Pro. Over 15 years of professional painting experience serving Charlotte, NC and surrounding areas.");
+    if (payload) {
+      const biz = payload.businessName || "Your Business";
+      document.title = `About Us | ${biz}`;
+      const meta = document.querySelector('meta[name="description"]');
+      if (meta) meta.setAttribute("content", `Learn more about ${biz} — professional ${payload.tradeName || "contractors"} serving ${payload.city || "your area"}.`);
+    } else {
+      document.title = "About Us | Charlotte Painting Pro";
+      const meta = document.querySelector('meta[name="description"]');
+      if (meta) {
+        meta.setAttribute("content", "Meet David Martinez, owner of Charlotte Painting Pro. Over 15 years of professional painting experience serving Charlotte, NC and surrounding areas.");
+      }
     }
     window.scrollTo(0, 0);
   }, []);

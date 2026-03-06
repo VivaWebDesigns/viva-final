@@ -17,7 +17,31 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  Wrench,
+  Droplets,
+  ShowerHead,
+  Zap,
+  AlertTriangle,
+  HardHat,
+  Cloud,
+  Shield,
+  CircuitBoard,
+  Lightbulb,
+  Truck,
+  Leaf,
+  Flower2,
+  TreePine,
+  Thermometer,
+  Fan,
+  Wind,
+  Hammer,
 } from "lucide-react";
+
+const ICON_MAP: Record<string, React.ElementType> = {
+  PaintBucket, Wrench, Droplets, ShowerHead, Zap, AlertTriangle, HardHat, Cloud,
+  Shield, CircuitBoard, Lightbulb, Truck, Leaf, Flower2, TreePine, Thermometer,
+  Fan, Wind, Hammer, Building2, Sun, Fence, Layers, Home: HomeIcon,
+};
 import galleryKitchen1 from "@domina/assets/images/optimized/AdobeStock_615565130_1771521960347.webp";
 import galleryLiving1 from "@domina/assets/images/optimized/AdobeStock_470165599_1771521960348.webp";
 import galleryKitchen2 from "@domina/assets/images/optimized/ChatGPT_Image_Feb_19,_2026,_12_19_17_PM_1771521960349.webp";
@@ -100,20 +124,29 @@ export default function Services() {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const { t } = useLanguage();
 
+  const payload = (window as any).__PREVIEW__?.payload || null;
+  const previewServices: any[] | null = payload?.services || null;
+  const previewGalleryImages: { url: string; alt: string }[] | null = payload?.galleryImages || null;
+
   useEffect(() => {
-    document.title = "Our Services | Charlotte Painting Pro";
-    const meta = document.querySelector('meta[name="description"]');
-    if (meta) {
-      meta.setAttribute("content", "Interior painting, exterior painting, kitchen cabinet painting, and deck & fence staining services in Charlotte, NC. Get a free estimate from Charlotte Painting Pro.");
+    if (payload) {
+      const biz = payload.businessName || "Professional Contractor";
+      document.title = `Our Services | ${biz}`;
+      const meta = document.querySelector('meta[name="description"]');
+      if (meta) meta.setAttribute("content", `Professional ${payload.tradeName || "contractor"} services in ${payload.city || "your area"}. Get a free estimate.`);
+    } else {
+      document.title = "Our Services | Charlotte Painting Pro";
+      const meta = document.querySelector('meta[name="description"]');
+      if (meta) {
+        meta.setAttribute("content", "Interior painting, exterior painting, kitchen cabinet painting, and deck & fence staining services in Charlotte, NC. Get a free estimate from Charlotte Painting Pro.");
+      }
     }
     const hash = window.location.hash;
     if (hash && !hash.includes("/")) {
       setTimeout(() => {
         try {
           const el = document.querySelector(hash);
-          if (el) {
-            el.scrollIntoView({ behavior: "smooth" });
-          }
+          if (el) el.scrollIntoView({ behavior: "smooth" });
         } catch (_) {}
       }, 100);
     } else {
@@ -121,7 +154,9 @@ export default function Services() {
     }
   }, []);
 
-  const galleryImages = [
+  const galleryImages = previewGalleryImages
+    ? previewGalleryImages.map(g => ({ src: g.url, alt: g.alt }))
+    : [
     { src: galleryKitchen1, alt: "Beautiful kitchen with painted blue island" },
     { src: galleryExterior, alt: "Beautifully painted home exterior" },
     { src: galleryLiving1, alt: "Elegant living room interior" },
@@ -149,6 +184,48 @@ export default function Services() {
 
       <section className="pb-24">
         <div className="container mx-auto px-4 md:px-6">
+          {previewServices ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {previewServices.map((svc: any, i: number) => {
+                const Icon = ICON_MAP[svc.iconName] || Building2;
+                return (
+                  <motion.div
+                    key={svc.title + i}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.5, delay: i * 0.08 }}
+                    className="rounded-md border border-border bg-card overflow-hidden flex flex-col scroll-mt-24"
+                    data-testid={`block-service-preview-${i}`}
+                  >
+                    <div className="p-8 flex flex-col flex-1">
+                      <div className="w-14 h-14 rounded-md bg-primary/10 flex items-center justify-center text-primary mb-6">
+                        <Icon size={28} />
+                      </div>
+                      <h2 className="text-2xl font-bold text-foreground mb-3" style={{ fontFamily: 'var(--font-display)' }}>{svc.title}</h2>
+                      <p className="text-muted-foreground leading-relaxed mb-6">{svc.description}</p>
+                      <ul className="space-y-3 mb-6">
+                        {(svc.benefits || []).map((b: string, j: number) => (
+                          <li key={j} className="flex items-start gap-3 text-sm text-foreground/70">
+                            <span className="w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0 mt-1.5" />
+                            {b}
+                          </li>
+                        ))}
+                      </ul>
+                      <div className="mt-auto">
+                        <Link href="/contact#contact-form">
+                          <Button data-testid={`button-estimate-preview-${i}`} className="bg-primary text-primary-foreground font-semibold">
+                            {t.services.getEstimate}
+                            <ArrowRight className="ml-2" size={16} />
+                          </Button>
+                        </Link>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <ServiceBlock
               anchorId="interior-painting"
@@ -223,6 +300,7 @@ export default function Services() {
               delay={0.5}
             />
           </div>
+          )}
         </div>
       </section>
 

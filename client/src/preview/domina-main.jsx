@@ -28,6 +28,7 @@ function resolveClientData() {
     } catch (_) {}
   }
   return {
+    clientFirstName: params.get("clientFirstName") || "",
     name:      params.get("name")     || "",
     city:      params.get("city")     || "",
     phone:     params.get("phone")    || "",
@@ -45,15 +46,16 @@ const lang   = client.lang === "es" ? "es" : "en";
 
 // --- 2. Build the full payload using trade template + client overrides ---------
 const payload = buildPreviewPayload({
-  tradeKey:     client.trade || "painting",
-  name:         client.name,
-  city:         client.city,
-  phone:        client.phone,
-  service:      client.service,
-  cta:          client.cta,
+  tradeKey:        client.trade || "painting",
+  clientFirstName: client.clientFirstName,
+  name:            client.name,
+  city:            client.city,
+  phone:           client.phone,
+  service:         client.service,
+  cta:             client.cta,
   lang,
-  logoUrl:      client.logoUrl,
-  heroImageUrl: client.heroImageUrl,
+  logoUrl:         client.logoUrl,
+  heroImageUrl:    client.heroImageUrl,
 });
 
 localStorage.setItem("lang", lang);
@@ -74,8 +76,24 @@ const dominaOv = {
       expertiseTitle: `Quality ${tradeNoun[0].toUpperCase() + tradeNoun.slice(1)} Services`,
     },
     about: {
+      title:       `Meet the team at ${biz}.`,
       paragraph1:  `Welcome to ${biz}, proudly serving the greater ${c} area. With over 15 years of hands-on experience, we deliver high-quality ${tradeNoun} services tailored to every client's needs.`,
+      paragraph2:  `Whether you need a quick repair or a full project, we handle every job personally — from start to finish — ensuring quality, timeliness, and attention to detail.`,
+      valuesTitle: `Our Commitment to ${c}`,
       valuesText:  `At ${biz}, we believe in honest pricing, clear communication, and doing the job right the first time. We treat your home with the same care we'd give our own.`,
+    },
+    services: {
+      title: `Quality ${tradeNoun[0].toUpperCase() + tradeNoun.slice(1)} Services`,
+    },
+    gallery: {
+      title:    `Our ${tradeNoun[0].toUpperCase() + tradeNoun.slice(1)} Work`,
+      subtitle: `See the quality for yourself. Here are some of our recent ${tradeNoun} projects across the ${c} area.`,
+      likeTitle:    `Like What You See?`,
+      likeSubtitle: `Let's talk about your project. Get a free, no-obligation estimate from ${biz}.`,
+    },
+    portfolio: {
+      title:    `Our ${tradeNoun[0].toUpperCase() + tradeNoun.slice(1)} Projects`,
+      subtitle: `Real work, real results. Browse recent ${tradeNoun} projects completed in ${c} and surrounding areas.`,
     },
     footer: {
       copyright: `${biz}. All rights reserved.`,
@@ -93,8 +111,24 @@ const dominaOv = {
       expertiseTitle: `Servicios de ${tradeNoun[0].toUpperCase() + tradeNoun.slice(1)} de Calidad`,
     },
     about: {
+      title:       `Conozca al equipo de ${biz}.`,
       paragraph1:  `Bienvenido a ${biz}, al servicio del área de ${c}. Con más de 15 años de experiencia, brindamos servicios de ${tradeNoun} de alta calidad para cada cliente.`,
-      valuesText:  `En ${biz}, creemos en precios honestos, comunicación clara y hacer el trabajo bien desde la primera vez.`,
+      paragraph2:  `Ya sea una reparación rápida o un proyecto completo, manejamos cada trabajo personalmente, garantizando calidad, puntualidad y atención al detalle.`,
+      valuesTitle: `Nuestro Compromiso con ${c}`,
+      valuesText:  `En ${biz}, creemos en precios honestos, comunicación clara y hacer el trabajo bien desde la primera vez. Tratamos su hogar con el mismo cuidado que le daríamos al nuestro.`,
+    },
+    services: {
+      title: `Servicios de ${tradeNoun[0].toUpperCase() + tradeNoun.slice(1)} de Calidad`,
+    },
+    gallery: {
+      title:    `Nuestro Trabajo de ${tradeNoun[0].toUpperCase() + tradeNoun.slice(1)}`,
+      subtitle: `Vea la calidad por sí mismo. Aquí hay algunos de nuestros proyectos recientes de ${tradeNoun} en ${c}.`,
+      likeTitle:    `¿Le Gusta Lo Que Ve?`,
+      likeSubtitle: `Hablemos de su proyecto. Obtenga una estimación gratuita y sin compromiso de ${biz}.`,
+    },
+    portfolio: {
+      title:    `Nuestros Proyectos de ${tradeNoun[0].toUpperCase() + tradeNoun.slice(1)}`,
+      subtitle: `Trabajo real, resultados reales. Explore proyectos recientes de ${tradeNoun} completados en ${c} y alrededores.`,
     },
     footer: {
       copyright: `${biz}. Todos los derechos reservados.`,

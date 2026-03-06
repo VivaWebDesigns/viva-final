@@ -1,0 +1,159 @@
+The demo builder is improving, but Crece and Domina still have hardcoded painting content leaking through. I need a full cleanup pass across all preview/demo pages so no painting-specific content remains unless it is intentionally coming from the selected trade template.
+
+Current issues:
+1. On Crece and Domina, the gallery and portfolio pages are still generating the exact same painting content instead of changing by trade/client data.
+2. There are still hardcoded painting titles, labels, headings, descriptions, and other text appearing in different preview pages/components.
+3. The demo generator needs a new text field for the client’s first name.
+4. I need you to comb through ALL preview pages and related components for any mention of painting still being hardcoded.
+
+Goal:
+Make every preview page and every tier fully trade-aware and data-driven so switching from painting to another trade changes all visible trade-specific content, especially gallery, portfolio, titles, headings, and descriptive text.
+
+What I want you to do:
+1. Perform a full audit of all preview/demo routes, pages, and shared components used by:
+   - Empieza
+   - Crece
+   - Domina
+2. Search the entire codebase for hardcoded painting-related content, including terms such as:
+   - painting
+   - painter
+   - painters
+   - house painting
+   - interior painting
+   - exterior painting
+   - cabinet painting
+   - deck staining
+   - similar painting-specific phrases
+3. Inspect all preview pages, especially:
+   - gallery pages
+   - portfolio pages
+   - service pages/sections
+   - about sections
+   - testimonials/reviews
+   - CTA sections
+   - hero headings/subheadings
+   - SEO/meta title/description if present
+   - navigation labels if any are trade-specific
+4. Refactor all hardcoded trade-specific text so it comes from:
+   - explicit client demo data first
+   - selected trade template second
+   - generic fallback data last
+5. Make sure Crece and Domina gallery/portfolio content is not reusing static painting demo data.
+6. Make sure image sets, portfolio categories, captions, service titles, and descriptive text all change by trade/template/client data.
+7. Add a new field to the demo generator for:
+   - clientFirstName
+8. Make sure clientFirstName is:
+   - included in the form state
+   - saved in the demo payload
+   - preserved in preview generation
+   - available to all preview pages/components
+9. Use clientFirstName anywhere appropriate for personalization, such as:
+   - admin preview labels
+   - optional greeting text
+   - internal demo identification
+   But do not force it visibly into the site everywhere unless the current architecture already supports a reasonable use for it.
+
+Critical requirement:
+I need you to COMB ALL PREVIEW PAGES for any mention of painting that is still hardcoded.
+That includes:
+- visible UI text
+- hidden fallback strings
+- section titles
+- mock arrays
+- sample reviews
+- gallery captions
+- portfolio item names
+- hero copy
+- service lists
+- placeholder data imports
+- hardcoded constants
+- metadata
+- route-specific mock data
+- shared content utilities
+
+Specific fixes needed:
+A) Gallery pages
+- Gallery content must be generated from trade-aware data
+- No default painting galleries for non-painting trades
+- Image alt text and captions must also be trade-aware
+- Crece and Domina gallery pages must no longer mirror the same painting content
+
+B) Portfolio pages
+- Portfolio categories, project names, descriptions, and imagery must be trade-aware
+- Do not leave painting project titles in place for other trades
+- Portfolio cards should render from structured payload/template data, not static painting arrays
+
+C) Residual hardcoded text
+- Remove any remaining hardcoded painting headings or paragraph text from shared components
+- If a shared component needs fallback content, make it generic or trade-template-based
+- No painting-specific fallback should override other trades
+
+Builder/generator update:
+Add this field:
+- Client First Name
+
+Suggested data shape update:
+{
+  clientFirstName: "",
+  businessName: "",
+  trade: "",
+  phone: "",
+  email: "",
+  city: "",
+  serviceArea: [],
+  logoUrl: "",
+  hero: { ... },
+  about: { ... },
+  services: [ ... ],
+  gallery: [ ... ],
+  portfolio: [ ... ],
+  reviews: [ ... ],
+  faqs: [ ... ],
+  theme: { ... }
+}
+
+Architecture requirements:
+1. Shared pages/components must not import static painting mock data directly.
+2. Trade templates must define their own:
+   - gallery seed data
+   - portfolio seed data
+   - service titles/descriptions
+   - hero/about/CTA wording
+3. Normalization priority must be:
+   - client overrides
+   - trade template data
+   - generic fallback
+4. Ensure all tiers use the same normalization rules.
+5. Ensure Crece and Domina do not bypass the normalized payload and accidentally use old static content.
+
+Search/refactor checklist:
+- inspect all `mockData`, `defaultData`, `fallbackData`, `sampleContent`, and hardcoded content files
+- inspect all preview route components
+- inspect gallery and portfolio components separately for each tier
+- inspect shared card components and section components
+- inspect any utility that maps trade data into page props
+- inspect metadata/title utilities if present
+
+Do not do these:
+- do not redesign the sites
+- do not hardcode painting as default for all trades
+- do not only fix one page
+- do not leave Crece and Domina gallery/portfolio tied to painting mock content
+- do not add clientFirstName only visually without wiring it into the payload
+
+After fixing, tell me:
+1. every place where hardcoded painting content was found
+2. every file changed
+3. whether any painting-specific content still remains anywhere, and where
+4. how gallery data is now generated
+5. how portfolio data is now generated
+6. how clientFirstName was added to the payload and generator
+7. a short manual test checklist
+
+Success criteria:
+- Empieza, Crece, and Domina all render trade-aware previews
+- gallery pages change by trade
+- portfolio pages change by trade
+- no random painting headings/text remain when another trade is selected
+- clientFirstName exists in the demo generator and payload
+- preview pages no longer leak painting-specific hardcoded content
