@@ -112,7 +112,6 @@ export default function Paquetes() {
         description={t("paquetes.seo.description")}
         path="/paquetes"
       />
-
       {/* HERO */}
       <section className="relative pt-32 pb-20 lg:pt-40 lg:pb-28 bg-[#111] overflow-hidden" data-testid="section-paquetes-hero">
         <div className="absolute inset-0 opacity-15">
@@ -133,7 +132,6 @@ export default function Paquetes() {
           </motion.div>
         </div>
       </section>
-
       {/* COMPARISON TABLE */}
       <section className="py-24 lg:py-40 bg-white dark:bg-[#0d0d0d]" data-testid="section-comparison">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -222,7 +220,6 @@ export default function Paquetes() {
           </motion.div>
         </div>
       </section>
-
       {/* PACKAGE CARDS */}
       <section className="py-24 lg:py-40 bg-white dark:bg-[#0d0d0d]" data-testid="section-paquetes-cards" id="paquetes-list">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -318,9 +315,8 @@ export default function Paquetes() {
           </motion.p>
         </div>
       </section>
-
       {/* SUPPORT PLAN */}
-      <section id="plan-soporte" className="py-16 lg:py-20 bg-white dark:bg-[#0d0d0d]" data-testid="section-support-plan">
+      <section id="plan-soporte" className="py-16 lg:py-20 dark:bg-[#0d0d0d] bg-[#fcfcfc]" data-testid="section-support-plan">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center">
             <motion.div variants={fadeUp} className="inline-flex items-center gap-2 bg-[#f5f5f5] dark:bg-[#111] border border-gray-200 dark:border-gray-700 rounded-full px-5 py-2 mb-6 shadow-sm">
@@ -347,7 +343,6 @@ export default function Paquetes() {
           </motion.div>
         </div>
       </section>
-
       {/* FAQ */}
       <section className="py-24 lg:py-40 bg-white dark:bg-[#0d0d0d]" data-testid="section-paquetes-faq">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -367,7 +362,6 @@ export default function Paquetes() {
           </motion.div>
         </div>
       </section>
-
       {/* FINAL CTA */}
       <section className="py-24 lg:py-40 bg-[#111]" data-testid="section-paquetes-cta">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
