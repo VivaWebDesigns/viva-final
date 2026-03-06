@@ -135,8 +135,8 @@ export function Navigation() {
                 {t("getFreeEstimate")}
               </Button>
             </Link>
-            <a href="tel:7045550123" className="flex items-center justify-center gap-2 text-muted-foreground font-medium py-3 mt-2" data-testid="link-mobile-phone">
-              <Phone size={16} /> (704) 555-0123
+            <a href={`tel:${((window as any).__PREVIEW__?.phone || "(704) 555-0123").replace(/\D/g, '')}`} className="flex items-center justify-center gap-2 text-muted-foreground font-medium py-3 mt-2" data-testid="link-mobile-phone">
+              <Phone size={16} /> {(window as any).__PREVIEW__?.phone || "(704) 555-0123"}
             </a>
           </motion.div>
         )}
@@ -144,7 +144,7 @@ export function Navigation() {
     </nav>
     {!isOpen && (
       <a
-        href="https://wa.me/17045550123"
+        href={`https://wa.me/${(() => { const d = ((window as any).__PREVIEW__?.phone || "17045550123").replace(/\D/g,''); return d.length === 10 ? '1' + d : d; })()}`}
         target="_blank"
         rel="noopener noreferrer"
         data-testid="button-whatsapp-float"

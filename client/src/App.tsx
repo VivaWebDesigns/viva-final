@@ -16,6 +16,7 @@ import PaqueteCrece from "@/pages/PaqueteCrece";
 import PaqueteDomina from "@/pages/PaqueteDomina";
 import Contacto from "@/pages/Contacto";
 import Demo from "@/pages/Demo";
+import AdminDemoBuilder from "@/pages/AdminDemoBuilder";
 import NotFound from "@/pages/not-found";
 import JsonLd from "@/components/JsonLd";
 
@@ -29,6 +30,8 @@ function Router() {
       <Route path="/paquetes/domina" component={PaqueteDomina} />
       <Route path="/contacto" component={Contacto} />
       <Route path="/demo" component={Demo} />
+      {/* Internal admin route — not linked publicly, used to generate preview links */}
+      <Route path="/admin/demo-builder" component={AdminDemoBuilder} />
       <Route component={NotFound} />
     </Switch>
   );

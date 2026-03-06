@@ -185,6 +185,10 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   }, [language]);
 
   const t = (key: string) => {
+    // Preview override: if window.__PREVIEW__.tOverrides has this key, use it instead.
+    // This lets the /preview/crece page inject custom business name, city, phone, etc.
+    const previewOverrides = (window as any).__PREVIEW__?.tOverrides || {};
+    if (previewOverrides[key] !== undefined) return previewOverrides[key];
     return translations[language][key] || key;
   };
 

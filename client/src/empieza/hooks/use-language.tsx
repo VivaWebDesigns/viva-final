@@ -255,6 +255,10 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguage] = useState<Language>("en");
 
   const t = (key: string) => {
+    // Preview override: if window.__PREVIEW__.tOverrides has this key, use it instead.
+    // This lets the /preview/empieza page inject custom business name, city, phone, etc.
+    const previewOverrides = (window as any).__PREVIEW__?.tOverrides || {};
+    if (previewOverrides[key] !== undefined) return previewOverrides[key];
     return translations[language][key as keyof typeof translations["en"]] || key;
   };
 

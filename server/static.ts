@@ -13,12 +13,17 @@ export function serveStatic(app: Express) {
   app.use(express.static(distPath));
 
   const mpaHtmlFiles: Record<string, string> = {
+    // Public demo routes — linked from /demo showroom
     "/empieza": "empieza.html",
     "/empieza.html": "empieza.html",
     "/crece": "crece.html",
     "/crece.html": "crece.html",
     "/domina": "domina.html",
     "/domina.html": "domina.html",
+    // Private preview routes — not linked publicly, noindex meta tag, read URL params for customization
+    "/preview/empieza": "preview-empieza.html",
+    "/preview/crece": "preview-crece.html",
+    "/preview/domina": "preview-domina.html",
   };
 
   app.use("/{*path}", (req, res) => {

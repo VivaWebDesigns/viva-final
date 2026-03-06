@@ -39,6 +39,11 @@ export default defineConfig({
         empieza: path.resolve(import.meta.dirname, "client", "empieza.html"),
         crece: path.resolve(import.meta.dirname, "client", "crece.html"),
         domina: path.resolve(import.meta.dirname, "client", "domina.html"),
+        // Private preview entry points — served at /preview/empieza, /preview/crece, /preview/domina
+        // These are separate builds that read URL params and customize demo content at runtime.
+        "preview-empieza": path.resolve(import.meta.dirname, "client", "preview-empieza.html"),
+        "preview-crece": path.resolve(import.meta.dirname, "client", "preview-crece.html"),
+        "preview-domina": path.resolve(import.meta.dirname, "client", "preview-domina.html"),
       },
     },
   },

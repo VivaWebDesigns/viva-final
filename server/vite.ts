@@ -42,6 +42,10 @@ export async function setupVite(server: Server, app: Express) {
         "/crece.html": "crece.html",
         "/domina": "domina.html",
         "/domina.html": "domina.html",
+        // Private preview routes — served at /preview/* with URL param customization
+        "/preview/empieza": "preview-empieza.html",
+        "/preview/crece": "preview-crece.html",
+        "/preview/domina": "preview-domina.html",
       };
 
       const urlPath = url.split("?")[0];
