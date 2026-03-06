@@ -60,6 +60,7 @@ export default function Home() {
       positioning: t("home.packages.empieza.positioning"),
       price: t("home.packages.empieza.price"),
       microcopy: t("home.packages.empieza.microcopy"),
+      inicio: true,
     },
     {
       name: t("home.packages.crece.name"),
@@ -251,6 +252,14 @@ export default function Home() {
                     </span>
                   </div>
                 )}
+                {"inicio" in pkg && pkg.inicio && (
+                  <div className="flex justify-center mb-3 relative z-20">
+                    <span className="bg-[#FCD34D] text-[#111] text-xs font-bold px-5 py-1.5 rounded-full uppercase tracking-widest flex items-center gap-1.5 shadow-lg" data-testid="badge-inicio">
+                      <Zap className="w-3 h-3 fill-[#111]" />
+                      Inicio
+                    </span>
+                  </div>
+                )}
                 {"bestValue" in pkg && pkg.bestValue && (
                   <div className="flex justify-center mb-3 relative z-20">
                     <span className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold px-5 py-1.5 rounded-full uppercase tracking-widest flex items-center gap-1.5 shadow-lg" data-testid="badge-best-value">
@@ -261,7 +270,7 @@ export default function Home() {
                 )}
                 <div className={`rounded-[20px] border bg-white dark:bg-[#0d0d0d] flex flex-col flex-1 transition-all duration-300 relative z-20 ${"popular" in pkg && pkg.popular ? "md:scale-[1.06] border-[#efefef] shadow-xl shadow-[#0D9488]/5 hover:shadow-2xl hover:shadow-[#0D9488]/10" : "border-[#efefef] shadow-sm hover:shadow-lg"}`}>
                   {"popular" in pkg && pkg.popular && (
-                    <div className="absolute inset-0 rounded-[20px] bg-[#0D9488]/20 blur-[60px] -z-30 pointer-events-none scale-110" />
+                    <div className="absolute inset-0 rounded-[20px] bg-[#0D9488]/20 blur-[60px] -z-30 pointer-events-none scale-90" />
                   )}
                   <div className="p-8 lg:p-10 text-center bg-[#ffffff] rounded-t-[20px]">
                     <div className="w-12 h-12 mx-auto rounded-xl flex items-center justify-center mb-5 bg-[#10B981]/10">
