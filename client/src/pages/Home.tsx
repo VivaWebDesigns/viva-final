@@ -182,8 +182,8 @@ export default function Home() {
       </section>
       {/* SECTION 3 – SOLUTION POSITIONING */}
       <section className="py-24 lg:py-40 bg-[#f9f9f9] dark:bg-[#111] relative overflow-hidden" data-testid="section-solution">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-5xl h-px bg-gradient-to-r from-transparent via-[#0D9488]/30 to-transparent shadow-[0_0_100px_40px_rgba(13,148,136,0.1)] pointer-events-none" />
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-5xl h-px bg-gradient-to-r from-transparent via-[#0D9488]/30 to-transparent shadow-[0_0_100px_40px_rgba(13,148,136,0.1)] pointer-events-none" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-5xl h-[2px] bg-gradient-to-r from-transparent via-[#0D9488]/60 to-transparent shadow-[0_0_120px_50px_rgba(13,148,136,0.25)] pointer-events-none" />
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-5xl h-[2px] bg-gradient-to-r from-transparent via-[#0D9488]/60 to-transparent shadow-[0_0_120px_50px_rgba(13,148,136,0.25)] pointer-events-none" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center max-w-3xl mx-auto mb-16">
             <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#111] dark:text-white leading-tight mb-6" data-testid="text-solution-title">
