@@ -101,8 +101,10 @@ export default function Contacto() {
       </section>
 
       {/* FORM SECTION */}
-      <section className="py-24 lg:py-40 bg-white dark:bg-[#0d0d0d]" data-testid="section-contacto-form">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="py-24 lg:py-40 bg-white dark:bg-[#0d0d0d] relative overflow-hidden" data-testid="section-contacto-form">
+        <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-[#0D9488]/60 to-transparent shadow-[0_0_120px_50px_rgba(13,148,136,0.25)] pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-[#0D9488]/20 to-transparent shadow-[0_0_60px_20px_rgba(13,148,136,0.07)] pointer-events-none" />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-12 lg:gap-16">
             {/* FORM */}
             <motion.div
