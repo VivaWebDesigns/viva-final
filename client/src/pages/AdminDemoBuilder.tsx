@@ -7,6 +7,13 @@
  * The EN/ES language toggle in the navigation bar controls two things at once:
  *   1. The language of THIS page's UI labels.
  *   2. The language the demo preview site will open in when the link is visited.
+ *
+ * How the preview link works:
+ *   - A unique demoId is generated and the full payload is saved to localStorage
+ *     under the key `vvwd_preview_${demoId}`.
+ *   - The URL also includes all fields as query params so the link is self-contained
+ *     for cross-device sharing (if the prospect opens on a different device,
+ *     the preview falls back to reading the URL params directly).
  */
 
 import { useState } from "react";
@@ -72,6 +79,12 @@ const ui = {
   },
 };
 
+/** Generates a random 12-character alphanumeric id. */
+function generateId(): string {
+  return Math.random().toString(36).slice(2, 8) +
+         Math.random().toString(36).slice(2, 8);
+}
+
 export default function AdminDemoBuilder() {
   // Language selection comes from the nav bar toggle (shared context).
   // It controls both the UI language of this page and the preview link's lang param.
@@ -91,13 +104,32 @@ export default function AdminDemoBuilder() {
   const [copied,       setCopied]       = useState(false);
 
   function generateLink() {
-    const params = new URLSearchParams();
-    if (name.trim())    params.set("name",    name.trim());
-    if (city.trim())    params.set("city",    city.trim());
-    if (phone.trim())   params.set("phone",   phone.trim());
-    if (service.trim()) params.set("service", service.trim());
-    if (cta.trim())     params.set("cta",     cta.trim());
-    params.set("lang", lang);
+    // 1. Build the payload
+    const payload = {
+      name:    name.trim(),
+      city:    city.trim(),
+      phone:   phone.trim(),
+      service: service.trim(),
+      cta:     cta.trim(),
+      lang,
+      tier:    pkg,
+    };
+
+    // 2. Generate a unique demoId and persist to localStorage
+    const id = generateId();
+    try {
+      localStorage.setItem(`vvwd_preview_${id}`, JSON.stringify(payload));
+    } catch (_) {}
+
+    // 3. Build the URL: primary lookup key is `id`;
+    //    all fields are also included as URL params so the link is self-contained
+    //    when opened on a device that doesn't have this localStorage entry.
+    const params = new URLSearchParams({ id, lang });
+    if (payload.name)    params.set("name",    payload.name);
+    if (payload.city)    params.set("city",    payload.city);
+    if (payload.phone)   params.set("phone",   payload.phone);
+    if (payload.service) params.set("service", payload.service);
+    if (payload.cta)     params.set("cta",     payload.cta);
 
     const base = `${window.location.origin}/preview/${pkg}`;
     setGeneratedUrl(`${base}?${params.toString()}`);

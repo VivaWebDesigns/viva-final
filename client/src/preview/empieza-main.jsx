@@ -1,25 +1,16 @@
 /**
  * Preview entry point for Plan Empieza (/preview/empieza)
  *
- * This renders the same Empieza demo site but with custom business info
- * injected via URL query parameters. No "Modo Demo" bar is shown here —
- * this is a private sales preview meant to be shared with prospects.
- *
- * Supported URL parameters (all optional, all have fallback defaults):
- *   ?name=    Business name shown in key sections
- *   ?city=    City name shown in hero and footer copy
- *   ?phone=   Phone number shown in navigation (formatted, e.g. "(704) 555-0123")
- *   ?service= Service type label (for future use / CTA label)
- *   ?cta=     Text for the primary "Get Estimate" CTA button
- *   ?lang=    Language to display: "en" (English) or "es" (Spanish). Default: "en"
- *
- * How it works:
- *   1. URL params are read before React renders.
- *   2. window.__PREVIEW__ is set with the parsed values.
- *   3. The LanguageProvider in hooks/use-language.tsx checks window.__PREVIEW__.tOverrides
+ * Data flow:
+ *   1. Admin builder saves payload to localStorage under key `vvwd_preview_${id}`
+ *      and generates a URL like /preview/empieza?id=abc123
+ *   2. On load, we read `id` from the URL and look up the payload in localStorage.
+ *   3. If localStorage has no data (different device / cleared), we fall back to
+ *      individual URL params (?name=...&city=...&phone=...&cta=...&lang=...).
+ *   4. window.__PREVIEW__ is set with the resolved values BEFORE React renders.
+ *   5. The LanguageProvider in hooks/use-language.tsx checks window.__PREVIEW__.tOverrides
  *      on every t() call and returns the override value if present.
- *   4. window.__PREVIEW__.lang sets the initial language on first render.
- *   5. Navigation.tsx reads window.__PREVIEW__.phone for phone link and WhatsApp button.
+ *   6. Navigation.tsx reads window.__PREVIEW__.phone for tel: and WhatsApp links.
  */
 
 import { StrictMode } from "react";
@@ -29,39 +20,98 @@ import { useHashLocation } from "wouter/use-hash-location";
 import App from "@empieza/App.tsx";
 import "@empieza/index.css";
 
-// --- 1. Parse URL params with fallback defaults ---
-function getParam(name, fallback) {
-  return new URLSearchParams(window.location.search).get(name) || fallback;
+// --- 1. Resolve preview data: localStorage first, URL params as fallback ---
+function resolvePreviewData() {
+  const params = new URLSearchParams(window.location.search);
+
+  // Try localStorage lookup by demoId
+  const id = params.get("id");
+  if (id) {
+    try {
+      const saved = localStorage.getItem(`vvwd_preview_${id}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          name:    parsed.name    || "",
+          city:    parsed.city    || "",
+          phone:   parsed.phone   || "",
+          service: parsed.service || "",
+          cta:     parsed.cta     || "",
+          lang:    parsed.lang    || "en",
+        };
+      }
+    } catch (_) {}
+  }
+
+  // Fallback: read individual URL params (cross-device sharing)
+  return {
+    name:    params.get("name")    || "",
+    city:    params.get("city")    || "",
+    phone:   params.get("phone")   || "",
+    service: params.get("service") || "",
+    cta:     params.get("cta")     || "",
+    lang:    params.get("lang")    || "en",
+  };
 }
 
-const name    = getParam("name",    "Charlotte Painting Pro");
-const city    = getParam("city",    "Charlotte");
-const phone   = getParam("phone",   "(704) 555-0123");
-const service = getParam("service", "Painting");
-const cta     = getParam("cta",     "Get Your Free Estimate");
-// Language: "en" or "es". Empieza's LanguageProvider reads window.__PREVIEW__.lang for initial state.
-const lang    = getParam("lang",    "en");
+const data = resolvePreviewData();
 
-// --- 2. Inject preview params into window BEFORE React renders ---
-// The empieza LanguageProvider checks window.__PREVIEW__.tOverrides on each t() call.
-// window.__PREVIEW__.phone is used by Navigation for tel: and WhatsApp links.
-// window.__PREVIEW__.lang sets the initial language.
+// Apply defaults only for truly blank fields
+const name    = data.name    || "Charlotte Painting Pro";
+const city    = data.city    || "Charlotte";
+const phone   = data.phone   || "(704) 555-0123";
+const service = data.service || "Painting";
+const cta     = data.cta     || "Get Your Free Estimate";
+const lang    = data.lang    === "es" ? "es" : "en";
+
+// --- 2. Set localStorage language so LanguageProvider initialises correctly ---
+// (empieza reads window.__PREVIEW__.lang instead)
+
+// --- 3. Inject into window BEFORE React renders ---
 window.__PREVIEW__ = {
   phone,
   lang,
   tOverrides: {
-    // Override the CTA button text
+    // Hero title — make the business name the centrepiece.
+    // The empieza Home.tsx splits on "painting needs" / "necesidades de pintura"
+    // to apply accent-colour styling, so the string must include that phrase.
+    // EN: "Name has your [painting needs] covered."
+    // ES: "Name tiene tus [necesidades de pintura]" (no trailing text — clean render)
+    heroTitle:
+      lang === "es"
+        ? `${name} tiene tus `
+        : `${name} has your painting needs covered.`,
+
+    // Hero subtitle — use the real city and service
+    heroSubtitle:
+      lang === "es"
+        ? `Transformando hogares en ${city} con precisión y pasión. Servicios de ${service.toLowerCase()} de calidad que duran en el tiempo.`
+        : `Transforming homes across ${city} with precision and passion. Quality ${service.toLowerCase()} services that stand the test of time.`,
+
+    // CTA button text
     getFreeEstimate: cta,
 
-    // Override hero subtitle to use the custom city
-    heroSubtitle: `Transforming homes across ${city} with precision and passion. Quality interior and exterior painting that stands the test of time.`,
+    // About section — business name + city
+    aboutP1:
+      lang === "es"
+        ? `Bienvenido a ${name}, al servicio del área de ${city}. Con más de 15 años de experiencia práctica, me dedico a ofrecer soluciones personalizadas y de alta calidad para todas sus necesidades de pintura.`
+        : `Welcome to ${name}, proudly serving the greater ${city} area. With over 15 years of hands-on experience, I'm dedicated to providing high-quality, personalized solutions for all your ${service.toLowerCase()} needs.`,
 
-    // Override the about section intro to use business name and city
-    aboutP1: `Welcome to ${name}, proudly serving the greater ${city} area. With over 15 years of hands-on experience, I'm dedicated to providing high-quality, personalized solutions for all your painting and staining needs.`,
+    // Why us section — business name
+    whyUsP1:
+      lang === "es"
+        ? `En ${name}, cada proyecto comienza con una conversación. Escuchamos su visión y entregamos resultados que dan vida a su espacio, a tiempo y sin sorpresas.`
+        : `At ${name}, every project starts with a conversation. We listen to your vision and deliver results that bring your space to life — on time and with no surprises.`,
+
+    // Contact headline
+    letUsHelp:
+      lang === "es"
+        ? `¡Contáctenos hoy y reciba una cotización gratis en ${city}!`
+        : `Contact ${name} today for a free estimate in ${city}!`,
   },
 };
 
-// --- 3. Render the Empieza demo app (no DemoBar — this is a private preview) ---
+// --- 4. Render the Empieza demo app (no DemoBar — this is a private preview) ---
 createRoot(document.getElementById("root-preview-empieza")).render(
   <StrictMode>
     <Router hook={useHashLocation}>
