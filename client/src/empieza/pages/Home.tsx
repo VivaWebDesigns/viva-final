@@ -449,8 +449,9 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-border py-10">
-        <div className="container mx-auto px-4 md:px-6">
+      <footer className="border-t border-border py-10 bg-[#021824] relative overflow-hidden">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-px bg-gradient-to-r from-transparent via-blue-500/30 to-transparent shadow-[0_0_70px_25px_rgba(59,130,246,0.1)] pointer-events-none" />
+        <div className="container mx-auto px-4 md:px-6 relative z-10">
           <div className="flex flex-col md:flex-row justify-between items-center gap-6">
             <div className="flex items-center gap-2.5">
               {P ? (

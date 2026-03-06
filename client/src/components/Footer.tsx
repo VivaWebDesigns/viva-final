@@ -6,8 +6,9 @@ import { t } from "@/content";
 
 export default function Footer() {
   return (
-    <footer className="text-gray-400 bg-[#021824]" data-testid="footer">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-24">
+    <footer className="text-gray-400 bg-[#021824] relative overflow-hidden" data-testid="footer">
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-px bg-gradient-to-r from-transparent via-blue-500/50 to-transparent shadow-[0_0_100px_40px_rgba(59,130,246,0.15)] pointer-events-none" />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-24 relative z-10">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
           <div className="lg:col-span-1">
             <Link href="/" className="inline-block mb-6">

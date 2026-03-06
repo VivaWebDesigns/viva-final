@@ -6,8 +6,9 @@ import logoImg from "@assets/Viva_1772823591549.png";
 export function Footer() {
   const { t } = useLanguage();
   return (
-    <footer className="border-t border-border py-10">
-      <div className="container mx-auto px-4 md:px-6 flex flex-col items-center gap-6">
+    <footer className="border-t border-border py-10 bg-[#021824] relative overflow-hidden">
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-px bg-gradient-to-r from-transparent via-blue-500/40 to-transparent shadow-[0_0_80px_30px_rgba(59,130,246,0.12)] pointer-events-none" />
+      <div className="container mx-auto px-4 md:px-6 flex flex-col items-center gap-6 relative z-10">
         <div className="flex flex-col md:flex-row justify-between items-center w-full gap-6">
           <Link href="/" className="flex items-center" data-testid="link-footer-logo">
             {(() => {
