@@ -244,7 +244,7 @@ export default function Home() {
                 data-testid={`card-package-${pkg.slug}`}
               >
                 {"popular" in pkg && pkg.popular && (
-                  <div className="flex justify-center mb-3">
+                  <div className="flex justify-center mb-3 relative z-20">
                     <span className="bg-[#0D9488] text-white text-xs font-bold px-5 py-1.5 rounded-full uppercase tracking-widest flex items-center gap-1.5 shadow-lg" data-testid="badge-popular">
                       <Star className="w-3 h-3 fill-white" />
                       {t("home.packages.badgePopular")}
@@ -252,7 +252,7 @@ export default function Home() {
                   </div>
                 )}
                 {"bestValue" in pkg && pkg.bestValue && (
-                  <div className="flex justify-center mb-3">
+                  <div className="flex justify-center mb-3 relative z-20">
                     <span className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold px-5 py-1.5 rounded-full uppercase tracking-widest flex items-center gap-1.5 shadow-lg" data-testid="badge-best-value">
                       <Crown className="w-3 h-3 fill-white" />
                       El Mejor Valor
