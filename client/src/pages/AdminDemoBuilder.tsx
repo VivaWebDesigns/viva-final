@@ -113,7 +113,7 @@ export default function AdminDemoBuilder() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-12">
+    <div className="max-w-2xl mx-auto px-4 pt-24 pb-12">
       <h1 className="text-2xl font-bold text-foreground mb-1">{s.heading}</h1>
       <p className="text-muted-foreground text-sm mb-8">
         {s.subheading.split("EN / ES").map((part, i, arr) =>
