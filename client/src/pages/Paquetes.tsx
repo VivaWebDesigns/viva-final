@@ -133,8 +133,10 @@ export default function Paquetes() {
         </div>
       </section>
       {/* COMPARISON TABLE */}
-      <section className="py-24 lg:py-40 bg-white dark:bg-[#0d0d0d]" data-testid="section-comparison">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="py-24 lg:py-40 bg-white dark:bg-[#0d0d0d] relative overflow-hidden" data-testid="section-comparison">
+        <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-[#0D9488]/60 to-transparent shadow-[0_0_120px_50px_rgba(13,148,136,0.25)] pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-[#0D9488]/60 to-transparent shadow-[0_0_120px_50px_rgba(13,148,136,0.25)] pointer-events-none" />
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center mb-12">
             <motion.p variants={fadeUp} className="text-[#0D9488] font-bold text-sm uppercase tracking-widest mb-4">
               {t("paquetes.comparison.sectionLabel")}
