@@ -19,6 +19,7 @@ import Demo from "@/pages/Demo";
 import AdminDemoBuilder from "@/pages/AdminDemoBuilder";
 import NotFound from "@/pages/not-found";
 import JsonLd from "@/components/JsonLd";
+import { PreviewLangProvider } from "@/contexts/PreviewLangContext";
 
 function Router() {
   return (
@@ -41,19 +42,21 @@ function App() {
   return (
     <HelmetProvider>
       <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <ScrollToTop />
-          <JsonLd />
-          <div className="min-h-screen flex flex-col">
-            <Navigation />
-            <main className="flex-1">
-              <Router />
-            </main>
-            <Footer />
-          </div>
-          <BookDemoButton />
-          <Toaster />
-        </TooltipProvider>
+        <PreviewLangProvider>
+          <TooltipProvider>
+            <ScrollToTop />
+            <JsonLd />
+            <div className="min-h-screen flex flex-col">
+              <Navigation />
+              <main className="flex-1">
+                <Router />
+              </main>
+              <Footer />
+            </div>
+            <BookDemoButton />
+            <Toaster />
+          </TooltipProvider>
+        </PreviewLangProvider>
       </QueryClientProvider>
     </HelmetProvider>
   );
