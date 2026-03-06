@@ -6,18 +6,20 @@
  * this is a private sales preview meant to be shared with prospects.
  *
  * Supported URL parameters (all optional, all have fallback defaults):
- *   ?name=   Business name shown in key sections
- *   ?city=   City name shown in hero and footer copy
- *   ?phone=  Phone number shown in navigation (formatted, e.g. "(704) 555-0123")
+ *   ?name=    Business name shown in key sections
+ *   ?city=    City name shown in hero and footer copy
+ *   ?phone=   Phone number shown in navigation (formatted, e.g. "(704) 555-0123")
  *   ?service= Service type label (for future use / CTA label)
- *   ?cta=    Text for the primary "Get Estimate" CTA button
+ *   ?cta=     Text for the primary "Get Estimate" CTA button
+ *   ?lang=    Language to display: "en" (English) or "es" (Spanish). Default: "en"
  *
  * How it works:
  *   1. URL params are read before React renders.
  *   2. window.__PREVIEW__ is set with the parsed values.
  *   3. The LanguageProvider in hooks/use-language.tsx checks window.__PREVIEW__.tOverrides
  *      on every t() call and returns the override value if present.
- *   4. Navigation.tsx reads window.__PREVIEW__.phone for phone link and WhatsApp button.
+ *   4. window.__PREVIEW__.lang sets the initial language on first render.
+ *   5. Navigation.tsx reads window.__PREVIEW__.phone for phone link and WhatsApp button.
  */
 
 import { StrictMode } from "react";
@@ -37,12 +39,16 @@ const city    = getParam("city",    "Charlotte");
 const phone   = getParam("phone",   "(704) 555-0123");
 const service = getParam("service", "Painting");
 const cta     = getParam("cta",     "Get Your Free Estimate");
+// Language: "en" or "es". Empieza's LanguageProvider reads window.__PREVIEW__.lang for initial state.
+const lang    = getParam("lang",    "en");
 
 // --- 2. Inject preview params into window BEFORE React renders ---
 // The empieza LanguageProvider checks window.__PREVIEW__.tOverrides on each t() call.
 // window.__PREVIEW__.phone is used by Navigation for tel: and WhatsApp links.
+// window.__PREVIEW__.lang sets the initial language.
 window.__PREVIEW__ = {
   phone,
+  lang,
   tOverrides: {
     // Override the CTA button text
     getFreeEstimate: cta,

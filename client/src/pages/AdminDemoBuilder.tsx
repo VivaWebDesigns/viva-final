@@ -7,17 +7,18 @@
  * How to use:
  *   1. Fill in the prospect's business details.
  *   2. Select the plan tier (Empieza / Crece / Domina).
- *   3. Click "Generar Enlace" to build the preview URL.
- *   4. Copy it or open it directly to verify the customization looks right.
- *   5. Share the link with your prospect — they'll see a preview that shows
- *      their business name, city, phone, and CTA instead of the demo defaults.
+ *   3. Choose the language the prospect should see (English or Spanish).
+ *   4. Click "Generar Enlace" to build the preview URL.
+ *   5. Copy it or open it directly to verify the customization looks right.
+ *   6. Share the link with your prospect — they'll see a preview that shows
+ *      their business name, city, phone, and CTA in the selected language.
  */
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Copy, ExternalLink, CheckCircle } from "lucide-react";
+import { Copy, ExternalLink, CheckCircle, Languages } from "lucide-react";
 
 // Available plan tiers and their preview route paths
 const PACKAGES = [
@@ -35,6 +36,10 @@ export default function AdminDemoBuilder() {
   const [cta,     setCta]     = useState("");
   const [pkg,     setPkg]     = useState("empieza");
 
+  // --- Language toggle: "en" = English, "es" = Spanish ---
+  // This controls which language the demo site opens in when the prospect visits the link.
+  const [lang, setLang] = useState<"en" | "es">("en");
+
   // --- Generated link state ---
   const [generatedUrl, setGeneratedUrl] = useState("");
   const [copied,       setCopied]       = useState(false);
@@ -51,10 +56,11 @@ export default function AdminDemoBuilder() {
     if (phone.trim())   params.set("phone",   phone.trim());
     if (service.trim()) params.set("service", service.trim());
     if (cta.trim())     params.set("cta",     cta.trim());
+    // Always include the language so the demo opens in the right one
+    params.set("lang", lang);
 
     const base = `${window.location.origin}/preview/${pkg}`;
-    const query = params.toString();
-    setGeneratedUrl(query ? `${base}?${query}` : base);
+    setGeneratedUrl(`${base}?${params.toString()}`);
     setCopied(false);
   }
 
@@ -162,6 +168,43 @@ export default function AdminDemoBuilder() {
                 <span className="text-sm font-medium">{p.label}</span>
               </label>
             ))}
+          </div>
+        </div>
+
+        {/* Language toggle — controls the language the demo site opens in */}
+        <div className="space-y-1.5">
+          <Label className="flex items-center gap-2">
+            <Languages size={15} className="text-muted-foreground" />
+            Idioma de la vista previa
+          </Label>
+          <p className="text-xs text-muted-foreground -mt-0.5">
+            El prospecto verá el sitio en el idioma que elijas aquí.
+          </p>
+          <div className="flex gap-2 pt-1">
+            <button
+              data-testid="toggle-lang-en"
+              type="button"
+              onClick={() => setLang("en")}
+              className={`flex-1 rounded-lg border px-4 py-2.5 text-sm font-semibold transition-colors ${
+                lang === "en"
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-background text-muted-foreground hover:border-primary/50 hover:text-foreground"
+              }`}
+            >
+              EN — English
+            </button>
+            <button
+              data-testid="toggle-lang-es"
+              type="button"
+              onClick={() => setLang("es")}
+              className={`flex-1 rounded-lg border px-4 py-2.5 text-sm font-semibold transition-colors ${
+                lang === "es"
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-background text-muted-foreground hover:border-primary/50 hover:text-foreground"
+              }`}
+            >
+              ES — Español
+            </button>
           </div>
         </div>
 

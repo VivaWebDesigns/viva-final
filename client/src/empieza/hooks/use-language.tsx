@@ -252,7 +252,11 @@ const translations = {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguage] = useState<Language>("en");
+  // Allow the preview entry point to set the initial language via window.__PREVIEW__.lang.
+  // Falls back to "en" for the standard public demo.
+  const [language, setLanguage] = useState<Language>(
+    ((window as any).__PREVIEW__?.lang as Language) || "en"
+  );
 
   const t = (key: string) => {
     // Preview override: if window.__PREVIEW__.tOverrides has this key, use it instead.

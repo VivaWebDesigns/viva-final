@@ -6,11 +6,12 @@
  * this is a private sales preview meant to be shared with prospects.
  *
  * Supported URL parameters (all optional, all have fallback defaults):
- *   ?name=   Business name shown in key sections
- *   ?city=   City name shown in hero and footer copy
- *   ?phone=  Phone number shown in navigation (formatted, e.g. "(704) 555-0123")
+ *   ?name=    Business name shown in key sections
+ *   ?city=    City name shown in hero and footer copy
+ *   ?phone=   Phone number shown in navigation (formatted, e.g. "(704) 555-0123")
  *   ?service= Service type label (for future use / CTA label)
- *   ?cta=    Text for the primary "Get Estimate" CTA button
+ *   ?cta=     Text for the primary "Get Estimate" CTA button
+ *   ?lang=    Language to display: "en" (English) or "es" (Spanish). Default: "en"
  *
  * How it works:
  *   1. URL params are read before React renders.
@@ -18,7 +19,8 @@
  *   3. The LanguageContext in domina/i18n/LanguageContext.tsx deep-merges
  *      window.__PREVIEW__.domina into each language's translation object,
  *      so t.nav.phone, t.home.heroSubtitle, etc. are all overridden.
- *   4. Navigation.tsx reads window.__PREVIEW__.phone for tel: and WhatsApp links.
+ *   4. localStorage "lang" is set so Domina's LanguageProvider picks it up as initial state.
+ *   5. Navigation.tsx reads window.__PREVIEW__.phone for tel: and WhatsApp links.
  *
  * Domina uses an object-based t (e.g. t.home.ctaEstimate) instead of
  * a key-based t("key") function, so overrides are structured as nested objects.
@@ -41,8 +43,13 @@ const city    = getParam("city",    "Charlotte");
 const phone   = getParam("phone",   "(704) 555-0123");
 const service = getParam("service", "Painting");
 const cta     = getParam("cta",     "Get a Free Estimate");
+// Language: "en" or "es". Domina's LanguageProvider reads from localStorage "lang".
+const lang    = getParam("lang",    "en");
 
-// --- 2. Inject preview params into window BEFORE React renders ---
+// --- 2. Set localStorage BEFORE React renders so Domina's LanguageProvider initialises correctly ---
+localStorage.setItem("lang", lang);
+
+// --- 3. Inject preview params into window BEFORE React renders ---
 // The domina LanguageContext deep-merges window.__PREVIEW__.domina into
 // each language's translation object. Keys match the structure in i18n/en.ts.
 window.__PREVIEW__ = {
@@ -78,7 +85,7 @@ window.__PREVIEW__ = {
   },
 };
 
-// --- 3. Render the Domina demo app (no DemoBar — this is a private preview) ---
+// --- 4. Render the Domina demo app (no DemoBar — this is a private preview) ---
 createRoot(document.getElementById("root-preview-domina")).render(
   <StrictMode>
     <Router hook={useHashLocation}>
