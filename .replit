@@ -42,3 +42,8 @@ author = "agent"
 task = "shell.exec"
 args = "npm run dev"
 waitForPort = 5000
+
+[userenv]
+
+[userenv.shared]
+BETTER_AUTH_SECRET = "8f718caeede2b1bef9543bb01153175e84d41d5b54de104e243a3af4db7966f9"

@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -13,6 +13,10 @@ import Home from "@/pages/Home";
 import { lazy, Suspense } from "react";
 import JsonLd from "@/components/JsonLd";
 import { PreviewLangProvider } from "@/contexts/PreviewLangContext";
+import AdminLayout from "@/layouts/AdminLayout";
+import ProtectedRoute from "@features/auth/ProtectedRoute";
+import PlaceholderPage from "@features/admin/pages/PlaceholderPage";
+import { Users, TrendingUp, UserPlus, MessageSquare, CreditCard, Bell, BarChart3, Settings } from "lucide-react";
 
 const Paquetes = lazy(() => import("@/pages/Paquetes"));
 const PaqueteEmpieza = lazy(() => import("@/pages/PaqueteEmpieza"));
@@ -22,6 +26,10 @@ const Contacto = lazy(() => import("@/pages/Contacto"));
 const Demo = lazy(() => import("@/pages/Demo"));
 const AdminDemoBuilder = lazy(() => import("@/pages/AdminDemoBuilder"));
 const NotFound = lazy(() => import("@/pages/not-found"));
+const LoginPage = lazy(() => import("@features/auth/LoginPage"));
+const DashboardPage = lazy(() => import("@features/admin/pages/DashboardPage"));
+const DocsPage = lazy(() => import("@features/docs/DocsPage"));
+const IntegrationsPage = lazy(() => import("@features/integrations/IntegrationsPage"));
 
 function PageFallback() {
   return (
@@ -31,7 +39,7 @@ function PageFallback() {
   );
 }
 
-function Router() {
+function MarketingRouter() {
   return (
     <Suspense fallback={<PageFallback />}>
       <Switch>
@@ -42,15 +50,96 @@ function Router() {
         <Route path="/paquetes/domina" component={PaqueteDomina} />
         <Route path="/contacto" component={Contacto} />
         <Route path="/demo" component={Demo} />
-        {/* Internal admin route — not linked publicly, used to generate preview links */}
-        <Route path="/admin/demo-builder" component={AdminDemoBuilder} />
         <Route component={NotFound} />
       </Switch>
     </Suspense>
   );
 }
 
+function AdminRouter() {
+  return (
+    <ProtectedRoute>
+      <AdminLayout>
+        <Suspense fallback={<PageFallback />}>
+          <Switch>
+            <Route path="/admin" component={DashboardPage} />
+            <Route path="/admin/crm">
+              <PlaceholderPage title="CRM" description="Customer relationship management and lead tracking. Track contacts, manage client relationships, and monitor engagement." icon={Users} />
+            </Route>
+            <Route path="/admin/pipeline">
+              <PlaceholderPage title="Sales Pipeline" description="Manage deals and track progress through your sales workflow. Visualize your pipeline stages and forecast revenue." icon={TrendingUp} />
+            </Route>
+            <Route path="/admin/onboarding">
+              <PlaceholderPage title="Client Onboarding" description="Streamlined client setup workflows. Manage onboarding checklists, collect assets, and track project kickoffs." icon={UserPlus} />
+            </Route>
+            <Route path="/admin/chat">
+              <PlaceholderPage title="Team Chat" description="Internal team communication. Real-time messaging for collaboration across projects and tasks." icon={MessageSquare} />
+            </Route>
+            <Route path="/admin/payments">
+              <PlaceholderPage title="Payments" description="Payment processing via Stripe. Manage invoices, subscriptions, and billing for all clients." icon={CreditCard} />
+            </Route>
+            <Route path="/admin/notifications">
+              <PlaceholderPage title="Notifications" description="Email and in-app notifications. Configure alerts for leads, payments, and system events." icon={Bell} />
+            </Route>
+            <Route path="/admin/integrations">
+              <ProtectedRoute roles={["admin", "developer"]}>
+                <IntegrationsPage />
+              </ProtectedRoute>
+            </Route>
+            <Route path="/admin/reports">
+              <PlaceholderPage title="Reports" description="Analytics and business intelligence. Track key metrics, generate reports, and monitor performance." icon={BarChart3} />
+            </Route>
+            <Route path="/admin/settings">
+              <ProtectedRoute roles={["admin"]}>
+                <PlaceholderPage title="Admin Settings" description="System configuration and user management. Manage roles, permissions, and platform settings." icon={Settings} />
+              </ProtectedRoute>
+            </Route>
+            <Route path="/admin/docs">
+              <ProtectedRoute roles={["admin", "developer"]}>
+                <DocsPage />
+              </ProtectedRoute>
+            </Route>
+            <Route path="/admin/demo-builder" component={AdminDemoBuilder} />
+          </Switch>
+        </Suspense>
+      </AdminLayout>
+    </ProtectedRoute>
+  );
+}
+
 function App() {
+  const [location] = useLocation();
+  const isAdmin = location.startsWith("/admin");
+  const isLogin = location === "/login";
+
+  if (isLogin) {
+    return (
+      <HelmetProvider>
+        <QueryClientProvider client={queryClient}>
+          <TooltipProvider>
+            <Suspense fallback={<PageFallback />}>
+              <LoginPage />
+            </Suspense>
+            <Toaster />
+          </TooltipProvider>
+        </QueryClientProvider>
+      </HelmetProvider>
+    );
+  }
+
+  if (isAdmin) {
+    return (
+      <HelmetProvider>
+        <QueryClientProvider client={queryClient}>
+          <TooltipProvider>
+            <AdminRouter />
+            <Toaster />
+          </TooltipProvider>
+        </QueryClientProvider>
+      </HelmetProvider>
+    );
+  }
+
   return (
     <HelmetProvider>
       <QueryClientProvider client={queryClient}>
@@ -61,7 +150,7 @@ function App() {
             <div className="min-h-screen flex flex-col">
               <Navigation />
               <main className="flex-1">
-                <Router />
+                <MarketingRouter />
               </main>
               <Footer />
             </div>

@@ -1,7 +1,7 @@
-# Viva Web Designs - Marketing Agency Website
+# Viva Web Designs - Marketing Agency + Internal Platform
 
 ## Overview
-Marketing agency website targeting contractors. Spanish-first, conversion-optimized, multi-page site.
+Marketing agency website targeting contractors (Spanish-first, conversion-optimized) with an internal CRM/admin platform for team operations.
 
 ## Brand
 - **Company**: Viva Web Designs
@@ -11,75 +11,115 @@ Marketing agency website targeting contractors. Spanish-first, conversion-optimi
 - **Rules**: NEVER mention "latinos" or "Google Ads" anywhere in copy
 
 ## Architecture
-- **Frontend**: React + Vite + Tailwind CSS + shadcn/ui + Framer Motion + wouter
-- **Backend**: Express.js + PostgreSQL + Drizzle ORM
-- **Pages**: Home (/), Paquetes (/paquetes), Plan Empieza (/paquetes/empieza), Plan Crece (/paquetes/crece), Plan Domina (/paquetes/domina), Contacto (/contacto)
+- **Frontend**: React + Vite + TypeScript + Tailwind CSS + shadcn/ui + Framer Motion + wouter
+- **Backend**: Express.js + TypeScript + PostgreSQL + Drizzle ORM
+- **Authentication**: BetterAuth with admin plugin (email/password)
+- **Roles**: admin, developer, sales_rep
+
+### Project Structure
+```
+├── client/src/
+│   ├── features/           # Internal platform features
+│   │   ├── auth/           # Login, auth client, protected routes
+│   │   ├── admin/pages/    # Dashboard + placeholder pages
+│   │   ├── docs/           # App Docs library (CRUD)
+│   │   └── integrations/   # Integrations overview
+│   ├── layouts/            # AdminLayout (sidebar shell)
+│   ├── pages/              # Marketing site pages
+│   ├── components/         # Shared UI components
+│   ├── content/            # Content system (content.json)
+│   ├── empieza/            # Empieza demo sub-site
+│   ├── crece/              # Crece demo sub-site
+│   └── domina/             # Domina demo sub-site
+├── server/
+│   ├── features/           # Domain-based server features
+│   │   ├── auth/           # BetterAuth config + middleware
+│   │   ├── admin/          # Admin stats, seed, audit logs
+│   │   ├── docs/           # Docs CRUD + seed data
+│   │   ├── integrations/   # Integration records + seed
+│   │   └── audit/          # Audit logging service
+│   ├── routes.ts           # Route aggregator (mounts features + legacy)
+│   ├── storage.ts          # Legacy contact storage
+│   └── db.ts               # Database connection
+└── shared/
+    └── schema.ts           # All Drizzle schemas + Zod validation
+```
 
 ## Content System
-All website copy is managed from a single file: **`client/src/content/content.json`**
+All marketing website copy managed from `client/src/content/content.json`.
+- `t("dotted.path")` — returns the Spanish `"es"` string
+- `tArr("dotted.path")` — returns array of Spanish strings
+- `tObjArr<T>("dotted.path")` — returns typed array of objects
+- `tBool("dotted.path")` — returns boolean value
 
-Helper functions in `client/src/content/index.ts`:
-- `t("dotted.path")` — returns the Spanish `"es"` string for any key
-- `tArr("dotted.path")` — returns an array of Spanish strings
-- `tObjArr<T>("dotted.path")` — returns a typed array of objects with mixed string/boolean values
-- `tBool("dotted.path")` — returns a boolean value
+## Database Tables
+- **contacts** — Lead capture from public forms
+- **user** — Internal platform users (BetterAuth + role)
+- **session** — Auth sessions (BetterAuth)
+- **account** — Auth accounts (BetterAuth)
+- **verification** — Email verification (BetterAuth)
+- **audit_logs** — Sensitive action audit trail
+- **doc_categories** — Doc library categories (21 seeded)
+- **doc_articles** — Doc articles with content
+- **doc_tags** — Tag definitions
+- **doc_article_tags** — Article-tag join table
+- **doc_revisions** — Content revision history
+- **integration_records** — Third-party integration config (Stripe, Mailgun, OpenAI, Cloudflare R2)
 
-**Content JSON structure:**
-```
-global       → company name, phone, email, WhatsApp URL
-nav          → navigation links + CTA
-footer       → footer text, links, contact info
-home         → all home page sections
-paquetes     → packages comparison page
-empieza      → Plan Empieza detail page
-crece        → Plan Crece detail page
-domina       → Plan Domina detail page
-contacto     → Contact page form labels + sidebar
-```
+## Key Routes
+### Marketing (Public)
+- `/` — Home, `/paquetes` — Packages, `/contacto` — Contact, `/demo` — Demo showroom
+- `/paquetes/empieza|crece|domina` — Plan detail pages
 
-**To edit copy:** Only modify `"es"` values in `content.json`. The English `"en"` values are for reference only and never appear on the site.
+### Internal Platform (Protected)
+- `/login` — Login page
+- `/admin` — Dashboard
+- `/admin/crm` — CRM (placeholder)
+- `/admin/pipeline` — Sales Pipeline (placeholder)
+- `/admin/onboarding` — Client Onboarding (placeholder)
+- `/admin/chat` — Team Chat (placeholder)
+- `/admin/payments` — Payments (placeholder)
+- `/admin/notifications` — Notifications (placeholder)
+- `/admin/integrations` — Integrations overview (working)
+- `/admin/reports` — Reports (placeholder)
+- `/admin/settings` — Admin settings (placeholder)
+- `/admin/docs` — App Docs library (working)
+- `/admin/demo-builder` — Demo link generator
 
-## Key Files
-- `client/src/content/content.json` - ALL website copy (edit only "es" values)
-- `client/src/content/index.ts` - t(), tArr(), tObjArr(), tBool() helpers
-- `client/src/content/README.md` - Content editing guide
-- `client/src/pages/Home.tsx` - Landing page
-- `client/src/pages/Paquetes.tsx` - Package listing + comparison table
-- `client/src/pages/PaqueteEmpieza.tsx` - Starter plan detail ($497)
-- `client/src/pages/PaqueteCrece.tsx` - Growth plan detail ($997, most popular)
-- `client/src/pages/PaqueteDomina.tsx` - Premium plan detail ($1,997)
-- `client/src/pages/Contacto.tsx` - Contact form with lead capture
-- `client/src/components/Navigation.tsx` - Fixed top nav with mobile menu
-- `client/src/components/Footer.tsx` - Full footer
-- `client/src/components/WhatsAppButton.tsx` - Floating WhatsApp button
-- `client/src/components/SEO.tsx` - Per-page SEO meta tags via react-helmet-async
-- `client/src/components/JsonLd.tsx` - Schema.org structured data
-- `shared/schema.ts` - Database schema for contacts table
-- `server/routes.ts` - POST /api/contacts endpoint for lead capture
-- `server/storage.ts` - Database storage layer
-- `server/db.ts` - Database connection
+### API Endpoints
+- `POST /api/contacts` — Public contact form
+- `POST /api/inquiries` — Public demo inquiry
+- `ALL /api/auth/*` — BetterAuth (login, signup, session)
+- `GET /api/users/me` — Current user (auth required)
+- `GET /api/admin/stats` — Dashboard stats (auth)
+- `GET /api/admin/audit-logs` — Audit logs (admin only)
+- `POST /api/admin/seed-admin` — Create initial admin user
+- `POST /api/admin/seed-public` — Seed docs + integrations
+- `GET/POST/PUT/DELETE /api/docs/*` — Docs CRUD (admin/developer)
+- `GET/PUT /api/integrations/*` — Integrations CRUD (admin/developer)
 
-## Database
-- PostgreSQL with contacts table for lead capture
-- Fields: id, name, email, phone, business, city, trade, service, message, createdAt
+## Environment Variables
+- `DATABASE_URL` — PostgreSQL connection string
+- `BETTER_AUTH_SECRET` — Auth secret key
+- `RESEND_API_KEY` — Email sending
+- `PORT` — Server port (default 5000)
+
+## Admin Credentials
+- **Email**: admin@vivawebdesigns.com
+- **Password**: VivaAdmin2026!
+- **Role**: admin
 
 ## Demo System
-- **Empieza** (`/empieza`) - Starter demo tier for contractors
-- **Crece** (`/crece`) - Growth demo tier
-- **Domina** (`/domina`) - Premium demo tier
-- **Showroom** (`/demo`) - Public demo selection page
-- **Preview** (`/preview/empieza|crece|domina`) - Private preview URLs with embedded payload
-- **Admin** (`/admin/demo-builder`) - Internal link generator for preview URLs
-- **7 trade templates** in `client/src/preview/tradeTemplates.js`
-- Bilingual EN/ES support with dynamic language switching
+- Empieza (`/empieza`), Crece (`/crece`), Domina (`/domina`) — Demo tiers
+- Preview (`/preview/empieza|crece|domina`) — Private preview URLs
+- 7 trade templates in `client/src/preview/tradeTemplates.js`
 
 ## Performance Optimizations
-- **Code splitting**: All routes except Home use `React.lazy` + `Suspense` (Home stays eager as the landing page entry point)
-- **Video**: Empieza hero video optimized from 5.1MB → 960KB MP4 + 1.5MB WebM with WebP poster
-- **Images**: Empieza gallery images converted from raw JPEG/PNG (~20MB) → optimized WebP (~1.1MB)
-- **Native lazy**: Gallery images use `loading="lazy"` attribute
-- **Fonts**: Non-render-blocking Google Fonts via `preload` + `onload` pattern
-- **Optimized assets location**: `client/src/*/assets/images/optimized/` (WebP), `client/src/*/assets/videos/` (MP4+WebM+poster)
+- Code splitting via React.lazy + Suspense (Home stays eager)
+- Optimized video (960KB MP4 + WebM with WebP poster)
+- Optimized WebP images (~1.1MB total from ~20MB originals)
+- Native lazy loading on gallery images
+- Non-render-blocking Google Fonts
 
 ## Running
 - `npm run dev` starts Express + Vite on port 5000

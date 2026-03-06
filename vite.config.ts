@@ -27,6 +27,7 @@ export default defineConfig({
       "@empieza": path.resolve(import.meta.dirname, "client", "src", "empieza"),
       "@crece": path.resolve(import.meta.dirname, "client", "src", "crece"),
       "@domina": path.resolve(import.meta.dirname, "client", "src", "domina"),
+      "@features": path.resolve(import.meta.dirname, "client", "src", "features"),
     },
   },
   root: path.resolve(import.meta.dirname, "client"),

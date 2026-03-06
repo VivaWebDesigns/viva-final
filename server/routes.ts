@@ -1,9 +1,10 @@
 import type { Express } from "express";
-import { createServer, type Server } from "http";
+import { type Server } from "http";
 import { storage } from "./storage";
 import { insertContactSchema, insertInquirySchema } from "@shared/schema";
 import { ZodError } from "zod";
 import { Resend } from "resend";
+import featureRoutes from "./features";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -11,6 +12,8 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  app.use("/api", featureRoutes);
+
   app.post("/api/contacts", async (req, res) => {
     try {
       const data = insertContactSchema.parse(req.body);

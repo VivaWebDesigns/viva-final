@@ -1,0 +1,163 @@
+We are building the Viva Web Designs internal CRM/admin platform in Replit.
+
+PROJECT CONTEXT
+- This is an internal business platform for Viva Web Designs.
+- It is NOT multi-tenant.
+- Stack: full-stack React + TypeScript frontend, Express + TypeScript backend, Node.js, PostgreSQL, Drizzle ORM.
+- Authentication uses BetterAuth.
+- Frontend UI stack must use Tailwind CSS, shadcn/ui, Framer Motion, and Lucide React.
+- Cloudflare R2 is the exclusive storage provider for all file/object storage. Nothing should be permanently stored locally.
+- Integrations area must support Stripe, Mailgun, OpenAI, and Cloudflare R2.
+- User roles:
+  - Admin
+  - Developer
+  - Sales Rep
+- All work in this prompt must be NON-DESTRUCTIVE. Do not remove or break existing functionality. Extend safely.
+- Maintain modular architecture, organized file structure, and performance optimization.
+- Break up route files, service files, and frontend feature files by domain/function. Avoid monolithic “god files.”
+- Every change must include documentation updates in the internal App Docs library.
+
+PRIMARY GOAL
+Build the foundational architecture for the internal platform so future feature prompts have a stable base.
+
+IMPLEMENT IN SAFE PHASED FOUNDATION FORM
+1. Add or refine role-based access control foundations for:
+   - Admin
+   - Developer
+   - Sales Rep
+2. Create a protected /login route and login page for internal users.
+3. Create an Admin layout / internal app shell using:
+   - Tailwind CSS
+   - shadcn/ui
+   - Framer Motion
+   - Lucide React
+4. Create a protected admin navigation structure with placeholder sections for:
+   - Dashboard
+   - CRM
+   - Sales Pipeline
+   - Client Onboarding
+   - Team Chat
+   - Payments
+   - Notifications
+   - Integrations
+   - Reports
+   - Admin
+   - App Docs
+5. Create the App Docs library foundation, only accessible to Admin and Developer roles.
+6. Create the Integrations area foundation, only accessible to Admin and Developer roles.
+7. Add foundational schema and backend structure for:
+   - users
+   - roles / permissions
+   - audit logs
+   - doc categories
+   - doc articles
+   - doc tags
+   - optional doc revisions
+   - integration records / integration status
+8. Add audit logging foundation for sensitive internal actions.
+9. Add shared validation/type patterns for future features.
+10. Ensure file/folder structure is organized by feature/domain and ready for future prompts.
+
+APP DOCS REQUIREMENTS
+Build the App Docs feature so it is categorized and browsable.
+At minimum include:
+- category sidebar
+- doc list
+- doc detail page
+- search/filter support if practical
+- metadata such as last updated, author, category
+- developer/admin-only access
+
+Suggested categories:
+- Getting Started
+- Architecture Overview
+- Authentication & Authorization
+- Users, Roles & Permissions
+- CRM / Leads
+- Sales Pipeline
+- Client Onboarding
+- Team Chat
+- Payments & Billing
+- Notifications & Mailgun
+- Contact Forms / Lead Intake
+- Integrations
+- Admin Tools
+- Developer Tools
+- Database Schema
+- API Reference
+- UI / Frontend Modules
+- Background Jobs / System Automation
+- Deployment / DevOps
+- Changelog / Release Notes
+- Known Issues / Technical Debt
+
+INTEGRATIONS AREA REQUIREMENTS
+Create an integrations overview area with cards/placeholders for:
+- Stripe
+- Mailgun
+- OpenAI
+- Cloudflare R2
+
+Each integration card/section should support:
+- enabled/disabled status
+- configuration completeness indicator
+- last tested / last validated if available
+- docs link
+- placeholder for provider-specific settings screens
+
+ARCHITECTURE REQUIREMENTS
+- Feature-based organization for both client and server.
+- Keep code modular and scalable.
+- Add route aggregators and split routes by domain.
+- Add service layers where appropriate.
+- Add validation schemas.
+- Add typed shared contracts where appropriate.
+- Avoid duplicate logic.
+
+SUGGESTED FILE ORGANIZATION
+Use or move toward a structure similar to:
+- client/src/features/auth
+- client/src/features/admin
+- client/src/features/docs
+- client/src/features/integrations
+- client/src/layouts
+- client/src/components/ui
+- client/src/components/common
+- server/http/domains/auth
+- server/http/domains/admin
+- server/http/domains/docs
+- server/http/domains/integrations
+- server/features/auth
+- server/features/docs
+- server/features/integrations
+- server/storage
+- shared
+
+DOCUMENTATION REQUIREMENT
+As part of this prompt, create or update App Docs entries for:
+- architecture overview
+- RBAC / permissions overview
+- admin shell/navigation
+- App Docs system overview
+- integrations system overview
+- any added schema tables
+- any added API routes
+- any environment variable requirements
+- changelog/release note entry for this work
+
+NON-DESTRUCTIVE RULE
+Do not rewrite unrelated existing systems.
+Do not remove working code.
+Refactor only where necessary to support this foundation safely.
+Preserve compatibility wherever possible.
+
+DELIVERABLES
+- working protected /login page
+- working protected admin shell/navigation
+- foundational RBAC
+- App Docs base system
+- Integrations overview base system
+- foundational schema/migrations
+- organized file structure improvements
+- documentation updates in App Docs
+- brief summary in code comments or docs of what was added
