@@ -1,5 +1,6 @@
 import * as crmStorage from "./storage";
 import { logAudit } from "../audit/service";
+import { notifyNewLead } from "../notifications/triggers";
 import type { UtmAttribution } from "@shared/schema";
 
 interface WebsiteFormData {
@@ -139,6 +140,8 @@ export async function ingestWebsiteFormSubmission(
       utmSource: attribution.utmSource,
     },
   });
+
+  try { notifyNewLead({ id: lead.id, title: lead.title, source: sourceType }); } catch (_) {}
 
   return {
     leadId: lead.id,

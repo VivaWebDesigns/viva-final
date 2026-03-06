@@ -441,6 +441,67 @@ export const insertOnboardingNoteSchema = createInsertSchema(onboardingNotes).om
 export type InsertOnboardingNote = z.infer<typeof insertOnboardingNoteSchema>;
 export type OnboardingNote = typeof onboardingNotes.$inferSelect;
 
+// ─── Notification Tables ─────────────────────────────────────────────
+
+export const NOTIFICATION_TYPES = [
+  "new_lead", "lead_assignment", "stage_change", "opportunity_assignment",
+  "onboarding_assignment", "onboarding_status", "system_alert",
+] as const;
+export type NotificationType = typeof NOTIFICATION_TYPES[number];
+
+export const NOTIFICATION_CHANNELS = ["in_app", "email", "both"] as const;
+export type NotificationChannel = typeof NOTIFICATION_CHANNELS[number];
+
+export const EMAIL_STATUSES = ["pending", "sent", "failed", "skipped"] as const;
+export type EmailStatus = typeof EMAIL_STATUSES[number];
+
+export const ENTITY_TYPES = ["lead", "opportunity", "onboarding", "company", "contact"] as const;
+export type EntityType = typeof ENTITY_TYPES[number];
+
+export const notifications = pgTable("notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  recipientId: text("recipient_id").notNull().references(() => user.id),
+  type: text("type").notNull(),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  relatedEntityType: text("related_entity_type"),
+  relatedEntityId: varchar("related_entity_id"),
+  channel: text("channel").notNull().default("in_app"),
+  emailStatus: text("email_status").default("skipped"),
+  isRead: boolean("is_read").notNull().default(false),
+  readAt: timestamp("read_at"),
+  sentAt: timestamp("sent_at"),
+  failureReason: text("failure_reason"),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("notif_recipient_idx").on(t.recipientId),
+  index("notif_type_idx").on(t.type),
+  index("notif_read_idx").on(t.isRead),
+  index("notif_created_idx").on(t.createdAt),
+  index("notif_entity_idx").on(t.relatedEntityType, t.relatedEntityId),
+]);
+
+export const notificationPreferences = pgTable("notification_preferences", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: text("user_id").notNull().references(() => user.id),
+  type: text("type").notNull(),
+  emailEnabled: boolean("email_enabled").notNull().default(true),
+  inAppEnabled: boolean("in_app_enabled").notNull().default(true),
+}, (t) => [
+  index("notif_pref_user_idx").on(t.userId),
+]);
+
+// ─── Notification Zod Schemas & Types ────────────────────────────────
+
+export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+export type Notification = typeof notifications.$inferSelect;
+
+export const insertNotificationPreferenceSchema = createInsertSchema(notificationPreferences).omit({ id: true });
+export type InsertNotificationPreference = z.infer<typeof insertNotificationPreferenceSchema>;
+export type NotificationPreference = typeof notificationPreferences.$inferSelect;
+
 // ─── CRM Zod Schemas & Types ────────────────────────────────────────
 
 export const insertCrmCompanySchema = createInsertSchema(crmCompanies).omit({ id: true, createdAt: true, updatedAt: true });

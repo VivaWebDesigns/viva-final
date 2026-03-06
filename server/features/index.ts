@@ -6,6 +6,7 @@ import { integrationsRoutes } from "./integrations";
 import { crmRoutes } from "./crm";
 import { pipelineRoutes } from "./pipeline";
 import { onboardingRoutes } from "./onboarding";
+import { notificationRoutes } from "./notifications";
 import { requireRole } from "./auth/middleware";
 import { seedDocs } from "./docs/seed";
 import { seedIntegrations } from "./integrations/seed";
@@ -22,6 +23,7 @@ router.use("/integrations", integrationsRoutes);
 router.use("/crm", crmRoutes);
 router.use("/pipeline", pipelineRoutes);
 router.use("/onboarding", onboardingRoutes);
+router.use("/notifications", notificationRoutes);
 
 router.post("/admin/seed", requireRole("admin"), async (_req, res) => {
   try {

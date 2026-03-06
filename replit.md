@@ -24,8 +24,11 @@ Marketing agency website targeting contractors (Spanish-first, conversion-optimi
 │   │   ├── admin/pages/    # Dashboard + placeholder pages
 │   │   ├── crm/            # CRM: LeadList, LeadDetail, CompanyDetail, ContactDetail
 │   │   ├── docs/           # App Docs library (CRUD)
-│   │   └── integrations/   # Integrations overview
-│   ├── layouts/            # AdminLayout (sidebar shell)
+│   │   ├── integrations/   # Integrations overview
+│   │   ├── notifications/  # Notification center UI
+│   │   ├── onboarding/     # Onboarding pages (list, detail, wizard)
+│   │   └── pipeline/       # Pipeline pages (board, list, detail, stages)
+│   ├── layouts/            # AdminLayout (sidebar shell + notification bell)
 │   ├── pages/              # Marketing site pages
 │   ├── components/         # Shared UI components
 │   ├── content/            # Content system (content.json)
@@ -39,6 +42,7 @@ Marketing agency website targeting contractors (Spanish-first, conversion-optimi
 │   │   ├── crm/            # CRM storage, routes, ingest, seed
 │   │   ├── pipeline/       # Sales pipeline: stages, opportunities, activities
 │   │   ├── onboarding/     # Client onboarding: records, checklists, templates
+│   │   ├── notifications/  # Notification service, Mailgun, triggers, routes
 │   │   ├── docs/           # Docs CRUD + seed data
 │   │   ├── integrations/   # Integration records + seed
 │   │   └── audit/          # Audit logging service
@@ -86,9 +90,13 @@ All marketing website copy managed from `client/src/content/content.json`.
 - **onboarding_checklist_items** — Checklist items (category, label, isRequired, isCompleted, completedBy, dueDate)
 - **onboarding_notes** — Activity timeline (note, system, status_change, checklist_update)
 
+### Notifications
+- **notifications** — In-app and email notifications (recipientId, type, title, message, channel, emailStatus, isRead, relatedEntityType/Id, metadata)
+- **notification_preferences** — Per-user notification preferences (userId, type, emailEnabled, inAppEnabled)
+
 ### Docs & Integrations
 - **doc_categories** — Doc library categories (21 seeded)
-- **doc_articles** — Doc articles with content (28 seeded including 6 CRM + 7 pipeline + 6 onboarding docs)
+- **doc_articles** — Doc articles with content (34 seeded including 6 CRM + 7 pipeline + 6 onboarding + 6 notification docs)
 - **doc_tags** — Tag definitions
 - **doc_article_tags** — Article-tag join table
 - **doc_revisions** — Content revision history
@@ -109,9 +117,26 @@ Website Contact Form → POST /api/contacts
     → Create CRM lead with UTM attribution
     → Create system note on lead
     → Audit log
+    → Notify admins/sales reps (non-blocking)
   → Email notification via Resend
 ```
 Frontend captures UTM params (utm_source, utm_medium, utm_campaign, utm_term, utm_content) + referrer + landing page from URL.
+
+## Notification System
+### Triggers (server/features/notifications/triggers.ts)
+- **notifyNewLead** — new website form lead → admins + sales reps (in_app + email)
+- **notifyLeadAssignment** — lead assigned → assignee (in_app + email)
+- **notifyStageChange** — opportunity moved → owner + admins (in_app)
+- **notifyOpportunityAssignment** — opportunity assigned → assignee (in_app + email)
+- **notifyOnboardingAssignment** — onboarding assigned → assignee (in_app + email)
+- **notifyOnboardingStatusChange** — status changed → owner + admins (in_app)
+- **notifySystemAlert** — system alert → admins + developers (in_app + email)
+
+### Mailgun Service (server/features/notifications/mailgun.ts)
+- Uses Mailgun HTTP API (no SDK)
+- Requires: MAILGUN_API_KEY, MAILGUN_DOMAIN env vars
+- Optional: MAILGUN_FROM_EMAIL, MAILGUN_FROM_NAME
+- Graceful degradation: returns "skipped" if not configured
 
 ## Key Routes
 ### Marketing (Public)
@@ -132,13 +157,13 @@ Frontend captures UTM params (utm_source, utm_medium, utm_campaign, utm_term, ut
 - `/admin/onboarding` — Onboarding list (searchable, filterable, progress display)
 - `/admin/onboarding/new` — Multi-step onboarding wizard
 - `/admin/onboarding/:id` — Onboarding detail (checklist, timeline, status actions)
+- `/admin/notifications` — Notification center (type/read filters, mark read, entity linking)
 - `/admin/chat` — Team Chat (placeholder)
 - `/admin/payments` — Payments (placeholder)
-- `/admin/notifications` — Notifications (placeholder)
 - `/admin/integrations` — Integrations overview (working)
 - `/admin/reports` — Reports (placeholder)
 - `/admin/settings` — Admin settings (placeholder)
-- `/admin/docs` — App Docs library (working, 15 articles)
+- `/admin/docs` — App Docs library (working, 34 articles)
 - `/admin/demo-builder` — Demo link generator
 
 ### API Endpoints
@@ -179,11 +204,20 @@ Frontend captures UTM params (utm_source, utm_medium, utm_campaign, utm_term, ut
 - `GET /api/onboarding/templates` — List templates
 - `POST /api/onboarding/convert-opportunity/:opportunityId` — Convert won opportunity to onboarding
 - `GET /api/onboarding/stats` — Onboarding statistics
+- `GET /api/notifications` — User notifications (filters: type, is_read, limit, offset)
+- `GET /api/notifications/unread-count` — Unread count for current user
+- `PUT /api/notifications/:id/read` — Mark notification read
+- `PUT /api/notifications/read-all` — Mark all notifications read
+- `GET /api/notifications/preferences` — User notification preferences
 
 ## Environment Variables
 - `DATABASE_URL` — PostgreSQL connection string
 - `BETTER_AUTH_SECRET` — Auth secret key
-- `RESEND_API_KEY` — Email sending
+- `RESEND_API_KEY` — Email sending (legacy contact form notifications)
+- `MAILGUN_API_KEY` — Mailgun API key (system notifications)
+- `MAILGUN_DOMAIN` — Mailgun sending domain
+- `MAILGUN_FROM_EMAIL` — (optional) Sender email address
+- `MAILGUN_FROM_NAME` — (optional) Sender display name
 - `PORT` — Server port (default 5000)
 
 ## Admin Credentials

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { requireRole } from "../auth/middleware";
 import { logAudit } from "../audit/service";
+import { notifyStageChange, notifyOpportunityAssignment } from "../notifications/triggers";
 import * as pipelineStorage from "./storage";
 import { insertPipelineStageSchema, insertPipelineOpportunitySchema, insertPipelineActivitySchema, OPPORTUNITY_STATUSES } from "@shared/schema";
 import { z } from "zod";
@@ -177,6 +178,9 @@ router.put("/opportunities/:id", requireRole("admin", "sales_rep"), async (req, 
       metadata: { title: opp.title },
       ipAddress: req.ip,
     });
+    if (validated.assignedTo && validated.assignedTo !== existing.assignedTo) {
+      try { notifyOpportunityAssignment({ id: opp.id, title: opp.title }, validated.assignedTo); } catch (_) {}
+    }
     res.json(opp);
   } catch (error: any) {
     res.status(400).json({ message: error.message });
@@ -197,6 +201,10 @@ router.put("/opportunities/:id/stage", requireRole("admin", "sales_rep"), async 
       metadata: result.activity.metadata,
       ipAddress: req.ip,
     });
+    const meta = result.activity.metadata as any;
+    if (meta?.fromStage && meta?.toStage) {
+      try { notifyStageChange({ id, title: result.opportunity.title, ownerId: result.opportunity.assignedTo }, meta.fromStage, meta.toStage); } catch (_) {}
+    }
     res.json(result);
   } catch (error: any) {
     res.status(400).json({ message: error.message });

@@ -16,7 +16,8 @@ import { PreviewLangProvider } from "@/contexts/PreviewLangContext";
 import AdminLayout from "@/layouts/AdminLayout";
 import ProtectedRoute from "@features/auth/ProtectedRoute";
 import PlaceholderPage from "@features/admin/pages/PlaceholderPage";
-import { UserPlus, MessageSquare, CreditCard, Bell, BarChart3, Settings } from "lucide-react";
+import { UserPlus, MessageSquare, CreditCard, BarChart3, Settings } from "lucide-react";
+import NotificationCenterPage from "@features/notifications/NotificationCenterPage";
 
 const Paquetes = lazy(() => import("@/pages/Paquetes"));
 const PaqueteEmpieza = lazy(() => import("@/pages/PaqueteEmpieza"));
@@ -106,7 +107,7 @@ function AdminRouter() {
               <PlaceholderPage title="Payments" description="Payment processing via Stripe. Manage invoices, subscriptions, and billing for all clients." icon={CreditCard} />
             </Route>
             <Route path="/admin/notifications">
-              <PlaceholderPage title="Notifications" description="Email and in-app notifications. Configure alerts for leads, payments, and system events." icon={Bell} />
+              <NotificationCenterPage />
             </Route>
             <Route path="/admin/integrations">
               <ProtectedRoute roles={["admin", "developer"]}>

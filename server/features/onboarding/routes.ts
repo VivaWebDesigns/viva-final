@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { requireRole } from "../auth/middleware";
 import { logAudit } from "../audit/service";
+import { notifyOnboardingAssignment, notifyOnboardingStatusChange } from "../notifications/triggers";
 import * as onboardingStorage from "./storage";
 import { ONBOARDING_STATUSES, ONBOARDING_NOTE_TYPES, CHECKLIST_CATEGORIES } from "@shared/schema";
 import { z } from "zod";
@@ -162,6 +163,13 @@ router.put("/records/:id", requireRole("admin", "developer", "sales_rep"), async
       entityId: req.params.id,
       details: validated,
     });
+
+    if (validated.status && validated.status !== existing.status) {
+      try { notifyOnboardingStatusChange({ id: req.params.id, clientName: record.clientName, ownerId: record.assignedTo }, existing.status, validated.status); } catch (_) {}
+    }
+    if (validated.assignedTo && validated.assignedTo !== existing.assignedTo) {
+      try { notifyOnboardingAssignment({ id: req.params.id, clientName: record.clientName }, validated.assignedTo); } catch (_) {}
+    }
 
     res.json(record);
   } catch (error: any) {

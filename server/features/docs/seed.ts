@@ -1051,6 +1051,38 @@ In addition to pipeline_activities, all pipeline mutations are logged in audit_l
 ### v1.3
 - onboarding_templates, onboarding_records, onboarding_checklist_items, onboarding_notes
 
+## v1.4 — System Notifications & Mailgun (March 2026)
+- Notification schema: notifications, notification_preferences
+- In-app notification center with type/read filters
+- Notification bell with unread count badge in header (polls every 30s)
+- Mailgun email service abstraction (HTTP API, no SDK)
+- Event-driven notification triggers for: new leads, lead assignment, stage changes, opportunity assignment, onboarding assignment/status
+- System alert notifications for admin/developer roles
+- Email delivery tracking (pending/sent/failed/skipped)
+- Related entity linking (click notification to navigate to lead/opportunity/onboarding)
+- Non-blocking triggers — notification failures never break parent operations
+- Graceful degradation when Mailgun is not configured
+- 6 new notification documentation articles
+
+## Database Tables
+### v1.0
+- user, session, account, verification (BetterAuth)
+- audit_logs, doc_categories, doc_articles, doc_tags, doc_article_tags, doc_revisions
+- integration_records
+
+### v1.1
+- crm_companies, crm_contacts, crm_leads, crm_lead_statuses
+- crm_lead_notes, crm_tags, crm_lead_tags
+
+### v1.2
+- pipeline_stages, pipeline_opportunities, pipeline_activities
+
+### v1.3
+- onboarding_templates, onboarding_records, onboarding_checklist_items, onboarding_notes
+
+### v1.4
+- notifications, notification_preferences
+
 ## Technical Notes
 - All existing marketing site functionality preserved
 - Non-destructive architecture extension
@@ -1338,6 +1370,228 @@ All onboarding frontend code lives in \`client/src/features/onboarding/\`.
 - "Start Onboarding" button on won opportunities (OpportunityDetailPage)
 - Calls POST /api/onboarding/convert-opportunity/:id
 - Navigates to new onboarding record after creation`,
+  },
+  {
+    title: "Notification Schema",
+    slug: "notification-schema",
+    categorySlug: "notifications-mailgun",
+    status: "published",
+    content: `# Notification Schema
+
+## Tables
+
+### notifications
+Stores all in-app and email notification records.
+- **id** (UUID PK)
+- **recipientId** — FK to user table (who receives this notification)
+- **type** — notification category: new_lead, lead_assignment, stage_change, opportunity_assignment, onboarding_assignment, onboarding_status, system_alert
+- **title** — short headline displayed in notification center
+- **message** — descriptive body text
+- **relatedEntityType** — optional: lead, opportunity, onboarding, company, contact
+- **relatedEntityId** — optional UUID of the related entity (for click-through navigation)
+- **channel** — delivery channel: in_app, email, both
+- **emailStatus** — email delivery state: pending, sent, failed, skipped
+- **isRead** — boolean read state
+- **readAt** — timestamp when marked read
+- **sentAt** — timestamp when email was sent
+- **failureReason** — error message if email delivery failed
+- **metadata** — JSONB for additional context
+- **createdAt** — auto-set creation timestamp
+
+### notification_preferences
+Per-user, per-type notification preferences (for future use).
+- **id** (UUID PK)
+- **userId** — FK to user
+- **type** — notification type string
+- **emailEnabled** — boolean (default true)
+- **inAppEnabled** — boolean (default true)
+
+## Indexes
+- recipientId, type, isRead, createdAt, (relatedEntityType + relatedEntityId) composite`,
+  },
+  {
+    title: "Mailgun Integration Overview",
+    slug: "mailgun-integration-overview",
+    categorySlug: "notifications-mailgun",
+    status: "published",
+    content: `# Mailgun Integration Overview
+
+## Architecture
+The Mailgun service is a modular abstraction layer at \`server/features/notifications/mailgun.ts\`. It uses the Mailgun HTTP API directly (no SDK dependency) for maximum control and minimal footprint.
+
+## Configuration
+Mailgun requires two environment variables:
+- **MAILGUN_API_KEY** — your Mailgun API key
+- **MAILGUN_DOMAIN** — your verified Mailgun domain (e.g., mg.vivawebdesigns.com)
+
+Optional:
+- **MAILGUN_FROM_EMAIL** — sender address (defaults to noreply@{domain})
+- **MAILGUN_FROM_NAME** — sender display name (defaults to "Viva Web Designs")
+
+## Graceful Degradation
+If Mailgun is not configured (missing env vars), the system:
+1. Returns \`status: "skipped"\` instead of failing
+2. Logs a warning message to console
+3. Continues to create in-app notifications normally
+4. Never blocks or breaks parent operations
+
+## Service API
+- \`isConfigured()\` — returns boolean indicating if Mailgun env vars are set
+- \`sendEmail(to, subject, html, options?)\` — sends email via Mailgun API
+  - Returns \`{ success, status, messageId?, error? }\`
+  - options: \`{ replyTo?, tags? }\`
+
+## Security
+- API key stored as environment secret (never hardcoded)
+- Uses HTTP Basic Auth (api:{key}) per Mailgun API spec
+- All send attempts and failures are logged to console`,
+  },
+  {
+    title: "Notification Event Flow",
+    slug: "notification-event-flow",
+    categorySlug: "notifications-mailgun",
+    status: "published",
+    content: `# Notification Event Flow
+
+## How Notifications Are Triggered
+Notifications are event-driven. When a relevant action occurs in the CRM, Pipeline, or Onboarding system, a trigger function fires asynchronously. This is additive and non-blocking — if a notification trigger fails, it is caught silently and does not affect the parent operation.
+
+## Trigger Functions (server/features/notifications/triggers.ts)
+
+| Trigger | Event | Recipients | Channel |
+|---------|-------|-----------|---------|
+| notifyNewLead | New lead created via website form or CRM | All admins + sales reps | both (in-app + email) |
+| notifyLeadAssignment | Lead assigned to a user | The assignee | both |
+| notifyStageChange | Opportunity moved to a different stage | Opportunity owner + admins | in_app |
+| notifyOpportunityAssignment | Opportunity assigned to a user | The assignee | both |
+| notifyOnboardingAssignment | Onboarding record assigned | The assignee | both |
+| notifyOnboardingStatusChange | Onboarding status updated | Owner + admins | in_app |
+| notifySystemAlert | System/integration alert | All admins + developers | both |
+
+## Flow
+1. Business action completes (e.g., lead created)
+2. Trigger function is called in a try/catch block
+3. Trigger queries the user table to find recipients by role
+4. For each recipient, \`createNotification()\` is called
+5. If channel is "email" or "both", email is sent via Mailgun service
+6. Notification record is saved to the database with delivery status
+
+## Non-Blocking Design
+All trigger calls follow this pattern:
+\`\`\`typescript
+try { notifyNewLead({ id, title, source }); } catch (_) {}
+\`\`\`
+This ensures notification failures never break the primary operation.`,
+  },
+  {
+    title: "Email Template System Foundation",
+    slug: "email-template-foundation",
+    categorySlug: "notifications-mailgun",
+    status: "published",
+    content: `# Email Template System Foundation
+
+## Current Implementation
+The notification service includes a basic HTML email template builder (\`buildEmailHtml()\` in \`server/features/notifications/service.ts\`). This generates a branded email with:
+- Viva Web Designs branded header (dark background)
+- Notification title and message body
+- Footer with automated notification disclaimer
+
+## Template Registry (Future)
+The architecture is designed to support a template registry where different notification types can have custom email templates. To add a new template:
+
+1. Create a template function in \`service.ts\` or a separate \`templates/\` directory
+2. Map the notification type to the template in \`sendEmailForNotification()\`
+3. Templates receive the full Notification object including metadata
+
+## Customization Points
+- **Header branding**: Logo, colors, company name
+- **Body layout**: Per-type content formatting
+- **Footer**: Unsubscribe links, legal text
+- **Metadata insertion**: Dynamic data from the notification metadata JSONB field
+
+## Mailgun Tags
+Each email is tagged with the notification type (e.g., "new_lead", "stage_change") for tracking and analytics in the Mailgun dashboard.`,
+  },
+  {
+    title: "Notification API Routes",
+    slug: "notification-api-routes",
+    categorySlug: "notifications-mailgun",
+    status: "published",
+    content: `# Notification API Routes
+
+All routes are under \`/api/notifications\` and require authentication.
+
+## Endpoints
+
+### GET /api/notifications
+Returns the current user's notifications with optional filters.
+- **Query params**: type, is_read (true/false), limit, offset
+- **Response**: \`{ notifications: Notification[], total: number }\`
+
+### GET /api/notifications/unread-count
+Returns the count of unread notifications for the current user.
+- **Response**: \`{ count: number }\`
+
+### PUT /api/notifications/:id/read
+Marks a single notification as read. Only works for notifications belonging to the current user.
+- **Response**: \`{ message: "Marked as read" }\`
+
+### PUT /api/notifications/read-all
+Marks all unread notifications as read for the current user.
+- **Response**: \`{ message: "Marked N notifications as read", count: number }\`
+
+### GET /api/notifications/preferences
+Returns the notification preferences for the current user (for future use).
+- **Response**: Array of NotificationPreference objects
+
+## Notes
+- All endpoints scope results to the authenticated user (recipientId = user.id)
+- The unread-count endpoint is polled every 30 seconds by the frontend bell component
+- Notifications are ordered by createdAt descending (newest first)`,
+  },
+  {
+    title: "Notification Center UI",
+    slug: "notification-center-ui",
+    categorySlug: "notifications-mailgun",
+    status: "published",
+    content: `# Notification Center UI
+
+## Components
+
+### Notification Bell (AdminLayout header)
+- Displays a bell icon in the top-right header area
+- Shows a red badge with unread count when > 0
+- Polls \`/api/notifications/unread-count\` every 30 seconds
+- Clicking navigates to \`/admin/notifications\`
+
+### NotificationCenterPage
+Full notification list page at \`/admin/notifications\`.
+
+**Features:**
+- Notification list with type icons and color coding
+- Unread indicator (teal left border + dot)
+- Type filter dropdown (All, New Lead, Lead Assignment, Stage Change, etc.)
+- Read status filter (All, Unread, Read)
+- Mark individual notification as read (check button)
+- Mark all as read button
+- Email delivery status icon (sent/failed/skipped)
+- Related entity linking — click a notification to navigate to the related lead, opportunity, or onboarding record
+- Empty state when no notifications
+- Animated list with Framer Motion
+
+**Type Icons:**
+- New Lead: Users (blue)
+- Lead Assignment: UserPlus (indigo)
+- Stage Change: TrendingUp (amber)
+- Opportunity Assignment: TrendingUp (emerald)
+- Onboarding Assignment: UserPlus (teal)
+- Onboarding Status: ArrowRight (purple)
+- System Alert: AlertTriangle (red)
+
+**Data Test IDs:**
+- text-notifications-title, button-mark-all-read, select-type-filter, select-read-filter
+- notification-item-{id}, button-mark-read-{id}, text-empty-state
+- button-notification-bell, badge-unread-count (in AdminLayout)`,
   },
 ];
 

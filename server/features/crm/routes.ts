@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { requireRole } from "../auth/middleware";
 import { logAudit } from "../audit/service";
+import { notifyLeadAssignment } from "../notifications/triggers";
 import * as crmStorage from "./storage";
 import {
   insertCrmCompanySchema, insertCrmContactSchema, insertCrmLeadSchema,
@@ -66,6 +67,9 @@ router.put("/leads/:id", requireRole("admin", "sales_rep"), async (req, res) => 
       metadata: { title: lead.title },
       ipAddress: req.ip,
     });
+    if (req.body.assignedTo && req.body.assignedTo !== existing.assignedTo) {
+      try { notifyLeadAssignment({ id: lead.id, title: lead.title }, req.body.assignedTo); } catch (_) {}
+    }
     res.json(lead);
   } catch (error: any) {
     res.status(400).json({ message: error.message });
