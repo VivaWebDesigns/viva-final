@@ -181,8 +181,10 @@ export default function Home() {
         </div>
       </section>
       {/* SECTION 3 – SOLUTION POSITIONING */}
-      <section className="py-24 lg:py-40 bg-[#f5f5f5] dark:bg-[#111]" data-testid="section-solution">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="py-24 lg:py-40 bg-[#f5f5f5] dark:bg-[#111] relative overflow-hidden" data-testid="section-solution">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-5xl h-px bg-gradient-to-r from-transparent via-[#c0c0c0] to-transparent shadow-[0_0_80px_30px_rgba(180,180,180,0.3)] pointer-events-none" />
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-5xl h-px bg-gradient-to-r from-transparent via-[#c0c0c0] to-transparent shadow-[0_0_80px_30px_rgba(180,180,180,0.3)] pointer-events-none" />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center max-w-3xl mx-auto mb-16">
             <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#111] dark:text-white leading-tight mb-6" data-testid="text-solution-title">
               {t("home.solution.title1")}{" "}
