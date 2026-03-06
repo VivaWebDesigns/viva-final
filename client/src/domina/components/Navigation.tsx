@@ -5,7 +5,7 @@ import { Button } from "@domina/components/ui/button";
 import { AnimatePresence, motion } from "framer-motion";
 import { useLanguage } from "@domina/i18n/LanguageContext";
 import { LanguageToggle } from "@domina/components/LanguageToggle";
-import logoPng from "@assets/image_1_(5)_1772575534808.png";
+import logoPng from "@assets/Viva_1772823591549.png";
 import { SiWhatsapp } from "react-icons/si";
 
 export function Navigation() {

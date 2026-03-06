@@ -2,7 +2,7 @@ import { Facebook, Instagram, Youtube } from "lucide-react";
 import { SiTiktok } from "react-icons/si";
 import { Link } from "wouter";
 import { useLanguage } from "@domina/i18n/LanguageContext";
-import logoPng from "@assets/image_1_(5)_1772575534808.png";
+import logoPng from "@assets/Viva_1772823591549.png";
 
 const SOCIAL_LINKS = [
   { icon: Facebook, label: "Facebook", href: "#", color: "text-[#1877F2]" },

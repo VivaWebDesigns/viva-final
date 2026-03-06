@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import logoImg from "@assets/image_1_1771876016559.png";
+import logoImg from "@assets/Viva_1772823591549.png";
 import { t } from "@/content";
 import { usePreviewLang } from "@/contexts/PreviewLangContext";
 
