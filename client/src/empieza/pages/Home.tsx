@@ -20,16 +20,18 @@ import {
   Thermometer, Fan, Wind, Hammer, ShowerHead,
 } from "lucide-react";
 import { SiTiktok, SiYoutube, SiFacebook, SiInstagram } from "react-icons/si";
-import heroVideo from "@empieza/assets/videos/hero-painting.mp4";
-import aboutPhoto from "@assets/gabriel-tovar-En1Is3KsRZw-unsplash_1771517255358.jpg";
-import galleryKitchen1 from "@assets/AdobeStock_615565130_1771521960347.jpeg";
-import galleryLiving1 from "@assets/AdobeStock_470165599_1771521960348.jpeg";
-import galleryKitchen2 from "@assets/ChatGPT_Image_Feb_19,_2026,_12_19_17_PM_1771521960349.png";
-import galleryDoor from "@assets/ChatGPT_Image_Feb_19,_2026,_12_18_07_PM_1771521960349.png";
-import galleryExterior from "@assets/ChatGPT_Image_Feb_19,_2026,_12_15_32_PM_1771521960350.png";
-import galleryLiving2 from "@assets/AdobeStock_248267632_1771521960350.jpeg";
-import galleryPorch from "@assets/ChatGPT_Image_Feb_19,_2026,_02_18_31_PM_1771528760345.png";
-import galleryFence from "@assets/ChatGPT_Image_Feb_19,_2026,_02_23_09_PM_1771529000104.png";
+import heroVideoMp4 from "@empieza/assets/videos/hero-painting-optimized.mp4";
+import heroVideoWebm from "@empieza/assets/videos/hero-painting-optimized.webm";
+import heroPoster from "@empieza/assets/videos/poster.webp";
+import aboutPhoto from "@empieza/assets/images/optimized/gabriel-tovar-En1Is3KsRZw-unsplash_1771517255358.webp";
+import galleryKitchen1 from "@empieza/assets/images/optimized/AdobeStock_615565130_1771521960347.webp";
+import galleryLiving1 from "@empieza/assets/images/optimized/AdobeStock_470165599_1771521960348.webp";
+import galleryKitchen2 from "@empieza/assets/images/optimized/ChatGPT_Image_Feb_19,_2026,_12_19_17_PM_1771521960349.webp";
+import galleryDoor from "@empieza/assets/images/optimized/ChatGPT_Image_Feb_19,_2026,_12_18_07_PM_1771521960349.webp";
+import galleryExterior from "@empieza/assets/images/optimized/ChatGPT_Image_Feb_19,_2026,_12_15_32_PM_1771521960350.webp";
+import galleryLiving2 from "@empieza/assets/images/optimized/AdobeStock_248267632_1771521960350.webp";
+import galleryPorch from "@empieza/assets/images/optimized/ChatGPT_Image_Feb_19,_2026,_02_18_31_PM_1771528760345.webp";
+import galleryFence from "@empieza/assets/images/optimized/ChatGPT_Image_Feb_19,_2026,_02_23_09_PM_1771529000104.webp";
 
 const ICON_MAP: Record<string, any> = {
   PaintBucket, Paintbrush,
@@ -92,14 +94,17 @@ export default function Home() {
           ) : (
             <video
               ref={videoRef}
-              src={heroVideo}
               autoPlay
               loop
               muted
               playsInline
+              poster={heroPoster}
               className="w-full h-full object-cover"
               data-testid="video-hero"
-            />
+            >
+              <source src={heroVideoWebm} type="video/webm" />
+              <source src={heroVideoMp4} type="video/mp4" />
+            </video>
           )}
           <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/70 to-black/50" />
         </div>
@@ -303,7 +308,7 @@ export default function Home() {
                 return (
                   <>
                     <div className="relative rounded-md overflow-hidden shadow-lg mb-4 cursor-pointer" onClick={() => setLightboxSrc(imgs[0].url)}>
-                      <img src={imgs[0].url} alt={imgs[0].alt} className="w-full h-[280px] object-cover" data-testid="img-why-us-1" />
+                      <img src={imgs[0].url} alt={imgs[0].alt} loading="lazy" className="w-full h-[280px] object-cover" data-testid="img-why-us-1" />
                       <div className="absolute bottom-0 right-0 z-10 bg-primary text-white px-4 py-2 rounded-tl-md shadow-lg text-center">
                         <span className="block text-2xl font-bold" style={{ fontFamily: 'var(--font-display)' }}>15+</span>
                         <span className="text-[10px] font-medium tracking-wider uppercase">{t("yearsExperience")}</span>
@@ -313,7 +318,7 @@ export default function Home() {
                     <div className="grid grid-cols-2 gap-4">
                       {imgs.slice(1, 7).map((img: any, i: number) => (
                         <div key={i} className="rounded-md overflow-hidden shadow-md cursor-pointer" onClick={() => setLightboxSrc(img.url)}>
-                          <img src={img.url} alt={img.alt} className="w-full h-[160px] object-cover" data-testid={`img-why-us-${i + 2}`} />
+                          <img src={img.url} alt={img.alt} loading="lazy" className="w-full h-[160px] object-cover" data-testid={`img-why-us-${i + 2}`} />
                         </div>
                       ))}
                     </div>

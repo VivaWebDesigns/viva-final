@@ -63,5 +63,23 @@ contacto     → Contact page form labels + sidebar
 - PostgreSQL with contacts table for lead capture
 - Fields: id, name, email, phone, business, city, trade, service, message, createdAt
 
+## Demo System
+- **Empieza** (`/empieza`) - Starter demo tier for contractors
+- **Crece** (`/crece`) - Growth demo tier
+- **Domina** (`/domina`) - Premium demo tier
+- **Showroom** (`/demo`) - Public demo selection page
+- **Preview** (`/preview/empieza|crece|domina`) - Private preview URLs with embedded payload
+- **Admin** (`/admin/demo-builder`) - Internal link generator for preview URLs
+- **7 trade templates** in `client/src/preview/tradeTemplates.js`
+- Bilingual EN/ES support with dynamic language switching
+
+## Performance Optimizations
+- **Code splitting**: All routes except Home use `React.lazy` + `Suspense` (Home stays eager as the landing page entry point)
+- **Video**: Empieza hero video optimized from 5.1MB → 960KB MP4 + 1.5MB WebM with WebP poster
+- **Images**: Empieza gallery images converted from raw JPEG/PNG (~20MB) → optimized WebP (~1.1MB)
+- **Native lazy**: Gallery images use `loading="lazy"` attribute
+- **Fonts**: Non-render-blocking Google Fonts via `preload` + `onload` pattern
+- **Optimized assets location**: `client/src/*/assets/images/optimized/` (WebP), `client/src/*/assets/videos/` (MP4+WebM+poster)
+
 ## Running
 - `npm run dev` starts Express + Vite on port 5000
