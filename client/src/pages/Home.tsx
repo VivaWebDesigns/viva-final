@@ -259,9 +259,9 @@ export default function Home() {
                     </span>
                   </div>
                 )}
-                <div className={`rounded-2xl border bg-white dark:bg-[#0d0d0d] flex flex-col flex-1 transition-all duration-300 relative ${"popular" in pkg && pkg.popular ? "md:scale-[1.06] md:z-10 border-[#0D9488]/40 shadow-xl shadow-[#0D9488]/5 hover:shadow-2xl hover:shadow-[#0D9488]/10" : "border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-lg"}`}>
+                <div className={`rounded-2xl border bg-white dark:bg-[#0d0d0d] flex flex-col flex-1 transition-all duration-300 relative z-10 ${"popular" in pkg && pkg.popular ? "md:scale-[1.06] border-[#0D9488]/40 shadow-xl shadow-[#0D9488]/5 hover:shadow-2xl hover:shadow-[#0D9488]/10" : "border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-lg"}`}>
                   {"popular" in pkg && pkg.popular && (
-                    <div className="absolute inset-0 rounded-2xl bg-[#0D9488]/5 blur-3xl -z-10 pointer-events-none" />
+                    <div className="absolute inset-0 rounded-2xl bg-[#0D9488]/20 blur-3xl -z-10 pointer-events-none" />
                   )}
                   <div className="p-8 lg:p-10 text-center">
                     <div className="w-12 h-12 mx-auto rounded-xl flex items-center justify-center mb-5 bg-[#10B981]/10">
