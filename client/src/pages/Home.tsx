@@ -294,7 +294,7 @@ export default function Home() {
                     <p className="text-[#0D9488] text-xs font-semibold uppercase tracking-wider mb-3">{pkg.positioning}</p>
                     <p className="text-gray-600 dark:text-gray-400 leading-relaxed mb-8 flex-1 text-sm">{pkg.desc}</p>
                     <Link href={`/paquetes/${pkg.slug}`}>
-                      <Button size="lg" className={`w-full rounded-full font-bold text-lg gap-2 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 ${"popular" in pkg && pkg.popular ? "bg-[#0D9488] text-white shadow-[#0D9488]/20 hover:bg-[#0F766E]" : "premium" in pkg && pkg.premium ? "bg-[#111] dark:bg-white text-white dark:text-[#111] shadow-xl" : "bg-white dark:bg-[#0d0d0d] text-[#111] dark:text-white border border-[#111]/10 dark:border-white/10 hover:border-[#111]/20"}`} data-testid={`button-ver-${pkg.slug}`}>
+                      <Button size="lg" className={`w-full rounded-full font-bold text-lg gap-2 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 ${"popular" in pkg && pkg.popular ? "bg-[#0D9488] text-white shadow-[#0D9488]/20 hover:bg-[#0F766E]" : "bg-[#111] dark:bg-white text-white dark:text-[#111] shadow-xl"}`} data-testid={`button-ver-${pkg.slug}`}>
                         {t("home.packages.viewDetails")}
                         <ArrowRight className="w-5 h-5" />
                       </Button>
