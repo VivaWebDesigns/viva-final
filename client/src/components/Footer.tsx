@@ -6,7 +6,7 @@ import { t } from "@/content";
 
 export default function Footer() {
   return (
-    <footer className="bg-[#111] text-gray-400" data-testid="footer">
+    <footer className="text-gray-400 bg-[#021824]" data-testid="footer">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-24">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
           <div className="lg:col-span-1">
