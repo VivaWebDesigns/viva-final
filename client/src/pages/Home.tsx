@@ -96,7 +96,7 @@ export default function Home() {
       <section className="relative min-h-[90vh] flex items-center overflow-hidden" data-testid="section-hero">
         <div className="absolute inset-0 bg-[#111]">
           <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=1920&q=80')] bg-cover bg-center opacity-30" />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#111]/72 via-[#111]/56 to-[#111]/40" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#111]/79 via-[#111]/62 to-[#111]/44" />
         </div>
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-32 lg:py-40">
