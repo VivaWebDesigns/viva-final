@@ -20,7 +20,7 @@
     "socialTitle": { "en": "Social Media", "es": "Redes Sociales" },
     "copyright": { "en": "All rights reserved.", "es": "Todos los derechos reservados." },
     "statement": { "en": "Support in Spanish. No complicated contracts. No confusing terms.", "es": "Soporte en español. Sin contratos complicados. Sin términos confusos." },
-    "serviceArea": { "en": "We serve: [City / Service Area]", "es": "Trabajamos en: [Ciudad / Área de servicio]" },
+    "serviceArea": { "en": "We serve Charlotte and all of the Carolinas region.", "es": "Trabajamos en Charlotte y en toda la región de las Carolinas." },
     "links": {
       "home": { "en": "Home", "es": "Inicio" },
       "packages": { "en": "Packages", "es": "Paquetes" },
