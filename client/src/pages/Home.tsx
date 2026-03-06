@@ -321,8 +321,8 @@ export default function Home() {
       </section>
       {/* SECTION 5 – BEFORE / AFTER */}
       <section className="py-24 lg:py-40 bg-[#111] relative overflow-hidden" data-testid="section-before-after">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-5xl h-[2px] bg-gradient-to-r from-transparent via-[#FF0080] to-transparent shadow-[0_0_120px_60px_rgba(255,0,128,0.4)] pointer-events-none opacity-80" />
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-5xl h-[2px] bg-gradient-to-r from-transparent via-[#FF0080] to-transparent shadow-[0_0_120px_60px_rgba(255,0,128,0.4)] pointer-events-none opacity-80" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-5xl h-[2px] bg-gradient-to-r from-transparent via-[#FF0080] to-transparent shadow-[0_0_60px_20px_rgba(255,0,128,0.6)] pointer-events-none" />
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-5xl h-[2px] bg-gradient-to-r from-transparent via-[#FF0080] to-transparent shadow-[0_0_60px_20px_rgba(255,0,128,0.6)] pointer-events-none" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center mb-16">
             <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white leading-tight" data-testid="text-before-after-title">
