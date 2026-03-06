@@ -411,6 +411,7 @@ export default function Home() {
       {/* SECTION 7 – TESTIMONIALS */}
       <section className="py-24 lg:py-40 dark:bg-[#111] relative overflow-hidden bg-[#ffffff]" data-testid="section-testimonials">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-px bg-gradient-to-r from-transparent via-[#0D9488]/30 to-transparent shadow-[0_0_100px_40px_rgba(13,148,136,0.1)] pointer-events-none" />
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-px bg-gradient-to-r from-transparent via-[#0D9488]/30 to-transparent shadow-[0_0_100px_40px_rgba(13,148,136,0.1)] pointer-events-none" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center max-w-3xl mx-auto mb-16">
             <motion.p variants={fadeUp} className="text-[#0D9488] font-bold text-sm uppercase tracking-widest mb-4">
