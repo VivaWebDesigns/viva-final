@@ -37,9 +37,6 @@ const ui = {
       { value: "crece",   label: "Crece — Mid-tier plan (multiple pages)" },
       { value: "domina",  label: "Domina — Professional plan (full site)" },
     ],
-    langIndicatorLabel: "Preview language:",
-    langIndicatorValue: "EN — English",
-    langIndicatorHint:  "(change with the EN/ES button in the nav bar)",
     generateBtn:    "Generate Preview Link",
     generatedLabel: "Generated link",
     copyBtn:        "Copy link",
@@ -66,9 +63,6 @@ const ui = {
       { value: "crece",   label: "Crece — Plan mediano (varias páginas)" },
       { value: "domina",  label: "Domina — Plan profesional (sitio completo)" },
     ],
-    langIndicatorLabel: "Idioma de la vista previa:",
-    langIndicatorValue: "ES — Español",
-    langIndicatorHint:  "(cambia con el botón EN/ES en la barra de navegación)",
     generateBtn:    "Generar Enlace de Vista Previa",
     generatedLabel: "Enlace generado",
     copyBtn:        "Copiar enlace",
@@ -217,13 +211,6 @@ export default function AdminDemoBuilder() {
               </label>
             ))}
           </div>
-        </div>
-
-        {/* Language indicator */}
-        <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground border border-border rounded-lg px-4 py-3">
-          <span>{s.langIndicatorLabel}</span>
-          <span className="font-bold text-foreground">{s.langIndicatorValue}</span>
-          <span className="text-xs">{s.langIndicatorHint}</span>
         </div>
 
         {/* Generate button */}
