@@ -4,17 +4,9 @@
  * Internal tool for generating customized preview links to share with prospects.
  * This page is NOT linked anywhere publicly. Access it directly by typing the URL.
  *
- * The EN/ES language toggle lives in the navigation bar (not on this page).
- * It controls which language the demo site opens in via the shared PreviewLangContext.
- *
- * How to use:
- *   1. Fill in the prospect's business details.
- *   2. Select the plan tier (Empieza / Crece / Domina).
- *   3. Toggle EN or ES in the top navigation bar to set the preview language.
- *   4. Click "Generar Enlace" to build the preview URL.
- *   5. Copy it or open it directly to verify the customization looks right.
- *   6. Share the link with your prospect — they'll see a preview that shows
- *      their business name, city, phone, and CTA in the selected language.
+ * The EN/ES language toggle in the navigation bar controls two things at once:
+ *   1. The language of THIS page's UI labels.
+ *   2. The language the demo preview site will open in when the link is visited.
  */
 
 import { useState } from "react";
@@ -24,16 +16,73 @@ import { Label } from "@/components/ui/label";
 import { Copy, ExternalLink, CheckCircle } from "lucide-react";
 import { usePreviewLang } from "@/contexts/PreviewLangContext";
 
-// Available plan tiers and their preview route paths
-const PACKAGES = [
-  { value: "empieza", label: "Empieza — Plan básico (1 página)" },
-  { value: "crece",   label: "Crece — Plan mediano (varias páginas)" },
-  { value: "domina",  label: "Domina — Plan profesional (sitio completo)" },
-];
+// --- UI strings for both languages ---
+const ui = {
+  en: {
+    heading:        "Preview Link Generator",
+    subheading:     "Fill in the prospect's business details, select a plan, and generate a personalized link to show them what their website could look like. The link is not publicly listed anywhere. Use the EN / ES button in the navigation bar to set the preview language.",
+    labelName:      "Business Name",
+    placeholderName:"e.g. Rodriguez Plumbing",
+    labelCity:      "City",
+    placeholderCity:"e.g. Houston",
+    labelPhone:     "Phone",
+    placeholderPhone:"e.g. (713) 555-0123",
+    labelService:   "Service Type",
+    placeholderService:"e.g. Plumbing, Roofing, Painting",
+    labelCta:       "Main Button Text (CTA)",
+    placeholderCta: "e.g. Call for a free quote",
+    labelPlan:      "Plan to preview",
+    packages: [
+      { value: "empieza", label: "Empieza — Basic plan (1 page)" },
+      { value: "crece",   label: "Crece — Mid-tier plan (multiple pages)" },
+      { value: "domina",  label: "Domina — Professional plan (full site)" },
+    ],
+    langIndicatorLabel: "Preview language:",
+    langIndicatorValue: "EN — English",
+    langIndicatorHint:  "(change with the EN/ES button in the nav bar)",
+    generateBtn:    "Generate Preview Link",
+    generatedLabel: "Generated link",
+    copyBtn:        "Copy link",
+    copiedBtn:      "Copied!",
+    openBtn:        "Open preview",
+    shareNote:      "Share this link directly with your prospect. It is not indexed or linked anywhere on the public site.",
+  },
+  es: {
+    heading:        "Generador de Vista Previa",
+    subheading:     "Llena los datos del prospecto, selecciona el plan y genera un enlace personalizado para mostrarle cómo quedaría su sitio web. El enlace no aparece en ningún lugar público. Usa el botón EN / ES en la barra de navegación para elegir el idioma de la vista previa.",
+    labelName:      "Nombre del negocio",
+    placeholderName:"Ej: Rodriguez Plumbing",
+    labelCity:      "Ciudad",
+    placeholderCity:"Ej: Houston",
+    labelPhone:     "Teléfono",
+    placeholderPhone:"Ej: (713) 555-0123",
+    labelService:   "Tipo de servicio",
+    placeholderService:"Ej: Plomería, Techado, Pintura",
+    labelCta:       "Texto del botón principal (CTA)",
+    placeholderCta: "Ej: Llama para cotización gratis",
+    labelPlan:      "Plan a mostrar",
+    packages: [
+      { value: "empieza", label: "Empieza — Plan básico (1 página)" },
+      { value: "crece",   label: "Crece — Plan mediano (varias páginas)" },
+      { value: "domina",  label: "Domina — Plan profesional (sitio completo)" },
+    ],
+    langIndicatorLabel: "Idioma de la vista previa:",
+    langIndicatorValue: "ES — Español",
+    langIndicatorHint:  "(cambia con el botón EN/ES en la barra de navegación)",
+    generateBtn:    "Generar Enlace de Vista Previa",
+    generatedLabel: "Enlace generado",
+    copyBtn:        "Copiar enlace",
+    copiedBtn:      "¡Copiado!",
+    openBtn:        "Abrir vista previa",
+    shareNote:      "Comparte este enlace directamente con el prospecto. No está indexado ni aparece en ningún lugar público del sitio.",
+  },
+};
 
 export default function AdminDemoBuilder() {
-  // Language selection comes from the nav bar toggle (shared context)
+  // Language selection comes from the nav bar toggle (shared context).
+  // It controls both the UI language of this page and the preview link's lang param.
   const { lang } = usePreviewLang();
+  const s = ui[lang];
 
   // --- Form state ---
   const [name,    setName]    = useState("");
@@ -47,12 +96,6 @@ export default function AdminDemoBuilder() {
   const [generatedUrl, setGeneratedUrl] = useState("");
   const [copied,       setCopied]       = useState(false);
 
-  /**
-   * Builds the preview URL from form values.
-   * Each field is URL-encoded and only appended if non-empty.
-   * The base URL is the current origin so the link works on both dev and production.
-   * The language comes from the nav bar EN/ES toggle via PreviewLangContext.
-   */
   function generateLink() {
     const params = new URLSearchParams();
     if (name.trim())    params.set("name",    name.trim());
@@ -60,7 +103,6 @@ export default function AdminDemoBuilder() {
     if (phone.trim())   params.set("phone",   phone.trim());
     if (service.trim()) params.set("service", service.trim());
     if (cta.trim())     params.set("cta",     cta.trim());
-    // Language is controlled by the EN/ES toggle in the navigation bar
     params.set("lang", lang);
 
     const base = `${window.location.origin}/preview/${pkg}`;
@@ -68,7 +110,6 @@ export default function AdminDemoBuilder() {
     setCopied(false);
   }
 
-  /** Copies the generated URL to the clipboard and shows a brief checkmark. */
   function copyLink() {
     if (!generatedUrl) return;
     navigator.clipboard.writeText(generatedUrl).then(() => {
@@ -79,22 +120,24 @@ export default function AdminDemoBuilder() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-12">
-      <h1 className="text-2xl font-bold text-foreground mb-1">Generador de Vista Previa</h1>
+      <h1 className="text-2xl font-bold text-foreground mb-1">{s.heading}</h1>
       <p className="text-muted-foreground text-sm mb-8">
-        Llena los datos del prospecto, selecciona el plan y genera un enlace personalizado
-        para mostrarle cómo quedaría su sitio web. El enlace no aparece en ningún lugar público.
-        Usa el botón <span className="font-semibold text-foreground">EN / ES</span> en la barra de navegación para elegir el idioma de la vista previa.
+        {s.subheading.split("EN / ES").map((part, i, arr) =>
+          i < arr.length - 1
+            ? <span key={i}>{part}<span className="font-semibold text-foreground">EN / ES</span></span>
+            : <span key={i}>{part}</span>
+        )}
       </p>
 
       <div className="space-y-5 bg-card border border-border rounded-xl p-6">
 
         {/* Business Name */}
         <div className="space-y-1.5">
-          <Label htmlFor="input-name">Nombre del negocio</Label>
+          <Label htmlFor="input-name">{s.labelName}</Label>
           <Input
             id="input-name"
             data-testid="input-name"
-            placeholder="Ej: Rodriguez Plumbing"
+            placeholder={s.placeholderName}
             value={name}
             onChange={e => setName(e.target.value)}
           />
@@ -102,11 +145,11 @@ export default function AdminDemoBuilder() {
 
         {/* City */}
         <div className="space-y-1.5">
-          <Label htmlFor="input-city">Ciudad</Label>
+          <Label htmlFor="input-city">{s.labelCity}</Label>
           <Input
             id="input-city"
             data-testid="input-city"
-            placeholder="Ej: Houston"
+            placeholder={s.placeholderCity}
             value={city}
             onChange={e => setCity(e.target.value)}
           />
@@ -114,11 +157,11 @@ export default function AdminDemoBuilder() {
 
         {/* Phone */}
         <div className="space-y-1.5">
-          <Label htmlFor="input-phone">Teléfono</Label>
+          <Label htmlFor="input-phone">{s.labelPhone}</Label>
           <Input
             id="input-phone"
             data-testid="input-phone"
-            placeholder="Ej: (713) 555-0123"
+            placeholder={s.placeholderPhone}
             value={phone}
             onChange={e => setPhone(e.target.value)}
           />
@@ -126,11 +169,11 @@ export default function AdminDemoBuilder() {
 
         {/* Service */}
         <div className="space-y-1.5">
-          <Label htmlFor="input-service">Tipo de servicio</Label>
+          <Label htmlFor="input-service">{s.labelService}</Label>
           <Input
             id="input-service"
             data-testid="input-service"
-            placeholder="Ej: Plomería, Techado, Pintura"
+            placeholder={s.placeholderService}
             value={service}
             onChange={e => setService(e.target.value)}
           />
@@ -138,11 +181,11 @@ export default function AdminDemoBuilder() {
 
         {/* CTA */}
         <div className="space-y-1.5">
-          <Label htmlFor="input-cta">Texto del botón principal (CTA)</Label>
+          <Label htmlFor="input-cta">{s.labelCta}</Label>
           <Input
             id="input-cta"
             data-testid="input-cta"
-            placeholder="Ej: Llama para cotización gratis"
+            placeholder={s.placeholderCta}
             value={cta}
             onChange={e => setCta(e.target.value)}
           />
@@ -150,9 +193,9 @@ export default function AdminDemoBuilder() {
 
         {/* Package selector */}
         <div className="space-y-1.5">
-          <Label>Plan a mostrar</Label>
+          <Label>{s.labelPlan}</Label>
           <div className="flex flex-col gap-2 pt-1">
-            {PACKAGES.map(p => (
+            {s.packages.map(p => (
               <label
                 key={p.value}
                 data-testid={`radio-${p.value}`}
@@ -176,13 +219,11 @@ export default function AdminDemoBuilder() {
           </div>
         </div>
 
-        {/* Language indicator — shows what's selected in the nav toggle */}
-        <div className="flex items-center gap-2 text-sm text-muted-foreground border border-border rounded-lg px-4 py-3">
-          <span>Idioma de la vista previa:</span>
-          <span className="font-bold text-foreground">
-            {lang === "en" ? "EN — English" : "ES — Español"}
-          </span>
-          <span className="text-xs">(cambia con el botón EN/ES en la barra de navegación)</span>
+        {/* Language indicator */}
+        <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground border border-border rounded-lg px-4 py-3">
+          <span>{s.langIndicatorLabel}</span>
+          <span className="font-bold text-foreground">{s.langIndicatorValue}</span>
+          <span className="text-xs">{s.langIndicatorHint}</span>
         </div>
 
         {/* Generate button */}
@@ -191,25 +232,22 @@ export default function AdminDemoBuilder() {
           className="w-full mt-2"
           onClick={generateLink}
         >
-          Generar Enlace de Vista Previa
+          {s.generateBtn}
         </Button>
       </div>
 
       {/* Generated URL output */}
       {generatedUrl && (
         <div className="mt-6 space-y-3">
-          <Label>Enlace generado</Label>
-          <div className="flex items-center gap-2">
-            <Input
-              data-testid="output-link"
-              readOnly
-              value={generatedUrl}
-              className="font-mono text-xs bg-muted"
-              onClick={e => (e.target as HTMLInputElement).select()}
-            />
-          </div>
+          <Label>{s.generatedLabel}</Label>
+          <Input
+            data-testid="output-link"
+            readOnly
+            value={generatedUrl}
+            className="font-mono text-xs bg-muted"
+            onClick={e => (e.target as HTMLInputElement).select()}
+          />
           <div className="flex gap-3">
-            {/* Copy button */}
             <Button
               data-testid="button-copy"
               variant="outline"
@@ -217,19 +255,12 @@ export default function AdminDemoBuilder() {
               onClick={copyLink}
             >
               {copied ? (
-                <>
-                  <CheckCircle size={16} className="mr-2 text-green-600" />
-                  ¡Copiado!
-                </>
+                <><CheckCircle size={16} className="mr-2 text-green-600" />{s.copiedBtn}</>
               ) : (
-                <>
-                  <Copy size={16} className="mr-2" />
-                  Copiar enlace
-                </>
+                <><Copy size={16} className="mr-2" />{s.copyBtn}</>
               )}
             </Button>
 
-            {/* Open preview button */}
             <Button
               data-testid="button-open-preview"
               variant="outline"
@@ -237,14 +268,11 @@ export default function AdminDemoBuilder() {
               onClick={() => window.open(generatedUrl, "_blank")}
             >
               <ExternalLink size={16} className="mr-2" />
-              Abrir vista previa
+              {s.openBtn}
             </Button>
           </div>
 
-          <p className="text-xs text-muted-foreground">
-            Comparte este enlace directamente con el prospecto. No está indexado ni aparece
-            en ningún lugar público del sitio.
-          </p>
+          <p className="text-xs text-muted-foreground">{s.shareNote}</p>
         </div>
       )}
     </div>
