@@ -77,6 +77,7 @@ export default function Paquetes() {
       positioning: t("paquetes.cards.empieza.positioning"),
       price: t("paquetes.cards.empieza.price"),
       microcopy: t("paquetes.cards.empieza.microcopy"),
+      inicio: true,
       features: empiezaFeatures,
     },
     {
@@ -99,6 +100,7 @@ export default function Paquetes() {
       price: t("paquetes.cards.domina.price"),
       microcopy: t("paquetes.cards.domina.microcopy"),
       premium: true,
+      bestValue: true,
       features: dominaFeatures,
     },
   ];
@@ -222,7 +224,7 @@ export default function Paquetes() {
       </section>
 
       {/* PACKAGE CARDS */}
-      <section className="py-24 lg:py-40 bg-[#f5f5f5] dark:bg-[#111]" data-testid="section-paquetes-cards" id="paquetes-list">
+      <section className="py-24 lg:py-40 bg-white dark:bg-[#0d0d0d]" data-testid="section-paquetes-cards" id="paquetes-list">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center mb-16">
             <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl font-extrabold text-[#111] dark:text-white leading-tight" data-testid="text-cards-title">
@@ -238,22 +240,41 @@ export default function Paquetes() {
                 className={`relative flex flex-col ${"popular" in pkg && pkg.popular ? "lg:scale-[1.06] lg:z-10" : ""}`}
                 data-testid={`card-paquete-${pkg.slug}`}
               >
-                {"popular" in pkg && pkg.popular && (
-                  <div className="flex justify-center mb-3">
-                    <span className="bg-[#0D9488] text-white text-xs font-bold px-5 py-1.5 rounded-full uppercase tracking-widest flex items-center gap-1.5 shadow-lg" data-testid="badge-popular-card">
-                      <Star className="w-3 h-3 fill-white" />
-                      {t("paquetes.cards.badgePopular")}
+                {"inicio" in pkg && pkg.inicio && (
+                  <div className="flex justify-center -mb-4 relative z-30">
+                    <span className="bg-[#FCD34D] text-[#111] text-xs font-bold px-5 py-1.5 rounded-full uppercase tracking-widest flex items-center gap-1.5 shadow-lg" data-testid="badge-inicio">
+                      <Zap className="w-3 h-3 fill-[#111]" />
+                      Inicio
+                    </span>
+                  </div>
+                )}
+                {"bestValue" in pkg && pkg.bestValue && (
+                  <div className="flex justify-center -mb-4 relative z-30">
+                    <span className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold px-5 py-1.5 rounded-full uppercase tracking-widest flex items-center gap-1.5 shadow-lg" data-testid="badge-best-value">
+                      <Crown className="w-3 h-3 fill-white" />
+                      El Mejor Valor
                     </span>
                   </div>
                 )}
 
-                <div className={`rounded-2xl border bg-white dark:bg-[#0d0d0d] flex flex-col flex-1 transition-all duration-300 ${"popular" in pkg && pkg.popular ? "border-[#0D9488]/40 shadow-xl shadow-[#0D9488]/5 hover:shadow-2xl hover:shadow-[#0D9488]/10" : "border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-lg"}`}>
-                  <div className="p-8 lg:p-10">
-                    <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-5 bg-[#10B981]/10">
+                <div className={`rounded-[20px] border bg-white dark:bg-[#0d0d0d] flex flex-col flex-1 transition-all duration-300 relative z-20 ${"popular" in pkg && pkg.popular ? "border-[#efefef] shadow-xl shadow-[#0D9488]/5 hover:shadow-2xl hover:shadow-[#0D9488]/10" : "border-[#efefef] shadow-sm hover:shadow-lg"}`}>
+                  {"popular" in pkg && pkg.popular && (
+                    <>
+                      <div className="absolute inset-0 rounded-[20px] bg-[#0D9488]/20 blur-[60px] -z-30 pointer-events-none scale-90" />
+                      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 flex justify-center">
+                        <span className="bg-[#0D9488] text-white text-xs font-bold px-5 py-1.5 rounded-full uppercase tracking-widest flex items-center gap-1.5 shadow-lg" data-testid="badge-popular-card">
+                          <Star className="w-3 h-3 fill-white" />
+                          {t("paquetes.cards.badgePopular")}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                  <div className="p-8 lg:p-10 text-center bg-[#ffffff] rounded-t-[20px]">
+                    <div className="w-12 h-12 mx-auto rounded-xl flex items-center justify-center mb-5 bg-[#10B981]/10">
                       <pkg.icon className="w-6 h-6 text-[#10B981]" />
                     </div>
                     <h3 className="text-2xl font-extrabold text-[#111] dark:text-white mb-1">{pkg.name}</h3>
-                    <p className="text-gray-500 dark:text-gray-400 text-xs leading-snug mb-6">{pkg.subLabel}</p>
+                    <p className="text-gray-500 dark:text-gray-400 text-xs leading-snug max-w-[220px] mx-auto mb-8">{pkg.subLabel}</p>
 
                     <div className="border-t border-gray-100 dark:border-gray-800 pt-6 mb-6">
                       <p className="text-3xl font-extrabold text-[#111] dark:text-white" data-testid={`text-price-${pkg.slug}`}>{pkg.price}</p>
@@ -266,7 +287,7 @@ export default function Paquetes() {
                     </div>
                   </div>
 
-                  <div className="px-8 lg:px-10 pb-8 lg:pb-10 flex-1 flex flex-col">
+                  <div className="px-8 lg:px-10 pb-8 lg:pb-10 flex-1 flex flex-col bg-[#ffffff] rounded-b-[20px]">
                     <p className="text-[#0D9488] text-xs font-semibold uppercase tracking-wider mb-4">{pkg.positioning}</p>
 
                     <ul className="space-y-3.5 mb-10 flex-1">
@@ -279,7 +300,7 @@ export default function Paquetes() {
                     </ul>
 
                     <Link href={`/paquetes/${pkg.slug}`}>
-                      <Button size="lg" className={`w-full rounded-full font-bold text-lg gap-2 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 ${"popular" in pkg && pkg.popular ? "bg-[#0D9488] text-white shadow-[#0D9488]/20 hover:bg-[#0F766E]" : "premium" in pkg && pkg.premium ? "bg-[#111] dark:bg-white text-white dark:text-[#111] shadow-xl" : "bg-white dark:bg-[#0d0d0d] text-[#111] dark:text-white border border-[#111]/10 dark:border-white/10 hover:border-[#111]/20"}`} data-testid={`button-ver-${pkg.slug}`}>
+                      <Button size="lg" className={`w-full rounded-full font-bold text-lg gap-2 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 ${"popular" in pkg && pkg.popular ? "bg-[#0D9488] text-white shadow-[#0D9488]/20 hover:bg-[#0F766E]" : "bg-[#111] dark:bg-white text-white dark:text-[#111] shadow-xl"}`} data-testid={`button-ver-${pkg.slug}`}>
                         {t("paquetes.cards.viewDetails")}
                         <ArrowRight className="w-5 h-5" />
                       </Button>
