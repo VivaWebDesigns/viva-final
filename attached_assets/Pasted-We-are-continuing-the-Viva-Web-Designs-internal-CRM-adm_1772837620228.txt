@@ -1,0 +1,90 @@
+We are continuing the Viva Web Designs internal CRM/admin platform in Replit.
+
+PROJECT CONTEXT
+- Internal single-company platform for Viva Web Designs
+- NOT multi-tenant
+- React + TypeScript, Express + TypeScript, PostgreSQL, Drizzle ORM
+- BetterAuth
+- Tailwind CSS + shadcn/ui + Framer Motion + Lucide React
+- Cloudflare R2 only for file storage
+- Roles: Admin, Developer, Sales Rep
+- All work must be NON-DESTRUCTIVE
+- Keep code modular, organized, and performance-conscious
+- App Docs updates are mandatory
+
+PRIMARY GOAL
+Build the Client Onboarding Wizard and onboarding tracking system.
+
+IMPLEMENT THE FOLLOWING
+1. Create onboarding schema and workflow support for:
+   - onboarding records
+   - onboarding steps/checklist items
+   - onboarding status
+   - assigned internal owner
+   - kickoff date
+   - due dates
+   - completion states
+   - related company/contact/opportunity/client references
+2. Build a multi-step onboarding wizard for internal users.
+3. Support onboarding categories/checklist items such as:
+   - contract received
+   - payment confirmed
+   - logo/brand assets received
+   - domain/DNS access received
+   - website access received
+   - Google Business Profile access
+   - Google Ads access
+   - Meta/Facebook access
+   - social account access
+   - content/assets received
+   - kickoff call scheduled/completed
+4. Support internal notes and timeline logging for onboarding actions.
+5. Allow onboarding records to be created from won opportunities/deals.
+6. Build admin/backend UI for:
+   - onboarding list
+   - onboarding detail page
+   - onboarding wizard
+   - checklist progress display
+7. Add role-aware editing permissions as appropriate.
+
+OPTIONAL BUT USEFUL
+- template-based onboarding checklists
+- progress percentage
+- missing-items indicators
+- overdue items highlighting
+
+FILE SUPPORT REQUIREMENTS
+If onboarding includes uploads/attachments:
+- use Cloudflare R2 only
+- no local storage
+- save metadata in PostgreSQL
+- use structured object keys
+- keep file access permission-aware
+
+R2 OBJECT KEY RULE
+Use structured keys such as:
+clients/{clientId}/onboarding/{subtype}/{filename}
+or a similarly consistent hierarchy.
+Store original filename, stored filename, object key, MIME type, size, uploader, timestamps, and related record linkage in PostgreSQL.
+
+APP DOCS REQUIREMENT
+Create/update docs for:
+- onboarding schema
+- onboarding wizard flow
+- checklist model
+- file handling/storage rules if used
+- opportunity → onboarding handoff
+- API routes
+- UI modules
+- changelog/release notes
+
+NON-DESTRUCTIVE RULE
+Do not break CRM, pipeline, auth, or docs features.
+Extend safely and preserve compatibility.
+
+DELIVERABLES
+- onboarding schema/migrations
+- onboarding wizard UI
+- onboarding tracking/detail UI
+- handoff workflow from opportunity to onboarding
+- documentation updates

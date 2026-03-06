@@ -1,0 +1,138 @@
+We are continuing the Viva Web Designs internal CRM/admin platform in Replit.
+
+PROJECT CONTEXT
+- Internal single-company platform for Viva Web Designs
+- This application is NOT multi-tenant
+- Stack: React + TypeScript + Tailwind CSS + shadcn/ui + Framer Motion + Lucide React
+- Backend: Express + TypeScript
+- Database: PostgreSQL + Drizzle ORM
+- Auth: BetterAuth
+- Realtime: Socket.IO
+- File storage: Cloudflare R2 only
+- Roles: Admin, Developer, Sales Rep
+- All changes must be NON-DESTRUCTIVE
+- All feature work must update the internal App Docs library
+- Keep architecture modular and performance-conscious
+- Avoid monolithic route files and oversized components/services
+
+PRIMARY GOAL
+Build Phase 1 of an internal real-time Team Chat system for staff communication.
+
+IMPORTANT
+This is NOT multi-tenant.
+Remove any tenant dependencies, tenant_id fields, tenant scoping logic, and tenant room design.
+Use authenticated user context plus role/membership rules only.
+
+PHASE 1 FEATURES TO IMPLEMENT
+- public channels
+- private channels
+- direct messages
+- group DMs
+- basic threaded reply support if feasible
+- typing indicators
+- user presence
+- emoji reactions
+- read receipts / unread badges
+- message search foundation
+- file attachments stored in Cloudflare R2 only
+- modular real-time event architecture
+
+DO NOT OVERBUILD PHASE 1
+AI features, archival/export, advanced moderation, and deep retention controls can be scaffolded later but should not dominate this phase.
+
+SCHEMA REQUIREMENTS
+Create or refine schema for:
+- chat_channels
+- chat_channel_members
+- chat_dm_threads
+- chat_dm_members
+- chat_messages
+- chat_message_reactions
+- chat_attachments
+- chat_reads
+- chat_mentions if practical in this phase
+- chat_pins optional foundation only if clean to include now
+
+Replace any old S3-oriented naming with R2 naming, such as:
+- r2_object_key
+- bucket_name
+
+AUTH AND SECURITY REQUIREMENTS
+Use BetterAuth session/user context.
+Enforce:
+- authenticated access
+- private channel membership checks
+- DM membership checks
+- author-only edit/delete rules where appropriate
+- admin override only where appropriate
+
+ROOM STRATEGY
+Use room patterns like:
+- user:{userId}
+- chat:channel:{channelId}
+- chat:dm:{dmThreadId}
+- optional chat:global for broad internal events
+
+REALTIME ARCHITECTURE REQUIREMENTS
+Create centralized event emitters so route handlers do not emit directly.
+Add modular realtime support for:
+- new message
+- message update
+- message delete
+- reaction add/remove
+- typing updates
+- read state updates
+- presence updates
+- channel creation if useful
+
+CHAT ATTACHMENT REQUIREMENTS
+- Cloudflare R2 only
+- no local storage
+- use structured object keys such as:
+  - chat/channels/{channelId}/attachments/{filename}
+  - chat/dm/{threadId}/attachments/{filename}
+- store metadata in PostgreSQL
+
+FRONTEND REQUIREMENTS
+Build a clean Team Chat UI in the admin/backend app with:
+- conversation list sidebar
+- active message timeline
+- composer
+- unread indicators
+- DMs and channels
+- presence indicators
+- reactions
+- basic attachment support
+- modular hooks/services/components
+
+PERFORMANCE REQUIREMENTS
+- paginate message lists
+- avoid broad fetches
+- avoid N+1 data loading
+- support efficient unread lookups
+- keep typing/presence in-memory where appropriate
+- optimize Socket.IO room/membership logic
+
+APP DOCS REQUIREMENT
+Create/update docs for:
+- chat schema
+- realtime event contracts
+- room strategy
+- auth/membership security model
+- R2 attachment flow
+- API routes
+- frontend chat module structure
+- environment variables
+- changelog/release notes
+
+NON-DESTRUCTIVE RULE
+Do not break CRM/onboarding/files/integrations foundations.
+Add Team Chat as a modular internal feature.
+
+DELIVERABLES
+- chat schema/migrations
+- chat routes/services
+- realtime socket/event foundation
+- Team Chat UI Phase 1
+- R2 chat attachment support
+- documentation updates

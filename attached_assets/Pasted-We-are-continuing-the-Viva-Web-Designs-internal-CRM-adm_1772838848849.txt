@@ -1,0 +1,70 @@
+We are continuing the Viva Web Designs internal CRM/admin platform in Replit.
+
+PROJECT CONTEXT
+- Internal single-company platform for Viva Web Designs
+- NOT multi-tenant
+- React + TypeScript frontend
+- Express + TypeScript backend
+- PostgreSQL + Drizzle ORM
+- BetterAuth
+- Tailwind CSS + shadcn/ui + Framer Motion + Lucide React
+- Cloudflare R2 only
+- Roles: Admin, Developer, Sales Rep
+- All changes must be NON-DESTRUCTIVE
+- App Docs updates are mandatory
+- Codebase must remain modular, organized, and performance-conscious
+
+PRIMARY GOAL
+Do a safe hardening pass focused on performance, file structure cleanliness, route/service modularization, and documentation completeness.
+
+IMPLEMENT THE FOLLOWING
+1. Review and safely improve oversized files.
+2. Break up any remaining route “god files” by feature/function.
+3. Break up oversized frontend components where needed.
+4. Review common queries and optimize obvious slow spots.
+5. Add or refine indexes where appropriate.
+6. Reduce over-fetching and repeated data access where possible.
+7. Ensure shared validation/types/contracts are not duplicated.
+8. Ensure App Docs coverage is complete across implemented modules.
+9. Add/update changelog and technical debt notes where needed.
+10. Preserve behavior while improving maintainability and performance.
+
+PERFORMANCE AREAS TO REVIEW
+- auth/session checks
+- CRM list/detail loading
+- pipeline board loading
+- onboarding pages
+- notifications
+- billing views
+- file lookups
+- chat list/message loading
+- search endpoints
+
+DOCUMENTATION COMPLETION REQUIREMENT
+Ensure App Docs includes clear entries for:
+- all major schema groups
+- all API route groups
+- integrations
+- auth/RBAC
+- R2 storage architecture
+- Team Chat
+- CRM
+- Pipeline
+- Onboarding
+- Notifications
+- Billing
+- Reporting
+- known issues / technical debt
+- release notes
+
+NON-DESTRUCTIVE RULE
+This prompt is for safe hardening and cleanup only.
+Do not remove working features.
+Do not rewrite stable systems unnecessarily.
+Refactor incrementally and safely.
+
+DELIVERABLES
+- modularization improvements
+- performance optimizations
+- docs completion pass
+- changelog/technical debt updates

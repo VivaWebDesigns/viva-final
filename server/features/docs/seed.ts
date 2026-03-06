@@ -1025,10 +1025,319 @@ In addition to pipeline_activities, all pipeline mutations are logged in audit_l
 ### v1.2
 - pipeline_stages, pipeline_opportunities, pipeline_activities
 
+## v1.3 — Client Onboarding (March 2026)
+- Onboarding schema: templates, records, checklist items, notes
+- Multi-step onboarding wizard (client info → checklist → dates → review)
+- Template-based checklists with 12 default items across 11 categories
+- Onboarding list with search, filter, progress display, overdue highlighting
+- Onboarding detail page with checklist management, status actions, timeline
+- Won opportunity → onboarding conversion flow
+- Dashboard updated with onboarding overview section
+- 6 new onboarding documentation articles
+
+## Database Tables
+### v1.0
+- user, session, account, verification (BetterAuth)
+- audit_logs, doc_categories, doc_articles, doc_tags, doc_article_tags, doc_revisions
+- integration_records
+
+### v1.1
+- crm_companies, crm_contacts, crm_leads, crm_lead_statuses
+- crm_lead_notes, crm_tags, crm_lead_tags
+
+### v1.2
+- pipeline_stages, pipeline_opportunities, pipeline_activities
+
+### v1.3
+- onboarding_templates, onboarding_records, onboarding_checklist_items, onboarding_notes
+
 ## Technical Notes
 - All existing marketing site functionality preserved
 - Non-destructive architecture extension
 - Modular feature-based code organization`,
+  },
+  {
+    title: "Onboarding Schema",
+    slug: "onboarding-schema",
+    categorySlug: "client-onboarding",
+    status: "published",
+    content: `# Onboarding Schema
+
+## Tables
+
+### onboarding_templates
+Reusable checklist templates for onboarding workflows.
+- **id** (UUID PK)
+- **name** — template display name
+- **slug** — unique identifier
+- **description** — optional summary
+- **items** (JSONB) — array of checklist item definitions
+- **createdAt / updatedAt**
+
+### onboarding_records
+Main onboarding tracking records.
+- **id** (UUID PK)
+- **clientName** — display name for the client/project
+- **status** — pending | in_progress | completed | on_hold
+- **opportunityId** (FK → pipeline_opportunities) — source deal
+- **companyId** (FK → crm_companies) — linked company
+- **contactId** (FK → crm_contacts) — linked contact
+- **assignedTo** (FK → user) — internal owner
+- **templateId** (FK → onboarding_templates) — source template
+- **kickoffDate** — scheduled kickoff date
+- **dueDate** — target completion date
+- **completedAt** — actual completion timestamp
+- **notes** — free-form notes
+- **createdAt / updatedAt**
+
+### onboarding_checklist_items
+Individual checklist items attached to an onboarding record.
+- **id** (UUID PK)
+- **onboardingId** (FK → onboarding_records, CASCADE DELETE)
+- **category** — one of: contract, payment, branding, domain_dns, website, google_business, google_ads, meta_facebook, social, content, kickoff
+- **label** — item title
+- **description** — optional detail
+- **isRequired** — whether the item is mandatory
+- **isCompleted** — completion state
+- **completedAt** — when marked complete
+- **completedBy** (FK → user) — who completed it
+- **sortOrder** — display order
+- **dueDate** — optional item-level due date
+
+### onboarding_notes
+Activity timeline for onboarding records.
+- **id** (UUID PK)
+- **onboardingId** (FK → onboarding_records, CASCADE DELETE)
+- **userId** (FK → user) — author
+- **type** — note | system | status_change | checklist_update
+- **content** — text content
+- **metadata** (JSONB) — structured data
+- **createdAt**
+
+## Indexes
+- onboarding_records: status, assignedTo, opportunityId, companyId, dueDate, createdAt
+- onboarding_checklist_items: onboardingId, category, isCompleted
+- onboarding_notes: onboardingId, createdAt`,
+  },
+  {
+    title: "Onboarding Wizard Flow",
+    slug: "onboarding-wizard-flow",
+    categorySlug: "client-onboarding",
+    status: "published",
+    content: `# Onboarding Wizard Flow
+
+The onboarding wizard is a 4-step process for creating new client onboarding records.
+
+## Step 1: Client Information
+- **Client Name** (required) — the project or client display name
+- **Company** (optional) — link to an existing CRM company
+- **Contact** (optional) — link to an existing CRM contact
+
+## Step 2: Checklist Items
+- Select a template to pre-populate checklist items
+- Default template: "Standard Web Design Onboarding" with 12 items
+- Toggle individual items on/off to customize
+- Items are grouped by category
+
+## Step 3: Dates & Assignment
+- **Kickoff Date** — when the project kicks off
+- **Due Date** — target completion date
+- **Notes** — additional instructions or context
+
+## Step 4: Review & Create
+- Summary of all selections
+- Client name, linked records, dates, checklist summary
+- Click "Create Onboarding" to finalize
+
+## After Creation
+- Redirects to the new onboarding detail page
+- System note logged: "Onboarding record created"
+- Audit log entry recorded`,
+  },
+  {
+    title: "Checklist Model",
+    slug: "onboarding-checklist-model",
+    categorySlug: "client-onboarding",
+    status: "published",
+    content: `# Onboarding Checklist Model
+
+## Categories
+The checklist system organizes items into 11 categories:
+
+| Category | Description |
+|----------|-------------|
+| contract | Contract/SOW receipt and signing |
+| payment | Initial payment confirmation |
+| branding | Logo, colors, fonts, style guide |
+| domain_dns | Domain registrar/DNS access |
+| website | Hosting/CPanel credentials |
+| google_business | Google Business Profile access |
+| google_ads | Google Ads account access |
+| meta_facebook | Facebook/Meta Business access |
+| social | Social media platform access |
+| content | Photos, copy, testimonials |
+| kickoff | Kickoff meeting scheduling/completion |
+
+## Template System
+- Templates define reusable sets of checklist items
+- Default template: "Standard Web Design Onboarding" (12 items)
+- Template items stored as JSONB array with category, label, description, isRequired
+- When creating an onboarding record, template items are copied to individual checklist_items rows
+
+## Item Completion
+- Each item can be toggled complete/incomplete
+- Completing an item records completedAt timestamp and completedBy user
+- Unchecking an item clears completion data
+- Each toggle creates a "checklist_update" note in the timeline
+
+## Progress Calculation
+- Progress = (completed items / total items) × 100
+- Shown as percentage and fraction (e.g., "8/12 (67%)")
+- Progress bar displayed on list and detail views
+
+## Overdue Detection
+- Items with dueDate before current time and not completed are flagged as overdue
+- Overdue items highlighted in red on the detail page`,
+  },
+  {
+    title: "Opportunity → Onboarding Handoff",
+    slug: "onboarding-opportunity-handoff",
+    categorySlug: "client-onboarding",
+    status: "published",
+    content: `# Opportunity → Onboarding Handoff
+
+## Conversion Flow
+Won pipeline opportunities can be converted to onboarding records via:
+1. **Opportunity Detail Page** — "Start Onboarding" button (visible only for won opportunities)
+2. **API** — POST /api/onboarding/convert-opportunity/:opportunityId
+
+## What Gets Transferred
+When converting an opportunity to onboarding:
+- **clientName** — derived from linked company name, or opportunity title as fallback
+- **opportunityId** — FK reference preserved for traceability
+- **companyId** — carried over from opportunity
+- **contactId** — carried over from opportunity
+- **assignedTo** — carried over from opportunity
+- **templateId** — if provided, template checklist items are auto-created
+
+## Validation Rules
+- Only opportunities with status "won" can be converted
+- System note logged: "Onboarding created from opportunity: [title]"
+- Audit log entry created
+
+## After Conversion
+- User is navigated to the new onboarding detail page
+- The onboarding record links back to the source opportunity
+- The opportunity detail page shows the linked onboarding`,
+  },
+  {
+    title: "Onboarding API Routes",
+    slug: "onboarding-api-routes",
+    categorySlug: "api-reference",
+    status: "published",
+    content: `# Onboarding API Routes
+
+All routes require authentication. Base path: /api/onboarding
+
+## Records
+
+### GET /records
+List onboarding records with optional filters.
+- Query params: status, search, page, limit
+- Returns: { records: OnboardingRecord[], total: number }
+
+### POST /records
+Create a new onboarding record.
+- Body: { clientName, status?, companyId?, contactId?, templateId?, kickoffDate?, dueDate?, notes?, checklistItems? }
+- Returns: OnboardingRecord
+
+### GET /records/:id
+Get onboarding detail with checklist and progress.
+- Returns: OnboardingRecord & { checklist, progress }
+
+### PUT /records/:id
+Update an onboarding record.
+- Body: { clientName?, status?, assignedTo?, kickoffDate?, dueDate?, notes? }
+- Auto-sets completedAt when status changes to "completed"
+
+### DELETE /records/:id
+Delete an onboarding record (Admin only). Cascades to checklist items and notes.
+
+## Checklist
+
+### GET /records/:id/checklist
+Get all checklist items for a record.
+
+### PUT /records/:id/checklist/:itemId
+Toggle a checklist item complete/incomplete. Auto-logs timeline note.
+
+## Notes / Timeline
+
+### GET /records/:id/notes
+Get activity timeline for a record (newest first).
+
+### POST /records/:id/notes
+Add a note to the timeline.
+- Body: { content, type?, metadata? }
+
+## Templates
+
+### GET /templates
+List all onboarding templates.
+
+## Conversion
+
+### POST /convert-opportunity/:opportunityId
+Create onboarding from a won opportunity.
+- Body: { templateId?, ...extraData }
+- Returns: OnboardingRecord
+
+## Stats
+
+### GET /stats
+Get onboarding statistics.
+- Returns: { total, pending, inProgress, completed, onHold, overdue }`,
+  },
+  {
+    title: "Onboarding UI Modules",
+    slug: "onboarding-ui-modules",
+    categorySlug: "ui-frontend",
+    status: "published",
+    content: `# Onboarding UI Modules
+
+All onboarding frontend code lives in \`client/src/features/onboarding/\`.
+
+## Pages
+
+### OnboardingListPage
+- Path: /admin/onboarding
+- Features: search by client name, filter by status, stat cards (total, pending, in progress, completed, overdue), paginated list with progress display, overdue highlighting
+- "New Onboarding" button links to wizard
+
+### OnboardingDetailPage
+- Path: /admin/onboarding/:id
+- Layout: 2-column (main + sidebar)
+- Main column: progress bar, checklist grouped by category, activity timeline with add note form
+- Sidebar: status actions (Start, Complete, Put On Hold, Resume, Reopen), dates display, linked records (company, contact, opportunity)
+- Checklist items can be toggled via checkboxes
+- Overdue items highlighted in red
+
+### OnboardingWizardPage
+- Path: /admin/onboarding/new
+- 4-step wizard with animated transitions
+- Step indicators show progress
+- Template selection auto-populates checklist items
+- Final review step before creation
+
+## Dashboard Integration
+- "Active Onboardings" section on dashboard (shows pending, in progress, completed, on hold counts)
+- "Client Onboarding" quick action link
+- Onboarding section only appears when records exist
+
+## Opportunity Detail Integration
+- "Start Onboarding" button on won opportunities (OpportunityDetailPage)
+- Calls POST /api/onboarding/convert-opportunity/:id
+- Navigates to new onboarding record after creation`,
   },
 ];
 

@@ -1,0 +1,79 @@
+We are continuing the Viva Web Designs internal CRM/admin platform in Replit.
+
+PROJECT CONTEXT
+- Internal single-company platform, NOT multi-tenant
+- React + TypeScript frontend
+- Express + TypeScript backend
+- PostgreSQL + Drizzle ORM
+- BetterAuth
+- Tailwind CSS + shadcn/ui + Framer Motion + Lucide React
+- Cloudflare R2 only for storage
+- Mailgun is the email provider for system notifications
+- Roles: Admin, Developer, Sales Rep
+- All changes must be NON-DESTRUCTIVE
+- App Docs updates are mandatory
+- Maintain modular architecture and route/service separation
+
+PRIMARY GOAL
+Build the system notifications foundation with Mailgun integration support.
+
+IMPLEMENT THE FOLLOWING
+1. Create notification schema and backend support for:
+   - in-app notifications
+   - email-triggered notifications
+   - notification type/category
+   - recipient user
+   - related entity type/id
+   - delivery status
+   - read status
+   - created/sent timestamps
+   - failure logging fields if appropriate
+2. Build internal notification center UI in the admin/backend app.
+3. Create notification triggers/hooks for:
+   - new inbound lead
+   - lead assignment
+   - stage change / opportunity assignment
+   - onboarding assignment or status changes
+   - system/integration failures where useful
+4. Add Mailgun service abstraction:
+   - provider config awareness
+   - safe send service
+   - delivery/failure response handling
+   - templates or template registry foundation
+5. Keep provider integration modular so future templates are easy to add.
+6. Add admin/developer visibility into notification and email status if practical.
+
+MAILGUN REQUIREMENTS
+- do not hardcode sensitive values
+- use environment variables
+- provide a clean service layer
+- log send attempts and failures safely
+- make the feature configurable so system can function even if Mailgun is not fully active yet
+
+UI REQUIREMENTS
+- notification bell/list or notification page in admin app
+- unread/read state
+- related record linking
+- simple filters by type/status if practical
+
+APP DOCS REQUIREMENT
+Create/update docs for:
+- notification schema
+- Mailgun integration overview
+- notification event flow
+- template system or template registry
+- API routes
+- in-app notification UI
+- environment variables required
+- changelog/release notes
+
+NON-DESTRUCTIVE RULE
+Do not break previous features.
+Add notification support in a modular and safe way.
+
+DELIVERABLES
+- notification schema/migrations
+- notification center UI
+- Mailgun service foundation
+- notification trigger hooks
+- App Docs updates

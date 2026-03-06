@@ -1,0 +1,97 @@
+We are continuing the Viva Web Designs internal CRM/admin platform in Replit.
+
+PROJECT CONTEXT
+- Internal single-company platform, NOT multi-tenant
+- React + TypeScript frontend
+- Express + TypeScript backend
+- PostgreSQL + Drizzle ORM
+- BetterAuth
+- Tailwind CSS + shadcn/ui + Framer Motion + Lucide React
+- Cloudflare R2 is the exclusive storage provider for all files
+- NOTHING should be permanently stored locally
+- Roles: Admin, Developer, Sales Rep
+- All changes must be NON-DESTRUCTIVE
+- App Docs updates are mandatory
+- Keep architecture modular and organized by feature/domain
+
+PRIMARY GOAL
+Build the unified R2-based file storage architecture and internal file metadata system.
+
+IMPLEMENT THE FOLLOWING
+1. Create reusable file storage service layer for Cloudflare R2:
+   - R2 client setup
+   - upload service
+   - delete service
+   - signed URL or controlled access support
+   - object key generation
+2. Create database schema for file metadata and relationships.
+3. Ensure file metadata can link to related records such as:
+   - client/company
+   - lead
+   - onboarding
+   - billing/payment
+   - chat attachment
+   - docs attachment if needed later
+4. Standardize structured object key hierarchy for clarity.
+5. Build foundational internal file management UI if practical.
+
+R2 STORAGE RULE
+Cloudflare R2 is the exclusive storage provider.
+Remove/avoid any S3 logic and do not implement dual-provider storage.
+Do not permanently store files on the local filesystem.
+
+OBJECT KEY STRUCTURE REQUIREMENT
+Use a deterministic hierarchy such as:
+- clients/{clientId}/docs/{filename}
+- clients/{clientId}/uploads/images/{filename}
+- clients/{clientId}/onboarding/{subtype}/{filename}
+- clients/{clientId}/billing/invoices/{filename}
+- chat/channels/{channelId}/attachments/{filename}
+- chat/dm/{threadId}/attachments/{filename}
+- system/{subtype}/{filename}
+
+Also:
+- generate safe stored filenames to avoid collisions
+- keep original filename in database
+- store full object key in database
+
+DATABASE FIELDS SHOULD INCLUDE
+- original_name
+- stored_name
+- r2_object_key
+- bucket_name
+- mime_type
+- size_bytes
+- uploaded_by_user_id
+- related_entity_type
+- related_entity_id
+- optional client_id
+- created_at / updated_at
+
+BACKEND REQUIREMENTS
+- create reusable files service module
+- do not scatter storage logic across the app
+- use permission-aware access patterns
+- clean up DB/storage references carefully on delete
+- log important file actions if practical
+
+APP DOCS REQUIREMENT
+Create/update docs for:
+- R2 storage architecture
+- object key conventions
+- file metadata schema
+- upload/access/delete flow
+- environment variables
+- API routes/services
+- changelog/release notes
+
+NON-DESTRUCTIVE RULE
+Do not break existing onboarding/billing/integration work.
+Implement the storage system as a shared foundation that later features can consume.
+
+DELIVERABLES
+- file metadata schema/migrations
+- reusable R2 services
+- structured object key generation
+- file API/service foundation
+- documentation updates

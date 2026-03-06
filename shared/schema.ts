@@ -343,6 +343,104 @@ export const insertPipelineActivitySchema = createInsertSchema(pipelineActivitie
 export type InsertPipelineActivity = z.infer<typeof insertPipelineActivitySchema>;
 export type PipelineActivity = typeof pipelineActivities.$inferSelect;
 
+// ─── Onboarding Tables ───────────────────────────────────────────────
+
+export const ONBOARDING_STATUSES = ["pending", "in_progress", "completed", "on_hold"] as const;
+export type OnboardingStatus = typeof ONBOARDING_STATUSES[number];
+
+export const CHECKLIST_CATEGORIES = [
+  "contract", "payment", "branding", "domain_dns", "website",
+  "google_business", "google_ads", "meta_facebook", "social", "content", "kickoff",
+] as const;
+export type ChecklistCategory = typeof CHECKLIST_CATEGORIES[number];
+
+export const ONBOARDING_NOTE_TYPES = ["note", "system", "status_change", "checklist_update"] as const;
+export type OnboardingNoteType = typeof ONBOARDING_NOTE_TYPES[number];
+
+export const onboardingTemplates = pgTable("onboarding_templates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  description: text("description"),
+  items: jsonb("items").notNull().default(sql`'[]'::jsonb`),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const onboardingRecords = pgTable("onboarding_records", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientName: text("client_name").notNull(),
+  status: text("status").notNull().default("pending"),
+  opportunityId: varchar("opportunity_id").references(() => pipelineOpportunities.id),
+  companyId: varchar("company_id").references(() => crmCompanies.id),
+  contactId: varchar("contact_id").references(() => crmContacts.id),
+  assignedTo: text("assigned_to").references(() => user.id),
+  templateId: varchar("template_id").references(() => onboardingTemplates.id),
+  kickoffDate: timestamp("kickoff_date"),
+  dueDate: timestamp("due_date"),
+  completedAt: timestamp("completed_at"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (t) => [
+  index("onboarding_status_idx").on(t.status),
+  index("onboarding_assigned_idx").on(t.assignedTo),
+  index("onboarding_opp_idx").on(t.opportunityId),
+  index("onboarding_company_idx").on(t.companyId),
+  index("onboarding_due_idx").on(t.dueDate),
+  index("onboarding_created_idx").on(t.createdAt),
+]);
+
+export const onboardingChecklistItems = pgTable("onboarding_checklist_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  onboardingId: varchar("onboarding_id").notNull().references(() => onboardingRecords.id, { onDelete: "cascade" }),
+  category: text("category").notNull(),
+  label: text("label").notNull(),
+  description: text("description"),
+  isRequired: boolean("is_required").notNull().default(true),
+  isCompleted: boolean("is_completed").notNull().default(false),
+  completedAt: timestamp("completed_at"),
+  completedBy: text("completed_by").references(() => user.id),
+  sortOrder: integer("sort_order").notNull().default(0),
+  dueDate: timestamp("due_date"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("checklist_onboarding_idx").on(t.onboardingId),
+  index("checklist_category_idx").on(t.category),
+  index("checklist_completed_idx").on(t.isCompleted),
+]);
+
+export const onboardingNotes = pgTable("onboarding_notes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  onboardingId: varchar("onboarding_id").notNull().references(() => onboardingRecords.id, { onDelete: "cascade" }),
+  userId: text("user_id").references(() => user.id),
+  type: text("type").notNull().default("note"),
+  content: text("content").notNull(),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("onboarding_note_record_idx").on(t.onboardingId),
+  index("onboarding_note_created_idx").on(t.createdAt),
+]);
+
+// ─── Onboarding Zod Schemas & Types ─────────────────────────────────
+
+export const insertOnboardingTemplateSchema = createInsertSchema(onboardingTemplates).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertOnboardingTemplate = z.infer<typeof insertOnboardingTemplateSchema>;
+export type OnboardingTemplate = typeof onboardingTemplates.$inferSelect;
+
+export const insertOnboardingRecordSchema = createInsertSchema(onboardingRecords).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertOnboardingRecord = z.infer<typeof insertOnboardingRecordSchema>;
+export type OnboardingRecord = typeof onboardingRecords.$inferSelect;
+
+export const insertOnboardingChecklistItemSchema = createInsertSchema(onboardingChecklistItems).omit({ id: true, createdAt: true });
+export type InsertOnboardingChecklistItem = z.infer<typeof insertOnboardingChecklistItemSchema>;
+export type OnboardingChecklistItem = typeof onboardingChecklistItems.$inferSelect;
+
+export const insertOnboardingNoteSchema = createInsertSchema(onboardingNotes).omit({ id: true, createdAt: true });
+export type InsertOnboardingNote = z.infer<typeof insertOnboardingNoteSchema>;
+export type OnboardingNote = typeof onboardingNotes.$inferSelect;
+
 // ─── CRM Zod Schemas & Types ────────────────────────────────────────
 
 export const insertCrmCompanySchema = createInsertSchema(crmCompanies).omit({ id: true, createdAt: true, updatedAt: true });

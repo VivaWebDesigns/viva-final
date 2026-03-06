@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   ArrowLeft, DollarSign, Calendar, Building2, User as UserIcon,
   MessageSquare, Phone, Mail, FileText, CheckCircle, XCircle,
-  Clock, Zap, ArrowRightLeft,
+  Clock, Zap, ArrowRightLeft, UserPlus,
 } from "lucide-react";
 import type { PipelineStage, PipelineOpportunity, PipelineActivity, CrmCompany, CrmContact, CrmLead } from "@shared/schema";
 
@@ -97,6 +97,18 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
       queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities", id, "activities"] });
       setNoteContent("");
       toast({ title: "Activity added" });
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const onboardingMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/onboarding/convert-opportunity/${id}`, {});
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({ title: "Onboarding created" });
+      navigate(`/admin/onboarding/${data.id}`);
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
@@ -197,6 +209,17 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
               data-testid="button-reopen"
             >
               Reopen
+            </Button>
+          )}
+          {opp.status === "won" && (
+            <Button
+              size="sm"
+              onClick={() => onboardingMutation.mutate()}
+              disabled={onboardingMutation.isPending}
+              data-testid="button-start-onboarding"
+            >
+              <UserPlus className="w-4 h-4 mr-1" />
+              Start Onboarding
             </Button>
           )}
         </div>

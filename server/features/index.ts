@@ -5,11 +5,13 @@ import { docsRoutes } from "./docs";
 import { integrationsRoutes } from "./integrations";
 import { crmRoutes } from "./crm";
 import { pipelineRoutes } from "./pipeline";
+import { onboardingRoutes } from "./onboarding";
 import { requireRole } from "./auth/middleware";
 import { seedDocs } from "./docs/seed";
 import { seedIntegrations } from "./integrations/seed";
 import { seedCrmStatuses } from "./crm/seed";
 import { seedPipelineStages } from "./pipeline/seed";
+import { seedOnboardingTemplates } from "./onboarding/seed";
 
 const router = Router();
 
@@ -19,6 +21,7 @@ router.use("/docs", docsRoutes);
 router.use("/integrations", integrationsRoutes);
 router.use("/crm", crmRoutes);
 router.use("/pipeline", pipelineRoutes);
+router.use("/onboarding", onboardingRoutes);
 
 router.post("/admin/seed", requireRole("admin"), async (_req, res) => {
   try {
@@ -26,7 +29,8 @@ router.post("/admin/seed", requireRole("admin"), async (_req, res) => {
     const integrations = await seedIntegrations();
     const crm = await seedCrmStatuses();
     const pipeline = await seedPipelineStages();
-    res.json({ message: "Seed complete", docs, integrations, crm, pipeline });
+    const onboarding = await seedOnboardingTemplates();
+    res.json({ message: "Seed complete", docs, integrations, crm, pipeline, onboarding });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }

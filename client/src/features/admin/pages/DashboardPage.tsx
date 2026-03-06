@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { Users, FileText, BookOpen, Puzzle, Phone, Building2, UserCheck, TrendingUp, ArrowRight, DollarSign, Target } from "lucide-react";
+import { Users, FileText, BookOpen, Puzzle, Phone, Building2, UserCheck, TrendingUp, ArrowRight, DollarSign, Target, UserPlus } from "lucide-react";
 import { useLocation } from "wouter";
 import type { CrmLead } from "@shared/schema";
 
@@ -35,9 +35,21 @@ const STAT_CARDS = [
   { key: "integrations", label: "Integrations", icon: Puzzle, color: "bg-rose-500" },
 ] as const;
 
+interface OnboardingStats {
+  total: number;
+  pending: number;
+  inProgress: number;
+  completed: number;
+  onHold: number;
+  overdue: number;
+}
+
 export default function DashboardPage() {
   const { data: stats, isLoading } = useQuery<Stats>({
     queryKey: ["/api/admin/stats"],
+  });
+  const { data: onboardingStats } = useQuery<OnboardingStats>({
+    queryKey: ["/api/onboarding/stats"],
   });
   const [, setLocation] = useLocation();
 
@@ -115,6 +127,41 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {onboardingStats && onboardingStats.total > 0 && (
+        <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6" data-testid="card-onboarding-overview">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-gray-900">Active Onboardings</h2>
+              {onboardingStats.overdue > 0 && (
+                <span className="text-xs font-medium text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
+                  {onboardingStats.overdue} overdue
+                </span>
+              )}
+            </div>
+            <button
+              onClick={() => setLocation("/admin/onboarding")}
+              className="text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1"
+              data-testid="link-view-onboarding"
+            >
+              View all <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          <div className="flex gap-3">
+            {[
+              { label: "Pending", value: onboardingStats.pending, color: "text-yellow-600" },
+              { label: "In Progress", value: onboardingStats.inProgress, color: "text-blue-600" },
+              { label: "Completed", value: onboardingStats.completed, color: "text-green-600" },
+              { label: "On Hold", value: onboardingStats.onHold, color: "text-gray-600" },
+            ].map((stat) => (
+              <div key={stat.label} className="flex-1 rounded-lg border border-gray-100 p-3 text-center">
+                <p className="text-xs text-gray-500 mb-1">{stat.label}</p>
+                <p className={`text-lg font-bold ${stat.color}`} data-testid={`stat-onboarding-dash-${stat.label.toLowerCase().replace(" ", "-")}`}>{stat.value}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-4">
@@ -175,6 +222,17 @@ export default function DashboardPage() {
               <div>
                 <p className="text-sm font-medium text-gray-900">Sales Pipeline</p>
                 <p className="text-xs text-gray-500">Track deals through pipeline stages</p>
+              </div>
+            </button>
+            <button
+              onClick={() => setLocation("/admin/onboarding")}
+              className="w-full text-left p-3 rounded-lg hover:bg-gray-50 border border-gray-100 transition-colors flex items-center gap-3"
+              data-testid="link-quick-onboarding"
+            >
+              <UserPlus className="w-5 h-5 text-orange-500" />
+              <div>
+                <p className="text-sm font-medium text-gray-900">Client Onboarding</p>
+                <p className="text-xs text-gray-500">Manage client setup and checklists</p>
               </div>
             </button>
             <button

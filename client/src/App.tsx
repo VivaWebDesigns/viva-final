@@ -38,6 +38,9 @@ const PipelineBoardPage = lazy(() => import("@features/pipeline/PipelineBoardPag
 const PipelineListPage = lazy(() => import("@features/pipeline/PipelineListPage"));
 const OpportunityDetailPage = lazy(() => import("@features/pipeline/OpportunityDetailPage"));
 const StageManagementPage = lazy(() => import("@features/pipeline/StageManagementPage"));
+const OnboardingListPage = lazy(() => import("@features/onboarding/OnboardingListPage"));
+const OnboardingDetailPage = lazy(() => import("@features/onboarding/OnboardingDetailPage"));
+const OnboardingWizardPage = lazy(() => import("@features/onboarding/OnboardingWizardPage"));
 
 function PageFallback() {
   return (
@@ -91,8 +94,10 @@ function AdminRouter() {
                 <StageManagementPage />
               </ProtectedRoute>
             </Route>
-            <Route path="/admin/onboarding">
-              <PlaceholderPage title="Client Onboarding" description="Streamlined client setup workflows. Manage onboarding checklists, collect assets, and track project kickoffs." icon={UserPlus} />
+            <Route path="/admin/onboarding" component={OnboardingListPage} />
+            <Route path="/admin/onboarding/new" component={OnboardingWizardPage} />
+            <Route path="/admin/onboarding/:id">
+              {(params) => <OnboardingDetailPage id={params.id} />}
             </Route>
             <Route path="/admin/chat">
               <PlaceholderPage title="Team Chat" description="Internal team communication. Real-time messaging for collaboration across projects and tasks." icon={MessageSquare} />

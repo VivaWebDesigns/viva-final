@@ -38,6 +38,7 @@ Marketing agency website targeting contractors (Spanish-first, conversion-optimi
 │   │   ├── admin/          # Admin stats, seed, audit logs
 │   │   ├── crm/            # CRM storage, routes, ingest, seed
 │   │   ├── pipeline/       # Sales pipeline: stages, opportunities, activities
+│   │   ├── onboarding/     # Client onboarding: records, checklists, templates
 │   │   ├── docs/           # Docs CRUD + seed data
 │   │   ├── integrations/   # Integration records + seed
 │   │   └── audit/          # Audit logging service
@@ -79,9 +80,15 @@ All marketing website copy managed from `client/src/content/content.json`.
 - **pipeline_opportunities** — Deals/opportunities (title, value, stage, status, dates, probability, lead/company/contact FKs)
 - **pipeline_activities** — Activity timeline (stage_change, note, call, email, task, system)
 
+### Client Onboarding
+- **onboarding_templates** — Reusable checklist templates (name, slug, items JSONB)
+- **onboarding_records** — Onboarding records (clientName, status, opportunityId, companyId, contactId, assignedTo, kickoff/due dates)
+- **onboarding_checklist_items** — Checklist items (category, label, isRequired, isCompleted, completedBy, dueDate)
+- **onboarding_notes** — Activity timeline (note, system, status_change, checklist_update)
+
 ### Docs & Integrations
 - **doc_categories** — Doc library categories (21 seeded)
-- **doc_articles** — Doc articles with content (22 seeded including 6 CRM + 7 pipeline docs)
+- **doc_articles** — Doc articles with content (28 seeded including 6 CRM + 7 pipeline + 6 onboarding docs)
 - **doc_tags** — Tag definitions
 - **doc_article_tags** — Article-tag join table
 - **doc_revisions** — Content revision history
@@ -122,7 +129,9 @@ Frontend captures UTM params (utm_source, utm_medium, utm_campaign, utm_term, ut
 - `/admin/pipeline/list` — Opportunity list view
 - `/admin/pipeline/opportunities/:id` — Opportunity detail
 - `/admin/pipeline/stages` — Stage management (Admin/Developer only)
-- `/admin/onboarding` — Client Onboarding (placeholder)
+- `/admin/onboarding` — Onboarding list (searchable, filterable, progress display)
+- `/admin/onboarding/new` — Multi-step onboarding wizard
+- `/admin/onboarding/:id` — Onboarding detail (checklist, timeline, status actions)
 - `/admin/chat` — Team Chat (placeholder)
 - `/admin/payments` — Payments (placeholder)
 - `/admin/notifications` — Notifications (placeholder)
@@ -162,6 +171,14 @@ Frontend captures UTM params (utm_source, utm_medium, utm_campaign, utm_term, ut
 - `PUT /api/pipeline/opportunities/:id/stage` — Move to stage
 - `GET/POST /api/pipeline/opportunities/:id/activities` — Activity timeline
 - `POST /api/pipeline/convert-lead/:leadId` — Convert lead to opportunity
+- `GET/POST /api/onboarding/records` — Onboarding records list/create
+- `GET/PUT/DELETE /api/onboarding/records/:id` — Record detail/update/delete
+- `GET /api/onboarding/records/:id/checklist` — Get checklist items
+- `PUT /api/onboarding/records/:id/checklist/:itemId` — Toggle checklist item
+- `GET/POST /api/onboarding/records/:id/notes` — Activity timeline
+- `GET /api/onboarding/templates` — List templates
+- `POST /api/onboarding/convert-opportunity/:opportunityId` — Convert won opportunity to onboarding
+- `GET /api/onboarding/stats` — Onboarding statistics
 
 ## Environment Variables
 - `DATABASE_URL` — PostgreSQL connection string

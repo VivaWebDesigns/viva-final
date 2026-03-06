@@ -1,0 +1,73 @@
+We are continuing the Viva Web Designs internal CRM/admin platform in Replit.
+
+PROJECT CONTEXT
+- Internal single-company platform for Viva Web Designs
+- NOT multi-tenant
+- React + TypeScript, Express + TypeScript, PostgreSQL, Drizzle ORM
+- BetterAuth
+- Tailwind CSS + shadcn/ui + Framer Motion + Lucide React
+- Stripe is the payment provider
+- Cloudflare R2 is the exclusive object/file storage provider
+- Roles: Admin, Developer, Sales Rep
+- All work must be NON-DESTRUCTIVE
+- App Docs updates are mandatory
+- Keep code modular and performance-conscious
+
+PRIMARY GOAL
+Build Stripe billing foundations for client payments.
+
+IMPLEMENT THE FOLLOWING
+1. Create schema and backend support for:
+   - billing customers/client Stripe mapping
+   - payment records
+   - invoices/payment references
+   - subscriptions if relevant
+   - one-time setup fees
+   - billing status
+   - failure states
+   - webhook event logging
+2. Add Stripe integration service structure.
+3. Build an internal billing/payments UI area to view:
+   - linked client/customer info
+   - payment history
+   - invoice/payment status
+   - subscription status if applicable
+4. Add webhook handling foundation for Stripe events.
+5. Ensure billing data can relate to CRM company/client records cleanly.
+6. Build the Integrations → Stripe section out further with status/config awareness.
+
+IMPORTANT REQUIREMENTS
+- no secrets in code
+- all sensitive values via environment variables
+- verify webhooks properly
+- split webhook handling from billing domain logic
+- keep provider logic modular
+- do not overbuild user-facing billing portal flows unless needed yet
+
+OPTIONAL BUT GOOD FOUNDATIONS
+- coupon/promo support placeholder
+- retry/failure status tracking
+- setup fee vs recurring fee distinction
+- internal notes on billing records
+
+APP DOCS REQUIREMENT
+Create/update docs for:
+- billing schema
+- Stripe integration overview
+- webhook handling flow
+- client/customer mapping
+- payment data model
+- internal billing UI
+- environment variables
+- changelog/release notes
+
+NON-DESTRUCTIVE RULE
+Do not break CRM, onboarding, notifications, or integrations work.
+Add billing incrementally and safely.
+
+DELIVERABLES
+- billing schema/migrations
+- Stripe service foundation
+- webhook foundation
+- billing admin UI
+- App Docs updates
