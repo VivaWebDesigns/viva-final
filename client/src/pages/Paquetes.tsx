@@ -157,9 +157,9 @@ export default function Paquetes() {
                         <span className="text-lg font-extrabold text-[#111] dark:text-white">{t("paquetes.cards.empieza.name")}</span>
                       </div>
                     </th>
-                    <th className="text-center py-5 px-4 w-[21.67%] relative">
-                      <div className="absolute -top-0 left-1/2 -translate-x-1/2 bg-[#0D9488] text-white text-[10px] font-bold px-3 py-1 rounded-b-md uppercase tracking-wider flex items-center gap-1" data-testid="badge-popular-table">
-                        <Star className="w-3 h-3 fill-white" />
+                    <th className="text-center pt-8 pb-5 px-4 w-[21.67%] relative">
+                      <div className="absolute top-1.5 left-1/2 -translate-x-1/2 bg-[#0D9488] text-white text-[9px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider flex items-center gap-1 whitespace-nowrap shadow-sm" data-testid="badge-popular-table">
+                        <Star className="w-2.5 h-2.5 fill-white" />
                         {t("paquetes.comparison.badgePopular")}
                       </div>
                       <div className="flex flex-col items-center gap-1">
