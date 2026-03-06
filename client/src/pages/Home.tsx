@@ -92,7 +92,6 @@ export default function Home() {
         description={t("home.seo.description")}
         path="/"
       />
-
       {/* SECTION 1 – HERO */}
       <section className="relative min-h-[90vh] flex items-center overflow-hidden" data-testid="section-hero">
         <div className="absolute inset-0 bg-[#111]">
@@ -140,7 +139,6 @@ export default function Home() {
           </motion.div>
         </div>
       </section>
-
       {/* SECTION 2 – PROBLEM */}
       <section className="py-24 lg:py-40 bg-white dark:bg-[#0d0d0d]" data-testid="section-problem">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -180,7 +178,6 @@ export default function Home() {
           </motion.div>
         </div>
       </section>
-
       {/* SECTION 3 – SOLUTION POSITIONING */}
       <section className="py-24 lg:py-40 bg-[#f5f5f5] dark:bg-[#111]" data-testid="section-solution">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -225,7 +222,6 @@ export default function Home() {
           </motion.div>
         </div>
       </section>
-
       {/* SECTION 4 – PACKAGES PREVIEW */}
       <section className="py-24 lg:py-40 bg-white dark:bg-[#0d0d0d]" data-testid="section-packages">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -295,7 +291,6 @@ export default function Home() {
           </motion.p>
         </div>
       </section>
-
       {/* SUPPORT PLAN */}
       <section id="plan-soporte" className="py-16 lg:py-20 bg-[#f5f5f5] dark:bg-[#111]" data-testid="section-support-plan">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -324,7 +319,6 @@ export default function Home() {
           </motion.div>
         </div>
       </section>
-
       {/* SECTION 5 – BEFORE / AFTER */}
       <section className="py-24 lg:py-40 bg-[#111]" data-testid="section-before-after">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -376,7 +370,6 @@ export default function Home() {
           </motion.div>
         </div>
       </section>
-
       {/* SECTION 6 – HOW IT WORKS */}
       <section id="como-funciona" className="scroll-mt-20 py-24 lg:py-40 bg-white dark:bg-[#0d0d0d]" data-testid="section-process">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -415,9 +408,8 @@ export default function Home() {
           </motion.div>
         </div>
       </section>
-
       {/* SECTION 7 – TESTIMONIALS */}
-      <section className="py-24 lg:py-40 bg-[#f5f5f5] dark:bg-[#111] relative overflow-hidden" data-testid="section-testimonials">
+      <section className="py-24 lg:py-40 dark:bg-[#111] relative overflow-hidden bg-[#ffffff]" data-testid="section-testimonials">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-px bg-gradient-to-r from-transparent via-[#0D9488]/30 to-transparent shadow-[0_0_100px_40px_rgba(13,148,136,0.1)] pointer-events-none" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center max-w-3xl mx-auto mb-16">
@@ -468,7 +460,6 @@ export default function Home() {
           </motion.div>
         </div>
       </section>
-
       {/* SECTION 8 – FAQ */}
       <section className="py-24 lg:py-40 bg-white dark:bg-[#0d0d0d]" data-testid="section-faq">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -503,7 +494,6 @@ export default function Home() {
           </motion.div>
         </div>
       </section>
-
       {/* SECTION 9 – FINAL CTA */}
       <section className="py-24 lg:py-40 bg-[#111]" data-testid="section-cta">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
