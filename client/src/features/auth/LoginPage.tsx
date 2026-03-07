@@ -2,12 +2,17 @@ import { useState } from "react";
 import { useAuth } from "./useAuth";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
-import { Lock, Mail, Eye, EyeOff, AlertCircle } from "lucide-react";
+import { Lock, Mail, Eye, EyeOff, AlertCircle, Terminal, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 import logoIcon from "@assets/icon_1772859732991.png";
+
+const DEV_CREDENTIALS = {
+  email: "admin@vivawebdesigns.com",
+  password: "VivaAdmin2026!",
+};
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -146,6 +151,53 @@ export default function LoginPage() {
             Internal access only. Contact admin for credentials.
           </p>
         </div>
+
+        {import.meta.env.DEV && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.2 }}
+            className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4"
+            data-testid="card-dev-credentials"
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-6 h-6 rounded-md bg-amber-400 flex items-center justify-center flex-shrink-0">
+                <Terminal className="w-3.5 h-3.5 text-white" />
+              </div>
+              <span className="text-xs font-semibold text-amber-800 uppercase tracking-wide">
+                Dev / Testing Credentials
+              </span>
+            </div>
+
+            <div className="space-y-1.5 mb-3 font-mono text-xs bg-white border border-amber-100 rounded-lg px-3 py-2.5">
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-gray-400 select-none">email</span>
+                <span className="text-gray-800 select-all" data-testid="text-dev-email">
+                  {DEV_CREDENTIALS.email}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-gray-400 select-none">password</span>
+                <span className="text-gray-800 select-all" data-testid="text-dev-password">
+                  {DEV_CREDENTIALS.password}
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setEmail(DEV_CREDENTIALS.email);
+                setPassword(DEV_CREDENTIALS.password);
+              }}
+              className="w-full flex items-center justify-center gap-1.5 text-xs font-medium text-amber-700 hover:text-amber-900 bg-amber-100 hover:bg-amber-200 border border-amber-200 rounded-lg py-2 transition-colors"
+              data-testid="button-use-dev-credentials"
+            >
+              <Zap className="w-3.5 h-3.5" />
+              Auto-fill credentials
+            </button>
+          </motion.div>
+        )}
       </motion.div>
     </div>
   );
