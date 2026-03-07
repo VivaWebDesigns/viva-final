@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, Users, TrendingUp, UserPlus, MessageSquare,
   CreditCard, Bell, Puzzle, BarChart3, Settings, BookOpen,
-  LogOut, ChevronLeft, ChevronRight, Menu, X, Building2,
+  LogOut, ChevronLeft, ChevronRight, Menu, X, Building2, Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -28,6 +28,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Notifications", path: "/admin/notifications", icon: Bell },
   { label: "Reports", path: "/admin/reports", icon: BarChart3 },
   { label: "Integrations", path: "/admin/integrations", icon: Puzzle, roles: ["admin", "developer"] },
+  { label: "Demo Builder", path: "/admin/demo-builder", icon: Zap },
   { label: "Admin", path: "/admin/settings", icon: Settings, roles: ["admin"] },
   { label: "App Docs", path: "/admin/docs", icon: BookOpen, roles: ["admin", "developer"] },
 ];
