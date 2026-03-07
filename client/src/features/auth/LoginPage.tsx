@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+import logoIcon from "@assets/icon_1772859732991.png";
+
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -58,8 +60,8 @@ export default function LoginPage() {
       >
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
           <div className="text-center mb-8">
-            <div className="w-14 h-14 bg-[#0D9488] rounded-xl flex items-center justify-center mx-auto mb-4">
-              <Lock className="w-7 h-7 text-white" />
+            <div className="w-14 h-14 flex items-center justify-center mx-auto mb-4">
+              <img src={logoIcon} alt="Viva Web Designs" className="w-full h-full object-contain" />
             </div>
             <h1 className="text-2xl font-bold text-gray-900" data-testid="text-login-title">
               Viva Web Designs

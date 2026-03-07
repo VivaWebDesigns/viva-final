@@ -31,6 +31,8 @@ const NAV_ITEMS: NavItem[] = [
   { label: "App Docs", path: "/admin/docs", icon: BookOpen, roles: ["admin", "developer"] },
 ];
 
+import logoIcon from "@assets/icon_1772859732991.png";
+
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -56,8 +58,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <div className="flex flex-col h-full">
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-[#0D9488] rounded-lg flex items-center justify-center flex-shrink-0">
-            <span className="text-white font-bold text-sm">V</span>
+          <div className="w-9 h-9 flex items-center justify-center flex-shrink-0">
+            <img src={logoIcon} alt="Viva Web Designs" className="w-full h-full object-contain" />
           </div>
           {!collapsed && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="overflow-hidden">
