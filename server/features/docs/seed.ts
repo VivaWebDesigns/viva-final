@@ -24,6 +24,7 @@ const CATEGORIES = [
   { name: "Deployment / DevOps", slug: "deployment-devops", description: "Build, deploy, and infrastructure", sortOrder: 18 },
   { name: "Changelog / Release Notes", slug: "changelog", description: "Version history and release notes", sortOrder: 19 },
   { name: "Known Issues / Technical Debt", slug: "known-issues", description: "Tracked issues and improvement areas", sortOrder: 20 },
+  { name: "Reports & Analytics", slug: "reports-analytics", description: "Dashboard reporting and analytics", sortOrder: 21 },
 ];
 
 const SEED_ARTICLES = [
@@ -1083,6 +1084,22 @@ In addition to pipeline_activities, all pipeline mutations are logged in audit_l
 ### v1.4
 - notifications, notification_preferences
 
+## v1.5 — Reports & Analytics Dashboard (March 2026)
+- Reporting service with modular query functions
+- Combined overview endpoint for single-request dashboard load
+- Leads by source breakdown with value totals
+- Leads by status breakdown with color-coded bars
+- Lead conversion rate (leads → opportunities)
+- Lead activity trend (daily bar chart)
+- Pipeline value by stage visualization
+- Won vs Lost comparison with win rate calculation
+- Onboarding progress breakdown with checklist completion rate
+- Notification summary by type with unread counts
+- Date range filters (7d, 30d, 90d, All time)
+- Responsive grid layout with stat cards and section panels
+- No new database tables (read-only reporting on existing data)
+- 3 new reporting documentation articles
+
 ## Technical Notes
 - All existing marketing site functionality preserved
 - Non-destructive architecture extension
@@ -1592,6 +1609,139 @@ Full notification list page at \`/admin/notifications\`.
 - text-notifications-title, button-mark-all-read, select-type-filter, select-read-filter
 - notification-item-{id}, button-mark-read-{id}, text-empty-state
 - button-notification-bell, badge-unread-count (in AdminLayout)`,
+  },
+  {
+    title: "Reports API Reference",
+    slug: "reports-api-reference",
+    categorySlug: "reports-analytics",
+    status: "published",
+    content: `# Reports API Reference
+
+## Endpoints
+
+All report endpoints require authentication and one of: admin, developer, or sales_rep role.
+
+### GET /api/reports/overview
+Combined summary endpoint — loads all report modules in a single request.
+
+**Query Parameters:**
+- \`days\` (optional): Number of days to filter (e.g., 7, 30, 90)
+- \`from\` / \`to\` (optional): Custom date range (ISO date strings)
+
+**Response:**
+\`\`\`json
+{
+  "leadsBySource": [{ "source": "contact_form", "sourceLabel": "Website Contact Form", "count": 5, "totalValue": 12000 }],
+  "leadsByStatus": [{ "statusId": "abc", "statusName": "New", "statusColor": "#3B82F6", "count": 3 }],
+  "conversion": { "total": 10, "converted": 3, "rate": 30 },
+  "pipeline": { "byStage": [...], "totalOpen": 5, "totalValue": 50000 },
+  "wonLost": { "won": { "count": 2, "value": 20000 }, "lost": { "count": 1, "value": 5000 }, "winRate": 67 },
+  "onboarding": { "total": 3, "byStatus": {...}, "overdue": 1, "avgCompletionDays": 14, "checklist": { "total": 36, "completed": 18, "rate": 50 } },
+  "notifications": { "byType": [...], "total": 25, "unread": 5 }
+}
+\`\`\`
+
+### Individual Endpoints
+- \`GET /api/reports/leads-by-source\` — Leads grouped by source
+- \`GET /api/reports/leads-by-status\` — Leads grouped by status
+- \`GET /api/reports/lead-conversion\` — Conversion rate metrics
+- \`GET /api/reports/leads-trend?days=30\` — Daily lead creation trend
+- \`GET /api/reports/pipeline-breakdown\` — Pipeline value by stage
+- \`GET /api/reports/won-lost\` — Won vs Lost counts and values
+- \`GET /api/reports/onboarding-breakdown\` — Onboarding status breakdown
+- \`GET /api/reports/notification-summary\` — Notification type summary
+
+All individual endpoints accept the same \`days\`/\`from\`/\`to\` query parameters where applicable.`,
+  },
+  {
+    title: "Reports Dashboard Modules",
+    slug: "reports-dashboard-modules",
+    categorySlug: "reports-analytics",
+    status: "published",
+    content: `# Reports Dashboard Modules
+
+## Overview
+The Reports page (/admin/reports) provides analytics across CRM, pipeline, onboarding, and notifications.
+
+## Dashboard Layout
+
+### Top-Level Stat Cards
+Four summary cards at the top:
+1. **Total Leads** — Count with conversion sub-stat
+2. **Conversion Rate** — Percentage of leads that became opportunities
+3. **Pipeline Value** — Total dollar value with open opportunity count
+4. **Win Rate** — Percentage based on won vs lost, color-coded
+
+### Leads by Source
+Horizontal bar chart showing lead counts grouped by source (Website Contact Form, referral, etc.). Includes total value for each source.
+
+### Leads by Status
+Horizontal bar chart showing lead counts grouped by CRM lead status (New, Qualified, etc.) with status colors.
+
+### Pipeline Value by Stage
+Horizontal bars showing total deal value per pipeline stage (Discovery → Closed Won/Lost). Shows deal count for each stage.
+
+### Won vs Lost
+Side-by-side comparison cards showing won/lost counts and values. Includes calculated win rate with color indicator.
+
+### Onboarding Overview
+Grid of status counts (Pending, In Progress, Completed, On Hold). Shows overdue count, checklist completion rate, and average days to complete.
+
+### Notification Summary
+Breakdown of notifications by type with total/unread counts. Shows unread badges per notification type.
+
+### Lead Activity Trend
+Bar chart showing daily lead creation over the selected time period. Hover tooltips show exact date and count.
+
+## Date Range Filter
+Toggle between 7 days, 30 days, 90 days, and All time. Affects all date-sensitive modules simultaneously.
+
+## Data Test IDs
+- text-reports-title, filter-date-range, btn-range-{days}
+- card-report-total-leads, card-report-conversion, card-report-pipeline-value, card-report-win-rate
+- card-leads-by-source, card-leads-by-status, card-pipeline-by-stage, card-won-lost
+- stat-won, stat-lost, card-onboarding-overview, stat-onboarding-{status}
+- card-notification-summary, card-leads-trend, chart-leads-trend`,
+  },
+  {
+    title: "Reports Performance & Query Design",
+    slug: "reports-performance-queries",
+    categorySlug: "reports-analytics",
+    status: "published",
+    content: `# Reports Performance & Query Design
+
+## Query Architecture
+- Reports use read-only queries against existing tables — no new schema required
+- The overview endpoint runs 7 queries in parallel via Promise.all for fast loading
+- Date range filtering uses SQL WHERE clauses with \`gte\` and \`<\` operators on indexed timestamp columns
+
+## Existing Indexes Used
+Reports benefit from these existing database indexes:
+- \`crm_leads_created_idx\` — Lead trend and date-filtered queries
+- \`crm_leads_status_idx\` — Leads by status grouping
+- \`pipeline_opp_status_idx\` — Won/Lost filtering
+- \`pipeline_opp_stage_idx\` — Pipeline by stage grouping
+- \`onboarding_status_idx\` — Onboarding status breakdown
+- \`notif_type_idx\` — Notification summary grouping
+- \`notif_read_idx\` — Unread notification filtering
+
+## Query Patterns
+- **Aggregation:** Uses SQL \`count(*)\`, \`sum()\`, and \`FILTER (WHERE ...)\` for efficient grouping
+- **Pipeline breakdown:** Fetches all stages + opportunities in 2 queries, aggregates in JS
+- **Onboarding stats:** Single table scan with JS filtering (small dataset)
+- **Conversion rate:** Two count queries (total leads vs distinct lead IDs in opportunities)
+
+## Performance Considerations
+- Overview endpoint parallelizes all sub-queries for ~100-200ms total response
+- No JOINs needed except leads-by-status (joins lead_statuses for name/color)
+- All date filtering uses indexed columns (createdAt, updatedAt)
+- Frontend uses TanStack Query with automatic caching — repeat visits are instant
+- Date range changes trigger new queries but results cache independently by queryKey
+
+## Future Optimization Notes
+- If lead volume exceeds 10,000+, consider materialized views for trend data
+- Pipeline breakdown could switch to SQL GROUP BY if opportunity count grows large
+- Onboarding stats should move to SQL aggregation at scale`,
   },
 ];
 

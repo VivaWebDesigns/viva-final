@@ -1,241 +1,56 @@
 # Viva Web Designs - Marketing Agency + Internal Platform
 
 ## Overview
-Marketing agency website targeting contractors (Spanish-first, conversion-optimized) with an internal CRM/admin platform for team operations.
+Viva Web Designs is a marketing agency specializing in web design for contractors, with a primary focus on the Spanish-speaking market. The project involves a conversion-optimized public-facing website and an integrated internal CRM/admin platform. The platform is designed to streamline team operations, manage sales pipelines, handle client onboarding, and provide comprehensive reporting. The overarching vision is to deliver a robust solution that empowers contractors with a strong online presence and provides Viva Web Designs with efficient tools to manage their client base and internal workflows.
 
-## Brand
-- **Company**: Viva Web Designs
-- **Colors**: Primary deep teal (#0D9488, hsl 175 85% 30%), accent emerald (#10B981), hover teal (#0F766E), gradient teal (#14B8A6), secondary deep charcoal (#111111), backgrounds white (#FFFFFF) and light gray (#F5F5F5). WhatsApp green (#25D366) unchanged.
-- **Fonts**: Plus Jakarta Sans (body), Montserrat (headings), Inter (fallback)
-- **Tone**: Confident, professional, clear, direct, Spanish-first
-- **Rules**: NEVER mention "latinos" or "Google Ads" anywhere in copy
+## User Preferences
+- **Communication style**: Confident, professional, clear, direct, Spanish-first.
+- **Content Language**: All marketing website copy should be in Spanish.
+- **Naming Conventions**: NEVER mention "latinos" or "Google Ads" anywhere in copy.
+- **Workflow**: Iterative development is preferred.
+- **Deployment**: The `npm run dev` command starts Express + Vite on port 5000.
 
-## Architecture
-- **Frontend**: React + Vite + TypeScript + Tailwind CSS + shadcn/ui + Framer Motion + wouter
-- **Backend**: Express.js + TypeScript + PostgreSQL + Drizzle ORM
-- **Authentication**: BetterAuth with admin plugin (email/password)
-- **Roles**: admin, developer, sales_rep
+## System Architecture
+The project is built with a modern web stack, separating frontend and backend concerns.
 
-### Project Structure
-```
-├── client/src/
-│   ├── features/           # Internal platform features
-│   │   ├── auth/           # Login, auth client, protected routes
-│   │   ├── admin/pages/    # Dashboard + placeholder pages
-│   │   ├── crm/            # CRM: LeadList, LeadDetail, CompanyDetail, ContactDetail
-│   │   ├── docs/           # App Docs library (CRUD)
-│   │   ├── integrations/   # Integrations overview
-│   │   ├── notifications/  # Notification center UI
-│   │   ├── onboarding/     # Onboarding pages (list, detail, wizard)
-│   │   └── pipeline/       # Pipeline pages (board, list, detail, stages)
-│   ├── layouts/            # AdminLayout (sidebar shell + notification bell)
-│   ├── pages/              # Marketing site pages
-│   ├── components/         # Shared UI components
-│   ├── content/            # Content system (content.json)
-│   ├── empieza/            # Empieza demo sub-site
-│   ├── crece/              # Crece demo sub-site
-│   └── domina/             # Domina demo sub-site
-├── server/
-│   ├── features/           # Domain-based server features
-│   │   ├── auth/           # BetterAuth config + middleware
-│   │   ├── admin/          # Admin stats, seed, audit logs
-│   │   ├── crm/            # CRM storage, routes, ingest, seed
-│   │   ├── pipeline/       # Sales pipeline: stages, opportunities, activities
-│   │   ├── onboarding/     # Client onboarding: records, checklists, templates
-│   │   ├── notifications/  # Notification service, Mailgun, triggers, routes
-│   │   ├── docs/           # Docs CRUD + seed data
-│   │   ├── integrations/   # Integration records + seed
-│   │   └── audit/          # Audit logging service
-│   ├── routes.ts           # Route aggregator (mounts features + legacy)
-│   ├── storage.ts          # Legacy contact storage
-│   └── db.ts               # Database connection
-└── shared/
-    └── schema.ts           # All Drizzle schemas + Zod validation
-```
+**Frontend:**
+- **Technology**: React, Vite, TypeScript, Tailwind CSS, shadcn/ui.
+- **Animations**: Framer Motion for UI animations.
+- **Routing**: wouter for client-side routing.
+- **UI/UX**:
+    - **Branding**: Primary deep teal (#0D9488), accent emerald (#10B981), hover teal (#0F766E), gradient teal (#14B8A6), secondary deep charcoal (#111111), white (#FFFFFF), and light gray (#F5F5F5) for backgrounds. WhatsApp green (#25D366) is retained.
+    - **Typography**: Plus Jakarta Sans (body), Montserrat (headings), Inter (fallback).
+- **Content Management**: All marketing website copy is managed via `client/src/content/content.json` using utility functions like `t()`, `tArr()`, `tObjArr<T>()`, and `tBool()` for localized content retrieval.
+- **Performance**:
+    - Code splitting with `React.lazy` and `Suspense` (Home page is eager loaded).
+    - Optimized video and images (WebP format, lazy loading).
+    - Non-render-blocking Google Fonts.
 
-## Content System
-All marketing website copy managed from `client/src/content/content.json`.
-- `t("dotted.path")` — returns the Spanish `"es"` string
-- `tArr("dotted.path")` — returns array of Spanish strings
-- `tObjArr<T>("dotted.path")` — returns typed array of objects
-- `tBool("dotted.path")` — returns boolean value
+**Backend:**
+- **Technology**: Express.js, TypeScript.
+- **Database**: PostgreSQL.
+- **ORM**: Drizzle ORM.
+- **Authentication**: BetterAuth with an admin plugin, supporting `admin`, `developer`, and `sales_rep` roles.
+- **CRM Form-to-Lead Pipeline**: Handles public contact form submissions, performing Zod validation, honeypot spam checks, saving to a legacy contacts table, and then asynchronously ingesting into the CRM (deduplication, contact/company creation, lead creation with UTM attribution, system notes, audit logging, and notifications).
+- **Notification System**: Server-side triggers for various events (e.g., new lead, assignment, status changes) delivering in-app and email notifications.
 
-## Database Tables
-### Legacy
-- **contacts** — Lead capture from public forms (preserved)
+**Core Features:**
+- **Marketing Website**: Public-facing pages for services, packages, contact, and demo showrooms. Includes specific demo sub-sites (`empieza`, `crece`, `domina`).
+- **Internal Platform**:
+    - **Admin Dashboard**: Overview of key metrics, recent leads, and quick actions.
+    - **CRM**: Manages leads, companies, and contacts with detailed views, notes, and tagging capabilities.
+    - **Sales Pipeline**: Kanban board and list views for opportunities, stages, and activity tracking.
+    - **Client Onboarding**: Manages onboarding records, checklist items, and timelines using configurable templates.
+    - **Documentation**: An internal knowledge base with categories, articles, tags, and revision history.
+    - **Integrations Management**: Configuration for third-party services.
+    - **Reporting**: Comprehensive analytics on leads, conversions, pipeline performance, onboarding, and notifications.
+    - **Notifications Center**: In-app notification management with filtering and read/unread status.
+    - **Audit Logs**: Tracks sensitive actions within the platform.
 
-### Auth (BetterAuth)
-- **user** — Internal platform users (+ role field)
-- **session** — Auth sessions
-- **account** — Auth accounts
-- **verification** — Email verification
-
-### CRM
-- **crm_companies** — Business records (name, dba, website, phone, email, address, industry, language)
-- **crm_contacts** — Individual people (firstName, lastName, email, phone, altPhone, title, companyId FK)
-- **crm_leads** — Sales opportunities (title, value, status, source, UTM attribution, contact/company FKs)
-- **crm_lead_statuses** — Pipeline stages (New, Contacted, Qualified, Proposal, Won, Lost)
-- **crm_lead_notes** — Activity timeline (note, call, email, task, status_change, system)
-- **crm_tags** — Tag definitions
-- **crm_lead_tags** — Lead-tag join table
-
-### Sales Pipeline
-- **pipeline_stages** — Configurable pipeline stages (Discovery, Proposal, Negotiation, Closed Won, Closed Lost)
-- **pipeline_opportunities** — Deals/opportunities (title, value, stage, status, dates, probability, lead/company/contact FKs)
-- **pipeline_activities** — Activity timeline (stage_change, note, call, email, task, system)
-
-### Client Onboarding
-- **onboarding_templates** — Reusable checklist templates (name, slug, items JSONB)
-- **onboarding_records** — Onboarding records (clientName, status, opportunityId, companyId, contactId, assignedTo, kickoff/due dates)
-- **onboarding_checklist_items** — Checklist items (category, label, isRequired, isCompleted, completedBy, dueDate)
-- **onboarding_notes** — Activity timeline (note, system, status_change, checklist_update)
-
-### Notifications
-- **notifications** — In-app and email notifications (recipientId, type, title, message, channel, emailStatus, isRead, relatedEntityType/Id, metadata)
-- **notification_preferences** — Per-user notification preferences (userId, type, emailEnabled, inAppEnabled)
-
-### Docs & Integrations
-- **doc_categories** — Doc library categories (21 seeded)
-- **doc_articles** — Doc articles with content (34 seeded including 6 CRM + 7 pipeline + 6 onboarding + 6 notification docs)
-- **doc_tags** — Tag definitions
-- **doc_article_tags** — Article-tag join table
-- **doc_revisions** — Content revision history
-- **integration_records** — Third-party integration config (Stripe, Mailgun, OpenAI, Cloudflare R2)
-
-### Platform
-- **audit_logs** — Sensitive action audit trail
-
-## CRM Form-to-Lead Pipeline
-```
-Website Contact Form → POST /api/contacts
-  → Zod validation + honeypot spam check
-  → Save to legacy contacts table
-  → CRM Ingest (non-blocking):
-    → Deduplicate contact (email, then phone)
-    → Create/find CRM contact + company
-    → Link contact ↔ company
-    → Create CRM lead with UTM attribution
-    → Create system note on lead
-    → Audit log
-    → Notify admins/sales reps (non-blocking)
-  → Email notification via Resend
-```
-Frontend captures UTM params (utm_source, utm_medium, utm_campaign, utm_term, utm_content) + referrer + landing page from URL.
-
-## Notification System
-### Triggers (server/features/notifications/triggers.ts)
-- **notifyNewLead** — new website form lead → admins + sales reps (in_app + email)
-- **notifyLeadAssignment** — lead assigned → assignee (in_app + email)
-- **notifyStageChange** — opportunity moved → owner + admins (in_app)
-- **notifyOpportunityAssignment** — opportunity assigned → assignee (in_app + email)
-- **notifyOnboardingAssignment** — onboarding assigned → assignee (in_app + email)
-- **notifyOnboardingStatusChange** — status changed → owner + admins (in_app)
-- **notifySystemAlert** — system alert → admins + developers (in_app + email)
-
-### Mailgun Service (server/features/notifications/mailgun.ts)
-- Uses Mailgun HTTP API (no SDK)
-- Requires: MAILGUN_API_KEY, MAILGUN_DOMAIN env vars
-- Optional: MAILGUN_FROM_EMAIL, MAILGUN_FROM_NAME
-- Graceful degradation: returns "skipped" if not configured
-
-## Key Routes
-### Marketing (Public)
-- `/` — Home, `/paquetes` — Packages, `/contacto` — Contact, `/demo` — Demo showroom
-- `/paquetes/empieza|crece|domina` — Plan detail pages
-
-### Internal Platform (Protected)
-- `/login` — Login page
-- `/admin` — Dashboard (stats + recent leads + quick actions)
-- `/admin/crm` — Lead list (searchable, filterable, paginated)
-- `/admin/crm/leads/:id` — Lead detail (status, attribution, notes, contact/company)
-- `/admin/crm/companies/:id` — Company detail (info, linked contacts/leads)
-- `/admin/crm/contacts/:id` — Contact detail (info, linked company/leads)
-- `/admin/pipeline` — Sales Pipeline board (kanban view)
-- `/admin/pipeline/list` — Opportunity list view
-- `/admin/pipeline/opportunities/:id` — Opportunity detail
-- `/admin/pipeline/stages` — Stage management (Admin/Developer only)
-- `/admin/onboarding` — Onboarding list (searchable, filterable, progress display)
-- `/admin/onboarding/new` — Multi-step onboarding wizard
-- `/admin/onboarding/:id` — Onboarding detail (checklist, timeline, status actions)
-- `/admin/notifications` — Notification center (type/read filters, mark read, entity linking)
-- `/admin/chat` — Team Chat (placeholder)
-- `/admin/payments` — Payments (placeholder)
-- `/admin/integrations` — Integrations overview (working)
-- `/admin/reports` — Reports (placeholder)
-- `/admin/settings` — Admin settings (placeholder)
-- `/admin/docs` — App Docs library (working, 34 articles)
-- `/admin/demo-builder` — Demo link generator
-
-### API Endpoints
-- `POST /api/contacts` — Public contact form (+ CRM ingest)
-- `POST /api/inquiries` — Public demo inquiry (+ CRM ingest)
-- `ALL /api/auth/*` — BetterAuth (login, signup, session)
-- `GET /api/users/me` — Current user (auth required)
-- `GET /api/admin/stats` — Dashboard stats (auth)
-- `GET /api/admin/audit-logs` — Audit logs (admin only)
-- `POST /api/admin/seed-admin` — Create initial admin user
-- `POST /api/admin/seed` — Seed docs + integrations + CRM statuses (admin)
-- `GET/POST/PUT/DELETE /api/docs/*` — Docs CRUD (admin/developer)
-- `GET/PUT /api/integrations/*` — Integrations CRUD (admin/developer)
-- `GET/POST /api/crm/leads` — Lead list/create (admin/sales_rep)
-- `GET/PUT /api/crm/leads/:id` — Lead detail/update
-- `GET/POST /api/crm/leads/:id/notes` — Lead notes
-- `GET/PUT /api/crm/leads/:id/tags` — Lead tags
-- `GET/POST /api/crm/companies` — Company list/create
-- `GET/PUT /api/crm/companies/:id` — Company detail/update
-- `GET/POST /api/crm/contacts` — Contact list/create
-- `GET/PUT /api/crm/contacts/:id` — Contact detail/update
-- `GET /api/crm/statuses` — Lead status list
-- `GET/POST /api/crm/tags` — CRM tags
-- `GET/POST /api/pipeline/stages` — Pipeline stages list/create
-- `PUT/DELETE /api/pipeline/stages/:id` — Stage update/delete
-- `GET/POST /api/pipeline/opportunities` — Opportunity list/create
-- `GET /api/pipeline/opportunities/board` — Kanban board data
-- `GET /api/pipeline/opportunities/stats` — Pipeline value stats
-- `GET/PUT /api/pipeline/opportunities/:id` — Opportunity detail/update
-- `PUT /api/pipeline/opportunities/:id/stage` — Move to stage
-- `GET/POST /api/pipeline/opportunities/:id/activities` — Activity timeline
-- `POST /api/pipeline/convert-lead/:leadId` — Convert lead to opportunity
-- `GET/POST /api/onboarding/records` — Onboarding records list/create
-- `GET/PUT/DELETE /api/onboarding/records/:id` — Record detail/update/delete
-- `GET /api/onboarding/records/:id/checklist` — Get checklist items
-- `PUT /api/onboarding/records/:id/checklist/:itemId` — Toggle checklist item
-- `GET/POST /api/onboarding/records/:id/notes` — Activity timeline
-- `GET /api/onboarding/templates` — List templates
-- `POST /api/onboarding/convert-opportunity/:opportunityId` — Convert won opportunity to onboarding
-- `GET /api/onboarding/stats` — Onboarding statistics
-- `GET /api/notifications` — User notifications (filters: type, is_read, limit, offset)
-- `GET /api/notifications/unread-count` — Unread count for current user
-- `PUT /api/notifications/:id/read` — Mark notification read
-- `PUT /api/notifications/read-all` — Mark all notifications read
-- `GET /api/notifications/preferences` — User notification preferences
-
-## Environment Variables
-- `DATABASE_URL` — PostgreSQL connection string
-- `BETTER_AUTH_SECRET` — Auth secret key
-- `RESEND_API_KEY` — Email sending (legacy contact form notifications)
-- `MAILGUN_API_KEY` — Mailgun API key (system notifications)
-- `MAILGUN_DOMAIN` — Mailgun sending domain
-- `MAILGUN_FROM_EMAIL` — (optional) Sender email address
-- `MAILGUN_FROM_NAME` — (optional) Sender display name
-- `PORT` — Server port (default 5000)
-
-## Admin Credentials
-- **Email**: admin@vivawebdesigns.com
-- **Password**: VivaAdmin2026!
-- **Role**: admin
-
-## Demo System
-- Empieza (`/empieza`), Crece (`/crece`), Domina (`/domina`) — Demo tiers
-- Preview (`/preview/empieza|crece|domina`) — Private preview URLs
-- 7 trade templates in `client/src/preview/tradeTemplates.js`
-
-## Performance Optimizations
-- Code splitting via React.lazy + Suspense (Home stays eager)
-- Optimized video (960KB MP4 + WebM with WebP poster)
-- Optimized WebP images (~1.1MB total from ~20MB originals)
-- Native lazy loading on gallery images
-- Non-render-blocking Google Fonts
-
-## Running
-- `npm run dev` starts Express + Vite on port 5000
+## External Dependencies
+- **PostgreSQL**: Primary database for all application data.
+- **BetterAuth**: For user authentication and authorization.
+- **Resend**: For sending email notifications from the legacy contact form.
+- **Mailgun**: For sending system-generated email notifications (requires `MAILGUN_API_KEY` and `MAILGUN_DOMAIN`).
+- **Cloudflare R2**: Planned for file storage (foundation for billing and chat).
+- **Stripe**: Planned for billing functionality.

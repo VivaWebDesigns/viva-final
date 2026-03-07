@@ -16,7 +16,7 @@ import { PreviewLangProvider } from "@/contexts/PreviewLangContext";
 import AdminLayout from "@/layouts/AdminLayout";
 import ProtectedRoute from "@features/auth/ProtectedRoute";
 import PlaceholderPage from "@features/admin/pages/PlaceholderPage";
-import { UserPlus, MessageSquare, CreditCard, BarChart3, Settings } from "lucide-react";
+import { UserPlus, MessageSquare, CreditCard, Settings } from "lucide-react";
 import NotificationCenterPage from "@features/notifications/NotificationCenterPage";
 
 const Paquetes = lazy(() => import("@/pages/Paquetes"));
@@ -42,6 +42,7 @@ const StageManagementPage = lazy(() => import("@features/pipeline/StageManagemen
 const OnboardingListPage = lazy(() => import("@features/onboarding/OnboardingListPage"));
 const OnboardingDetailPage = lazy(() => import("@features/onboarding/OnboardingDetailPage"));
 const OnboardingWizardPage = lazy(() => import("@features/onboarding/OnboardingWizardPage"));
+const ReportsPage = lazy(() => import("@features/reports/ReportsPage"));
 
 function PageFallback() {
   return (
@@ -114,9 +115,7 @@ function AdminRouter() {
                 <IntegrationsPage />
               </ProtectedRoute>
             </Route>
-            <Route path="/admin/reports">
-              <PlaceholderPage title="Reports" description="Analytics and business intelligence. Track key metrics, generate reports, and monitor performance." icon={BarChart3} />
-            </Route>
+            <Route path="/admin/reports" component={ReportsPage} />
             <Route path="/admin/settings">
               <ProtectedRoute roles={["admin"]}>
                 <PlaceholderPage title="Admin Settings" description="System configuration and user management. Manage roles, permissions, and platform settings." icon={Settings} />
