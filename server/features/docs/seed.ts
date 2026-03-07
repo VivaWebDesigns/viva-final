@@ -1100,6 +1100,19 @@ In addition to pipeline_activities, all pipeline mutations are logged in audit_l
 - No new database tables (read-only reporting on existing data)
 - 3 new reporting documentation articles
 
+## v1.6 — Integrations Management (March 2026)
+- Expanded integrations UI with provider detail panels
+- Environment variable detection with per-var status indicators (set/missing)
+- Feature flag badges (Active in Production / Planned / Scaffolded)
+- Health check API with per-provider config detection
+- Test Connection button with live API verification (Mailgun domain verify, Stripe balance check, OpenAI models check)
+- Provider-specific setup instructions and operational notes
+- Used-by feature mapping per integration
+- Summary stats bar (Total / Configured / Active / Enabled)
+- Richer seed data with setup instructions, optional env vars, and operational context
+- No new database tables (uses existing integration_records)
+- 3 new integration documentation articles
+
 ## Technical Notes
 - All existing marketing site functionality preserved
 - Non-destructive architecture extension
@@ -1742,6 +1755,168 @@ Reports benefit from these existing database indexes:
 - If lead volume exceeds 10,000+, consider materialized views for trend data
 - Pipeline breakdown could switch to SQL GROUP BY if opportunity count grows large
 - Onboarding stats should move to SQL aggregation at scale`,
+  },
+  {
+    title: "Integration Architecture",
+    slug: "integration-architecture",
+    categorySlug: "integrations",
+    status: "published",
+    content: `# Integration Architecture
+
+## Overview
+The Integrations module manages connections to four third-party services: Stripe, Mailgun, OpenAI, and Cloudflare R2. Each provider has configuration detection, health checking, and feature flag awareness.
+
+## Database Model
+All integrations use the \`integration_records\` table:
+- \`provider\` — Unique slug (stripe, mailgun, openai, cloudflare-r2)
+- \`enabled\` — Admin toggle for enabling/disabling
+- \`configComplete\` — Whether the provider passes configuration checks
+- \`lastTested\` — Timestamp of last successful test
+- \`settings\` — JSONB storing provider metadata (name, description, docsUrl, requiredEnvVars, optionalEnvVars, setupInstructions, operationalNotes, usedBy, featureFlag)
+
+## Health Check System
+\`GET /api/integrations/health\` runs config detection for all providers:
+- Checks presence of required and optional environment variables
+- Reports status: \`ready\` (all required vars set), \`partial\` (some set), \`not_configured\` (none set)
+- Reports feature flag: \`active\` (used in production), \`planned\` (feature not yet built), \`scaffold\` (API scaffolded only)
+- Lists which features use each provider
+
+## Test Connection System
+\`POST /api/integrations/:provider/test\` runs live connectivity tests:
+- **Mailgun**: Verifies domain via Mailgun API (\`GET /v3/domains/{domain}\`)
+- **Stripe**: Verifies API key via Stripe balance endpoint (\`GET /v1/balance\`)
+- **OpenAI**: Verifies API key via models endpoint (\`GET /v1/models\`)
+- **Cloudflare R2**: Confirms env vars are set (full connectivity test pending R2 implementation)
+
+On successful test, the integration's \`lastTested\` timestamp and \`configComplete\` flag are updated.
+
+## File Structure
+\`\`\`
+server/features/integrations/
+├── index.ts      # Route export
+├── routes.ts     # API endpoints (list, get, update, health, test)
+├── storage.ts    # Drizzle ORM CRUD
+├── health.ts     # Provider health checks
+└── seed.ts       # Default provider configurations
+\`\`\``,
+  },
+  {
+    title: "Provider Setup Guide",
+    slug: "provider-setup-guide",
+    categorySlug: "integrations",
+    status: "published",
+    content: `# Provider Setup Guide
+
+## Stripe (Planned)
+**Required:** \`STRIPE_SECRET_KEY\`
+**Optional:** \`STRIPE_WEBHOOK_SECRET\`
+
+1. Create a Stripe account at stripe.com
+2. Navigate to Developers → API Keys in your Stripe Dashboard
+3. Copy your Secret Key (starts with sk_test_ or sk_live_)
+4. Set STRIPE_SECRET_KEY in your environment variables
+5. For webhook events, set STRIPE_WEBHOOK_SECRET from the webhook endpoint settings
+
+**Status:** Planned — will power client billing, invoice generation, and payment tracking.
+
+---
+
+## Mailgun (Active)
+**Required:** \`MAILGUN_API_KEY\`, \`MAILGUN_DOMAIN\`
+**Optional:** \`MAILGUN_FROM_EMAIL\`, \`MAILGUN_FROM_NAME\`
+
+1. Create a Mailgun account at mailgun.com
+2. Add and verify your sending domain
+3. Navigate to API Keys and copy your Private API Key
+4. Set MAILGUN_API_KEY and MAILGUN_DOMAIN in your environment variables
+
+**Status:** Active — handles notification emails. Falls back to in-app only when not configured.
+
+---
+
+## OpenAI (Scaffolded)
+**Required:** \`OPENAI_API_KEY\`
+
+1. Create an OpenAI account at platform.openai.com
+2. Navigate to API Keys and create a new secret key
+3. Set OPENAI_API_KEY in your environment variables
+
+**Status:** Scaffolded — no active API calls made yet. Planned for lead scoring, content generation, and activity summaries.
+
+---
+
+## Cloudflare R2 (Planned)
+**Required:** \`CLOUDFLARE_R2_ACCESS_KEY\`, \`CLOUDFLARE_R2_SECRET_KEY\`, \`CLOUDFLARE_R2_BUCKET\`, \`CLOUDFLARE_R2_ENDPOINT\`
+**Optional:** \`CLOUDFLARE_R2_PUBLIC_URL\`
+
+1. Log into your Cloudflare Dashboard
+2. Navigate to R2 Object Storage and create a bucket
+3. Create an API token with read/write access
+4. Set all four required environment variables
+
+**Status:** Planned — exclusive file storage provider for uploads, invoices, and chat attachments.
+
+## Security Notes
+- Sensitive values (API keys, secrets) are NEVER exposed through the API
+- The health endpoint only reports whether variables are present, not their values
+- All integration endpoints require admin or developer role`,
+  },
+  {
+    title: "Integration Troubleshooting",
+    slug: "integration-troubleshooting",
+    categorySlug: "integrations",
+    status: "published",
+    content: `# Integration Troubleshooting
+
+## Common Issues
+
+### "Configuration needed" but env vars are set
+- Ensure environment variables are set in the Replit Secrets panel, not just in .env files
+- Restart the application after setting new environment variables
+- Run "Test Connection" to update the configuration status
+
+### Mailgun emails not sending
+- Verify MAILGUN_API_KEY and MAILGUN_DOMAIN are both set
+- Check that your sending domain is verified in the Mailgun dashboard
+- Run the Mailgun test connection — it verifies domain status
+- Check notification records for email_status = "failed" with failure reasons
+- Note: When Mailgun is not configured, emails are gracefully skipped (status = "skipped")
+
+### Stripe test connection fails
+- Verify STRIPE_SECRET_KEY starts with sk_test_ (test mode) or sk_live_ (production)
+- Check that the API key has not been revoked in your Stripe Dashboard
+- Ensure your Stripe account is active and in good standing
+
+### OpenAI test connection fails
+- Verify OPENAI_API_KEY is valid and not expired
+- Check that your OpenAI account has API credits or a payment method
+- Note: OpenAI is currently scaffolded only — no active usage in the platform
+
+### R2 configuration shows partial
+- All four required variables must be set: ACCESS_KEY, SECRET_KEY, BUCKET, ENDPOINT
+- CLOUDFLARE_R2_PUBLIC_URL is optional — only needed if you want direct public file URLs
+- The endpoint URL format is typically: https://<account-id>.r2.cloudflarestorage.com
+
+## Health Check API
+\`GET /api/integrations/health\` returns real-time configuration status for all providers.
+
+Response fields per provider:
+- \`configured\` — boolean, all required vars present
+- \`status\` — "ready" / "partial" / "not_configured"
+- \`missingVars\` — list of missing environment variable names
+- \`presentVars\` — list of configured variable names
+- \`featureFlag\` — "active" / "planned" / "scaffold"
+- \`notes\` — operational context
+- \`usedBy\` — features that depend on this provider
+
+## Test Connection API
+\`POST /api/integrations/:provider/test\` runs a live connectivity test.
+
+Successful tests update:
+- \`lastTested\` — timestamp of the test
+- \`configComplete\` — set to true
+
+Failed tests are logged in the audit trail for debugging.`,
   },
 ];
 
