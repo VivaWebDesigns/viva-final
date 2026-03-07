@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, Users, TrendingUp, UserPlus, MessageSquare,
   CreditCard, Bell, Puzzle, BarChart3, Settings, BookOpen,
-  LogOut, ChevronLeft, ChevronRight, Menu, X,
+  LogOut, ChevronLeft, ChevronRight, Menu, X, Building2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -19,14 +19,15 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", path: "/admin", icon: LayoutDashboard },
+  { label: "Clients", path: "/admin/clients", icon: Building2 },
   { label: "CRM", path: "/admin/crm", icon: Users },
   { label: "Sales Pipeline", path: "/admin/pipeline", icon: TrendingUp },
   { label: "Client Onboarding", path: "/admin/onboarding", icon: UserPlus },
   { label: "Team Chat", path: "/admin/chat", icon: MessageSquare },
   { label: "Payments", path: "/admin/payments", icon: CreditCard },
   { label: "Notifications", path: "/admin/notifications", icon: Bell },
-  { label: "Integrations", path: "/admin/integrations", icon: Puzzle, roles: ["admin", "developer"] },
   { label: "Reports", path: "/admin/reports", icon: BarChart3 },
+  { label: "Integrations", path: "/admin/integrations", icon: Puzzle, roles: ["admin", "developer"] },
   { label: "Admin", path: "/admin/settings", icon: Settings, roles: ["admin"] },
   { label: "App Docs", path: "/admin/docs", icon: BookOpen, roles: ["admin", "developer"] },
 ];

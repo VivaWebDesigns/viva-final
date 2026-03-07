@@ -6,6 +6,7 @@ import { sql, desc, eq } from "drizzle-orm";
 import { auth } from "../auth/auth";
 import { logAudit } from "../audit/service";
 import * as pipelineStorage from "../pipeline/storage";
+import { z } from "zod";
 
 const router = Router();
 
@@ -73,6 +74,67 @@ router.post("/seed-admin", async (req, res) => {
   } catch (error: any) {
     console.error("Seed admin error:", error);
     res.status(500).json({ message: error.message || "Failed to seed admin" });
+  }
+});
+
+// ── User Management ──────────────────────────────────────────────────
+
+router.get("/users", requireRole("admin"), async (_req, res) => {
+  try {
+    const users = await db
+      .select({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        banned: user.banned,
+        createdAt: user.createdAt,
+      })
+      .from(user)
+      .orderBy(desc(user.createdAt));
+    res.json(users);
+  } catch (err: any) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.post("/users", requireRole("admin"), async (req, res) => {
+  try {
+    const schema = z.object({
+      name: z.string().min(1),
+      email: z.string().email(),
+      password: z.string().min(8),
+      role: z.enum(["admin", "developer", "sales_rep"]).default("sales_rep"),
+    });
+    const { name, email, password, role: newRole } = schema.parse(req.body);
+
+    const result = await auth.api.signUpEmail({ body: { name, email, password } });
+    if (!result?.user?.id) throw new Error("Failed to create user");
+
+    await db.update(user).set({ role: newRole }).where(eq(user.id, result.user.id));
+    await logAudit({ action: "create_user", entity: "user", entityId: result.user.id, metadata: { email, role: newRole } });
+
+    const [created] = await db.select({ id: user.id, name: user.name, email: user.email, role: user.role, createdAt: user.createdAt }).from(user).where(eq(user.id, result.user.id));
+    res.status(201).json(created);
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+router.put("/users/:id", requireRole("admin"), async (req, res) => {
+  try {
+    const schema = z.object({
+      role: z.enum(["admin", "developer", "sales_rep"]).optional(),
+      name: z.string().min(1).optional(),
+      banned: z.boolean().optional(),
+    });
+    const updates = schema.parse(req.body);
+    await db.update(user).set(updates).where(eq(user.id, req.params.id));
+    await logAudit({ action: "update_user", entity: "user", entityId: req.params.id, metadata: updates });
+    const [updated] = await db.select({ id: user.id, name: user.name, email: user.email, role: user.role, banned: user.banned, createdAt: user.createdAt }).from(user).where(eq(user.id, req.params.id));
+    res.json(updated);
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
   }
 });
 

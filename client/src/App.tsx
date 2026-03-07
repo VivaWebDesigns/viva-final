@@ -16,7 +16,7 @@ import { PreviewLangProvider } from "@/contexts/PreviewLangContext";
 import AdminLayout from "@/layouts/AdminLayout";
 import ProtectedRoute from "@features/auth/ProtectedRoute";
 import PlaceholderPage from "@features/admin/pages/PlaceholderPage";
-import { UserPlus, MessageSquare, CreditCard, Settings } from "lucide-react";
+import { CreditCard } from "lucide-react";
 import NotificationCenterPage from "@features/notifications/NotificationCenterPage";
 
 const Paquetes = lazy(() => import("@/pages/Paquetes"));
@@ -43,6 +43,9 @@ const OnboardingListPage = lazy(() => import("@features/onboarding/OnboardingLis
 const OnboardingDetailPage = lazy(() => import("@features/onboarding/OnboardingDetailPage"));
 const OnboardingWizardPage = lazy(() => import("@features/onboarding/OnboardingWizardPage"));
 const ReportsPage = lazy(() => import("@features/reports/ReportsPage"));
+const TeamChatPage = lazy(() => import("@features/chat/TeamChatPage"));
+const AdminSettingsPage = lazy(() => import("@features/admin/pages/AdminSettingsPage"));
+const ClientsPage = lazy(() => import("@features/clients/ClientsPage"));
 
 function PageFallback() {
   return (
@@ -101,9 +104,8 @@ function AdminRouter() {
             <Route path="/admin/onboarding/:id">
               {(params) => <OnboardingDetailPage id={params.id} />}
             </Route>
-            <Route path="/admin/chat">
-              <PlaceholderPage title="Team Chat" description="Internal team communication. Real-time messaging for collaboration across projects and tasks." icon={MessageSquare} />
-            </Route>
+            <Route path="/admin/chat" component={TeamChatPage} />
+            <Route path="/admin/clients" component={ClientsPage} />
             <Route path="/admin/payments">
               <PlaceholderPage title="Payments" description="Payment processing via Stripe. Manage invoices, subscriptions, and billing for all clients." icon={CreditCard} />
             </Route>
@@ -118,7 +120,7 @@ function AdminRouter() {
             <Route path="/admin/reports" component={ReportsPage} />
             <Route path="/admin/settings">
               <ProtectedRoute roles={["admin"]}>
-                <PlaceholderPage title="Admin Settings" description="System configuration and user management. Manage roles, permissions, and platform settings." icon={Settings} />
+                <AdminSettingsPage />
               </ProtectedRoute>
             </Route>
             <Route path="/admin/docs">

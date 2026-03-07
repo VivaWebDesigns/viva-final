@@ -20,14 +20,16 @@ Marketing agency website targeting contractors (Spanish-first, conversion-optimi
 ```
 ├── client/src/
 │   ├── features/           # Internal platform features
-│   │   ├── auth/           # Login, auth client, protected routes
-│   │   ├── admin/pages/    # Dashboard + placeholder pages
+│   │   ├── auth/           # Login (with dev credentials card), auth client, protected routes
+│   │   ├── admin/pages/    # Dashboard + AdminSettingsPage (user management + audit logs)
+│   │   ├── chat/           # TeamChatPage — polling-based multi-channel team chat
+│   │   ├── clients/        # ClientsPage — company cards with aggregated CRM stats
 │   │   ├── crm/            # CRM: LeadList, LeadDetail, CompanyDetail, ContactDetail
 │   │   ├── docs/           # App Docs library (CRUD)
 │   │   ├── integrations/   # Integrations management UI
 │   │   ├── notifications/  # Notification center UI
 │   │   ├── onboarding/     # Onboarding pages (list, detail, wizard)
-│   │   ├── pipeline/       # Pipeline pages (board, list, detail, stages)
+│   │   ├── pipeline/       # Pipeline board (drag-and-drop kanban), list, detail, stages
 │   │   └── reports/        # Reports analytics page
 │   ├── layouts/            # AdminLayout (sidebar shell + notification bell)
 │   ├── pages/              # Marketing site pages
@@ -39,7 +41,9 @@ Marketing agency website targeting contractors (Spanish-first, conversion-optimi
 ├── server/
 │   ├── features/           # Domain-based server features
 │   │   ├── auth/           # BetterAuth config + middleware
-│   │   ├── admin/          # Admin stats, seed, audit logs
+│   │   ├── admin/          # Admin stats, seed, audit logs, user management (CRUD)
+│   │   ├── chat/           # Chat messages: GET/POST/DELETE with channel support
+│   │   ├── clients/        # Clients list: companies with aggregated SQL counts/values
 │   │   ├── crm/            # CRM storage, routes, ingest, seed
 │   │   ├── pipeline/       # Sales pipeline: stages, opportunities, activities
 │   │   ├── onboarding/     # Client onboarding: records, checklists, templates
@@ -103,6 +107,9 @@ All marketing website copy managed from `client/src/content/content.json`.
 - **doc_article_tags** — Article-tag join table
 - **doc_revisions** — Content revision history
 - **integration_records** — Third-party integration config (Stripe, Mailgun, OpenAI, Cloudflare R2)
+
+### Team Chat
+- **chat_messages** — Team chat messages (channel, senderId, content, timestamp)
 
 ### Platform
 - **audit_logs** — Sensitive action audit trail
@@ -173,9 +180,10 @@ Website Contact Form → POST /api/contacts
 - `/admin/notifications` — Notification center
 - `/admin/reports` — Reports analytics dashboard
 - `/admin/integrations` — Integrations management (Admin/Developer)
-- `/admin/chat` — Team Chat (placeholder)
-- `/admin/payments` — Payments (placeholder)
-- `/admin/settings` — Admin settings (placeholder)
+- `/admin/clients` — Clients page (company cards with contacts/leads/pipeline stats)
+- `/admin/chat` — Team Chat (multi-channel, polling-based real-time messaging)
+- `/admin/payments` — Payments (placeholder — pending Stripe Billing feature)
+- `/admin/settings` — Admin Settings (user management + role editing + audit logs)
 - `/admin/docs` — App Docs library (45 articles)
 - `/admin/demo-builder` — Demo link generator
 
@@ -197,6 +205,14 @@ Website Contact Form → POST /api/contacts
 - `GET/POST/PUT/DELETE /api/onboarding/*` — Onboarding CRUD
 - `GET/PUT /api/notifications/*` — Notification management
 - `GET /api/reports/*` — Reports analytics (overview, leads-by-source, pipeline-breakdown, etc.)
+- `GET /api/chat/channels` — List chat channels
+- `GET /api/chat/messages?channel=` — Get messages for channel
+- `POST /api/chat/messages` — Send a message
+- `DELETE /api/chat/messages/:id` — Delete message (admin/developer only)
+- `GET /api/clients` — Companies with aggregated contact/lead/opportunity stats
+- `GET /api/admin/users` — List all platform users (admin only)
+- `POST /api/admin/users` — Create new team member (admin only)
+- `PUT /api/admin/users/:id` — Update role or ban status (admin only)
 
 ## Environment Variables
 - `DATABASE_URL` — PostgreSQL connection string

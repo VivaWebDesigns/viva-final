@@ -9,6 +9,8 @@ import { onboardingRoutes } from "./onboarding";
 import { notificationRoutes } from "./notifications";
 import { reportRoutes } from "./reports";
 import { requireRole } from "./auth/middleware";
+import chatRoutes from "./chat/routes";
+import clientsRoutes from "./clients/routes";
 import { seedDocs } from "./docs/seed";
 import { seedIntegrations } from "./integrations/seed";
 import { seedCrmStatuses } from "./crm/seed";
@@ -26,6 +28,8 @@ router.use("/pipeline", pipelineRoutes);
 router.use("/onboarding", onboardingRoutes);
 router.use("/notifications", notificationRoutes);
 router.use("/reports", reportRoutes);
+router.use("/chat", chatRoutes);
+router.use("/clients", clientsRoutes);
 
 router.post("/admin/seed", requireRole("admin"), async (_req, res) => {
   try {

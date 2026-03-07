@@ -572,3 +572,20 @@ export type Session = typeof session.$inferSelect;
 
 export const ROLES = ["admin", "developer", "sales_rep"] as const;
 export type Role = typeof ROLES[number];
+
+// ─── Team Chat ────────────────────────────────────────────────────────
+
+export const chatMessages = pgTable("chat_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  channel: text("channel").notNull().default("general"),
+  senderId: text("sender_id").notNull().references(() => user.id),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("chat_messages_channel_idx").on(t.channel),
+  index("chat_messages_created_idx").on(t.createdAt),
+]);
+
+export const insertChatMessageSchema = createInsertSchema(chatMessages).omit({ id: true, createdAt: true });
+export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
+export type ChatMessage = typeof chatMessages.$inferSelect;
