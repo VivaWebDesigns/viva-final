@@ -221,7 +221,11 @@ export async function findContactByPhone(phone: string): Promise<CrmContact | un
 }
 
 export async function findCompanyByName(name: string): Promise<CrmCompany | undefined> {
-  const [result] = await db.select().from(crmCompanies).where(ilike(crmCompanies.name, name));
+  const [result] = await db
+    .select()
+    .from(crmCompanies)
+    .where(ilike(crmCompanies.name, name.trim()))
+    .limit(1);
   return result;
 }
 

@@ -98,7 +98,7 @@ All marketing website copy managed from `client/src/content/content.json`.
 
 ### Docs & Integrations
 - **doc_categories** — Doc library categories (22 seeded)
-- **doc_articles** — Doc articles with content (40 seeded)
+- **doc_articles** — Doc articles with content (45 seeded)
 - **doc_tags** — Tag definitions
 - **doc_article_tags** — Article-tag join table
 - **doc_revisions** — Content revision history
@@ -176,7 +176,7 @@ Website Contact Form → POST /api/contacts
 - `/admin/chat` — Team Chat (placeholder)
 - `/admin/payments` — Payments (placeholder)
 - `/admin/settings` — Admin settings (placeholder)
-- `/admin/docs` — App Docs library (40 articles)
+- `/admin/docs` — App Docs library (45 articles)
 - `/admin/demo-builder` — Demo link generator
 
 ### API Endpoints
@@ -219,6 +219,13 @@ Website Contact Form → POST /api/contacts
 - **Email**: admin@vivawebdesigns.com
 - **Password**: VivaAdmin2026!
 - **Role**: admin
+
+## v1.7 Hardening Notes
+- Query optimizations: `getOnboardingStats` and `getPipelineStats` now use SQL aggregation (GROUP BY/COUNT/SUM) instead of fetching all rows into memory
+- `findCompanyByName` tightened with input trimming and LIMIT 1
+- Integrations page health loading state prevents false "Not Configured" flash
+- Documentation completion: 6 new articles (Getting Started, Auth Flow, Known Issues, Frontend Architecture, Deployment Guide)
+- Technical debt tracked in App Docs "Known Issues & Technical Debt" article
 
 ## Pending Features (Confirmed Order)
 1. R2 File Storage (Cloudflare R2 — foundation for billing + chat)

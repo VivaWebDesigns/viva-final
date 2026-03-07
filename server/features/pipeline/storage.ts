@@ -223,28 +223,36 @@ export async function getOpportunityCount(): Promise<number> {
 }
 
 export async function getPipelineStats() {
-  const stages = await getStages();
-  const openOpps = await db.select().from(pipelineOpportunities)
-    .where(eq(pipelineOpportunities.status, "open"));
+  const [stages, stageAgg] = await Promise.all([
+    getStages(),
+    db
+      .select({
+        stageId: pipelineOpportunities.stageId,
+        count: count(),
+        value: sql<string>`COALESCE(SUM(CAST(${pipelineOpportunities.value} AS NUMERIC)), 0)`,
+      })
+      .from(pipelineOpportunities)
+      .where(eq(pipelineOpportunities.status, "open"))
+      .groupBy(pipelineOpportunities.stageId),
+  ]);
 
+  const aggMap = new Map(stageAgg.map((r) => [r.stageId, r]));
+  let totalOpen = 0;
   let totalValue = 0;
-  const byStage: { stageId: string; stageName: string; count: number; value: number }[] = [];
 
-  for (const stage of stages) {
-    const stageOpps = openOpps.filter(o => o.stageId === stage.id);
-    const stageValue = stageOpps.reduce((sum, o) => sum + parseFloat(o.value || "0"), 0);
+  const byStage = stages.map((stage) => {
+    const agg = aggMap.get(stage.id);
+    const stageCount = agg?.count ?? 0;
+    const stageValue = parseFloat(agg?.value ?? "0");
+    totalOpen += stageCount;
     totalValue += stageValue;
-    byStage.push({
+    return {
       stageId: stage.id,
       stageName: stage.name,
-      count: stageOpps.length,
+      count: stageCount,
       value: stageValue,
-    });
-  }
+    };
+  });
 
-  return {
-    totalOpen: openOpps.length,
-    totalValue,
-    byStage,
-  };
+  return { totalOpen, totalValue, byStage };
 }

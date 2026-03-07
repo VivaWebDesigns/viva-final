@@ -1113,6 +1113,17 @@ In addition to pipeline_activities, all pipeline mutations are logged in audit_l
 - No new database tables (uses existing integration_records)
 - 3 new integration documentation articles
 
+## v1.7 — Hardening & Documentation Pass (March 2026)
+- Query optimization: \`getOnboardingStats\` now uses SQL GROUP BY + COUNT instead of fetching all rows
+- Query optimization: \`getPipelineStats\` now uses SQL SUM/COUNT with GROUP BY instead of JS-side aggregation
+- Query optimization: \`findCompanyByName\` adds input trimming and LIMIT 1
+- Health loading state: Integrations page now shows "Checking..." during health API load instead of false "Not Configured"
+- Summary stats: Integrations page stat cards show skeleton pulse animation while data loads
+- Documentation completion: 6 new articles (Getting Started, Authentication Flow, Known Issues, Frontend Architecture, Deployment Guide, v1.7 changelog)
+- Technical debt notes documented in App Docs
+- Total doc count: 22 categories, 45 articles
+- No new database tables — optimization and documentation only
+
 ## Technical Notes
 - All existing marketing site functionality preserved
 - Non-destructive architecture extension
@@ -1917,6 +1928,258 @@ Successful tests update:
 - \`configComplete\` — set to true
 
 Failed tests are logged in the audit trail for debugging.`,
+  },
+  {
+    title: "Getting Started",
+    slug: "getting-started-guide",
+    categorySlug: "getting-started",
+    status: "published",
+    content: `# Getting Started
+
+## Accessing the Platform
+1. Navigate to the login page at \`/login\`
+2. Enter your email and password
+3. You will be redirected to \`/admin\` — the main dashboard
+
+## Default Admin Account
+The platform ships with a pre-configured admin account for initial setup. Contact your system administrator for credentials.
+
+## Dashboard Overview
+After login you'll see the admin dashboard with:
+- **CRM Stats** — Total leads, recent activity, leads by status
+- **Pipeline Stats** — Open deals, total pipeline value, deals by stage
+- **Onboarding Overview** — Active onboardings, progress, overdue items
+- **Recent Activity** — Latest system events
+
+## Navigation
+Use the sidebar to navigate between modules:
+- **Dashboard** — Overview and key metrics
+- **CRM** — Leads, companies, contacts
+- **Pipeline** — Sales opportunities and stages
+- **Onboarding** — Client onboarding workflows
+- **Notifications** — System alerts and email notifications
+- **Reports** — Analytics and reporting
+- **Docs** — This documentation library
+- **Settings** — Integrations and preferences
+
+## Roles
+- **Admin** — Full access to all modules including settings and user management
+- **Developer** — Access to most modules, stage management, and system tools
+- **Sales Rep** — CRM, pipeline, onboarding, and notification access
+
+## Quick Actions
+- Create a new lead from the CRM page
+- Convert a lead to an opportunity in the pipeline
+- Start client onboarding from a won opportunity
+- View reports for performance insights`,
+  },
+  {
+    title: "Authentication Flow",
+    slug: "authentication-flow",
+    categorySlug: "auth",
+    status: "published",
+    content: `# Authentication Flow
+
+## Overview
+The platform uses BetterAuth for authentication, providing secure email/password login with session management.
+
+## Login Process
+1. User submits email + password to \`POST /api/auth/sign-in/email\`
+2. BetterAuth validates credentials and creates a session
+3. Session cookie (\`better-auth.session_token\`) is set in the response
+4. Frontend redirects to \`/admin\`
+
+## Session Management
+- Sessions are stored in the \`session\` table
+- Session tokens are HttpOnly cookies (not accessible via JavaScript)
+- Sessions persist across browser restarts until expiration
+- BetterAuth handles session renewal automatically
+
+## Protected Routes
+All \`/api/*\` routes (except auth endpoints and public contact form) require authentication.
+
+The \`requireAuth\` middleware:
+1. Reads the session cookie from the request
+2. Validates the session with BetterAuth
+3. Attaches \`req.user\` with user data and role
+4. Returns 401 if no valid session exists
+
+## Role-Based Access Control (RBAC)
+The \`requireRole(...roles)\` middleware extends \`requireAuth\`:
+- Checks \`req.user.role\` against allowed roles
+- Returns 403 if the user's role is not in the allowed list
+- Used to protect admin-only and developer-only endpoints
+
+## Roles
+| Role | Value | Access |
+|------|-------|--------|
+| Admin | \`admin\` | Full access to all features |
+| Developer | \`developer\` | Most features, stage management |
+| Sales Rep | \`sales_rep\` | CRM, pipeline, onboarding, notifications |
+
+## Security Notes
+- BetterAuth is mounted BEFORE \`express.json()\` in the middleware stack
+- Password hashing is handled internally by BetterAuth
+- No API keys or tokens are exposed to the frontend
+- Session validation occurs on every authenticated request`,
+  },
+  {
+    title: "Known Issues & Technical Debt",
+    slug: "known-issues-technical-debt",
+    categorySlug: "known-issues",
+    status: "published",
+    content: `# Known Issues & Technical Debt
+
+## Current Technical Debt
+
+### Query Optimization (Addressed in v1.7)
+- **Resolved**: \`getOnboardingStats\` and \`getPipelineStats\` previously fetched all rows into memory for counting. Now use SQL aggregation (GROUP BY, COUNT, SUM).
+- **Monitoring**: Board view (\`getOpportunitiesByStage\`) fetches all open opportunities. Acceptable at current scale but should be paginated if opportunity count grows significantly.
+
+### Schema & Validation
+- Pipeline routes define local Zod schemas (\`updateStageSchema\`, \`updateOpportunitySchema\`) instead of using shared schemas from \`@shared/schema.ts\`. Low priority — works correctly but creates mild duplication.
+- \`createInsertSchema().extend()\` from drizzle-zod is incompatible with Zod v4; update schemas use \`z.object()\` directly. Track drizzle-zod compatibility in future updates.
+
+### Architecture Patterns
+- Audit logging calls (\`logAudit\`) are repeated in most mutating route handlers. Could be consolidated into middleware or a service layer decorator pattern.
+- Notification triggers follow the same pattern — a service layer for "mutate + audit + notify" would reduce route handler boilerplate.
+- Provider metadata in \`health.ts\` is hardcoded (env var names, usedBy, notes) rather than derived from integration settings in the database. This is intentional for reliability but means changes require code updates.
+
+### Frontend
+- No dark mode support yet (all styles use light theme)
+- No WebSocket/SSE for real-time updates — notification bell polls every 30 seconds
+- Demo sub-sites (empieza, crece, domina) share duplicate \`sidebar.tsx\` and \`chart.tsx\` components
+
+### Planned but Not Yet Built
+- **R2 File Storage** — Cloudflare R2 integration for file uploads (next feature)
+- **Stripe Billing** — Payment processing and invoice management
+- **Team Chat** — Internal messaging (Phase 1 + Phase 2)
+
+## Known Issues
+- PostCSS plugin warning in dev console about missing \`from\` option — cosmetic, does not affect functionality
+- BetterAuth session cookie name varies by environment — ensure consistent domain configuration in production
+- Contact form deduplication uses case-insensitive matching which may produce false positives for common names
+
+## Performance Notes
+- Report overview endpoint runs 7 queries in parallel (\`Promise.all\`) for efficient single-request loading
+- All list endpoints use pagination with parallel count queries
+- Database indexes cover all foreign keys and common filter columns
+- Non-blocking notification triggers prevent notification failures from affecting user operations`,
+  },
+  {
+    title: "Frontend Architecture",
+    slug: "frontend-architecture",
+    categorySlug: "ui-frontend",
+    status: "published",
+    content: `# Frontend Architecture
+
+## Routing
+The app uses \`wouter\` for client-side routing with the following structure:
+- \`/\` — Marketing home page
+- \`/login\` — Authentication page
+- \`/admin\` — Protected admin dashboard
+- \`/admin/crm\` — CRM lead list
+- \`/admin/crm/:id\` — Lead detail
+- \`/admin/pipeline\` — Sales pipeline (board + list views)
+- \`/admin/pipeline/:id\` — Opportunity detail
+- \`/admin/onboarding\` — Onboarding list
+- \`/admin/onboarding/new\` — Onboarding wizard
+- \`/admin/onboarding/:id\` — Onboarding detail
+- \`/admin/notifications\` — Notification center
+- \`/admin/reports\` — Reports & analytics
+- \`/admin/docs\` — Documentation library
+- \`/admin/integrations\` — Integrations management
+
+## Data Fetching
+- TanStack Query v5 for all API requests
+- Default fetcher configured in \`@/lib/queryClient\` joins queryKey arrays with "/"
+- Mutations use \`apiRequest\` helper for POST/PUT/DELETE
+- Cache invalidation via \`queryClient.invalidateQueries({ queryKey: [...] })\`
+
+## Component Organization
+\`\`\`
+client/src/
+├── features/          # Feature modules
+│   ├── auth/          # Login page, auth hooks
+│   ├── admin/         # Dashboard, admin layout
+│   ├── crm/           # Lead list, lead detail, companies, contacts
+│   ├── pipeline/      # Board view, opportunity detail, stage management
+│   ├── onboarding/    # Onboarding list, wizard, detail
+│   ├── notifications/ # Notification center
+│   ├── reports/       # Reports dashboard
+│   ├── docs/          # Documentation viewer
+│   └── integrations/  # Integration management
+├── layouts/           # AdminLayout (sidebar + header)
+├── components/ui/     # shadcn/ui components
+├── hooks/             # Shared hooks (useToast, etc.)
+└── lib/               # Utilities (queryClient, utils)
+\`\`\`
+
+## UI Framework
+- **Tailwind CSS** for styling
+- **shadcn/ui** for component primitives (Button, Card, Badge, Dialog, etc.)
+- **Framer Motion** for animations
+- **Lucide React** for icons
+- **Recharts** for chart visualizations (via shadcn chart components)
+
+## State Management
+- Server state: TanStack Query (no local state duplication)
+- Form state: react-hook-form with zodResolver
+- UI state: React useState for local toggles, expanded panels, etc.
+- No global state management library — server state is the source of truth`,
+  },
+  {
+    title: "Deployment Guide",
+    slug: "deployment-guide",
+    categorySlug: "deployment-devops",
+    status: "published",
+    content: `# Deployment Guide
+
+## Environment
+The platform runs on Replit with the following stack:
+- **Runtime**: Node.js (via tsx for TypeScript execution)
+- **Database**: PostgreSQL (Replit-managed)
+- **Build**: Vite for frontend bundling
+
+## Start Command
+\`\`\`
+npm run dev
+\`\`\`
+This starts an Express server that serves both the API and the Vite-bundled frontend on port 5000.
+
+## Environment Variables
+### Required
+| Variable | Purpose |
+|----------|---------|
+| \`DATABASE_URL\` | PostgreSQL connection string (auto-set by Replit) |
+
+### Optional (per integration)
+| Variable | Purpose |
+|----------|---------|
+| \`MAILGUN_API_KEY\` | Mailgun email delivery |
+| \`MAILGUN_DOMAIN\` | Mailgun sending domain |
+| \`STRIPE_SECRET_KEY\` | Stripe payment processing |
+| \`OPENAI_API_KEY\` | OpenAI API access |
+| \`R2_ACCESS_KEY_ID\` | Cloudflare R2 storage |
+| \`R2_SECRET_ACCESS_KEY\` | Cloudflare R2 storage |
+| \`R2_BUCKET_NAME\` | Cloudflare R2 bucket |
+| \`R2_ENDPOINT\` | Cloudflare R2 endpoint URL |
+
+## Database Management
+- Schema is managed via Drizzle ORM in \`shared/schema.ts\`
+- Push schema changes: \`npm run db:push\`
+- Seed data: \`POST /api/admin/seed\` (requires admin auth)
+- The seed endpoint populates: documentation articles, integration records, CRM demo data, pipeline stages, and onboarding templates
+
+## Health Checks
+- \`GET /api/integrations/health\` — Check all integration configurations
+- \`POST /api/integrations/:provider/test\` — Test individual provider connectivity
+
+## Production Considerations
+- Set \`NODE_ENV=production\` for optimized builds
+- Ensure all required environment variables are configured
+- Run the seed endpoint after first deployment to populate initial data
+- Monitor notification delivery via the notification center`,
   },
 ];
 

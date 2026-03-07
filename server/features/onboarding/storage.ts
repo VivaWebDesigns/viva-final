@@ -224,14 +224,39 @@ export async function getOnboardingStats(): Promise<{
   onHold: number;
   overdue: number;
 }> {
-  const all = await db.select().from(onboardingRecords);
-  const now = new Date();
+  const [statusCounts, overdueResult] = await Promise.all([
+    db
+      .select({
+        status: onboardingRecords.status,
+        count: count(),
+      })
+      .from(onboardingRecords)
+      .groupBy(onboardingRecords.status),
+    db
+      .select({ count: count() })
+      .from(onboardingRecords)
+      .where(
+        and(
+          sql`${onboardingRecords.dueDate} IS NOT NULL`,
+          sql`${onboardingRecords.dueDate} < NOW()`,
+          sql`${onboardingRecords.status} != 'completed'`
+        )
+      ),
+  ]);
+
+  const byStatus: Record<string, number> = {};
+  let total = 0;
+  for (const row of statusCounts) {
+    byStatus[row.status] = row.count;
+    total += row.count;
+  }
+
   return {
-    total: all.length,
-    pending: all.filter((r) => r.status === "pending").length,
-    inProgress: all.filter((r) => r.status === "in_progress").length,
-    completed: all.filter((r) => r.status === "completed").length,
-    onHold: all.filter((r) => r.status === "on_hold").length,
-    overdue: all.filter((r) => r.dueDate && r.dueDate < now && r.status !== "completed").length,
+    total,
+    pending: byStatus["pending"] ?? 0,
+    inProgress: byStatus["in_progress"] ?? 0,
+    completed: byStatus["completed"] ?? 0,
+    onHold: byStatus["on_hold"] ?? 0,
+    overdue: overdueResult[0]?.count ?? 0,
   };
 }
