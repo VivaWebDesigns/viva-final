@@ -41,7 +41,7 @@ export default function Home() {
     if (P) {
       document.title = `${P.businessName} | ${P.tradeName} in ${P.city}`;
       const meta = document.querySelector('meta[name="description"]');
-      if (meta) meta.setAttribute("content", `${P.businessName} offers professional ${P.tradeNoun} services in ${P.city}. Get a free estimate today.`);
+      if (meta) meta.setAttribute("content", `${P.businessName} offers professional ${P.tradeNounEN} services in ${P.city}. Get a free estimate today.`);
     } else {
       document.title = "Charlotte Painting Pro | Quality House Painting in Charlotte, NC";
       const meta = document.querySelector('meta[name="description"]');
@@ -69,6 +69,9 @@ export default function Home() {
   const bizName = P?.businessName || "Charlotte Painting Pro";
   const phone   = P?.phone || "(980) 949-0548";
   const serviceArea = P ? `${P.city} and surrounding area` : "Charlotte, NC and surrounding area";
+  // Language-aware services and reviews — switch when language toggle is clicked
+  const previewServices = P ? (language === "es" ? P.servicesES : P.servicesEN) as Array<any> | null : null;
+  const previewReviews  = P ? (language === "es" ? P.reviewsES  : P.reviewsEN)  as Array<any> | null : null;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -142,8 +145,8 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {P?.services ? (
-              P.services.map((s: any, i: number) => (
+            {previewServices ? (
+              previewServices.map((s: any, i: number) => (
                 <ServiceCard
                   key={i}
                   title={s.title}
@@ -228,8 +231,8 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {P?.reviews ? (
-              P.reviews.map((r: any, i: number) => (
+            {previewReviews ? (
+              previewReviews.map((r: any, i: number) => (
                 <ReviewCard key={i} name={r.name} location={r.location} text={r.text} delay={(i + 1) * 0.1} />
               ))
             ) : (

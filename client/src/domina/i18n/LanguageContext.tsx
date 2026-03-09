@@ -36,10 +36,14 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     } catch {}
   }, []);
 
-  // Preview override: merge window.__PREVIEW__.domina section overrides into the translations.
-  // This lets the /preview/domina page inject custom name, phone, city, CTA, etc.
-  // Structure: window.__PREVIEW__.domina = { nav: { phone: "..." }, home: { heroSubtitle: "..." }, ... }
-  const domPreview = (window as any).__PREVIEW__?.domina || {};
+  // Preview override: merge window.__PREVIEW__.domina into translations.
+  // Supports both flat { nav: {...}, home: {...} } and language-aware { en: {...}, es: {...} }.
+  // Language-aware format ensures switching to ES returns Spanish override strings.
+  const domPreviewRaw = (window as any).__PREVIEW__?.domina || {};
+  const domPreview: Record<string, any> =
+    (domPreviewRaw.en && domPreviewRaw.es)
+      ? (domPreviewRaw[language] || {})
+      : domPreviewRaw;
   const t = Object.keys(domPreview).reduce((acc: any, section: string) => ({
     ...acc,
     [section]: { ...acc[section], ...domPreview[section] }

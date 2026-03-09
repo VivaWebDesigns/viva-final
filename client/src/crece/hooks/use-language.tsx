@@ -88,6 +88,27 @@ const translations: Record<Language, Record<string, string>> = {
     "gallery.cta.title": "Like what you see?",
     "gallery.cta.desc": "Let's talk about your next project. Get a free, no-obligation estimate from David.",
     "gallery.noProjects": "No projects found in this category yet.",
+    "form.fullName": "Full Name",
+    "form.email": "Email Address",
+    "form.phone": "Phone Number",
+    "form.zipCode": "Zip Code",
+    "form.service": "Service Needed",
+    "form.details": "Project Details",
+    "form.other": "Other",
+    "form.placeholder.name": "John Smith",
+    "form.placeholder.email": "john@example.com",
+    "form.placeholder.phone": "(704) 555-0123",
+    "form.placeholder.zip": "28202",
+    "form.placeholder.service": "Select a service",
+    "form.placeholder.message": "Tell us about your project...",
+    "form.submit": "Get My Free Quote",
+    "form.sending": "Sending...",
+    "form.heading": "Get Your Free Estimate",
+    "form.sub": "Fill out the form below and David will get back to you within 24 hours.",
+    "toast.estimateTitle": "Estimate Requested",
+    "toast.estimateDesc": "Thank you! We will contact you shortly to schedule your free estimate.",
+    "toast.errorTitle": "Error",
+    "toast.errorDesc": "Something went wrong. Please try calling us instead.",
   },
   es: {
     "nav.home": "Inicio",
@@ -168,6 +189,27 @@ const translations: Record<Language, Record<string, string>> = {
     "gallery.cta.title": "¿Le gusta lo que ve?",
     "gallery.cta.desc": "Hablemos de su próximo proyecto. Obtenga una estimación gratuita y sin compromiso de David.",
     "gallery.noProjects": "Aún no se han encontrado proyectos en esta categoría.",
+    "form.fullName": "Nombre Completo",
+    "form.email": "Correo Electrónico",
+    "form.phone": "Número de Teléfono",
+    "form.zipCode": "Código Postal",
+    "form.service": "Servicio Necesario",
+    "form.details": "Detalles del Proyecto",
+    "form.other": "Otro",
+    "form.placeholder.name": "Juan Pérez",
+    "form.placeholder.email": "juan@ejemplo.com",
+    "form.placeholder.phone": "(704) 555-0123",
+    "form.placeholder.zip": "28202",
+    "form.placeholder.service": "Seleccione un servicio",
+    "form.placeholder.message": "Cuéntenos sobre su proyecto...",
+    "form.submit": "Obtener Mi Presupuesto Gratis",
+    "form.sending": "Enviando...",
+    "form.heading": "Obtenga su Estimación Gratis",
+    "form.sub": "Complete el formulario a continuación y nos pondremos en contacto en 24 horas.",
+    "toast.estimateTitle": "Estimación Solicitada",
+    "toast.estimateDesc": "¡Gracias! Nos pondremos en contacto con usted en breve para programar su estimación gratuita.",
+    "toast.errorTitle": "Error",
+    "toast.errorDesc": "Algo salió mal. Por favor, intente llamarnos en su lugar.",
   }
 };
 
@@ -185,10 +227,14 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   }, [language]);
 
   const t = (key: string) => {
-    // Preview override: if window.__PREVIEW__.tOverrides has this key, use it instead.
-    // This lets the /preview/crece page inject custom business name, city, phone, etc.
+    // Preview override: supports both flat { key: value } and language-aware { en: {...}, es: {...} }.
+    // Language-aware format ensures switching to ES returns Spanish override strings.
     const previewOverrides = (window as any).__PREVIEW__?.tOverrides || {};
-    if (previewOverrides[key] !== undefined) return previewOverrides[key];
+    const langOverrides: Record<string, string> =
+      (previewOverrides.en && previewOverrides.es)
+        ? (previewOverrides[language] || {})
+        : previewOverrides;
+    if (langOverrides[key] !== undefined) return langOverrides[key];
     return translations[language][key] || key;
   };
 

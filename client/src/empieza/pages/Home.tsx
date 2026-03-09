@@ -46,7 +46,7 @@ const ICON_MAP: Record<string, any> = {
 export default function Home() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const P = (window as any).__PREVIEW__?.payload ?? null;
 
   useEffect(() => {
@@ -56,14 +56,17 @@ export default function Home() {
     if (P) {
       document.title = `${P.businessName} | ${P.tradeName} in ${P.city}`;
       const meta = document.querySelector('meta[name="description"]');
-      if (meta) meta.setAttribute("content", `${P.businessName} offers professional ${P.tradeNoun} services in ${P.city}. Get a free estimate today.`);
+      if (meta) meta.setAttribute("content", `${P.businessName} offers professional ${P.tradeNounEN} services in ${P.city}. Get a free estimate today.`);
     }
   }, []);
 
-  const phone     = P?.phone || "(704) 555-0123";
+  const phone     = P?.phone || "(980) 949-0548";
   const email     = P?.email || "quotes@charlottepaintingpro.com";
   const phoneRaw  = phone.replace(/\D/g, "");
   const bizName   = P?.businessName || "Charlotte Painting Pro";
+  // Language-aware services and reviews — switch when language toggle is clicked
+  const previewServices = P ? (language === "es" ? P.servicesES : P.servicesEN) as Array<any> | null : null;
+  const previewReviews  = P ? (language === "es" ? P.reviewsES  : P.reviewsEN)  as Array<any> | null : null;
   const serviceArea = P ? `${P.city} and surrounding area` : "Charlotte, Matthews, Mint Hill, Pineville, Huntersville, Concord, Gastonia, Fort Mill";
 
   const defaultGallery = [galleryKitchen1, galleryExterior, galleryLiving1, galleryDoor, galleryKitchen2, galleryPorch, galleryFence];
@@ -225,8 +228,8 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {P?.services ? (
-              P.services.map((s: any, i: number) => (
+            {previewServices ? (
+              previewServices.map((s: any, i: number) => (
                 <ServiceCard
                   key={i}
                   title={s.title}
@@ -341,8 +344,8 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {P?.reviews ? (
-              P.reviews.map((r: any, i: number) => (
+            {previewReviews ? (
+              previewReviews.map((r: any, i: number) => (
                 <ReviewCard key={i} name={r.name} location={r.location} text={r.text} delay={(i + 1) * 0.1} />
               ))
             ) : (

@@ -969,6 +969,8 @@ export function buildPreviewPayload(opts) {
     trade:         tradeKey,
     tradeName,
     tradeNoun:     tpl.tradeNoun[l],
+    tradeNounEN:   tpl.tradeNoun.en,
+    tradeNounES:   tpl.tradeNoun.es,
     lang:          l,
     cta:           ctaText,
     logoUrl:       logoUrl || null,
@@ -976,7 +978,11 @@ export function buildPreviewPayload(opts) {
     aboutImageUrl: tpl.aboutImageUrl,
     galleryImages: tpl.galleryImages,
     services:      svcList,
+    servicesEN:    tpl.services.en,
+    servicesES:    tpl.services.es,
     reviews:       tpl.reviews[l](bizCity),
+    reviewsEN:     tpl.reviews.en(bizCity),
+    reviewsES:     tpl.reviews.es(bizCity),
     portfolio:     buildPortfolio(tpl.galleryImages, svcList, tradeName, bizCity),
   };
 }

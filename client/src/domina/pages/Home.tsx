@@ -34,7 +34,7 @@ const ICON_MAP: Record<string, any> = {
 export default function Home() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [videoReady, setVideoReady] = useState(false);
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const P = (window as any).__PREVIEW__?.payload ?? null;
 
   useEffect(() => {
@@ -140,8 +140,8 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {P?.services ? (
-              P.services.map((s: any, i: number) => (
+            {(language === "es" ? P?.servicesES : P?.servicesEN) ? (
+              (language === "es" ? P.servicesES : P.servicesEN).map((s: any, i: number) => (
                 <ServiceCard
                   key={i}
                   title={s.title}
@@ -226,8 +226,8 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {P?.reviews ? (
-              P.reviews.map((r: any, i: number) => (
+            {(language === "es" ? P?.reviewsES : P?.reviewsEN) ? (
+              (language === "es" ? P.reviewsES : P.reviewsEN).map((r: any, i: number) => (
                 <ReviewCard key={i} name={r.name} location={r.location} text={r.text} delay={(i + 1) * 0.1} />
               ))
             ) : (

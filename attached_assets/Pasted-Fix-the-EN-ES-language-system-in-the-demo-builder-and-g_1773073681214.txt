@@ -1,0 +1,227 @@
+Fix the EN/ES language system in the demo builder and generated preview sites. The English side is working well enough, but the Spanish side is still badly broken and much of the client-facing site remains in English when ES is selected. This needs a careful, comprehensive, non-destructive fix focused on making Spanish mode truly complete and reliable across the entire generated website.
+
+IMPORTANT RULES
+- Be non-destructive.
+- Do not break any working English behavior.
+- Do not break preview generation, routing, styling, forms, demo builder flow, package logic, image logic, or state management.
+- Do not redesign the UI.
+- Do not remove any working features.
+- Reuse the current architecture where possible.
+- If a refactor is required, keep it targeted and safe.
+- Do not hardcode quick one-off Spanish strings in scattered components.
+- Fix the root cause, not just a few visible pages.
+- Preserve all existing dynamic company/trade/service behavior.
+
+GOAL
+When the language toggle is set to ES, the entire generated website must be in proper Spanish with no English leakage anywhere client-facing. English mode must continue to work exactly as it does now.
+
+PRIMARY PROBLEM TO SOLVE
+Right now the language toggle appears to switch only some text, while much of the site still renders English. This strongly suggests that:
+- not all client-facing strings are connected to the translation system
+- some components still contain hardcoded English
+- some generated content is being built from English-only defaults
+- some nested/shared components are bypassing the current language state
+- some service/company-specific text may be generated only in English
+- some form labels/options/placeholders may still use old hardcoded arrays
+- some fallback text may still default to English even in ES mode
+
+REQUIRED FIXES
+
+1) FULL LANGUAGE AUDIT
+Perform a full audit of the demo builder and generated preview site for every client-facing string and make sure all visible text is controlled by the active language.
+
+This includes all:
+- navigation labels
+- hero headings/subheadings
+- CTA text
+- button labels
+- service section titles
+- service cards
+- about section text
+- testimonials/reviews section labels
+- trust badges
+- process/how-it-works section text
+- gallery labels
+- contact page text
+- form labels
+- placeholders
+- validation messages if user-facing
+- dropdown labels and dropdown options
+- footer text
+- copyright text
+- contact cards
+- “Call Now”, “Email Us”, “Contact Us”, etc.
+- dynamic empty states/fallback text
+- generated company/trade text shown to users
+- visible image captions/labels/overlays
+- alt text if surfaced to the user
+- any repeated shared component text
+- any package-specific preview text
+
+Do not stop at top-level pages. Audit shared/nested/reusable components too.
+
+2) CENTRALIZE ALL CLIENT-FACING COPY
+If the current translation implementation is fragmented, move all client-facing copy into a single translation architecture / dictionary / config system that is used consistently everywhere.
+
+Requirements:
+- every visible string must come from the translation layer or a language-aware content generator
+- no inline hardcoded English strings should remain in components
+- no component should silently fall back to English unless explicitly intended for EN mode
+- all reusable sections should read from the same language source of truth
+- translation keys should be structured, readable, and easy to expand
+
+3) FIX LANGUAGE STATE PROPAGATION
+Make sure the active language actually reaches every section/component in the generated site.
+
+Check for issues like:
+- components not receiving the language prop
+- components reading stale/default state
+- sections rendering from cached English data
+- preview data generated once in English and never rebuilt for ES
+- child components using local defaults instead of the global language state
+- server/client hydration mismatches causing English fallback
+- memoized/generated content not recomputing when language changes
+
+The ES toggle must update the entire site consistently, not just a subset of sections.
+
+4) REMOVE ENGLISH FALLBACK LEAKAGE
+Find and eliminate all places where the app silently falls back to English even when ES is active.
+
+Common causes to fix:
+- missing translation keys defaulting to English
+- dynamic content generators only returning English
+- service maps only defined in English
+- form option arrays only defined in English
+- hero/CTA builders using English defaults
+- shared contact components using English labels
+- old template content still embedded in English
+
+If a translation is missing, do not quietly fall back to English in ES mode. Add the missing Spanish content properly.
+
+5) MAKE ALL DYNAMIC CONTENT LANGUAGE-AWARE
+Ensure all dynamically generated content changes with the active language, including:
+- company/trade labels
+- service names
+- service dropdown options
+- hero content
+- CTA text
+- headings/subheadings
+- contact page content
+- generated fallback descriptions
+- image labels/alt text where applicable
+
+If some content is assembled from multiple pieces, make sure each piece is language-specific and not mixed.
+
+6) FIX SERVICE-SPECIFIC SPANISH CONTENT
+Make sure each supported trade/service has proper Spanish equivalents everywhere relevant.
+
+This includes:
+- service names
+- service lists
+- contact form service options
+- hero and CTA text
+- service card descriptions
+- supporting trade-specific labels
+
+No service should show English labels while ES mode is active.
+
+7) FIX FORMS IN SPANISH MODE
+Audit all forms so that in ES mode the following are in Spanish:
+- form headings
+- labels
+- placeholders
+- dropdown labels
+- dropdown values/options
+- submit buttons
+- inline help text
+- success/error messages if user-facing
+
+Do not leave mixed English/Spanish forms.
+
+8) FIX CONTACT PAGE SPANISH COMPLETENESS
+The contact page is usually one of the worst offenders. Make sure all contact-page client-facing text fully translates in ES mode, including:
+- page heading
+- call/email labels
+- contact cards
+- service dropdown label/options
+- submit CTA
+- helper copy
+- business-hour labels if present
+
+9) FIX SHARED TEMPLATE CONTENT
+Audit the base demo template(s) for any leftover English baked into:
+- section defaults
+- hardcoded sample text
+- old starter content
+- template constants
+- fallback content blocks
+- static arrays
+- seed/demo data
+
+Replace these with language-aware equivalents.
+
+10) IMPLEMENT A LANGUAGE-SAFETY QA PASS
+Add or improve a safe validation layer so the app is less likely to ship English leakage in ES mode.
+
+Examples:
+- optional dev-time console warnings for missing translation keys
+- a helper that makes missing ES keys obvious during development
+- language-aware content builders that require both EN and ES entries
+- centralized service mappings that always include both EN and ES values
+
+Do this in a safe way that does not disrupt production behavior.
+
+11) KEEP ENGLISH WORKING
+Do not regress the English side.
+English currently works relatively well, so preserve all existing EN behavior while making ES truly complete.
+
+IMPLEMENTATION PREFERENCE
+If needed, do a targeted refactor so the site uses a consistent structure like:
+- one central translations object for shared UI copy
+- one central service/trade mapping with EN and ES values
+- one language-aware content builder for generated page sections
+- shared helpers for language lookups
+- components consuming translated values only, never hardcoded strings
+
+Keep this refactor as minimal and safe as possible, but make it strong enough to solve the problem at the root.
+
+VALIDATION / QA REQUIREMENTS
+After implementing, verify all of the following:
+
+GLOBAL LANGUAGE BEHAVIOR
+- switching to ES turns the full site into Spanish
+- switching back to EN restores English everywhere
+- there are no mixed-language sections
+- there are no obvious English leftovers in ES mode
+
+PAGE/SECTION COVERAGE
+- nav is fully translated
+- hero is fully translated
+- services section is fully translated
+- CTA sections are fully translated
+- contact page is fully translated
+- footer is fully translated
+- forms are fully translated
+- service dropdowns are fully translated
+- any repeated/shared component is fully translated
+
+DYNAMIC CONTENT
+- trade/service-specific content changes correctly in EN and ES
+- service labels/options render correctly by language
+- dynamic fallback text is language-aware
+- no service remains partially English in ES mode
+
+STABILITY
+- no console errors
+- no broken imports
+- no broken routing
+- no broken preview generation
+- no broken state handling
+- no regressions on the English version
+
+At the end, provide a concise summary of:
+1. which files/components/helpers were updated
+2. where hardcoded English was removed
+3. how language state now flows through the app
+4. how translations are now structured
+5. what was fixed specifically to stop English leakage in ES mode

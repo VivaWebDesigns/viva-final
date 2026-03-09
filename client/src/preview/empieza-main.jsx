@@ -56,7 +56,8 @@ const payload = buildPreviewPayload({
 });
 
 // --- 3. Build tOverrides (text strings for the empieza t() system) -------------
-const { businessName: biz, city: c, tradeNoun, cta } = payload;
+const { businessName: biz, city: c, tradeNoun, tradeNounES, cta } = payload;
+const tnES = tradeNounES || tradeNoun;
 
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -78,14 +79,14 @@ const tOv = {
     bookQuote:       cta,
   },
   es: {
-    heroTitle:       `${biz} tiene tus necesidades de ${tradeNoun} cubiertas.`,
-    heroSubtitle:    `Transformando hogares en ${c} con precisión y cuidado. Servicios de ${tradeNoun} de calidad que duran en el tiempo.`,
+    heroTitle:       `${biz} tiene tus necesidades de ${tnES} cubiertas.`,
+    heroSubtitle:    `Transformando hogares en ${c} con precisión y cuidado. Servicios de ${tnES} de calidad que duran en el tiempo.`,
     getFreeEstimate: cta,
     ourExpertise:    "Nuestra Experiencia",
-    qualityServices: `Servicios de ${cap(tradeNoun)} de Calidad`,
-    servicesSub:     `Desde reparaciones rápidas hasta transformaciones completas, ofrecemos servicios de ${tradeNoun} en ${c} y alrededores.`,
+    qualityServices: `Servicios de ${cap(tnES)} de Calidad`,
+    servicesSub:     `Desde reparaciones rápidas hasta transformaciones completas, ofrecemos servicios de ${tnES} en ${c} y alrededores.`,
     hiDavid:         `Conozca al equipo de ${biz}.`,
-    aboutP1:         `Bienvenido a ${biz}, al servicio del área de ${c}. Con más de 15 años de experiencia, nos dedicamos a brindar servicios de ${tradeNoun} de alta calidad personalizados para cada cliente.`,
+    aboutP1:         `Bienvenido a ${biz}, al servicio del área de ${c}. Con más de 15 años de experiencia, nos dedicamos a brindar servicios de ${tnES} de alta calidad personalizados para cada cliente.`,
     aboutP2:         `Ya sea una reparación rápida o un proyecto completo, manejamos cada trabajo personalmente, garantizando calidad, puntualidad y atención al detalle.`,
     whyUsP1:         `En ${biz}, cada proyecto comienza con una conversación. Escuchamos su visión, entendemos sus metas y entregamos resultados que dan vida a su espacio, a tiempo y sin sorpresas.`,
     letUsHelp:       `¡Contáctenos en ${biz} hoy para una estimación gratis en ${c}!`,
@@ -100,7 +101,7 @@ window.__PREVIEW__ = {
   phone: payload.phone,
   lang,
   payload,
-  tOverrides: tOv[lang],
+  tOverrides: tOv, // full { en: {...}, es: {...} } — t() picks the active language
 };
 
 // --- 5. Render ----------------------------------------------------------------

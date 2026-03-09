@@ -21,7 +21,10 @@ export function ContactForm() {
   const mutation = useCreateInquiry();
   const { t, language } = useLanguage();
   const P = (window as any).__PREVIEW__?.payload ?? null;
-  const previewServices = P?.services as Array<{ title: string }> | null;
+  // Use language-aware services so the service list matches the active language
+  const previewServices = P
+    ? (language === "es" ? P.servicesES : P.servicesEN) as Array<{ title: string }> | null
+    : null;
 
   const form = useForm<InsertInquiry>({
     resolver: zodResolver(insertInquirySchema),

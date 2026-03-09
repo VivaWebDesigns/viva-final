@@ -18,10 +18,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, Send } from "lucide-react";
 
 export function ContactForm() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const mutation = useCreateInquiry();
   const P = (window as any).__PREVIEW__?.payload ?? null;
-  const previewServices = P?.services as Array<{ title: string }> | null;
+  // Use language-aware services so the dropdown matches the active language
+  const previewServices = P
+    ? (language === "es" ? P.servicesES : P.servicesEN) as Array<{ title: string }> | null
+    : null;
 
   const form = useForm<InsertInquiry>({
     resolver: zodResolver(insertInquirySchema),

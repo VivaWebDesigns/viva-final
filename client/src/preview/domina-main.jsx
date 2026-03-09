@@ -60,7 +60,9 @@ const payload = buildPreviewPayload({
 
 localStorage.setItem("lang", lang);
 
-const { businessName: biz, city: c, tradeNoun, cta } = payload;
+const { businessName: biz, city: c, tradeNoun, tradeNounES, cta } = payload;
+const tnES = tradeNounES || tradeNoun;
+const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
 // --- 3. Build domina text overrides (merged via LanguageContext deep-merge) ---
 const dominaOv = {
@@ -73,7 +75,7 @@ const dominaOv = {
       heroSubtitle:   `Transforming homes across ${c} with precision and care. Quality ${tradeNoun} services that stand the test of time.`,
       readySubtitle:  `Get a free, no-obligation estimate. We serve ${c} and the surrounding area.`,
       ctaEstimate:    cta,
-      expertiseTitle: `Quality ${tradeNoun[0].toUpperCase() + tradeNoun.slice(1)} Services`,
+      expertiseTitle: `Quality ${cap(tradeNoun)} Services`,
     },
     about: {
       title:       `Meet the team at ${biz}.`,
@@ -83,16 +85,16 @@ const dominaOv = {
       valuesText:  `At ${biz}, we believe in honest pricing, clear communication, and doing the job right the first time. We treat your home with the same care we'd give our own.`,
     },
     services: {
-      title: `Quality ${tradeNoun[0].toUpperCase() + tradeNoun.slice(1)} Services`,
+      title: `Quality ${cap(tradeNoun)} Services`,
     },
     gallery: {
-      title:    `Our ${tradeNoun[0].toUpperCase() + tradeNoun.slice(1)} Work`,
+      title:    `Our ${cap(tradeNoun)} Work`,
       subtitle: `See the quality for yourself. Here are some of our recent ${tradeNoun} projects across the ${c} area.`,
       likeTitle:    `Like What You See?`,
       likeSubtitle: `Let's talk about your project. Get a free, no-obligation estimate from ${biz}.`,
     },
     portfolio: {
-      title:    `Our ${tradeNoun[0].toUpperCase() + tradeNoun.slice(1)} Projects`,
+      title:    `Our ${cap(tradeNoun)} Projects`,
       subtitle: `Real work, real results. Browse recent ${tradeNoun} projects completed in ${c} and surrounding areas.`,
     },
     footer: {
@@ -103,32 +105,32 @@ const dominaOv = {
     nav: { phone: payload.phone, getEstimate: cta },
     home: {
       heroTitle1: `${biz} — `,
-      heroTitle2: `${tradeNoun}`,
+      heroTitle2: `${tnES}`,
       heroTitle3: " de confianza.",
-      heroSubtitle:   `Transformando hogares en ${c} con precisión y cuidado. Servicios de ${tradeNoun} de calidad que duran en el tiempo.`,
+      heroSubtitle:   `Transformando hogares en ${c} con precisión y cuidado. Servicios de ${tnES} de calidad que duran en el tiempo.`,
       readySubtitle:  `Obtenga una estimación gratuita y sin compromiso. Atendemos ${c} y sus alrededores.`,
       ctaEstimate:    cta,
-      expertiseTitle: `Servicios de ${tradeNoun[0].toUpperCase() + tradeNoun.slice(1)} de Calidad`,
+      expertiseTitle: `Servicios de ${cap(tnES)} de Calidad`,
     },
     about: {
       title:       `Conozca al equipo de ${biz}.`,
-      paragraph1:  `Bienvenido a ${biz}, al servicio del área de ${c}. Con más de 15 años de experiencia, brindamos servicios de ${tradeNoun} de alta calidad para cada cliente.`,
+      paragraph1:  `Bienvenido a ${biz}, al servicio del área de ${c}. Con más de 15 años de experiencia, brindamos servicios de ${tnES} de alta calidad para cada cliente.`,
       paragraph2:  `Ya sea una reparación rápida o un proyecto completo, manejamos cada trabajo personalmente, garantizando calidad, puntualidad y atención al detalle.`,
       valuesTitle: `Nuestro Compromiso con ${c}`,
       valuesText:  `En ${biz}, creemos en precios honestos, comunicación clara y hacer el trabajo bien desde la primera vez. Tratamos su hogar con el mismo cuidado que le daríamos al nuestro.`,
     },
     services: {
-      title: `Servicios de ${tradeNoun[0].toUpperCase() + tradeNoun.slice(1)} de Calidad`,
+      title: `Servicios de ${cap(tnES)} de Calidad`,
     },
     gallery: {
-      title:    `Nuestro Trabajo de ${tradeNoun[0].toUpperCase() + tradeNoun.slice(1)}`,
-      subtitle: `Vea la calidad por sí mismo. Aquí hay algunos de nuestros proyectos recientes de ${tradeNoun} en ${c}.`,
+      title:    `Nuestro Trabajo de ${cap(tnES)}`,
+      subtitle: `Vea la calidad por sí mismo. Aquí hay algunos de nuestros proyectos recientes de ${tnES} en ${c}.`,
       likeTitle:    `¿Le Gusta Lo Que Ve?`,
       likeSubtitle: `Hablemos de su proyecto. Obtenga una estimación gratuita y sin compromiso de ${biz}.`,
     },
     portfolio: {
-      title:    `Nuestros Proyectos de ${tradeNoun[0].toUpperCase() + tradeNoun.slice(1)}`,
-      subtitle: `Trabajo real, resultados reales. Explore proyectos recientes de ${tradeNoun} completados en ${c} y alrededores.`,
+      title:    `Nuestros Proyectos de ${cap(tnES)}`,
+      subtitle: `Trabajo real, resultados reales. Explore proyectos recientes de ${tnES} completados en ${c} y alrededores.`,
     },
     footer: {
       copyright: `${biz}. Todos los derechos reservados.`,
@@ -141,7 +143,7 @@ window.__PREVIEW__ = {
   phone: payload.phone,
   lang,
   payload,
-  domina: dominaOv[lang],
+  domina: dominaOv, // full { en: {...}, es: {...} } — LanguageContext picks the active language
 };
 
 // --- 5. Render ----------------------------------------------------------------

@@ -23,7 +23,10 @@ export function ContactForm() {
   const { toast } = useToast();
   const mutation = useCreateInquiry();
   const P = (window as any).__PREVIEW__?.payload ?? null;
-  const previewServices = P?.services as Array<{ title: string }> | null;
+  // Use language-aware services so the service list matches the active language
+  const previewServices = P
+    ? (language === "es" ? P.servicesES : P.servicesEN) as Array<{ title: string }> | null
+    : null;
 
   const form = useForm<InsertInquiry>({
     resolver: zodResolver(insertInquirySchema),
@@ -41,16 +44,16 @@ export function ContactForm() {
     mutation.mutate(data, {
       onSuccess: () => {
         toast({
-          title: language === "en" ? "Estimate Requested" : "Estimación Solicitada",
-          description: language === "en" ? "Thank you! David will contact you shortly to schedule your free estimate." : "¡Gracias! David se pondrá en contacto con usted en breve para programar su estimación gratuita.",
+          title: t("toast.estimateTitle"),
+          description: t("toast.estimateDesc"),
         });
         form.reset();
       },
       onError: () => {
         toast({
           variant: "destructive",
-          title: language === "en" ? "Error" : "Error",
-          description: language === "en" ? "Something went wrong. Please try calling us instead." : "Algo salió mal. Por favor, intente llamarnos en su lugar.",
+          title: t("toast.errorTitle"),
+          description: t("toast.errorDesc"),
         });
       },
     });
@@ -59,23 +62,23 @@ export function ContactForm() {
   const services = previewServices
     ? previewServices.map((svc) => ({ value: svc.title, label: svc.title }))
     : [
-        { value: "Interior Painting", label: t("services.interior") },
-        { value: "Exterior Painting", label: t("services.exterior") },
-        { value: "Kitchen Cabinet Painting", label: t("services.cabinets") },
-        { value: "Deck Staining & Painting", label: t("services.deck") },
+        { value: "Interior Painting",         label: t("services.interior") },
+        { value: "Exterior Painting",         label: t("services.exterior") },
+        { value: "Kitchen Cabinet Painting",  label: t("services.cabinets") },
+        { value: "Deck Staining & Painting",  label: t("services.deck") },
         { value: "Fence Staining & Painting", label: t("services.fence") },
-        { value: "Commercial Painting", label: t("services.commercial") },
-        { value: "Other", label: language === "en" ? "Other" : "Otro" },
+        { value: "Commercial Painting",       label: t("services.commercial") },
+        { value: "Other",                     label: t("form.other") },
       ];
 
   return (
     <div className="rounded-md border border-border bg-card p-8 shadow-sm">
       <div className="mb-6">
         <h3 className="text-2xl font-bold text-foreground" style={{ fontFamily: 'var(--font-display)' }}>
-          {language === "en" ? "Get Your Free Estimate" : "Obtenga su Estimación Gratis"}
+          {t("form.heading")}
         </h3>
         <p className="text-muted-foreground text-sm mt-1">
-          {language === "en" ? "Fill out the form below and David will get back to you within 24 hours." : "Complete el formulario a continuación y David le responderá en un plazo de 24 horas."}
+          {t("form.sub")}
         </p>
       </div>
 
@@ -87,9 +90,9 @@ export function ContactForm() {
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-foreground/70 text-sm">{language === "en" ? "Full Name" : "Nombre Completo"}</FormLabel>
+                  <FormLabel className="text-foreground/70 text-sm">{t("form.fullName")}</FormLabel>
                   <FormControl>
-                    <Input data-testid="input-name" placeholder="John Smith" {...field} className="bg-background border-border text-foreground placeholder:text-muted-foreground/50" />
+                    <Input data-testid="input-name" placeholder={t("form.placeholder.name")} {...field} className="bg-background border-border text-foreground placeholder:text-muted-foreground/50" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -100,9 +103,9 @@ export function ContactForm() {
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-foreground/70 text-sm">{language === "en" ? "Email Address" : "Correo Electrónico"}</FormLabel>
+                  <FormLabel className="text-foreground/70 text-sm">{t("form.email")}</FormLabel>
                   <FormControl>
-                    <Input data-testid="input-email" placeholder="john@example.com" {...field} className="bg-background border-border text-foreground placeholder:text-muted-foreground/50" />
+                    <Input data-testid="input-email" placeholder={t("form.placeholder.email")} {...field} className="bg-background border-border text-foreground placeholder:text-muted-foreground/50" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -116,9 +119,9 @@ export function ContactForm() {
               name="phone"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-foreground/70 text-sm">{language === "en" ? "Phone Number" : "Número de Teléfono"}</FormLabel>
+                  <FormLabel className="text-foreground/70 text-sm">{t("form.phone")}</FormLabel>
                   <FormControl>
-                    <Input data-testid="input-phone" placeholder="(704) 555-0123" {...field} className="bg-background border-border text-foreground placeholder:text-muted-foreground/50" />
+                    <Input data-testid="input-phone" placeholder={t("form.placeholder.phone")} {...field} className="bg-background border-border text-foreground placeholder:text-muted-foreground/50" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -129,9 +132,9 @@ export function ContactForm() {
               name="zipCode"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-foreground/70 text-sm">{language === "en" ? "Zip Code" : "Código Postal"}</FormLabel>
+                  <FormLabel className="text-foreground/70 text-sm">{t("form.zipCode")}</FormLabel>
                   <FormControl>
-                    <Input data-testid="input-zip" placeholder="28202" {...field} className="bg-background border-border text-foreground placeholder:text-muted-foreground/50" />
+                    <Input data-testid="input-zip" placeholder={t("form.placeholder.zip")} {...field} className="bg-background border-border text-foreground placeholder:text-muted-foreground/50" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -144,11 +147,11 @@ export function ContactForm() {
             name="service"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-foreground/70 text-sm">{language === "en" ? "Service Needed" : "Servicio Necesario"}</FormLabel>
+                <FormLabel className="text-foreground/70 text-sm">{t("form.service")}</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger data-testid="select-service" className="bg-background border-border text-foreground">
-                      <SelectValue placeholder={language === "en" ? "Select a service" : "Seleccione un servicio"} />
+                      <SelectValue placeholder={t("form.placeholder.service")} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent className="bg-white border-border">
@@ -169,11 +172,11 @@ export function ContactForm() {
             name="message"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-foreground/70 text-sm">{language === "en" ? "Project Details" : "Detalles del Proyecto"}</FormLabel>
+                <FormLabel className="text-foreground/70 text-sm">{t("form.details")}</FormLabel>
                 <FormControl>
                   <Textarea
                     data-testid="textarea-message"
-                    placeholder={language === "en" ? "Tell us about your project..." : "Cuéntenos sobre su proyecto..."}
+                    placeholder={t("form.placeholder.message")}
                     className="resize-none h-28 bg-background border-border text-foreground placeholder:text-muted-foreground/50"
                     {...field}
                   />
@@ -194,7 +197,7 @@ export function ContactForm() {
             ) : (
               <Send className="mr-2 h-4 w-4" />
             )}
-            {mutation.isPending ? (language === "en" ? "Sending..." : "Enviando...") : (language === "en" ? "Get My Free Quote" : "Obtener Mi Presupuesto Gratis")}
+            {mutation.isPending ? t("form.sending") : t("form.submit")}
           </Button>
         </form>
       </Form>

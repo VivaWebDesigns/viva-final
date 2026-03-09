@@ -122,10 +122,12 @@ function ServiceBlock({ title, description, highlights, process, icon: Icon, del
 
 export default function Services() {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
 
   const payload = (window as any).__PREVIEW__?.payload || null;
-  const previewServices: any[] | null = payload?.services || null;
+  const previewServices: any[] | null = payload
+    ? (language === "es" ? payload.servicesES : payload.servicesEN) || null
+    : null;
   const previewGalleryImages: { url: string; alt: string }[] | null = payload?.galleryImages || null;
 
   useEffect(() => {

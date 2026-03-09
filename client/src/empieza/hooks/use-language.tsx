@@ -259,10 +259,14 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   );
 
   const t = (key: string) => {
-    // Preview override: if window.__PREVIEW__.tOverrides has this key, use it instead.
-    // This lets the /preview/empieza page inject custom business name, city, phone, etc.
+    // Preview override: supports both flat { key: value } and language-aware { en: {...}, es: {...} }.
+    // Language-aware format ensures switching to ES returns Spanish override strings.
     const previewOverrides = (window as any).__PREVIEW__?.tOverrides || {};
-    if (previewOverrides[key] !== undefined) return previewOverrides[key];
+    const langOverrides: Record<string, string> =
+      (previewOverrides.en && previewOverrides.es)
+        ? (previewOverrides[language] || {})
+        : previewOverrides;
+    if (langOverrides[key] !== undefined) return langOverrides[key];
     return translations[language][key as keyof typeof translations["en"]] || key;
   };
 

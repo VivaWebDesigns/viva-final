@@ -9,11 +9,12 @@ import logoPng from "@assets/image_1_(5)_1772575534808_1773059817248.png";
 import { SiWhatsapp } from "react-icons/si";
 
 export function Navigation() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const P = (window as any).__PREVIEW__?.payload ?? null;
 
-  const serviceLinks = P?.services
-    ? (P.services as Array<{ title: string }>).map((s) => ({ name: s.title, href: "/services" }))
+  const activeSvcList = P ? (language === "es" ? P.servicesES : P.servicesEN) : null;
+  const serviceLinks = activeSvcList
+    ? (activeSvcList as Array<{ title: string }>).map((s) => ({ name: s.title, href: "/services" }))
     : [
         { name: t.nav.interiorPainting, href: "/services/interior-painting" },
         { name: t.nav.exteriorPainting, href: "/services/exterior-painting" },
