@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { ArrowRight, Zap, Rocket, Crown } from "lucide-react";
+import { ArrowRight, Zap, Rocket, Crown, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const fadeUp = {
@@ -19,7 +19,7 @@ const demos = [
     description: "Ideal para contratistas que quieren una presencia profesional simple.",
     href: "/empieza",
     icon: Zap,
-    popular: true,
+    badge: "inicio" as const,
   },
   {
     slug: "crece",
@@ -27,7 +27,7 @@ const demos = [
     description: "Diseñado para negocios que quieren generar más clientes.",
     href: "/crece",
     icon: Rocket,
-    popular: true,
+    badge: "popular" as const,
   },
   {
     slug: "domina",
@@ -35,9 +35,43 @@ const demos = [
     description: "Un sitio completo creado para destacar y dominar en búsquedas locales.",
     href: "/domina",
     icon: Crown,
-    popular: true,
+    badge: "bestValue" as const,
   },
 ];
+
+function DemoBadge({ badge }: { badge: "inicio" | "popular" | "bestValue" }) {
+  if (badge === "inicio") {
+    return (
+      <div className="flex justify-center -mb-4 relative z-30">
+        <span className="bg-[#FCD34D] text-[#111] text-xs font-bold px-5 py-1.5 rounded-full uppercase tracking-widest flex items-center gap-1.5 shadow-lg" data-testid="badge-inicio">
+          <Zap className="w-3 h-3 fill-[#111]" />
+          Inicio
+        </span>
+      </div>
+    );
+  }
+  if (badge === "popular") {
+    return (
+      <div className="flex justify-center -mb-4 relative z-30">
+        <span className="bg-[#0D9488] text-white text-xs font-bold px-5 py-1.5 rounded-full uppercase tracking-widest flex items-center gap-1.5 shadow-lg" data-testid="badge-popular">
+          <Star className="w-3 h-3 fill-white" />
+          Más popular
+        </span>
+      </div>
+    );
+  }
+  if (badge === "bestValue") {
+    return (
+      <div className="flex justify-center -mb-4 relative z-30">
+        <span className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold px-5 py-1.5 rounded-full uppercase tracking-widest flex items-center gap-1.5 shadow-lg" data-testid="badge-best-value">
+          <Crown className="w-3 h-3 fill-white" />
+          El Mejor Valor
+        </span>
+      </div>
+    );
+  }
+  return null;
+}
 
 export default function Demo() {
   return (
@@ -97,16 +131,10 @@ export default function Demo() {
                 className="relative flex flex-col"
                 data-testid={`card-demo-${demo.slug}`}
               >
-                {demo.popular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
-                    <span className="bg-[#0D9488] text-white text-xs font-bold px-4 py-1 rounded-full uppercase tracking-wide">
-                      Más popular
-                    </span>
-                  </div>
-                )}
+                <DemoBadge badge={demo.badge} />
                 <div
                   className={`rounded-2xl border bg-white dark:bg-[#0d0d0d] flex flex-col flex-1 transition-all duration-300 shadow-sm hover:shadow-xl hover:-translate-y-1 ${
-                    demo.popular
+                    demo.badge === "popular"
                       ? "border-[#0D9488]/40 shadow-lg shadow-[#0D9488]/5"
                       : "border-gray-200 dark:border-gray-800"
                   }`}
@@ -125,7 +153,7 @@ export default function Demo() {
                       <Button
                         size="lg"
                         className={`w-full rounded-full font-bold text-base gap-2 transition-all duration-200 hover:shadow-md ${
-                          demo.popular
+                          demo.badge === "popular"
                             ? "bg-[#0D9488] text-white hover:bg-[#0F766E]"
                             : "bg-[#111] dark:bg-white text-white dark:text-[#111]"
                         }`}
