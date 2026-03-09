@@ -10,12 +10,18 @@
  *   - reviews       — 3 reviews per language; {city} is replaced at runtime
  *
  * Priority order at render time:
- *   1. Client overrides (form fields)
- *   2. Trade template values
- *   3. Generic painting defaults (the original demo content)
+ *   1. Client overrides (form fields / buildPreviewPayload opts)
+ *   2. Local demo images  (client/src/preview/demo-images/<trade>/)
+ *   3. Trade template Unsplash values
+ *   4. Generic painting defaults (the original demo content)
+ *
+ * Adding local images: drop PNG/JPG/WebP into demo-images/<trade>/hero|gallery|support/
+ * No code changes needed — imageLibrary auto-discovers them via Vite's import.meta.glob.
  *
  * Image format: Unsplash CDN — free to embed, no API key required
  */
+
+import { getHeroImage, getGalleryImages } from './imageLibrary.js';
 
 // ─── Shared icon names (must match ICON_MAP keys in each tier's Home.tsx) ──────
 // painting: PaintBucket | Paintbrush | Layers | Sun | Fence | Building2
@@ -960,6 +966,15 @@ export function buildPreviewPayload(opts) {
   const ctaText = cta || (l === "es" ? "Llama para cotización gratis" : "Get Your Free Estimate");
   const svcList = tpl.services[l];
 
+  const localHeroUrl = getHeroImage(tradeKey);
+  const localGalleryUrls = getGalleryImages(tradeKey);
+  const localGalleryObjs = localGalleryUrls.length
+    ? localGalleryUrls.map((url, i) => ({ url, alt: `${tradeName} project ${i + 1}` }))
+    : null;
+
+  const resolvedHeroUrl = heroImageUrl || localHeroUrl || tpl.heroImageUrl;
+  const resolvedGallery = localGalleryObjs || tpl.galleryImages;
+
   return {
     clientFirstName: clientFirstName || "",
     businessName:  bizName,
@@ -974,15 +989,15 @@ export function buildPreviewPayload(opts) {
     lang:          l,
     cta:           ctaText,
     logoUrl:       logoUrl || null,
-    heroImageUrl:  heroImageUrl || tpl.heroImageUrl,
+    heroImageUrl:  resolvedHeroUrl,
     aboutImageUrl: tpl.aboutImageUrl,
-    galleryImages: tpl.galleryImages,
+    galleryImages: resolvedGallery,
     services:      svcList,
     servicesEN:    tpl.services.en,
     servicesES:    tpl.services.es,
     reviews:       tpl.reviews[l](bizCity),
     reviewsEN:     tpl.reviews.en(bizCity),
     reviewsES:     tpl.reviews.es(bizCity),
-    portfolio:     buildPortfolio(tpl.galleryImages, svcList, tradeName, bizCity),
+    portfolio:     buildPortfolio(resolvedGallery, svcList, tradeName, bizCity),
   };
 }

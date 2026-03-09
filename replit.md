@@ -214,6 +214,27 @@ Website Contact Form → POST /api/contacts
 - `POST /api/admin/users` — Create new team member (admin only)
 - `PUT /api/admin/users/:id` — Update role or ban status (admin only)
 
+## Demo Image Library
+Local high-quality images for the demo builder, organized by trade service. Auto-discovered by Vite's `import.meta.glob` — no code changes needed when adding images.
+
+### Structure
+`client/src/preview/demo-images/<trade>/hero|gallery|support/`
+
+### Populated Trades (as of v1.8)
+| Trade | Hero | Gallery |
+|-------|------|---------|
+| `landscaping` | 1 (lawn house) | 3 (patio, garden, curb appeal) |
+| `deckbuilder` | 1 (composite deck) | 2 (covered porch, deck variation) |
+| `fenceinstaller` | 2 (cedar horizontal, cedar landscaped) | 4 (wood privacy, dark stained, fence run, horizontal yard) |
+| `painting` | ❌ intentionally empty — keeps Charlotte Painting Pro video hero | ❌ intentionally empty — keeps CP Pro portfolio |
+
+### Adding Images
+Drop PNG/JPG/WebP into the correct trade/category folder. The next dev/build auto-discovers them. Priority: local images → Unsplash template fallback.
+
+### Key Files
+- `client/src/preview/imageLibrary.js` — auto-discovers images, exports `getHeroImage(trade)` and `getGalleryImages(trade, limit)`
+- `client/src/preview/tradeTemplates.js` — imports imageLibrary, applies local images in `buildPreviewPayload()`
+
 ## Assets
 - **Charlotte Painting Pro Logo** (CORRECT): `image_1_(5)_1772575534808_1773059817248.png` — Used for empieza, crece, domina demo sites (house + brush design)
 
@@ -251,6 +272,10 @@ Website Contact Form → POST /api/contacts
 2. Stripe Billing (user dismissed Replit integration — will need manual API key)
 3. Team Chat Phase 1 (real-time messaging)
 4. Team Chat Phase 2 (enhancements)
+
+## Completed Feature History
+- **v1.8**: Demo Image Library — local PNG images for landscaping/deckbuilder/fenceinstaller, `imageLibrary.js` with `import.meta.glob` auto-discovery, `buildPreviewPayload()` uses local images first then Unsplash fallback, painting excluded to preserve CP Pro video+portfolio
+- **v1.7**: Full EN/ES language system — all 3 preview tiers (empieza/crece/domina) × 17 trades, zero English leakage in Spanish mode, tradeNounES fix in all 3 main entry files
 
 ## Running
 - `npm run dev` starts Express + Vite on port 5000

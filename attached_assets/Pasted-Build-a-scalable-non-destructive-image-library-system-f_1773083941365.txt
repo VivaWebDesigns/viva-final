@@ -1,0 +1,207 @@
+Build a scalable, non-destructive image library system for the demo builder so I can easily upload curated images for each service and have the app automatically use them in the correct places. Right now I have 10 images for the landscaping demo, and I want this system structured so I can continue adding image sets for every available service over time without needing major code changes.
+
+IMPORTANT RULES
+- Be non-destructive.
+- Do not break any existing working demo builder functionality.
+- Do not break routing, preview generation, styling, forms, package logic, translations, or current service selection logic.
+- Do not redesign the UI unless a very small admin/upload helper UI is necessary.
+- Reuse the current architecture where possible.
+- Keep the implementation simple, scalable, and easy to maintain in Replit.
+- Prefer a curated local image library as the primary source.
+- If stock image logic currently exists, preserve it only as an optional fallback, not the primary source.
+- Do not hardcode one-off image paths in multiple components.
+- Create a clean, centralized image mapping system.
+
+GOAL
+Create an image library structure where I can upload a batch of images for each service and the demo builder will automatically:
+- find the right image set for the selected service
+- use those images across the demo site
+- separate hero/gallery/supporting images in a sensible way
+- fall back gracefully if a service has fewer images
+- make it easy for me to expand later by just uploading more images into the correct folder
+
+PRIMARY OBJECTIVE
+I want a system that is easy for a non-developer workflow:
+1. upload images into the correct service folder
+2. optionally name/tag them by type if needed
+3. let the app automatically use them for the corresponding service demo
+
+BUILD THE SYSTEM LIKE THIS
+
+1) CREATE A CENTRAL LOCAL IMAGE LIBRARY STRUCTURE
+Create a clean folder structure for curated service images, something like:
+
+/public/demo-images/
+  /landscaping/
+  /painting/
+  /roofing/
+  /pressure-washing/
+  /house-cleaner/
+  /carpenter/
+  /floor-installer/
+  /tile-installer/
+  /fence-installer/
+  /deck-builder/
+  /shed-builder/
+  /concrete-asphalt/
+  /tree-service/
+  /glass-door/
+  ...etc for all currently supported services
+
+Use normalized slugs that match the existing service keys in the app as closely as possible.
+
+2) SUPPORT IMAGE CATEGORIES WITH SIMPLE CONVENTIONS
+Within each service folder, support a simple and scalable convention so the app can intelligently choose image types.
+
+Preferred structure:
+- /hero/
+- /gallery/
+- /support/
+
+Example:
+/public/demo-images/landscaping/hero/
+/public/demo-images/landscaping/gallery/
+/public/demo-images/landscaping/support/
+
+If subfolders are too disruptive for the current architecture, use a filename convention instead, but the system should still distinguish hero vs gallery vs support images.
+
+The app should be able to:
+- use hero images for hero/background/feature sections
+- use gallery images for gallery/portfolio sections
+- use support images for service cards, about sections, CTA backgrounds, etc.
+
+3) AUTO-DISCOVER LOCAL IMAGES
+Build the image logic so it does not require me to manually register every single image in code.
+
+The system should:
+- automatically discover images from the local service folders
+- collect available image paths per service
+- group them by hero/gallery/support if possible
+- expose them through one centralized helper/config layer
+
+I should not need to update multiple files every time I add more images.
+
+4) CREATE A CENTRAL IMAGE HELPER / MAPPING LAYER
+Build one centralized image library helper that:
+- maps a selected service key to its local image set
+- returns hero images
+- returns gallery images
+- returns support images
+- handles missing folders or empty categories gracefully
+- provides sensible fallbacks
+
+This helper should become the single source of truth for service images.
+
+Do not leave image selection scattered across components.
+
+5) USE CURATED LOCAL IMAGES AS PRIMARY SOURCE
+Update the demo builder preview logic so curated local images are used first for supported services.
+
+Priority order should be:
+1. curated local service images
+2. optional existing stock/fallback logic only if local images are missing or insufficient
+
+If stock image logic exists, do not remove it unless necessary. Keep it as a fallback only.
+
+6) MAKE THE LANDSCAPING DEMO WORK FIRST WITH MY 10 IMAGES
+Use landscaping as the first implemented example and wire it fully into the new system.
+
+Make sure the landscaping demo:
+- pulls from the local curated landscaping image library
+- uses appropriate hero/gallery/support images if available
+- no longer depends primarily on stock images if local landscaping images exist
+
+7) ADD SUPPORT FOR ALL CURRENTLY AVAILABLE SERVICES
+Even if I do not yet have images uploaded for every service, build out the full folder/mapping structure now for all currently supported services so I can keep adding them later.
+
+For services without uploaded images yet:
+- use fallback logic safely
+- do not break previews
+- do not show broken image paths
+- do not require manual code edits to add future images
+
+8) MAKE IMAGE SELECTION SMART BUT SIMPLE
+The app does not need to “understand” images with AI. Keep the logic deterministic and easy to maintain.
+
+Good behavior:
+- choose a random hero image from hero folder
+- choose a set of gallery images from gallery folder
+- choose support images from support folder
+- if one category is missing, safely borrow from another local category before falling back to stock
+- avoid duplicate images on the same page when enough images exist
+
+The goal is reliability, not fancy complexity.
+
+9) KEEP IT EASY FOR ME TO EXPAND
+Design the system so future workflow is simple:
+- upload images into the correct service folder
+- refresh/rebuild if needed
+- demo builder automatically uses them
+
+If helpful, add a short README or developer note in the codebase explaining:
+- where to upload images
+- supported file types
+- folder naming rules
+- how hero/gallery/support assignment works
+- what fallback behavior is used
+
+10) OPTIONAL LIGHTWEIGHT ADMIN/DEBUG VISIBILITY
+If easy and non-disruptive, add a lightweight dev-only helper or debug output so it is easy to verify:
+- which local image set was loaded
+- how many hero/gallery/support images were found
+- whether fallback stock images were used
+
+Keep this minimal and do not clutter the production UI.
+
+11) PRESERVE PERFORMANCE
+Do not break current image performance behavior.
+
+Maintain or improve:
+- proper static asset loading
+- lazy loading where appropriate
+- responsive image usage if already implemented
+- no unnecessary large runtime overhead
+- no broken paths
+- no console spam in production
+
+12) NORMALIZE SERVICE KEYS SAFELY
+If current service names in the app are inconsistent, add a safe normalization layer so services like:
+- house cleaner
+- pressure washing
+- floor installer
+- concrete/asphalt installer
+
+can map cleanly to folder-safe slugs like:
+- house-cleaner
+- pressure-washing
+- floor-installer
+- concrete-asphalt
+
+Do this centrally and safely so image lookup is reliable.
+
+13) REMOVE FRAGILE IMAGE HARDCODING
+Audit current image usage and replace fragile hardcoded service image paths or weak stock-only assumptions with the new centralized image library system.
+
+Do not break existing components. Refactor carefully so all major image-consuming sections use the new helper.
+
+14) VALIDATION / QA
+After implementation, verify:
+- landscaping demo successfully uses the uploaded curated local images
+- local curated images are prioritized over stock/fallback images
+- all currently supported services have a valid image library path structure
+- services without local images still render safely using fallback logic
+- hero/gallery/support image selection works correctly
+- no broken image links
+- no console errors
+- no broken imports
+- no broken routing
+- no regressions in preview generation
+- adding new images to a service folder does not require multiple manual code edits
+
+15) DELIVERABLE SUMMARY
+At the end, provide a concise summary of:
+1. folders and helper files created/updated
+2. how service image lookup now works
+3. how hero/gallery/support categories work
+4. how fallback behavior works
+5. the exact workflow I should use going forward to upload images for each service
