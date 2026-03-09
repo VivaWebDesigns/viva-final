@@ -19,6 +19,7 @@ const demos = [
     description: "Ideal para contratistas que quieren una presencia profesional simple.",
     href: "/empieza",
     icon: Zap,
+    popular: true,
   },
   {
     slug: "crece",
@@ -34,6 +35,7 @@ const demos = [
     description: "Un sitio completo creado para destacar y dominar en búsquedas locales.",
     href: "/domina",
     icon: Crown,
+    popular: true,
   },
 ];
 
