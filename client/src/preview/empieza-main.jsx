@@ -58,26 +58,40 @@ const payload = buildPreviewPayload({
 // --- 3. Build tOverrides (text strings for the empieza t() system) -------------
 const { businessName: biz, city: c, tradeNoun, cta } = payload;
 
+const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
 const tOv = {
   en: {
-    heroTitle:    `${biz} has your ${tradeNoun} needs covered.`,
-    heroSubtitle: `Transforming homes across ${c} with precision and care. Quality ${tradeNoun} services that stand the test of time.`,
+    heroTitle:       `${biz} has your ${tradeNoun} needs covered.`,
+    heroSubtitle:    `Transforming homes across ${c} with precision and care. Quality ${tradeNoun} services that stand the test of time.`,
     getFreeEstimate: cta,
-    aboutP1:      `Welcome to ${biz}, proudly serving the greater ${c} area. With over 15 years of hands-on experience, we're dedicated to delivering high-quality ${tradeNoun} services tailored to every client.`,
-    aboutP2:      `Whether you need a quick repair or a full project, we handle every job personally — from start to finish — ensuring quality, timeliness, and attention to detail.`,
-    whyUsP1:      `At ${biz}, every project starts with a conversation. We listen to your vision, understand your goals, and deliver results that bring your space to life — on time and with no surprises.`,
-    letUsHelp:    `Contact ${biz} today for a free estimate in ${c}!`,
-    bookQuote:    cta,
+    ourExpertise:    "Our Expertise",
+    qualityServices: `Quality ${cap(tradeNoun)} Services`,
+    servicesSub:     `From quick repairs to complete transformations, we deliver professional ${tradeNoun} services in ${c} and surrounding areas.`,
+    hiDavid:         `Meet the team at ${biz}.`,
+    aboutP1:         `Welcome to ${biz}, proudly serving the greater ${c} area. With over 15 years of hands-on experience, we're dedicated to delivering high-quality ${tradeNoun} services tailored to every client.`,
+    aboutP2:         `Whether you need a quick repair or a full project, we handle every job personally — from start to finish — ensuring quality, timeliness, and attention to detail.`,
+    whyUsP1:         `At ${biz}, every project starts with a conversation. We listen to your vision, understand your goals, and deliver results that bring your space to life — on time and with no surprises.`,
+    letUsHelp:       `Contact ${biz} today for a free estimate in ${c}!`,
+    contactSub:      `Contact ${biz} today for a free, no-obligation estimate in ${c} and surrounding areas.`,
+    formSub:         `Fill out the form below and we will get back to you within 24 hours.`,
+    bookQuote:       cta,
   },
   es: {
-    heroTitle:    `${biz} tiene tus necesidades de ${tradeNoun} cubiertas.`,
-    heroSubtitle: `Transformando hogares en ${c} con precisión y cuidado. Servicios de ${tradeNoun} de calidad que duran en el tiempo.`,
+    heroTitle:       `${biz} tiene tus necesidades de ${tradeNoun} cubiertas.`,
+    heroSubtitle:    `Transformando hogares en ${c} con precisión y cuidado. Servicios de ${tradeNoun} de calidad que duran en el tiempo.`,
     getFreeEstimate: cta,
-    aboutP1:      `Bienvenido a ${biz}, al servicio del área de ${c}. Con más de 15 años de experiencia, nos dedicamos a brindar servicios de ${tradeNoun} de alta calidad personalizados para cada cliente.`,
-    aboutP2:      `Ya sea una reparación rápida o un proyecto completo, manejamos cada trabajo personalmente, garantizando calidad, puntualidad y atención al detalle.`,
-    whyUsP1:      `En ${biz}, cada proyecto comienza con una conversación. Escuchamos su visión, entendemos sus metas y entregamos resultados que dan vida a su espacio, a tiempo y sin sorpresas.`,
-    letUsHelp:    `¡Contáctenos en ${biz} hoy para una estimación gratis en ${c}!`,
-    bookQuote:    cta,
+    ourExpertise:    "Nuestra Experiencia",
+    qualityServices: `Servicios de ${cap(tradeNoun)} de Calidad`,
+    servicesSub:     `Desde reparaciones rápidas hasta transformaciones completas, ofrecemos servicios de ${tradeNoun} en ${c} y alrededores.`,
+    hiDavid:         `Conozca al equipo de ${biz}.`,
+    aboutP1:         `Bienvenido a ${biz}, al servicio del área de ${c}. Con más de 15 años de experiencia, nos dedicamos a brindar servicios de ${tradeNoun} de alta calidad personalizados para cada cliente.`,
+    aboutP2:         `Ya sea una reparación rápida o un proyecto completo, manejamos cada trabajo personalmente, garantizando calidad, puntualidad y atención al detalle.`,
+    whyUsP1:         `En ${biz}, cada proyecto comienza con una conversación. Escuchamos su visión, entendemos sus metas y entregamos resultados que dan vida a su espacio, a tiempo y sin sorpresas.`,
+    letUsHelp:       `¡Contáctenos en ${biz} hoy para una estimación gratis en ${c}!`,
+    contactSub:      `Contáctenos en ${biz} hoy para una estimación gratuita y sin compromiso en ${c} y alrededores.`,
+    formSub:         `Complete el formulario a continuación y nos pondremos en contacto con usted en 24 horas.`,
+    bookQuote:       cta,
   },
 };
 

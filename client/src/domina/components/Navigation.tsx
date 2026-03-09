@@ -10,15 +10,18 @@ import { SiWhatsapp } from "react-icons/si";
 
 export function Navigation() {
   const { t } = useLanguage();
+  const P = (window as any).__PREVIEW__?.payload ?? null;
 
-  const serviceLinks = [
-    { name: t.nav.interiorPainting, href: "/services/interior-painting" },
-    { name: t.nav.exteriorPainting, href: "/services/exterior-painting" },
-    { name: t.nav.cabinetPainting, href: "/services/kitchen-cabinet-painting" },
-    { name: t.nav.deckStaining, href: "/services/deck-staining" },
-    { name: t.nav.fenceStaining, href: "/services/fence-staining" },
-    { name: t.nav.commercialPainting, href: "/services/commercial-painting" },
-  ];
+  const serviceLinks = P?.services
+    ? (P.services as Array<{ title: string }>).map((s) => ({ name: s.title, href: "/services" }))
+    : [
+        { name: t.nav.interiorPainting, href: "/services/interior-painting" },
+        { name: t.nav.exteriorPainting, href: "/services/exterior-painting" },
+        { name: t.nav.cabinetPainting, href: "/services/kitchen-cabinet-painting" },
+        { name: t.nav.deckStaining, href: "/services/deck-staining" },
+        { name: t.nav.fenceStaining, href: "/services/fence-staining" },
+        { name: t.nav.commercialPainting, href: "/services/commercial-painting" },
+      ];
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [servicesOpen, setServicesOpen] = useState(false);

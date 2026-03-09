@@ -29,12 +29,18 @@ function scrollToFormIfHash() {
 
 export default function Contact() {
   const { t } = useLanguage();
+  const P = (window as any).__PREVIEW__?.payload ?? null;
+  const bizName = P?.businessName || "Charlotte Painting Pro";
+  const phone = P?.phone || "(980) 949-0548";
+  const phoneRaw = phone.replace(/\D/g, "");
+  const email = P?.email || "quotes@charlottepaintingpro.com";
+  const serviceAreaText = P?.city ? `${P.city} and surrounding area` : null;
 
   useEffect(() => {
-    document.title = "Contact Us | Charlotte Painting Pro";
+    document.title = `Contact Us | ${bizName}`;
     const meta = document.querySelector('meta[name="description"]');
     if (meta) {
-      meta.setAttribute("content", "Get a free painting estimate from Charlotte Painting Pro. Call, email, or fill out our form. Serving Charlotte, Matthews, Mint Hill, Huntersville, and more.");
+      meta.setAttribute("content", `Get a free estimate from ${bizName}. Call, email, or fill out our form.`);
     }
 
     if (window.location.hash !== "#contact-form") {
@@ -45,7 +51,7 @@ export default function Contact() {
 
     window.addEventListener("hashchange", scrollToFormIfHash);
     return () => window.removeEventListener("hashchange", scrollToFormIfHash);
-  }, []);
+  }, [bizName]);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -67,7 +73,7 @@ export default function Contact() {
         <div className="container mx-auto px-4 md:px-6 max-w-3xl">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
             <a
-              href="tel:7045550123"
+              href={`tel:${phoneRaw}`}
               data-testid="link-phone"
               className="group rounded-md border border-border bg-secondary p-3 flex flex-col items-center text-center gap-3 shadow-sm hover:shadow-md transition-shadow"
             >
@@ -76,12 +82,12 @@ export default function Contact() {
               </div>
               <div>
                 <h3 className="font-semibold text-foreground text-sm mb-1">{t.contact.callUs}</h3>
-                <p className="text-muted-foreground text-xs">(704) 555-0123</p>
+                <p className="text-muted-foreground text-xs">{phone}</p>
               </div>
             </a>
 
             <a
-              href="https://wa.me/17045550123"
+              href={`https://wa.me/${phoneRaw}`}
               target="_blank"
               rel="noopener noreferrer"
               data-testid="link-whatsapp"
@@ -92,12 +98,12 @@ export default function Contact() {
               </div>
               <div>
                 <h3 className="font-semibold text-foreground text-sm mb-1">WhatsApp</h3>
-                <p className="text-muted-foreground text-xs">(704) 555-0123</p>
+                <p className="text-muted-foreground text-xs">{phone}</p>
               </div>
             </a>
 
             <a
-              href="mailto:quotes@charlottepaintingpro.com?subject=Website%20Inquiry"
+              href={`mailto:${email}?subject=Website%20Inquiry`}
               data-testid="link-email"
               className="group rounded-md border border-border bg-secondary p-3 flex flex-col items-center text-center gap-3 shadow-sm hover:shadow-md transition-shadow"
             >
@@ -106,7 +112,7 @@ export default function Contact() {
               </div>
               <div>
                 <h3 className="font-semibold text-foreground text-sm mb-1">{t.contact.emailUs}</h3>
-                <p className="text-muted-foreground text-xs">quotes@charlottepaintingpro.com</p>
+                <p className="text-muted-foreground text-xs">{email}</p>
               </div>
             </a>
           </div>
@@ -136,7 +142,7 @@ export default function Contact() {
               </div>
               <h3 className="font-bold text-base mb-2" style={{ fontFamily: 'var(--font-display)' }}>{t.contact.serviceAreaTitle}</h3>
               <p className="text-muted-foreground text-sm leading-relaxed">
-                {t.contact.serviceAreaText}
+                {serviceAreaText || t.contact.serviceAreaText}
               </p>
             </motion.div>
 
@@ -180,7 +186,7 @@ export default function Contact() {
       <Footer />
 
       <div className="fixed bottom-0 left-0 w-full p-3 bg-white/95 backdrop-blur-md border-t border-border md:hidden z-40">
-        <a href="tel:7045550123" data-testid="link-sticky-call">
+        <a href={`tel:${phoneRaw}`} data-testid="link-sticky-call">
           <Button className="w-full bg-primary text-primary-foreground font-semibold h-12 text-base">
             <Phone className="mr-2 h-4 w-4" /> {t.contact.callForEstimate}
           </Button>
