@@ -22,6 +22,8 @@ export function ContactForm() {
   const { t, language } = useLanguage();
   const { toast } = useToast();
   const mutation = useCreateInquiry();
+  const P = (window as any).__PREVIEW__?.payload ?? null;
+  const previewServices = P?.services as Array<{ title: string }> | null;
 
   const form = useForm<InsertInquiry>({
     resolver: zodResolver(insertInquirySchema),
@@ -30,7 +32,7 @@ export function ContactForm() {
       email: "",
       phone: "",
       zipCode: "",
-      service: "Interior Painting",
+      service: previewServices?.[0]?.title ?? "Interior Painting",
       message: "",
     },
   });
@@ -54,15 +56,17 @@ export function ContactForm() {
     });
   };
 
-  const services = [
-    { value: "Interior Painting", label: t("services.interior") },
-    { value: "Exterior Painting", label: t("services.exterior") },
-    { value: "Kitchen Cabinet Painting", label: t("services.cabinets") },
-    { value: "Deck Staining & Painting", label: t("services.deck") },
-    { value: "Fence Staining & Painting", label: t("services.fence") },
-    { value: "Commercial Painting", label: t("services.commercial") },
-    { value: "Other", label: language === "en" ? "Other" : "Otro" },
-  ];
+  const services = previewServices
+    ? previewServices.map((svc) => ({ value: svc.title, label: svc.title }))
+    : [
+        { value: "Interior Painting", label: t("services.interior") },
+        { value: "Exterior Painting", label: t("services.exterior") },
+        { value: "Kitchen Cabinet Painting", label: t("services.cabinets") },
+        { value: "Deck Staining & Painting", label: t("services.deck") },
+        { value: "Fence Staining & Painting", label: t("services.fence") },
+        { value: "Commercial Painting", label: t("services.commercial") },
+        { value: "Other", label: language === "en" ? "Other" : "Otro" },
+      ];
 
   return (
     <div className="rounded-md border border-border bg-card p-8 shadow-sm">

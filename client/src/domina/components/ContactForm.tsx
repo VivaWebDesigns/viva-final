@@ -20,6 +20,8 @@ import { Loader2, Send } from "lucide-react";
 export function ContactForm() {
   const { t } = useLanguage();
   const mutation = useCreateInquiry();
+  const P = (window as any).__PREVIEW__?.payload ?? null;
+  const previewServices = P?.services as Array<{ title: string }> | null;
 
   const form = useForm<InsertInquiry>({
     resolver: zodResolver(insertInquirySchema),
@@ -28,7 +30,7 @@ export function ContactForm() {
       email: "",
       phone: "",
       zipCode: "",
-      service: "Interior Painting",
+      service: previewServices?.[0]?.title ?? "Interior Painting",
       message: "",
     },
   });
@@ -121,13 +123,21 @@ export function ContactForm() {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent className="bg-white border-border">
-                    <SelectItem value="Interior Painting">{t.contactForm.serviceOptions.interior}</SelectItem>
-                    <SelectItem value="Exterior Painting">{t.contactForm.serviceOptions.exterior}</SelectItem>
-                    <SelectItem value="Kitchen Cabinet Painting">{t.contactForm.serviceOptions.cabinets}</SelectItem>
-                    <SelectItem value="Deck Staining & Painting">{t.contactForm.serviceOptions.deck}</SelectItem>
-                    <SelectItem value="Fence Staining & Painting">{t.contactForm.serviceOptions.fence}</SelectItem>
-                    <SelectItem value="Commercial Painting">{t.contactForm.serviceOptions.commercial}</SelectItem>
-                    <SelectItem value="Other">{t.contactForm.serviceOptions.other}</SelectItem>
+                    {previewServices ? (
+                      previewServices.map((svc) => (
+                        <SelectItem key={svc.title} value={svc.title}>{svc.title}</SelectItem>
+                      ))
+                    ) : (
+                      <>
+                        <SelectItem value="Interior Painting">{t.contactForm.serviceOptions.interior}</SelectItem>
+                        <SelectItem value="Exterior Painting">{t.contactForm.serviceOptions.exterior}</SelectItem>
+                        <SelectItem value="Kitchen Cabinet Painting">{t.contactForm.serviceOptions.cabinets}</SelectItem>
+                        <SelectItem value="Deck Staining & Painting">{t.contactForm.serviceOptions.deck}</SelectItem>
+                        <SelectItem value="Fence Staining & Painting">{t.contactForm.serviceOptions.fence}</SelectItem>
+                        <SelectItem value="Commercial Painting">{t.contactForm.serviceOptions.commercial}</SelectItem>
+                        <SelectItem value="Other">{t.contactForm.serviceOptions.other}</SelectItem>
+                      </>
+                    )}
                   </SelectContent>
                 </Select>
                 <FormMessage />

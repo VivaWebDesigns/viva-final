@@ -20,6 +20,8 @@ import { useLanguage } from "@empieza/hooks/use-language";
 export function ContactForm() {
   const mutation = useCreateInquiry();
   const { t, language } = useLanguage();
+  const P = (window as any).__PREVIEW__?.payload ?? null;
+  const previewServices = P?.services as Array<{ title: string }> | null;
 
   const form = useForm<InsertInquiry>({
     resolver: zodResolver(insertInquirySchema),
@@ -28,7 +30,7 @@ export function ContactForm() {
       email: "",
       phone: "",
       zipCode: "",
-      service: "Interior Painting",
+      service: previewServices?.[0]?.title ?? "Interior Painting",
       message: "",
     },
   });
@@ -121,12 +123,20 @@ export function ContactForm() {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent className="bg-white border-border">
-                    <SelectItem value="Interior Painting">{language === "es" ? "Pintura de interiores" : "Interior Painting"}</SelectItem>
-                    <SelectItem value="Exterior Painting">{language === "es" ? "Pintura de exteriores" : "Exterior Painting"}</SelectItem>
-                    <SelectItem value="Kitchen Cabinet Painting">{language === "es" ? "Gabinetes de cocina" : "Kitchen Cabinet Painting"}</SelectItem>
-                    <SelectItem value="Deck Staining">{language === "es" ? "Teñido de terrazas" : "Deck Staining"}</SelectItem>
-                    <SelectItem value="Fence Staining">{language === "es" ? "Teñido de cercas" : "Fence Staining"}</SelectItem>
-                    <SelectItem value="Other">{language === "es" ? "Otro" : "Other"}</SelectItem>
+                    {previewServices ? (
+                      previewServices.map((svc) => (
+                        <SelectItem key={svc.title} value={svc.title}>{svc.title}</SelectItem>
+                      ))
+                    ) : (
+                      <>
+                        <SelectItem value="Interior Painting">{language === "es" ? "Pintura de interiores" : "Interior Painting"}</SelectItem>
+                        <SelectItem value="Exterior Painting">{language === "es" ? "Pintura de exteriores" : "Exterior Painting"}</SelectItem>
+                        <SelectItem value="Kitchen Cabinet Painting">{language === "es" ? "Gabinetes de cocina" : "Kitchen Cabinet Painting"}</SelectItem>
+                        <SelectItem value="Deck Staining">{language === "es" ? "Teñido de terrazas" : "Deck Staining"}</SelectItem>
+                        <SelectItem value="Fence Staining">{language === "es" ? "Teñido de cercas" : "Fence Staining"}</SelectItem>
+                        <SelectItem value="Other">{language === "es" ? "Otro" : "Other"}</SelectItem>
+                      </>
+                    )}
                   </SelectContent>
                 </Select>
                 <FormMessage />

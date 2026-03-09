@@ -1,0 +1,96 @@
+Make the following targeted fixes to the demo builder and generated preview sites. Be careful and non-destructive. Do not break any working builder logic, routing, styling, package logic, form handling, preview generation, or state management. Reuse the current architecture where possible and remove any remaining hardcoded painting/template leftovers.
+
+REQUIRED FIXES
+
+1) FULL EN/ES TRANSLATION
+When the language toggle is set to ES, every single client-facing word on the website must be in Spanish with no English leakage anywhere.
+
+This includes all:
+- nav items
+- buttons
+- headings
+- paragraphs
+- hero text
+- CTAs
+- service names
+- form labels/placeholders
+- dropdown options
+- contact page text
+- footer text
+- badges
+- gallery labels
+- visible image captions/labels
+- alt text if user-facing
+- fallback/default visible text
+
+Audit all preview pages and shared components for hardcoded English and move all client-facing copy to the translation system. Every visible string must come from the EN/ES language layer. No mixed-language sections.
+
+2) DYNAMIC COMPANY EMAIL
+On the Contact Us page, “Email Us” is still using the Charlotte Painting Pro email.
+
+Fix this so the displayed email and the actual mailto link always use the currently selected/generated company. This same correct company email must also be reflected anywhere else contact info appears, including reused contact components, footer, CTA sections, and contact cards.
+
+3) DYNAMIC SERVICES DROPDOWN
+On the Contact Us page, the services dropdown still shows painting services even for other trades.
+
+Fix this by making the service options fully dynamic based on the selected trade/business type. Do not hardcode painting services unless painting is the selected trade.
+
+Requirements:
+- English mode shows English service names
+- Spanish mode shows Spanish service names
+- Service options must be trade-specific
+- The mapping should be structured and easy to expand
+
+Examples:
+- Painting: interior painting, exterior painting, cabinet painting, drywall repair
+- Landscaping: lawn care, mulch, sod, trimming, hardscapes
+- Roofing: roof repair, roof replacement, inspections, gutters
+- Glass/Door: frameless showers, storefront glass, entry doors, window replacement
+
+Also audit any other forms/components still using hardcoded painting service arrays.
+
+4) SERVICE-RELEVANT STOCK IMAGES
+The auto-generated stock images are often unrelated to the selected trade/service.
+
+Improve image selection so hero, gallery, and relevant section images match the exact selected trade/service. Use more specific service-aware image query logic and reject vague/irrelevant results.
+
+Requirements:
+- No painting images for non-painting businesses
+- No generic “contractor” imagery when exact service imagery is available
+- Build image search terms from selected trade, selected service(s), and section context
+- Preserve existing image optimization/performance behavior
+- Make visible alt text and labels match the selected trade/service and current language
+
+Examples of better targeting:
+- frameless shower installation
+- commercial storefront glass
+- roof replacement crew
+- interior house painting
+- landscape paver patio
+
+5) GLOBAL TEMPLATE CLEANUP
+Perform a full audit and remove any remaining:
+- hardcoded painting references
+- hardcoded Charlotte Painting Pro references
+- hardcoded English strings
+- hardcoded service arrays
+- hardcoded image keywords
+
+Replace them with dynamic selected-company, selected-trade, and selected-language logic.
+
+VALIDATION
+After fixing, verify:
+- ES mode shows a fully Spanish site everywhere
+- EN mode restores proper English everywhere
+- company email updates correctly based on selected company
+- services dropdown matches selected trade
+- image sets change appropriately by trade/service
+- no Charlotte Painting Pro leftovers remain unless explicitly selected
+- no painting leftovers remain on non-painting demos
+- no console errors or broken imports
+- all pages still render correctly
+
+At the end, give a concise summary of:
+- files/components updated
+- hardcoded content removed
+- how translation, service dropdown, and image logic now work

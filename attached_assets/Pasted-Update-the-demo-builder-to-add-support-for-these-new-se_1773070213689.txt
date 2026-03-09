@@ -1,0 +1,90 @@
+Update the demo builder to add support for these new service categories:
+
+- house cleaner
+- pressure washing
+- carpenter
+- floor installer
+- tile installer
+- fence installer
+- deck builder
+- shed builder
+- concrete/asphalt installer
+- tree service
+
+This must be done carefully and non-destructively. Do not break any existing working functionality, preview generation, package logic, routing, styling, translations, image generation, contact forms, or current service categories. Reuse the existing architecture and patterns where possible.
+
+GOAL
+Expand the demo builder so these new service types work the same way as the currently supported services across the entire system.
+
+REQUIRED CHANGES
+
+1) ADD NEW SERVICE CATEGORIES
+Add all new services as first-class supported business/service types in the builder, not as temporary placeholders.
+
+2) CONNECT EACH NEW SERVICE EVERYWHERE IT MATTERS
+For each new service, make sure it works across:
+- builder selections
+- preview/demo generation
+- company/trade labeling
+- hero content
+- services sections
+- CTA copy
+- contact page
+- services dropdowns
+- stock image selection
+- EN/ES translation logic
+- any service-specific page logic or mappings already in the app
+
+3) CREATE SERVICE-SPECIFIC CONTENT MAPPINGS
+For each new service, add appropriate:
+- display name
+- Spanish translation
+- default service list
+- relevant hero/subheadline copy
+- relevant CTA text
+- relevant service section labels
+- relevant stock image query terms
+- relevant contact form service options
+
+Do not reuse painting content or generic home-service content if a more specific version should exist.
+
+4) KEEP IMAGE LOGIC SERVICE-AWARE
+Make sure auto-generated images for these new service types actually match the selected trade/service.
+Examples:
+- house cleaner → residential cleaning, maid service, deep cleaning
+- pressure washing → driveway washing, house wash, soft wash
+- carpenter → finish carpentry, trim work, framing, custom woodwork
+- floor installer → hardwood, LVP, laminate installation
+- tile installer → shower tile, backsplash, floor tile
+- fence installer → privacy fence, wood fence, aluminum fence
+- deck builder → wood deck, composite deck, railing
+- shed builder → backyard shed, storage shed, custom shed
+- concrete/asphalt installer → driveway concrete, stamped concrete, asphalt paving
+- tree service → tree removal, trimming, stump grinding
+
+5) KEEP EN/ES COMPLETE
+Make sure all new services are fully supported in both English and Spanish anywhere client-facing text appears.
+No English leakage in ES mode.
+
+6) DO NOT BREAK EXISTING SERVICES
+Existing supported service categories must continue working exactly as before.
+
+7) STRUCTURE FOR EASY EXPANSION
+If the current service config is too fragmented, refactor carefully into a central service mapping/config file so all service-specific data comes from one source of truth. Keep the refactor minimal and safe.
+
+VALIDATION
+After implementation, verify:
+- all 10 new service categories appear in the builder
+- each generates the correct trade-specific preview content
+- contact form dropdowns change correctly by service
+- hero/services/CTA copy changes correctly by service
+- EN and ES both work for all new services
+- image generation is relevant for each new service
+- no old hardcoded painting/service leftovers appear
+- no existing services are broken
+- no console errors or broken imports
+
+At the end, provide a concise summary of:
+- files/components updated
+- new service mappings added
+- how the new services now flow through the builder and preview system

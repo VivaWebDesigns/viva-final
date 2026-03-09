@@ -379,6 +379,516 @@ const general = {
   },
 };
 
+// ─── HOUSE CLEANER ───────────────────────────────────────────────────────────────
+const housecleaner = {
+  trade: "housecleaner",
+  displayName: { en: "House Cleaning",  es: "Limpieza de Hogar" },
+  tradeNoun:   { en: "cleaning",        es: "limpieza" },
+
+  heroImageUrl:  U("photo-1527515637462-cff94ead201a"),
+  aboutImageUrl: U("photo-1584622650111-993a426fbf0a"),
+  galleryImages: [
+    { url: U("photo-1527515637462-cff94ead201a", 900, 600), alt: "Professional house cleaning" },
+    { url: U("photo-1563453392212-326f5e854473", 900, 600), alt: "Maid service at work" },
+    { url: U("photo-1584622650111-993a426fbf0a", 900, 600), alt: "Deep cleaning kitchen" },
+    { url: U("photo-1558618666-fcd25c85cd64", 900, 600),    alt: "Bathroom cleaning" },
+    { url: U("photo-1581578731548-c64695cc6952", 900, 600), alt: "Move-out clean" },
+    { url: U("photo-1416879595882-3373a0480b5b", 900, 600), alt: "Post-construction cleanup" },
+    { url: U("photo-1585938389612-a552a28d6914", 900, 600), alt: "Eco-friendly cleaning supplies" },
+  ],
+
+  services: {
+    en: [
+      { iconName: "Home",     title: "Regular Cleaning",         description: "Weekly, bi-weekly, or monthly recurring cleaning that keeps your home spotless.",         benefits: ["All Rooms", "Flexible Schedule", "Consistent Team"] },
+      { iconName: "Droplets", title: "Deep Cleaning",            description: "A thorough top-to-bottom clean for homes that need extra attention — ideal for first-time service.", benefits: ["Baseboards & Vents", "Inside Appliances", "Full Bathrooms"] },
+      { iconName: "Wrench",   title: "Move-In / Move-Out Clean", description: "Detailed cleaning to hand off or receive a property in perfect condition.",                benefits: ["Inside Cabinets", "Walls & Switches", "Full Kitchen"] },
+      { iconName: "Shield",   title: "Post-Construction Clean",  description: "Remove dust, debris, and residue after remodels or new construction.",                      benefits: ["Dust Removal", "Window Sills", "Final Inspection Ready"] },
+      { iconName: "Leaf",     title: "Eco-Friendly Cleaning",    description: "Green cleaning products that are safe for kids, pets, and the environment.",                 benefits: ["Non-Toxic Products", "Allergen-Free", "EPA-Certified"] },
+      { iconName: "Building2",title: "Commercial Cleaning",      description: "Reliable office and commercial space cleaning — before or after business hours.",            benefits: ["Office Spaces", "After-Hours Service", "Custom Schedule"] },
+    ],
+    es: [
+      { iconName: "Home",     title: "Limpieza Regular",         description: "Limpieza recurrente semanal, quincenal o mensual para mantener su hogar impecable.",         benefits: ["Todas las Habitaciones", "Horario Flexible", "Equipo Fijo"] },
+      { iconName: "Droplets", title: "Limpieza Profunda",        description: "Una limpieza exhaustiva de arriba a abajo — ideal para la primera vez.",                     benefits: ["Molduras y Ventilaciones", "Dentro de Electrodomésticos", "Baños Completos"] },
+      { iconName: "Wrench",   title: "Limpieza de Mudanza",      description: "Limpieza detallada para entregar o recibir una propiedad en perfectas condiciones.",          benefits: ["Dentro de Gabinetes", "Paredes e Interruptores", "Cocina Completa"] },
+      { iconName: "Shield",   title: "Limpieza Post-Construcción",description: "Eliminación de polvo, escombros y residuos tras remodelaciones o construcciones.",           benefits: ["Eliminación de Polvo", "Marcos de Ventanas", "Listo para Inspección"] },
+      { iconName: "Leaf",     title: "Limpieza Ecológica",       description: "Productos de limpieza verdes y seguros para niños, mascotas y el medio ambiente.",           benefits: ["Productos No Tóxicos", "Sin Alérgenos", "Certificación EPA"] },
+      { iconName: "Building2",title: "Limpieza Comercial",       description: "Limpieza confiable de oficinas y espacios comerciales antes o después del horario laboral.",   benefits: ["Oficinas", "Servicio Nocturno", "Horario Personalizado"] },
+    ],
+  },
+
+  reviews: {
+    en: (city) => [
+      { name: "Jennifer A.",   location: city, text: "Our house has never been this clean. They arrived on time, brought all their own supplies, and left everything sparkling. I rebooked immediately!" },
+      { name: "Marcus & Sue T.", location: city, text: "Used them for a move-out clean. The landlord was impressed and we got our full deposit back. Worth every penny." },
+      { name: "Claudia R.",    location: city, text: "The deep clean was amazing. Got into corners I'd forgotten existed. So thorough and professional. They are our go-to cleaners now." },
+    ],
+    es: (city) => [
+      { name: "Jennifer A.",   location: city, text: "Nuestra casa nunca había estado tan limpia. Llegaron a tiempo, trajeron sus propios materiales y lo dejaron todo brillando. ¡Repetí de inmediato!" },
+      { name: "Marcos y Sue T.", location: city, text: "Los contratamos para una limpieza de mudanza. El dueño quedó impresionado y recuperamos el depósito completo. Valió cada centavo." },
+      { name: "Claudia R.",    location: city, text: "La limpieza profunda fue increíble. Llegaron a rincones que había olvidado. Tan minuciosos y profesionales. Ya son nuestra empresa de limpieza fija." },
+    ],
+  },
+};
+
+// ─── PRESSURE WASHING ────────────────────────────────────────────────────────────
+const pressurewashing = {
+  trade: "pressurewashing",
+  displayName: { en: "Pressure Washing",  es: "Lavado a Presión" },
+  tradeNoun:   { en: "pressure washing",  es: "lavado a presión" },
+
+  heroImageUrl:  U("photo-1558618666-fcd25c85cd64"),
+  aboutImageUrl: U("photo-1607472586893-edb57bdc0e39"),
+  galleryImages: [
+    { url: U("photo-1558618666-fcd25c85cd64", 900, 600), alt: "House soft wash" },
+    { url: U("photo-1504307651254-35680f356dfd", 900, 600), alt: "Driveway cleaning" },
+    { url: U("photo-1503387762-592deb58ef4e", 900, 600),    alt: "Deck washing" },
+    { url: U("photo-1585771724684-38269d6639fd", 900, 600), alt: "Sidewalk pressure washing" },
+    { url: U("photo-1484154218962-a197022b5858", 900, 600), alt: "Roof soft wash" },
+    { url: U("photo-1621905252507-b35492cc74b4", 900, 600), alt: "Commercial building wash" },
+    { url: U("photo-1416879595882-3373a0480b5b", 900, 600), alt: "Patio cleaning" },
+  ],
+
+  services: {
+    en: [
+      { iconName: "Home",      title: "House Washing",            description: "Soft wash exterior cleaning that removes mold, mildew, and grime from siding and brick.",   benefits: ["Soft Wash Method", "All Siding Types", "No Streaks"] },
+      { iconName: "Droplets",  title: "Driveway & Sidewalk Clean",description: "Blast away years of oil, grime, and staining from concrete and paver surfaces.",          benefits: ["Oil & Stain Removal", "Pavers & Concrete", "Same-Day Results"] },
+      { iconName: "Wrench",    title: "Deck & Fence Washing",     description: "Restore the natural look of wood and composite decks and fences before sealing or staining.", benefits: ["Wood & Composite", "Pre-Stain Prep", "Mold Removal"] },
+      { iconName: "Shield",    title: "Roof Soft Wash",           description: "Low-pressure roof cleaning that removes algae, black streaks, and moss safely.",             benefits: ["Safe Low-Pressure", "Algae & Moss", "Roof Warranty Safe"] },
+      { iconName: "Building2", title: "Commercial Washing",       description: "Fleet trucks, storefronts, parking lots, and building exteriors — cleaned fast and professionally.", benefits: ["Storefronts", "Parking Lots", "Bulk Pricing"] },
+      { iconName: "Sun",       title: "Patio & Pool Deck Clean",  description: "Remove grime and algae from patios, pool decks, and outdoor living areas.",                  benefits: ["Non-Slip Results", "Pool-Safe", "Patio & Pavers"] },
+    ],
+    es: [
+      { iconName: "Home",      title: "Lavado de Casa",           description: "Lavado suave exterior que elimina moho, hongos y suciedad del revestimiento y ladrillo.",    benefits: ["Método Suave", "Todo Tipo de Revestimiento", "Sin Marcas"] },
+      { iconName: "Droplets",  title: "Limpieza de Entradas",     description: "Elimina años de aceite, mugre y manchas de superficies de concreto y adoquín.",             benefits: ["Eliminación de Manchas", "Adoquines y Concreto", "Resultados Inmediatos"] },
+      { iconName: "Wrench",    title: "Lavado de Terraza y Cerca",description: "Restaura el aspecto natural de terrazas y cercas de madera antes de sellar o teñir.",        benefits: ["Madera y Compuesto", "Prep Pre-Teñido", "Eliminación de Moho"] },
+      { iconName: "Shield",    title: "Lavado Suave de Techo",    description: "Limpieza de techo a baja presión que elimina algas, rayas negras y musgo de forma segura.", benefits: ["Baja Presión Segura", "Algas y Musgo", "Sin Daño a Garantía"] },
+      { iconName: "Building2", title: "Lavado Comercial",         description: "Camiones, frentes de tienda, estacionamientos y edificios — limpios rápido y profesionalmente.", benefits: ["Frentes de Tienda", "Estacionamientos", "Precios por Volumen"] },
+      { iconName: "Sun",       title: "Limpieza de Patios",       description: "Elimina mugre y algas de patios, terrazas de piscina y áreas exteriores.",                   benefits: ["Sin Resbalones", "Seguro para Piscinas", "Patios y Adoquines"] },
+    ],
+  },
+
+  reviews: {
+    en: (city) => [
+      { name: "Brian & Kathy M.", location: city, text: "They washed our driveway and the whole front of the house. It looks brand new. Neighbors keep asking who we hired. Highly recommended!" },
+      { name: "Denise O.",     location: city, text: "Roof had terrible black streaks for years. After the soft wash it looks like a new roof. Professional, fast, and fair price." },
+      { name: "Kevin T.",      location: city, text: "Had our deck and fence washed before refinishing. They got everything perfectly clean. Prep work was spotless. Will use again." },
+    ],
+    es: (city) => [
+      { name: "Brian y Kathy M.", location: city, text: "Lavaron nuestra entrada y todo el frente de la casa. Se ve como nueva. Los vecinos siguen preguntando a quién contratamos. ¡Muy recomendados!" },
+      { name: "Denise O.",     location: city, text: "El techo tenía rayas negras terribles por años. Con el lavado suave parece un techo nuevo. Profesional, rápido y buen precio." },
+      { name: "Kevin T.",      location: city, text: "Lavamos la terraza y la cerca antes del acabado. Dejaron todo perfectamente limpio. El trabajo preparatorio fue impecable. Los volvemos a contratar." },
+    ],
+  },
+};
+
+// ─── CARPENTER ───────────────────────────────────────────────────────────────────
+const carpenter = {
+  trade: "carpenter",
+  displayName: { en: "Carpentry",  es: "Carpintería" },
+  tradeNoun:   { en: "carpentry",  es: "carpintería" },
+
+  heroImageUrl:  U("photo-1504307651254-35680f356dfd"),
+  aboutImageUrl: U("photo-1503387762-592deb58ef4e"),
+  galleryImages: [
+    { url: U("photo-1504307651254-35680f356dfd", 900, 600), alt: "Custom trim carpentry" },
+    { url: U("photo-1503387762-592deb58ef4e", 900, 600),    alt: "Finish carpentry" },
+    { url: U("photo-1484154218962-a197022b5858", 900, 600), alt: "Custom cabinetry" },
+    { url: U("photo-1621905252507-b35492cc74b4", 900, 600), alt: "Wood framing" },
+    { url: U("photo-1558618666-fcd25c85cd64", 900, 600),    alt: "Crown molding installation" },
+    { url: U("photo-1585771724684-38269d6639fd", 900, 600), alt: "Built-in shelving" },
+    { url: U("photo-1416879595882-3373a0480b5b", 900, 600), alt: "Pergola framing" },
+  ],
+
+  services: {
+    en: [
+      { iconName: "Hammer",    title: "Trim & Molding",           description: "Crown molding, baseboards, chair rail, and decorative trim installed with precision.",        benefits: ["Crown Molding", "Baseboards", "Chair Rail"] },
+      { iconName: "Building2", title: "Custom Cabinetry",         description: "Built-in cabinets, closets, and storage solutions designed and built to fit your space.",    benefits: ["Built-Ins", "Custom Closets", "Garage Storage"] },
+      { iconName: "Layers",    title: "Finish Carpentry",         description: "High-quality finish work including wainscoting, coffered ceilings, and accent walls.",        benefits: ["Wainscoting", "Coffered Ceilings", "Accent Walls"] },
+      { iconName: "Wrench",    title: "Door & Window Casing",     description: "Professional installation and replacement of interior and exterior doors, frames, and casings.", benefits: ["Door Installation", "Window Casings", "Pocket Doors"] },
+      { iconName: "Home",      title: "Deck & Patio Framing",     description: "Structural framing for decks, porches, pergolas, and covered outdoor living spaces.",         benefits: ["Deck Framing", "Pergola Build", "Porch Enclosures"] },
+      { iconName: "Shield",    title: "Repairs & Restoration",    description: "Expert carpentry repairs for damaged trim, rotted wood, structural framing, and more.",         benefits: ["Rotted Wood", "Structural Repair", "Insurance Claims"] },
+    ],
+    es: [
+      { iconName: "Hammer",    title: "Molduras y Zócalos",       description: "Molduras de corona, zócalos y molduras decorativas instalados con precisión.",               benefits: ["Molduras de Corona", "Zócalos", "Molduras de Silla"] },
+      { iconName: "Building2", title: "Gabinetes Personalizados", description: "Gabinetes empotrados, closets y soluciones de almacenamiento diseñados a medida.",           benefits: ["Empotrados", "Closets a Medida", "Almacenamiento de Garaje"] },
+      { iconName: "Layers",    title: "Carpintería de Acabado",   description: "Trabajo de acabado de alta calidad: zócalos, techos artesonados y paredes de acento.",        benefits: ["Revestimiento de Pared", "Techos Artesonados", "Paredes de Acento"] },
+      { iconName: "Wrench",    title: "Puertas y Marcos",         description: "Instalación y reemplazo profesional de puertas, marcos y molduras interiores y exteriores.",  benefits: ["Instalación de Puertas", "Marcos de Ventanas", "Puertas Corredizas"] },
+      { iconName: "Home",      title: "Estructuras Exteriores",   description: "Encuadre estructural para terrazas, porches, pérgolas y espacios exteriores cubiertos.",      benefits: ["Estructura de Terraza", "Pérgola", "Porches Cerrados"] },
+      { iconName: "Shield",    title: "Reparaciones de Carpintería",description: "Reparaciones expertas para molduras dañadas, madera podrida y encuadres estructurales.",   benefits: ["Madera Podrida", "Reparación Estructural", "Reclamaciones de Seguro"] },
+    ],
+  },
+
+  reviews: {
+    en: (city) => [
+      { name: "Steve & Anne P.", location: city, text: "Had them install crown molding and built-ins throughout the house. The craftsmanship is outstanding. Every detail was perfect." },
+      { name: "Kim L.",         location: city, text: "They built a custom closet system and installed wainscoting in the dining room. It looks like it was always part of the house. Incredible work!" },
+      { name: "Doug R.",        location: city, text: "Fixed rotted trim and reframed a door after water damage. Fast, affordable, and the finish work was flawless. Highly recommend." },
+    ],
+    es: (city) => [
+      { name: "Steve y Anne P.", location: city, text: "Instalaron molduras de corona y empotrados en toda la casa. La artesanía es excepcional. Cada detalle fue perfecto." },
+      { name: "Kim L.",         location: city, text: "Construyeron un sistema de closet a medida e instalaron revestimiento en el comedor. Parece que siempre estuvo ahí. ¡Trabajo increíble!" },
+      { name: "Doug R.",        location: city, text: "Repararon molduras podridas y reencuadraron una puerta dañada por agua. Rápido, económico y el acabado fue impecable. Muy recomendados." },
+    ],
+  },
+};
+
+// ─── FLOOR INSTALLER ─────────────────────────────────────────────────────────────
+const floorinstaller = {
+  trade: "floorinstaller",
+  displayName: { en: "Flooring",  es: "Pisos" },
+  tradeNoun:   { en: "flooring",  es: "pisos" },
+
+  heroImageUrl:  U("photo-1572511218469-40f46cc2ec4a"),
+  aboutImageUrl: U("photo-1504307651254-35680f356dfd"),
+  galleryImages: [
+    { url: U("photo-1572511218469-40f46cc2ec4a", 900, 600), alt: "Hardwood floor installation" },
+    { url: U("photo-1558618666-fcd25c85cd64", 900, 600),    alt: "LVP flooring install" },
+    { url: U("photo-1484154218962-a197022b5858", 900, 600), alt: "Tile floor installation" },
+    { url: U("photo-1503387762-592deb58ef4e", 900, 600),    alt: "Carpet installation" },
+    { url: U("photo-1621905252507-b35492cc74b4", 900, 600), alt: "Floor sanding and refinishing" },
+    { url: U("photo-1585771724684-38269d6639fd", 900, 600), alt: "Commercial flooring" },
+    { url: U("photo-1504307651254-35680f356dfd", 900, 600), alt: "Laminate flooring" },
+  ],
+
+  services: {
+    en: [
+      { iconName: "Layers",    title: "Hardwood Flooring",        description: "Solid and engineered hardwood installation that adds timeless beauty and value to your home.", benefits: ["Solid Hardwood", "Engineered Wood", "Custom Staining"] },
+      { iconName: "Home",      title: "LVP & Vinyl Plank",        description: "Durable, waterproof luxury vinyl plank — perfect for kitchens, bathrooms, and busy households.", benefits: ["100% Waterproof", "Click-Lock Install", "All Rooms"] },
+      { iconName: "Hammer",    title: "Laminate Flooring",        description: "Budget-friendly laminate that mimics hardwood perfectly — fast installation, great results.",   benefits: ["Budget-Friendly", "Fast Install", "Scratch-Resistant"] },
+      { iconName: "Wrench",    title: "Floor Sanding & Refinishing",description: "Restore original hardwood floors to like-new condition without full replacement.",           benefits: ["Stain Matching", "Deep Sanding", "New Finish Coat"] },
+      { iconName: "Building2", title: "Commercial Flooring",      description: "Epoxy, commercial vinyl tile, and carpet tile for offices, retail, and commercial spaces.",      benefits: ["Epoxy Coating", "Carpet Tile", "Commercial Vinyl"] },
+      { iconName: "Shield",    title: "Floor Repair & Subfloor",  description: "Fix squeaky boards, damaged planks, and subfloor issues before or after installation.",          benefits: ["Squeaky Board Fix", "Plank Replacement", "Subfloor Repair"] },
+    ],
+    es: [
+      { iconName: "Layers",    title: "Pisos de Madera",          description: "Instalación de madera sólida e ingeniería que añade belleza y valor a su hogar.",              benefits: ["Madera Sólida", "Madera Ingeniería", "Teñido a Medida"] },
+      { iconName: "Home",      title: "Vinil de Lujo (LVP)",      description: "Tablón de vinil de lujo resistente y resistente al agua — perfecto para cocinas y baños.",      benefits: ["100% Impermeable", "Instalación Click", "Todos los Cuartos"] },
+      { iconName: "Hammer",    title: "Piso Laminado",            description: "Laminado económico que imita perfectamente la madera — instalación rápida y excelentes resultados.", benefits: ["Económico", "Instalación Rápida", "Resistente a Rayones"] },
+      { iconName: "Wrench",    title: "Lijado y Refinado",        description: "Restaure pisos de madera originales a condición de nuevos sin reemplazo completo.",             benefits: ["Igualación de Tinte", "Lijado Profundo", "Capa de Acabado Nueva"] },
+      { iconName: "Building2", title: "Pisos Comerciales",        description: "Epoxi, azulejo de vinil comercial y alfombra en baldosas para oficinas y locales.",             benefits: ["Revestimiento Epoxi", "Alfombra en Baldosas", "Vinil Comercial"] },
+      { iconName: "Shield",    title: "Reparación de Pisos",      description: "Repare tablas chirriantes, tablones dañados y problemas de subsuelo.",                         benefits: ["Tablas Chirriantes", "Reemplazo de Tablón", "Reparación de Subsuelo"] },
+    ],
+  },
+
+  reviews: {
+    en: (city) => [
+      { name: "Hannah & Craig B.", location: city, text: "They installed LVP throughout the entire first floor. The fit and finish are perfect. No gaps, no lifting. We couldn't be more impressed!" },
+      { name: "Tanya M.",         location: city, text: "Had 30-year-old hardwood refinished instead of replaced. It looks incredible — like brand new floors. Saved thousands. So happy!" },
+      { name: "James K.",         location: city, text: "Professional install from start to finish. They repaired the subfloor, leveled everything, then installed hardwood. Exceptional craftsmanship." },
+    ],
+    es: (city) => [
+      { name: "Hannah y Craig B.", location: city, text: "Instalaron LVP en todo el primer piso. El acabado es perfecto. Sin espacios, sin levantamiento. ¡No podemos estar más satisfechos!" },
+      { name: "Tanya M.",         location: city, text: "Refinamos madera de 30 años en lugar de reemplazarla. Queda increíble, como pisos nuevos. Ahorramos miles. ¡Muy contentos!" },
+      { name: "James K.",         location: city, text: "Instalación profesional de principio a fin. Repararon el subsuelo, nivelaron todo y luego instalaron la madera. Artesanía excepcional." },
+    ],
+  },
+};
+
+// ─── TILE INSTALLER ──────────────────────────────────────────────────────────────
+const tileinstaller = {
+  trade: "tileinstaller",
+  displayName: { en: "Tile Installation",  es: "Instalación de Azulejos" },
+  tradeNoun:   { en: "tile work",          es: "azulejos" },
+
+  heroImageUrl:  U("photo-1484154218962-a197022b5858"),
+  aboutImageUrl: U("photo-1595515106969-1ce29566ff1c"),
+  galleryImages: [
+    { url: U("photo-1484154218962-a197022b5858", 900, 600), alt: "Shower tile installation" },
+    { url: U("photo-1558618666-fcd25c85cd64", 900, 600),    alt: "Kitchen backsplash tile" },
+    { url: U("photo-1503387762-592deb58ef4e", 900, 600),    alt: "Floor tile installation" },
+    { url: U("photo-1585771724684-38269d6639fd", 900, 600), alt: "Bathroom tile remodel" },
+    { url: U("photo-1504307651254-35680f356dfd", 900, 600), alt: "Fireplace tile surround" },
+    { url: U("photo-1621905252507-b35492cc74b4", 900, 600), alt: "Outdoor tile patio" },
+    { url: U("photo-1416879595882-3373a0480b5b", 900, 600), alt: "Pool tile and coping" },
+  ],
+
+  services: {
+    en: [
+      { iconName: "Droplets",  title: "Shower & Bathroom Tile",  description: "Full shower tile installation — walls, floor, niches, and custom linear drains.",              benefits: ["Custom Showers", "Niche Install", "Linear Drains"] },
+      { iconName: "Layers",    title: "Kitchen Backsplash",      description: "Beautiful, on-trend backsplash installation from subway tile to herringbone and beyond.",       benefits: ["Subway & Mosaic", "Grout Matching", "Clean Install"] },
+      { iconName: "Home",      title: "Floor Tile Installation", description: "Large-format, porcelain, and natural stone floor tile installed level and square.",              benefits: ["Large Format", "Porcelain & Stone", "Radiant Heat Ready"] },
+      { iconName: "Hammer",    title: "Fireplace Surrounds",     description: "Custom tile or stone surrounds that transform any fireplace into a stunning focal point.",        benefits: ["Custom Design", "Natural Stone", "Mantel Integration"] },
+      { iconName: "Building2", title: "Commercial Tile",         description: "High-traffic porcelain, quarry tile, and epoxy grout for commercial kitchens, restaurants, and retail.", benefits: ["Commercial Grade", "Epoxy Grout", "Health Code Ready"] },
+      { iconName: "Shield",    title: "Grout Repair & Sealing",  description: "Restore stained or cracked grout lines and seal tile surfaces to prevent future damage.",        benefits: ["Grout Recolor", "Crack Repair", "Waterproof Sealing"] },
+    ],
+    es: [
+      { iconName: "Droplets",  title: "Azulejos de Baño y Ducha",description: "Instalación completa de azulejos en duchas — paredes, piso, nichos y desagües lineales.",       benefits: ["Duchas Personalizadas", "Nichos", "Desagüe Lineal"] },
+      { iconName: "Layers",    title: "Salpicaderos de Cocina",  description: "Instalación de salpicadero a la moda — desde subway tile hasta patrones de espiga.",             benefits: ["Subway y Mosaico", "Igualación de Lechada", "Instalación Limpia"] },
+      { iconName: "Home",      title: "Azulejos de Piso",        description: "Azulejo de gran formato, porcelana y piedra natural instalados nivelados y cuadrados.",          benefits: ["Gran Formato", "Porcelana y Piedra", "Listo para Calor Radiante"] },
+      { iconName: "Hammer",    title: "Chimeneas y Remates",     description: "Revestimientos personalizados de azulejo o piedra que transforman cualquier chimenea.",          benefits: ["Diseño a Medida", "Piedra Natural", "Integración de Repisa"] },
+      { iconName: "Building2", title: "Azulejos Comerciales",    description: "Porcelana de alto tráfico, azulejo industrial y lechada de epoxi para restaurantes y comercios.", benefits: ["Grado Comercial", "Lechada Epoxi", "Listo para Código de Salud"] },
+      { iconName: "Shield",    title: "Reparación y Sellado",    description: "Restaure la lechada manchada o agrietada y selle las superficies de azulejo para prevenir daños.", benefits: ["Recoloración de Lechada", "Reparación de Grietas", "Sellado Impermeable"] },
+    ],
+  },
+
+  reviews: {
+    en: (city) => [
+      { name: "Linda & Paul S.", location: city, text: "They tiled our master shower and the floor. The pattern is flawless — every grout line is perfect. We get compliments every time someone sees it!" },
+      { name: "Rachel F.",       location: city, text: "Kitchen backsplash came out exactly as I envisioned. Clean install, no mess left behind, and they were done in one day. Love it!" },
+      { name: "Hector G.",       location: city, text: "Had cracked grout and old tile all over the bathrooms. They retiled everything and it looks amazing. Fair price and expert workmanship." },
+    ],
+    es: (city) => [
+      { name: "Linda y Paul S.", location: city, text: "Instalaron azulejos en nuestra ducha principal y el piso. El patrón es perfecto — cada línea de lechada es impecable. ¡Recibimos cumplidos siempre!" },
+      { name: "Rachel F.",       location: city, text: "El salpicadero de la cocina quedó exactamente como lo imaginé. Instalación limpia, sin desorden, y lo terminaron en un día. ¡Me encanta!" },
+      { name: "Héctor G.",       location: city, text: "Teníamos lechada agrietada y azulejos viejos en todos los baños. Lo renovaron todo y queda increíble. Buen precio y excelente trabajo." },
+    ],
+  },
+};
+
+// ─── FENCE INSTALLER ─────────────────────────────────────────────────────────────
+const fenceinstaller = {
+  trade: "fenceinstaller",
+  displayName: { en: "Fence Installation",  es: "Instalación de Cercas" },
+  tradeNoun:   { en: "fence installation",  es: "cercas" },
+
+  heroImageUrl:  U("photo-1558618666-fcd25c85cd64"),
+  aboutImageUrl: U("photo-1504307651254-35680f356dfd"),
+  galleryImages: [
+    { url: U("photo-1558618666-fcd25c85cd64", 900, 600), alt: "Privacy wood fence" },
+    { url: U("photo-1503387762-592deb58ef4e", 900, 600), alt: "Aluminum fence install" },
+    { url: U("photo-1504307651254-35680f356dfd", 900, 600), alt: "Chain link fence" },
+    { url: U("photo-1585771724684-38269d6639fd", 900, 600), alt: "Vinyl privacy fence" },
+    { url: U("photo-1416879595882-3373a0480b5b", 900, 600), alt: "Decorative iron fence" },
+    { url: U("photo-1621905252507-b35492cc74b4", 900, 600), alt: "Custom gate installation" },
+    { url: U("photo-1484154218962-a197022b5858", 900, 600), alt: "Fence repair" },
+  ],
+
+  services: {
+    en: [
+      { iconName: "Fence",     title: "Privacy Wood Fence",       description: "6-foot cedar or pine privacy fences built to your property line with long-lasting hardware.",  benefits: ["Cedar & Pine", "Dog-Ear or Flat Top", "Post-in-Concrete"] },
+      { iconName: "Shield",    title: "Aluminum & Iron Fencing",  description: "Low-maintenance aluminum or wrought iron fencing for beautiful, secure property boundaries.", benefits: ["Powder Coated", "Low Maintenance", "Multiple Styles"] },
+      { iconName: "Home",      title: "Vinyl & PVC Fencing",      description: "Durable vinyl fencing in privacy, picket, and ranch styles — never needs painting or staining.", benefits: ["No Painting", "Never Rots", "20-Year Warranty"] },
+      { iconName: "Wrench",    title: "Chain Link Fencing",       description: "Residential and commercial chain link fencing — affordable, durable, and quick to install.",   benefits: ["Residential & Commercial", "Coated Options", "Fast Install"] },
+      { iconName: "Hammer",    title: "Custom Gates",             description: "Custom-built wood, aluminum, or iron gates with manual or automatic openers.",                  benefits: ["Custom Sizing", "Automated Options", "Matching Fence Style"] },
+      { iconName: "Building2", title: "Fence Repair & Replacement",description: "Replace broken posts, sagging panels, or damaged sections to restore safety and appearance.",  benefits: ["Post Replacement", "Panel Sections", "Storm Damage"] },
+    ],
+    es: [
+      { iconName: "Fence",     title: "Cerca de Privacidad",      description: "Cercas de privacidad de cedro o pino de 6 pies construidas con herrajes duraderos.",           benefits: ["Cedro y Pino", "Dog-Ear o Plana", "Postes en Concreto"] },
+      { iconName: "Shield",    title: "Cercas de Aluminio y Hierro",description: "Cercas de aluminio o hierro forjado de bajo mantenimiento para límites seguros y elegantes.",  benefits: ["Recubrimiento en Polvo", "Bajo Mantenimiento", "Múltiples Estilos"] },
+      { iconName: "Home",      title: "Cercas de Vinil y PVC",    description: "Cercas de vinil duraderas en estilos privacidad, estacas y rancho — nunca necesita pintura.",  benefits: ["Sin Pintura", "No Se Pudre", "Garantía de 20 Años"] },
+      { iconName: "Wrench",    title: "Cercas de Cadena",         description: "Cercas de cadena residenciales y comerciales — económicas, duraderas y de instalación rápida.", benefits: ["Residencial y Comercial", "Opciones Recubiertas", "Instalación Rápida"] },
+      { iconName: "Hammer",    title: "Puertas a Medida",         description: "Puertas a medida de madera, aluminio o hierro con apertura manual o automática.",              benefits: ["Tamaño Personalizado", "Opciones Automáticas", "Estilo Igualado"] },
+      { iconName: "Building2", title: "Reparación de Cercas",     description: "Reemplace postes rotos, paneles caídos o secciones dañadas para restaurar seguridad y apariencia.", benefits: ["Reemplazo de Postes", "Secciones de Panel", "Daño por Tormentas"] },
+    ],
+  },
+
+  reviews: {
+    en: (city) => [
+      { name: "Scott & Beth R.", location: city, text: "They built a full cedar privacy fence around our backyard. Posts are solid, panels are perfectly straight. The dogs love it! Great work." },
+      { name: "Crystal T.",     location: city, text: "Had them install a custom aluminum fence with a solar gate. It looks beautiful and the auto gate makes life so easy. Worth every dollar." },
+      { name: "Nate H.",        location: city, text: "Half our fence was knocked down in a storm. They were out the next day and replaced all the damaged sections. Fast and professional." },
+    ],
+    es: (city) => [
+      { name: "Scott y Beth R.", location: city, text: "Construyeron una cerca de privacidad de cedro completa alrededor del jardín. Postes sólidos, paneles perfectamente rectos. ¡A los perros les encanta! Gran trabajo." },
+      { name: "Crystal T.",     location: city, text: "Instalaron una cerca de aluminio a medida con puerta solar. Se ve hermosa y la puerta automática hace la vida muy fácil. Valió cada centavo." },
+      { name: "Nate H.",        location: city, text: "La mitad de nuestra cerca cayó en una tormenta. Llegaron al día siguiente y reemplazaron todas las secciones dañadas. Rápido y profesional." },
+    ],
+  },
+};
+
+// ─── DECK BUILDER ────────────────────────────────────────────────────────────────
+const deckbuilder = {
+  trade: "deckbuilder",
+  displayName: { en: "Deck Building",  es: "Construcción de Terrazas" },
+  tradeNoun:   { en: "deck building",  es: "terrazas" },
+
+  heroImageUrl:  U("photo-1544967082-d9d25d867d66"),
+  aboutImageUrl: U("photo-1576941089067-2de3c901e126"),
+  galleryImages: [
+    { url: U("photo-1544967082-d9d25d867d66", 900, 600), alt: "Custom wood deck" },
+    { url: U("photo-1503387762-592deb58ef4e", 900, 600), alt: "Composite deck installation" },
+    { url: U("photo-1585771724684-38269d6639fd", 900, 600), alt: "Pergola and deck combo" },
+    { url: U("photo-1558618666-fcd25c85cd64", 900, 600),    alt: "Deck with railing system" },
+    { url: U("photo-1504307651254-35680f356dfd", 900, 600), alt: "Multi-level deck" },
+    { url: U("photo-1416879595882-3373a0480b5b", 900, 600), alt: "Deck outdoor living" },
+    { url: U("photo-1621905252507-b35492cc74b4", 900, 600), alt: "Deck repair and boards" },
+  ],
+
+  services: {
+    en: [
+      { iconName: "Hammer",    title: "Custom Deck Building",     description: "Ground-up deck construction using premium pressure-treated wood, cedar, or composite materials.", benefits: ["Pressure-Treated", "Cedar & Redwood", "Custom Sizing"] },
+      { iconName: "Layers",    title: "Composite Decking",        description: "Low-maintenance composite deck boards that resist fading, staining, and scratching for decades.", benefits: ["Trex & Azek", "No Staining", "25-Year Warranty"] },
+      { iconName: "Sun",       title: "Pergolas & Shade Structures",description: "Custom pergolas, shade sails, and lattice covers to make your deck a true outdoor retreat.",   benefits: ["Custom Design", "Attached or Freestanding", "Shade & Privacy"] },
+      { iconName: "Wrench",    title: "Deck Repair & Restoration",description: "Board replacement, structural repairs, and deck refinishing to extend the life of your deck.",    benefits: ["Board Replacement", "Structural Repair", "Staining & Sealing"] },
+      { iconName: "Shield",    title: "Railing Systems",          description: "Cable, glass, aluminum, and wood railing systems that are safe, code-compliant, and beautiful.",    benefits: ["Cable Railing", "Glass Panels", "Aluminum & Wood"] },
+      { iconName: "Home",      title: "Outdoor Living Spaces",    description: "Full outdoor kitchens, built-in seating, fire pit areas, and multi-level entertainment decks.",     benefits: ["Outdoor Kitchens", "Built-In Seating", "Fire Pit Area"] },
+    ],
+    es: [
+      { iconName: "Hammer",    title: "Construcción de Terrazas", description: "Construcción de terrazas desde cero usando madera tratada, cedro o materiales compuestos.",     benefits: ["Madera Tratada", "Cedro y Secoya", "Tamaño Personalizado"] },
+      { iconName: "Layers",    title: "Terrazas Compuestas",      description: "Tablas de terraza compuestas de bajo mantenimiento que resisten el desvanecimiento y el rayado.", benefits: ["Trex y Azek", "Sin Teñir", "Garantía de 25 Años"] },
+      { iconName: "Sun",       title: "Pérgolas y Sombras",       description: "Pérgolas personalizadas y cubiertas de celosía para convertir su terraza en un refugio exterior.", benefits: ["Diseño Personalizado", "Adjunta o Independiente", "Sombra y Privacidad"] },
+      { iconName: "Wrench",    title: "Reparación y Restauración",description: "Reemplazo de tablas, reparaciones estructurales y refinado para extender la vida de su terraza.", benefits: ["Reemplazo de Tablas", "Reparación Estructural", "Teñido y Sellado"] },
+      { iconName: "Shield",    title: "Sistemas de Barandillas",  description: "Barandillas de cable, vidrio, aluminio y madera — seguras, conformes al código y hermosas.",      benefits: ["Barandilla de Cable", "Paneles de Vidrio", "Aluminio y Madera"] },
+      { iconName: "Home",      title: "Espacios de Vida Exterior",description: "Cocinas exteriores completas, asientos empotrados, áreas de fogata y terrazas de entretenimiento.", benefits: ["Cocinas Exteriores", "Asientos Empotrados", "Área de Fogata"] },
+    ],
+  },
+
+  reviews: {
+    en: (city) => [
+      { name: "Josh & Megan A.", location: city, text: "They built a 20x16 composite deck with a pergola. The craftsmanship is incredible. We spend every evening out there now. Best home investment we've made!" },
+      { name: "Terry S.",        location: city, text: "Our old deck was rotting. They assessed it and rebuilt it completely with cable railing. It looks stunning and feels rock solid." },
+      { name: "Priya N.",        location: city, text: "They added an outdoor kitchen and fire pit area to our existing deck. The project was done on time and on budget. Absolutely love it!" },
+    ],
+    es: (city) => [
+      { name: "Josh y Megan A.", location: city, text: "Construyeron una terraza compuesta de 20x16 con pérgola. La artesanía es increíble. Ahora pasamos cada tarde ahí. ¡La mejor inversión que hemos hecho en casa!" },
+      { name: "Terry S.",        location: city, text: "Nuestra vieja terraza se estaba pudriendo. La evaluaron y reconstruyeron completamente con barandilla de cable. Se ve impresionante y se siente sólida." },
+      { name: "Priya N.",        location: city, text: "Agregaron una cocina exterior y área de fogata a nuestra terraza existente. El proyecto se terminó a tiempo y dentro del presupuesto. ¡La amamos!" },
+    ],
+  },
+};
+
+// ─── SHED BUILDER ────────────────────────────────────────────────────────────────
+const shedbuilder = {
+  trade: "shedbuilder",
+  displayName: { en: "Shed Building",  es: "Construcción de Cobertizos" },
+  tradeNoun:   { en: "shed building",  es: "cobertizos" },
+
+  heroImageUrl:  U("photo-1504307651254-35680f356dfd"),
+  aboutImageUrl: U("photo-1503387762-592deb58ef4e"),
+  galleryImages: [
+    { url: U("photo-1504307651254-35680f356dfd", 900, 600), alt: "Custom backyard shed" },
+    { url: U("photo-1503387762-592deb58ef4e", 900, 600),    alt: "Storage shed construction" },
+    { url: U("photo-1558618666-fcd25c85cd64", 900, 600),    alt: "Workshop shed" },
+    { url: U("photo-1585771724684-38269d6639fd", 900, 600), alt: "She-shed studio" },
+    { url: U("photo-1416879595882-3373a0480b5b", 900, 600), alt: "Garden shed" },
+    { url: U("photo-1621905252507-b35492cc74b4", 900, 600), alt: "Shed with loft" },
+    { url: U("photo-1484154218962-a197022b5858", 900, 600), alt: "Barn-style building" },
+  ],
+
+  services: {
+    en: [
+      { iconName: "Building2", title: "Custom Storage Sheds",     description: "Site-built storage sheds in any size, designed to match your home and maximize your yard.", benefits: ["Any Size", "Matches Home Style", "Permit Ready"] },
+      { iconName: "Hammer",    title: "Workshop Sheds",           description: "Heavy-duty workshop buildings with upgraded framing, electrical, and insulation.",             benefits: ["220V Electric", "Insulated Walls", "Reinforced Floor"] },
+      { iconName: "Layers",    title: "She-Sheds & Studios",      description: "Custom backyard studio spaces for crafts, yoga, home offices, or quiet retreat.",              benefits: ["Custom Interior", "Windows & Skylights", "HVAC-Ready"] },
+      { iconName: "Home",      title: "Barn-Style Buildings",     description: "Classic barn-style sheds and multipurpose outbuildings with loft storage.",                   benefits: ["Loft Option", "Double Doors", "Classic Styling"] },
+      { iconName: "Wrench",    title: "Shed Foundation Work",     description: "Gravel pad, concrete, or skid foundation installation to keep your shed level and dry.",        benefits: ["Concrete Pads", "Gravel Base", "Skid Foundation"] },
+      { iconName: "Shield",    title: "Shed Repair & Renovation", description: "Repair or upgrade an existing shed — roof, siding, doors, and foundation fixes.",              benefits: ["Roof Repair", "New Siding", "Door Replacement"] },
+    ],
+    es: [
+      { iconName: "Building2", title: "Cobertizos de Almacenaje",  description: "Cobertizos de almacenaje a medida en cualquier tamaño, diseñados para combinar con su hogar.", benefits: ["Cualquier Tamaño", "Estilo a Medida", "Listo para Permiso"] },
+      { iconName: "Hammer",    title: "Cobertizos de Taller",      description: "Talleres resistentes con encuadre mejorado, electricidad y aislamiento.",                     benefits: ["Eléctrico 220V", "Paredes Aisladas", "Piso Reforzado"] },
+      { iconName: "Layers",    title: "Estudios y Oficinas",       description: "Espacios de estudio en el patio para manualidades, yoga, oficina en casa o retiro privado.",   benefits: ["Interior Personalizado", "Ventanas y Tragaluces", "Listo para HVAC"] },
+      { iconName: "Home",      title: "Construcciones Estilo Granero",description: "Cobertizos estilo granero y edificios multiusos con almacenamiento en altillo.",           benefits: ["Opción de Altillo", "Puertas Dobles", "Estilo Clásico"] },
+      { iconName: "Wrench",    title: "Trabajo de Cimentación",    description: "Instalación de base de grava, concreto o patín para mantener su cobertizo nivelado y seco.",  benefits: ["Losas de Concreto", "Base de Grava", "Cimentación de Patín"] },
+      { iconName: "Shield",    title: "Reparación de Cobertizos",  description: "Repare o mejore un cobertizo existente — techo, revestimiento, puertas y cimientos.",          benefits: ["Reparación de Techo", "Revestimiento Nuevo", "Reemplazo de Puertas"] },
+    ],
+  },
+
+  reviews: {
+    en: (city) => [
+      { name: "Gary & Pam W.",  location: city, text: "They built a 12x20 workshop shed with power. It's exactly what I envisioned — solid construction, great finish, and done in 3 days. Amazing job!" },
+      { name: "Irene S.",       location: city, text: "Had them build a she-shed for my art studio. They added windows, a skylight, and electric. It's my favorite place in the world now!" },
+      { name: "Barry C.",       location: city, text: "Our old shed was falling apart. They repaired the foundation, replaced the siding and roof. Looks brand new and cost a fraction of a full rebuild." },
+    ],
+    es: (city) => [
+      { name: "Gary y Pam W.",  location: city, text: "Construyeron un cobertizo de taller de 12x20 con electricidad. Es exactamente lo que imaginé — construcción sólida y terminado en 3 días. ¡Trabajo increíble!" },
+      { name: "Irene S.",       location: city, text: "Me construyeron un cobertizo para mi estudio de arte. Agregaron ventanas, un tragaluz y electricidad. ¡Ahora es mi lugar favorito del mundo!" },
+      { name: "Barry C.",       location: city, text: "Nuestro viejo cobertizo se estaba cayendo. Repararon los cimientos, reemplazaron el revestimiento y el techo. Parece nuevo y costó mucho menos que uno nuevo." },
+    ],
+  },
+};
+
+// ─── CONCRETE / ASPHALT ──────────────────────────────────────────────────────────
+const concrete = {
+  trade: "concrete",
+  displayName: { en: "Concrete & Asphalt",  es: "Concreto y Asfalto" },
+  tradeNoun:   { en: "concrete work",       es: "concreto y asfalto" },
+
+  heroImageUrl:  U("photo-1621905252507-b35492cc74b4"),
+  aboutImageUrl: U("photo-1504307651254-35680f356dfd"),
+  galleryImages: [
+    { url: U("photo-1621905252507-b35492cc74b4", 900, 600), alt: "Concrete driveway installation" },
+    { url: U("photo-1558618666-fcd25c85cd64", 900, 600),    alt: "Stamped concrete patio" },
+    { url: U("photo-1504307651254-35680f356dfd", 900, 600), alt: "Asphalt driveway paving" },
+    { url: U("photo-1503387762-592deb58ef4e", 900, 600),    alt: "Concrete sidewalk pour" },
+    { url: U("photo-1585771724684-38269d6639fd", 900, 600), alt: "Decorative concrete" },
+    { url: U("photo-1416879595882-3373a0480b5b", 900, 600), alt: "Parking lot paving" },
+    { url: U("photo-1484154218962-a197022b5858", 900, 600), alt: "Concrete repair patching" },
+  ],
+
+  services: {
+    en: [
+      { iconName: "HardHat",   title: "Concrete Driveways",       description: "New concrete driveway installation built to last — properly formed, reinforced, and finished.", benefits: ["Rebar Reinforced", "Control Joints", "Brushed or Smooth Finish"] },
+      { iconName: "Truck",     title: "Asphalt Paving",           description: "Hot-mix asphalt driveways, parking lots, and roads — laid smooth and compacted to spec.",      benefits: ["Hot Mix Asphalt", "Compacted Base", "Edge Trim"] },
+      { iconName: "Layers",    title: "Stamped & Decorative Concrete",description: "Beautiful stamped, stained, and exposed aggregate concrete for patios and walkways.",      benefits: ["Stamped Patterns", "Color Staining", "Exposed Aggregate"] },
+      { iconName: "Wrench",    title: "Sidewalks & Walkways",     description: "New and replacement concrete sidewalks, pathways, and front walk installation.",                benefits: ["Residential", "Commercial", "ADA Compliant"] },
+      { iconName: "Building2", title: "Commercial Paving",        description: "Parking lots, loading docks, and commercial site paving — permitted and code-compliant.",        benefits: ["Parking Lots", "Loading Docks", "Permitted Work"] },
+      { iconName: "Shield",    title: "Concrete Repair & Sealing",description: "Crack filling, slab leveling, resurfacing, and sealing to restore existing concrete.",          benefits: ["Crack Repair", "Mudjacking", "Protective Sealing"] },
+    ],
+    es: [
+      { iconName: "HardHat",   title: "Entradas de Concreto",     description: "Instalación de nuevas entradas de concreto — bien formadas, reforzadas y terminadas.",          benefits: ["Refuerzo de Varilla", "Juntas de Control", "Acabado Cepillado"] },
+      { iconName: "Truck",     title: "Pavimentación de Asfalto", description: "Entradas, estacionamientos y caminos de asfalto de mezcla caliente — compactados y nivelados.", benefits: ["Asfalto Mezcla Caliente", "Base Compactada", "Bordes Nítidos"] },
+      { iconName: "Layers",    title: "Concreto Estampado",       description: "Concreto estampado, teñido y agregado expuesto para patios y andadores.",                       benefits: ["Patrones Estampados", "Teñido de Color", "Agregado Expuesto"] },
+      { iconName: "Wrench",    title: "Banquetas y Andadores",    description: "Instalación de nuevas banquetas y andadores de concreto, residenciales y comerciales.",          benefits: ["Residencial", "Comercial", "Cumple con ADA"] },
+      { iconName: "Building2", title: "Pavimentación Comercial",  description: "Estacionamientos, muelles de carga y pavimentación de sitios comerciales con permisos.",        benefits: ["Estacionamientos", "Muelles de Carga", "Trabajo con Permisos"] },
+      { iconName: "Shield",    title: "Reparación y Sellado",     description: "Relleno de grietas, nivelación de losas, resurfacing y sellado para restaurar el concreto.",    benefits: ["Reparación de Grietas", "Nivelación", "Sellado Protector"] },
+    ],
+  },
+
+  reviews: {
+    en: (city) => [
+      { name: "Frank & Donna M.", location: city, text: "They replaced our crumbling driveway with beautiful stamped concrete. It transformed the whole look of the house. Crew was professional and fast." },
+      { name: "Victor P.",        location: city, text: "Had them pave our business parking lot. The base was done right, drainage is great, and the asphalt is smooth and thick. No complaints whatsoever!" },
+      { name: "Linda T.",         location: city, text: "Our sidewalks were cracked and uneven. They mudjacked the bad sections and sealed everything. Done in a day and looks great. Will definitely call again." },
+    ],
+    es: (city) => [
+      { name: "Frank y Donna M.", location: city, text: "Reemplazaron nuestra entrada desmoronada con hermoso concreto estampado. Transformó el aspecto de toda la casa. El equipo fue profesional y rápido." },
+      { name: "Víctor P.",        location: city, text: "Pavimentaron el estacionamiento de nuestro negocio. La base se hizo bien, el drenaje es excelente y el asfalto es suave y grueso. ¡Sin quejas!" },
+      { name: "Linda T.",         location: city, text: "Nuestras banquetas estaban agrietadas y disparejas. Nivelaron las secciones malas y sellaron todo. Terminaron en un día y queda genial. Definitivamente los llamaré de nuevo." },
+    ],
+  },
+};
+
+// ─── TREE SERVICE ────────────────────────────────────────────────────────────────
+const treeservice = {
+  trade: "treeservice",
+  displayName: { en: "Tree Service",  es: "Servicio de Árboles" },
+  tradeNoun:   { en: "tree service",  es: "árboles" },
+
+  heroImageUrl:  U("photo-1416879595882-3373a0480b5b"),
+  aboutImageUrl: U("photo-1585938389612-a552a28d6914"),
+  galleryImages: [
+    { url: U("photo-1416879595882-3373a0480b5b", 900, 600), alt: "Tree removal service" },
+    { url: U("photo-1585938389612-a552a28d6914", 900, 600), alt: "Tree trimming crew" },
+    { url: U("photo-1503387762-592deb58ef4e", 900, 600),    alt: "Stump grinding" },
+    { url: U("photo-1504307651254-35680f356dfd", 900, 600), alt: "Storm cleanup" },
+    { url: U("photo-1558618666-fcd25c85cd64", 900, 600),    alt: "Lot clearing" },
+    { url: U("photo-1585771724684-38269d6639fd", 900, 600), alt: "Tree health assessment" },
+    { url: U("photo-1621905252507-b35492cc74b4", 900, 600), alt: "Large tree removal" },
+  ],
+
+  services: {
+    en: [
+      { iconName: "TreePine",  title: "Tree Removal",             description: "Safe, controlled removal of hazardous, dead, or unwanted trees of any size.",                  benefits: ["Any Size Tree", "Safe Rigging", "Full Cleanup"] },
+      { iconName: "Leaf",      title: "Tree Trimming & Pruning",  description: "Professional crown thinning, deadwood removal, and structural pruning to keep trees healthy.", benefits: ["Crown Thinning", "Deadwood Removal", "Shape & Clearance"] },
+      { iconName: "Hammer",    title: "Stump Grinding",           description: "Complete stump removal below grade so you can reclaim your lawn, plant, or build.",            benefits: ["Below Grade Grind", "Debris Removal", "Replanting Ready"] },
+      { iconName: "Truck",     title: "Emergency Storm Cleanup",  description: "24/7 emergency response for fallen trees, broken limbs, and storm-damaged property.",          benefits: ["24/7 Response", "Fallen Trees", "Property Protection"] },
+      { iconName: "Shield",    title: "Tree Health Assessment",   description: "Certified arborist inspections to diagnose disease, pest infestations, and structural issues.", benefits: ["ISA Certified", "Disease Diagnosis", "Treatment Plan"] },
+      { iconName: "Building2", title: "Lot Clearing",             description: "Full residential and commercial lot clearing for construction, development, or land clean-up.", benefits: ["Full Lot Clearing", "Brush Removal", "Site Prep"] },
+    ],
+    es: [
+      { iconName: "TreePine",  title: "Tala de Árboles",          description: "Remoción segura y controlada de árboles peligrosos, muertos o no deseados de cualquier tamaño.", benefits: ["Árbol de Cualquier Tamaño", "Aparejamiento Seguro", "Limpieza Completa"] },
+      { iconName: "Leaf",      title: "Poda de Árboles",          description: "Adelgazado de copa profesional, remoción de madera muerta y poda estructural.",                benefits: ["Adelgazado de Copa", "Remoción de Madera Muerta", "Forma y Espacio"] },
+      { iconName: "Hammer",    title: "Trituración de Tocones",   description: "Remoción completa de tocones por debajo del nivel para recuperar su jardín, plantar o construir.", benefits: ["Trituración Profunda", "Remoción de Escombros", "Listo para Replante"] },
+      { iconName: "Truck",     title: "Limpieza de Emergencia",   description: "Respuesta de emergencia 24/7 para árboles caídos, ramas rotas y propiedades dañadas.",        benefits: ["Respuesta 24/7", "Árboles Caídos", "Protección de Propiedad"] },
+      { iconName: "Shield",    title: "Evaluación de Salud",      description: "Inspecciones de arborista certificado para diagnosticar enfermedades y problemas estructurales.", benefits: ["Certificado ISA", "Diagnóstico de Enfermedades", "Plan de Tratamiento"] },
+      { iconName: "Building2", title: "Limpieza de Terrenos",     description: "Limpieza completa de terrenos residenciales y comerciales para construcción o desarrollo.",     benefits: ["Limpieza de Lote Completo", "Remoción de Arbustos", "Preparación del Sitio"] },
+    ],
+  },
+
+  reviews: {
+    en: (city) => [
+      { name: "Alice & Tom B.",  location: city, text: "They removed a massive oak that was threatening our house. The crew was professional, safe, and cleaned everything up. You'd never know it was there!" },
+      { name: "Sam G.",          location: city, text: "Had three large trees trimmed and two stumps ground. All done in one day. The crew worked hard and left the yard spotless. Fair pricing too." },
+      { name: "Maria C.",        location: city, text: "Called them after a storm knocked a tree onto our fence. They were there within 2 hours, removed the tree, and stacked the wood neatly. Outstanding response!" },
+    ],
+    es: (city) => [
+      { name: "Alice y Tom B.",  location: city, text: "Removieron un roble enorme que amenazaba nuestra casa. El equipo fue profesional, seguro y limpió todo. ¡Nunca sabrías que estaba ahí!" },
+      { name: "Sam G.",          location: city, text: "Podamos tres árboles grandes y trituramos dos tocones. Todo en un día. El equipo trabajó duro y dejó el jardín impecable. Buen precio también." },
+      { name: "María C.",        location: city, text: "Los llamé después de que una tormenta tumbó un árbol sobre nuestra cerca. Estuvieron en 2 horas, removieron el árbol y apilaron la madera. ¡Respuesta excepcional!" },
+    ],
+  },
+};
+
 // ─── Exports ─────────────────────────────────────────────────────────────────────
 
 export const TRADES = {
@@ -389,6 +899,16 @@ export const TRADES = {
   landscaping,
   hvac,
   general,
+  housecleaner,
+  pressurewashing,
+  carpenter,
+  floorinstaller,
+  tileinstaller,
+  fenceinstaller,
+  deckbuilder,
+  shedbuilder,
+  concrete,
+  treeservice,
 };
 
 export const TRADE_KEYS = Object.keys(TRADES);
