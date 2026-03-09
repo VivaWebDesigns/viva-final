@@ -7,7 +7,7 @@ import { Link } from "react-scroll";
 import { useRef, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useLanguage } from "@empieza/hooks/use-language";
-import logoImg from "@assets/icon_1772859694792.png";
+import logoImg from "@assets/image_1_(5)_1772575534808_1773059817248.png";
 import { SiWhatsapp } from "react-icons/si";
 import {
   Paintbrush, PaintBucket,

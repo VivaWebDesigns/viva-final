@@ -214,6 +214,9 @@ Website Contact Form → POST /api/contacts
 - `POST /api/admin/users` — Create new team member (admin only)
 - `PUT /api/admin/users/:id` — Update role or ban status (admin only)
 
+## Assets
+- **Charlotte Painting Pro Logo** (CORRECT): `image_1_(5)_1772575534808_1773059817248.png` — Used for empieza, crece, domina demo sites (house + brush design)
+
 ## Environment Variables
 - `DATABASE_URL` — PostgreSQL connection string
 - `BETTER_AUTH_SECRET` — Auth secret key
