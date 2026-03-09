@@ -1,0 +1,108 @@
+I am adding a new batch of curated images for the PLUMBING service and I will manually place them into the correct image category folders. Update the demo builder’s curated image library system so it properly recognizes and uses these images from the folder structure without breaking any existing functionality.
+
+IMPORTANT RULES
+- Be non-destructive.
+- Do not break demo builder functionality, preview generation, routing, styling, service selection logic, forms, translations, or existing image library behavior.
+- Do not redesign the UI.
+- Do not remove stock/fallback image logic, but keep curated images as the primary source.
+- Do not hardcode plumbing image paths across multiple components.
+- Continue using the centralized image helper/mapping system that was previously built.
+
+GOAL
+Allow the demo builder to automatically use curated plumbing images that I place into specific subfolders. The system must detect these images and correctly assign them to the hero, gallery, and support sections of the plumbing demo site.
+
+FOLDER STRUCTURE
+Use the following folder structure for the plumbing service:
+
+/public/demo-images/plumbing/
+   /hero/
+   /gallery/
+   /support/
+
+Images I upload will be manually placed into these folders.
+
+The system must:
+- read images from these folders automatically
+- treat hero images as the primary hero/feature section images
+- treat gallery images as portfolio/gallery images
+- treat support images as secondary section images (service cards, backgrounds, etc.)
+
+IMAGE SELECTION BEHAVIOR
+Update or verify the central image helper so that when plumbing is selected:
+
+1. HERO
+Hero sections pull images only from:
+/public/demo-images/plumbing/hero/
+
+Randomize hero selection if multiple hero images exist.
+
+2. GALLERY
+Gallery/portfolio sections pull images from:
+/public/demo-images/plumbing/gallery/
+
+Display multiple gallery images without repeating the same image when possible.
+
+3. SUPPORT
+Support images are used for:
+- service cards
+- background images
+- section visuals
+
+Support images should come from:
+/public/demo-images/plumbing/support/
+
+If the support folder is empty, safely fall back to gallery images before using stock images.
+
+FALLBACK RULES
+If curated plumbing images exist, they must always be used first.
+
+Fallback order should be:
+1. plumbing hero/gallery/support folders
+2. other plumbing folders if a specific category is empty
+3. stock plumbing images only if curated images are missing
+
+Do not allow stock images to override curated plumbing images.
+
+SERVICE KEY MAPPING
+Ensure the plumbing service key maps correctly to the plumbing image folder. Normalize service names if needed so that:
+
+plumbing → /public/demo-images/plumbing/
+
+No fragile string matching should break this mapping.
+
+IMAGE HELPER
+Ensure the centralized image helper:
+- detects hero/gallery/support images automatically
+- returns image arrays by category
+- is the single source of truth for image selection
+- is used by all demo sections that display images
+
+Remove any remaining hardcoded plumbing image logic from individual components.
+
+RANDOMIZATION
+When multiple images exist:
+- randomly rotate hero images
+- shuffle gallery images
+- avoid excessive duplicates on a single page when enough images exist
+
+Do not create complicated AI selection logic. Keep it deterministic and reliable.
+
+VALIDATION
+After implementing, verify:
+
+- plumbing demos use curated plumbing images from the folder structure
+- hero images come only from the hero folder
+- gallery images come from the gallery folder
+- support images come from the support folder
+- stock images are only used if curated plumbing images are missing
+- no broken image paths
+- no console errors
+- no preview generation issues
+- existing services continue working as before
+
+DELIVERABLE SUMMARY
+At the end, provide a concise summary of:
+1. how the plumbing folder is detected by the image system
+2. how hero/gallery/support images are loaded
+3. what fallback behavior is used
+4. how I should repeat this same workflow when adding images for future services

@@ -1,242 +1,184 @@
-# Viva Web Designs - Marketing Agency + Internal Platform
+# Viva Web Designs — Internal CRM / Admin Platform
 
 ## Overview
-Marketing agency website targeting contractors (Spanish-first, conversion-optimized) with an internal CRM/admin platform for team operations.
+Viva Web Designs is a marketing agency focused on home-service contractors, primarily serving a Spanish-speaking audience with conversion-optimized demo sites. The project includes:
+1. A **public-facing agency website** (React, wouter routing)
+2. An **internal CRM/admin platform** for managing team operations, leads, sales pipeline, client onboarding, docs, chat, reports, and integrations
+3. A **Demo Builder** — generates branded preview websites for prospects in 3 tiers (Empieza / Crece / Domina) across 17 trade categories, fully bilingual EN/ES
 
 ## Brand
-- **Company**: Viva Web Designs
-- **Colors**: Primary deep teal (#0D9488, hsl 175 85% 30%), accent emerald (#10B981), hover teal (#0F766E), gradient teal (#14B8A6), secondary deep charcoal (#111111), backgrounds white (#FFFFFF) and light gray (#F5F5F5). WhatsApp green (#25D366) unchanged.
-- **Fonts**: Plus Jakarta Sans (body), Montserrat (headings), Inter (fallback)
-- **Tone**: Confident, professional, clear, direct, Spanish-first
+- **Agency**: Viva Web Designs
+- **Phone**: (980) 949-0548
+- **Tone**: Confident, professional, direct, Spanish-first
 - **Rules**: NEVER mention "latinos" or "Google Ads" anywhere in copy
+- **Charlotte Painting Pro Logo** (CORRECT): `image_1_(5)_1772575534808_1773059817248.png` — house + brush design; NEVER replace with Viva logo
 
 ## Architecture
 - **Frontend**: React + Vite + TypeScript + Tailwind CSS + shadcn/ui + Framer Motion + wouter
 - **Backend**: Express.js + TypeScript + PostgreSQL + Drizzle ORM
-- **Authentication**: BetterAuth with admin plugin (email/password)
-- **Roles**: admin, developer, sales_rep
+- **Auth**: BetterAuth with admin plugin — roles: `admin`, `developer`, `sales_rep`
+- **Port**: 5000 (Express serves both API and Vite frontend)
 
 ### Project Structure
 ```
-├── client/src/
-│   ├── features/           # Internal platform features
-│   │   ├── auth/           # Login (with dev credentials card), auth client, protected routes
-│   │   ├── admin/pages/    # Dashboard + AdminSettingsPage (user management + audit logs)
-│   │   ├── chat/           # TeamChatPage — polling-based multi-channel team chat
-│   │   ├── clients/        # ClientsPage — company cards with aggregated CRM stats
-│   │   ├── crm/            # CRM: LeadList, LeadDetail, CompanyDetail, ContactDetail
-│   │   ├── docs/           # App Docs library (CRUD)
-│   │   ├── integrations/   # Integrations management UI
-│   │   ├── notifications/  # Notification center UI
-│   │   ├── onboarding/     # Onboarding pages (list, detail, wizard)
-│   │   ├── pipeline/       # Pipeline board (drag-and-drop kanban), list, detail, stages
-│   │   └── reports/        # Reports analytics page
-│   ├── layouts/            # AdminLayout (sidebar shell + notification bell)
-│   ├── pages/              # Marketing site pages
-│   ├── components/         # Shared UI components
-│   ├── content/            # Content system (content.json)
-│   ├── empieza/            # Empieza demo sub-site
-│   ├── crece/              # Crece demo sub-site
-│   └── domina/             # Domina demo sub-site
-├── server/
-│   ├── features/           # Domain-based server features
-│   │   ├── auth/           # BetterAuth config + middleware
-│   │   ├── admin/          # Admin stats, seed, audit logs, user management (CRUD)
-│   │   ├── chat/           # Chat messages: GET/POST/DELETE with channel support
-│   │   ├── clients/        # Clients list: companies with aggregated SQL counts/values
-│   │   ├── crm/            # CRM storage, routes, ingest, seed
-│   │   ├── pipeline/       # Sales pipeline: stages, opportunities, activities
-│   │   ├── onboarding/     # Client onboarding: records, checklists, templates
-│   │   ├── notifications/  # Notification service, Mailgun, triggers, routes
-│   │   ├── reports/        # Reports service + routes (read-only analytics)
-│   │   ├── integrations/   # Integration records, health checks, seed, routes
-│   │   ├── docs/           # Docs CRUD + seed data
-│   │   └── audit/          # Audit logging service
-│   ├── routes.ts           # Route aggregator (mounts features + legacy)
-│   ├── storage.ts          # Legacy contact storage
-│   └── db.ts               # Database connection
-└── shared/
-    └── schema.ts           # All Drizzle schemas + Zod validation
+client/
+  src/
+    pages/           — Main app pages (Home, Demo, Paquetes, AdminDemoBuilder, etc.)
+    features/        — Feature modules (auth, CRM, pipeline, etc.)
+    preview/         — Preview tier entry points + shared logic
+      empieza-main.jsx   — Empieza tier preview entry
+      crece-main.jsx     — Crece tier preview entry
+      domina-main.jsx    — Domina tier preview entry
+      tradeTemplates.js  — 17 trade templates + buildPreviewPayload()
+      imageLibrary.js    — Auto-discovers local demo images via import.meta.glob
+      demo-images/       — Curated local images by trade (see Image Library section)
+    empieza/         — Empieza tier components (Home, Services, ContactForm, Nav)
+    crece/           — Crece tier components
+    domina/          — Domina tier components
+server/
+  features/
+    admin/           — Admin user management
+    auth/            — BetterAuth setup + middleware
+    crm/             — CRM leads, companies, contacts, notes, tags
+    pipeline/        — Kanban pipeline, stages, opportunities, activities
+    onboarding/      — Client onboarding records, checklists, templates
+    notifications/   — Internal + email notification system
+    docs/            — Internal documentation library
+    chat/            — Team chat (polling-based, multi-channel)
+    reports/         — Analytics dashboards
+    integrations/    — Third-party integration health checks
+    audit/           — Audit log system
+    clients/         — Client management
+  routes.ts          — Public API routes (contacts, inquiries)
+  storage.ts         — IStorage interface + MemStorage/PgStorage implementations
+shared/
+  schema.ts          — Drizzle schema + Zod insert schemas for all tables
+  routes.ts          — Shared route types
 ```
 
-## Content System
-All marketing website copy managed from `client/src/content/content.json`.
-- `t("dotted.path")` — returns the Spanish `"es"` string
-- `tArr("dotted.path")` — returns array of Spanish strings
-- `tObjArr<T>("dotted.path")` — returns typed array of objects
-- `tBool("dotted.path")` — returns boolean value
+## Demo Builder — Preview System
+Three preview tiers built as separate Vite entry points, loaded in iframes:
+- **Empieza** (`/preview/empieza.html`) — starter tier, simple single-section layout
+- **Crece** (`/preview/crece.html`) — growth tier, multi-section with gallery
+- **Domina** (`/preview/domina.html`) — premium tier, portfolio + advanced layout
 
-## Database Tables
-### Legacy
-- **contacts** — Lead capture from public forms (preserved)
+### 17 Supported Trades
+`painting`, `plumbing`, `roofing`, `electrician`, `landscaping`, `hvac`, `general`, `housecleaner`, `pressurewashing`, `carpenter`, `floorinstaller`, `tileinstaller`, `fenceinstaller`, `deckbuilder`, `shedbuilder`, `concrete`, `treeservice`
 
-### Auth (BetterAuth)
-- **user** — Internal platform users (+ role field)
-- **session** — Auth sessions
-- **account** — Auth accounts
-- **verification** — Email verification
+### Language System (EN/ES)
+- All 3 tiers are fully bilingual with zero English leakage in Spanish mode
+- `tradeNounES` fix: all 3 entry files extract `tnES = tradeNounES || tradeNoun` for proper Spanish nouns
+- Language-aware payload fields: `servicesEN/ES`, `reviewsEN/ES`, `tradeNounEN/ES`
+- tOverrides pattern: stored as `{ en: {...}, es: {...} }` in `window.__PREVIEW__`
 
-### CRM
-- **crm_companies** — Business records
-- **crm_contacts** — Individual people
-- **crm_leads** — Sales leads with UTM attribution
-- **crm_lead_statuses** — Pipeline stages (New, Contacted, Qualified, Proposal, Won, Lost)
-- **crm_lead_notes** — Activity timeline
-- **crm_tags** — Tag definitions
-- **crm_lead_tags** — Lead-tag join table
-
-### Sales Pipeline
-- **pipeline_stages** — Configurable pipeline stages
-- **pipeline_opportunities** — Deals/opportunities
-- **pipeline_activities** — Activity timeline
-
-### Client Onboarding
-- **onboarding_templates** — Reusable checklist templates
-- **onboarding_records** — Onboarding records
-- **onboarding_checklist_items** — Checklist items
-- **onboarding_notes** — Activity timeline
-
-### Notifications
-- **notifications** — In-app and email notifications
-- **notification_preferences** — Per-user notification preferences
-
-### Docs & Integrations
-- **doc_categories** — Doc library categories (22 seeded)
-- **doc_articles** — Doc articles with content (45 seeded)
-- **doc_tags** — Tag definitions
-- **doc_article_tags** — Article-tag join table
-- **doc_revisions** — Content revision history
-- **integration_records** — Third-party integration config (Stripe, Mailgun, OpenAI, Cloudflare R2)
-
-### Team Chat
-- **chat_messages** — Team chat messages (channel, senderId, content, timestamp)
-
-### Platform
-- **audit_logs** — Sensitive action audit trail
-
-## CRM Form-to-Lead Pipeline
-```
-Website Contact Form → POST /api/contacts
-  → Zod validation + honeypot spam check
-  → Save to legacy contacts table
-  → CRM Ingest (non-blocking):
-    → Deduplicate contact (email, then phone)
-    → Create/find CRM contact + company
-    → Link contact ↔ company
-    → Create CRM lead with UTM attribution
-    → Create system note on lead
-    → Audit log
-    → Notify admins/sales reps (non-blocking)
-  → Email notification via Resend
-```
-
-## Notification System
-### Triggers (server/features/notifications/triggers.ts)
-- **notifyNewLead** — new website form lead → admins + sales reps
-- **notifyLeadAssignment** — lead assigned → assignee
-- **notifyStageChange** — opportunity moved → owner + admins
-- **notifyOpportunityAssignment** — opportunity assigned → assignee
-- **notifyOnboardingAssignment** — onboarding assigned → assignee
-- **notifyOnboardingStatusChange** — status changed → owner + admins
-- **notifySystemAlert** — system alert → admins + developers
-
-### Mailgun Service
-- Uses Mailgun HTTP API (no SDK)
-- Requires: MAILGUN_API_KEY, MAILGUN_DOMAIN
-- Optional: MAILGUN_FROM_EMAIL, MAILGUN_FROM_NAME
-- Graceful degradation: returns "skipped" if not configured
-
-## Integration System (v1.6)
-### Health Checks (server/features/integrations/health.ts)
-- Per-provider config detection (checks env var presence)
-- Status: ready / partial / not_configured
-- Feature flags: active (Mailgun) / planned (Stripe, R2) / scaffold (OpenAI)
-- Test connection with live API verification
-
-### Providers
-- **Stripe** — Planned for billing. Requires: STRIPE_SECRET_KEY
-- **Mailgun** — Active for notifications. Requires: MAILGUN_API_KEY, MAILGUN_DOMAIN
-- **OpenAI** — Scaffolded for future AI features. Requires: OPENAI_API_KEY
-- **Cloudflare R2** — Planned for file storage. Requires: 4 R2 env vars
-
-## Key Routes
-### Marketing (Public)
-- `/` — Home, `/paquetes` — Packages, `/contacto` — Contact, `/demo` — Demo showroom
-
-### Internal Platform (Protected)
-- `/login` — Login page
-- `/admin` — Dashboard
-- `/admin/crm` — Lead list
-- `/admin/crm/leads/:id` — Lead detail
-- `/admin/crm/companies/:id` — Company detail
-- `/admin/crm/contacts/:id` — Contact detail
-- `/admin/pipeline` — Sales Pipeline board (kanban)
-- `/admin/pipeline/list` — Opportunity list view
-- `/admin/pipeline/opportunities/:id` — Opportunity detail
-- `/admin/pipeline/stages` — Stage management (Admin/Developer)
-- `/admin/onboarding` — Onboarding list
-- `/admin/onboarding/new` — Onboarding wizard
-- `/admin/onboarding/:id` — Onboarding detail
-- `/admin/notifications` — Notification center
-- `/admin/reports` — Reports analytics dashboard
-- `/admin/integrations` — Integrations management (Admin/Developer)
-- `/admin/clients` — Clients page (company cards with contacts/leads/pipeline stats)
-- `/admin/chat` — Team Chat (multi-channel, polling-based real-time messaging)
-- `/admin/payments` — Payments (placeholder — pending Stripe Billing feature)
-- `/admin/settings` — Admin Settings (user management + role editing + audit logs)
-- `/admin/docs` — App Docs library (45 articles)
-- `/admin/demo-builder` — Demo link generator
-
-### API Endpoints
-- `POST /api/contacts` — Public contact form (+ CRM ingest)
-- `POST /api/inquiries` — Public demo inquiry (+ CRM ingest)
-- `ALL /api/auth/*` — BetterAuth
-- `GET /api/users/me` — Current user
-- `GET /api/admin/stats` — Dashboard stats
-- `GET /api/admin/audit-logs` — Audit logs (admin)
-- `POST /api/admin/seed-admin` — Create initial admin
-- `POST /api/admin/seed` — Seed docs + integrations + CRM + pipeline + onboarding (admin)
-- `GET/POST/PUT/DELETE /api/docs/*` — Docs CRUD
-- `GET/PUT /api/integrations/*` — Integration management
-- `GET /api/integrations/health` — Provider health checks
-- `POST /api/integrations/:provider/test` — Test connection
-- `GET/POST/PUT /api/crm/*` — CRM CRUD
-- `GET/POST/PUT/DELETE /api/pipeline/*` — Pipeline CRUD
-- `GET/POST/PUT/DELETE /api/onboarding/*` — Onboarding CRUD
-- `GET/PUT /api/notifications/*` — Notification management
-- `GET /api/reports/*` — Reports analytics (overview, leads-by-source, pipeline-breakdown, etc.)
-- `GET /api/chat/channels` — List chat channels
-- `GET /api/chat/messages?channel=` — Get messages for channel
-- `POST /api/chat/messages` — Send a message
-- `DELETE /api/chat/messages/:id` — Delete message (admin/developer only)
-- `GET /api/clients` — Companies with aggregated contact/lead/opportunity stats
-- `GET /api/admin/users` — List all platform users (admin only)
-- `POST /api/admin/users` — Create new team member (admin only)
-- `PUT /api/admin/users/:id` — Update role or ban status (admin only)
+### Key Files
+- `client/src/preview/tradeTemplates.js` — 17 trade templates + `buildPreviewPayload()`
+- `client/src/preview/imageLibrary.js` — auto-discovers local images; exports `getHeroImage`, `getGalleryImages`, `getSupportImages`, `hasCuratedImages`
+- `client/src/preview/empieza-main.jsx` — entry with tradeNounES fix + full EN+ES tOv
+- `client/src/preview/crece-main.jsx` — entry with tradeNounES fix + full EN+ES tOv
+- `client/src/preview/domina-main.jsx` — entry with tradeNounES fix + full EN+ES dominaOv
+- `client/src/empieza/hooks/use-language.tsx` — language-aware t() with tOverrides support
+- `client/src/crece/hooks/use-language.tsx` — same for Crece
+- `client/src/domina/i18n/LanguageContext.tsx` — Domina override merging
 
 ## Demo Image Library
-Local high-quality images for the demo builder, organized by trade service. Auto-discovered by Vite's `import.meta.glob` — no code changes needed when adding images.
+Local curated images for demo builder, auto-discovered by Vite's `import.meta.glob`. **No code changes needed when adding images** — drop files in the folder and restart.
 
 ### Structure
 `client/src/preview/demo-images/<trade>/hero|gallery|support/`
 
-### Populated Trades (as of v1.8)
-| Trade | Hero | Gallery |
-|-------|------|---------|
-| `landscaping` | 1 (lawn house) | 3 (patio, garden, curb appeal) |
-| `deckbuilder` | 1 (composite deck) | 2 (covered porch, deck variation) |
-| `fenceinstaller` | 2 (cedar horizontal, cedar landscaped) | 4 (wood privacy, dark stained, fence run, horizontal yard) |
-| `painting` | ❌ intentionally empty — keeps Charlotte Painting Pro video hero | ❌ intentionally empty — keeps CP Pro portfolio |
+### Priority Order (never overridden by stock if curated images exist)
+1. Local curated images (correct category folder)
+2. Local curated images from sibling category (support → gallery fallback)
+3. Unsplash stock images from trade template
 
-### Adding Images
-Drop PNG/JPG/WebP into the correct trade/category folder. The next dev/build auto-discovers them. Priority: local images → Unsplash template fallback.
+### Randomization
+- Hero arrays shuffled once at module load → random rotation per page load
+- Gallery arrays shuffled once at module load → varied order per session
+- Deterministic within a single page view
 
-### Key Files
-- `client/src/preview/imageLibrary.js` — auto-discovers images, exports `getHeroImage(trade)` and `getGalleryImages(trade, limit)`
-- `client/src/preview/tradeTemplates.js` — imports imageLibrary, applies local images in `buildPreviewPayload()`
+### Populated Trades
+| Trade | Hero | Gallery | Support |
+|-------|------|---------|---------|
+| `plumbing` | 2 (bathroom vanity, copper pipe rough-in) | 5 (water heater, hose bib, toilet, washer/dryer, whole-house filter) | 1 (under-sink) |
+| `landscaping` | 1 (lawn house) | 3 (patio hardscaping, garden/lawn, curb appeal lighting) | — |
+| `deckbuilder` | 1 (composite deck) | 2 (covered porch, deck variation) | — |
+| `fenceinstaller` | 2 (cedar horizontal, cedar with garden) | 4 (wood privacy, dark stained, fence run, horizontal yard) | — |
+| `painting` | intentionally empty — keeps Charlotte Painting Pro video hero | intentionally empty — keeps CP Pro portfolio | — |
 
-## Assets
-- **Charlotte Painting Pro Logo** (CORRECT): `image_1_(5)_1772575534808_1773059817248.png` — Used for empieza, crece, domina demo sites (house + brush design)
+### Adding Images for a New Trade
+1. Drop PNG/JPG/WebP into `client/src/preview/demo-images/<trade>/hero/` and/or `gallery/` and/or `support/`
+2. Restart the dev server (Vite picks them up via import.meta.glob)
+3. No code changes needed — `imageLibrary.js` is the single source of truth
+
+## Database Tables
+### Auth (BetterAuth)
+- `user` — platform users (id, name, email, role, banned, createdAt)
+- `session`, `account`, `verification` — BetterAuth internal tables
+
+### CRM
+- `crm_companies` — companies with address, industry, website, notes, tags
+- `crm_contacts` — contacts linked to companies, with role, phone, email
+- `crm_leads` — full lead records with status, source, assignee, score, tags
+- `crm_lead_notes` — notes/calls/emails/tasks on leads (polymorphic type)
+- `crm_tags`, `crm_lead_tags` — tag management
+- `crm_lead_statuses` — configurable status pipeline stages
+
+### Sales Pipeline
+- `pipeline_stages` — kanban column definitions (name, color, order)
+- `pipeline_opportunities` — deals linked to leads/companies with value, close date
+- `pipeline_activities` — activity log per opportunity
+
+### Client Onboarding
+- `onboarding_templates` — reusable checklist templates
+- `onboarding_records` — per-client onboarding instances
+- `onboarding_checklist_items` — checklist rows with status, assignee, due date
+- `onboarding_notes` — notes per onboarding record
+
+### Docs
+- `doc_categories`, `doc_articles`, `doc_tags`, `doc_article_tags`, `doc_revisions`
+
+### Notifications
+- `notifications` — internal notification records
+
+### Other
+- `contacts` — public contact form submissions
+- `integration_records` — third-party integration health/config
+- `audit_logs` — audit trail for admin actions
+
+## CRM Form-to-Lead Pipeline
+`POST /api/crm/leads` → validates with Zod → `findOrCreateCompany` (dedup by name) → `findOrCreateContact` (dedup by email) → `createLead` → `triggerLeadNotification` → 201 response
+
+**CRITICAL query key pattern**: default fetcher joins queryKey with "/"; use single string for params: `["/api/reports/overview?days=30"]`
+
+## Key API Routes
+### Public
+- `POST /api/contacts` — marketing contact form
+- `POST /api/inquiries` — demo inquiry form
+
+### CRM (Protected)
+- `GET/POST /api/crm/leads` — list / create leads
+- `GET/PUT/DELETE /api/crm/leads/:id` — single lead CRUD
+- `POST /api/crm/leads/:id/notes` — add note to lead
+- `GET/POST /api/crm/companies` — companies list / create
+- `GET/POST /api/crm/contacts` — contacts list / create
+
+### Pipeline (Protected)
+- `GET/POST /api/pipeline/stages` — pipeline stages
+- `GET/POST /api/pipeline/opportunities` — opportunities
+- `PUT /api/pipeline/opportunities/:id` — update opportunity
+
+### Admin (admin role only)
+- `GET /api/admin/users` — list all platform users
+- `POST /api/admin/users` — create new team member
+- `PUT /api/admin/users/:id` — update role or ban status
+
+## Notification System
+Triggers: new lead created, lead stage changed, lead assigned, opportunity won/lost
+
+## Integration System
+Health checks at `server/features/integrations/health.ts`
+Providers: Mailgun, Resend, Stripe (planned), OpenAI (scaffold), Cloudflare R2 (planned)
 
 ## Environment Variables
 - `DATABASE_URL` — PostgreSQL connection string
@@ -246,36 +188,29 @@ Drop PNG/JPG/WebP into the correct trade/category folder. The next dev/build aut
 - `MAILGUN_DOMAIN` — Mailgun sending domain
 - `MAILGUN_FROM_EMAIL` — (optional) Sender email
 - `MAILGUN_FROM_NAME` — (optional) Sender name
-- `STRIPE_SECRET_KEY` — (planned) Stripe API key
-- `STRIPE_WEBHOOK_SECRET` — (planned) Stripe webhook secret
-- `OPENAI_API_KEY` — (scaffold) OpenAI API key
-- `CLOUDFLARE_R2_ACCESS_KEY` — (planned) R2 access key
-- `CLOUDFLARE_R2_SECRET_KEY` — (planned) R2 secret key
-- `CLOUDFLARE_R2_BUCKET` — (planned) R2 bucket name
-- `CLOUDFLARE_R2_ENDPOINT` — (planned) R2 endpoint URL
-- `CLOUDFLARE_R2_PUBLIC_URL` — (optional) R2 public URL
+- `STRIPE_SECRET_KEY` — (planned)
+- `CLOUDFLARE_R2_ACCESS_KEY` / `R2_SECRET_KEY` / `R2_BUCKET` / `R2_ENDPOINT` / `R2_PUBLIC_URL` — (planned)
 
 ## Admin Credentials
 - **Email**: admin@vivawebdesigns.com
 - **Password**: VivaAdmin2026!
 - **Role**: admin
 
-## v1.7 Hardening Notes
-- Query optimizations: `getOnboardingStats` and `getPipelineStats` now use SQL aggregation (GROUP BY/COUNT/SUM) instead of fetching all rows into memory
-- `findCompanyByName` tightened with input trimming and LIMIT 1
-- Integrations page health loading state prevents false "Not Configured" flash
-- Documentation completion: 6 new articles (Getting Started, Auth Flow, Known Issues, Frontend Architecture, Deployment Guide)
-- Technical debt tracked in App Docs "Known Issues & Technical Debt" article
+## Technical Notes
+- Zod v4: use `z.object()` directly
+- BetterAuth must be mounted BEFORE `express.json()` in index.ts
+- `import.meta.glob` for image auto-discovery requires Vite dev server restart when adding new files
+- For hierarchical query keys use array: `queryKey: ['/api/crm/leads', id]` for correct cache invalidation
 
 ## Pending Features (Confirmed Order)
 1. R2 File Storage (Cloudflare R2 — foundation for billing + chat)
-2. Stripe Billing (user dismissed Replit integration — will need manual API key)
+2. Stripe Billing (manual API key — user dismissed Replit integration)
 3. Team Chat Phase 1 (real-time messaging)
 4. Team Chat Phase 2 (enhancements)
 
-## Completed Feature History
-- **v1.8**: Demo Image Library — local PNG images for landscaping/deckbuilder/fenceinstaller, `imageLibrary.js` with `import.meta.glob` auto-discovery, `buildPreviewPayload()` uses local images first then Unsplash fallback, painting excluded to preserve CP Pro video+portfolio
-- **v1.7**: Full EN/ES language system — all 3 preview tiers (empieza/crece/domina) × 17 trades, zero English leakage in Spanish mode, tradeNounES fix in all 3 main entry files
+## Feature History
+- **v1.8**: Demo Image Library — curated local PNG images for plumbing/landscaping/deckbuilder/fenceinstaller; `imageLibrary.js` with `import.meta.glob` auto-discovery; Fisher-Yates shuffle for randomization; `getSupportImages()` with gallery fallback; `buildPreviewPayload()` uses local images first (hero → gallery → support → Unsplash); painting excluded to preserve CP Pro video+portfolio
+- **v1.7**: Full EN/ES language system — all 3 preview tiers × 17 trades, zero English leakage in Spanish mode, tradeNounES fix in all 3 main entry files
 
 ## Running
 - `npm run dev` starts Express + Vite on port 5000

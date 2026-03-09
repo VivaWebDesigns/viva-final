@@ -21,7 +21,7 @@
  * Image format: Unsplash CDN — free to embed, no API key required
  */
 
-import { getHeroImage, getGalleryImages } from './imageLibrary.js';
+import { getHeroImage, getGalleryImages, getSupportImages } from './imageLibrary.js';
 
 // ─── Shared icon names (must match ICON_MAP keys in each tier's Home.tsx) ──────
 // painting: PaintBucket | Paintbrush | Layers | Sun | Fence | Building2
@@ -966,14 +966,17 @@ export function buildPreviewPayload(opts) {
   const ctaText = cta || (l === "es" ? "Llama para cotización gratis" : "Get Your Free Estimate");
   const svcList = tpl.services[l];
 
-  const localHeroUrl = getHeroImage(tradeKey);
+  const localHeroUrl     = getHeroImage(tradeKey);
   const localGalleryUrls = getGalleryImages(tradeKey);
+  const localSupportUrls = getSupportImages(tradeKey);
+
   const localGalleryObjs = localGalleryUrls.length
     ? localGalleryUrls.map((url, i) => ({ url, alt: `${tradeName} project ${i + 1}` }))
     : null;
 
-  const resolvedHeroUrl = heroImageUrl || localHeroUrl || tpl.heroImageUrl;
-  const resolvedGallery = localGalleryObjs || tpl.galleryImages;
+  const resolvedHeroUrl  = heroImageUrl || localHeroUrl || tpl.heroImageUrl;
+  const resolvedGallery  = localGalleryObjs || tpl.galleryImages;
+  const resolvedAboutUrl = localSupportUrls[0] || tpl.aboutImageUrl;
 
   return {
     clientFirstName: clientFirstName || "",
@@ -990,7 +993,7 @@ export function buildPreviewPayload(opts) {
     cta:           ctaText,
     logoUrl:       logoUrl || null,
     heroImageUrl:  resolvedHeroUrl,
-    aboutImageUrl: tpl.aboutImageUrl,
+    aboutImageUrl: resolvedAboutUrl,
     galleryImages: resolvedGallery,
     services:      svcList,
     servicesEN:    tpl.services.en,
