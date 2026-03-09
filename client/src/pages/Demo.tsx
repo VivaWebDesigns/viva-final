@@ -39,41 +39,39 @@ const demos = [
   },
 ];
 
-const badgeConfig = {
-  inicio: {
-    glow: "bg-[#FCD34D]/25",
-    border: "border-[#FCD34D]/40 shadow-xl shadow-[#FCD34D]/10 hover:shadow-2xl hover:shadow-[#FCD34D]/15",
-    button: "bg-[#111] dark:bg-white text-white dark:text-[#111]",
-    badge: (
-      <span className="bg-[#FCD34D] text-[#111] text-xs font-bold px-5 py-1.5 rounded-full uppercase tracking-widest flex items-center gap-1.5 shadow-lg" data-testid="badge-inicio">
-        <Zap className="w-3 h-3 fill-[#111]" />
-        Inicio
-      </span>
-    ),
-  },
-  popular: {
-    glow: "bg-[#0D9488]/20",
-    border: "border-[#efefef] shadow-xl shadow-[#0D9488]/5 hover:shadow-2xl hover:shadow-[#0D9488]/10",
-    button: "bg-[#0D9488] text-white hover:bg-[#0F766E]",
-    badge: (
-      <span className="bg-[#0D9488] text-white text-xs font-bold px-5 py-1.5 rounded-full uppercase tracking-widest flex items-center gap-1.5 shadow-lg" data-testid="badge-popular">
-        <Star className="w-3 h-3 fill-white" />
-        Más popular
-      </span>
-    ),
-  },
-  bestValue: {
-    glow: "bg-orange-500/20",
-    border: "border-orange-400/30 shadow-xl shadow-orange-500/10 hover:shadow-2xl hover:shadow-orange-500/15",
-    button: "bg-[#111] dark:bg-white text-white dark:text-[#111]",
-    badge: (
-      <span className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold px-5 py-1.5 rounded-full uppercase tracking-widest flex items-center gap-1.5 shadow-lg" data-testid="badge-best-value">
-        <Crown className="w-3 h-3 fill-white" />
-        El Mejor Valor
-      </span>
-    ),
-  },
-};
+function DemoBadge({ badge }: { badge: "inicio" | "popular" | "bestValue" }) {
+  if (badge === "inicio") {
+    return (
+      <div className="flex justify-center -mb-4 relative z-30">
+        <span className="bg-[#FCD34D] text-[#111] text-xs font-bold px-5 py-1.5 rounded-full uppercase tracking-widest flex items-center gap-1.5 shadow-lg" data-testid="badge-inicio">
+          <Zap className="w-3 h-3 fill-[#111]" />
+          Inicio
+        </span>
+      </div>
+    );
+  }
+  if (badge === "popular") {
+    return (
+      <div className="flex justify-center -mb-4 relative z-30">
+        <span className="bg-[#0D9488] text-white text-xs font-bold px-5 py-1.5 rounded-full uppercase tracking-widest flex items-center gap-1.5 shadow-lg" data-testid="badge-popular">
+          <Star className="w-3 h-3 fill-white" />
+          Más popular
+        </span>
+      </div>
+    );
+  }
+  if (badge === "bestValue") {
+    return (
+      <div className="flex justify-center -mb-4 relative z-30">
+        <span className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold px-5 py-1.5 rounded-full uppercase tracking-widest flex items-center gap-1.5 shadow-lg" data-testid="badge-best-value">
+          <Crown className="w-3 h-3 fill-white" />
+          El Mejor Valor
+        </span>
+      </div>
+    );
+  }
+  return null;
+}
 
 export default function Demo() {
   return (
@@ -124,47 +122,51 @@ export default function Demo() {
             whileInView="visible"
             viewport={{ once: true, margin: "-100px" }}
             variants={stagger}
-            className="grid grid-cols-1 md:grid-cols-3 gap-8 items-end"
+            className="grid grid-cols-1 md:grid-cols-3 gap-8"
           >
-            {demos.map((demo) => {
-              const config = badgeConfig[demo.badge];
-              return (
-                <motion.div
-                  key={demo.slug}
-                  variants={fadeUp}
-                  className="relative flex flex-col"
-                  data-testid={`card-demo-${demo.slug}`}
+            {demos.map((demo) => (
+              <motion.div
+                key={demo.slug}
+                variants={fadeUp}
+                className="relative flex flex-col"
+                data-testid={`card-demo-${demo.slug}`}
+              >
+                <DemoBadge badge={demo.badge} />
+                <div
+                  className={`rounded-2xl border bg-white dark:bg-[#0d0d0d] flex flex-col flex-1 transition-all duration-300 shadow-sm hover:shadow-xl hover:-translate-y-1 ${
+                    demo.badge === "popular"
+                      ? "border-[#0D9488]/40 shadow-lg shadow-[#0D9488]/5"
+                      : "border-gray-200 dark:border-gray-800"
+                  }`}
                 >
-                  <div className={`rounded-2xl border bg-white dark:bg-[#0d0d0d] flex flex-col flex-1 transition-all duration-300 relative z-20 ${config.border}`}>
-                    <div className={`absolute inset-0 rounded-2xl ${config.glow} blur-[60px] -z-30 pointer-events-none scale-90`} />
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 flex justify-center">
-                      {config.badge}
+                  <div className="p-8 lg:p-10 flex flex-col flex-1">
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-5 bg-[#10B981]/10">
+                      <demo.icon className="w-6 h-6 text-[#10B981]" />
                     </div>
-                    <div className="p-8 lg:p-10 flex flex-col flex-1 pt-10">
-                      <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-5 bg-[#10B981]/10">
-                        <demo.icon className="w-6 h-6 text-[#10B981]" />
-                      </div>
-                      <h2 className="text-2xl font-extrabold text-[#111] dark:text-white mb-3">
-                        {demo.title}
-                      </h2>
-                      <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed flex-1 mb-8">
-                        {demo.description}
-                      </p>
-                      <a href={demo.href}>
-                        <Button
-                          size="lg"
-                          className={`w-full rounded-full font-bold text-base gap-2 transition-all duration-200 hover:shadow-md ${config.button}`}
-                          data-testid={`button-ver-demo-${demo.slug}`}
-                        >
-                          Ver Demo
-                          <ArrowRight className="w-4 h-4" />
-                        </Button>
-                      </a>
-                    </div>
+                    <h2 className="text-2xl font-extrabold text-[#111] dark:text-white mb-3">
+                      {demo.title}
+                    </h2>
+                    <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed flex-1 mb-8">
+                      {demo.description}
+                    </p>
+                    <a href={demo.href}>
+                      <Button
+                        size="lg"
+                        className={`w-full rounded-full font-bold text-base gap-2 transition-all duration-200 hover:shadow-md ${
+                          demo.badge === "popular"
+                            ? "bg-[#0D9488] text-white hover:bg-[#0F766E]"
+                            : "bg-[#111] dark:bg-white text-white dark:text-[#111]"
+                        }`}
+                        data-testid={`button-ver-demo-${demo.slug}`}
+                      >
+                        Ver Demo
+                        <ArrowRight className="w-4 h-4" />
+                      </Button>
+                    </a>
                   </div>
-                </motion.div>
-              );
-            })}
+                </div>
+              </motion.div>
+            ))}
           </motion.div>
 
           <motion.p
