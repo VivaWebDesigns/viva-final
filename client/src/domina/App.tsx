@@ -17,6 +17,7 @@ const KitchenCabinetPainting = lazy(() => import("@domina/pages/services/Kitchen
 const DeckStaining = lazy(() => import("@domina/pages/services/DeckStaining"));
 const FenceStaining = lazy(() => import("@domina/pages/services/FenceStaining"));
 const CommercialPainting = lazy(() => import("@domina/pages/services/CommercialPainting"));
+const ServiceDetail = lazy(() => import("@domina/pages/services/ServiceDetail"));
 const Portfolio = lazy(() => import("@domina/pages/Portfolio"));
 const ProjectDetail = lazy(() => import("@domina/pages/ProjectDetail"));
 const NotFound = lazy(() => import("@domina/pages/not-found"));
@@ -33,6 +34,7 @@ function Router() {
         <Route path="/services/deck-staining" component={DeckStaining} />
         <Route path="/services/fence-staining" component={FenceStaining} />
         <Route path="/services/commercial-painting" component={CommercialPainting} />
+        <Route path="/services/:slug" component={ServiceDetail} />
         <Route path="/about" component={About} />
         <Route path="/contact" component={Contact} />
         <Route path="/gallery" component={Gallery} />

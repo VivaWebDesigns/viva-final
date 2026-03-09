@@ -128,6 +128,7 @@ export default function Services() {
   const previewServices: any[] | null = payload
     ? (language === "es" ? payload.servicesES : payload.servicesEN) || null
     : null;
+  const slugify = (str: string) => str.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
   const previewGalleryImages: { url: string; alt: string }[] | null = payload?.galleryImages || null;
 
   useEffect(() => {
@@ -143,17 +144,22 @@ export default function Services() {
         meta.setAttribute("content", "Interior painting, exterior painting, kitchen cabinet painting, and deck & fence staining services in Charlotte, NC. Get a free estimate from Charlotte Painting Pro.");
       }
     }
-    const hash = window.location.hash;
-    if (hash && !hash.includes("/")) {
-      setTimeout(() => {
-        try {
-          const el = document.querySelector(hash);
-          if (el) el.scrollIntoView({ behavior: "smooth" });
-        } catch (_) {}
-      }, 100);
-    } else {
-      window.scrollTo(0, 0);
+    function scrollToHash() {
+      const hash = window.location.hash;
+      if (hash && !hash.includes("/")) {
+        setTimeout(() => {
+          try {
+            const el = document.querySelector(hash);
+            if (el) el.scrollIntoView({ behavior: "smooth" });
+          } catch (_) {}
+        }, 150);
+      } else {
+        window.scrollTo(0, 0);
+      }
     }
+    scrollToHash();
+    window.addEventListener("hashchange", scrollToHash);
+    return () => window.removeEventListener("hashchange", scrollToHash);
   }, []);
 
   const galleryImages = previewGalleryImages
@@ -193,6 +199,7 @@ export default function Services() {
                 return (
                   <motion.div
                     key={svc.title + i}
+                    id={slugify(svc.title)}
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}

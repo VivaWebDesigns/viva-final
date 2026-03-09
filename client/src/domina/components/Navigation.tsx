@@ -13,8 +13,9 @@ export function Navigation() {
   const P = (window as any).__PREVIEW__?.payload ?? null;
 
   const activeSvcList = P ? (language === "es" ? P.servicesES : P.servicesEN) : null;
+  const slugify = (str: string) => str.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
   const serviceLinks = activeSvcList
-    ? (activeSvcList as Array<{ title: string }>).map((s) => ({ name: s.title, href: "/services" }))
+    ? (activeSvcList as Array<{ title: string }>).map((s) => ({ name: s.title, href: `/services/${slugify(s.title)}` }))
     : [
         { name: t.nav.interiorPainting, href: "/services/interior-painting" },
         { name: t.nav.exteriorPainting, href: "/services/exterior-painting" },
