@@ -4,7 +4,7 @@ import { Menu, X, Phone, Languages } from "lucide-react";
 import { Button } from "@crece/components/ui/button";
 import { AnimatePresence, motion } from "framer-motion";
 import { useLanguage } from "@crece/hooks/use-language";
-import logoImg from "@assets/Viva_1772823591549.png";
+import logoImg from "@assets/icon_1772859694792.png";
 import { SiWhatsapp } from "react-icons/si";
 
 export function Navigation() {

@@ -1,7 +1,7 @@
 import { Link } from "wouter";
 import { useLanguage } from "@crece/hooks/use-language";
 import { SiFacebook, SiInstagram, SiYoutube, SiTiktok } from "react-icons/si";
-import logoImg from "@assets/Viva_1772823591549.png";
+import logoImg from "@assets/icon_1772859694792.png";
 
 export function Footer() {
   const { t } = useLanguage();
