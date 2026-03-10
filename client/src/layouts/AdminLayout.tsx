@@ -166,7 +166,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
       <aside
-        className={`hidden md:flex flex-col bg-white border-r border-gray-200 transition-all duration-200 ${
+        className={`hidden md:flex flex-col bg-white border-r border-gray-200 relative transition-all duration-200 ${
           collapsed ? "w-[68px]" : "w-[250px]"
         }`}
       >
