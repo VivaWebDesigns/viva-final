@@ -3,7 +3,7 @@ import {
   followupTasks, crmContacts, crmCompanies,
   type InsertFollowupTask, type FollowupTask,
 } from "@shared/schema";
-import { eq, and, gte, lte, lt, desc, asc, isNull, or } from "drizzle-orm";
+import { eq, and, gte, lte, lt, desc, asc, inArray } from "drizzle-orm";
 
 export type TaskWithContact = FollowupTask & {
   contact: { firstName: string; lastName: string | null; phone: string | null } | null;
@@ -87,16 +87,16 @@ async function enrichTasks(tasks: FollowupTask[]): Promise<TaskWithContact[]> {
 
   const contactIds = [...new Set(tasks.map(t => t.contactId).filter(Boolean) as string[])];
   const contacts = contactIds.length
-    ? await db.select({ id: crmContacts.id, firstName: crmContacts.firstName, lastName: crmContacts.lastName, phone: crmContacts.phone, companyId: crmContacts.companyId }).from(crmContacts).where(
-        or(...contactIds.map(id => eq(crmContacts.id, id)))
-      )
+    ? await db.select({ id: crmContacts.id, firstName: crmContacts.firstName, lastName: crmContacts.lastName, phone: crmContacts.phone, companyId: crmContacts.companyId })
+        .from(crmContacts)
+        .where(inArray(crmContacts.id, contactIds))
     : [];
 
   const companyIds = [...new Set(contacts.map(c => c.companyId).filter(Boolean) as string[])];
   const companies = companyIds.length
-    ? await db.select({ id: crmCompanies.id, name: crmCompanies.name }).from(crmCompanies).where(
-        or(...companyIds.map(id => eq(crmCompanies.id, id)))
-      )
+    ? await db.select({ id: crmCompanies.id, name: crmCompanies.name })
+        .from(crmCompanies)
+        .where(inArray(crmCompanies.id, companyIds))
     : [];
 
   const contactMap = Object.fromEntries(contacts.map(c => [c.id, c]));

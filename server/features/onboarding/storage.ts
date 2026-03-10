@@ -7,7 +7,7 @@ import {
   type InsertOnboardingNote, type OnboardingNote,
   type OnboardingTemplate,
 } from "@shared/schema";
-import { eq, desc, and, like, sql, count } from "drizzle-orm";
+import { eq, desc, and, like, sql, count, sum } from "drizzle-orm";
 
 export async function getTemplates(): Promise<OnboardingTemplate[]> {
   return db.select().from(onboardingTemplates).orderBy(onboardingTemplates.name);
@@ -149,9 +149,16 @@ export async function addNote(data: InsertOnboardingNote): Promise<OnboardingNot
 }
 
 export async function getProgress(onboardingId: string): Promise<{ total: number; completed: number; percentage: number }> {
-  const items = await getChecklistItems(onboardingId);
-  const total = items.length;
-  const completed = items.filter((i) => i.isCompleted).length;
+  const [result] = await db
+    .select({
+      total: count(),
+      completed: sum(sql<number>`CASE WHEN ${onboardingChecklistItems.isCompleted} THEN 1 ELSE 0 END`),
+    })
+    .from(onboardingChecklistItems)
+    .where(eq(onboardingChecklistItems.onboardingId, onboardingId));
+
+  const total = result?.total ?? 0;
+  const completed = Number(result?.completed ?? 0);
   const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
   return { total, completed, percentage };
 }

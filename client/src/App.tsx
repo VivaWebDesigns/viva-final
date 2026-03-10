@@ -46,6 +46,7 @@ const ReportsPage = lazy(() => import("@features/reports/ReportsPage"));
 const TeamChatPage = lazy(() => import("@features/chat/TeamChatPage"));
 const AdminSettingsPage = lazy(() => import("@features/admin/pages/AdminSettingsPage"));
 const ClientsPage = lazy(() => import("@features/clients/ClientsPage"));
+const TasksDueTodayPage = lazy(() => import("@features/tasks/TasksDueTodayPage"));
 
 function PageFallback() {
   return (
@@ -104,6 +105,7 @@ function AdminRouter() {
             <Route path="/admin/onboarding/:id">
               {(params) => <OnboardingDetailPage id={params.id} />}
             </Route>
+            <Route path="/admin/tasks" component={TasksDueTodayPage} />
             <Route path="/admin/chat" component={TeamChatPage} />
             <Route path="/admin/clients" component={ClientsPage} />
             <Route path="/admin/payments">

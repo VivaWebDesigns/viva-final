@@ -12,9 +12,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   ArrowLeft, DollarSign, Calendar, Building2, User as UserIcon,
   MessageSquare, Phone, Mail, FileText, CheckCircle, XCircle,
-  Clock, Zap, ArrowRightLeft, UserPlus,
+  Clock, Zap, ArrowRightLeft, UserPlus, ClipboardList, Plus,
+  AlertCircle, CheckCheck,
 } from "lucide-react";
-import type { PipelineStage, PipelineOpportunity, PipelineActivity, CrmCompany, CrmContact, CrmLead } from "@shared/schema";
+import type { PipelineStage, PipelineOpportunity, PipelineActivity, CrmCompany, CrmContact, CrmLead, FollowupTask } from "@shared/schema";
+import QuickTaskModal from "@/components/QuickTaskModal";
+
+type TaskWithContact = FollowupTask & {
+  contact: { firstName: string; lastName: string | null; phone: string | null } | null;
+  company: { name: string } | null;
+};
 
 const ACTIVITY_ICONS: Record<string, typeof MessageSquare> = {
   note: MessageSquare,
@@ -30,6 +37,8 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
   const { toast } = useToast();
   const [noteContent, setNoteContent] = useState("");
   const [noteType, setNoteType] = useState("note");
+  const [taskModalOpen, setTaskModalOpen] = useState(false);
+  const [rescheduleTask, setRescheduleTask] = useState<TaskWithContact | null>(null);
 
   const { data: opp, isLoading } = useQuery<PipelineOpportunity>({
     queryKey: ["/api/pipeline/opportunities", id],
@@ -56,6 +65,22 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
   const { data: sourceLead } = useQuery<CrmLead>({
     queryKey: ["/api/crm/leads", opp?.leadId || ""],
     enabled: !!opp?.leadId,
+  });
+
+  const { data: tasks } = useQuery<TaskWithContact[]>({
+    queryKey: ["/api/tasks/for-opportunity", id],
+  });
+
+  const completeMutation = useMutation({
+    mutationFn: async (taskId: string) => {
+      const res = await apiRequest("PUT", `/api/tasks/${taskId}/complete`, {});
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks/for-opportunity", id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks/due-today"] });
+      toast({ title: "Task completed" });
+    },
   });
 
   const stageMutation = useMutation({
@@ -460,8 +485,97 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
               </p>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm flex items-center gap-1.5">
+                  <ClipboardList className="w-4 h-4 text-gray-400" />
+                  Follow-up Tasks
+                  {tasks && tasks.filter(t => !t.completed).length > 0 && (
+                    <Badge variant="secondary" className="text-xs ml-1" data-testid="badge-pending-tasks">
+                      {tasks.filter(t => !t.completed).length}
+                    </Badge>
+                  )}
+                </CardTitle>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 px-2 text-xs text-[#0D9488] hover:bg-[#0D9488]/10"
+                  onClick={() => { setRescheduleTask(null); setTaskModalOpen(true); }}
+                  data-testid="button-add-task"
+                >
+                  <Plus className="w-3.5 h-3.5 mr-1" />
+                  Add
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {(!tasks || tasks.length === 0) ? (
+                <p className="text-xs text-gray-400 text-center py-2">No tasks yet</p>
+              ) : (
+                tasks.map(task => {
+                  const isOverdue = !task.completed && new Date(task.dueDate) < new Date();
+                  return (
+                    <div
+                      key={task.id}
+                      className={`flex items-start gap-2 p-2 rounded-md border text-xs ${
+                        task.completed ? "bg-gray-50 border-gray-100 opacity-60" :
+                        isOverdue ? "bg-red-50 border-red-100" : "bg-white border-gray-100"
+                      }`}
+                      data-testid={`task-row-${task.id}`}
+                    >
+                      <button
+                        onClick={() => !task.completed && completeMutation.mutate(task.id)}
+                        disabled={task.completed || completeMutation.isPending}
+                        className="flex-shrink-0 mt-0.5"
+                        data-testid={`button-complete-task-${task.id}`}
+                      >
+                        {task.completed
+                          ? <CheckCheck className="w-4 h-4 text-emerald-500" />
+                          : <CheckCircle className={`w-4 h-4 ${isOverdue ? "text-red-400" : "text-gray-300"} hover:text-emerald-500 transition-colors`} />
+                        }
+                      </button>
+                      <div className="flex-1 min-w-0">
+                        <p className={`font-medium leading-tight truncate ${task.completed ? "line-through text-gray-400" : "text-gray-800"}`}>
+                          {task.title}
+                        </p>
+                        <div className={`flex items-center gap-1 mt-0.5 ${isOverdue ? "text-red-500" : "text-gray-400"}`}>
+                          {isOverdue && <AlertCircle className="w-3 h-3 flex-shrink-0" />}
+                          <span>{new Date(task.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                        </div>
+                      </div>
+                      {!task.completed && (
+                        <button
+                          onClick={() => { setRescheduleTask(task); setTaskModalOpen(true); }}
+                          className="flex-shrink-0 text-gray-300 hover:text-[#0D9488] transition-colors"
+                          title="Reschedule"
+                          data-testid={`button-reschedule-task-${task.id}`}
+                        >
+                          <Clock className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
+
+      <QuickTaskModal
+        open={taskModalOpen}
+        onClose={() => { setTaskModalOpen(false); setRescheduleTask(null); }}
+        opportunityId={id}
+        contactId={opp.contactId ?? null}
+        editTask={rescheduleTask ? {
+          id: rescheduleTask.id,
+          title: rescheduleTask.title,
+          notes: rescheduleTask.notes,
+          dueDate: rescheduleTask.dueDate.toString(),
+        } : null}
+      />
     </div>
   );
 }

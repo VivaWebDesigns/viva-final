@@ -5,7 +5,7 @@ import {
   type InsertPipelineStage, type InsertPipelineOpportunity, type InsertPipelineActivity,
   type PipelineStage, type PipelineOpportunity, type PipelineActivity,
 } from "@shared/schema";
-import { eq, ilike, or, desc, asc, sql, and, count } from "drizzle-orm";
+import { eq, ilike, or, desc, asc, sql, and, count, inArray } from "drizzle-orm";
 
 interface PaginationParams {
   page?: number;
@@ -111,10 +111,10 @@ export async function getOpportunitiesByStage() {
 
   const [contactRows, companyRows] = await Promise.all([
     contactIds.length
-      ? db.select({ id: crmContacts.id, firstName: crmContacts.firstName, lastName: crmContacts.lastName, phone: crmContacts.phone }).from(crmContacts).where(or(...contactIds.map(id => eq(crmContacts.id, id))))
+      ? db.select({ id: crmContacts.id, firstName: crmContacts.firstName, lastName: crmContacts.lastName, phone: crmContacts.phone }).from(crmContacts).where(inArray(crmContacts.id, contactIds))
       : [],
     companyIds.length
-      ? db.select({ id: crmCompanies.id, name: crmCompanies.name, city: crmCompanies.city, industry: crmCompanies.industry }).from(crmCompanies).where(or(...companyIds.map(id => eq(crmCompanies.id, id))))
+      ? db.select({ id: crmCompanies.id, name: crmCompanies.name, city: crmCompanies.city, industry: crmCompanies.industry }).from(crmCompanies).where(inArray(crmCompanies.id, companyIds))
       : [],
   ]);
 

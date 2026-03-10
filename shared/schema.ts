@@ -14,7 +14,11 @@ export const contacts = pgTable("contacts", {
   service: text("service"),
   message: text("message"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (t) => [
+  index("contacts_created_idx").on(t.createdAt),
+  index("contacts_email_idx").on(t.email),
+  index("contacts_trade_idx").on(t.trade),
+]);
 
 export const insertContactSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -64,7 +68,10 @@ export const session = pgTable("session", {
   ipAddress: text("ip_address"),
   userAgent: text("user_agent"),
   userId: text("user_id").notNull().references(() => user.id),
-});
+}, (t) => [
+  index("session_user_idx").on(t.userId),
+  index("session_expires_idx").on(t.expiresAt),
+]);
 
 export const account = pgTable("account", {
   id: text("id").primaryKey(),
@@ -80,7 +87,10 @@ export const account = pgTable("account", {
   password: text("password"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+}, (t) => [
+  index("account_user_idx").on(t.userId),
+  index("account_provider_account_idx").on(t.providerId, t.accountId),
+]);
 
 export const verification = pgTable("verification", {
   id: text("id").primaryKey(),
@@ -89,7 +99,10 @@ export const verification = pgTable("verification", {
   expiresAt: timestamp("expires_at").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (t) => [
+  index("verification_identifier_idx").on(t.identifier),
+  index("verification_expires_idx").on(t.expiresAt),
+]);
 
 export const auditLogs = pgTable("audit_logs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -100,7 +113,12 @@ export const auditLogs = pgTable("audit_logs", {
   metadata: jsonb("metadata"),
   ipAddress: text("ip_address"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (t) => [
+  index("audit_user_idx").on(t.userId),
+  index("audit_entity_idx").on(t.entity, t.entityId),
+  index("audit_created_idx").on(t.createdAt),
+  index("audit_action_idx").on(t.action),
+]);
 
 export const docCategories = pgTable("doc_categories", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -121,7 +139,12 @@ export const docArticles = pgTable("doc_articles", {
   status: text("status").notNull().default("draft"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (t) => [
+  index("doc_articles_category_idx").on(t.categoryId),
+  index("doc_articles_status_idx").on(t.status),
+  index("doc_articles_updated_idx").on(t.updatedAt),
+  index("doc_articles_author_idx").on(t.authorId),
+]);
 
 export const docTags = pgTable("doc_tags", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -134,6 +157,7 @@ export const docArticleTags = pgTable("doc_article_tags", {
   tagId: varchar("tag_id").notNull().references(() => docTags.id),
 }, (t) => [
   primaryKey({ columns: [t.articleId, t.tagId] }),
+  index("doc_article_tags_tag_idx").on(t.tagId),
 ]);
 
 export const docRevisions = pgTable("doc_revisions", {
@@ -142,7 +166,10 @@ export const docRevisions = pgTable("doc_revisions", {
   content: text("content").notNull(),
   authorId: text("author_id").references(() => user.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (t) => [
+  index("doc_revisions_article_idx").on(t.articleId),
+  index("doc_revisions_created_idx").on(t.createdAt),
+]);
 
 export const integrationRecords = pgTable("integration_records", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -178,6 +205,8 @@ export const crmCompanies = pgTable("crm_companies", {
   index("crm_companies_name_idx").on(t.name),
   index("crm_companies_email_idx").on(t.email),
   index("crm_companies_phone_idx").on(t.phone),
+  index("crm_companies_created_idx").on(t.createdAt),
+  index("crm_companies_industry_idx").on(t.industry),
 ]);
 
 export const crmContacts = pgTable("crm_contacts", {
@@ -197,6 +226,7 @@ export const crmContacts = pgTable("crm_contacts", {
   index("crm_contacts_email_idx").on(t.email),
   index("crm_contacts_phone_idx").on(t.phone),
   index("crm_contacts_company_idx").on(t.companyId),
+  index("crm_contacts_created_idx").on(t.createdAt),
 ]);
 
 export const crmLeadStatuses = pgTable("crm_lead_statuses", {
@@ -237,6 +267,8 @@ export const crmLeads = pgTable("crm_leads", {
   index("crm_leads_contact_idx").on(t.contactId),
   index("crm_leads_created_idx").on(t.createdAt),
   index("crm_leads_assigned_idx").on(t.assignedTo),
+  index("crm_leads_source_idx").on(t.source),
+  index("crm_leads_web_form_idx").on(t.fromWebsiteForm),
 ]);
 
 export const LEAD_NOTE_TYPES = ["note", "call", "email", "task", "status_change", "system"] as const;
@@ -267,6 +299,7 @@ export const crmLeadTags = pgTable("crm_lead_tags", {
   tagId: varchar("tag_id").notNull().references(() => crmTags.id),
 }, (t) => [
   primaryKey({ columns: [t.leadId, t.tagId] }),
+  index("crm_lead_tags_tag_idx").on(t.tagId),
 ]);
 
 // ─── Pipeline Tables ─────────────────────────────────────────────────
@@ -315,6 +348,9 @@ export const pipelineOpportunities = pgTable("pipeline_opportunities", {
   index("pipeline_opp_created_idx").on(t.createdAt),
   index("pipeline_opp_lead_idx").on(t.leadId),
   index("pipeline_opp_company_idx").on(t.companyId),
+  index("pipeline_opp_contact_idx").on(t.contactId),
+  index("pipeline_opp_next_action_idx").on(t.nextActionDate),
+  index("pipeline_opp_status_stage_idx").on(t.status, t.stageId),
 ]);
 
 export const PIPELINE_ACTIVITY_TYPES = ["stage_change", "note", "call", "email", "task", "system"] as const;
@@ -331,6 +367,7 @@ export const pipelineActivities = pgTable("pipeline_activities", {
 }, (t) => [
   index("pipeline_act_opp_idx").on(t.opportunityId),
   index("pipeline_act_created_idx").on(t.createdAt),
+  index("pipeline_act_user_idx").on(t.userId),
 ]);
 
 // ─── Pipeline Zod Schemas & Types ────────────────────────────────────
@@ -393,6 +430,8 @@ export const onboardingRecords = pgTable("onboarding_records", {
   index("onboarding_company_idx").on(t.companyId),
   index("onboarding_due_idx").on(t.dueDate),
   index("onboarding_created_idx").on(t.createdAt),
+  index("onboarding_contact_idx").on(t.contactId),
+  index("onboarding_status_due_idx").on(t.status, t.dueDate),
 ]);
 
 export const onboardingChecklistItems = pgTable("onboarding_checklist_items", {
@@ -412,6 +451,8 @@ export const onboardingChecklistItems = pgTable("onboarding_checklist_items", {
   index("checklist_onboarding_idx").on(t.onboardingId),
   index("checklist_category_idx").on(t.category),
   index("checklist_completed_idx").on(t.isCompleted),
+  index("checklist_onboarding_sort_idx").on(t.onboardingId, t.sortOrder),
+  index("checklist_completed_by_idx").on(t.completedBy),
 ]);
 
 export const onboardingNotes = pgTable("onboarding_notes", {
@@ -484,6 +525,8 @@ export const notifications = pgTable("notifications", {
   index("notif_read_idx").on(t.isRead),
   index("notif_created_idx").on(t.createdAt),
   index("notif_entity_idx").on(t.relatedEntityType, t.relatedEntityId),
+  index("notif_recipient_read_idx").on(t.recipientId, t.isRead),
+  index("notif_recipient_created_idx").on(t.recipientId, t.createdAt),
 ]);
 
 export const notificationPreferences = pgTable("notification_preferences", {
@@ -588,6 +631,8 @@ export const chatMessages = pgTable("chat_messages", {
 }, (t) => [
   index("chat_messages_channel_idx").on(t.channel),
   index("chat_messages_created_idx").on(t.createdAt),
+  index("chat_messages_channel_created_idx").on(t.channel, t.createdAt),
+  index("chat_messages_sender_idx").on(t.senderId),
 ]);
 
 export const insertChatMessageSchema = createInsertSchema(chatMessages).omit({ id: true, createdAt: true });
@@ -614,6 +659,8 @@ export const followupTasks = pgTable("followup_tasks", {
   index("followup_tasks_lead_idx").on(t.leadId),
   index("followup_tasks_contact_idx").on(t.contactId),
   index("followup_tasks_completed_idx").on(t.completed),
+  index("followup_tasks_completed_due_idx").on(t.completed, t.dueDate),
+  index("followup_tasks_created_by_idx").on(t.createdBy),
 ]);
 
 export const insertFollowupTaskSchema = createInsertSchema(followupTasks).omit({ id: true, createdAt: true, completedAt: true });
