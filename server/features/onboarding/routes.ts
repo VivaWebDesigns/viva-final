@@ -246,10 +246,16 @@ router.get("/templates", requireRole("admin", "developer", "sales_rep"), async (
   res.json(templates);
 });
 
+const convertOpportunitySchema = z.object({
+  templateId: z.string().nullable().optional(),
+  assignedTo: z.string().nullable().optional(),
+  notes: z.string().nullable().optional(),
+}).strict();
+
 router.post("/convert-opportunity/:opportunityId", requireRole("admin", "sales_rep"), async (req, res) => {
   try {
     const { opportunityId } = req.params as Record<string, string>;
-    const { templateId, ...extraData } = req.body;
+    const { templateId, ...extraData } = convertOpportunitySchema.parse(req.body);
 
     const record = await onboardingStorage.convertOpportunityToOnboarding(
       opportunityId,

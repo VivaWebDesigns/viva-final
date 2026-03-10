@@ -1,8 +1,14 @@
 import { Router } from "express";
+import { z } from "zod";
 import { requireRole } from "../auth/middleware";
 import { logAudit } from "../audit/service";
 import * as intStorage from "./storage";
 import { checkAllProviders } from "./health";
+
+const updateIntegrationSchema = z.object({
+  enabled: z.boolean().optional(),
+  settings: z.record(z.unknown()).optional(),
+}).strict();
 
 const router = Router();
 
@@ -24,7 +30,8 @@ router.get("/:provider", requireRole("admin", "developer"), async (req, res) => 
 
 router.put("/:id", requireRole("admin", "developer"), async (req, res) => {
   try {
-    const integration = await intStorage.updateIntegration(req.params.id as string, req.body);
+    const validated = updateIntegrationSchema.parse(req.body);
+    const integration = await intStorage.updateIntegration(req.params.id as string, validated);
     await logAudit({
       userId: req.authUser?.id,
       action: "update",

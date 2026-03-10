@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { z } from "zod";
 import { requireRole } from "../auth/middleware";
 import { logAudit } from "../audit/service";
 import { notifyLeadAssignment } from "../notifications/triggers";
@@ -7,6 +8,50 @@ import {
   insertCrmCompanySchema, insertCrmContactSchema, insertCrmLeadSchema,
   insertCrmLeadNoteSchema, insertCrmTagSchema,
 } from "@shared/schema";
+
+const updateCrmLeadSchema = z.object({
+  title: z.string().min(1).optional(),
+  companyId: z.string().nullable().optional(),
+  contactId: z.string().nullable().optional(),
+  statusId: z.string().nullable().optional(),
+  value: z.string().nullable().optional(),
+  source: z.string().nullable().optional(),
+  sourceLabel: z.string().nullable().optional(),
+  assignedTo: z.string().nullable().optional(),
+  notes: z.string().nullable().optional(),
+}).strict();
+
+const updateCrmCompanySchema = z.object({
+  name: z.string().min(1).optional(),
+  dba: z.string().nullable().optional(),
+  website: z.string().nullable().optional(),
+  phone: z.string().nullable().optional(),
+  email: z.string().email().nullable().optional(),
+  address: z.string().nullable().optional(),
+  city: z.string().nullable().optional(),
+  state: z.string().nullable().optional(),
+  zip: z.string().nullable().optional(),
+  country: z.string().nullable().optional(),
+  industry: z.string().nullable().optional(),
+  preferredLanguage: z.string().nullable().optional(),
+  notes: z.string().nullable().optional(),
+}).strict();
+
+const updateCrmContactSchema = z.object({
+  companyId: z.string().nullable().optional(),
+  firstName: z.string().min(1).optional(),
+  lastName: z.string().nullable().optional(),
+  email: z.string().email().nullable().optional(),
+  phone: z.string().nullable().optional(),
+  altPhone: z.string().nullable().optional(),
+  title: z.string().nullable().optional(),
+  preferredLanguage: z.string().nullable().optional(),
+  notes: z.string().nullable().optional(),
+}).strict();
+
+const tagIdsSchema = z.object({
+  tagIds: z.array(z.string()).optional().default([]),
+});
 
 const router = Router();
 
@@ -58,7 +103,8 @@ router.put("/leads/:id", requireRole("admin", "sales_rep"), async (req, res) => 
     const id = req.params.id as string;
     const existing = await crmStorage.getLeadById(id);
     if (!existing) return res.status(404).json({ message: "Lead not found" });
-    const lead = await crmStorage.updateLead(id, req.body);
+    const validated = updateCrmLeadSchema.parse(req.body);
+    const lead = await crmStorage.updateLead(id, validated);
     await logAudit({
       userId: req.authUser?.id,
       action: "update",
@@ -67,8 +113,8 @@ router.put("/leads/:id", requireRole("admin", "sales_rep"), async (req, res) => 
       metadata: { title: lead.title },
       ipAddress: req.ip,
     });
-    if (req.body.assignedTo && req.body.assignedTo !== existing.assignedTo) {
-      try { notifyLeadAssignment({ id: lead.id, title: lead.title }, req.body.assignedTo); } catch (_) {}
+    if (validated.assignedTo && validated.assignedTo !== existing.assignedTo) {
+      try { notifyLeadAssignment({ id: lead.id, title: lead.title }, validated.assignedTo); } catch (_) {}
     }
     res.json(lead);
   } catch (error: any) {
@@ -114,13 +160,14 @@ router.get("/leads/:id/tags", requireRole("admin", "developer", "sales_rep"), as
 router.put("/leads/:id/tags", requireRole("admin", "sales_rep"), async (req, res) => {
   try {
     const id = req.params.id as string;
-    await crmStorage.setLeadTags(id, req.body.tagIds || []);
+    const { tagIds } = tagIdsSchema.parse(req.body);
+    await crmStorage.setLeadTags(id, tagIds);
     await logAudit({
       userId: req.authUser?.id,
       action: "update",
       entity: "crm_lead_tags",
       entityId: id,
-      metadata: { tagIds: req.body.tagIds },
+      metadata: { tagIds },
       ipAddress: req.ip,
     });
     res.json({ message: "Tags updated" });
@@ -173,7 +220,8 @@ router.put("/companies/:id", requireRole("admin", "sales_rep"), async (req, res)
     const id = req.params.id as string;
     const existing = await crmStorage.getCompanyById(id);
     if (!existing) return res.status(404).json({ message: "Company not found" });
-    const company = await crmStorage.updateCompany(id, req.body);
+    const validated = updateCrmCompanySchema.parse(req.body);
+    const company = await crmStorage.updateCompany(id, validated);
     await logAudit({
       userId: req.authUser?.id,
       action: "update",
@@ -232,7 +280,8 @@ router.put("/contacts/:id", requireRole("admin", "sales_rep"), async (req, res) 
     const id = req.params.id as string;
     const existing = await crmStorage.getContactById(id);
     if (!existing) return res.status(404).json({ message: "Contact not found" });
-    const contact = await crmStorage.updateContact(id, req.body);
+    const validated = updateCrmContactSchema.parse(req.body);
+    const contact = await crmStorage.updateContact(id, validated);
     await logAudit({
       userId: req.authUser?.id,
       action: "update",

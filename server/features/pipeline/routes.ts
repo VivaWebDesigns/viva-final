@@ -243,16 +243,25 @@ router.post("/opportunities/:id/activities", requireRole("admin", "sales_rep"), 
   }
 });
 
+const convertLeadSchema = z.object({
+  stageId: z.string(),
+  title: z.string().min(1).optional(),
+  value: z.string().nullable().optional(),
+  assignedTo: z.string().nullable().optional(),
+  notes: z.string().nullable().optional(),
+  expectedCloseDate: z.string().nullable().optional(),
+}).strict();
+
 router.post("/convert-lead/:leadId", requireRole("admin", "sales_rep"), async (req, res) => {
   try {
     const { leadId } = req.params as Record<string, string>;
-    const { stageId, ...extraData } = req.body;
+    const { stageId, ...extraData } = convertLeadSchema.parse(req.body);
     if (!stageId) return res.status(400).json({ message: "stageId is required" });
     const targetStage = await pipelineStorage.getStageById(stageId);
     if (!targetStage) return res.status(400).json({ message: "Invalid stage" });
     if (targetStage.isClosed) return res.status(400).json({ message: "Cannot convert to a closed stage" });
     const opportunity = await pipelineStorage.convertLeadToOpportunity(
-      leadId, stageId, req.authUser?.id, extraData
+      leadId, stageId, req.authUser?.id, extraData as Partial<InsertPipelineOpportunity>
     );
     await logAudit({
       userId: req.authUser?.id,

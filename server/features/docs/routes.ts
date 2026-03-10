@@ -1,8 +1,34 @@
 import { Router } from "express";
+import { z } from "zod";
 import { requireRole } from "../auth/middleware";
 import { logAudit } from "../audit/service";
 import * as docsStorage from "./storage";
 import { insertDocCategorySchema, insertDocArticleSchema } from "@shared/schema";
+
+const updateDocCategorySchema = z.object({
+  name: z.string().min(1).optional(),
+  slug: z.string().min(1).optional(),
+  description: z.string().nullable().optional(),
+  sortOrder: z.number().int().min(0).optional(),
+}).strict();
+
+const updateDocArticleSchema = z.object({
+  title: z.string().min(1).optional(),
+  slug: z.string().min(1).optional(),
+  content: z.string().optional(),
+  categoryId: z.string().nullable().optional(),
+  authorId: z.string().nullable().optional(),
+  status: z.enum(["draft", "published", "archived"]).optional(),
+}).strict();
+
+const createDocTagSchema = z.object({
+  name: z.string().min(1),
+  slug: z.string().min(1).optional(),
+}).strict();
+
+const articleTagsSchema = z.object({
+  tagIds: z.array(z.string()).optional().default([]),
+});
 
 const router = Router();
 
@@ -31,7 +57,8 @@ router.post("/categories", requireRole("admin", "developer"), async (req, res) =
 
 router.put("/categories/:id", requireRole("admin", "developer"), async (req, res) => {
   try {
-    const category = await docsStorage.updateCategory(req.params.id as string, req.body);
+    const validated = updateDocCategorySchema.parse(req.body);
+    const category = await docsStorage.updateCategory(req.params.id as string, validated);
     await logAudit({
       userId: req.authUser?.id,
       action: "update",
@@ -93,7 +120,9 @@ router.put("/articles/:id", requireRole("admin", "developer"), async (req, res) 
     const existing = await docsStorage.getArticleById(req.params.id as string);
     if (!existing) return res.status(404).json({ message: "Article not found" });
 
-    if (req.body.content && req.body.content !== existing.content) {
+    const validated = updateDocArticleSchema.parse(req.body);
+
+    if (validated.content && validated.content !== existing.content) {
       await docsStorage.createRevision({
         articleId: existing.id,
         content: existing.content,
@@ -101,7 +130,7 @@ router.put("/articles/:id", requireRole("admin", "developer"), async (req, res) 
       });
     }
 
-    const article = await docsStorage.updateArticle(req.params.id as string, req.body);
+    const article = await docsStorage.updateArticle(req.params.id as string, validated);
     await logAudit({
       userId: req.authUser?.id,
       action: "update",
@@ -140,7 +169,9 @@ router.get("/tags", requireRole("admin", "developer"), async (_req, res) => {
 
 router.post("/tags", requireRole("admin", "developer"), async (req, res) => {
   try {
-    const tag = await docsStorage.createTag(req.body);
+    const validated = createDocTagSchema.parse(req.body);
+    const slug = validated.slug ?? validated.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    const tag = await docsStorage.createTag({ name: validated.name, slug });
     res.status(201).json(tag);
   } catch (error: any) {
     res.status(400).json({ message: error.message });
@@ -148,8 +179,13 @@ router.post("/tags", requireRole("admin", "developer"), async (req, res) => {
 });
 
 router.put("/articles/:id/tags", requireRole("admin", "developer"), async (req, res) => {
-  await docsStorage.setArticleTags(req.params.id as string, req.body.tagIds || []);
-  res.json({ message: "Tags updated" });
+  try {
+    const { tagIds } = articleTagsSchema.parse(req.body);
+    await docsStorage.setArticleTags(req.params.id as string, tagIds);
+    res.json({ message: "Tags updated" });
+  } catch (error: any) {
+    res.status(400).json({ message: error.message });
+  }
 });
 
 export default router;
