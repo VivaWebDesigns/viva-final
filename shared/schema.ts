@@ -284,10 +284,14 @@ export const pipelineStages = pgTable("pipeline_stages", {
 export const OPPORTUNITY_STATUSES = ["open", "won", "lost"] as const;
 export type OpportunityStatus = typeof OPPORTUNITY_STATUSES[number];
 
+export const WEBSITE_PACKAGES = ["empieza", "crece", "domina"] as const;
+export type WebsitePackage = typeof WEBSITE_PACKAGES[number];
+
 export const pipelineOpportunities = pgTable("pipeline_opportunities", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   title: text("title").notNull(),
   value: numeric("value"),
+  websitePackage: text("website_package"),
   stageId: varchar("stage_id").references(() => pipelineStages.id),
   leadId: varchar("lead_id").references(() => crmLeads.id),
   companyId: varchar("company_id").references(() => crmCompanies.id),
@@ -589,3 +593,29 @@ export const chatMessages = pgTable("chat_messages", {
 export const insertChatMessageSchema = createInsertSchema(chatMessages).omit({ id: true, createdAt: true });
 export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
 export type ChatMessage = typeof chatMessages.$inferSelect;
+
+// ─── Follow-up Tasks ──────────────────────────────────────────────────
+
+export const followupTasks = pgTable("followup_tasks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  notes: text("notes"),
+  dueDate: timestamp("due_date").notNull(),
+  completed: boolean("completed").notNull().default(false),
+  completedAt: timestamp("completed_at"),
+  opportunityId: varchar("opportunity_id").references(() => pipelineOpportunities.id),
+  leadId: varchar("lead_id").references(() => crmLeads.id),
+  contactId: varchar("contact_id").references(() => crmContacts.id),
+  createdBy: text("created_by").references(() => user.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("followup_tasks_due_idx").on(t.dueDate),
+  index("followup_tasks_opp_idx").on(t.opportunityId),
+  index("followup_tasks_lead_idx").on(t.leadId),
+  index("followup_tasks_contact_idx").on(t.contactId),
+  index("followup_tasks_completed_idx").on(t.completed),
+]);
+
+export const insertFollowupTaskSchema = createInsertSchema(followupTasks).omit({ id: true, createdAt: true, completedAt: true });
+export type InsertFollowupTask = z.infer<typeof insertFollowupTaskSchema>;
+export type FollowupTask = typeof followupTasks.$inferSelect;

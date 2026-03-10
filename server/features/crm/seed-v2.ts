@@ -6,26 +6,26 @@ import { user as userTable } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
 const CLIENTS = [
-  { name: "Acme Corp", industry: "Manufacturing", contact: { first: "John", last: "Doe", email: "john@acme.com" }, leadTitle: "Acme Website Redesign", value: "15000", status: "qualified", stage: "discovery" },
-  { name: "Global Tech", industry: "Software", contact: { first: "Jane", last: "Smith", email: "jane@globaltech.io" }, leadTitle: "Global Tech SEO Campaign", value: "8000", status: "proposal", stage: "proposal" },
-  { name: "Sunnyside Bakery", industry: "Food & Beverage", contact: { first: "Bob", last: "Baker", email: "bob@sunnyside.com" }, leadTitle: "E-commerce Shop for Bakery", value: "12000", status: "won", stage: "closed-won", onboard: true },
-  { name: "Elite Law Firm", industry: "Legal", contact: { first: "Sarah", last: "Counsel", email: "sarah@elitelaw.com" }, leadTitle: "Legal Firm Landing Page", value: "5000", status: "new", stage: "discovery" },
-  { name: "Green Energy Co", industry: "Renewables", contact: { first: "Alice", last: "Green", email: "alice@greenenergy.com" }, leadTitle: "Corporate Site for Green Energy", value: "25000", status: "contacted", stage: "negotiation" },
-  { name: "Urban Fitness", industry: "Health", contact: { first: "Mike", last: "Iron", email: "mike@urbanfitness.com" }, leadTitle: "Gym Member Portal", value: "18000", status: "proposal", stage: "proposal" },
-  { name: "Sparkle Cleaning", industry: "Services", contact: { first: "Lucy", last: "Clean", email: "lucy@sparkle.com" }, leadTitle: "Booking System for Cleaning", value: "9500", status: "won", stage: "closed-won", onboard: true },
-  { name: "Tech Ventures", industry: "Finance", contact: { first: "David", last: "Investor", email: "david@techventures.vc" }, leadTitle: "Venture Capital Portfolio Site", value: "30000", status: "qualified", stage: "negotiation" },
-  { name: "Cozy Coffee", industry: "Food & Beverage", contact: { first: "Emma", last: "Bean", email: "emma@cozycoffee.com" }, leadTitle: "Coffee Shop Mobile App", value: "22000", status: "new", stage: "discovery" },
-  { name: "Blue Sky Travel", industry: "Tourism", contact: { first: "Tom", last: "Voyage", email: "tom@bluesky.com" }, leadTitle: "Travel Booking Platform", value: "45000", status: "contacted", stage: "proposal" },
-  { name: "Rapid Logistics", industry: "Logistics", contact: { first: "Chris", last: "Speed", email: "chris@rapid.com" }, leadTitle: "Logistics Dashboard", value: "35000", status: "won", stage: "closed-won", onboard: true },
-  { name: "Creative Studio", industry: "Design", contact: { first: "Mia", last: "Art", email: "mia@creativestudio.com" }, leadTitle: "Portfolio Site for Agency", value: "11000", status: "lost", stage: "closed-lost" },
-  { name: "Prime Real Estate", industry: "Real Estate", contact: { first: "Kevin", last: "Home", email: "kevin@primerealestate.com" }, leadTitle: "Real Estate Listing Portal", value: "28000", status: "won", stage: "closed-won", onboard: true },
-  { name: "Health First", industry: "Healthcare", contact: { first: "Dr. Amy", last: "Care", email: "amy@healthfirst.org" }, leadTitle: "Patient Management System", value: "55000", status: "qualified", stage: "discovery" },
-  { name: "Bright Minds Tutor", industry: "Education", contact: { first: "Leo", last: "Learn", email: "leo@brightminds.edu" }, leadTitle: "Tutoring Platform Web App", value: "14000", status: "contacted", stage: "negotiation" },
-  { name: "Style Icon", industry: "Fashion", contact: { first: "Chloe", last: "Chic", email: "chloe@styleicon.com" }, leadTitle: "Fashion Brand Webshop", value: "19000", status: "new", stage: "discovery" },
-  { name: "Auto Pros", industry: "Automotive", contact: { first: "Gary", last: "Gear", email: "gary@autopros.com" }, leadTitle: "Auto Repair Booking", value: "7500", status: "proposal", stage: "proposal" },
-  { name: "Pet Paradise", industry: "Pet Services", contact: { first: "Bella", last: "Bark", email: "bella@petparadise.com" }, leadTitle: "Pet Hotel Management", value: "13500", status: "won", stage: "closed-won", onboard: true },
-  { name: "Smart Home Tech", industry: "IoT", contact: { first: "Jason", last: "Link", email: "jason@smarthome.io" }, leadTitle: "IoT Dashboard UI", value: "40000", status: "qualified", stage: "negotiation" },
-  { name: "Fresh Blooms", industry: "Retail", contact: { first: "Rose", last: "Petal", email: "rose@freshblooms.com" }, leadTitle: "Florist Delivery Site", value: "6000", status: "won", stage: "closed-won", onboard: true }
+  { name: "Rivera Painting LLC",  industry: "Painting",    contact: { first: "Carlos",  last: "Rivera",    phone: "(704) 555-0101", email: "carlos@riverapainting.com"  }, leadTitle: "Painting Website – Domina",   value: "2400", status: "qualified", stage: "new-lead",       pkg: "domina"  },
+  { name: "Garcia Plumbing",      industry: "Plumbing",    contact: { first: "Maria",   last: "Garcia",    phone: "(704) 555-0102", email: "maria@garciaplumbing.com"    }, leadTitle: "Plumbing Website – Crece",    value: "1600", status: "contacted", stage: "contacted",      pkg: "crece"   },
+  { name: "Lopez Landscaping",    industry: "Landscaping", contact: { first: "Jose",    last: "Lopez",     phone: "(980) 555-0103", email: "jose@lopezlandscaping.com"   }, leadTitle: "Landscaping Site – Domina",  value: "2400", status: "won",       stage: "closed-won",     pkg: "domina",  onboard: true },
+  { name: "Hernandez HVAC",       industry: "HVAC",        contact: { first: "Ana",     last: "Hernandez", phone: "(704) 555-0104", email: "ana@hernandezhvac.com"       }, leadTitle: "HVAC Website – Empieza",     value: "900",  status: "new",       stage: "new-lead"                          },
+  { name: "Martinez Electrical",  industry: "Electrical",  contact: { first: "Luis",    last: "Martinez",  phone: "(980) 555-0105", email: "luis@martinezelectric.com"   }, leadTitle: "Electrical Site – Crece",    value: "1600", status: "contacted", stage: "demo-scheduled", pkg: "crece"   },
+  { name: "Torres Roofing",       industry: "Roofing",     contact: { first: "Rosa",    last: "Torres",    phone: "(704) 555-0106", email: "rosa@torresroofing.com"      }, leadTitle: "Roofing Site – Domina",      value: "2400", status: "proposal",  stage: "demo-completed", pkg: "domina"  },
+  { name: "Reyes Cleaning",       industry: "Cleaning",    contact: { first: "Pedro",   last: "Reyes",     phone: "(980) 555-0107", email: "pedro@reyescleaning.com"     }, leadTitle: "Cleaning Website – Empieza", value: "900",  status: "won",       stage: "closed-won",     pkg: "empieza", onboard: true },
+  { name: "Sanchez Concrete",     industry: "Concrete",    contact: { first: "Carmen",  last: "Sanchez",   phone: "(704) 555-0108", email: "carmen@sanchezconcrete.com"  }, leadTitle: "Concrete Site – Crece",      value: "1600", status: "qualified", stage: "payment-sent",   pkg: "crece"   },
+  { name: "Morales Carpentry",    industry: "Carpentry",   contact: { first: "Jorge",   last: "Morales",   phone: "(980) 555-0109", email: "jorge@moralescarpentry.com"  }, leadTitle: "Carpentry Website – Domina", value: "2400", status: "new",       stage: "new-lead"                          },
+  { name: "Flores Tree Service",  industry: "Tree Service",contact: { first: "Elena",   last: "Flores",    phone: "(704) 555-0110", email: "elena@florestrees.com"       }, leadTitle: "Tree Service – Crece",       value: "1600", status: "contacted", stage: "contacted"                         },
+  { name: "Vargas Tile & Stone",  industry: "Tile",        contact: { first: "Miguel",  last: "Vargas",    phone: "(980) 555-0111", email: "miguel@vargas-tile.com"      }, leadTitle: "Tile Website – Domina",      value: "2400", status: "won",       stage: "closed-won",     pkg: "domina",  onboard: true },
+  { name: "Cruz Auto Detailing",  industry: "Auto",        contact: { first: "Isabel",  last: "Cruz",      phone: "(704) 555-0112", email: "isabel@cruzdetail.com"       }, leadTitle: "Auto Detail – Empieza",      value: "900",  status: "lost",      stage: "closed-lost"                       },
+  { name: "Mendoza Fencing",      industry: "Fencing",     contact: { first: "Roberto", last: "Mendoza",   phone: "(980) 555-0113", email: "roberto@mendozafencing.com"  }, leadTitle: "Fencing Site – Crece",       value: "1600", status: "won",       stage: "closed-won",     pkg: "crece",   onboard: true },
+  { name: "Ramirez Pest Control", industry: "Pest Control",contact: { first: "Diana",   last: "Ramirez",   phone: "(704) 555-0114", email: "diana@ramirezpest.com"       }, leadTitle: "Pest Control – Empieza",     value: "900",  status: "qualified", stage: "demo-scheduled"                    },
+  { name: "Gutierrez Masonry",    industry: "Masonry",     contact: { first: "Hector",  last: "Gutierrez", phone: "(980) 555-0115", email: "hector@gutierrezmasonry.com" }, leadTitle: "Masonry Website – Domina",   value: "2400", status: "contacted", stage: "demo-completed", pkg: "domina"  },
+  { name: "Jimenez Irrigation",   industry: "Irrigation",  contact: { first: "Lucia",   last: "Jimenez",   phone: "(704) 555-0116", email: "lucia@jimenezirrig.com"      }, leadTitle: "Irrigation Site – Crece",    value: "1600", status: "new",       stage: "new-lead"                          },
+  { name: "Castillo Windows",     industry: "Windows",     contact: { first: "Fernando",last: "Castillo",  phone: "(980) 555-0117", email: "fernando@castillowin.com"    }, leadTitle: "Windows & Doors – Empieza",  value: "900",  status: "proposal",  stage: "payment-sent",   pkg: "empieza" },
+  { name: "Medina Pool Service",  industry: "Pool",        contact: { first: "Gloria",  last: "Medina",    phone: "(704) 555-0118", email: "gloria@medinapool.com"       }, leadTitle: "Pool Service – Domina",      value: "2400", status: "won",       stage: "closed-won",     pkg: "domina",  onboard: true },
+  { name: "Soto Drywall",         industry: "Drywall",     contact: { first: "Oscar",   last: "Soto",      phone: "(980) 555-0119", email: "oscar@sotodrywall.com"       }, leadTitle: "Drywall Website – Crece",    value: "1600", status: "qualified", stage: "contacted"                         },
+  { name: "Aguilar Gutter Co",    industry: "Gutters",     contact: { first: "Silvia",  last: "Aguilar",   phone: "(704) 555-0120", email: "silvia@aguilargutter.com"    }, leadTitle: "Gutter Website – Empieza",   value: "900",  status: "won",       stage: "closed-won",     pkg: "empieza", onboard: true },
 ];
 
 export async function seedFullDatabase() {
@@ -50,6 +50,7 @@ export async function seedFullDatabase() {
       firstName: client.contact.first,
       lastName: client.contact.last,
       email: client.contact.email,
+      phone: (client.contact as any).phone ?? null,
     });
 
     const status = await crmStorage.getLeadStatusBySlug(client.status);
@@ -68,6 +69,7 @@ export async function seedFullDatabase() {
       title: client.leadTitle,
       value: client.value,
       assignedTo: adminId,
+      websitePackage: (client as any).pkg ?? null,
     });
 
     if (client.onboard && templateId) {

@@ -6,8 +6,9 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { DollarSign, Calendar, List, Building2, GripVertical } from "lucide-react";
+import { DollarSign, List, GripVertical, Phone, Building2, MapPin, CheckCircle2 } from "lucide-react";
 import type { PipelineStage, PipelineOpportunity } from "@shared/schema";
+import QuickTaskModal from "@/components/QuickTaskModal";
 
 import {
   DndContext,
@@ -22,15 +23,29 @@ import {
 } from "@dnd-kit/core";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 
+type ContactSnap = { id: string; firstName: string; lastName: string | null; phone: string | null };
+type CompanySnap = { id: string; name: string; city: string | null; industry: string | null };
+
 interface BoardData {
   stages: PipelineStage[];
   board: Record<string, { stage: PipelineStage; opportunities: PipelineOpportunity[] }>;
+  contactMap: Record<string, ContactSnap>;
+  companyMap: Record<string, CompanySnap>;
 }
+
+const PKG_COLORS: Record<string, string> = {
+  empieza: "bg-blue-100 text-blue-700",
+  crece:   "bg-violet-100 text-violet-700",
+  domina:  "bg-amber-100 text-amber-700",
+};
 
 function CardDisplay({
   opp,
   isDragging = false,
   dragHandleProps,
+  contactMap,
+  companyMap,
+  onTaskClick,
 }: {
   opp: PipelineOpportunity;
   isDragging?: boolean;
@@ -38,7 +53,15 @@ function CardDisplay({
     listeners: Record<string, any> | undefined;
     attributes: Record<string, any> | undefined;
   };
+  contactMap: Record<string, ContactSnap>;
+  companyMap: Record<string, CompanySnap>;
+  onTaskClick?: (opp: PipelineOpportunity) => void;
 }) {
+  const contact = opp.contactId ? contactMap[opp.contactId] : null;
+  const company = opp.companyId ? companyMap[opp.companyId] : null;
+  const contactName = contact ? `${contact.firstName}${contact.lastName ? " " + contact.lastName : ""}` : null;
+  const pkg = (opp as any).websitePackage as string | null;
+
   return (
     <Card
       className={`hover:shadow-md transition-all group ${
@@ -48,7 +71,7 @@ function CardDisplay({
       }`}
     >
       <CardContent className="p-3">
-        <div className="flex items-start gap-2 mb-2">
+        <div className="flex items-start gap-2 mb-1.5">
           <button
             className="mt-0.5 flex-shrink-0 cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 transition-colors touch-none select-none"
             data-testid={`drag-handle-${opp.id}`}
@@ -57,47 +80,83 @@ function CardDisplay({
           >
             <GripVertical className="w-4 h-4" />
           </button>
-          <Link href={`/admin/pipeline/opportunities/${opp.id}`} className="flex-1 min-w-0">
-            <span
-              className="text-sm font-medium text-gray-900 hover:text-[#0D9488] transition-colors line-clamp-2"
-              data-testid={`text-opp-title-${opp.id}`}
-            >
-              {opp.title}
-            </span>
-          </Link>
-        </div>
 
-        {opp.sourceLeadTitle && opp.sourceLeadTitle !== opp.title && (
-          <div className="flex items-center gap-1 text-xs text-gray-400 mb-2 ml-6">
-            <Building2 className="w-3 h-3 flex-shrink-0" />
-            <span className="truncate">{opp.sourceLeadTitle}</span>
-          </div>
-        )}
-
-        <div className="flex items-center justify-between text-xs text-gray-500 ml-6">
-          <div className="flex items-center gap-3">
-            {opp.value && (
+          <div className="flex-1 min-w-0">
+            <Link href={`/admin/pipeline/opportunities/${opp.id}`}>
               <span
-                className="flex items-center gap-1 font-medium text-green-600"
-                data-testid={`text-opp-value-${opp.id}`}
+                className="text-sm font-semibold text-gray-900 hover:text-[#0D9488] transition-colors line-clamp-1 block"
+                data-testid={`text-opp-title-${opp.id}`}
               >
-                <DollarSign className="w-3 h-3" />
-                {parseFloat(opp.value).toLocaleString()}
+                {contactName || opp.title}
+              </span>
+            </Link>
+
+            {company && (
+              <span className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
+                <Building2 className="w-3 h-3 flex-shrink-0" />
+                <span className="truncate" data-testid={`text-opp-company-${opp.id}`}>{company.name}</span>
               </span>
             )}
-            {opp.probability !== null && opp.probability !== undefined && opp.probability > 0 && (
-              <span className="text-gray-400">{opp.probability}%</span>
+          </div>
+        </div>
+
+        <div className="ml-6 space-y-1">
+          {contact?.phone && (
+            <a
+              href={`tel:${contact.phone}`}
+              className="flex items-center gap-1 text-xs text-[#0D9488] hover:underline"
+              data-testid={`link-phone-${opp.id}`}
+            >
+              <Phone className="w-3 h-3 flex-shrink-0" />
+              {contact.phone}
+            </a>
+          )}
+
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-gray-400">
+            {company?.industry && (
+              <span data-testid={`text-opp-industry-${opp.id}`}>{company.industry}</span>
+            )}
+            {company?.city && (
+              <span className="flex items-center gap-0.5">
+                <MapPin className="w-2.5 h-2.5" />
+                <span data-testid={`text-opp-city-${opp.id}`}>{company.city}</span>
+              </span>
             )}
           </div>
-          {opp.nextActionDate && (
-            <span className="flex items-center gap-1" data-testid={`text-opp-next-action-${opp.id}`}>
-              <Calendar className="w-3 h-3" />
-              {new Date(opp.nextActionDate).toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-              })}
-            </span>
-          )}
+
+          <div className="flex items-center justify-between pt-0.5">
+            <div className="flex items-center gap-2">
+              {opp.value && parseFloat(opp.value) > 0 && (
+                <span
+                  className="flex items-center gap-0.5 text-xs font-semibold text-green-600"
+                  data-testid={`text-opp-value-${opp.id}`}
+                >
+                  <DollarSign className="w-3 h-3" />
+                  {parseFloat(opp.value).toLocaleString()}
+                </span>
+              )}
+              {pkg && (
+                <span
+                  className={`text-[10px] font-semibold rounded px-1 py-0.5 uppercase tracking-wide ${PKG_COLORS[pkg] ?? "bg-gray-100 text-gray-600"}`}
+                  data-testid={`badge-pkg-${opp.id}`}
+                >
+                  {pkg}
+                </span>
+              )}
+            </div>
+
+            {!isDragging && onTaskClick && (
+              <button
+                className="flex items-center gap-0.5 text-[10px] text-gray-400 hover:text-[#0D9488] transition-colors opacity-0 group-hover:opacity-100"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); onTaskClick(opp); }}
+                data-testid={`button-add-task-${opp.id}`}
+                title="Add follow-up task"
+              >
+                <CheckCircle2 className="w-3 h-3" />
+                Task
+              </button>
+            )}
+          </div>
         </div>
 
         {opp.status !== "open" && (
@@ -113,7 +172,17 @@ function CardDisplay({
   );
 }
 
-function DraggableCard({ opp }: { opp: PipelineOpportunity }) {
+function DraggableCard({
+  opp,
+  contactMap,
+  companyMap,
+  onTaskClick,
+}: {
+  opp: PipelineOpportunity;
+  contactMap: Record<string, ContactSnap>;
+  companyMap: Record<string, CompanySnap>;
+  onTaskClick: (opp: PipelineOpportunity) => void;
+}) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: opp.id,
     data: { opp },
@@ -123,7 +192,7 @@ function DraggableCard({ opp }: { opp: PipelineOpportunity }) {
     return (
       <div
         ref={setNodeRef}
-        className="mb-2 h-[88px] rounded-lg border-2 border-dashed border-[#0D9488]/25 bg-[#0D9488]/5"
+        className="mb-2 h-[116px] rounded-lg border-2 border-dashed border-[#0D9488]/25 bg-[#0D9488]/5"
         data-testid={`card-opportunity-${opp.id}`}
       />
     );
@@ -134,6 +203,9 @@ function DraggableCard({ opp }: { opp: PipelineOpportunity }) {
       <CardDisplay
         opp={opp}
         dragHandleProps={{ listeners, attributes }}
+        contactMap={contactMap}
+        companyMap={companyMap}
+        onTaskClick={onTaskClick}
       />
     </div>
   );
@@ -143,20 +215,26 @@ function StageColumn({
   stage,
   opportunities,
   isOver,
+  contactMap,
+  companyMap,
+  onTaskClick,
 }: {
   stage: PipelineStage;
   opportunities: PipelineOpportunity[];
   isOver: boolean;
+  contactMap: Record<string, ContactSnap>;
+  companyMap: Record<string, CompanySnap>;
+  onTaskClick: (opp: PipelineOpportunity) => void;
 }) {
   const { setNodeRef } = useDroppable({ id: stage.id, data: { stage } });
   const totalValue = opportunities.reduce((sum, o) => sum + parseFloat(o.value || "0"), 0);
 
   return (
     <div
-      className="flex-shrink-0 w-[280px] flex flex-col max-h-full"
+      className="flex-shrink-0 w-[272px] flex flex-col max-h-full"
       data-testid={`column-stage-${stage.slug}`}
     >
-      <div className="flex items-center justify-between mb-3 px-1">
+      <div className="flex items-center justify-between mb-2 px-1">
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: stage.color }} />
           <h3 className="text-sm font-semibold text-gray-700">{stage.name}</h3>
@@ -186,7 +264,13 @@ function StageColumn({
         }`}
       >
         {opportunities.map((opp) => (
-          <DraggableCard key={opp.id} opp={opp} />
+          <DraggableCard
+            key={opp.id}
+            opp={opp}
+            contactMap={contactMap}
+            companyMap={companyMap}
+            onTaskClick={onTaskClick}
+          />
         ))}
 
         {opportunities.length === 0 && (
@@ -211,6 +295,7 @@ export default function PipelineBoardPage() {
   const { toast } = useToast();
   const [activeOpp, setActiveOpp] = useState<PipelineOpportunity | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
+  const [taskOpp, setTaskOpp] = useState<PipelineOpportunity | null>(null);
 
   const { data, isLoading } = useQuery<BoardData>({
     queryKey: ["/api/pipeline/opportunities/board"],
@@ -311,69 +396,89 @@ export default function PipelineBoardPage() {
 
   const stages = data?.stages || [];
   const board = data?.board || {};
+  const contactMap = data?.contactMap || {};
+  const companyMap = data?.companyMap || {};
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCorners}
-      onDragStart={handleDragStart}
-      onDragOver={handleDragOver}
-      onDragEnd={handleDragEnd}
-    >
-      <div className="h-full flex flex-col" data-testid="page-pipeline-board">
-        <div className="flex items-center justify-between mb-4 flex-shrink-0">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900" data-testid="text-pipeline-title">
-              Sales Pipeline
-            </h1>
-            <p className="text-sm text-gray-500 mt-1">
-              Drag cards between columns to move deals through the pipeline
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Link href="/admin/pipeline/list">
-              <Button variant="outline" size="sm" data-testid="button-list-view">
-                <List className="w-4 h-4 mr-1" />
-                List View
-              </Button>
-            </Link>
-            <Link href="/admin/pipeline/stages">
-              <Button variant="outline" size="sm" data-testid="button-manage-stages">
-                Manage Stages
-              </Button>
-            </Link>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-x-auto">
-          <div
-            className="flex gap-4 min-h-[400px] pb-4"
-            style={{ minWidth: stages.length * 296 }}
-          >
-            {stages.map((stage) => (
-              <StageColumn
-                key={stage.id}
-                stage={stage}
-                opportunities={board[stage.id]?.opportunities || []}
-                isOver={overId === stage.id}
-              />
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <DragOverlay
-        dropAnimation={{
-          duration: 180,
-          easing: "cubic-bezier(0.18, 0.67, 0.6, 1.22)",
-        }}
+    <>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleDragEnd}
       >
-        {activeOpp ? (
-          <div className="w-[264px]">
-            <CardDisplay opp={activeOpp} isDragging />
+        <div className="h-full flex flex-col" data-testid="page-pipeline-board">
+          <div className="flex items-center justify-between mb-4 flex-shrink-0">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900" data-testid="text-pipeline-title">
+                Sales Pipeline
+              </h1>
+              <p className="text-sm text-gray-500 mt-1">
+                Drag cards to move deals through the pipeline. Hover a card to add a follow-up task.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Link href="/admin/pipeline/list">
+                <Button variant="outline" size="sm" data-testid="button-list-view">
+                  <List className="w-4 h-4 mr-1" />
+                  List View
+                </Button>
+              </Link>
+              <Link href="/admin/pipeline/stages">
+                <Button variant="outline" size="sm" data-testid="button-manage-stages">
+                  Manage Stages
+                </Button>
+              </Link>
+            </div>
           </div>
-        ) : null}
-      </DragOverlay>
-    </DndContext>
+
+          <div className="flex-1 overflow-x-auto">
+            <div
+              className="flex gap-4 min-h-[400px] pb-4"
+              style={{ minWidth: stages.length * 288 }}
+            >
+              {stages.map((stage) => (
+                <StageColumn
+                  key={stage.id}
+                  stage={stage}
+                  opportunities={board[stage.id]?.opportunities || []}
+                  isOver={overId === stage.id}
+                  contactMap={contactMap}
+                  companyMap={companyMap}
+                  onTaskClick={(opp) => setTaskOpp(opp)}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <DragOverlay
+          dropAnimation={{
+            duration: 180,
+            easing: "cubic-bezier(0.18, 0.67, 0.6, 1.22)",
+          }}
+        >
+          {activeOpp ? (
+            <div className="w-[256px]">
+              <CardDisplay
+                opp={activeOpp}
+                isDragging
+                contactMap={contactMap}
+                companyMap={companyMap}
+              />
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
+
+      <QuickTaskModal
+        open={!!taskOpp}
+        onClose={() => setTaskOpp(null)}
+        opportunityId={taskOpp?.id}
+        contactId={taskOpp?.contactId}
+        defaultTitle={taskOpp ? `Follow up with ${taskOpp.title}` : ""}
+      />
+    </>
   );
 }

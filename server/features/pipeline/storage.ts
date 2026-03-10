@@ -105,7 +105,23 @@ export async function getOpportunitiesByStage() {
     };
   }
 
-  return { stages, board };
+  // Enrich board with contact + company snapshots for card display.
+  const contactIds = [...new Set(allOpps.map(o => o.contactId).filter(Boolean) as string[])];
+  const companyIds = [...new Set(allOpps.map(o => o.companyId).filter(Boolean) as string[])];
+
+  const [contactRows, companyRows] = await Promise.all([
+    contactIds.length
+      ? db.select({ id: crmContacts.id, firstName: crmContacts.firstName, lastName: crmContacts.lastName, phone: crmContacts.phone }).from(crmContacts).where(or(...contactIds.map(id => eq(crmContacts.id, id))))
+      : [],
+    companyIds.length
+      ? db.select({ id: crmCompanies.id, name: crmCompanies.name, city: crmCompanies.city, industry: crmCompanies.industry }).from(crmCompanies).where(or(...companyIds.map(id => eq(crmCompanies.id, id))))
+      : [],
+  ]);
+
+  const contactMap: Record<string, { id: string; firstName: string; lastName: string | null; phone: string | null }> = Object.fromEntries(contactRows.map(c => [c.id, c]));
+  const companyMap: Record<string, { id: string; name: string; city: string | null; industry: string | null }> = Object.fromEntries(companyRows.map(c => [c.id, c]));
+
+  return { stages, board, contactMap, companyMap };
 }
 
 export async function getOpportunityById(id: string): Promise<PipelineOpportunity | undefined> {
