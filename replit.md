@@ -191,10 +191,16 @@ Providers: Mailgun, Resend, Stripe (planned), OpenAI (scaffold), Cloudflare R2 (
 - `STRIPE_SECRET_KEY` — (planned)
 - `CLOUDFLARE_R2_ACCESS_KEY` / `R2_SECRET_KEY` / `R2_BUCKET` / `R2_ENDPOINT` / `R2_PUBLIC_URL` — (planned)
 
-## Admin Credentials
-- **Email**: admin@vivawebdesigns.com
-- **Password**: VivaAdmin2026!
-- **Role**: admin
+## Admin Account Provisioning (Secure Bootstrap)
+The initial admin account is created via `POST /api/admin/seed-admin`. This endpoint is **not** publicly accessible:
+- In **production**: blocked unless `SEED_ADMIN_SECRET` env var is set.
+- When `SEED_ADMIN_SECRET` is set: the caller must send `X-Seed-Secret: <value>` header.
+- Admin email and password come from `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` env vars — no defaults in code.
+- Idempotent: safe to call multiple times (no-op if account already exists).
+
+**For local dev**, set `SEED_ADMIN_EMAIL` and `SEED_ADMIN_PASSWORD` in Replit Secrets. No secret header is required in development unless `SEED_ADMIN_SECRET` is also set.
+
+**Do not document plaintext credentials here or anywhere in source code.**
 
 ## Technical Notes
 - **Zod**: `shared/schema.ts` imports `z` from `"zod/v4"` (required for drizzle-zod v0.8.3 compatibility). All `zodResolver()` calls in form files use bridged wrapper at `client/src/lib/zodResolver.ts` — single cast site for Zod v3/v4 bridge.

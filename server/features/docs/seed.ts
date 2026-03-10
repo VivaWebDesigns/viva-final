@@ -280,7 +280,7 @@ Third-party integration configuration. See Integrations System Overview.`,
 | Method | Path | Roles | Description |
 |--------|------|-------|-------------|
 | GET | /api/auth/me | Any | Current user info |
-| POST | /api/auth/seed-admin | Public* | Create initial admin user |
+| POST | /api/admin/seed-admin | Gated (X-Seed-Secret header + env vars) | One-time bootstrap: create initial admin user |
 | GET | /api/admin/stats | Any | Dashboard statistics |
 | GET | /api/admin/audit-logs | Admin | Audit log viewer |
 
