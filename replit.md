@@ -167,3 +167,19 @@ For role-gating tests, use `vi.hoisted(() => vi.fn())` so the return value can b
 | Clients | `smoke/clients.test.tsx` | Renders + search input |
 | Admin Settings | `smoke/admin-settings.test.tsx` | Admin sees page; sales_rep/developer see "Access Denied" |
 | Demo Builder | `smoke/demo-builder.test.tsx` | Renders + Business Name input present |
+
+## Architecture Documentation
+
+Internal architecture docs live in `docs/architecture/`. Start with the README there for a full index. Key documents:
+
+| Document | Topic |
+|----------|-------|
+| `README.md` | System overview, stack diagram, quick-reference conventions |
+| `role-matrix.md` | Full permission table: API endpoints + frontend routes + sidebar |
+| `data-lifecycle.md` | Lead → Opportunity → Onboarding → Client data flow |
+| `event-model.md` | Notification triggers, channels, email delivery, audit logs |
+| `module-map.md` | Feature module boundaries, responsibilities, inter-module dependencies |
+| `mutation-schema-patterns.md` | Zod validation patterns for POST/PUT routes |
+| `query-freshness-strategy.md` | TanStack Query STALE tiers and cache invalidation |
+| `audit-log-patterns.md` | logAudit() call shapes per entity |
+| `logging-policy.md` | What the server logs, what it redacts, why |
