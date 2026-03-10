@@ -76,7 +76,7 @@ export async function sendEmail(
     }
 
     const result = await response.json() as { id?: string };
-    console.log(`[Mailgun] Email sent to ${to} — ID: ${result.id}`);
+    console.log(`[Mailgun] Email sent — ID: ${result.id}`);
     return {
       success: true,
       status: "sent",

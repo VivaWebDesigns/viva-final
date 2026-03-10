@@ -37,25 +37,44 @@ export function log(message: string, source = "express") {
   console.log(`${formattedTime} [${source}] ${message}`);
 }
 
+// Request correlation ID + structured route logger.
+// Logs method / path / status / duration / requestId for every /api call.
+// For 4xx/5xx responses, appends the error `message` string only — never the full body.
+// The /api/auth/* paths are excluded (handled by better-auth before this middleware).
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
 
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
+  const requestId = Math.random().toString(36).slice(2, 10);
+  res.locals.requestId = requestId;
+
+  let errorMessage: string | undefined;
+  const originalResJson = res.json.bind(res);
+  res.json = function (body: unknown) {
+    const status = res.statusCode;
+    if (
+      status >= 400 &&
+      body !== null &&
+      typeof body === "object" &&
+      "message" in (body as object) &&
+      typeof (body as Record<string, unknown>).message === "string"
+    ) {
+      errorMessage = (body as Record<string, unknown>).message as string;
+    }
+    return originalResJson(body);
   };
 
   res.on("finish", () => {
+    if (!path.startsWith("/api") || path.startsWith("/api/auth")) return;
     const duration = Date.now() - start;
-    if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
-
+    const status = res.statusCode;
+    let logLine = `${req.method} ${path} ${status} in ${duration}ms [${requestId}]`;
+    if (errorMessage) {
+      logLine += ` — ${errorMessage}`;
+    }
+    if (status >= 500) {
+      console.error(`[express] ${logLine}`);
+    } else {
       log(logLine);
     }
   });
@@ -66,11 +85,17 @@ app.use((req, res, next) => {
 (async () => {
   await registerRoutes(httpServer, app);
 
-  app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
+  app.use((err: any, req: Request, res: Response, next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
+    const requestId = (res.locals.requestId as string | undefined) ?? "?";
 
-    console.error("Internal Server Error:", err);
+    // Structured error log: method + path + status + requestId + message only.
+    // Full stack trace is printed in non-production environments only (for dev debugging).
+    console.error(`[express] error ${req.method} ${req.path} ${status} [${requestId}] — ${message}`);
+    if (process.env.NODE_ENV !== "production") {
+      console.error(err);
+    }
 
     if (res.headersSent) {
       return next(err);
