@@ -2,21 +2,48 @@ import { useState } from "react";
 import { useAuth } from "./useAuth";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
-import { Lock, Mail, Eye, EyeOff, AlertCircle, Terminal, Zap } from "lucide-react";
+import { Lock, Mail, Eye, EyeOff, AlertCircle, Terminal, Zap, Shield, Users, Code2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 import logoIcon from "@assets/icon_1772859732991.png";
 
-// Dev-only autofill credentials are read from environment variables so that
-// no plaintext passwords live in source code. Set VITE_DEV_ADMIN_EMAIL and
-// VITE_DEV_ADMIN_PASSWORD in your local .env / Replit Secrets. The autofill
-// card is stripped from production builds entirely by Vite (import.meta.env.DEV).
-const DEV_CREDENTIALS = {
-  email: import.meta.env.VITE_DEV_ADMIN_EMAIL || "",
-  password: import.meta.env.VITE_DEV_ADMIN_PASSWORD || "",
-};
+// Dev-only credentials are read from environment variables so no plaintext
+// passwords live in source code. The entire dev card is stripped from
+// production builds by Vite (import.meta.env.DEV is false at build time).
+const DEV_USERS = [
+  {
+    role: "Admin",
+    email: import.meta.env.VITE_DEV_ADMIN_EMAIL || "",
+    password: import.meta.env.VITE_DEV_ADMIN_PASSWORD || "",
+    icon: Shield,
+    color: "text-purple-700",
+    bg: "bg-purple-50 hover:bg-purple-100",
+    border: "border-purple-200",
+    dot: "bg-purple-500",
+  },
+  {
+    role: "Developer",
+    email: import.meta.env.VITE_DEV_DEVELOPER_EMAIL || "",
+    password: import.meta.env.VITE_DEV_DEVELOPER_PASSWORD || "",
+    icon: Code2,
+    color: "text-blue-700",
+    bg: "bg-blue-50 hover:bg-blue-100",
+    border: "border-blue-200",
+    dot: "bg-blue-500",
+  },
+  {
+    role: "Sales Rep",
+    email: import.meta.env.VITE_DEV_SALESREP_EMAIL || "",
+    password: import.meta.env.VITE_DEV_SALESREP_PASSWORD || "",
+    icon: Users,
+    color: "text-green-700",
+    bg: "bg-green-50 hover:bg-green-100",
+    border: "border-green-200",
+    dot: "bg-green-500",
+  },
+].filter((u) => u.email && u.password);
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -156,7 +183,7 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {import.meta.env.DEV && (
+        {import.meta.env.DEV && DEV_USERS.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -173,32 +200,58 @@ export default function LoginPage() {
               </span>
             </div>
 
-            <div className="space-y-1.5 mb-3 font-mono text-xs bg-white border border-amber-100 rounded-lg px-3 py-2.5">
-              <div className="flex items-center justify-between gap-4">
-                <span className="text-gray-400 select-none">email</span>
-                <span className="text-gray-800 select-all" data-testid="text-dev-email">
-                  {DEV_CREDENTIALS.email}
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-4">
-                <span className="text-gray-400 select-none">password</span>
-                <span className="text-gray-800 select-all" data-testid="text-dev-password">
-                  {DEV_CREDENTIALS.password}
-                </span>
-              </div>
+            <div className="space-y-2">
+              {DEV_USERS.map((u) => {
+                const Icon = u.icon;
+                return (
+                  <div
+                    key={u.role}
+                    className="bg-white border border-gray-100 rounded-lg px-3 py-2.5 space-y-1.5"
+                    data-testid={`card-dev-user-${u.role.toLowerCase().replace(" ", "-")}`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <div className={`w-2 h-2 rounded-full ${u.dot} flex-shrink-0`} />
+                        <span className={`text-[11px] font-semibold ${u.color}`}>{u.role}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => { setEmail(u.email); setPassword(u.password); }}
+                        className={`flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded border transition-colors ${u.color} ${u.bg} ${u.border}`}
+                        data-testid={`button-use-${u.role.toLowerCase().replace(" ", "-")}`}
+                      >
+                        <Zap className="w-2.5 h-2.5" />
+                        Use
+                      </button>
+                    </div>
+                    <div className="font-mono text-xs space-y-0.5 pl-3.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-400 w-14 flex-shrink-0">email</span>
+                        <span className="text-gray-700 select-all" data-testid={`text-dev-email-${u.role.toLowerCase().replace(" ", "-")}`}>{u.email}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-400 w-14 flex-shrink-0">password</span>
+                        <span className="text-gray-700 select-all" data-testid={`text-dev-password-${u.role.toLowerCase().replace(" ", "-")}`}>{u.password}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
             <button
               type="button"
               onClick={() => {
-                setEmail(DEV_CREDENTIALS.email);
-                setPassword(DEV_CREDENTIALS.password);
+                if (DEV_USERS[0]) {
+                  setEmail(DEV_USERS[0].email);
+                  setPassword(DEV_USERS[0].password);
+                }
               }}
-              className="w-full flex items-center justify-center gap-1.5 text-xs font-medium text-amber-700 hover:text-amber-900 bg-amber-100 hover:bg-amber-200 border border-amber-200 rounded-lg py-2 transition-colors"
+              className="w-full flex items-center justify-center gap-1.5 text-xs font-medium text-amber-700 hover:text-amber-900 bg-amber-100 hover:bg-amber-200 border border-amber-200 rounded-lg py-2 transition-colors mt-3"
               data-testid="button-use-dev-credentials"
             >
               <Zap className="w-3.5 h-3.5" />
-              Auto-fill credentials
+              Auto-fill Admin credentials
             </button>
           </motion.div>
         )}

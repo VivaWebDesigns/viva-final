@@ -4,6 +4,7 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import { toNodeHandler } from "better-auth/node";
 import { auth } from "./features/auth/auth";
+import { seedDevUsers } from "./features/admin/dev-seed";
 
 const app = express();
 const httpServer = createServer(app);
@@ -120,6 +121,7 @@ app.use((req, res, next) => {
     },
     () => {
       log(`serving on port ${port}`);
+      seedDevUsers().catch((err) => console.error("[dev-seed] error:", err));
     },
   );
 })();

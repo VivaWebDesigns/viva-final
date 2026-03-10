@@ -47,3 +47,9 @@ waitForPort = 5000
 
 [userenv.shared]
 BETTER_AUTH_SECRET = "8f718caeede2b1bef9543bb01153175e84d41d5b54de104e243a3af4db7966f9"
+
+[userenv.development]
+VITE_DEV_DEVELOPER_EMAIL = "dev@vivawebdesigns.com"
+VITE_DEV_DEVELOPER_PASSWORD = "DevTest2024!"
+VITE_DEV_SALESREP_EMAIL = "sales@vivawebdesigns.com"
+VITE_DEV_SALESREP_PASSWORD = "SalesTest2024!"
