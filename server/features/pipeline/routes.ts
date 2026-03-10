@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { requireRole } from "../auth/middleware";
 import { logAudit } from "../audit/service";
-import { notifyStageChange, notifyOpportunityAssignment } from "../notifications/triggers";
+import { notifyStageChange, notifyOpportunityAssignment, notifyLeadConverted } from "../notifications/triggers";
 import * as pipelineStorage from "./storage";
 import { insertPipelineStageSchema, insertPipelineOpportunitySchema, insertPipelineActivitySchema, OPPORTUNITY_STATUSES, type InsertPipelineOpportunity } from "@shared/schema";
 import { appendHistorySafe } from "../history/service";
@@ -312,6 +312,11 @@ router.post("/convert-lead/:leadId", requireRole("admin", "sales_rep"), async (r
     const actor = req.authUser ? { actorId: req.authUser.id, actorName: req.authUser.name } : {};
     appendHistorySafe({ entityType: "lead", entityId: leadId, event: "converted", toValue: opportunity.id, note: `Converted to opportunity: "${opportunity.title}"`, ...actor });
     appendHistorySafe({ entityType: "opportunity", entityId: opportunity.id, event: "created_from_lead", fromValue: leadId, note: `Created from lead`, ...actor });
+
+    try {
+      const leadForNotify = { id: leadId, title: opportunity.title };
+      notifyLeadConverted(leadForNotify, { id: opportunity.id, title: opportunity.title }, req.authUser?.id);
+    } catch (_) {}
 
     try {
       const convertedStatus = await upsertLeadStatus({ name: "Converted", slug: "converted", color: "#7c3aed", sortOrder: 99 });

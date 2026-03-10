@@ -138,6 +138,14 @@ export async function markAllAsRead(userId: string): Promise<number> {
   return result.length;
 }
 
+export async function deleteNotification(notificationId: string, userId: string): Promise<boolean> {
+  const result = await db
+    .delete(notifications)
+    .where(and(eq(notifications.id, notificationId), eq(notifications.recipientId, userId)))
+    .returning();
+  return result.length > 0;
+}
+
 export async function getPreferences(userId: string) {
   return db
     .select()

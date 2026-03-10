@@ -123,10 +123,21 @@ client/src/features/<module>/
 **Responsibility**: In-app and email notification delivery and preferences.
 
 - `createNotification()` — core write function; do not bypass this to write directly to the table.
-- `triggers.ts` — business-event trigger functions called by other modules.
+- `triggers.ts` — business-event trigger functions called by other modules. Current triggers:
+  - `notifyNewLead` — new lead via form/CRM → all admins + sales_reps (both channel)
+  - `notifyLeadAssignment` — lead assigned → assignee (both)
+  - `notifyLeadConverted` — lead converted to opportunity → all admins + sales_reps except converter (in_app)
+  - `notifyStageChange` — opportunity stage moved → owner + admins (in_app)
+  - `notifyOpportunityAssignment` — opportunity assigned → assignee (both)
+  - `notifyOnboardingAssignment` — onboarding assigned → assignee (both)
+  - `notifyOnboardingStatusChange` — onboarding status updated → owner + admins (in_app)
+  - `notifySystemAlert` — system/integration alert → admins + developers (both)
 - `mailgun.ts` — Mailgun HTTP client for email delivery.
-- Per-user read/mark-read/preferences API.
+- Per-user CRUD: list, mark-as-read, mark-all-read, delete-one, preferences.
+- `DELETE /api/notifications/:id` — users can dismiss/delete their own notifications.
 - All writes use the `notifications` table; email status is tracked in-row.
+- **Notification types**: `new_lead`, `lead_assignment`, `lead_converted`, `stage_change`, `opportunity_assignment`, `onboarding_assignment`, `onboarding_status`, `system_alert`.
+- **Frontend (P19 enhancements)**: Date-grouped display (Today/Yesterday/Earlier This Week/Older), optimistic mark-as-read + delete, 30s auto-refresh, per-item "View [Entity]" CTA button, dismiss button, broader cache invalidation via prefix key.
 
 ### `reports`
 **Responsibility**: Aggregated business analytics.

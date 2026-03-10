@@ -52,6 +52,18 @@ router.put("/read-all", requireAuth, async (req, res) => {
   }
 });
 
+router.delete("/:id", requireAuth, async (req, res) => {
+  try {
+    const success = await notificationService.deleteNotification(req.params.id as string, req.authUser!.id);
+    if (!success) {
+      return res.status(404).json({ message: "Notification not found" });
+    }
+    res.json({ message: "Deleted" });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 router.get("/preferences", requireAuth, async (req, res) => {
   try {
     const prefs = await notificationService.getPreferences(req.authUser!.id);

@@ -489,7 +489,7 @@ export type OnboardingNote = typeof onboardingNotes.$inferSelect;
 // ─── Notification Tables ─────────────────────────────────────────────
 
 export const NOTIFICATION_TYPES = [
-  "new_lead", "lead_assignment", "stage_change", "opportunity_assignment",
+  "new_lead", "lead_assignment", "lead_converted", "stage_change", "opportunity_assignment",
   "onboarding_assignment", "onboarding_status", "system_alert",
 ] as const;
 export type NotificationType = typeof NOTIFICATION_TYPES[number];

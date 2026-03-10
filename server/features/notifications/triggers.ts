@@ -177,6 +177,34 @@ export async function notifyOnboardingStatusChange(
   }
 }
 
+export async function notifyLeadConverted(
+  lead: { id: string; title: string },
+  opportunity: { id: string; title: string },
+  convertedByUserId?: string
+) {
+  try {
+    const recipients = await getUsersByRole("admin", "sales_rep");
+    await Promise.all(
+      recipients
+        .filter((r) => r.id !== convertedByUserId)
+        .map((r) =>
+          createNotification({
+            recipientId: r.id,
+            type: "lead_converted",
+            title: "Lead Converted to Opportunity",
+            message: `"${lead.title}" has been converted to the opportunity "${opportunity.title}".`,
+            relatedEntityType: "opportunity",
+            relatedEntityId: opportunity.id,
+            channel: "in_app",
+            recipientEmail: r.email,
+          })
+        )
+    );
+  } catch (error) {
+    console.error("[Triggers] notifyLeadConverted error:", error);
+  }
+}
+
 export async function notifySystemAlert(title: string, message: string) {
   try {
     const admins = await getUsersByRole("admin", "developer");
