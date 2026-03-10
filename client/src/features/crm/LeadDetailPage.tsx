@@ -134,7 +134,7 @@ export default function LeadDetailPage({ id }: { id: string }) {
       if (!res.ok) return [];
       return res.json();
     },
-    staleTime: STALE.NORMAL,
+    staleTime: STALE.MEDIUM,
   });
 
   const { data: linkedOpportunity } = useQuery<PipelineOpportunity | null>({
@@ -145,7 +145,7 @@ export default function LeadDetailPage({ id }: { id: string }) {
       const data = await res.json();
       return data;
     },
-    staleTime: STALE.NORMAL,
+    staleTime: STALE.MEDIUM,
     enabled: !!id,
   });
 

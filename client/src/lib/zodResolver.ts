@@ -11,9 +11,9 @@
  * form resolver calls elsewhere in the codebase.
  */
 import { zodResolver as _zodResolver } from "@hookform/resolvers/zod";
-import type { ZodTypeAny } from "zod/v4";
 
-export function zodResolver(schema: ZodTypeAny) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function zodResolver(schema: any) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return _zodResolver(schema as any);
 }

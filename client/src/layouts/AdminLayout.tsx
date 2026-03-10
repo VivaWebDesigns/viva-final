@@ -59,7 +59,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const { data: overdueData } = useQuery<{ totalCount: number }>({
     queryKey: ["/api/workflow/overdue-summary"],
-    staleTime: STALE.NORMAL,
+    staleTime: STALE.MEDIUM,
     refetchInterval: 5 * 60 * 1000,
   });
   const overdueCount = overdueData?.totalCount || 0;

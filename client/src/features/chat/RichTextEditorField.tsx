@@ -104,7 +104,7 @@ const RichTextEditorField = forwardRef<HTMLDivElement, RichTextEditorFieldProps>
       if (current !== incoming && incoming !== current) {
         const isFocused = editor.isFocused;
         if (!isFocused) {
-          editor.commands.setContent(incoming, false);
+          editor.commands.setContent(incoming);
         }
       }
     }, [value, editor]);

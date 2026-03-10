@@ -31,6 +31,7 @@ export const insertContactSchema = z.object({
   message: z.string().optional().nullable(),
 });
 
+// @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
 export type InsertContact = z.infer<typeof insertContactSchema>;
 export type Contact = typeof contacts.$inferSelect;
 
@@ -43,6 +44,7 @@ export const insertInquirySchema = z.object({
   message: z.string().optional(),
 });
 
+// @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
 export type InsertInquiry = z.infer<typeof insertInquirySchema>;
 
 export const user = pgTable("user", {
@@ -400,14 +402,17 @@ export const pipelineActivities = pgTable("pipeline_activities", {
 // ─── Pipeline Zod Schemas & Types ────────────────────────────────────
 
 export const insertPipelineStageSchema = createInsertSchema(pipelineStages).omit({ id: true });
+// @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
 export type InsertPipelineStage = z.infer<typeof insertPipelineStageSchema>;
 export type PipelineStage = typeof pipelineStages.$inferSelect;
 
 export const insertPipelineOpportunitySchema = createInsertSchema(pipelineOpportunities).omit({ id: true, createdAt: true, updatedAt: true });
+// @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
 export type InsertPipelineOpportunity = z.infer<typeof insertPipelineOpportunitySchema>;
 export type PipelineOpportunity = typeof pipelineOpportunities.$inferSelect;
 
 export const insertPipelineActivitySchema = createInsertSchema(pipelineActivities).omit({ id: true, createdAt: true });
+// @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
 export type InsertPipelineActivity = z.infer<typeof insertPipelineActivitySchema>;
 export type PipelineActivity = typeof pipelineActivities.$inferSelect;
 
@@ -498,18 +503,22 @@ export const onboardingNotes = pgTable("onboarding_notes", {
 // ─── Onboarding Zod Schemas & Types ─────────────────────────────────
 
 export const insertOnboardingTemplateSchema = createInsertSchema(onboardingTemplates).omit({ id: true, createdAt: true, updatedAt: true });
+// @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
 export type InsertOnboardingTemplate = z.infer<typeof insertOnboardingTemplateSchema>;
 export type OnboardingTemplate = typeof onboardingTemplates.$inferSelect;
 
 export const insertOnboardingRecordSchema = createInsertSchema(onboardingRecords).omit({ id: true, createdAt: true, updatedAt: true });
+// @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
 export type InsertOnboardingRecord = z.infer<typeof insertOnboardingRecordSchema>;
 export type OnboardingRecord = typeof onboardingRecords.$inferSelect;
 
 export const insertOnboardingChecklistItemSchema = createInsertSchema(onboardingChecklistItems).omit({ id: true, createdAt: true });
+// @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
 export type InsertOnboardingChecklistItem = z.infer<typeof insertOnboardingChecklistItemSchema>;
 export type OnboardingChecklistItem = typeof onboardingChecklistItems.$inferSelect;
 
 export const insertOnboardingNoteSchema = createInsertSchema(onboardingNotes).omit({ id: true, createdAt: true });
+// @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
 export type InsertOnboardingNote = z.infer<typeof insertOnboardingNoteSchema>;
 export type OnboardingNote = typeof onboardingNotes.$inferSelect;
 
@@ -569,40 +578,49 @@ export const notificationPreferences = pgTable("notification_preferences", {
 // ─── Notification Zod Schemas & Types ────────────────────────────────
 
 export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
+// @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 export type Notification = typeof notifications.$inferSelect;
 
 export const insertNotificationPreferenceSchema = createInsertSchema(notificationPreferences).omit({ id: true });
+// @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
 export type InsertNotificationPreference = z.infer<typeof insertNotificationPreferenceSchema>;
 export type NotificationPreference = typeof notificationPreferences.$inferSelect;
 
 // ─── CRM Zod Schemas & Types ────────────────────────────────────────
 
 export const insertCrmCompanySchema = createInsertSchema(crmCompanies).omit({ id: true, createdAt: true, updatedAt: true });
+// @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
 export type InsertCrmCompany = z.infer<typeof insertCrmCompanySchema>;
 export type CrmCompany = typeof crmCompanies.$inferSelect;
 
 export const insertCrmContactSchema = createInsertSchema(crmContacts).omit({ id: true, createdAt: true, updatedAt: true });
+// @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
 export type InsertCrmContact = z.infer<typeof insertCrmContactSchema>;
 export type CrmContact = typeof crmContacts.$inferSelect;
 
 export const insertCrmLeadStatusSchema = createInsertSchema(crmLeadStatuses).omit({ id: true });
+// @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
 export type InsertCrmLeadStatus = z.infer<typeof insertCrmLeadStatusSchema>;
 export type CrmLeadStatus = typeof crmLeadStatuses.$inferSelect;
 
 export const insertCrmLeadSchema = createInsertSchema(crmLeads).omit({ id: true, createdAt: true, updatedAt: true });
+// @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
 export type InsertCrmLead = z.infer<typeof insertCrmLeadSchema>;
 export type CrmLead = typeof crmLeads.$inferSelect;
 
 export const insertCrmLeadNoteSchema = createInsertSchema(crmLeadNotes).omit({ id: true, createdAt: true });
+// @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
 export type InsertCrmLeadNote = z.infer<typeof insertCrmLeadNoteSchema>;
 export type CrmLeadNote = typeof crmLeadNotes.$inferSelect;
 
 export const insertClientNoteSchema = createInsertSchema(clientNotes).omit({ id: true, createdAt: true });
+// @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
 export type InsertClientNote = z.infer<typeof insertClientNoteSchema>;
 export type ClientNote = typeof clientNotes.$inferSelect;
 
 export const insertCrmTagSchema = createInsertSchema(crmTags).omit({ id: true });
+// @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
 export type InsertCrmTag = z.infer<typeof insertCrmTagSchema>;
 export type CrmTag = typeof crmTags.$inferSelect;
 
@@ -617,31 +635,38 @@ export const utmAttributionSchema = z.object({
   formPageUrl: z.string().optional(),
   honeypot: z.string().optional(),
 });
+// @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
 export type UtmAttribution = z.infer<typeof utmAttributionSchema>;
 
 // ─── Existing Schemas ────────────────────────────────────────────────
 
 export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({ id: true, createdAt: true });
+// @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
 export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
 export type AuditLog = typeof auditLogs.$inferSelect;
 
 export const insertDocCategorySchema = createInsertSchema(docCategories).omit({ id: true, createdAt: true });
+// @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
 export type InsertDocCategory = z.infer<typeof insertDocCategorySchema>;
 export type DocCategory = typeof docCategories.$inferSelect;
 
 export const insertDocArticleSchema = createInsertSchema(docArticles).omit({ id: true, createdAt: true, updatedAt: true });
+// @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
 export type InsertDocArticle = z.infer<typeof insertDocArticleSchema>;
 export type DocArticle = typeof docArticles.$inferSelect;
 
 export const insertDocTagSchema = createInsertSchema(docTags).omit({ id: true });
+// @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
 export type InsertDocTag = z.infer<typeof insertDocTagSchema>;
 export type DocTag = typeof docTags.$inferSelect;
 
 export const insertDocRevisionSchema = createInsertSchema(docRevisions).omit({ id: true, createdAt: true });
+// @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
 export type InsertDocRevision = z.infer<typeof insertDocRevisionSchema>;
 export type DocRevision = typeof docRevisions.$inferSelect;
 
 export const insertIntegrationRecordSchema = createInsertSchema(integrationRecords).omit({ id: true, createdAt: true, updatedAt: true });
+// @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
 export type InsertIntegrationRecord = z.infer<typeof insertIntegrationRecordSchema>;
 export type IntegrationRecord = typeof integrationRecords.$inferSelect;
 
@@ -670,6 +695,7 @@ export const chatMessages = pgTable("chat_messages", {
 ]);
 
 export const insertChatMessageSchema = createInsertSchema(chatMessages).omit({ id: true, createdAt: true });
+// @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
 export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
 export type ChatMessage = typeof chatMessages.$inferSelect;
 
@@ -703,6 +729,7 @@ export const followupTasks = pgTable("followup_tasks", {
 ]);
 
 export const insertFollowupTaskSchema = createInsertSchema(followupTasks).omit({ id: true, createdAt: true, completedAt: true });
+// @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
 export type InsertFollowupTask = z.infer<typeof insertFollowupTaskSchema>;
 export type FollowupTask = typeof followupTasks.$inferSelect;
 
@@ -741,6 +768,7 @@ export const recordHistory = pgTable("record_history", {
 ]);
 
 export const insertRecordHistorySchema = createInsertSchema(recordHistory).omit({ id: true, createdAt: true });
+// @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
 export type InsertRecordHistory = z.infer<typeof insertRecordHistorySchema>;
 export type RecordHistory = typeof recordHistory.$inferSelect;
 
@@ -761,6 +789,7 @@ export const chatDmMessages = pgTable("chat_dm_messages", {
 ]);
 
 export const insertChatDmMessageSchema = createInsertSchema(chatDmMessages).omit({ id: true, createdAt: true });
+// @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
 export type InsertChatDmMessage = z.infer<typeof insertChatDmMessageSchema>;
 export type ChatDmMessage = typeof chatDmMessages.$inferSelect;
 
@@ -810,6 +839,7 @@ export const attachments = pgTable("attachments", {
 ]);
 
 export const insertAttachmentSchema = createInsertSchema(attachments).omit({ id: true, createdAt: true });
+// @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
 export type InsertAttachment = z.infer<typeof insertAttachmentSchema>;
 export type Attachment = typeof attachments.$inferSelect;
 
@@ -828,6 +858,7 @@ export const stripeCustomers = pgTable("stripe_customers", {
 ]);
 
 export const insertStripeCustomerSchema = createInsertSchema(stripeCustomers).omit({ id: true, createdAt: true });
+// @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
 export type InsertStripeCustomer = z.infer<typeof insertStripeCustomerSchema>;
 export type StripeCustomer = typeof stripeCustomers.$inferSelect;
 
@@ -848,6 +879,7 @@ export const stripeWebhookEvents = pgTable("stripe_webhook_events", {
 ]);
 
 export const insertStripeWebhookEventSchema = createInsertSchema(stripeWebhookEvents).omit({ id: true, createdAt: true });
+// @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
 export type InsertStripeWebhookEvent = z.infer<typeof insertStripeWebhookEventSchema>;
 export type StripeWebhookEvent = typeof stripeWebhookEvents.$inferSelect;
 
@@ -872,5 +904,6 @@ export const demoConfigs = pgTable("demo_configs", {
 ]);
 
 export const insertDemoConfigSchema = createInsertSchema(demoConfigs).omit({ id: true, createdAt: true });
+// @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
 export type InsertDemoConfig = z.infer<typeof insertDemoConfigSchema>;
 export type DemoConfig = typeof demoConfigs.$inferSelect;

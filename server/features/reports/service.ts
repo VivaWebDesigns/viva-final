@@ -245,10 +245,10 @@ export async function getNotificationSummary(range?: DateRange) {
 }
 
 export async function getOverdueLeads(range?: DateRange) {
-  const now = new Date();
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
   const conditions = dateFilter(crmLeads.createdAt, range);
-  conditions.push(lt(crmLeads.followUpDate, now));
-  conditions.push(sql`${crmLeads.followUpDate} IS NOT NULL`);
+  conditions.push(lt(crmLeads.updatedAt, sevenDaysAgo));
 
   const rows = await db
     .select({ count: sql<number>`count(*)::int` })

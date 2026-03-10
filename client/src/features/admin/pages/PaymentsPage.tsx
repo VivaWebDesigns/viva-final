@@ -70,18 +70,18 @@ export default function PaymentsPage() {
 
   const { data: status, isLoading: statusLoading } = useQuery<BillingStatus>({
     queryKey: ["/api/billing/status"],
-    staleTime: STALE.NORMAL,
+    staleTime: STALE.MEDIUM,
   });
 
   const { data: events = [], isLoading: eventsLoading } = useQuery<WebhookEvent[]>({
     queryKey: ["/api/billing/events"],
-    staleTime: STALE.NORMAL,
+    staleTime: STALE.MEDIUM,
     refetchInterval: 30000,
   });
 
   const { data: customers = [], isLoading: customersLoading } = useQuery<StripeCustomer[]>({
     queryKey: ["/api/billing/customers"],
-    staleTime: STALE.NORMAL,
+    staleTime: STALE.MEDIUM,
   });
 
   const createCustomerMutation = useMutation({

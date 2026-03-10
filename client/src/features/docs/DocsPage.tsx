@@ -134,7 +134,7 @@ function RevisionPanel({ articleSlug, onRestore }: RevisionPanelProps) {
       if (!res.ok) throw new Error("Failed to load revisions");
       return res.json();
     },
-    staleTime: STALE.NORMAL,
+    staleTime: STALE.MEDIUM,
     enabled: !!articleSlug,
   });
 
@@ -217,7 +217,7 @@ export default function DocsPage() {
       return res.json();
     },
     enabled: !!selectedArticleSlug,
-    staleTime: STALE.NORMAL,
+    staleTime: STALE.MEDIUM,
   });
 
   const deleteMutation = useMutation({

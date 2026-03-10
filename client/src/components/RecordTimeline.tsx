@@ -57,7 +57,7 @@ export function RecordTimeline({ entityType, entityId, limit = 15, className }: 
       if (!res.ok) throw new Error("Failed to load history");
       return res.json();
     },
-    staleTime: STALE.NORMAL,
+    staleTime: STALE.MEDIUM,
     enabled: !!entityId,
   });
 

@@ -195,7 +195,7 @@ export default function TeamChatPage() {
       const res = await fetch(`/api/chat/pinned?channel=${activeChannel}`, { credentials: "include" });
       return res.json();
     },
-    staleTime: STALE.NORMAL,
+    staleTime: STALE.MEDIUM,
     enabled: !isInDm,
   });
 
