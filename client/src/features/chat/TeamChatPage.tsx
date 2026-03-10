@@ -12,6 +12,7 @@ import {
   MessageCircle, Plus, Wifi, WifiOff, Circle,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
+import RichTextEditor, { type RichTextEditorHandle, sanitizeHtml } from "./RichTextEditor";
 
 interface ChatMessage {
   id: string;
@@ -125,19 +126,19 @@ export default function TeamChatPage() {
   const [activeChannel, setActiveChannel] = useState<string>("general");
   const [activeDmUserId, setActiveDmUserId] = useState<string | null>(null);
   const [threadParentId, setThreadParentId] = useState<string | null>(null);
-  const [draft, setDraft] = useState("");
+  const [editorIsEmpty, setEditorIsEmpty] = useState(true);
   const [threadDraft, setThreadDraft] = useState("");
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showEmojiFor, setShowEmojiFor] = useState<string | null>(null);
   const [showPinned, setShowPinned] = useState(false);
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
-  const [mentionStart, setMentionStart] = useState(0);
+  const [mentionQueryLen, setMentionQueryLen] = useState(0);
   const [showDmPicker, setShowDmPicker] = useState(false);
   const [typingUsers, setTypingUsers] = useState<TypingState[]>([]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const editorRef = useRef<RichTextEditorHandle>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isTypingRef = useRef(false);
   const isInDm = !!activeDmUserId;
@@ -389,48 +390,42 @@ export default function TeamChatPage() {
 
   const canDelete = (msg: ChatMessage) => msg.senderId === currentUserId || role === "admin" || role === "developer";
 
-  const handleSend = () => {
-    const content = draft.trim();
-    if (!content) return;
+  const handleEditorSend = useCallback((html: string) => {
+    const trimmed = html.trim();
+    if (!trimmed || trimmed === "<p></p>") return;
     emitTypingStop();
-    if (isInDm) sendDmMutation.mutate(content);
-    else sendMutation.mutate(content);
-    setDraft("");
+    if (isInDm) sendDmMutation.mutate(trimmed);
+    else sendMutation.mutate(trimmed);
+    editorRef.current?.clearEditor();
+    setEditorIsEmpty(true);
     setMentionQuery(null);
-  };
+  }, [isInDm, emitTypingStop, sendDmMutation, sendMutation]);
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>, mode: "main" | "thread" = "main") => {
+  const handleKeyDownThread = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      if (mode === "thread") {
-        if (threadDraft.trim()) { sendThreadMutation.mutate(threadDraft.trim()); setThreadDraft(""); }
-      } else {
-        handleSend();
-      }
+      if (threadDraft.trim()) { sendThreadMutation.mutate(threadDraft.trim()); setThreadDraft(""); }
     }
   };
 
-  const handleDraftChange = (val: string) => {
-    setDraft(val);
-    if (val.trim()) emitTypingStart();
+  const handleEditorTextChange = (text: string) => {
+    setEditorIsEmpty(!text.trim());
+    if (text.trim()) emitTypingStart();
     else emitTypingStop();
-    const cursorPos = textareaRef.current?.selectionStart ?? val.length;
-    const match = val.slice(0, cursorPos).match(/@(\w*)$/);
+    const match = text.match(/@(\w*)$/);
     if (match) {
       setMentionQuery(match[1]);
-      setMentionStart(cursorPos - match[0].length);
+      setMentionQueryLen(match[0].length);
     } else {
       setMentionQuery(null);
+      setMentionQueryLen(0);
     }
   };
 
   const insertMention = (u: TeamUser) => {
-    const cursorPos = textareaRef.current?.selectionStart ?? draft.length;
-    const before = draft.slice(0, mentionStart);
-    const after = draft.slice(cursorPos);
-    setDraft(`${before}@${u.name} ${after}`);
+    editorRef.current?.insertMentionText(mentionQueryLen, u.name);
     setMentionQuery(null);
-    setTimeout(() => textareaRef.current?.focus(), 0);
+    setMentionQueryLen(0);
   };
 
   const selectChannel = (id: string) => {
@@ -450,7 +445,8 @@ export default function TeamChatPage() {
     setThreadParentId(null);
     setShowSearch(false);
     setShowDmPicker(false);
-    setDraft("");
+    editorRef.current?.clearEditor();
+    setEditorIsEmpty(true);
   };
 
   // ── Derived data ───────────────────────────────────────────────────────────
@@ -503,9 +499,10 @@ export default function TeamChatPage() {
             </div>
           )}
           <div className="flex items-start gap-2">
-            <p className="text-sm text-gray-700 whitespace-pre-wrap break-words leading-relaxed flex-1">
-              <HighlightMentions text={msg.content} users={teamUsers} />
-            </p>
+            <div
+              className="text-sm text-gray-700 leading-relaxed flex-1 min-w-0 chat-message-content"
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(msg.content) }}
+            />
             <div className="opacity-0 group-hover:opacity-100 transition-all flex items-center gap-0.5 flex-shrink-0 mt-0.5">
               <button
                 onClick={() => setShowEmojiFor(showEmojiFor === msg.id ? null : msg.id)}
@@ -965,29 +962,28 @@ export default function TeamChatPage() {
               </div>
             )}
             <div className="flex items-end gap-2">
-              <textarea
-                ref={textareaRef}
-                value={draft}
-                onChange={(e) => handleDraftChange(e.target.value)}
-                onKeyDown={(e) => handleKeyDown(e)}
-                onBlur={emitTypingStop}
+              <RichTextEditor
+                ref={editorRef}
                 placeholder={isInDm ? `Mensaje a ${activeDmUser?.name ?? "DM"}` : `Mensaje en #${activeChannel} — @ para mencionar`}
-                rows={1}
-                className="flex-1 resize-none bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0D9488]/30 focus:border-[#0D9488] transition-colors"
-                style={{ minHeight: "40px", maxHeight: "120px" }}
+                onSend={handleEditorSend}
+                onTextChange={handleEditorTextChange}
+                onBlur={emitTypingStop}
+                disabled={sendMutation.isPending || sendDmMutation.isPending}
                 data-testid="input-chat-message"
               />
               <Button
-                onClick={handleSend}
-                disabled={!draft.trim() || sendMutation.isPending || sendDmMutation.isPending}
+                onClick={() => {
+                  const html = editorRef.current?.getHTML() ?? "";
+                  handleEditorSend(html);
+                }}
+                disabled={editorIsEmpty || sendMutation.isPending || sendDmMutation.isPending}
                 size="icon"
-                className="bg-[#0D9488] hover:bg-[#0F766E] text-white flex-shrink-0 h-10 w-10"
+                className="bg-[#0D9488] hover:bg-[#0F766E] text-white flex-shrink-0 h-10 w-10 self-end"
                 data-testid="button-send-message"
               >
                 <Send className="w-4 h-4" />
               </Button>
             </div>
-            <p className="text-[10px] text-gray-400 mt-1">Enter para enviar · Shift+Enter nueva línea · @ para mencionar</p>
           </div>
         </div>
 
@@ -1035,7 +1031,7 @@ export default function TeamChatPage() {
                           <span className="text-xs font-semibold text-gray-900">{msg.senderName}</span>
                           <span className="text-[10px] text-gray-400">{formatTime(msg.createdAt)}</span>
                         </div>
-                        <p className="text-xs text-gray-700 whitespace-pre-wrap break-words">{msg.content}</p>
+                        <div className="text-xs text-gray-700 chat-message-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(msg.content) }} />
                       </div>
                     </div>
                   ))
@@ -1047,7 +1043,7 @@ export default function TeamChatPage() {
                   <textarea
                     value={threadDraft}
                     onChange={(e) => setThreadDraft(e.target.value)}
-                    onKeyDown={(e) => handleKeyDown(e, "thread")}
+                    onKeyDown={handleKeyDownThread}
                     placeholder="Responder en hilo..."
                     rows={1}
                     className="flex-1 resize-none bg-white border border-gray-200 rounded-lg px-2.5 py-2 text-xs text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#0D9488]/30 focus:border-[#0D9488]"

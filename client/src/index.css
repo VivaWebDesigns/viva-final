@@ -286,3 +286,33 @@
     inset: -1px;
   }
 }
+
+/* ── Tiptap rich text editor ──────────────────────────────────────── */
+.tiptap p.is-editor-empty:first-child::before {
+  color: #9ca3af;
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+.tiptap p { margin: 0; }
+.tiptap strong { font-weight: 700; }
+.tiptap em { font-style: italic; }
+.tiptap s { text-decoration: line-through; }
+.tiptap a { color: #0D9488; text-decoration: underline; cursor: pointer; }
+.tiptap a:hover { color: #0F766E; }
+.tiptap ul { list-style-type: disc; padding-left: 1.25rem; }
+.tiptap ol { list-style-type: decimal; padding-left: 1.25rem; }
+.tiptap code { background: #f3f4f6; border-radius: 0.25rem; padding: 0.1rem 0.3rem; font-size: 0.85em; font-family: monospace; }
+
+/* ── Chat message HTML content rendering ──────────────────────────── */
+.chat-message-content p { margin: 0; }
+.chat-message-content p + p { margin-top: 0.25rem; }
+.chat-message-content strong { font-weight: 700; }
+.chat-message-content em { font-style: italic; }
+.chat-message-content s { text-decoration: line-through; }
+.chat-message-content a { color: #0D9488; text-decoration: underline; }
+.chat-message-content a:hover { color: #0F766E; }
+.chat-message-content ul { list-style-type: disc; padding-left: 1.25rem; margin: 0.25rem 0; }
+.chat-message-content ol { list-style-type: decimal; padding-left: 1.25rem; margin: 0.25rem 0; }
+.chat-message-content code { background: #f3f4f6; border-radius: 0.25rem; padding: 0.1rem 0.3rem; font-size: 0.85em; font-family: monospace; }
