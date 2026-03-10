@@ -11,7 +11,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
+import RichTextEditorField from "@/features/chat/RichTextEditorField";
+import { sanitizeHtml } from "@/features/chat/RichTextEditor";
 import {
   Select,
   SelectContent,
@@ -422,18 +423,17 @@ export default function LeadDetailPage({ id }: { id: string }) {
                   </SelectContent>
                 </Select>
               </div>
-              <Textarea
+              <RichTextEditorField
                 value={noteContent}
-                onChange={(e) => setNoteContent(e.target.value)}
+                onChange={(html) => setNoteContent(html)}
                 placeholder="Add a note..."
-                className="resize-none"
-                rows={3}
+                minHeight="80px"
                 data-testid="textarea-note"
               />
               <div className="flex justify-end">
                 <Button
                   onClick={() => addNoteMutation.mutate()}
-                  disabled={!noteContent.trim() || addNoteMutation.isPending}
+                  disabled={!noteContent.replace(/<[^>]*>/g, "").trim() || addNoteMutation.isPending}
                   data-testid="button-add-note"
                 >
                   <Send className="w-4 h-4 mr-2" />
@@ -469,9 +469,11 @@ export default function LeadDetailPage({ id }: { id: string }) {
                             {new Date(note.createdAt).toLocaleString()}
                           </span>
                         </div>
-                        <p className="text-sm text-gray-700 mt-1 whitespace-pre-wrap" data-testid={`text-note-content-${note.id}`}>
-                          {note.content}
-                        </p>
+                        <div
+                          className="text-sm text-gray-700 mt-1 chat-message-content"
+                          data-testid={`text-note-content-${note.id}`}
+                          dangerouslySetInnerHTML={{ __html: sanitizeHtml(note.content) }}
+                        />
                       </div>
                     </motion.div>
                   );

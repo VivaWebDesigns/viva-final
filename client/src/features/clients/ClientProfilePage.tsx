@@ -16,7 +16,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import RichTextEditorField from "@/features/chat/RichTextEditorField";
+import { sanitizeHtml } from "@/features/chat/RichTextEditor";
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage
 } from "@/components/ui/form";
@@ -664,7 +665,7 @@ export default function ClientProfilePage({ id }: { id: string }) {
                         </Button>
                       </div>
                     </div>
-                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{note.content}</p>
+                    <div className="text-sm text-gray-700 chat-message-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(note.content) }} />
                   </div>
                 ))}
                 {notes.length === 0 && <p className="text-center py-8 text-gray-400">No notes added yet.</p>}
@@ -1119,7 +1120,7 @@ function TaskRow({ task, onToggle, onDelete, isToggling }: {
           )}
         </div>
         {task.notes && (
-          <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{task.notes}</p>
+          <div className="text-xs text-gray-500 mt-0.5 line-clamp-2 chat-message-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(task.notes) }} />
         )}
         <div className="flex items-center gap-3 mt-1.5">
           <span className={`text-xs flex items-center gap-1 ${isOverdue ? "text-red-500 font-medium" : "text-gray-400"}`}>
@@ -1282,7 +1283,7 @@ function AccountForm({ client, users, onSubmit, isPending }: {
             <FormItem>
               <FormLabel>Internal Account Notes</FormLabel>
               <FormControl>
-                <Textarea {...field} placeholder="Internal details about this account relationship..." className="min-h-[80px]" value={field.value || ""} />
+                <RichTextEditorField value={field.value || ""} onChange={(html) => field.onChange(html)} onBlur={field.onBlur} placeholder="Internal details about this account relationship..." minHeight="80px" />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -1420,7 +1421,7 @@ function AccountHealthForm({ client, onSubmit, isPending }: {
             <FormItem>
               <FormLabel>Billing Notes</FormLabel>
               <FormControl>
-                <Textarea {...field} placeholder="Payment terms, invoicing notes, special billing arrangements..." className="min-h-[80px]" value={field.value || ""} data-testid="input-billing-notes" />
+                <RichTextEditorField value={field.value || ""} onChange={(html) => field.onChange(html)} onBlur={field.onBlur} placeholder="Payment terms, invoicing notes, special billing arrangements..." minHeight="80px" data-testid="input-billing-notes" />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -1481,7 +1482,7 @@ function NoteForm({ onSubmit, isPending }: { onSubmit: (data: any) => void, isPe
               render={({ field }) => (
                 <FormItem>
                   <FormControl>
-                    <Textarea {...field} placeholder="Type a note..." className="min-h-[80px] bg-white" data-testid="input-note-content" />
+                    <RichTextEditorField value={field.value || ""} onChange={(html) => field.onChange(html)} onBlur={field.onBlur} placeholder="Type a note..." minHeight="80px" data-testid="input-note-content" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -1502,7 +1503,7 @@ function NoteForm({ onSubmit, isPending }: { onSubmit: (data: any) => void, isPe
               </FormItem>
             )}
           />
-          <Button type="submit" disabled={isPending || !form.watch("content")} data-testid="button-submit-note">
+          <Button type="submit" disabled={isPending || !form.watch("content") || form.watch("content") === "<p></p>"} data-testid="button-submit-note">
             Add Note
           </Button>
         </div>
@@ -1589,7 +1590,7 @@ function TaskForm({ onSubmit, isPending }: { onSubmit: (data: any) => void; isPe
             <FormItem>
               <FormLabel>Notes (optional)</FormLabel>
               <FormControl>
-                <Textarea {...field} placeholder="Additional details..." className="min-h-[80px]" value={field.value || ""} data-testid="input-task-notes" />
+                <RichTextEditorField value={field.value || ""} onChange={(html) => field.onChange(html)} onBlur={field.onBlur} placeholder="Additional details..." minHeight="80px" data-testid="input-task-notes" />
               </FormControl>
               <FormMessage />
             </FormItem>

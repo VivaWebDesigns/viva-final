@@ -7,7 +7,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
+import RichTextEditorField from "@/features/chat/RichTextEditorField";
+import { sanitizeHtml } from "@/features/chat/RichTextEditor";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   ArrowLeft, DollarSign, Calendar, Building2, User as UserIcon,
@@ -334,7 +335,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
               {opp.notes && (
                 <div className="pt-3 border-t">
                   <p className="text-xs text-gray-400 mb-1">Notes</p>
-                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{opp.notes}</p>
+                  <div className="text-sm text-gray-700 chat-message-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(opp.notes ?? "") }} />
                 </div>
               )}
             </CardContent>
@@ -357,17 +358,17 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                     <SelectItem value="task">Task</SelectItem>
                   </SelectContent>
                 </Select>
-                <Textarea
-                  placeholder="Add activity..."
+                <RichTextEditorField
                   value={noteContent}
-                  onChange={(e) => setNoteContent(e.target.value)}
-                  className="min-h-[60px]"
+                  onChange={(html) => setNoteContent(html)}
+                  placeholder="Add activity..."
+                  minHeight="60px"
                   data-testid="textarea-activity"
                 />
                 <Button
                   size="sm"
                   onClick={() => noteMutation.mutate()}
-                  disabled={!noteContent.trim() || noteMutation.isPending}
+                  disabled={!noteContent.replace(/<[^>]*>/g, "").trim() || noteMutation.isPending}
                   className="self-end"
                   data-testid="button-add-activity"
                 >

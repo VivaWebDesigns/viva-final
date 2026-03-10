@@ -4,7 +4,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import RichTextEditorField from "@/features/chat/RichTextEditorField";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
@@ -240,13 +240,12 @@ export default function QuickTaskModal({
 
           <div className="space-y-1.5">
             <Label htmlFor="task-notes">Notes (optional)</Label>
-            <Textarea
-              id="task-notes"
-              data-testid="input-task-notes"
+            <RichTextEditorField
               value={notes}
-              onChange={(e) => setNotes(e.target.value)}
+              onChange={(html) => setNotes(html)}
               placeholder="Any additional details..."
-              rows={2}
+              minHeight="60px"
+              data-testid="input-task-notes"
             />
           </div>
 

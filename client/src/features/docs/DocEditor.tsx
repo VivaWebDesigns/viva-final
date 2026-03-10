@@ -4,7 +4,7 @@ import { ArrowLeft, Save, Plus, X, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import RichTextEditorField from "@/features/chat/RichTextEditorField";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -271,11 +271,11 @@ export default function DocEditor({ articleId, categories, onClose, onSaved }: D
 
           <div className="space-y-2">
             <Label>Content <span className="text-gray-400 font-normal text-xs ml-1">— Markdown supported</span></Label>
-            <Textarea
+            <RichTextEditorField
               value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder={`# Heading\n\nWrite your article content here.\n\n- Bullet points work\n- **Bold** and *italic* too`}
-              className="min-h-[400px] font-mono text-sm"
+              onChange={(html) => setContent(html)}
+              placeholder="Write your article content here. Use the toolbar for Bold, Italic, links and emojis."
+              minHeight="400px"
               data-testid="textarea-article-content"
             />
           </div>

@@ -7,7 +7,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
+import RichTextEditorField from "@/features/chat/RichTextEditorField";
+import { sanitizeHtml } from "@/features/chat/RichTextEditor";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -251,17 +252,17 @@ export default function OnboardingDetailPage({ id }: { id: string }) {
             </CardHeader>
             <CardContent>
               <div className="mb-4">
-                <Textarea
-                  placeholder="Add a note..."
+                <RichTextEditorField
                   value={noteContent}
-                  onChange={(e) => setNoteContent(e.target.value)}
-                  className="mb-2"
+                  onChange={(html) => setNoteContent(html)}
+                  placeholder="Add a note..."
+                  minHeight="80px"
                   data-testid="textarea-note"
                 />
                 <Button
                   size="sm"
-                  disabled={!noteContent.trim() || addNoteMutation.isPending}
-                  onClick={() => addNoteMutation.mutate(noteContent.trim())}
+                  disabled={!noteContent.replace(/<[^>]*>/g, "").trim() || addNoteMutation.isPending}
+                  onClick={() => addNoteMutation.mutate(noteContent)}
                   data-testid="button-add-note"
                 >
                   Add Note
@@ -281,7 +282,7 @@ export default function OnboardingDetailPage({ id }: { id: string }) {
                     >
                       <NoteIcon className="h-4 w-4 mt-0.5 text-muted-foreground flex-shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm">{note.content}</p>
+                        <div className="text-sm chat-message-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(note.content) }} />
                         <p className="text-xs text-muted-foreground mt-1">
                           {new Date(note.createdAt).toLocaleString()}
                         </p>
