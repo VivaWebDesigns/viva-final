@@ -1,50 +1,46 @@
 /**
  * Stripe Billing Routes
  *
- * Required environment variables:
- *   STRIPE_SECRET_KEY       — Stripe secret key (sk_live_... or sk_test_...)
- *   STRIPE_WEBHOOK_SECRET   — Stripe webhook endpoint secret (whsec_...)
+ * Config precedence:
+ *   1. DB-stored config (Integrations page → Stripe Configure)
+ *   2. Environment variables: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
  *
  * Webhook endpoint: POST /api/billing/webhook
  */
 
 import { Router, type Request, type Response } from "express";
-import { requireRole, requireAuth } from "../auth/middleware";
+import { requireRole } from "../auth/middleware";
 import { db } from "../../db";
 import { stripeCustomers, stripeWebhookEvents } from "@shared/schema";
 import { eq, desc, and } from "drizzle-orm";
 import { z } from "zod";
+import { getLiveStripeConfig, getMaskedStripeStatus } from "../integrations/stripe-config";
 
 const router = Router();
 
-function getStripe() {
-  const key = process.env.STRIPE_SECRET_KEY;
-  if (!key) return null;
+async function getStripe() {
+  const config = await getLiveStripeConfig();
+  if (!config.secretKey) return null;
   try {
     const Stripe = require("stripe");
-    return new Stripe(key, { apiVersion: "2024-11-20.acacia" });
+    return new Stripe(config.secretKey, { apiVersion: "2024-11-20.acacia" });
   } catch {
     return null;
   }
 }
 
-function isStripeConfigured(): boolean {
-  return !!(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET);
-}
-
-
 // ── Status endpoint ───────────────────────────────────────────────────
 
-router.get("/status", requireRole("admin", "developer"), (_req, res) => {
-  res.json({
-    configured: isStripeConfigured(),
-    hasSecretKey: !!process.env.STRIPE_SECRET_KEY,
-    hasWebhookSecret: !!process.env.STRIPE_WEBHOOK_SECRET,
-    mode: process.env.STRIPE_SECRET_KEY?.startsWith("sk_live_") ? "live" : "test",
-  });
+router.get("/status", requireRole("admin", "developer"), async (_req, res) => {
+  try {
+    const status = await getMaskedStripeStatus();
+    res.json(status);
+  } catch (err: any) {
+    res.status(500).json({ message: err.message });
+  }
 });
 
-// ── Webhook (raw body required for signature verification) ────────────
+// ── Webhook (parsed body — signature verification ready) ──────────────
 
 router.post("/webhook", async (req: Request, res: Response) => {
   let event: any = req.body;
@@ -143,9 +139,9 @@ router.post("/customers", requireRole("admin", "developer"), async (req, res) =>
       name: z.string().optional(),
     }).parse(req.body);
 
-    const stripe = getStripe();
+    const stripe = await getStripe();
     if (!stripe) {
-      return res.status(503).json({ message: "Stripe not configured. Set STRIPE_SECRET_KEY to enable." });
+      return res.status(503).json({ message: "Stripe not configured. Add credentials via the Integrations page or set STRIPE_SECRET_KEY." });
     }
 
     const existing = await db.select().from(stripeCustomers)

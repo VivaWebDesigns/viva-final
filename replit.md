@@ -25,7 +25,7 @@ Viva Web Designs is a marketing agency focused on home-service contractors, targ
 - **Database Schema**: Comprehensive Drizzle ORM schema covering authentication, CRM, sales pipeline, client onboarding, documentation, notifications, follow-up tasks, team chat, file attachments, billing, and demo configurations.
 - **Team Chat System**: Features channels, direct messages, unread tracking, message reactions, threading, message pinning, @mentions, and search capabilities.
 - **File Management**: Utilizes Cloudflare R2 for storage, abstracted via a `storage.ts` service with graceful fallback. Supports file uploads with metadata storage.
-- **Stripe Billing Integration**: Handles Stripe webhooks and customer management. Designed to run gracefully even when Stripe is not fully configured.
+- **Stripe Billing Integration**: Handles Stripe webhooks and customer management. Credentials can be configured via the Integrations page (stored in `integrationRecords.settings` JSONB) or via environment variables (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`). DB config takes precedence over env vars. A centralized `server/features/integrations/stripe-config.ts` service handles config precedence, secret masking, and connection testing. The Integrations page has a Stripe Configure dialog that saves credentials securely and shows masked key previews.
 - **Reporting System**: Provides key metrics such as Conversion Rate, Pipeline Value, Win Rate, and Overdue Leads, with a dedicated service for metric queries.
 - **Sales Pipeline**: Structured with 7 stages and includes a `websitePackage` field for opportunities.
 - **Follow-up Task System**: Full CRUD task management linked to various entities, with quick task creation and a dashboard for due tasks.

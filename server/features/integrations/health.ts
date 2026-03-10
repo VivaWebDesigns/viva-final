@@ -40,9 +40,9 @@ export function checkStripeHealth(): ProviderHealth {
     missingVars: missing,
     presentVars: present,
     status: deriveStatus(reqCheck.present, required),
-    featureFlag: "planned",
-    notes: "Stripe integration is planned for billing and payment processing. Connect your Stripe account and set STRIPE_SECRET_KEY to enable. STRIPE_WEBHOOK_SECRET is needed for webhook event verification.",
-    usedBy: ["Payments (planned)", "Client Billing (planned)"],
+    featureFlag: "active",
+    notes: "Stripe powers client billing, payment processing, and webhook event logging. Credentials can be configured via the Integrations page (DB config) or via environment variables. DB config takes precedence over env vars. STRIPE_WEBHOOK_SECRET enables webhook signature verification.",
+    usedBy: ["Client Billing", "Stripe Customer Records", "Webhook Event Logging", "Payments Page"],
   };
 }
 

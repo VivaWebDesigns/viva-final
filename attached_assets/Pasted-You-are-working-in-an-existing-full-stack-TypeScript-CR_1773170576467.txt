@@ -1,0 +1,186 @@
+You are working in an existing full-stack TypeScript CRM/admin platform for Viva Web Designs built with:
+
+- React 18 + TypeScript + Vite
+- Tailwind CSS + shadcn/ui
+- Express.js + TypeScript
+- PostgreSQL + Drizzle ORM
+- BetterAuth
+- TanStack Query v5
+- Drizzle ORM + shared schema patterns
+
+This is a NONDESTRUCTIVE integration completion task.
+
+GOAL
+Finish the Stripe integration for client billing and make Stripe configuration manageable directly from the internal Integrations page, specifically within the Stripe integration card area.
+
+BUSINESS INTENT
+The Viva Web Designs CRM/admin platform needs a real internal Stripe integration that can support client billing workflows. Admins should be able to manage Stripe connection details from inside the app rather than relying only on hardcoded environment configuration.
+
+This phase should:
+1. complete the Stripe integration foundation,
+2. make Stripe configurable from the Integrations page,
+3. prepare or finalize the app for internal client billing operations.
+
+PRIMARY REQUIREMENTS
+
+A) Finish the Stripe Integration
+Audit the current Stripe implementation and complete what is missing for a usable internal billing integration.
+
+This includes, where appropriate:
+- Stripe service abstraction cleanup/completion
+- proper config loading
+- API connection validation
+- webhook verification support
+- customer/billing-related helper methods if already partially scaffolded
+- integration health/status visibility
+- internal readiness for admin billing workflows
+
+Do NOT build an unrelated public checkout flow unless the current codebase already clearly includes it and it is directly relevant.
+
+B) Stripe Configuration in Integrations Page
+Add the ability to configure Stripe directly from the Integrations page in the Stripe card area.
+
+Admins should be able to:
+- view Stripe integration status
+- see whether Stripe is connected/configured
+- set or update Stripe API credentials from the UI
+- optionally define whether the integration is in test or live mode
+- validate the credentials
+- save/update the credentials securely
+- see the last validation/check result
+- see a clear success/error state
+
+Preferred configuration fields:
+- Stripe Secret Key
+- Stripe Publishable Key if needed by current architecture
+- Webhook Secret if webhook support is already implemented or scaffolded
+- Mode indicator (test/live) if it can be derived or explicitly stored safely
+
+IMPORTANT:
+- Secret values must be handled securely
+- Do not expose full secret values back to the UI after save
+- Show masked values when appropriate
+- Follow the app’s existing integration_records or integration config pattern if one already exists
+
+C) Stripe Card UX in Integrations
+Upgrade the Stripe integration card from a passive/placeholder card into a real admin control surface.
+
+Recommended Stripe card capabilities:
+- connection/configuration status badge
+- mode badge (test/live) if available
+- last checked / last validated timestamp
+- configure/edit button
+- secure form/modal/drawer for editing Stripe settings
+- test connection action
+- webhook status visibility if supported
+- brief summary of what billing capabilities are enabled
+
+Keep the UI aligned with the current Integrations page design system and existing shadcn/ui patterns.
+Do not redesign the entire Integrations page.
+
+D) Secure Storage and Validation
+Use the safest existing app pattern for storing integration credentials.
+
+Implementation guidance:
+- inspect how integration_records currently stores config/health
+- store Stripe config using the existing integration configuration pattern if appropriate
+- protect secrets at rest as safely as the current platform architecture supports
+- do not log Stripe secrets
+- do not return raw secrets in API responses
+- redact/mask on reads
+- validate inputs with explicit Zod schemas
+- enforce admin-only access for credential management
+
+If the app currently relies on environment variables for Stripe, preserve backward compatibility:
+- env-based config should still work if present
+- DB/app-managed config should be able to override or supplement env config in a controlled way
+- document the precedence clearly
+
+E) Stripe Health and Test Connection
+Add a safe mechanism to test whether Stripe is configured correctly.
+
+This should:
+- verify whether the provided credentials can successfully connect to Stripe
+- update integration health/status
+- provide meaningful admin-facing feedback
+- not create accidental billing side effects
+
+The test should be safe and read-only where possible.
+
+F) Billing/Admin Readiness
+Where practical, connect the finished Stripe integration to internal billing readiness.
+
+At minimum, the system should be prepared for:
+- associating Stripe customers with client records if appropriate
+- using Stripe configuration from internal admin/payments workflows
+- webhook verification readiness
+- future invoice/subscription/payment visibility
+
+Do not overbuild a full billing suite in this prompt if it is not already close to complete, but do ensure the integration is genuinely usable by the app.
+
+TECHNICAL TASKS
+1. Inspect the current Stripe-related implementation across:
+   - server Stripe services/helpers
+   - integrations module
+   - admin/payments module if present
+   - integration_records schema/storage
+   - env validation
+   - any webhook routes/scaffolding
+2. Identify what is incomplete or placeholder.
+3. Complete the backend Stripe integration in a modular, typed, maintainable way.
+4. Add/update schema/config support for Stripe settings if needed.
+5. Add protected API routes for:
+   - reading Stripe integration status
+   - updating Stripe config
+   - testing Stripe connection
+   - optionally refreshing health state
+6. Add explicit Zod validation for all Stripe config/update actions.
+7. Ensure secret values are masked/redacted in reads and never logged.
+8. Add/update frontend UI in the Integrations page Stripe card area.
+9. Keep all changes strongly typed across client/server/shared boundaries.
+10. Update internal docs for:
+   - Stripe integration configuration
+   - env vs UI-managed config precedence
+   - security handling expectations
+   - how the integration connects to billing/admin workflows
+
+IMPORTANT GUARDRAILS
+- NONDESTRUCTIVE only
+- Do not break existing integrations page behavior
+- Do not break any current billing/admin page behavior
+- Do not remove env-based Stripe support unless there is already a clearly better and backward-compatible pattern
+- Do not expose secrets in logs, responses, or UI
+- Do not introduce broad unrelated refactors
+- Keep changes localized to Stripe integration completion and Integrations page support
+- Preserve BetterAuth patterns and admin-only protections
+- Preserve existing route conventions and app architecture
+- Use current project patterns for services, routes, storage, validation, and UI
+
+DESIGN / UX GUIDANCE
+The Stripe integration should feel like a practical internal admin tool, not a developer-only configuration panel.
+
+The Stripe card should clearly answer:
+- Is Stripe connected?
+- Are the keys configured?
+- Is it test or live mode?
+- Is webhook support ready?
+- Can an admin update the credentials safely right here?
+- Is the integration healthy enough for billing use?
+
+DELIVERABLES
+1. Completed Stripe integration backend support
+2. Secure Stripe configuration management from the Integrations page
+3. Upgraded Stripe integration card UI
+4. Safe connection test / health validation flow
+5. Backward-compatible env + stored-config behavior
+6. Minimal docs update
+7. Summary of changed files, schema/config changes, and recommended follow-up work
+
+ACCEPTANCE CRITERIA
+- Admin users can manage Stripe configuration from the Integrations page
+- Stripe credentials can be saved/updated securely
+- Secrets are masked and not exposed
+- The app can validate Stripe connection status safely
+- Stripe integration is meaningfully completed for internal billing readiness
+- Existing integrations and billing/admin functionality continue to work
+- All changes are additive, validated, role-protected, and type-safe
