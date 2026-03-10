@@ -5,19 +5,25 @@
  * This page is NOT linked anywhere publicly. Access it directly by typing the URL.
  *
  * How the preview link works:
- *   - Prospect's trade (e.g. plumbing, roofing) selects a full content template:
- *     trade-appropriate images, services, and reviews populate automatically.
+ *   - Prospect's trade selects a full content template.
  *   - Client overrides (name, city, phone, CTA) are applied on top.
  *   - A unique demoId is saved to localStorage and included in the URL.
  *   - All fields are also URL params for cross-device fallback.
+ *   - Optionally save the demo config linked to a CRM lead record.
  */
 
 import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Copy, ExternalLink, CheckCircle } from "lucide-react";
+import {
+  Copy, ExternalLink, CheckCircle, Link2, Search, X, Check,
+} from "lucide-react";
 import { usePreviewLang } from "@/contexts/PreviewLangContext";
+import type { CrmLead } from "@shared/schema";
 
 const TRADE_OPTIONS = {
   en: [
@@ -62,89 +68,141 @@ const TRADE_OPTIONS = {
 
 const ui = {
   en: {
-    heading:         "Preview Link Generator",
-    subheading:      "Fill in the prospect's details, select their trade and plan, then generate a personalized preview link. The trade automatically loads matching images, services, and reviews. Use the EN / ES button in the nav to set the preview language.",
+    heading:             "Preview Link Generator",
+    subheading:          "Fill in the prospect's details, select their trade and plan, then generate a personalized preview link. The trade automatically loads matching images, services, and reviews. Use the EN / ES button in the nav to set the preview language.",
     labelFirstName:      "Client First Name",
     placeholderFirstName:"e.g. Maria",
-    labelTrade:      "Trade / Industry",
-    tradeHint:       "Sets the hero image, services, gallery, and reviews automatically.",
-    labelName:       "Business Name",
-    placeholderName: "e.g. Rodriguez Plumbing",
-    labelCity:       "City",
-    placeholderCity: "e.g. Houston",
-    labelPhone:      "Phone Number",
-    placeholderPhone:"e.g. (713) 555-0123",
-    labelCta:        "CTA Button Text  (optional)",
-    placeholderCta:  "e.g. Call for a free quote",
-    labelLogoUrl:    "Logo URL  (optional)",
-    placeholderLogo: "https://... (leave blank to use business name as text logo)",
-    labelPlan:       "Plan to preview",
+    labelTrade:          "Trade / Industry",
+    tradeHint:           "Sets the hero image, services, gallery, and reviews automatically.",
+    labelName:           "Business Name",
+    placeholderName:     "e.g. Rodriguez Plumbing",
+    labelCity:           "City",
+    placeholderCity:     "e.g. Houston",
+    labelPhone:          "Phone Number",
+    placeholderPhone:    "e.g. (713) 555-0123",
+    labelCta:            "CTA Button Text  (optional)",
+    placeholderCta:      "e.g. Call for a free quote",
+    labelLogoUrl:        "Logo URL  (optional)",
+    placeholderLogo:     "https://... (leave blank to use business name as text logo)",
+    labelPlan:           "Plan to preview",
     packages: [
       { value: "empieza", label: "Empieza — Basic (1 page)" },
       { value: "crece",   label: "Crece — Mid-tier (multiple pages)" },
       { value: "domina",  label: "Domina — Professional (full site)" },
     ],
-    generateBtn:     "Generate Preview Link",
-    generatedLabel:  "Generated link",
-    copyBtn:         "Copy link",
-    copiedBtn:       "Copied!",
-    openBtn:         "Open preview",
-    shareNote:       "Share this link directly with your prospect. It is not indexed or listed anywhere on the public site.",
-    tradeAutoFill:   "Auto-filled from trade template",
+    generateBtn:         "Generate Preview Link",
+    generatedLabel:      "Generated link",
+    copyBtn:             "Copy link",
+    copiedBtn:           "Copied!",
+    openBtn:             "Open preview",
+    saveToLeadBtn:       "Save to Lead",
+    savedToLeadLabel:    "Saved to lead",
+    shareNote:           "Share this link directly with your prospect. It is not indexed or listed anywhere on the public site.",
+    tradeAutoFill:       "Auto-filled from trade template",
+    leadPickerTitle:     "Link to a CRM Lead",
+    leadPickerSearch:    "Search leads...",
+    leadPickerEmpty:     "No leads found",
+    leadPickerSave:      "Save",
   },
   es: {
-    heading:         "Generador de Vista Previa",
-    subheading:      "Llena los datos del prospecto, selecciona su oficio y plan, luego genera un enlace de vista previa personalizado. El oficio carga automáticamente imágenes, servicios y reseñas del sector. Usa EN / ES en la barra de navegación para el idioma de la vista previa.",
+    heading:             "Generador de Vista Previa",
+    subheading:          "Llena los datos del prospecto, selecciona su oficio y plan, luego genera un enlace de vista previa personalizado. El oficio carga automáticamente imágenes, servicios y reseñas del sector. Usa EN / ES en la barra de navegación para el idioma de la vista previa.",
     labelFirstName:      "Nombre del cliente",
     placeholderFirstName:"Ej: Maria",
-    labelTrade:      "Oficio / Industria",
-    tradeHint:       "Configura automáticamente la imagen hero, servicios, galería y reseñas.",
-    labelName:       "Nombre del negocio",
-    placeholderName: "Ej: Rodriguez Plomería",
-    labelCity:       "Ciudad",
-    placeholderCity: "Ej: Houston",
-    labelPhone:      "Teléfono",
-    placeholderPhone:"Ej: (713) 555-0123",
-    labelCta:        "Texto del botón CTA  (opcional)",
-    placeholderCta:  "Ej: Llama para cotización gratis",
-    labelLogoUrl:    "URL del logo  (opcional)",
-    placeholderLogo: "https://... (dejar en blanco para usar el nombre del negocio)",
-    labelPlan:       "Plan a mostrar",
+    labelTrade:          "Oficio / Industria",
+    tradeHint:           "Configura automáticamente la imagen hero, servicios, galería y reseñas.",
+    labelName:           "Nombre del negocio",
+    placeholderName:     "Ej: Rodriguez Plomería",
+    labelCity:           "Ciudad",
+    placeholderCity:     "Ej: Houston",
+    labelPhone:          "Teléfono",
+    placeholderPhone:    "Ej: (713) 555-0123",
+    labelCta:            "Texto del botón CTA  (opcional)",
+    placeholderCta:      "Ej: Llama para cotización gratis",
+    labelLogoUrl:        "URL del logo  (opcional)",
+    placeholderLogo:     "https://... (dejar en blanco para usar el nombre del negocio)",
+    labelPlan:           "Plan a mostrar",
     packages: [
       { value: "empieza", label: "Empieza — Básico (1 página)" },
       { value: "crece",   label: "Crece — Mediano (varias páginas)" },
       { value: "domina",  label: "Domina — Profesional (sitio completo)" },
     ],
-    generateBtn:     "Generar Enlace de Vista Previa",
-    generatedLabel:  "Enlace generado",
-    copyBtn:         "Copiar enlace",
-    copiedBtn:       "¡Copiado!",
-    openBtn:         "Abrir vista previa",
-    shareNote:       "Comparte este enlace directamente con el prospecto. No está indexado ni visible en ningún lugar público del sitio.",
-    tradeAutoFill:   "Cargado automáticamente desde la plantilla del oficio",
+    generateBtn:         "Generar Enlace de Vista Previa",
+    generatedLabel:      "Enlace generado",
+    copyBtn:             "Copiar enlace",
+    copiedBtn:           "¡Copiado!",
+    openBtn:             "Abrir vista previa",
+    saveToLeadBtn:       "Guardar en Prospecto",
+    savedToLeadLabel:    "Guardado en prospecto",
+    shareNote:           "Comparte este enlace directamente con el prospecto. No está indexado ni visible en ningún lugar público del sitio.",
+    tradeAutoFill:       "Cargado automáticamente desde la plantilla del oficio",
+    leadPickerTitle:     "Vincular a un Prospecto CRM",
+    leadPickerSearch:    "Buscar prospectos...",
+    leadPickerEmpty:     "Sin resultados",
+    leadPickerSave:      "Guardar",
   },
 };
 
 function generateId(): string {
-  return Math.random().toString(36).slice(2, 8) +
-         Math.random().toString(36).slice(2, 8);
+  return Math.random().toString(36).slice(2, 8) + Math.random().toString(36).slice(2, 8);
+}
+
+interface LeadItem {
+  id: string;
+  title: string;
+  company?: { name: string } | null;
+  contact?: { firstName: string; lastName: string | null } | null;
 }
 
 export default function AdminDemoBuilder() {
   const { lang } = usePreviewLang();
   const s = ui[lang];
+  const { toast } = useToast();
+  const qc = useQueryClient();
 
-  const [trade,          setTrade]          = useState("painting");
-  const [clientFirstName,setClientFirstName] = useState("");
-  const [name,           setName]           = useState("");
-  const [city,           setCity]           = useState("");
-  const [phone,          setPhone]          = useState("");
-  const [cta,            setCta]            = useState("");
-  const [logoUrl,        setLogoUrl]        = useState("");
-  const [pkg,            setPkg]            = useState("empieza");
+  const [trade,           setTrade]           = useState("painting");
+  const [clientFirstName, setClientFirstName] = useState("");
+  const [name,            setName]            = useState("");
+  const [city,            setCity]            = useState("");
+  const [phone,           setPhone]           = useState("");
+  const [cta,             setCta]             = useState("");
+  const [logoUrl,         setLogoUrl]         = useState("");
+  const [pkg,             setPkg]             = useState("empieza");
 
   const [generatedUrl, setGeneratedUrl] = useState("");
   const [copied,       setCopied]       = useState(false);
+
+  const [showLeadPicker, setShowLeadPicker] = useState(false);
+  const [leadSearch,     setLeadSearch]     = useState("");
+  const [savedLeadId,    setSavedLeadId]    = useState<string | null>(null);
+
+  const { data: leads = [] } = useQuery<LeadItem[]>({
+    queryKey: ["/api/crm/leads"],
+    staleTime: 30000,
+    enabled: showLeadPicker,
+  });
+
+  const saveDemoMutation = useMutation({
+    mutationFn: async (leadId: string) => {
+      const res = await apiRequest("POST", "/api/demo-configs", {
+        leadId,
+        businessName: name || clientFirstName || "Demo",
+        trade,
+        tier: pkg,
+        city: city || null,
+        phone: phone || null,
+        previewUrl: generatedUrl,
+      });
+      return res.json();
+    },
+    onSuccess: (_data, leadId) => {
+      setSavedLeadId(leadId);
+      setShowLeadPicker(false);
+      toast({ title: lang === "es" ? "Vista previa guardada en el prospecto" : "Demo saved to lead" });
+      qc.invalidateQueries({ queryKey: ["/api/demo-configs"] });
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
 
   function generateLink() {
     const payload = {
@@ -160,9 +218,7 @@ export default function AdminDemoBuilder() {
     };
 
     const id = generateId();
-    try {
-      localStorage.setItem(`vvwd_preview_${id}`, JSON.stringify(payload));
-    } catch (_) {}
+    try { localStorage.setItem(`vvwd_preview_${id}`, JSON.stringify(payload)); } catch (_) {}
 
     const params = new URLSearchParams({ id, lang, trade });
     if (payload.clientFirstName) params.set("clientFirstName", payload.clientFirstName);
@@ -175,6 +231,7 @@ export default function AdminDemoBuilder() {
     const base = `${window.location.origin}/preview/${pkg}`;
     setGeneratedUrl(`${base}?${params.toString()}`);
     setCopied(false);
+    setSavedLeadId(null);
   }
 
   function copyLink() {
@@ -184,6 +241,15 @@ export default function AdminDemoBuilder() {
       setTimeout(() => setCopied(false), 2500);
     });
   }
+
+  const filteredLeads = leads.filter((l) => {
+    const q = leadSearch.toLowerCase();
+    return (
+      l.title.toLowerCase().includes(q) ||
+      l.company?.name.toLowerCase().includes(q) ||
+      [l.contact?.firstName, l.contact?.lastName].filter(Boolean).join(" ").toLowerCase().includes(q)
+    );
+  });
 
   return (
     <div className="max-w-2xl mx-auto px-4 pt-24 pb-12">
@@ -327,7 +393,79 @@ export default function AdminDemoBuilder() {
               {s.openBtn}
             </Button>
           </div>
+
+          {/* Save to Lead */}
+          {savedLeadId ? (
+            <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-4 py-2" data-testid="text-saved-to-lead">
+              <Check size={15} className="text-green-600" />
+              {s.savedToLeadLabel}
+              <a href={`/admin/crm/leads/${savedLeadId}`} className="underline ml-auto">Ver prospecto</a>
+            </div>
+          ) : (
+            <Button
+              data-testid="button-save-to-lead"
+              variant="outline"
+              className="w-full border-[#0D9488] text-[#0D9488] hover:bg-[#0D9488]/5"
+              onClick={() => setShowLeadPicker(true)}
+            >
+              <Link2 size={16} className="mr-2" />
+              {s.saveToLeadBtn}
+            </Button>
+          )}
+
           <p className="text-xs text-muted-foreground">{s.shareNote}</p>
+        </div>
+      )}
+
+      {/* Lead picker modal */}
+      {showLeadPicker && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" data-testid="modal-lead-picker">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="font-semibold text-gray-900">{s.leadPickerTitle}</h3>
+              <button onClick={() => setShowLeadPicker(false)} className="text-gray-400 hover:text-gray-600">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="px-4 pt-3 pb-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  value={leadSearch}
+                  onChange={(e) => setLeadSearch(e.target.value)}
+                  placeholder={s.leadPickerSearch}
+                  className="pl-9"
+                  data-testid="input-lead-search"
+                  autoFocus
+                />
+              </div>
+            </div>
+            <div className="max-h-64 overflow-y-auto px-2 pb-3">
+              {filteredLeads.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-8">{s.leadPickerEmpty}</p>
+              ) : (
+                filteredLeads.map((lead) => (
+                  <button
+                    key={lead.id}
+                    onClick={() => saveDemoMutation.mutate(lead.id)}
+                    disabled={saveDemoMutation.isPending}
+                    className="w-full flex items-start gap-2 px-3 py-2.5 rounded-lg hover:bg-gray-50 text-left transition-colors"
+                    data-testid={`lead-picker-item-${lead.id}`}
+                  >
+                    <div className="w-7 h-7 rounded-full bg-[#0D9488]/10 flex items-center justify-center text-[#0D9488] font-bold text-xs flex-shrink-0 mt-0.5">
+                      {(lead.contact?.firstName?.[0] || lead.title[0] || "L").toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-800 truncate">{lead.title}</p>
+                      <p className="text-xs text-gray-400 truncate">
+                        {lead.company?.name || [lead.contact?.firstName, lead.contact?.lastName].filter(Boolean).join(" ") || "—"}
+                      </p>
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

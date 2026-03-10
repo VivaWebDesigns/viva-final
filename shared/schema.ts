@@ -627,12 +627,15 @@ export const chatMessages = pgTable("chat_messages", {
   channel: text("channel").notNull().default("general"),
   senderId: text("sender_id").notNull().references(() => user.id),
   content: text("content").notNull(),
+  parentId: varchar("parent_id"),
+  isPinned: boolean("is_pinned").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (t) => [
   index("chat_messages_channel_idx").on(t.channel),
   index("chat_messages_created_idx").on(t.createdAt),
   index("chat_messages_channel_created_idx").on(t.channel, t.createdAt),
   index("chat_messages_sender_idx").on(t.senderId),
+  index("chat_messages_parent_idx").on(t.parentId),
 ]);
 
 export const insertChatMessageSchema = createInsertSchema(chatMessages).omit({ id: true, createdAt: true });
@@ -704,3 +707,134 @@ export const recordHistory = pgTable("record_history", {
 export const insertRecordHistorySchema = createInsertSchema(recordHistory).omit({ id: true, createdAt: true });
 export type InsertRecordHistory = z.infer<typeof insertRecordHistorySchema>;
 export type RecordHistory = typeof recordHistory.$inferSelect;
+
+// ─── Chat: DM Messages ────────────────────────────────────────────────
+
+export const chatDmMessages = pgTable("chat_dm_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  senderId: text("sender_id").notNull().references(() => user.id),
+  recipientId: text("recipient_id").notNull().references(() => user.id),
+  content: text("content").notNull(),
+  readAt: timestamp("read_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("chat_dm_sender_idx").on(t.senderId),
+  index("chat_dm_recipient_idx").on(t.recipientId),
+  index("chat_dm_created_idx").on(t.createdAt),
+  index("chat_dm_conversation_idx").on(t.senderId, t.recipientId),
+]);
+
+export const insertChatDmMessageSchema = createInsertSchema(chatDmMessages).omit({ id: true, createdAt: true });
+export type InsertChatDmMessage = z.infer<typeof insertChatDmMessageSchema>;
+export type ChatDmMessage = typeof chatDmMessages.$inferSelect;
+
+// ─── Chat: Read State (last-read tracking per user per channel) ───────
+
+export const chatReadState = pgTable("chat_read_state", {
+  userId: text("user_id").notNull().references(() => user.id),
+  channelId: text("channel_id").notNull(),
+  lastReadAt: timestamp("last_read_at").defaultNow().notNull(),
+}, (t) => [
+  primaryKey({ columns: [t.userId, t.channelId] }),
+]);
+
+export type ChatReadState = typeof chatReadState.$inferSelect;
+
+// ─── Chat: Reactions ─────────────────────────────────────────────────
+
+export const chatReactions = pgTable("chat_reactions", {
+  messageId: varchar("message_id").notNull().references(() => chatMessages.id, { onDelete: "cascade" }),
+  userId: text("user_id").notNull().references(() => user.id),
+  emoji: text("emoji").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  primaryKey({ columns: [t.messageId, t.userId, t.emoji] }),
+  index("chat_reactions_msg_idx").on(t.messageId),
+]);
+
+export type ChatReaction = typeof chatReactions.$inferSelect;
+
+// ─── File Attachments ─────────────────────────────────────────────────
+
+export const attachments = pgTable("attachments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  key: text("key").notNull(),
+  url: text("url").notNull(),
+  originalName: text("original_name").notNull(),
+  mimeType: text("mime_type").notNull(),
+  sizeBytes: integer("size_bytes").notNull(),
+  uploaderUserId: text("uploader_user_id").references(() => user.id),
+  entityType: text("entity_type"),
+  entityId: text("entity_id"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("attachments_entity_idx").on(t.entityType, t.entityId),
+  index("attachments_uploader_idx").on(t.uploaderUserId),
+  index("attachments_created_idx").on(t.createdAt),
+]);
+
+export const insertAttachmentSchema = createInsertSchema(attachments).omit({ id: true, createdAt: true });
+export type InsertAttachment = z.infer<typeof insertAttachmentSchema>;
+export type Attachment = typeof attachments.$inferSelect;
+
+// ─── Stripe: Customer Records ─────────────────────────────────────────
+
+export const stripeCustomers = pgTable("stripe_customers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  entityType: text("entity_type").notNull().default("company"),
+  entityId: text("entity_id").notNull(),
+  stripeCustomerId: text("stripe_customer_id").notNull().unique(),
+  email: text("email"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("stripe_customers_entity_idx").on(t.entityType, t.entityId),
+  index("stripe_customers_stripe_idx").on(t.stripeCustomerId),
+]);
+
+export const insertStripeCustomerSchema = createInsertSchema(stripeCustomers).omit({ id: true, createdAt: true });
+export type InsertStripeCustomer = z.infer<typeof insertStripeCustomerSchema>;
+export type StripeCustomer = typeof stripeCustomers.$inferSelect;
+
+// ─── Stripe: Webhook Event Log ────────────────────────────────────────
+
+export const stripeWebhookEvents = pgTable("stripe_webhook_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  stripeEventId: text("stripe_event_id").notNull().unique(),
+  type: text("type").notNull(),
+  processed: boolean("processed").notNull().default(false),
+  processedAt: timestamp("processed_at"),
+  rawPayload: text("raw_payload").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("stripe_events_type_idx").on(t.type),
+  index("stripe_events_processed_idx").on(t.processed),
+  index("stripe_events_created_idx").on(t.createdAt),
+]);
+
+export const insertStripeWebhookEventSchema = createInsertSchema(stripeWebhookEvents).omit({ id: true, createdAt: true });
+export type InsertStripeWebhookEvent = z.infer<typeof insertStripeWebhookEventSchema>;
+export type StripeWebhookEvent = typeof stripeWebhookEvents.$inferSelect;
+
+// ─── Demo Configs (Demo Builder → CRM link) ───────────────────────────
+
+export const demoConfigs = pgTable("demo_configs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  leadId: varchar("lead_id").references(() => crmLeads.id, { onDelete: "cascade" }),
+  createdByUserId: text("created_by_user_id").references(() => user.id),
+  businessName: text("business_name").notNull(),
+  trade: text("trade").notNull(),
+  tier: text("tier").notNull().default("domina"),
+  city: text("city"),
+  phone: text("phone"),
+  previewUrl: text("preview_url").notNull(),
+  settings: text("settings"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("demo_configs_lead_idx").on(t.leadId),
+  index("demo_configs_created_by_idx").on(t.createdByUserId),
+  index("demo_configs_created_idx").on(t.createdAt),
+]);
+
+export const insertDemoConfigSchema = createInsertSchema(demoConfigs).omit({ id: true, createdAt: true });
+export type InsertDemoConfig = z.infer<typeof insertDemoConfigSchema>;
+export type DemoConfig = typeof demoConfigs.$inferSelect;

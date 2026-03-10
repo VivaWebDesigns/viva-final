@@ -6,7 +6,7 @@ import {
   ArrowLeft, Building2, User, Globe, Phone, Mail, MapPin,
   Calendar, Tag, MessageSquare, PhoneCall, MailIcon, ClipboardList,
   RefreshCw, Bot, Send, ExternalLink, TrendingUp,
-  Plus, CheckCircle, CheckCheck, Clock, AlertCircle,
+  Plus, CheckCircle, CheckCheck, Clock, AlertCircle, Monitor,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import { queryClient, apiRequest, STALE } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { CrmLead, CrmLeadStatus, CrmContact, CrmCompany, CrmLeadNote, CrmTag, PipelineStage, FollowupTask, PipelineOpportunity } from "@shared/schema";
+import type { CrmLead, CrmLeadStatus, CrmContact, CrmCompany, CrmLeadNote, CrmTag, PipelineStage, FollowupTask, PipelineOpportunity, DemoConfig } from "@shared/schema";
 import QuickTaskModal from "@/components/QuickTaskModal";
 import { RecordTimeline } from "@/components/RecordTimeline";
 
@@ -124,6 +124,16 @@ export default function LeadDetailPage({ id }: { id: string }) {
 
   const { data: tasks } = useQuery<TaskWithContact[]>({
     queryKey: ["/api/tasks/for-lead", id],
+  });
+
+  const { data: demoConfigs = [] } = useQuery<DemoConfig[]>({
+    queryKey: ["/api/demo-configs/by-lead", id],
+    queryFn: async () => {
+      const res = await fetch(`/api/demo-configs?leadId=${id}`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    staleTime: STALE.NORMAL,
   });
 
   const { data: linkedOpportunity } = useQuery<PipelineOpportunity | null>({
@@ -647,6 +657,58 @@ export default function LeadDetailPage({ id }: { id: string }) {
               )}
             </div>
           </Card>
+
+          {demoConfigs.length > 0 && (
+            <Card className="p-5" data-testid="card-demo-history">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-gray-900 text-sm flex items-center gap-1.5">
+                  <Monitor className="w-4 h-4 text-gray-400" />
+                  Vista Previas Enviadas
+                  <Badge variant="secondary" className="text-xs ml-1">{demoConfigs.length}</Badge>
+                </h3>
+                <a
+                  href="/admin/demo-builder"
+                  className="text-xs text-[#0D9488] hover:underline"
+                  data-testid="link-demo-builder"
+                >
+                  + Nueva
+                </a>
+              </div>
+              <div className="space-y-2">
+                {demoConfigs.map((demo) => (
+                  <div
+                    key={demo.id}
+                    className="p-2 rounded-md border border-gray-100 bg-gray-50 text-xs"
+                    data-testid={`demo-card-${demo.id}`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-medium text-gray-800 truncate">{demo.businessName}</p>
+                        <p className="text-gray-400 mt-0.5">
+                          {demo.trade} · {demo.tier} · {demo.city || "—"}
+                        </p>
+                      </div>
+                      {demo.previewUrl && (
+                        <a
+                          href={demo.previewUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-shrink-0 text-[#0D9488] hover:text-[#0F766E]"
+                          title="Abrir vista previa"
+                          data-testid={`link-demo-preview-${demo.id}`}
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
+                      )}
+                    </div>
+                    <p className="text-gray-300 mt-1">
+                      {new Date(demo.createdAt).toLocaleDateString("es-US", { month: "short", day: "numeric", year: "numeric" })}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
 
           <Card className="p-5">
             <div className="flex items-center gap-2 mb-4">

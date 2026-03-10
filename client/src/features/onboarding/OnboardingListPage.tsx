@@ -15,10 +15,10 @@ import {
 import type { OnboardingRecord } from "@shared/schema";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof CheckCircle2 }> = {
-  pending: { label: "Pending", color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200", icon: Clock },
-  in_progress: { label: "In Progress", color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200", icon: ArrowRight },
-  completed: { label: "Completed", color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200", icon: CheckCircle2 },
-  on_hold: { label: "On Hold", color: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200", icon: Pause },
+  pending: { label: "Pendiente", color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200", icon: Clock },
+  in_progress: { label: "En Progreso", color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200", icon: ArrowRight },
+  completed: { label: "Completado", color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200", icon: CheckCircle2 },
+  on_hold: { label: "En Pausa", color: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200", icon: Pause },
 };
 
 export default function OnboardingListPage() {
@@ -58,13 +58,13 @@ export default function OnboardingListPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold" data-testid="text-onboarding-title">Client Onboarding</h1>
-          <p className="text-muted-foreground mt-1">Manage client setup and onboarding workflows</p>
+          <h1 className="text-2xl font-bold" data-testid="text-onboarding-title">Incorporación de Clientes</h1>
+          <p className="text-muted-foreground mt-1">Gestiona los procesos de incorporación y configuración de clientes</p>
         </div>
         <Link href="/admin/onboarding/new">
           <Button data-testid="button-new-onboarding">
             <Plus className="h-4 w-4 mr-2" />
-            New Onboarding
+            Nuevo Proceso
           </Button>
         </Link>
       </div>
@@ -73,10 +73,10 @@ export default function OnboardingListPage() {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {[
             { label: "Total", value: stats.total, icon: Users, color: "text-foreground" },
-            { label: "Pending", value: stats.pending, icon: Clock, color: "text-yellow-600" },
-            { label: "In Progress", value: stats.inProgress, icon: ArrowRight, color: "text-blue-600" },
-            { label: "Completed", value: stats.completed, icon: CheckCircle2, color: "text-green-600" },
-            { label: "Overdue", value: stats.overdue, icon: AlertTriangle, color: "text-red-600" },
+            { label: "Pendiente", value: stats.pending, icon: Clock, color: "text-yellow-600" },
+            { label: "En Progreso", value: stats.inProgress, icon: ArrowRight, color: "text-blue-600" },
+            { label: "Completado", value: stats.completed, icon: CheckCircle2, color: "text-green-600" },
+            { label: "Vencido", value: stats.overdue, icon: AlertTriangle, color: "text-red-600" },
           ].map((stat) => (
             <Card key={stat.label} className="border">
               <CardContent className="p-3 flex items-center gap-3">
@@ -95,7 +95,7 @@ export default function OnboardingListPage() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search clients..."
+            placeholder="Buscar clientes..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             className="pl-10"
@@ -104,14 +104,14 @@ export default function OnboardingListPage() {
         </div>
         <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
           <SelectTrigger className="w-[180px]" data-testid="select-status-filter">
-            <SelectValue placeholder="All Statuses" />
+            <SelectValue placeholder="Todos los estados" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="in_progress">In Progress</SelectItem>
-            <SelectItem value="completed">Completed</SelectItem>
-            <SelectItem value="on_hold">On Hold</SelectItem>
+            <SelectItem value="all">Todos los estados</SelectItem>
+            <SelectItem value="pending">Pendiente</SelectItem>
+            <SelectItem value="in_progress">En Progreso</SelectItem>
+            <SelectItem value="completed">Completado</SelectItem>
+            <SelectItem value="on_hold">En Pausa</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -124,12 +124,12 @@ export default function OnboardingListPage() {
         <Card className="border">
           <CardContent className="flex flex-col items-center justify-center py-12">
             <UserPlus className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-1">No onboarding records</h3>
-            <p className="text-muted-foreground mb-4">Create your first client onboarding to get started</p>
+            <h3 className="text-lg font-semibold mb-1">Sin registros de incorporación</h3>
+            <p className="text-muted-foreground mb-4">Crea el primer proceso de incorporación para comenzar</p>
             <Link href="/admin/onboarding/new">
               <Button data-testid="button-empty-new-onboarding">
                 <Plus className="h-4 w-4 mr-2" />
-                New Onboarding
+                Nuevo Proceso
               </Button>
             </Link>
           </CardContent>
@@ -176,13 +176,13 @@ export default function OnboardingListPage() {
                               {record.dueDate && (
                                 <span className={`flex items-center gap-1 ${isOverdue(record) ? "text-red-500 font-medium" : ""}`} data-testid={`text-due-date-${record.id}`}>
                                   <Calendar className="h-3 w-3" />
-                                  Due: {new Date(record.dueDate).toLocaleDateString()}
+                                  Vence: {new Date(record.dueDate).toLocaleDateString()}
                                 </span>
                               )}
                               {record.kickoffDate && (
                                 <span className="flex items-center gap-1">
                                   <Calendar className="h-3 w-3" />
-                                  Kickoff: {new Date(record.kickoffDate).toLocaleDateString()}
+                                  Inicio: {new Date(record.kickoffDate).toLocaleDateString()}
                                 </span>
                               )}
                             </div>
@@ -208,10 +208,10 @@ export default function OnboardingListPage() {
             onClick={() => setPage(page - 1)}
             data-testid="button-prev-page"
           >
-            Previous
+            Anterior
           </Button>
           <span className="flex items-center text-sm text-muted-foreground px-3">
-            Page {page} of {totalPages}
+            Página {page} de {totalPages}
           </span>
           <Button
             variant="outline"
@@ -220,7 +220,7 @@ export default function OnboardingListPage() {
             onClick={() => setPage(page + 1)}
             data-testid="button-next-page"
           >
-            Next
+            Siguiente
           </Button>
         </div>
       )}

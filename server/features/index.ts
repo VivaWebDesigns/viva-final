@@ -14,6 +14,9 @@ import clientsRoutes from "./clients/routes";
 import taskRoutes from "./tasks/routes";
 import historyRoutes from "./history/routes";
 import workflowRoutes from "./workflow/routes";
+import billingRoutes from "./billing/routes";
+import attachmentRoutes from "./attachments/routes";
+import demoConfigRoutes from "./demo/routes";
 import { seedDocs } from "./docs/seed";
 import { seedIntegrations } from "./integrations/seed";
 import { seedCrmStatuses } from "./crm/seed";
@@ -36,6 +39,9 @@ router.use("/clients", clientsRoutes);
 router.use("/tasks", taskRoutes);
 router.use("/history", historyRoutes);
 router.use("/workflow", workflowRoutes);
+router.use("/billing", billingRoutes);
+router.use("/attachments", attachmentRoutes);
+router.use("/demo-configs", demoConfigRoutes);
 
 router.post("/admin/seed", requireRole("admin"), async (_req, res) => {
   try {

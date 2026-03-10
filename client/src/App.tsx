@@ -15,9 +15,8 @@ import JsonLd from "@/components/JsonLd";
 import { PreviewLangProvider } from "@/contexts/PreviewLangContext";
 import AdminLayout from "@/layouts/AdminLayout";
 import ProtectedRoute from "@features/auth/ProtectedRoute";
-import PlaceholderPage from "@features/admin/pages/PlaceholderPage";
-import { CreditCard } from "lucide-react";
 import NotificationCenterPage from "@features/notifications/NotificationCenterPage";
+const PaymentsPage = lazy(() => import("@features/admin/pages/PaymentsPage"));
 
 const Paquetes = lazy(() => import("@/pages/Paquetes"));
 const PaqueteEmpieza = lazy(() => import("@/pages/PaqueteEmpieza"));
@@ -109,7 +108,9 @@ function AdminRouter() {
             <Route path="/admin/chat" component={TeamChatPage} />
             <Route path="/admin/clients" component={ClientsPage} />
             <Route path="/admin/payments">
-              <PlaceholderPage title="Payments" description="Payment processing via Stripe. Manage invoices, subscriptions, and billing for all clients." icon={CreditCard} />
+              <ProtectedRoute roles={["admin", "developer"]}>
+                <PaymentsPage />
+              </ProtectedRoute>
             </Route>
             <Route path="/admin/notifications">
               <NotificationCenterPage />

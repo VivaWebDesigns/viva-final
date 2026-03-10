@@ -18,21 +18,21 @@ import { apiRequest, queryClient, STALE } from "@/lib/queryClient";
 import type { Notification } from "@shared/schema";
 
 const TYPE_CONFIG: Record<string, { icon: any; color: string; label: string; group: string }> = {
-  new_lead:               { icon: Users,        color: "text-blue-600 bg-blue-50",    label: "New Lead",                group: "CRM" },
-  lead_assignment:        { icon: UserPlus,     color: "text-indigo-600 bg-indigo-50", label: "Lead Assigned",          group: "CRM" },
-  lead_converted:         { icon: TrendingUp,   color: "text-teal-600 bg-teal-50",    label: "Lead Converted",          group: "Pipeline" },
-  stage_change:           { icon: ArrowRight,   color: "text-amber-600 bg-amber-50",  label: "Stage Change",            group: "Pipeline" },
-  opportunity_assignment: { icon: UserPlus,     color: "text-emerald-600 bg-emerald-50", label: "Opportunity Assigned", group: "Pipeline" },
-  onboarding_assignment:  { icon: UserPlus,     color: "text-teal-600 bg-teal-50",    label: "Onboarding Assigned",     group: "Onboarding" },
-  onboarding_status:      { icon: ArrowRight,   color: "text-purple-600 bg-purple-50", label: "Onboarding Status",     group: "Onboarding" },
-  system_alert:           { icon: AlertTriangle, color: "text-red-600 bg-red-50",     label: "System Alert",            group: "System" },
+  new_lead:               { icon: Users,        color: "text-blue-600 bg-blue-50",    label: "Nuevo Prospecto",         group: "CRM" },
+  lead_assignment:        { icon: UserPlus,     color: "text-indigo-600 bg-indigo-50", label: "Prospecto Asignado",     group: "CRM" },
+  lead_converted:         { icon: TrendingUp,   color: "text-teal-600 bg-teal-50",    label: "Prospecto Convertido",    group: "Pipeline" },
+  stage_change:           { icon: ArrowRight,   color: "text-amber-600 bg-amber-50",  label: "Cambio de Etapa",         group: "Pipeline" },
+  opportunity_assignment: { icon: UserPlus,     color: "text-emerald-600 bg-emerald-50", label: "Oportunidad Asignada", group: "Pipeline" },
+  onboarding_assignment:  { icon: UserPlus,     color: "text-teal-600 bg-teal-50",    label: "Incorporación Asignada",  group: "Onboarding" },
+  onboarding_status:      { icon: ArrowRight,   color: "text-purple-600 bg-purple-50", label: "Estado de Incorporación", group: "Onboarding" },
+  system_alert:           { icon: AlertTriangle, color: "text-red-600 bg-red-50",     label: "Alerta del Sistema",      group: "System" },
 };
 
 const EMAIL_STATUS_CONFIG: Record<string, { icon: any; color: string; label: string }> = {
-  sent:    { icon: MailCheck, color: "text-green-600", label: "Email sent" },
-  failed:  { icon: MailX,    color: "text-red-600",   label: "Email failed" },
-  skipped: { icon: Mail,     color: "text-gray-400",  label: "In-app only" },
-  pending: { icon: Mail,     color: "text-amber-500", label: "Email pending" },
+  sent:    { icon: MailCheck, color: "text-green-600", label: "Email enviado" },
+  failed:  { icon: MailX,    color: "text-red-600",   label: "Error de email" },
+  skipped: { icon: Mail,     color: "text-gray-400",  label: "Solo en app" },
+  pending: { icon: Mail,     color: "text-amber-500", label: "Email pendiente" },
 };
 
 function getEntityRoute(entityType?: string | null, entityId?: string | null): string | null {
@@ -49,25 +49,25 @@ function getEntityRoute(entityType?: string | null, entityId?: string | null): s
 
 function getEntityLabel(entityType?: string | null): string {
   switch (entityType) {
-    case "lead":        return "View Lead";
-    case "opportunity": return "View Opportunity";
-    case "onboarding":  return "View Onboarding";
-    case "company":     return "View Company";
-    case "contact":     return "View Contact";
-    default:            return "View";
+    case "lead":        return "Ver Prospecto";
+    case "opportunity": return "Ver Oportunidad";
+    case "onboarding":  return "Ver Incorporación";
+    case "company":     return "Ver Empresa";
+    case "contact":     return "Ver Contacto";
+    default:            return "Ver";
   }
 }
 
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1) return "ahora mismo";
+  if (mins < 60) return `hace ${mins}m`;
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
+  if (hrs < 24) return `hace ${hrs}h`;
   const days = Math.floor(hrs / 24);
-  if (days < 7) return `${days}d ago`;
-  return new Date(dateStr).toLocaleDateString();
+  if (days < 7) return `hace ${days}d`;
+  return new Date(dateStr).toLocaleDateString("es");
 }
 
 function getDateGroup(dateStr: string): string {
@@ -76,13 +76,13 @@ function getDateGroup(dateStr: string): string {
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const yesterdayStart = new Date(todayStart.getTime() - 86400000);
   const weekStart = new Date(todayStart.getTime() - 6 * 86400000);
-  if (d >= todayStart) return "Today";
-  if (d >= yesterdayStart) return "Yesterday";
-  if (d >= weekStart) return "Earlier This Week";
-  return "Older";
+  if (d >= todayStart) return "Hoy";
+  if (d >= yesterdayStart) return "Ayer";
+  if (d >= weekStart) return "Esta semana";
+  return "Anteriores";
 }
 
-const DATE_GROUP_ORDER = ["Today", "Yesterday", "Earlier This Week", "Older"];
+const DATE_GROUP_ORDER = ["Hoy", "Ayer", "Esta semana", "Anteriores"];
 
 function groupByDate(notifications: Notification[]): { label: string; items: Notification[] }[] {
   const groups: Record<string, Notification[]> = {};
@@ -158,7 +158,7 @@ export default function NotificationCenterPage() {
     mutationFn: () => apiRequest("PUT", "/api/notifications/read-all"),
     onSuccess: () => {
       invalidateNotifications();
-      toast({ title: "All notifications marked as read" });
+      toast({ title: "Todas las notificaciones marcadas como leídas" });
     },
   });
 
@@ -202,9 +202,9 @@ export default function NotificationCenterPage() {
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900" data-testid="text-notifications-title">Notifications</h1>
+          <h1 className="text-2xl font-bold text-gray-900" data-testid="text-notifications-title">Notificaciones</h1>
           <p className="text-sm text-gray-500 mt-1">
-            {unreadCount > 0 ? `${unreadCount} unread` : "All caught up"}
+            {unreadCount > 0 ? `${unreadCount} sin leer` : "Todo al día"}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -217,7 +217,7 @@ export default function NotificationCenterPage() {
               data-testid="button-mark-all-read"
             >
               <CheckCheck className="w-4 h-4 mr-1" />
-              Mark All Read
+              Marcar todo leído
             </Button>
           )}
         </div>
@@ -227,33 +227,33 @@ export default function NotificationCenterPage() {
         <Filter className="w-4 h-4 text-gray-400 flex-shrink-0" />
         <Select value={typeFilter} onValueChange={setTypeFilter}>
           <SelectTrigger className="w-[200px]" data-testid="select-type-filter">
-            <SelectValue placeholder="All Types" />
+            <SelectValue placeholder="Todos los tipos" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Types</SelectItem>
-            <SelectItem value="new_lead">New Lead</SelectItem>
-            <SelectItem value="lead_assignment">Lead Assigned</SelectItem>
-            <SelectItem value="lead_converted">Lead Converted</SelectItem>
-            <SelectItem value="stage_change">Stage Change</SelectItem>
-            <SelectItem value="opportunity_assignment">Opportunity Assigned</SelectItem>
-            <SelectItem value="onboarding_assignment">Onboarding Assigned</SelectItem>
-            <SelectItem value="onboarding_status">Onboarding Status</SelectItem>
-            <SelectItem value="system_alert">System Alert</SelectItem>
+            <SelectItem value="all">Todos los tipos</SelectItem>
+            <SelectItem value="new_lead">Nuevo Prospecto</SelectItem>
+            <SelectItem value="lead_assignment">Prospecto Asignado</SelectItem>
+            <SelectItem value="lead_converted">Prospecto Convertido</SelectItem>
+            <SelectItem value="stage_change">Cambio de Etapa</SelectItem>
+            <SelectItem value="opportunity_assignment">Oportunidad Asignada</SelectItem>
+            <SelectItem value="onboarding_assignment">Incorporación Asignada</SelectItem>
+            <SelectItem value="onboarding_status">Estado de Incorporación</SelectItem>
+            <SelectItem value="system_alert">Alerta del Sistema</SelectItem>
           </SelectContent>
         </Select>
         <Select value={readFilter} onValueChange={setReadFilter}>
           <SelectTrigger className="w-[140px]" data-testid="select-read-filter">
-            <SelectValue placeholder="All" />
+            <SelectValue placeholder="Todos" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All</SelectItem>
-            <SelectItem value="unread">Unread</SelectItem>
-            <SelectItem value="read">Read</SelectItem>
+            <SelectItem value="all">Todos</SelectItem>
+            <SelectItem value="unread">Sin leer</SelectItem>
+            <SelectItem value="read">Leídos</SelectItem>
           </SelectContent>
         </Select>
         {notificationList.length > 0 && (
           <span className="text-sm text-gray-400 ml-auto">
-            {notificationList.length} notification{notificationList.length !== 1 ? "s" : ""}
+            {notificationList.length} notificación{notificationList.length !== 1 ? "es" : ""}
           </span>
         )}
       </div>
@@ -268,9 +268,9 @@ export default function NotificationCenterPage() {
             <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
               <Inbox className="w-8 h-8 text-gray-400" />
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-1" data-testid="text-empty-state">No notifications</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-1" data-testid="text-empty-state">Sin notificaciones</h3>
             <p className="text-sm text-gray-500">
-              {readFilter === "unread" ? "No unread notifications — you're all caught up!" : "Nothing here yet."}
+              {readFilter === "unread" ? "Todo al día — no hay notificaciones sin leer." : "Aún no hay nada aquí."}
             </p>
           </CardContent>
         </Card>
@@ -339,7 +339,7 @@ export default function NotificationCenterPage() {
                                           e.stopPropagation();
                                           markReadMutation.mutate(notification.id);
                                         }}
-                                        title="Mark as read"
+                                        title="Marcar como leído"
                                         data-testid={`button-mark-read-${notification.id}`}
                                       >
                                         <Check className="w-3.5 h-3.5" />
@@ -353,7 +353,7 @@ export default function NotificationCenterPage() {
                                         e.stopPropagation();
                                         deleteMutation.mutate(notification.id);
                                       }}
-                                      title="Dismiss"
+                                      title="Descartar"
                                       data-testid={`button-delete-${notification.id}`}
                                     >
                                       <X className="w-3.5 h-3.5" />

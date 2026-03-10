@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { useState } from "react";
 import {
   BarChart3, TrendingUp, Target, DollarSign, Users, CheckCircle2,
-  Bell, ArrowUpRight, ArrowDownRight, Minus, Calendar,
+  Bell, ArrowUpRight, ArrowDownRight, Minus, Calendar, AlertTriangle,
 } from "lucide-react";
 
 interface SourceRow { source: string; sourceLabel: string; count: number; totalValue: number }
@@ -25,6 +25,7 @@ interface OverviewData {
   wonLost: WonLost;
   onboarding: OnboardingData;
   notifications: NotifSummary;
+  overdueLeads: { count: number };
 }
 
 const DATE_RANGES = [
@@ -144,11 +145,11 @@ export default function ReportsPage() {
       </div>
 
       {isLoading ? (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          {[1, 2, 3, 4].map((i) => <Skeleton key={i} h="h-28" />)}
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+          {[1, 2, 3, 4, 5].map((i) => <Skeleton key={i} h="h-28" />)}
         </div>
       ) : data ? (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
           <StatCard
             label="Total Leads"
             value={data.conversion.total}
@@ -180,6 +181,14 @@ export default function ReportsPage() {
             color={data.wonLost.winRate >= 50 ? "bg-green-500" : data.wonLost.winRate > 0 ? "bg-amber-500" : "bg-gray-400"}
             sub={`${data.wonLost.won.count} won / ${data.wonLost.lost.count} lost`}
             testId="card-report-win-rate"
+          />
+          <StatCard
+            label="Prospectos Vencidos"
+            value={data.overdueLeads?.count ?? 0}
+            icon={AlertTriangle}
+            color={(data.overdueLeads?.count ?? 0) > 0 ? "bg-red-500" : "bg-gray-400"}
+            sub="Seguimiento requerido"
+            testId="card-report-overdue-leads"
           />
         </div>
       ) : null}

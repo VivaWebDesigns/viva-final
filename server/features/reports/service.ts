@@ -1,9 +1,32 @@
+/**
+ * Reports Service
+ *
+ * Metric Definitions:
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Conversion Rate     = leads that have at least one pipeline opportunity
+ *                       / total leads in the date range × 100
+ *                       (a lead is "converted" when it becomes an opportunity)
+ *
+ * Pipeline Value      = sum of `pipelineOpportunities.value` for ALL non-closed
+ *                       opportunities. Null values treated as $0.
+ *
+ * Open Pipeline Value = same, filtered to status = 'open'
+ *
+ * Win Rate            = won opportunities / (won + lost) × 100
+ *                       (only counts closed outcomes, not open/stale)
+ *
+ * Overdue Leads       = leads whose followUpDate is in the past and whose
+ *                       status is not a terminal status (won/lost). These
+ *                       need follow-up action from the sales team.
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+
 import { db } from "../../db";
 import {
   crmLeads, crmLeadStatuses, pipelineOpportunities, pipelineStages,
   onboardingRecords, onboardingChecklistItems, notifications,
 } from "@shared/schema";
-import { sql, eq, and, gte, count, sum } from "drizzle-orm";
+import { sql, eq, and, gte, count, sum, lt } from "drizzle-orm";
 
 interface DateRange {
   from?: Date;
@@ -221,8 +244,22 @@ export async function getNotificationSummary(range?: DateRange) {
   return { byType, total: totals?.total ?? 0, unread: totals?.unread ?? 0 };
 }
 
+export async function getOverdueLeads(range?: DateRange) {
+  const now = new Date();
+  const conditions = dateFilter(crmLeads.createdAt, range);
+  conditions.push(lt(crmLeads.followUpDate, now));
+  conditions.push(sql`${crmLeads.followUpDate} IS NOT NULL`);
+
+  const rows = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(crmLeads)
+    .where(and(...conditions));
+
+  return { count: rows[0]?.count ?? 0 };
+}
+
 export async function getOverview(range?: DateRange) {
-  const [leadsBySource, leadsByStatus, conversion, pipeline, wonLost, onboarding, notifs] =
+  const [leadsBySource, leadsByStatus, conversion, pipeline, wonLost, onboarding, notifs, overdueLeads] =
     await Promise.all([
       getLeadsBySource(range),
       getLeadsByStatus(range),
@@ -231,7 +268,8 @@ export async function getOverview(range?: DateRange) {
       getWonLostBreakdown(range),
       getOnboardingBreakdown(range),
       getNotificationSummary(range),
+      getOverdueLeads(range),
     ]);
 
-  return { leadsBySource, leadsByStatus, conversion, pipeline, wonLost, onboarding, notifications: notifs };
+  return { leadsBySource, leadsByStatus, conversion, pipeline, wonLost, onboarding, notifications: notifs, overdueLeads };
 }
