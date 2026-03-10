@@ -45,19 +45,47 @@ router.get("/audit-logs", requireRole("admin"), async (req, res) => {
   res.json(logs);
 });
 
+// Bootstrap endpoint — creates the first admin account.
+// Security gates (both must pass before execution):
+//   1. Blocked entirely in production unless SEED_ADMIN_SECRET is set in the environment.
+//   2. When SEED_ADMIN_SECRET is set, the caller must supply the matching value in the
+//      X-Seed-Secret request header. Without a matching secret the request is rejected.
+// Admin email and password are read exclusively from environment variables:
+//   SEED_ADMIN_EMAIL   — required (no default)
+//   SEED_ADMIN_PASSWORD — required (no default)
+// Idempotent: returns success without re-creating if the account already exists.
 router.post("/seed-admin", async (req, res) => {
+  const isProduction = process.env.NODE_ENV === "production";
+  const seedSecret   = process.env.SEED_ADMIN_SECRET;
+
+  // Gate 1: block in production when no secret is configured.
+  if (isProduction && !seedSecret) {
+    return res.status(403).json({ message: "Bootstrap endpoint is disabled in production. Set SEED_ADMIN_SECRET to enable it." });
+  }
+
+  // Gate 2: when a secret is configured (any environment), require it in the header.
+  if (seedSecret) {
+    const provided = req.headers["x-seed-secret"];
+    if (!provided || provided !== seedSecret) {
+      return res.status(403).json({ message: "Missing or invalid X-Seed-Secret header." });
+    }
+  }
+
+  const adminEmail    = process.env.SEED_ADMIN_EMAIL;
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD;
+
+  if (!adminEmail || !adminPassword) {
+    return res.status(400).json({ message: "SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD environment variables must be set." });
+  }
+
   try {
-    const existing = await db.select().from(user).where(eq(user.email, "admin@vivawebdesigns.com"));
+    const existing = await db.select().from(user).where(eq(user.email, adminEmail));
     if (existing.length > 0) {
       return res.json({ message: "Admin user already exists", userId: existing[0].id });
     }
 
     const result = await auth.api.signUpEmail({
-      body: {
-        name: "Admin",
-        email: "admin@vivawebdesigns.com",
-        password: "VivaAdmin2026!",
-      },
+      body: { name: "Admin", email: adminEmail, password: adminPassword },
     });
 
     if (result?.user?.id) {
@@ -66,7 +94,7 @@ router.post("/seed-admin", async (req, res) => {
         action: "seed_admin",
         entity: "user",
         entityId: result.user.id,
-        metadata: { email: "admin@vivawebdesigns.com" },
+        metadata: { email: adminEmail },
       });
     }
 

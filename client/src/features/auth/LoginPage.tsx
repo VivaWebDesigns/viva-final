@@ -9,9 +9,13 @@ import { Label } from "@/components/ui/label";
 
 import logoIcon from "@assets/icon_1772859732991.png";
 
+// Dev-only autofill credentials are read from environment variables so that
+// no plaintext passwords live in source code. Set VITE_DEV_ADMIN_EMAIL and
+// VITE_DEV_ADMIN_PASSWORD in your local .env / Replit Secrets. The autofill
+// card is stripped from production builds entirely by Vite (import.meta.env.DEV).
 const DEV_CREDENTIALS = {
-  email: "admin@vivawebdesigns.com",
-  password: "VivaAdmin2026!",
+  email: import.meta.env.VITE_DEV_ADMIN_EMAIL || "",
+  password: import.meta.env.VITE_DEV_ADMIN_PASSWORD || "",
 };
 
 export default function LoginPage() {
