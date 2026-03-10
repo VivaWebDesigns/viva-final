@@ -1,0 +1,224 @@
+You are working in an existing full-stack TypeScript CRM/admin platform for Viva Web Designs built with:
+
+- React 18 + TypeScript + Vite
+- Tailwind CSS + shadcn/ui
+- Express.js + TypeScript
+- PostgreSQL + Drizzle ORM
+- BetterAuth
+- TanStack Query v5
+- react-hook-form + Zod
+
+This is a NONDESTRUCTIVE feature expansion task.
+
+GOAL
+Build Client Profile Phase 2 by expanding the Client Profile into a fuller account-management workspace for active customers.
+
+CONTEXT
+Client Profile Phase 1 has already expanded the basic client record into a more useful profile that includes richer summary information, notes, multiple contacts, and recent activity.
+
+This Phase 2 should build on that work and add the next most valuable operational capabilities for an internal agency CRM:
+1. client tasks / follow-ups
+2. linked onboarding visibility
+3. file/document attachments
+4. billing snapshot / Stripe-related account visibility
+5. account health / renewal indicators
+
+BUSINESS INTENT
+In this platform:
+- Leads = pre-sale prospects
+- Pipeline/opportunities = active sales process
+- Clients = active customer accounts after sale
+
+The Client Profile should now evolve from a richer record view into a day-to-day account management hub for the internal Viva Web Designs team.
+
+PRIMARY SCOPE FOR THIS PHASE
+
+A) Client Tasks / Follow-Ups
+Add a client-scoped task/follow-up capability inside the Client Profile.
+
+Support:
+- create task/follow-up
+- title
+- optional description
+- due date
+- assigned team member
+- status (open, completed, overdue, etc. aligned with current app patterns)
+- task type if useful (follow-up, onboarding, billing, general)
+- completed timestamp if completed
+- list tasks on the client profile
+- mark complete / reopen if appropriate
+- basic filtering by status if cleanly supported
+
+If the app already has a reusable task/activity pattern elsewhere, inspect it and reuse/extend it where appropriate instead of inventing a completely separate system.
+
+Tasks should feel lightweight and practical, not like a huge project-management module.
+
+B) Linked Onboarding Visibility
+Improve the Client Profile so team members can clearly see any onboarding relationship for that client.
+
+Support:
+- show whether the client has an onboarding record
+- surface onboarding status
+- show key onboarding dates if available
+- show progress summary if already supported by onboarding data
+- link from Client Profile to the related onboarding record/workspace
+- optionally show a small recent onboarding activity summary if easy to support
+
+Do not duplicate the full onboarding module inside the Client Profile.
+This phase should improve visibility and navigation, not rebuild onboarding.
+
+C) File / Document Attachments
+Add client-related file/document support to the Client Profile using the current storage approach already implemented in the platform.
+
+Use the existing file/storage architecture if available (for example Cloudflare R2 integration if already completed).
+
+Support:
+- upload file/document to a client profile
+- list attached files
+- store file metadata
+- file name
+- uploaded by
+- uploaded date
+- optional category/type if helpful (contract, asset, intake, billing, general)
+- download/view access based on current app patterns
+- optional delete/remove only if there is a safe existing pattern and proper role protection
+
+This should be client-scoped file support, not a full digital asset manager.
+
+Use explicit validation for:
+- file type restrictions
+- size limits
+- metadata validation
+
+Protect access appropriately and avoid exposing unsafe file behavior.
+
+D) Billing Snapshot / Stripe Visibility
+Add a lightweight billing snapshot area to the Client Profile that reflects the client’s billing relationship without trying to build the entire billing system inside the profile.
+
+Support where data is available:
+- Stripe customer association/status
+- billing status
+- plan/subscription summary if applicable
+- last invoice/payment summary if safely available
+- quick link to the admin payments/billing area if present
+- billing notes or internal billing summary if useful
+
+This should integrate with the platform’s Stripe/client billing work if already available.
+Do not build a whole invoice management system in this prompt unless it already exists and only needs profile integration.
+
+The goal is operational visibility, not a full accounting tool.
+
+E) Account Health / Renewal / Key Dates
+Add a lightweight account health/details section to help the team manage active clients over time.
+
+Potential fields/capabilities:
+- launch date
+- renewal date
+- website status
+- care plan / recurring service status
+- account health indicator if one can be derived from existing useful signals
+- internal priority or service tier if aligned with current schema/business logic
+- next review date or follow-up date
+
+Only add fields that are actually useful and can be supported cleanly.
+Prefer additive minimal schema changes over speculative complexity.
+
+F) Client Profile UI Organization
+Improve the Client Profile UI so it cleanly supports the new Phase 2 capabilities.
+
+Recommended organization:
+- Overview
+- Notes
+- Contacts
+- Tasks / Follow-Ups
+- Files
+- Billing
+- Activity
+- optional Account Details / Onboarding
+
+Use tabs, cards, or sectioned layouts consistent with the app’s current design system.
+Use shadcn/ui and existing Viva CRM patterns.
+Keep the UI practical and operational, not flashy.
+
+TECHNICAL TASKS
+1. Inspect the current Client Profile Phase 1 implementation end to end:
+   - schema
+   - server routes
+   - storage/services
+   - frontend profile/detail page
+   - audit/history support
+   - onboarding relationship
+   - file/storage foundation
+   - Stripe/billing support if present
+2. Design the minimum additive schema changes needed for this phase.
+3. Add any needed tables/relations for:
+   - client tasks/follow-ups
+   - client files/attachments metadata
+   - client billing linkage fields if not already present and if needed
+4. Reuse existing patterns from:
+   - onboarding
+   - notes/tasks/activity systems
+   - integrations/storage/file upload support
+   - Stripe/client billing work
+5. Add/update protected API routes for:
+   - client task create/list/update
+   - client file upload/list/access metadata
+   - client billing snapshot retrieval
+   - client account detail updates for new management fields
+6. Use explicit Zod validation for all create/update/upload-related mutations.
+7. Keep all new functionality strongly typed across server/client/shared boundaries.
+8. Add frontend UI for all supported new sections inside the Client Profile.
+9. Preserve existing client list behavior and Client Profile Phase 1 behavior.
+10. Add audit logging for meaningful mutations such as:
+   - task created/completed/updated
+   - file uploaded/removed
+   - billing/account details updated
+11. Add minimal internal docs describing Client Profile Phase 2 behavior and data model additions.
+
+IMPORTANT GUARDRAILS
+- NONDESTRUCTIVE only
+- Do not remove or break existing client functionality
+- Do not rewrite unrelated CRM modules
+- Do not rebuild onboarding, billing, or storage systems from scratch in this prompt
+- Reuse existing app patterns wherever possible
+- Prefer additive schema changes
+- Keep changes localized to Client Profiles and closely related supporting pieces
+- Keep TanStack Query v5 usage correct
+- Keep BetterAuth/role protection patterns aligned with the current codebase
+- Do not create dead placeholder tabs or fake features; only add sections that are actually implemented
+- Do not expose sensitive billing or file data insecurely
+
+DESIGN / UX GUIDANCE
+The Client Profile should now feel like a real internal account-management hub for a web/marketing agency serving contractor clients.
+
+The internal team should be able to quickly answer:
+- What is happening with this client right now?
+- Who are the contacts?
+- What follow-ups are due?
+- Where is onboarding?
+- What files/docs are attached?
+- What does billing look like at a glance?
+- Are there upcoming renewals or account-risk signals?
+
+Favor clarity, scannability, and operational usefulness.
+
+DELIVERABLES
+1. Client tasks/follow-ups support
+2. Linked onboarding visibility inside Client Profile
+3. Client file/document attachment support
+4. Billing snapshot section inside Client Profile
+5. Account health / key dates enhancements
+6. Expanded Client Profile Phase 2 frontend UI
+7. Audit coverage for major Phase 2 mutations
+8. Minimal documentation update
+9. Summary of changed files, schema changes, and recommended next-step phases
+
+ACCEPTANCE CRITERIA
+- Client Profiles are now meaningfully useful for day-to-day account management
+- Team members can create and manage client follow-up tasks
+- Client Profiles show linked onboarding visibility
+- Team members can upload and view client-related files/documents
+- Billing visibility is available at a practical summary level
+- Key account dates and health details are easier to manage
+- Existing client functionality and Client Profile Phase 1 behavior still work
+- All changes are additive, validated, role-protected, and type-safe

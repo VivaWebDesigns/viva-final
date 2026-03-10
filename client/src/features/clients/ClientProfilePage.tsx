@@ -1,11 +1,15 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useParams, useLocation } from "wouter";
-import { 
-  ArrowLeft, Building2, Mail, Phone, MapPin, Globe, 
-  User, Calendar, Plus, MessageSquare, History, 
+import { useLocation } from "wouter";
+import {
+  ArrowLeft, Building2, Mail, Phone, MapPin, Globe,
+  User, Calendar, Plus, MessageSquare, History,
   Users, Layout, Star, Pin, Trash2, Edit2, CheckCircle2,
-  Clock, AlertCircle, CheckCircle
+  Clock, AlertCircle, CheckCircle, FileText, Upload,
+  Download, CreditCard, Shield, Rocket, RefreshCw,
+  ClipboardList, ExternalLink, CheckSquare, Square,
+  CalendarDays, Tag, ServerCrash, Wifi, WifiOff, Wrench,
+  Building, BarChart3, Paperclip,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,29 +17,30 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { 
-  Form, FormControl, FormField, FormItem, FormLabel, FormMessage 
+import {
+  Form, FormControl, FormField, FormItem, FormLabel, FormMessage
 } from "@/components/ui/form";
-import { 
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue 
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { 
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter 
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter
 } from "@/components/ui/dialog";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { apiRequest, queryClient, STALE } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
-import type { 
-  CrmCompany, CrmContact, CrmLead, CrmLeadStatus, 
+import { format, isPast, isToday } from "date-fns";
+import type {
+  CrmCompany, CrmContact, CrmLead, CrmLeadStatus,
   PipelineOpportunity, PipelineStage, OnboardingRecord,
-  ClientNote, User as DbUser
+  ClientNote, User as DbUser, FollowupTask,
 } from "@shared/schema";
 
-// Types based on expected backend response from T002
+// ─── Types ────────────────────────────────────────────────────────────────────
+
 interface ClientProfile extends CrmCompany {
   contacts: (CrmContact & { isPrimary: boolean })[];
   leads: (CrmLead & { status: CrmLeadStatus | null })[];
@@ -43,7 +48,35 @@ interface ClientProfile extends CrmCompany {
   onboardings: OnboardingRecord[];
   accountOwner: Pick<DbUser, "id" | "name" | "email"> | null;
   recentNotes: (ClientNote & { user?: Pick<DbUser, "id" | "name"> })[];
+  openTaskCount: number;
 }
+
+interface ClientTask extends FollowupTask {
+  creatorName: string | null;
+  status: "open" | "overdue" | "completed";
+}
+
+interface ClientFile {
+  id: string;
+  originalName: string;
+  mimeType: string;
+  sizeBytes: number;
+  url: string;
+  key: string;
+  createdAt: string;
+  uploaderName: string | null;
+  uploaderUserId: string | null;
+}
+
+interface BillingSnapshot {
+  billingNotes: string | null;
+  serviceTier: string | null;
+  carePlanStatus: string | null;
+  stripeCustomer: { id: string; stripeCustomerId: string; email: string | null; metadata: any } | null;
+  recentEvents: any[];
+}
+
+// ─── Schemas ──────────────────────────────────────────────────────────────────
 
 const updateAccountSchema = z.object({
   clientStatus: z.string().nullable(),
@@ -64,6 +97,18 @@ const updateAccountSchema = z.object({
   notes: z.string().nullable(),
 });
 
+const nullableEnum = <T extends string>(values: [T, ...T[]]) =>
+  z.preprocess(v => (v === "" ? null : v), z.enum(values).nullable());
+
+const accountHealthSchema = z.object({
+  launchDate: z.string().nullable(),
+  renewalDate: z.string().nullable(),
+  websiteStatus: nullableEnum(["live", "maintenance", "down", "building"]),
+  carePlanStatus: nullableEnum(["active", "inactive", "none"]),
+  serviceTier: nullableEnum(["basic", "standard", "premium"]),
+  billingNotes: z.string().nullable(),
+});
+
 const createNoteSchema = z.object({
   type: z.enum(["general", "call", "meeting", "internal"]),
   content: z.string().min(1, "Content is required"),
@@ -80,12 +125,24 @@ const contactSchema = z.object({
   isPrimary: z.boolean().default(false),
 });
 
+const taskSchema = z.object({
+  title: z.string().min(1, "Title is required"),
+  notes: z.string().nullable().optional(),
+  taskType: z.enum(["follow_up", "onboarding", "billing", "general", "review"]),
+  dueDate: z.string().min(1, "Due date is required"),
+});
+
+// ─── Main Component ───────────────────────────────────────────────────────────
+
 export default function ClientProfilePage({ id }: { id: string }) {
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [activeTab, setActiveTab] = useState("overview");
   const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<CrmContact | null>(null);
+  const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
 
   const { data: client, isLoading, error } = useQuery<ClientProfile>({
     queryKey: ["/api/clients", id],
@@ -97,9 +154,26 @@ export default function ClientProfilePage({ id }: { id: string }) {
     enabled: !!id,
   });
 
+  const { data: tasks = [], isLoading: tasksLoading } = useQuery<ClientTask[]>({
+    queryKey: ["/api/clients", id, "tasks"],
+    enabled: activeTab === "tasks" && !!id,
+  });
+
+  const { data: files = [], isLoading: filesLoading } = useQuery<ClientFile[]>({
+    queryKey: ["/api/clients", id, "files"],
+    enabled: activeTab === "files" && !!id,
+  });
+
+  const { data: billing, isLoading: billingLoading } = useQuery<BillingSnapshot>({
+    queryKey: ["/api/clients", id, "billing"],
+    enabled: activeTab === "billing" && !!id,
+  });
+
   const { data: users = [] } = useQuery<Pick<DbUser, "id" | "name">[]>({
     queryKey: ["/api/admin/users"],
   });
+
+  // ─── Mutations ───────────────────────────────────────────────────────────────
 
   const updateClientMutation = useMutation({
     mutationFn: async (values: z.infer<typeof updateAccountSchema>) => {
@@ -114,13 +188,37 @@ export default function ClientProfilePage({ id }: { id: string }) {
     }
   });
 
+  const updateHealthMutation = useMutation({
+    mutationFn: async (values: z.infer<typeof accountHealthSchema>) => {
+      const payload: any = {};
+      for (const [k, v] of Object.entries(values)) {
+        if (v === "" || v === undefined) {
+          payload[k] = null;
+        } else if ((k === "launchDate" || k === "renewalDate") && typeof v === "string" && v) {
+          payload[k] = new Date(v).toISOString();
+        } else {
+          payload[k] = v;
+        }
+      }
+      await apiRequest("PATCH", `/api/clients/${id}/account`, payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/clients", id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/clients", id, "billing"] });
+      toast({ title: "Account health updated" });
+    },
+    onError: (err: Error) => {
+      toast({ variant: "destructive", title: "Update failed", description: err.message });
+    }
+  });
+
   const createNoteMutation = useMutation({
     mutationFn: async (values: z.infer<typeof createNoteSchema>) => {
       await apiRequest("POST", `/api/clients/${id}/notes`, values);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/clients", id, "notes"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/clients", id] }); // Recent notes in overview
+      queryClient.invalidateQueries({ queryKey: ["/api/clients", id] });
       toast({ title: "Note added" });
     },
   });
@@ -151,18 +249,104 @@ export default function ClientProfilePage({ id }: { id: string }) {
     },
   });
 
-  if (isLoading) return <div className="p-8 animate-pulse space-y-4">
-    <div className="h-12 bg-gray-200 rounded w-1/3" />
-    <div className="h-64 bg-gray-100 rounded" />
-  </div>;
+  const createTaskMutation = useMutation({
+    mutationFn: async (values: z.infer<typeof taskSchema>) => {
+      const dueDate = new Date(values.dueDate);
+      dueDate.setHours(9, 0, 0, 0);
+      await apiRequest("POST", `/api/clients/${id}/tasks`, {
+        ...values,
+        dueDate: dueDate.toISOString(),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/clients", id, "tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/clients", id] });
+      setIsTaskDialogOpen(false);
+      toast({ title: "Task created" });
+    },
+    onError: (err: Error) => {
+      toast({ variant: "destructive", title: "Failed to create task", description: err.message });
+    }
+  });
 
-  if (error || !client) return <div className="p-8 text-center">
-    <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-    <h2 className="text-xl font-bold">Client not found</h2>
-    <Button variant="outline" className="mt-4" onClick={() => navigate("/admin/clients")}>
-      Back to Clients
-    </Button>
-  </div>;
+  const toggleTaskMutation = useMutation({
+    mutationFn: async (taskId: string) => {
+      await apiRequest("PUT", `/api/clients/${id}/tasks/${taskId}/complete`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/clients", id, "tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/clients", id] });
+    },
+  });
+
+  const deleteTaskMutation = useMutation({
+    mutationFn: async (taskId: string) => {
+      await apiRequest("DELETE", `/api/clients/${id}/tasks/${taskId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/clients", id, "tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/clients", id] });
+      toast({ title: "Task deleted" });
+    },
+  });
+
+  const deleteFileMutation = useMutation({
+    mutationFn: async (fileId: string) => {
+      await apiRequest("DELETE", `/api/attachments/${fileId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/clients", id, "files"] });
+      toast({ title: "File deleted" });
+    },
+  });
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingFile(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("entityType", "client");
+      formData.append("entityId", id);
+      formData.append("folder", "client-files");
+      const res = await fetch("/api/attachments/upload", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Upload failed");
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/clients", id, "files"] });
+      toast({ title: "File uploaded successfully" });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Upload failed", description: err.message });
+    } finally {
+      setUploadingFile(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  // ─── Loading / Error States ───────────────────────────────────────────────────
+
+  if (isLoading) return (
+    <div className="p-8 animate-pulse space-y-4">
+      <div className="h-12 bg-gray-200 rounded w-1/3" />
+      <div className="h-64 bg-gray-100 rounded" />
+    </div>
+  );
+
+  if (error || !client) return (
+    <div className="p-8 text-center">
+      <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+      <h2 className="text-xl font-bold">Client not found</h2>
+      <Button variant="outline" className="mt-4" onClick={() => navigate("/admin/clients")}>
+        Back to Clients
+      </Button>
+    </div>
+  );
 
   const statusColors: Record<string, string> = {
     active: "bg-emerald-100 text-emerald-700 border-emerald-200",
@@ -171,6 +355,8 @@ export default function ClientProfilePage({ id }: { id: string }) {
     churned: "bg-red-100 text-red-700 border-red-200",
     prospect: "bg-blue-100 text-blue-700 border-blue-200",
   };
+
+  const openTasks = client.openTaskCount ?? 0;
 
   return (
     <div className="h-full flex flex-col space-y-6 p-6 overflow-y-auto" data-testid={`page-client-profile-${id}`}>
@@ -190,6 +376,11 @@ export default function ClientProfilePage({ id }: { id: string }) {
                   {client.clientStatus.replace("_", " ")}
                 </Badge>
               )}
+              {client.serviceTier && (
+                <Badge className="bg-purple-100 text-purple-700 border-purple-200" data-testid="badge-service-tier">
+                  {client.serviceTier}
+                </Badge>
+              )}
               {client.industry && (
                 <Badge variant="outline" data-testid="badge-industry">{client.industry}</Badge>
               )}
@@ -207,56 +398,80 @@ export default function ClientProfilePage({ id }: { id: string }) {
         </div>
 
         {/* Quick Stats Row */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <Card className="p-3 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
-              <Users className="w-5 h-5 text-blue-500" />
+            <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+              <Users className="w-4 h-4 text-blue-500" />
             </div>
             <div>
               <p className="text-xs text-gray-500">Contacts</p>
-              <p className="font-bold text-lg" data-testid="stat-contacts-count">{client.contacts.length}</p>
+              <p className="font-bold text-lg leading-tight" data-testid="stat-contacts-count">{client.contacts.length}</p>
             </div>
           </Card>
           <Card className="p-3 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
-              <Layout className="w-5 h-5 text-emerald-500" />
+            <div className="w-9 h-9 rounded-lg bg-emerald-50 flex items-center justify-center shrink-0">
+              <Layout className="w-4 h-4 text-emerald-500" />
             </div>
             <div>
-              <p className="text-xs text-gray-500">Active Leads</p>
-              <p className="font-bold text-lg" data-testid="stat-leads-count">{client.leads.length}</p>
+              <p className="text-xs text-gray-500">Leads</p>
+              <p className="font-bold text-lg leading-tight" data-testid="stat-leads-count">{client.leads.length}</p>
             </div>
           </Card>
           <Card className="p-3 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center">
-              <Clock className="w-5 h-5 text-purple-500" />
+            <div className="w-9 h-9 rounded-lg bg-purple-50 flex items-center justify-center shrink-0">
+              <Clock className="w-4 h-4 text-purple-500" />
             </div>
             <div>
               <p className="text-xs text-gray-500">Deals</p>
-              <p className="font-bold text-lg" data-testid="stat-deals-count">{client.opportunities.length}</p>
+              <p className="font-bold text-lg leading-tight" data-testid="stat-deals-count">{client.opportunities.length}</p>
             </div>
           </Card>
           <Card className="p-3 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
-              <Star className="w-5 h-5 text-amber-500" />
+            <div className="w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center shrink-0">
+              <Star className="w-4 h-4 text-amber-500" />
             </div>
             <div>
               <p className="text-xs text-gray-500">Deal Value</p>
-              <p className="font-bold text-lg" data-testid="stat-deals-value">
+              <p className="font-bold text-lg leading-tight" data-testid="stat-deals-value">
                 ${client.opportunities.reduce((sum, op) => sum + Number(op.value || 0), 0).toLocaleString()}
               </p>
+            </div>
+          </Card>
+          <Card
+            className="p-3 flex items-center gap-3 cursor-pointer hover:bg-gray-50 transition-colors"
+            onClick={() => setActiveTab("tasks")}
+            data-testid="stat-open-tasks"
+          >
+            <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${openTasks > 0 ? "bg-rose-50" : "bg-gray-50"}`}>
+              <ClipboardList className={`w-4 h-4 ${openTasks > 0 ? "text-rose-500" : "text-gray-400"}`} />
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">Open Tasks</p>
+              <p className={`font-bold text-lg leading-tight ${openTasks > 0 ? "text-rose-600" : "text-gray-700"}`}>{openTasks}</p>
             </div>
           </Card>
         </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="bg-gray-100/50 p-1">
+        <TabsList className="bg-gray-100/50 p-1 flex-wrap h-auto">
           <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
           <TabsTrigger value="notes" data-testid="tab-notes">Notes</TabsTrigger>
           <TabsTrigger value="contacts" data-testid="tab-contacts">Contacts</TabsTrigger>
+          <TabsTrigger value="tasks" data-testid="tab-tasks" className="relative">
+            Tasks
+            {openTasks > 0 && (
+              <span className="ml-1.5 inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold bg-rose-500 text-white rounded-full">
+                {openTasks > 9 ? "9+" : openTasks}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="files" data-testid="tab-files">Files</TabsTrigger>
+          <TabsTrigger value="billing" data-testid="tab-billing">Billing</TabsTrigger>
           <TabsTrigger value="activity" data-testid="tab-activity">Activity</TabsTrigger>
         </TabsList>
 
+        {/* ── Overview Tab ───────────────────────────────────────────────── */}
         <TabsContent value="overview" className="space-y-6 pt-4">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Contact Info Card */}
@@ -306,6 +521,12 @@ export default function ClientProfilePage({ id }: { id: string }) {
                     <p className="text-xs text-gray-500 mb-1 uppercase font-semibold">Contact Method</p>
                     <p className="text-sm capitalize">{client.preferredContactMethod || "Not specified"}</p>
                   </div>
+                  {client.accountOwner && (
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1 uppercase font-semibold">Account Owner</p>
+                      <p className="text-sm">{client.accountOwner.name}</p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -316,36 +537,78 @@ export default function ClientProfilePage({ id }: { id: string }) {
                 <CardTitle className="text-lg">Account Management</CardTitle>
               </CardHeader>
               <CardContent>
-                <AccountForm 
-                  client={client} 
+                <AccountForm
+                  client={client}
                   users={users}
-                  onSubmit={(data) => updateClientMutation.mutate(data)} 
+                  onSubmit={(data) => updateClientMutation.mutate(data)}
                   isPending={updateClientMutation.isPending}
                 />
               </CardContent>
             </Card>
           </div>
 
+          {/* Account Health Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Shield className="w-5 h-5 text-indigo-400" />
+                Account Health &amp; Key Dates
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <AccountHealthForm
+                client={client}
+                onSubmit={(data) => updateHealthMutation.mutate(data)}
+                isPending={updateHealthMutation.isPending}
+              />
+            </CardContent>
+          </Card>
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Onboarding Section */}
             {client.onboardings.length > 0 && (
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Onboarding Records</CardTitle>
+                <CardHeader className="flex flex-row items-center justify-between pb-3">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Rocket className="w-5 h-5 text-emerald-400" />
+                    Onboarding
+                  </CardTitle>
+                  <Badge variant="outline" className="text-xs">{client.onboardings.length} record{client.onboardings.length !== 1 ? "s" : ""}</Badge>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {client.onboardings.map(ob => (
-                    <div key={ob.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer" onClick={() => navigate(`/admin/onboarding/${ob.id}`)}>
-                      <div className="flex items-center gap-3">
-                        <CheckCircle2 className={`w-5 h-5 ${ob.status === 'completed' ? 'text-emerald-500' : 'text-gray-300'}`} />
-                        <div>
-                          <p className="text-sm font-medium">{ob.clientName}</p>
-                          <p className="text-xs text-gray-500">Status: {ob.status.replace("_", " ")}</p>
+                  {client.onboardings.map(ob => {
+                    const statusBg: Record<string, string> = {
+                      completed: "bg-emerald-50 border-emerald-200",
+                      in_progress: "bg-blue-50 border-blue-200",
+                      on_hold: "bg-amber-50 border-amber-200",
+                      not_started: "bg-gray-50 border-gray-200",
+                    };
+                    const isDone = ob.status === "completed";
+                    return (
+                      <div
+                        key={ob.id}
+                        className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer hover:opacity-90 transition-opacity ${statusBg[ob.status] || "bg-gray-50 border-gray-200"}`}
+                        onClick={() => navigate(`/admin/onboarding/${ob.id}`)}
+                        data-testid={`onboarding-item-${ob.id}`}
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <CheckCircle2 className={`w-5 h-5 shrink-0 ${isDone ? "text-emerald-500" : "text-gray-300"}`} />
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium truncate">{ob.clientName}</p>
+                            <p className="text-xs text-gray-500 capitalize">{ob.status.replace("_", " ")}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {ob.dueDate && (
+                            <Badge variant="outline" className="text-[10px]">
+                              Due {format(new Date(ob.dueDate), "MMM d")}
+                            </Badge>
+                          )}
+                          <ExternalLink className="w-3.5 h-3.5 text-gray-400" />
                         </div>
                       </div>
-                      <Badge variant="outline" className="text-[10px]">Due {ob.dueDate ? format(new Date(ob.dueDate), "MMM d") : "N/A"}</Badge>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </CardContent>
               </Card>
             )}
@@ -357,7 +620,7 @@ export default function ClientProfilePage({ id }: { id: string }) {
               </CardHeader>
               <CardContent className="space-y-3">
                 {client.leads.slice(0, 5).map(lead => (
-                  <div key={lead.id} className="flex items-center justify-between p-3 border rounded-lg" onClick={() => navigate(`/admin/crm/leads/${lead.id}`)}>
+                  <div key={lead.id} className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => navigate(`/admin/crm/leads/${lead.id}`)}>
                     <div className="min-w-0">
                       <p className="text-sm font-medium truncate">{lead.title}</p>
                       <p className="text-xs text-gray-500">{format(new Date(lead.createdAt), "MMM d, yyyy")}</p>
@@ -375,6 +638,7 @@ export default function ClientProfilePage({ id }: { id: string }) {
           </div>
         </TabsContent>
 
+        {/* ── Notes Tab ──────────────────────────────────────────────────── */}
         <TabsContent value="notes" className="space-y-6 pt-4">
           <Card>
             <CardHeader>
@@ -382,7 +646,7 @@ export default function ClientProfilePage({ id }: { id: string }) {
             </CardHeader>
             <CardContent className="space-y-6">
               <NoteForm onSubmit={(data) => createNoteMutation.mutate(data)} isPending={createNoteMutation.isPending} />
-              
+
               <div className="space-y-4">
                 {notes.map(note => (
                   <div key={note.id} className={`p-4 rounded-xl border ${note.isPinned ? 'bg-amber-50/30 border-amber-100' : 'bg-white'} relative group`}>
@@ -409,6 +673,7 @@ export default function ClientProfilePage({ id }: { id: string }) {
           </Card>
         </TabsContent>
 
+        {/* ── Contacts Tab ───────────────────────────────────────────────── */}
         <TabsContent value="contacts" className="space-y-6 pt-4">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-bold">Contacts</h2>
@@ -423,7 +688,7 @@ export default function ClientProfilePage({ id }: { id: string }) {
                 <DialogHeader>
                   <DialogTitle>{editingContact ? "Edit Contact" : "Add New Contact"}</DialogTitle>
                 </DialogHeader>
-                <ContactForm 
+                <ContactForm
                   initialData={editingContact}
                   onSubmit={(data) => upsertContactMutation.mutate(data)}
                   isPending={upsertContactMutation.isPending}
@@ -468,9 +733,9 @@ export default function ClientProfilePage({ id }: { id: string }) {
                       </div>
                     </div>
                   </div>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
+                  <Button
+                    variant="ghost"
+                    size="icon"
                     className="opacity-0 group-hover:opacity-100 transition-opacity"
                     onClick={() => {
                       setEditingContact(contact);
@@ -490,6 +755,311 @@ export default function ClientProfilePage({ id }: { id: string }) {
           </div>
         </TabsContent>
 
+        {/* ── Tasks Tab ──────────────────────────────────────────────────── */}
+        <TabsContent value="tasks" className="space-y-4 pt-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-bold">Tasks &amp; Follow-Ups</h2>
+            <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
+              <DialogTrigger asChild>
+                <Button data-testid="button-create-task">
+                  <Plus className="w-4 h-4 mr-2" />
+                  New Task
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Create Task</DialogTitle>
+                </DialogHeader>
+                <TaskForm
+                  onSubmit={(data) => createTaskMutation.mutate(data)}
+                  isPending={createTaskMutation.isPending}
+                />
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          {tasksLoading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map(i => <div key={i} className="h-16 bg-gray-50 rounded-lg animate-pulse" />)}
+            </div>
+          ) : tasks.length === 0 ? (
+            <div className="py-16 text-center bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+              <ClipboardList className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <p className="text-gray-500 font-medium">No tasks yet</p>
+              <p className="text-sm text-gray-400 mt-1">Create a task to track follow-ups and action items.</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {/* Group: Overdue */}
+              {tasks.filter(t => t.status === "overdue").length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-red-500 uppercase tracking-wide px-1">Overdue</p>
+                  {tasks.filter(t => t.status === "overdue").map(task => (
+                    <TaskRow
+                      key={task.id}
+                      task={task}
+                      onToggle={() => toggleTaskMutation.mutate(task.id)}
+                      onDelete={() => deleteTaskMutation.mutate(task.id)}
+                      isToggling={toggleTaskMutation.isPending}
+                    />
+                  ))}
+                </div>
+              )}
+              {/* Group: Open */}
+              {tasks.filter(t => t.status === "open").length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide px-1">Open</p>
+                  {tasks.filter(t => t.status === "open").map(task => (
+                    <TaskRow
+                      key={task.id}
+                      task={task}
+                      onToggle={() => toggleTaskMutation.mutate(task.id)}
+                      onDelete={() => deleteTaskMutation.mutate(task.id)}
+                      isToggling={toggleTaskMutation.isPending}
+                    />
+                  ))}
+                </div>
+              )}
+              {/* Group: Completed */}
+              {tasks.filter(t => t.status === "completed").length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wide px-1">Completed</p>
+                  {tasks.filter(t => t.status === "completed").map(task => (
+                    <TaskRow
+                      key={task.id}
+                      task={task}
+                      onToggle={() => toggleTaskMutation.mutate(task.id)}
+                      onDelete={() => deleteTaskMutation.mutate(task.id)}
+                      isToggling={toggleTaskMutation.isPending}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* ── Files Tab ──────────────────────────────────────────────────── */}
+        <TabsContent value="files" className="space-y-4 pt-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-bold">Files &amp; Attachments</h2>
+            <div>
+              <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                onChange={handleFileUpload}
+                accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv"
+                data-testid="input-file-upload"
+              />
+              <Button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingFile}
+                data-testid="button-upload-file"
+              >
+                {uploadingFile ? (
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Upload className="w-4 h-4 mr-2" />
+                )}
+                {uploadingFile ? "Uploading..." : "Upload File"}
+              </Button>
+            </div>
+          </div>
+
+          <p className="text-xs text-gray-400">Allowed: images, PDF, Word, Excel, CSV — max 10 MB per file.</p>
+
+          {filesLoading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map(i => <div key={i} className="h-14 bg-gray-50 rounded-lg animate-pulse" />)}
+            </div>
+          ) : files.length === 0 ? (
+            <div className="py-16 text-center bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+              <Paperclip className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <p className="text-gray-500 font-medium">No files uploaded</p>
+              <p className="text-sm text-gray-400 mt-1">Upload contracts, proposals, or other documents for this client.</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {files.map(file => (
+                <Card key={file.id} className="p-3 flex items-center justify-between gap-3 group" data-testid={`file-row-${file.id}`}>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
+                      <FileIcon mimeType={file.mimeType} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate" data-testid={`file-name-${file.id}`}>{file.originalName}</p>
+                      <p className="text-xs text-gray-400">
+                        {formatBytes(file.sizeBytes)} · {file.uploaderName || "Unknown"} · {format(new Date(file.createdAt), "MMM d, yyyy")}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      asChild
+                      data-testid={`button-download-${file.id}`}
+                    >
+                      <a href={file.url} target="_blank" rel="noreferrer" download={file.originalName}>
+                        <Download className="w-4 h-4 text-blue-500" />
+                      </a>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => deleteFileMutation.mutate(file.id)}
+                      data-testid={`button-delete-file-${file.id}`}
+                    >
+                      <Trash2 className="w-4 h-4 text-red-400" />
+                    </Button>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* ── Billing Tab ────────────────────────────────────────────────── */}
+        <TabsContent value="billing" className="space-y-6 pt-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Stripe Customer Card */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <CreditCard className="w-5 h-5 text-indigo-400" />
+                  Stripe Account
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {billingLoading ? (
+                  <div className="space-y-3 animate-pulse">
+                    <div className="h-4 bg-gray-100 rounded w-1/2" />
+                    <div className="h-4 bg-gray-100 rounded w-3/4" />
+                  </div>
+                ) : billing?.stripeCustomer ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">Connected</Badge>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Stripe Customer ID</p>
+                      <p className="text-sm font-mono bg-gray-50 px-2 py-1 rounded border" data-testid="text-stripe-customer-id">
+                        {billing.stripeCustomer.stripeCustomerId}
+                      </p>
+                    </div>
+                    {billing.stripeCustomer.email && (
+                      <div>
+                        <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Billing Email</p>
+                        <p className="text-sm">{billing.stripeCustomer.email}</p>
+                      </div>
+                    )}
+                    <Button variant="outline" size="sm" asChild>
+                      <a href={`https://dashboard.stripe.com/customers/${billing.stripeCustomer.stripeCustomerId}`} target="_blank" rel="noreferrer">
+                        <ExternalLink className="w-3.5 h-3.5 mr-1.5" />
+                        Open in Stripe
+                      </a>
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="py-6 text-center">
+                    <CreditCard className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+                    <p className="text-sm text-gray-500">No Stripe customer linked</p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-3"
+                      onClick={() => navigate("/admin/payments")}
+                    >
+                      Go to Payments
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Service Overview Card */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <BarChart3 className="w-5 h-5 text-purple-400" />
+                  Service Overview
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase font-semibold mb-1.5">Service Tier</p>
+                    {client.serviceTier ? (
+                      <Badge className={{
+                        basic: "bg-gray-100 text-gray-700",
+                        standard: "bg-blue-100 text-blue-700",
+                        premium: "bg-purple-100 text-purple-700",
+                      }[client.serviceTier] || "bg-gray-100 text-gray-700"} data-testid="text-service-tier">
+                        {client.serviceTier.charAt(0).toUpperCase() + client.serviceTier.slice(1)}
+                      </Badge>
+                    ) : (
+                      <p className="text-sm text-gray-400">Not set</p>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase font-semibold mb-1.5">Care Plan</p>
+                    {client.carePlanStatus ? (
+                      <Badge className={{
+                        active: "bg-emerald-100 text-emerald-700",
+                        inactive: "bg-gray-100 text-gray-700",
+                        none: "bg-red-100 text-red-700",
+                      }[client.carePlanStatus] || "bg-gray-100 text-gray-700"} data-testid="text-care-plan-status">
+                        {client.carePlanStatus.charAt(0).toUpperCase() + client.carePlanStatus.slice(1)}
+                      </Badge>
+                    ) : (
+                      <p className="text-sm text-gray-400">Not set</p>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase font-semibold mb-1.5">Launch Date</p>
+                    <p className="text-sm" data-testid="text-launch-date">
+                      {client.launchDate ? format(new Date(client.launchDate), "MMM d, yyyy") : "—"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase font-semibold mb-1.5">Renewal Date</p>
+                    <p className={`text-sm ${client.renewalDate && isPast(new Date(client.renewalDate)) ? "text-red-600 font-semibold" : ""}`} data-testid="text-renewal-date">
+                      {client.renewalDate ? format(new Date(client.renewalDate), "MMM d, yyyy") : "—"}
+                    </p>
+                  </div>
+                </div>
+
+                {client.billingNotes && (
+                  <div className="pt-3 border-t">
+                    <p className="text-xs text-gray-500 uppercase font-semibold mb-1.5">Billing Notes</p>
+                    <p className="text-sm text-gray-700 bg-gray-50 p-2.5 rounded-lg border whitespace-pre-wrap" data-testid="text-billing-notes">
+                      {client.billingNotes}
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Edit Account Health from Billing Tab too */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Update Service Details</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <AccountHealthForm
+                client={client}
+                onSubmit={(data) => updateHealthMutation.mutate(data)}
+                isPending={updateHealthMutation.isPending}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ── Activity Tab ───────────────────────────────────────────────── */}
         <TabsContent value="activity" className="pt-4">
           <Card>
             <CardHeader>
@@ -505,11 +1075,96 @@ export default function ClientProfilePage({ id }: { id: string }) {
   );
 }
 
-function AccountForm({ client, users, onSubmit, isPending }: { 
-  client: ClientProfile, 
-  users: Pick<DbUser, "id" | "name">[],
-  onSubmit: (data: any) => void, 
-  isPending: boolean 
+// ─── Helper Components ────────────────────────────────────────────────────────
+
+function TaskRow({ task, onToggle, onDelete, isToggling }: {
+  task: ClientTask;
+  onToggle: () => void;
+  onDelete: () => void;
+  isToggling: boolean;
+}) {
+  const taskTypeColors: Record<string, string> = {
+    follow_up: "bg-blue-100 text-blue-700",
+    onboarding: "bg-emerald-100 text-emerald-700",
+    billing: "bg-purple-100 text-purple-700",
+    general: "bg-gray-100 text-gray-700",
+    review: "bg-amber-100 text-amber-700",
+  };
+
+  const isOverdue = task.status === "overdue";
+  const isDone = task.status === "completed";
+
+  return (
+    <Card className={`p-3 flex items-start gap-3 group transition-opacity ${isDone ? "opacity-60" : ""}`} data-testid={`task-row-${task.id}`}>
+      <button
+        className="mt-0.5 shrink-0"
+        onClick={onToggle}
+        disabled={isToggling}
+        data-testid={`button-toggle-task-${task.id}`}
+      >
+        {isDone
+          ? <CheckSquare className="w-5 h-5 text-emerald-500" />
+          : <Square className={`w-5 h-5 ${isOverdue ? "text-red-400" : "text-gray-300"}`} />
+        }
+      </button>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <p className={`text-sm font-medium ${isDone ? "line-through text-gray-400" : "text-gray-900"}`} data-testid={`task-title-${task.id}`}>
+            {task.title}
+          </p>
+          {task.taskType && (
+            <Badge className={`text-[10px] px-1.5 ${taskTypeColors[task.taskType] || "bg-gray-100 text-gray-700"}`}>
+              {task.taskType.replace("_", " ")}
+            </Badge>
+          )}
+        </div>
+        {task.notes && (
+          <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{task.notes}</p>
+        )}
+        <div className="flex items-center gap-3 mt-1.5">
+          <span className={`text-xs flex items-center gap-1 ${isOverdue ? "text-red-500 font-medium" : "text-gray-400"}`}>
+            <CalendarDays className="w-3 h-3" />
+            {task.dueDate ? (isToday(new Date(task.dueDate)) ? "Today" : format(new Date(task.dueDate), "MMM d, yyyy")) : "No due date"}
+          </span>
+          {task.creatorName && (
+            <span className="text-xs text-gray-400">by {task.creatorName}</span>
+          )}
+        </div>
+      </div>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+        onClick={onDelete}
+        data-testid={`button-delete-task-${task.id}`}
+      >
+        <Trash2 className="w-3.5 h-3.5 text-red-400" />
+      </Button>
+    </Card>
+  );
+}
+
+function FileIcon({ mimeType }: { mimeType: string }) {
+  if (mimeType.startsWith("image/")) return <FileText className="w-4 h-4 text-blue-400" />;
+  if (mimeType === "application/pdf") return <FileText className="w-4 h-4 text-red-400" />;
+  if (mimeType.includes("spreadsheet") || mimeType.includes("excel") || mimeType === "text/csv")
+    return <FileText className="w-4 h-4 text-emerald-500" />;
+  return <FileText className="w-4 h-4 text-gray-400" />;
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+// ─── Sub-forms ────────────────────────────────────────────────────────────────
+
+function AccountForm({ client, users, onSubmit, isPending }: {
+  client: ClientProfile;
+  users: Pick<DbUser, "id" | "name">[];
+  onSubmit: (data: any) => void;
+  isPending: boolean;
 }) {
   const form = useForm({
     resolver: zodResolver(updateAccountSchema),
@@ -590,7 +1245,7 @@ function AccountForm({ client, users, onSubmit, isPending }: {
               <FormItem>
                 <FormLabel>Next Follow-up</FormLabel>
                 <FormControl>
-                  <Input type="date" {...field} value={field.value || ""} />
+                  <Input type="date" {...field} value={field.value || ""} data-testid="input-next-followup" />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -627,7 +1282,7 @@ function AccountForm({ client, users, onSubmit, isPending }: {
             <FormItem>
               <FormLabel>Internal Account Notes</FormLabel>
               <FormControl>
-                <Textarea {...field} placeholder="Internal details about this account relationship..." className="min-h-[100px]" value={field.value || ""} />
+                <Textarea {...field} placeholder="Internal details about this account relationship..." className="min-h-[80px]" value={field.value || ""} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -643,14 +1298,148 @@ function AccountForm({ client, users, onSubmit, isPending }: {
   );
 }
 
+function AccountHealthForm({ client, onSubmit, isPending }: {
+  client: ClientProfile;
+  onSubmit: (data: any) => void;
+  isPending: boolean;
+}) {
+  const form = useForm({
+    resolver: zodResolver(accountHealthSchema),
+    defaultValues: {
+      launchDate: client.launchDate ? new Date(client.launchDate).toISOString().split('T')[0] : "",
+      renewalDate: client.renewalDate ? new Date(client.renewalDate).toISOString().split('T')[0] : "",
+      websiteStatus: (client.websiteStatus as any) || "",
+      carePlanStatus: (client.carePlanStatus as any) || "",
+      serviceTier: (client.serviceTier as any) || "",
+      billingNotes: client.billingNotes || "",
+    }
+  });
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <FormField
+            control={form.control}
+            name="serviceTier"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Service Tier</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
+                  <FormControl>
+                    <SelectTrigger data-testid="select-service-tier">
+                      <SelectValue placeholder="Select tier" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="basic">Basic</SelectItem>
+                    <SelectItem value="standard">Standard</SelectItem>
+                    <SelectItem value="premium">Premium</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="carePlanStatus"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Care Plan Status</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
+                  <FormControl>
+                    <SelectTrigger data-testid="select-care-plan-status">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="websiteStatus"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Website Status</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
+                  <FormControl>
+                    <SelectTrigger data-testid="select-website-status">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="live">Live</SelectItem>
+                    <SelectItem value="building">Building</SelectItem>
+                    <SelectItem value="maintenance">Maintenance</SelectItem>
+                    <SelectItem value="down">Down</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="launchDate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Launch Date</FormLabel>
+                <FormControl>
+                  <Input type="date" {...field} value={field.value || ""} data-testid="input-launch-date" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="renewalDate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Renewal Date</FormLabel>
+                <FormControl>
+                  <Input type="date" {...field} value={field.value || ""} data-testid="input-renewal-date" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+        <FormField
+          control={form.control}
+          name="billingNotes"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Billing Notes</FormLabel>
+              <FormControl>
+                <Textarea {...field} placeholder="Payment terms, invoicing notes, special billing arrangements..." className="min-h-[80px]" value={field.value || ""} data-testid="input-billing-notes" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <div className="flex justify-end">
+          <Button type="submit" disabled={isPending} data-testid="button-save-account-health">
+            {isPending ? "Saving..." : "Save Account Health"}
+          </Button>
+        </div>
+      </form>
+    </Form>
+  );
+}
+
 function NoteForm({ onSubmit, isPending }: { onSubmit: (data: any) => void, isPending: boolean }) {
   const form = useForm({
     resolver: zodResolver(createNoteSchema),
-    defaultValues: {
-      type: "general",
-      content: "",
-      isPinned: false
-    }
+    defaultValues: { type: "general", content: "", isPinned: false }
   });
 
   const handleSubmit = (data: any) => {
@@ -722,10 +1511,104 @@ function NoteForm({ onSubmit, isPending }: { onSubmit: (data: any) => void, isPe
   );
 }
 
-function ContactForm({ initialData, onSubmit, isPending }: { 
-  initialData: any, 
-  onSubmit: (data: any) => void, 
-  isPending: boolean 
+function TaskForm({ onSubmit, isPending }: { onSubmit: (data: any) => void; isPending: boolean }) {
+  const form = useForm({
+    resolver: zodResolver(taskSchema),
+    defaultValues: {
+      title: "",
+      notes: "",
+      taskType: "follow_up" as const,
+      dueDate: new Date().toISOString().split('T')[0],
+    }
+  });
+
+  const handleSubmit = (data: any) => {
+    onSubmit(data);
+    form.reset();
+  };
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+        <FormField
+          control={form.control}
+          name="title"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Task Title</FormLabel>
+              <FormControl>
+                <Input {...field} placeholder="e.g. Follow up on proposal" data-testid="input-task-title" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="taskType"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Type</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger data-testid="select-task-type">
+                      <SelectValue />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="follow_up">Follow-Up</SelectItem>
+                    <SelectItem value="onboarding">Onboarding</SelectItem>
+                    <SelectItem value="billing">Billing</SelectItem>
+                    <SelectItem value="review">Review</SelectItem>
+                    <SelectItem value="general">General</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="dueDate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Due Date</FormLabel>
+                <FormControl>
+                  <Input type="date" {...field} data-testid="input-task-due-date" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+        <FormField
+          control={form.control}
+          name="notes"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Notes (optional)</FormLabel>
+              <FormControl>
+                <Textarea {...field} placeholder="Additional details..." className="min-h-[80px]" value={field.value || ""} data-testid="input-task-notes" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <DialogFooter>
+          <Button type="submit" disabled={isPending} data-testid="button-submit-task">
+            {isPending ? "Creating..." : "Create Task"}
+          </Button>
+        </DialogFooter>
+      </form>
+    </Form>
+  );
+}
+
+function ContactForm({ initialData, onSubmit, isPending }: {
+  initialData: any;
+  onSubmit: (data: any) => void;
+  isPending: boolean;
 }) {
   const form = useForm({
     resolver: zodResolver(contactSchema),
@@ -844,7 +1727,9 @@ function ContactForm({ initialData, onSubmit, isPending }: {
   );
 }
 
-function ActivityTimeline({ clientId, clientData }: { clientId: string, clientData: ClientProfile }) {
+// ─── Activity Timeline ────────────────────────────────────────────────────────
+
+function ActivityTimeline({ clientId, clientData }: { clientId: string; clientData: ClientProfile }) {
   const { data: history = [], isLoading } = useQuery<{
     id: string;
     event: string;
@@ -858,12 +1743,16 @@ function ActivityTimeline({ clientId, clientData }: { clientId: string, clientDa
     queryKey: ["/api/history/client", clientId],
   });
 
-  if (isLoading) return <div className="space-y-4">
-    {[1, 2, 3].map(i => <div key={i} className="h-16 bg-gray-50 rounded-lg animate-pulse" />)}
-  </div>;
+  if (isLoading) return (
+    <div className="space-y-4">
+      {[1, 2, 3].map(i => <div key={i} className="h-16 bg-gray-50 rounded-lg animate-pulse" />)}
+    </div>
+  );
 
-  // Combine history with notes for a unified timeline
-  const timelineItems: { id: string, date: Date, type: string, event: string, user: string, content: string, icon: JSX.Element, noteType?: string }[] = [
+  const timelineItems: {
+    id: string; date: Date; type: string; event: string;
+    user: string; content: string; icon: JSX.Element; noteType?: string;
+  }[] = [
     ...history.map(h => ({
       id: h.id,
       date: new Date(h.createdAt),
@@ -881,7 +1770,7 @@ function ActivityTimeline({ clientId, clientData }: { clientId: string, clientDa
       user: n.user?.name || 'System',
       content: n.content,
       icon: <MessageSquare className="w-4 h-4 text-blue-500" />,
-      noteType: n.type
+      noteType: n.type,
     }))
   ];
 
@@ -889,7 +1778,7 @@ function ActivityTimeline({ clientId, clientData }: { clientId: string, clientDa
 
   return (
     <div className="relative space-y-4 before:absolute before:inset-0 before:ml-5 before:h-full before:w-0.5 before:bg-gray-100">
-      {timelineItems.map((item, idx) => (
+      {timelineItems.map((item) => (
         <div key={item.id} className="relative pl-12">
           <div className="absolute left-0 mt-1 flex h-10 w-10 items-center justify-center rounded-full border bg-white ring-4 ring-white shadow-sm">
             {item.icon}
@@ -900,13 +1789,12 @@ function ActivityTimeline({ clientId, clientData }: { clientId: string, clientDa
               <span className="text-[10px] text-gray-500">{format(item.date, "MMM d, yyyy h:mm a")}</span>
             </div>
             <div className="mt-1 text-sm text-gray-600">
-              {item.type === 'note' && (
+              {item.type === 'note' ? (
                 <div className="bg-gray-50 p-3 rounded-lg border">
                   <Badge variant="outline" className="text-[9px] mb-2">{item.noteType}</Badge>
                   <p className="line-clamp-3">{item.content}</p>
                 </div>
-              )}
-              {item.type === 'history' && (
+              ) : (
                 <p>{item.content}</p>
               )}
             </div>
@@ -924,13 +1812,22 @@ function getEventIcon(event: string) {
   if (event.includes('status')) return <Clock className="w-4 h-4 text-amber-500" />;
   if (event.includes('contact')) return <Users className="w-4 h-4 text-blue-500" />;
   if (event.includes('onboarding')) return <CheckCircle className="w-4 h-4 text-emerald-500" />;
+  if (event.includes('task')) return <ClipboardList className="w-4 h-4 text-purple-500" />;
+  if (event.includes('file') || event.includes('attachment')) return <Paperclip className="w-4 h-4 text-gray-400" />;
   return <History className="w-4 h-4 text-gray-400" />;
 }
 
 function getEventDescription(h: any) {
   const meta = h.metadata || {};
   if (h.event === 'client_status_updated') return `Status changed to ${meta.newStatus || 'unknown'}`;
-  if (h.event === 'client_contact_added') return `New contact added: ${meta.contactName || 'unknown'}`;
+  if (h.event === 'client_contact_added') return `New contact added`;
   if (h.event === 'onboarding_started') return `Onboarding started: ${meta.recordName || 'unknown'}`;
+  if (h.event === 'client_task_created') return `Task created: ${meta.title || 'unknown'}`;
+  if (h.event === 'client_task_completed') return `Task completed: ${meta.title || ''}`;
+  if (h.event === 'client_task_reopened') return `Task reopened: ${meta.title || ''}`;
+  if (h.event === 'client_account_updated') return `Account health updated`;
+  if (h.event === 'field_updated' && meta.note) return meta.note;
+  if (h.event === 'status_changed') return `Status changed: ${meta.fromValue || ''} → ${meta.toValue || ''}`;
+  if (h.event === 'owner_changed') return `Account owner changed`;
   return h.event.replace(/_/g, ' ');
 }

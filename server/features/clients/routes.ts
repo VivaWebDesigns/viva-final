@@ -1,8 +1,13 @@
 import { Router } from "express";
 import { requireRole } from "../auth/middleware";
 import { db } from "../../db";
-import { crmCompanies, crmContacts, crmLeads, crmLeadStatuses, pipelineOpportunities, pipelineStages, onboardingRecords, user, clientNotes } from "@shared/schema";
-import { sql, desc, ilike, or, SQL, eq } from "drizzle-orm";
+import {
+  crmCompanies, crmContacts, crmLeads, crmLeadStatuses,
+  pipelineOpportunities, pipelineStages, onboardingRecords,
+  user, clientNotes, followupTasks, stripeCustomers, stripeWebhookEvents,
+  attachments,
+} from "@shared/schema";
+import { sql, desc, asc, ilike, or, SQL, eq, and } from "drizzle-orm";
 import { z } from "zod";
 import { logAudit } from "../audit/service";
 import { appendHistorySafe } from "../history/service";
@@ -28,6 +33,15 @@ const updateClientSchema = z.object({
   preferredContactMethod: z.enum(["email", "phone", "text", "in_person"]).nullable().optional(),
 }).strict();
 
+const updateAccountHealthSchema = z.object({
+  launchDate: z.string().nullable().transform(v => v ? new Date(v) : null).optional(),
+  renewalDate: z.string().nullable().transform(v => v ? new Date(v) : null).optional(),
+  websiteStatus: z.enum(["live", "maintenance", "down", "building"]).nullable().optional(),
+  carePlanStatus: z.enum(["active", "inactive", "none"]).nullable().optional(),
+  serviceTier: z.enum(["basic", "standard", "premium"]).nullable().optional(),
+  billingNotes: z.string().nullable().optional(),
+}).strict();
+
 const createNoteSchema = z.object({
   type: z.enum(["general", "call", "meeting", "internal"]),
   content: z.string().min(1),
@@ -43,6 +57,16 @@ const contactSchema = z.object({
   preferredLanguage: z.string().nullable().optional(),
   isPrimary: z.boolean().optional(),
 }).strict();
+
+const createTaskSchema = z.object({
+  title: z.string().min(1, "Title is required"),
+  notes: z.string().nullable().optional(),
+  taskType: z.enum(["follow_up", "onboarding", "billing", "general", "review"]).default("follow_up"),
+  dueDate: z.string().datetime({ message: "Valid due date required" }),
+  assignedTo: z.string().nullable().optional(),
+}).strict();
+
+// ─── Client List ───────────────────────────────────────────────────────
 
 router.get("/", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
@@ -111,6 +135,8 @@ router.get("/", requireRole("admin", "developer", "sales_rep"), async (req, res)
   }
 });
 
+// ─── Client Profile ────────────────────────────────────────────────────
+
 router.get("/:id", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
     const id = req.params.id;
@@ -133,7 +159,7 @@ router.get("/:id", requireRole("admin", "developer", "sales_rep"), async (req, r
       return res.status(404).json({ message: "Client not found" });
     }
 
-    const [contacts, leads, opportunities, onboardings, recentNotes] = await Promise.all([
+    const [contacts, leads, opportunities, onboardings, recentNotes, taskCount] = await Promise.all([
       db.select().from(crmContacts).where(eq(crmContacts.companyId, id)).orderBy(desc(crmContacts.isPrimary), desc(crmContacts.createdAt)),
       db.select({
         id: crmLeads.id,
@@ -178,7 +204,11 @@ router.get("/:id", requireRole("admin", "developer", "sales_rep"), async (req, r
       .where(eq(clientNotes.companyId, id))
       .orderBy(desc(clientNotes.isPinned), desc(clientNotes.createdAt))
       .limit(20),
+      db.select({ count: sql<number>`count(*)::int` }).from(followupTasks)
+        .where(and(eq(followupTasks.companyId, id), eq(followupTasks.completed, false))),
     ]);
+
+    const openTaskCount = taskCount[0]?.count ?? 0;
 
     res.json({
       ...company.company,
@@ -188,12 +218,15 @@ router.get("/:id", requireRole("admin", "developer", "sales_rep"), async (req, r
       opportunities,
       onboardings,
       recentNotes,
+      openTaskCount,
     });
   } catch (err: any) {
     console.error("Client profile error:", err);
     res.status(500).json({ message: err.message });
   }
 });
+
+// ─── Client Update ─────────────────────────────────────────────────────
 
 router.patch("/:id", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
@@ -244,6 +277,43 @@ router.patch("/:id", requireRole("admin", "developer", "sales_rep"), async (req,
     res.status(400).json({ message: err.message });
   }
 });
+
+// ─── Account Health / Key Dates ────────────────────────────────────────
+
+router.patch("/:id/account", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
+  try {
+    const id = req.params.id;
+    const [existing] = await db.select().from(crmCompanies).where(eq(crmCompanies.id, id)).limit(1);
+    if (!existing) return res.status(404).json({ message: "Client not found" });
+
+    const validated = updateAccountHealthSchema.parse(req.body);
+    const [updated] = await db.update(crmCompanies).set({ ...validated, updatedAt: new Date() }).where(eq(crmCompanies.id, id)).returning();
+
+    await logAudit({
+      userId: req.authUser?.id,
+      action: "client_account_updated",
+      entity: "crm_company",
+      entityId: id,
+      metadata: { changes: validated },
+      ipAddress: req.ip,
+    });
+
+    appendHistorySafe({
+      entityType: "client",
+      entityId: id,
+      event: "field_updated",
+      note: "Account health / key dates updated",
+      actorId: req.authUser?.id,
+      actorName: req.authUser?.name,
+    });
+
+    res.json(updated);
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// ─── Notes ─────────────────────────────────────────────────────────────
 
 router.get("/:id/notes", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
@@ -318,6 +388,8 @@ router.delete("/:id/notes/:noteId", requireRole("admin", "developer"), async (re
   }
 });
 
+// ─── Contacts ──────────────────────────────────────────────────────────
+
 router.post("/:id/contacts", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
     const id = req.params.id;
@@ -377,6 +449,216 @@ router.patch("/:id/contacts/:contactId", requireRole("admin", "developer", "sale
     res.json(contact);
   } catch (err: any) {
     res.status(400).json({ message: err.message });
+  }
+});
+
+// ─── Tasks / Follow-Ups ────────────────────────────────────────────────
+
+router.get("/:id/tasks", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
+  try {
+    const id = req.params.id;
+    const status = req.query.status as string | undefined;
+
+    const now = new Date();
+    const tasks = await db
+      .select({
+        id: followupTasks.id,
+        title: followupTasks.title,
+        notes: followupTasks.notes,
+        taskType: followupTasks.taskType,
+        dueDate: followupTasks.dueDate,
+        completed: followupTasks.completed,
+        completedAt: followupTasks.completedAt,
+        companyId: followupTasks.companyId,
+        assignedTo: followupTasks.assignedTo,
+        createdBy: followupTasks.createdBy,
+        createdAt: followupTasks.createdAt,
+        creatorName: user.name,
+      })
+      .from(followupTasks)
+      .leftJoin(user, eq(followupTasks.createdBy, user.id))
+      .where(eq(followupTasks.companyId, id))
+      .orderBy(asc(followupTasks.dueDate));
+
+    const enriched = tasks.map(task => ({
+      ...task,
+      status: task.completed
+        ? "completed"
+        : task.dueDate < now ? "overdue" : "open",
+    }));
+
+    const filtered = status
+      ? enriched.filter(t => t.status === status)
+      : enriched;
+
+    res.json(filtered);
+  } catch (err: any) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.post("/:id/tasks", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
+  try {
+    const id = req.params.id;
+    const [company] = await db.select({ id: crmCompanies.id }).from(crmCompanies).where(eq(crmCompanies.id, id)).limit(1);
+    if (!company) return res.status(404).json({ message: "Client not found" });
+
+    const validated = createTaskSchema.parse(req.body);
+    const [task] = await db.insert(followupTasks).values({
+      title: validated.title,
+      notes: validated.notes ?? null,
+      taskType: validated.taskType,
+      dueDate: new Date(validated.dueDate),
+      companyId: id,
+      assignedTo: validated.assignedTo ?? null,
+      createdBy: req.authUser?.id,
+      completed: false,
+    }).returning();
+
+    await logAudit({
+      userId: req.authUser?.id,
+      action: "client_task_created",
+      entity: "followup_task",
+      entityId: task.id,
+      metadata: { companyId: id, title: task.title, dueDate: task.dueDate },
+      ipAddress: req.ip,
+    });
+
+    appendHistorySafe({
+      entityType: "client",
+      entityId: id,
+      event: "field_updated",
+      note: `Task created: ${task.title}`,
+      actorId: req.authUser?.id,
+      actorName: req.authUser?.name,
+    });
+
+    res.status(201).json(task);
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+router.put("/:id/tasks/:taskId/complete", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
+  try {
+    const taskId = req.params.taskId;
+    const [existing] = await db.select().from(followupTasks).where(eq(followupTasks.id, taskId)).limit(1);
+    if (!existing) return res.status(404).json({ message: "Task not found" });
+
+    const nowCompleted = !existing.completed;
+    const [task] = await db.update(followupTasks)
+      .set({
+        completed: nowCompleted,
+        completedAt: nowCompleted ? new Date() : null,
+      })
+      .where(eq(followupTasks.id, taskId))
+      .returning();
+
+    await logAudit({
+      userId: req.authUser?.id,
+      action: nowCompleted ? "client_task_completed" : "client_task_reopened",
+      entity: "followup_task",
+      entityId: taskId,
+      metadata: { companyId: req.params.id, title: task.title },
+      ipAddress: req.ip,
+    });
+
+    res.json(task);
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+router.delete("/:id/tasks/:taskId", requireRole("admin", "developer"), async (req, res) => {
+  try {
+    const taskId = req.params.taskId;
+    await db.delete(followupTasks).where(and(eq(followupTasks.id, taskId), eq(followupTasks.companyId, req.params.id)));
+    await logAudit({
+      userId: req.authUser?.id,
+      action: "client_task_deleted",
+      entity: "followup_task",
+      entityId: taskId,
+      metadata: { companyId: req.params.id },
+      ipAddress: req.ip,
+    });
+    res.status(204).end();
+  } catch (err: any) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ─── Files / Attachments ───────────────────────────────────────────────
+
+router.get("/:id/files", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
+  try {
+    const id = req.params.id;
+    const files = await db
+      .select({
+        id: attachments.id,
+        originalName: attachments.originalName,
+        mimeType: attachments.mimeType,
+        sizeBytes: attachments.sizeBytes,
+        url: attachments.url,
+        key: attachments.key,
+        createdAt: attachments.createdAt,
+        uploaderName: user.name,
+        uploaderUserId: attachments.uploaderUserId,
+      })
+      .from(attachments)
+      .leftJoin(user, eq(attachments.uploaderUserId, user.id))
+      .where(and(
+        eq(attachments.entityType, "client"),
+        eq(attachments.entityId, id),
+      ))
+      .orderBy(desc(attachments.createdAt));
+    res.json(files);
+  } catch (err: any) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ─── Billing Snapshot ──────────────────────────────────────────────────
+
+router.get("/:id/billing", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
+  try {
+    const id = req.params.id;
+
+    const [company] = await db
+      .select({ billingNotes: crmCompanies.billingNotes, serviceTier: crmCompanies.serviceTier, carePlanStatus: crmCompanies.carePlanStatus })
+      .from(crmCompanies)
+      .where(eq(crmCompanies.id, id))
+      .limit(1);
+
+    if (!company) return res.status(404).json({ message: "Client not found" });
+
+    const [stripeCustomer] = await db
+      .select()
+      .from(stripeCustomers)
+      .where(and(
+        eq(stripeCustomers.entityType, "company"),
+        eq(stripeCustomers.entityId, id),
+      ))
+      .limit(1);
+
+    let recentEvents: any[] = [];
+    if (stripeCustomer) {
+      recentEvents = await db
+        .select()
+        .from(stripeWebhookEvents)
+        .where(eq(stripeWebhookEvents.processed, true))
+        .orderBy(desc(stripeWebhookEvents.createdAt))
+        .limit(5);
+    }
+
+    res.json({
+      billingNotes: company.billingNotes,
+      serviceTier: company.serviceTier,
+      carePlanStatus: company.carePlanStatus,
+      stripeCustomer: stripeCustomer ?? null,
+      recentEvents,
+    });
+  } catch (err: any) {
+    res.status(500).json({ message: err.message });
   }
 });
 

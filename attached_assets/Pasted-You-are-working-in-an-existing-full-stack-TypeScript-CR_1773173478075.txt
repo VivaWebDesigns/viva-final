@@ -1,0 +1,218 @@
+You are working in an existing full-stack TypeScript CRM/admin platform for Viva Web Designs built with:
+
+- React 18 + TypeScript + Vite
+- Tailwind CSS + shadcn/ui
+- Express.js + TypeScript
+- PostgreSQL + Drizzle ORM
+- BetterAuth
+- TanStack Query v5
+- Replit deployment on a single port
+
+This is a NONDESTRUCTIVE real-time communication enhancement task.
+
+GOAL
+Expand the internal team chat system to support real-time socket-based communication, including direct messages (DMs) between team members, while preserving existing channel-based chat functionality.
+
+BUSINESS INTENT
+The internal CRM/admin platform should support fast, practical team communication for operations, sales, onboarding, and account management.
+
+The system should now support:
+1. real-time team channel messaging
+2. real-time direct messages between team members
+3. unread indicators and message delivery updates
+4. a clean foundation for future chat enhancements
+
+PRIMARY REQUIREMENTS
+
+A) Add Direct Messages (DMs)
+Add first-class direct messaging support for internal team members.
+
+Support:
+- one-to-one direct messages between authenticated team members
+- optional support for small-group DMs only if it can be added cleanly without destabilizing the system
+- DM conversation list/sidebar section
+- open a DM thread with another team member
+- load conversation history
+- send messages in DMs
+- unread indicators for DMs
+- last-message preview in DM list
+- timestamps, sender identity, and basic delivery state
+
+DMs should be private and only visible to conversation participants and authorized backend logic.
+
+Do NOT fake DMs using public channels.
+DMs should be modeled as a proper conversation type.
+
+B) Add Real-Time Communication with Sockets
+Upgrade the chat system from polling-only or partially real-time behavior to real-time socket-based messaging.
+
+Use sockets for:
+- new message delivery
+- channel message broadcasts
+- DM message delivery
+- typing indicators if easy to support safely
+- unread count updates
+- presence/online indicators if cleanly supported
+- message read/update events if already aligned with the current chat architecture
+
+IMPORTANT:
+- Preserve existing REST/API routes for initial data loading, history retrieval, pagination, and safe fallback behavior
+- Use sockets as the live update layer, not as the only data access path
+- Keep the architecture maintainable and strongly typed
+
+C) Preserve and Improve Channel Chat
+Existing team channels must continue to work.
+
+Enhance channel chat so it benefits from the new socket layer:
+- real-time incoming messages
+- real-time unread updates
+- better delivery responsiveness
+- optional typing indicators
+- no regressions in existing channel behavior
+
+Do not break current channel list, channel permissions, or channel history behavior.
+
+D) Authentication and Socket Authorization
+Sockets must respect the existing BetterAuth authentication model and role protections.
+
+Requirements:
+- authenticated users only
+- associate socket connections with the current authenticated session/user
+- prevent unauthorized access to channels or DMs
+- ensure a user can only subscribe to:
+  - channels they are allowed to view
+  - DM conversations they are a participant in
+- protect against obvious misuse or event spoofing
+
+Use the current app’s auth/session patterns and keep the solution aligned with the existing Express/BetterAuth architecture.
+
+E) Data Model / Conversation Model
+Inspect the current chat schema and extend it safely.
+
+Recommended model direction:
+- channels remain channel-based conversation spaces
+- add a conversation model or equivalent abstraction for DMs if needed
+- add participant relationships for DM threads
+- add message linkage that supports both channel messages and DM messages cleanly
+- support unread/read state in a maintainable way
+- support timestamps and sender identity cleanly
+
+Prefer additive schema changes.
+Reuse existing message/user/channel patterns where possible.
+Do not perform a destructive chat rewrite unless absolutely necessary.
+
+F) Real-Time UX
+Improve the chat UI so real-time communication feels clear and useful.
+
+Recommended capabilities:
+- channel section and DM section in sidebar
+- unread badges for channels and DMs
+- active conversation/thread view
+- live message appearance without manual refresh
+- optimistic send behavior if safe
+- connection/loading/error states
+- typing indicator if implemented
+- basic online/presence indicator only if it can be done cleanly
+
+Keep the UI aligned with the current app design system using shadcn/ui and existing patterns.
+Do not redesign the entire admin shell.
+
+G) History, Read State, and Fallback Behavior
+Do not rely solely on sockets.
+
+The system should still support:
+- fetching existing message history from API routes
+- pagination or recent-history loading if already present
+- initial unread count retrieval
+- read/mark-as-read behavior if already supported or can be added safely
+- graceful fallback if socket connection is interrupted
+
+The app should remain operational even if live socket delivery temporarily disconnects.
+
+TECHNICAL TASKS
+1. Inspect the current chat implementation end to end:
+   - database schema
+   - server chat routes/services/storage
+   - frontend chat UI/state flow
+   - polling behavior if present
+   - unread logic
+   - auth/session integration
+2. Design the minimum additive schema changes needed for:
+   - DM conversations
+   - participants
+   - unread/read tracking if needed
+   - real-time event support
+3. Add socket infrastructure to the Express app in a way that works within the current single-port Replit deployment model.
+4. Ensure socket setup does not break the existing API server/frontend serving behavior.
+5. Add authenticated socket connection handling tied to the current user session.
+6. Add server-side socket event handling for:
+   - join/subscribe to channels
+   - join/subscribe to DMs
+   - send message
+   - receive message broadcast
+   - unread updates
+   - typing events if implemented
+   - presence/connect/disconnect if implemented
+7. Add or update protected REST/API routes for:
+   - list DM conversations
+   - create/start DM conversation
+   - fetch DM history
+   - fetch/update unread/read state if needed
+8. Use explicit Zod validation for create/send/update payloads.
+9. Keep all new functionality strongly typed across server/client/shared boundaries.
+10. Update the frontend chat UI to include:
+   - DM list
+   - real-time message updates
+   - socket connection lifecycle handling
+   - conversation switching
+   - unread display
+11. Preserve existing channels and channel history behavior.
+12. Add audit/logging only where appropriate, but do NOT log sensitive message content broadly.
+13. Add minimal internal docs describing:
+   - socket architecture
+   - DM conversation model
+   - auth/authorization behavior
+   - fallback behavior if sockets disconnect
+
+IMPORTANT GUARDRAILS
+- NONDESTRUCTIVE only
+- Do not break existing channel chat
+- Do not remove current API-based chat/history behavior
+- Do not introduce insecure socket access
+- Do not expose DM data to unauthorized users
+- Do not log full message contents in unsafe ways
+- Do not perform a broad unrelated refactor of the app
+- Keep changes localized to chat, supporting schema, and necessary auth/socket integration
+- Preserve BetterAuth and existing protected-route patterns
+- Keep TanStack Query v5 usage correct
+- Keep the solution maintainable and pragmatic for an internal CRM, not an overengineered Slack clone
+
+DESIGN / UX GUIDANCE
+This chat system should feel like a practical internal team communication tool.
+
+The UI should make it easy to answer:
+- What channels am I in?
+- Which teammates have sent me direct messages?
+- Which conversations are unread?
+- Can I reply instantly and see messages appear in real time?
+- Is this connection live and reliable?
+
+Favor clarity, speed, and operational usefulness over flashy complexity.
+
+DELIVERABLES
+1. Real-time socket-based chat infrastructure
+2. Direct message conversation support
+3. Real-time channel messaging support
+4. Authenticated/authorized socket connection handling
+5. Updated chat UI with channels + DMs
+6. Unread/read-state improvements as implemented
+7. Minimal documentation update
+8. Summary of changed files, schema changes, event architecture, and recommended next-step enhancements
+
+ACCEPTANCE CRITERIA
+- Team members can send and receive DMs in real time
+- Existing channels now update in real time
+- Authenticated users can only access channels/DMs they are authorized to access
+- Chat remains functional through API/history loading even if sockets reconnect or temporarily fail
+- Existing chat functionality is preserved
+- All changes are additive, validated, role-protected, and type-safe
