@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireRole } from "../auth/middleware";
 import { logAudit } from "../audit/service";
 import { notifyLeadAssignment } from "../notifications/triggers";
+import { appendHistorySafe } from "../history/service";
 import * as crmStorage from "./storage";
 import {
   exportLeadsToCSV, exportContactsToCSV,
@@ -283,8 +284,15 @@ router.put("/leads/:id", requireRole("admin", "sales_rep"), async (req, res) => 
       metadata: { title: lead.title },
       ipAddress: req.ip,
     });
-    if (validated.assignedTo && validated.assignedTo !== existing.assignedTo) {
-      try { notifyLeadAssignment({ id: lead.id, title: lead.title }, validated.assignedTo); } catch (_) {}
+    const actor = req.authUser ? { actorId: req.authUser.id, actorName: req.authUser.name } : {};
+    if (validated.statusId !== undefined && validated.statusId !== existing.statusId) {
+      appendHistorySafe({ entityType: "lead", entityId: id, event: "status_changed", fieldName: "statusId", fromValue: existing.statusId ?? null, toValue: validated.statusId ?? null, ...actor });
+    }
+    if (validated.assignedTo !== undefined && validated.assignedTo !== existing.assignedTo) {
+      appendHistorySafe({ entityType: "lead", entityId: id, event: "assigned", fieldName: "assignedTo", fromValue: existing.assignedTo ?? null, toValue: validated.assignedTo ?? null, ...actor });
+      if (validated.assignedTo) {
+        try { notifyLeadAssignment({ id: lead.id, title: lead.title }, validated.assignedTo); } catch (_) {}
+      }
     }
     res.json(lead);
   } catch (error: any) {

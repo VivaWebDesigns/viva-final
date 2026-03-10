@@ -1,6 +1,6 @@
 # Module Map
 
-> Last updated: 2026-03-10
+> Last updated: 2026-03-10 (P16 + P17 + P18 additions)
 
 This document describes the responsibilities and boundaries of each feature module in the platform.
 
@@ -78,6 +78,29 @@ client/src/features/<module>/
 - **Activities** — append-only history per opportunity (stage changes, notes, calls, etc.).
 - **Board** endpoint (`GET /api/pipeline/opportunities/board`) — returns stages + all opportunities grouped by stage, with snapshot maps for contacts/companies. Uses `inArray()` for efficient batch enrichment.
 - **Convert lead** — `POST /api/pipeline/convert-lead/:leadId` creates an opportunity from a lead.
+  - **Hardened (P16)**: Returns `409 { message, opportunityId }` if the lead was already converted; auto-upserts a "Converted" CRM lead status (slug: `converted`, color: `#7c3aed`) and records history events on both the lead (`converted`) and the opportunity (`created_from_lead`).
+  - **Lookup by lead** — `GET /api/pipeline/opportunities/by-lead/:leadId` returns the linked opportunity or `null`. Used by the lead detail page to show a "View Opportunity" button instead of the convert selector once a lead has been converted.
+
+### `history`
+**Responsibility**: Immutable record-level event trail (P18).
+
+- `record_history` table: `id`, `entityType`, `entityId`, `event`, `fieldName`, `fromValue`, `toValue`, `actorId`, `actorName`, `note`, `createdAt`.
+- `appendHistory(params)` — inserts one event row. Always called via `appendHistorySafe()` which wraps in `try/catch` so a history write failure never breaks the primary operation.
+- `getHistory(entityType, entityId)` — returns events ordered newest-first.
+- `GET /api/history/:entityType/:entityId` — accessible to all authenticated roles.
+- **Events recorded**: `status_changed`, `assigned`, `stage_changed`, `closed_won`, `closed_lost`, `converted`, `created_from_lead`, `checklist_completed`, `checklist_uncompleted`.
+- See `docs/architecture/record-history-vs-audit-log.md` for the distinction between this table and `audit_logs`.
+
+### `workflow`
+**Responsibility**: SLA / overdue detection (P17).
+
+- `getOverdueSummary()` runs 4 parallel Drizzle queries and returns `{ staleLead, overdueOpportunity, overdueOnboarding, overdueChecklist, totalCount }`.
+  - **Stale leads**: `updatedAt < now − 30 days`, status ≠ `converted`, no linked opportunity (LEFT JOIN).
+  - **Overdue opportunities**: `status = open` AND any date field (`nextActionDate`, `followUpDate`, `expectedCloseDate`) is past.
+  - **Overdue onboarding**: `status IN (pending, in_progress)` AND `dueDate < now`.
+  - **Overdue checklist items**: `isCompleted = false` AND `dueDate < now`.
+- `GET /api/workflow/overdue-summary` — `admin` + `sales_rep` only. No cron needed — check-on-read.
+- Frontend polls every 5 minutes and surfaces a red warning pill in the sidebar when `totalCount > 0`.
 
 ### `onboarding`
 **Responsibility**: Post-sale client setup tracking.

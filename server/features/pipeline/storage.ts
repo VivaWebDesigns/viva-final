@@ -129,6 +129,11 @@ export async function getOpportunityById(id: string): Promise<PipelineOpportunit
   return result;
 }
 
+export async function getOpportunityByLeadId(leadId: string): Promise<PipelineOpportunity | undefined> {
+  const [result] = await db.select().from(pipelineOpportunities).where(eq(pipelineOpportunities.leadId, leadId));
+  return result;
+}
+
 export async function createOpportunity(data: InsertPipelineOpportunity): Promise<PipelineOpportunity> {
   const [result] = await db.insert(pipelineOpportunities).values({
     ...data,

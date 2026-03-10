@@ -666,3 +666,41 @@ export const followupTasks = pgTable("followup_tasks", {
 export const insertFollowupTaskSchema = createInsertSchema(followupTasks).omit({ id: true, createdAt: true, completedAt: true });
 export type InsertFollowupTask = z.infer<typeof insertFollowupTaskSchema>;
 export type FollowupTask = typeof followupTasks.$inferSelect;
+
+// ─── Record History (immutable event log per record) ─────────────────
+
+export const RECORD_HISTORY_EVENTS = [
+  "created",
+  "status_changed",
+  "stage_changed",
+  "assigned",
+  "converted",
+  "created_from_lead",
+  "closed_won",
+  "closed_lost",
+  "checklist_completed",
+  "checklist_uncompleted",
+  "field_updated",
+] as const;
+export type RecordHistoryEvent = typeof RECORD_HISTORY_EVENTS[number];
+
+export const recordHistory = pgTable("record_history", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  entityType: text("entity_type").notNull(),
+  entityId: text("entity_id").notNull(),
+  event: text("event").notNull(),
+  fieldName: text("field_name"),
+  fromValue: text("from_value"),
+  toValue: text("to_value"),
+  actorId: text("actor_id"),
+  actorName: text("actor_name"),
+  note: text("note"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("record_history_entity_idx").on(t.entityType, t.entityId),
+  index("record_history_created_idx").on(t.createdAt),
+]);
+
+export const insertRecordHistorySchema = createInsertSchema(recordHistory).omit({ id: true, createdAt: true });
+export type InsertRecordHistory = z.infer<typeof insertRecordHistorySchema>;
+export type RecordHistory = typeof recordHistory.$inferSelect;

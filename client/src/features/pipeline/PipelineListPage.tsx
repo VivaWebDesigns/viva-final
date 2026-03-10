@@ -143,12 +143,15 @@ export default function PipelineListPage() {
                       </span>
                     )}
 
-                    {opp.nextActionDate && (
-                      <span className="flex items-center gap-1 text-xs text-gray-400 flex-shrink-0">
-                        <Calendar className="w-3.5 h-3.5" />
-                        {new Date(opp.nextActionDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                      </span>
-                    )}
+                    {opp.nextActionDate && (() => {
+                      const isPast = new Date(opp.nextActionDate) < new Date() && opp.status === "open";
+                      return (
+                        <span className={`flex items-center gap-1 text-xs flex-shrink-0 ${isPast ? "text-red-500 font-medium" : "text-gray-400"}`} data-testid={`text-next-action-${opp.id}`}>
+                          <Calendar className="w-3.5 h-3.5" />
+                          {new Date(opp.nextActionDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                        </span>
+                      );
+                    })()}
 
                     {opp.probability !== null && opp.probability !== undefined && opp.probability > 0 && (
                       <span className="text-xs text-gray-400 flex-shrink-0">{opp.probability}%</span>

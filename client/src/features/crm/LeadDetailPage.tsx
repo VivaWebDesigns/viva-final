@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 import { motion } from "framer-motion";
 import {
   ArrowLeft, Building2, User, Globe, Phone, Mail, MapPin,
@@ -19,10 +19,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient, apiRequest, STALE } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { CrmLead, CrmLeadStatus, CrmContact, CrmCompany, CrmLeadNote, CrmTag, PipelineStage, FollowupTask } from "@shared/schema";
+import type { CrmLead, CrmLeadStatus, CrmContact, CrmCompany, CrmLeadNote, CrmTag, PipelineStage, FollowupTask, PipelineOpportunity } from "@shared/schema";
 import QuickTaskModal from "@/components/QuickTaskModal";
+import { RecordTimeline } from "@/components/RecordTimeline";
 
 type TaskWithContact = FollowupTask & {
   contact: { firstName: string; lastName: string | null; phone: string | null } | null;
@@ -125,6 +126,18 @@ export default function LeadDetailPage({ id }: { id: string }) {
     queryKey: ["/api/tasks/for-lead", id],
   });
 
+  const { data: linkedOpportunity } = useQuery<PipelineOpportunity | null>({
+    queryKey: ["/api/pipeline/opportunities/by-lead", id],
+    queryFn: async () => {
+      const res = await fetch(`/api/pipeline/opportunities/by-lead/${id}`, { credentials: "include" });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data;
+    },
+    staleTime: STALE.NORMAL,
+    enabled: !!id,
+  });
+
   const completeTaskMutation = useMutation({
     mutationFn: async (taskId: string) => {
       const res = await apiRequest("PUT", `/api/tasks/${taskId}/complete`, {});
@@ -143,10 +156,21 @@ export default function LeadDetailPage({ id }: { id: string }) {
       return res.json();
     },
     onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities/by-lead", id] });
       toast({ title: "Converted to opportunity" });
       navigate(`/admin/pipeline/opportunities/${data.id}`);
     },
-    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: async (err: any) => {
+      if (err?.response?.status === 409) {
+        const body = await err.response.json().catch(() => ({}));
+        const oppId = body?.opportunityId;
+        toast({ title: "Already converted", description: "This lead has already been converted to an opportunity.", variant: "destructive" });
+        if (oppId) navigate(`/admin/pipeline/opportunities/${oppId}`);
+        queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities/by-lead", id] });
+      } else {
+        toast({ title: "Error", description: err.message, variant: "destructive" });
+      }
+    },
   });
 
   if (leadLoading) {
@@ -198,28 +222,38 @@ export default function LeadDetailPage({ id }: { id: string }) {
               ${Number(lead.value).toLocaleString()}
             </span>
           )}
-          {pipelineStages && pipelineStages.length > 0 && (
-            <Select
-              onValueChange={(stageId) => convertMutation.mutate(stageId)}
-              disabled={convertMutation.isPending}
-            >
-              <SelectTrigger className="w-auto" data-testid="button-convert-opportunity">
-                <div className="flex items-center gap-1.5">
-                  <TrendingUp className="w-4 h-4" />
-                  <span>{convertMutation.isPending ? "Converting..." : "Convert to Opportunity"}</span>
-                </div>
-              </SelectTrigger>
-              <SelectContent>
-                {pipelineStages.filter(s => !s.isClosed).map(stage => (
-                  <SelectItem key={stage.id} value={stage.id}>
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: stage.color }} />
-                      {stage.name}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          {linkedOpportunity ? (
+            <Link href={`/admin/pipeline/opportunities/${linkedOpportunity.id}`} data-testid="link-view-opportunity">
+              <Button variant="outline" size="sm" className="border-teal-500 text-teal-700 hover:bg-teal-50 gap-1.5">
+                <TrendingUp className="w-4 h-4" />
+                View Opportunity
+                <ExternalLink className="w-3 h-3" />
+              </Button>
+            </Link>
+          ) : (
+            pipelineStages && pipelineStages.length > 0 && (
+              <Select
+                onValueChange={(stageId) => convertMutation.mutate(stageId)}
+                disabled={convertMutation.isPending}
+              >
+                <SelectTrigger className="w-auto" data-testid="button-convert-opportunity">
+                  <div className="flex items-center gap-1.5">
+                    <TrendingUp className="w-4 h-4" />
+                    <span>{convertMutation.isPending ? "Converting..." : "Convert to Opportunity"}</span>
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  {pipelineStages.filter(s => !s.isClosed).map(stage => (
+                    <SelectItem key={stage.id} value={stage.id}>
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: stage.color }} />
+                        {stage.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )
           )}
         </div>
       </div>
@@ -612,6 +646,14 @@ export default function LeadDetailPage({ id }: { id: string }) {
                 })
               )}
             </div>
+          </Card>
+
+          <Card className="p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <Clock className="w-4 h-4 text-gray-400" />
+              <h3 className="font-semibold text-gray-900 text-sm">History</h3>
+            </div>
+            <RecordTimeline entityType="lead" entityId={id} limit={10} />
           </Card>
         </div>
       </div>

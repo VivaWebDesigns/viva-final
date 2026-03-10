@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import type { PipelineStage, PipelineOpportunity, PipelineActivity, CrmCompany, CrmContact, CrmLead, FollowupTask } from "@shared/schema";
 import QuickTaskModal from "@/components/QuickTaskModal";
+import { RecordTimeline } from "@/components/RecordTimeline";
 
 type TaskWithContact = FollowupTask & {
   contact: { firstName: string; lastName: string | null; phone: string | null } | null;
@@ -559,6 +560,18 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                   );
                 })
               )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-1.5">
+                <Clock className="w-4 h-4 text-gray-400" />
+                History
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <RecordTimeline entityType="opportunity" entityId={id} limit={10} />
             </CardContent>
           </Card>
         </div>

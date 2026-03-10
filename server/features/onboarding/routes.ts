@@ -2,6 +2,7 @@ import { Router } from "express";
 import { requireRole } from "../auth/middleware";
 import { logAudit } from "../audit/service";
 import { notifyOnboardingAssignment, notifyOnboardingStatusChange } from "../notifications/triggers";
+import { appendHistorySafe } from "../history/service";
 import * as onboardingStorage from "./storage";
 import { ONBOARDING_STATUSES, ONBOARDING_NOTE_TYPES, CHECKLIST_CATEGORIES } from "@shared/schema";
 import { z } from "zod";
@@ -166,11 +167,16 @@ router.put("/records/:id", requireRole("admin", "developer", "sales_rep"), async
       ipAddress: req.ip,
     });
 
+    const actor = req.authUser ? { actorId: req.authUser.id, actorName: req.authUser.name } : {};
     if (validated.status && validated.status !== existing.status) {
+      appendHistorySafe({ entityType: "onboarding", entityId: req.params.id as string, event: "status_changed", fieldName: "status", fromValue: existing.status, toValue: validated.status, ...actor });
       try { notifyOnboardingStatusChange({ id: req.params.id as string, clientName: record.clientName, ownerId: record.assignedTo }, existing.status, validated.status); } catch (_) {}
     }
-    if (validated.assignedTo && validated.assignedTo !== existing.assignedTo) {
-      try { notifyOnboardingAssignment({ id: req.params.id as string, clientName: record.clientName }, validated.assignedTo); } catch (_) {}
+    if (validated.assignedTo !== undefined && validated.assignedTo !== existing.assignedTo) {
+      appendHistorySafe({ entityType: "onboarding", entityId: req.params.id as string, event: "assigned", fieldName: "assignedTo", fromValue: existing.assignedTo ?? null, toValue: validated.assignedTo ?? null, ...actor });
+      if (validated.assignedTo) {
+        try { notifyOnboardingAssignment({ id: req.params.id as string, clientName: record.clientName }, validated.assignedTo); } catch (_) {}
+      }
     }
 
     res.json(record);
@@ -215,6 +221,17 @@ router.put("/records/:id/checklist/:itemId", requireRole("admin", "developer", "
       type: "checklist_update",
       content: `${item.isCompleted ? "Completed" : "Unchecked"}: "${item.label}"`,
       metadata: { itemId: item.id, label: item.label, completed: item.isCompleted },
+    });
+
+    const actor = req.authUser ? { actorId: req.authUser.id, actorName: req.authUser.name } : {};
+    appendHistorySafe({
+      entityType: "onboarding",
+      entityId: req.params.id as string,
+      event: item.isCompleted ? "checklist_completed" : "checklist_uncompleted",
+      fieldName: "checklistItem",
+      toValue: item.id,
+      note: item.label,
+      ...actor,
     });
 
     res.json(item);

@@ -2,12 +2,13 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@features/auth/useAuth";
+import { STALE } from "@/lib/queryClient";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, Users, TrendingUp, UserPlus, MessageSquare,
   CreditCard, Bell, Puzzle, BarChart3, Settings, BookOpen,
   LogOut, ChevronLeft, ChevronRight, Menu, X, Building2, Zap,
-  ClipboardList,
+  ClipboardList, AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -55,6 +56,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     refetchInterval: 30000,
   });
   const unreadCount = unreadData?.count || 0;
+
+  const { data: overdueData } = useQuery<{ totalCount: number }>({
+    queryKey: ["/api/workflow/overdue-summary"],
+    staleTime: STALE.NORMAL,
+    refetchInterval: 5 * 60 * 1000,
+  });
+  const overdueCount = overdueData?.totalCount || 0;
 
   const visibleItems = NAV_ITEMS.filter(
     (item) => !item.roles || (role && item.roles.includes(role))
@@ -125,6 +133,26 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             return content;
           })}
         </nav>
+
+        {overdueCount > 0 && (
+          <div className="px-3 pb-2">
+            <div
+              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-50 border border-red-200 cursor-pointer hover:bg-red-100 transition-colors"
+              onClick={() => navigate("/admin/pipeline")}
+              data-testid="nav-overdue-indicator"
+            >
+              <AlertTriangle className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />
+              {!collapsed && (
+                <span className="text-xs font-medium text-red-700">
+                  {overdueCount} overdue item{overdueCount !== 1 ? "s" : ""}
+                </span>
+              )}
+              {collapsed && (
+                <span className="text-xs font-bold text-red-600">{overdueCount}</span>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="border-t border-gray-200 p-3">
           {!collapsed && user && (

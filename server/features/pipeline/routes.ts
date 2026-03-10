@@ -4,6 +4,8 @@ import { logAudit } from "../audit/service";
 import { notifyStageChange, notifyOpportunityAssignment } from "../notifications/triggers";
 import * as pipelineStorage from "./storage";
 import { insertPipelineStageSchema, insertPipelineOpportunitySchema, insertPipelineActivitySchema, OPPORTUNITY_STATUSES, type InsertPipelineOpportunity } from "@shared/schema";
+import { appendHistorySafe } from "../history/service";
+import { upsertLeadStatus, updateLead } from "../crm/storage";
 import { z } from "zod";
 
 const updateStageSchema = z.object({
@@ -133,6 +135,12 @@ router.get("/opportunities/stats", requireRole("admin", "developer", "sales_rep"
   }
 });
 
+router.get("/opportunities/by-lead/:leadId", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
+  const { leadId } = req.params as Record<string, string>;
+  const opp = await pipelineStorage.getOpportunityByLeadId(leadId);
+  res.json(opp ?? null);
+});
+
 router.post("/opportunities", requireRole("admin", "sales_rep"), async (req, res) => {
   try {
     const data = insertPipelineOpportunitySchema.parse(req.body);
@@ -178,8 +186,16 @@ router.put("/opportunities/:id", requireRole("admin", "sales_rep"), async (req, 
       metadata: { title: opp.title },
       ipAddress: req.ip,
     });
-    if (validated.assignedTo && validated.assignedTo !== existing.assignedTo) {
-      try { notifyOpportunityAssignment({ id: opp.id, title: opp.title }, validated.assignedTo); } catch (_) {}
+    const actor = req.authUser ? { actorId: req.authUser.id, actorName: req.authUser.name } : {};
+    if (validated.status && validated.status !== existing.status) {
+      const event = validated.status === "won" ? "closed_won" : validated.status === "lost" ? "closed_lost" : "status_changed";
+      appendHistorySafe({ entityType: "opportunity", entityId: id, event, fieldName: "status", fromValue: existing.status ?? null, toValue: validated.status, ...actor });
+    }
+    if (validated.assignedTo !== undefined && validated.assignedTo !== existing.assignedTo) {
+      appendHistorySafe({ entityType: "opportunity", entityId: id, event: "assigned", fieldName: "assignedTo", fromValue: existing.assignedTo ?? null, toValue: validated.assignedTo ?? null, ...actor });
+      if (validated.assignedTo) {
+        try { notifyOpportunityAssignment({ id: opp.id, title: opp.title }, validated.assignedTo); } catch (_) {}
+      }
     }
     res.json(opp);
   } catch (error: any) {
@@ -192,18 +208,28 @@ router.put("/opportunities/:id/stage", requireRole("admin", "sales_rep"), async 
     const { id } = req.params as Record<string, string>;
     const { stageId } = req.body;
     if (!stageId) return res.status(400).json({ message: "stageId is required" });
+    const existing = await pipelineStorage.getOpportunityById(id);
     const result = await pipelineStorage.moveOpportunity(id, stageId, req.authUser?.id);
     await logAudit({
       userId: req.authUser?.id,
       action: "stage_change",
       entity: "pipeline_opportunity",
       entityId: id,
-      // PipelineActivity.metadata is untyped jsonb (unknown); logAudit expects Json.
-      // Both are the same jsonb column at runtime — this cast is safe.
       metadata: result.activity.metadata as Record<string, unknown> | null | undefined,
       ipAddress: req.ip,
     });
     const meta = result.activity.metadata as Record<string, unknown> | null | undefined;
+    const actor = req.authUser ? { actorId: req.authUser.id, actorName: req.authUser.name } : {};
+    appendHistorySafe({
+      entityType: "opportunity",
+      entityId: id,
+      event: "stage_changed",
+      fieldName: "stageId",
+      fromValue: existing?.stageId ?? null,
+      toValue: stageId,
+      note: meta ? `${meta.fromStage} → ${meta.toStage}` : undefined,
+      ...actor,
+    });
     if (meta?.fromStage && meta?.toStage) {
       try { notifyStageChange({ id, title: result.opportunity.title, ownerId: result.opportunity.assignedTo }, meta.fromStage as string, meta.toStage as string); } catch (_) {}
     }
@@ -257,12 +283,23 @@ router.post("/convert-lead/:leadId", requireRole("admin", "sales_rep"), async (r
     const { leadId } = req.params as Record<string, string>;
     const { stageId, ...extraData } = convertLeadSchema.parse(req.body);
     if (!stageId) return res.status(400).json({ message: "stageId is required" });
+
     const targetStage = await pipelineStorage.getStageById(stageId);
     if (!targetStage) return res.status(400).json({ message: "Invalid stage" });
     if (targetStage.isClosed) return res.status(400).json({ message: "Cannot convert to a closed stage" });
+
+    const existingOpp = await pipelineStorage.getOpportunityByLeadId(leadId);
+    if (existingOpp) {
+      return res.status(409).json({
+        message: "This lead has already been converted to an opportunity",
+        opportunityId: existingOpp.id,
+      });
+    }
+
     const opportunity = await pipelineStorage.convertLeadToOpportunity(
       leadId, stageId, req.authUser?.id, extraData as Partial<InsertPipelineOpportunity>
     );
+
     await logAudit({
       userId: req.authUser?.id,
       action: "convert_lead",
@@ -271,6 +308,18 @@ router.post("/convert-lead/:leadId", requireRole("admin", "sales_rep"), async (r
       metadata: { leadId, title: opportunity.title },
       ipAddress: req.ip,
     });
+
+    const actor = req.authUser ? { actorId: req.authUser.id, actorName: req.authUser.name } : {};
+    appendHistorySafe({ entityType: "lead", entityId: leadId, event: "converted", toValue: opportunity.id, note: `Converted to opportunity: "${opportunity.title}"`, ...actor });
+    appendHistorySafe({ entityType: "opportunity", entityId: opportunity.id, event: "created_from_lead", fromValue: leadId, note: `Created from lead`, ...actor });
+
+    try {
+      const convertedStatus = await upsertLeadStatus({ name: "Converted", slug: "converted", color: "#7c3aed", sortOrder: 99 });
+      await updateLead(leadId, { statusId: convertedStatus.id });
+    } catch (statusErr) {
+      console.error("[convert-lead] Failed to set converted status (non-blocking):", statusErr);
+    }
+
     res.status(201).json(opportunity);
   } catch (error: any) {
     res.status(400).json({ message: error.message });

@@ -174,7 +174,7 @@ export default function OnboardingListPage() {
                             <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
                               <Badge className={`${statusCfg.color} text-xs`}>{statusCfg.label}</Badge>
                               {record.dueDate && (
-                                <span className="flex items-center gap-1">
+                                <span className={`flex items-center gap-1 ${isOverdue(record) ? "text-red-500 font-medium" : ""}`} data-testid={`text-due-date-${record.id}`}>
                                   <Calendar className="h-3 w-3" />
                                   Due: {new Date(record.dueDate).toLocaleDateString()}
                                 </span>

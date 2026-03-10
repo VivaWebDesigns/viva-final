@@ -75,6 +75,27 @@ The business vision is to streamline internal processes, enhance client acquisit
 - **Task sections** embedded in OpportunityDetailPage and LeadDetailPage right sidebars.
 - **Pipeline board cards** show a "Task" button that opens QuickTaskModal.
 
+### Record History System (P18)
+- **`record_history` table**: Immutable event log per entity (lead, opportunity, onboarding record).
+- **`appendHistorySafe()`**: Non-blocking — wrapped in try/catch so history failures never break primary operations.
+- **Events captured**: `status_changed`, `assigned`, `stage_changed`, `closed_won`, `closed_lost`, `converted`, `created_from_lead`, `checklist_completed`, `checklist_uncompleted`.
+- **`RecordTimeline` component** (`client/src/components/RecordTimeline.tsx`): Compact visual timeline rendered in LeadDetailPage and OpportunityDetailPage right sidebars.
+- `GET /api/history/:entityType/:entityId` — accessible to all authenticated roles.
+- Distinct from `audit_logs` — see `docs/architecture/record-history-vs-audit-log.md`.
+
+### Overdue / SLA Detection (P17)
+- **`getOverdueSummary()`** in `server/features/workflow/overdue.ts` — 4 parallel queries: stale leads (>30 days), overdue opportunities (open + past date), overdue onboarding records, overdue checklist items.
+- **`GET /api/workflow/overdue-summary`** — `admin` + `sales_rep`; no cron needed (check-on-read).
+- **Sidebar indicator**: Red pill in AdminLayout when `totalCount > 0`; polls every 5 minutes.
+- **Colored dates**: Pipeline list colors `nextActionDate` red for open opportunities past due. Onboarding list colors `dueDate` red for non-completed records past due.
+
+### Lead-to-Opportunity Conversion Hardening (P16)
+- `POST /api/pipeline/convert-lead/:leadId` returns `409 { message, opportunityId }` if the lead was already converted.
+- Auto-upserts a "Converted" CRM lead status (slug: `converted`, color: `#7c3aed`) and updates the lead's statusId.
+- History events recorded on both the lead (`converted`) and the new opportunity (`created_from_lead`).
+- `GET /api/pipeline/opportunities/by-lead/:leadId` — returns the linked opportunity or null.
+- **LeadDetailPage**: Shows a teal "View Opportunity" button instead of the convert dropdown once a lead is converted. Error handler for `onError` navigates to the existing opportunity on 409.
+
 ### Performance Indexes
 - Comprehensive database indexes added across all tables for hot query paths.
 - `enrichTasks()` uses `inArray()` for efficient batch contact/company lookups.
