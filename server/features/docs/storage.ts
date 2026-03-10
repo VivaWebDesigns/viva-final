@@ -4,10 +4,28 @@ import {
   type InsertDocCategory, type InsertDocArticle, type InsertDocTag, type InsertDocRevision,
   type DocCategory, type DocArticle, type DocTag, type DocRevision,
 } from "@shared/schema";
-import { eq, ilike, or, desc, asc, sql } from "drizzle-orm";
+import { eq, ilike, or, desc, asc, sql, and, notInArray } from "drizzle-orm";
 
 export async function getCategories(): Promise<DocCategory[]> {
   return db.select().from(docCategories).orderBy(asc(docCategories.sortOrder));
+}
+
+export async function getCategoriesWithCount(): Promise<(DocCategory & { articleCount: number })[]> {
+  const result = await db
+    .select({
+      id: docCategories.id,
+      name: docCategories.name,
+      slug: docCategories.slug,
+      description: docCategories.description,
+      sortOrder: docCategories.sortOrder,
+      createdAt: docCategories.createdAt,
+      articleCount: sql<number>`count(${docArticles.id})::int`,
+    })
+    .from(docCategories)
+    .leftJoin(docArticles, eq(docArticles.categoryId, docCategories.id))
+    .groupBy(docCategories.id)
+    .orderBy(asc(docCategories.sortOrder));
+  return result as (DocCategory & { articleCount: number })[];
 }
 
 export async function getCategoryBySlug(slug: string): Promise<DocCategory | undefined> {
@@ -25,25 +43,34 @@ export async function updateCategory(id: string, data: Partial<InsertDocCategory
   return result;
 }
 
-export async function getArticles(categoryId?: string, search?: string): Promise<DocArticle[]> {
-  let query = db.select().from(docArticles);
+export async function deleteCategory(id: string): Promise<void> {
+  await db.update(docArticles).set({ categoryId: null }).where(eq(docArticles.categoryId, id));
+  await db.delete(docCategories).where(eq(docCategories.id, id));
+}
 
-  if (categoryId) {
-    // Drizzle-orm narrows the query builder generic on each .where() call;
-    // re-assigning to the same variable requires the cast to keep the type stable.
-    query = query.where(eq(docArticles.categoryId, categoryId)) as any;
-  }
+export async function getArticles(
+  categoryId?: string,
+  search?: string,
+  status?: string
+): Promise<DocArticle[]> {
+  const conditions = [];
 
+  if (categoryId) conditions.push(eq(docArticles.categoryId, categoryId));
+  if (status && status !== "all") conditions.push(eq(docArticles.status, status));
   if (search) {
-    query = query.where(
+    conditions.push(
       or(
         ilike(docArticles.title, `%${search}%`),
         ilike(docArticles.content, `%${search}%`)
-      )
-    ) as any;
+      )!
+    );
   }
 
-  return query.orderBy(desc(docArticles.updatedAt));
+  return db
+    .select()
+    .from(docArticles)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .orderBy(desc(docArticles.updatedAt));
 }
 
 export async function getArticleBySlug(slug: string): Promise<DocArticle | undefined> {
@@ -84,6 +111,11 @@ export async function createTag(data: InsertDocTag): Promise<DocTag> {
   return result;
 }
 
+export async function deleteTag(id: string): Promise<void> {
+  await db.delete(docArticleTags).where(eq(docArticleTags.tagId, id));
+  await db.delete(docTags).where(eq(docTags.id, id));
+}
+
 export async function getArticleTags(articleId: string): Promise<DocTag[]> {
   const result = await db
     .select({ id: docTags.id, name: docTags.name, slug: docTags.slug })
@@ -106,5 +138,14 @@ export async function createRevision(data: InsertDocRevision): Promise<DocRevisi
 }
 
 export async function getRevisions(articleId: string): Promise<DocRevision[]> {
-  return db.select().from(docRevisions).where(eq(docRevisions.articleId, articleId)).orderBy(desc(docRevisions.createdAt));
+  return db
+    .select()
+    .from(docRevisions)
+    .where(eq(docRevisions.articleId, articleId))
+    .orderBy(desc(docRevisions.createdAt));
+}
+
+export async function getRevisionById(id: string): Promise<DocRevision | undefined> {
+  const [result] = await db.select().from(docRevisions).where(eq(docRevisions.id, id));
+  return result;
 }

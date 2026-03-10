@@ -33,7 +33,7 @@ const articleTagsSchema = z.object({
 const router = Router();
 
 router.get("/categories", requireRole("admin", "developer"), async (_req, res) => {
-  const categories = await docsStorage.getCategories();
+  const categories = await docsStorage.getCategoriesWithCount();
   res.json(categories);
 });
 
@@ -73,11 +73,28 @@ router.put("/categories/:id", requireRole("admin", "developer"), async (req, res
   }
 });
 
+router.delete("/categories/:id", requireRole("admin"), async (req, res) => {
+  try {
+    await docsStorage.deleteCategory(req.params.id as string);
+    await logAudit({
+      userId: req.authUser?.id,
+      action: "delete",
+      entity: "doc_category",
+      entityId: req.params.id as string,
+      ipAddress: req.ip,
+    });
+    res.json({ message: "Category deleted" });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 router.get("/articles", requireRole("admin", "developer"), async (req, res) => {
-  const { categoryId, search } = req.query;
+  const { categoryId, search, status } = req.query;
   const articles = await docsStorage.getArticles(
     categoryId as string | undefined,
-    search as string | undefined
+    search as string | undefined,
+    status as string | undefined
   );
   res.json(articles);
 });
@@ -88,6 +105,13 @@ router.get("/articles/by-id/:id", requireRole("admin", "developer"), async (req,
 
   const tags = await docsStorage.getArticleTags(article.id);
   res.json({ ...article, tags });
+});
+
+router.get("/articles/:slug/revisions", requireRole("admin", "developer"), async (req, res) => {
+  const article = await docsStorage.getArticleBySlug(req.params.slug as string);
+  if (!article) return res.status(404).json({ message: "Article not found" });
+  const revisions = await docsStorage.getRevisions(article.id);
+  res.json(revisions);
 });
 
 router.get("/articles/:slug", requireRole("admin", "developer"), async (req, res) => {
@@ -165,11 +189,6 @@ router.delete("/articles/:id", requireRole("admin", "developer"), async (req, re
   }
 });
 
-router.get("/articles/:id/revisions", requireRole("admin", "developer"), async (req, res) => {
-  const revisions = await docsStorage.getRevisions(req.params.id as string);
-  res.json(revisions);
-});
-
 router.get("/tags", requireRole("admin", "developer"), async (_req, res) => {
   const tags = await docsStorage.getTags();
   res.json(tags);
@@ -183,6 +202,15 @@ router.post("/tags", requireRole("admin", "developer"), async (req, res) => {
     res.status(201).json(tag);
   } catch (error: any) {
     res.status(400).json({ message: error.message });
+  }
+});
+
+router.delete("/tags/:id", requireRole("admin", "developer"), async (req, res) => {
+  try {
+    await docsStorage.deleteTag(req.params.id as string);
+    res.json({ message: "Tag deleted" });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
   }
 });
 
