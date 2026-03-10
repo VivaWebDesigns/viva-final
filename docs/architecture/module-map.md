@@ -46,13 +46,21 @@ client/src/features/<module>/
 - `POST /api/admin/seed-admin` — initial admin account bootstrapping (uses `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` from env).
 
 ### `crm`
-**Responsibility**: Leads, companies, contacts, lead statuses, and tags.
+**Responsibility**: Leads, companies, contacts, lead statuses, tags, and bulk operations.
 
 - **Leads** — the primary entry point for prospects; support inbound (website form) and manual creation.
 - **Companies** — organizations (prospects and clients).
 - **Contacts** — individuals within companies.
 - **Lead statuses** — configurable stages (distinct from pipeline stages).
 - **Tags** — cross-entity labels for filtering.
+- **Bulk operations** — safe multi-record mutations on leads (admin + sales_rep only, max 200 per request):
+  - `POST /api/crm/leads/bulk/assign` — assign or unassign multiple leads
+  - `POST /api/crm/leads/bulk/status` — set or clear status on multiple leads
+  - `POST /api/crm/leads/bulk/tags/add` — add tags to multiple leads (upsert, no duplicates)
+  - `POST /api/crm/leads/bulk/tags/remove` — remove tags from multiple leads
+  - `POST /api/crm/leads/bulk/delete` — admin only; cascades to notes/tags; unlinks pipeline opportunities/tasks transactionally
+- **Lead enrichment** — `GET /api/crm/leads` returns leads enriched with status, contact, and company via `enrichLeads()` batch function (3 parallel `inArray` queries).
+- **Assignable users** — `GET /api/crm/leads/assignable-users` returns all non-banned users for assignment pickers (all roles).
 - The public contact form (`POST /api/contacts`) and inquiry form (`POST /api/inquiries`) are separate endpoints outside this router (handled in `server/routes.ts` directly) and write to `crm_leads` via CRM storage.
 
 ### `pipeline`

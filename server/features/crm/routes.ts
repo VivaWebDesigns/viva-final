@@ -53,6 +53,22 @@ const tagIdsSchema = z.object({
   tagIds: z.array(z.string()).optional().default([]),
 });
 
+const bulkIdsSchema = z.object({
+  ids: z.array(z.string()).min(1, "At least one lead required").max(200, "Maximum 200 leads at once"),
+});
+
+const bulkAssignSchema = bulkIdsSchema.extend({
+  assignedTo: z.string().nullable(),
+});
+
+const bulkStatusSchema = bulkIdsSchema.extend({
+  statusId: z.string().nullable(),
+});
+
+const bulkTagsSchema = bulkIdsSchema.extend({
+  tagIds: z.array(z.string()).min(1, "At least one tag required"),
+});
+
 const router = Router();
 
 router.get("/leads", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
@@ -67,7 +83,8 @@ router.get("/leads", requireRole("admin", "developer", "sales_rep"), async (req,
       page: page ? parseInt(page as string, 10) : undefined,
       limit: limit ? parseInt(limit as string, 10) : undefined,
     });
-    res.json(result);
+    const leads = await crmStorage.enrichLeads(result.items);
+    res.json({ leads, total: result.total, page: result.page, pageSize: result.limit });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
@@ -86,6 +103,105 @@ router.post("/leads", requireRole("admin", "sales_rep"), async (req, res) => {
       ipAddress: req.ip,
     });
     res.status(201).json(lead);
+  } catch (error: any) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+router.get("/leads/assignable-users", requireRole("admin", "developer", "sales_rep"), async (_req, res) => {
+  try {
+    const users = await crmStorage.getAssignableUsers();
+    res.json(users);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.post("/leads/bulk/assign", requireRole("admin", "sales_rep"), async (req, res) => {
+  try {
+    const { ids, assignedTo } = bulkAssignSchema.parse(req.body);
+    const count = await crmStorage.bulkAssignLeads(ids, assignedTo);
+    await logAudit({
+      userId: req.authUser?.id,
+      action: "bulk_assign",
+      entity: "crm_lead",
+      entityId: "bulk",
+      metadata: { leadIds: ids, assignedTo, count },
+      ipAddress: req.ip,
+    });
+    res.json({ updated: count });
+  } catch (error: any) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+router.post("/leads/bulk/status", requireRole("admin", "sales_rep"), async (req, res) => {
+  try {
+    const { ids, statusId } = bulkStatusSchema.parse(req.body);
+    const count = await crmStorage.bulkUpdateLeadStatus(ids, statusId);
+    await logAudit({
+      userId: req.authUser?.id,
+      action: "bulk_status",
+      entity: "crm_lead",
+      entityId: "bulk",
+      metadata: { leadIds: ids, statusId, count },
+      ipAddress: req.ip,
+    });
+    res.json({ updated: count });
+  } catch (error: any) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+router.post("/leads/bulk/tags/add", requireRole("admin", "sales_rep"), async (req, res) => {
+  try {
+    const { ids, tagIds } = bulkTagsSchema.parse(req.body);
+    await crmStorage.bulkAddTagsToLeads(ids, tagIds);
+    await logAudit({
+      userId: req.authUser?.id,
+      action: "bulk_tags_add",
+      entity: "crm_lead",
+      entityId: "bulk",
+      metadata: { leadIds: ids, tagIds, count: ids.length },
+      ipAddress: req.ip,
+    });
+    res.json({ updated: ids.length });
+  } catch (error: any) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+router.post("/leads/bulk/tags/remove", requireRole("admin", "sales_rep"), async (req, res) => {
+  try {
+    const { ids, tagIds } = bulkTagsSchema.parse(req.body);
+    await crmStorage.bulkRemoveTagsFromLeads(ids, tagIds);
+    await logAudit({
+      userId: req.authUser?.id,
+      action: "bulk_tags_remove",
+      entity: "crm_lead",
+      entityId: "bulk",
+      metadata: { leadIds: ids, tagIds, count: ids.length },
+      ipAddress: req.ip,
+    });
+    res.json({ updated: ids.length });
+  } catch (error: any) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+router.post("/leads/bulk/delete", requireRole("admin"), async (req, res) => {
+  try {
+    const { ids } = bulkIdsSchema.parse(req.body);
+    const count = await crmStorage.bulkDeleteLeads(ids);
+    await logAudit({
+      userId: req.authUser?.id,
+      action: "bulk_delete",
+      entity: "crm_lead",
+      entityId: "bulk",
+      metadata: { leadIds: ids, count },
+      ipAddress: req.ip,
+    });
+    res.json({ deleted: count });
   } catch (error: any) {
     res.status(400).json({ message: error.message });
   }

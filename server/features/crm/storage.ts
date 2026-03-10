@@ -1,13 +1,19 @@
 import { db } from "../../db";
 import {
   crmCompanies, crmContacts, crmLeadStatuses, crmLeads, crmLeadNotes,
-  crmTags, crmLeadTags,
+  crmTags, crmLeadTags, pipelineOpportunities, followupTasks, user,
   type InsertCrmCompany, type InsertCrmContact, type InsertCrmLeadStatus,
   type InsertCrmLead, type InsertCrmLeadNote, type InsertCrmTag,
   type CrmCompany, type CrmContact, type CrmLeadStatus,
   type CrmLead, type CrmLeadNote, type CrmTag,
 } from "@shared/schema";
-import { eq, ilike, or, desc, asc, sql, and, count } from "drizzle-orm";
+import { eq, ilike, or, desc, asc, sql, and, count, inArray } from "drizzle-orm";
+
+export type EnrichedLead = CrmLead & {
+  status: CrmLeadStatus | null;
+  contact: CrmContact | null;
+  company: CrmCompany | null;
+};
 
 interface PaginationParams {
   page?: number;
@@ -248,4 +254,78 @@ export async function upsertLeadStatus(data: InsertCrmLeadStatus): Promise<CrmLe
 export async function getLeadCount(): Promise<number> {
   const [result] = await db.select({ total: count() }).from(crmLeads);
   return result?.total ?? 0;
+}
+
+export async function enrichLeads(leads: CrmLead[]): Promise<EnrichedLead[]> {
+  if (leads.length === 0) return [];
+
+  const statusIds = [...new Set(leads.map(l => l.statusId).filter((id): id is string => id !== null))];
+  const contactIds = [...new Set(leads.map(l => l.contactId).filter((id): id is string => id !== null))];
+  const companyIds = [...new Set(leads.map(l => l.companyId).filter((id): id is string => id !== null))];
+
+  const [statuses, contacts, companies] = await Promise.all([
+    statusIds.length > 0 ? db.select().from(crmLeadStatuses).where(inArray(crmLeadStatuses.id, statusIds)) : [],
+    contactIds.length > 0 ? db.select().from(crmContacts).where(inArray(crmContacts.id, contactIds)) : [],
+    companyIds.length > 0 ? db.select().from(crmCompanies).where(inArray(crmCompanies.id, companyIds)) : [],
+  ]);
+
+  const statusMap = Object.fromEntries(statuses.map(s => [s.id, s]));
+  const contactMap = Object.fromEntries(contacts.map(c => [c.id, c]));
+  const companyMap = Object.fromEntries(companies.map(c => [c.id, c]));
+
+  return leads.map(lead => ({
+    ...lead,
+    status: lead.statusId ? statusMap[lead.statusId] ?? null : null,
+    contact: lead.contactId ? contactMap[lead.contactId] ?? null : null,
+    company: lead.companyId ? companyMap[lead.companyId] ?? null : null,
+  }));
+}
+
+export async function getAssignableUsers(): Promise<{ id: string; name: string; email: string; role: string }[]> {
+  const rows = await db
+    .select({ id: user.id, name: user.name, email: user.email, role: user.role })
+    .from(user)
+    .where(eq(user.banned, false))
+    .orderBy(asc(user.name));
+  return rows;
+}
+
+export async function bulkAssignLeads(ids: string[], assignedTo: string | null): Promise<number> {
+  if (ids.length === 0) return 0;
+  await db.update(crmLeads)
+    .set({ assignedTo, updatedAt: new Date() })
+    .where(inArray(crmLeads.id, ids));
+  return ids.length;
+}
+
+export async function bulkUpdateLeadStatus(ids: string[], statusId: string | null): Promise<number> {
+  if (ids.length === 0) return 0;
+  await db.update(crmLeads)
+    .set({ statusId, updatedAt: new Date() })
+    .where(inArray(crmLeads.id, ids));
+  return ids.length;
+}
+
+export async function bulkAddTagsToLeads(ids: string[], tagIds: string[]): Promise<void> {
+  if (ids.length === 0 || tagIds.length === 0) return;
+  const pairs = ids.flatMap(leadId => tagIds.map(tagId => ({ leadId, tagId })));
+  await db.insert(crmLeadTags).values(pairs).onConflictDoNothing();
+}
+
+export async function bulkRemoveTagsFromLeads(ids: string[], tagIds: string[]): Promise<void> {
+  if (ids.length === 0 || tagIds.length === 0) return;
+  await db.delete(crmLeadTags)
+    .where(and(inArray(crmLeadTags.leadId, ids), inArray(crmLeadTags.tagId, tagIds)));
+}
+
+export async function bulkDeleteLeads(ids: string[]): Promise<number> {
+  if (ids.length === 0) return 0;
+  await db.transaction(async (tx) => {
+    await tx.delete(crmLeadTags).where(inArray(crmLeadTags.leadId, ids));
+    await tx.delete(crmLeadNotes).where(inArray(crmLeadNotes.leadId, ids));
+    await tx.update(followupTasks).set({ leadId: null }).where(inArray(followupTasks.leadId, ids));
+    await tx.update(pipelineOpportunities).set({ leadId: null }).where(inArray(pipelineOpportunities.leadId, ids));
+    await tx.delete(crmLeads).where(inArray(crmLeads.id, ids));
+  });
+  return ids.length;
 }
