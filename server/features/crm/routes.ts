@@ -1,9 +1,13 @@
-import { Router } from "express";
+import express, { Router } from "express";
 import { z } from "zod";
 import { requireRole } from "../auth/middleware";
 import { logAudit } from "../audit/service";
 import { notifyLeadAssignment } from "../notifications/triggers";
 import * as crmStorage from "./storage";
+import {
+  exportLeadsToCSV, exportContactsToCSV,
+  importLeadsFromCSV, importContactsFromCSV,
+} from "./csvImportExport";
 import {
   insertCrmCompanySchema, insertCrmContactSchema, insertCrmLeadSchema,
   insertCrmLeadNoteSchema, insertCrmTagSchema,
@@ -207,6 +211,56 @@ router.post("/leads/bulk/delete", requireRole("admin"), async (req, res) => {
   }
 });
 
+router.get("/leads/export-csv", requireRole("admin", "sales_rep"), async (req, res) => {
+  try {
+    const csv = await exportLeadsToCSV();
+    const date = new Date().toISOString().split("T")[0];
+    await logAudit({
+      userId: req.authUser?.id,
+      action: "export",
+      entity: "crm_lead",
+      entityId: "csv",
+      metadata: { date },
+      ipAddress: req.ip,
+    });
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", `attachment; filename="leads-${date}.csv"`);
+    res.send(csv);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.post(
+  "/leads/import-csv",
+  requireRole("admin", "sales_rep"),
+  express.text({ limit: "5mb" }),
+  async (req, res) => {
+    try {
+      const csvText = req.body as string;
+      if (!csvText || typeof csvText !== "string" || csvText.trim().length === 0) {
+        return res.status(400).json({ message: "Request body must be a non-empty CSV text" });
+      }
+      const result = await importLeadsFromCSV(csvText);
+      await logAudit({
+        userId: req.authUser?.id,
+        action: "import",
+        entity: "crm_lead",
+        entityId: "csv",
+        metadata: {
+          imported: result.imported,
+          skipped: result.skipped,
+          errors: result.errors,
+        },
+        ipAddress: req.ip,
+      });
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  }
+);
+
 router.get("/leads/:id", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   const id = req.params.id as string;
   const lead = await crmStorage.getLeadById(id);
@@ -383,6 +437,56 @@ router.post("/contacts", requireRole("admin", "sales_rep"), async (req, res) => 
     res.status(400).json({ message: error.message });
   }
 });
+
+router.get("/contacts/export-csv", requireRole("admin", "sales_rep"), async (req, res) => {
+  try {
+    const csv = await exportContactsToCSV();
+    const date = new Date().toISOString().split("T")[0];
+    await logAudit({
+      userId: req.authUser?.id,
+      action: "export",
+      entity: "crm_contact",
+      entityId: "csv",
+      metadata: { date },
+      ipAddress: req.ip,
+    });
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", `attachment; filename="contacts-${date}.csv"`);
+    res.send(csv);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.post(
+  "/contacts/import-csv",
+  requireRole("admin", "sales_rep"),
+  express.text({ limit: "5mb" }),
+  async (req, res) => {
+    try {
+      const csvText = req.body as string;
+      if (!csvText || typeof csvText !== "string" || csvText.trim().length === 0) {
+        return res.status(400).json({ message: "Request body must be a non-empty CSV text" });
+      }
+      const result = await importContactsFromCSV(csvText);
+      await logAudit({
+        userId: req.authUser?.id,
+        action: "import",
+        entity: "crm_contact",
+        entityId: "csv",
+        metadata: {
+          imported: result.imported,
+          skipped: result.skipped,
+          errors: result.errors,
+        },
+        ipAddress: req.ip,
+      });
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  }
+);
 
 router.get("/contacts/:id", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   const id = req.params.id as string;

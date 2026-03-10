@@ -59,6 +59,13 @@ client/src/features/<module>/
   - `POST /api/crm/leads/bulk/tags/add` — add tags to multiple leads (upsert, no duplicates)
   - `POST /api/crm/leads/bulk/tags/remove` — remove tags from multiple leads
   - `POST /api/crm/leads/bulk/delete` — admin only; cascades to notes/tags; unlinks pipeline opportunities/tasks transactionally
+- **CSV Import/Export** — `admin` + `sales_rep` only; uses `server/lib/csv.ts` utilities and `server/features/crm/csvImportExport.ts` service:
+  - `GET /api/crm/leads/export-csv` — exports all leads with enriched contact/company/status columns
+  - `POST /api/crm/leads/import-csv` — body: `text/plain` CSV; creates leads, resolves contacts by email/phone, resolves companies by name
+  - `GET /api/crm/contacts/export-csv` — exports all contacts with resolved company name
+  - `POST /api/crm/contacts/import-csv` — body: `text/plain` CSV; skips duplicates by email
+  - Dedup strategy: companies by name, contacts by email then phone; leads always created (no natural key)
+  - Required CSV columns: `title` (leads), `first_name` (contacts)
 - **Lead enrichment** — `GET /api/crm/leads` returns leads enriched with status, contact, and company via `enrichLeads()` batch function (3 parallel `inArray` queries).
 - **Assignable users** — `GET /api/crm/leads/assignable-users` returns all non-banned users for assignment pickers (all roles).
 - The public contact form (`POST /api/contacts`) and inquiry form (`POST /api/inquiries`) are separate endpoints outside this router (handled in `server/routes.ts` directly) and write to `crm_leads` via CRM storage.

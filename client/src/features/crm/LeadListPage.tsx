@@ -5,8 +5,9 @@ import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, ChevronLeft, ChevronRight, Globe, Phone, Mail,
-  X, Trash2, UserCheck, CircleDot, Tag, Tags, AlertTriangle, Users,
+  X, Trash2, UserCheck, CircleDot, Tag, Tags, AlertTriangle, Users, Upload,
 } from "lucide-react";
+import { CsvImportModal, CsvExportDropdown } from "./CsvImportExportModal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -62,6 +63,7 @@ export default function LeadListPage() {
   const [bulkAssignTo, setBulkAssignTo] = useState<string>("");
   const [bulkStatusId, setBulkStatusId] = useState<string>("");
   const [bulkTagIds, setBulkTagIds] = useState<string[]>([]);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   const { data: statuses = [] } = useQuery<CrmLeadStatus[]>({
     queryKey: ["/api/crm/statuses"],
@@ -225,7 +227,23 @@ export default function LeadListPage() {
             {total} lead{total !== 1 ? "s" : ""} total
           </p>
         </div>
+        {(isAdmin || role === "sales_rep") && (
+          <div className="flex items-center gap-2">
+            <CsvExportDropdown />
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowImportModal(true)}
+              data-testid="button-import-csv"
+            >
+              <Upload className="w-4 h-4 mr-1.5" />
+              Import
+            </Button>
+          </div>
+        )}
       </div>
+
+      <CsvImportModal open={showImportModal} onClose={() => setShowImportModal(false)} />
 
       <Card className="mb-4">
         <div className="p-4 flex flex-col sm:flex-row gap-3">
