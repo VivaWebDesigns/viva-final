@@ -66,18 +66,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const sidebar = (
     <TooltipProvider>
       <div className="flex flex-col h-full">
-        <div className="p-4 border-b border-gray-200">
-          <div className="flex items-center gap-3">
+        <div className="p-4 border-b border-gray-200 flex items-center justify-between relative">
+          <div className="flex items-center gap-3 overflow-hidden">
             <div className="w-9 h-9 flex items-center justify-center flex-shrink-0">
               <img src={logoIcon} alt="Viva Web Designs" className="w-full h-full object-contain" />
             </div>
             {!collapsed && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="overflow-hidden">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="overflow-hidden whitespace-nowrap">
                 <p className="font-semibold text-gray-900 text-sm leading-tight">Viva Web Designs</p>
                 <p className="text-xs text-gray-500">Internal Platform</p>
               </motion.div>
             )}
           </div>
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            className="absolute -right-3 w-6 h-6 bg-white border border-gray-200 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 shadow-sm z-10 transition-colors"
+            data-testid="button-toggle-sidebar"
+          >
+            {collapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
+          </button>
         </div>
 
         <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
@@ -166,19 +173,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
       <aside
-        className={`hidden md:flex flex-col bg-white border-r border-gray-200 relative transition-all duration-200 ${
+        className={`hidden md:flex flex-col bg-white border-r border-gray-200 transition-all duration-200 ${
           collapsed ? "w-[68px]" : "w-[250px]"
         }`}
       >
         {sidebar}
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="absolute bottom-4 -right-3 w-6 h-6 bg-white border border-gray-200 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 shadow-sm z-10"
-          style={{ left: collapsed ? "56px" : "238px" }}
-          data-testid="button-toggle-sidebar"
-        >
-          {collapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
-        </button>
       </aside>
 
       <AnimatePresence>
