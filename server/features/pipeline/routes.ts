@@ -58,7 +58,7 @@ router.post("/stages", requireRole("admin", "developer"), async (req, res) => {
 
 router.put("/stages/:id", requireRole("admin", "developer"), async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     const existing = await pipelineStorage.getStageById(id);
     if (!existing) return res.status(404).json({ message: "Stage not found" });
     const validated = updateStageSchema.parse(req.body);
@@ -79,7 +79,7 @@ router.put("/stages/:id", requireRole("admin", "developer"), async (req, res) =>
 
 router.delete("/stages/:id", requireRole("admin"), async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     const existing = await pipelineStorage.getStageById(id);
     if (!existing) return res.status(404).json({ message: "Stage not found" });
     await pipelineStorage.clearStageFromOpportunities(id);
@@ -158,18 +158,18 @@ router.post("/opportunities", requireRole("admin", "sales_rep"), async (req, res
 });
 
 router.get("/opportunities/:id", requireRole("admin", "sales_rep"), async (req, res) => {
-  const opp = await pipelineStorage.getOpportunityById(req.params.id);
+  const opp = await pipelineStorage.getOpportunityById(req.params.id as string);
   if (!opp) return res.status(404).json({ message: "Opportunity not found" });
   res.json(opp);
 });
 
 router.put("/opportunities/:id", requireRole("admin", "sales_rep"), async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     const existing = await pipelineStorage.getOpportunityById(id);
     if (!existing) return res.status(404).json({ message: "Opportunity not found" });
     const validated = updateOpportunitySchema.parse(req.body);
-    const opp = await pipelineStorage.updateOpportunity(id, validated);
+    const opp = await pipelineStorage.updateOpportunity(id, validated as any);
     await logAudit({
       userId: req.authUser?.id,
       action: "update",
@@ -189,7 +189,7 @@ router.put("/opportunities/:id", requireRole("admin", "sales_rep"), async (req, 
 
 router.put("/opportunities/:id/stage", requireRole("admin", "sales_rep"), async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     const { stageId } = req.body;
     if (!stageId) return res.status(400).json({ message: "stageId is required" });
     const result = await pipelineStorage.moveOpportunity(id, stageId, req.authUser?.id);
@@ -198,7 +198,7 @@ router.put("/opportunities/:id/stage", requireRole("admin", "sales_rep"), async 
       action: "stage_change",
       entity: "pipeline_opportunity",
       entityId: id,
-      metadata: result.activity.metadata,
+      metadata: result.activity.metadata as any,
       ipAddress: req.ip,
     });
     const meta = result.activity.metadata as any;
@@ -212,13 +212,13 @@ router.put("/opportunities/:id/stage", requireRole("admin", "sales_rep"), async 
 });
 
 router.get("/opportunities/:id/activities", requireRole("admin", "sales_rep"), async (req, res) => {
-  const activities = await pipelineStorage.getActivities(req.params.id);
+  const activities = await pipelineStorage.getActivities(req.params.id as string);
   res.json(activities);
 });
 
 router.post("/opportunities/:id/activities", requireRole("admin", "sales_rep"), async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     const existing = await pipelineStorage.getOpportunityById(id);
     if (!existing) return res.status(404).json({ message: "Opportunity not found" });
     const data = insertPipelineActivitySchema.parse({
@@ -243,7 +243,7 @@ router.post("/opportunities/:id/activities", requireRole("admin", "sales_rep"), 
 
 router.post("/convert-lead/:leadId", requireRole("admin", "sales_rep"), async (req, res) => {
   try {
-    const { leadId } = req.params;
+    const { leadId } = req.params as Record<string, string>;
     const { stageId, ...extraData } = req.body;
     if (!stageId) return res.status(400).json({ message: "stageId is required" });
     const targetStage = await pipelineStorage.getStageById(stageId);

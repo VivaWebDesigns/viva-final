@@ -30,7 +30,7 @@ const CLIENTS = [
 
 export async function seedFullDatabase() {
   const [admin] = await db.select().from(userTable).where(eq(userTable.email, "admin@vivawebdesigns.com"));
-  const adminId = admin?.id || null;
+  const adminId = admin?.id || undefined;
 
   const templates = await onboardingStorage.getTemplates();
   const templateId = templates[0]?.id || null;

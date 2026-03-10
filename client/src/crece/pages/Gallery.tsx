@@ -322,7 +322,7 @@ export default function Gallery() {
     window.scrollTo(0, 0);
   }, [language, payload]);
 
-  const filtered = galleryImages.filter((img) => img.category === activeCategory);
+  const filtered = galleryImages.filter((img) => (img as any).category === activeCategory);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -397,7 +397,7 @@ export default function Gallery() {
                 {!previewImages && (
                 <div className="p-4">
                   <p className="text-foreground font-semibold text-sm">
-                    {language === "en" ? img.caption : img.caption.replace("Kitchen Cabinet Refinish", "Refinado de Gabinetes de Cocina")
+                    {language === "en" ? (img as any).caption : (img as any).caption.replace("Kitchen Cabinet Refinish", "Refinado de Gabinetes de Cocina")
                       .replace("Living Room Repaint", "Repintado de Sala")
                       .replace("Full Exterior Repaint", "Repintado Exterior Completo")
                       .replace("Cabinet Painting", "Pintura de Gabinetes")
@@ -438,13 +438,13 @@ export default function Gallery() {
                     }
                   </p>
                   <p className="text-muted-foreground text-xs mt-1">
-                    {language === "en" ? img.category : (
-                      img.category === "Interior" ? "Interior" :
-                      img.category === "Exterior" ? "Exterior" :
-                      img.category === "Cabinets" ? "Gabinetes" :
-                      img.category === "Deck" ? "Terraza" :
-                      img.category === "Fence" ? "Cerca" :
-                      img.category === "Commercial" ? "Comercial" : img.category
+                    {language === "en" ? (img as any).category : (
+                      (img as any).category === "Interior" ? "Interior" :
+                      (img as any).category === "Exterior" ? "Exterior" :
+                      (img as any).category === "Cabinets" ? "Gabinetes" :
+                      (img as any).category === "Deck" ? "Terraza" :
+                      (img as any).category === "Fence" ? "Cerca" :
+                      (img as any).category === "Commercial" ? "Comercial" : (img as any).category
                     )}
                   </p>
                 </div>

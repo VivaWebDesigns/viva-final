@@ -76,7 +76,7 @@ router.post("/messages", requireAuth, async (req, res) => {
 
 router.delete("/messages/:id", requireRole("admin", "developer"), async (req, res) => {
   try {
-    await db.delete(chatMessages).where(eq(chatMessages.id, req.params.id));
+    await db.delete(chatMessages).where(eq(chatMessages.id, req.params.id as string));
     res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ message: err.message });

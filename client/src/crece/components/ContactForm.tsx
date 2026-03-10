@@ -29,7 +29,7 @@ export function ContactForm() {
     : null;
 
   const form = useForm<InsertInquiry>({
-    resolver: zodResolver(insertInquirySchema),
+    resolver: zodResolver(insertInquirySchema as any),
     defaultValues: {
       name: "",
       email: "",

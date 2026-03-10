@@ -35,8 +35,8 @@ function CardDisplay({
   opp: PipelineOpportunity;
   isDragging?: boolean;
   dragHandleProps?: {
-    listeners: Record<string, any>;
-    attributes: Record<string, any>;
+    listeners: Record<string, any> | undefined;
+    attributes: Record<string, any> | undefined;
   };
 }) {
   return (

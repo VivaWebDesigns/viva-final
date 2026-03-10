@@ -129,9 +129,9 @@ router.put("/users/:id", requireRole("admin"), async (req, res) => {
       banned: z.boolean().optional(),
     });
     const updates = schema.parse(req.body);
-    await db.update(user).set(updates).where(eq(user.id, req.params.id));
-    await logAudit({ action: "update_user", entity: "user", entityId: req.params.id, metadata: updates });
-    const [updated] = await db.select({ id: user.id, name: user.name, email: user.email, role: user.role, banned: user.banned, createdAt: user.createdAt }).from(user).where(eq(user.id, req.params.id));
+    await db.update(user).set(updates).where(eq(user.id, req.params.id as string));
+    await logAudit({ action: "update_user", entity: "user", entityId: req.params.id as string, metadata: updates });
+    const [updated] = await db.select({ id: user.id, name: user.name, email: user.email, role: user.role, banned: user.banned, createdAt: user.createdAt }).from(user).where(eq(user.id, req.params.id as string));
     res.json(updated);
   } catch (err: any) {
     res.status(400).json({ message: err.message });

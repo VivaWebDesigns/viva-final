@@ -17,14 +17,14 @@ router.get("/health", requireRole("admin", "developer"), async (_req, res) => {
 });
 
 router.get("/:provider", requireRole("admin", "developer"), async (req, res) => {
-  const integration = await intStorage.getIntegrationByProvider(req.params.provider);
+  const integration = await intStorage.getIntegrationByProvider(req.params.provider as string);
   if (!integration) return res.status(404).json({ message: "Integration not found" });
   res.json(integration);
 });
 
 router.put("/:id", requireRole("admin", "developer"), async (req, res) => {
   try {
-    const integration = await intStorage.updateIntegration(req.params.id, req.body);
+    const integration = await intStorage.updateIntegration(req.params.id as string, req.body);
     await logAudit({
       userId: req.authUser?.id,
       action: "update",
@@ -40,11 +40,11 @@ router.put("/:id", requireRole("admin", "developer"), async (req, res) => {
 });
 
 router.post("/:provider/test", requireRole("admin", "developer"), async (req, res) => {
-  const integration = await intStorage.getIntegrationByProvider(req.params.provider);
+  const integration = await intStorage.getIntegrationByProvider(req.params.provider as string);
   if (!integration) return res.status(404).json({ message: "Integration not found" });
 
   const health = checkAllProviders();
-  const providerHealth = health[req.params.provider];
+  const providerHealth = health[req.params.provider as string];
 
   if (!providerHealth) {
     return res.status(404).json({ message: "Unknown provider" });
@@ -62,7 +62,7 @@ router.post("/:provider/test", requireRole("admin", "developer"), async (req, re
       details: `Missing environment variables: ${providerHealth.missingVars.join(", ")}`,
     };
   } else {
-    switch (req.params.provider) {
+    switch (req.params.provider as string) {
       case "mailgun": {
         try {
           const domain = process.env.MAILGUN_DOMAIN;
@@ -164,7 +164,7 @@ router.post("/:provider/test", requireRole("admin", "developer"), async (req, re
     action: "test_integration",
     entity: "integration",
     entityId: integration.id,
-    metadata: { provider: req.params.provider, result: testResult.success ? "pass" : "fail" },
+    metadata: { provider: req.params.provider as string, result: testResult.success ? "pass" : "fail" },
     ipAddress: req.ip,
   });
 

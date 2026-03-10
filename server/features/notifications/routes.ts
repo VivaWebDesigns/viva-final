@@ -33,7 +33,7 @@ router.get("/unread-count", requireAuth, async (req, res) => {
 
 router.put("/:id/read", requireAuth, async (req, res) => {
   try {
-    const success = await notificationService.markAsRead(req.params.id, req.authUser!.id);
+    const success = await notificationService.markAsRead(req.params.id as string, req.authUser!.id);
     if (!success) {
       return res.status(404).json({ message: "Notification not found" });
     }

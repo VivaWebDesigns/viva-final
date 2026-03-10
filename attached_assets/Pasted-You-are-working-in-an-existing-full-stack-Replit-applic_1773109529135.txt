@@ -1,0 +1,75 @@
+You are working in an existing full-stack Replit application for Viva Web Designs. This is a nondestructive stabilization pass. Do not redesign the app. Do not remove features. Do not change business logic unless required to fix broken type contracts. The goal is to make the project type-safe and restore baseline platform integrity.
+
+PRIMARY GOAL
+- Make `npm run check` pass cleanly.
+- Fix TypeScript errors without breaking runtime behavior.
+- Align TypeScript path alias resolution with Vite alias resolution.
+- Preserve existing app structure, routes, feature modules, and behavior.
+
+HARD RULES
+- NONDESTRUCTIVE ONLY.
+- Do not remove features.
+- Do not change public behavior unless required to fix broken contracts.
+- Do not modify vite.config.ts, drizzle.config.ts, or package.json scripts unless absolutely necessary for type integrity and only if there is no safer alternative.
+- Preserve BetterAuth mount order before express.json().
+- Preserve React 18 + TypeScript + Vite + Tailwind + shadcn/ui + Express + Drizzle architecture.
+- Preserve separate preview entry points and hash routing behavior.
+- Do not break the public site, admin, or demo builder.
+
+SPECIFIC TASKS
+1. Run a full typecheck and identify all compile errors.
+2. Fix TS alias mismatch between Vite and tsconfig:
+   - Ensure tsconfig.json path mappings match the aliases that are already used by the codebase and supported by Vite.
+   - Do not invent unnecessary aliases.
+   - Keep alias definitions consistent and minimal.
+3. Fix unresolved imports and path issues across client/server/shared.
+4. Fix schema/type contract mismatches:
+   - Drizzle schema usage
+   - Zod inference issues
+   - mismatched DTOs and form types
+   - server/client response type inconsistencies
+5. Fix component prop type mismatches without changing intended UI behavior.
+6. Fix handler signature mismatches, especially event handlers passed to React props.
+7. Fix query typing issues in TanStack Query v5 using object syntax only.
+8. Fix any obviously unsafe `any` leakage only where needed to make the contracts accurate.
+9. Preserve all existing API route paths and response semantics unless a type-safe wrapper is needed.
+10. Add or improve shared types only if that reduces duplication and drift between frontend/backend.
+
+IMPLEMENTATION GUIDANCE
+- Prefer fixing the source of truth over adding local casts.
+- Prefer explicit interfaces/types over broad `as any`.
+- Prefer narrowing and guards over forced assertions.
+- If a feature has inconsistent model shapes, unify around the most correct existing schema-backed contract.
+- If a UI component is using unsupported props, either:
+  - update the local component type if that prop is a legitimate supported app pattern, or
+  - adjust the call site to a type-safe equivalent if the prop should not exist.
+- Maintain TanStack Query v5 object-style hooks only.
+- Maintain Zod v4 style usage only.
+
+FILES MOST LIKELY INVOLVED
+- tsconfig.json
+- client/src/**
+- server/**
+- shared/schema.ts
+- any shared type/helper files
+
+DELIVERABLES
+1. A fully passing `npm run check`.
+2. A short changelog in replit.md or a new docs note summarizing:
+   - major root causes found
+   - files changed
+   - important contract decisions made
+3. No regressions to public site, admin, or preview tiers.
+
+ACCEPTANCE CRITERIA
+- `npm run check` passes with zero TypeScript errors.
+- No broken imports remain.
+- No feature removal.
+- Existing routes still compile and load.
+- No Vite-only aliases remain unresolved in TypeScript tooling.
+- Query hooks follow TanStack Query v5 object syntax.
+
+At the end, output:
+- what was fixed
+- any remaining risks
+- exact files changed

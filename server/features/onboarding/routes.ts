@@ -61,11 +61,11 @@ router.get("/records", requireRole("admin", "developer", "sales_rep"), async (re
 });
 
 router.get("/records/:id", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
-  const record = await onboardingStorage.getRecordById(req.params.id);
+  const record = await onboardingStorage.getRecordById(req.params.id as string);
   if (!record) return res.status(404).json({ message: "Onboarding record not found" });
   const [checklist, progress] = await Promise.all([
-    onboardingStorage.getChecklistItems(req.params.id),
-    onboardingStorage.getProgress(req.params.id),
+    onboardingStorage.getChecklistItems(req.params.id as string),
+    onboardingStorage.getProgress(req.params.id as string),
   ]);
   res.json({ ...record, checklist, progress });
 });
@@ -117,7 +117,7 @@ router.post("/records", requireRole("admin", "developer", "sales_rep"), async (r
       action: "create",
       entity: "onboarding_record",
       entityId: record.id,
-      details: { clientName: record.clientName },
+      metadata: { clientName: record.clientName },
     });
 
     res.status(201).json(record);
@@ -128,7 +128,7 @@ router.post("/records", requireRole("admin", "developer", "sales_rep"), async (r
 
 router.put("/records/:id", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
-    const existing = await onboardingStorage.getRecordById(req.params.id);
+    const existing = await onboardingStorage.getRecordById(req.params.id as string);
     if (!existing) return res.status(404).json({ message: "Onboarding record not found" });
 
     const validated = updateRecordSchema.parse(req.body);
@@ -146,7 +146,7 @@ router.put("/records/:id", requireRole("admin", "developer", "sales_rep"), async
       }
 
       await onboardingStorage.addNote({
-        onboardingId: req.params.id,
+        onboardingId: req.params.id as string,
         userId: req.authUser?.id || null,
         type: "status_change",
         content: `Status changed from "${existing.status}" to "${validated.status}"`,
@@ -154,21 +154,21 @@ router.put("/records/:id", requireRole("admin", "developer", "sales_rep"), async
       });
     }
 
-    const record = await onboardingStorage.updateRecord(req.params.id, updateData);
+    const record = await onboardingStorage.updateRecord(req.params.id as string, updateData);
 
     await logAudit({
       userId: req.authUser?.id,
       action: "update",
       entity: "onboarding_record",
-      entityId: req.params.id,
-      details: validated,
+      entityId: req.params.id as string,
+      metadata: validated,
     });
 
     if (validated.status && validated.status !== existing.status) {
-      try { notifyOnboardingStatusChange({ id: req.params.id, clientName: record.clientName, ownerId: record.assignedTo }, existing.status, validated.status); } catch (_) {}
+      try { notifyOnboardingStatusChange({ id: req.params.id as string, clientName: record.clientName, ownerId: record.assignedTo }, existing.status, validated.status); } catch (_) {}
     }
     if (validated.assignedTo && validated.assignedTo !== existing.assignedTo) {
-      try { notifyOnboardingAssignment({ id: req.params.id, clientName: record.clientName }, validated.assignedTo); } catch (_) {}
+      try { notifyOnboardingAssignment({ id: req.params.id as string, clientName: record.clientName }, validated.assignedTo); } catch (_) {}
     }
 
     res.json(record);
@@ -179,16 +179,16 @@ router.put("/records/:id", requireRole("admin", "developer", "sales_rep"), async
 
 router.delete("/records/:id", requireRole("admin"), async (req, res) => {
   try {
-    const existing = await onboardingStorage.getRecordById(req.params.id);
+    const existing = await onboardingStorage.getRecordById(req.params.id as string);
     if (!existing) return res.status(404).json({ message: "Onboarding record not found" });
 
-    await onboardingStorage.deleteRecord(req.params.id);
+    await onboardingStorage.deleteRecord(req.params.id as string);
     await logAudit({
       userId: req.authUser?.id,
       action: "delete",
       entity: "onboarding_record",
-      entityId: req.params.id,
-      details: { clientName: existing.clientName },
+      entityId: req.params.id as string,
+      metadata: { clientName: existing.clientName },
     });
 
     res.json({ message: "Deleted" });
@@ -198,16 +198,16 @@ router.delete("/records/:id", requireRole("admin"), async (req, res) => {
 });
 
 router.get("/records/:id/checklist", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
-  const items = await onboardingStorage.getChecklistItems(req.params.id);
+  const items = await onboardingStorage.getChecklistItems(req.params.id as string);
   res.json(items);
 });
 
 router.put("/records/:id/checklist/:itemId", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
-    const item = await onboardingStorage.toggleChecklistItem(req.params.itemId, req.authUser?.id);
+    const item = await onboardingStorage.toggleChecklistItem(req.params.itemId as string, req.authUser?.id);
 
     await onboardingStorage.addNote({
-      onboardingId: req.params.id,
+      onboardingId: req.params.id as string,
       userId: req.authUser?.id || null,
       type: "checklist_update",
       content: `${item.isCompleted ? "Completed" : "Unchecked"}: "${item.label}"`,
@@ -221,7 +221,7 @@ router.put("/records/:id/checklist/:itemId", requireRole("admin", "developer", "
 });
 
 router.get("/records/:id/notes", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
-  const notes = await onboardingStorage.getNotes(req.params.id);
+  const notes = await onboardingStorage.getNotes(req.params.id as string);
   res.json(notes);
 });
 
@@ -229,7 +229,7 @@ router.post("/records/:id/notes", requireRole("admin", "developer", "sales_rep")
   try {
     const validated = addNoteSchema.parse(req.body);
     const note = await onboardingStorage.addNote({
-      onboardingId: req.params.id,
+      onboardingId: req.params.id as string,
       userId: req.authUser?.id || null,
       type: validated.type || "note",
       content: validated.content,
@@ -248,7 +248,7 @@ router.get("/templates", requireRole("admin", "developer", "sales_rep"), async (
 
 router.post("/convert-opportunity/:opportunityId", requireRole("admin", "sales_rep"), async (req, res) => {
   try {
-    const { opportunityId } = req.params;
+    const { opportunityId } = req.params as Record<string, string>;
     const { templateId, ...extraData } = req.body;
 
     const record = await onboardingStorage.convertOpportunityToOnboarding(
@@ -263,7 +263,7 @@ router.post("/convert-opportunity/:opportunityId", requireRole("admin", "sales_r
       action: "create",
       entity: "onboarding_record",
       entityId: record.id,
-      details: { fromOpportunity: opportunityId, clientName: record.clientName },
+      metadata: { fromOpportunity: opportunityId, clientName: record.clientName },
     });
 
     res.status(201).json(record);

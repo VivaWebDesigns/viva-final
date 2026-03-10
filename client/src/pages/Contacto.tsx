@@ -50,7 +50,7 @@ export default function Contacto() {
   const utm = useUtmParams();
 
   const form = useForm<InsertContact>({
-    resolver: zodResolver(insertContactSchema),
+    resolver: zodResolver(insertContactSchema as any),
     mode: "onSubmit",
     reValidateMode: "onChange",
     defaultValues: {

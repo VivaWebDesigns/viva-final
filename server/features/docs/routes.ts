@@ -31,7 +31,7 @@ router.post("/categories", requireRole("admin", "developer"), async (req, res) =
 
 router.put("/categories/:id", requireRole("admin", "developer"), async (req, res) => {
   try {
-    const category = await docsStorage.updateCategory(req.params.id, req.body);
+    const category = await docsStorage.updateCategory(req.params.id as string, req.body);
     await logAudit({
       userId: req.authUser?.id,
       action: "update",
@@ -55,7 +55,7 @@ router.get("/articles", requireRole("admin", "developer"), async (req, res) => {
 });
 
 router.get("/articles/by-id/:id", requireRole("admin", "developer"), async (req, res) => {
-  const article = await docsStorage.getArticleById(req.params.id);
+  const article = await docsStorage.getArticleById(req.params.id as string);
   if (!article) return res.status(404).json({ message: "Article not found" });
 
   const tags = await docsStorage.getArticleTags(article.id);
@@ -63,7 +63,7 @@ router.get("/articles/by-id/:id", requireRole("admin", "developer"), async (req,
 });
 
 router.get("/articles/:slug", requireRole("admin", "developer"), async (req, res) => {
-  const article = await docsStorage.getArticleBySlug(req.params.slug);
+  const article = await docsStorage.getArticleBySlug(req.params.slug as string);
   if (!article) return res.status(404).json({ message: "Article not found" });
 
   const tags = await docsStorage.getArticleTags(article.id);
@@ -90,7 +90,7 @@ router.post("/articles", requireRole("admin", "developer"), async (req, res) => 
 
 router.put("/articles/:id", requireRole("admin", "developer"), async (req, res) => {
   try {
-    const existing = await docsStorage.getArticleById(req.params.id);
+    const existing = await docsStorage.getArticleById(req.params.id as string);
     if (!existing) return res.status(404).json({ message: "Article not found" });
 
     if (req.body.content && req.body.content !== existing.content) {
@@ -101,7 +101,7 @@ router.put("/articles/:id", requireRole("admin", "developer"), async (req, res) 
       });
     }
 
-    const article = await docsStorage.updateArticle(req.params.id, req.body);
+    const article = await docsStorage.updateArticle(req.params.id as string, req.body);
     await logAudit({
       userId: req.authUser?.id,
       action: "update",
@@ -117,19 +117,19 @@ router.put("/articles/:id", requireRole("admin", "developer"), async (req, res) 
 });
 
 router.delete("/articles/:id", requireRole("admin", "developer"), async (req, res) => {
-  await docsStorage.deleteArticle(req.params.id);
+  await docsStorage.deleteArticle(req.params.id as string);
   await logAudit({
     userId: req.authUser?.id,
     action: "delete",
     entity: "doc_article",
-    entityId: req.params.id,
+    entityId: req.params.id as string,
     ipAddress: req.ip,
   });
   res.json({ message: "Article deleted" });
 });
 
 router.get("/articles/:id/revisions", requireRole("admin", "developer"), async (req, res) => {
-  const revisions = await docsStorage.getRevisions(req.params.id);
+  const revisions = await docsStorage.getRevisions(req.params.id as string);
   res.json(revisions);
 });
 
@@ -148,7 +148,7 @@ router.post("/tags", requireRole("admin", "developer"), async (req, res) => {
 });
 
 router.put("/articles/:id/tags", requireRole("admin", "developer"), async (req, res) => {
-  await docsStorage.setArticleTags(req.params.id, req.body.tagIds || []);
+  await docsStorage.setArticleTags(req.params.id as string, req.body.tagIds || []);
   res.json({ message: "Tags updated" });
 });
 

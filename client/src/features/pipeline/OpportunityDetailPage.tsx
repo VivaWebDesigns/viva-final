@@ -126,7 +126,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
       <div className="text-center py-12">
         <p className="text-gray-500">Opportunity not found</p>
         <Link href="/admin/pipeline">
-          <Button variant="link" className="mt-2">Back to Pipeline</Button>
+          <Button variant="ghost" className="mt-2">Back to Pipeline</Button>
         </Link>
       </div>
     );
