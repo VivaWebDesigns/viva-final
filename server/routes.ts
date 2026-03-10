@@ -6,6 +6,7 @@ import { ZodError } from "zod";
 import { Resend } from "resend";
 import featureRoutes from "./features";
 import { ingestWebsiteFormSubmission } from "./features/crm/ingest";
+import { initSocket } from "./features/chat/socket";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -13,6 +14,8 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  initSocket(httpServer);
+
   app.use("/api", featureRoutes);
 
   app.post("/api/contacts", async (req, res) => {

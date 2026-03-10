@@ -1,14 +1,15 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest, STALE } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@features/auth/useAuth";
+import { useSocket } from "@/hooks/useSocket";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Hash, Send, Trash2, MessageSquare, Search, Pin, SmilePlus, X,
-  MessageCircle,
+  MessageCircle, Plus, Wifi, WifiOff, Circle,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -72,6 +73,13 @@ interface PinnedMsg {
   senderName: string;
 }
 
+interface TypingState {
+  userId: string;
+  userName: string;
+  target: string;
+  targetType: "channel" | "dm";
+}
+
 const ROLE_COLORS: Record<string, string> = {
   admin: "bg-[#0D9488]/10 text-[#0D9488]",
   developer: "bg-purple-100 text-purple-700",
@@ -112,6 +120,7 @@ export default function TeamChatPage() {
   const { user, role } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { socket, isConnected, onlineUserIds } = useSocket();
 
   const [activeChannel, setActiveChannel] = useState<string>("general");
   const [activeDmUserId, setActiveDmUserId] = useState<string | null>(null);
@@ -124,16 +133,21 @@ export default function TeamChatPage() {
   const [showPinned, setShowPinned] = useState(false);
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [mentionStart, setMentionStart] = useState(0);
+  const [showDmPicker, setShowDmPicker] = useState(false);
+  const [typingUsers, setTypingUsers] = useState<TypingState[]>([]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isTypingRef = useRef(false);
   const isInDm = !!activeDmUserId;
+  const currentUserId = (user as any)?.id as string | undefined;
 
   // ── Queries ────────────────────────────────────────────────────────────────
 
   const { data: channels = [] } = useQuery<Channel[]>({
     queryKey: ["/api/chat/channels"],
-    refetchInterval: 10000,
+    refetchInterval: 60000,
     staleTime: STALE.FAST,
   });
 
@@ -144,13 +158,13 @@ export default function TeamChatPage() {
 
   const { data: dmConversations = [] } = useQuery<DmConversation[]>({
     queryKey: ["/api/chat/dm/conversations"],
-    refetchInterval: 8000,
+    refetchInterval: 30000,
     staleTime: STALE.FAST,
   });
 
   const { data: messages = [], isLoading } = useQuery<ChatMessage[]>({
     queryKey: [`/api/chat/messages?channel=${activeChannel}`],
-    refetchInterval: 4000,
+    refetchInterval: 60000,
     enabled: !isInDm,
   });
 
@@ -160,7 +174,7 @@ export default function TeamChatPage() {
       const res = await fetch(`/api/chat/dm/messages?userId=${activeDmUserId}`, { credentials: "include" });
       return res.json();
     },
-    refetchInterval: 4000,
+    refetchInterval: 30000,
     enabled: !!activeDmUserId,
   });
 
@@ -170,7 +184,7 @@ export default function TeamChatPage() {
       const res = await fetch(`/api/chat/messages?channel=${activeChannel}&parentId=${threadParentId}`, { credentials: "include" });
       return res.json();
     },
-    refetchInterval: 4000,
+    refetchInterval: 30000,
     enabled: !!threadParentId,
   });
 
@@ -194,11 +208,103 @@ export default function TeamChatPage() {
     staleTime: 5000,
   });
 
+  // ── Socket: join/leave channels ─────────────────────────────────────────────
+
+  const prevChannelRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!socket || !isConnected) return;
+    if (!isInDm) {
+      if (prevChannelRef.current && prevChannelRef.current !== activeChannel) {
+        socket.emit("leave:channel", prevChannelRef.current);
+      }
+      socket.emit("join:channel", activeChannel);
+      prevChannelRef.current = activeChannel;
+    }
+  }, [socket, isConnected, activeChannel, isInDm]);
+
+  // ── Socket: incoming messages ──────────────────────────────────────────────
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const onChannelMessage = (msg: ChatMessage) => {
+      const key = `/api/chat/messages?channel=${msg.channel}`;
+      qc.setQueryData<ChatMessage[]>([key], (prev) => {
+        if (!prev) return [msg];
+        if (prev.some((m) => m.id === msg.id)) return prev;
+        return [...prev, msg];
+      });
+      if (msg.senderId !== currentUserId) {
+        qc.invalidateQueries({ queryKey: ["/api/chat/channels"] });
+      }
+    };
+
+    const onDmMessage = (msg: DmMessage) => {
+      qc.setQueryData<DmMessage[]>(["/api/chat/dm/messages", msg.senderId === currentUserId ? msg.recipientId : msg.senderId], (prev) => {
+        if (!prev) return [msg];
+        if (prev.some((m) => m.id === msg.id)) return prev;
+        return [...prev, msg];
+      });
+      qc.invalidateQueries({ queryKey: ["/api/chat/dm/conversations"] });
+    };
+
+    const onTyping = (data: TypingState & { isTyping: boolean }) => {
+      if (data.userId === currentUserId) return;
+      setTypingUsers((prev) => {
+        const without = prev.filter((t) => !(t.userId === data.userId && t.target === data.target));
+        if (data.isTyping) return [...without, { userId: data.userId, userName: data.userName, target: data.target, targetType: data.targetType }];
+        return without;
+      });
+      if (data.isTyping) {
+        setTimeout(() => {
+          setTypingUsers((prev) => prev.filter((t) => !(t.userId === data.userId && t.target === data.target)));
+        }, 4000);
+      }
+    };
+
+    socket.on("chat:channel_message", onChannelMessage);
+    socket.on("chat:dm_message", onDmMessage);
+    socket.on("chat:typing", onTyping as any);
+
+    return () => {
+      socket.off("chat:channel_message", onChannelMessage);
+      socket.off("chat:dm_message", onDmMessage);
+      socket.off("chat:typing", onTyping as any);
+    };
+  }, [socket, currentUserId, qc]);
+
   // ── Auto-scroll ────────────────────────────────────────────────────────────
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, dmMessages]);
+
+  // ── Typing indicator emit ──────────────────────────────────────────────────
+
+  const emitTypingStop = useCallback(() => {
+    if (!socket || !isTypingRef.current) return;
+    isTypingRef.current = false;
+    if (isInDm && activeDmUserId) {
+      socket.emit("typing:stop", { target: activeDmUserId, targetType: "dm" });
+    } else {
+      socket.emit("typing:stop", { target: activeChannel, targetType: "channel" });
+    }
+  }, [socket, isInDm, activeDmUserId, activeChannel]);
+
+  const emitTypingStart = useCallback(() => {
+    if (!socket) return;
+    if (!isTypingRef.current) {
+      isTypingRef.current = true;
+      if (isInDm && activeDmUserId) {
+        socket.emit("typing:start", { target: activeDmUserId, targetType: "dm" });
+      } else {
+        socket.emit("typing:start", { target: activeChannel, targetType: "channel" });
+      }
+    }
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(emitTypingStop, 1500);
+  }, [socket, isInDm, activeDmUserId, activeChannel, emitTypingStop]);
 
   // ── Mutations ──────────────────────────────────────────────────────────────
 
@@ -214,8 +320,12 @@ export default function TeamChatPage() {
       const res = await apiRequest("POST", "/api/chat/messages", { channel: activeChannel, content });
       return res.json();
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: [`/api/chat/messages?channel=${activeChannel}`] });
+    onSuccess: (newMsg: ChatMessage) => {
+      qc.setQueryData<ChatMessage[]>([`/api/chat/messages?channel=${activeChannel}`], (prev) => {
+        if (!prev) return [newMsg];
+        if (prev.some((m) => m.id === newMsg.id)) return prev;
+        return [...prev, newMsg];
+      });
       markReadMutation.mutate(activeChannel);
     },
     onError: (err: Error) => toast({ title: "Error al enviar", description: err.message, variant: "destructive" }),
@@ -226,8 +336,12 @@ export default function TeamChatPage() {
       const res = await apiRequest("POST", "/api/chat/dm/messages", { recipientId: activeDmUserId, content });
       return res.json();
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["/api/chat/dm/messages", activeDmUserId] });
+    onSuccess: (newMsg: DmMessage) => {
+      qc.setQueryData<DmMessage[]>(["/api/chat/dm/messages", activeDmUserId], (prev) => {
+        if (!prev) return [newMsg];
+        if (prev.some((m) => m.id === newMsg.id)) return prev;
+        return [...prev, newMsg];
+      });
       qc.invalidateQueries({ queryKey: ["/api/chat/dm/conversations"] });
     },
     onError: (err: Error) => toast({ title: "Error al enviar", description: err.message, variant: "destructive" }),
@@ -273,11 +387,12 @@ export default function TeamChatPage() {
 
   // ── Handlers ───────────────────────────────────────────────────────────────
 
-  const canDelete = (msg: ChatMessage) => msg.senderId === (user as any)?.id || role === "admin" || role === "developer";
+  const canDelete = (msg: ChatMessage) => msg.senderId === currentUserId || role === "admin" || role === "developer";
 
   const handleSend = () => {
     const content = draft.trim();
     if (!content) return;
+    emitTypingStop();
     if (isInDm) sendDmMutation.mutate(content);
     else sendMutation.mutate(content);
     setDraft("");
@@ -297,6 +412,8 @@ export default function TeamChatPage() {
 
   const handleDraftChange = (val: string) => {
     setDraft(val);
+    if (val.trim()) emitTypingStart();
+    else emitTypingStop();
     const cursorPos = textareaRef.current?.selectionStart ?? val.length;
     const match = val.slice(0, cursorPos).match(/@(\w*)$/);
     if (match) {
@@ -317,18 +434,23 @@ export default function TeamChatPage() {
   };
 
   const selectChannel = (id: string) => {
+    emitTypingStop();
     setActiveChannel(id);
     setActiveDmUserId(null);
     setThreadParentId(null);
     setShowSearch(false);
     setSearchQuery("");
+    setShowDmPicker(false);
     markReadMutation.mutate(id);
   };
 
   const selectDm = (userId: string) => {
+    emitTypingStop();
     setActiveDmUserId(userId);
     setThreadParentId(null);
     setShowSearch(false);
+    setShowDmPicker(false);
+    setDraft("");
   };
 
   // ── Derived data ───────────────────────────────────────────────────────────
@@ -336,10 +458,17 @@ export default function TeamChatPage() {
   const activeDmUser = teamUsers.find((u) => u.id === activeDmUserId);
   const activeChannelData = channels.find((c) => c.id === activeChannel);
   const threadParentMsg = messages.find((m) => m.id === threadParentId);
-  const dmUserList = teamUsers.filter((u) => (u as any).id !== (user as any)?.id);
+  const dmUserList = teamUsers.filter((u) => (u as any).id !== currentUserId);
   const filteredMentions = mentionQuery !== null
-    ? teamUsers.filter((u) => (u as any).id !== (user as any)?.id && u.name.toLowerCase().includes(mentionQuery.toLowerCase()))
+    ? teamUsers.filter((u) => (u as any).id !== currentUserId && u.name.toLowerCase().includes(mentionQuery.toLowerCase()))
     : [];
+
+  const currentTypingUsers = typingUsers.filter((t) => {
+    if (isInDm && activeDmUserId) return t.target === currentUserId && t.targetType === "dm";
+    return t.target === activeChannel && t.targetType === "channel";
+  });
+
+  const isOnline = (userId: string) => onlineUserIds.includes(userId);
 
   // ── Render helpers ─────────────────────────────────────────────────────────
 
@@ -417,7 +546,6 @@ export default function TeamChatPage() {
             </div>
           </div>
 
-          {/* Reactions */}
           {msg.reactions.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-1">
               {msg.reactions.map((r) => (
@@ -425,7 +553,7 @@ export default function TeamChatPage() {
                   key={r.emoji}
                   onClick={() => reactMutation.mutate({ id: msg.id, emoji: r.emoji })}
                   className={`inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full border transition-colors ${
-                    r.users.includes((user as any)?.id ?? "")
+                    r.users.includes(currentUserId ?? "")
                       ? "bg-[#0D9488]/10 border-[#0D9488]/30 text-[#0D9488]"
                       : "bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100"
                   }`}
@@ -437,7 +565,6 @@ export default function TeamChatPage() {
             </div>
           )}
 
-          {/* Thread reply count */}
           {msg.replyCount > 0 && (
             <button
               onClick={() => setThreadParentId(msg.id)}
@@ -456,7 +583,6 @@ export default function TeamChatPage() {
           )}
         </div>
 
-        {/* Emoji picker */}
         {showEmojiFor === msg.id && (
           <div
             className="absolute top-0 right-0 z-20 bg-white border border-gray-200 rounded-xl shadow-lg p-2 flex gap-1"
@@ -485,12 +611,19 @@ export default function TeamChatPage() {
     <div
       className="flex h-[calc(100vh-80px)] -mx-4 -mt-4 overflow-hidden"
       data-testid="page-team-chat"
-      onClick={() => setShowEmojiFor(null)}
+      onClick={() => { setShowEmojiFor(null); setShowDmPicker(false); }}
     >
       {/* ── Sidebar ───────────────────────────────────────────────────────── */}
       <div className="w-60 flex-shrink-0 bg-gray-900 text-gray-300 flex flex-col">
-        <div className="px-4 py-4 border-b border-gray-700">
+        <div className="px-4 py-4 border-b border-gray-700 flex items-center justify-between">
           <h2 className="font-bold text-white text-sm uppercase tracking-wider">Chat del Equipo</h2>
+          <div
+            className={`flex items-center gap-1 text-[10px] ${isConnected ? "text-emerald-400" : "text-gray-500"}`}
+            title={isConnected ? "Conectado en tiempo real" : "Reconectando..."}
+            data-testid="socket-status"
+          >
+            {isConnected ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto py-2">
@@ -523,13 +656,60 @@ export default function TeamChatPage() {
 
           {/* DMs */}
           <div className="px-3">
-            <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider px-2 mb-1">Mensajes Directos</p>
+            <div className="flex items-center justify-between px-2 mb-1">
+              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Mensajes Directos</p>
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowDmPicker(!showDmPicker); }}
+                className="text-gray-500 hover:text-gray-300 transition-colors"
+                title="Nuevo mensaje directo"
+                data-testid="button-new-dm"
+              >
+                <Plus className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* DM user picker */}
+            <AnimatePresence>
+              {showDmPicker && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="mb-2 overflow-hidden"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700">
+                    <p className="text-[10px] text-gray-500 px-2 pt-2 pb-1">Selecciona un miembro</p>
+                    {dmUserList.map((u) => (
+                      <button
+                        key={u.id}
+                        onClick={() => selectDm(u.id)}
+                        className="w-full flex items-center gap-2 px-2 py-1.5 hover:bg-gray-700 transition-colors text-left"
+                        data-testid={`dm-picker-user-${u.id}`}
+                      >
+                        <div className="relative flex-shrink-0">
+                          <div className="w-5 h-5 rounded-full bg-gray-600 flex items-center justify-center text-[10px] font-bold text-gray-200">
+                            {getInitials(u.name)}
+                          </div>
+                          {isOnline(u.id) && (
+                            <Circle className="w-2 h-2 text-emerald-400 fill-emerald-400 absolute -bottom-0.5 -right-0.5" />
+                          )}
+                        </div>
+                        <span className="text-xs text-gray-300 truncate">{u.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             {dmUserList.length === 0 ? (
               <p className="text-xs text-gray-600 px-2 py-1">Sin otros miembros</p>
             ) : (
               dmUserList.map((u) => {
                 const conv = dmConversations.find((c) => c.userId === u.id);
                 const isActive = activeDmUserId === u.id;
+                const online = isOnline(u.id);
                 return (
                   <button
                     key={u.id}
@@ -540,8 +720,13 @@ export default function TeamChatPage() {
                     data-testid={`button-dm-${u.id}`}
                   >
                     <span className="flex items-center gap-2 truncate">
-                      <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${isActive ? "bg-white text-[#0D9488]" : "bg-gray-600 text-gray-200"}`}>
-                        {getInitials(u.name)}
+                      <div className="relative flex-shrink-0">
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${isActive ? "bg-white text-[#0D9488]" : "bg-gray-600 text-gray-200"}`}>
+                          {getInitials(u.name)}
+                        </div>
+                        {online && (
+                          <Circle className="w-2 h-2 text-emerald-400 fill-emerald-400 absolute -bottom-0.5 -right-0.5" />
+                        )}
                       </div>
                       <span className="truncate text-xs">{u.name}</span>
                     </span>
@@ -573,6 +758,11 @@ export default function TeamChatPage() {
                     <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
                       {activeDmUser.role.replace("_", " ")}
                     </Badge>
+                  )}
+                  {activeDmUserId && isOnline(activeDmUserId) && (
+                    <span className="flex items-center gap-1 text-xs text-emerald-500" data-testid="dm-online-status">
+                      <Circle className="w-2 h-2 fill-emerald-400" /> en línea
+                    </span>
                   )}
                 </>
               ) : (
@@ -700,7 +890,7 @@ export default function TeamChatPage() {
               ) : (
                 <div className="space-y-0.5">
                   {dmMessages.map((msg, idx) => {
-                    const isMine = msg.senderId === (user as any)?.id;
+                    const isMine = msg.senderId === currentUserId;
                     const prev = dmMessages[idx - 1];
                     const sameUser = prev?.senderId === msg.senderId
                       && new Date(msg.createdAt).getTime() - new Date(prev.createdAt).getTime() < 5 * 60 * 1000;
@@ -745,6 +935,15 @@ export default function TeamChatPage() {
             <div ref={messagesEndRef} />
           </div>
 
+          {/* Typing indicator */}
+          {currentTypingUsers.length > 0 && (
+            <div className="px-4 pb-1 flex-shrink-0" data-testid="typing-indicator">
+              <p className="text-xs text-gray-400 italic">
+                {currentTypingUsers.map((t) => t.userName).join(", ")} {currentTypingUsers.length === 1 ? "está" : "están"} escribiendo...
+              </p>
+            </div>
+          )}
+
           {/* Input area */}
           <div className="px-4 py-3 border-t border-gray-100 flex-shrink-0 relative">
             {mentionQuery !== null && filteredMentions.length > 0 && (
@@ -771,6 +970,7 @@ export default function TeamChatPage() {
                 value={draft}
                 onChange={(e) => handleDraftChange(e.target.value)}
                 onKeyDown={(e) => handleKeyDown(e)}
+                onBlur={emitTypingStop}
                 placeholder={isInDm ? `Mensaje a ${activeDmUser?.name ?? "DM"}` : `Mensaje en #${activeChannel} — @ para mencionar`}
                 rows={1}
                 className="flex-1 resize-none bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0D9488]/30 focus:border-[#0D9488] transition-colors"
@@ -831,34 +1031,34 @@ export default function TeamChatPage() {
                         {getInitials(msg.senderName)}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-baseline gap-1.5 mb-0.5">
+                        <div className="flex items-center gap-1.5 mb-0.5">
                           <span className="text-xs font-semibold text-gray-900">{msg.senderName}</span>
                           <span className="text-[10px] text-gray-400">{formatTime(msg.createdAt)}</span>
                         </div>
-                        <p className="text-xs text-gray-700 whitespace-pre-wrap">{msg.content}</p>
+                        <p className="text-xs text-gray-700 whitespace-pre-wrap break-words">{msg.content}</p>
                       </div>
                     </div>
                   ))
                 )}
               </div>
 
-              <div className="p-3 border-t border-gray-200 bg-white flex-shrink-0">
-                <div className="flex gap-2">
+              <div className="px-3 py-2 border-t border-gray-200 flex-shrink-0">
+                <div className="flex items-end gap-1.5">
                   <textarea
                     value={threadDraft}
                     onChange={(e) => setThreadDraft(e.target.value)}
                     onKeyDown={(e) => handleKeyDown(e, "thread")}
                     placeholder="Responder en hilo..."
                     rows={1}
-                    className="flex-1 resize-none bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-2 text-xs text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0D9488]/30 focus:border-[#0D9488]"
-                    style={{ minHeight: "36px", maxHeight: "100px" }}
+                    className="flex-1 resize-none bg-white border border-gray-200 rounded-lg px-2.5 py-2 text-xs text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#0D9488]/30 focus:border-[#0D9488]"
+                    style={{ minHeight: "34px", maxHeight: "80px" }}
                     data-testid="input-thread-message"
                   />
                   <Button
                     onClick={() => { if (threadDraft.trim()) { sendThreadMutation.mutate(threadDraft.trim()); setThreadDraft(""); } }}
                     disabled={!threadDraft.trim() || sendThreadMutation.isPending}
                     size="icon"
-                    className="bg-[#0D9488] hover:bg-[#0F766E] text-white h-9 w-9 flex-shrink-0"
+                    className="bg-[#0D9488] hover:bg-[#0F766E] text-white h-8 w-8 flex-shrink-0"
                     data-testid="button-send-thread"
                   >
                     <Send className="w-3 h-3" />

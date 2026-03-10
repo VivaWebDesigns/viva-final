@@ -4,8 +4,9 @@ import { db } from "../../db";
 import {
   chatMessages, chatDmMessages, chatReadState, chatReactions, user,
 } from "@shared/schema";
-import { eq, desc, asc, and, or, sql, lt, gt, ilike } from "drizzle-orm";
+import { eq, desc, asc, and, or, sql, lt, gt, ilike, ne, inArray } from "drizzle-orm";
 import { z } from "zod";
+import { getIO } from "./socket";
 
 const router = Router();
 
@@ -136,7 +137,23 @@ router.post("/messages", requireAuth, async (req, res) => {
       .values({ userId: senderId, channelId: channel, lastReadAt: msg.createdAt })
       .onConflictDoUpdate({ target: [chatReadState.userId, chatReadState.channelId], set: { lastReadAt: msg.createdAt } });
 
-    res.status(201).json({ ...msg, senderName: sender?.name, senderRole: sender?.role, reactions: [], replyCount: 0 });
+    const fullMsg = { ...msg, senderName: sender?.name, senderRole: sender?.role, reactions: [], replyCount: 0 };
+
+    try {
+      const io = getIO();
+      if (io) {
+        io.to(`channel:${channel}`).emit("chat:channel_message", {
+          ...fullMsg,
+          createdAt: fullMsg.createdAt.toISOString(),
+          parentId: fullMsg.parentId ?? null,
+          isPinned: fullMsg.isPinned ?? false,
+          senderName: fullMsg.senderName ?? "",
+          senderRole: fullMsg.senderRole ?? "",
+        });
+      }
+    } catch (_) {}
+
+    res.status(201).json(fullMsg);
   } catch (err: any) {
     res.status(400).json({ message: err.message });
   }
@@ -241,42 +258,78 @@ router.get("/search", requireAuth, async (req, res) => {
 router.get("/dm/conversations", requireAuth, async (req, res) => {
   try {
     const userId = req.authUser?.id!;
-    const rows = await db.execute(sql`
-      SELECT
-        CASE WHEN dm.sender_id = ${userId} THEN dm.recipient_id ELSE dm.sender_id END AS other_user_id,
-        MAX(dm.created_at) AS last_message_at,
-        (
-          SELECT content FROM chat_dm_messages
-          WHERE (sender_id = ${userId} AND recipient_id = CASE WHEN dm.sender_id = ${userId} THEN dm.recipient_id ELSE dm.sender_id END)
-             OR (recipient_id = ${userId} AND sender_id = CASE WHEN dm.sender_id = ${userId} THEN dm.recipient_id ELSE dm.sender_id END)
-          ORDER BY created_at DESC LIMIT 1
-        ) AS last_content,
-        COUNT(CASE WHEN dm.recipient_id = ${userId} AND dm.read_at IS NULL THEN 1 END)::int AS unread_count
-      FROM chat_dm_messages dm
-      WHERE dm.sender_id = ${userId} OR dm.recipient_id = ${userId}
-      GROUP BY CASE WHEN dm.sender_id = ${userId} THEN dm.recipient_id ELSE dm.sender_id END
-      ORDER BY MAX(dm.created_at) DESC
-    `);
 
-    const otherIds = (rows.rows as any[]).map((r) => r.other_user_id as string);
+    const sent = await db
+      .select({ otherId: chatDmMessages.recipientId })
+      .from(chatDmMessages)
+      .where(eq(chatDmMessages.senderId, userId));
+
+    const received = await db
+      .select({ otherId: chatDmMessages.senderId })
+      .from(chatDmMessages)
+      .where(eq(chatDmMessages.recipientId, userId));
+
+    const otherIdSet = new Set<string>();
+    for (const r of sent) otherIdSet.add(r.otherId);
+    for (const r of received) otherIdSet.add(r.otherId);
+    const otherIds = [...otherIdSet];
+
     if (!otherIds.length) return res.json([]);
+
+    const conversationData = await Promise.all(
+      otherIds.map(async (otherId) => {
+        const [lastMsg] = await db
+          .select()
+          .from(chatDmMessages)
+          .where(
+            or(
+              and(eq(chatDmMessages.senderId, userId), eq(chatDmMessages.recipientId, otherId)),
+              and(eq(chatDmMessages.senderId, otherId), eq(chatDmMessages.recipientId, userId))
+            )
+          )
+          .orderBy(desc(chatDmMessages.createdAt))
+          .limit(1);
+
+        const [{ unreadCount }] = await db
+          .select({ unreadCount: sql<number>`count(*)::int` })
+          .from(chatDmMessages)
+          .where(
+            and(
+              eq(chatDmMessages.recipientId, userId),
+              eq(chatDmMessages.senderId, otherId),
+              sql`${chatDmMessages.readAt} IS NULL`
+            )
+          );
+
+        return {
+          otherId,
+          lastMessageAt: lastMsg?.createdAt ?? new Date(0),
+          lastContent: lastMsg?.content ?? "",
+          unreadCount: unreadCount ?? 0,
+        };
+      })
+    );
+
+    conversationData.sort((a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime());
 
     const users = await db
       .select({ id: user.id, name: user.name, role: user.role })
       .from(user)
-      .where(sql`${user.id} = ANY(ARRAY[${sql.join(otherIds.map((id) => sql`${id}`), sql`, `)}])`);
+      .where(inArray(user.id, otherIds));
 
     const userMap: Record<string, { id: string; name: string; role: string }> = {};
     for (const u of users) userMap[u.id] = u;
 
-    res.json((rows.rows as any[]).map((r) => ({
-      userId: r.other_user_id,
-      userName: userMap[r.other_user_id]?.name ?? "Unknown",
-      userRole: userMap[r.other_user_id]?.role ?? "",
-      lastMessageAt: r.last_message_at,
-      lastContent: r.last_content ?? "",
-      unreadCount: Number(r.unread_count),
-    })));
+    res.json(
+      conversationData.map((c) => ({
+        userId: c.otherId,
+        userName: userMap[c.otherId]?.name ?? "Unknown",
+        userRole: userMap[c.otherId]?.role ?? "",
+        lastMessageAt: c.lastMessageAt,
+        lastContent: c.lastContent,
+        unreadCount: c.unreadCount,
+      }))
+    );
   } catch (err: any) {
     console.error("DM conversations error:", err);
     res.status(500).json({ message: err.message });
@@ -314,7 +367,25 @@ router.post("/dm/messages", requireAuth, async (req, res) => {
       content: z.string().min(1).max(4000),
     }).parse(req.body);
     const senderId = req.authUser?.id!;
+
+    const [targetUser] = await db.select({ id: user.id }).from(user).where(eq(user.id, recipientId));
+    if (!targetUser) return res.status(404).json({ message: "Recipient not found" });
+
     const [msg] = await db.insert(chatDmMessages).values({ senderId, recipientId, content }).returning();
+
+    try {
+      const io = getIO();
+      if (io) {
+        const payload = {
+          ...msg,
+          createdAt: msg.createdAt.toISOString(),
+          readAt: msg.readAt ? msg.readAt.toISOString() : null,
+        };
+        io.to(`user:${recipientId}`).emit("chat:dm_message", payload);
+        io.to(`user:${senderId}`).emit("chat:dm_message", payload);
+      }
+    } catch (_) {}
+
     res.status(201).json(msg);
   } catch (err: any) {
     res.status(400).json({ message: err.message });
