@@ -218,7 +218,15 @@ The initial admin account is created via `POST /api/admin/seed-admin`. This endp
 3. Team Chat Phase 1 (real-time messaging)
 4. Team Chat Phase 2 (enhancements)
 
+## Role Access Summary
+See `docs/architecture/role-matrix.md` for the full matrix. Key principles:
+- `developer` has **read access to all business data** (CRM, pipeline, onboarding, reports, clients) but **cannot mutate** leads, deals, or contacts.
+- `sales_rep` has **full CRM/pipeline/onboarding write access** but cannot touch platform config (docs, integrations, user management).
+- `admin` has full access to everything.
+- Sidebar nav, frontend route guards, and API middleware are **fully aligned** — no nav item is visible to a role that would get 403 on its API calls.
+
 ## Feature History
+- **v1.11**: Authorization matrix normalization — added `developer` read access to all CRM GET routes (leads, companies, contacts, statuses, tags) and all pipeline opportunity GET routes (list, board, stats, detail, activities). Write operations remain `admin + sales_rep` only. Created `docs/architecture/role-matrix.md` as the authoritative role reference.
 - **v1.10**: TypeScript type hardening — (1) added `client/src/preview/preview-env.d.ts` augmenting `Window` with fully-typed `PreviewConfig` / `PreviewPayload` interfaces; (2) added `domina` extension key to `PreviewConfig` for Domina-tier override merging; (3) typed `tOverrides` as `Record<string, unknown>` to support flat+nested shapes; (4) replaced all `(window as any).__PREVIEW__` with `window.__PREVIEW__` across 30 files; (5) added type import for `InsertPipelineOpportunity` in pipeline routes; (6) fixed `meta.fromStage/toStage` cast to `string` in pipeline stage-change handler; (7) added `P!` non-null assertions in Domina Home.tsx for TS-narrowed guard branches; (8) fixed Portfolio.tsx portfolio cast. Final result: 0 TypeScript errors.
 - **v1.9**: TypeScript recovery — resolved all 535 errors → 0. Root fixes: (1) added `@features/*`, `@crece/*`, `@domina/*`, `@empieza/*`, `@assets/*` path aliases to tsconfig; (2) changed `shared/schema.ts` to `import { z } from "zod/v4"` for drizzle-zod v0.8.3 compatibility; (3) added `as string` / `Record<string, string>` casts for Express `req.params` throughout server routes; (4) renamed `details:` → `metadata:` in logAudit calls; (5) fixed `zodResolver(schema as any)` in ContactForm/Contacto files; (6) `(img as any)` cast for Gallery.tsx union type; (7) react-scroll type declaration; (8) misc component fixes.
 - **v1.8**: Demo Image Library — curated local PNG images for plumbing/landscaping/deckbuilder/fenceinstaller; `imageLibrary.js` with `import.meta.glob` auto-discovery; Fisher-Yates shuffle for randomization; `getSupportImages()` with gallery fallback; `buildPreviewPayload()` uses local images first (hero → gallery → support → Unsplash); painting excluded to preserve CP Pro video+portfolio

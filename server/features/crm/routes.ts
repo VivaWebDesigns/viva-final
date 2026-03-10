@@ -10,7 +10,7 @@ import {
 
 const router = Router();
 
-router.get("/leads", requireRole("admin", "sales_rep"), async (req, res) => {
+router.get("/leads", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
     const { search, statusId, source, assignedTo, fromWebsiteForm, page, limit } = req.query;
     const result = await crmStorage.getLeads({
@@ -46,7 +46,7 @@ router.post("/leads", requireRole("admin", "sales_rep"), async (req, res) => {
   }
 });
 
-router.get("/leads/:id", requireRole("admin", "sales_rep"), async (req, res) => {
+router.get("/leads/:id", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   const id = req.params.id as string;
   const lead = await crmStorage.getLeadById(id);
   if (!lead) return res.status(404).json({ message: "Lead not found" });
@@ -76,7 +76,7 @@ router.put("/leads/:id", requireRole("admin", "sales_rep"), async (req, res) => 
   }
 });
 
-router.get("/leads/:id/notes", requireRole("admin", "sales_rep"), async (req, res) => {
+router.get("/leads/:id/notes", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   const id = req.params.id as string;
   const notes = await crmStorage.getLeadNotes(id);
   res.json(notes);
@@ -105,7 +105,7 @@ router.post("/leads/:id/notes", requireRole("admin", "sales_rep"), async (req, r
   }
 });
 
-router.get("/leads/:id/tags", requireRole("admin", "sales_rep"), async (req, res) => {
+router.get("/leads/:id/tags", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   const id = req.params.id as string;
   const tags = await crmStorage.getLeadTags(id);
   res.json(tags);
@@ -129,7 +129,7 @@ router.put("/leads/:id/tags", requireRole("admin", "sales_rep"), async (req, res
   }
 });
 
-router.get("/companies", requireRole("admin", "sales_rep"), async (req, res) => {
+router.get("/companies", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
     const { search, page, limit } = req.query;
     const result = await crmStorage.getCompanies({
@@ -161,7 +161,7 @@ router.post("/companies", requireRole("admin", "sales_rep"), async (req, res) =>
   }
 });
 
-router.get("/companies/:id", requireRole("admin", "sales_rep"), async (req, res) => {
+router.get("/companies/:id", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   const id = req.params.id as string;
   const company = await crmStorage.getCompanyById(id);
   if (!company) return res.status(404).json({ message: "Company not found" });
@@ -188,7 +188,7 @@ router.put("/companies/:id", requireRole("admin", "sales_rep"), async (req, res)
   }
 });
 
-router.get("/contacts", requireRole("admin", "sales_rep"), async (req, res) => {
+router.get("/contacts", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
     const { search, page, limit } = req.query;
     const result = await crmStorage.getContacts({
@@ -220,7 +220,7 @@ router.post("/contacts", requireRole("admin", "sales_rep"), async (req, res) => 
   }
 });
 
-router.get("/contacts/:id", requireRole("admin", "sales_rep"), async (req, res) => {
+router.get("/contacts/:id", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   const id = req.params.id as string;
   const contact = await crmStorage.getContactById(id);
   if (!contact) return res.status(404).json({ message: "Contact not found" });
@@ -247,12 +247,12 @@ router.put("/contacts/:id", requireRole("admin", "sales_rep"), async (req, res) 
   }
 });
 
-router.get("/statuses", requireRole("admin", "sales_rep"), async (_req, res) => {
+router.get("/statuses", requireRole("admin", "developer", "sales_rep"), async (_req, res) => {
   const statuses = await crmStorage.getLeadStatuses();
   res.json(statuses);
 });
 
-router.get("/tags", requireRole("admin", "sales_rep"), async (_req, res) => {
+router.get("/tags", requireRole("admin", "developer", "sales_rep"), async (_req, res) => {
   const tags = await crmStorage.getTags();
   res.json(tags);
 });

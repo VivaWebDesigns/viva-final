@@ -98,7 +98,7 @@ router.delete("/stages/:id", requireRole("admin"), async (req, res) => {
   }
 });
 
-router.get("/opportunities", requireRole("admin", "sales_rep"), async (req, res) => {
+router.get("/opportunities", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
     const { search, stageId, assignedTo, status, page, limit } = req.query;
     const result = await pipelineStorage.getOpportunities({
@@ -115,7 +115,7 @@ router.get("/opportunities", requireRole("admin", "sales_rep"), async (req, res)
   }
 });
 
-router.get("/opportunities/board", requireRole("admin", "sales_rep"), async (_req, res) => {
+router.get("/opportunities/board", requireRole("admin", "developer", "sales_rep"), async (_req, res) => {
   try {
     const result = await pipelineStorage.getOpportunitiesByStage();
     res.json(result);
@@ -124,7 +124,7 @@ router.get("/opportunities/board", requireRole("admin", "sales_rep"), async (_re
   }
 });
 
-router.get("/opportunities/stats", requireRole("admin", "sales_rep"), async (_req, res) => {
+router.get("/opportunities/stats", requireRole("admin", "developer", "sales_rep"), async (_req, res) => {
   try {
     const stats = await pipelineStorage.getPipelineStats();
     res.json(stats);
@@ -157,7 +157,7 @@ router.post("/opportunities", requireRole("admin", "sales_rep"), async (req, res
   }
 });
 
-router.get("/opportunities/:id", requireRole("admin", "sales_rep"), async (req, res) => {
+router.get("/opportunities/:id", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   const opp = await pipelineStorage.getOpportunityById(req.params.id as string);
   if (!opp) return res.status(404).json({ message: "Opportunity not found" });
   res.json(opp);
@@ -213,7 +213,7 @@ router.put("/opportunities/:id/stage", requireRole("admin", "sales_rep"), async 
   }
 });
 
-router.get("/opportunities/:id/activities", requireRole("admin", "sales_rep"), async (req, res) => {
+router.get("/opportunities/:id/activities", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   const activities = await pipelineStorage.getActivities(req.params.id as string);
   res.json(activities);
 });
