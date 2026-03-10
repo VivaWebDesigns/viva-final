@@ -1,0 +1,915 @@
+
+We're going to be building out a simple crm with replit and you'll be assisting me in developing prompts, but before we get started here is some context from Replit:
+
+================================================================================
+VIVA WEB DESIGNS — INTERNAL CRM / ADMIN PLATFORM
+Complete Technical Overview
+================================================================================
+WHAT IT IS
+----------
+A private full-stack web application built for Viva Web Designs, a marketing
+agency that builds websites for home-service contractors (plumbers, painters,
+roofers, etc.), primarily serving a Spanish-speaking client base.
+The app has three distinct parts:
+  1. Public agency website  — landing pages, pricing, contact form
+  2. Internal CRM / Admin   — team operations hub (leads, pipeline, onboarding,
+                              docs, chat, reports, notifications)
+  3. Demo Builder           — generates branded preview websites for prospects
+                              in 3 tiers × 17 trades, fully bilingual EN/ES
+================================================================================
+TECH STACK
+================================================================================
+Frontend
+  - React 18 + TypeScript
+  - Vite (build tool + dev server)
+  - Tailwind CSS + shadcn/ui (component library)
+  - Framer Motion (animations)
+  - wouter (client-side routing)
+  - TanStack Query v5 (server state / data fetching)
+  - react-hook-form + Zod (form validation)
+Backend
+  - Express.js + TypeScript
+  - PostgreSQL (primary database)
+  - Drizzle ORM (schema, migrations, queries)
+  - BetterAuth (authentication, role-based access)
+Hosting / Infrastructure
+  - Runs on Replit — single port 5000
+  - Express serves both the API and the Vite-built frontend
+  - Environment: NixOS / Node.js
+Email
+  - Mailgun (system notifications, admin emails)
+  - Resend (legacy contact form fallback)
+Planned (not yet built)
+  - Cloudflare R2 (file/media storage)
+  - Stripe (billing)
+================================================================================
+AUTHENTICATION
+================================================================================
+Library: BetterAuth with admin plugin
+Must be mounted BEFORE express.json() in server/index.ts
+Roles:
+  admin       — full access, user management, all CRM
+  developer   — internal tooling access
+  sales_rep   — CRM, pipeline, onboarding
+Admin account:
+  Email:    admin@vivawebdesigns.com
+  Password: VivaAdmin2026!
+Session is cookie-based. All protected routes use requireAuth middleware.
+Role-gating uses requireRole('admin') where needed.
+================================================================================
+PROJECT STRUCTURE
+================================================================================
+client/
+  src/
+    pages/              Main app pages (Home, Demo, Paquetes, AdminDemoBuilder)
+    features/           Feature modules:
+      auth/               Login, session management
+      crm/                Leads, companies, contacts, notes, tags
+      pipeline/           Kanban board, stages, opportunities, activities
+      onboarding/         Client onboarding checklists and records
+      docs/               Internal documentation library
+      chat/               Team chat (polling-based, multi-channel)
+      reports/            Analytics dashboards
+      notifications/      Notification center
+      integrations/       Integration health dashboard
+    components/         Shared UI components, Navigation, layout
+    preview/            Demo Builder logic:
+      empieza-main.jsx    Empieza tier entry point (hash routing)
+      crece-main.jsx      Crece tier entry point (hash routing)
+      domina-main.jsx     Domina tier entry point (hash routing)
+      tradeTemplates.js   17 trade templates + buildPreviewPayload()
+      imageLibrary.js     Auto-discovers local images via import.meta.glob
+      demo-images/        Curated local images organized by trade/category
+    empieza/            Empieza tier full React app (pages, components, i18n)
+    crece/              Crece tier full React app
+    domina/             Domina tier full React app (most advanced)
+server/
+  features/
+    admin/              Admin user management routes + handlers
+    auth/               BetterAuth setup, middleware, session helpers
+    crm/                CRM routes: leads, companies, contacts, notes, tags
+    pipeline/           Pipeline routes: stages, opportunities, activities
+    onboarding/         Onboarding routes and checklist logic
+    notifications/      Notification triggers + email dispatch
+    docs/               Docs library routes
+    chat/               Chat routes (polling, channels, messages)
+    reports/            Report aggregation + dashboard data
+    integrations/       Health checks for third-party services
+    audit/              Audit log (tracks admin actions)
+    clients/            Client management
+  routes.ts             Public routes (contact form, inquiries)
+  storage.ts            IStorage interface — MemStorage + PgStorage
+  index.ts              Express server entry point
+shared/
+  schema.ts             All Drizzle table schemas + Zod insert schemas
+================================================================================
+DATABASE TABLES
+================================================================================
+Auth (managed by BetterAuth)
+  user              — id, name, email, role, emailVerified, banned, createdAt
+  session           — active sessions
+  account           — OAuth account links
+  verification      — email verification tokens
+CRM
+  crm_companies         — company records (name, industry, address, notes, tags)
+  crm_contacts          — contacts linked to companies (role, phone, email)
+  crm_leads             — leads (status, source, assignee, value, score, tags)
+  crm_lead_notes        — notes/calls/emails/tasks on leads (typed)
+  crm_tags              — tag definitions
+  crm_lead_tags         — lead ↔ tag join table
+  crm_lead_statuses     — configurable status labels (e.g. New, Contacted)
+Sales Pipeline
+  pipeline_stages         — kanban columns (name, color, order)
+  pipeline_opportunities  — deals (linked to lead/company, value, close date)
+  pipeline_activities     — activity log per opportunity
+Client Onboarding
+  onboarding_templates          — reusable checklist templates
+  onboarding_records            — per-client onboarding instances
+  onboarding_checklist_items    — rows with status, assignee, due date
+  onboarding_notes              — notes per onboarding record
+Documentation
+  doc_categories, doc_articles, doc_tags, doc_article_tags, doc_revisions
+Notifications
+  notifications     — internal notification records (user, type, read, payload)
+Other
+  contacts              — public contact form submissions
+  integration_records   — third-party integration configs + health status
+  audit_logs            — admin action audit trail
+================================================================================
+CRM LEAD PIPELINE (form → database)
+================================================================================
+Flow:
+  POST /api/crm/leads
+    → Zod validation
+    → findOrCreateCompany (deduplicated by name)
+    → findOrCreateContact (deduplicated by email)
+    → createLead
+    → triggerLeadNotification (Mailgun email to admin)
+    → 201 response
+================================================================================
+KEY API ROUTES
+================================================================================
+Public
+  POST /api/contacts          Public contact form submissions
+  POST /api/inquiries         Demo inquiry form
+CRM (protected — any authenticated user)
+  GET  /api/crm/leads         List leads (filterable by status, assignee)
+  POST /api/crm/leads         Create lead (triggers notification)
+  GET  /api/crm/leads/:id     Single lead detail
+  PUT  /api/crm/leads/:id     Update lead
+  DELETE /api/crm/leads/:id   Delete lead
+  POST /api/crm/leads/:id/notes  Add note/call/email/task to lead
+  GET  /api/crm/companies     List companies
+  POST /api/crm/companies     Create company
+  GET  /api/crm/contacts      List contacts
+  POST /api/crm/contacts      Create contact
+Pipeline (protected)
+  GET  /api/pipeline/stages           List kanban stages
+  POST /api/pipeline/stages           Create stage
+  GET  /api/pipeline/opportunities    List opportunities
+  POST /api/pipeline/opportunities    Create opportunity
+  PUT  /api/pipeline/opportunities/:id  Update (drag-drop, edit)
+Admin (admin role only)
+  GET  /api/admin/users       List all platform users
+  POST /api/admin/users       Invite / create team member
+  PUT  /api/admin/users/:id   Update role or ban status
+Reports (protected)
+  GET  /api/reports/overview?days=30  Dashboard summary stats
+Notifications (protected)
+  GET  /api/notifications/unread-count
+  GET  /api/notifications
+  PUT  /api/notifications/:id/read
+================================================================================
+DEMO BUILDER — PREVIEW SYSTEM
+================================================================================
+Overview
+  Three preview tiers, each a separate Vite entry point, loaded in an iframe
+  inside the Admin Demo Builder page (/admin/demo-builder).
+  Tier        URL                   Description
+  ─────────────────────────────────────────────────────────────────────
+  Empieza     /preview/empieza.html  Starter — simple single-section layout
+  Crece       /preview/crece.html    Growth — multi-section with gallery
+  Domina      /preview/domina.html   Premium — portfolio, advanced layout,
+                                     individual service detail pages
+Each tier is a full standalone React app using wouter with hash routing
+(useHashLocation) so it can run in an iframe without conflicting with the
+parent app's routes.
+Supported Trades (17 total)
+  painting, plumbing, roofing, electrician, landscaping, hvac, general,
+  housecleaner, pressurewashing, carpenter, floorinstaller, tileinstaller,
+  fenceinstaller, deckbuilder, shedbuilder, concrete, treeservice
+Language System
+  - Fully bilingual EN/ES with zero English leakage in Spanish mode
+  - Language-aware payload fields: servicesEN/ES, reviewsEN/ES, tradeNounEN/ES
+  - tOverrides pattern: { en: {...}, es: {...} } passed via window.__PREVIEW__
+  - tradeNounES fix: all 3 entry files extract tnES = tradeNounES || tradeNoun
+How it works
+  1. Admin opens /admin/demo-builder
+  2. Selects a tier (Empieza/Crece/Domina) and trade (e.g. plumbing)
+  3. buildPreviewPayload(trade, overrides) in tradeTemplates.js constructs
+     the full data payload for that trade
+  4. The payload is injected into window.__PREVIEW__ in the iframe
+  5. Preview components read window.__PREVIEW__.payload to render branded
+     content (business name, services, reviews, colors, images, etc.)
+Domina Tier — Route Map
+  #/                     Home
+  #/services             All services listing
+  #/services/:slug       Individual service detail page (ServiceDetail.tsx)
+                           — reads matching service from payload by slug
+                           — renders hero + benefits + process + CTA
+                           — bilingual (EN/ES aware)
+  #/about                About page
+  #/contact              Contact page (with form)
+  #/gallery              Photo gallery with lightbox
+  #/portfolio            Portfolio listing
+  #/portfolio/:slug      Project detail
+================================================================================
+DEMO IMAGE LIBRARY
+================================================================================
+Location: client/src/preview/demo-images/<trade>/hero|gallery|support/
+Auto-discovered at build time using Vite's import.meta.glob. No code changes
+needed when adding images — drop files in the correct folder and restart.
+Priority (highest to lowest):
+  1. Local curated images (exact category folder)
+  2. Local curated images from sibling folder (support → gallery fallback)
+  3. Unsplash stock images defined in the trade template
+Randomization:
+  Arrays are Fisher-Yates shuffled once at module load → different order
+  on each page load, deterministic within a single session.
+Curated images currently populated:
+  Trade           Hero  Gallery  Support
+  ─────────────────────────────────────
+  plumbing          2       5       1
+  landscaping       1       3       —
+  deckbuilder       1       2       —
+  fenceinstaller    2       4       —
+  painting          0       0       —   ← intentionally empty; keeps Charlotte
+                                          Painting Pro video hero + portfolio
+Adding images for a new trade:
+  1. Create client/src/preview/demo-images/<trade>/hero/ and/or gallery/
+  2. Drop PNG/JPG/WebP files in
+  3. Restart dev server
+  4. Done — imageLibrary.js auto-discovers them
+================================================================================
+CHARLOTTE PAINTING PRO (Default Domina Demo)
+================================================================================
+When no preview payload is set, the Domina tier renders Charlotte Painting Pro
+— a real client demo with:
+  - Video hero (not replaced by curated images — painting imageLibrary returns null)
+  - Portfolio with actual project photos
+  - 6 painting-specific service pages (hardcoded routes):
+      /services/interior-painting
+      /services/exterior-painting
+      /services/kitchen-cabinet-painting
+      /services/deck-staining
+      /services/fence-staining
+      /services/commercial-painting
+  - Correct logo: image_1_(5)_1772575534808_1773059817248.png
+    (house + brush design — NEVER replace with Viva logo)
+For all other trades (in preview mode), the dynamic /services/:slug route
+loads ServiceDetail.tsx which reads from the payload.
+================================================================================
+ENVIRONMENT VARIABLES
+================================================================================
+  DATABASE_URL               PostgreSQL connection string (required)
+  BETTER_AUTH_SECRET         Auth secret key (required)
+  RESEND_API_KEY             Email (legacy contact form)
+  MAILGUN_API_KEY            Mailgun API key (system notifications)
+  MAILGUN_DOMAIN             Mailgun sending domain
+  MAILGUN_FROM_EMAIL         (optional) Sender email
+  MAILGUN_FROM_NAME          (optional) Sender name
+  STRIPE_SECRET_KEY          (planned — not yet active)
+  CLOUDFLARE_R2_ACCESS_KEY   (planned)
+  R2_SECRET_KEY              (planned)
+  R2_BUCKET                  (planned)
+  R2_ENDPOINT                (planned)
+  R2_PUBLIC_URL              (planned)
+================================================================================
+BRAND / COPY RULES
+================================================================================
+  Agency name:   Viva Web Designs
+  Phone:         (980) 949-0548
+  Tone:          Confident, professional, direct, Spanish-first
+  HARD RULES (never violate):
+    - Never write "latinos" anywhere in the app or copy
+    - Never write "Google Ads" anywhere in the app or copy
+    - Charlotte Painting Pro logo = image_1_(5)_1772575534808_1773059817248.png
+      Never swap this for the Viva logo
+================================================================================
+TECHNICAL GOTCHAS / CRITICAL NOTES
+================================================================================
+  - Zod v4 API: use z.object() directly (no ZodObject wrapper)
+  - BetterAuth must be mounted BEFORE express.json() in server/index.ts
+  - TanStack Query v5: only object form — useQuery({ queryKey: [...] })
+  - Query key pattern for parameterized routes: single string in array
+      CORRECT:   queryKey: ["/api/reports/overview?days=30"]
+      WRONG:     queryKey: ["/api/reports/overview", { days: 30 }]
+  - Hierarchical keys for cache invalidation: queryKey: ['/api/leads', id]
+  - import.meta.glob requires a Vite dev server restart when new files are added
+  - Domina tier uses hash routing (useHashLocation) — cannot combine URL hash
+    with fragment anchors; use path slugs (/services/drain-cleaning) instead
+  - All 3 preview tiers run as separate Vite entry points (not lazy routes)
+  - Do not modify vite.config.ts, drizzle.config.ts, or package.json scripts
+================================================================================
+PENDING FEATURES (confirmed order)
+================================================================================
+  1. Cloudflare R2 File Storage  — foundation for media upload + billing
+  2. Stripe Billing              — manual API key (Replit integration declined)
+  3. Team Chat Phase 1           — real-time messaging
+  4. Team Chat Phase 2           — enhancements
+================================================================================
+
+
+And here is an assessment from Codex:
+
+Quick take
+You’ve built a solid feature surface for an internal CRM/admin (auth, CRM, pipeline, onboarding, notifications, reports, docs, integrations, chat, clients). The architecture is modular and the route segmentation is good. But right now, the repo looks like it is in a “feature-rich but not production-hard” state: there are critical platform gaps (build/type integrity, security hardening, consistency, and operability) that should be addressed before scaling usage.
+
+What you’re likely missing for /admin/ backend CRM
+1) Baseline platform integrity (highest priority)
+npm run check currently fails with a large number of TypeScript errors, including unresolved aliases and schema/type issues; that means your CI safety net is effectively broken right now.
+
+One concrete root cause: vite.config.ts defines aliases such as @features, @crece, etc., but tsconfig.json only defines @/* and @shared/*, so TS can’t resolve imports that Vite can. This is a classic “runs in dev, fails in type-check/tooling” issue.
+
+2) Security hardening for admin bootstrapping
+POST /api/admin/seed-admin is not protected by auth/role middleware and includes hardcoded privileged credentials behavior. Even if intended for bootstrap, this should be tightly gated (env flag, one-time token, local-only, or removed after init).
+
+replit.md also documents a default admin credential pair in plaintext; this is risky operationally if reused in any environment beyond local demos.
+
+3) Authorization consistency across admin features
+CRM routes are restricted to admin + sales_rep, excluding developer, while other admin surfaces (reports/onboarding/integrations) include developer role. This can create confusing role behavior in /admin.
+
+4) Data quality/analytics correctness issues
+In clients listing, filtering is applied after pagination in memory, while total is counted from all rows. This can cause empty pages, wrong totals, and inconsistent UX/API semantics. Filtering should be in SQL query before limit/offset.
+
+Some audit writes use details while audit service writes metadata; those payloads are likely dropped and your audit trail loses context for onboarding actions.
+
+5) Observability + privacy controls
+Current API logger captures and prints full JSON responses for all /api routes. That can leak PII (contacts/leads/messages) to logs and increase noise/cost. Consider structured logs with field redaction + per-route log levels. 
+
+6) “Admin completeness” gaps (feature placeholders / roadmap)
+/admin/payments is still a placeholder in routing/UI, and roadmap confirms Stripe/R2/chat enhancements are pending. This means your backend CRM is not yet complete for billing + files + richer collaboration workflows. 
+
+System-wide recommendations (organization, performance, reliability)
+A) Organization & maintainability
+Define module contracts per feature (routes, service, repo/storage, schema, types) and enforce it uniformly.
+
+Add a clear /docs/architecture with:
+
+Role matrix (who can access what),
+
+Event model (notifications/audit),
+
+Data lifecycle (lead → opportunity → onboarding → client).
+
+Add lint + format + type-check gates in CI (block merge on failure).
+(You already have npm run check; make it green and mandatory.)
+
+B) Security improvements
+Remove/lock bootstrap routes (seed-admin, seed routes) in non-dev environments.
+
+Add:
+
+request rate limiting on sensitive endpoints (auth, public form ingestion),
+
+CSRF strategy if cookie session-based writes are used,
+
+stricter body schemas on update routes (avoid wide req.body pass-through).
+
+Mask sensitive logs and avoid logging full response bodies in production.
+
+C) Performance improvements
+Push search/filter/sort into SQL (avoid app-layer filtering post-pagination).
+
+Review staleTime: Infinity default in React Query—great for static data, risky for dynamic CRM state (status updates, unread notifications). Use targeted stale times per domain. 
+
+Add DB indexes for frequently queried filters (status, assignee, created_at already present in CRM/pipeline—continue this pattern for clients/report heavy queries).
+
+D) Product/backend completeness
+Introduce workflow engine-ish checks:
+
+enforce stage transition rules,
+
+SLA timers and overdue escalations,
+
+assignment requirements before status transitions.
+
+Add bulk APIs for CRM ops (bulk assign, bulk status/tag update, CSV import/export).
+
+Add immutable event history tables for key records (lead/opportunity/onboarding) rather than only mutable current-state rows.
+
+E) Testing strategy (currently missing)
+Add backend integration tests for:
+
+auth + role guards,
+
+lead creation flow + dedupe,
+
+onboarding transitions + notification triggers,
+
+audit logging payload shape.
+
+Add contract tests for /api/admin/* and /api/crm/*.
+
+Add smoke tests to ensure /admin critical pages can load for each role.
+
+Suggested priority order (practical)
+Week 1: Make type-check green + alias parity + remove insecure seed path behavior.
+
+Week 2: Fix audit payload mismatch + clients pagination/filter correctness + logging redaction.
+
+Week 3: Add CI gates + integration tests for role/auth + CRM critical flows.
+
+Week 4+: Build out billing/files/chat roadmap and workflow automation.
+
+Commands I used to assess
+✅ rg --files | head -n 200
+
+✅ sed -n '1,220p' replit.md
+
+✅ cat package.json
+
+✅ sed -n '1,220p' server/index.ts
+
+✅ sed -n '1,260p' server/routes.ts
+
+✅ sed -n '1,260p' server/features/index.ts
+
+✅ sed -n '1,260p' server/features/admin/routes.ts
+
+✅ sed -n '1,240p' server/features/auth/middleware.ts
+
+✅ sed -n '1,260p' server/features/auth/auth.ts
+
+✅ sed -n '1,320p' server/features/crm/routes.ts
+
+✅ sed -n '1,360p' server/features/crm/storage.ts
+
+✅ nl -ba server/features/reports/service.ts | sed -n '1,260p'
+
+✅ nl -ba server/features/integrations/routes.ts | sed -n '1,320p'
+
+✅ nl -ba server/features/onboarding/routes.ts | sed -n '100,220p'
+
+✅ nl -ba server/features/clients/routes.ts | sed -n '1,260p'
+
+✅ nl -ba client/src/App.tsx | sed -n '1,320p'
+
+✅ nl -ba client/src/lib/queryClient.ts | sed -n '1,120p'
+
+✅ nl -ba tsconfig.json | sed -n '1,120p'
+
+✅ nl -ba vite.config.ts | sed -n '1,140p'
+
+❌ npm run check (fails with many TS errors; this is a real repo issue, not environment-limited)
+
+Got it. I’ve got the context.
+
+This gives us a strong starting point for building the Viva Web Designs CRM in Replit, and the Codex assessment is useful because it tells us exactly how to sequence the work without creating a brittle app.
+
+My read is:
+
+The product scope is already well defined.
+
+The architecture is reasonably modular.
+
+The biggest immediate risk is not missing features, it’s platform integrity.
+
+So before we pile on new CRM functionality, our prompts should first stabilize the foundation:
+
+make typecheck fully green
+
+align Vite/TypeScript alias resolution
+
+lock down insecure bootstrap/admin behavior
+
+fix data consistency issues
+
+standardize role access behavior
+
+reduce logging/privacy risk
+
+add tests and hard gates
+
+That means our Replit prompt strategy should be nondestructive, phased, and verification-heavy.
+
+Here’s the working approach I’ll use with you from this point forward:
+
+Prompt style I’ll generate
+Each prompt will be:
+
+copy/paste-ready for Replit
+
+scoped to one safe phase
+
+nondestructive
+
+explicit about files likely involved
+
+explicit about what must not be broken
+
+explicit about acceptance criteria
+
+explicit about required docs updates when needed
+
+Recommended build order
+For this project, I’d recommend we work in this order:
+
+Phase 1 — Platform Integrity
+
+fix TS errors
+
+align tsconfig.json with Vite aliases
+
+make npm run check pass
+
+preserve current runtime behavior
+
+Phase 2 — Security Hardening
+
+remove or tightly gate insecure admin bootstrap/seed behavior
+
+eliminate hardcoded privileged assumptions
+
+review auth/role middleware consistency
+
+Phase 3 — CRM/Admin Consistency
+
+normalize role access matrix
+
+fix pagination/filter semantics
+
+fix audit payload inconsistencies
+
+tighten validation on mutation routes
+
+Phase 4 — Operability
+
+safer logging/redaction
+
+better query stale times
+
+indexes/perf review
+
+integration and smoke tests
+
+CI gating
+
+Phase 5 — New Feature Development
+
+then start building or extending CRM/admin capabilities
+
+then R2, Stripe, chat, workflow automation, etc.
+
+Important guardrails I’ll follow for your prompts
+I will assume these as hard rules unless you tell me otherwise:
+
+do not modify vite.config.ts, drizzle.config.ts, or package scripts unless absolutely required by the task and explicitly justified
+
+do not break the public site, demo builder, or preview tiers
+
+preserve BetterAuth mount ordering before express.json()
+
+preserve single-port Replit deployment model
+
+preserve existing route structure unless refactor is explicitly requested
+
+use TanStack Query v5 object syntax only
+
+use Zod v4 patterns only
+
+keep prompts nondestructive and incremental
+
+What I now understand about the app
+You’re not building a generic CRM. This is a private internal operations platform for a bilingual, Spanish-first agency workflow with these pillars:
+
+CRM and lead handling
+
+pipeline management
+
+client onboarding
+
+docs library
+
+team collaboration
+
+admin/reporting/integrations
+
+demo-site generation for sales enablement
+
+So when we create prompts, they should reflect that this is:
+
+internal-first
+
+operations-heavy
+
+role-gated
+
+bilingual-aware where relevant
+
+designed for team usage, not just solo admin usage
+
+My recommendation for the first actual Replit prompt
+The first prompt should be a repo stabilization pass, not a feature prompt.
+
+Specifically:
+
+make TypeScript green
+
+align alias resolution between Vite and TypeScript
+
+preserve all runtime behavior
+
+produce a report of what was changed
+
+do not refactor unrelated features
+
+That should come before any CRM expansion.
+
+How I can help next
+From here, I can do either of these:
+
+write Prompt 1: Platform Integrity / Typecheck Recovery
+
+write a full phased prompt series for the entire CRM buildout
+
+My recommendation is to start with Prompt 1.
+
+
+write a full phased prompt series for the entire CRM buildout starting with platform integrity/typecheck recovery
+
+Absolutely. Below is a full nondestructive phased Replit prompt series for the Viva Web Designs internal CRM/admin platform, starting with platform integrity and typecheck recovery and moving through security, CRM hardening, operability, and roadmap features.
+
+Each prompt is written to be:
+
+copy/paste ready
+
+nondestructive
+
+phase-scoped
+
+safe for an existing live codebase
+
+focused on preserving current behavior unless explicitly improving it
+
+Prompt 1 — Platform Integrity / Typecheck Recovery / Alias Parity
+You are working in an existing full-stack TypeScript application for Viva Web Designs built with:
+
+- React 18 + TypeScript + Vite
+- Tailwind CSS + shadcn/ui
+- Express.js + TypeScript
+- PostgreSQL + Drizzle ORM
+- BetterAuth
+- Replit deployment on a single port
+
+This is a NONDESTRUCTIVE stabilization task.
+
+PRIMARY GOAL
+Make the repo’s TypeScript/type-check baseline pass cleanly without breaking existing runtime behavior, UI behavior, auth flow, preview system, or route structure.
+
+CRITICAL CONTEXT
+- The app already has substantial functionality across auth, CRM, pipeline, onboarding, docs, notifications, chat, reports, integrations, audit, clients, and demo builder.
+- Vite aliases currently resolve more paths than tsconfig.json, causing “works in dev, fails in type-check/tooling” issues.
+- BetterAuth mount order must remain correct.
+- Do NOT change product behavior unless required to resolve a clear type contract issue.
+- Do NOT remove features.
+- Do NOT rewrite the app.
+- Do NOT modify vite.config.ts, drizzle.config.ts, or package.json scripts unless absolutely necessary, and if necessary keep changes minimal and fully backward-compatible.
+
+TASKS
+1. Run a full repo inspection for TypeScript and import-resolution issues.
+2. Fix tsconfig path alias parity so TypeScript understands the same aliases Vite already supports.
+3. Resolve broken imports, unresolved aliases, invalid type references, stale types, and incorrect inferred types.
+4. Fix schema/type mismatches across client/server/shared boundaries.
+5. Fix obvious handler signature mismatches, component prop mismatches, and route typing mismatches.
+6. Preserve TanStack Query v5 object syntax everywhere.
+7. Preserve Zod v4 patterns.
+8. Ensure any fixes are minimal and localized.
+9. Make npm run check pass if possible.
+10. If there are a few remaining blockers that cannot be safely fixed without risky refactors, isolate and document them clearly in comments or docs rather than making destructive changes.
+
+SPECIAL RULES
+- Nondestructive only.
+- Do not change database table intent.
+- Do not remove routes.
+- Do not alter API response shapes unless required for type correctness and backward compatibility is preserved.
+- Do not break public pages, admin pages, preview tiers, or iframe preview behavior.
+- Do not touch Charlotte Painting Pro fallback behavior except for type safety if needed.
+- Do not introduce any “any” shortcuts unless there is absolutely no safer option; prefer proper interfaces/types.
+- Avoid broad refactors.
+
+DELIVERABLES
+1. Fixes committed directly in code.
+2. A concise CHANGELOG.md entry or docs note summarizing:
+   - alias parity fixes
+   - major type categories fixed
+   - files most affected
+   - any remaining known blockers
+3. Ensure the repo is left in a safer, type-checked state.
+
+ACCEPTANCE CRITERIA
+- TypeScript path aliases are consistent between Vite and tsconfig.
+- The project type-checks cleanly or is materially closer with all remaining blockers explicitly documented.
+- No feature regressions introduced.
+- Existing auth, CRM, pipeline, onboarding, docs, preview, and admin flows remain intact.
+Prompt 2 — Build Integrity Enforcement / Type Safety Guardrails
+This is a NONDESTRUCTIVE platform-hardening task for the Viva Web Designs CRM/admin app.
+
+GOAL
+Now that the repo has undergone typecheck recovery, strengthen build integrity and prevent future type regressions.
+
+TASKS
+1. Inspect current typecheck/build workflow.
+2. Ensure the repository consistently treats TypeScript failures as blocking issues.
+3. Add lightweight internal developer guardrails that make future contract drift less likely.
+4. Standardize import/type usage patterns where obvious inconsistencies remain.
+5. Add or update documentation for:
+   - alias usage conventions
+   - shared schema/type usage conventions
+   - client/server contract expectations
+6. Where safe, replace duplicated ad hoc types with shared types from shared/schema or clearly named local feature types.
+7. Eliminate hidden “type loopholes” such as unsafe casts, mismatched prop contracts, or duplicated incompatible interfaces where doing so is safe and localized.
+
+RULES
+- Nondestructive only.
+- Do not rewrite architecture.
+- Do not change package scripts unless absolutely necessary and backward-compatible.
+- Prefer tightening contracts over introducing new abstractions.
+- Preserve all runtime behavior.
+
+DELIVERABLES
+- Safer type boundaries
+- Small docs update under docs/architecture or equivalent
+- Minimal comments where future contributors need guidance
+
+ACCEPTANCE CRITERIA
+- Type discipline is improved and easier to maintain.
+- Shared type usage is clearer.
+- No feature regressions.
+Prompt 3 — Security Hardening / Admin Bootstrap Lockdown
+This is a NONDESTRUCTIVE security-hardening task for the Viva Web Designs CRM/admin app.
+
+GOAL
+Lock down insecure admin/bootstrap behavior, especially any seed-admin or privileged bootstrap routes, without harming legitimate development workflows.
+
+KNOWN CONCERNS
+- There may be a POST /api/admin/seed-admin or similar bootstrap route.
+- Default privileged credentials may be documented or assumed in ways that are unsafe.
+- This app uses BetterAuth with cookie-based sessions.
+
+TASKS
+1. Audit the codebase for:
+   - seed-admin routes
+   - bootstrap/setup routes
+   - hardcoded privileged credentials
+   - unsafe default admin creation behavior
+   - routes that should be dev-only or one-time-use
+2. For any bootstrap/admin seeding endpoint:
+   - remove public accessibility
+   - gate it safely using environment checks and/or a one-time setup secret/token pattern
+   - ensure it cannot be abused in non-development environments
+3. Remove or neutralize any plaintext privileged credential assumptions from app behavior.
+4. If docs mention default credentials, update docs to clearly mark them as local-only/dev-only and unsafe for real deployment.
+5. Verify role-protected admin routes consistently require the correct middleware.
+6. Ensure BetterAuth mount order remains correct and untouched where required.
+
+RULES
+- Do not break local development onboarding.
+- Do not remove legitimate admin-management functionality.
+- Do not expose secrets in code or docs.
+- Keep changes minimal, explicit, and safe.
+
+DELIVERABLES
+- Hardened bootstrap/admin setup flow
+- Updated documentation for secure initial admin provisioning
+- Comments only where necessary
+
+ACCEPTANCE CRITERIA
+- No insecure public admin bootstrap path remains exposed.
+- Local setup remains possible in a controlled way.
+- Admin/auth functionality continues to work.
+Prompt 4 — Authorization Matrix Normalization
+This is a NONDESTRUCTIVE authorization-consistency task for the Viva Web Designs CRM/admin app.
+
+GOAL
+Normalize and document role access behavior across admin and CRM features so the app behaves consistently for:
+- admin
+- developer
+- sales_rep
+
+KNOWN ISSUE
+Some features appear to allow developer access while CRM areas may exclude developer, creating inconsistent /admin behavior.
+
+TASKS
+1. Audit all protected routes and role-gated UI areas across:
+   - admin
+   - crm
+   - pipeline
+   - onboarding
+   - docs
+   - reports
+   - integrations
+   - notifications
+   - clients
+   - chat
+2. Create a clear role-access matrix documenting which roles can:
+   - view
+   - create
+   - update
+   - delete
+   - administer
+for each major module.
+3. Normalize the middleware and UI gating to match a sensible, internally consistent access model.
+4. Preserve the principle of least privilege.
+5. Ensure frontend navigation, page guards, and backend route guards align.
+6. Prevent “visible in nav but forbidden in API” mismatches where possible.
+7. Keep all changes backward-compatible unless a route is clearly unsafe.
+
+RULES
+- Do not add new roles.
+- Do not break admin access.
+- Prefer small targeted middleware/UI changes.
+- Document the final role matrix in docs/architecture or equivalent.
+
+DELIVERABLES
+- Consistent role gating in backend and frontend
+- Role matrix documentation
+- Minimal safe code changes
+
+ACCEPTANCE CRITERIA
+- Role behavior is internally consistent.
+- No obvious module is accidentally exposed or hidden.
+- Frontend and backend permissions align.
+Prompt 5 — API Validation Tightening / Safer Mutation Boundaries
+This is a NONDESTRUCTIVE API-hardening task.
+
+GOAL
+Tighten request validation and update-route safety across the Viva Web Designs CRM/admin API.
+
+TASKS
+1. Audit POST/PUT/PATCH endpoints across:
+   - CRM
+   - pipeline
+   - onboarding
+   - clients
+   - docs
+   - admin user management
+   - integrations
+2. Replace broad or unsafe req.body pass-through patterns with explicit Zod validation where missing.
+3. Ensure update routes only allow intended fields to be changed.
+4. Standardize validation error behavior where possible without changing public contract shape unnecessarily.
+5. Reuse shared insert/update schemas when safe, or create explicit per-route schemas when needed.
+6. Verify field coercion and optionality are handled intentionally.
+7. Preserve current product behavior and payload semantics unless unsafe.
+
+RULES
+- Nondestructive only.
+- Do not over-refactor.
+- Do not silently widen permissions or accepted payloads.
+- Keep error handling consistent with existing app patterns where possible.
+
+DELIVERABLES
+- Safer route validation
+- Reduced mass-assignment risk
+- Small docs note on mutation schema patterns
+
+ACCEPTANCE CRITERIA
+- Major mutation routes have explicit validation.
+- Accidental wide updates are reduced.
+- Existing features still work.
+Prompt 6 — Clients Module Pagination / Filtering Correctness
+This is a NONDESTRUCTIVE data-correctness task for the clients module.
+
+GOAL
+Fix pagination/filtering semantics so filtering occurs in the database query before pagination, and totals match the actual filtered result set.
+
+KNOWN ISSUE
+Filtering may currently be applied after pagination in memory, causing empty pages, wrong totals, and inconsistent UX/API behavior.
+
+TASKS
+1. Audit the clients listing route/service/storage flow.
+2. Move filtering/search/sorting into the SQL/Drizzle query layer before limit/offset.
+3. Ensure total counts reflect the filtered query, not the unfiltered table.
+4. Preserve existing response shape if possible.
+5. Confirm pagination behavior is stable for:
+   - no filter
+   - search filter
+   - status filter
+   - combined filters
+   - multiple pages
+6. Keep the implementation clean and extensible.
+
+RULES
+- Do not break the current clients UI.
+- Do not change route URLs.
+- Keep query param handling backward-compatible.
+
+DELIVERABLES
+- Correct list query behavior
+- Matching total counts
+- Cleaner query composition if needed
+
+ACCEPTANCE CRITERIA
+- No more empty-page/incorrect-total behavior caused by post-pagination filtering.
+- Existing clients screens continue to work.
+Prompt 7 — Audit Log Payload Consistency / Event Shape Standardization
