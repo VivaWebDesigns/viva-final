@@ -29,7 +29,8 @@ Viva Web Designs is a marketing agency focused on home-service contractors, targ
 - **Reporting System**: Provides key metrics such as Conversion Rate, Pipeline Value, Win Rate, and Overdue Leads, with a dedicated service for metric queries.
 - **Sales Pipeline**: Structured with 7 stages and includes a `websitePackage` field for opportunities.
 - **Follow-up Task System**: Full CRUD task management linked to various entities, with quick task creation and a dashboard for due tasks.
-- **Record History System**: Immutable event logging for entities like leads, opportunities, and onboarding records, displayed via a `RecordTimeline` component.
+- **Record History System**: Immutable event logging for entities like leads, opportunities, onboarding records, and client accounts, displayed via a `RecordTimeline` component.
+- **Client Profile Workspace**: Expanded client module at `/admin/clients/:id` providing a tabbed account-management workspace (Overview, Notes, Contacts, Activity). Includes richer company summary with clientStatus/accountOwner/nextFollowUpDate/preferredContactMethod, a `clientNotes` table (types: general/call/meeting/internal, with pinning), multi-contact management with primary-contact marking (`isPrimary` on `crm_contacts`), and an Activity timeline combining record history and notes. All mutations are audit-logged and history-tracked.
 - **Overdue/SLA Detection**: Identifies stale leads, overdue opportunities, and onboarding items, with a visual indicator in the UI.
 - **Lead-to-Opportunity Conversion**: API endpoint for converting leads, with checks for existing conversions and historical logging.
 - **Docs Library**: Supports categories, tags, revision history, archiving, and markdown rendering for internal documentation.

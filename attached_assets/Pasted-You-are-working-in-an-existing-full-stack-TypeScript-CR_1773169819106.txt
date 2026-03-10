@@ -1,0 +1,188 @@
+You are working in an existing full-stack TypeScript CRM/admin platform for Viva Web Designs built with:
+
+- React 18 + TypeScript + Vite
+- Tailwind CSS + shadcn/ui
+- Express.js + TypeScript
+- PostgreSQL + Drizzle ORM
+- BetterAuth
+- TanStack Query v5
+- react-hook-form + Zod
+
+This is a NONDESTRUCTIVE feature expansion task.
+
+GOAL
+Expand the existing Client Profiles in the CRM from a basic record view into a much more useful operational client workspace with standard CRM/account-management features.
+
+BUSINESS INTENT
+In this platform:
+- Leads represent pre-sale prospects
+- Pipeline/opportunities represent active sales
+- Clients represent active customer relationships after sale / onboarding
+
+The Client Profile should become the internal team’s central place to understand, manage, and support an active client account.
+
+PRIMARY SCOPE FOR THIS PHASE
+Expand Client Profiles with the following features:
+
+1. Richer Client Summary
+2. Client Notes
+3. Multiple Client Contacts
+4. Activity Timeline / Recent Activity
+5. Basic Follow-up / Account Management fields
+6. Better internal organization of profile data
+
+DO NOT try to build every future feature at once. This should be a clean, safe first expansion of Client Profiles.
+
+FEATURE REQUIREMENTS
+
+A) Richer Client Summary
+Add or improve a top-level client summary area that can display:
+- company/client name
+- primary contact
+- status
+- assigned owner / account manager
+- service/trade type if available
+- onboarding status if linked
+- created date
+- important dates if already available
+- tags if supported
+- quick actions
+
+Preserve current data if these fields already exist. If some fields do not yet exist, add only the minimum safe schema support necessary.
+
+B) Client Notes
+Add a client notes system similar in spirit to lead notes, but scoped to client profiles.
+
+Notes should support:
+- note body/content
+- note type (examples: general, call, meeting, internal)
+- author/user
+- created timestamp
+- optional pinned flag if easy to support safely
+- list view on the client profile
+- create note from the client profile
+
+Add filtering by note type only if it can be done cleanly without overcomplicating the UI.
+
+Use explicit validation and proper route protection.
+
+C) Multiple Client Contacts
+Expand clients to support multiple related contacts where appropriate.
+
+Support:
+- list contacts on the client profile
+- add contact
+- edit contact
+- mark one as primary if a primary-contact pattern already exists or can be added safely
+- fields such as name, email, phone, role/title, preferred language if appropriate
+
+Do not break any existing company/contact relationships already used elsewhere in the CRM.
+
+If a reusable contact model already exists in the CRM, prefer reusing or extending it rather than creating unnecessary duplicate structures.
+
+D) Activity Timeline / Recent Activity
+Add a basic recent activity section to the Client Profile.
+
+This should aggregate useful client-related activity such as:
+- notes added
+- contact changes if easy to capture
+- important status changes
+- onboarding link/changes if already available
+- other meaningful client-level events already present in the system
+
+Do NOT build a huge event engine in this phase.
+Use existing audit/history/event data where possible, or add a lightweight client activity pattern if necessary.
+
+E) Basic Account Management Fields
+Add a safe first-pass set of account-management fields to the client record, such as:
+- client status
+- account owner
+- preferred language
+- preferred contact method
+- next follow-up date
+- internal account notes/summary field if useful
+
+Only add fields that are clearly valuable and can be supported cleanly.
+Keep schema changes additive and minimal.
+
+F) Better Client Profile UI Organization
+Improve the Client Profile UI so it feels like a real CRM account workspace.
+
+Recommended layout:
+- Header / summary area
+- Tabs or clear sections for:
+  - Overview
+  - Notes
+  - Contacts
+  - Activity
+  - optional Account Details
+
+Keep the UI consistent with the current app design system.
+Use shadcn/ui and existing project patterns.
+Do not redesign the entire CRM globally—only improve the Client Profile experience.
+
+TECHNICAL TASKS
+1. Inspect the current clients module end to end:
+   - database schema
+   - server routes
+   - service/storage layer
+   - frontend list/detail/profile pages
+   - shared types/schemas
+   - audit/history support
+2. Design the minimum additive schema changes needed.
+3. Add any needed tables or relations for client notes if they do not exist yet.
+4. Reuse existing note/contact patterns where appropriate.
+5. Add/update protected API routes for:
+   - client detail/profile retrieval
+   - client notes create/list
+   - client contact create/update/list
+   - client account field updates
+6. Use explicit Zod validation for all create/update mutations.
+7. Keep all new functionality strongly typed across server/client/shared boundaries.
+8. Add frontend UI for the richer client profile.
+9. Preserve existing client list behavior and any current client detail functionality.
+10. Add audit logging for meaningful mutations:
+   - client updated
+   - note added
+   - contact added/updated
+11. Add minimal internal docs describing the expanded Client Profile model and behavior.
+
+IMPORTANT GUARDRAILS
+- NONDESTRUCTIVE only
+- Do not remove or break existing client functionality
+- Do not rewrite unrelated CRM modules
+- Do not introduce broad architectural changes unless absolutely necessary
+- Prefer additive schema changes
+- Prefer reuse of existing CRM contact/note patterns where appropriate
+- Keep TanStack Query v5 usage correct
+- Keep BetterAuth/role protection patterns aligned with the current codebase
+- Keep UI changes localized to the Client Profile area
+- Do not create dead placeholder features; only add what is actually implemented
+
+DESIGN / UX GUIDANCE
+The Client Profile should feel like a practical internal account-management workspace for a marketing/web agency serving contractors.
+
+This means the UI should emphasize:
+- fast internal understanding of the account
+- easy note-taking
+- visibility into who the client contacts are
+- recent history/context
+- operational usefulness over flashy design
+
+DELIVERABLES
+1. Expanded Client Profile backend support
+2. Expanded Client Profile frontend UI
+3. Client notes feature
+4. Improved client contacts support
+5. Basic recent activity section
+6. Audit coverage for major profile mutations
+7. Minimal documentation update
+8. Summary of changed files, schema changes, and any recommended next-step phases
+
+ACCEPTANCE CRITERIA
+- Client Profiles are significantly more useful than the current basic version
+- Team members can add and view client notes
+- Team members can manage multiple client contacts
+- The profile shows meaningful account context and recent activity
+- Existing client functionality still works
+- All changes are additive, validated, role-protected, and type-safe

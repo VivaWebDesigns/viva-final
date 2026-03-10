@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import { pgTable, text, varchar, timestamp, boolean, integer, jsonb, primaryKey, index, numeric } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
-import { z } from "zod/v4";
+import { z } from "zod";
 
 export const contacts = pgTable("contacts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -199,6 +199,10 @@ export const crmCompanies = pgTable("crm_companies", {
   industry: text("industry"),
   preferredLanguage: text("preferred_language").default("es"),
   notes: text("notes"),
+  clientStatus: text("client_status"),
+  accountOwnerId: varchar("account_owner_id").references(() => user.id),
+  nextFollowUpDate: timestamp("next_follow_up_date"),
+  preferredContactMethod: text("preferred_contact_method"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (t) => [
@@ -220,6 +224,7 @@ export const crmContacts = pgTable("crm_contacts", {
   title: text("title"),
   preferredLanguage: text("preferred_language").default("es"),
   notes: text("notes"),
+  isPrimary: boolean("is_primary").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (t) => [
@@ -285,6 +290,22 @@ export const crmLeadNotes = pgTable("crm_lead_notes", {
 }, (t) => [
   index("crm_lead_notes_lead_idx").on(t.leadId),
   index("crm_lead_notes_created_idx").on(t.createdAt),
+]);
+
+export const CLIENT_NOTE_TYPES = ["general", "call", "meeting", "internal"] as const;
+export type ClientNoteType = typeof CLIENT_NOTE_TYPES[number];
+
+export const clientNotes = pgTable("client_notes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  companyId: varchar("company_id").notNull().references(() => crmCompanies.id),
+  userId: text("user_id").references(() => user.id),
+  type: text("type").notNull().default("general"),
+  content: text("content").notNull(),
+  isPinned: boolean("is_pinned").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("client_notes_company_idx").on(t.companyId),
+  index("client_notes_created_idx").on(t.createdAt),
 ]);
 
 export const crmTags = pgTable("crm_tags", {
@@ -570,6 +591,10 @@ export type CrmLead = typeof crmLeads.$inferSelect;
 export const insertCrmLeadNoteSchema = createInsertSchema(crmLeadNotes).omit({ id: true, createdAt: true });
 export type InsertCrmLeadNote = z.infer<typeof insertCrmLeadNoteSchema>;
 export type CrmLeadNote = typeof crmLeadNotes.$inferSelect;
+
+export const insertClientNoteSchema = createInsertSchema(clientNotes).omit({ id: true, createdAt: true });
+export type InsertClientNote = z.infer<typeof insertClientNoteSchema>;
+export type ClientNote = typeof clientNotes.$inferSelect;
 
 export const insertCrmTagSchema = createInsertSchema(crmTags).omit({ id: true });
 export type InsertCrmTag = z.infer<typeof insertCrmTagSchema>;
