@@ -41,13 +41,26 @@ export const getQueryFn: <T>(options: {
     return await res.json();
   };
 
+// Named freshness tiers for targeted staleTime overrides.
+// The global default (Infinity) is correct for static config data (stages, statuses,
+// tags, templates) where the only updates come from explicit admin mutations that
+// already invalidate the cache. Import these constants at dynamic-data call sites
+// instead of using magic numbers.
+export const STALE = {
+  NEVER:    Infinity,   // static config: stages, statuses, tags, templates
+  SLOW:   5 * 60_000,   // 5 min  — reports, aggregated analytics
+  MEDIUM: 2 * 60_000,   // 2 min  — dashboard/onboarding overview stats
+  FAST:       60_000,   // 1 min  — CRM lists, pipeline, clients
+  REALTIME:   30_000,   // 30 s   — notifications, unread counts
+} as const;
+
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       queryFn: getQueryFn({ on401: "throw" }),
       refetchInterval: false,
       refetchOnWindowFocus: false,
-      staleTime: Infinity,
+      staleTime: STALE.NEVER,
       retry: false,
     },
     mutations: {

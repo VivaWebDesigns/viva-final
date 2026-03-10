@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { STALE } from "@/lib/queryClient";
 import { Link } from "wouter";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -35,6 +36,7 @@ export default function ClientsPage() {
 
   const { data, isLoading } = useQuery<ClientsResponse>({
     queryKey: [`/api/clients?search=${encodeURIComponent(search)}&limit=50`],
+    staleTime: STALE.FAST,
   });
 
   const clients = data?.items || [];

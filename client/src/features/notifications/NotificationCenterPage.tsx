@@ -14,7 +14,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, STALE } from "@/lib/queryClient";
 import type { Notification } from "@shared/schema";
 
 const TYPE_CONFIG: Record<string, { icon: any; color: string; label: string }> = {
@@ -72,10 +72,12 @@ export default function NotificationCenterPage() {
 
   const { data, isLoading } = useQuery<{ notifications: Notification[]; total: number }>({
     queryKey: [notificationsQueryKey],
+    staleTime: STALE.REALTIME,
   });
 
   const { data: unreadData } = useQuery<{ count: number }>({
     queryKey: ["/api/notifications/unread-count"],
+    staleTime: STALE.REALTIME,
   });
 
   const invalidateAll = () => {

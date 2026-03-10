@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { STALE } from "@/lib/queryClient";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { Search, Filter, ChevronLeft, ChevronRight, ExternalLink, Globe, Phone, Mail } from "lucide-react";
@@ -43,6 +44,8 @@ export default function LeadListPage() {
 
   const { data: leadsData, isLoading } = useQuery<LeadsResponse>({
     queryKey: ["/api/crm/leads", search, statusFilter, sourceFilter, page],
+    staleTime: STALE.FAST,
+    refetchOnWindowFocus: true,
     queryFn: async () => {
       const params = new URLSearchParams();
       if (search) params.set("search", search);

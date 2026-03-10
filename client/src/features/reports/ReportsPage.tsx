@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { STALE } from "@/lib/queryClient";
 import { motion } from "framer-motion";
 import { useState } from "react";
 import {
@@ -103,11 +104,13 @@ export default function ReportsPage() {
 
   const { data, isLoading } = useQuery<OverviewData>({
     queryKey: [`/api/reports/overview${qp}`],
+    staleTime: STALE.SLOW,
   });
 
   const trendDays = rangeDays || "365";
   const { data: trend, isLoading: trendLoading } = useQuery<TrendRow[]>({
     queryKey: [`/api/reports/leads-trend?days=${trendDays}`],
+    staleTime: STALE.SLOW,
   });
 
   const maxSource = data ? Math.max(...data.leadsBySource.map((r) => r.count), 1) : 1;

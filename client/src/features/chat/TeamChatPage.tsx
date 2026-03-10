@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, STALE } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@features/auth/useAuth";
 import { Badge } from "@/components/ui/badge";
@@ -52,6 +52,7 @@ export default function TeamChatPage() {
 
   const { data: channels = [] } = useQuery<Channel[]>({
     queryKey: ["/api/chat/channels"],
+    staleTime: STALE.FAST,
   });
 
   const { data: messages = [], isLoading } = useQuery<ChatMessage[]>({

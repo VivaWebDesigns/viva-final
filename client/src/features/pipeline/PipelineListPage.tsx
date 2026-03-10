@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { STALE } from "@/lib/queryClient";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +31,7 @@ export default function PipelineListPage() {
 
   const { data, isLoading } = useQuery<{ items: PipelineOpportunity[]; total: number; page: number; limit: number }>({
     queryKey: ["/api/pipeline/opportunities", `?${params.toString()}`],
+    staleTime: STALE.FAST,
   });
 
   const stages = stagesData || [];

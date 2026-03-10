@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { STALE } from "@/lib/queryClient";
 import { Link } from "wouter";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -34,12 +35,15 @@ export default function OnboardingListPage() {
   const queryString = params.toString();
   const { data, isLoading } = useQuery<{ records: OnboardingRecord[]; total: number }>({
     queryKey: ["/api/onboarding/records?" + queryString],
+    staleTime: STALE.MEDIUM,
+    refetchOnWindowFocus: true,
   });
 
   const { data: stats } = useQuery<{
     total: number; pending: number; inProgress: number; completed: number; onHold: number; overdue: number;
   }>({
     queryKey: ["/api/onboarding/stats"],
+    staleTime: STALE.MEDIUM,
   });
 
   const records = data?.records || [];

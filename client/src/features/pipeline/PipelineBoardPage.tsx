@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, STALE } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -214,6 +214,8 @@ export default function PipelineBoardPage() {
 
   const { data, isLoading } = useQuery<BoardData>({
     queryKey: ["/api/pipeline/opportunities/board"],
+    staleTime: STALE.FAST,
+    refetchOnWindowFocus: true,
   });
 
   const moveMutation = useMutation({

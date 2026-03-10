@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { STALE } from "@/lib/queryClient";
 import { motion } from "framer-motion";
 import { Users, FileText, BookOpen, Puzzle, Phone, Building2, UserCheck, TrendingUp, ArrowRight, DollarSign, Target, UserPlus } from "lucide-react";
 import { useLocation } from "wouter";
@@ -47,9 +48,11 @@ interface OnboardingStats {
 export default function DashboardPage() {
   const { data: stats, isLoading } = useQuery<Stats>({
     queryKey: ["/api/admin/stats"],
+    staleTime: STALE.MEDIUM,
   });
   const { data: onboardingStats } = useQuery<OnboardingStats>({
     queryKey: ["/api/onboarding/stats"],
+    staleTime: STALE.MEDIUM,
   });
   const [, setLocation] = useLocation();
 
