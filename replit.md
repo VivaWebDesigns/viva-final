@@ -113,3 +113,57 @@ The business vision is to streamline internal processes, enhance client acquisit
     - Stripe (for billing)
     - OpenAI (scaffolded)
     - Cloudflare R2 (for file storage)
+## Frontend Smoke Tests
+
+### Running Tests
+```bash
+npx vitest run               # single run (CI-friendly)
+npx vitest                   # watch mode
+npx vitest run --reporter=verbose  # verbose output
+```
+
+### Framework & Setup
+- **Runner**: Vitest (native Vite config sharing — same path aliases)
+- **DOM**: happy-dom (lightweight, fast)
+- **Component rendering**: @testing-library/react + @testing-library/jest-dom
+- **API mocking**: msw (node server-side interceptors)
+- **Config**: `vitest.config.ts` at project root
+
+### File Layout
+```
+tests/
+  setup.ts                       Global shims (matchMedia, ResizeObserver, jest-dom matchers)
+  __mocks__/assetStub.ts         Stubs all @assets/* image imports → harmless string
+  helpers/
+    renderWithProviders.tsx      Wraps UI in fresh QueryClient + wouter Router per test
+    session.ts                   Mock session shapes (ADMIN_SESSION, SALES_REP_SESSION, etc.)
+    server.ts                    MSW node server instance
+    handlers.ts                  Smart catch-all GET /api/* handler returning minimal valid data
+  smoke/                         11 smoke test files (one per critical admin screen)
+```
+
+### Auth Mocking Pattern
+Every test file mocks `@features/auth/authClient` at the module level:
+```tsx
+vi.mock("@features/auth/authClient", () => ({
+  useSession: () => ADMIN_SESSION,
+  signIn: vi.fn(),
+  signOut: vi.fn(),
+}));
+```
+For role-gating tests, use `vi.hoisted(() => vi.fn())` so the return value can be swapped per-test.
+
+### Coverage
+| Page | Test File | Key Assertions |
+|---|---|---|
+| Login | `smoke/login.test.tsx` | Email/password inputs + submit button present |
+| Dashboard | `smoke/dashboard.test.tsx` | Renders headings without crashing |
+| CRM Leads | `smoke/crm-leads.test.tsx` | Renders + search input |
+| Pipeline Board | `smoke/pipeline-board.test.tsx` | Renders without crashing |
+| Onboarding | `smoke/onboarding.test.tsx` | Renders + search input |
+| Notifications | `smoke/notifications.test.tsx` | Renders without crashing |
+| Reports | `smoke/reports.test.tsx` | Renders without crashing |
+| Docs | `smoke/docs.test.tsx` | Renders without crashing |
+| Clients | `smoke/clients.test.tsx` | Renders + search input |
+| Admin Settings | `smoke/admin-settings.test.tsx` | Admin sees page; sales_rep/developer see "Access Denied" |
+| Demo Builder | `smoke/demo-builder.test.tsx` | Renders + Business Name input present |
