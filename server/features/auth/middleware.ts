@@ -33,6 +33,9 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
       return res.status(401).json({ message: "Unauthorized" });
     }
 
+    // BetterAuth returns its own User/Session types which differ from the
+    // Express request augmentation. The cast is intentional: req.authUser
+    // is augmented in server/types.d.ts and carries the same runtime shape.
     req.authUser = result.user as any;
     req.authSession = result.session as any;
     next();

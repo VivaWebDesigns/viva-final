@@ -229,11 +229,11 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const t = (key: string) => {
     // Preview override: supports both flat { key: value } and language-aware { en: {...}, es: {...} }.
     // Language-aware format ensures switching to ES returns Spanish override strings.
-    const previewOverrides = (window as any).__PREVIEW__?.tOverrides || {};
+    const previewOverrides = window.__PREVIEW__?.tOverrides || {};
     const langOverrides: Record<string, string> =
       (previewOverrides.en && previewOverrides.es)
-        ? (previewOverrides[language] || {})
-        : previewOverrides;
+        ? ((previewOverrides[language] as Record<string, string>) || {})
+        : (previewOverrides as Record<string, string>);
     if (langOverrides[key] !== undefined) return langOverrides[key];
     return translations[language][key] || key;
   };

@@ -15,7 +15,7 @@ import { useLanguage } from "@domina/i18n/LanguageContext";
 
 export default function About() {
   const { t } = useLanguage();
-  const payload = (window as any).__PREVIEW__?.payload || null;
+  const payload = window.__PREVIEW__?.payload || null;
 
   useEffect(() => {
     if (payload) {

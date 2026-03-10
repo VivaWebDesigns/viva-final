@@ -45,9 +45,9 @@ export default function DeckStaining() {
     window.scrollTo(0, 0);
   }, []);
 
-  useEffect(() => { if ((window as any).__PREVIEW__) setLocation("/services"); }, [setLocation]);
+  useEffect(() => { if (window.__PREVIEW__) setLocation("/services"); }, [setLocation]);
 
-  if ((window as any).__PREVIEW__) return null;
+  if (window.__PREVIEW__) return null;
 
   return (
     <div className="min-h-screen bg-background text-foreground">

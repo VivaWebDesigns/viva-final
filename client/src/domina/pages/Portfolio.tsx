@@ -13,8 +13,8 @@ import { useLanguage } from "@domina/i18n/LanguageContext";
 export default function Portfolio() {
   const { t } = useLanguage();
 
-  const payload = (window as any).__PREVIEW__?.payload || null;
-  const previewPortfolio: any[] | null = payload?.portfolio || null;
+  const payload = window.__PREVIEW__?.payload || null;
+  const previewPortfolio: any[] | null = (payload?.portfolio as any[] | undefined) || null;
 
   useEffect(() => {
     if (payload) {

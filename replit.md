@@ -197,9 +197,11 @@ Providers: Mailgun, Resend, Stripe (planned), OpenAI (scaffold), Cloudflare R2 (
 - **Role**: admin
 
 ## Technical Notes
-- **Zod**: `shared/schema.ts` imports `z` from `"zod/v4"` (required for drizzle-zod v0.8.3 compatibility). All `zodResolver()` calls in form files use `as any` cast since `@hookform/resolvers/zod` expects Zod v3 types.
+- **Zod**: `shared/schema.ts` imports `z` from `"zod/v4"` (required for drizzle-zod v0.8.3 compatibility). All `zodResolver()` calls in form files use bridged wrapper at `client/src/lib/zodResolver.ts` — single cast site for Zod v3/v4 bridge.
 - **tsconfig paths**: `@features/*`, `@crece/*`, `@domina/*`, `@empieza/*`, `@assets/*` are all registered in `tsconfig.json` and must match Vite's `vite.config.ts` aliases.
 - **Express params type**: `ParamsDictionary[key]` is `string | string[]` in current `@types/express`. Use `req.params as Record<string, string>` or `req.params.X as string` in route handlers.
+- **`window.__PREVIEW__`**: Typed in `client/src/preview/preview-env.d.ts`. `PreviewConfig` holds the payload + lang + tOverrides + domina (Domina-tier overrides). `PreviewPayload` lists all fields from `buildPreviewPayload()` in `tradeTemplates.js` — keep in sync when adding new fields.
+- **tOverrides pattern**: `Record<string, unknown>` in PreviewConfig; hooks cast to `Record<string, string>` at use-site. Supports flat `{ key: val }` and nested `{ en: {...}, es: {...} }` shapes.
 - BetterAuth must be mounted BEFORE `express.json()` in index.ts
 - `import.meta.glob` for image auto-discovery requires Vite dev server restart when adding new files
 - For hierarchical query keys use array: `queryKey: ['/api/crm/leads', id]` for correct cache invalidation
@@ -211,6 +213,7 @@ Providers: Mailgun, Resend, Stripe (planned), OpenAI (scaffold), Cloudflare R2 (
 4. Team Chat Phase 2 (enhancements)
 
 ## Feature History
+- **v1.10**: TypeScript type hardening — (1) added `client/src/preview/preview-env.d.ts` augmenting `Window` with fully-typed `PreviewConfig` / `PreviewPayload` interfaces; (2) added `domina` extension key to `PreviewConfig` for Domina-tier override merging; (3) typed `tOverrides` as `Record<string, unknown>` to support flat+nested shapes; (4) replaced all `(window as any).__PREVIEW__` with `window.__PREVIEW__` across 30 files; (5) added type import for `InsertPipelineOpportunity` in pipeline routes; (6) fixed `meta.fromStage/toStage` cast to `string` in pipeline stage-change handler; (7) added `P!` non-null assertions in Domina Home.tsx for TS-narrowed guard branches; (8) fixed Portfolio.tsx portfolio cast. Final result: 0 TypeScript errors.
 - **v1.9**: TypeScript recovery — resolved all 535 errors → 0. Root fixes: (1) added `@features/*`, `@crece/*`, `@domina/*`, `@empieza/*`, `@assets/*` path aliases to tsconfig; (2) changed `shared/schema.ts` to `import { z } from "zod/v4"` for drizzle-zod v0.8.3 compatibility; (3) added `as string` / `Record<string, string>` casts for Express `req.params` throughout server routes; (4) renamed `details:` → `metadata:` in logAudit calls; (5) fixed `zodResolver(schema as any)` in ContactForm/Contacto files; (6) `(img as any)` cast for Gallery.tsx union type; (7) react-scroll type declaration; (8) misc component fixes.
 - **v1.8**: Demo Image Library — curated local PNG images for plumbing/landscaping/deckbuilder/fenceinstaller; `imageLibrary.js` with `import.meta.glob` auto-discovery; Fisher-Yates shuffle for randomization; `getSupportImages()` with gallery fallback; `buildPreviewPayload()` uses local images first (hero → gallery → support → Unsplash); painting excluded to preserve CP Pro video+portfolio
 - **v1.7**: Full EN/ES language system — all 3 preview tiers × 17 trades, zero English leakage in Spanish mode, tradeNounES fix in all 3 main entry files

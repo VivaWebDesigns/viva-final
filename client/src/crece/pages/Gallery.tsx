@@ -300,7 +300,7 @@ export default function Gallery() {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [activeCategory, setActiveCategory] = useState<Category>("Interior");
 
-  const payload = (window as any).__PREVIEW__?.payload || null;
+  const payload = window.__PREVIEW__?.payload || null;
   const previewImages: { url: string; alt: string }[] | null = payload?.galleryImages || null;
 
   useEffect(() => {

@@ -35,7 +35,7 @@ export default function Home() {
   const { language, t } = useLanguage();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [videoReady, setVideoReady] = useState(false);
-  const P = (window as any).__PREVIEW__?.payload ?? null;
+  const P = window.__PREVIEW__?.payload ?? null;
 
   useEffect(() => {
     if (P) {

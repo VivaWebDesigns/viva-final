@@ -255,17 +255,17 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   // Allow the preview entry point to set the initial language via window.__PREVIEW__.lang.
   // Falls back to "en" for the standard public demo.
   const [language, setLanguage] = useState<Language>(
-    ((window as any).__PREVIEW__?.lang as Language) || "en"
+    (window.__PREVIEW__?.lang as Language) || "en"
   );
 
   const t = (key: string) => {
     // Preview override: supports both flat { key: value } and language-aware { en: {...}, es: {...} }.
     // Language-aware format ensures switching to ES returns Spanish override strings.
-    const previewOverrides = (window as any).__PREVIEW__?.tOverrides || {};
+    const previewOverrides = window.__PREVIEW__?.tOverrides || {};
     const langOverrides: Record<string, string> =
       (previewOverrides.en && previewOverrides.es)
-        ? (previewOverrides[language] || {})
-        : previewOverrides;
+        ? ((previewOverrides[language] as Record<string, string>) || {})
+        : (previewOverrides as Record<string, string>);
     if (langOverrides[key] !== undefined) return langOverrides[key];
     return translations[language][key as keyof typeof translations["en"]] || key;
   };

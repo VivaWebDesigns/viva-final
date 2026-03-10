@@ -47,7 +47,7 @@ export default function Home() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const { t, language } = useLanguage();
-  const P = (window as any).__PREVIEW__?.payload ?? null;
+  const P = window.__PREVIEW__?.payload ?? null;
 
   useEffect(() => {
     if (!P && videoRef.current) {

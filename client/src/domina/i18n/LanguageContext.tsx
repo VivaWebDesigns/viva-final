@@ -39,7 +39,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   // Preview override: merge window.__PREVIEW__.domina into translations.
   // Supports both flat { nav: {...}, home: {...} } and language-aware { en: {...}, es: {...} }.
   // Language-aware format ensures switching to ES returns Spanish override strings.
-  const domPreviewRaw = (window as any).__PREVIEW__?.domina || {};
+  const domPreviewRaw = window.__PREVIEW__?.domina || {};
   const domPreview: Record<string, any> =
     (domPreviewRaw.en && domPreviewRaw.es)
       ? (domPreviewRaw[language] || {})

@@ -3,7 +3,7 @@ import { requireRole } from "../auth/middleware";
 import { logAudit } from "../audit/service";
 import { notifyStageChange, notifyOpportunityAssignment } from "../notifications/triggers";
 import * as pipelineStorage from "./storage";
-import { insertPipelineStageSchema, insertPipelineOpportunitySchema, insertPipelineActivitySchema, OPPORTUNITY_STATUSES } from "@shared/schema";
+import { insertPipelineStageSchema, insertPipelineOpportunitySchema, insertPipelineActivitySchema, OPPORTUNITY_STATUSES, type InsertPipelineOpportunity } from "@shared/schema";
 import { z } from "zod";
 
 const updateStageSchema = z.object({
@@ -169,7 +169,7 @@ router.put("/opportunities/:id", requireRole("admin", "sales_rep"), async (req, 
     const existing = await pipelineStorage.getOpportunityById(id);
     if (!existing) return res.status(404).json({ message: "Opportunity not found" });
     const validated = updateOpportunitySchema.parse(req.body);
-    const opp = await pipelineStorage.updateOpportunity(id, validated as any);
+    const opp = await pipelineStorage.updateOpportunity(id, validated as Partial<InsertPipelineOpportunity>);
     await logAudit({
       userId: req.authUser?.id,
       action: "update",
@@ -198,12 +198,14 @@ router.put("/opportunities/:id/stage", requireRole("admin", "sales_rep"), async 
       action: "stage_change",
       entity: "pipeline_opportunity",
       entityId: id,
-      metadata: result.activity.metadata as any,
+      // PipelineActivity.metadata is untyped jsonb (unknown); logAudit expects Json.
+      // Both are the same jsonb column at runtime — this cast is safe.
+      metadata: result.activity.metadata as Record<string, unknown> | null | undefined,
       ipAddress: req.ip,
     });
-    const meta = result.activity.metadata as any;
+    const meta = result.activity.metadata as Record<string, unknown> | null | undefined;
     if (meta?.fromStage && meta?.toStage) {
-      try { notifyStageChange({ id, title: result.opportunity.title, ownerId: result.opportunity.assignedTo }, meta.fromStage, meta.toStage); } catch (_) {}
+      try { notifyStageChange({ id, title: result.opportunity.title, ownerId: result.opportunity.assignedTo }, meta.fromStage as string, meta.toStage as string); } catch (_) {}
     }
     res.json(result);
   } catch (error: any) {

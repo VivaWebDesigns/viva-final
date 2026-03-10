@@ -7,7 +7,7 @@ import { SiWhatsapp } from "react-icons/si";
 import { motion } from "framer-motion";
 import SEO from "@/components/SEO";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { zodResolver } from "@/lib/zodResolver";
 import { insertContactSchema, type InsertContact } from "@shared/schema";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useMutation } from "@tanstack/react-query";
@@ -50,7 +50,7 @@ export default function Contacto() {
   const utm = useUtmParams();
 
   const form = useForm<InsertContact>({
-    resolver: zodResolver(insertContactSchema as any),
+    resolver: zodResolver(insertContactSchema),
     mode: "onSubmit",
     reValidateMode: "onChange",
     defaultValues: {

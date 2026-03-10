@@ -120,7 +120,7 @@ export default function Services() {
   const { language, t } = useLanguage();
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
-  const payload = (window as any).__PREVIEW__?.payload || null;
+  const payload = window.__PREVIEW__?.payload || null;
   const previewServices: any[] | null = payload
     ? (language === "es" ? payload.servicesES : payload.servicesEN) || null
     : null;

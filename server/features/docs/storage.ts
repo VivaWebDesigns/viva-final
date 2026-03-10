@@ -29,6 +29,8 @@ export async function getArticles(categoryId?: string, search?: string): Promise
   let query = db.select().from(docArticles);
 
   if (categoryId) {
+    // Drizzle-orm narrows the query builder generic on each .where() call;
+    // re-assigning to the same variable requires the cast to keep the type stable.
     query = query.where(eq(docArticles.categoryId, categoryId)) as any;
   }
 

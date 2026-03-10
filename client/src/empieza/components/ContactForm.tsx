@@ -1,5 +1,5 @@
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { zodResolver } from "@/lib/zodResolver";
 import { insertInquirySchema, type InsertInquiry } from "@shared/schema";
 import { useCreateInquiry } from "@empieza/hooks/use-inquiries";
 import { Button } from "@empieza/components/ui/button";
@@ -20,14 +20,14 @@ import { useLanguage } from "@empieza/hooks/use-language";
 export function ContactForm() {
   const mutation = useCreateInquiry();
   const { t, language } = useLanguage();
-  const P = (window as any).__PREVIEW__?.payload ?? null;
+  const P = window.__PREVIEW__?.payload ?? null;
   // Use language-aware services so the service list matches the active language
   const previewServices = P
     ? (language === "es" ? P.servicesES : P.servicesEN) as Array<{ title: string }> | null
     : null;
 
   const form = useForm<InsertInquiry>({
-    resolver: zodResolver(insertInquirySchema as any),
+    resolver: zodResolver(insertInquirySchema),
     defaultValues: {
       name: "",
       email: "",

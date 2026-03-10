@@ -15,7 +15,7 @@ import aboutPhoto from "@crece/assets/images/optimized/gabriel-tovar-En1Is3KsRZw
 
 export default function About() {
   const { t, language } = useLanguage();
-  const payload = (window as any).__PREVIEW__?.payload || null;
+  const payload = window.__PREVIEW__?.payload || null;
 
   useEffect(() => {
     if (payload) {

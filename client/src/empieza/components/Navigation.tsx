@@ -32,7 +32,7 @@ export function Navigation() {
     <>
     <nav
       data-testid="navigation"
-      className={`sticky ${(window as any).__PREVIEW__ ? "top-0" : "top-[44px]"} w-full z-50 bg-white transition-shadow duration-300 py-3 ${
+      className={`sticky ${window.__PREVIEW__ ? "top-0" : "top-[44px]"} w-full z-50 bg-white transition-shadow duration-300 py-3 ${
         scrolled ? "shadow-md" : ""
       }`}
     >
@@ -45,7 +45,7 @@ export function Navigation() {
           data-testid="link-logo"
         >
           {(() => {
-            const P = (window as any).__PREVIEW__?.payload;
+            const P = window.__PREVIEW__?.payload;
             if (P?.logoUrl) return <img src={P.logoUrl} alt={P.businessName} className="h-10 md:h-12 w-auto" />;
             if (P?.businessName) return <span className="font-bold text-lg text-foreground" style={{ fontFamily: 'var(--font-display)' }}>{P.businessName}</span>;
             return <img src={logoImg} alt="Charlotte Painting Pro" className="h-10 md:h-12 w-auto" />;
@@ -140,8 +140,8 @@ export function Navigation() {
                 {t("getFreeEstimate")}
               </Button>
             </Link>
-            <a href={`tel:${((window as any).__PREVIEW__?.phone || "(704) 555-0123").replace(/\D/g, '')}`} className="flex items-center justify-center gap-2 text-muted-foreground font-medium py-3 mt-2" data-testid="link-mobile-phone">
-              <Phone size={16} /> {(window as any).__PREVIEW__?.phone || "(704) 555-0123"}
+            <a href={`tel:${(window.__PREVIEW__?.phone || "(704) 555-0123").replace(/\D/g, '')}`} className="flex items-center justify-center gap-2 text-muted-foreground font-medium py-3 mt-2" data-testid="link-mobile-phone">
+              <Phone size={16} /> {window.__PREVIEW__?.phone || "(704) 555-0123"}
             </a>
           </motion.div>
         )}
@@ -149,7 +149,7 @@ export function Navigation() {
     </nav>
     {!isOpen && (
       <a
-        href={`https://wa.me/${(() => { const d = ((window as any).__PREVIEW__?.phone || "17045550123").replace(/\D/g,''); return d.length === 10 ? '1' + d : d; })()}`}
+        href={`https://wa.me/${(() => { const d = (window.__PREVIEW__?.phone || "17045550123").replace(/\D/g,''); return d.length === 10 ? '1' + d : d; })()}`}
         target="_blank"
         rel="noopener noreferrer"
         data-testid="button-whatsapp-float"

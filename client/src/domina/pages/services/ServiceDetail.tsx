@@ -26,7 +26,7 @@ export default function ServiceDetail() {
   const [, setLocation] = useLocation();
   const { t, language } = useLanguage();
 
-  const payload = (window as any).__PREVIEW__?.payload ?? null;
+  const payload = window.__PREVIEW__?.payload ?? null;
   const serviceList: any[] = payload
     ? (language === "es" ? payload.servicesES : payload.servicesEN) || []
     : [];
