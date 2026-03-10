@@ -95,6 +95,7 @@ router.post("/seed-admin", async (req, res) => {
         entity: "user",
         entityId: result.user.id,
         metadata: { email: adminEmail },
+        ipAddress: req.ip,
       });
     }
 
@@ -140,7 +141,14 @@ router.post("/users", requireRole("admin"), async (req, res) => {
     if (!result?.user?.id) throw new Error("Failed to create user");
 
     await db.update(user).set({ role: newRole }).where(eq(user.id, result.user.id));
-    await logAudit({ action: "create_user", entity: "user", entityId: result.user.id, metadata: { email, role: newRole } });
+    await logAudit({
+      userId: req.authUser?.id,
+      action: "create_user",
+      entity: "user",
+      entityId: result.user.id,
+      metadata: { email, role: newRole, name },
+      ipAddress: req.ip,
+    });
 
     const [created] = await db.select({ id: user.id, name: user.name, email: user.email, role: user.role, createdAt: user.createdAt }).from(user).where(eq(user.id, result.user.id));
     res.status(201).json(created);
@@ -158,7 +166,14 @@ router.put("/users/:id", requireRole("admin"), async (req, res) => {
     });
     const updates = schema.parse(req.body);
     await db.update(user).set(updates).where(eq(user.id, req.params.id as string));
-    await logAudit({ action: "update_user", entity: "user", entityId: req.params.id as string, metadata: updates });
+    await logAudit({
+      userId: req.authUser?.id,
+      action: "update_user",
+      entity: "user",
+      entityId: req.params.id as string,
+      metadata: updates,
+      ipAddress: req.ip,
+    });
     const [updated] = await db.select({ id: user.id, name: user.name, email: user.email, role: user.role, banned: user.banned, createdAt: user.createdAt }).from(user).where(eq(user.id, req.params.id as string));
     res.json(updated);
   } catch (err: any) {

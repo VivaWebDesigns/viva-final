@@ -64,6 +64,7 @@ router.put("/categories/:id", requireRole("admin", "developer"), async (req, res
       action: "update",
       entity: "doc_category",
       entityId: category.id,
+      metadata: { name: category.name, slug: category.slug },
       ipAddress: req.ip,
     });
     res.json(category);
@@ -146,15 +147,22 @@ router.put("/articles/:id", requireRole("admin", "developer"), async (req, res) 
 });
 
 router.delete("/articles/:id", requireRole("admin", "developer"), async (req, res) => {
-  await docsStorage.deleteArticle(req.params.id as string);
-  await logAudit({
-    userId: req.authUser?.id,
-    action: "delete",
-    entity: "doc_article",
-    entityId: req.params.id as string,
-    ipAddress: req.ip,
-  });
-  res.json({ message: "Article deleted" });
+  try {
+    const existing = await docsStorage.getArticleById(req.params.id as string);
+    if (!existing) return res.status(404).json({ message: "Article not found" });
+    await docsStorage.deleteArticle(req.params.id as string);
+    await logAudit({
+      userId: req.authUser?.id,
+      action: "delete",
+      entity: "doc_article",
+      entityId: req.params.id as string,
+      metadata: { title: existing.title, slug: existing.slug },
+      ipAddress: req.ip,
+    });
+    res.json({ message: "Article deleted" });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
 });
 
 router.get("/articles/:id/revisions", requireRole("admin", "developer"), async (req, res) => {

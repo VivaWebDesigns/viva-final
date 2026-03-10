@@ -118,6 +118,7 @@ router.post("/records", requireRole("admin", "developer", "sales_rep"), async (r
       entity: "onboarding_record",
       entityId: record.id,
       metadata: { clientName: record.clientName },
+      ipAddress: req.ip,
     });
 
     res.status(201).json(record);
@@ -161,7 +162,8 @@ router.put("/records/:id", requireRole("admin", "developer", "sales_rep"), async
       action: "update",
       entity: "onboarding_record",
       entityId: req.params.id as string,
-      metadata: validated,
+      metadata: { clientName: record.clientName, changes: validated },
+      ipAddress: req.ip,
     });
 
     if (validated.status && validated.status !== existing.status) {
@@ -189,6 +191,7 @@ router.delete("/records/:id", requireRole("admin"), async (req, res) => {
       entity: "onboarding_record",
       entityId: req.params.id as string,
       metadata: { clientName: existing.clientName },
+      ipAddress: req.ip,
     });
 
     res.json({ message: "Deleted" });
@@ -270,6 +273,7 @@ router.post("/convert-opportunity/:opportunityId", requireRole("admin", "sales_r
       entity: "onboarding_record",
       entityId: record.id,
       metadata: { fromOpportunity: opportunityId, clientName: record.clientName },
+      ipAddress: req.ip,
     });
 
     res.status(201).json(record);
