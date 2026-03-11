@@ -53,7 +53,7 @@ export default function PipelineListPage() {
           <Link href="/admin/pipeline">
             <Button variant="outline" size="sm" data-testid="button-board-view">
               <LayoutGrid className="w-4 h-4 mr-1" />
-              Board View
+              {t.pipeline.boardView}
             </Button>
           </Link>
         </div>
@@ -72,24 +72,24 @@ export default function PipelineListPage() {
         </div>
         <Select value={stageFilter} onValueChange={(v) => { setStageFilter(v === "all" ? "" : v); setPage(1); }}>
           <SelectTrigger className="w-[160px]" data-testid="select-stage-filter">
-            <SelectValue placeholder="All Stages" />
+            <SelectValue placeholder={t.pipeline.allStages} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Stages</SelectItem>
+            <SelectItem value="all">{t.pipeline.allStages}</SelectItem>
             {stages.map(s => (
-              <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+              <SelectItem key={s.id} value={s.id}>{(t.pipeline.stageNames as Record<string, string>)[s.slug] || s.name}</SelectItem>
             ))}
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v === "all" ? "" : v); setPage(1); }}>
           <SelectTrigger className="w-[140px]" data-testid="select-status-filter">
-            <SelectValue placeholder="All Status" />
+            <SelectValue placeholder={t.pipeline.allStatus} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="open">Open</SelectItem>
-            <SelectItem value="won">Won</SelectItem>
-            <SelectItem value="lost">Lost</SelectItem>
+            <SelectItem value="all">{t.pipeline.allStatus}</SelectItem>
+            <SelectItem value="open">{t.pipeline.statusOpen}</SelectItem>
+            <SelectItem value="won">{t.pipeline.closeWon.split("—")[1]?.trim() || "Won"}</SelectItem>
+            <SelectItem value="lost">{t.pipeline.closeLost.split("—")[1]?.trim() || "Lost"}</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -101,7 +101,7 @@ export default function PipelineListPage() {
       ) : items.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-gray-500">
-            No opportunities found
+            {t.pipeline.noOpportunities}
           </CardContent>
         </Card>
       ) : (
@@ -128,7 +128,7 @@ export default function PipelineListPage() {
                         style={{ borderColor: stage.color, color: stage.color }}
                         data-testid={`badge-stage-${opp.id}`}
                       >
-                        {stage.name}
+                        {(t.pipeline.stageNames as Record<string, string>)[stage.slug] || stage.name}
                       </Badge>
                     )}
 

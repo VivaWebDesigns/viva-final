@@ -224,7 +224,7 @@ export default function CompanyDetailPage({ id }: { id: string }) {
                                 className="text-xs"
                                 style={{ borderColor: lead.status.color, color: lead.status.color }}
                               >
-                                {lead.status.name}
+                                {(t.crm.statusNames as Record<string, string>)[lead.status.slug] || lead.status.name}
                               </Badge>
                             )}
                           </div>

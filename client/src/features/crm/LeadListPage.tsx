@@ -207,7 +207,7 @@ export default function LeadListPage() {
         style={{ borderColor: lead.status.color, color: lead.status.color }}
         data-testid={`badge-status-${lead.id}`}
       >
-        {lead.status.name}
+        {(t.crm.statusNames as Record<string, string>)[lead.status.slug] || lead.status.name}
       </Badge>
     );
   };
@@ -263,12 +263,12 @@ export default function LeadListPage() {
           </div>
           <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
             <SelectTrigger className="w-full sm:w-44" data-testid="select-status-filter">
-              <SelectValue placeholder="All Statuses" />
+              <SelectValue placeholder={t.crm.allStatuses} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t.crm.allStatuses}</SelectItem>
               {statuses.map(s => (
-                <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                <SelectItem key={s.id} value={s.id}>{(t.crm.statusNames as Record<string, string>)[s.slug] || s.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -567,7 +567,7 @@ export default function LeadListPage() {
                             className="w-2 h-2 rounded-full inline-block"
                             style={{ backgroundColor: s.color }}
                           />
-                          {s.name}
+                          {(t.crm.statusNames as Record<string, string>)[s.slug] || s.name}
                         </span>
                       </SelectItem>
                     ))}

@@ -13,6 +13,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Download, Upload, ChevronDown, CheckCircle2, AlertCircle, SkipForward } from "lucide-react";
+import { useAdminLang } from "@/i18n/LanguageContext";
 
 interface ImportRowResult {
   row: number;
@@ -37,6 +38,7 @@ interface CsvImportModalProps {
 
 export function CsvImportModal({ open, onClose, defaultEntity = "leads" }: CsvImportModalProps) {
   const { toast } = useToast();
+  const { t } = useAdminLang();
   const queryClient = useQueryClient();
 
   const [entityType, setEntityType] = useState<"leads" | "contacts">(defaultEntity);
@@ -107,7 +109,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "leads" }: CsvIm
       <DialogContent className="sm:max-w-xl" data-testid="csv-import-modal">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Upload className="w-4 h-4" /> Import CSV
+            <Upload className="w-4 h-4" /> {t.crm.importCsv}
           </DialogTitle>
         </DialogHeader>
 
@@ -201,7 +203,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "leads" }: CsvIm
             <div className="grid grid-cols-3 gap-3 text-center">
               <div className="rounded-lg bg-green-50 dark:bg-green-950/30 p-3">
                 <p className="text-2xl font-bold text-green-600">{result.imported}</p>
-                <p className="text-xs text-gray-500 mt-0.5">Imported</p>
+                <p className="text-xs text-gray-500 mt-0.5">{t.crm.imported}</p>
               </div>
               <div className="rounded-lg bg-yellow-50 dark:bg-yellow-950/30 p-3">
                 <p className="text-2xl font-bold text-yellow-600">{result.skipped}</p>
@@ -279,7 +281,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "leads" }: CsvIm
                 disabled={!file || phase === "loading"}
                 data-testid="button-start-import"
               >
-                {phase === "loading" ? "Importing..." : "Import"}
+                {phase === "loading" ? t.crm.importing : t.crm.import}
               </Button>
             </>
           )}
@@ -324,12 +326,13 @@ interface CsvExportButtonProps {
 
 export function CsvExportDropdown({ className }: CsvExportButtonProps) {
   const { toast } = useToast();
+  const { t } = useAdminLang();
   const [exporting, setExporting] = useState(false);
 
   const handleExport = async (type: "leads" | "contacts") => {
     setExporting(true);
     await triggerCsvExport(type, (msg) =>
-      toast({ title: "Export failed", description: msg, variant: "destructive" })
+      toast({ title: t.crm.exportError, description: msg, variant: "destructive" })
     );
     setExporting(false);
   };
@@ -345,7 +348,7 @@ export function CsvExportDropdown({ className }: CsvExportButtonProps) {
           data-testid="button-export-dropdown"
         >
           <Download className="w-4 h-4 mr-1.5" />
-          Export
+          {t.crm.export}
           <ChevronDown className="w-3 h-3 ml-1" />
         </Button>
       </DropdownMenuTrigger>
@@ -354,13 +357,13 @@ export function CsvExportDropdown({ className }: CsvExportButtonProps) {
           onClick={() => handleExport("leads")}
           data-testid="menu-item-export-leads"
         >
-          <Download className="w-4 h-4 mr-2" /> Leads CSV
+          <Download className="w-4 h-4 mr-2" /> {t.crm.exportLeads}
         </DropdownMenuItem>
         <DropdownMenuItem
           onClick={() => handleExport("contacts")}
           data-testid="menu-item-export-contacts"
         >
-          <Download className="w-4 h-4 mr-2" /> Contacts CSV
+          <Download className="w-4 h-4 mr-2" /> {t.crm.exportContacts}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

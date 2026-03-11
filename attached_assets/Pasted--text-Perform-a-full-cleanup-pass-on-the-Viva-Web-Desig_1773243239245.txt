@@ -1,0 +1,112 @@
+```text
+Perform a full cleanup pass on the Viva Web Designs internal platform bilingual system so the EN / ES toggle controls ALL remaining interface text consistently across the app.
+
+Important:
+- Do this non-destructively.
+- Do not break routing, auth, CRM behavior, sales pipeline behavior, onboarding behavior, tables, filters, import/export actions, or existing styling.
+- Do not redesign the app except for tiny layout adjustments if needed.
+- Do not translate user-generated content, seeded CRM record values, client names, company names, custom notes, or other database content that is meant to remain as entered.
+- Only translate platform/UI/chrome/system text.
+
+Current problem:
+The language toggle exists and works in some places, but many UI strings are still hardcoded in English while Spanish mode is active. I need a full audit and cleanup so no major screen remains mixed-language.
+
+Before making changes:
+1. Scan the entire codebase for all remaining hardcoded user-facing UI strings.
+2. Identify any components, pages, shared layouts, modals, tables, badges, buttons, helper text, action menus, empty states, or stage labels that are not yet wired into the translation system.
+3. Reuse and extend the existing language system that was already built. Do NOT create a second translation system.
+
+Specifically fix the issues already observed:
+
+CRM / Prospectos page:
+- Translate button labels:
+  - Export → Exportar
+  - Import → Importar
+- Translate CRM status badges/system status values:
+  - Won → Ganado
+  - Qualified → Calificado
+- Make sure all other CRM system labels, filter labels, action labels, table/list labels, modal labels, and helper text are connected to the translation system.
+
+Sales Pipeline page:
+- Translate page title:
+  - Sales Pipeline → Pipeline de Ventas
+- Translate helper/instruction text:
+  - Drag cards to move deals through the pipeline. Hover a card to add a follow-up task.
+- Translate action buttons:
+  - List View → Vista de lista
+  - Manage Stages → Administrar etapas
+- Translate pipeline stage names and any related stage metadata shown in the UI, including current and future stages such as:
+  - Discovery → Descubrimiento
+  - Proposal → Propuesta
+  - New Lead → Nuevo prospecto
+  - Contacted → Contactado
+  - Demo Scheduled → Demo programada
+  - Demo Completed → Demo completada
+  - Payment Sent → Pago enviado
+  - Closed – Won → Cerrado – ganado
+  - Closed – Lost → Cerrado – perdido
+
+Implementation requirements:
+1. Audit all remaining hardcoded UI strings across the app and migrate them into the existing centralized translation files.
+2. Use the existing translation provider/context/hook/helper already in the project.
+3. Ensure all pages and shared components pull UI strings from translation keys instead of inline hardcoded text.
+4. Organize any new translation keys cleanly by domain, for example:
+   - common
+   - navigation
+   - crm
+   - salesPipeline
+   - clientOnboarding
+   - settings
+   - actions
+   - statuses
+   - messages
+5. If badges, stage names, or status names are currently driven by arrays/config/constants, refactor them so they use stable internal values plus translated display labels instead of hardcoded English display text.
+   Example:
+   - internal value: `won`
+   - display label from translations: `t('statuses.won')`
+6. If stage names are used in drag/drop logic, filtering, or state management, preserve the internal identifiers and only translate the displayed labels.
+7. If export/import buttons or other actions are part of reusable toolbar/header components, update the shared component instead of patching only one page.
+8. If there are helper texts, empty states, confirmation dialogs, dropdown options, tooltips, or modal text still hardcoded, migrate those too.
+
+Very important data/content rule:
+Do NOT auto-translate record data such as:
+- deal names
+- prospect names
+- customer names
+- company names
+- industries/categories stored as user/content data unless those categories are clearly system-defined controlled vocabulary
+- notes
+- custom entered text
+Only translate interface/system text.
+
+Controlled vocabulary rule:
+If values like stage names, statuses, or system-generated labels are controlled by the platform and not freeform user input, they must be translated through the language system.
+
+Fallback behavior:
+- If a translation key is missing in Spanish, fall back gracefully to English.
+- Do not crash the page because of missing keys.
+- Keep development warnings if helpful.
+
+Quality control checklist:
+After cleanup, verify all of the following:
+- Spanish mode no longer shows obvious English UI strings on CRM pages
+- Spanish mode no longer shows obvious English UI strings on Sales Pipeline pages
+- Export / Import buttons translate correctly
+- Won / Qualified and other CRM statuses translate correctly
+- Sales Pipeline title and helper text translate correctly
+- List View / Manage Stages translate correctly
+- Pipeline stage labels translate correctly
+- Navigation remains translated
+- Filters, buttons, badges, modals, dropdowns, tooltips, table/list labels, and helper text are translated
+- User-entered content remains unchanged
+- No routing or business logic broke due to translating stage/status display labels
+- No mixed-language screens remain in major active areas of the internal platform
+
+Deliverables:
+- update the existing i18n implementation to cover all remaining visible UI strings
+- refactor stage/status display logic where needed so translation does not break behavior
+- provide a short summary of:
+  1. which pages/components were updated
+  2. which remaining hardcoded UI areas were fixed
+  3. whether any untranslated edge cases still remain
+```

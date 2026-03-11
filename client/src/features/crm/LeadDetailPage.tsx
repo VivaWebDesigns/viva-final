@@ -260,7 +260,7 @@ export default function LeadDetailPage({ id }: { id: string }) {
                     <SelectItem key={stage.id} value={stage.id}>
                       <div className="flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full" style={{ backgroundColor: stage.color }} />
-                        {stage.name}
+                        {(t.pipeline.stageNames as Record<string, string>)[stage.slug] || stage.name}
                       </div>
                     </SelectItem>
                   ))}
@@ -288,7 +288,7 @@ export default function LeadDetailPage({ id }: { id: string }) {
                     <SelectItem key={s.id} value={s.id}>
                       <div className="flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }} />
-                        {s.name}
+                        {(t.crm.statusNames as Record<string, string>)[s.slug] || s.name}
                       </div>
                     </SelectItem>
                   ))}
@@ -305,7 +305,7 @@ export default function LeadDetailPage({ id }: { id: string }) {
                     style={{ borderColor: lead.status.color, color: lead.status.color }}
                     data-testid="badge-lead-status"
                   >
-                    {lead.status.name}
+                    {(t.crm.statusNames as Record<string, string>)[lead.status.slug] || lead.status.name}
                   </Badge>
                 ) : (
                   <span className="text-gray-400">No status</span>

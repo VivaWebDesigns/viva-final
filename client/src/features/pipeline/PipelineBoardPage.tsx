@@ -152,10 +152,10 @@ function CardDisplay({
                 className="flex items-center gap-0.5 text-[10px] text-gray-400 hover:text-[#0D9488] transition-colors opacity-0 group-hover:opacity-100"
                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); onTaskClick(opp); }}
                 data-testid={`button-add-task-${opp.id}`}
-                title="Add follow-up task"
+                title={t.pipeline.addFollowUpTask}
               >
                 <CheckCircle2 className="w-3 h-3" />
-                Task
+                {t.pipeline.noteTypes.task}
               </button>
             )}
           </div>
@@ -228,6 +228,7 @@ function StageColumn({
   companyMap: Record<string, CompanySnap>;
   onTaskClick: (opp: PipelineOpportunity) => void;
 }) {
+  const { t } = useAdminLang();
   const { setNodeRef } = useDroppable({ id: stage.id, data: { stage } });
   const totalValue = opportunities.reduce((sum, o) => sum + parseFloat(o.value || "0"), 0);
 
@@ -239,7 +240,7 @@ function StageColumn({
       <div className="flex items-center justify-between mb-2 px-1">
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: stage.color }} />
-          <h3 className="text-sm font-semibold text-gray-700">{stage.name}</h3>
+          <h3 className="text-sm font-semibold text-gray-700">{(t.pipeline.stageNames as Record<string, string>)[stage.slug] || stage.name}</h3>
           <Badge
             variant="secondary"
             className="text-xs h-5 px-1.5"
@@ -284,7 +285,7 @@ function StageColumn({
             }`}
           >
             <span className="text-xs font-medium">
-              {isOver ? "Drop here" : "No opportunities"}
+              {isOver ? t.pipeline.dropHere : t.pipeline.noOpportunities}
             </span>
           </div>
         )}
@@ -415,22 +416,22 @@ export default function PipelineBoardPage() {
           <div className="flex items-center justify-between mb-4 flex-shrink-0">
             <div>
               <h1 className="text-2xl font-bold text-gray-900" data-testid="text-pipeline-title">
-                Sales Pipeline
+                {t.pipeline.title}
               </h1>
               <p className="text-sm text-gray-500 mt-1">
-                Drag cards to move deals through the pipeline. Hover a card to add a follow-up task.
+                {t.pipeline.helperText}
               </p>
             </div>
             <div className="flex items-center gap-2">
               <Link href="/admin/pipeline/list">
                 <Button variant="outline" size="sm" data-testid="button-list-view">
                   <List className="w-4 h-4 mr-1" />
-                  List View
+                  {t.pipeline.listView}
                 </Button>
               </Link>
               <Link href="/admin/pipeline/stages">
                 <Button variant="outline" size="sm" data-testid="button-manage-stages">
-                  Manage Stages
+                  {t.pipeline.manageStages}
                 </Button>
               </Link>
             </div>

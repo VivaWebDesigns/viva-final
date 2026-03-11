@@ -327,7 +327,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                         disabled={stageMutation.isPending}
                         data-testid={`button-stage-${stage.slug}`}
                       >
-                        {stage.name}
+                        {(t.pipeline.stageNames as Record<string, string>)[stage.slug] || stage.name}
                       </Button>
                     ))}
                   </div>
