@@ -372,7 +372,14 @@ router.get("/leads/:id", requireRole("admin", "developer", "sales_rep"), async (
   const id = req.params.id as string;
   const lead = await crmStorage.getLeadById(id);
   if (!lead) return res.status(404).json({ message: "Lead not found" });
-  res.json(lead);
+
+  const [contact, company, status] = await Promise.all([
+    lead.contactId ? crmStorage.getContactById(lead.contactId) : null,
+    lead.companyId ? crmStorage.getCompanyById(lead.companyId) : null,
+    lead.statusId ? crmStorage.getLeadStatuses().then(ss => ss.find(s => s.id === lead.statusId) ?? null) : null,
+  ]);
+
+  res.json({ ...lead, contact: contact ?? null, company: company ?? null, status: status ?? null });
 });
 
 router.put("/leads/:id", requireRole("admin", "sales_rep"), async (req, res) => {
