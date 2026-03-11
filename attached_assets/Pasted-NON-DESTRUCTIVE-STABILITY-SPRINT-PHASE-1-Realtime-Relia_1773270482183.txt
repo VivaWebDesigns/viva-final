@@ -1,0 +1,54 @@
+NON-DESTRUCTIVE STABILITY SPRINT — PHASE 1
+Realtime Reliability + Canonical Channel Alignment
+
+You are working in the Viva Web Designs / Viva-Sales-Spanish internal CRM/admin platform codebase.
+
+This must be a NON-DESTRUCTIVE implementation pass. Do not break existing working features. Do not remove major functionality. Make careful, incremental, production-safe changes only.
+
+OBJECTIVE
+Fix realtime chat/realtime event reliability issues caused by inconsistent channel naming and strengthen channel/event contracts across backend, sockets, and frontend.
+
+CONTEXT FROM REVIEW
+- Realtime socket allowlist still uses "ventas"
+- API channel definitions use "sales"
+- There is already evidence of migration logic from "ventas" → "sales"
+- This mismatch likely breaks join/typing behavior for the sales channel
+
+TASKS
+1. Audit all channel constants, enums, validation schemas, socket allowlists, frontend selectors, seeded/default channels, and DB mapping logic.
+2. Establish one canonical source of truth for channel identifiers.
+3. Standardize on the canonical channel name "sales".
+4. Preserve backward compatibility by supporting legacy reads/mapping from "ventas" where needed, but do not allow new writes or new canonical usage of "ventas".
+5. Ensure socket join, leave, typing, presence, unread counts, channel listing, and message posting all resolve consistently to the canonical channel ID/name.
+6. Add defensive normalization utilities so legacy channel values are translated safely before business logic runs.
+7. Add strong type-safe shared contracts for:
+   - canonical channel names
+   - socket event payloads
+   - typing event payloads
+   - presence payloads
+   - channel join payloads
+8. Add tests for:
+   - joining "sales"
+   - receiving typing events in "sales"
+   - legacy "ventas" normalization to "sales"
+   - no duplicate channel creation from legacy naming drift
+9. Do not delete historical data. Use safe normalization and compatibility layers only.
+10. Update all affected documentation.
+
+APP DOCS REQUIREMENT
+Update Super Admin > App Docs with a complete set of documentation entries for:
+- Realtime architecture overview
+- Canonical chat channel dictionary
+- Legacy compatibility notes for "ventas" → "sales"
+- Socket event contract reference
+- Known failure modes and troubleshooting steps for realtime chat
+
+DELIVERABLES
+- Implement the fixes
+- Add/expand tests
+- Add/update App Docs records
+- Output a concise implementation summary with:
+  - files changed
+  - risks addressed
+  - tests added
+  - docs added

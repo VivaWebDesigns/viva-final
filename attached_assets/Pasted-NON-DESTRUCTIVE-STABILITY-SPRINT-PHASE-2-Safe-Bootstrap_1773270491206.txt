@@ -1,0 +1,55 @@
+NON-DESTRUCTIVE STABILITY SPRINT — PHASE 2
+Safe Bootstrap Hardening + Runtime Seeding Removal
+
+You are working in the Viva Web Designs / Viva-Sales-Spanish internal CRM/admin platform codebase.
+
+This must be a NON-DESTRUCTIVE implementation pass. Make production-safe improvements only. Do not remove existing data or break current startup behavior without replacing it with a safer mechanism.
+
+OBJECTIVE
+Remove risky startup seeding from the live server boot path and replace it with controlled, supportable, environment-aware bootstrap flows.
+
+CONTEXT FROM REVIEW
+- Seeding functions are invoked on every server boot in the listen callback
+- This includes admin/dev users and multiple feature seeds
+- Even if idempotent, this creates startup risk and mixes runtime with migration/setup concerns
+
+TASKS
+1. Audit all boot-time seed/init logic currently executed during server startup.
+2. Separate the following concepts clearly:
+   - server startup
+   - database migration
+   - initial seeding
+   - environment bootstrap
+   - development/demo seed helpers
+3. Remove automatic seeding from the normal production server listen path.
+4. Replace with controlled mechanisms such as:
+   - explicit scripts
+   - env-gated setup routines
+   - admin-only initialization commands
+5. Ensure production startup can succeed without executing seed routines.
+6. Preserve developer ergonomics with a safe dev bootstrap flow if needed.
+7. Add startup checks/logging that clearly indicate:
+   - app boot success
+   - db connectivity
+   - migrations expected/applied status if available
+   - seed routines skipped or intentionally invoked
+8. Add tests or smoke validation for:
+   - server boots without seed execution
+   - seed command can be run intentionally
+   - repeat seed execution is safe/idempotent if retained
+9. Add a clear operational runbook for bootstrap/setup.
+
+APP DOCS REQUIREMENT
+Update Super Admin > App Docs with:
+- Environment bootstrap overview
+- Difference between migrations, seeds, and startup
+- Production startup lifecycle
+- Safe seed execution runbook
+- Troubleshooting failed bootstrap/startup scenarios
+
+DELIVERABLES
+- Refactor startup path safely
+- Add scripts/helpers as needed
+- Add validation/smoke coverage
+- Fully document the new bootstrap model in App Docs
+- Output a concise summary of changes, scripts, and docs added
