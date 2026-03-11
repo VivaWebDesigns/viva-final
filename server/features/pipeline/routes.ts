@@ -3,7 +3,7 @@ import { requireRole } from "../auth/middleware";
 import { logAudit } from "../audit/service";
 import { notifyStageChange, notifyOpportunityAssignment, notifyLeadConverted } from "../notifications/triggers";
 import * as pipelineStorage from "./storage";
-import { insertPipelineStageSchema, insertPipelineOpportunitySchema, insertPipelineActivitySchema, OPPORTUNITY_STATUSES, type InsertPipelineOpportunity } from "@shared/schema";
+import { insertPipelineStageSchema, insertPipelineOpportunitySchema, insertPipelineActivitySchema, OPPORTUNITY_STATUSES, WEBSITE_PACKAGES, type InsertPipelineOpportunity } from "@shared/schema";
 import { appendHistorySafe } from "../history/service";
 import { upsertLeadStatus, updateLead } from "../crm/storage";
 import { z } from "zod";
@@ -20,6 +20,7 @@ const updateStageSchema = z.object({
 const updateOpportunitySchema = z.object({
   title: z.string().min(1).optional(),
   value: z.string().nullable().optional(),
+  websitePackage: z.enum(WEBSITE_PACKAGES).nullable().optional(),
   stageId: z.string().nullable().optional(),
   leadId: z.string().nullable().optional(),
   companyId: z.string().nullable().optional(),

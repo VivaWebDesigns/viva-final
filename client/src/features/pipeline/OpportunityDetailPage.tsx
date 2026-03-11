@@ -15,10 +15,15 @@ import {
   ArrowLeft, Building2, User as UserIcon,
   MessageSquare, Phone, Mail, FileText, CheckCircle, XCircle,
   Clock, Zap, ArrowRightLeft, UserPlus, ClipboardList, Plus,
-  AlertCircle, CheckCheck, Package,
+  AlertCircle, CheckCheck, Package, Pencil,
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 import type { PipelineStage, PipelineOpportunity, PipelineActivity, CrmCompany, CrmContact, CrmLead, FollowupTask } from "@shared/schema";
+import { WEBSITE_PACKAGES } from "@shared/schema";
 import QuickTaskModal from "@/components/QuickTaskModal";
 import { RecordTimeline } from "@/components/RecordTimeline";
 
@@ -149,6 +154,92 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
+  type EditSection = "details" | "contact" | "company" | "lead" | null;
+  const [editSection, setEditSection] = useState<EditSection>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editPkg, setEditPkg] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+  const [editFirstName, setEditFirstName] = useState("");
+  const [editLastName, setEditLastName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editCompanyName, setEditCompanyName] = useState("");
+  const [editCompanyPhone, setEditCompanyPhone] = useState("");
+  const [editCompanyEmail, setEditCompanyEmail] = useState("");
+  const [editCompanyWebsite, setEditCompanyWebsite] = useState("");
+  const [editCompanyIndustry, setEditCompanyIndustry] = useState("");
+  const [editLeadTitle, setEditLeadTitle] = useState("");
+  const [editLeadSource, setEditLeadSource] = useState("");
+
+  const openEdit = (section: EditSection) => {
+    if (!opp) return;
+    if (section === "details") {
+      setEditTitle(opp.title);
+      setEditPkg(opp.websitePackage ?? "");
+      setEditNotes(opp.notes ?? "");
+    } else if (section === "contact" && contact) {
+      setEditFirstName(contact.firstName);
+      setEditLastName(contact.lastName ?? "");
+      setEditPhone(contact.phone ?? "");
+      setEditEmail(contact.email ?? "");
+    } else if (section === "company" && company) {
+      setEditCompanyName(company.name);
+      setEditCompanyPhone(company.phone ?? "");
+      setEditCompanyEmail(company.email ?? "");
+      setEditCompanyWebsite((company as any).website ?? "");
+      setEditCompanyIndustry(company.industry ?? "");
+    } else if (section === "lead" && sourceLead) {
+      setEditLeadTitle(sourceLead.title);
+      setEditLeadSource(sourceLead.source ?? "");
+    }
+    setEditSection(section);
+  };
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      if (editSection === "details") {
+        const res = await apiRequest("PUT", `/api/pipeline/opportunities/${id}`, {
+          title: editTitle,
+          websitePackage: (editPkg && editPkg !== "none" ? editPkg : null) as any,
+          notes: editNotes || null,
+        });
+        return res.json();
+      } else if (editSection === "contact" && contact) {
+        const res = await apiRequest("PUT", `/api/crm/contacts/${contact.id}`, {
+          firstName: editFirstName,
+          lastName: editLastName || null,
+          phone: editPhone || null,
+          email: editEmail || null,
+        });
+        return res.json();
+      } else if (editSection === "company" && company) {
+        const res = await apiRequest("PUT", `/api/crm/companies/${company.id}`, {
+          name: editCompanyName,
+          phone: editCompanyPhone || null,
+          email: editCompanyEmail || null,
+          website: editCompanyWebsite || null,
+          industry: editCompanyIndustry || null,
+        });
+        return res.json();
+      } else if (editSection === "lead" && sourceLead) {
+        const res = await apiRequest("PUT", `/api/crm/leads/${sourceLead.id}`, {
+          title: editLeadTitle,
+          source: editLeadSource || null,
+        });
+        return res.json();
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities", id] });
+      if (editSection === "contact") queryClient.invalidateQueries({ queryKey: ["/api/crm/contacts", opp?.contactId ?? ""] });
+      if (editSection === "company") queryClient.invalidateQueries({ queryKey: ["/api/crm/companies", opp?.companyId ?? ""] });
+      if (editSection === "lead") queryClient.invalidateQueries({ queryKey: ["/api/crm/leads", opp?.leadId ?? ""] });
+      setEditSection(null);
+      toast({ title: "Saved" });
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -186,7 +277,17 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
 
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900" data-testid="text-opportunity-title">{opp.title}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-gray-900" data-testid="text-opportunity-title">{opp.title}</h1>
+            <button
+              onClick={() => openEdit("details")}
+              className="text-gray-300 hover:text-[#0D9488] transition-colors"
+              title="Edit opportunity"
+              data-testid="button-edit-opportunity-title"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
+          </div>
           <div className="flex items-center gap-3 mt-2">
             {currentStage && (
               <Badge style={{ backgroundColor: currentStage.color, color: "white" }} data-testid="badge-current-stage">
@@ -267,8 +368,15 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0">
               <CardTitle className="text-base">Details</CardTitle>
+              <button
+                onClick={() => openEdit("details")}
+                className="text-gray-300 hover:text-[#0D9488] transition-colors"
+                data-testid="button-edit-details"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+              </button>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="grid grid-cols-2 gap-4">
@@ -419,11 +527,14 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
         <div className="space-y-4">
           {company && (
             <Card>
-              <CardHeader className="pb-2">
+              <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
                 <CardTitle className="text-sm flex items-center gap-1.5">
                   <Building2 className="w-4 h-4 text-gray-400" />
                   Company
                 </CardTitle>
+                <button onClick={() => openEdit("company")} className="text-gray-300 hover:text-[#0D9488] transition-colors" data-testid="button-edit-company">
+                  <Pencil className="w-3 h-3" />
+                </button>
               </CardHeader>
               <CardContent>
                 <Link href={`/admin/crm/companies/${company.id}`}>
@@ -439,11 +550,14 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
 
           {contact && (
             <Card>
-              <CardHeader className="pb-2">
+              <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
                 <CardTitle className="text-sm flex items-center gap-1.5">
                   <UserIcon className="w-4 h-4 text-gray-400" />
                   Contact
                 </CardTitle>
+                <button onClick={() => openEdit("contact")} className="text-gray-300 hover:text-[#0D9488] transition-colors" data-testid="button-edit-contact">
+                  <Pencil className="w-3 h-3" />
+                </button>
               </CardHeader>
               <CardContent>
                 <Link href={`/admin/crm/contacts/${contact.id}`}>
@@ -459,11 +573,14 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
 
           {sourceLead && (
             <Card>
-              <CardHeader className="pb-2">
+              <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
                 <CardTitle className="text-sm flex items-center gap-1.5">
                   <Zap className="w-4 h-4 text-gray-400" />
                   Source Lead
                 </CardTitle>
+                <button onClick={() => openEdit("lead")} className="text-gray-300 hover:text-[#0D9488] transition-colors" data-testid="button-edit-source-lead">
+                  <Pencil className="w-3 h-3" />
+                </button>
               </CardHeader>
               <CardContent>
                 <Link href={`/admin/crm/leads/${sourceLead.id}`}>
@@ -593,6 +710,119 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
           dueDate: rescheduleTask.dueDate.toString(),
         } : null}
       />
+
+      <Dialog open={editSection !== null} onOpenChange={(open) => { if (!open) setEditSection(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {editSection === "details" && "Edit Opportunity Details"}
+              {editSection === "contact" && "Edit Contact"}
+              {editSection === "company" && "Edit Company"}
+              {editSection === "lead" && "Edit Source Lead"}
+            </DialogTitle>
+          </DialogHeader>
+
+          {editSection === "details" && (
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="edit-title">Title</Label>
+                <Input id="edit-title" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} data-testid="input-edit-title" />
+              </div>
+              <div>
+                <Label htmlFor="edit-pkg">Website Package</Label>
+                <Select value={editPkg} onValueChange={setEditPkg}>
+                  <SelectTrigger id="edit-pkg" data-testid="select-edit-package">
+                    <SelectValue placeholder="Select package" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {WEBSITE_PACKAGES.map((p) => (
+                      <SelectItem key={p} value={p} className="capitalize">{p.charAt(0).toUpperCase() + p.slice(1)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="edit-notes">Notes</Label>
+                <Textarea id="edit-notes" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} rows={4} data-testid="textarea-edit-notes" />
+              </div>
+            </div>
+          )}
+
+          {editSection === "contact" && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="edit-first-name">First Name</Label>
+                  <Input id="edit-first-name" value={editFirstName} onChange={(e) => setEditFirstName(e.target.value)} data-testid="input-edit-first-name" />
+                </div>
+                <div>
+                  <Label htmlFor="edit-last-name">Last Name</Label>
+                  <Input id="edit-last-name" value={editLastName} onChange={(e) => setEditLastName(e.target.value)} data-testid="input-edit-last-name" />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="edit-contact-phone">Phone</Label>
+                <Input id="edit-contact-phone" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} data-testid="input-edit-contact-phone" />
+              </div>
+              <div>
+                <Label htmlFor="edit-contact-email">Email</Label>
+                <Input id="edit-contact-email" type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} data-testid="input-edit-contact-email" />
+              </div>
+            </div>
+          )}
+
+          {editSection === "company" && (
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="edit-company-name">Company Name</Label>
+                <Input id="edit-company-name" value={editCompanyName} onChange={(e) => setEditCompanyName(e.target.value)} data-testid="input-edit-company-name" />
+              </div>
+              <div>
+                <Label htmlFor="edit-company-phone">Phone</Label>
+                <Input id="edit-company-phone" value={editCompanyPhone} onChange={(e) => setEditCompanyPhone(e.target.value)} data-testid="input-edit-company-phone" />
+              </div>
+              <div>
+                <Label htmlFor="edit-company-email">Email</Label>
+                <Input id="edit-company-email" type="email" value={editCompanyEmail} onChange={(e) => setEditCompanyEmail(e.target.value)} data-testid="input-edit-company-email" />
+              </div>
+              <div>
+                <Label htmlFor="edit-company-website">Website</Label>
+                <Input id="edit-company-website" value={editCompanyWebsite} onChange={(e) => setEditCompanyWebsite(e.target.value)} data-testid="input-edit-company-website" />
+              </div>
+              <div>
+                <Label htmlFor="edit-company-industry">Industry</Label>
+                <Input id="edit-company-industry" value={editCompanyIndustry} onChange={(e) => setEditCompanyIndustry(e.target.value)} data-testid="input-edit-company-industry" />
+              </div>
+            </div>
+          )}
+
+          {editSection === "lead" && (
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="edit-lead-title">Lead Title</Label>
+                <Input id="edit-lead-title" value={editLeadTitle} onChange={(e) => setEditLeadTitle(e.target.value)} data-testid="input-edit-lead-title" />
+              </div>
+              <div>
+                <Label htmlFor="edit-lead-source">Source</Label>
+                <Input id="edit-lead-source" value={editLeadSource} onChange={(e) => setEditLeadSource(e.target.value)} placeholder="e.g. referral, website, cold call" data-testid="input-edit-lead-source" />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditSection(null)} data-testid="button-cancel-edit">Cancel</Button>
+            <Button
+              onClick={() => saveMutation.mutate()}
+              disabled={saveMutation.isPending}
+              className="bg-[#0D9488] hover:bg-[#0b7a70] text-white"
+              data-testid="button-save-edit"
+            >
+              {saveMutation.isPending ? "Saving…" : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
