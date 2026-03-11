@@ -6,11 +6,17 @@ import {
   ArrowLeft, Building2, User, Globe, Phone, Mail, MapPin,
   Calendar, Tag, MessageSquare, PhoneCall, MailIcon, ClipboardList,
   RefreshCw, Bot, Send, ExternalLink, TrendingUp,
-  Plus, CheckCircle, CheckCheck, Clock, AlertCircle, Monitor,
+  Plus, CheckCircle, CheckCheck, Clock, AlertCircle, Monitor, Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
 import RichTextEditorField from "@/features/chat/RichTextEditorField";
 import { sanitizeHtml } from "@/features/chat/RichTextEditor";
 import {
@@ -64,6 +70,11 @@ export default function LeadDetailPage({ id }: { id: string }) {
   const [noteType, setNoteType] = useState("note");
   const [taskModalOpen, setTaskModalOpen] = useState(false);
   const [rescheduleTask, setRescheduleTask] = useState<TaskWithContact | null>(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editForm, setEditForm] = useState({
+    firstName: "", lastName: "", phone: "", email: "",
+    businessName: "", city: "", notes: "",
+  });
 
   const { data: lead, isLoading: leadLoading } = useQuery<LeadDetail>({
     queryKey: ["/api/crm/leads", id],
@@ -103,6 +114,38 @@ export default function LeadDetailPage({ id }: { id: string }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/crm/leads", id] });
       queryClient.invalidateQueries({ queryKey: ["/api/crm/leads", id, "notes"] });
+    },
+  });
+
+  const saveEditMutation = useMutation({
+    mutationFn: async (form: typeof editForm) => {
+      const promises: Promise<any>[] = [];
+      if (lead?.contact?.id) {
+        promises.push(apiRequest("PUT", `/api/crm/contacts/${lead.contact.id}`, {
+          firstName: form.firstName || lead.contact.firstName,
+          lastName: form.lastName || undefined,
+          phone: form.phone || undefined,
+          email: form.email || undefined,
+        }));
+      }
+      if (lead?.company?.id) {
+        promises.push(apiRequest("PUT", `/api/crm/companies/${lead.company.id}`, {
+          name: form.businessName || lead.company.name,
+          city: form.city || undefined,
+        }));
+      }
+      if (form.notes !== (lead?.notes ?? "")) {
+        promises.push(apiRequest("PUT", `/api/crm/leads/${id}`, { notes: form.notes }));
+      }
+      await Promise.all(promises);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/crm/leads", id] });
+      toast({ title: t.common.saveChanges });
+      setEditModalOpen(false);
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
     },
   });
 
@@ -276,27 +319,94 @@ export default function LeadDetailPage({ id }: { id: string }) {
           <Card className="p-5">
             <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
               <h2 className="font-semibold text-gray-900">Lead Details</h2>
-              <Select
-                value={lead.statusId || ""}
-                onValueChange={(v) => updateStatusMutation.mutate(v)}
-              >
-                <SelectTrigger className="w-[180px]" data-testid="select-lead-status">
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  {statuses.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }} />
-                        {(t.crm.statusNames as Record<string, string>)[s.slug] || s.name}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setEditForm({
+                      firstName: lead.contact?.firstName ?? "",
+                      lastName: lead.contact?.lastName ?? "",
+                      phone: lead.contact?.phone ?? lead.company?.phone ?? "",
+                      email: lead.contact?.email ?? lead.company?.email ?? "",
+                      businessName: lead.company?.name ?? "",
+                      city: lead.company?.city ?? "",
+                      notes: lead.notes ?? "",
+                    });
+                    setEditModalOpen(true);
+                  }}
+                  data-testid="button-edit-lead"
+                >
+                  <Pencil className="w-3.5 h-3.5 mr-1.5" />
+                  {t.common.edit}
+                </Button>
+                <Select
+                  value={lead.statusId || ""}
+                  onValueChange={(v) => updateStatusMutation.mutate(v)}
+                >
+                  <SelectTrigger className="w-[160px]" data-testid="select-lead-status">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {statuses.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }} />
+                          {(t.crm.statusNames as Record<string, string>)[s.slug] || s.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+              {contactName && (
+                <div>
+                  <p className="text-gray-500 mb-1">{t.crm.firstName} / {t.crm.lastName}</p>
+                  <p className="text-gray-900 font-medium" data-testid="text-contact-fullname">{contactName}</p>
+                </div>
+              )}
+              {(lead.company?.name) && (
+                <div>
+                  <p className="text-gray-500 mb-1">{t.crm.businessName}</p>
+                  <p className="text-gray-900 font-medium" data-testid="text-business-name">{lead.company.name}</p>
+                </div>
+              )}
+              {(lead.contact?.phone || lead.company?.phone) && (
+                <div>
+                  <p className="text-gray-500 mb-1">Phone</p>
+                  <div className="flex items-center gap-1.5">
+                    <Phone className="w-3.5 h-3.5 text-gray-400" />
+                    <span className="text-gray-900" data-testid="text-lead-phone">
+                      {lead.contact?.phone || lead.company?.phone}
+                    </span>
+                  </div>
+                </div>
+              )}
+              {(lead.contact?.email || lead.company?.email) && (
+                <div>
+                  <p className="text-gray-500 mb-1">Email</p>
+                  <div className="flex items-center gap-1.5">
+                    <Mail className="w-3.5 h-3.5 text-gray-400" />
+                    <span className="text-gray-900 truncate" data-testid="text-lead-email">
+                      {lead.contact?.email || lead.company?.email}
+                    </span>
+                  </div>
+                </div>
+              )}
+              {lead.company?.city && (
+                <div>
+                  <p className="text-gray-500 mb-1">City</p>
+                  <div className="flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-gray-400" />
+                    <span className="text-gray-900" data-testid="text-lead-city">
+                      {[lead.company.city, lead.company.state].filter(Boolean).join(", ")}
+                    </span>
+                  </div>
+                </div>
+              )}
               <div>
                 <p className="text-gray-500 mb-1">Status</p>
                 {lead.status ? (
@@ -736,6 +846,97 @@ export default function LeadDetailPage({ id }: { id: string }) {
           dueDate: rescheduleTask.dueDate.toString(),
         } : null}
       />
+
+      <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
+        <DialogContent className="sm:max-w-md" data-testid="dialog-edit-lead">
+          <DialogHeader>
+            <DialogTitle>{t.crm.editLead}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-firstName">{t.crm.firstName}</Label>
+                <Input
+                  id="edit-firstName"
+                  value={editForm.firstName}
+                  onChange={(e) => setEditForm(f => ({ ...f, firstName: e.target.value }))}
+                  data-testid="input-edit-firstName"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-lastName">{t.crm.lastName}</Label>
+                <Input
+                  id="edit-lastName"
+                  value={editForm.lastName}
+                  onChange={(e) => setEditForm(f => ({ ...f, lastName: e.target.value }))}
+                  data-testid="input-edit-lastName"
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-businessName">{t.crm.businessName}</Label>
+              <Input
+                id="edit-businessName"
+                value={editForm.businessName}
+                onChange={(e) => setEditForm(f => ({ ...f, businessName: e.target.value }))}
+                data-testid="input-edit-businessName"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-phone">Phone</Label>
+                <Input
+                  id="edit-phone"
+                  value={editForm.phone}
+                  onChange={(e) => setEditForm(f => ({ ...f, phone: e.target.value }))}
+                  data-testid="input-edit-phone"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-city">City</Label>
+                <Input
+                  id="edit-city"
+                  value={editForm.city}
+                  onChange={(e) => setEditForm(f => ({ ...f, city: e.target.value }))}
+                  data-testid="input-edit-city"
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-email">Email</Label>
+              <Input
+                id="edit-email"
+                type="email"
+                value={editForm.email}
+                onChange={(e) => setEditForm(f => ({ ...f, email: e.target.value }))}
+                data-testid="input-edit-email"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-notes">Notes</Label>
+              <Textarea
+                id="edit-notes"
+                value={editForm.notes}
+                onChange={(e) => setEditForm(f => ({ ...f, notes: e.target.value }))}
+                rows={3}
+                data-testid="textarea-edit-notes"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditModalOpen(false)} data-testid="button-edit-cancel">
+              {t.common.cancel}
+            </Button>
+            <Button
+              onClick={() => saveEditMutation.mutate(editForm)}
+              disabled={saveEditMutation.isPending}
+              data-testid="button-edit-save"
+            >
+              {saveEditMutation.isPending ? t.common.save + "..." : t.common.saveChanges}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
