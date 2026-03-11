@@ -6,6 +6,11 @@ import { toNodeHandler } from "better-auth/node";
 import { auth } from "./features/auth/auth";
 import { seedDevUsers } from "./features/admin/dev-seed";
 import { seedAdminUser } from "./features/admin/prod-seed";
+import { seedCrmStatuses } from "./features/crm/seed";
+import { seedPipelineStages } from "./features/pipeline/seed";
+import { seedOnboardingTemplates } from "./features/onboarding/seed";
+import { seedIntegrations } from "./features/integrations/seed";
+import { seedDocs } from "./features/docs/seed";
 
 const app = express();
 const httpServer = createServer(app);
@@ -124,6 +129,11 @@ app.use((req, res, next) => {
       log(`serving on port ${port}`);
       seedAdminUser().catch((err) => console.error("[prod-seed] error:", err));
       seedDevUsers().catch((err) => console.error("[dev-seed] error:", err));
+      seedPipelineStages().catch((err) => console.error("[seed] pipeline stages error:", err));
+      seedCrmStatuses().catch((err) => console.error("[seed] crm statuses error:", err));
+      seedOnboardingTemplates().catch((err) => console.error("[seed] onboarding templates error:", err));
+      seedIntegrations().catch((err) => console.error("[seed] integrations error:", err));
+      seedDocs().catch((err) => console.error("[seed] docs error:", err));
     },
   );
 })();

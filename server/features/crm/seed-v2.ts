@@ -1,3 +1,9 @@
+/**
+ * DEV-ONLY: Sample data utility for manual developer use.
+ * This file is NOT connected to any API endpoint or server startup.
+ * To use: import and call seedFullDatabase() from a one-off script only.
+ * NEVER auto-run this file in production or on startup.
+ */
 import * as crmStorage from "./storage";
 import * as pipelineStorage from "../pipeline/storage";
 import * as onboardingStorage from "../onboarding/storage";

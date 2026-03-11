@@ -1,0 +1,113 @@
+```text
+You are modifying an existing internal platform. The dev dashboard is currently showing autopopulated fake/demo/sample data such as fake clients, fake tasks, fake CRM entries, fake opportunities, fake companies, and other seeded records. I need you to remove this demo behavior in a safe and non-destructive way.
+
+OBJECTIVE
+
+Stop the platform from automatically creating or displaying fake/sample/dev seed data in the dashboard and related modules. The system should start in a clean state with real empty-state behavior unless actual user-created records exist.
+
+REQUIREMENTS
+
+1. Identify where the fake data is coming from.
+This may include:
+- hardcoded frontend mock arrays
+- local JSON sample data
+- seed scripts
+- development-only bootstrap logic
+- fallback data when API/database returns empty
+- demo mode flags
+- temporary placeholder services
+- fake stats/count generators on the dashboard
+
+2. Remove or disable all automatic demo/sample record creation for:
+- clients
+- CRM leads
+- CRM contacts
+- opportunities
+- companies
+- tasks
+- form submissions
+- doc articles
+- dashboard stats
+- any related activity feeds, cards, or overview widgets
+
+3. Preserve the real app structure.
+Do NOT:
+- break existing routes
+- delete actual database tables
+- remove working CRUD functionality
+- remove the ability to create real records later
+- delete legitimate user data
+- remove UI components entirely unless they depend only on fake data
+
+4. Replace fake populated states with proper empty states.
+If no real records exist, the dashboard and modules should show:
+- 0 counts
+- empty tables/lists
+- clean empty-state messaging such as “No clients yet” or “No tasks yet”
+- working buttons for creating the first real record
+
+5. Make the dashboard metrics use only real data sources.
+For each dashboard stat card, ensure the number is pulled from:
+- database records
+- real API responses
+- real stored application state
+and not from mock/demo constants.
+
+6. Search the codebase for likely sources of fake data, including patterns such as:
+- mockData
+- demoData
+- sampleData
+- seedData
+- placeholderData
+- fakeClients
+- fakeTasks
+- defaultContacts
+- static dashboard counts
+- fallback arrays
+- dev fixtures
+- test fixtures being used in runtime UI
+
+7. If the project uses a seeding system, do this safely:
+- keep optional seed scripts only if they are clearly separated for manual developer use
+- do not auto-run seed scripts on app startup
+- do not auto-run seed scripts on dashboard load
+- do not auto-run seed scripts during development unless explicitly triggered
+
+8. If the frontend currently injects fake data when APIs return empty, remove that behavior.
+When the API returns no records, the UI should render true empty states instead of fake entries.
+
+9. If there is a dashboard overview page, make sure all summary cards show real counts only.
+Example:
+- CRM Leads = actual CRM lead count
+- Opportunities = actual opportunity count
+- Companies = actual company count
+- CRM Contacts = actual contact count
+- Team Members = actual team member count
+- Form Submissions = actual submission count
+- Doc Articles = actual article count
+- Integrations = actual integration count
+
+10. Add a clear separation between:
+- production/real app state
+- optional manual seed/test/dev utilities
+
+If helpful, create a dedicated developer-only seed utility that is not connected to normal runtime behavior.
+
+IMPLEMENTATION RULES
+
+- Be non-destructive
+- Preserve schema compatibility
+- Do not remove existing features that depend on real data
+- Do not wipe actual user-created records
+- Keep the app stable
+- Refactor carefully rather than doing broad destructive deletions
+
+FINAL RESULT
+
+After your changes:
+- the dashboard should no longer show fake records
+- the platform should no longer auto-populate demo entries
+- all modules should display real data only
+- empty modules should show 0 counts and proper empty states
+- real records should still be creatable and function normally
+```

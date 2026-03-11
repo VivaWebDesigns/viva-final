@@ -181,16 +181,4 @@ router.put("/users/:id", requireRole("admin"), async (req, res) => {
   }
 });
 
-import * as crmSeed from "../crm/seed-v2";
-
-router.post("/seed", requireRole("admin"), async (_req, res) => {
-  try {
-    await crmSeed.seedFullDatabase();
-    res.json({ message: "Seed complete" });
-  } catch (error: any) {
-    console.error("Seed error:", error);
-    res.status(500).json({ message: error.message || "Failed to seed" });
-  }
-});
-
 export default router;
