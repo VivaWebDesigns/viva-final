@@ -15,13 +15,12 @@ import {
   ArrowLeft, Building2, User as UserIcon,
   MessageSquare, Phone, Mail, FileText, CheckCircle, XCircle,
   Clock, Zap, ArrowRightLeft, UserPlus, ClipboardList, Plus,
-  AlertCircle, CheckCheck, Package, Pencil,
+  AlertCircle, CheckCheck, Package,
 } from "lucide-react";
 
 import type { PipelineStage, PipelineOpportunity, PipelineActivity, CrmCompany, CrmContact, CrmLead, FollowupTask } from "@shared/schema";
 import QuickTaskModal from "@/components/QuickTaskModal";
 import { RecordTimeline } from "@/components/RecordTimeline";
-import EditRecordModal from "@/components/EditRecordModal";
 
 const PKG_COLORS: Record<string, string> = {
   empieza: "bg-blue-100 text-blue-700",
@@ -51,7 +50,6 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
   const [noteType, setNoteType] = useState("note");
   const [taskModalOpen, setTaskModalOpen] = useState(false);
   const [rescheduleTask, setRescheduleTask] = useState<TaskWithContact | null>(null);
-  const [editOpen, setEditOpen] = useState(false);
 
   const { data: opp, isLoading } = useQuery<PipelineOpportunity>({
     queryKey: ["/api/pipeline/opportunities", id],
@@ -263,16 +261,6 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
               Start Onboarding
             </Button>
           )}
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setEditOpen(true)}
-            className="gap-1.5"
-            data-testid="button-edit-details"
-          >
-            <Pencil className="w-3.5 h-3.5" />
-            {t.crm.editDetails}
-          </Button>
         </div>
       </div>
 
@@ -605,19 +593,6 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
           dueDate: rescheduleTask.dueDate.toString(),
         } : null}
       />
-
-      {opp.contactId && contact && (
-        <EditRecordModal
-          open={editOpen}
-          onClose={() => setEditOpen(false)}
-          contactId={opp.contactId}
-          contact={contact}
-          companyId={opp.companyId}
-          company={company}
-          opportunityId={id}
-          websitePackage={opp.websitePackage}
-        />
-      )}
     </div>
   );
 }

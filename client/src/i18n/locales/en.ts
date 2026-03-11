@@ -22,7 +22,6 @@ export const en = {
   common: {
     save: "Save",
     saveChanges: "Save Changes",
-    changesSaved: "Changes saved",
     cancel: "Cancel",
     delete: "Delete",
     edit: "Edit",
@@ -241,7 +240,6 @@ export const en = {
     businessName: "Business Name",
     businessTrade: "Business Trade",
     saveLead: "Save Lead",
-    editDetails: "Edit Details",
     leadCreated: "Lead created successfully",
     sourceWebsite: "Website",
     sourceOutreach: "Outreach",

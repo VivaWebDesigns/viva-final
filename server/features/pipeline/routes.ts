@@ -31,7 +31,6 @@ const updateOpportunitySchema = z.object({
   followUpDate: z.string().nullable().optional(),
   probability: z.number().int().min(0).max(100).nullable().optional(),
   notes: z.string().nullable().optional(),
-  websitePackage: z.string().nullable().optional(),
 }).strict();
 
 const router = Router();

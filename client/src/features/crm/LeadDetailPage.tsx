@@ -6,7 +6,7 @@ import {
   ArrowLeft, Building2, User, Globe, Phone, Mail, MapPin,
   Calendar, Tag, MessageSquare, PhoneCall, MailIcon, ClipboardList,
   RefreshCw, Bot, Send, ExternalLink, TrendingUp,
-  Plus, CheckCircle, CheckCheck, Clock, AlertCircle, Monitor, Pencil,
+  Plus, CheckCircle, CheckCheck, Clock, AlertCircle, Monitor,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -25,7 +25,6 @@ import { useToast } from "@/hooks/use-toast";
 import type { CrmLead, CrmLeadStatus, CrmContact, CrmCompany, CrmLeadNote, CrmTag, PipelineStage, FollowupTask, PipelineOpportunity, DemoConfig } from "@shared/schema";
 import QuickTaskModal from "@/components/QuickTaskModal";
 import { RecordTimeline } from "@/components/RecordTimeline";
-import EditRecordModal from "@/components/EditRecordModal";
 import { useAdminLang } from "@/i18n/LanguageContext";
 
 type TaskWithContact = FollowupTask & {
@@ -65,7 +64,6 @@ export default function LeadDetailPage({ id }: { id: string }) {
   const [noteType, setNoteType] = useState("note");
   const [taskModalOpen, setTaskModalOpen] = useState(false);
   const [rescheduleTask, setRescheduleTask] = useState<TaskWithContact | null>(null);
-  const [editOpen, setEditOpen] = useState(false);
 
   const { data: lead, isLoading: leadLoading } = useQuery<LeadDetail>({
     queryKey: ["/api/crm/leads", id],
@@ -232,16 +230,6 @@ export default function LeadDetailPage({ id }: { id: string }) {
           </p>
         </div>
         <div className="flex items-center gap-3 flex-shrink-0">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setEditOpen(true)}
-            className="gap-1.5"
-            data-testid="button-edit-details"
-          >
-            <Pencil className="w-3.5 h-3.5" />
-            {t.crm.editDetails}
-          </Button>
           {lead.value && (
             <span className="text-lg font-semibold text-gray-900" data-testid="text-lead-value">
               ${Number(lead.value).toLocaleString()}
@@ -748,17 +736,6 @@ export default function LeadDetailPage({ id }: { id: string }) {
           dueDate: rescheduleTask.dueDate.toString(),
         } : null}
       />
-
-      {lead.contactId && lead.contact && (
-        <EditRecordModal
-          open={editOpen}
-          onClose={() => setEditOpen(false)}
-          contactId={lead.contactId}
-          contact={lead.contact}
-          companyId={lead.contact.companyId}
-          company={lead.company}
-        />
-      )}
     </div>
   );
 }
