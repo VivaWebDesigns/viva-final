@@ -706,7 +706,7 @@ export const en = {
     reply_other: "{{count}} replies",
     channelNames: {
       general: "General",
-      ventas: "Ventas",
+      sales: "Sales",
       onboarding: "Onboarding",
       dev: "Dev",
     },

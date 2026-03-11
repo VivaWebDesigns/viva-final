@@ -708,7 +708,7 @@ export const es: AdminTranslations = {
     reply_other: "{{count}} respuestas",
     channelNames: {
       general: "General",
-      ventas: "Ventas",
+      sales: "Ventas",
       onboarding: "Incorporación",
       dev: "Desarrollo",
     },

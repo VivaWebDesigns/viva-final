@@ -11,11 +11,21 @@ import { getIO } from "./socket";
 const router = Router();
 
 const CHANNELS = [
-  { id: "general",    name: "General",    description: "Anuncios y conversación del equipo" },
-  { id: "ventas",     name: "Ventas",     description: "Pipeline de ventas y prospectos" },
-  { id: "onboarding", name: "Onboarding", description: "Coordinación de incorporación de clientes" },
-  { id: "dev",        name: "Dev",        description: "Temas técnicos y de desarrollo" },
+  { id: "general",    name: "General",    description: "Team announcements and conversation" },
+  { id: "sales",      name: "Sales",      description: "Sales pipeline and prospects" },
+  { id: "onboarding", name: "Onboarding", description: "Client onboarding coordination" },
+  { id: "dev",        name: "Dev",        description: "Technical and development topics" },
 ];
+
+// ── One-time migration: rename legacy "ventas" channel → "sales" ──────
+(async () => {
+  try {
+    await db.execute(sql`UPDATE chat_messages SET channel = 'sales' WHERE channel = 'ventas'`);
+    await db.execute(sql`UPDATE chat_read_state SET channel_id = 'sales' WHERE channel_id = 'ventas'`);
+  } catch {
+    // migration may already be applied or table may not exist yet
+  }
+})();
 
 // ── Channels with unread counts ───────────────────────────────────────
 
