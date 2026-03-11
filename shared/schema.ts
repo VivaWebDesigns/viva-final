@@ -883,6 +883,32 @@ export const insertStripeWebhookEventSchema = createInsertSchema(stripeWebhookEv
 export type InsertStripeWebhookEvent = z.infer<typeof insertStripeWebhookEventSchema>;
 export type StripeWebhookEvent = typeof stripeWebhookEvents.$inferSelect;
 
+// ─── Workflow Jobs (Durable Async Outbox) ─────────────────────────────
+
+export const workflowJobs = pgTable("workflow_jobs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  type: text("type").notNull(),
+  status: text("status").notNull().default("pending"),
+  payload: jsonb("payload").notNull(),
+  sourceId: varchar("source_id"),
+  sourceType: text("source_type"),
+  attempts: integer("attempts").notNull().default(0),
+  maxAttempts: integer("max_attempts").notNull().default(3),
+  lastError: text("last_error"),
+  nextRunAt: timestamp("next_run_at").notNull().default(sql`now()`),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  completedAt: timestamp("completed_at"),
+}, (t) => [
+  index("workflow_jobs_status_idx").on(t.status),
+  index("workflow_jobs_next_run_idx").on(t.nextRunAt),
+  index("workflow_jobs_source_idx").on(t.sourceId, t.type),
+]);
+
+export const insertWorkflowJobSchema = createInsertSchema(workflowJobs).omit({ id: true, createdAt: true });
+// @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
+export type InsertWorkflowJob = z.infer<typeof insertWorkflowJobSchema>;
+export type WorkflowJob = typeof workflowJobs.$inferSelect;
+
 // ─── Demo Configs (Demo Builder → CRM link) ───────────────────────────
 
 export const demoConfigs = pgTable("demo_configs", {

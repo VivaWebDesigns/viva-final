@@ -2660,6 +2660,438 @@ After seeding, verify:
 
 **Fix**: Run \`POST /api/admin/seed-all\` or \`npx tsx scripts/seed.ts\`. The seed uses an "insert if not exists by slug" pattern — new articles are added, existing ones are preserved.`,
   },
+
+  // ── Phase 3: Durable Async Workflow ──────────────────────────────────
+
+  {
+    title: "Public Inquiry Processing Lifecycle",
+    slug: "inquiry-processing-lifecycle",
+    categorySlug: "contact-forms",
+    status: "published",
+    content: `# Public Inquiry Processing Lifecycle
+
+## Overview
+
+When a visitor submits a public contact or demo inquiry form, the platform processes the request in two distinct phases:
+
+1. **Synchronous phase** — runs inside the HTTP request, must complete before the user gets a response
+2. **Async phase** — runs out-of-band via the job worker, completely invisible to the end user
+
+## Phase 1: Synchronous (Request Path)
+
+\`\`\`
+POST /api/contacts  or  POST /api/inquiries
+   │
+   ├── Zod validation (reject on error → 400)
+   ├── Honeypot check (bot detected → 201 silent drop)
+   ├── storage.createContact() → primary DB write
+   ├── enqueueJob("crm_ingest", …)  — DB row, ~1ms
+   ├── enqueueJob("email_notification", …) — DB row, ~1ms
+   └── 201 response with contact record
+\`\`\`
+
+**The user always gets a 201 response immediately after DB persistence, regardless of external provider availability.**
+
+## Phase 2: Async (Worker Path)
+
+\`\`\`
+Worker (5s poll) → claimNextJob()
+   │
+   ├── type = "crm_ingest"
+   │     └── ingestWebsiteFormSubmission()
+   │           ├── find or create CRM contact
+   │           ├── find or create CRM company
+   │           ├── create CRM lead
+   │           ├── add lead note
+   │           └── logAudit + notifyNewLead
+   │
+   └── type = "email_notification"
+         └── resend.emails.send()
+               └── Resend API (external)
+\`\`\`
+
+## Failure Isolation
+
+- If Resend is down: contact is still saved, CRM lead is still created. Only the email is delayed.
+- If CRM ingest fails: contact is still saved, email is still sent. CRM entry is retried.
+- If the worker crashes: on restart, all pending/retry_scheduled jobs resume automatically.
+
+## Data Flow
+
+| Step | Location | Blocking? |
+|------|----------|-----------|
+| Contact record | \`contacts\` table | Yes — request path |
+| Job queue entries | \`workflow_jobs\` table | Yes — request path |
+| CRM lead/contact | \`crm_leads\`, \`crm_contacts\` | No — async worker |
+| Email to team | Resend API | No — async worker |
+`,
+  },
+
+  {
+    title: "Sync vs Async Responsibilities",
+    slug: "sync-vs-async-responsibilities",
+    categorySlug: "background-jobs",
+    status: "published",
+    content: `# Sync vs Async Responsibilities
+
+## Design Principle
+
+The request path must only do work that is essential for producing a correct response. Everything else is a side effect and should be deferred.
+
+## Synchronous Responsibilities (Request Path)
+
+These must complete before the HTTP response is sent:
+
+- **Input validation** — Zod schema parsing; return 400 on failure
+- **Spam detection** — honeypot field check; return silent 201 on bot detection
+- **Primary persistence** — write the contact record to \`contacts\` table
+- **Job enqueueing** — write job rows to \`workflow_jobs\` table (this is DB work, not external I/O)
+
+## Async Responsibilities (Worker Path)
+
+These run out-of-band via the job worker:
+
+- **CRM ingest** — create/update CRM contact, company, and lead records
+- **Email notification** — send team notification via Resend API
+- **Audit logging** — secondary audit events from CRM ingest
+- **In-app notifications** — \`notifyNewLead()\` fan-out to admin/sales users
+
+## Why This Boundary?
+
+| Concern | Sync path | Async path |
+|---------|-----------|------------|
+| User-facing latency | Directly impacted | No impact |
+| External provider timeout | Directly impacts user | Absorbed by retry |
+| Failure recovery | Must succeed or reject cleanly | Retried automatically |
+| Observability | 4xx/5xx HTTP status | Job status in DB |
+
+## Anti-patterns Avoided
+
+- **Before Phase 3**: \`await ingestWebsiteFormSubmission()\` blocked the request. A 3-second Resend timeout = 3-second user-facing delay.
+- **Silent drops**: errors were caught and logged but not retried. A provider outage meant lost data.
+- **Tight coupling**: a CRM bug could cause contact form submissions to return 500.
+`,
+  },
+
+  {
+    title: "Queue / Job Architecture Overview",
+    slug: "queue-job-architecture-overview",
+    categorySlug: "background-jobs",
+    status: "published",
+    content: `# Queue / Job Architecture Overview
+
+## Pattern: DB Outbox
+
+The Viva CRM uses a **database outbox pattern** — jobs are stored as rows in the \`workflow_jobs\` PostgreSQL table and processed by a polling worker. No external queue broker (Redis, RabbitMQ, etc.) is required.
+
+## Components
+
+### workflow_jobs table
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| type | text | Job type: \`crm_ingest\`, \`email_notification\` |
+| status | text | Current status (see below) |
+| payload | jsonb | Serialized job parameters |
+| sourceId | varchar | Idempotency key (contact record ID or derived key) |
+| sourceType | text | Form origin: \`contact_form\`, \`demo_inquiry\` |
+| attempts | int | Number of processing attempts made |
+| maxAttempts | int | Maximum allowed attempts (default: 3) |
+| lastError | text | Error message from last failed attempt |
+| nextRunAt | timestamp | Earliest time the job can next be claimed |
+| createdAt | timestamp | Job creation time |
+| completedAt | timestamp | When the job successfully completed |
+
+### Queue module (\`server/features/workflow/queue.ts\`)
+
+- \`enqueueJob(type, payload, sourceId, sourceType)\` — creates a job row, with idempotency guard
+- \`claimNextJob()\` — transactional claim of the next ready job
+- \`markJobCompleted(id)\` — marks job done
+- \`markJobFailed(id, error, attempts, max)\` — schedules retry or dead-letters
+- \`requeueJob(id)\` — admin manual retry
+- \`getJobsByStatus(status)\` / \`getAllRecentJobs()\` — admin visibility
+
+### Processor (\`server/features/workflow/processor.ts\`)
+
+Routes each job type to its handler. Throws on failure so the worker applies backoff.
+
+### Worker (\`server/features/workflow/worker.ts\`)
+
+- Started by \`server/bootstrap.ts\` after DB connectivity is confirmed
+- Polls every **5 seconds**
+- Processes **one job per tick** (prevents thundering herd)
+- Uses \`isRunning\` guard to prevent concurrent ticks
+
+## Job Status State Machine
+
+\`\`\`
+              ┌─────────┐
+  enqueueJob  │ pending │
+  ──────────► │         │
+              └────┬────┘
+                   │ claimNextJob()
+                   ▼
+              ┌────────────┐
+              │ processing │ ◄── attempts incremented
+              └─────┬──────┘
+                    │
+        ┌───────────┴──────────────┐
+        │ success                  │ failure
+        ▼                          ▼
+  ┌───────────┐        shouldRetry?
+  │ completed │        ├── yes → ┌──────────────────┐
+  └───────────┘        │         │ retry_scheduled  │ ──► (back to claimed)
+                       │         └──────────────────┘
+                       └── no  → ┌────────┐
+                                 │ failed │  (dead-letter)
+                                 └────────┘
+                                      │
+                              requeueJob() (admin)
+                                      │
+                                      ▼
+                                 ┌─────────┐
+                                 │ pending │
+                                 └─────────┘
+\`\`\`
+
+## Job Types
+
+| Type | Handler | External call |
+|------|---------|---------------|
+| \`crm_ingest\` | \`ingestWebsiteFormSubmission()\` | None (pure DB) |
+| \`email_notification\` | \`resend.emails.send()\` | Resend API |
+`,
+  },
+
+  {
+    title: "Retry and Backoff Policy",
+    slug: "retry-and-backoff-policy",
+    categorySlug: "background-jobs",
+    status: "published",
+    content: `# Retry and Backoff Policy
+
+## Overview
+
+When a workflow job fails, the system applies exponential backoff before retrying. After all attempts are exhausted, the job is dead-lettered with status \`failed\`.
+
+## Attempt Limits
+
+All jobs default to **3 maximum attempts** (\`maxAttempts = 3\`).
+
+## Backoff Schedule
+
+| Attempt | Status after failure | Next run delay |
+|---------|----------------------|----------------|
+| 1 | retry_scheduled | +5 minutes |
+| 2 | retry_scheduled | +20 minutes |
+| 3 (final) | failed (dead-letter) | — |
+
+## Pure Helper Functions
+
+\`\`\`typescript
+// Returns the Date at which the next retry should run
+calculateNextRunAt(attemptNumber: number): Date
+
+// Returns true if another retry should be scheduled
+shouldRetry(attempts: number, maxAttempts: number): boolean
+\`\`\`
+
+These are exported pure functions, making them independently unit-testable without a database.
+
+## Failure Path
+
+1. Worker calls \`processJob(job)\` — throws on provider error
+2. Worker catches the error, calls \`markJobFailed(id, error, attempts, maxAttempts)\`
+3. Inside \`markJobFailed\`:
+   - \`shouldRetry(attempts, maxAttempts)\` → if true: set \`status='retry_scheduled'\`, \`nextRunAt=calculateNextRunAt(attempts)\`
+   - if false: set \`status='failed'\`, log dead-letter warning
+
+## What Triggers Failure?
+
+- **Resend API**: network timeout, HTTP 4xx/5xx, invalid API key
+- **CRM ingest**: DB constraint violations, unexpected null fields, missing lead status configuration
+
+## Transient vs Permanent Failures
+
+The retry system treats all failures as potentially transient. After 3 attempts, a human should investigate via the admin job view.
+
+## Manual Override
+
+An admin can requeue any \`failed\` job via:
+- **HTTP**: \`POST /api/workflow/jobs/:id/retry\`
+- This resets \`attempts=0\`, \`status='pending'\`, \`nextRunAt=now\`
+
+## Worker Recovery
+
+If the server crashes while a job is \`processing\`, the job is stuck. On next worker startup, these stale \`processing\` jobs are visible in the admin UI. An admin can manually requeue them.
+`,
+  },
+
+  {
+    title: "Failure Recovery and Support Troubleshooting",
+    slug: "failure-recovery-and-support-troubleshooting",
+    categorySlug: "background-jobs",
+    status: "published",
+    content: `# Failure Recovery and Support Troubleshooting
+
+## Diagnosing Failed Jobs
+
+### Via API (admin/developer role required)
+
+\`\`\`
+GET /api/workflow/jobs?status=failed
+\`\`\`
+
+Returns up to 100 failed jobs with:
+- \`type\` — job type (\`crm_ingest\` or \`email_notification\`)
+- \`payload\` — form data submitted by the user
+- \`lastError\` — exact error message from the last failed attempt
+- \`attempts\` — how many times it was tried
+- \`createdAt\` — when the form was originally submitted
+- \`sourceId\` / \`sourceType\` — the contact record ID and form type
+
+### List all recent jobs
+
+\`\`\`
+GET /api/workflow/jobs
+\`\`\`
+
+### Filter by any status
+
+\`\`\`
+GET /api/workflow/jobs?status=retry_scheduled
+GET /api/workflow/jobs?status=processing
+GET /api/workflow/jobs?status=completed
+\`\`\`
+
+## Retrying a Failed Job
+
+\`\`\`
+POST /api/workflow/jobs/:id/retry
+\`\`\`
+
+This resets the job to \`pending\` with \`attempts=0\` so it will be picked up in the next worker poll (within 5 seconds).
+
+## Common Failure Scenarios
+
+### Symptom: CRM leads not appearing after form submission
+
+**Check**: \`GET /api/workflow/jobs?status=failed\` and look for \`type=crm_ingest\`
+
+**Cause**: CRM ingest failed — likely missing lead status config, or DB error
+
+**Fix**:
+1. Ensure CRM statuses are seeded: \`POST /api/admin/seed-all\`
+2. Check \`lastError\` in the job record
+3. Requeue: \`POST /api/workflow/jobs/:id/retry\`
+
+---
+
+### Symptom: Team not receiving email notifications
+
+**Check**: \`GET /api/workflow/jobs?status=failed\` and look for \`type=email_notification\`
+
+**Cause**: Resend API down or \`RESEND_API_KEY\` not configured
+
+**Fix**:
+1. Verify \`RESEND_API_KEY\` is set in environment secrets
+2. Check Resend dashboard for sending errors
+3. Requeue job once the issue is resolved
+
+---
+
+### Symptom: Jobs stuck in "processing" status
+
+**Cause**: Server crashed while a job was being processed
+
+**Fix**:
+1. Identify stuck jobs: \`GET /api/workflow/jobs?status=processing\`
+2. These will not automatically retry (status won't change to retry_scheduled)
+3. Manual requeue: \`POST /api/workflow/jobs/:id/retry\`
+
+---
+
+### Symptom: Duplicate CRM leads
+
+**Cause**: A job was requeued after already completing (should be rare)
+
+**How it's prevented**: \`enqueueJob()\` only creates a new job if no \`pending\`, \`processing\`, or \`retry_scheduled\` job exists for the same \`(sourceId, type)\` pair.
+
+**Note**: CRM ingest itself also deduplicates contacts by email/phone. Even if a job runs twice, the CRM layer won't create a duplicate contact — only a duplicate lead might appear.
+
+## Audit Trail
+
+All CRM ingest operations write to the audit log (\`audit_logs\` table) with \`action=crm_lead_created\`. Cross-reference the job's \`sourceId\` (contact record ID) with audit log \`entityId\` to trace the full lifecycle.
+`,
+  },
+
+  {
+    title: "Data Model Reference: workflow_jobs",
+    slug: "data-model-workflow-jobs",
+    categorySlug: "database-schema",
+    status: "published",
+    content: `# Data Model Reference: workflow_jobs
+
+## Table: \`workflow_jobs\`
+
+The outbox job table for durable async processing of public form side effects.
+
+| Column | PG Type | Nullable | Default | Description |
+|--------|---------|----------|---------|-------------|
+| id | varchar | NO | gen_random_uuid() | Primary key (UUID) |
+| type | text | NO | — | Job type identifier |
+| status | text | NO | 'pending' | Current lifecycle status |
+| payload | jsonb | NO | — | Job parameters (form data, attribution, email content) |
+| source_id | varchar | YES | NULL | Idempotency key (contact record UUID or derived key) |
+| source_type | text | YES | NULL | Form origin: \`contact_form\` or \`demo_inquiry\` |
+| attempts | int4 | NO | 0 | Number of processing attempts made |
+| max_attempts | int4 | NO | 3 | Maximum allowed attempts before dead-lettering |
+| last_error | text | YES | NULL | Error message from last failed attempt |
+| next_run_at | timestamp | NO | now() | Earliest time the worker may claim this job |
+| created_at | timestamp | NO | now() | Job creation timestamp |
+| completed_at | timestamp | YES | NULL | Timestamp when job reached \`completed\` status |
+
+## Indexes
+
+| Index | Columns | Purpose |
+|-------|---------|---------|
+| workflow_jobs_status_idx | status | Fast filter by status for worker claims and admin queries |
+| workflow_jobs_next_run_idx | next_run_at | Fast time-gated claim query |
+| workflow_jobs_source_idx | source_id, type | Idempotency deduplication check |
+
+## Job Types
+
+| type value | Handler | Payload shape |
+|------------|---------|---------------|
+| \`crm_ingest\` | \`ingestWebsiteFormSubmission()\` | \`{ formData, attribution, sourceType }\` |
+| \`email_notification\` | \`resend.emails.send()\` | \`{ to, subject, html }\` |
+
+## Status Values
+
+| status | Meaning |
+|--------|---------|
+| \`pending\` | Waiting to be claimed by the worker |
+| \`processing\` | Currently being executed |
+| \`completed\` | Successfully finished (completedAt is set) |
+| \`retry_scheduled\` | Failed, will retry after nextRunAt |
+| \`failed\` | Dead-lettered — exhausted all attempts |
+
+## Drizzle Schema Location
+
+\`shared/schema.ts\` — exported as \`workflowJobs\`, \`insertWorkflowJobSchema\`, \`InsertWorkflowJob\`, \`WorkflowJob\`
+
+## Related Files
+
+| File | Role |
+|------|------|
+| \`server/features/workflow/queue.ts\` | Enqueue, claim, complete, fail, admin query |
+| \`server/features/workflow/processor.ts\` | Job type dispatch |
+| \`server/features/workflow/worker.ts\` | Polling worker (5s interval) |
+| \`server/features/workflow/routes.ts\` | Admin HTTP endpoints |
+| \`server/routes.ts\` | Public form handlers that enqueue jobs |
+`,
+  },
 ];
 
 export async function seedDocs() {

@@ -25,6 +25,7 @@ import { seedPipelineStages } from "./features/pipeline/seed";
 import { seedOnboardingTemplates } from "./features/onboarding/seed";
 import { seedIntegrations } from "./features/integrations/seed";
 import { seedDocs } from "./features/docs/seed";
+import { startWorker } from "./features/workflow/worker";
 
 const TAG = "[bootstrap]";
 
@@ -134,5 +135,6 @@ export async function runBootstrap(): Promise<void> {
   await runUserSeeds();
   await runFeatureSeeds();
 
+  startWorker();
   console.log(`${TAG} bootstrap complete`);
 }
