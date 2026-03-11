@@ -12,14 +12,21 @@ import { sanitizeHtml } from "@/features/chat/RichTextEditor";
 import { useAdminLang } from "@/i18n/LanguageContext";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  ArrowLeft, DollarSign, Calendar, Building2, User as UserIcon,
+  ArrowLeft, Building2, User as UserIcon,
   MessageSquare, Phone, Mail, FileText, CheckCircle, XCircle,
   Clock, Zap, ArrowRightLeft, UserPlus, ClipboardList, Plus,
-  AlertCircle, CheckCheck,
+  AlertCircle, CheckCheck, Package,
 } from "lucide-react";
+
 import type { PipelineStage, PipelineOpportunity, PipelineActivity, CrmCompany, CrmContact, CrmLead, FollowupTask } from "@shared/schema";
 import QuickTaskModal from "@/components/QuickTaskModal";
 import { RecordTimeline } from "@/components/RecordTimeline";
+
+const PKG_COLORS: Record<string, string> = {
+  empieza: "bg-blue-100 text-blue-700",
+  crece:   "bg-violet-100 text-violet-700",
+  domina:  "bg-amber-100 text-amber-700",
+};
 
 type TaskWithContact = FollowupTask & {
   contact: { firstName: string; lastName: string | null; phone: string | null } | null;
@@ -162,6 +169,9 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
   }
 
   const currentStage = stages?.find(s => s.id === opp.stageId);
+  const nextTask = tasks
+    ?.filter(task => !task.completed)
+    .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())[0] ?? null;
 
   return (
     <div className="max-w-4xl mx-auto" data-testid="page-opportunity-detail">
@@ -262,52 +272,43 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs text-gray-400 mb-1">Value</p>
-                  <p className="text-sm font-medium flex items-center gap-1" data-testid="text-opp-value">
-                    {opp.value ? (
-                      <><DollarSign className="w-3.5 h-3.5 text-green-500" />{parseFloat(opp.value).toLocaleString()}</>
-                    ) : (
-                      <span className="text-gray-400">Not set</span>
-                    )}
+                <div className="col-span-2 sm:col-span-1">
+                  <p className="text-xs text-gray-400 mb-1.5 flex items-center gap-1">
+                    <Package className="w-3 h-3" />
+                    {t.pipeline.package}
                   </p>
+                  {opp.websitePackage ? (
+                    <span
+                      className={`inline-block text-xs font-semibold rounded px-2 py-0.5 uppercase tracking-wide ${PKG_COLORS[opp.websitePackage] ?? "bg-gray-100 text-gray-600"}`}
+                      data-testid="badge-website-package"
+                    >
+                      {opp.websitePackage}
+                    </span>
+                  ) : (
+                    <span className="text-sm text-gray-400">—</span>
+                  )}
                 </div>
                 <div>
-                  <p className="text-xs text-gray-400 mb-1">Probability</p>
-                  <p className="text-sm font-medium" data-testid="text-opp-probability">
-                    {opp.probability !== null && opp.probability !== undefined ? `${opp.probability}%` : "Not set"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 mb-1">{t.pipeline.expectedClose}</p>
-                  <p className="text-sm font-medium flex items-center gap-1" data-testid="text-expected-close">
-                    {opp.expectedCloseDate ? (
-                      <><Calendar className="w-3.5 h-3.5 text-gray-400" />{new Date(opp.expectedCloseDate).toLocaleDateString()}</>
-                    ) : (
-                      <span className="text-gray-400">Not set</span>
-                    )}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 mb-1">Next Action</p>
-                  <p className="text-sm font-medium flex items-center gap-1" data-testid="text-next-action">
-                    {opp.nextActionDate ? (
-                      <><Clock className="w-3.5 h-3.5 text-amber-500" />{new Date(opp.nextActionDate).toLocaleDateString()}</>
-                    ) : (
-                      <span className="text-gray-400">Not set</span>
-                    )}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 mb-1">Follow-up</p>
-                  <p className="text-sm font-medium" data-testid="text-followup">
-                    {opp.followUpDate ? new Date(opp.followUpDate).toLocaleDateString() : <span className="text-gray-400">Not set</span>}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 mb-1">Stage Entered</p>
+                  <p className="text-xs text-gray-400 mb-1.5">{t.pipeline.stageEntered}</p>
                   <p className="text-sm font-medium" data-testid="text-stage-entered">
-                    {opp.stageEnteredAt ? new Date(opp.stageEnteredAt).toLocaleDateString() : "-"}
+                    {opp.stageEnteredAt
+                      ? new Date(opp.stageEnteredAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                      : "—"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400 mb-1.5 flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    {t.pipeline.nextFollowUp}
+                  </p>
+                  <p className="text-sm font-medium flex items-center gap-1" data-testid="text-next-followup">
+                    {nextTask ? (
+                      <span className={new Date(nextTask.dueDate) < new Date() ? "text-red-500" : "text-gray-800"}>
+                        {new Date(nextTask.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400">{t.pipeline.noTaskScheduled}</span>
+                    )}
                   </p>
                 </div>
               </div>

@@ -1,0 +1,183 @@
+You are modifying an existing internal platform that includes a **Sales Pipeline opportunity detail view**. The goal is to simplify the opportunity page so it reflects the **actual sales workflow already implemented in the platform**. This must be **non-destructive**. Do not break existing routes, schemas, APIs, or stored data. Only adjust UI display and field usage where necessary.
+
+---
+
+OBJECTIVE
+
+Simplify the **Sales Pipeline opportunity detail page** so sales reps only see information that supports the real workflow already defined in the system.
+
+The existing sales workflow must remain unchanged:
+
+New Lead
+Contacted
+Demo Scheduled
+Demo Completed
+Payment Sent
+Closed – Won
+Closed – Lost
+
+Follow-ups are handled through the **task system**, not through additional pipeline stages.
+
+---
+
+FIELDS TO REMOVE FROM THE UI
+
+The current opportunity detail page includes traditional CRM forecasting fields that are not used in this workflow.
+
+Remove the following fields **from the UI only**:
+
+• Probability
+• Value
+• Expected Close
+• Next Action
+
+These fields should not be displayed to sales reps.
+
+Important:
+Do NOT remove these fields from the database or API schema if they already exist. Only remove them from the interface.
+
+---
+
+PACKAGE INFORMATION
+
+Instead of showing a generic "Value" field, display the **Website Package** associated with the opportunity.
+
+Add or display the field:
+
+website_package
+
+Allowed values:
+
+• Empieza
+• Crece
+• Domina
+
+Display this clearly in the opportunity details.
+
+Example display:
+
+Package
+Crece
+
+Optionally display associated pricing fields if they already exist:
+
+Setup: $1000
+Monthly: $97
+
+This information is **reference data**, not part of the pipeline workflow.
+
+---
+
+FOLLOW-UP TASK DISPLAY
+
+The system already uses a **task-based follow-up system**.
+
+Replace the old **Next Action** display with the next scheduled follow-up task.
+
+Display logic:
+
+If a task exists for this opportunity/contact:
+
+Next Follow-Up
+[task due date]
+
+Example:
+
+Next Follow-Up
+Mar 15
+
+If no task exists:
+
+Next Follow-Up
+No task scheduled
+
+This information should pull from the **Tasks module** using the related contact_id or opportunity_id.
+
+---
+
+KEEP IMPORTANT SALES INFORMATION
+
+Retain the following information in the opportunity details:
+
+• current pipeline stage
+• stage_entered date
+• contact information
+• notes
+• website_package
+• next follow-up task (from tasks system)
+
+These support the real workflow without adding unnecessary complexity.
+
+---
+
+PIPELINE STAGE CONTROLS
+
+Do not modify the existing stage movement system.
+
+The opportunity must still be able to move between these stages:
+
+• New Lead
+• Contacted
+• Demo Scheduled
+• Demo Completed
+• Payment Sent
+• Closed – Won
+• Closed – Lost
+
+Stage movement should continue to work through the existing stage controls.
+
+---
+
+CLOSE ACTIONS
+
+Keep the **Close – Won** and **Close – Lost** buttons located at the top of the opportunity page.
+
+These represent final deal outcomes and should remain visually separated from the normal stage movement buttons.
+
+---
+
+TEST / DEMO DATA
+
+If placeholder names or test data exist in the UI, ensure the interface works cleanly with real records and does not rely on mock data.
+
+Do not auto-populate fake opportunity data.
+
+---
+
+UI GOAL
+
+The opportunity detail page should focus only on information that helps a sales rep manage the deal:
+
+• Contact
+• Package
+• Current Stage
+• Next Follow-Up
+• Notes
+
+Remove forecasting and traditional CRM clutter that does not apply to this workflow.
+
+---
+
+NON-DESTRUCTIVE RULES
+
+Do NOT:
+
+• delete database columns
+• break existing APIs
+• remove working modules
+• change the pipeline stages
+• alter the existing workflow
+
+Only simplify the interface and improve how relevant information is displayed.
+
+---
+
+FINAL RESULT
+
+The opportunity page should now reflect the real sales process:
+
+Lead enters pipeline
+→ moves through defined stages
+→ follow-ups handled through tasks
+→ payment link sent
+→ deal closed as Won or Lost
