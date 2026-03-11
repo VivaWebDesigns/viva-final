@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Clock, Phone, Building2, AlertTriangle, CalendarClock, ExternalLink } from "lucide-react";
 import QuickTaskModal from "@/components/QuickTaskModal";
 import type { FollowupTask } from "@shared/schema";
+import { useAdminLang } from "@/i18n/LanguageContext";
 
 interface TaskWithContact extends FollowupTask {
   contact: { firstName: string; lastName: string | null; phone: string | null } | null;
@@ -25,11 +26,13 @@ function TaskRow({
   onComplete,
   onReschedule,
   isCompleting,
+  tTasks,
 }: {
   task: TaskWithContact;
   onComplete: (id: string) => void;
   onReschedule: (task: TaskWithContact) => void;
   isCompleting: boolean;
+  tTasks: { markComplete: string; reschedule: string; viewOpportunity: string; viewLead: string };
 }) {
   const contactName = task.contact
     ? `${task.contact.firstName}${task.contact.lastName ? " " + task.contact.lastName : ""}`
@@ -45,7 +48,7 @@ function TaskRow({
         onClick={() => onComplete(task.id)}
         disabled={isCompleting}
         data-testid={`button-complete-task-${task.id}`}
-        title="Mark as complete"
+        title={tTasks.markComplete}
       >
         <CheckCircle2 className="w-5 h-5" />
       </button>
@@ -87,14 +90,14 @@ function TaskRow({
           {task.opportunityId && (
             <Link href={`/admin/pipeline/opportunities/${task.opportunityId}`}>
               <span className="flex items-center gap-1 text-xs text-gray-400 hover:text-[#0D9488] transition-colors">
-                <ExternalLink className="w-3 h-3" /> View Opportunity
+                <ExternalLink className="w-3 h-3" /> {tTasks.viewOpportunity}
               </span>
             </Link>
           )}
           {task.leadId && (
             <Link href={`/admin/crm/leads/${task.leadId}`}>
               <span className="flex items-center gap-1 text-xs text-gray-400 hover:text-[#0D9488] transition-colors">
-                <ExternalLink className="w-3 h-3" /> View Lead
+                <ExternalLink className="w-3 h-3" /> {tTasks.viewLead}
               </span>
             </Link>
           )}
@@ -113,7 +116,7 @@ function TaskRow({
           data-testid={`button-reschedule-task-${task.id}`}
         >
           <CalendarClock className="w-3 h-3 mr-1" />
-          Reschedule
+          {tTasks.reschedule}
         </Button>
       </div>
     </div>
@@ -122,6 +125,7 @@ function TaskRow({
 
 export default function TasksDueTodayPage() {
   const { toast } = useToast();
+  const { t } = useAdminLang();
   const [completingId, setCompletingId] = useState<string | null>(null);
   const [rescheduleTask, setRescheduleTask] = useState<TaskWithContact | null>(null);
 
@@ -139,10 +143,10 @@ export default function TasksDueTodayPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks/due-today"] });
-      toast({ title: "Task marked complete" });
+      toast({ title: t.tasks.taskCompleted });
     },
     onError: (err: Error) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: t.common.error, description: err.message, variant: "destructive" });
     },
     onSettled: () => setCompletingId(null),
   });
@@ -151,14 +155,21 @@ export default function TasksDueTodayPage() {
   const overdue = data?.overdue ?? [];
   const totalCount = dueToday.length + overdue.length;
 
+  const tTasks = {
+    markComplete: t.tasks.markComplete,
+    reschedule: t.tasks.reschedule,
+    viewOpportunity: t.tasks.viewOpportunity,
+    viewLead: t.tasks.viewLead,
+  };
+
   return (
     <div className="space-y-6 max-w-3xl" data-testid="page-tasks-due-today">
       <div>
         <h1 className="text-2xl font-bold text-gray-900" data-testid="text-tasks-title">
-          Tasks Due Today
+          {t.tasks.title}
         </h1>
         <p className="text-sm text-gray-500 mt-1">
-          Follow-up actions for today and overdue items.
+          {t.tasks.dueToday}
         </p>
       </div>
 
@@ -170,8 +181,8 @@ export default function TasksDueTodayPage() {
         <Card>
           <CardContent className="py-16 text-center">
             <CheckCircle2 className="w-12 h-12 text-[#0D9488] mx-auto mb-3 opacity-50" />
-            <p className="text-gray-500 font-medium">All caught up!</p>
-            <p className="text-sm text-gray-400 mt-1">No tasks due today or overdue.</p>
+            <p className="text-gray-500 font-medium">{t.tasks.allCaughtUp}</p>
+            <p className="text-sm text-gray-400 mt-1">{t.tasks.allCaughtUpDesc}</p>
           </CardContent>
         </Card>
       ) : (
@@ -181,7 +192,7 @@ export default function TasksDueTodayPage() {
               <CardHeader className="pb-2 pt-4 px-4">
                 <CardTitle className="text-sm font-semibold text-red-600 flex items-center gap-2" data-testid="section-overdue">
                   <AlertTriangle className="w-4 h-4" />
-                  Overdue
+                  {t.tasks.overdue}
                   <Badge variant="destructive" className="text-xs">{overdue.length}</Badge>
                 </CardTitle>
               </CardHeader>
@@ -191,8 +202,9 @@ export default function TasksDueTodayPage() {
                     key={task.id}
                     task={task}
                     onComplete={(id) => completeMutation.mutate(id)}
-                    onReschedule={(t) => setRescheduleTask(t)}
+                    onReschedule={(tsk) => setRescheduleTask(tsk)}
                     isCompleting={completingId === task.id && completeMutation.isPending}
+                    tTasks={tTasks}
                   />
                 ))}
               </CardContent>
@@ -204,7 +216,7 @@ export default function TasksDueTodayPage() {
               <CardHeader className="pb-2 pt-4 px-4">
                 <CardTitle className="text-sm font-semibold text-gray-700 flex items-center gap-2" data-testid="section-due-today">
                   <Clock className="w-4 h-4 text-[#0D9488]" />
-                  Due Today
+                  {t.tasks.dueToday}
                   <Badge variant="secondary" className="text-xs">{dueToday.length}</Badge>
                 </CardTitle>
               </CardHeader>
@@ -214,8 +226,9 @@ export default function TasksDueTodayPage() {
                     key={task.id}
                     task={task}
                     onComplete={(id) => completeMutation.mutate(id)}
-                    onReschedule={(t) => setRescheduleTask(t)}
+                    onReschedule={(tsk) => setRescheduleTask(tsk)}
                     isCompleting={completingId === task.id && completeMutation.isPending}
+                    tTasks={tTasks}
                   />
                 ))}
               </CardContent>

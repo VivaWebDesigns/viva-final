@@ -13,18 +13,20 @@ import {
   AlertTriangle, Pause, ArrowRight, Users,
 } from "lucide-react";
 import type { OnboardingRecord } from "@shared/schema";
-
-const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof CheckCircle2 }> = {
-  pending: { label: "Pendiente", color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200", icon: Clock },
-  in_progress: { label: "En Progreso", color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200", icon: ArrowRight },
-  completed: { label: "Completado", color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200", icon: CheckCircle2 },
-  on_hold: { label: "En Pausa", color: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200", icon: Pause },
-};
+import { useAdminLang } from "@/i18n/LanguageContext";
 
 export default function OnboardingListPage() {
+  const { t } = useAdminLang();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage] = useState(1);
+
+  const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof CheckCircle2 }> = {
+    pending: { label: t.onboarding.status.pending, color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200", icon: Clock },
+    in_progress: { label: t.onboarding.status.in_progress, color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200", icon: ArrowRight },
+    completed: { label: t.onboarding.status.completed, color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200", icon: CheckCircle2 },
+    on_hold: { label: t.onboarding.status.on_hold, color: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200", icon: Pause },
+  };
 
   const params = new URLSearchParams();
   if (search) params.set("search", search);
@@ -58,13 +60,13 @@ export default function OnboardingListPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold" data-testid="text-onboarding-title">Incorporación de Clientes</h1>
-          <p className="text-muted-foreground mt-1">Gestiona los procesos de incorporación y configuración de clientes</p>
+          <h1 className="text-2xl font-bold" data-testid="text-onboarding-title">{t.onboarding.title}</h1>
+          <p className="text-muted-foreground mt-1">{t.onboarding.subtitle}</p>
         </div>
         <Link href="/admin/onboarding/new">
           <Button data-testid="button-new-onboarding">
             <Plus className="h-4 w-4 mr-2" />
-            Nuevo Proceso
+            {t.onboarding.newProcess}
           </Button>
         </Link>
       </div>
@@ -72,11 +74,11 @@ export default function OnboardingListPage() {
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {[
-            { label: "Total", value: stats.total, icon: Users, color: "text-foreground" },
-            { label: "Pendiente", value: stats.pending, icon: Clock, color: "text-yellow-600" },
-            { label: "En Progreso", value: stats.inProgress, icon: ArrowRight, color: "text-blue-600" },
-            { label: "Completado", value: stats.completed, icon: CheckCircle2, color: "text-green-600" },
-            { label: "Vencido", value: stats.overdue, icon: AlertTriangle, color: "text-red-600" },
+            { label: t.onboarding.stats.total, value: stats.total, icon: Users, color: "text-foreground" },
+            { label: t.onboarding.stats.pending, value: stats.pending, icon: Clock, color: "text-yellow-600" },
+            { label: t.onboarding.stats.inProgress, value: stats.inProgress, icon: ArrowRight, color: "text-blue-600" },
+            { label: t.onboarding.stats.completed, value: stats.completed, icon: CheckCircle2, color: "text-green-600" },
+            { label: t.onboarding.stats.overdue, value: stats.overdue, icon: AlertTriangle, color: "text-red-600" },
           ].map((stat) => (
             <Card key={stat.label} className="border">
               <CardContent className="p-3 flex items-center gap-3">
@@ -95,7 +97,7 @@ export default function OnboardingListPage() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Buscar clientes..."
+            placeholder={t.onboarding.searchPlaceholder}
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             className="pl-10"
@@ -104,14 +106,14 @@ export default function OnboardingListPage() {
         </div>
         <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
           <SelectTrigger className="w-[180px]" data-testid="select-status-filter">
-            <SelectValue placeholder="Todos los estados" />
+            <SelectValue placeholder={t.onboarding.allStatuses} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todos los estados</SelectItem>
-            <SelectItem value="pending">Pendiente</SelectItem>
-            <SelectItem value="in_progress">En Progreso</SelectItem>
-            <SelectItem value="completed">Completado</SelectItem>
-            <SelectItem value="on_hold">En Pausa</SelectItem>
+            <SelectItem value="all">{t.onboarding.allStatuses}</SelectItem>
+            <SelectItem value="pending">{t.onboarding.status.pending}</SelectItem>
+            <SelectItem value="in_progress">{t.onboarding.status.in_progress}</SelectItem>
+            <SelectItem value="completed">{t.onboarding.status.completed}</SelectItem>
+            <SelectItem value="on_hold">{t.onboarding.status.on_hold}</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -124,12 +126,12 @@ export default function OnboardingListPage() {
         <Card className="border">
           <CardContent className="flex flex-col items-center justify-center py-12">
             <UserPlus className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-1">Sin registros de incorporación</h3>
-            <p className="text-muted-foreground mb-4">Crea el primer proceso de incorporación para comenzar</p>
+            <h3 className="text-lg font-semibold mb-1">{t.onboarding.noRecords}</h3>
+            <p className="text-muted-foreground mb-4">{t.onboarding.subtitle}</p>
             <Link href="/admin/onboarding/new">
               <Button data-testid="button-empty-new-onboarding">
                 <Plus className="h-4 w-4 mr-2" />
-                Nuevo Proceso
+                {t.onboarding.newProcess}
               </Button>
             </Link>
           </CardContent>
@@ -167,7 +169,7 @@ export default function OnboardingListPage() {
                               {overdue && (
                                 <Badge variant="destructive" className="text-xs flex-shrink-0" data-testid={`badge-overdue-${record.id}`}>
                                   <AlertTriangle className="h-3 w-3 mr-1" />
-                                  Overdue
+                                  {t.onboarding.isOverdue}
                                 </Badge>
                               )}
                             </div>
@@ -176,13 +178,13 @@ export default function OnboardingListPage() {
                               {record.dueDate && (
                                 <span className={`flex items-center gap-1 ${isOverdue(record) ? "text-red-500 font-medium" : ""}`} data-testid={`text-due-date-${record.id}`}>
                                   <Calendar className="h-3 w-3" />
-                                  Vence: {new Date(record.dueDate).toLocaleDateString()}
+                                  {t.onboarding.dueDate}: {new Date(record.dueDate).toLocaleDateString()}
                                 </span>
                               )}
                               {record.kickoffDate && (
                                 <span className="flex items-center gap-1">
                                   <Calendar className="h-3 w-3" />
-                                  Inicio: {new Date(record.kickoffDate).toLocaleDateString()}
+                                  {t.onboarding.kickoffDate}: {new Date(record.kickoffDate).toLocaleDateString()}
                                 </span>
                               )}
                             </div>
@@ -208,10 +210,10 @@ export default function OnboardingListPage() {
             onClick={() => setPage(page - 1)}
             data-testid="button-prev-page"
           >
-            Anterior
+            {t.onboarding.pagination.previous}
           </Button>
           <span className="flex items-center text-sm text-muted-foreground px-3">
-            Página {page} de {totalPages}
+            {t.onboarding.pagination.page.replace("{{page}}", String(page)).replace("{{total}}", String(totalPages))}
           </span>
           <Button
             variant="outline"
@@ -220,7 +222,7 @@ export default function OnboardingListPage() {
             onClick={() => setPage(page + 1)}
             data-testid="button-next-page"
           >
-            Siguiente
+            {t.onboarding.pagination.next}
           </Button>
         </div>
       )}

@@ -15,6 +15,7 @@ import {
   Settings, Users, Shield, Activity, Plus, Edit2, Ban, CheckCircle2,
   Clock, AlertCircle,
 } from "lucide-react";
+import { useAdminLang } from "@/i18n/LanguageContext";
 
 type Tab = "users" | "audit";
 
@@ -37,12 +38,6 @@ interface AuditLog {
   createdAt: string;
 }
 
-const ROLE_LABELS: Record<string, string> = {
-  admin: "Admin",
-  developer: "Developer",
-  sales_rep: "Sales Rep",
-};
-
 const ROLE_COLORS: Record<string, string> = {
   admin: "bg-[#0D9488]/10 text-[#0D9488] border-[#0D9488]/20",
   developer: "bg-purple-50 text-purple-700 border-purple-200",
@@ -50,6 +45,7 @@ const ROLE_COLORS: Record<string, string> = {
 };
 
 export default function AdminSettingsPage() {
+  const { t } = useAdminLang();
   const { user: currentUser } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -77,9 +73,9 @@ export default function AdminSettingsPage() {
       qc.invalidateQueries({ queryKey: ["/api/admin/users"] });
       setShowAddUser(false);
       setNewUser({ name: "", email: "", password: "", role: "sales_rep" });
-      toast({ title: "User created", description: "New team member added successfully." });
+      toast({ title: t.settings.userCreatedTitle, description: t.settings.userCreated });
     },
-    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: Error) => toast({ title: t.common.error, description: err.message, variant: "destructive" }),
   });
 
   const updateMutation = useMutation({
@@ -90,41 +86,43 @@ export default function AdminSettingsPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["/api/admin/users"] });
       setEditingUser(null);
-      toast({ title: "User updated" });
+      toast({ title: t.settings.userUpdatedTitle });
     },
-    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: Error) => toast({ title: t.common.error, description: err.message, variant: "destructive" }),
   });
 
+  const ROLE_LABELS = t.settings.roles as Record<string, string>;
+
   const TABS = [
-    { id: "users", label: "Team Members", icon: Users },
-    { id: "audit", label: "Audit Logs", icon: Activity },
-  ] as const;
+    { id: "users" as Tab, label: t.settings.teamMembers, icon: Users },
+    { id: "audit" as Tab, label: t.settings.auditLogs, icon: Activity },
+  ];
 
   return (
     <div className="h-full flex flex-col" data-testid="page-admin-settings">
       <div className="flex items-center justify-between mb-6 flex-shrink-0">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Admin Settings</h1>
-          <p className="text-sm text-gray-500 mt-1">Manage team members, roles, and platform activity</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t.settings.title}</h1>
+          <p className="text-sm text-gray-500 mt-1">{t.nav.settings}</p>
         </div>
       </div>
 
       <div className="flex gap-1 border-b border-gray-200 mb-6">
-        {TABS.map(t => {
-          const Icon = t.icon;
+        {TABS.map(tabItem => {
+          const Icon = tabItem.icon;
           return (
             <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
+              key={tabItem.id}
+              onClick={() => setTab(tabItem.id)}
               className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
-                tab === t.id
+                tab === tabItem.id
                   ? "border-[#0D9488] text-[#0D9488]"
                   : "border-transparent text-gray-500 hover:text-gray-700"
               }`}
-              data-testid={`tab-${t.id}`}
+              data-testid={`tab-${tabItem.id}`}
             >
               <Icon className="w-4 h-4" />
-              {t.label}
+              {tabItem.label}
             </button>
           );
         })}
@@ -133,7 +131,7 @@ export default function AdminSettingsPage() {
       {tab === "users" && (
         <div className="flex-1 overflow-y-auto">
           <div className="flex items-center justify-between mb-4">
-            <p className="text-sm text-gray-500">{users.length} team member{users.length !== 1 ? "s" : ""}</p>
+            <p className="text-sm text-gray-500">{users.length} {t.settings.teamMembers.toLowerCase()}</p>
             <Button
               onClick={() => setShowAddUser(true)}
               size="sm"
@@ -141,7 +139,7 @@ export default function AdminSettingsPage() {
               data-testid="button-add-user"
             >
               <Plus className="w-4 h-4 mr-1" />
-              Add Member
+              {t.settings.createMember}
             </Button>
           </div>
 
@@ -154,10 +152,10 @@ export default function AdminSettingsPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-gray-100 bg-gray-50">
-                    <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-4 py-3">Member</th>
-                    <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-4 py-3">Role</th>
-                    <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-4 py-3">Status</th>
-                    <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-4 py-3">Joined</th>
+                    <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-4 py-3">{t.common.name}</th>
+                    <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-4 py-3">{t.settings.roleLabel}</th>
+                    <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-4 py-3">{t.common.status}</th>
+                    <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-4 py-3">{t.common.joined}</th>
                     <th className="px-4 py-3" />
                   </tr>
                 </thead>
@@ -186,11 +184,11 @@ export default function AdminSettingsPage() {
                       <td className="px-4 py-3">
                         {u.banned ? (
                           <span className="flex items-center gap-1 text-xs text-red-600">
-                            <Ban className="w-3.5 h-3.5" /> Banned
+                            <Ban className="w-3.5 h-3.5" /> {t.settings.ban}ned
                           </span>
                         ) : (
                           <span className="flex items-center gap-1 text-xs text-emerald-600">
-                            <CheckCircle2 className="w-3.5 h-3.5" /> Active
+                            <CheckCircle2 className="w-3.5 h-3.5" /> {t.common.active}
                           </span>
                         )}
                       </td>
@@ -229,7 +227,7 @@ export default function AdminSettingsPage() {
             ) : auditLogs.length === 0 ? (
               <div className="text-center py-12 text-gray-400">
                 <Activity className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                <p className="text-sm">No audit events recorded yet</p>
+                <p className="text-sm">{t.common.noData}</p>
               </div>
             ) : (
               <div className="divide-y divide-gray-50">
@@ -267,61 +265,61 @@ export default function AdminSettingsPage() {
       <Dialog open={showAddUser} onOpenChange={setShowAddUser}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Add Team Member</DialogTitle>
+            <DialogTitle>{t.settings.newMemberTitle}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <Label>Full Name</Label>
+              <Label>{t.settings.nameLabel}</Label>
               <Input
                 value={newUser.name}
                 onChange={e => setNewUser(p => ({ ...p, name: e.target.value }))}
-                placeholder="Jane Smith"
+                placeholder={t.settings.namePlaceholder}
                 data-testid="input-new-user-name"
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Email</Label>
+              <Label>{t.settings.emailLabel}</Label>
               <Input
                 type="email"
                 value={newUser.email}
                 onChange={e => setNewUser(p => ({ ...p, email: e.target.value }))}
-                placeholder="jane@vivawebdesigns.com"
+                placeholder={t.settings.emailPlaceholder}
                 data-testid="input-new-user-email"
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Temporary Password</Label>
+              <Label>{t.settings.passwordLabel}</Label>
               <Input
                 type="password"
                 value={newUser.password}
                 onChange={e => setNewUser(p => ({ ...p, password: e.target.value }))}
-                placeholder="Min. 8 characters"
+                placeholder={t.settings.passwordPlaceholder}
                 data-testid="input-new-user-password"
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Role</Label>
+              <Label>{t.settings.roleLabel}</Label>
               <Select value={newUser.role} onValueChange={v => setNewUser(p => ({ ...p, role: v }))}>
                 <SelectTrigger data-testid="select-new-user-role">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="sales_rep">Sales Rep</SelectItem>
-                  <SelectItem value="developer">Developer</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="sales_rep">{t.settings.roles.sales_rep}</SelectItem>
+                  <SelectItem value="developer">{t.settings.roles.developer}</SelectItem>
+                  <SelectItem value="admin">{t.settings.roles.admin}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddUser(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setShowAddUser(false)}>{t.settings.cancel}</Button>
             <Button
               onClick={() => createMutation.mutate(newUser)}
               disabled={createMutation.isPending || !newUser.name || !newUser.email || !newUser.password}
               className="bg-[#0D9488] hover:bg-[#0F766E] text-white"
               data-testid="button-create-user"
             >
-              {createMutation.isPending ? "Creating..." : "Create Member"}
+              {createMutation.isPending ? t.settings.creating : t.settings.createMember}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -330,26 +328,26 @@ export default function AdminSettingsPage() {
       <Dialog open={!!editingUser} onOpenChange={() => setEditingUser(null)}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Edit {editingUser?.name}</DialogTitle>
+            <DialogTitle>{t.settings.editMember.replace("{{name}}", editingUser?.name ?? "")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <Label>Role</Label>
+              <Label>{t.settings.roleLabel}</Label>
               <Select value={editRole} onValueChange={setEditRole}>
                 <SelectTrigger data-testid="select-edit-user-role">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="sales_rep">Sales Rep</SelectItem>
-                  <SelectItem value="developer">Developer</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="sales_rep">{t.settings.roles.sales_rep}</SelectItem>
+                  <SelectItem value="developer">{t.settings.roles.developer}</SelectItem>
+                  <SelectItem value="admin">{t.settings.roles.admin}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
               <div>
-                <p className="text-sm font-medium text-gray-900">Account Status</p>
-                <p className="text-xs text-gray-500">{editingUser?.banned ? "This account is banned" : "Account is active"}</p>
+                <p className="text-sm font-medium text-gray-900">{t.settings.accountStatus}</p>
+                <p className="text-xs text-gray-500">{editingUser?.banned ? t.settings.accountBanned : t.settings.accountActive}</p>
               </div>
               <Button
                 variant={editingUser?.banned ? "outline" : "destructive"}
@@ -357,19 +355,19 @@ export default function AdminSettingsPage() {
                 onClick={() => updateMutation.mutate({ id: editingUser!.id, updates: { banned: !editingUser?.banned } })}
                 data-testid="button-toggle-ban"
               >
-                {editingUser?.banned ? "Unban" : "Ban"}
+                {editingUser?.banned ? t.settings.unban : t.settings.ban}
               </Button>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingUser(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setEditingUser(null)}>{t.settings.cancel}</Button>
             <Button
               onClick={() => updateMutation.mutate({ id: editingUser!.id, updates: { role: editRole } })}
               disabled={updateMutation.isPending}
               className="bg-[#0D9488] hover:bg-[#0F766E] text-white"
               data-testid="button-save-user"
             >
-              Save Changes
+              {t.settings.saveChanges}
             </Button>
           </DialogFooter>
         </DialogContent>

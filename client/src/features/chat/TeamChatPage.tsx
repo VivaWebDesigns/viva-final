@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import RichTextEditor, { type RichTextEditorHandle, sanitizeHtml } from "./RichTextEditor";
+import { useAdminLang } from "@/i18n/LanguageContext";
 
 interface ChatMessage {
   id: string;
@@ -120,6 +121,7 @@ function HighlightMentions({ text, users }: { text: string; users: TeamUser[] })
 export default function TeamChatPage() {
   const { user, role } = useAuth();
   const { toast } = useToast();
+  const { t } = useAdminLang();
   const qc = useQueryClient();
   const { socket, isConnected, onlineUserIds } = useSocket();
 
@@ -329,7 +331,7 @@ export default function TeamChatPage() {
       });
       markReadMutation.mutate(activeChannel);
     },
-    onError: (err: Error) => toast({ title: "Error al enviar", description: err.message, variant: "destructive" }),
+    onError: (err: Error) => toast({ title: t.chat.sendError, description: err.message, variant: "destructive" }),
   });
 
   const sendDmMutation = useMutation({
@@ -345,7 +347,7 @@ export default function TeamChatPage() {
       });
       qc.invalidateQueries({ queryKey: ["/api/chat/dm/conversations"] });
     },
-    onError: (err: Error) => toast({ title: "Error al enviar", description: err.message, variant: "destructive" }),
+    onError: (err: Error) => toast({ title: t.chat.sendError, description: err.message, variant: "destructive" }),
   });
 
   const sendThreadMutation = useMutation({
@@ -507,7 +509,7 @@ export default function TeamChatPage() {
               <button
                 onClick={() => setShowEmojiFor(showEmojiFor === msg.id ? null : msg.id)}
                 className="text-gray-300 hover:text-gray-600 p-1 rounded hover:bg-gray-100"
-                title="Reaccionar"
+                title={t.chat.react}
                 data-testid={`button-react-${msg.id}`}
               >
                 <SmilePlus className="w-3.5 h-3.5" />
@@ -515,7 +517,7 @@ export default function TeamChatPage() {
               <button
                 onClick={() => setThreadParentId(msg.id)}
                 className="text-gray-300 hover:text-gray-600 p-1 rounded hover:bg-gray-100"
-                title="Responder en hilo"
+                title={t.chat.replyInThread}
                 data-testid={`button-thread-${msg.id}`}
               >
                 <MessageSquare className="w-3.5 h-3.5" />
@@ -524,7 +526,7 @@ export default function TeamChatPage() {
                 <button
                   onClick={() => pinMutation.mutate({ id: msg.id, pinned: !msg.isPinned })}
                   className={`p-1 rounded hover:bg-gray-100 ${msg.isPinned ? "text-yellow-500" : "text-gray-300 hover:text-yellow-500"}`}
-                  title={msg.isPinned ? "Desanclar" : "Anclar"}
+                  title={msg.isPinned ? t.chat.unpin : t.chat.pin}
                   data-testid={`button-pin-${msg.id}`}
                 >
                   <Pin className="w-3.5 h-3.5" />
@@ -534,7 +536,7 @@ export default function TeamChatPage() {
                 <button
                   onClick={() => deleteMutation.mutate(msg.id)}
                   className="text-gray-300 hover:text-red-400 p-1 rounded hover:bg-gray-100"
-                  title="Eliminar"
+                  title={t.chat.delete}
                   data-testid={`button-delete-message-${msg.id}`}
                 >
                   <Trash2 className="w-3.5 h-3.5" />
@@ -569,7 +571,7 @@ export default function TeamChatPage() {
               data-testid={`button-view-thread-${msg.id}`}
             >
               <MessageSquare className="w-3 h-3" />
-              {msg.replyCount} {msg.replyCount === 1 ? "respuesta" : "respuestas"}
+              {msg.replyCount === 1 ? t.chat.reply_one.replace("{{count}}", String(msg.replyCount)) : t.chat.reply_other.replace("{{count}}", String(msg.replyCount))}
             </button>
           )}
 
@@ -613,10 +615,10 @@ export default function TeamChatPage() {
       {/* ── Sidebar ───────────────────────────────────────────────────────── */}
       <div className="w-60 flex-shrink-0 bg-gray-900 text-gray-300 flex flex-col">
         <div className="px-4 py-4 border-b border-gray-700 flex items-center justify-between">
-          <h2 className="font-bold text-white text-sm uppercase tracking-wider">Chat del Equipo</h2>
+          <h2 className="font-bold text-white text-sm uppercase tracking-wider">{t.chat.title}</h2>
           <div
             className={`flex items-center gap-1 text-[10px] ${isConnected ? "text-emerald-400" : "text-gray-500"}`}
-            title={isConnected ? "Conectado en tiempo real" : "Reconectando..."}
+            title={isConnected ? t.chat.connected : t.chat.reconnecting}
             data-testid="socket-status"
           >
             {isConnected ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
@@ -626,7 +628,7 @@ export default function TeamChatPage() {
         <div className="flex-1 overflow-y-auto py-2">
           {/* Channels */}
           <div className="px-3 mb-3">
-            <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider px-2 mb-1">Canales</p>
+            <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider px-2 mb-1">{t.chat.channels}</p>
             {channels.map((ch) => (
               <button
                 key={ch.id}
@@ -654,11 +656,11 @@ export default function TeamChatPage() {
           {/* DMs */}
           <div className="px-3">
             <div className="flex items-center justify-between px-2 mb-1">
-              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Mensajes Directos</p>
+              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">{t.chat.directMessages}</p>
               <button
                 onClick={(e) => { e.stopPropagation(); setShowDmPicker(!showDmPicker); }}
                 className="text-gray-500 hover:text-gray-300 transition-colors"
-                title="Nuevo mensaje directo"
+                title={t.chat.newDm}
                 data-testid="button-new-dm"
               >
                 <Plus className="w-3.5 h-3.5" />
@@ -676,7 +678,7 @@ export default function TeamChatPage() {
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700">
-                    <p className="text-[10px] text-gray-500 px-2 pt-2 pb-1">Selecciona un miembro</p>
+                    <p className="text-[10px] text-gray-500 px-2 pt-2 pb-1">{t.chat.selectMember}</p>
                     {dmUserList.map((u) => (
                       <button
                         key={u.id}
@@ -701,7 +703,7 @@ export default function TeamChatPage() {
             </AnimatePresence>
 
             {dmUserList.length === 0 ? (
-              <p className="text-xs text-gray-600 px-2 py-1">Sin otros miembros</p>
+              <p className="text-xs text-gray-600 px-2 py-1">{t.chat.noOtherMembers}</p>
             ) : (
               dmUserList.map((u) => {
                 const conv = dmConversations.find((c) => c.userId === u.id);
@@ -811,7 +813,7 @@ export default function TeamChatPage() {
                 <div className="px-4 py-2">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-xs font-semibold text-yellow-700 flex items-center gap-1">
-                      <Pin className="w-3 h-3" /> Mensajes Anclados ({pinnedMessages.length})
+                      <Pin className="w-3 h-3" /> {t.chat.pinnedMessages.replace("{{count}}", String(pinnedMessages.length))}
                     </span>
                     <button onClick={() => setShowPinned(false)} className="text-yellow-600 hover:text-yellow-800">
                       <X className="w-3.5 h-3.5" />
@@ -842,7 +844,7 @@ export default function TeamChatPage() {
                     <Input
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Buscar mensajes en este canal..."
+                      placeholder={t.chat.searchMessages}
                       className="pl-8 h-8 text-sm bg-white"
                       data-testid="input-chat-search"
                       autoFocus
@@ -851,7 +853,7 @@ export default function TeamChatPage() {
                   {searchQuery.length >= 2 && (
                     <div className="mt-2 max-h-48 overflow-y-auto space-y-1">
                       {searchResults.length === 0 ? (
-                        <p className="text-xs text-gray-400 py-2 text-center">Sin resultados</p>
+                        <p className="text-xs text-gray-400 py-2 text-center">{t.chat.noResults}</p>
                       ) : (
                         searchResults.map((r) => (
                           <div key={r.id} className="text-xs bg-white border border-gray-100 rounded p-2" data-testid={`search-result-${r.id}`}>
@@ -891,7 +893,7 @@ export default function TeamChatPage() {
                     const prev = dmMessages[idx - 1];
                     const sameUser = prev?.senderId === msg.senderId
                       && new Date(msg.createdAt).getTime() - new Date(prev.createdAt).getTime() < 5 * 60 * 1000;
-                    const senderName = isMine ? ((user as any)?.name ?? "Tú") : (activeDmUser?.name ?? "");
+                    const senderName = isMine ? ((user as any)?.name ?? t.chat.you) : (activeDmUser?.name ?? "");
                     return (
                       <div
                         key={msg.id}
@@ -921,8 +923,8 @@ export default function TeamChatPage() {
             ) : messages.length === 0 && !isLoading ? (
               <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-gray-300">
                 <Hash className="w-10 h-10 mb-3" />
-                <p className="text-sm font-medium text-gray-400">Sin mensajes aún</p>
-                <p className="text-xs text-gray-300 mt-1">Sé el primero en escribir en #{activeChannel}</p>
+                <p className="text-sm font-medium text-gray-400">{t.chat.noMessages}</p>
+                <p className="text-xs text-gray-300 mt-1">#{activeChannel}</p>
               </div>
             ) : (
               <div className="space-y-0.5">
@@ -964,7 +966,7 @@ export default function TeamChatPage() {
             <div className="flex items-end gap-2">
               <RichTextEditor
                 ref={editorRef}
-                placeholder={isInDm ? `Mensaje a ${activeDmUser?.name ?? "DM"}` : `Mensaje en #${activeChannel} — @ para mencionar`}
+                placeholder={isInDm ? t.chat.dmPlaceholder.replace("{{name}}", activeDmUser?.name ?? "DM") : t.chat.messagePlaceholder.replace("{{channel}}", activeChannel)}
                 onSend={handleEditorSend}
                 onTextChange={handleEditorTextChange}
                 onBlur={emitTypingStop}
@@ -1019,7 +1021,7 @@ export default function TeamChatPage() {
 
               <div className="flex-1 overflow-y-auto px-3 py-2 space-y-2">
                 {threadMessages.length === 0 ? (
-                  <p className="text-xs text-gray-400 py-4 text-center">Sin respuestas aún</p>
+                  <p className="text-xs text-gray-400 py-4 text-center">{t.chat.noReplies}</p>
                 ) : (
                   threadMessages.map((msg) => (
                     <div key={msg.id} className="flex gap-2" data-testid={`thread-message-${msg.id}`}>
@@ -1044,7 +1046,7 @@ export default function TeamChatPage() {
                     value={threadDraft}
                     onChange={(e) => setThreadDraft(e.target.value)}
                     onKeyDown={handleKeyDownThread}
-                    placeholder="Responder en hilo..."
+                    placeholder={t.chat.replyPlaceholder}
                     rows={1}
                     className="flex-1 resize-none bg-white border border-gray-200 rounded-lg px-2.5 py-2 text-xs text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#0D9488]/30 focus:border-[#0D9488]"
                     style={{ minHeight: "34px", maxHeight: "80px" }}

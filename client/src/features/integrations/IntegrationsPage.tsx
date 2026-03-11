@@ -22,6 +22,7 @@ import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription,
 } from "@/components/ui/form";
 import type { IntegrationRecord } from "@shared/schema";
+import { useAdminLang } from "@/i18n/LanguageContext";
 
 interface ProviderHealth {
   provider: string;
@@ -313,6 +314,7 @@ function EnvVarBadge({ name, isPresent }: { name: string; isPresent: boolean }) 
 
 export default function IntegrationsPage() {
   const { toast } = useToast();
+  const { t } = useAdminLang();
   const [expandedProvider, setExpandedProvider] = useState<string | null>(null);
   const [testingProvider, setTestingProvider] = useState<string | null>(null);
   const [stripeConfigOpen, setStripeConfigOpen] = useState(false);

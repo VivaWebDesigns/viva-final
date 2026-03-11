@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import type { CrmContact, CrmCompany, CrmLead, CrmLeadStatus } from "@shared/schema";
+import { useAdminLang } from "@/i18n/LanguageContext";
 
 interface ContactDetail extends CrmContact {
   company?: CrmCompany | null;
@@ -17,6 +18,7 @@ interface ContactDetail extends CrmContact {
 
 export default function ContactDetailPage({ id }: { id: string }) {
   const [, navigate] = useLocation();
+  const { t } = useAdminLang();
 
   const { data: contact, isLoading } = useQuery<ContactDetail>({
     queryKey: ["/api/crm/contacts", id],
@@ -98,8 +100,8 @@ export default function ContactDetailPage({ id }: { id: string }) {
               )}
               {contact.preferredLanguage && (
                 <div className="pt-2 border-t border-gray-100">
-                  <p className="text-xs text-gray-500">Preferred Language</p>
-                  <p className="text-gray-900">{contact.preferredLanguage === "es" ? "Spanish" : "English"}</p>
+                  <p className="text-xs text-gray-500">{t.clients.preferredLanguage}</p>
+                  <p className="text-gray-900">{contact.preferredLanguage === "es" ? t.clients.langSpanish : t.clients.langEnglish}</p>
                 </div>
               )}
               {contact.notes && (

@@ -11,8 +11,10 @@ import {
   DollarSign, Calendar, Search, LayoutGrid, ChevronLeft, ChevronRight, User,
 } from "lucide-react";
 import type { PipelineStage, PipelineOpportunity } from "@shared/schema";
+import { useAdminLang } from "@/i18n/LanguageContext";
 
 export default function PipelineListPage() {
+  const { t } = useAdminLang();
   const [search, setSearch] = useState("");
   const [stageFilter, setStageFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -132,7 +134,7 @@ export default function PipelineListPage() {
 
                     {opp.status !== "open" && (
                       <Badge variant={opp.status === "won" ? "default" : "destructive"} className="flex-shrink-0">
-                        {opp.status === "won" ? "Won" : "Lost"}
+                        {opp.status === "won" ? t.pipeline.closeWon.split("—")[1]?.trim() || "Won" : t.pipeline.closeLost.split("—")[1]?.trim() || "Lost"}
                       </Badge>
                     )}
 

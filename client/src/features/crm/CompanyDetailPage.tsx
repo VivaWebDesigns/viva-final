@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import type { CrmCompany, CrmContact, CrmLead, CrmLeadStatus } from "@shared/schema";
+import { useAdminLang } from "@/i18n/LanguageContext";
 
 interface CompanyDetail extends CrmCompany {
   contacts?: CrmContact[];
@@ -17,6 +18,7 @@ interface CompanyDetail extends CrmCompany {
 
 export default function CompanyDetailPage({ id }: { id: string }) {
   const [, navigate] = useLocation();
+  const { t } = useAdminLang();
 
   const { data: company, isLoading } = useQuery<CompanyDetail>({
     queryKey: ["/api/crm/companies", id],
@@ -120,8 +122,8 @@ export default function CompanyDetailPage({ id }: { id: string }) {
               )}
               {company.preferredLanguage && (
                 <div>
-                  <p className="text-xs text-gray-500">Preferred Language</p>
-                  <p className="text-gray-900">{company.preferredLanguage === "es" ? "Spanish" : "English"}</p>
+                  <p className="text-xs text-gray-500">{t.clients.preferredLanguage}</p>
+                  <p className="text-gray-900">{company.preferredLanguage === "es" ? t.clients.langSpanish : t.clients.langEnglish}</p>
                 </div>
               )}
               {company.notes && (

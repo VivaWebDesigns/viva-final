@@ -5,6 +5,7 @@ import { Link } from "wouter";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Building2, Search, DollarSign, Users, TrendingUp, Layers, Phone, Mail, Globe, MapPin } from "lucide-react";
+import { useAdminLang } from "@/i18n/LanguageContext";
 
 interface ClientRow {
   id: string;
@@ -32,6 +33,7 @@ interface ClientsResponse {
 }
 
 export default function ClientsPage() {
+  const { t } = useAdminLang();
   const [search, setSearch] = useState("");
 
   const { data, isLoading } = useQuery<ClientsResponse>({
@@ -46,11 +48,11 @@ export default function ClientsPage() {
     <div className="h-full flex flex-col" data-testid="page-clients">
       <div className="flex items-center justify-between mb-4 flex-shrink-0">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Clients</h1>
-          <p className="text-sm text-gray-500 mt-1">All companies and client relationships</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t.clients.title}</h1>
+          <p className="text-sm text-gray-500 mt-1">{t.clients.subtitle}</p>
         </div>
         <Badge variant="secondary" className="text-sm px-3 py-1">
-          {total} companies
+          {t.clients.companiesCount.replace("{{count}}", String(total))}
         </Badge>
       </div>
 
@@ -60,7 +62,7 @@ export default function ClientsPage() {
           <Input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search by name, industry, or city..."
+            placeholder={t.clients.searchPlaceholder}
             className="pl-10 bg-white"
             data-testid="input-client-search"
           />
@@ -74,9 +76,9 @@ export default function ClientsPage() {
       ) : clients.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-gray-200">
           <Building2 className="w-12 h-12 text-gray-200 mb-3" />
-          <p className="text-gray-500 font-medium">No clients found</p>
+          <p className="text-gray-500 font-medium">{t.clients.noClients}</p>
           <p className="text-sm text-gray-400 mt-1">
-            {search ? "Try a different search term" : "Clients appear here once leads are ingested via CRM"}
+            {search ? t.common.tryDifferentSearch : t.clients.noClientsDesc}
           </p>
         </div>
       ) : (
@@ -115,15 +117,15 @@ export default function ClientsPage() {
                   <div className="grid grid-cols-2 gap-2 mb-3">
                     <div className="flex items-center gap-1.5 text-xs text-gray-500">
                       <Users className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-                      <span><span className="font-medium text-gray-700">{client.contactCount}</span> contact{client.contactCount !== 1 ? "s" : ""}</span>
+                      <span><span className="font-medium text-gray-700">{client.contactCount}</span> {t.common.contacts.toLowerCase()}</span>
                     </div>
                     <div className="flex items-center gap-1.5 text-xs text-gray-500">
                       <TrendingUp className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-                      <span><span className="font-medium text-gray-700">{client.leadCount}</span> lead{client.leadCount !== 1 ? "s" : ""}</span>
+                      <span><span className="font-medium text-gray-700">{client.leadCount}</span> {t.common.leads.toLowerCase()}</span>
                     </div>
                     <div className="flex items-center gap-1.5 text-xs text-gray-500">
                       <Layers className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-                      <span><span className="font-medium text-gray-700">{client.opportunityCount}</span> deal{client.opportunityCount !== 1 ? "s" : ""}</span>
+                      <span><span className="font-medium text-gray-700">{client.opportunityCount}</span> {t.common.deals.toLowerCase()}</span>
                     </div>
                     {client.opportunityValue > 0 && (
                       <div className="flex items-center gap-1.5 text-xs">
@@ -165,7 +167,7 @@ export default function ClientsPage() {
                   {client.activeOnboardings > 0 && (
                     <div className="mt-2 flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 rounded-lg px-2 py-1">
                       <Layers className="w-3 h-3" />
-                      {client.activeOnboardings} active onboarding{client.activeOnboardings !== 1 ? "s" : ""}
+                      {client.activeOnboardings} {t.clients.activeOnboardings.toLowerCase()}
                     </div>
                   )}
                 </div>

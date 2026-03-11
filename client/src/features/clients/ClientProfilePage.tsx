@@ -33,6 +33,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { apiRequest, queryClient, STALE } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAdminLang } from "@/i18n/LanguageContext";
 import { format, isPast, isToday } from "date-fns";
 import type {
   CrmCompany, CrmContact, CrmLead, CrmLeadStatus,
@@ -137,6 +138,7 @@ const taskSchema = z.object({
 
 export default function ClientProfilePage({ id }: { id: string }) {
   const { toast } = useToast();
+  const { t } = useAdminLang();
   const [, navigate] = useLocation();
   const [activeTab, setActiveTab] = useState("overview");
   const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);

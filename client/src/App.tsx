@@ -13,6 +13,7 @@ import Home from "@/pages/Home";
 import { lazy, Suspense } from "react";
 import JsonLd from "@/components/JsonLd";
 import { PreviewLangProvider } from "@/contexts/PreviewLangContext";
+import { AdminLangProvider } from "@/i18n/LanguageContext";
 import AdminLayout from "@/layouts/AdminLayout";
 import ProtectedRoute from "@features/auth/ProtectedRoute";
 import NotificationCenterPage from "@features/notifications/NotificationCenterPage";
@@ -152,12 +153,14 @@ function App() {
     return (
       <HelmetProvider>
         <QueryClientProvider client={queryClient}>
-          <TooltipProvider>
-            <Suspense fallback={<PageFallback />}>
-              <LoginPage />
-            </Suspense>
-            <Toaster />
-          </TooltipProvider>
+          <AdminLangProvider>
+            <TooltipProvider>
+              <Suspense fallback={<PageFallback />}>
+                <LoginPage />
+              </Suspense>
+              <Toaster />
+            </TooltipProvider>
+          </AdminLangProvider>
         </QueryClientProvider>
       </HelmetProvider>
     );
@@ -167,10 +170,12 @@ function App() {
     return (
       <HelmetProvider>
         <QueryClientProvider client={queryClient}>
-          <TooltipProvider>
-            <AdminRouter />
-            <Toaster />
-          </TooltipProvider>
+          <AdminLangProvider>
+            <TooltipProvider>
+              <AdminRouter />
+              <Toaster />
+            </TooltipProvider>
+          </AdminLangProvider>
         </QueryClientProvider>
       </HelmetProvider>
     );

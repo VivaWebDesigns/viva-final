@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Plus, Trash2, GripVertical, Save } from "lucide-react";
 import type { PipelineStage } from "@shared/schema";
+import { useAdminLang } from "@/i18n/LanguageContext";
 
 const COLOR_OPTIONS = [
   "#3B82F6", "#8B5CF6", "#F59E0B", "#10B981", "#EF4444",
@@ -25,6 +26,7 @@ interface StageForm {
 
 export default function StageManagementPage() {
   const { toast } = useToast();
+  const { t } = useAdminLang();
   const [showAdd, setShowAdd] = useState(false);
   const [newStage, setNewStage] = useState<StageForm>({ name: "", slug: "", color: "#3B82F6", isClosed: false });
 
@@ -46,7 +48,7 @@ export default function StageManagementPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/pipeline/stages"] });
       setShowAdd(false);
       setNewStage({ name: "", slug: "", color: "#3B82F6", isClosed: false });
-      toast({ title: "Stage created" });
+      toast({ title: t.pipeline.stageCreated });
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
@@ -58,7 +60,7 @@ export default function StageManagementPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/pipeline/stages"] });
-      toast({ title: "Stage updated" });
+      toast({ title: t.pipeline.stageUpdated });
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
@@ -70,7 +72,7 @@ export default function StageManagementPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/pipeline/stages"] });
-      toast({ title: "Stage deleted" });
+      toast({ title: t.pipeline.stageDeleted });
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });

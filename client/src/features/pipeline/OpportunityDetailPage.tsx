@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import RichTextEditorField from "@/features/chat/RichTextEditorField";
 import { sanitizeHtml } from "@/features/chat/RichTextEditor";
+import { useAdminLang } from "@/i18n/LanguageContext";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   ArrowLeft, DollarSign, Calendar, Building2, User as UserIcon,
@@ -37,6 +38,7 @@ const ACTIVITY_ICONS: Record<string, typeof MessageSquare> = {
 export default function OpportunityDetailPage({ id }: { id: string }) {
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const { t } = useAdminLang();
   const [noteContent, setNoteContent] = useState("");
   const [noteType, setNoteType] = useState("note");
   const [taskModalOpen, setTaskModalOpen] = useState(false);
@@ -81,7 +83,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks/for-opportunity", id] });
       queryClient.invalidateQueries({ queryKey: ["/api/tasks/due-today"] });
-      toast({ title: "Task completed" });
+      toast({ title: t.tasks.taskCompleted });
     },
   });
 
@@ -94,7 +96,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
       queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities", id] });
       queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities", id, "activities"] });
       queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities/board"] });
-      toast({ title: "Stage updated" });
+      toast({ title: t.pipeline.stageUpdated });
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
@@ -107,7 +109,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities", id] });
       queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities/board"] });
-      toast({ title: "Status updated" });
+      toast({ title: t.pipeline.statusUpdated });
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
@@ -123,7 +125,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities", id, "activities"] });
       setNoteContent("");
-      toast({ title: "Activity added" });
+      toast({ title: t.pipeline.activityAdded });
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
@@ -134,7 +136,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
       return res.json();
     },
     onSuccess: (data) => {
-      toast({ title: "Onboarding created" });
+      toast({ title: t.pipeline.onboardingCreated });
       navigate(`/admin/onboarding/${data.id}`);
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
@@ -183,7 +185,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
             )}
             {opp.status !== "open" && (
               <Badge variant={opp.status === "won" ? "default" : "destructive"} data-testid="badge-status">
-                {opp.status === "won" ? "Won" : "Lost"}
+                {opp.status === "won" ? t.pipeline.closeWon.split("—")[1]?.trim() || "Won" : t.pipeline.closeLost.split("—")[1]?.trim() || "Lost"}
               </Badge>
             )}
           </div>
@@ -204,7 +206,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                 data-testid="button-mark-won"
               >
                 <CheckCircle className="w-4 h-4 mr-1" />
-                Mark Won
+                {t.pipeline.closeWon}
               </Button>
               <Button
                 size="sm"
@@ -218,7 +220,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                 data-testid="button-mark-lost"
               >
                 <XCircle className="w-4 h-4 mr-1" />
-                Mark Lost
+                {t.pipeline.closeLost}
               </Button>
             </>
           )}
@@ -235,7 +237,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
               }}
               data-testid="button-reopen"
             >
-              Reopen
+              {t.pipeline.reopen}
             </Button>
           )}
           {opp.status === "won" && (
@@ -277,7 +279,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-400 mb-1">Expected Close</p>
+                  <p className="text-xs text-gray-400 mb-1">{t.pipeline.expectedClose}</p>
                   <p className="text-sm font-medium flex items-center gap-1" data-testid="text-expected-close">
                     {opp.expectedCloseDate ? (
                       <><Calendar className="w-3.5 h-3.5 text-gray-400" />{new Date(opp.expectedCloseDate).toLocaleDateString()}</>

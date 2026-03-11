@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { DollarSign, List, GripVertical, Phone, Building2, MapPin, CheckCircle2 } from "lucide-react";
 import type { PipelineStage, PipelineOpportunity } from "@shared/schema";
 import QuickTaskModal from "@/components/QuickTaskModal";
+import { useAdminLang } from "@/i18n/LanguageContext";
 
 import {
   DndContext,
@@ -57,6 +58,7 @@ function CardDisplay({
   companyMap: Record<string, CompanySnap>;
   onTaskClick?: (opp: PipelineOpportunity) => void;
 }) {
+  const { t } = useAdminLang();
   const contact = opp.contactId ? contactMap[opp.contactId] : null;
   const company = opp.companyId ? companyMap[opp.companyId] : null;
   const contactName = contact ? `${contact.firstName}${contact.lastName ? " " + contact.lastName : ""}` : null;
@@ -164,7 +166,7 @@ function CardDisplay({
             variant={opp.status === "won" ? "default" : "destructive"}
             className="mt-2 text-xs ml-6"
           >
-            {opp.status === "won" ? "Won" : "Lost"}
+            {opp.status === "won" ? t.pipeline.closeWon.split("—")[1]?.trim() || "Won" : t.pipeline.closeLost.split("—")[1]?.trim() || "Lost"}
           </Badge>
         )}
       </CardContent>
@@ -293,6 +295,7 @@ function StageColumn({
 
 export default function PipelineBoardPage() {
   const { toast } = useToast();
+  const { t } = useAdminLang();
   const [activeOpp, setActiveOpp] = useState<PipelineOpportunity | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
   const [taskOpp, setTaskOpp] = useState<PipelineOpportunity | null>(null);

@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { queryClient, apiRequest, STALE } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { DocCategory, DocArticle, DocTag, DocRevision } from "@shared/schema";
+import { useAdminLang } from "@/i18n/LanguageContext";
 import DocEditor from "./DocEditor";
 
 type CategoryWithCount = DocCategory & { articleCount: number };
@@ -181,6 +182,7 @@ function RevisionPanel({ articleSlug, onRestore }: RevisionPanelProps) {
 }
 
 export default function DocsPage() {
+  const { t } = useAdminLang();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedArticleSlug, setSelectedArticleSlug] = useState<string | null>(null);
   const [search, setSearch] = useState("");

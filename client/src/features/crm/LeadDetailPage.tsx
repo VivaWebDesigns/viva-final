@@ -25,6 +25,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { CrmLead, CrmLeadStatus, CrmContact, CrmCompany, CrmLeadNote, CrmTag, PipelineStage, FollowupTask, PipelineOpportunity, DemoConfig } from "@shared/schema";
 import QuickTaskModal from "@/components/QuickTaskModal";
 import { RecordTimeline } from "@/components/RecordTimeline";
+import { useAdminLang } from "@/i18n/LanguageContext";
 
 type TaskWithContact = FollowupTask & {
   contact: { firstName: string; lastName: string | null; phone: string | null } | null;
@@ -46,18 +47,19 @@ const NOTE_TYPE_ICONS: Record<string, any> = {
   system: Bot,
 };
 
-const NOTE_TYPE_LABELS: Record<string, string> = {
-  note: "Note",
-  call: "Call",
-  email: "Email",
-  task: "Task",
-  status_change: "Status Change",
-  system: "System",
-};
-
 export default function LeadDetailPage({ id }: { id: string }) {
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const { t } = useAdminLang();
+
+  const NOTE_TYPE_LABELS: Record<string, string> = {
+    note: t.crm.note,
+    call: t.crm.call,
+    email: t.crm.email,
+    task: t.crm.task,
+    status_change: t.crm.statusChange,
+    system: t.crm.system,
+  };
   const [noteContent, setNoteContent] = useState("");
   const [noteType, setNoteType] = useState("note");
   const [taskModalOpen, setTaskModalOpen] = useState(false);
@@ -250,7 +252,7 @@ export default function LeadDetailPage({ id }: { id: string }) {
                 <SelectTrigger className="w-auto" data-testid="button-convert-opportunity">
                   <div className="flex items-center gap-1.5">
                     <TrendingUp className="w-4 h-4" />
-                    <span>{convertMutation.isPending ? "Converting..." : "Convert to Opportunity"}</span>
+                    <span>{convertMutation.isPending ? t.common.saving : t.crm.convertToOpportunity}</span>
                   </div>
                 </SelectTrigger>
                 <SelectContent>

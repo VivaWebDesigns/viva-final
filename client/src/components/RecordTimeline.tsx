@@ -3,6 +3,7 @@ import { STALE } from "@/lib/queryClient";
 import { Clock, ArrowRight, User, CheckCircle2, XCircle, Shuffle, GitBranch, Plus, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
+import { useAdminLang } from "@/i18n/LanguageContext";
 
 interface HistoryEvent {
   id: string;
@@ -18,28 +19,24 @@ interface HistoryEvent {
   createdAt: string;
 }
 
-const EVENT_CONFIG: Record<string, { label: string; icon: typeof Clock; color: string }> = {
-  created: { label: "Created", icon: Plus, color: "text-blue-500" },
-  status_changed: { label: "Status changed", icon: Shuffle, color: "text-amber-500" },
-  stage_changed: { label: "Stage moved", icon: GitBranch, color: "text-teal-500" },
-  assigned: { label: "Assigned", icon: User, color: "text-violet-500" },
-  converted: { label: "Converted to opportunity", icon: ArrowRight, color: "text-teal-600" },
-  created_from_lead: { label: "Created from lead", icon: ArrowRight, color: "text-teal-600" },
-  closed_won: { label: "Closed — Won", icon: CheckCircle2, color: "text-green-600" },
-  closed_lost: { label: "Closed — Lost", icon: XCircle, color: "text-red-500" },
-  checklist_completed: { label: "Checklist item completed", icon: CheckCircle2, color: "text-green-500" },
-  checklist_uncompleted: { label: "Checklist item unchecked", icon: AlertCircle, color: "text-amber-500" },
-  field_updated: { label: "Field updated", icon: Clock, color: "text-gray-500" },
+const EVENT_ICONS: Record<string, { icon: typeof Clock; color: string }> = {
+  created:               { icon: Plus,         color: "text-blue-500" },
+  status_changed:        { icon: Shuffle,      color: "text-amber-500" },
+  stage_changed:         { icon: GitBranch,    color: "text-teal-500" },
+  assigned:              { icon: User,         color: "text-violet-500" },
+  converted:             { icon: ArrowRight,   color: "text-teal-600" },
+  created_from_lead:     { icon: ArrowRight,   color: "text-teal-600" },
+  closed_won:            { icon: CheckCircle2, color: "text-green-600" },
+  closed_lost:           { icon: XCircle,      color: "text-red-500" },
+  checklist_completed:   { icon: CheckCircle2, color: "text-green-500" },
+  checklist_uncompleted: { icon: AlertCircle,  color: "text-amber-500" },
+  field_updated:         { icon: Clock,        color: "text-gray-500" },
 };
 
 function EventIcon({ event }: { event: string }) {
-  const cfg = EVENT_CONFIG[event] ?? { icon: Clock, color: "text-gray-400" };
+  const cfg = EVENT_ICONS[event] ?? { icon: Clock, color: "text-gray-400" };
   const Icon = cfg.icon;
   return <Icon className={cn("w-3.5 h-3.5 flex-shrink-0", cfg.color)} />;
-}
-
-function eventLabel(event: string) {
-  return EVENT_CONFIG[event]?.label ?? event.replace(/_/g, " ");
 }
 
 interface RecordTimelineProps {
@@ -50,6 +47,11 @@ interface RecordTimelineProps {
 }
 
 export function RecordTimeline({ entityType, entityId, limit = 15, className }: RecordTimelineProps) {
+  const { t } = useAdminLang();
+
+  const eventLabel = (event: string): string =>
+    (t.timeline.events as Record<string, string>)[event] ?? event.replace(/_/g, " ");
+
   const { data: events = [], isLoading } = useQuery<HistoryEvent[]>({
     queryKey: ["/api/history", entityType, entityId],
     queryFn: async () => {
@@ -74,7 +76,7 @@ export function RecordTimeline({ entityType, entityId, limit = 15, className }: 
   if (events.length === 0) {
     return (
       <div className={cn("text-xs text-gray-400 text-center py-4", className)}>
-        No history yet
+        {t.timeline.noHistory}
       </div>
     );
   }
@@ -107,7 +109,7 @@ export function RecordTimeline({ entityType, entityId, limit = 15, className }: 
                   </p>
                 )}
                 {ev.actorName && (
-                  <p className="text-xs text-gray-400 mt-0.5">by {ev.actorName}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{t.timeline.by} {ev.actorName}</p>
                 )}
               </div>
             </div>

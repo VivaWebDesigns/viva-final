@@ -16,23 +16,24 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient, STALE } from "@/lib/queryClient";
 import type { Notification } from "@shared/schema";
+import { useAdminLang } from "@/i18n/LanguageContext";
 
-const TYPE_CONFIG: Record<string, { icon: any; color: string; label: string; group: string }> = {
-  new_lead:               { icon: Users,        color: "text-blue-600 bg-blue-50",    label: "Nuevo Prospecto",         group: "CRM" },
-  lead_assignment:        { icon: UserPlus,     color: "text-indigo-600 bg-indigo-50", label: "Prospecto Asignado",     group: "CRM" },
-  lead_converted:         { icon: TrendingUp,   color: "text-teal-600 bg-teal-50",    label: "Prospecto Convertido",    group: "Pipeline" },
-  stage_change:           { icon: ArrowRight,   color: "text-amber-600 bg-amber-50",  label: "Cambio de Etapa",         group: "Pipeline" },
-  opportunity_assignment: { icon: UserPlus,     color: "text-emerald-600 bg-emerald-50", label: "Oportunidad Asignada", group: "Pipeline" },
-  onboarding_assignment:  { icon: UserPlus,     color: "text-teal-600 bg-teal-50",    label: "Incorporación Asignada",  group: "Onboarding" },
-  onboarding_status:      { icon: ArrowRight,   color: "text-purple-600 bg-purple-50", label: "Estado de Incorporación", group: "Onboarding" },
-  system_alert:           { icon: AlertTriangle, color: "text-red-600 bg-red-50",     label: "Alerta del Sistema",      group: "System" },
+const TYPE_ICONS: Record<string, { icon: any; color: string }> = {
+  new_lead:               { icon: Users,         color: "text-blue-600 bg-blue-50" },
+  lead_assignment:        { icon: UserPlus,      color: "text-indigo-600 bg-indigo-50" },
+  lead_converted:         { icon: TrendingUp,    color: "text-teal-600 bg-teal-50" },
+  stage_change:           { icon: ArrowRight,    color: "text-amber-600 bg-amber-50" },
+  opportunity_assignment: { icon: UserPlus,      color: "text-emerald-600 bg-emerald-50" },
+  onboarding_assignment:  { icon: UserPlus,      color: "text-teal-600 bg-teal-50" },
+  onboarding_status:      { icon: ArrowRight,    color: "text-purple-600 bg-purple-50" },
+  system_alert:           { icon: AlertTriangle, color: "text-red-600 bg-red-50" },
 };
 
-const EMAIL_STATUS_CONFIG: Record<string, { icon: any; color: string; label: string }> = {
-  sent:    { icon: MailCheck, color: "text-green-600", label: "Email enviado" },
-  failed:  { icon: MailX,    color: "text-red-600",   label: "Error de email" },
-  skipped: { icon: Mail,     color: "text-gray-400",  label: "Solo en app" },
-  pending: { icon: Mail,     color: "text-amber-500", label: "Email pendiente" },
+const EMAIL_ICONS: Record<string, { icon: any; color: string }> = {
+  sent:    { icon: MailCheck, color: "text-green-600" },
+  failed:  { icon: MailX,    color: "text-red-600" },
+  skipped: { icon: Mail,     color: "text-gray-400" },
+  pending: { icon: Mail,     color: "text-amber-500" },
 };
 
 function getEntityRoute(entityType?: string | null, entityId?: string | null): string | null {
@@ -47,53 +48,6 @@ function getEntityRoute(entityType?: string | null, entityId?: string | null): s
   }
 }
 
-function getEntityLabel(entityType?: string | null): string {
-  switch (entityType) {
-    case "lead":        return "Ver Prospecto";
-    case "opportunity": return "Ver Oportunidad";
-    case "onboarding":  return "Ver Incorporación";
-    case "company":     return "Ver Empresa";
-    case "contact":     return "Ver Contacto";
-    default:            return "Ver";
-  }
-}
-
-function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "ahora mismo";
-  if (mins < 60) return `hace ${mins}m`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `hace ${hrs}h`;
-  const days = Math.floor(hrs / 24);
-  if (days < 7) return `hace ${days}d`;
-  return new Date(dateStr).toLocaleDateString("es");
-}
-
-function getDateGroup(dateStr: string): string {
-  const d = new Date(dateStr);
-  const now = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const yesterdayStart = new Date(todayStart.getTime() - 86400000);
-  const weekStart = new Date(todayStart.getTime() - 6 * 86400000);
-  if (d >= todayStart) return "Hoy";
-  if (d >= yesterdayStart) return "Ayer";
-  if (d >= weekStart) return "Esta semana";
-  return "Anteriores";
-}
-
-const DATE_GROUP_ORDER = ["Hoy", "Ayer", "Esta semana", "Anteriores"];
-
-function groupByDate(notifications: Notification[]): { label: string; items: Notification[] }[] {
-  const groups: Record<string, Notification[]> = {};
-  for (const n of notifications) {
-    const g = getDateGroup(n.createdAt as unknown as string);
-    if (!groups[g]) groups[g] = [];
-    groups[g].push(n);
-  }
-  return DATE_GROUP_ORDER.filter((g) => groups[g]?.length > 0).map((g) => ({ label: g, items: groups[g] }));
-}
-
 const NOTIFICATIONS_BASE_KEY = "/api/notifications";
 
 function invalidateNotifications() {
@@ -102,10 +56,59 @@ function invalidateNotifications() {
 }
 
 export default function NotificationCenterPage() {
+  const { t } = useAdminLang();
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [readFilter, setReadFilter] = useState<string>("all");
   const [, navigate] = useLocation();
   const { toast } = useToast();
+
+  const timeAgo = (dateStr: string): string => {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return t.notifications.timeAgo.justNow;
+    if (mins < 60) return t.notifications.timeAgo.minutesAgo.replace("{{n}}", String(mins));
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return t.notifications.timeAgo.hoursAgo.replace("{{n}}", String(hrs));
+    const days = Math.floor(hrs / 24);
+    return t.notifications.timeAgo.daysAgo.replace("{{n}}", String(days));
+  };
+
+  const getDateGroup = (dateStr: string): string => {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterdayStart = new Date(todayStart.getTime() - 86400000);
+    const weekStart = new Date(todayStart.getTime() - 6 * 86400000);
+    if (d >= todayStart) return t.notifications.groups.today;
+    if (d >= yesterdayStart) return t.notifications.groups.yesterday;
+    if (d >= weekStart) return t.notifications.groups.thisWeek;
+    return t.notifications.groups.older;
+  };
+
+  const getEntityLabel = (entityType?: string | null): string =>
+    (t.notifications.entityLabels as Record<string, string>)[entityType ?? "default"] ?? t.notifications.entityLabels.default;
+
+  const getTypeLabel = (type: string): string =>
+    (t.notifications.types as Record<string, string>)[type] ?? type;
+
+  const getEmailLabel = (status: string): string =>
+    (t.notifications.emailStatus as Record<string, string>)[status] ?? status;
+
+  function groupByDate(notifications: Notification[]): { label: string; items: Notification[] }[] {
+    const groups: Record<string, Notification[]> = {};
+    for (const n of notifications) {
+      const g = getDateGroup(n.createdAt as unknown as string);
+      if (!groups[g]) groups[g] = [];
+      groups[g].push(n);
+    }
+    const order = [
+      t.notifications.groups.today,
+      t.notifications.groups.yesterday,
+      t.notifications.groups.thisWeek,
+      t.notifications.groups.older,
+    ];
+    return order.filter((g) => groups[g]?.length > 0).map((g) => ({ label: g, items: groups[g] }));
+  }
 
   const queryParams = new URLSearchParams();
   if (typeFilter !== "all") queryParams.set("type", typeFilter);
@@ -158,7 +161,7 @@ export default function NotificationCenterPage() {
     mutationFn: () => apiRequest("PUT", "/api/notifications/read-all"),
     onSuccess: () => {
       invalidateNotifications();
-      toast({ title: "Todas las notificaciones marcadas como leídas" });
+      toast({ title: t.notifications.markAllRead });
     },
   });
 
@@ -179,7 +182,7 @@ export default function NotificationCenterPage() {
     },
     onError: (_err, _id, ctx: any) => {
       if (ctx?.previous) queryClient.setQueryData(notificationsQueryKey, ctx.previous);
-      toast({ title: "Failed to delete notification", variant: "destructive" });
+      toast({ title: t.common.error, variant: "destructive" });
     },
     onSettled: () => {
       invalidateNotifications();
@@ -198,13 +201,17 @@ export default function NotificationCenterPage() {
   const unreadCount = unreadData?.count || 0;
   const grouped = groupByDate(notificationList);
 
+  const typeEntries = Object.entries(t.notifications.types) as [string, string][];
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900" data-testid="text-notifications-title">Notificaciones</h1>
+          <h1 className="text-2xl font-bold text-gray-900" data-testid="text-notifications-title">{t.notifications.title}</h1>
           <p className="text-sm text-gray-500 mt-1">
-            {unreadCount > 0 ? `${unreadCount} sin leer` : "Todo al día"}
+            {unreadCount > 0
+              ? t.notifications.unreadCount.replace("{{count}}", String(unreadCount))
+              : t.notifications.noNotificationsDesc}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -217,7 +224,7 @@ export default function NotificationCenterPage() {
               data-testid="button-mark-all-read"
             >
               <CheckCheck className="w-4 h-4 mr-1" />
-              Marcar todo leído
+              {t.notifications.markAllRead}
             </Button>
           )}
         </div>
@@ -227,35 +234,25 @@ export default function NotificationCenterPage() {
         <Filter className="w-4 h-4 text-gray-400 flex-shrink-0" />
         <Select value={typeFilter} onValueChange={setTypeFilter}>
           <SelectTrigger className="w-[200px]" data-testid="select-type-filter">
-            <SelectValue placeholder="Todos los tipos" />
+            <SelectValue placeholder={t.notifications.filterAll} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todos los tipos</SelectItem>
-            <SelectItem value="new_lead">Nuevo Prospecto</SelectItem>
-            <SelectItem value="lead_assignment">Prospecto Asignado</SelectItem>
-            <SelectItem value="lead_converted">Prospecto Convertido</SelectItem>
-            <SelectItem value="stage_change">Cambio de Etapa</SelectItem>
-            <SelectItem value="opportunity_assignment">Oportunidad Asignada</SelectItem>
-            <SelectItem value="onboarding_assignment">Incorporación Asignada</SelectItem>
-            <SelectItem value="onboarding_status">Estado de Incorporación</SelectItem>
-            <SelectItem value="system_alert">Alerta del Sistema</SelectItem>
+            <SelectItem value="all">{t.notifications.filterAll}</SelectItem>
+            {typeEntries.map(([key, label]) => (
+              <SelectItem key={key} value={key}>{label}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
         <Select value={readFilter} onValueChange={setReadFilter}>
           <SelectTrigger className="w-[140px]" data-testid="select-read-filter">
-            <SelectValue placeholder="Todos" />
+            <SelectValue placeholder={t.notifications.filterAll} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
-            <SelectItem value="unread">Sin leer</SelectItem>
-            <SelectItem value="read">Leídos</SelectItem>
+            <SelectItem value="all">{t.notifications.filterAll}</SelectItem>
+            <SelectItem value="unread">{t.notifications.filterUnread}</SelectItem>
+            <SelectItem value="read">{t.common.all}</SelectItem>
           </SelectContent>
         </Select>
-        {notificationList.length > 0 && (
-          <span className="text-sm text-gray-400 ml-auto">
-            {notificationList.length} notificación{notificationList.length !== 1 ? "es" : ""}
-          </span>
-        )}
       </div>
 
       {isLoading ? (
@@ -268,10 +265,8 @@ export default function NotificationCenterPage() {
             <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
               <Inbox className="w-8 h-8 text-gray-400" />
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-1" data-testid="text-empty-state">Sin notificaciones</h3>
-            <p className="text-sm text-gray-500">
-              {readFilter === "unread" ? "Todo al día — no hay notificaciones sin leer." : "Aún no hay nada aquí."}
-            </p>
+            <h3 className="text-lg font-medium text-gray-900 mb-1" data-testid="text-empty-state">{t.notifications.noNotifications}</h3>
+            <p className="text-sm text-gray-500">{t.notifications.noNotificationsDesc}</p>
           </CardContent>
         </Card>
       ) : (
@@ -284,8 +279,8 @@ export default function NotificationCenterPage() {
               <div className="space-y-2">
                 <AnimatePresence mode="popLayout">
                   {items.map((notification) => {
-                    const typeConf = TYPE_CONFIG[notification.type] || TYPE_CONFIG.system_alert;
-                    const emailConf = EMAIL_STATUS_CONFIG[notification.emailStatus || "skipped"];
+                    const typeConf = TYPE_ICONS[notification.type] || TYPE_ICONS.system_alert;
+                    const emailConf = EMAIL_ICONS[notification.emailStatus || "skipped"];
                     const TypeIcon = typeConf.icon;
                     const EmailIcon = emailConf.icon;
                     const route = getEntityRoute(notification.relatedEntityType, notification.relatedEntityId);
@@ -327,7 +322,7 @@ export default function NotificationCenterPage() {
                                   </div>
 
                                   <div className="flex items-center gap-1 flex-shrink-0">
-                                    <span className={emailConf.color} title={emailConf.label}>
+                                    <span className={emailConf.color} title={getEmailLabel(notification.emailStatus || "skipped")}>
                                       <EmailIcon className="w-3.5 h-3.5" />
                                     </span>
                                     {!notification.isRead && (
@@ -339,7 +334,7 @@ export default function NotificationCenterPage() {
                                           e.stopPropagation();
                                           markReadMutation.mutate(notification.id);
                                         }}
-                                        title="Marcar como leído"
+                                        title={t.common.markComplete}
                                         data-testid={`button-mark-read-${notification.id}`}
                                       >
                                         <Check className="w-3.5 h-3.5" />
@@ -353,7 +348,7 @@ export default function NotificationCenterPage() {
                                         e.stopPropagation();
                                         deleteMutation.mutate(notification.id);
                                       }}
-                                      title="Descartar"
+                                      title={t.notifications.dismiss}
                                       data-testid={`button-delete-${notification.id}`}
                                     >
                                       <X className="w-3.5 h-3.5" />
@@ -363,7 +358,7 @@ export default function NotificationCenterPage() {
 
                                 <div className="flex items-center gap-3 mt-2.5 flex-wrap">
                                   <Badge variant="secondary" className="text-xs">
-                                    {typeConf.label}
+                                    {getTypeLabel(notification.type)}
                                   </Badge>
                                   <span className="text-xs text-gray-400">
                                     {timeAgo(notification.createdAt as unknown as string)}

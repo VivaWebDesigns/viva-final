@@ -12,6 +12,7 @@ import {
   CreditCard, Webhook, CheckCircle2, XCircle, Clock,
   AlertTriangle, RefreshCw, Users, Activity, DollarSign,
 } from "lucide-react";
+import { useAdminLang } from "@/i18n/LanguageContext";
 
 interface BillingStatus {
   configured: boolean;
@@ -63,6 +64,7 @@ function EventTypeBadge({ type }: { type: string }) {
 }
 
 export default function PaymentsPage() {
+  const { t } = useAdminLang();
   const { toast } = useToast();
   const qc = useQueryClient();
   const [newCustomer, setNewCustomer] = useState({ entityType: "company", entityId: "", email: "", name: "" });
@@ -90,12 +92,12 @@ export default function PaymentsPage() {
       return res.json();
     },
     onSuccess: () => {
-      toast({ title: "Cliente creado en Stripe" });
+      toast({ title: t.payments.customerCreated });
       qc.invalidateQueries({ queryKey: ["/api/billing/customers"] });
       setShowAddCustomer(false);
       setNewCustomer({ entityType: "company", entityId: "", email: "", name: "" });
     },
-    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: Error) => toast({ title: t.common.error, description: err.message, variant: "destructive" }),
   });
 
   const processedCount = events.filter((e) => e.processed).length;
@@ -105,8 +107,8 @@ export default function PaymentsPage() {
     <div data-testid="page-payments">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Pagos y Facturación</h1>
-          <p className="text-sm text-gray-500 mt-1">Stripe webhook events, clientes sincronizados y estado de integración</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t.payments.title}</h1>
+          <p className="text-sm text-gray-500 mt-1">{t.payments.subtitle}</p>
         </div>
         <Button
           variant="outline"
@@ -116,11 +118,10 @@ export default function PaymentsPage() {
           data-testid="button-refresh-payments"
         >
           <RefreshCw className="w-4 h-4" />
-          Actualizar
+          {t.payments.refresh}
         </Button>
       </div>
 
-      {/* Status cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0 }}>
           <Card className="p-5" data-testid="card-billing-status">
@@ -135,13 +136,13 @@ export default function PaymentsPage() {
               )}
             </div>
             <p className="text-2xl font-bold text-gray-900">
-              {statusLoading ? "—" : status?.configured ? "Activo" : "No configurado"}
+              {statusLoading ? "—" : status?.configured ? t.payments.configured : t.payments.notConfigured}
             </p>
-            <p className="text-sm text-gray-500 mt-1">Estado de Stripe</p>
+            <p className="text-sm text-gray-500 mt-1">{t.payments.stripeStatus}</p>
             {status && !status.configured && (
               <p className="text-xs text-yellow-600 mt-1">
-                {!status.hasSecretKey && "Falta STRIPE_SECRET_KEY. "}
-                {!status.hasWebhookSecret && "Falta STRIPE_WEBHOOK_SECRET."}
+                {!status.hasSecretKey && "Missing STRIPE_SECRET_KEY. "}
+                {!status.hasWebhookSecret && "Missing STRIPE_WEBHOOK_SECRET."}
               </p>
             )}
           </Card>
@@ -153,9 +154,9 @@ export default function PaymentsPage() {
               <Webhook className="w-5 h-5 text-white" />
             </div>
             <p className="text-2xl font-bold text-gray-900">{eventsLoading ? "—" : events.length}</p>
-            <p className="text-sm text-gray-500 mt-1">Eventos Webhook</p>
+            <p className="text-sm text-gray-500 mt-1">{t.payments.webhookEvents}</p>
             {events.length > 0 && (
-              <p className="text-xs text-gray-400 mt-0.5">{processedCount} procesados · {pendingCount} pendientes</p>
+              <p className="text-xs text-gray-400 mt-0.5">{processedCount} {t.payments.processed.toLowerCase()} · {pendingCount} {t.payments.pending.toLowerCase()}</p>
             )}
           </Card>
         </motion.div>
@@ -166,7 +167,7 @@ export default function PaymentsPage() {
               <Users className="w-5 h-5 text-white" />
             </div>
             <p className="text-2xl font-bold text-gray-900">{customersLoading ? "—" : customers.length}</p>
-            <p className="text-sm text-gray-500 mt-1">Clientes Stripe</p>
+            <p className="text-sm text-gray-500 mt-1">{t.payments.customers}</p>
           </Card>
         </motion.div>
 
@@ -176,22 +177,21 @@ export default function PaymentsPage() {
               <Activity className="w-5 h-5 text-white" />
             </div>
             <p className="text-sm font-bold text-gray-900 break-all">POST /api/billing/webhook</p>
-            <p className="text-sm text-gray-500 mt-1">Endpoint Webhook</p>
-            <p className="text-xs text-gray-400 mt-0.5">Configurar en Stripe Dashboard</p>
+            <p className="text-sm text-gray-500 mt-1">Webhook Endpoint</p>
+            <p className="text-xs text-gray-400 mt-0.5">Configure in Stripe Dashboard</p>
           </Card>
         </motion.div>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        {/* Webhook events */}
         <div className="xl:col-span-2">
           <Card className="overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
               <h2 className="font-semibold text-gray-900 flex items-center gap-2">
                 <Webhook className="w-4 h-4 text-gray-400" />
-                Eventos Recientes
+                {t.payments.webhookEvents}
               </h2>
-              <span className="text-xs text-gray-400">{events.length} total</span>
+              <span className="text-xs text-gray-400">{events.length} {t.common.total.toLowerCase()}</span>
             </div>
 
             {eventsLoading ? (
@@ -203,12 +203,8 @@ export default function PaymentsPage() {
             ) : events.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-gray-300">
                 <Webhook className="w-10 h-10 mb-3" />
-                <p className="text-sm font-medium text-gray-400">Sin eventos aún</p>
-                <p className="text-xs text-gray-300 mt-1">
-                  {status?.configured
-                    ? "Configura el webhook en Stripe Dashboard apuntando a /api/billing/webhook"
-                    : "Configura STRIPE_SECRET_KEY y STRIPE_WEBHOOK_SECRET para activar Stripe"}
-                </p>
+                <p className="text-sm font-medium text-gray-400">{t.payments.noEvents}</p>
+                <p className="text-xs text-gray-300 mt-1">{t.payments.noEventsDesc}</p>
               </div>
             ) : (
               <div className="divide-y divide-gray-50">
@@ -228,7 +224,7 @@ export default function PaymentsPage() {
                       <p className="text-xs text-gray-400 mt-0.5 font-mono truncate">{evt.stripeEventId}</p>
                     </div>
                     <Badge variant="secondary" className={`flex-shrink-0 text-xs ${evt.processed ? "text-green-600" : "text-yellow-600"}`}>
-                      {evt.processed ? "OK" : "Pendiente"}
+                      {evt.processed ? t.payments.processed : t.payments.pending}
                     </Badge>
                   </div>
                 ))}
@@ -237,13 +233,12 @@ export default function PaymentsPage() {
           </Card>
         </div>
 
-        {/* Customers */}
         <div className="space-y-4">
           <Card className="overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
               <h2 className="font-semibold text-gray-900 flex items-center gap-2">
                 <Users className="w-4 h-4 text-gray-400" />
-                Clientes Stripe
+                {t.payments.customers}
               </h2>
               <Button
                 variant="ghost"
@@ -252,39 +247,39 @@ export default function PaymentsPage() {
                 onClick={() => setShowAddCustomer(!showAddCustomer)}
                 data-testid="button-add-customer"
               >
-                + Nuevo
+                + {t.payments.addCustomer}
               </Button>
             </div>
 
             {showAddCustomer && (
               <div className="px-5 py-4 border-b border-gray-100 bg-gray-50 space-y-3">
                 <div className="space-y-1">
-                  <Label className="text-xs">ID de Entidad (empresa/contacto)</Label>
+                  <Label className="text-xs">{t.payments.entityId}</Label>
                   <Input
                     value={newCustomer.entityId}
                     onChange={(e) => setNewCustomer((p) => ({ ...p, entityId: e.target.value }))}
-                    placeholder="ID de CRM"
+                    placeholder="CRM ID"
                     className="h-8 text-xs"
                     data-testid="input-customer-entity-id"
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Email</Label>
+                  <Label className="text-xs">{t.payments.emailLabel}</Label>
                   <Input
                     type="email"
                     value={newCustomer.email}
                     onChange={(e) => setNewCustomer((p) => ({ ...p, email: e.target.value }))}
-                    placeholder="cliente@email.com"
+                    placeholder="customer@email.com"
                     className="h-8 text-xs"
                     data-testid="input-customer-email"
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Nombre</Label>
+                  <Label className="text-xs">{t.payments.nameLabel}</Label>
                   <Input
                     value={newCustomer.name}
                     onChange={(e) => setNewCustomer((p) => ({ ...p, name: e.target.value }))}
-                    placeholder="Nombre del cliente"
+                    placeholder="Customer name"
                     className="h-8 text-xs"
                     data-testid="input-customer-name"
                   />
@@ -297,14 +292,14 @@ export default function PaymentsPage() {
                     disabled={!newCustomer.entityId || createCustomerMutation.isPending || !status?.configured}
                     data-testid="button-save-customer"
                   >
-                    {createCustomerMutation.isPending ? "Guardando..." : "Crear en Stripe"}
+                    {createCustomerMutation.isPending ? t.payments.creating : t.payments.createCustomer}
                   </Button>
                   <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setShowAddCustomer(false)}>
-                    Cancelar
+                    {t.payments.cancelAdd}
                   </Button>
                 </div>
                 {!status?.configured && (
-                  <p className="text-xs text-yellow-600">Stripe no configurado — las operaciones no funcionarán hasta configurar las claves.</p>
+                  <p className="text-xs text-yellow-600">{t.payments.setupRequired} — Stripe not configured.</p>
                 )}
               </div>
             )}
@@ -316,8 +311,8 @@ export default function PaymentsPage() {
             ) : customers.length === 0 ? (
               <div className="py-10 px-5 text-center text-gray-300">
                 <CreditCard className="w-8 h-8 mx-auto mb-2" />
-                <p className="text-sm text-gray-400">Sin clientes Stripe</p>
-                <p className="text-xs text-gray-300 mt-1">Los clientes se sincronizan automáticamente vía webhooks</p>
+                <p className="text-sm text-gray-400">{t.payments.noCustomers}</p>
+                <p className="text-xs text-gray-300 mt-1">{t.payments.noCustomersDesc}</p>
               </div>
             ) : (
               <div className="divide-y divide-gray-50">
@@ -338,17 +333,16 @@ export default function PaymentsPage() {
             )}
           </Card>
 
-          {/* Setup instructions */}
           {!status?.configured && !statusLoading && (
             <Card className="p-5 border-yellow-200 bg-yellow-50" data-testid="card-stripe-setup">
               <div className="flex items-start gap-3">
                 <AlertTriangle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm font-semibold text-yellow-800">Configuración requerida</p>
+                  <p className="text-sm font-semibold text-yellow-800">{t.payments.setupRequired}</p>
                   <ol className="text-xs text-yellow-700 mt-2 space-y-1 list-decimal list-inside">
-                    <li>Agrega <code className="bg-yellow-100 px-1 rounded">STRIPE_SECRET_KEY</code> en los secretos</li>
-                    <li>Agrega <code className="bg-yellow-100 px-1 rounded">STRIPE_WEBHOOK_SECRET</code> en los secretos</li>
-                    <li>Configura el endpoint <code className="bg-yellow-100 px-1 rounded">/api/billing/webhook</code> en Stripe Dashboard</li>
+                    <li>Add <code className="bg-yellow-100 px-1 rounded">STRIPE_SECRET_KEY</code> to secrets</li>
+                    <li>Add <code className="bg-yellow-100 px-1 rounded">STRIPE_WEBHOOK_SECRET</code> to secrets</li>
+                    <li>Configure <code className="bg-yellow-100 px-1 rounded">/api/billing/webhook</code> in Stripe Dashboard</li>
                   </ol>
                 </div>
               </div>

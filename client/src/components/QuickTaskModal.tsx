@@ -20,21 +20,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CalendarIcon, CheckCircle } from "lucide-react";
+import { useAdminLang } from "@/i18n/LanguageContext";
 
-export const TASK_PRESETS = [
-  { value: "1d",   label: "Tomorrow (1 day)"    },
-  { value: "2d",   label: "In 2 days"           },
-  { value: "5d",   label: "In 5 days"           },
-  { value: "1w",   label: "In 1 week"           },
-  { value: "2w",   label: "In 2 weeks"          },
-  { value: "1mo",  label: "In 1 month"          },
-  { value: "2mo",  label: "In 2 months"         },
-  { value: "6mo",  label: "In 6 months"         },
-  { value: "1yr",  label: "In 1 year"           },
-  { value: "custom", label: "Custom date..."    },
-] as const;
-
-export type TaskPreset = typeof TASK_PRESETS[number]["value"];
+export const TASK_PRESET_VALUES = ["1d", "2d", "5d", "1w", "2w", "1mo", "2mo", "6mo", "1yr", "custom"] as const;
+export type TaskPreset = typeof TASK_PRESET_VALUES[number];
 
 function calcDueDate(preset: TaskPreset): Date {
   const d = new Date();
@@ -80,6 +69,7 @@ export default function QuickTaskModal({
   onSuccess,
 }: QuickTaskModalProps) {
   const { toast } = useToast();
+  const { t } = useAdminLang();
   const isEdit = !!editTask;
 
   const [title, setTitle] = useState(defaultTitle);
@@ -137,12 +127,12 @@ export default function QuickTaskModal({
     },
     onSuccess: () => {
       invalidateTaskQueries();
-      toast({ title: "Task created", description: `"${title.trim()}" scheduled.` });
+      toast({ title: t.tasks.taskCreated, description: `"${title.trim()}" scheduled.` });
       onSuccess?.();
       onClose();
     },
     onError: (err: Error) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: t.common.error, description: err.message, variant: "destructive" });
     },
   });
 
@@ -157,12 +147,12 @@ export default function QuickTaskModal({
     },
     onSuccess: () => {
       invalidateTaskQueries();
-      toast({ title: "Task updated" });
+      toast({ title: t.tasks.taskUpdated });
       onSuccess?.();
       onClose();
     },
     onError: (err: Error) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: t.common.error, description: err.message, variant: "destructive" });
     },
   });
 
@@ -185,34 +175,34 @@ export default function QuickTaskModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CheckCircle className="w-5 h-5 text-[#0D9488]" />
-            {isEdit ? "Reschedule Task" : "Add Follow-up Task"}
+            {isEdit ? t.tasks.reschedule : t.tasks.scheduleFollowUp}
           </DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
           <div className="space-y-1.5">
-            <Label htmlFor="task-title">Task / Action</Label>
+            <Label htmlFor="task-title">{t.tasks.taskTitle}</Label>
             <Input
               id="task-title"
               data-testid="input-task-title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Call back to follow up on demo"
+              placeholder={t.tasks.taskTitlePlaceholder}
               required
               autoFocus
             />
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="task-preset">Follow up in</Label>
+            <Label htmlFor="task-preset">{t.tasks.dueDate}</Label>
             <Select value={preset} onValueChange={handlePresetChange}>
               <SelectTrigger id="task-preset" data-testid="select-task-preset">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {TASK_PRESETS.map((p) => (
-                  <SelectItem key={p.value} value={p.value} data-testid={`option-preset-${p.value}`}>
-                    {p.label}
+                {TASK_PRESET_VALUES.map((v) => (
+                  <SelectItem key={v} value={v} data-testid={`option-preset-${v}`}>
+                    {(t.tasks.presets as Record<string, string>)[v] ?? v}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -221,7 +211,7 @@ export default function QuickTaskModal({
 
           {preset === "custom" && (
             <div className="space-y-1.5">
-              <Label htmlFor="task-custom-date">Due date</Label>
+              <Label htmlFor="task-custom-date">{t.tasks.dueDate}</Label>
               <Input
                 id="task-custom-date"
                 type="date"
@@ -235,15 +225,17 @@ export default function QuickTaskModal({
 
           <div className="flex items-center gap-1.5 text-xs text-gray-500 bg-gray-50 rounded-md px-3 py-2">
             <CalendarIcon className="w-3.5 h-3.5 flex-shrink-0" />
-            <span data-testid="text-due-date-preview">Due: <strong>{dueDatePreview}</strong></span>
+            <span data-testid="text-due-date-preview">
+              {t.tasks.dueDate}: <strong>{dueDatePreview}</strong>
+            </span>
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="task-notes">Notes (optional)</Label>
+            <Label htmlFor="task-notes">{t.tasks.notesOptional}</Label>
             <RichTextEditorField
               value={notes}
               onChange={(html) => setNotes(html)}
-              placeholder="Any additional details..."
+              placeholder={t.tasks.notesPlaceholder}
               minHeight="60px"
               data-testid="input-task-notes"
             />
@@ -258,7 +250,7 @@ export default function QuickTaskModal({
               disabled={isPending}
               data-testid="button-task-cancel"
             >
-              Cancel
+              {t.tasks.cancel}
             </Button>
             <Button
               type="submit"
@@ -266,7 +258,7 @@ export default function QuickTaskModal({
               disabled={isPending || !title.trim()}
               data-testid="button-task-save"
             >
-              {isPending ? "Saving..." : isEdit ? "Update Task" : "Add Task"}
+              {isPending ? t.tasks.saving : isEdit ? t.tasks.updateTask : t.tasks.addTask}
             </Button>
           </div>
         </form>

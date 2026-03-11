@@ -17,20 +17,7 @@ import {
   Calendar, Eye, Building2, FileText,
 } from "lucide-react";
 import type { OnboardingTemplate, CrmCompany, CrmContact } from "@shared/schema";
-
-const CATEGORY_LABELS: Record<string, string> = {
-  contract: "Contract",
-  payment: "Payment",
-  branding: "Branding & Assets",
-  domain_dns: "Domain & DNS",
-  website: "Website Access",
-  google_business: "Google Business",
-  google_ads: "Google Ads",
-  meta_facebook: "Meta / Facebook",
-  social: "Social Media",
-  content: "Content",
-  kickoff: "Kickoff",
-};
+import { useAdminLang } from "@/i18n/LanguageContext";
 
 type ChecklistItem = {
   category: string;
@@ -51,6 +38,10 @@ const STEPS = [
 export default function OnboardingWizardPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const { t } = useAdminLang();
+
+  const CATEGORY_LABELS: Record<string, string> = t.onboarding.checklistCategories as Record<string, string>;
+
   const [step, setStep] = useState(0);
 
   const [clientName, setClientName] = useState("");

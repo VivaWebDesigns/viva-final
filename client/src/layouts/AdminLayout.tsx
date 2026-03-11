@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, Users, TrendingUp, UserPlus, MessageSquare,
   CreditCard, Bell, Puzzle, BarChart3, Settings, BookOpen,
-  LogOut, ChevronLeft, ChevronRight, Menu, X, Building2, Zap,
+  LogOut, ChevronLeft, ChevronRight, Menu, Building2, Zap,
   ClipboardList, AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,32 +17,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-
-interface NavItem {
-  label: string;
-  path: string;
-  icon: any;
-  roles?: string[];
-  color?: string;
-}
-
-const NAV_ITEMS: NavItem[] = [
-  { label: "Dashboard", path: "/admin", icon: LayoutDashboard, color: "text-blue-500" },
-  { label: "Clients", path: "/admin/clients", icon: Building2, color: "text-indigo-500" },
-  { label: "CRM", path: "/admin/crm", icon: Users, color: "text-emerald-500" },
-  { label: "Sales Pipeline", path: "/admin/pipeline", icon: TrendingUp, color: "text-orange-500" },
-  { label: "Tasks", path: "/admin/tasks", icon: ClipboardList, color: "text-teal-500" },
-  { label: "Client Onboarding", path: "/admin/onboarding", icon: UserPlus, color: "text-purple-500" },
-  { label: "Team Chat", path: "/admin/chat", icon: MessageSquare, color: "text-pink-500" },
-  { label: "Payments", path: "/admin/payments", icon: CreditCard, color: "text-yellow-600" },
-  { label: "Notifications", path: "/admin/notifications", icon: Bell, color: "text-red-500" },
-  { label: "Reports", path: "/admin/reports", icon: BarChart3, color: "text-cyan-500" },
-  { label: "Integrations", path: "/admin/integrations", icon: Puzzle, roles: ["admin", "developer"], color: "text-violet-500" },
-  { label: "Demo Builder", path: "/admin/demo-builder", icon: Zap, color: "text-amber-500" },
-  { label: "Admin", path: "/admin/settings", icon: Settings, roles: ["admin"], color: "text-gray-500" },
-  { label: "App Docs", path: "/admin/docs", icon: BookOpen, roles: ["admin", "developer"], color: "text-sky-500" },
-];
-
+import { useAdminLang } from "@/i18n/LanguageContext";
 import logoIcon from "@assets/icon_1772859732991.png";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -50,6 +25,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [mobileOpen, setMobileOpen] = useState(false);
   const { user, signOut, role } = useAuth();
   const [location, navigate] = useLocation();
+  const { lang, setLang, t } = useAdminLang();
+
+  const NAV_ITEMS = [
+    { label: t.nav.dashboard,     path: "/admin",               icon: LayoutDashboard, color: "text-blue-500" },
+    { label: t.nav.clients,       path: "/admin/clients",        icon: Building2,       color: "text-indigo-500" },
+    { label: t.nav.crm,           path: "/admin/crm",            icon: Users,           color: "text-emerald-500" },
+    { label: t.nav.pipeline,      path: "/admin/pipeline",       icon: TrendingUp,      color: "text-orange-500" },
+    { label: t.nav.tasks,         path: "/admin/tasks",          icon: ClipboardList,   color: "text-teal-500" },
+    { label: t.nav.onboarding,    path: "/admin/onboarding",     icon: UserPlus,        color: "text-purple-500" },
+    { label: t.nav.chat,          path: "/admin/chat",           icon: MessageSquare,   color: "text-pink-500" },
+    { label: t.nav.payments,      path: "/admin/payments",       icon: CreditCard,      color: "text-yellow-600",  roles: ["admin", "developer"] },
+    { label: t.nav.notifications, path: "/admin/notifications",  icon: Bell,            color: "text-red-500" },
+    { label: t.nav.reports,       path: "/admin/reports",        icon: BarChart3,       color: "text-cyan-500" },
+    { label: t.nav.integrations,  path: "/admin/integrations",   icon: Puzzle,          color: "text-violet-500",  roles: ["admin", "developer"] },
+    { label: t.nav.demoBuilder,   path: "/admin/demo-builder",   icon: Zap,             color: "text-amber-500" },
+    { label: t.nav.admin,         path: "/admin/settings",       icon: Settings,        color: "text-gray-500",    roles: ["admin"] },
+    { label: t.nav.docs,          path: "/admin/docs",           icon: BookOpen,        color: "text-sky-500",     roles: ["admin", "developer"] },
+  ];
 
   const { data: unreadData } = useQuery<{ count: number }>({
     queryKey: ["/api/notifications/unread-count"],
@@ -84,7 +77,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             {!collapsed && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="overflow-hidden whitespace-nowrap">
                 <p className="font-semibold text-gray-900 text-sm leading-tight">Viva Web Designs</p>
-                <p className="text-xs text-gray-500">Internal Platform</p>
+                <p className="text-xs text-gray-500">{t.nav.internalPlatform}</p>
               </motion.div>
             )}
           </div>
@@ -110,7 +103,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
                   }`}
                   onClick={() => setMobileOpen(false)}
-                  data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, "-")}`}
+                  data-testid={`nav-${item.path.split("/").pop()}`}
                 >
                   <Icon className={`w-5 h-5 flex-shrink-0 ${active ? "text-[#0D9488]" : item.color || "text-gray-500"}`} />
                   {!collapsed && <span>{item.label}</span>}
@@ -144,7 +137,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <AlertTriangle className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />
               {!collapsed && (
                 <span className="text-xs font-medium text-red-700">
-                  {overdueCount} overdue item{overdueCount !== 1 ? "s" : ""}
+                  {overdueCount} {overdueCount !== 1 ? t.nav.overdueItems : t.nav.overdueItem}
                 </span>
               )}
               {collapsed && (
@@ -181,7 +174,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   <LogOut className="w-4 h-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="right">Sign Out</TooltipContent>
+              <TooltipContent side="right">{t.nav.signOut}</TooltipContent>
             </Tooltip>
           ) : (
             <Button
@@ -192,7 +185,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               data-testid="button-sign-out"
             >
               <LogOut className="w-4 h-4 mr-2" />
-              Sign Out
+              {t.nav.signOut}
             </Button>
           )}
         </div>
@@ -240,10 +233,42 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             onClick={() => setMobileOpen(true)}
             data-testid="button-mobile-menu"
           >
-            <Menu className="w-5 h-5" />
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
           </button>
           <div className="hidden md:block" />
           <div className="flex items-center gap-3">
+            <div
+              className="flex items-center rounded-full border border-gray-200 bg-gray-50 p-0.5 text-xs font-semibold"
+              data-testid="lang-toggle"
+            >
+              <button
+                onClick={() => setLang("en")}
+                className={`px-2.5 py-1 rounded-full transition-colors ${
+                  lang === "en"
+                    ? "bg-white text-[#0D9488] shadow-sm"
+                    : "text-gray-400 hover:text-gray-600"
+                }`}
+                data-testid="button-lang-en"
+                aria-label="Switch to English"
+              >
+                EN
+              </button>
+              <button
+                onClick={() => setLang("es")}
+                className={`px-2.5 py-1 rounded-full transition-colors ${
+                  lang === "es"
+                    ? "bg-white text-[#0D9488] shadow-sm"
+                    : "text-gray-400 hover:text-gray-600"
+                }`}
+                data-testid="button-lang-es"
+                aria-label="Cambiar a Español"
+              >
+                ES
+              </button>
+            </div>
+
             <div className="relative">
               <Button
                 variant="ghost"

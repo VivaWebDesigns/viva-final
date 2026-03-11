@@ -6,6 +6,7 @@ import {
   BarChart3, TrendingUp, Target, DollarSign, Users, CheckCircle2,
   Bell, ArrowUpRight, ArrowDownRight, Minus, Calendar, AlertTriangle,
 } from "lucide-react";
+import { useAdminLang } from "@/i18n/LanguageContext";
 
 interface SourceRow { source: string; sourceLabel: string; count: number; totalValue: number }
 interface StatusRow { statusId: string | null; statusName: string | null; statusColor: string | null; count: number }
@@ -27,13 +28,6 @@ interface OverviewData {
   notifications: NotifSummary;
   overdueLeads: { count: number };
 }
-
-const DATE_RANGES = [
-  { label: "7 days", value: "7" },
-  { label: "30 days", value: "30" },
-  { label: "90 days", value: "90" },
-  { label: "All time", value: "" },
-] as const;
 
 function StatCard({ label, value, icon: Icon, color, sub, testId }: {
   label: string; value: string | number; icon: any; color: string; sub?: string; testId: string;
@@ -89,19 +83,17 @@ function Skeleton({ h = "h-48" }: { h?: string }) {
   return <div className={`${h} bg-gray-50 rounded-xl animate-pulse`} />;
 }
 
-const NOTIF_TYPE_LABELS: Record<string, string> = {
-  new_lead: "New Lead",
-  lead_assignment: "Lead Assigned",
-  stage_change: "Stage Change",
-  opportunity_assignment: "Opp Assigned",
-  onboarding_assignment: "Onboarding Assigned",
-  onboarding_status: "Onboarding Status",
-  system_alert: "System Alert",
-};
-
 export default function ReportsPage() {
+  const { t } = useAdminLang();
   const [rangeDays, setRangeDays] = useState<string>("30");
   const qp = rangeDays ? `?days=${rangeDays}` : "";
+
+  const DATE_RANGES = [
+    { label: t.reports.dateRanges["7"],  value: "7" },
+    { label: t.reports.dateRanges["30"], value: "30" },
+    { label: t.reports.dateRanges["90"], value: "90" },
+    { label: t.reports.dateRanges[""],   value: "" },
+  ] as const;
 
   const { data, isLoading } = useQuery<OverviewData>({
     queryKey: [`/api/reports/overview${qp}`],
@@ -117,14 +109,21 @@ export default function ReportsPage() {
   const maxSource = data ? Math.max(...data.leadsBySource.map((r) => r.count), 1) : 1;
   const maxStatus = data ? Math.max(...data.leadsByStatus.map((r) => r.count), 1) : 1;
   const maxStage = data ? Math.max(...data.pipeline.byStage.map((s) => s.totalValue), 1) : 1;
-  const trendMax = trend ? Math.max(...trend.map((t) => t.count), 1) : 1;
+  const trendMax = trend ? Math.max(...trend.map((tr) => tr.count), 1) : 1;
+
+  const onboardingRows = data ? [
+    { label: t.reports.onboardingStatuses.pending,     value: data.onboarding.byStatus.pending,     color: "text-yellow-600", key: "pending" },
+    { label: t.reports.onboardingStatuses.in_progress, value: data.onboarding.byStatus.in_progress, color: "text-blue-600",   key: "in-progress" },
+    { label: t.reports.onboardingStatuses.completed,   value: data.onboarding.byStatus.completed,   color: "text-green-600",  key: "completed" },
+    { label: t.reports.onboardingStatuses.on_hold,     value: data.onboarding.byStatus.on_hold,     color: "text-gray-600",   key: "on-hold" },
+  ] : [];
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900" data-testid="text-reports-title">Reports</h1>
-          <p className="text-gray-500 text-sm mt-1">Analytics across CRM, pipeline, onboarding, and notifications</p>
+          <h1 className="text-2xl font-bold text-gray-900" data-testid="text-reports-title">{t.reports.title}</h1>
+          <p className="text-gray-500 text-sm mt-1">{t.reports.subtitle}</p>
         </div>
         <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1" data-testid="filter-date-range">
           {DATE_RANGES.map((r) => (
@@ -151,7 +150,7 @@ export default function ReportsPage() {
       ) : data ? (
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
           <StatCard
-            label="Total Leads"
+            label={t.reports.totalLeads}
             value={data.conversion.total}
             icon={TrendingUp}
             color="bg-teal-500"
@@ -159,7 +158,7 @@ export default function ReportsPage() {
             testId="card-report-total-leads"
           />
           <StatCard
-            label="Conversion Rate"
+            label={t.reports.conversionRate}
             value={`${data.conversion.rate}%`}
             icon={Target}
             color="bg-cyan-500"
@@ -167,27 +166,27 @@ export default function ReportsPage() {
             testId="card-report-conversion"
           />
           <StatCard
-            label="Pipeline Value"
+            label={t.reports.pipelineValue}
             value={`$${data.pipeline.totalValue.toLocaleString()}`}
             icon={DollarSign}
             color="bg-green-500"
-            sub={`${data.pipeline.totalOpen} open opportunities`}
+            sub={`${data.pipeline.totalOpen} ${t.reports.openDeals}`}
             testId="card-report-pipeline-value"
           />
           <StatCard
-            label="Win Rate"
+            label={t.reports.winRate}
             value={`${data.wonLost.winRate}%`}
             icon={data.wonLost.winRate >= 50 ? ArrowUpRight : data.wonLost.winRate > 0 ? ArrowDownRight : Minus}
             color={data.wonLost.winRate >= 50 ? "bg-green-500" : data.wonLost.winRate > 0 ? "bg-amber-500" : "bg-gray-400"}
-            sub={`${data.wonLost.won.count} won / ${data.wonLost.lost.count} lost`}
+            sub={`${data.wonLost.won.count} ${t.reports.won.toLowerCase()} / ${data.wonLost.lost.count} ${t.reports.lost.toLowerCase()}`}
             testId="card-report-win-rate"
           />
           <StatCard
-            label="Prospectos Vencidos"
+            label={t.reports.overdueLeads}
             value={data.overdueLeads?.count ?? 0}
             icon={AlertTriangle}
             color={(data.overdueLeads?.count ?? 0) > 0 ? "bg-red-500" : "bg-gray-400"}
-            sub="Seguimiento requerido"
+            sub={t.reports.followUpRequired}
             testId="card-report-overdue-leads"
           />
         </div>
@@ -201,9 +200,9 @@ export default function ReportsPage() {
           </>
         ) : data ? (
           <>
-            <SectionCard title="Leads by Source" testId="card-leads-by-source">
+            <SectionCard title={t.reports.leadsBySource} testId="card-leads-by-source">
               {data.leadsBySource.length === 0 ? (
-                <p className="text-sm text-gray-400">No lead data available</p>
+                <p className="text-sm text-gray-400">{t.common.noData}</p>
               ) : (
                 <div className="space-y-3">
                   {data.leadsBySource
@@ -221,9 +220,9 @@ export default function ReportsPage() {
               )}
             </SectionCard>
 
-            <SectionCard title="Leads by Status" testId="card-leads-by-status">
+            <SectionCard title={t.reports.leadsByStatus} testId="card-leads-by-status">
               {data.leadsByStatus.length === 0 ? (
-                <p className="text-sm text-gray-400">No lead data available</p>
+                <p className="text-sm text-gray-400">{t.common.noData}</p>
               ) : (
                 <div className="space-y-3">
                   {data.leadsByStatus
@@ -231,7 +230,7 @@ export default function ReportsPage() {
                     .map((row) => (
                       <HorizontalBar
                         key={row.statusId || "null"}
-                        label={row.statusName || "Unassigned"}
+                        label={row.statusName || t.common.unassigned}
                         value={row.count}
                         max={maxStatus}
                         color={row.statusColor ? undefined : "bg-gray-400"}
@@ -252,9 +251,9 @@ export default function ReportsPage() {
           </>
         ) : data ? (
           <>
-            <SectionCard title="Pipeline Value by Stage" testId="card-pipeline-by-stage">
+            <SectionCard title={t.reports.pipelineByStage} testId="card-pipeline-by-stage">
               {data.pipeline.byStage.length === 0 ? (
-                <p className="text-sm text-gray-400">No pipeline data available</p>
+                <p className="text-sm text-gray-400">{t.common.noData}</p>
               ) : (
                 <div className="space-y-3">
                   {data.pipeline.byStage.map((stage) => (
@@ -271,25 +270,25 @@ export default function ReportsPage() {
               )}
             </SectionCard>
 
-            <SectionCard title="Won vs Lost" testId="card-won-lost">
+            <SectionCard title={t.reports.wonVsLost} testId="card-won-lost">
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div className="rounded-lg border border-green-100 bg-green-50 p-4 text-center" data-testid="stat-won">
                   <p className="text-2xl font-bold text-green-700">{data.wonLost.won.count}</p>
-                  <p className="text-sm text-green-600">Won</p>
+                  <p className="text-sm text-green-600">{t.reports.won}</p>
                   {data.wonLost.won.value > 0 && (
                     <p className="text-xs text-green-500 mt-1">${data.wonLost.won.value.toLocaleString()}</p>
                   )}
                 </div>
                 <div className="rounded-lg border border-red-100 bg-red-50 p-4 text-center" data-testid="stat-lost">
                   <p className="text-2xl font-bold text-red-700">{data.wonLost.lost.count}</p>
-                  <p className="text-sm text-red-600">Lost</p>
+                  <p className="text-sm text-red-600">{t.reports.lost}</p>
                   {data.wonLost.lost.value > 0 && (
                     <p className="text-xs text-red-500 mt-1">${data.wonLost.lost.value.toLocaleString()}</p>
                   )}
                 </div>
               </div>
               <div className="flex items-center justify-center gap-2">
-                <span className="text-sm text-gray-500">Win Rate:</span>
+                <span className="text-sm text-gray-500">{t.reports.winRate}:</span>
                 <span className={`text-lg font-bold ${data.wonLost.winRate >= 50 ? "text-green-600" : "text-amber-600"}`}>
                   {data.wonLost.winRate}%
                 </span>
@@ -307,15 +306,10 @@ export default function ReportsPage() {
           </>
         ) : data ? (
           <>
-            <SectionCard title="Onboarding Overview" testId="card-onboarding-overview">
+            <SectionCard title={t.reports.onboardingOverview} testId="card-onboarding-overview">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-                {[
-                  { label: "Pending", value: data.onboarding.byStatus.pending, color: "text-yellow-600" },
-                  { label: "In Progress", value: data.onboarding.byStatus.in_progress, color: "text-blue-600" },
-                  { label: "Completed", value: data.onboarding.byStatus.completed, color: "text-green-600" },
-                  { label: "On Hold", value: data.onboarding.byStatus.on_hold, color: "text-gray-600" },
-                ].map((s) => (
-                  <div key={s.label} className="rounded-lg border border-gray-100 p-3 text-center" data-testid={`stat-onboarding-${s.label.toLowerCase().replace(" ", "-")}`}>
+                {onboardingRows.map((s) => (
+                  <div key={s.key} className="rounded-lg border border-gray-100 p-3 text-center" data-testid={`stat-onboarding-${s.key}`}>
                     <p className={`text-xl font-bold ${s.color}`}>{s.value}</p>
                     <p className="text-xs text-gray-500">{s.label}</p>
                   </div>
@@ -324,7 +318,7 @@ export default function ReportsPage() {
               <div className="flex items-center justify-between text-sm border-t border-gray-100 pt-3">
                 <div className="flex items-center gap-4">
                   {data.onboarding.overdue > 0 && (
-                    <span className="text-red-600 font-medium">{data.onboarding.overdue} overdue</span>
+                    <span className="text-red-600 font-medium">{data.onboarding.overdue} {t.onboarding.stats.overdue.toLowerCase()}</span>
                   )}
                   <span className="text-gray-500">
                     Checklist: {data.onboarding.checklist.completed}/{data.onboarding.checklist.total} ({data.onboarding.checklist.rate}%)
@@ -336,29 +330,31 @@ export default function ReportsPage() {
               </div>
             </SectionCard>
 
-            <SectionCard title="Notification Summary" testId="card-notification-summary">
+            <SectionCard title={t.reports.notificationSummary} testId="card-notification-summary">
               <div className="flex items-center gap-4 mb-4">
                 <div className="flex items-center gap-2">
                   <Bell className="w-4 h-4 text-gray-400" />
-                  <span className="text-sm text-gray-600">{data.notifications.total} total</span>
+                  <span className="text-sm text-gray-600">{data.notifications.total} {t.common.total.toLowerCase()}</span>
                 </div>
                 {data.notifications.unread > 0 && (
-                  <span className="text-sm font-medium text-amber-600">{data.notifications.unread} unread</span>
+                  <span className="text-sm font-medium text-amber-600">{data.notifications.unread} {t.reports.unread}</span>
                 )}
               </div>
               {data.notifications.byType.length === 0 ? (
-                <p className="text-sm text-gray-400">No notifications yet</p>
+                <p className="text-sm text-gray-400">{t.common.noData}</p>
               ) : (
                 <div className="space-y-2">
                   {data.notifications.byType
                     .sort((a, b) => b.count - a.count)
                     .map((row) => (
                       <div key={row.type} className="flex items-center justify-between text-sm">
-                        <span className="text-gray-600">{NOTIF_TYPE_LABELS[row.type] || row.type}</span>
+                        <span className="text-gray-600">
+                          {(t.reports.notifTypes as Record<string, string>)[row.type] || row.type}
+                        </span>
                         <div className="flex items-center gap-3">
                           <span className="text-gray-900 font-medium">{row.count}</span>
                           {row.unread > 0 && (
-                            <span className="text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">{row.unread} unread</span>
+                            <span className="text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">{row.unread} {t.reports.unread}</span>
                           )}
                         </div>
                       </div>
@@ -376,11 +372,11 @@ export default function ReportsPage() {
         ) : trend && trend.length > 0 ? (
           <div>
             <div className="flex items-end gap-1 h-32" data-testid="chart-leads-trend">
-              {trend.map((t) => {
-                const pct = trendMax > 0 ? (t.count / trendMax) * 100 : 0;
+              {trend.map((tr) => {
+                const pct = trendMax > 0 ? (tr.count / trendMax) * 100 : 0;
                 return (
                   <div
-                    key={t.date}
+                    key={tr.date}
                     className="flex-1 group relative flex flex-col justify-end"
                   >
                     <div
@@ -388,7 +384,7 @@ export default function ReportsPage() {
                       style={{ height: `${Math.max(pct, 2)}%` }}
                     />
                     <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 hidden group-hover:block bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-10">
-                      {t.date}: {t.count}
+                      {tr.date}: {tr.count}
                     </div>
                   </div>
                 );
@@ -400,7 +396,7 @@ export default function ReportsPage() {
             </div>
           </div>
         ) : (
-          <p className="text-sm text-gray-400">No lead activity in this period</p>
+          <p className="text-sm text-gray-400">{t.common.noData}</p>
         )}
       </SectionCard>
     </div>

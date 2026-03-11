@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Users, FileText, BookOpen, Puzzle, Phone, Building2, UserCheck, TrendingUp, ArrowRight, DollarSign, Target, UserPlus } from "lucide-react";
 import { useLocation } from "wouter";
 import type { CrmLead } from "@shared/schema";
+import { useAdminLang } from "@/i18n/LanguageContext";
 
 interface PipelineStats {
   totalOpen: number;
@@ -25,17 +26,6 @@ interface Stats {
   recentLeads: CrmLead[];
 }
 
-const STAT_CARDS = [
-  { key: "leads", label: "CRM Leads", icon: TrendingUp, color: "bg-teal-500" },
-  { key: "opportunities", label: "Opportunities", icon: Target, color: "bg-cyan-500" },
-  { key: "companies", label: "Companies", icon: Building2, color: "bg-indigo-500" },
-  { key: "crmContacts", label: "CRM Contacts", icon: UserCheck, color: "bg-emerald-500" },
-  { key: "users", label: "Team Members", icon: Users, color: "bg-blue-500" },
-  { key: "contacts", label: "Form Submissions", icon: Phone, color: "bg-amber-500" },
-  { key: "articles", label: "Doc Articles", icon: FileText, color: "bg-purple-500" },
-  { key: "integrations", label: "Integrations", icon: Puzzle, color: "bg-rose-500" },
-] as const;
-
 interface OnboardingStats {
   total: number;
   pending: number;
@@ -46,6 +36,7 @@ interface OnboardingStats {
 }
 
 export default function DashboardPage() {
+  const { t } = useAdminLang();
   const { data: stats, isLoading } = useQuery<Stats>({
     queryKey: ["/api/admin/stats"],
     staleTime: STALE.MEDIUM,
@@ -56,11 +47,29 @@ export default function DashboardPage() {
   });
   const [, setLocation] = useLocation();
 
+  const STAT_CARDS = [
+    { key: "leads" as const,         label: t.dashboard.crmLeads,       icon: TrendingUp, color: "bg-teal-500" },
+    { key: "opportunities" as const,  label: t.dashboard.opportunities,  icon: Target,     color: "bg-cyan-500" },
+    { key: "companies" as const,      label: t.dashboard.companies,      icon: Building2,  color: "bg-indigo-500" },
+    { key: "crmContacts" as const,    label: t.dashboard.crmContacts,    icon: UserCheck,  color: "bg-emerald-500" },
+    { key: "users" as const,          label: t.dashboard.teamMembers,    icon: Users,      color: "bg-blue-500" },
+    { key: "contacts" as const,       label: t.dashboard.formSubmissions,icon: Phone,      color: "bg-amber-500" },
+    { key: "articles" as const,       label: t.dashboard.docArticles,    icon: FileText,   color: "bg-purple-500" },
+    { key: "integrations" as const,   label: t.dashboard.integrations,   icon: Puzzle,     color: "bg-rose-500" },
+  ];
+
+  const onboardingRows = [
+    { label: t.onboarding.stats.pending,    value: onboardingStats?.pending ?? 0,    color: "text-yellow-600", key: "pending" },
+    { label: t.onboarding.stats.inProgress, value: onboardingStats?.inProgress ?? 0, color: "text-blue-600",   key: "in-progress" },
+    { label: t.onboarding.stats.completed,  value: onboardingStats?.completed ?? 0,  color: "text-green-600",  key: "completed" },
+    { label: t.onboarding.status.on_hold,   value: onboardingStats?.onHold ?? 0,     color: "text-gray-600",   key: "on-hold" },
+  ];
+
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900" data-testid="text-dashboard-title">Dashboard</h1>
-        <p className="text-gray-500 text-sm mt-1">Platform overview</p>
+        <h1 className="text-2xl font-bold text-gray-900" data-testid="text-dashboard-title">{t.dashboard.title}</h1>
+        <p className="text-gray-500 text-sm mt-1">{t.dashboard.subtitle}</p>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 xl:grid-cols-8 gap-4 mb-8">
@@ -96,11 +105,11 @@ export default function DashboardPage() {
         <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6" data-testid="card-pipeline-overview">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <h2 className="text-lg font-semibold text-gray-900">Pipeline Overview</h2>
+              <h2 className="text-lg font-semibold text-gray-900">{t.dashboard.pipelineOverview}</h2>
               {stats.pipelineStats.totalValue > 0 && (
                 <span className="flex items-center gap-1 text-sm font-medium text-green-600">
                   <DollarSign className="w-3.5 h-3.5" />
-                  {stats.pipelineStats.totalValue.toLocaleString()} total value
+                  {stats.pipelineStats.totalValue.toLocaleString()} {t.dashboard.pipelineValue}
                 </span>
               )}
             </div>
@@ -109,7 +118,7 @@ export default function DashboardPage() {
               className="text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1"
               data-testid="link-view-pipeline"
             >
-              View pipeline <ArrowRight className="w-3.5 h-3.5" />
+              {t.dashboard.viewAll} <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
           <div className="flex gap-2">
@@ -134,10 +143,10 @@ export default function DashboardPage() {
         <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6" data-testid="card-onboarding-overview">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <h2 className="text-lg font-semibold text-gray-900">Active Onboardings</h2>
+              <h2 className="text-lg font-semibold text-gray-900">{t.dashboard.onboardingOverview}</h2>
               {onboardingStats.overdue > 0 && (
                 <span className="text-xs font-medium text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
-                  {onboardingStats.overdue} overdue
+                  {onboardingStats.overdue} {t.onboarding.stats.overdue.toLowerCase()}
                 </span>
               )}
             </div>
@@ -146,19 +155,14 @@ export default function DashboardPage() {
               className="text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1"
               data-testid="link-view-onboarding"
             >
-              View all <ArrowRight className="w-3.5 h-3.5" />
+              {t.dashboard.viewAll} <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
           <div className="flex gap-3">
-            {[
-              { label: "Pending", value: onboardingStats.pending, color: "text-yellow-600" },
-              { label: "In Progress", value: onboardingStats.inProgress, color: "text-blue-600" },
-              { label: "Completed", value: onboardingStats.completed, color: "text-green-600" },
-              { label: "On Hold", value: onboardingStats.onHold, color: "text-gray-600" },
-            ].map((stat) => (
-              <div key={stat.label} className="flex-1 rounded-lg border border-gray-100 p-3 text-center">
+            {onboardingRows.map((stat) => (
+              <div key={stat.key} className="flex-1 rounded-lg border border-gray-100 p-3 text-center">
                 <p className="text-xs text-gray-500 mb-1">{stat.label}</p>
-                <p className={`text-lg font-bold ${stat.color}`} data-testid={`stat-onboarding-dash-${stat.label.toLowerCase().replace(" ", "-")}`}>{stat.value}</p>
+                <p className={`text-lg font-bold ${stat.color}`} data-testid={`stat-onboarding-dash-${stat.key}`}>{stat.value}</p>
               </div>
             ))}
           </div>
@@ -168,13 +172,13 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Recent Leads</h2>
+            <h2 className="text-lg font-semibold text-gray-900">{t.dashboard.recentLeads}</h2>
             <button
               onClick={() => setLocation("/admin/crm")}
               className="text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1"
               data-testid="link-view-all-leads"
             >
-              View all <ArrowRight className="w-3.5 h-3.5" />
+              {t.dashboard.viewAll} <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
           {isLoading ? (
@@ -199,11 +203,11 @@ export default function DashboardPage() {
               ))}
             </div>
           ) : (
-            <p className="text-gray-500 text-sm">No leads yet. Leads will appear here as they come in from the contact form or are created manually.</p>
+            <p className="text-gray-500 text-sm">{t.dashboard.noRecentLeads}</p>
           )}
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">{t.dashboard.quickAccess}</h2>
           <div className="space-y-2">
             <button
               onClick={() => setLocation("/admin/crm")}
@@ -212,8 +216,8 @@ export default function DashboardPage() {
             >
               <TrendingUp className="w-5 h-5 text-teal-500" />
               <div>
-                <p className="text-sm font-medium text-gray-900">View CRM</p>
-                <p className="text-xs text-gray-500">Manage leads, contacts, and companies</p>
+                <p className="text-sm font-medium text-gray-900">{t.nav.crm}</p>
+                <p className="text-xs text-gray-500">{t.dashboard.salesPipelineDesc}</p>
               </div>
             </button>
             <button
@@ -223,8 +227,8 @@ export default function DashboardPage() {
             >
               <Target className="w-5 h-5 text-cyan-500" />
               <div>
-                <p className="text-sm font-medium text-gray-900">Sales Pipeline</p>
-                <p className="text-xs text-gray-500">Track deals through pipeline stages</p>
+                <p className="text-sm font-medium text-gray-900">{t.nav.pipeline}</p>
+                <p className="text-xs text-gray-500">{t.dashboard.salesPipelineDesc}</p>
               </div>
             </button>
             <button
@@ -234,8 +238,8 @@ export default function DashboardPage() {
             >
               <UserPlus className="w-5 h-5 text-orange-500" />
               <div>
-                <p className="text-sm font-medium text-gray-900">Client Onboarding</p>
-                <p className="text-xs text-gray-500">Manage client setup and checklists</p>
+                <p className="text-sm font-medium text-gray-900">{t.nav.onboarding}</p>
+                <p className="text-xs text-gray-500">{t.dashboard.clientOnboardingDesc}</p>
               </div>
             </button>
             <button
@@ -245,8 +249,8 @@ export default function DashboardPage() {
             >
               <BookOpen className="w-5 h-5 text-purple-500" />
               <div>
-                <p className="text-sm font-medium text-gray-900">App Docs</p>
-                <p className="text-xs text-gray-500">Internal documentation library</p>
+                <p className="text-sm font-medium text-gray-900">{t.nav.docs}</p>
+                <p className="text-xs text-gray-500">{t.dashboard.appDocsDesc}</p>
               </div>
             </button>
             <button
@@ -256,8 +260,8 @@ export default function DashboardPage() {
             >
               <Puzzle className="w-5 h-5 text-rose-500" />
               <div>
-                <p className="text-sm font-medium text-gray-900">Integrations</p>
-                <p className="text-xs text-gray-500">Configure third-party services</p>
+                <p className="text-sm font-medium text-gray-900">{t.nav.integrations}</p>
+                <p className="text-xs text-gray-500">{t.dashboard.integrationsDesc}</p>
               </div>
             </button>
           </div>

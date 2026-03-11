@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "./useAuth";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 import logoIcon from "@assets/icon_1772859732991.png";
+import { useAdminLang } from "@/i18n/LanguageContext";
 
 // Dev-only credentials are read from environment variables so no plaintext
 // passwords live in source code. The entire dev card is stripped from
@@ -46,6 +47,7 @@ const DEV_USERS = [
 ].filter((u) => u.email && u.password);
 
 export default function LoginPage() {
+  const { t } = useAdminLang();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -54,10 +56,11 @@ export default function LoginPage() {
   const { isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
 
-  if (isAuthenticated) {
-    setLocation("/admin");
-    return null;
-  }
+  useEffect(() => {
+    if (isAuthenticated) setLocation("/admin");
+  }, [isAuthenticated]);
+
+  if (isAuthenticated) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,7 +83,7 @@ export default function LoginPage() {
       setLocation("/admin");
       window.location.reload();
     } catch (err: any) {
-      setError(err.message || "Login failed. Please try again.");
+      setError(err.message || t.auth.loginFailed);
     } finally {
       setIsSubmitting(false);
     }
@@ -102,7 +105,7 @@ export default function LoginPage() {
             <h1 className="text-2xl font-bold text-gray-900" data-testid="text-login-title">
               Viva Web Designs
             </h1>
-            <p className="text-gray-500 mt-1">Internal Platform</p>
+            <p className="text-gray-500 mt-1">{t.auth.internalPlatform}</p>
           </div>
 
           {error && (
@@ -120,7 +123,7 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
               <Label htmlFor="email" className="text-sm font-medium text-gray-700">
-                Email
+                {t.auth.emailLabel}
               </Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -139,7 +142,7 @@ export default function LoginPage() {
 
             <div className="space-y-2">
               <Label htmlFor="password" className="text-sm font-medium text-gray-700">
-                Password
+                {t.auth.passwordLabel}
               </Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -173,7 +176,7 @@ export default function LoginPage() {
               {isSubmitting ? (
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
               ) : (
-                "Sign In"
+                t.auth.signIn
               )}
             </Button>
           </form>
@@ -251,7 +254,7 @@ export default function LoginPage() {
               data-testid="button-use-dev-credentials"
             >
               <Zap className="w-3.5 h-3.5" />
-              Auto-fill Admin credentials
+              {t.auth.autoFillAdmin}
             </button>
           </motion.div>
         )}

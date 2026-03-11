@@ -23,6 +23,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@features/auth/useAuth";
 import { cn } from "@/lib/utils";
 import type { CrmLead, CrmLeadStatus, CrmContact, CrmCompany, CrmTag } from "@shared/schema";
+import { useAdminLang } from "@/i18n/LanguageContext";
 
 interface LeadWithRelations extends CrmLead {
   contact?: CrmContact | null;
@@ -49,6 +50,7 @@ type BulkAction = "assign" | "status" | "addTag" | "removeTag" | "delete";
 export default function LeadListPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const { t } = useAdminLang();
   const { role } = useAuth();
   const isAdmin = role === "admin";
 
@@ -132,17 +134,19 @@ export default function LeadListPage() {
   const invalidateLeads = () => queryClient.invalidateQueries({ queryKey: ["/api/crm/leads"] });
 
   const selectedCount = selectedIds.size;
-  const selectedLabel = `${selectedCount} prospecto${selectedCount !== 1 ? "s" : ""}`;
+  const selectedLabel = selectedCount === 1
+    ? t.crm.selectedLeads_one.replace("{{count}}", String(selectedCount))
+    : t.crm.selectedLeads_other.replace("{{count}}", String(selectedCount));
 
   const bulkAssignMutation = useMutation({
     mutationFn: (assignedTo: string | null) =>
       apiRequest("POST", "/api/crm/leads/bulk/assign", { ids: [...selectedIds], assignedTo }),
     onSuccess: async () => {
       await invalidateLeads();
-      toast({ title: `${selectedLabel} asignado${selectedIds.size !== 1 ? "s" : ""}` });
+      toast({ title: selectedLabel });
       clearSelection(); closeBulkDialog();
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: t.common.error, description: e.message, variant: "destructive" }),
   });
 
   const bulkStatusMutation = useMutation({
@@ -150,10 +154,10 @@ export default function LeadListPage() {
       apiRequest("POST", "/api/crm/leads/bulk/status", { ids: [...selectedIds], statusId }),
     onSuccess: async () => {
       await invalidateLeads();
-      toast({ title: `Estado actualizado para ${selectedLabel}` });
+      toast({ title: selectedLabel });
       clearSelection(); closeBulkDialog();
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: t.common.error, description: e.message, variant: "destructive" }),
   });
 
   const bulkAddTagsMutation = useMutation({
@@ -161,10 +165,10 @@ export default function LeadListPage() {
       apiRequest("POST", "/api/crm/leads/bulk/tags/add", { ids: [...selectedIds], tagIds }),
     onSuccess: async () => {
       await invalidateLeads();
-      toast({ title: `Etiquetas agregadas a ${selectedLabel}` });
+      toast({ title: selectedLabel });
       clearSelection(); closeBulkDialog();
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: t.common.error, description: e.message, variant: "destructive" }),
   });
 
   const bulkRemoveTagsMutation = useMutation({
@@ -172,10 +176,10 @@ export default function LeadListPage() {
       apiRequest("POST", "/api/crm/leads/bulk/tags/remove", { ids: [...selectedIds], tagIds }),
     onSuccess: async () => {
       await invalidateLeads();
-      toast({ title: `Etiquetas quitadas de ${selectedLabel}` });
+      toast({ title: selectedLabel });
       clearSelection(); closeBulkDialog();
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: t.common.error, description: e.message, variant: "destructive" }),
   });
 
   const bulkDeleteMutation = useMutation({
@@ -183,10 +187,10 @@ export default function LeadListPage() {
       apiRequest("POST", "/api/crm/leads/bulk/delete", { ids: [...selectedIds] }),
     onSuccess: async () => {
       await invalidateLeads();
-      toast({ title: `${selectedLabel} eliminado${selectedIds.size !== 1 ? "s" : ""}` });
+      toast({ title: selectedLabel });
       clearSelection(); closeBulkDialog();
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: t.common.error, description: e.message, variant: "destructive" }),
   });
 
   const anyBulkPending =
@@ -209,7 +213,7 @@ export default function LeadListPage() {
   };
 
   const getContactName = (lead: LeadWithRelations) => {
-    if (!lead.contact) return "Sin contacto";
+    if (!lead.contact) return t.crm.noContact;
     return [lead.contact.firstName, lead.contact.lastName].filter(Boolean).join(" ");
   };
 
@@ -221,10 +225,10 @@ export default function LeadListPage() {
       <div className="flex items-center justify-between gap-4 mb-6 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100" data-testid="text-crm-title">
-            Prospectos
+            {t.crm.title}
           </h1>
           <p className="text-gray-500 text-sm mt-1">
-            {total} prospecto{total !== 1 ? "s" : ""} en total
+            {total} {t.common.leads.toLowerCase()}
           </p>
         </div>
         {(isAdmin || role === "sales_rep") && (
@@ -252,7 +256,7 @@ export default function LeadListPage() {
             <Input
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              placeholder="Buscar prospectos, contactos, empresas..."
+              placeholder={t.crm.searchPlaceholder}
               className="pl-10"
               data-testid="input-search-leads"
             />
@@ -262,7 +266,7 @@ export default function LeadListPage() {
               <SelectValue placeholder="All Statuses" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos los estados</SelectItem>
+              <SelectItem value="all">{t.crm.allStatuses}</SelectItem>
               {statuses.map(s => (
                 <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
               ))}
@@ -273,15 +277,15 @@ export default function LeadListPage() {
               <SelectValue placeholder="Todas las fuentes" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todas las fuentes</SelectItem>
-              <SelectItem value="website_form">Formulario Web</SelectItem>
-              <SelectItem value="referral">Referido</SelectItem>
-              <SelectItem value="cold_outreach">Contacto Directo</SelectItem>
-              <SelectItem value="social_media">Redes Sociales</SelectItem>
-              <SelectItem value="paid_ads">Anuncios Pagados</SelectItem>
-              <SelectItem value="event">Evento</SelectItem>
+              <SelectItem value="all">{t.crm.allSources}</SelectItem>
+              <SelectItem value="website_form">Website Form</SelectItem>
+              <SelectItem value="referral">Referral</SelectItem>
+              <SelectItem value="cold_outreach">Cold Outreach</SelectItem>
+              <SelectItem value="social_media">Social Media</SelectItem>
+              <SelectItem value="paid_ads">Paid Ads</SelectItem>
+              <SelectItem value="event">Event</SelectItem>
               <SelectItem value="manual">Manual</SelectItem>
-              <SelectItem value="other">Otro</SelectItem>
+              <SelectItem value="other">Other</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -309,10 +313,10 @@ export default function LeadListPage() {
               className="flex items-center gap-1 text-teal-200 hover:text-white text-xs transition-colors"
               data-testid="button-clear-selection"
             >
-              <X className="w-3 h-3" /> Clear
+              <X className="w-3 h-3" /> {t.common.clear}
             </button>
             <span className="text-teal-400 text-xs hidden sm:inline">
-              · {allOnPageSelected ? "Todos en página seleccionados" : `¿Seleccionar los ${leads.length} en esta página?`}
+              · {allOnPageSelected ? t.common.allSelected : `${t.common.selectAll} (${leads.length})`}
             </span>
             {!allOnPageSelected && (
               <button
@@ -320,7 +324,7 @@ export default function LeadListPage() {
                 className="text-teal-200 hover:text-white text-xs underline transition-colors hidden sm:inline"
                 data-testid="button-select-page"
               >
-                Seleccionar página
+                {t.common.selectAll}
               </button>
             )}
 
@@ -332,7 +336,7 @@ export default function LeadListPage() {
                 disabled={anyBulkPending}
                 data-testid="button-bulk-assign"
               >
-                <UserCheck className="w-3 h-3 mr-1" /> Assign
+                <UserCheck className="w-3 h-3 mr-1" /> {t.crm.bulkAssign}
               </Button>
               <Button
                 size="sm"
@@ -341,7 +345,7 @@ export default function LeadListPage() {
                 disabled={anyBulkPending}
                 data-testid="button-bulk-status"
               >
-                <CircleDot className="w-3 h-3 mr-1" /> Status
+                <CircleDot className="w-3 h-3 mr-1" /> {t.crm.status}
               </Button>
               <Button
                 size="sm"
@@ -350,7 +354,7 @@ export default function LeadListPage() {
                 disabled={anyBulkPending}
                 data-testid="button-bulk-add-tag"
               >
-                <Tag className="w-3 h-3 mr-1" /> Add Tag
+                <Tag className="w-3 h-3 mr-1" /> {t.crm.bulkAddTags}
               </Button>
               <Button
                 size="sm"
@@ -359,7 +363,7 @@ export default function LeadListPage() {
                 disabled={anyBulkPending}
                 data-testid="button-bulk-remove-tag"
               >
-                <Tags className="w-3 h-3 mr-1" /> Remove Tag
+                <Tags className="w-3 h-3 mr-1" /> {t.crm.bulkRemoveTags}
               </Button>
               {isAdmin && (
                 <Button
@@ -369,7 +373,7 @@ export default function LeadListPage() {
                   disabled={anyBulkPending}
                   data-testid="button-bulk-delete"
                 >
-                  <Trash2 className="w-3 h-3 mr-1" /> Delete
+                  <Trash2 className="w-3 h-3 mr-1" /> {t.crm.bulkDelete}
                 </Button>
               )}
             </div>
@@ -386,8 +390,8 @@ export default function LeadListPage() {
       ) : leads.length === 0 ? (
         <Card className="p-12 text-center">
           <Users className="w-10 h-10 mx-auto mb-3 text-gray-300" />
-          <p className="text-gray-500" data-testid="text-no-leads">No se encontraron prospectos</p>
-          <p className="text-gray-400 text-sm mt-1">Intenta ajustar tu búsqueda o filtros</p>
+          <p className="text-gray-500" data-testid="text-no-leads">{t.crm.noLeads}</p>
+          <p className="text-gray-400 text-sm mt-1">{t.crm.searchNoResults}</p>
         </Card>
       ) : (
         <div className="space-y-2">
@@ -484,7 +488,7 @@ export default function LeadListPage() {
 
       {totalPages > 1 && (
         <div className="flex items-center justify-between mt-6">
-          <p className="text-sm text-gray-500">Página {page} de {totalPages}</p>
+          <p className="text-sm text-gray-500">{t.crm.page.replace("{{page}}", String(page)).replace("{{total}}", String(totalPages))}</p>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
@@ -493,7 +497,7 @@ export default function LeadListPage() {
               disabled={page <= 1}
               data-testid="button-prev-page"
             >
-              <ChevronLeft className="w-4 h-4 mr-1" /> Anterior
+              <ChevronLeft className="w-4 h-4 mr-1" /> {t.crm.prevPage}
             </Button>
             <Button
               variant="outline"
@@ -502,7 +506,7 @@ export default function LeadListPage() {
               disabled={page >= totalPages}
               data-testid="button-next-page"
             >
-              Siguiente <ChevronRight className="w-4 h-4 ml-1" />
+              {t.crm.nextPage} <ChevronRight className="w-4 h-4 ml-1" />
             </Button>
           </div>
         </div>
@@ -513,15 +517,15 @@ export default function LeadListPage() {
           {bulkDialog === "assign" && (
             <>
               <DialogHeader>
-                <DialogTitle>Asignar {selectedLabel}</DialogTitle>
+                <DialogTitle>{t.crm.bulkAssign} — {selectedLabel}</DialogTitle>
               </DialogHeader>
               <div className="py-2">
                 <Select value={bulkAssignTo} onValueChange={setBulkAssignTo}>
                   <SelectTrigger data-testid="select-bulk-assign-user">
-                    <SelectValue placeholder="Seleccionar usuario..." />
+                    <SelectValue placeholder={t.crm.selectUser} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__unassign__">Sin asignar</SelectItem>
+                    <SelectItem value="__unassign__">{t.crm.unassigned}</SelectItem>
                     {assignableUsers.map(u => (
                       <SelectItem key={u.id} value={u.id}>
                         {u.name}
@@ -532,13 +536,13 @@ export default function LeadListPage() {
                 </Select>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={closeBulkDialog}>Cancelar</Button>
+                <Button variant="outline" onClick={closeBulkDialog}>{t.common.cancel}</Button>
                 <Button
                   onClick={() => bulkAssignMutation.mutate(bulkAssignTo === "__unassign__" ? null : bulkAssignTo || null)}
                   disabled={!bulkAssignTo || bulkAssignMutation.isPending}
                   data-testid="button-confirm-bulk-assign"
                 >
-                  {bulkAssignMutation.isPending ? "Asignando..." : "Aplicar"}
+                  {bulkAssignMutation.isPending ? t.crm.applying : t.common.apply}
                 </Button>
               </DialogFooter>
             </>
@@ -547,15 +551,15 @@ export default function LeadListPage() {
           {bulkDialog === "status" && (
             <>
               <DialogHeader>
-                <DialogTitle>Cambiar estado de {selectedLabel}</DialogTitle>
+                <DialogTitle>{t.crm.bulkStatus} — {selectedLabel}</DialogTitle>
               </DialogHeader>
               <div className="py-2">
                 <Select value={bulkStatusId} onValueChange={setBulkStatusId}>
                   <SelectTrigger data-testid="select-bulk-status">
-                    <SelectValue placeholder="Seleccionar estado..." />
+                    <SelectValue placeholder={t.crm.selectStatus} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__clear__">Quitar estado</SelectItem>
+                    <SelectItem value="__clear__">{t.crm.allStatuses}</SelectItem>
                     {statuses.map(s => (
                       <SelectItem key={s.id} value={s.id}>
                         <span className="flex items-center gap-2">
@@ -571,13 +575,13 @@ export default function LeadListPage() {
                 </Select>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={closeBulkDialog}>Cancelar</Button>
+                <Button variant="outline" onClick={closeBulkDialog}>{t.common.cancel}</Button>
                 <Button
                   onClick={() => bulkStatusMutation.mutate(bulkStatusId === "__clear__" ? null : bulkStatusId || null)}
                   disabled={!bulkStatusId || bulkStatusMutation.isPending}
                   data-testid="button-confirm-bulk-status"
                 >
-                  {bulkStatusMutation.isPending ? "Aplicando..." : "Aplicar"}
+                  {bulkStatusMutation.isPending ? t.crm.applying : t.common.apply}
                 </Button>
               </DialogFooter>
             </>
@@ -587,12 +591,12 @@ export default function LeadListPage() {
             <>
               <DialogHeader>
                 <DialogTitle>
-                  {bulkDialog === "addTag" ? "Agregar etiquetas a" : "Quitar etiquetas de"} {selectedLabel}
+                  {bulkDialog === "addTag" ? t.crm.bulkAddTags : t.crm.bulkRemoveTags} — {selectedLabel}
                 </DialogTitle>
               </DialogHeader>
               <div className="py-2 max-h-60 overflow-y-auto space-y-1">
                 {allTags.length === 0 ? (
-                  <p className="text-sm text-gray-500 text-center py-4">No hay etiquetas disponibles</p>
+                  <p className="text-sm text-gray-500 text-center py-4">{t.common.noResults}</p>
                 ) : allTags.map(tag => (
                   <label
                     key={tag.id}
@@ -613,7 +617,7 @@ export default function LeadListPage() {
                 ))}
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={closeBulkDialog}>Cancelar</Button>
+                <Button variant="outline" onClick={closeBulkDialog}>{t.common.cancel}</Button>
                 <Button
                   onClick={() =>
                     bulkDialog === "addTag"
@@ -624,8 +628,8 @@ export default function LeadListPage() {
                   data-testid="button-confirm-bulk-tags"
                 >
                   {(bulkAddTagsMutation.isPending || bulkRemoveTagsMutation.isPending)
-                    ? "Aplicando..."
-                    : `Aplicar${bulkTagIds.length > 0 ? ` (${bulkTagIds.length})` : ""}`}
+                    ? t.crm.applying
+                    : t.crm.applyWithCount.replace("{{count}}", String(bulkTagIds.length > 0 ? bulkTagIds.length : ""))}
                 </Button>
               </DialogFooter>
             </>
@@ -636,25 +640,22 @@ export default function LeadListPage() {
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2 text-red-600">
                   <AlertTriangle className="w-5 h-5" />
-                  ¿Eliminar {selectedLabel}?
+                  {t.crm.confirmDelete.replace("{{label}}", selectedLabel)}
                 </DialogTitle>
               </DialogHeader>
               <div className="py-2 text-sm text-gray-600 dark:text-gray-400 space-y-2">
-                <p>
-                  Esto eliminará permanentemente <strong>{selectedLabel}</strong> junto con todas las notas
-                  y etiquetas asociadas. Las oportunidades vinculadas se conservarán pero quedarán sin enlace.
-                </p>
-                <p className="text-red-600 font-medium">Esta acción no se puede deshacer.</p>
+                <p>{t.crm.deleteWarning.replace("{{label}}", selectedLabel)}</p>
+                <p className="text-red-600 font-medium">{t.crm.deleteIrreversible}</p>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={closeBulkDialog}>Cancelar</Button>
+                <Button variant="outline" onClick={closeBulkDialog}>{t.common.cancel}</Button>
                 <Button
                   variant="destructive"
                   onClick={() => bulkDeleteMutation.mutate()}
                   disabled={bulkDeleteMutation.isPending}
                   data-testid="button-confirm-bulk-delete"
                 >
-                  {bulkDeleteMutation.isPending ? "Eliminando..." : `Eliminar ${selectedLabel}`}
+                  {bulkDeleteMutation.isPending ? t.crm.deleting : `${t.crm.bulkDelete} ${selectedLabel}`}
                 </Button>
               </DialogFooter>
             </>

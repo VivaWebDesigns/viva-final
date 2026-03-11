@@ -17,13 +17,7 @@ import {
   XCircle, RefreshCw, Zap, ListChecks, FileText,
 } from "lucide-react";
 import type { OnboardingRecord, OnboardingChecklistItem, OnboardingNote, CrmCompany, CrmContact, PipelineOpportunity } from "@shared/schema";
-
-const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof CheckCircle2 }> = {
-  pending: { label: "Pending", color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200", icon: Clock },
-  in_progress: { label: "In Progress", color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200", icon: ArrowRight },
-  completed: { label: "Completed", color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200", icon: CheckCircle2 },
-  on_hold: { label: "On Hold", color: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200", icon: Pause },
-};
+import { useAdminLang } from "@/i18n/LanguageContext";
 
 const CATEGORY_LABELS: Record<string, string> = {
   contract: "Contract",
@@ -54,6 +48,14 @@ type OnboardingDetailData = OnboardingRecord & {
 export default function OnboardingDetailPage({ id }: { id: string }) {
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const { t } = useAdminLang();
+
+  const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof CheckCircle2 }> = {
+    pending: { label: t.onboarding.status.pending, color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200", icon: Clock },
+    in_progress: { label: t.onboarding.status.in_progress, color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200", icon: ArrowRight },
+    completed: { label: t.onboarding.status.completed, color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200", icon: CheckCircle2 },
+    on_hold: { label: t.onboarding.status.on_hold, color: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200", icon: Pause },
+  };
   const [noteContent, setNoteContent] = useState("");
 
   const { data: record, isLoading } = useQuery<OnboardingDetailData>({
