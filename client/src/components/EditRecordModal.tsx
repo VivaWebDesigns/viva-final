@@ -28,7 +28,7 @@ const editSchema = z.object({
   website: z.string().nullable().optional(),
   industry: z.string().nullable().optional(),
   city: z.string().nullable().optional(),
-  websitePackage: z.enum(["empieza", "crece", "domina", ""]).nullable().optional(),
+  websitePackage: z.enum(["empieza", "crece", "domina", "__none__"]).nullable().optional(),
 });
 
 type EditFormValues = z.infer<typeof editSchema>;
