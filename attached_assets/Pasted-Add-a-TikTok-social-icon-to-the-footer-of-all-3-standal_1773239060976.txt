@@ -1,0 +1,60 @@
+Add a TikTok social icon to the footer of all 3 standalone demo sites: Empieza, Crece, and Domina.
+
+Important:
+- This is for the actual demo pages/sites, NOT the demo builder/admin.
+- Make this change non-destructively.
+- Do not break any existing footer layout, spacing, styling, links, or responsiveness.
+- Keep the existing Facebook, Instagram, and YouTube icons exactly as they are unless a small alignment adjustment is needed for consistency.
+
+What to do:
+1. Locate the footer social icon section used on:
+   - Empieza demo page
+   - Crece demo page
+   - Domina demo page
+
+2. Add a TikTok icon alongside the existing Facebook, Instagram, and YouTube icons on each of the 3 demo pages.
+
+3. The TikTok icon must be clearly recognizable against the black footer background.
+   Because a standard solid black TikTok icon may disappear into the footer, style it so it is unmistakably TikTok and fully visible:
+   - Prefer a TikTok glyph/logo treatment that uses high contrast on dark backgrounds.
+   - Best option: white primary icon with subtle TikTok-style accent treatment so it remains recognizable.
+   - If needed, use a very subtle outline, soft glow, or small circular/rounded container so the icon does not get lost in the black footer.
+   - Do NOT make it look cheap, oversized, blurry, or visually inconsistent with the other icons.
+   - Do NOT use a pure black icon on the black footer.
+
+4. Match the visual style of the other footer icons:
+   - same overall size
+   - same vertical alignment
+   - same spacing between icons
+   - same hover behavior or transition style
+   - same clickable behavior
+
+5. If the social icons are driven by shared reusable footer code/component, update that shared component once so all 3 demos inherit the TikTok icon correctly.
+   If each demo has separate footer code, update all 3 individually.
+
+6. Use an appropriate icon source already used in the project if possible (for example lucide-react, react-icons, Font Awesome, etc.).
+   If TikTok is not available in the current icon set, use a trusted available icon package already compatible with the project rather than hacking together an unreliable shape.
+
+7. Preserve responsiveness:
+   - desktop, tablet, and mobile should all display correctly
+   - icons should not wrap awkwardly unless the current footer already does
+   - spacing should remain balanced
+
+8. Use the same placeholder behavior/pattern as the other social links:
+   - if existing icons link to placeholder URLs, give TikTok a matching placeholder URL
+   - if social links are driven by config/data, add TikTok there properly instead of hardcoding inconsistently
+
+9. After implementation, verify:
+   - TikTok icon appears in Empieza
+   - TikTok icon appears in Crece
+   - TikTok icon appears in Domina
+   - it is clearly visible on the black footer
+   - it looks intentional and professional
+   - no existing footer icons were broken or shifted badly
+
+10. If needed, make tiny spacing/alignment refinements so all 4 icons feel like a complete set.
+
+Return:
+- a short summary of what files/components were updated
+- confirmation whether the footer is shared or separate across the 3 demo pages
+- confirmation that the TikTok icon is visible on the black footer without blending in

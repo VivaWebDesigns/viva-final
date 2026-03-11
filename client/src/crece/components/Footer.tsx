@@ -39,7 +39,7 @@ export function Footer() {
             <SiYoutube size={22} color="#FF0000" />
           </a>
           <a href="https://tiktok.com" target="_blank" rel="noopener noreferrer" data-testid="link-footer-tiktok" className="transition-opacity hover:opacity-80">
-            <SiTiktok size={22} color="#000000" />
+            <SiTiktok size={22} color="#ffffff" />
           </a>
         </div>
 

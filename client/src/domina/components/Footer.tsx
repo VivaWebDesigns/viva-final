@@ -8,7 +8,7 @@ const SOCIAL_LINKS = [
   { icon: Facebook, label: "Facebook", href: "#", color: "text-[#1877F2]" },
   { icon: Instagram, label: "Instagram", href: "#", color: "text-[#E4405F]" },
   { icon: Youtube, label: "YouTube", href: "#", color: "text-[#FF0000]" },
-  { icon: SiTiktok, label: "TikTok", href: "#", color: "text-[#000000] dark:text-white" },
+  { icon: SiTiktok, label: "TikTok", href: "#", color: "text-white" },
 ];
 
 export function Footer() {

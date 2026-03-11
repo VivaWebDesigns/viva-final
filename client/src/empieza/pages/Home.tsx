@@ -477,7 +477,7 @@ export default function Home() {
               <a href="#" className="text-[#1877F2] hover:opacity-80 transition-opacity" aria-label="Facebook"><SiFacebook size={20} /></a>
               <a href="#" className="text-[#E4405F] hover:opacity-80 transition-opacity" aria-label="Instagram"><SiInstagram size={20} /></a>
               <a href="#" className="text-[#FF0000] hover:opacity-80 transition-opacity" aria-label="YouTube"><SiYoutube size={22} /></a>
-              <a href="#" className="text-[#000000] hover:opacity-80 transition-opacity" aria-label="TikTok"><SiTiktok size={18} /></a>
+              <a href="#" className="text-white hover:opacity-80 transition-opacity" aria-label="TikTok"><SiTiktok size={18} /></a>
             </div>
 
             <p className="text-muted-foreground text-sm">
