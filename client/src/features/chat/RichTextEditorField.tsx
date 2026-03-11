@@ -155,10 +155,10 @@ const RichTextEditorField = forwardRef<HTMLDivElement, RichTextEditorFieldProps>
       <div
         ref={ref}
         {...rest}
-        className={`border rounded-lg overflow-hidden bg-white focus-within:ring-2 focus-within:ring-[#0D9488]/30 focus-within:border-[#0D9488] transition-colors ${disabled ? "opacity-60 pointer-events-none" : ""} ${rest.className ?? ""}`}
+        className={`border rounded-lg bg-white focus-within:ring-2 focus-within:ring-[#0D9488]/30 focus-within:border-[#0D9488] transition-colors ${disabled ? "opacity-60 pointer-events-none" : ""} ${rest.className ?? ""}`}
       >
         {/* Toolbar */}
-        <div className="flex items-center gap-0.5 px-2 py-1.5 border-b border-gray-100 bg-gray-50/60">
+        <div className="flex items-center gap-0.5 px-2 py-1.5 border-b border-gray-100 bg-gray-50/60 rounded-t-lg">
           <button
             type="button"
             onMouseDown={(e) => { e.preventDefault(); toggleBold(); }}
