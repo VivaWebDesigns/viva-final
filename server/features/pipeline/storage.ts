@@ -1,7 +1,7 @@
 import { db } from "../../db";
 import {
   pipelineStages, pipelineOpportunities, pipelineActivities,
-  crmLeads, crmCompanies, crmContacts, user,
+  crmLeads, crmCompanies, crmContacts, crmLeadNotes, user,
   type InsertPipelineStage, type InsertPipelineOpportunity, type InsertPipelineActivity,
   type PipelineStage, type PipelineOpportunity, type PipelineActivity,
 } from "@shared/schema";
@@ -232,25 +232,54 @@ export async function addActivity(data: InsertPipelineActivity): Promise<Pipelin
   return result;
 }
 
-export type ActivityWithAuthor = PipelineActivity & { authorName: string | null };
+export type ActivityWithAuthor = PipelineActivity & { authorName: string | null; isFromCrm?: boolean };
 
 export async function getActivities(opportunityId: string): Promise<ActivityWithAuthor[]> {
-  const rows = await db
-    .select({
-      id: pipelineActivities.id,
-      opportunityId: pipelineActivities.opportunityId,
-      userId: pipelineActivities.userId,
-      type: pipelineActivities.type,
-      content: pipelineActivities.content,
-      metadata: pipelineActivities.metadata,
-      createdAt: pipelineActivities.createdAt,
-      authorName: user.name,
-    })
-    .from(pipelineActivities)
-    .leftJoin(user, eq(pipelineActivities.userId, user.id))
-    .where(eq(pipelineActivities.opportunityId, opportunityId))
-    .orderBy(asc(pipelineActivities.createdAt));
-  return rows as ActivityWithAuthor[];
+  const [pipelineRows, opportunity] = await Promise.all([
+    db
+      .select({
+        id: pipelineActivities.id,
+        opportunityId: pipelineActivities.opportunityId,
+        userId: pipelineActivities.userId,
+        type: pipelineActivities.type,
+        content: pipelineActivities.content,
+        metadata: pipelineActivities.metadata,
+        createdAt: pipelineActivities.createdAt,
+        authorName: user.name,
+      })
+      .from(pipelineActivities)
+      .leftJoin(user, eq(pipelineActivities.userId, user.id))
+      .where(eq(pipelineActivities.opportunityId, opportunityId))
+      .orderBy(asc(pipelineActivities.createdAt)),
+    db
+      .select({ leadId: pipelineOpportunities.leadId })
+      .from(pipelineOpportunities)
+      .where(eq(pipelineOpportunities.id, opportunityId))
+      .then(r => r[0]),
+  ]);
+
+  let crmNoteRows: ActivityWithAuthor[] = [];
+  if (opportunity?.leadId) {
+    const notes = await db
+      .select({
+        id: crmLeadNotes.id,
+        opportunityId: sql<string>`${opportunityId}`,
+        userId: crmLeadNotes.userId,
+        type: crmLeadNotes.type,
+        content: crmLeadNotes.content,
+        metadata: crmLeadNotes.metadata,
+        createdAt: crmLeadNotes.createdAt,
+        authorName: user.name,
+      })
+      .from(crmLeadNotes)
+      .leftJoin(user, eq(crmLeadNotes.userId, user.id))
+      .where(eq(crmLeadNotes.leadId, opportunity.leadId));
+    crmNoteRows = notes.map(n => ({ ...n, isFromCrm: true })) as ActivityWithAuthor[];
+  }
+
+  const all = [...pipelineRows, ...crmNoteRows] as ActivityWithAuthor[];
+  all.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  return all;
 }
 
 export async function updateActivity(activityId: string, content: string): Promise<ActivityWithAuthor | null> {

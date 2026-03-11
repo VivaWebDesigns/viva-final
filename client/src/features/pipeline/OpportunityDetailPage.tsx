@@ -48,7 +48,7 @@ const ACTIVITY_ICONS: Record<string, typeof MessageSquare> = {
   system: Zap,
 };
 
-type ActivityWithAuthor = { id: string; opportunityId: string; userId: string | null; type: string; content: string; metadata: unknown; createdAt: string; authorName: string | null };
+type ActivityWithAuthor = { id: string; opportunityId: string; userId: string | null; type: string; content: string; metadata: unknown; createdAt: string; authorName: string | null; isFromCrm?: boolean };
 
 export default function OpportunityDetailPage({ id }: { id: string }) {
   const [, navigate] = useLocation();
@@ -513,7 +513,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
               <div className="space-y-3">
                 {(activities || []).map(act => {
                   const Icon = ACTIVITY_ICONS[act.type] || MessageSquare;
-                  const isEditable = act.type !== "stage_change" && act.type !== "system" && (authRole === "admin" || authRole === "developer" || act.userId === (authUser as any)?.id);
+                  const isEditable = !act.isFromCrm && act.type !== "stage_change" && act.type !== "system" && (authRole === "admin" || authRole === "developer" || act.userId === (authUser as any)?.id);
                   const isEditingThis = editingActivityId === act.id;
                   return (
                     <motion.div
@@ -539,6 +539,9 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                               <span className="text-xs font-medium text-gray-700">{act.authorName}</span>
                             )}
                             <span className="text-xs text-gray-400 capitalize">{act.type.replace("_", " ")}</span>
+                            {act.isFromCrm && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-teal-50 text-teal-600 border border-teal-200 font-medium leading-none">CRM</span>
+                            )}
                           </div>
                           <div className="flex items-center gap-2 flex-shrink-0">
                             <span className="text-xs text-gray-400">
