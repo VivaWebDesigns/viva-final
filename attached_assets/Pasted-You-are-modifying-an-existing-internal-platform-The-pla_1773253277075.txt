@@ -1,0 +1,158 @@
+You are modifying an existing internal platform. The platform already includes CRM, Clients, and Sales Pipeline modules. I need you to add the ability to **edit contact/client details** from the existing records in a safe, non-destructive way.
+
+---
+
+OBJECTIVE
+
+Allow users to open an existing lead or client record and edit its key details without creating a new duplicate record.
+
+This should work for records used in:
+
+• CRM
+• Clients
+• Sales Pipeline opportunities tied to a contact/client
+
+The goal is to make it easy to correct or update information such as name, phone number, email, business name, city, and related fields.
+
+---
+
+REQUIRED EDIT FUNCTIONALITY
+
+Add an **Edit** action/button to existing lead/client/contact records.
+
+Users should be able to edit at minimum:
+
+• contact_name / full_name
+• phone_number
+• email
+• business_name
+• trade_type
+• city
+• website_package
+• notes
+
+If more fields already exist, keep them available as long as the UI stays clean.
+
+---
+
+WHERE EDITING SHOULD BE AVAILABLE
+
+Editing should be accessible from:
+
+1. CRM contact detail view
+2. Client detail view
+3. Sales Pipeline opportunity detail view for the linked contact/client
+
+If the Sales Pipeline record is tied to a CRM contact, editing from the opportunity detail page should update the underlying linked contact record, not create a second disconnected version.
+
+---
+
+DATA INTEGRITY RULES
+
+This must be **non-destructive**.
+
+Do NOT:
+
+• create duplicate contact records when editing
+• break relationships between CRM, Clients, and Sales Pipeline
+• overwrite unrelated records
+• remove existing fields or functionality
+
+Instead:
+
+• update the existing linked record in place
+• preserve IDs and relationships
+• keep pipeline stage history intact
+• keep tasks tied to the same contact/client
+
+---
+
+LINKED RECORD BEHAVIOR
+
+If the same person appears across multiple modules, changes should stay in sync appropriately.
+
+Examples:
+
+• If I update a lead’s phone number in the Sales Pipeline detail page, the linked CRM contact should reflect that update.
+• If a lead becomes a client and I update the business name, the linked client-facing record should also reflect the updated business name where appropriate.
+
+Use the existing linked record model if one already exists. Do not invent duplicate parallel records unless the current architecture absolutely requires it.
+
+---
+
+UI REQUIREMENTS
+
+Add a simple and clean **Edit Details** button.
+
+When clicked, open either:
+
+• an inline editable form, or
+• a modal / drawer edit form
+
+The form should:
+
+• preload the existing values
+• allow updates
+• validate required fields
+• save changes cleanly
+• show success feedback after saving
+
+At minimum, require sensible validation for:
+
+• name
+• phone number format if validation already exists
+• email format if provided
+
+---
+
+SAVE BEHAVIOR
+
+On save:
+
+• persist changes to the database / real data source
+• refresh the visible record data
+• preserve all existing relationships
+• do not reload the page in a broken way
+
+If optimistic UI is already used in the project, keep it consistent.
+
+---
+
+EMPTY / LEGACY DATA HANDLING
+
+Some records may have missing fields. The edit form should still open safely and allow those blank fields to be filled in.
+
+Do not fail if:
+
+• email is missing
+• business name is missing
+• notes are empty
+
+---
+
+NON-DESTRUCTIVE IMPLEMENTATION
+
+Do NOT:
+
+• delete current components
+• remove working CRUD functionality
+• break current routes or APIs
+• replace the app structure
+
+Instead:
+
+• extend existing detail pages with edit capability
+• reuse existing forms/components where possible
+• add update handlers only where needed
+
+---
+
+FINAL RESULT
+
+After this change, I should be able to:
+
+• open a lead or client
+• click **Edit Details**
+• update name, phone number, and other key fields
+• save the changes
+• see those edits reflected across the linked CRM / Client / Sales Pipeline records without duplicates

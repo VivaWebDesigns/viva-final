@@ -1,15 +1,17 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
 import {
   ArrowLeft, User, Mail, Phone, Building2, MapPin,
-  ChevronRight, Calendar, Globe,
+  ChevronRight, Calendar, Globe, Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import type { CrmContact, CrmCompany, CrmLead, CrmLeadStatus } from "@shared/schema";
 import { useAdminLang } from "@/i18n/LanguageContext";
+import EditRecordModal from "@/components/EditRecordModal";
 
 interface ContactDetail extends CrmContact {
   company?: CrmCompany | null;
@@ -19,6 +21,7 @@ interface ContactDetail extends CrmContact {
 export default function ContactDetailPage({ id }: { id: string }) {
   const [, navigate] = useLocation();
   const { t } = useAdminLang();
+  const [showEdit, setShowEdit] = useState(false);
 
   const { data: contact, isLoading } = useQuery<ContactDetail>({
     queryKey: ["/api/crm/contacts", id],
@@ -73,7 +76,26 @@ export default function ContactDetailPage({ id }: { id: string }) {
             <p className="text-sm text-gray-500 mt-0.5 ml-7">{contact.title}</p>
           )}
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5 flex-shrink-0"
+          onClick={() => setShowEdit(true)}
+          data-testid="button-edit-contact"
+        >
+          <Pencil className="w-3.5 h-3.5" />
+          {t.crm.editDetails}
+        </Button>
       </div>
+
+      <EditRecordModal
+        open={showEdit}
+        onClose={() => setShowEdit(false)}
+        contact={contact}
+        company={contact.company ?? null}
+        invalidateKeys={[["/api/crm/contacts", id], ["/api/crm/contacts"]]}
+        onSaved={() => setShowEdit(false)}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1 space-y-6">

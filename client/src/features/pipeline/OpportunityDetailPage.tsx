@@ -15,12 +15,13 @@ import {
   ArrowLeft, Building2, User as UserIcon,
   MessageSquare, Phone, Mail, FileText, CheckCircle, XCircle,
   Clock, Zap, ArrowRightLeft, UserPlus, ClipboardList, Plus,
-  AlertCircle, CheckCheck, Package,
+  AlertCircle, CheckCheck, Package, Pencil,
 } from "lucide-react";
 
 import type { PipelineStage, PipelineOpportunity, PipelineActivity, CrmCompany, CrmContact, CrmLead, FollowupTask } from "@shared/schema";
 import QuickTaskModal from "@/components/QuickTaskModal";
 import { RecordTimeline } from "@/components/RecordTimeline";
+import EditRecordModal from "@/components/EditRecordModal";
 
 const PKG_COLORS: Record<string, string> = {
   empieza: "bg-blue-100 text-blue-700",
@@ -49,6 +50,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
   const [noteContent, setNoteContent] = useState("");
   const [noteType, setNoteType] = useState("note");
   const [taskModalOpen, setTaskModalOpen] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
   const [rescheduleTask, setRescheduleTask] = useState<TaskWithContact | null>(null);
 
   const { data: opp, isLoading } = useQuery<PipelineOpportunity>({
@@ -202,6 +204,16 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
         </div>
 
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => setShowEdit(true)}
+            data-testid="button-edit-opportunity"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+            {t.crm.editDetails}
+          </Button>
           {opp.status === "open" && (
             <>
               <Button
@@ -580,6 +592,17 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
           </Card>
         </div>
       </div>
+
+      <EditRecordModal
+        open={showEdit}
+        onClose={() => setShowEdit(false)}
+        contact={contact ?? null}
+        company={company ?? null}
+        opportunityId={id}
+        currentPackage={opp.websitePackage ?? null}
+        invalidateKeys={[["/api/pipeline/opportunities", id], ["/api/pipeline/opportunities"]]}
+        onSaved={() => setShowEdit(false)}
+      />
 
       <QuickTaskModal
         open={taskModalOpen}
