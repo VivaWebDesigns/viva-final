@@ -1,0 +1,190 @@
+Add a fully functional manual lead creation system to the Viva Web Designs internal platform in a non-destructive way. Do not remove, replace, or break any existing CRM, Sales Pipeline, Tasks, Client Onboarding, Payments, Notifications, import/export, filtering, search, language toggle, or current data flows. Extend the current system cleanly.
+
+GOAL:
+Users must be able to manually add a new lead without importing, and that lead must appear correctly in both the CRM and the Sales Pipeline.
+
+IMPLEMENT THE FOLLOWING:
+
+1) CRM PAGE: ADD LEAD BUTTON
+On the CRM Leads page, add a clear primary button in the top-right action area near Export and Import called:
++ Add Lead
+
+2) OPEN A CREATE LEAD MODAL OR DRAWER
+When the user clicks + Add Lead, open a polished modal or slide-over form that matches the current platform UI.
+
+Title:
+Create New Lead
+
+Fields:
+- First Name (required)
+- Last Name (required)
+- Business Name (optional)
+- Business Trade (required)
+- Phone (required)
+- Email (optional)
+- Website (optional)
+- Source (required dropdown with only these options: Website, Outreach)
+- Notes (optional multiline)
+
+Buttons:
+- Cancel
+- Save Lead
+
+3) VALIDATION
+Before saving:
+- Require First Name
+- Require Last Name
+- Require Business Trade
+- Require Contact Number
+- Require Source
+Show inline validation errors under the missing fields.
+Do not allow the form to submit until required fields are complete.
+
+4) DATA MODEL
+Create or extend a reusable lead record model so all lead-related pages use the same source of truth.
+Each lead should include at minimum:
+
+- id
+- firstName
+- lastName
+- businessName
+- businessTrade
+- phone
+- email
+- website
+- source
+- notes
+- status
+- createdAt
+- updatedAt
+
+If the system already has a lead model, extend and reuse it instead of creating a conflicting second model.
+
+5) DEFAULT STATUS
+When a lead is manually created, automatically assign:
+status = "New Lead"
+
+This status must integrate cleanly with the Sales Pipeline so the lead starts in the first pipeline stage.
+
+6) SAVE BEHAVIOR
+When Save Lead is clicked and validation passes:
+
+- create the lead record
+- persist it using the same existing storage/state architecture the platform already uses
+- immediately add it to the CRM list without refresh
+- immediately make it available in the Sales Pipeline under New Lead without refresh
+- close the modal
+- show a success toast:
+
+Lead created successfully
+
+7) CRM INTEGRATION
+The newly created lead must fully work inside the CRM page:
+
+- searchable by name, business name, business trade, phone, email, and website if applicable
+- filterable by status
+- filterable by source
+- included in any existing list rendering, counters, empty-state replacement, and export logic
+
+If the page currently shows “0 leads” or “No leads found,” that should update automatically once a lead is added.
+
+8) SALES PIPELINE INTEGRATION
+The same lead must also appear in the Sales Pipeline automatically under:
+
+New Lead
+
+The pipeline card/item should display useful summary information such as:
+
+- Business Name (if available)
+- Business Trade
+- Contact Full Name
+- Phone
+- Email
+- Source
+
+Do not create duplicate records between CRM and Sales Pipeline. They should reference the same underlying lead/deal entity or a clean linked structure, depending on the current app architecture. Avoid creating separate disconnected objects that can drift out of sync.
+
+9) RECORD OPEN / EDIT SUPPORT
+If the CRM or Sales Pipeline already has a details view, clicking the lead should open that existing detail experience.
+
+If editing already exists, the manually created lead must support it.
+
+If editing does not yet exist, do not build a whole new editing system unless required for this feature to work.
+
+10) NON-DESTRUCTIVE ARCHITECTURE
+Do not hardcode one-off local state just for the button.
+Do not build a fake demo-only form.
+Do not create parallel duplicate pages.
+Do not break current imports, exports, filters, language toggle, or existing seeded/demo data.
+
+Use the current component structure, routing, services, hooks, stores, and design system already present in the project.
+
+11) UI / STYLE REQUIREMENTS
+Match the current internal platform styling:
+
+- same spacing system
+- same button styles
+- same input styles
+- same modal/drawer patterns
+- same typography
+- same icon style if icons are used
+
+This should feel native to the existing app, not bolted on.
+
+12) LANGUAGE / LABELING
+Make all new user-facing text compatible with the platform’s EN/ES language system.
+
+At minimum, wire the new labels into the same translation structure the rest of the platform uses so this feature is not stuck in one language.
+
+Include translations for:
+
+- Add Lead
+- Create New Lead
+- First Name
+- Last Name
+- Business Name
+- Business Trade
+- Phone
+- Email
+- Website
+- Source
+- Notes
+- Cancel
+- Save Lead
+- Lead created successfully
+- Website
+- Outreach
+- required field messages if applicable
+
+13) EMPTY STATE IMPROVEMENT
+If there are no leads, the CRM empty state should remain until a lead is created manually or imported.
+
+Once a lead is created, the list should render immediately and the empty state should disappear.
+
+14) CODE QUALITY
+Refactor carefully if needed, but keep the implementation focused.
+
+Prefer small reusable components and existing patterns over large rewrites.
+
+Keep the code clean, typed, and maintainable.
+
+Do not leave placeholder TODOs for core functionality.
+
+Finish the feature end-to-end.
+
+15) FINAL CHECK
+After implementation, verify:
+
+- + Add Lead button appears on CRM page
+- modal opens
+- validation works
+- lead saves successfully
+- new lead appears in CRM instantly
+- new lead appears in Sales Pipeline instantly in New Lead
+- search/filter still works
+- source filter works with only Website and Outreach
+- import/export still works
+- EN/ES toggle still works for the new feature
+- no existing functionality is broken
+
+Implement the feature completely, wire it into the real app structure, and make it production-ready.

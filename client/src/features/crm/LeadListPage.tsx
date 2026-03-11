@@ -5,9 +5,10 @@ import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, ChevronLeft, ChevronRight, Globe, Phone, Mail,
-  X, Trash2, UserCheck, CircleDot, Tag, Tags, AlertTriangle, Users, Upload,
+  X, Trash2, UserCheck, CircleDot, Tag, Tags, AlertTriangle, Users, Upload, UserPlus,
 } from "lucide-react";
 import { CsvImportModal, CsvExportDropdown } from "./CsvImportExportModal";
+import CreateLeadModal from "./CreateLeadModal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -66,6 +67,7 @@ export default function LeadListPage() {
   const [bulkStatusId, setBulkStatusId] = useState<string>("");
   const [bulkTagIds, setBulkTagIds] = useState<string[]>([]);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const { data: statuses = [] } = useQuery<CrmLeadStatus[]>({
     queryKey: ["/api/crm/statuses"],
@@ -241,13 +243,22 @@ export default function LeadListPage() {
               data-testid="button-import-csv"
             >
               <Upload className="w-4 h-4 mr-1.5" />
-              Import
+              {t.crm.import}
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => setShowCreateModal(true)}
+              data-testid="button-add-lead"
+            >
+              <UserPlus className="w-4 h-4 mr-1.5" />
+              {t.crm.addLead}
             </Button>
           </div>
         )}
       </div>
 
       <CsvImportModal open={showImportModal} onClose={() => setShowImportModal(false)} />
+      <CreateLeadModal open={showCreateModal} onClose={() => setShowCreateModal(false)} />
 
       <Card className="mb-4">
         <div className="p-4 flex flex-col sm:flex-row gap-3">

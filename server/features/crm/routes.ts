@@ -5,6 +5,7 @@ import { logAudit } from "../audit/service";
 import { notifyLeadAssignment } from "../notifications/triggers";
 import { appendHistorySafe } from "../history/service";
 import * as crmStorage from "./storage";
+import * as pipelineStorage from "../pipeline/storage";
 import {
   exportLeadsToCSV, exportContactsToCSV,
   importLeadsFromCSV, importContactsFromCSV,
@@ -261,6 +262,111 @@ router.post(
     }
   }
 );
+
+// ── Manual Lead Creation ─────────────────────────────────────────────
+
+const manualLeadSchema = z.object({
+  firstName:     z.string().min(1, "First name is required"),
+  lastName:      z.string().min(1, "Last name is required"),
+  businessName:  z.string().optional(),
+  businessTrade: z.string().min(1, "Business trade is required"),
+  phone:         z.string().min(1, "Phone is required"),
+  email:         z.string().email("Invalid email").optional().or(z.literal("")),
+  website:       z.string().optional(),
+  source:        z.enum(["website", "outreach"]),
+  notes:         z.string().optional(),
+});
+
+router.post("/leads/manual", requireRole("admin", "sales_rep"), async (req, res) => {
+  try {
+    const data = manualLeadSchema.parse(req.body);
+
+    // 1. Find or create contact
+    let contact = null;
+    if (data.email) contact = await crmStorage.findContactByEmail(data.email);
+    if (!contact && data.phone) contact = await crmStorage.findContactByPhone(data.phone);
+    if (!contact) {
+      contact = await crmStorage.createContact({
+        firstName: data.firstName,
+        lastName: data.lastName,
+        phone: data.phone,
+        email: data.email || null,
+        notes: null,
+        isPrimary: true,
+      });
+    }
+
+    // 2. Find or create company (if business name provided)
+    let companyId: string | null = null;
+    if (data.businessName?.trim()) {
+      let company = await crmStorage.findCompanyByName(data.businessName.trim());
+      if (!company) {
+        company = await crmStorage.createCompany({
+          name: data.businessName.trim(),
+          industry: data.businessTrade,
+          website: data.website || null,
+          phone: data.phone,
+          email: data.email || null,
+        });
+      }
+      companyId = company.id;
+      if (!contact.companyId) {
+        await crmStorage.updateContact(contact.id, { companyId: company.id });
+      }
+    }
+
+    // 3. Resolve default CRM status
+    const defaultStatus =
+      (await crmStorage.getDefaultLeadStatus()) ??
+      (await crmStorage.getLeadStatusBySlug("new"));
+
+    // 4. Build lead title
+    const fullName = `${data.firstName} ${data.lastName}`.trim();
+    const leadTitle = data.businessName?.trim()
+      ? `${data.businessName.trim()} – ${fullName}`
+      : fullName;
+
+    // 5. Create CRM lead
+    const lead = await crmStorage.createLead({
+      title: leadTitle,
+      companyId,
+      contactId: contact.id,
+      statusId: defaultStatus?.id ?? null,
+      source: data.source,
+      sourceLabel: data.source === "website" ? "Website" : "Outreach",
+      notes: data.notes || null,
+      fromWebsiteForm: false,
+    });
+
+    // 6. Create pipeline opportunity in the "new-lead" stage
+    const newLeadStage = await pipelineStorage.getStageBySlug("new-lead");
+    if (newLeadStage) {
+      await pipelineStorage.createOpportunity({
+        title: leadTitle,
+        leadId: lead.id,
+        companyId,
+        contactId: contact.id,
+        stageId: newLeadStage.id,
+        status: "open",
+        sourceLeadTitle: leadTitle,
+        notes: data.notes || null,
+      });
+    }
+
+    await logAudit({
+      userId: req.authUser?.id,
+      action: "create",
+      entity: "crm_lead",
+      entityId: lead.id,
+      metadata: { title: lead.title, source: "manual" },
+      ipAddress: req.ip,
+    });
+
+    res.status(201).json(lead);
+  } catch (error: any) {
+    res.status(400).json({ message: error.message });
+  }
+});
 
 router.get("/leads/:id", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   const id = req.params.id as string;
