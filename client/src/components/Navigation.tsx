@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logoImg from "@assets/Viva_1772823591549.png";
 import { t } from "@/content";
@@ -91,6 +91,18 @@ export default function Navigation() {
 
           {/* Desktop right side */}
           <div className="hidden md:flex items-center gap-3">
+            {/* Staff Login — discreet link for internal staff */}
+            {!isAdminPage && (
+              <Link href="/login">
+                <button
+                  className="flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-[#0D9488] transition-colors duration-200"
+                  data-testid="link-staff-login"
+                >
+                  <Lock className="w-3 h-3" />
+                  Staff
+                </button>
+              </Link>
+            )}
             {/* EN/ES toggle — only on admin demo builder page, replaces CTA */}
             {isAdminPage ? (
               <div
