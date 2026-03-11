@@ -73,7 +73,7 @@ export default function LeadDetailPage({ id }: { id: string }) {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editForm, setEditForm] = useState({
     firstName: "", lastName: "", phone: "", email: "",
-    businessName: "", city: "", notes: "",
+    businessName: "", businessTrade: "", city: "", notes: "",
   });
 
   const { data: lead, isLoading: leadLoading } = useQuery<LeadDetail>({
@@ -131,6 +131,7 @@ export default function LeadDetailPage({ id }: { id: string }) {
       if (lead?.company?.id) {
         promises.push(apiRequest("PUT", `/api/crm/companies/${lead.company.id}`, {
           name: form.businessName || lead.company.name,
+          industry: form.businessTrade || undefined,
           city: form.city || undefined,
         }));
       }
@@ -330,6 +331,7 @@ export default function LeadDetailPage({ id }: { id: string }) {
                       phone: lead.contact?.phone ?? lead.company?.phone ?? "",
                       email: lead.contact?.email ?? lead.company?.email ?? "",
                       businessName: lead.company?.name ?? "",
+                      businessTrade: lead.company?.industry ?? "",
                       city: lead.company?.city ?? "",
                       notes: lead.notes ?? "",
                     });
@@ -372,6 +374,12 @@ export default function LeadDetailPage({ id }: { id: string }) {
                 <div>
                   <p className="text-gray-500 mb-1">{t.crm.businessName}</p>
                   <p className="text-gray-900 font-medium" data-testid="text-business-name">{lead.company.name}</p>
+                </div>
+              )}
+              {lead.company?.industry && (
+                <div>
+                  <p className="text-gray-500 mb-1">{t.crm.businessTrade}</p>
+                  <p className="text-gray-900 font-medium" data-testid="text-business-trade">{lead.company.industry}</p>
                 </div>
               )}
               {(lead.contact?.phone || lead.company?.phone) && (
@@ -873,14 +881,25 @@ export default function LeadDetailPage({ id }: { id: string }) {
                 />
               </div>
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="edit-businessName">{t.crm.businessName}</Label>
-              <Input
-                id="edit-businessName"
-                value={editForm.businessName}
-                onChange={(e) => setEditForm(f => ({ ...f, businessName: e.target.value }))}
-                data-testid="input-edit-businessName"
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-businessName">{t.crm.businessName}</Label>
+                <Input
+                  id="edit-businessName"
+                  value={editForm.businessName}
+                  onChange={(e) => setEditForm(f => ({ ...f, businessName: e.target.value }))}
+                  data-testid="input-edit-businessName"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-businessTrade">{t.crm.businessTrade}</Label>
+                <Input
+                  id="edit-businessTrade"
+                  value={editForm.businessTrade}
+                  onChange={(e) => setEditForm(f => ({ ...f, businessTrade: e.target.value }))}
+                  data-testid="input-edit-businessTrade"
+                />
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">

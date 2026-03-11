@@ -459,6 +459,9 @@ export default function LeadListPage() {
                             {lead.company && (
                               <span data-testid={`text-lead-company-${lead.id}`}>
                                 {lead.company.name}
+                                {lead.company.industry && (
+                                  <span className="text-gray-400"> · {lead.company.industry}</span>
+                                )}
                               </span>
                             )}
                             {lead.contact?.email && (
