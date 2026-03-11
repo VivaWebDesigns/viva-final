@@ -50,6 +50,7 @@ const RichTextEditorField = forwardRef<HTMLDivElement, RichTextEditorFieldProps>
           horizontalRule: false,
           blockquote: false,
           codeBlock: false,
+          link: false,
         }),
         Link.configure({
           openOnClick: false,

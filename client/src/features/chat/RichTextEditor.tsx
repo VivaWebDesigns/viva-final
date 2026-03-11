@@ -92,6 +92,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
           horizontalRule: false,
           blockquote: false,
           codeBlock: false,
+          link: false,
         }),
         Link.configure({
           openOnClick: false,
