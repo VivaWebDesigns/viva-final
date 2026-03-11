@@ -642,7 +642,7 @@ export default function TeamChatPage() {
               >
                 <span className="flex items-center gap-1.5 truncate">
                   <Hash className="w-3.5 h-3.5 flex-shrink-0" />
-                  <span className="truncate">{ch.name}</span>
+                  <span className="truncate">{(t.chat.channelNames as Record<string, string>)[ch.id] || ch.name}</span>
                 </span>
                 {ch.unreadCount > 0 && (
                   <span className="bg-red-500 text-white text-[10px] rounded-full px-1.5 min-w-[18px] text-center font-bold flex-shrink-0" data-testid={`unread-${ch.id}`}>
@@ -767,7 +767,7 @@ export default function TeamChatPage() {
               ) : (
                 <>
                   <Hash className="w-4 h-4 text-gray-400" />
-                  <span className="font-semibold text-gray-900">{activeChannelData?.name}</span>
+                  <span className="font-semibold text-gray-900">{activeChannelData ? (t.chat.channelNames as Record<string, string>)[activeChannelData.id] || activeChannelData.name : ""}</span>
                   {activeChannelData?.description && (
                     <span className="text-xs text-gray-400 hidden sm:block">{activeChannelData.description}</span>
                   )}

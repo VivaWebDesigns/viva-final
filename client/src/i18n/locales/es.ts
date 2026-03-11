@@ -706,6 +706,12 @@ export const es: AdminTranslations = {
     selectMember: "Selecciona un miembro",
     reply_one: "{{count}} respuesta",
     reply_other: "{{count}} respuestas",
+    channelNames: {
+      general: "General",
+      ventas: "Ventas",
+      onboarding: "Incorporación",
+      dev: "Desarrollo",
+    },
   },
   docs: {
     title: "Documentación",

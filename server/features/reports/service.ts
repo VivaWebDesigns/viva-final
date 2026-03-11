@@ -129,6 +129,7 @@ export async function getPipelineBreakdown(range?: DateRange) {
     return {
       stageId: stage.id,
       stageName: stage.name,
+      stageSlug: stage.slug,
       color: stage.color,
       totalCount: stageOpps.length,
       openCount: open.length,

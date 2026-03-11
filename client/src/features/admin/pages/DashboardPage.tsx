@@ -9,7 +9,7 @@ import { useAdminLang } from "@/i18n/LanguageContext";
 interface PipelineStats {
   totalOpen: number;
   totalValue: number;
-  byStage: { stageId: string; stageName: string; count: number; value: number }[];
+  byStage: { stageId: string; stageName: string; stageSlug: string; count: number; value: number }[];
 }
 
 interface Stats {
@@ -128,7 +128,7 @@ export default function DashboardPage() {
                 className="flex-1 rounded-lg border border-gray-100 p-3 text-center"
                 data-testid={`pipeline-stage-${stage.stageId}`}
               >
-                <p className="text-xs text-gray-500 mb-1 truncate">{stage.stageName}</p>
+                <p className="text-xs text-gray-500 mb-1 truncate">{(t.pipeline.stageNames as Record<string, string>)[stage.stageSlug] || stage.stageName}</p>
                 <p className="text-lg font-bold text-gray-900">{stage.count}</p>
                 {stage.value > 0 && (
                   <p className="text-xs text-green-600 font-medium">${stage.value.toLocaleString()}</p>

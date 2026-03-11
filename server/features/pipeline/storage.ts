@@ -270,6 +270,7 @@ export async function getPipelineStats() {
     return {
       stageId: stage.id,
       stageName: stage.name,
+      stageSlug: stage.slug,
       count: stageCount,
       value: stageValue,
     };

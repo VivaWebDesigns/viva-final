@@ -1,0 +1,81 @@
+Perform one final non-destructive translation cleanup pass on the Viva Web Designs internal platform so the remaining system-driven English labels also respect the EN / ES toggle.
+
+Important:
+- Do not break existing functionality, routing, seeded data structure, dashboard widgets, chat behavior, CRM behavior, or translation architecture.
+- Reuse the existing language/i18n system already implemented.
+- Do not create a second translation system.
+- Do not redesign the UI.
+- Do not translate user-generated content such as usernames, company names, lead names, messages, notes, or custom-entered data.
+- Only translate system-defined display labels.
+
+There are 2 remaining issues to fix:
+
+1. Dashboard funnel summary widget still shows English pipeline stage labels in Spanish mode:
+- Discovery
+- Proposal
+- Negotiation
+- Closed Won
+- Closed Lost
+
+These should display translated labels in Spanish mode, for example:
+- Discovery → Descubrimiento
+- Proposal → Propuesta
+- Negotiation → Negociación
+- Closed Won → Cerrado – Ganado
+- Closed Lost → Cerrado – Perdido
+
+Important implementation rule:
+- Preserve stable internal stage identifiers for logic, filtering, analytics, drag/drop, and data handling.
+- Only translate the displayed stage label.
+- If the widget currently uses stage names directly from config/constants, refactor it so each stage has:
+  - a stable internal key/value (example: `discovery`, `proposal`, `negotiation`, `closed_won`, `closed_lost`)
+  - a translated display label from the i18n system
+- Make sure this applies anywhere those same system stage labels are rendered in summary cards/widgets.
+
+2. Team Chat still shows some default channel names in English in Spanish mode:
+- General
+- Onboarding
+- Dev
+
+Requirements:
+- If these are system-default seeded channels, make their displayed names language-aware.
+- Keep channel identity stable internally so chat routing and selection still work.
+- Only translate the displayed channel label for default system channels.
+- Do not auto-translate user-created channel names.
+- “General” may remain “General” in Spanish if that is the intended localized label, but it still needs to be handled through the translation system rather than hardcoded.
+- Suggested Spanish labels:
+  - General → General
+  - Onboarding → Incorporación
+  - Dev → Desarrollo
+  - Ventas can remain as-is if already correct
+
+Implementation guidance:
+1. Audit the code for any remaining system-defined arrays/config/constants/seed objects that use English display labels directly.
+2. Refactor them to use stable internal keys plus translated display labels.
+3. Ensure any mapping logic distinguishes between:
+   - system-defined values that should be translated
+   - user-generated values that should remain unchanged
+4. If default chat channels are seeded in a database/mock data/config file, do not break existing references. Keep internal IDs/slugs stable and localize only the UI label.
+5. Use the existing EN / ES toggle and translation files.
+6. Add any missing translation keys cleanly under appropriate sections such as:
+   - salesPipeline
+   - pipelineStages
+   - dashboard
+   - teamChat
+   - channels
+
+Verification checklist:
+- In Spanish mode, the funnel summary widget shows translated stage labels
+- In English mode, those stage labels still show correctly in English
+- Dashboard totals/counts/logic remain unchanged
+- In Spanish mode, default chat channel names display correctly localized
+- In English mode, default chat channel names display correctly in English
+- Selecting channels still works
+- Channel routing/state is not broken
+- User-created channel names remain untouched
+- No regressions to the existing translation system
+
+Deliverables:
+- fix the remaining system-defined English labels
+- preserve internal identifiers and behavior
+- provide a short summary of what files/components/configs were updated

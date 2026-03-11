@@ -704,6 +704,12 @@ export const en = {
     selectMember: "Select a member",
     reply_one: "{{count}} reply",
     reply_other: "{{count}} replies",
+    channelNames: {
+      general: "General",
+      ventas: "Ventas",
+      onboarding: "Onboarding",
+      dev: "Dev",
+    },
   },
   docs: {
     title: "App Docs",

@@ -12,7 +12,7 @@ interface SourceRow { source: string; sourceLabel: string; count: number; totalV
 interface StatusRow { statusId: string | null; statusName: string | null; statusColor: string | null; count: number }
 interface Conversion { total: number; converted: number; rate: number }
 interface TrendRow { date: string; count: number }
-interface StageBreakdown { stageId: string; stageName: string; color: string; totalCount: number; openCount: number; totalValue: number; openValue: number }
+interface StageBreakdown { stageId: string; stageName: string; stageSlug: string; color: string; totalCount: number; openCount: number; totalValue: number; openValue: number }
 interface PipelineData { byStage: StageBreakdown[]; totalOpen: number; totalValue: number }
 interface WonLost { won: { count: number; value: number }; lost: { count: number; value: number }; winRate: number }
 interface OnboardingData { total: number; byStatus: { pending: number; in_progress: number; completed: number; on_hold: number }; overdue: number; avgCompletionDays: number; checklist: { total: number; completed: number; rate: number } }
@@ -259,7 +259,7 @@ export default function ReportsPage() {
                   {data.pipeline.byStage.map((stage) => (
                     <HorizontalBar
                       key={stage.stageId}
-                      label={stage.stageName}
+                      label={(t.pipeline.stageNames as Record<string, string>)[stage.stageSlug] || stage.stageName}
                       value={stage.totalValue}
                       max={maxStage}
                       color="bg-indigo-500"
