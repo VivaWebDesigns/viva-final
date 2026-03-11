@@ -5,6 +5,7 @@ import { createServer } from "http";
 import { toNodeHandler } from "better-auth/node";
 import { auth } from "./features/auth/auth";
 import { seedDevUsers } from "./features/admin/dev-seed";
+import { seedAdminUser } from "./features/admin/prod-seed";
 
 const app = express();
 const httpServer = createServer(app);
@@ -121,6 +122,7 @@ app.use((req, res, next) => {
     },
     () => {
       log(`serving on port ${port}`);
+      seedAdminUser().catch((err) => console.error("[prod-seed] error:", err));
       seedDevUsers().catch((err) => console.error("[dev-seed] error:", err));
     },
   );
