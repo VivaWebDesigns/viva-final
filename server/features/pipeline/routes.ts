@@ -142,7 +142,7 @@ router.get("/opportunities/by-lead/:leadId", requireRole("admin", "developer", "
   res.json(opp ?? null);
 });
 
-router.post("/opportunities", requireRole("admin", "sales_rep"), async (req, res) => {
+router.post("/opportunities", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
     const data = insertPipelineOpportunitySchema.parse(req.body);
     const opportunity = await pipelineStorage.createOpportunity(data);
@@ -172,7 +172,7 @@ router.get("/opportunities/:id", requireRole("admin", "developer", "sales_rep"),
   res.json(opp);
 });
 
-router.put("/opportunities/:id", requireRole("admin", "sales_rep"), async (req, res) => {
+router.put("/opportunities/:id", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
     const { id } = req.params as Record<string, string>;
     const existing = await pipelineStorage.getOpportunityById(id);
@@ -204,7 +204,7 @@ router.put("/opportunities/:id", requireRole("admin", "sales_rep"), async (req, 
   }
 });
 
-router.put("/opportunities/:id/stage", requireRole("admin", "sales_rep"), async (req, res) => {
+router.put("/opportunities/:id/stage", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
     const { id } = req.params as Record<string, string>;
     const { stageId } = req.body;
@@ -245,7 +245,7 @@ router.get("/opportunities/:id/activities", requireRole("admin", "developer", "s
   res.json(activities);
 });
 
-router.put("/opportunities/:id/activities/:activityId", requireRole("admin", "sales_rep"), async (req, res) => {
+router.put("/opportunities/:id/activities/:activityId", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
     const { activityId } = req.params as Record<string, string>;
     const { content } = z.object({ content: z.string().min(1) }).parse(req.body);
@@ -257,7 +257,7 @@ router.put("/opportunities/:id/activities/:activityId", requireRole("admin", "sa
   }
 });
 
-router.post("/opportunities/:id/activities", requireRole("admin", "sales_rep"), async (req, res) => {
+router.post("/opportunities/:id/activities", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
     const { id } = req.params as Record<string, string>;
     const existing = await pipelineStorage.getOpportunityById(id);
@@ -291,7 +291,7 @@ const convertLeadSchema = z.object({
   expectedCloseDate: z.string().nullable().optional(),
 }).strict();
 
-router.post("/convert-lead/:leadId", requireRole("admin", "sales_rep"), async (req, res) => {
+router.post("/convert-lead/:leadId", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
     const { leadId } = req.params as Record<string, string>;
     const { stageId, ...extraData } = convertLeadSchema.parse(req.body);

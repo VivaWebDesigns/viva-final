@@ -272,7 +272,7 @@ const convertOpportunitySchema = z.object({
   notes: z.string().nullable().optional(),
 }).strict();
 
-router.post("/convert-opportunity/:opportunityId", requireRole("admin", "sales_rep"), async (req, res) => {
+router.post("/convert-opportunity/:opportunityId", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
     const { opportunityId } = req.params as Record<string, string>;
     const { templateId, ...extraData } = convertOpportunitySchema.parse(req.body);

@@ -96,7 +96,7 @@ router.get("/leads", requireRole("admin", "developer", "sales_rep"), async (req,
   }
 });
 
-router.post("/leads", requireRole("admin", "sales_rep"), async (req, res) => {
+router.post("/leads", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
     const data = insertCrmLeadSchema.parse(req.body);
     const lead = await crmStorage.createLead(data);
@@ -123,7 +123,7 @@ router.get("/leads/assignable-users", requireRole("admin", "developer", "sales_r
   }
 });
 
-router.post("/leads/bulk/assign", requireRole("admin", "sales_rep"), async (req, res) => {
+router.post("/leads/bulk/assign", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
     const { ids, assignedTo } = bulkAssignSchema.parse(req.body);
     const count = await crmStorage.bulkAssignLeads(ids, assignedTo);
@@ -141,7 +141,7 @@ router.post("/leads/bulk/assign", requireRole("admin", "sales_rep"), async (req,
   }
 });
 
-router.post("/leads/bulk/status", requireRole("admin", "sales_rep"), async (req, res) => {
+router.post("/leads/bulk/status", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
     const { ids, statusId } = bulkStatusSchema.parse(req.body);
     const count = await crmStorage.bulkUpdateLeadStatus(ids, statusId);
@@ -159,7 +159,7 @@ router.post("/leads/bulk/status", requireRole("admin", "sales_rep"), async (req,
   }
 });
 
-router.post("/leads/bulk/tags/add", requireRole("admin", "sales_rep"), async (req, res) => {
+router.post("/leads/bulk/tags/add", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
     const { ids, tagIds } = bulkTagsSchema.parse(req.body);
     await crmStorage.bulkAddTagsToLeads(ids, tagIds);
@@ -177,7 +177,7 @@ router.post("/leads/bulk/tags/add", requireRole("admin", "sales_rep"), async (re
   }
 });
 
-router.post("/leads/bulk/tags/remove", requireRole("admin", "sales_rep"), async (req, res) => {
+router.post("/leads/bulk/tags/remove", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
     const { ids, tagIds } = bulkTagsSchema.parse(req.body);
     await crmStorage.bulkRemoveTagsFromLeads(ids, tagIds);
@@ -213,7 +213,7 @@ router.post("/leads/bulk/delete", requireRole("admin"), async (req, res) => {
   }
 });
 
-router.get("/leads/export-csv", requireRole("admin", "sales_rep"), async (req, res) => {
+router.get("/leads/export-csv", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
     const csv = await exportLeadsToCSV();
     const date = new Date().toISOString().split("T")[0];
@@ -235,7 +235,7 @@ router.get("/leads/export-csv", requireRole("admin", "sales_rep"), async (req, r
 
 router.post(
   "/leads/import-csv",
-  requireRole("admin", "sales_rep"),
+  requireRole("admin", "developer", "sales_rep"),
   express.text({ limit: "5mb" }),
   async (req, res) => {
     try {
@@ -277,7 +277,7 @@ const manualLeadSchema = z.object({
   notes:         z.string().optional(),
 });
 
-router.post("/leads/manual", requireRole("admin", "sales_rep"), async (req, res) => {
+router.post("/leads/manual", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
     const data = manualLeadSchema.parse(req.body);
 
@@ -375,7 +375,7 @@ router.get("/leads/:id", requireRole("admin", "developer", "sales_rep"), async (
   res.json(lead);
 });
 
-router.put("/leads/:id", requireRole("admin", "sales_rep"), async (req, res) => {
+router.put("/leads/:id", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
     const id = req.params.id as string;
     const existing = await crmStorage.getLeadById(id);
@@ -412,7 +412,7 @@ router.get("/leads/:id/notes", requireRole("admin", "developer", "sales_rep"), a
   res.json(notes);
 });
 
-router.post("/leads/:id/notes", requireRole("admin", "sales_rep"), async (req, res) => {
+router.post("/leads/:id/notes", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
     const id = req.params.id as string;
     const data = insertCrmLeadNoteSchema.parse({
@@ -441,7 +441,7 @@ router.get("/leads/:id/tags", requireRole("admin", "developer", "sales_rep"), as
   res.json(tags);
 });
 
-router.put("/leads/:id/tags", requireRole("admin", "sales_rep"), async (req, res) => {
+router.put("/leads/:id/tags", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
     const id = req.params.id as string;
     const { tagIds } = tagIdsSchema.parse(req.body);
@@ -474,7 +474,7 @@ router.get("/companies", requireRole("admin", "developer", "sales_rep"), async (
   }
 });
 
-router.post("/companies", requireRole("admin", "sales_rep"), async (req, res) => {
+router.post("/companies", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
     const data = insertCrmCompanySchema.parse(req.body);
     const company = await crmStorage.createCompany(data);
@@ -499,7 +499,7 @@ router.get("/companies/:id", requireRole("admin", "developer", "sales_rep"), asy
   res.json(company);
 });
 
-router.put("/companies/:id", requireRole("admin", "sales_rep"), async (req, res) => {
+router.put("/companies/:id", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
     const id = req.params.id as string;
     const existing = await crmStorage.getCompanyById(id);
@@ -534,7 +534,7 @@ router.get("/contacts", requireRole("admin", "developer", "sales_rep"), async (r
   }
 });
 
-router.post("/contacts", requireRole("admin", "sales_rep"), async (req, res) => {
+router.post("/contacts", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
     const data = insertCrmContactSchema.parse(req.body);
     const contact = await crmStorage.createContact(data);
@@ -552,7 +552,7 @@ router.post("/contacts", requireRole("admin", "sales_rep"), async (req, res) => 
   }
 });
 
-router.get("/contacts/export-csv", requireRole("admin", "sales_rep"), async (req, res) => {
+router.get("/contacts/export-csv", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
     const csv = await exportContactsToCSV();
     const date = new Date().toISOString().split("T")[0];
@@ -574,7 +574,7 @@ router.get("/contacts/export-csv", requireRole("admin", "sales_rep"), async (req
 
 router.post(
   "/contacts/import-csv",
-  requireRole("admin", "sales_rep"),
+  requireRole("admin", "developer", "sales_rep"),
   express.text({ limit: "5mb" }),
   async (req, res) => {
     try {
@@ -609,7 +609,7 @@ router.get("/contacts/:id", requireRole("admin", "developer", "sales_rep"), asyn
   res.json(contact);
 });
 
-router.put("/contacts/:id", requireRole("admin", "sales_rep"), async (req, res) => {
+router.put("/contacts/:id", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
     const id = req.params.id as string;
     const existing = await crmStorage.getContactById(id);
@@ -640,7 +640,7 @@ router.get("/tags", requireRole("admin", "developer", "sales_rep"), async (_req,
   res.json(tags);
 });
 
-router.post("/tags", requireRole("admin", "sales_rep"), async (req, res) => {
+router.post("/tags", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
     const data = insertCrmTagSchema.parse(req.body);
     const tag = await crmStorage.createTag(data);

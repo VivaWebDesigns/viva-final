@@ -52,7 +52,7 @@ router.get("/for-lead/:id", requireRole("admin", "sales_rep", "developer"), asyn
   }
 });
 
-router.post("/", requireRole("admin", "sales_rep"), async (req, res) => {
+router.post("/", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
     const validated = createTaskSchema.parse(req.body);
     const task = await taskStorage.createTask({
@@ -75,7 +75,7 @@ router.post("/", requireRole("admin", "sales_rep"), async (req, res) => {
   }
 });
 
-router.put("/:id/complete", requireRole("admin", "sales_rep"), async (req, res) => {
+router.put("/:id/complete", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
     const task = await taskStorage.completeTask(req.params.id as string);
     await logAudit({
@@ -92,7 +92,7 @@ router.put("/:id/complete", requireRole("admin", "sales_rep"), async (req, res) 
   }
 });
 
-router.put("/:id", requireRole("admin", "sales_rep"), async (req, res) => {
+router.put("/:id", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
     const validated = updateTaskSchema.parse(req.body);
     const data: Record<string, unknown> = { ...validated };
@@ -113,7 +113,7 @@ router.put("/:id", requireRole("admin", "sales_rep"), async (req, res) => {
   }
 });
 
-router.delete("/:id", requireRole("admin", "sales_rep"), async (req, res) => {
+router.delete("/:id", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
     await taskStorage.deleteTask(req.params.id as string);
     await logAudit({

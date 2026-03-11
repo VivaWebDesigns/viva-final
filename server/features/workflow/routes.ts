@@ -4,7 +4,7 @@ import { getOverdueSummary } from "./overdue";
 
 const router = Router();
 
-router.get("/overdue-summary", requireRole("admin", "sales_rep"), async (req, res) => {
+router.get("/overdue-summary", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
     const summary = await getOverdueSummary();
     res.json(summary);
