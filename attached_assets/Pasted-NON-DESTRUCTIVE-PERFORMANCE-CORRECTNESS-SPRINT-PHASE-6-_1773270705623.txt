@@ -1,0 +1,49 @@
+NON-DESTRUCTIVE PERFORMANCE/CORRECTNESS SPRINT — PHASE 6
+Frontend Data Freshness + Static Asset Caching Policy
+
+You are working in the Viva Web Designs / Viva-Sales-Spanish internal CRM/admin platform codebase.
+
+This must be a NON-DESTRUCTIVE implementation pass. Preserve UX stability while reducing stale data risk and improving repeat-load performance.
+
+OBJECTIVE
+Fix risky data freshness defaults in the frontend and improve static asset cache policy on the server.
+
+CONTEXT FROM REVIEW
+- Query client default staleTime is Infinity globally
+- This can create stale operational views if invalidation is missed
+- express.static(distPath) is used without strong cache-control tuning for hashed assets vs HTML shell
+
+TASKS
+PART A — FRONTEND DATA FRESHNESS
+1. Audit global React Query / TanStack Query defaults.
+2. Replace unsafe blanket staleTime=Infinity defaults with safer global defaults for operational/admin UI.
+3. Use explicit per-query overrides for truly static data domains only.
+4. Review key operational views such as:
+   - chat/realtime-adjacent views
+   - pipeline/sales views
+   - onboarding/status dashboards
+   - notifications/admin operational screens
+5. Ensure invalidation/refetch logic is consistent after mutations.
+6. Add tests where practical for data freshness behavior.
+
+PART B — STATIC ASSET CACHING
+7. Update server static asset delivery policy so:
+   - hashed assets are cacheable/immutable
+   - HTML/app shell is not cached dangerously
+8. Ensure CDN friendliness and repeat-load performance without serving stale app shells after deploys.
+9. Add validation or smoke checks for cache headers if practical.
+
+APP DOCS REQUIREMENT
+Update Super Admin > App Docs with:
+- Frontend data freshness strategy
+- Query caching defaults and override rules
+- Mutation invalidation patterns
+- Static asset caching policy
+- Deployment cache behavior and troubleshooting stale UI issues
+
+DELIVERABLES
+- Implement safer query defaults and targeted overrides
+- Implement static asset cache policy improvements
+- Add tests/smoke checks where appropriate
+- Fully document the caching/freshness model in App Docs
+- Output a concise summary of what changed and why

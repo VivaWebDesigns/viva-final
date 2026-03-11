@@ -1,0 +1,48 @@
+NON-DESTRUCTIVE PERFORMANCE SPRINT — PHASE 5
+Reporting Performance + SQL Aggregation Refactor
+
+You are working in the Viva Web Designs / Viva-Sales-Spanish internal CRM/admin platform codebase.
+
+This must be a NON-DESTRUCTIVE implementation pass. Preserve reporting accuracy and existing report outputs while improving performance and scalability.
+
+OBJECTIVE
+Refactor heavy in-memory reporting logic so large reporting workloads shift to the database layer wherever practical.
+
+CONTEXT FROM REVIEW
+- getPipelineBreakdown fetches large opportunity datasets and aggregates in JS
+- getOnboardingBreakdown loads full records and computes status/overdue in memory
+- This will degrade as data size grows
+
+TASKS
+1. Audit all reporting and analytics services for in-memory aggregation hotspots.
+2. Prioritize these refactors:
+   - pipeline breakdown
+   - onboarding breakdown
+   - any similar status/stage aggregation flows
+3. Move aggregation logic into SQL queries using efficient:
+   - GROUP BY
+   - COUNT
+   - conditional aggregation
+   - indexed filtering
+4. Minimize record hydration where summarized results are sufficient.
+5. Preserve current report response shape whenever possible, or add compatibility mapping layers if necessary.
+6. Review indexes supporting the new query patterns.
+7. Remove N+1 or unnecessary secondary fetches where found.
+8. Add benchmarks or before/after instrumentation for key report endpoints.
+9. Add regression tests to validate report totals and stage/status math against expected results.
+10. Keep all changes safe and incremental.
+
+APP DOCS REQUIREMENT
+Update Super Admin > App Docs with:
+- Reporting service architecture overview
+- SQL aggregation strategy
+- Performance notes for pipeline reports
+- Performance notes for onboarding reports
+- Indexing considerations for analytics/reporting
+- Report accuracy validation/testing notes
+
+DELIVERABLES
+- Implement report performance improvements
+- Add tests and instrumentation
+- Update App Docs with technical reporting documentation
+- Output before/after performance findings where measurable

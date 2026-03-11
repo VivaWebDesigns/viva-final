@@ -7,15 +7,9 @@ import {
 import { eq, desc, asc, and, or, sql, lt, gt, ilike, ne, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { getIO } from "./socket";
+import { CHANNEL_DEFINITIONS, normalizeChannelId } from "@shared/channels";
 
 const router = Router();
-
-const CHANNELS = [
-  { id: "general",    name: "General",    description: "Team announcements and conversation" },
-  { id: "sales",      name: "Sales",      description: "Sales pipeline and prospects" },
-  { id: "onboarding", name: "Onboarding", description: "Client onboarding coordination" },
-  { id: "dev",        name: "Dev",        description: "Technical and development topics" },
-];
 
 // ── One-time migration: rename legacy "ventas" channel → "sales" ──────
 (async () => {
@@ -33,7 +27,7 @@ router.get("/channels", requireAuth, async (req, res) => {
   try {
     const userId = req.authUser?.id!;
     const result = await Promise.all(
-      CHANNELS.map(async (ch) => {
+      CHANNEL_DEFINITIONS.map(async (ch) => {
         const [readState] = await db
           .select()
           .from(chatReadState)
@@ -60,7 +54,7 @@ router.get("/channels", requireAuth, async (req, res) => {
 
 router.get("/messages", requireAuth, async (req, res) => {
   try {
-    const channel = (req.query.channel as string) || "general";
+    const channel = normalizeChannelId((req.query.channel as string) || "general") ?? "general";
     const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
     const before = req.query.before as string | undefined;
     const parentId = req.query.parentId as string | undefined;
@@ -130,11 +124,13 @@ router.get("/messages", requireAuth, async (req, res) => {
 
 router.post("/messages", requireAuth, async (req, res) => {
   try {
-    const { channel, content, parentId } = z.object({
+    const parsed = z.object({
       channel: z.string().default("general"),
       content: z.string().min(1).max(4000),
       parentId: z.string().optional(),
     }).parse(req.body);
+    const channel = normalizeChannelId(parsed.channel) ?? "general";
+    const { content, parentId } = parsed;
     const senderId = req.authUser?.id!;
 
     const [msg] = await db.insert(chatMessages)
@@ -183,7 +179,8 @@ router.delete("/messages/:id", requireRole("admin", "developer"), async (req, re
 
 router.post("/read", requireAuth, async (req, res) => {
   try {
-    const { channelId } = z.object({ channelId: z.string() }).parse(req.body);
+    const parsed = z.object({ channelId: z.string() }).parse(req.body);
+    const channelId = normalizeChannelId(parsed.channelId) ?? parsed.channelId;
     const userId = req.authUser?.id!;
     await db.insert(chatReadState)
       .values({ userId, channelId, lastReadAt: new Date() })
@@ -197,7 +194,7 @@ router.post("/read", requireAuth, async (req, res) => {
 // ── Pinned messages ───────────────────────────────────────────────────
 
 router.get("/pinned", requireAuth, async (req, res) => {
-  const channel = (req.query.channel as string) || "general";
+  const channel = normalizeChannelId((req.query.channel as string) || "general") ?? "general";
   const rows = await db
     .select({ id: chatMessages.id, content: chatMessages.content, createdAt: chatMessages.createdAt, senderName: user.name })
     .from(chatMessages)
@@ -247,7 +244,8 @@ router.get("/search", requireAuth, async (req, res) => {
   try {
     const q = (req.query.q as string)?.trim();
     if (!q || q.length < 2) return res.json([]);
-    const channel = req.query.channel as string | undefined;
+    const rawChannel = req.query.channel as string | undefined;
+    const channel = rawChannel ? normalizeChannelId(rawChannel) : undefined;
     const conditions: any[] = [ilike(chatMessages.content, `%${q}%`)];
     if (channel) conditions.push(eq(chatMessages.channel, channel));
     const rows = await db

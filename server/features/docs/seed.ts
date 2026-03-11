@@ -2129,6 +2129,200 @@ client/src/
 - No global state management library — server state is the source of truth`,
   },
   {
+    title: "Realtime Architecture Overview",
+    slug: "team-chat-realtime-architecture",
+    categorySlug: "team-chat",
+    status: "published",
+    content: `# Realtime Architecture Overview
+
+## Stack
+- **Socket.IO** — WebSocket transport between browser clients and the Express server.
+- **Rooms** — Each channel gets a Socket.IO room named \`channel:<id>\` (e.g. \`channel:sales\`). Direct messages use \`user:<id>\` rooms.
+- **Shared types** — \`shared/socket-types.ts\` defines the typed event contracts (\`ServerToClientEvents\`, \`ClientToServerEvents\`, etc.).
+
+## Connection Lifecycle
+1. Client calls \`io()\` with an auth cookie.
+2. Server middleware (\`socket.ts\`) validates the BetterAuth session and attaches \`userId\`, \`userName\`, \`userRole\` to \`socket.data\`.
+3. Server auto-joins the socket to \`user:<userId>\` for DMs and presence.
+4. Server broadcasts \`chat:presence\` with the current online user list.
+
+## Channel Join / Leave
+- Client emits \`join:channel\` with a channel ID string.
+- Server normalizes the ID via \`normalizeChannelId()\` (maps legacy \`"ventas"\` → \`"sales"\`).
+- If the normalized ID is in the canonical list, the socket joins \`channel:<normalized>\`.
+- On channel switch, the client emits \`leave:channel\` for the previous channel first.
+
+## Message Broadcast
+1. Client POSTs to \`/api/chat/messages\`.
+2. The route handler normalizes the channel, inserts the row, then calls \`io.to("channel:<id>").emit("chat:channel_message", payload)\`.
+3. All sockets in the room receive the event in real time.
+
+## Presence
+- On connect: broadcast updated online list.
+- On disconnect: remove user, broadcast updated list.
+- Clients receive \`chat:presence\` with the full \`onlineUserIds\` array.
+
+## Typing Indicators
+- Client emits \`typing:start\` / \`typing:stop\` with a \`TypingTarget\`.
+- Server broadcasts \`chat:typing\` to the relevant room.
+- Frontend shows/hides a typing indicator with a short debounce timeout.`,
+  },
+  {
+    title: "Canonical Chat Channel Dictionary",
+    slug: "team-chat-channel-dictionary",
+    categorySlug: "team-chat",
+    status: "published",
+    content: `# Canonical Chat Channel Dictionary
+
+## Source of Truth
+All channel identifiers are defined in \`shared/channels.ts\`. Both the server (socket + REST) and the frontend import from this single file.
+
+## Channels
+| ID | Display Name | Description |
+|----|-------------|-------------|
+| \`general\` | General | Team announcements and conversation |
+| \`sales\` | Sales | Sales pipeline and prospects |
+| \`onboarding\` | Onboarding | Client onboarding coordination |
+| \`dev\` | Dev | Technical and development topics |
+
+## Exports
+| Export | Type | Purpose |
+|--------|------|---------|
+| \`CHANNEL_IDS\` | \`as const\` object | Lookup by key (\`CHANNEL_IDS.sales\`) |
+| \`CANONICAL_CHANNEL_IDS\` | \`string[]\` | Flat array for iteration / validation |
+| \`CHANNEL_DEFINITIONS\` | \`{ id, name, description }[]\` | Full metadata for UI rendering |
+| \`normalizeChannelId(raw)\` | function | Maps any string to a canonical ID or \`undefined\` |
+
+## Legacy Migration: ventas → sales
+The database originally used \`"ventas"\` as the Sales channel identifier. A one-time migration in \`server/features/chat/routes.ts\` renamed all existing rows:
+\`\`\`sql
+UPDATE chat_messages SET channel = 'sales' WHERE channel = 'ventas';
+UPDATE chat_read_state SET channel_id = 'sales' WHERE channel_id = 'ventas';
+\`\`\`
+The \`normalizeChannelId()\` utility also maps \`"ventas"\` → \`"sales"\` at runtime so any stale client or API call is transparently corrected.`,
+  },
+  {
+    title: "Socket Event Contract Reference",
+    slug: "team-chat-socket-events",
+    categorySlug: "team-chat",
+    status: "published",
+    content: `# Socket Event Contract Reference
+
+All types are defined in \`shared/socket-types.ts\`.
+
+## Server → Client Events
+
+### \`chat:channel_message\`
+Broadcast when a new message is posted in a channel.
+| Field | Type | Notes |
+|-------|------|-------|
+| id | string | Message UUID |
+| channel | string | Canonical channel ID |
+| content | string | HTML content |
+| senderId | string | Author user ID |
+| senderName | string | Author display name |
+| senderRole | string | Author role |
+| createdAt | string | ISO timestamp |
+| parentId | string or null | Thread parent |
+| isPinned | boolean | Pin status |
+| reactions | array | \`{ emoji, count, users[] }\` |
+| replyCount | number | Thread reply count |
+
+### \`chat:dm_message\`
+Sent to sender and recipient when a DM is created.
+| Field | Type |
+|-------|------|
+| id | string |
+| senderId | string |
+| recipientId | string |
+| content | string |
+| readAt | string or null |
+| createdAt | string |
+
+### \`chat:typing\`
+Broadcast to the relevant room on typing start/stop.
+| Field | Type |
+|-------|------|
+| userId | string |
+| userName | string |
+| target | string (channel ID or user ID) |
+| targetType | "channel" or "dm" |
+| isTyping | boolean |
+
+### \`chat:presence\`
+Broadcast to all on connect/disconnect.
+| Field | Type |
+|-------|------|
+| onlineUserIds | string[] |
+
+### \`chat:unread_update\`
+Sent to a specific user.
+| Field | Type |
+|-------|------|
+| channelId | string (optional) |
+| dmUserId | string (optional) |
+| unreadCount | number |
+
+## Client → Server Events
+
+| Event | Payload | Purpose |
+|-------|---------|---------|
+| \`join:channel\` | channelId: string | Join a channel room |
+| \`leave:channel\` | channelId: string | Leave a channel room |
+| \`typing:start\` | \`{ target, targetType }\` | Signal typing began |
+| \`typing:stop\` | \`{ target, targetType }\` | Signal typing ended |`,
+  },
+  {
+    title: "Realtime Troubleshooting Guide",
+    slug: "team-chat-troubleshooting",
+    categorySlug: "team-chat",
+    status: "published",
+    content: `# Realtime Troubleshooting Guide
+
+## Known Failure Mode: Join Allowlist Mismatch
+
+### Symptom
+Messages send and persist in the database, but other users in the same channel do not see them in real time. Typing indicators and presence may also not work for specific channels.
+
+### Root Cause
+The socket server maintains an allowlist of valid channel IDs. If this list gets out of sync with the canonical channel definitions (e.g., using a legacy ID like \`"ventas"\` instead of \`"sales"\`), \`join:channel\` silently fails — the client never joins the room, so broadcasts land in an empty audience.
+
+### Resolution
+Ensure the socket server imports \`CANONICAL_CHANNEL_IDS\` from \`shared/channels.ts\` instead of maintaining a hardcoded list. The \`normalizeChannelId()\` utility transparently maps legacy IDs.
+
+## Verifying Channel Rooms
+
+### Server-side
+In the socket connection handler, log the rooms after a join:
+\`\`\`typescript
+socket.on("join:channel", (channelId) => {
+  const normalized = normalizeChannelId(channelId);
+  if (normalized) {
+    socket.join(\\\`channel:\\\${normalized}\\\`);
+    console.log("Rooms:", [...socket.rooms]);
+  }
+});
+\`\`\`
+
+### Client-side
+Open DevTools → Network → WS tab. Filter for \`join:channel\` frames and confirm the emitted channel ID matches a canonical value.
+
+## Verifying Presence
+1. Open Team Chat in two browser tabs with different users.
+2. Both should see each other's avatar in the online indicator.
+3. If not, check the \`chat:presence\` event in the WS frames.
+
+## Verifying Typing Indicators
+1. Open Team Chat in two tabs, same channel.
+2. Start typing in one tab.
+3. The other tab should show "[User] is typing..." within 1-2 seconds.
+
+## Common Pitfalls
+- **Legacy client cache**: A stale browser cache may emit \`"ventas"\` instead of \`"sales"\`. \`normalizeChannelId()\` handles this transparently.
+- **DM path unaffected**: DMs use \`user:<id>\` rooms and are not subject to channel normalization.
+- **No error emitted**: Socket.IO does not emit an error when \`join:channel\` is silently rejected — this is by design in the server handler.`,
+  },
+  {
     title: "Deployment Guide",
     slug: "deployment-guide",
     categorySlug: "deployment-devops",

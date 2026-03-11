@@ -1,0 +1,60 @@
+NON-DESTRUCTIVE QUALITY SPRINT — PHASE 7
+System-Wide Debugging + Smoke Tests + End-to-End Testing
+
+You are working in the Viva Web Designs / Viva-Sales-Spanish internal CRM/admin platform codebase.
+
+This must be a NON-DESTRUCTIVE implementation pass. Do not rewrite working systems unnecessarily. Focus on debugging, validation, and safe quality improvements.
+
+OBJECTIVE
+Create a strong end-of-day QA/debugging pass across the full application with reliable scripts, smoke checks, and end-to-end coverage for critical workflows.
+
+CONTEXT FROM REVIEW
+- package.json has no standard test script despite existing Vitest usage
+- There is a need for better onboarding/CI consistency
+- Core route health and startup verification should exist
+- Realtime and operational workflows need contract confidence
+
+TASKS
+1. Audit all existing test infrastructure, Vitest coverage, helper utilities, and any E2E tooling already present.
+2. Add clean package scripts for:
+   - test
+   - test:unit
+   - test:integration
+   - test:e2e
+   - test:smoke
+   - test:watch (if useful)
+3. Implement or improve smoke tests for:
+   - server startup
+   - health endpoint/core route health
+   - auth/session baseline
+   - key API route availability
+4. Add end-to-end or high-confidence integration coverage for critical workflows:
+   - login/auth
+   - contact/inquiry submission
+   - client creation/update
+   - opportunity/pipeline flow
+   - chat channel join + typing + message send
+   - notifications flow where possible
+   - super admin app docs visibility/access
+5. Fix safe, high-confidence bugs discovered during the test pass.
+6. Remove dead code, obvious code smells, duplicate helpers, and minor cleanup opportunities only where risk is low.
+7. Improve test fixture organization, deterministic setup, and cleanup strategy.
+8. Ensure CI/developer usage is obvious and consistent.
+9. Document known testing limitations and next recommended test priorities.
+
+APP DOCS REQUIREMENT
+Update Super Admin > App Docs with:
+- Testing architecture overview
+- How to run unit/integration/e2e/smoke tests
+- Critical workflow test matrix
+- Known testing gaps
+- Debugging checklist for production incidents
+- CI validation expectations
+
+DELIVERABLES
+- Add scripts
+- Add/fix tests
+- Perform safe code cleanup
+- Fix confirmed low-risk bugs found during validation
+- Update App Docs
+- Output a concise summary of bugs fixed, tests added, and scripts created

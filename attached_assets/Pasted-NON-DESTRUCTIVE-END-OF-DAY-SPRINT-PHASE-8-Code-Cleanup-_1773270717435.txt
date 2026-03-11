@@ -1,0 +1,68 @@
+NON-DESTRUCTIVE END-OF-DAY SPRINT — PHASE 8
+Code Cleanup + Debugging + Performance Review + Full App Docs Completion
+
+You are working in the Viva Web Designs / Viva-Sales-Spanish internal CRM/admin platform codebase.
+
+This is the final end-of-day stabilization pass. It must be NON-DESTRUCTIVE, cautious, and production-safe.
+
+OBJECTIVE
+Perform a disciplined end-of-day cleanup and validation sweep across the entire application:
+- code cleanup
+- bug fixes
+- performance review
+- consistency review
+- documentation completion
+- App Docs completion in Super Admin
+
+INSTRUCTIONS
+1. Review everything completed in prior phases and identify:
+   - lingering code duplication
+   - dead/unused imports or helpers
+   - inconsistent naming
+   - weak typing opportunities
+   - noisy logs
+   - low-risk cleanup candidates
+2. Fix confirmed low-risk issues only. Do not perform broad refactors without strong justification.
+3. Review major performance-sensitive areas across the app and apply low-risk wins such as:
+   - query tightening
+   - response shaping
+   - unnecessary recomputation removal
+   - memoization where justified
+   - pagination/limit safety
+   - reducing over-fetching
+4. Run or validate all available tests and smoke flows.
+5. Review lint/type/build/test alignment and ensure the developer workflow is clean and obvious.
+6. Ensure all new architecture introduced in prior phases is internally consistent and documented.
+7. Complete a thorough App Docs gap analysis and fill all missing technical documentation in Super Admin.
+
+REQUIRED APP DOCS COMPLETION CHECKLIST
+Create or complete App Docs coverage for all missing or incomplete areas, including:
+- System architecture overview
+- Server lifecycle and startup model
+- Routing architecture
+- Realtime/chat architecture
+- Public forms/inquiry workflow
+- Queue/job processing architecture
+- Email/provider integration architecture
+- Error taxonomy and logging model
+- Reporting/analytics architecture
+- Data freshness/caching model
+- Testing strategy and command reference
+- Incident runbooks
+- Support troubleshooting guides
+- Performance considerations by subsystem
+- Environment/bootstrap/setup guide
+- Migration/seed policy
+- Canonical domain terminology and naming dictionary
+
+FINAL DELIVERABLES
+1. Apply low-risk cleanup, bug fixes, and performance improvements.
+2. Ensure the app is left in a stable, supportable end-of-day state.
+3. Fully populate missing App Docs content in Super Admin.
+4. Output a final end-of-day report including:
+   - files changed
+   - issues fixed
+   - performance improvements made
+   - tests run/added
+   - remaining risks
+   - App Docs sections added or completed

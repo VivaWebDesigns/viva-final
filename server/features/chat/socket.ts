@@ -7,6 +7,7 @@ import type {
   InterServerEvents,
   SocketData,
 } from "@shared/socket-types";
+import { normalizeChannelId } from "@shared/channels";
 
 let io: SocketIOServer<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
 
@@ -49,37 +50,44 @@ export function initSocket(httpServer: HttpServer) {
     broadcastPresence();
 
     socket.on("join:channel", (channelId: string) => {
-      const allowedChannels = ["general", "ventas", "onboarding", "dev"];
-      if (allowedChannels.includes(channelId)) {
-        socket.join(`channel:${channelId}`);
+      const normalized = normalizeChannelId(channelId);
+      if (normalized) {
+        socket.join(`channel:${normalized}`);
       }
     });
 
     socket.on("leave:channel", (channelId: string) => {
-      socket.leave(`channel:${channelId}`);
+      const normalized = normalizeChannelId(channelId);
+      if (normalized) {
+        socket.leave(`channel:${normalized}`);
+      }
     });
 
     socket.on("typing:start", (data) => {
-      const room = data.targetType === "channel"
-        ? `channel:${data.target}`
-        : `user:${data.target}`;
+      const target = data.targetType === "channel"
+        ? normalizeChannelId(data.target)
+        : data.target;
+      if (!target) return;
+      const room = data.targetType === "channel" ? `channel:${target}` : `user:${target}`;
       socket.to(room).emit("chat:typing", {
         userId,
         userName,
-        target: data.target,
+        target,
         targetType: data.targetType,
         isTyping: true,
       });
     });
 
     socket.on("typing:stop", (data) => {
-      const room = data.targetType === "channel"
-        ? `channel:${data.target}`
-        : `user:${data.target}`;
+      const target = data.targetType === "channel"
+        ? normalizeChannelId(data.target)
+        : data.target;
+      if (!target) return;
+      const room = data.targetType === "channel" ? `channel:${target}` : `user:${target}`;
       socket.to(room).emit("chat:typing", {
         userId,
         userName,
-        target: data.target,
+        target,
         targetType: data.targetType,
         isTyping: false,
       });

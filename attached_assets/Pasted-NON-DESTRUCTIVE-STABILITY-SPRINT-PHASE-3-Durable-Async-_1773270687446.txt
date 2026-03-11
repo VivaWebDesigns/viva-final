@@ -1,0 +1,58 @@
+NON-DESTRUCTIVE STABILITY SPRINT — PHASE 3
+Durable Async Workflow for Public Contact/Inquiry Processing
+
+You are working in the Viva Web Designs / Viva-Sales-Spanish internal CRM/admin platform codebase.
+
+This must be a NON-DESTRUCTIVE implementation pass. Preserve all current functionality while making the request workflow more resilient, supportable, and observable.
+
+OBJECTIVE
+Refactor public inquiry/contact form processing so DB persistence, CRM ingest, and email delivery are no longer fragile synchronous side effects inside the request lifecycle.
+
+CONTEXT FROM REVIEW
+- Public form endpoints currently do DB write, CRM ingest, and email sending during the request
+- Errors are treated as non-blocking
+- Partial-success and latency behavior are fragile
+- External provider slowness can degrade UX and reliability
+
+TASKS
+1. Audit all public form/contact/inquiry submission endpoints and identify every external side effect.
+2. Preserve immediate user success behavior while moving non-essential side effects into a durable async workflow.
+3. Implement a job/outbox pattern for:
+   - CRM ingest
+   - outbound email notifications
+   - any other provider side effects triggered by public forms
+4. Ensure the request path prioritizes:
+   - validation
+   - persistence of the primary inquiry/contact record
+   - enqueueing durable follow-up work
+   - fast user response
+5. Add job state tracking with statuses such as:
+   - pending
+   - processing
+   - completed
+   - failed
+   - retry_scheduled
+6. Implement retry/backoff for transient failures.
+7. Add dead-letter or failure visibility patterns so support teams can diagnose stuck/failed jobs.
+8. Ensure idempotency where needed to avoid duplicate sends/duplicate CRM inserts.
+9. Add admin/support visibility for failed workflow items if appropriate.
+10. Add tests for:
+   - successful request with async work queued
+   - provider timeout/failure with retry scheduling
+   - no duplicate processing on repeated attempts
+   - partial provider failure does not lose the core inquiry record
+
+APP DOCS REQUIREMENT
+Update Super Admin > App Docs with:
+- Public inquiry processing lifecycle
+- Sync vs async responsibilities
+- Queue/job architecture overview
+- Retry and backoff policy
+- Failure recovery and support troubleshooting guide
+- Data model reference for job status tracking
+
+DELIVERABLES
+- Implement durable async architecture non-destructively
+- Add tests and internal admin visibility where appropriate
+- Update App Docs thoroughly
+- Output a concise summary of queue/job architecture introduced

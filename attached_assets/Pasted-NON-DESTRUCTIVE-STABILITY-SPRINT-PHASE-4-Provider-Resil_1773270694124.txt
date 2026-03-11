@@ -1,0 +1,58 @@
+NON-DESTRUCTIVE STABILITY SPRINT — PHASE 4
+Provider Resilience + Observability + Supportability
+
+You are working in the Viva Web Designs / Viva-Sales-Spanish internal CRM/admin platform codebase.
+
+This must be a NON-DESTRUCTIVE implementation pass. Build operational maturity without breaking existing integrations.
+
+OBJECTIVE
+Strengthen external provider interactions and improve support/ops maturity for email, CRM, and related service integrations.
+
+CONTEXT FROM REVIEW
+- Notifications/email sends are fire-and-forget in process
+- Mailgun integration lacks resilience wrapper/circuit breaker behavior
+- Logging is structured but observability maturity is limited
+- There is no clear advanced error taxonomy, severity tagging, or provider correlation strategy
+
+TASKS
+1. Audit all external provider integrations and classify them by criticality.
+2. Add resilient service wrappers around outbound provider calls where appropriate.
+3. Introduce:
+   - timeout configuration
+   - retry eligibility rules
+   - exponential backoff hooks
+   - circuit-breaker or failure-threshold patterns where practical
+4. Normalize provider error handling into a consistent taxonomy:
+   - validation/config errors
+   - transient network/provider errors
+   - permanent provider rejections
+   - rate-limit failures
+5. Improve structured logging to include:
+   - request IDs
+   - correlation IDs
+   - provider name
+   - operation name
+   - severity level
+   - retry attempt count
+   - outcome status
+6. Add health-check or diagnostics coverage for provider readiness that goes beyond merely checking environment variables.
+7. Add internal support/admin diagnostics surfaces where appropriate for:
+   - provider last success/failure snapshot
+   - queue depth/failure counts if queue system exists
+   - failed external operations summary
+8. Prepare the system for future metrics/SLO dashboards even if full dashboards are not yet implemented.
+9. Add tests for resilience/error classification behavior.
+
+APP DOCS REQUIREMENT
+Update Super Admin > App Docs with:
+- External provider architecture
+- Error taxonomy and severity model
+- Provider health diagnostics guide
+- Mailgun/service integration behavior
+- Incident response runbook for provider outage, latency spike, and repeated delivery failure
+
+DELIVERABLES
+- Implement resilience/support improvements safely
+- Add tests where appropriate
+- Expand App Docs significantly
+- Output a concise summary of operational hardening completed
