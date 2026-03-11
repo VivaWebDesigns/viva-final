@@ -2375,6 +2375,291 @@ This starts an Express server that serves both the API and the Vite-bundled fron
 - Run the seed endpoint after first deployment to populate initial data
 - Monitor notification delivery via the notification center`,
   },
+  {
+    title: "Environment Bootstrap Overview",
+    slug: "bootstrap-overview",
+    categorySlug: "deployment-devops",
+    status: "published",
+    content: `# Environment Bootstrap Overview
+
+## What is Bootstrap?
+Bootstrap is the controlled initialization of a new or freshly deployed environment. It covers three distinct concerns:
+
+| Concern | What it does | When to run |
+|---------|-------------|-------------|
+| **Schema migration** | Create or alter database tables | Before first boot after schema changes |
+| **User seeding** | Create admin/dev/sales accounts from env vars | Once per environment (idempotent) |
+| **Feature seeding** | Populate config data: statuses, stages, templates, integrations, docs | On first boot or on demand |
+
+## Bootstrap is NOT
+- Part of normal production request handling
+- Required on every server restart (seeds skip if data already exists)
+- A migration system — schema is managed separately via Drizzle
+
+## How It Works (v2+)
+After the Phase 2 refactor, seeding is removed from the unconditional server boot path.
+
+The \`server/bootstrap.ts\` orchestrator runs after the server is listening and:
+1. Checks database connectivity
+2. Determines if auto-seeding is enabled via \`VIVA_AUTO_SEED\`
+3. Runs user seeds then feature seeds (if enabled)
+4. Logs each step clearly
+
+## Auto-Seed Defaults
+| Environment | Default behavior |
+|-------------|-----------------|
+| \`NODE_ENV !== "production"\` | Auto-seed enabled (dev ergonomics) |
+| \`NODE_ENV === "production"\`  | Auto-seed SKIPPED (set \`VIVA_AUTO_SEED=true\` to opt in) |
+
+Set \`VIVA_AUTO_SEED=true\` in Replit Secrets to enable auto-seeding in production on first deploy.`,
+  },
+  {
+    title: "Migrations vs Seeds vs Startup",
+    slug: "bootstrap-migrations-vs-seeds",
+    categorySlug: "deployment-devops",
+    status: "published",
+    content: `# Migrations vs Seeds vs Startup
+
+Understanding the difference between these three concerns prevents environment drift and production incidents.
+
+## Schema Migrations
+**What**: Structural database changes (CREATE TABLE, ALTER COLUMN, ADD INDEX).
+**Tool**: Drizzle ORM push model.
+**Command**: \`npm run db:push\`
+**When**: Before deploying code that requires new or changed columns/tables.
+**Idempotent**: Yes — Drizzle compares live schema against \`shared/schema.ts\` and applies only the diff.
+
+## Seeds
+**What**: Populating config/reference data or creating initial user accounts.
+**Two categories**:
+- **User seeds** (\`prod-seed.ts\`, \`dev-seed.ts\`): Create admin/developer/sales accounts from env vars.
+- **Feature seeds** (\`crm/seed.ts\`, \`pipeline/seed.ts\`, \`onboarding/seed.ts\`, \`integrations/seed.ts\`, \`docs/seed.ts\`): Populate config data that must exist for the app to function (statuses, stages, templates, etc.).
+
+**When**: Once per environment on initial setup, and again if data is wiped.
+**Idempotent**: Yes — all seeds use upsert patterns; re-running is safe.
+
+**How to run**:
+- Auto (dev): starts automatically via \`VIVA_AUTO_SEED\` default
+- Manual script: \`npx tsx scripts/seed.ts\`
+- HTTP endpoint: \`POST /api/admin/seed-all\` (admin auth required)
+
+## Startup
+**What**: Express server listen, route registration, Socket.IO init, Vite/static setup.
+**Should NOT include**: Any seed logic (as of Phase 2 hardening).
+**Boot time**: < 2 seconds (database connectivity is checked post-listen, non-blocking).
+
+## Summary
+\`\`\`
+Deploy new code
+  → npm run db:push        (schema sync, if needed)
+  → npm run dev / start    (server starts, DB ping, seeds skipped or run per VIVA_AUTO_SEED)
+  → npx tsx scripts/seed.ts  (manual seed if needed)
+\`\`\``,
+  },
+  {
+    title: "Production Startup Lifecycle",
+    slug: "bootstrap-production-lifecycle",
+    categorySlug: "deployment-devops",
+    status: "published",
+    content: `# Production Startup Lifecycle
+
+## Boot Sequence
+\`\`\`
+1. NODE_ENV=production tsx server/index.ts
+2. Express app created
+3. BetterAuth /api/auth/* handler registered
+4. Route handlers registered (all features)
+5. Static file serving enabled (Vite bundle)
+6. httpServer.listen({ port: 5000, host: "0.0.0.0" })
+7. → "serving on port 5000" logged
+8. runBootstrap() called (non-blocking, post-listen)
+   a. DB connectivity check → logged
+   b. VIVA_AUTO_SEED evaluation:
+      - If NOT set: "auto-seed: SKIPPED" logged, bootstrap exits
+      - If set to true: seeds run in sequence
+9. Server accepts requests immediately (bootstrap is non-blocking)
+\`\`\`
+
+## Logs to Expect
+\`\`\`
+[express] serving on port 5000
+[bootstrap] environment: production
+[bootstrap] database connectivity: OK
+[bootstrap] schema management: drizzle push model
+[bootstrap] auto-seed: SKIPPED (set VIVA_AUTO_SEED=true ...)
+\`\`\`
+
+Or, if \`VIVA_AUTO_SEED=true\`:
+\`\`\`
+[bootstrap] auto-seed: RUNNING (VIVA_AUTO_SEED=true)
+[prod-seed] admin user already exists (admin@...)
+[prod-seed] developer user already exists (dev@...)
+[prod-seed] sales_rep user already exists (sales@...)
+[bootstrap] bootstrap complete
+\`\`\`
+
+## Environment Variables Required for Production
+| Variable | Purpose | Required |
+|----------|---------|----------|
+| \`DATABASE_URL\` | PostgreSQL connection | Yes |
+| \`BETTER_AUTH_SECRET\` | Auth session secret | Yes |
+| \`SEED_ADMIN_EMAIL\` | Admin account email | Yes (for seeding) |
+| \`SEED_ADMIN_PASSWORD\` | Admin account password | Yes (for seeding) |
+| \`VIVA_AUTO_SEED\` | Enable automatic seeds | Opt-in |
+
+## What Happens Without Seeds
+The app starts and serves requests normally. However:
+- No admin user exists → cannot log in
+- No CRM statuses → lead creation fails
+- No pipeline stages → pipeline board is empty
+- No onboarding templates → template selector is empty
+
+Run seeds via script or HTTP endpoint after first deploy.`,
+  },
+  {
+    title: "Safe Seed Execution Runbook",
+    slug: "bootstrap-seed-runbook",
+    categorySlug: "deployment-devops",
+    status: "published",
+    content: `# Safe Seed Execution Runbook
+
+All seed operations are idempotent. Running them multiple times is safe — existing records are skipped or upserted without data loss.
+
+---
+
+## Method 1: Auto-Seed via Environment Variable (Recommended for First Deploy)
+
+Set \`VIVA_AUTO_SEED=true\` in your environment secrets before the first deployment. The server will run all seeds automatically on startup.
+
+**Steps**:
+1. In Replit Secrets, set \`VIVA_AUTO_SEED=true\`
+2. Also set \`SEED_ADMIN_EMAIL\`, \`SEED_ADMIN_PASSWORD\`, \`SEED_DEV_EMAIL\`, \`SEED_DEV_PASSWORD\`, \`SEED_SALES_EMAIL\`, \`SEED_SALES_PASSWORD\`
+3. Deploy / restart the server
+4. Check logs for \`[bootstrap] bootstrap complete\`
+5. Optional: remove \`VIVA_AUTO_SEED=true\` after first successful seed (seeds are skipped on subsequent boots anyway since data already exists)
+
+---
+
+## Method 2: Manual Script
+
+Run the seed script directly in your shell. This does not require the server to be running.
+
+\`\`\`bash
+npx tsx scripts/seed.ts
+\`\`\`
+
+Expected output:
+\`\`\`
+[seed-script] Starting seed run...
+[seed-script] Seeding admin/prod users...
+[prod-seed] admin user already exists (admin@...)
+[seed-script] Seeding CRM statuses...
+[seed-script] CRM statuses: 6 records
+[seed-script] Pipeline stages: 7 records
+[seed-script] Onboarding templates: 1 template(s)
+[seed-script] Integrations: 4 records
+[seed-script] Docs: 21 categories, N articles
+[seed-script] Seed run complete in Xms
+\`\`\`
+
+---
+
+## Method 3: HTTP Endpoint (Runtime Re-Seed)
+
+Use this when you need to re-seed config data while the app is running (e.g., after adding a new article or stage to seed data).
+
+\`\`\`bash
+curl -X POST https://your-app.replit.app/api/admin/seed-all \\
+  -H "Cookie: <session cookie>" \\
+  -H "X-Seed-Secret: <SEED_ADMIN_SECRET value>"
+\`\`\`
+
+Requirements:
+- Must be authenticated as an \`admin\` role user
+- If \`SEED_ADMIN_SECRET\` env var is set, the \`X-Seed-Secret\` header is required
+- Note: this endpoint seeds feature data only (not user accounts)
+
+---
+
+## Verification Checklist
+After seeding, verify:
+- [ ] Login works with admin credentials
+- [ ] CRM > Lead statuses list returns 6 statuses (New, Contacted, Qualified, Proposal, Won, Lost)
+- [ ] Pipeline board shows 7 stages
+- [ ] Onboarding > Templates shows "Standard Web Design Onboarding"
+- [ ] Integrations page shows 4 providers (Stripe, Mailgun, OpenAI, Cloudflare R2)
+- [ ] App Docs has articles populated`,
+  },
+  {
+    title: "Bootstrap Troubleshooting Guide",
+    slug: "bootstrap-troubleshooting",
+    categorySlug: "deployment-devops",
+    status: "published",
+    content: `# Bootstrap Troubleshooting Guide
+
+## Symptom: Cannot log in after fresh deploy
+
+**Cause**: Seeds were not run, so no admin user exists.
+
+**Fix**:
+1. Run \`npx tsx scripts/seed.ts\` from the shell, or
+2. Set \`VIVA_AUTO_SEED=true\` in Secrets and restart the server, or
+3. Use the legacy \`POST /api/admin/seed-admin\` endpoint if accessible.
+
+---
+
+## Symptom: "[bootstrap] database connectivity: FAILED"
+
+**Cause**: \`DATABASE_URL\` is not set or the database is not reachable.
+
+**Fix**:
+1. Check Replit Secrets for \`DATABASE_URL\`
+2. In Replit, the database auto-provisions — confirm the PostgreSQL integration is connected
+3. Run \`npm run db:push\` to verify connectivity
+
+---
+
+## Symptom: Seeds run on every restart (high startup latency)
+
+**Cause**: \`VIVA_AUTO_SEED=true\` is set but seeds are already complete.
+
+**Fix**: Remove \`VIVA_AUTO_SEED\` from Secrets. Seeds are idempotent and fast, but removing the flag is cleaner. The seeds will be skipped in production without it.
+
+---
+
+## Symptom: "auto-seed: SKIPPED" but I want it to run
+
+**Fix**: Set \`VIVA_AUTO_SEED=true\` in environment secrets and restart.
+
+---
+
+## Symptom: Seed script exits with error
+
+**Common causes**:
+1. \`DATABASE_URL\` not set in environment
+2. Database schema is behind — run \`npm run db:push\` first
+3. \`SEED_ADMIN_EMAIL\` or \`SEED_ADMIN_PASSWORD\` not set (user seed skips silently, feature seed continues)
+
+**Check**: Scan console output for lines starting with \`[seed-script]\` or \`[prod-seed]\` to identify the failing step.
+
+---
+
+## Symptom: "POST /api/admin/seed-all → 403"
+
+**Cause**: Either not authenticated as admin, or \`X-Seed-Secret\` header is missing/wrong.
+
+**Fix**:
+1. Log in as admin first and include the session cookie
+2. Check \`SEED_ADMIN_SECRET\` env var and pass its value in the \`X-Seed-Secret\` header
+
+---
+
+## Symptom: App Docs articles are missing after re-deploy
+
+**Cause**: Articles were manually deleted from the database, or a new article was added to seed data after the initial seed.
+
+**Fix**: Run \`POST /api/admin/seed-all\` or \`npx tsx scripts/seed.ts\`. The seed uses an "insert if not exists by slug" pattern — new articles are added, existing ones are preserved.`,
+  },
 ];
 
 export async function seedDocs() {

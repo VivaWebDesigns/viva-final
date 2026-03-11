@@ -106,6 +106,55 @@ router.post("/seed-admin", async (req, res) => {
   }
 });
 
+// ── Full Feature Seed (all config data) ──────────────────────────────
+// Runs all feature seeds idempotently: CRM statuses, pipeline stages,
+// onboarding templates, integrations, and App Docs articles.
+// Does NOT create or modify user accounts.
+// Requires X-Seed-Secret header matching SEED_ADMIN_SECRET env var.
+// Returns a summary of what was seeded.
+
+router.post("/seed-all", requireRole("admin"), async (req, res) => {
+  const seedSecret = process.env.SEED_ADMIN_SECRET;
+  if (seedSecret) {
+    const provided = req.headers["x-seed-secret"];
+    if (!provided || provided !== seedSecret) {
+      return res.status(403).json({ message: "Missing or invalid X-Seed-Secret header." });
+    }
+  }
+
+  try {
+    const { runFeatureSeeds } = await import("../../bootstrap");
+    const results = await runFeatureSeeds();
+    const failed = results.filter((r) => !r.ok);
+    const succeeded = results.filter((r) => r.ok);
+
+    if (failed.length === results.length) {
+      return res.status(500).json({
+        message: "All feature seeds failed.",
+        ok: false,
+        results,
+      });
+    }
+
+    if (failed.length > 0) {
+      return res.status(207).json({
+        message: `${succeeded.length} of ${results.length} seeds succeeded. ${failed.length} failed.`,
+        ok: false,
+        results,
+      });
+    }
+
+    res.json({
+      message: `All ${results.length} feature seeds completed successfully.`,
+      ok: true,
+      results,
+    });
+  } catch (err: any) {
+    console.error("[seed-all] error:", err);
+    res.status(500).json({ message: err.message || "Seed failed" });
+  }
+});
+
 // ── User Management ──────────────────────────────────────────────────
 
 router.get("/users", requireRole("admin"), async (_req, res) => {
