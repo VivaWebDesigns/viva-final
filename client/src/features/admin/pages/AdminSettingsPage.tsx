@@ -103,7 +103,7 @@ export default function AdminSettingsPage() {
       <div className="flex items-center justify-between mb-6 flex-shrink-0">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{t.settings.title}</h1>
-          <p className="text-sm text-gray-500 mt-1">{t.nav.settings}</p>
+          <p className="text-sm text-gray-500 mt-1">{t.common.settings}</p>
         </div>
       </div>
 
