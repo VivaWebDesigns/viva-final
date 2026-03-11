@@ -47,6 +47,15 @@ const NOTE_TYPE_ICONS: Record<string, any> = {
   system: Bot,
 };
 
+const NOTE_TYPE_BADGE: Record<string, { badge: string; iconBg: string; icon: string }> = {
+  note:          { badge: "bg-blue-100 text-blue-700 border-blue-200",      iconBg: "bg-blue-100",   icon: "text-blue-500" },
+  call:          { badge: "bg-green-100 text-green-700 border-green-200",   iconBg: "bg-green-100",  icon: "text-green-500" },
+  email:         { badge: "bg-violet-100 text-violet-700 border-violet-200",iconBg: "bg-violet-100", icon: "text-violet-500" },
+  task:          { badge: "bg-amber-100 text-amber-700 border-amber-200",   iconBg: "bg-amber-100",  icon: "text-amber-500" },
+  status_change: { badge: "bg-teal-100 text-teal-700 border-teal-200",     iconBg: "bg-teal-100",   icon: "text-teal-500" },
+  system:        { badge: "bg-gray-100 text-gray-600 border-gray-200",     iconBg: "bg-gray-100",   icon: "text-gray-400" },
+};
+
 export default function LeadDetailPage({ id }: { id: string }) {
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -450,6 +459,7 @@ export default function LeadDetailPage({ id }: { id: string }) {
               ) : (
                 notes.map((note, i) => {
                   const NoteIcon = NOTE_TYPE_ICONS[note.type] || MessageSquare;
+                  const noteStyle = NOTE_TYPE_BADGE[note.type] ?? NOTE_TYPE_BADGE.system;
                   return (
                     <motion.div
                       key={note.id}
@@ -459,12 +469,12 @@ export default function LeadDetailPage({ id }: { id: string }) {
                       className="flex gap-3"
                       data-testid={`note-${note.id}`}
                     >
-                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
-                        <NoteIcon className="w-4 h-4 text-gray-500" />
+                      <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${noteStyle.iconBg}`}>
+                        <NoteIcon className={`w-4 h-4 ${noteStyle.icon}`} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <Badge variant="secondary" className="text-xs">
+                          <Badge className={`text-xs border ${noteStyle.badge}`}>
                             {NOTE_TYPE_LABELS[note.type] || note.type}
                           </Badge>
                           <span className="text-xs text-gray-400">
