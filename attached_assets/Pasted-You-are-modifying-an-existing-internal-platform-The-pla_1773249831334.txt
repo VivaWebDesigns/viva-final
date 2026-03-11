@@ -1,0 +1,222 @@
+You are modifying an existing internal platform. The platform already includes a **Sales Pipeline module**. Your task is to configure and standardize the Sales Pipeline workflow and implement a **follow-up task scheduling system with preset options**. This must be **non-destructive**: do not remove existing functionality, delete data, or break existing routes or components. Only extend or adjust the system where necessary.
+
+---
+
+OBJECTIVE
+
+Implement a **clear and simple sales pipeline** that moves leads from initial contact to sale. The pipeline must use **deal status stages** and rely on **tasks/reminders for follow-ups**, not additional pipeline stages.
+
+The system must also include a **fast follow-up task creator with preset time options plus a custom date option**.
+
+---
+
+PIPELINE STAGES
+
+Ensure the Sales Pipeline contains the following stages **in this exact order**:
+
+1. New Lead
+2. Contacted
+3. Demo Scheduled
+4. Demo Completed
+5. Payment Sent
+6. Closed – Won
+7. Closed – Lost
+
+These stages represent the **true status of the deal** and must not be used for activities such as follow-ups.
+
+---
+
+PIPELINE CARD STRUCTURE
+
+Each lead should appear as a **pipeline card** tied to a CRM contact record.
+
+The card should display the following information:
+
+• contact_name
+• business_name
+• phone_number
+• trade_type (plumbing, landscaping, painting, etc.)
+• city
+• website_package (Empieza / Crece / Domina if known)
+
+Do not remove any existing card fields already in the system.
+
+---
+
+PIPELINE MOVEMENT
+
+Pipeline cards must support **manual drag-and-drop movement between stages**.
+
+Movement between stages reflects the following workflow:
+
+New Lead
+→ created when a new prospect is added to the CRM from lead source.
+
+Contacted
+→ sales rep has reached out via call or text.
+
+Demo Scheduled
+→ a demo appointment has been booked.
+
+Demo Completed
+→ demo has taken place and the lead has seen the product.
+
+Payment Sent
+→ the Stripe payment link has been sent to the lead.
+
+Closed – Won
+→ the client has paid the deposit.
+
+Closed – Lost
+→ the lead declined or is no longer pursuing the service.
+
+Cards must **only move forward through the pipeline** unless manually corrected.
+
+---
+
+FOLLOW-UP MANAGEMENT
+
+Follow-ups must **NOT be implemented as pipeline stages**.
+
+Instead, implement a **task/reminder system tied to the CRM contact**.
+
+Each task should include:
+
+• task_title
+• contact_id
+• due_date
+• notes
+• completed_status
+• created_at
+
+Leads remain in their current stage (for example **Payment Sent**) while follow-ups are handled via tasks.
+
+---
+
+FOLLOW-UP TASK CREATION (PRESET + CUSTOM)
+
+When creating a follow-up task, provide a **quick-select dropdown for follow-up timing**.
+
+The dropdown must include these preset options:
+
+• 1 day
+• 2 days
+• 5 days
+• 1 week
+• 2 weeks
+• 1 month
+• 2 months
+• 6 months
+• 1 year
+• Custom date
+
+When a preset option is selected, the system should automatically calculate and populate the **due_date** based on the current date.
+
+Example:
+
+Selecting **1 week** → due_date = current_date + 7 days.
+
+Selecting **1 month** → due_date = current_date + 30 days.
+
+If **Custom date** is selected, allow the user to manually pick a calendar date.
+
+---
+
+TASK CREATION LOCATION
+
+Sales reps must be able to create follow-up tasks from:
+
+• the CRM contact record
+• the Sales Pipeline card
+• the deal detail view
+
+This allows quick follow-up scheduling without navigating away from the lead.
+
+---
+
+TASK VISIBILITY
+
+Provide a simple dashboard view called:
+
+**Tasks Due Today**
+
+This view must display:
+
+• contact name
+• business name
+• phone number
+• task title
+• due date
+• quick action buttons (complete, edit, reschedule)
+
+Sales reps should be able to:
+
+• see all tasks due today
+• mark tasks complete
+• create new follow-up tasks
+• reschedule tasks
+
+---
+
+PAYMENT EVENT
+
+When the sales rep confirms that the client has paid the deposit:
+
+1. Move the pipeline card to **Closed – Won**.
+2. Trigger or allow the creation of a **Client record** (if not already created).
+3. Allow the client to enter the **Client Onboarding system**.
+
+Do not duplicate CRM contact records.
+
+---
+
+UI DESIGN REQUIREMENTS
+
+The pipeline interface must remain **simple and visual**.
+
+Sales reps should be able to:
+
+• quickly see all deals in each stage
+• drag cards between stages
+• open a card to view contact information
+• create follow-up tasks directly from the card
+
+The design should resemble a **kanban-style board** with columns for each stage.
+
+The follow-up task dropdown should allow **very fast scheduling in two clicks**.
+
+---
+
+DATA INTEGRITY RULES
+
+Do NOT:
+
+• delete existing CRM records
+• remove existing pipeline features
+• break API routes or database schemas
+• overwrite existing UI components
+
+Instead:
+
+• extend existing models if necessary
+• add fields only when required
+• maintain compatibility with current data
+
+---
+
+FINAL EXPECTED WORKFLOW
+
+Marketplace Lead
+→ CRM contact created
+→ Pipeline stage: New Lead
+→ Sales outreach
+→ Move to Contacted
+→ Demo scheduled
+→ Move to Demo Scheduled
+→ Demo completed
+→ Move to Demo Completed
+→ Stripe payment link sent
+→ Move to Payment Sent
+→ Create follow-up tasks if needed
+→ Deposit paid
+→ Move to Closed – Won

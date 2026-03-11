@@ -478,6 +478,7 @@ export default function PipelineBoardPage() {
 
       <QuickTaskModal
         open={!!taskOpp}
+        leadId={taskOpp?.leadId}
         onClose={() => setTaskOpp(null)}
         opportunityId={taskOpp?.id}
         contactId={taskOpp?.contactId}

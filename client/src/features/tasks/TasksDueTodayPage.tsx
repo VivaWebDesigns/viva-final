@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Clock, Phone, Building2, AlertTriangle, CalendarClock, ExternalLink } from "lucide-react";
+import { CheckCircle2, Clock, Phone, Building2, AlertTriangle, CalendarClock, ExternalLink, Plus } from "lucide-react";
 import QuickTaskModal from "@/components/QuickTaskModal";
 import type { FollowupTask } from "@shared/schema";
 import { useAdminLang } from "@/i18n/LanguageContext";
@@ -128,6 +128,7 @@ export default function TasksDueTodayPage() {
   const { t } = useAdminLang();
   const [completingId, setCompletingId] = useState<string | null>(null);
   const [rescheduleTask, setRescheduleTask] = useState<TaskWithContact | null>(null);
+  const [showNewTask, setShowNewTask] = useState(false);
 
   const { data, isLoading } = useQuery<DueTodayData>({
     queryKey: ["/api/tasks/due-today"],
@@ -164,13 +165,23 @@ export default function TasksDueTodayPage() {
 
   return (
     <div className="space-y-6 max-w-3xl" data-testid="page-tasks-due-today">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900" data-testid="text-tasks-title">
-          {t.tasks.title}
-        </h1>
-        <p className="text-sm text-gray-500 mt-1">
-          {t.tasks.dueToday}
-        </p>
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900" data-testid="text-tasks-title">
+            {t.tasks.title}
+          </h1>
+          <p className="text-sm text-gray-500 mt-1">
+            {t.tasks.dueToday}
+          </p>
+        </div>
+        <Button
+          size="sm"
+          onClick={() => setShowNewTask(true)}
+          data-testid="button-new-task"
+        >
+          <Plus className="w-4 h-4 mr-1.5" />
+          {t.tasks.scheduleFollowUp}
+        </Button>
       </div>
 
       {isLoading ? (
@@ -250,6 +261,11 @@ export default function TasksDueTodayPage() {
         leadId={rescheduleTask?.leadId}
         contactId={rescheduleTask?.contactId}
         onSuccess={() => setRescheduleTask(null)}
+      />
+      <QuickTaskModal
+        open={showNewTask}
+        onClose={() => setShowNewTask(false)}
+        onSuccess={() => setShowNewTask(false)}
       />
     </div>
   );
