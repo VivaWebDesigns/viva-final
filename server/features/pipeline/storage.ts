@@ -232,10 +232,49 @@ export async function addActivity(data: InsertPipelineActivity): Promise<Pipelin
   return result;
 }
 
-export async function getActivities(opportunityId: string): Promise<PipelineActivity[]> {
-  return db.select().from(pipelineActivities)
+export type ActivityWithAuthor = PipelineActivity & { authorName: string | null };
+
+export async function getActivities(opportunityId: string): Promise<ActivityWithAuthor[]> {
+  const rows = await db
+    .select({
+      id: pipelineActivities.id,
+      opportunityId: pipelineActivities.opportunityId,
+      userId: pipelineActivities.userId,
+      type: pipelineActivities.type,
+      content: pipelineActivities.content,
+      metadata: pipelineActivities.metadata,
+      createdAt: pipelineActivities.createdAt,
+      authorName: user.name,
+    })
+    .from(pipelineActivities)
+    .leftJoin(user, eq(pipelineActivities.userId, user.id))
     .where(eq(pipelineActivities.opportunityId, opportunityId))
-    .orderBy(desc(pipelineActivities.createdAt));
+    .orderBy(asc(pipelineActivities.createdAt));
+  return rows as ActivityWithAuthor[];
+}
+
+export async function updateActivity(activityId: string, content: string): Promise<ActivityWithAuthor | null> {
+  const [updated] = await db
+    .update(pipelineActivities)
+    .set({ content })
+    .where(eq(pipelineActivities.id, activityId))
+    .returning();
+  if (!updated) return null;
+  const [row] = await db
+    .select({
+      id: pipelineActivities.id,
+      opportunityId: pipelineActivities.opportunityId,
+      userId: pipelineActivities.userId,
+      type: pipelineActivities.type,
+      content: pipelineActivities.content,
+      metadata: pipelineActivities.metadata,
+      createdAt: pipelineActivities.createdAt,
+      authorName: user.name,
+    })
+    .from(pipelineActivities)
+    .leftJoin(user, eq(pipelineActivities.userId, user.id))
+    .where(eq(pipelineActivities.id, activityId));
+  return row as ActivityWithAuthor | null;
 }
 
 export async function getOpportunityCount(): Promise<number> {

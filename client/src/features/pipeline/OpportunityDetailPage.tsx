@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { motion } from "framer-motion";
+import { useAuth } from "@/features/auth/useAuth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -47,12 +48,17 @@ const ACTIVITY_ICONS: Record<string, typeof MessageSquare> = {
   system: Zap,
 };
 
+type ActivityWithAuthor = { id: string; opportunityId: string; userId: string | null; type: string; content: string; metadata: unknown; createdAt: string; authorName: string | null };
+
 export default function OpportunityDetailPage({ id }: { id: string }) {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const { t } = useAdminLang();
+  const { role: authRole, user: authUser } = useAuth();
   const [noteContent, setNoteContent] = useState("");
   const [noteType, setNoteType] = useState("note");
+  const [editingActivityId, setEditingActivityId] = useState<string | null>(null);
+  const [editingActivityContent, setEditingActivityContent] = useState("");
   const [taskModalOpen, setTaskModalOpen] = useState(false);
   const [rescheduleTask, setRescheduleTask] = useState<TaskWithContact | null>(null);
 
@@ -64,7 +70,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
     queryKey: ["/api/pipeline/stages"],
   });
 
-  const { data: activities } = useQuery<PipelineActivity[]>({
+  const { data: activities } = useQuery<ActivityWithAuthor[]>({
     queryKey: ["/api/pipeline/opportunities", id, "activities"],
   });
 
@@ -138,6 +144,20 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
       queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities", id, "activities"] });
       setNoteContent("");
       toast({ title: t.pipeline.activityAdded });
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const updateActivityMutation = useMutation({
+    mutationFn: async ({ activityId, content }: { activityId: string; content: string }) => {
+      const res = await apiRequest("PUT", `/api/pipeline/opportunities/${id}/activities/${activityId}`, { content });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities", id, "activities"] });
+      setEditingActivityId(null);
+      setEditingActivityContent("");
+      toast({ title: "Activity updated" });
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
@@ -457,9 +477,9 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
               <CardTitle className="text-base">Activity Timeline</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex gap-2 mb-4">
+              <div className="space-y-2 mb-5">
                 <Select value={noteType} onValueChange={setNoteType}>
-                  <SelectTrigger className="w-[120px]" data-testid="select-activity-type">
+                  <SelectTrigger className="w-[130px]" data-testid="select-activity-type">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -473,32 +493,37 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                   value={noteContent}
                   onChange={(html) => setNoteContent(html)}
                   placeholder="Add activity..."
-                  minHeight="60px"
+                  minHeight="80px"
+                  className="w-full"
                   data-testid="textarea-activity"
                 />
-                <Button
-                  size="sm"
-                  onClick={() => noteMutation.mutate()}
-                  disabled={!noteContent.replace(/<[^>]*>/g, "").trim() || noteMutation.isPending}
-                  className="self-end"
-                  data-testid="button-add-activity"
-                >
-                  Add
-                </Button>
+                <div className="flex justify-end">
+                  <Button
+                    size="sm"
+                    onClick={() => noteMutation.mutate()}
+                    disabled={!noteContent.replace(/<[^>]*>/g, "").trim() || noteMutation.isPending}
+                    className="bg-[#0D9488] hover:bg-[#0b7a70] text-white"
+                    data-testid="button-add-activity"
+                  >
+                    {noteMutation.isPending ? "Adding…" : "Add"}
+                  </Button>
+                </div>
               </div>
 
               <div className="space-y-3">
                 {(activities || []).map(act => {
                   const Icon = ACTIVITY_ICONS[act.type] || MessageSquare;
+                  const isEditable = act.type !== "stage_change" && act.type !== "system" && (authRole === "admin" || authRole === "developer" || act.userId === (authUser as any)?.id);
+                  const isEditingThis = editingActivityId === act.id;
                   return (
                     <motion.div
                       key={act.id}
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
-                      className="flex gap-3 py-2 border-b border-gray-100 last:border-0"
+                      className="flex gap-3 py-3 border-b border-gray-100 last:border-0"
                       data-testid={`activity-${act.id}`}
                     >
-                      <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${
                         act.type === "stage_change" ? "bg-blue-100 text-blue-600" :
                         act.type === "system" ? "bg-gray-100 text-gray-500" :
                         act.type === "call" ? "bg-green-100 text-green-600" :
@@ -508,10 +533,63 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                         <Icon className="w-3.5 h-3.5" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm text-gray-700">{act.content}</p>
-                        <p className="text-xs text-gray-400 mt-0.5">
-                          {new Date(act.createdAt).toLocaleString()}
-                        </p>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {act.authorName && (
+                              <span className="text-xs font-medium text-gray-700">{act.authorName}</span>
+                            )}
+                            <span className="text-xs text-gray-400 capitalize">{act.type.replace("_", " ")}</span>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <span className="text-xs text-gray-400">
+                              {new Date(act.createdAt).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}
+                            </span>
+                            {isEditable && !isEditingThis && (
+                              <button
+                                onClick={() => { setEditingActivityId(act.id); setEditingActivityContent(act.content); }}
+                                className="text-gray-300 hover:text-[#0D9488] transition-colors"
+                                data-testid={`button-edit-activity-${act.id}`}
+                              >
+                                <Pencil className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        {isEditingThis ? (
+                          <div className="mt-2 space-y-2">
+                            <RichTextEditorField
+                              value={editingActivityContent}
+                              onChange={(html) => setEditingActivityContent(html)}
+                              minHeight="60px"
+                              className="w-full"
+                              data-testid={`textarea-edit-activity-${act.id}`}
+                            />
+                            <div className="flex gap-2 justify-end">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => { setEditingActivityId(null); setEditingActivityContent(""); }}
+                                data-testid={`button-cancel-edit-activity-${act.id}`}
+                              >
+                                Cancel
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="bg-[#0D9488] hover:bg-[#0b7a70] text-white"
+                                disabled={!editingActivityContent.replace(/<[^>]*>/g, "").trim() || updateActivityMutation.isPending}
+                                onClick={() => updateActivityMutation.mutate({ activityId: act.id, content: editingActivityContent })}
+                                data-testid={`button-save-edit-activity-${act.id}`}
+                              >
+                                {updateActivityMutation.isPending ? "Saving…" : "Save"}
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div
+                            className="text-sm text-gray-700 mt-1 prose prose-sm max-w-none"
+                            dangerouslySetInnerHTML={{ __html: sanitizeHtml(act.content) }}
+                          />
+                        )}
                       </div>
                     </motion.div>
                   );

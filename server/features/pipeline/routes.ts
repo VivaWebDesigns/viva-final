@@ -245,6 +245,18 @@ router.get("/opportunities/:id/activities", requireRole("admin", "developer", "s
   res.json(activities);
 });
 
+router.put("/opportunities/:id/activities/:activityId", requireRole("admin", "sales_rep"), async (req, res) => {
+  try {
+    const { activityId } = req.params as Record<string, string>;
+    const { content } = z.object({ content: z.string().min(1) }).parse(req.body);
+    const updated = await pipelineStorage.updateActivity(activityId, content);
+    if (!updated) return res.status(404).json({ message: "Activity not found" });
+    res.json(updated);
+  } catch (error: any) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
 router.post("/opportunities/:id/activities", requireRole("admin", "sales_rep"), async (req, res) => {
   try {
     const { id } = req.params as Record<string, string>;
