@@ -5,6 +5,12 @@ const EMPTY_RECORDS   = { records: [], total: 0, page: 1, pageSize: 20 };
 const EMPTY_ARTICLES  = { articles: [], total: 0, page: 1, pageSize: 20 };
 const EMPTY_CLIENTS   = { clients: [], total: 0 };
 const EMPTY_BOARD     = { stages: [], board: {}, contactMap: {}, companyMap: {} };
+const CHAT_CHANNELS   = [
+  { id: "general",    name: "General",    description: "Team announcements and conversation", unreadCount: 0 },
+  { id: "sales",      name: "Sales",      description: "Sales pipeline and prospects", unreadCount: 0 },
+  { id: "onboarding", name: "Onboarding", description: "Client onboarding coordination", unreadCount: 0 },
+  { id: "dev",        name: "Dev",        description: "Technical and development topics", unreadCount: 0 },
+];
 
 const ADMIN_STATS = {
   users: 0, contacts: 0, articles: 0, categories: 0, integrations: 0, leads: 0,
@@ -36,6 +42,11 @@ function pickResponse(pathname: string): unknown {
   if (pathname.includes("/clients"))                 return EMPTY_CLIENTS;
   if (pathname.includes("/admin/users"))             return [];
   if (pathname.includes("/admin/stats"))             return ADMIN_STATS;
+  if (pathname.includes("/chat/users"))               return [];
+  if (pathname.includes("/chat/channels"))            return CHAT_CHANNELS;
+  if (pathname.includes("/chat/messages"))            return [];
+  if (pathname.includes("/chat/dm"))                  return [];
+  if (pathname.includes("/chat/pinned"))              return [];
   if (pathname.includes("/tasks/due-today"))         return [];
   if (pathname.includes("/tasks"))                   return [];
   return {};

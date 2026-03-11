@@ -1,11 +1,17 @@
 import { render, type RenderOptions } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, QueryFunction } from "@tanstack/react-query";
 import { Router } from "wouter";
+
+const testQueryFn: QueryFunction = async ({ queryKey }) => {
+  const res = await fetch(queryKey.join("/") as string);
+  if (!res.ok) throw new Error(`${res.status}: ${res.statusText}`);
+  return await res.json();
+};
 
 function createTestClient() {
   return new QueryClient({
     defaultOptions: {
-      queries:   { retry: false, gcTime: 0 },
+      queries:   { retry: false, gcTime: 0, queryFn: testQueryFn },
       mutations: { retry: false },
     },
   });

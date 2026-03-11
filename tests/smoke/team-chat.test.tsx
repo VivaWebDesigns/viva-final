@@ -35,8 +35,8 @@ describe("TeamChatPage smoke", () => {
     expect(document.body).not.toBeEmptyDOMElement();
   });
 
-  it("renders channel sidebar with General channel", async () => {
+  it("renders channel sidebar buttons", async () => {
     renderWithProviders(<TeamChatPage />, { route: "/admin/chat" });
-    expect(await screen.findByText(/general/i)).toBeInTheDocument();
+    expect(await screen.findByTestId("button-channel-general")).toBeInTheDocument();
   });
 });
