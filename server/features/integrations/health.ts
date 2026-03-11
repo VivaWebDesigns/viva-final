@@ -1,4 +1,5 @@
 import { isConfigured as isMailgunConfigured } from "../notifications/mailgun";
+import { getAllSnapshots } from "../../lib/provider-snapshot";
 
 export interface ProviderHealth {
   provider: string;
@@ -9,6 +10,12 @@ export interface ProviderHealth {
   featureFlag: "active" | "planned" | "scaffold";
   notes: string;
   usedBy: string[];
+}
+
+export interface ProviderDiagnostics {
+  health: Record<string, ProviderHealth>;
+  snapshots: ReturnType<typeof getAllSnapshots>;
+  generatedAt: string;
 }
 
 function checkEnvVars(vars: string[]): { present: string[]; missing: string[] } {
@@ -60,8 +67,24 @@ export function checkMailgunHealth(): ProviderHealth {
     presentVars: present,
     status: deriveStatus(reqCheck.present, required),
     featureFlag: "active",
-    notes: "Mailgun powers notification emails for lead alerts, assignment notifications, and system alerts. When not configured, notifications fall back to in-app only (emails are skipped gracefully).",
+    notes: "Mailgun powers notification emails for lead alerts, assignment notifications, and system alerts. When not configured, notifications fall back to in-app only (emails are skipped gracefully). Calls are wrapped with 10s timeout and error classification.",
     usedBy: ["Notification System", "Lead Alerts", "Assignment Emails"],
+  };
+}
+
+export function checkResendHealth(): ProviderHealth {
+  const required = ["RESEND_API_KEY"];
+  const { present, missing } = checkEnvVars(required);
+
+  return {
+    provider: "resend",
+    configured: missing.length === 0,
+    missingVars: missing,
+    presentVars: present,
+    status: deriveStatus(present, required),
+    featureFlag: "active",
+    notes: "Resend delivers team notification emails triggered by public contact/inquiry form submissions. Calls run via the durable async job queue (workflow_jobs) with automatic retry and 15s timeout. Failed jobs are visible at GET /api/workflow/jobs?status=failed.",
+    usedBy: ["Contact Form Email Notification", "Inquiry Form Email Notification", "Workflow Job Queue"],
   };
 }
 
@@ -104,7 +127,20 @@ export function checkAllProviders(): Record<string, ProviderHealth> {
   return {
     stripe: checkStripeHealth(),
     mailgun: checkMailgunHealth(),
+    resend: checkResendHealth(),
     openai: checkOpenAIHealth(),
     "cloudflare-r2": checkR2Health(),
+  };
+}
+
+/**
+ * Returns combined health + runtime snapshot data for all providers.
+ * This is the full diagnostics surface for admin/support teams.
+ */
+export function getProviderDiagnostics(): ProviderDiagnostics {
+  return {
+    health: checkAllProviders(),
+    snapshots: getAllSnapshots(),
+    generatedAt: new Date().toISOString(),
   };
 }

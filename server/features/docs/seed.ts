@@ -2661,6 +2661,381 @@ After seeding, verify:
 **Fix**: Run \`POST /api/admin/seed-all\` or \`npx tsx scripts/seed.ts\`. The seed uses an "insert if not exists by slug" pattern — new articles are added, existing ones are preserved.`,
   },
 
+  // ── Phase 4: Provider Resilience + Observability ─────────────────────
+
+  {
+    title: "External Provider Architecture",
+    slug: "external-provider-architecture",
+    categorySlug: "architecture-overview",
+    status: "published",
+    content: `# External Provider Architecture
+
+## Overview
+
+Viva CRM integrates with external providers at two layers: the **synchronous request path** and the **durable async job queue**. Understanding this split is essential for diagnosing provider failures.
+
+## Provider Registry
+
+| Provider | Criticality | Integration Path | Fallback Behavior |
+|----------|-------------|-----------------|-------------------|
+| **Resend** | Critical | Async job queue (workflow_jobs) | Retry with backoff × 3 → dead-letter |
+| **Mailgun** | Important | Notification service (fire-and-forget) | Email skipped, in-app notification retained |
+| **Stripe** | Critical | Billing routes (per-request) | 500 error returned to admin |
+| **OpenAI** | Scaffold | Not yet active | N/A |
+| **Cloudflare R2** | Planned | Not yet active | N/A |
+
+## Criticality Classification
+
+**Critical** — failure breaks a user-facing workflow and must be retried or surfaced.
+**Important** — failure degrades experience but core data is preserved; graceful skip is acceptable.
+**Scaffold** — configured but not yet active; no production usage.
+**Planned** — not yet integrated.
+
+## Integration Layers
+
+### Layer 1: Synchronous Request Path
+- Stripe billing calls (charge, customer lookup, webhook processing)
+- These block the HTTP response and must succeed or return a clear error
+
+### Layer 2: Durable Async Queue (Phase 3+)
+- Resend email notifications triggered by public contact/inquiry forms
+- Jobs stored in \`workflow_jobs\` table with retry/backoff
+- Worker polls every 5 seconds
+
+### Layer 3: Fire-and-Forget (Notification Service)
+- Mailgun emails for internal lead/assignment notifications
+- Created as in-app notifications first; email is a supplementary channel
+- Email failure is caught and recorded to the notification record (\`failureReason\`)
+
+## Resilience Wrappers
+
+All active provider calls are wrapped with:
+- **Timeout**: AbortController-based (10s Mailgun, 15s Resend)
+- **Error classification**: \`classifyProviderError(httpStatus, message)\`
+- **Structured logging**: provider, operation, severity, outcome per call
+- **Snapshot recording**: in-memory \`provider:operation\` state for diagnostics
+
+## Admin Endpoints
+
+| Endpoint | Purpose |
+|----------|---------|
+| \`GET /api/integrations/health\` | Config status (env var presence) |
+| \`GET /api/integrations/diagnostics\` | Config + runtime snapshots combined |
+| \`GET /api/integrations/provider-snapshots\` | Raw runtime state per provider:operation |
+| \`GET /api/workflow/jobs?status=failed\` | Dead-letter jobs for Resend |
+`,
+  },
+
+  {
+    title: "Error Taxonomy and Severity Model",
+    slug: "error-taxonomy-and-severity-model",
+    categorySlug: "architecture-overview",
+    status: "published",
+    content: `# Error Taxonomy and Severity Model
+
+## Overview
+
+All external provider errors are classified into one of five error classes using \`classifyProviderError(httpStatus, message)\` from \`server/lib/provider-resilience.ts\`.
+
+## Error Classes
+
+| Class | HTTP Status Examples | Meaning | Action |
+|-------|----------------------|---------|--------|
+| \`config\` | 401, 403, or "not configured" | Missing/invalid credentials | Human must fix — check env vars or API key |
+| \`validation\` | 400 with "invalid"/"format" | Provider rejected the input | Check payload shape; may need data fix |
+| \`permanent\` | 400, 404, other 4xx | Provider will never accept this request | Log and discard; do not retry |
+| \`transient\` | 408, 500, 502, 503, 504, network error | Temporary failure | Retry with backoff |
+| \`rate_limit\` | 429 | Provider throttled the request | Retry after backoff delay |
+
+## Severity Mapping
+
+| Error Class | Log Severity | Meaning |
+|-------------|-------------|---------|
+| \`config\` | CRITICAL | An operator must set or fix a credential |
+| \`permanent\` | ERROR | Request was rejected; data may need review |
+| \`validation\` | WARN | Input was rejected; payload may need fixing |
+| \`transient\` | WARN | Temporary; the retry queue will handle it |
+| \`rate_limit\` | WARN | Back off; normal operation will resume |
+
+## Failure Threshold Alerting
+
+The resilience module tracks consecutive failures per provider. When the count crosses the threshold (every 3 consecutive failures), a \`CRITICAL circuit_threshold\` log entry is emitted with the failure count. This is a signal for operators to check the provider's dashboard.
+
+\`\`\`
+[resend:send_email] CRITICAL circuit_threshold — 3 consecutive failures. Provider may be degraded.
+\`\`\`
+
+## Log Format
+
+All provider events use the pattern:
+\`\`\`
+[provider:operation] SEVERITY outcome [errorClass] {attempt=N, corr=jobId} — message
+\`\`\`
+
+Examples:
+\`\`\`
+[resend:send_email] INFO success — id=re_abc123
+[mailgun:send_email] WARN failure [transient] — HTTP 503: Service Unavailable
+[mailgun:send_email] CRITICAL config — MAILGUN_API_KEY not configured
+[resend:send_email] WARN timeout [transient] — timed out after 15000ms
+\`\`\`
+
+## Pure Helper Functions
+
+\`\`\`typescript
+// server/lib/provider-resilience.ts
+
+classifyProviderError(httpStatus?: number, errorMessage?: string): ErrorClass
+severityForErrorClass(errorClass: ErrorClass): Severity
+withTimeout(fn, timeoutMs, context): Promise<T>
+warnIfThresholdReached(consecutiveFailures, context): void
+logProviderEvent(context, outcome, details): void
+\`\`\`
+
+All pure functions are unit-tested in \`tests/unit/provider-resilience.test.ts\`.
+`,
+  },
+
+  {
+    title: "Provider Health Diagnostics Guide",
+    slug: "provider-health-diagnostics-guide",
+    categorySlug: "background-jobs",
+    status: "published",
+    content: `# Provider Health Diagnostics Guide
+
+## Two Types of Health Data
+
+### 1. Configuration Health (Static)
+
+Checks whether required environment variables are present.
+
+\`\`\`
+GET /api/integrations/health
+\`\`\`
+
+Returns a map of all providers with:
+- \`status\`: \`ready\` | \`partial\` | \`not_configured\`
+- \`configured\`: boolean
+- \`presentVars\` / \`missingVars\`: which env vars are set
+- \`featureFlag\`: \`active\` | \`planned\` | \`scaffold\`
+
+### 2. Runtime Snapshots (Dynamic)
+
+Tracks actual call success/failure at runtime. **Resets on server restart.**
+
+\`\`\`
+GET /api/integrations/provider-snapshots
+\`\`\`
+
+Returns per \`provider:operation\` entry:
+- \`lastSuccessAt\` / \`lastFailureAt\`: ISO timestamps
+- \`lastFailureMessage\`: error text from last failure
+- \`consecutiveFailures\`: failure streak (resets on success)
+- \`totalSuccesses\` / \`totalFailures\`: session totals
+- \`status\`: \`healthy\` | \`degraded\` | \`failing\` | \`unknown\`
+
+### 3. Combined Diagnostics
+
+\`\`\`
+GET /api/integrations/diagnostics
+\`\`\`
+
+Returns \`{ health, snapshots, generatedAt }\` in one call — the primary admin surface.
+
+## Snapshot Status Thresholds
+
+| Status | Condition |
+|--------|-----------|
+| \`unknown\` | No calls recorded yet this session |
+| \`healthy\` | 0–2 consecutive failures |
+| \`degraded\` | 3–4 consecutive failures |
+| \`failing\` | 5+ consecutive failures |
+
+## Live Connection Tests
+
+For providers that support connectivity probing:
+\`\`\`
+POST /api/integrations/:provider/test
+\`\`\`
+Supported: \`stripe\`, \`mailgun\`, \`openai\`
+
+## Tracked Provider:Operation Keys
+
+| Key | What it tracks |
+|-----|----------------|
+| \`resend:send_email\` | Team email notifications via job queue |
+| \`mailgun:send_email\` | Internal notification emails |
+| \`crm:ingest\` | CRM lead/contact creation from public forms |
+
+## How to Use During an Incident
+
+1. Check \`GET /api/integrations/diagnostics\` for combined view
+2. Look for \`status: "degraded"\` or \`"failing"\`
+3. Check \`lastFailureMessage\` for the error
+4. Check job queue for Resend: \`GET /api/workflow/jobs?status=failed\`
+5. After resolving the issue, snapshots reset automatically on next success
+`,
+  },
+
+  {
+    title: "Mailgun Integration Behavior",
+    slug: "mailgun-integration-behavior",
+    categorySlug: "notifications-mailgun",
+    status: "published",
+    content: `# Mailgun Integration Behavior
+
+## Role
+
+Mailgun delivers **internal team notification emails** — lead alerts, assignment notifications, and system alerts. It is supplementary to in-app notifications. If Mailgun is unavailable, the in-app notification is always created first and the email is skipped gracefully.
+
+## Configuration
+
+Required environment variables:
+- \`MAILGUN_API_KEY\` — Mailgun API key (from Mailgun dashboard → API Keys)
+- \`MAILGUN_DOMAIN\` — Verified sending domain (e.g., \`mg.vivawebdesigns.com\`)
+
+Optional:
+- \`MAILGUN_FROM_EMAIL\` — Sender address (default: \`noreply@{domain}\`)
+- \`MAILGUN_FROM_NAME\` — Display name (default: "Viva Web Designs")
+
+## Call Behavior
+
+| Property | Value |
+|----------|-------|
+| API endpoint | \`https://api.mailgun.net/v3/{domain}/messages\` |
+| Timeout | 10 seconds (AbortController) |
+| Error classification | permanent / transient / rate_limit / config |
+| Retry | None — Mailgun calls are fire-and-forget via notification service |
+| Fallback | Email skipped; in-app notification retained |
+
+## When Not Configured
+
+If \`MAILGUN_API_KEY\` or \`MAILGUN_DOMAIN\` are missing:
+- \`sendEmail()\` returns \`{ success: true, status: "skipped" }\` immediately
+- No error is thrown; no retry is scheduled
+- Log: \`[mailgun:send_email] INFO skipped — MAILGUN_API_KEY/MAILGUN_DOMAIN not set\`
+
+## Error Recording
+
+After each Mailgun call, the notification record is updated with:
+- \`emailStatus\`: \`"sent"\` | \`"failed"\` | \`"skipped"\`
+- \`sentAt\`: timestamp if sent
+- \`failureReason\`: error message if failed
+
+This allows support teams to query which notifications did not deliver emails.
+
+## Resilience Notes
+
+- **Transient failures** (5xx, network errors, timeouts): logged as WARN, email is lost for this notification (not retried — use Mailgun's resend feature for critical alerts)
+- **Config failures** (401, 403): logged as CRITICAL — check API key validity
+- **Rate limiting** (429): logged as WARN
+
+## Connectivity Test
+
+\`\`\`
+POST /api/integrations/mailgun/test
+\`\`\`
+
+Probes the Mailgun domain endpoint (\`GET /v3/domains/{domain}\`) to verify credentials and domain state. Does not send a test email.
+
+## Diagnostics
+
+\`GET /api/integrations/provider-snapshots\` → look for key \`mailgun:send_email\`
+`,
+  },
+
+  {
+    title: "Incident Response Runbook: Provider Outages",
+    slug: "incident-response-provider-outages",
+    categorySlug: "background-jobs",
+    status: "published",
+    content: `# Incident Response Runbook: Provider Outages
+
+## Overview
+
+This runbook covers the three most common provider failure scenarios and the steps to diagnose, contain, and recover from them.
+
+---
+
+## Scenario 1: Resend Outage (Email Notifications Not Delivered)
+
+**Symptom**: Contact form submissions are being saved but the team is not receiving email notifications.
+
+**Impact**: Team is unaware of new leads. Core data (contact record, CRM lead) is NOT affected.
+
+**Steps**:
+1. Check workflow jobs: \`GET /api/workflow/jobs?status=failed\` — look for \`type=email_notification\`
+2. Check runtime snapshot: \`GET /api/integrations/provider-snapshots\` → \`resend:send_email\`
+3. Check server logs for: \`[resend:send_email] WARN\` or \`CRITICAL circuit_threshold\`
+4. Check [Resend Status Page](https://resendstatus.com/) for incidents
+5. Once Resend is restored, requeue failed jobs: \`POST /api/workflow/jobs/:id/retry\`
+6. Snapshots reset automatically on next successful send
+
+**Prevention**: Jobs retry automatically (3 attempts: 5min, 20min, 60min backoff). Most short outages self-resolve.
+
+---
+
+## Scenario 2: Mailgun Latency Spike / Timeout
+
+**Symptom**: Server logs show \`[mailgun:send_email] WARN timeout [transient] — timed out after 10000ms\`. In-app notifications are delivered but emails are missing.
+
+**Impact**: Email notifications for lead alerts and assignments are delayed or lost. In-app notifications are always created first, so team still has visibility.
+
+**Steps**:
+1. Check snapshot: \`GET /api/integrations/provider-snapshots\` → \`mailgun:send_email\`
+2. Look at \`consecutiveFailures\` and \`lastFailureMessage\`
+3. Check Mailgun dashboard for delivery queue backlog
+4. Increase timeout if Mailgun is consistently slow (edit \`TIMEOUT_MS\` in \`mailgun.ts\`)
+5. For missed emails: use Mailgun's resend feature from their dashboard
+
+**Prevention**: Mailgun calls are always fire-and-forget. A timeout does not block any user-facing request. In-app notifications are the primary delivery mechanism.
+
+---
+
+## Scenario 3: Repeated Delivery Failures (Dead-Letter Accumulation)
+
+**Symptom**: \`GET /api/workflow/jobs?status=failed\` shows a growing list of failed jobs. Team has not received email notifications for hours.
+
+**Steps**:
+1. Identify pattern: all failing on Resend? All CRM ingest failures?
+2. For Resend: check \`RESEND_API_KEY\` is set and valid
+3. For CRM ingest: check \`GET /api/workflow/jobs?status=failed\` \`lastError\` field for specific error
+4. Fix the underlying issue
+5. Bulk retry: call \`POST /api/workflow/jobs/:id/retry\` for each failed job
+   - Note: there is currently no bulk-retry endpoint; retry each job individually
+6. Monitor: watch snapshot \`status\` transition from \`failing\` → \`healthy\`
+
+**Dead-Letter Identification**:
+\`\`\`
+GET /api/workflow/jobs/failed
+\`\`\`
+Returns jobs with \`status=failed\`, sorted by \`createdAt\` ascending (oldest first).
+
+---
+
+## General Escalation Criteria
+
+Escalate to engineering if:
+- \`consecutiveFailures >= 10\` on any provider
+- Resend dead-letter queue growing faster than you can retry
+- CRM ingest failures correlating with DB errors (check server logs)
+- Stripe webhook failures (check \`stripeWebhookEvents\` table for \`status=failed\`)
+
+## Quick Reference: Admin API Endpoints
+
+| Action | Endpoint |
+|--------|---------|
+| View all recent jobs | \`GET /api/workflow/jobs\` |
+| View failed jobs | \`GET /api/workflow/jobs/failed\` |
+| Retry a job | \`POST /api/workflow/jobs/:id/retry\` |
+| Provider diagnostics | \`GET /api/integrations/diagnostics\` |
+| Runtime snapshots | \`GET /api/integrations/provider-snapshots\` |
+| Provider health (config) | \`GET /api/integrations/health\` |
+| Test Stripe connection | \`POST /api/integrations/stripe/test\` |
+| Test Mailgun connection | \`POST /api/integrations/mailgun/test\` |
+`,
+  },
+
   // ── Phase 3: Durable Async Workflow ──────────────────────────────────
 
   {

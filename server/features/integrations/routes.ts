@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireRole } from "../auth/middleware";
 import { logAudit } from "../audit/service";
 import * as intStorage from "./storage";
-import { checkAllProviders } from "./health";
+import { checkAllProviders, getProviderDiagnostics } from "./health";
 import {
   getMaskedStripeStatus,
   saveStripeConfig,
@@ -31,6 +31,28 @@ router.get("/", requireRole("admin", "developer"), async (_req, res) => {
 router.get("/health", requireRole("admin", "developer"), async (_req, res) => {
   const health = checkAllProviders();
   res.json(health);
+});
+
+/**
+ * GET /api/integrations/diagnostics
+ * Combined provider health (env var configuration) + runtime snapshots
+ * (last success/failure, consecutive failures, totals).
+ * This is the primary admin surface for provider observability.
+ */
+router.get("/diagnostics", requireRole("admin", "developer"), async (_req, res) => {
+  const diagnostics = getProviderDiagnostics();
+  res.json(diagnostics);
+});
+
+/**
+ * GET /api/integrations/provider-snapshots
+ * Raw in-memory runtime state per provider:operation.
+ * Resets on server restart; use for current session health only.
+ */
+router.get("/provider-snapshots", requireRole("admin", "developer"), async (_req, res) => {
+  const { getAllSnapshots } = await import("../../lib/provider-snapshot");
+  const snapshots = getAllSnapshots();
+  res.json({ snapshots, generatedAt: new Date().toISOString() });
 });
 
 router.get("/stripe/status", requireRole("admin", "developer"), async (_req, res) => {
