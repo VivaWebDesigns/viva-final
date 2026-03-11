@@ -1,0 +1,164 @@
+```text
+Implement a complete, non-destructive bilingual language system for the Viva Web Designs internal platform so the entire platform can switch between English and Spanish using a single EN / ES toggle.
+
+Goal:
+Right now the platform is mixed between English and Spanish. I want one global language toggle that changes ALL visible text across the internal platform consistently. When EN is selected, all supported UI text should be English. When ES is selected, all supported UI text should be Spanish. No more mixed-language screens.
+
+Important constraints:
+- Do this non-destructively.
+- Do not break existing functionality, routing, forms, auth, CRM behavior, pipelines, onboarding flows, or admin tools.
+- Do not redesign the platform unless a tiny layout adjustment is needed for the toggle.
+- Preserve current styling and component structure as much as possible.
+- Build this in a scalable way so future pages/features can easily be added to the language system.
+- Do not hardcode random inline translations across the app without a system.
+- Do not leave any partially translated pages if they are already part of the current internal platform.
+
+What I want built:
+1. A true global i18n-style language system for the internal platform.
+2. A visible EN / ES toggle in a sensible persistent location, preferably:
+   - top navbar/header if one exists
+   - otherwise a consistent top-right UI location
+3. The selected language must instantly update all text across the app without requiring a manual refresh.
+4. The selected language must persist between page navigation and browser refreshes.
+5. Default language behavior:
+   - if there is already a user/account setting system, use that if appropriate
+   - otherwise default to English initially
+   - save the selection in a reliable client-side persistence layer such as localStorage
+6. All current user-facing interface text in the internal platform should be routed through the translation system:
+   - navigation labels
+   - buttons
+   - form labels
+   - placeholders
+   - helper text
+   - validation messages
+   - table headings
+   - modal titles
+   - empty states
+   - alerts/toasts
+   - dashboard labels
+   - CRM labels
+   - sales pipeline labels
+   - client onboarding labels
+   - settings text
+   - login/auth-related UI if part of this platform
+   - any reusable card, widget, filter, dropdown, or status labels
+7. Fix the current issue where some text is English and some is Spanish by centralizing all strings.
+
+Implementation requirements:
+1. Audit the current codebase for all hardcoded user-facing strings.
+2. Create a centralized translation architecture, for example:
+   - `/src/i18n/`
+   - `/src/locales/en.ts`
+   - `/src/locales/es.ts`
+   - `/src/context/LanguageContext.tsx`
+   or equivalent project-appropriate structure
+3. Use a clean translation pattern such as:
+   - translation dictionary objects
+   - a language provider/context
+   - a reusable `t()` helper or hook like `useLanguage()` / `useTranslation()`
+4. Every reusable component should pull text from the translation layer rather than hardcoded strings.
+5. Prefer stable translation keys like:
+   - `nav.dashboard`
+   - `nav.crm`
+   - `crm.newLead`
+   - `pipeline.demoScheduled`
+   - `onboarding.paymentReceived`
+   - `common.save`
+   - `common.cancel`
+   rather than messy ad hoc naming
+6. Organize translations logically by feature/domain:
+   - common
+   - navigation
+   - auth
+   - dashboard
+   - crm
+   - salesPipeline
+   - clientOnboarding
+   - forms
+   - settings
+   - errors
+   - notifications
+7. Keep translation files easy to expand and maintain.
+
+Behavior requirements:
+1. Toggle must switch the entire active app language, not just one page.
+2. Toggle state must remain consistent while navigating between routes/pages.
+3. Refreshing the page should preserve the selected language.
+4. If a translation key is missing in one language:
+   - fall back gracefully to English
+   - avoid crashing
+   - log a warning in development if helpful
+5. Do not show both languages at once.
+6. Do not auto-translate user-entered content such as:
+   - client names
+   - notes
+   - custom descriptions entered by staff
+   - user-generated CRM data
+   Only translate the platform interface/chrome unless there is already a defined multilingual content model for specific fields.
+
+Scope guidance:
+Apply this to the full internal platform, including any currently active sections such as:
+- dashboard
+- CRM
+- sales pipeline
+- client onboarding
+- internal forms
+- reusable layout components
+- modals
+- tables
+- filters
+- status badges
+- action menus
+- settings
+- any current admin/internal utilities that are part of the platform UI
+
+If there are repeated status names or pipeline stages used across the platform, centralize them so both languages stay consistent everywhere.
+
+UI requirements for the toggle:
+1. Add a clean, professional EN / ES toggle.
+2. It should visually indicate the active language.
+3. It should match the existing design system and not look bolted on.
+4. It must work well on desktop and mobile.
+5. If the platform has a shared header/layout component, place it there so it appears consistently across the app.
+
+Technical expectations:
+1. Refactor existing text carefully rather than performing reckless global replacements.
+2. Update shared components first where possible to reduce duplication.
+3. Ensure TypeScript types stay valid if the project uses TypeScript.
+4. Avoid introducing unnecessary heavy libraries if a lightweight internal solution is sufficient.
+5. If an i18n library is already installed and partially used, extend it properly instead of creating a second competing system.
+6. If no translation system exists yet, create one cleanly and wire it into the app root.
+
+Quality control:
+After implementation, verify all of the following:
+- the EN / ES toggle appears in a consistent location
+- English mode shows interface text in English across the app
+- Spanish mode shows interface text in Spanish across the app
+- navigation updates correctly
+- forms update correctly
+- table headers update correctly
+- modals update correctly
+- buttons and status labels update correctly
+- validation/helper/error text updates correctly
+- the selected language persists after refresh
+- the selected language persists while navigating
+- no major screen remains mixed-language
+- no broken layouts from longer Spanish text
+- no functionality regressions
+
+If there are any places where text cannot yet be cleanly translated because of architectural limitations, identify and fix those rather than skipping them.
+
+Deliverables:
+- implement the full EN / ES language toggle system
+- refactor current visible UI strings into centralized translation files
+- wire all current internal platform pages/components into the language system
+- provide a short summary of:
+  1. what files/areas were updated
+  2. where the toggle was added
+  3. how language persistence works
+  4. any remaining untranslated edge cases, if any
+
+Priority:
+I want a real platform-wide bilingual system, not a fake partial toggle.
+No mixed English/Spanish UI after this is done.
+```
