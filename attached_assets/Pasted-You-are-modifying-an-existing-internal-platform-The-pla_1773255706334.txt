@@ -1,0 +1,197 @@
+You are modifying an existing internal platform. The platform already includes CRM, Clients, and Sales Pipeline modules. Your task is to add a safe and simple **Edit Details** feature for leads/clients without causing freezes, reactive loops, or duplicate writes.
+
+IMPORTANT:
+This must be implemented in a conservative, non-destructive way. Do NOT refactor the full data model. Do NOT introduce aggressive cross-module syncing logic. Do NOT create watchers/effects that repeatedly update related records. The goal is a stable edit form that updates one underlying record cleanly.
+
+--------------------------------------------------
+OBJECTIVE
+--------------------------------------------------
+
+Add the ability to edit an existing person/company record’s core details such as:
+
+- full name
+- phone number
+- email
+- business name
+- trade type
+- city
+- website package
+- notes
+
+This should work from the existing detail view using a simple Edit Details button.
+
+--------------------------------------------------
+CRITICAL IMPLEMENTATION RULE
+--------------------------------------------------
+
+Treat the CRM contact record as the **single source of truth** for editable lead/client identity data.
+
+That means:
+
+- Edit the underlying CRM/contact record only
+- Do not write separately to CRM, Clients, and Sales Pipeline at the same time
+- Do not try to sync multiple tables live during form input
+- Do not use useEffect/watchers/subscriptions that re-save data automatically
+- Do not trigger cascading writes on every field change
+
+If Clients or Sales Pipeline display this information, they should simply read the updated values after save or after a refresh.
+
+--------------------------------------------------
+WHERE TO ADD EDITING
+--------------------------------------------------
+
+Add an **Edit Details** button to the detail page.
+
+Allowed locations:
+- CRM contact detail page
+- Sales Pipeline opportunity detail page if it is linked to a CRM contact
+- Client detail page only if it references the same CRM/contact record
+
+If a page is not linked to a real underlying CRM/contact record, do not fake it. Gracefully disable editing or show a message.
+
+--------------------------------------------------
+EDIT FORM BEHAVIOR
+--------------------------------------------------
+
+When the user clicks **Edit Details**:
+
+- open a simple modal, drawer, or inline form
+- preload the current saved values
+- allow the user to edit fields
+- save only when the user clicks Save
+- close cleanly after successful save
+
+At minimum include these editable fields:
+- full_name
+- phone_number
+- email
+- business_name
+- trade_type
+- city
+- website_package
+- notes
+
+--------------------------------------------------
+SAVE BEHAVIOR
+--------------------------------------------------
+
+On Save:
+
+1. Validate the form
+2. Send a single update request to the underlying CRM/contact record
+3. Wait for success
+4. Update local UI state once from the returned saved record
+5. Close the modal/form
+6. Refresh dependent views only if needed
+
+Do NOT:
+- auto-save on every keystroke
+- trigger multiple writes for related modules
+- update unrelated tables in parallel
+- re-fetch in an infinite loop
+- keep the modal re-rendering continuously
+
+--------------------------------------------------
+STATE MANAGEMENT SAFETY
+--------------------------------------------------
+
+To avoid freezing:
+
+- keep form state local to the edit component
+- initialize form state once when the modal opens
+- do not continuously derive form state from changing parent props while typing
+- do not use useEffect to repeatedly copy props into state after every render
+- do not trigger parent reloads on every field change
+- only call save on explicit submit
+
+Recommended pattern:
+- user opens modal
+- modal copies current values into local state once
+- user edits local state
+- user clicks Save
+- one update mutation runs
+- success returns updated record
+- parent updates once
+
+--------------------------------------------------
+DATA INTEGRITY RULES
+--------------------------------------------------
+
+Do NOT:
+- create duplicate contacts
+- create duplicate clients
+- create duplicate opportunity records
+- overwrite pipeline stage history
+- break task relationships
+- break linked IDs
+- refactor working modules beyond what is needed for editing
+
+Only update the existing linked CRM/contact record.
+
+--------------------------------------------------
+CLIENTS AND SALES PIPELINE DISPLAY RULE
+--------------------------------------------------
+
+If the Clients module or Sales Pipeline module displays fields such as name, phone, business name, city, etc., those views should read from the linked CRM/contact record after save.
+
+Do NOT attempt complex bidirectional syncing.
+
+If some modules currently store denormalized copies of these fields, do not build a fragile live-sync system. Prefer updating the source record and then refreshing the displayed data.
+
+--------------------------------------------------
+VALIDATION
+--------------------------------------------------
+
+Use light validation only:
+
+- name should not be blank
+- validate email format only if email is provided
+- validate phone format only if validation already exists in the project
+
+Do not block saving because optional fields are empty.
+
+--------------------------------------------------
+UI REQUIREMENTS
+--------------------------------------------------
+
+Add:
+- Edit Details button
+- Cancel button
+- Save button
+- loading state while saving
+- success feedback
+- error feedback if save fails
+
+Prevent double-submit while saving.
+
+--------------------------------------------------
+NON-DESTRUCTIVE RULES
+--------------------------------------------------
+
+Do NOT:
+- rewrite the full architecture
+- replace the whole detail page
+- add global sync managers
+- add auto-save behavior
+- add background synchronization loops
+- modify unrelated modules
+
+Instead:
+- add one focused edit flow
+- keep the mutation path simple
+- update one record
+- refresh the view safely
+
+--------------------------------------------------
+FINAL RESULT
+--------------------------------------------------
+
+After implementation, I should be able to:
+
+- open a lead/client detail page
+- click Edit Details
+- change name, phone, email, business name, etc.
+- click Save
+- have the underlying CRM/contact record update once
+- see the updated values appear without freezing the UI
+- keep Sales Pipeline and Clients stable and usable

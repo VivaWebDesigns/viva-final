@@ -24,6 +24,7 @@ export const es: AdminTranslations = {
   common: {
     save: "Guardar",
     saveChanges: "Guardar Cambios",
+    changesSaved: "Cambios guardados",
     cancel: "Cancelar",
     delete: "Eliminar",
     edit: "Editar",
@@ -242,6 +243,7 @@ export const es: AdminTranslations = {
     businessName: "Nombre del Negocio",
     businessTrade: "Tipo de Negocio",
     saveLead: "Guardar Prospecto",
+    editDetails: "Editar Detalles",
     leadCreated: "Prospecto creado exitosamente",
     sourceWebsite: "Sitio Web",
     sourceOutreach: "Contacto Directo",
