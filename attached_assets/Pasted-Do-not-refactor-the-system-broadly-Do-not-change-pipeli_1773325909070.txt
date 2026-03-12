@@ -1,0 +1,106 @@
+Do not refactor the system broadly. Do not change pipeline logic, database schemas, onboarding behavior, or CRM architecture.
+
+Add a **simple admin-only ability to delete Sales Pipeline opportunities** for cleanup purposes.
+
+---
+
+CURRENT ISSUE
+
+There is currently no way to delete opportunities from the Sales Pipeline.
+
+This becomes a problem when:
+
+• test data was created
+• CRM leads were deleted but pipeline opportunities remain
+• duplicate opportunities exist
+• development cleanup is needed
+
+These orphaned or incorrect opportunities cannot currently be removed.
+
+---
+
+OBJECTIVE
+
+Add a safe way for **Admin users only** to delete pipeline opportunities.
+
+This should be a simple cleanup tool and not part of the normal sales workflow.
+
+---
+
+ACCESS RULE
+
+Only users with the **Admin role** should be able to delete pipeline opportunities.
+
+Sales users and other roles should NOT see the delete option.
+
+---
+
+UI IMPLEMENTATION
+
+On the **Opportunity Detail page** in the Sales Pipeline:
+
+Add a small **Delete Opportunity** action.
+
+Placement options:
+
+• in the page actions menu (three-dot menu), or
+• near the Close Won / Close Lost controls
+
+This should not clutter the interface.
+
+---
+
+DELETE BEHAVIOR
+
+When an Admin chooses **Delete Opportunity**:
+
+1. Show a confirmation dialog.
+
+Example:
+
+"Are you sure you want to delete this opportunity?
+This action cannot be undone."
+
+2. If confirmed:
+
+• delete the pipeline opportunity record
+• delete any opportunity history events tied specifically to that opportunity
+
+---
+
+IMPORTANT DATA RULES
+
+Deleting an opportunity should **NOT**:
+
+• delete the CRM lead
+• delete follow-up tasks
+• delete company/client records
+
+Only the **pipeline opportunity record** should be removed.
+
+---
+
+DATA SAFETY
+
+• Restrict this action to Admin users only
+• Require confirmation before deletion
+• Perform the delete using the existing opportunity ID
+
+---
+
+IMPLEMENTATION CONSTRAINTS
+
+Do not:
+
+• modify pipeline stage logic
+• introduce soft delete unless already used
+• refactor unrelated modules
+• change CRM lead behavior
+
+This should be a **small targeted addition**.
+
+---
+
+GOAL
+
+Admins should be able to clean up bad or orphaned pipeline opportunities while keeping normal sales workflow unchanged.
