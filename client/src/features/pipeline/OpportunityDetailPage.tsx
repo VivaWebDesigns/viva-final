@@ -815,6 +815,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
         onClose={() => { setTaskModalOpen(false); setRescheduleTask(null); }}
         opportunityId={id}
         contactId={opp.contactId ?? null}
+        defaultTitle={`Follow up with ${contact?.firstName ?? ""} ${contact?.lastName ?? ""}`.trim()}
         editTask={rescheduleTask ? {
           id: rescheduleTask.id,
           title: rescheduleTask.title,

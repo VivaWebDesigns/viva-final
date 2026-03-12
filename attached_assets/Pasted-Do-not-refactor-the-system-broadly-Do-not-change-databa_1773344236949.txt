@@ -1,0 +1,98 @@
+Do not refactor the system broadly. Do not change database schemas, task architecture, CRM architecture, or pipeline logic beyond what is necessary.
+
+Implement a **small usability improvement** for the "Schedule Follow-up" task modal used in the Sales Pipeline.
+
+---
+
+OBJECTIVE
+
+When a user creates a follow-up task from an opportunity in the Sales Pipeline, automatically populate the **Task Title** field with the lead’s name.
+
+---
+
+CURRENT BEHAVIOR
+
+When opening the **Schedule Follow-up** modal, the Task Title field currently shows a generic placeholder such as:
+
+Follow up with...
+
+The user must manually type the lead’s name.
+
+---
+
+DESIRED BEHAVIOR
+
+When the modal opens, automatically prefill the **Task Title** field using the lead's first and last name in the following format:
+
+Follow up with FirstName LastName
+
+Example:
+
+Follow up with Jose Garcia
+
+---
+
+DATA SOURCE
+
+The system already has access to the lead’s information through the opportunity record.
+
+Use the existing lead fields:
+
+* firstName
+* lastName
+
+(or the equivalent fields already used by the CRM lead model).
+
+---
+
+IMPLEMENTATION RULES
+
+When the Schedule Follow-up modal loads:
+
+1. Retrieve the lead’s first and last name from the associated opportunity / CRM lead record.
+2. Prepopulate the **Task Title** input field with:
+
+Follow up with {FirstName} {LastName}
+
+3. Allow the user to freely edit or overwrite the title if they choose.
+
+---
+
+UI BEHAVIOR
+
+Example modal behavior:
+
+Task Title:
+Follow up with Jose Garcia
+
+Due Date:
+In 1 week
+
+Notes:
+(optional)
+
+Users should still be able to change the title if needed.
+
+---
+
+DATA SAFETY RULES
+
+Do not:
+
+• modify how tasks are stored
+• modify task relationships
+• modify CRM lead data
+• change task creation logic
+• break the Tasks module
+
+This change should only affect the **default value shown in the Task Title field** when the modal opens.
+
+---
+
+GOAL
+
+Speed up task creation for sales reps and ensure consistent task naming such as:
+
+Follow up with Jose Garcia
+Follow up with Mike Smith
+Follow up with Sarah Lopez
