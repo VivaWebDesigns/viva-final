@@ -3,7 +3,7 @@ import { requireRole } from "../auth/middleware";
 import { logAudit } from "../audit/service";
 import { notifyStageChange, notifyOpportunityAssignment, notifyLeadConverted } from "../notifications/triggers";
 import * as pipelineStorage from "./storage";
-import { insertPipelineStageSchema, insertPipelineOpportunitySchema, insertPipelineActivitySchema, OPPORTUNITY_STATUSES, WEBSITE_PACKAGES, type InsertPipelineOpportunity, crmCompanies } from "@shared/schema";
+import { insertPipelineStageSchema, insertPipelineOpportunitySchema, insertPipelineActivitySchema, OPPORTUNITY_STATUSES, WEBSITE_PACKAGES, type InsertPipelineOpportunity, crmCompanies, pipelineActivities, pipelineOpportunities } from "@shared/schema";
 import { db } from "../../db";
 import { eq, isNull, and } from "drizzle-orm";
 import { appendHistorySafe } from "../history/service";
@@ -263,6 +263,29 @@ router.put("/opportunities/:id/stage", requireRole("admin", "developer", "sales_
     res.json(result);
   } catch (error: any) {
     res.status(400).json({ message: error.message });
+  }
+});
+
+router.delete("/opportunities/:id", requireRole("admin"), async (req, res) => {
+  try {
+    const { id } = req.params as Record<string, string>;
+    const existing = await pipelineStorage.getOpportunityById(id);
+    if (!existing) return res.status(404).json({ message: "Opportunity not found" });
+    await db.transaction(async (tx) => {
+      await tx.delete(pipelineActivities).where(eq(pipelineActivities.opportunityId, id));
+      await tx.delete(pipelineOpportunities).where(eq(pipelineOpportunities.id, id));
+    });
+    await logAudit({
+      userId: req.authUser?.id,
+      action: "delete",
+      entity: "pipeline_opportunity",
+      entityId: id,
+      metadata: { title: existing.title },
+      ipAddress: req.ip,
+    });
+    res.json({ message: "Opportunity deleted" });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
   }
 });
 

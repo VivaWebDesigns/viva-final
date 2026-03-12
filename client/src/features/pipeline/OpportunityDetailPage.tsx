@@ -16,7 +16,7 @@ import {
   ArrowLeft, Building2, User as UserIcon,
   MessageSquare, Phone, Mail, FileText, CheckCircle, XCircle,
   Clock, Zap, ArrowRightLeft, UserPlus, ClipboardList, Plus,
-  AlertCircle, CheckCheck, Package, Pencil,
+  AlertCircle, CheckCheck, Package, Pencil, Trash2,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -177,6 +177,19 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
     onSuccess: (data) => {
       toast({ title: t.pipeline.onboardingCreated });
       navigate(`/admin/onboarding/${data.id}`);
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("DELETE", `/api/pipeline/opportunities/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities/board"] });
+      toast({ title: "Opportunity deleted" });
+      navigate("/admin/pipeline");
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
@@ -387,6 +400,17 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
             >
               <UserPlus className="w-4 h-4 mr-1" />
               Start Onboarding
+            </Button>
+          )}
+          {authRole === "admin" && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-red-500 hover:text-red-700 hover:bg-red-50"
+              onClick={() => setDeleteConfirmOpen(true)}
+              data-testid="button-delete-opportunity"
+            >
+              <Trash2 className="w-4 h-4" />
             </Button>
           )}
         </div>
@@ -907,6 +931,28 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
               data-testid="button-save-edit"
             >
               {saveMutation.isPending ? "Saving…" : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent className="sm:max-w-md" data-testid="dialog-delete-opportunity">
+          <DialogHeader>
+            <DialogTitle>Delete Opportunity</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-600">
+            Are you sure you want to delete this opportunity? This action cannot be undone.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)} data-testid="button-cancel-delete">Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={() => { deleteMutation.mutate(); setDeleteConfirmOpen(false); }}
+              disabled={deleteMutation.isPending}
+              data-testid="button-confirm-delete"
+            >
+              {deleteMutation.isPending ? "Deleting…" : "Delete"}
             </Button>
           </DialogFooter>
         </DialogContent>
