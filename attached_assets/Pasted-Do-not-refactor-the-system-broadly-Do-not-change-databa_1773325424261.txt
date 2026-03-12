@@ -1,0 +1,58 @@
+Do not refactor the system broadly. Do not change database schemas, pipeline architecture, onboarding logic, or unrelated modules.
+
+Fix a specific workflow gap when an opportunity is marked **Closed – Lost**.
+
+CURRENT ISSUE
+
+When an opportunity is marked **Closed – Lost**, the system currently does the following:
+
+- Updates the pipeline opportunity status to "lost"
+- Moves the opportunity to the Closed – Lost stage
+- Records a history event
+
+However, nothing else is updated.
+
+The linked CRM lead remains unchanged and continues to appear as an active lead (for example "New" or "In Progress"). This creates a mismatch between the Sales Pipeline and the CRM.
+
+OBJECTIVE
+
+When an opportunity is marked **Closed – Lost**, the linked CRM lead should automatically have its status updated so the CRM accurately reflects that the deal was lost.
+
+IMPLEMENTATION
+
+When an opportunity is marked **Closed – Lost**:
+
+1. Locate the CRM lead linked to that opportunity using the existing relationship field (leadId, crmLeadId, contactId, or equivalent).
+
+2. If a linked CRM lead exists:
+   - update the CRM lead's status to **Lost**.
+
+3. Do not delete the CRM lead. The lead should remain in the CRM for historical reference and possible future reactivation.
+
+FOLLOW-UP TASK RULE
+
+Follow-up tasks should **not be deleted automatically**. Existing tasks can remain unless they are explicitly managed by users. The goal is only to synchronize the CRM lead status.
+
+DATA SAFETY RULES
+
+- Do not delete the CRM lead
+- Do not delete the opportunity
+- Do not modify client/company records
+- Do not refactor the pipeline structure
+- Do not introduce new status systems
+- Only update the CRM lead status when the opportunity is marked Closed – Lost
+
+If no CRM lead is linked to the opportunity, do nothing.
+
+UI RESULT
+
+After the change:
+
+If a deal is marked **Closed – Lost** in the pipeline:
+- the opportunity shows Closed – Lost
+- the CRM lead automatically updates to **Lost**
+- the lead remains visible in the CRM but is clearly marked as lost
+
+GOAL
+
+Keep CRM and Sales Pipeline data consistent so that when a deal is lost in the pipeline, the CRM lead no longer appears as an active lead.
