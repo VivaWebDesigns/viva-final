@@ -47,7 +47,7 @@ const ROLE_COLORS: Record<string, string> = {
 
 export default function AdminSettingsPage() {
   const { t } = useAdminLang();
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, role: authRole } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
   const [tab, setTab] = useState<Tab>("users");
@@ -135,15 +135,17 @@ export default function AdminSettingsPage() {
         <div className="flex-1 overflow-y-auto">
           <div className="flex items-center justify-between mb-4">
             <p className="text-sm text-gray-500">{users.length} {t.settings.teamMembers.toLowerCase()}</p>
-            <Button
-              onClick={() => setShowAddUser(true)}
-              size="sm"
-              className="bg-[#0D9488] hover:bg-[#0F766E] text-white"
-              data-testid="button-add-user"
-            >
-              <Plus className="w-4 h-4 mr-1" />
-              {t.settings.createMember}
-            </Button>
+            {authRole === "admin" && (
+              <Button
+                onClick={() => setShowAddUser(true)}
+                size="sm"
+                className="bg-[#0D9488] hover:bg-[#0F766E] text-white"
+                data-testid="button-add-user"
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                {t.settings.createMember}
+              </Button>
+            )}
           </div>
 
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -199,7 +201,7 @@ export default function AdminSettingsPage() {
                         {new Date(u.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                       </td>
                       <td className="px-4 py-3">
-                        {u.id !== (currentUser as any)?.id && (
+                        {authRole === "admin" && u.id !== (currentUser as any)?.id && (
                           <Button
                             variant="ghost"
                             size="sm"

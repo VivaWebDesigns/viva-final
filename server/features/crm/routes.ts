@@ -77,7 +77,7 @@ const bulkTagsSchema = bulkIdsSchema.extend({
 
 const router = Router();
 
-router.get("/leads", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
+router.get("/leads", requireRole("admin", "developer", "sales_rep", "lead_gen"), async (req, res) => {
   try {
     const { search, statusId, source, assignedTo, fromWebsiteForm, page, limit } = req.query;
     const result = await crmStorage.getLeads({
@@ -114,7 +114,7 @@ router.post("/leads", requireRole("admin", "developer", "sales_rep"), async (req
   }
 });
 
-router.get("/leads/assignable-users", requireRole("admin", "developer", "sales_rep"), async (_req, res) => {
+router.get("/leads/assignable-users", requireRole("admin", "developer", "sales_rep", "lead_gen"), async (_req, res) => {
   try {
     const users = await crmStorage.getAssignableUsers();
     res.json(users);
@@ -277,7 +277,7 @@ const manualLeadSchema = z.object({
   notes:         z.string().optional(),
 });
 
-router.post("/leads/manual", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
+router.post("/leads/manual", requireRole("admin", "developer", "sales_rep", "lead_gen"), async (req, res) => {
   try {
     const data = manualLeadSchema.parse(req.body);
 
@@ -369,14 +369,14 @@ router.post("/leads/manual", requireRole("admin", "developer", "sales_rep"), asy
   }
 });
 
-router.get("/leads/:id", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
+router.get("/leads/:id", requireRole("admin", "developer", "sales_rep", "lead_gen"), async (req, res) => {
   const id = req.params.id as string;
   const lead = await crmStorage.getLeadById(id);
   if (!lead) return res.status(404).json({ message: "Lead not found" });
   res.json(lead);
 });
 
-router.put("/leads/:id", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
+router.put("/leads/:id", requireRole("admin", "developer", "sales_rep", "lead_gen"), async (req, res) => {
   try {
     const id = req.params.id as string;
     const existing = await crmStorage.getLeadById(id);
@@ -407,13 +407,13 @@ router.put("/leads/:id", requireRole("admin", "developer", "sales_rep"), async (
   }
 });
 
-router.get("/leads/:id/notes", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
+router.get("/leads/:id/notes", requireRole("admin", "developer", "sales_rep", "lead_gen"), async (req, res) => {
   const id = req.params.id as string;
   const notes = await crmStorage.getLeadNotes(id);
   res.json(notes);
 });
 
-router.post("/leads/:id/notes", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
+router.post("/leads/:id/notes", requireRole("admin", "developer", "sales_rep", "lead_gen"), async (req, res) => {
   try {
     const id = req.params.id as string;
     const data = insertCrmLeadNoteSchema.parse({
@@ -436,7 +436,7 @@ router.post("/leads/:id/notes", requireRole("admin", "developer", "sales_rep"), 
   }
 });
 
-router.get("/leads/:id/tags", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
+router.get("/leads/:id/tags", requireRole("admin", "developer", "sales_rep", "lead_gen"), async (req, res) => {
   const id = req.params.id as string;
   const tags = await crmStorage.getLeadTags(id);
   res.json(tags);
@@ -461,7 +461,7 @@ router.put("/leads/:id/tags", requireRole("admin", "developer", "sales_rep"), as
   }
 });
 
-router.get("/companies", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
+router.get("/companies", requireRole("admin", "developer", "sales_rep", "lead_gen"), async (req, res) => {
   try {
     const { search, page, limit } = req.query;
     const result = await crmStorage.getCompanies({
@@ -493,7 +493,7 @@ router.post("/companies", requireRole("admin", "developer", "sales_rep"), async 
   }
 });
 
-router.get("/companies/:id", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
+router.get("/companies/:id", requireRole("admin", "developer", "sales_rep", "lead_gen"), async (req, res) => {
   const id = req.params.id as string;
   const company = await crmStorage.getCompanyById(id);
   if (!company) return res.status(404).json({ message: "Company not found" });
@@ -631,12 +631,12 @@ router.put("/contacts/:id", requireRole("admin", "developer", "sales_rep"), asyn
   }
 });
 
-router.get("/statuses", requireRole("admin", "developer", "sales_rep"), async (_req, res) => {
+router.get("/statuses", requireRole("admin", "developer", "sales_rep", "lead_gen"), async (_req, res) => {
   const statuses = await crmStorage.getLeadStatuses();
   res.json(statuses);
 });
 
-router.get("/tags", requireRole("admin", "developer", "sales_rep"), async (_req, res) => {
+router.get("/tags", requireRole("admin", "developer", "sales_rep", "lead_gen"), async (_req, res) => {
   const tags = await crmStorage.getTags();
   res.json(tags);
 });

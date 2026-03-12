@@ -39,7 +39,7 @@ router.get("/stats", requireRole("admin", "developer", "sales_rep"), async (_req
   });
 });
 
-router.get("/audit-logs", requireRole("admin"), async (req, res) => {
+router.get("/audit-logs", requireRole("admin", "developer"), async (req, res) => {
   const limit = parseInt(req.query.limit as string) || 50;
   const logs = await db.select().from(auditLogs).orderBy(desc(auditLogs.createdAt)).limit(limit);
   res.json(logs);
@@ -157,7 +157,7 @@ router.post("/seed-all", requireRole("admin"), async (req, res) => {
 
 // ── User Management ──────────────────────────────────────────────────
 
-router.get("/users", requireRole("admin"), async (_req, res) => {
+router.get("/users", requireRole("admin", "developer"), async (_req, res) => {
   try {
     const users = await db
       .select({

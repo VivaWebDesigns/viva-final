@@ -80,7 +80,11 @@ function AdminRouter() {
       <AdminLayout>
         <Suspense fallback={<PageFallback />}>
           <Switch>
-            <Route path="/admin" component={DashboardPage} />
+            <Route path="/admin">
+              <ProtectedRoute roles={["admin", "developer", "sales_rep"]} redirectTo="/admin/crm">
+                <DashboardPage />
+              </ProtectedRoute>
+            </Route>
             <Route path="/admin/crm" component={LeadListPage} />
             <Route path="/admin/crm/leads/:id">
               {(params) => <LeadDetailPage id={params.id} />}
@@ -89,45 +93,95 @@ function AdminRouter() {
               {(params) => <CompanyDetailPage id={params.id} />}
             </Route>
             <Route path="/admin/crm/contacts/:id">
-              {(params) => <ContactDetailPage id={params.id} />}
+              {(params) => (
+                <ProtectedRoute roles={["admin", "developer", "sales_rep"]}>
+                  <ContactDetailPage id={params.id} />
+                </ProtectedRoute>
+              )}
             </Route>
-            <Route path="/admin/pipeline" component={PipelineBoardPage} />
-            <Route path="/admin/pipeline/list" component={PipelineListPage} />
+            <Route path="/admin/pipeline">
+              <ProtectedRoute roles={["admin", "developer", "sales_rep"]}>
+                <PipelineBoardPage />
+              </ProtectedRoute>
+            </Route>
+            <Route path="/admin/pipeline/list">
+              <ProtectedRoute roles={["admin", "developer", "sales_rep"]}>
+                <PipelineListPage />
+              </ProtectedRoute>
+            </Route>
             <Route path="/admin/pipeline/opportunities/:id">
-              {(params) => <OpportunityDetailPage id={params.id} />}
+              {(params) => (
+                <ProtectedRoute roles={["admin", "developer", "sales_rep"]}>
+                  <OpportunityDetailPage id={params.id} />
+                </ProtectedRoute>
+              )}
             </Route>
             <Route path="/admin/pipeline/stages">
               <ProtectedRoute roles={["admin", "developer"]}>
                 <StageManagementPage />
               </ProtectedRoute>
             </Route>
-            <Route path="/admin/onboarding" component={OnboardingListPage} />
-            <Route path="/admin/onboarding/new" component={OnboardingWizardPage} />
-            <Route path="/admin/onboarding/:id">
-              {(params) => <OnboardingDetailPage id={params.id} />}
-            </Route>
-            <Route path="/admin/tasks" component={TasksDueTodayPage} />
-            <Route path="/admin/chat" component={TeamChatPage} />
-            <Route path="/admin/clients/:id">
-              {(params) => <ClientProfilePage id={params.id} />}
-            </Route>
-            <Route path="/admin/clients" component={ClientsPage} />
-            <Route path="/admin/payments">
+            <Route path="/admin/onboarding">
               <ProtectedRoute roles={["admin", "developer"]}>
+                <OnboardingListPage />
+              </ProtectedRoute>
+            </Route>
+            <Route path="/admin/onboarding/new">
+              <ProtectedRoute roles={["admin", "developer"]}>
+                <OnboardingWizardPage />
+              </ProtectedRoute>
+            </Route>
+            <Route path="/admin/onboarding/:id">
+              {(params) => (
+                <ProtectedRoute roles={["admin", "developer"]}>
+                  <OnboardingDetailPage id={params.id} />
+                </ProtectedRoute>
+              )}
+            </Route>
+            <Route path="/admin/tasks">
+              <ProtectedRoute roles={["admin", "developer", "sales_rep"]}>
+                <TasksDueTodayPage />
+              </ProtectedRoute>
+            </Route>
+            <Route path="/admin/chat">
+              <ProtectedRoute roles={["admin", "developer", "sales_rep"]}>
+                <TeamChatPage />
+              </ProtectedRoute>
+            </Route>
+            <Route path="/admin/clients/:id">
+              {(params) => (
+                <ProtectedRoute roles={["admin", "developer", "sales_rep"]}>
+                  <ClientProfilePage id={params.id} />
+                </ProtectedRoute>
+              )}
+            </Route>
+            <Route path="/admin/clients">
+              <ProtectedRoute roles={["admin", "developer", "sales_rep"]}>
+                <ClientsPage />
+              </ProtectedRoute>
+            </Route>
+            <Route path="/admin/payments">
+              <ProtectedRoute roles={["admin"]}>
                 <PaymentsPage />
               </ProtectedRoute>
             </Route>
             <Route path="/admin/notifications">
-              <NotificationCenterPage />
+              <ProtectedRoute roles={["admin", "developer", "sales_rep"]}>
+                <NotificationCenterPage />
+              </ProtectedRoute>
             </Route>
             <Route path="/admin/integrations">
               <ProtectedRoute roles={["admin", "developer"]}>
                 <IntegrationsPage />
               </ProtectedRoute>
             </Route>
-            <Route path="/admin/reports" component={ReportsPage} />
+            <Route path="/admin/reports">
+              <ProtectedRoute roles={["admin", "developer"]}>
+                <ReportsPage />
+              </ProtectedRoute>
+            </Route>
             <Route path="/admin/settings">
-              <ProtectedRoute roles={["admin"]}>
+              <ProtectedRoute roles={["admin", "developer"]}>
                 <AdminSettingsPage />
               </ProtectedRoute>
             </Route>
@@ -136,7 +190,11 @@ function AdminRouter() {
                 <DocsPage />
               </ProtectedRoute>
             </Route>
-            <Route path="/admin/demo-builder" component={AdminDemoBuilder} />
+            <Route path="/admin/demo-builder">
+              <ProtectedRoute roles={["admin", "developer"]}>
+                <AdminDemoBuilder />
+              </ProtectedRoute>
+            </Route>
           </Switch>
         </Suspense>
       </AdminLayout>

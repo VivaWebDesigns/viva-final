@@ -28,20 +28,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const { lang, setLang, t } = useAdminLang();
 
   const NAV_ITEMS = [
-    { label: t.nav.dashboard,     path: "/admin",               icon: LayoutDashboard, color: "text-blue-500" },
-    { label: t.nav.clients,       path: "/admin/clients",        icon: Building2,       color: "text-indigo-500" },
+    { label: t.nav.dashboard,     path: "/admin",               icon: LayoutDashboard, color: "text-blue-500",    roles: ["admin", "developer", "sales_rep"] as string[] },
+    { label: t.nav.clients,       path: "/admin/clients",        icon: Building2,       color: "text-indigo-500",  roles: ["admin", "developer", "sales_rep"] as string[] },
     { label: t.nav.crm,           path: "/admin/crm",            icon: Users,           color: "text-emerald-500" },
-    { label: t.nav.pipeline,      path: "/admin/pipeline",       icon: TrendingUp,      color: "text-orange-500" },
-    { label: t.nav.tasks,         path: "/admin/tasks",          icon: ClipboardList,   color: "text-teal-500" },
-    { label: t.nav.onboarding,    path: "/admin/onboarding",     icon: UserPlus,        color: "text-purple-500" },
-    { label: t.nav.chat,          path: "/admin/chat",           icon: MessageSquare,   color: "text-pink-500" },
-    { label: t.nav.payments,      path: "/admin/payments",       icon: CreditCard,      color: "text-yellow-600",  roles: ["admin", "developer"] },
-    { label: t.nav.notifications, path: "/admin/notifications",  icon: Bell,            color: "text-red-500" },
-    { label: t.nav.reports,       path: "/admin/reports",        icon: BarChart3,       color: "text-cyan-500" },
-    { label: t.nav.integrations,  path: "/admin/integrations",   icon: Puzzle,          color: "text-violet-500",  roles: ["admin", "developer"] },
-    { label: t.nav.demoBuilder,   path: "/admin/demo-builder",   icon: Zap,             color: "text-amber-500" },
-    { label: t.nav.admin,         path: "/admin/settings",       icon: Settings,        color: "text-gray-500",    roles: ["admin"] },
-    { label: t.nav.docs,          path: "/admin/docs",           icon: BookOpen,        color: "text-sky-500",     roles: ["admin", "developer"] },
+    { label: t.nav.pipeline,      path: "/admin/pipeline",       icon: TrendingUp,      color: "text-orange-500",  roles: ["admin", "developer", "sales_rep"] as string[] },
+    { label: t.nav.tasks,         path: "/admin/tasks",          icon: ClipboardList,   color: "text-teal-500",    roles: ["admin", "developer", "sales_rep"] as string[] },
+    { label: t.nav.onboarding,    path: "/admin/onboarding",     icon: UserPlus,        color: "text-purple-500",  roles: ["admin", "developer"] as string[] },
+    { label: t.nav.chat,          path: "/admin/chat",           icon: MessageSquare,   color: "text-pink-500",    roles: ["admin", "developer", "sales_rep"] as string[] },
+    { label: t.nav.payments,      path: "/admin/payments",       icon: CreditCard,      color: "text-yellow-600",  roles: ["admin"] as string[] },
+    { label: t.nav.notifications, path: "/admin/notifications",  icon: Bell,            color: "text-red-500",     roles: ["admin", "developer", "sales_rep"] as string[] },
+    { label: t.nav.reports,       path: "/admin/reports",        icon: BarChart3,       color: "text-cyan-500",    roles: ["admin", "developer"] as string[] },
+    { label: t.nav.integrations,  path: "/admin/integrations",   icon: Puzzle,          color: "text-violet-500",  roles: ["admin", "developer"] as string[] },
+    { label: t.nav.demoBuilder,   path: "/admin/demo-builder",   icon: Zap,             color: "text-amber-500",   roles: ["admin", "developer"] as string[] },
+    { label: t.nav.admin,         path: "/admin/settings",       icon: Settings,        color: "text-gray-500",    roles: ["admin"] as string[] },
+    { label: t.nav.docs,          path: "/admin/docs",           icon: BookOpen,        color: "text-sky-500",     roles: ["admin", "developer"] as string[] },
   ];
 
   const { data: unreadData } = useQuery<{ count: number }>({
