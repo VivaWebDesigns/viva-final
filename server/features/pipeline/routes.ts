@@ -198,6 +198,12 @@ router.put("/opportunities/:id", requireRole("admin", "developer", "sales_rep"),
           .set({ clientStatus: "active" })
           .where(and(eq(crmCompanies.id, opp.companyId), isNull(crmCompanies.clientStatus)));
       }
+      if (validated.status === "lost" && opp.leadId) {
+        try {
+          const lostStatus = await upsertLeadStatus({ name: "Lost", slug: "lost", color: "#6b7280", sortOrder: 99 });
+          await updateLead(opp.leadId, { statusId: lostStatus.id });
+        } catch (_) {}
+      }
     }
     if (validated.assignedTo !== undefined && validated.assignedTo !== existing.assignedTo) {
       appendHistorySafe({ entityType: "opportunity", entityId: id, event: "assigned", fieldName: "assignedTo", fromValue: existing.assignedTo ?? null, toValue: validated.assignedTo ?? null, ...actor });
@@ -240,6 +246,19 @@ router.put("/opportunities/:id/stage", requireRole("admin", "developer", "sales_
     });
     if (meta?.fromStage && meta?.toStage) {
       try { notifyStageChange({ id, title: result.opportunity.title, ownerId: result.opportunity.assignedTo }, meta.fromStage as string, meta.toStage as string); } catch (_) {}
+    }
+    if (result.opportunity.status === "won" && result.opportunity.companyId) {
+      try {
+        await db.update(crmCompanies)
+          .set({ clientStatus: "active" })
+          .where(and(eq(crmCompanies.id, result.opportunity.companyId), isNull(crmCompanies.clientStatus)));
+      } catch (_) {}
+    }
+    if (result.opportunity.status === "lost" && result.opportunity.leadId) {
+      try {
+        const lostStatus = await upsertLeadStatus({ name: "Lost", slug: "lost", color: "#6b7280", sortOrder: 99 });
+        await updateLead(result.opportunity.leadId, { statusId: lostStatus.id });
+      } catch (_) {}
     }
     res.json(result);
   } catch (error: any) {
