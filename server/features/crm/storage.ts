@@ -2,6 +2,7 @@ import { db } from "../../db";
 import {
   crmCompanies, crmContacts, crmLeadStatuses, crmLeads, crmLeadNotes,
   crmTags, crmLeadTags, pipelineOpportunities, followupTasks, user,
+  onboardingRecords, clientNotes,
   type InsertCrmCompany, type InsertCrmContact, type InsertCrmLeadStatus,
   type InsertCrmLead, type InsertCrmLeadNote, type InsertCrmTag,
   type CrmCompany, type CrmContact, type CrmLeadStatus,
@@ -321,11 +322,39 @@ export async function bulkRemoveTagsFromLeads(ids: string[], tagIds: string[]): 
 export async function bulkDeleteLeads(ids: string[]): Promise<number> {
   if (ids.length === 0) return 0;
   await db.transaction(async (tx) => {
+    const leadsToDelete = await tx
+      .select({ companyId: crmLeads.companyId })
+      .from(crmLeads)
+      .where(inArray(crmLeads.id, ids));
+    const companyIds = [...new Set(
+      leadsToDelete.map(l => l.companyId).filter((c): c is string => c !== null)
+    )];
+
     await tx.delete(crmLeadTags).where(inArray(crmLeadTags.leadId, ids));
     await tx.delete(crmLeadNotes).where(inArray(crmLeadNotes.leadId, ids));
-    await tx.update(followupTasks).set({ leadId: null }).where(inArray(followupTasks.leadId, ids));
-    await tx.update(pipelineOpportunities).set({ leadId: null }).where(inArray(pipelineOpportunities.leadId, ids));
+    await tx.delete(followupTasks).where(inArray(followupTasks.leadId, ids));
+    await tx.delete(pipelineOpportunities).where(inArray(pipelineOpportunities.leadId, ids));
     await tx.delete(crmLeads).where(inArray(crmLeads.id, ids));
+
+    for (const companyId of companyIds) {
+      const [remainingLeads] = await tx
+        .select({ n: count() })
+        .from(crmLeads)
+        .where(eq(crmLeads.companyId, companyId));
+      if ((remainingLeads?.n ?? 0) > 0) continue;
+
+      const [hasOnboarding] = await tx
+        .select({ n: count() })
+        .from(onboardingRecords)
+        .where(eq(onboardingRecords.companyId, companyId));
+      if ((hasOnboarding?.n ?? 0) > 0) continue;
+
+      await tx.delete(clientNotes).where(eq(clientNotes.companyId, companyId));
+      await tx.update(crmContacts).set({ companyId: null }).where(eq(crmContacts.companyId, companyId));
+      await tx.update(followupTasks).set({ companyId: null }).where(eq(followupTasks.companyId, companyId));
+      await tx.update(pipelineOpportunities).set({ companyId: null }).where(eq(pipelineOpportunities.companyId, companyId));
+      await tx.delete(crmCompanies).where(eq(crmCompanies.id, companyId));
+    }
   });
   return ids.length;
 }
