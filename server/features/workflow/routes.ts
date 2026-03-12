@@ -57,7 +57,7 @@ router.get("/jobs/failed", requireRole("admin", "developer"), async (req, res) =
  */
 router.post("/jobs/:id/retry", requireRole("admin", "developer"), async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const job = await requeueJob(id);
     if (!job) {
       return res.status(404).json({ message: "Job not found" });

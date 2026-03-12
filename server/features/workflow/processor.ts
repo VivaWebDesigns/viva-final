@@ -10,7 +10,7 @@
  *   - Success/failure recorded in provider snapshot for admin diagnostics
  */
 
-import type { WorkflowJob } from "@shared/schema";
+import type { WorkflowJob, UtmAttribution } from "@shared/schema";
 import { ingestWebsiteFormSubmission } from "../crm/ingest";
 import { Resend } from "resend";
 import {
@@ -81,10 +81,23 @@ async function processCrmIngest(job: WorkflowJob): Promise<void> {
     throw new Error("crm_ingest: malformed payload — missing formData, attribution, or sourceType");
   }
 
+  // Coerce null → undefined to satisfy UtmAttribution (which uses string | undefined)
+  const attribution: UtmAttribution = {
+    honeypot:     payload.attribution.honeypot     ?? undefined,
+    utmSource:    payload.attribution.utmSource    ?? undefined,
+    utmMedium:    payload.attribution.utmMedium    ?? undefined,
+    utmCampaign:  payload.attribution.utmCampaign  ?? undefined,
+    utmTerm:      payload.attribution.utmTerm      ?? undefined,
+    utmContent:   payload.attribution.utmContent   ?? undefined,
+    referrer:     payload.attribution.referrer     ?? undefined,
+    landingPage:  payload.attribution.landingPage  ?? undefined,
+    formPageUrl:  payload.attribution.formPageUrl  ?? undefined,
+  };
+
   try {
     await ingestWebsiteFormSubmission(
       payload.formData,
-      payload.attribution,
+      attribution,
       payload.sourceType,
     );
     logProviderEvent(ctx, "success", { severity: "info" });

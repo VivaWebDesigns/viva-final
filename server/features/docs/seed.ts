@@ -4896,6 +4896,599 @@ if (pathname.includes("/my-new-feature")) return { items: [], total: 0 };
 This prevents new API calls from being silently bypassed in smoke tests.
 `,
   },
+
+  // ── Phase 8: Architecture Completion + Terminology ────────────────────────
+
+  {
+    title: "Routing Architecture",
+    slug: "routing-architecture",
+    categorySlug: "architecture-overview",
+    status: "published",
+    content: `# Routing Architecture
+
+## Overview
+
+Viva CRM uses a layered Express routing architecture where each concern is handled at a distinct layer. Routes are organized by feature domain, and a shared middleware chain enforces auth before any protected handler runs.
+
+## Layer Structure
+
+\`\`\`
+Browser / Public Demo
+       │
+       ▼
+Express App (server/index.ts)
+       │
+       ├─ /api/auth/*            → better-auth (toNodeHandler)
+       │
+       ├─ /api/contacts          → public contact form (server/routes.ts)
+       ├─ /api/inquiries         → public demo inquiry form (server/routes.ts)
+       │
+       └─ /api/*                 → featureRoutes (server/features/index.ts)
+                │
+                ├─ /api/users/*           → auth/routes.ts (requireAuth)
+                ├─ /api/admin/*           → admin/routes.ts (requireRole)
+                ├─ /api/docs/*            → docs/routes.ts (requireRole + public reads)
+                ├─ /api/crm/*             → crm/routes.ts (requireRole)
+                ├─ /api/pipeline/*        → pipeline/routes.ts (requireRole)
+                ├─ /api/onboarding/*      → onboarding/routes.ts (requireRole)
+                ├─ /api/notifications/*   → notifications/routes.ts (requireRole)
+                ├─ /api/reports/*         → reports/routes.ts (requireRole)
+                ├─ /api/chat/*            → chat/routes.ts (requireRole)
+                ├─ /api/clients/*         → clients/routes.ts (requireRole)
+                ├─ /api/tasks/*           → tasks/routes.ts (requireRole)
+                ├─ /api/history/*         → history/routes.ts (requireRole)
+                ├─ /api/workflow/*        → workflow/routes.ts (requireRole)
+                ├─ /api/billing/*         → billing/routes.ts (requireRole)
+                ├─ /api/attachments/*     → attachments/routes.ts (requireRole)
+                └─ /api/demo-configs/*    → demo/routes.ts (requireRole)
+\`\`\`
+
+## Public vs Protected Routes
+
+**Public routes** (no auth required):
+- \`POST /api/contacts\` — contact form submission
+- \`POST /api/inquiries\` — demo inquiry submission
+- \`GET /api/docs/articles\` — public docs reads
+- \`GET /api/docs/categories\` — public category reads
+- \`GET /api/demo-configs/:slug\` — public demo config read
+
+**Protected routes** use the \`requireAuth\` or \`requireRole\` middleware:
+- \`requireAuth\` — validates the session cookie via better-auth; attaches \`req.authUser\`
+- \`requireRole(...roles)\` — calls \`requireAuth\` then checks \`req.authUser.role\` against allowed roles
+
+## Middleware Execution Order
+
+For a protected route request:
+\`\`\`
+1. Express body parsers (JSON + URL-encoded)
+2. Request correlation middleware (assigns requestId, starts timer)
+3. better-auth toNodeHandler (catches /api/auth/* before anything else)
+4. featureRouter → specific route handler
+5. requireAuth → auth.api.getSession() → attaches req.authUser
+6. requireRole → checks req.authUser.role → 403 if not allowed
+7. Route handler → calls feature storage → returns JSON response
+8. Response logger (logs method / path / status / duration / requestId)
+\`\`\`
+
+## Key Files
+
+| File | Role |
+|------|------|
+| \`server/index.ts\` | App setup, middleware registration, server start |
+| \`server/routes.ts\` | Public form routes + registerRoutes() |
+| \`server/features/index.ts\` | Feature router — mounts all domain routers |
+| \`server/features/auth/middleware.ts\` | requireAuth + requireRole middleware |
+| \`server/features/{domain}/routes.ts\` | Domain-specific route handlers |
+
+## Role-Based Route Access
+
+| Role | Access Level |
+|------|-------------|
+| \`admin\` | Full access to all routes |
+| \`developer\` | Admin tools, workflow admin, docs, system |
+| \`sales_rep\` | CRM, pipeline, onboarding, clients, chat |
+| _(unauthenticated)_ | Public forms + public doc reads only |
+`,
+  },
+
+  {
+    title: "Request Lifecycle",
+    slug: "request-lifecycle",
+    categorySlug: "architecture-overview",
+    status: "published",
+    content: `# Request Lifecycle
+
+## Overview
+
+This document traces the complete journey of a typical authenticated API request from the browser through the server and back.
+
+## Happy Path: Authenticated Request
+
+\`\`\`
+1. Browser sends:
+   GET /api/crm/leads?page=1&pageSize=20
+   Cookie: better-auth.session_token=<jwt>
+
+2. Express receives request
+   → body parsers run (JSON + urlencoded)
+   → requestId assigned (8-char hex), timer starts
+   → path /api/crm/leads matches featureRoutes mount point
+
+3. featureRoutes → crmRoutes → GET /leads handler
+
+4. requireRole("admin", "sales_rep") middleware runs:
+   → auth.api.getSession({ headers }) calls better-auth
+   → better-auth validates the session cookie against DB
+   → result.user attached to req.authUser
+   → role check: req.authUser.role ∈ ["admin", "sales_rep"] → passes
+
+5. Route handler runs:
+   → Zod validates query params (page, pageSize, search, etc.)
+   → crmStorage.getLeads(filters) executes SQL query via Drizzle
+   → DB returns rows
+
+6. Response sent:
+   → res.json({ leads, total, page, pageSize })
+   → Response logger records: method path status durationMs requestId
+
+7. Browser receives:
+   HTTP 200 { leads: [...], total: 45, page: 1, pageSize: 20 }
+\`\`\`
+
+## Error Path: Unauthorized
+
+\`\`\`
+1. Browser sends request with expired/invalid session
+
+2. requireAuth runs → auth.api.getSession() returns null
+
+3. res.status(401).json({ message: "Unauthorized" })
+
+4. Browser receives HTTP 401
+   → React Query error propagated to error boundary or toast
+\`\`\`
+
+## Error Path: Validation Failure
+
+\`\`\`
+1. Browser sends POST /api/crm/leads with invalid body
+
+2. Route handler calls insertCrmLeadSchema.parse(req.body)
+   → ZodError thrown
+
+3. catch block: res.status(400).json({ message: "Invalid data", errors: [...] })
+
+4. Browser receives HTTP 400
+   → Form shows field-level validation errors from errors array
+\`\`\`
+
+## Async Jobs (Fire-and-Forget)
+
+For routes that enqueue async work (e.g., contact form, CRM ingest):
+
+\`\`\`
+1. Route handler validates data synchronously
+2. Primary DB write completes (e.g., storage.createContact())
+3. enqueueJob() writes job record to workflowJobs table
+4. res.status(201).json(contact) — returns immediately
+   (job has NOT yet executed — it runs in background worker)
+5. Worker polls every 5s, claims job, executes processor
+\`\`\`
+
+This pattern keeps the HTTP response time fast regardless of external provider latency.
+
+## Request ID Correlation
+
+Every /api/* request (except /api/auth/*) gets a \`requestId\` in \`res.locals.requestId\`. This ID is:
+- Logged with method / path / status / duration on response
+- Available to route handlers via \`res.locals.requestId\`
+- Useful for correlating deployment log entries to specific requests
+
+## Response Shape Conventions
+
+| Scenario | Status | Body shape |
+|----------|--------|-----------|
+| Successful list read | 200 | \`{ items, total }\` or \`{ leads, total, page, pageSize }\` |
+| Successful single read | 200 | The resource object |
+| Successful create | 201 | The created resource |
+| Validation error | 400 | \`{ message, errors? }\` |
+| Unauthorized | 401 | \`{ message: "Unauthorized" }\` |
+| Forbidden | 403 | \`{ message: "Forbidden: insufficient permissions" }\` |
+| Not found | 404 | \`{ message: "Not found" }\` |
+| Server error | 500 | \`{ message }\` |
+`,
+  },
+
+  {
+    title: "Performance Considerations by Subsystem",
+    slug: "performance-considerations",
+    categorySlug: "architecture-overview",
+    status: "published",
+    content: `# Performance Considerations by Subsystem
+
+## Overview
+
+This document describes the key performance characteristics of each major subsystem in Viva CRM and the mitigations applied.
+
+---
+
+## Reports & Analytics
+
+**Risk**: Aggregate queries (pipeline breakdown, onboarding breakdown) scan large row sets.
+
+**Mitigation applied**:
+- Both \`getPipelineBreakdown\` and \`getOnboardingBreakdown\` use single LEFT JOIN + GROUP BY queries with COUNT FILTER instead of N+1 application-layer aggregation
+- Date range filter applied in JOIN ON clause (not WHERE) to preserve LEFT JOIN semantics for stages with zero opportunities
+- Timing instrumentation added (\`[reports:label] timing Xms\`) for monitoring
+
+**Index recommendations** (see analytics-indexing-considerations):
+- \`crm_opportunities.stage_id\`
+- \`crm_opportunities.created_at\`
+- \`onboarding_records.status\`
+
+---
+
+## CRM Leads List
+
+**Risk**: Lead list with filters + pagination can scan large tables.
+
+**Mitigation applied**:
+- All list queries use \`LIMIT\` + \`OFFSET\` pagination
+- Client-side staleTime: STALE.FAST (1 min) — prevents excessive polling
+
+**Remaining risk**:
+- Full-text search is done with ILIKE which does not use standard B-tree indexes. Add a GIN index on commonly searched columns if the leads table grows large.
+
+---
+
+## Pipeline Board
+
+**Risk**: Board loads all opportunities across all stages in one query.
+
+**Mitigation applied**:
+- Board query returns structured \`{ stages, board, contactMap, companyMap }\` in one round-trip (no N+1)
+- staleTime: STALE.FAST (1 min) — browser does not re-fetch on every keystroke
+
+---
+
+## Team Chat
+
+**Risk**: Message history and WebSocket connections accumulate over time.
+
+**Mitigation applied**:
+- Message queries include \`LIMIT\` (default 50)
+- Channel list and user list are fetched once on page load, not polled
+- Socket.io connection uses sticky-session awareness (single server currently)
+
+---
+
+## Workflow Queue
+
+**Risk**: Polling worker creates DB load every 5 seconds.
+
+**Mitigation applied**:
+- Worker uses SELECT FOR UPDATE SKIP LOCKED — efficient atomic job claiming
+- Poll interval: 5 seconds (configurable by changing \`POLL_INTERVAL_MS\` in worker.ts)
+- Worker runs in the same process as the HTTP server (single dyno model)
+
+**Production note**: Under high job volume, consider separating the worker into a dedicated process.
+
+---
+
+## Static Assets
+
+**Risk**: Large JS/CSS bundles increase Time to Interactive.
+
+**Mitigation applied**:
+- Vite production build code-splits by route and vendor chunks
+- Hashed bundles cached immutably in browser (1 year max-age + immutable)
+- HTML shell served with no-store to always load the freshest entry point
+
+---
+
+## Authentication
+
+**Risk**: Every protected route calls \`auth.api.getSession()\` which hits the DB.
+
+**Mitigation applied**:
+- better-auth uses signed JWT session tokens validated in-memory (no DB hit per request for token signature check)
+- Session validation only hits DB for revocation checks (when revocation is configured)
+
+**Recommendation**: If session validation becomes a bottleneck under load, enable session caching in better-auth config.
+
+---
+
+## React Query (Frontend)
+
+**Risk**: Over-fetching stale data on every page visit.
+
+**Mitigation applied**:
+- Global default: STALE.FAST (1 min) — prevents per-second refetches
+- Static config data (stages, statuses, templates): STALE.NEVER + explicit invalidation
+- refetchOnWindowFocus: false by default — prevents tab-switch refetches on every field
+- Report data: STALE.SLOW (5 min) — accepts slight staleness for expensive aggregations
+`,
+  },
+
+  {
+    title: "Canonical Domain Terminology & Naming Dictionary",
+    slug: "domain-terminology-dictionary",
+    categorySlug: "architecture-overview",
+    status: "published",
+    content: `# Canonical Domain Terminology & Naming Dictionary
+
+This document is the authoritative source for all domain terms, naming conventions, and variable/type names used throughout Viva CRM. When in doubt, use these terms consistently in code, UI, docs, and conversation.
+
+---
+
+## Core Entities
+
+| Canonical Term | Definition | Code Name(s) |
+|---------------|-----------|-------------|
+| **Contact** | A person who submitted a public web form (pre-CRM entry point) | \`Contact\`, \`InsertContact\`, \`contacts\` table |
+| **CRM Contact** | A person record within the CRM, linked to Companies | \`CrmContact\`, \`crmContacts\` table |
+| **CRM Company** | A business record in the CRM | \`CrmCompany\`, \`crmCompanies\` table |
+| **Lead** | A sales inquiry linked to a CRM Contact and/or Company | \`CrmLead\`, \`crmLeads\` table |
+| **Opportunity** | An active deal in the Sales Pipeline, converted from a Lead | \`CrmOpportunity\`, \`crmOpportunities\` table |
+| **Stage** | A pipeline column representing a deal's progress state | \`PipelineStage\`, \`pipelineStages\` table |
+| **Activity** | A logged event on an opportunity (call, email, meeting, note) | \`PipelineActivity\`, \`pipelineActivities\` table |
+| **Onboarding Record** | A client onboarding workflow instance tied to an opportunity | \`OnboardingRecord\`, \`onboardingRecords\` table |
+| **Checklist Item** | A discrete task within an onboarding record | \`OnboardingChecklistItem\`, \`onboardingChecklistItems\` table |
+| **Template** | A reusable onboarding checklist blueprint | \`OnboardingTemplate\`, \`onboardingTemplates\` table |
+| **Client** | A post-onboarding client with a dedicated client profile | \`Client\` (clients feature) |
+| **Notification** | A system-generated alert for a user | \`Notification\`, \`notifications\` table |
+| **Workflow Job** | An async background job (e.g., email send, CRM ingest) | \`WorkflowJob\`, \`workflowJobs\` table |
+| **Doc Article** | A help/reference article in the App Docs system | \`DocArticle\`, \`docArticles\` table |
+| **Doc Category** | A grouping of related articles | \`DocCategory\`, \`docCategories\` table |
+
+---
+
+## Roles
+
+| Role Name | String Value | Access Level |
+|-----------|-------------|-------------|
+| Admin | \`"admin"\` | Full system access |
+| Developer | \`"developer"\` | Admin tools, workflow, docs, system diagnostics |
+| Sales Rep | \`"sales_rep"\` | CRM, pipeline, onboarding, clients, chat |
+
+---
+
+## Lead Status Lifecycle
+
+Leads move through statuses seeded in \`crmStatuses\`. Statuses are not hardcoded — they are admin-configurable. Default seeded statuses:
+
+\`new\` → \`contacted\` → \`qualified\` → \`proposal_sent\` → \`converted\` (or \`lost\`)
+
+The \`converted\` status is special: it triggers Lead → Opportunity conversion.
+
+---
+
+## Opportunity Value
+
+Opportunity monetary value is stored as \`text\` (not \`decimal\`) to allow free-form entry (e.g., "2,500", "$2,500/mo"). Display formatting is handled client-side.
+
+---
+
+## Channel IDs (Team Chat)
+
+Chat channel IDs are normalized through \`normalizeChannelId()\` in \`shared/channels.ts\`. Raw channel IDs from socket events or API responses must always flow through this function.
+
+Canonical seeded channels:
+
+| ID | Name | Purpose |
+|----|------|---------|
+| \`general\` | General | Team announcements |
+| \`sales\` | Sales | Pipeline and prospects |
+| \`onboarding\` | Onboarding | Client coordination |
+| \`dev\` | Dev | Technical topics |
+
+---
+
+## Workflow Job Types
+
+| Type String | Handler | Trigger |
+|------------|---------|---------|
+| \`crm_ingest\` | processCrmIngest() | Contact/inquiry form submission |
+| \`email_notification\` | processEmailNotification() | Form submission, lead assignment, etc. |
+
+---
+
+## Source Types (Attribution)
+
+| Value | Meaning |
+|-------|---------|
+| \`contact_form\` | From the public contact form |
+| \`demo_inquiry\` | From a public demo inquiry form |
+| \`manual\` | Manually created by a sales rep |
+
+---
+
+## Naming Conventions in Code
+
+### Files
+- Feature folders: \`server/features/{domain}/\` (e.g., \`crm\`, \`pipeline\`, \`chat\`)
+- Routes: \`server/features/{domain}/routes.ts\`
+- Storage: \`server/features/{domain}/storage.ts\`
+- Schema: \`shared/schema.ts\` (all tables in one file)
+
+### Database Tables (snake_case)
+- \`crm_leads\`, \`crm_contacts\`, \`crm_companies\`, \`crm_opportunities\`
+- \`pipeline_stages\`, \`pipeline_activities\`
+- \`onboarding_records\`, \`onboarding_templates\`, \`onboarding_checklist_items\`
+- \`workflow_jobs\`, \`notifications\`, \`doc_articles\`, \`doc_categories\`
+
+### TypeScript Types (PascalCase)
+- Insert types: \`InsertCrmLead\`, \`InsertCrmContact\`, etc.
+- Select types: \`CrmLead\`, \`CrmContact\`, etc.
+- Schema objects: \`insertCrmLeadSchema\`, \`insertCrmContactSchema\`, etc.
+
+### API Endpoints (kebab-case, RESTful)
+- Collections: \`GET /api/crm/leads\`
+- Single resource: \`GET /api/crm/leads/:id\`
+- Actions: \`POST /api/pipeline/opportunities/:id/convert-lead\`
+
+### React Query Keys
+- Use array form: \`["/api/crm/leads"]\`, \`["/api/pipeline/opportunities", id]\`
+- Never use template literals as the single string key
+
+### Frontend Components (PascalCase)
+- Pages: \`LeadListPage\`, \`PipelineBoardPage\`, \`OnboardingDetailPage\`
+- Shared components: \`EntityCard\`, \`StatusBadge\`
+- Feature-specific: live in \`client/src/features/{domain}/\`
+`,
+  },
+
+  {
+    title: "Demo Builder Architecture",
+    slug: "demo-builder-architecture",
+    categorySlug: "developer-tools",
+    status: "published",
+    content: `# Demo Builder Architecture
+
+## Overview
+
+The Demo Builder is an admin tool that allows super admins to configure and preview the three public-facing demo landing pages:
+- **Empieza** (entry-level service package)
+- **Crece** (growth-level service package)
+- **Domina** (premium service package — default: Charlotte Painting Pro)
+
+Each demo has a distinct URL, theme, service list, and call-to-action form that submits to \`POST /api/inquiries\`.
+
+## Architecture
+
+### Frontend
+Located in \`client/src/features/demo/\` (admin tool: \`AdminDemoBuilder.tsx\`) and \`client/src/{empieza,crece,domina}/\` (public demo apps).
+
+Each public demo app is a separate Vite entry point with its own \`queryClient\`, router, and component tree. They share no state with the admin CRM.
+
+### Backend
+- Route: \`GET/POST /api/demo-configs/:slug\` (in \`server/features/demo/routes.ts\`)
+- Storage: \`demoConfig\` table in \`shared/schema.ts\`
+- Public read: \`GET /api/demo-configs/:slug\` — no auth required
+- Admin write: \`POST /api/demo-configs/:slug\` — requires admin role
+
+### Config Structure
+
+Each demo config contains:
+- \`logoUrl\` — URL of the company logo (PNG/SVG)
+- \`companyName\` — display name
+- \`tagline\` — hero section subtitle
+- \`primaryColor\` — hex color for theming
+- \`services\` — array of service names shown in the form dropdown
+- \`phone\`, \`email\`, \`address\` — contact info
+- \`features\` — list of package feature bullets
+
+### Charlotte Painting Pro (Domina Default)
+
+The Domina demo is pre-configured for Charlotte Painting Pro. The logo is the canonical asset:
+\`@assets/image_1_(5)_1772575534808_1773059817248.png\`
+
+This logo must never be replaced without explicit admin instruction.
+
+## Public Form → CRM Ingest Flow
+
+When a visitor submits the demo inquiry form:
+1. \`POST /api/inquiries\` validates via \`insertInquirySchema\`
+2. Honeypot check — if populated, silently return 201
+3. \`storage.createContact(data)\` saves the record
+4. enqueueJob("crm_ingest") and enqueueJob("email_notification") are enqueued
+5. Background worker processes the CRM ingest and email jobs asynchronously
+6. Visitor receives 201 confirmation (no provider blocking the response)
+
+## Bilingual Support
+
+The admin UI for Demo Builder respects the \`useAdminLang()\` hook from \`client/src/features/admin/i18n.ts\`. Language state is stored in localStorage under key \`"admin-lang"\`. All admin-facing labels have EN/ES translations.
+
+## Key Files
+
+| File | Purpose |
+|------|---------|
+| \`client/src/features/demo/AdminDemoBuilder.tsx\` | Admin config editor UI |
+| \`server/features/demo/routes.ts\` | Config read/write API |
+| \`client/src/empieza/\` | Empieza public demo app |
+| \`client/src/crece/\` | Crece public demo app |
+| \`client/src/domina/\` | Domina public demo app |
+| \`shared/schema.ts\` | demoConfig table definition |
+`,
+  },
+
+  {
+    title: "Phases 5–8 Release Notes",
+    slug: "phases-5-8-release-notes",
+    categorySlug: "changelog",
+    status: "published",
+    content: `# Phases 5–8 Release Notes
+
+## Phase 5 — Reporting Performance (SQL Aggregation)
+
+**Problem**: Pipeline and onboarding reports used N+1 application-layer aggregation (one query per stage/status).
+
+**Changes**:
+- \`getPipelineBreakdown\` refactored to single LEFT JOIN + GROUP BY + COUNT FILTER SQL query
+- \`getOnboardingBreakdown\` refactored to single conditional-aggregation query
+- Date range filter moved to JOIN ON clause (preserves stages with zero opportunities in results)
+- Timing instrumentation added to both report queries
+- 34 regression tests added (\`tests/unit/report-aggregations.test.ts\`)
+- 6 App Docs articles added in reports-analytics category
+
+**Files changed**: \`server/features/reports/service.ts\`
+
+---
+
+## Phase 6 — Query Client Freshness + Static Asset Caching
+
+**Problem**: Global \`staleTime: Infinity\` caused stale data to persist indefinitely. No production cache headers on static assets.
+
+**Changes**:
+- Global queryClient default changed \`STALE.NEVER\` → \`STALE.FAST\` (1 minute)
+- Explicit \`staleTime\` overrides audited and added to 13+ pages
+- \`server/static.ts\` updated:
+  - \`/assets/*\` (Vite hashed bundles): \`public, max-age=31536000, immutable\`
+  - HTML shell: \`no-store, no-cache, must-revalidate\`
+  - Other files: \`max-age=0\`
+- 5 cache header tests added (\`tests/unit/static-cache-headers.test.ts\`)
+- 5 App Docs articles added in architecture-overview category
+
+**Files changed**: \`client/src/lib/queryClient.ts\`, \`server/static.ts\`, 13 page components
+
+---
+
+## Phase 7 — System-Wide QA: Tests + Smoke + Scripts
+
+**Problem**: No standard \`npm test\` script; missing integration test coverage for auth and public routes; tasks page had no smoke test.
+
+**Changes**:
+- 6 npm scripts added: \`test\`, \`test:unit\`, \`test:smoke\`, \`test:integration\`, \`test:watch\`, \`test:coverage\`
+- \`tests/integration/auth-middleware.test.ts\` (9 tests): requireAuth 401/pass, requireRole 401/403/pass, multi-role
+- \`tests/integration/public-contact-form.test.ts\` (5 tests): valid submit, honeypot, 400 validation, 500 error, job enqueue
+- \`tests/smoke/tasks.test.tsx\` (3 tests): tasks page render smoke
+- 6 App Docs articles added: testing architecture, how-to-run, test matrix, gaps, incident debugging, CI expectations
+
+**Test totals**: 21 files, 154 tests (unit: 97 | smoke: 40 | integration: 17)
+
+---
+
+## Phase 8 — Code Cleanup + TypeScript Fixes + Docs Completion
+
+**Problem**: 2 TypeScript errors in workflow processor and routes; missing App Docs for routing architecture, request lifecycle, performance, terminology, and demo builder.
+
+**Bug Fixes**:
+- \`server/features/workflow/processor.ts\`: Imported \`UtmAttribution\` type; coerce \`null → undefined\` for attribution fields before calling \`ingestWebsiteFormSubmission\` (TypeScript error: \`string | null\` not assignable to \`string | undefined\`)
+- \`server/features/workflow/routes.ts\`: Cast \`req.params.id as string\` to resolve Express v5 \`ParamsDictionary\` typing (\`string | string[]\` not assignable to \`string\`)
+
+**TypeScript**: \`npm run check\` now passes with zero errors.
+
+**App Docs added** (6 articles):
+- Routing Architecture
+- Request Lifecycle
+- Performance Considerations by Subsystem
+- Canonical Domain Terminology & Naming Dictionary
+- Demo Builder Architecture
+- Phases 5–8 Release Notes (this document)
+
+**Test results**: 21 files, 154 tests — all passing.
+`,
+  },
 ];
 
 export async function seedDocs() {
