@@ -675,6 +675,7 @@ export const es: AdminTranslations = {
       admin: "Administrador",
       developer: "Desarrollador",
       sales_rep: "Vendedor",
+      lead_gen: "Lead Gen",
     },
     editMember: "Editar {{name}}",
     accountStatus: "Estado de Cuenta",

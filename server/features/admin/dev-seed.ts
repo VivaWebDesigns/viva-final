@@ -19,7 +19,7 @@ interface DevUser {
   name: string;
   email: string;
   password: string;
-  role: "admin" | "developer" | "sales_rep";
+  role: "admin" | "developer" | "sales_rep" | "lead_gen";
 }
 
 function getDevUsers(): DevUser[] {

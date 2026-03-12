@@ -673,6 +673,7 @@ export const en = {
       admin: "Admin",
       developer: "Developer",
       sales_rep: "Sales Rep",
+      lead_gen: "Lead Gen",
     },
     editMember: "Edit {{name}}",
     accountStatus: "Account Status",

@@ -42,6 +42,7 @@ const ROLE_COLORS: Record<string, string> = {
   admin: "bg-[#0D9488]/10 text-[#0D9488] border-[#0D9488]/20",
   developer: "bg-purple-50 text-purple-700 border-purple-200",
   sales_rep: "bg-blue-50 text-blue-700 border-blue-200",
+  lead_gen: "bg-amber-50 text-amber-700 border-amber-200",
 };
 
 export default function AdminSettingsPage() {
@@ -309,6 +310,7 @@ export default function AdminSettingsPage() {
                   <SelectItem value="sales_rep">{t.settings.roles.sales_rep}</SelectItem>
                   <SelectItem value="developer">{t.settings.roles.developer}</SelectItem>
                   <SelectItem value="admin">{t.settings.roles.admin}</SelectItem>
+                  <SelectItem value="lead_gen">{t.settings.roles.lead_gen}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -343,6 +345,7 @@ export default function AdminSettingsPage() {
                   <SelectItem value="sales_rep">{t.settings.roles.sales_rep}</SelectItem>
                   <SelectItem value="developer">{t.settings.roles.developer}</SelectItem>
                   <SelectItem value="admin">{t.settings.roles.admin}</SelectItem>
+                  <SelectItem value="lead_gen">{t.settings.roles.lead_gen}</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -16,7 +16,7 @@ import { user } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { auth } from "../auth/auth";
 
-type Role = "admin" | "developer" | "sales_rep";
+type Role = "admin" | "developer" | "sales_rep" | "lead_gen";
 
 interface SeedUser {
   name: string;
