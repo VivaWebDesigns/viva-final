@@ -8,7 +8,7 @@ import {
   user, clientNotes, followupTasks, stripeCustomers, stripeWebhookEvents,
   attachments,
 } from "@shared/schema";
-import { sql, desc, asc, ilike, or, SQL, eq, and } from "drizzle-orm";
+import { sql, desc, asc, ilike, or, SQL, eq, and, isNotNull } from "drizzle-orm";
 import { z } from "zod";
 import { logAudit } from "../audit/service";
 import { appendHistorySafe } from "../history/service";
@@ -77,13 +77,17 @@ router.get("/", requireRole("admin", "developer", "sales_rep"), async (req, res)
     const offset = (page - 1) * limit;
 
     const searchPattern = `%${search}%`;
-    const whereClause: SQL | undefined = search
-      ? or(
-          ilike(crmCompanies.name, searchPattern),
-          ilike(crmCompanies.industry, searchPattern),
-          ilike(crmCompanies.city, searchPattern),
-        )
-      : undefined;
+    const clientFilter = isNotNull(crmCompanies.clientStatus);
+    const whereClause: SQL = search
+      ? and(
+          clientFilter,
+          or(
+            ilike(crmCompanies.name, searchPattern),
+            ilike(crmCompanies.industry, searchPattern),
+            ilike(crmCompanies.city, searchPattern),
+          ),
+        )!
+      : clientFilter;
 
     const [rows, [{ total }]] = await Promise.all([
       db

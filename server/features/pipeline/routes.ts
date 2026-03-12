@@ -3,7 +3,9 @@ import { requireRole } from "../auth/middleware";
 import { logAudit } from "../audit/service";
 import { notifyStageChange, notifyOpportunityAssignment, notifyLeadConverted } from "../notifications/triggers";
 import * as pipelineStorage from "./storage";
-import { insertPipelineStageSchema, insertPipelineOpportunitySchema, insertPipelineActivitySchema, OPPORTUNITY_STATUSES, WEBSITE_PACKAGES, type InsertPipelineOpportunity } from "@shared/schema";
+import { insertPipelineStageSchema, insertPipelineOpportunitySchema, insertPipelineActivitySchema, OPPORTUNITY_STATUSES, WEBSITE_PACKAGES, type InsertPipelineOpportunity, crmCompanies } from "@shared/schema";
+import { db } from "../../db";
+import { eq, isNull, and } from "drizzle-orm";
 import { appendHistorySafe } from "../history/service";
 import { upsertLeadStatus, updateLead } from "../crm/storage";
 import { z } from "zod";
@@ -191,6 +193,11 @@ router.put("/opportunities/:id", requireRole("admin", "developer", "sales_rep"),
     if (validated.status && validated.status !== existing.status) {
       const event = validated.status === "won" ? "closed_won" : validated.status === "lost" ? "closed_lost" : "status_changed";
       appendHistorySafe({ entityType: "opportunity", entityId: id, event, fieldName: "status", fromValue: existing.status ?? null, toValue: validated.status, ...actor });
+      if (validated.status === "won" && opp.companyId) {
+        await db.update(crmCompanies)
+          .set({ clientStatus: "active" })
+          .where(and(eq(crmCompanies.id, opp.companyId), isNull(crmCompanies.clientStatus)));
+      }
     }
     if (validated.assignedTo !== undefined && validated.assignedTo !== existing.assignedTo) {
       appendHistorySafe({ entityType: "opportunity", entityId: id, event: "assigned", fieldName: "assignedTo", fromValue: existing.assignedTo ?? null, toValue: validated.assignedTo ?? null, ...actor });
