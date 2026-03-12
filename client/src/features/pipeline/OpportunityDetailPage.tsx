@@ -187,7 +187,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
       await apiRequest("DELETE", `/api/pipeline/opportunities/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities/board"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities"] });
       toast({ title: "Opportunity deleted" });
       navigate("/admin/pipeline");
     },
@@ -408,6 +408,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
               variant="ghost"
               className="text-red-500 hover:text-red-700 hover:bg-red-50"
               onClick={() => setDeleteConfirmOpen(true)}
+              title="Delete Opportunity"
               data-testid="button-delete-opportunity"
             >
               <Trash2 className="w-4 h-4" />
