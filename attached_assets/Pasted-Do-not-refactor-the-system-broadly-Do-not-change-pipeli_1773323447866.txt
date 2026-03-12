@@ -1,0 +1,105 @@
+Do not refactor the system broadly. Do not change pipeline behavior, onboarding behavior, or database structure beyond what is necessary.
+
+Fix a specific issue with record cleanup when deleting a CRM lead.
+
+CURRENT ISSUE
+
+The system uses a HARD DELETE for CRM leads. When a lead is deleted, the lead record is physically removed from the database.
+
+Right now, related records are being left behind in a bad state:
+
+- follow-up tasks are kept and their leadId is set to null, creating floating tasks
+- pipeline opportunities are kept and their leadId is set to null, creating orphaned opportunities
+- clients/company records are not touched at all, even if they were created from that lead
+
+This leaves inconsistent data across the system.
+
+OBJECTIVE
+
+When a CRM lead is deleted, the system should clean up all clearly linked records so no floating tasks, orphaned opportunities, or improperly retained client records remain.
+
+IMPLEMENTATION
+
+Update the CRM lead delete flow so that when a lead is deleted, the system does the following inside the same delete operation / transaction:
+
+1. Identify all records clearly linked to the lead using:
+- leadId
+- crmLeadId
+- contactId
+or equivalent relationship fields already used by the system
+
+2. Clean up linked records as follows:
+
+CRM Lead Notes
+- continue hard deleting these
+
+CRM Lead Tag Associations
+- continue hard deleting these associations only
+
+Follow-Up Tasks
+- do NOT leave tasks floating by setting leadId to null
+- hard delete follow-up tasks that are clearly tied to the deleted lead
+
+Pipeline Opportunities
+- do NOT leave opportunities orphaned by setting leadId to null
+- hard delete opportunities that are clearly tied to the deleted lead
+
+Clients / Companies
+- if a client/company record was clearly created from this lead and is linked to this lead, delete it too
+- if a client/company record is not clearly linked to this lead, do not delete it
+
+3. Only after related cleanup is complete, hard delete the CRM lead itself
+
+DATA SAFETY RULES
+
+Do not delete unrelated records.
+
+Only delete records that are clearly linked to the deleted CRM lead through existing relationship fields.
+
+If a client/company record was created independently and is not clearly tied to the deleted lead, leave it alone.
+
+If there is uncertainty about a client/company relationship, prefer keeping the record rather than deleting the wrong one.
+
+TASKS RULE
+
+The current behavior of nulling out leadId on tasks is not acceptable for this workflow.
+
+After this fix:
+- deleting a lead should not leave behind floating tasks
+- any follow-up task clearly tied to that lead should be removed as part of the delete
+
+OPPORTUNITY RULE
+
+The current behavior of nulling out leadId on opportunities is not acceptable for this workflow.
+
+After this fix:
+- deleting a lead should not leave behind orphaned pipeline opportunities
+- any opportunity clearly tied to that lead should be removed as part of the delete
+
+UI / BEHAVIOR EXPECTATION
+
+After deleting a CRM lead:
+
+- the lead should be gone from CRM
+- linked notes should be gone
+- linked tag associations should be gone
+- linked follow-up tasks should be gone
+- linked pipeline opportunities should be gone
+- linked client/company record should be gone only if it was actually created from and tied to that lead
+
+No floating tasks.
+No orphaned opportunities.
+No partial cleanup.
+
+IMPLEMENTATION CONSTRAINTS
+
+- keep this as a small targeted fix
+- reuse the existing delete flow if possible
+- update the existing transaction rather than creating a brand new architecture
+- do not introduce soft delete
+- do not add broad new syncing systems
+- do not change unrelated modules
+
+GOAL
+
+Deleting a CRM lead should fully clean up all clearly linked records so the lead no longer appears anywhere in the CRM, Sales Pipeline, Tasks, or Clients modules unless a record was intentionally independent and should remain.
