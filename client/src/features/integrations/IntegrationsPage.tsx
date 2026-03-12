@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient, apiRequest, STALE } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -321,14 +321,17 @@ export default function IntegrationsPage() {
 
   const { data: integrations = [], isLoading } = useQuery<IntegrationRecord[]>({
     queryKey: ["/api/integrations"],
+    staleTime: STALE.MEDIUM,
   });
 
   const { data: healthMap = {}, isLoading: healthLoading } = useQuery<Record<string, ProviderHealth>>({
     queryKey: ["/api/integrations/health"],
+    staleTime: STALE.FAST,
   });
 
   const { data: stripeStatus } = useQuery<StripeMaskedStatus>({
     queryKey: ["/api/integrations/stripe/status"],
+    staleTime: STALE.MEDIUM,
   });
 
   const toggleMutation = useMutation({

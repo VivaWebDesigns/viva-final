@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import type { CrmContact, CrmCompany, CrmLead, CrmLeadStatus } from "@shared/schema";
 import { useAdminLang } from "@/i18n/LanguageContext";
+import { STALE } from "@/lib/queryClient";
 
 interface ContactDetail extends CrmContact {
   company?: CrmCompany | null;
@@ -27,6 +28,7 @@ export default function ContactDetailPage({ id }: { id: string }) {
       if (!res.ok) throw new Error("Failed to fetch contact");
       return res.json();
     },
+    staleTime: STALE.MEDIUM,
   });
 
   if (isLoading) {

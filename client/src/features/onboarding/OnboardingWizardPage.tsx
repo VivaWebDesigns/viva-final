@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, STALE } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -55,14 +55,17 @@ export default function OnboardingWizardPage() {
 
   const { data: templates } = useQuery<OnboardingTemplate[]>({
     queryKey: ["/api/onboarding/templates"],
+    staleTime: STALE.NEVER,
   });
 
   const { data: companiesData } = useQuery<{ companies: CrmCompany[] }>({
     queryKey: ["/api/crm/companies"],
+    staleTime: STALE.FAST,
   });
 
   const { data: contactsData } = useQuery<{ contacts: CrmContact[] }>({
     queryKey: ["/api/crm/contacts"],
+    staleTime: STALE.FAST,
   });
 
   const companies = companiesData?.companies || (Array.isArray(companiesData) ? companiesData : []) as CrmCompany[];

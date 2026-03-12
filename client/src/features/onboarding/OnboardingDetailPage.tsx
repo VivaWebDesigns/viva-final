@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { motion } from "framer-motion";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, STALE } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -60,25 +60,30 @@ export default function OnboardingDetailPage({ id }: { id: string }) {
 
   const { data: record, isLoading } = useQuery<OnboardingDetailData>({
     queryKey: [`/api/onboarding/records/${id}`],
+    staleTime: STALE.MEDIUM,
   });
 
   const { data: notes } = useQuery<OnboardingNote[]>({
     queryKey: [`/api/onboarding/records/${id}/notes`],
+    staleTime: STALE.MEDIUM,
   });
 
   const { data: company } = useQuery<CrmCompany>({
     queryKey: ["/api/crm/companies", record?.companyId],
     enabled: !!record?.companyId,
+    staleTime: STALE.MEDIUM,
   });
 
   const { data: contact } = useQuery<CrmContact>({
     queryKey: ["/api/crm/contacts", record?.contactId],
     enabled: !!record?.contactId,
+    staleTime: STALE.MEDIUM,
   });
 
   const { data: opportunity } = useQuery<PipelineOpportunity>({
     queryKey: ["/api/pipeline/opportunities", record?.opportunityId],
     enabled: !!record?.opportunityId,
+    staleTime: STALE.MEDIUM,
   });
 
   const invalidateRecord = () => {

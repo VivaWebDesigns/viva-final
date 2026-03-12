@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import RichTextEditorField from "@/features/chat/RichTextEditorField";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient, apiRequest, STALE } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { DocCategory, DocArticle, DocTag } from "@shared/schema";
 
@@ -36,10 +36,12 @@ export default function DocEditor({ articleId, categories, onClose, onSaved }: D
       return res.json();
     },
     enabled: !!articleId,
+    staleTime: STALE.MEDIUM,
   });
 
   const { data: allTags = [] } = useQuery<DocTag[]>({
     queryKey: ["/api/docs/tags"],
+    staleTime: STALE.SLOW,
   });
 
   useEffect(() => {

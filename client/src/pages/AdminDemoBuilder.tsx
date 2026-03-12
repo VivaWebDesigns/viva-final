@@ -14,7 +14,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, STALE } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -178,7 +178,7 @@ export default function AdminDemoBuilder() {
 
   const { data: leads = [] } = useQuery<LeadItem[]>({
     queryKey: ["/api/crm/leads"],
-    staleTime: 30000,
+    staleTime: STALE.FAST,
     enabled: showLeadPicker,
   });
 

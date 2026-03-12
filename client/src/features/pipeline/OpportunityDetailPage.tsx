@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { useAuth } from "@/features/auth/useAuth";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, STALE } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -64,33 +64,40 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
 
   const { data: opp, isLoading } = useQuery<PipelineOpportunity>({
     queryKey: ["/api/pipeline/opportunities", id],
+    staleTime: STALE.FAST,
   });
 
   const { data: stages } = useQuery<PipelineStage[]>({
     queryKey: ["/api/pipeline/stages"],
+    staleTime: STALE.NEVER,
   });
 
   const { data: activities } = useQuery<ActivityWithAuthor[]>({
     queryKey: ["/api/pipeline/opportunities", id, "activities"],
+    staleTime: STALE.FAST,
   });
 
   const { data: company } = useQuery<CrmCompany>({
     queryKey: ["/api/crm/companies", opp?.companyId || ""],
     enabled: !!opp?.companyId,
+    staleTime: STALE.MEDIUM,
   });
 
   const { data: contact } = useQuery<CrmContact>({
     queryKey: ["/api/crm/contacts", opp?.contactId || ""],
     enabled: !!opp?.contactId,
+    staleTime: STALE.MEDIUM,
   });
 
   const { data: sourceLead } = useQuery<CrmLead>({
     queryKey: ["/api/crm/leads", opp?.leadId || ""],
     enabled: !!opp?.leadId,
+    staleTime: STALE.MEDIUM,
   });
 
   const { data: tasks } = useQuery<TaskWithContact[]>({
     queryKey: ["/api/tasks/for-opportunity", id],
+    staleTime: STALE.FAST,
   });
 
   const completeMutation = useMutation({

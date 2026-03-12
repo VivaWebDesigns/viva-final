@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, STALE } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@features/auth/useAuth";
 import { Badge } from "@/components/ui/badge";
@@ -57,11 +57,13 @@ export default function AdminSettingsPage() {
 
   const { data: users = [], isLoading: usersLoading } = useQuery<AdminUser[]>({
     queryKey: ["/api/admin/users"],
+    staleTime: STALE.FAST,
   });
 
   const { data: auditLogs = [], isLoading: logsLoading } = useQuery<AuditLog[]>({
     queryKey: ["/api/admin/audit-logs"],
     enabled: tab === "audit",
+    staleTime: STALE.FAST,
   });
 
   const createMutation = useMutation({

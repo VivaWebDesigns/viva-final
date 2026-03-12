@@ -208,7 +208,7 @@ export default function TeamChatPage() {
       return res.json();
     },
     enabled: searchQuery.length >= 2,
-    staleTime: 5000,
+    staleTime: STALE.REALTIME,
   });
 
   // ── Socket: join/leave channels ─────────────────────────────────────────────

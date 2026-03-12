@@ -10,7 +10,33 @@ export function serveStatic(app: Express) {
     );
   }
 
-  app.use(express.static(distPath));
+  // Hashed Vite output bundles — cache immutably for 1 year.
+  // Vite embeds a content hash in every asset filename (e.g. index-CbJtbRdG.js),
+  // so the URL changes on every rebuild. Browsers and CDNs can safely cache forever.
+  // Policy: Cache-Control: public, max-age=31536000, immutable
+  app.use(
+    "/assets",
+    express.static(path.join(distPath, "assets"), {
+      maxAge: "1y",
+      immutable: true,
+    }),
+  );
+
+  // All other static files (icons, fonts, manifests, robots.txt) — short-lived.
+  // HTML shell files get a strict no-store so the app shell is never served stale
+  // after a deploy. Other files use max-age=0 (must-revalidate on each request).
+  app.use(
+    express.static(distPath, {
+      maxAge: 0,
+      setHeaders(res, filePath) {
+        if (filePath.endsWith(".html")) {
+          res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+          res.setHeader("Pragma", "no-cache");
+          res.setHeader("Expires", "0");
+        }
+      },
+    }),
+  );
 
   const mpaHtmlFiles: Record<string, string> = {
     // Public demo routes — linked from /demo showroom
@@ -26,7 +52,11 @@ export function serveStatic(app: Express) {
     "/preview/domina": "preview-domina.html",
   };
 
+  // All SPA/MPA HTML shell responses — always no-store so deploys are picked up immediately.
   app.use("/{*path}", (req, res) => {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
     const urlPath = req.originalUrl.split("?")[0];
     const mpaFile = mpaHtmlFiles[urlPath];
     const htmlFile = mpaFile ?? "index.html";

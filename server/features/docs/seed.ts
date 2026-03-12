@@ -3036,6 +3036,406 @@ Escalate to engineering if:
 `,
   },
 
+  // ── Phase 6: Frontend Data Freshness + Static Asset Caching ──────────
+
+  {
+    title: "Frontend Data Freshness Strategy",
+    slug: "frontend-data-freshness-strategy",
+    categorySlug: "architecture-overview",
+    status: "published",
+    content: `# Frontend Data Freshness Strategy
+
+## Overview
+
+Viva CRM uses TanStack Query (React Query v5) for all server-state management. The freshness system is built on named tier constants that make data freshness decisions explicit and auditable.
+
+## The STALE Tier System
+
+\`\`\`typescript
+// client/src/lib/queryClient.ts
+
+export const STALE = {
+  NEVER:    Infinity,   // static config: stages, statuses, tags, templates
+  SLOW:   5 * 60_000,   // 5 min  — reports, aggregated analytics
+  MEDIUM: 2 * 60_000,   // 2 min  — dashboard/onboarding overview stats
+  FAST:       60_000,   // 1 min  — CRM lists, pipeline, clients (global default)
+  REALTIME:   30_000,   // 30 s   — notifications, unread counts
+} as const;
+\`\`\`
+
+## Global Default
+
+The global default \`staleTime\` is \`STALE.FAST\` (1 minute). This means any query that does not specify an explicit \`staleTime\` will consider its data stale after 60 seconds, triggering a background refetch on the next access.
+
+**Why FAST as the global default?** Admin/operational UI has data that changes frequently. If an invalidation is missed (e.g., a mutation that forgets to call \`queryClient.invalidateQueries\`), the stale data is bounded to a 1-minute window rather than persisting forever.
+
+## Domain-by-Domain Assignment
+
+| Domain | STALE Tier | Reasoning |
+|--------|-----------|-----------|
+| Pipeline stages, lead statuses, onboarding templates | NEVER | Config-only; only changed by explicit admin mutations that already invalidate the cache |
+| Report/analytics aggregations | SLOW (5 min) | Computed from many records; acceptable slight lag |
+| Dashboard stats, onboarding detail, doc content | MEDIUM (2 min) | Operational summaries; bounded staleness |
+| CRM lists, pipeline board, opportunity/client detail | FAST (1 min) | Active sales data; global default covers new queries |
+| Notifications, unread counts, chat search | REALTIME (30s) | Near-realtime operational status |
+
+## Adding New Queries
+
+When adding a new \`useQuery\` call:
+
+1. **Ask: is this truly static config?** If yes, add \`staleTime: STALE.NEVER\` and ensure the mutation path calls \`queryClient.invalidateQueries\`.
+2. **Ask: is this actively changing operational data?** If yes, use \`STALE.FAST\` or \`STALE.REALTIME\`.
+3. **No explicit override needed** for garden-variety operational queries — the global \`STALE.FAST\` default is correct.
+
+Import the constant:
+\`\`\`typescript
+import { STALE } from "@/lib/queryClient";
+
+const { data } = useQuery({
+  queryKey: ["/api/example"],
+  staleTime: STALE.MEDIUM,
+});
+\`\`\`
+
+## What NEVER to Do
+
+\`\`\`typescript
+// AVOID — magic numbers; harder to audit
+staleTime: 30000
+
+// AVOID — Infinity without comment on why (use STALE.NEVER instead)
+staleTime: Infinity
+\`\`\`
+`,
+  },
+
+  {
+    title: "Query Caching Defaults and Override Rules",
+    slug: "query-caching-defaults-and-override-rules",
+    categorySlug: "architecture-overview",
+    status: "published",
+    content: `# Query Caching Defaults and Override Rules
+
+## Global Defaults (queryClient.ts)
+
+\`\`\`typescript
+defaultOptions: {
+  queries: {
+    queryFn: getQueryFn({ on401: "throw" }),
+    refetchInterval: false,        // no polling by default
+    refetchOnWindowFocus: false,   // no refetch on tab switch by default
+    staleTime: STALE.FAST,         // 1-minute safe default
+    retry: false,                  // no auto-retry (manual refresh flows instead)
+  },
+  mutations: {
+    retry: false,
+  },
+}
+\`\`\`
+
+## Override Rules
+
+### staleTime Override
+
+Use \`staleTime: STALE.NEVER\` for queries on stable config data that is invalidated on every mutation:
+- \`/api/pipeline/stages\` — used in PipelineBoardPage, OpportunityDetailPage, StageManagementPage
+- \`/api/onboarding/templates\` — used in OnboardingWizardPage
+
+Use \`staleTime: STALE.REALTIME\` + \`refetchInterval: 30_000\` for live status data:
+- \`/api/notifications\` — NotificationCenterPage
+- Unread counts
+
+### refetchOnWindowFocus Override
+
+Enable this for pages where a user might have taken action in another tab:
+\`\`\`typescript
+staleTime: STALE.FAST,
+refetchOnWindowFocus: true,   // e.g., LeadListPage, PipelineBoardPage, OnboardingListPage
+\`\`\`
+
+### refetchInterval Override
+
+Use \`refetchInterval\` only for live status screens:
+\`\`\`typescript
+staleTime: STALE.REALTIME,
+refetchInterval: 30_000,   // NotificationCenterPage, PaymentsPage
+\`\`\`
+
+## Query Key Conventions
+
+For hierarchical data, use array query keys so invalidation works at the right scope:
+\`\`\`typescript
+// Good — supports invalidating just one opportunity's activities
+queryKey: ["/api/pipeline/opportunities", id, "activities"]
+
+// Bad — cannot invalidate a subset
+queryKey: [\`/api/pipeline/opportunities/\${id}/activities\`]
+\`\`\`
+
+## Authentication Behavior
+
+The default \`queryFn\` uses \`on401: "throw"\` which throws an error on 401 — triggering the error boundary. Pages that check authentication status before rendering (e.g., \`useAuth()\`) use the null-returning variant:
+\`\`\`typescript
+getQueryFn({ on401: "returnNull" })
+\`\`\`
+
+## Three Public-Site Query Clients
+
+The public demo apps (empieza, crece, domina) each have their own \`queryClient\` instance in \`client/src/{name}/lib/queryClient.ts\` with \`staleTime: Infinity\`. This is intentional — these are single-page demo forms where the data (e.g., service lists) is loaded once per session and never mutated.
+`,
+  },
+
+  {
+    title: "Mutation Invalidation Patterns",
+    slug: "mutation-invalidation-patterns",
+    categorySlug: "architecture-overview",
+    status: "published",
+    content: `# Mutation Invalidation Patterns
+
+## Overview
+
+TanStack Query mutations must invalidate the relevant query cache after a successful write, otherwise the UI shows stale data until the \`staleTime\` expires. This article documents the standard invalidation patterns used in Viva CRM.
+
+## Standard Pattern
+
+\`\`\`typescript
+import { queryClient, apiRequest } from "@/lib/queryClient";
+
+const createMutation = useMutation({
+  mutationFn: async (data: MyData) => {
+    const res = await apiRequest("POST", "/api/my-resource", data);
+    return res.json();
+  },
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ["/api/my-resource"] });
+    toast({ title: "Created!" });
+  },
+});
+\`\`\`
+
+## When to Use invalidateQueries vs setQueryData
+
+| Scenario | Approach |
+|----------|---------|
+| Created a new item in a list | \`invalidateQueries\` — re-fetch the list |
+| Updated an existing item | \`invalidateQueries\` — re-fetch the item |
+| Deleted an item | \`invalidateQueries\` — re-fetch the list |
+| High-frequency optimistic UI | \`setQueryData\` — update cache directly (rare) |
+
+The default approach is always \`invalidateQueries\`. Only use \`setQueryData\` if the mutation returns the full updated record AND re-fetching would cause visible flicker for the user.
+
+## Hierarchical Invalidation
+
+When a mutation affects nested data, invalidate at the right level:
+
+\`\`\`typescript
+// Updating an opportunity also affects the pipeline board
+queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities", id] });
+queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities"] });
+
+// Updating checklist item affects onboarding detail and list
+queryClient.invalidateQueries({ queryKey: [\`/api/onboarding/records/\${id}\`] });
+queryClient.invalidateQueries({ queryKey: ["/api/onboarding/records"] });
+\`\`\`
+
+## Static Config Invalidation
+
+Queries with \`staleTime: STALE.NEVER\` (Infinity) rely ENTIRELY on invalidation. Never forget to invalidate after a mutation that changes config:
+
+\`\`\`typescript
+// After creating/updating/deleting a pipeline stage
+queryClient.invalidateQueries({ queryKey: ["/api/pipeline/stages"] });
+
+// After modifying onboarding templates
+queryClient.invalidateQueries({ queryKey: ["/api/onboarding/templates"] });
+
+// After modifying lead statuses
+queryClient.invalidateQueries({ queryKey: ["/api/crm/lead-statuses"] });
+\`\`\`
+
+## Common Invalidation Checklist
+
+Before submitting a PR with a mutation, verify:
+- [ ] \`onSuccess\` includes \`invalidateQueries\` for the affected resource
+- [ ] If a parent list exists, that list is also invalidated
+- [ ] If the mutation affects a \`STALE.NEVER\` query, invalidation is mandatory
+- [ ] Toast message is shown on success
+
+## Mutation Error Handling
+
+\`\`\`typescript
+onError: (error) => {
+  toast({
+    title: "Error",
+    description: error.message,
+    variant: "destructive",
+  });
+},
+\`\`\`
+
+Never silently swallow mutation errors. All mutations should show a user-visible error message.
+`,
+  },
+
+  {
+    title: "Static Asset Caching Policy",
+    slug: "static-asset-caching-policy",
+    categorySlug: "architecture-overview",
+    status: "published",
+    content: `# Static Asset Caching Policy
+
+## Overview
+
+The production Express server (\`server/static.ts\`) uses a tiered cache-control strategy for static assets. The goal is to maximize repeat-load performance for hashed assets while preventing stale app shells after deploys.
+
+## Policy Summary
+
+| Asset Type | Path Pattern | Cache-Control Policy | Max-Age |
+|------------|-------------|---------------------|---------|
+| Hashed JS/CSS bundles | \`/assets/*\` | \`public, max-age=31536000, immutable\` | 1 year |
+| HTML app shell | \`index.html\`, MPA HTML files | \`no-store, no-cache, must-revalidate\` | 0 |
+| Other static files | Icons, fonts, manifests | \`max-age=0\` | 0 |
+| SPA/MPA route responses | \`/{*path}\` catch-all | \`no-store, no-cache, must-revalidate\` | 0 |
+
+## Hashed Asset Immutability
+
+Vite's build embeds a content hash in every output filename:
+\`\`\`
+assets/index-CbJtbRdG.js
+assets/style-DpKxp_6U.css
+assets/vendor-Qr4mO7hN.js
+\`\`\`
+
+Because the hash changes whenever the file content changes, any cached version at the old URL is permanently stale — the browser will fetch the new hash automatically. Therefore, the old URL can safely be cached forever (\`immutable\`).
+
+**Implementation** (\`server/static.ts\`):
+\`\`\`typescript
+app.use("/assets", express.static(path.join(distPath, "assets"), {
+  maxAge: "1y",
+  immutable: true,
+}));
+\`\`\`
+
+## HTML No-Store Policy
+
+The HTML app shell (\`index.html\`) is a tiny document that references hashed asset URLs. After a deploy, the hashed URLs change. If the browser caches the old HTML, it will request old asset URLs that may no longer exist on the CDN.
+
+To prevent this, HTML responses are always served with \`no-store\`:
+\`\`\`
+Cache-Control: no-store, no-cache, must-revalidate
+Pragma: no-cache
+Expires: 0
+\`\`\`
+
+This ensures the browser always re-fetches the HTML shell after a deploy, and then loads the new hashed assets referenced in the fresh HTML.
+
+## CDN Behavior
+
+When behind a CDN (e.g., Cloudflare):
+
+- **Hashed assets**: CDN caches them for up to 1 year. Cache is never invalidated — old hashes simply become unreferenced.
+- **HTML shell**: CDN should NOT cache this (responds to \`no-store\`). Ensure CDN cache rules honor \`Cache-Control: no-store\` for HTML responses.
+
+## Development Mode
+
+The development server uses Vite's HMR middleware, not the production static server. Cache headers are not applied in dev mode. The policies described here apply only to production builds (\`NODE_ENV=production\`).
+`,
+  },
+
+  {
+    title: "Stale UI Troubleshooting After Deploys",
+    slug: "stale-ui-troubleshooting-after-deploys",
+    categorySlug: "architecture-overview",
+    status: "published",
+    content: `# Stale UI Troubleshooting After Deploys
+
+## Symptoms
+
+| Symptom | Likely Cause |
+|---------|-------------|
+| Admin sees old UI after a deploy | Browser served cached HTML shell |
+| Assets 404 after deploy | Browser loaded old HTML referencing stale hashed asset URLs |
+| Data shown in UI is outdated | React Query staleTime hasn't expired or invalidation was missed |
+| Feature works locally but not in production | Build-time asset mismatch |
+
+## User-Facing Remediation
+
+### Hard refresh (clear browser cache)
+- Windows/Linux: **Ctrl + Shift + R**
+- macOS: **Cmd + Shift + R**
+
+This forces the browser to re-fetch all resources, bypassing the cache.
+
+### If hard refresh doesn't work
+Open DevTools → Application tab → Storage → Clear site data. This clears Service Workers, cookies, and IndexedDB in addition to HTTP cache.
+
+## Operator-Side Checks
+
+### 1. Verify HTML is not being cached
+
+\`\`\`bash
+curl -I https://your-app.repl.co/
+\`\`\`
+
+Expected response headers:
+\`\`\`
+Cache-Control: no-store, no-cache, must-revalidate
+Pragma: no-cache
+Expires: 0
+\`\`\`
+
+If the response is missing these headers, check \`server/static.ts\` for the HTML catch-all handler.
+
+### 2. Verify hashed assets are cached immutably
+
+\`\`\`bash
+curl -I https://your-app.repl.co/assets/index-CbJtbRdG.js
+\`\`\`
+
+Expected:
+\`\`\`
+Cache-Control: public, max-age=31536000, immutable
+\`\`\`
+
+### 3. Check React Query staleTime for a specific endpoint
+
+If data is stale even after a page reload:
+1. Open React Query DevTools (dev mode only)
+2. Find the query by key
+3. Check \`staleTime\` and \`dataUpdatedAt\`
+
+Or search the source for the query key:
+\`\`\`
+grep -rn "queryKey.*your-endpoint" client/src/
+\`\`\`
+
+Then check the file for its \`staleTime\` override. If none exists, the global default (\`STALE.FAST\` = 1 min) applies.
+
+### 4. Check that a mutation invalidates correctly
+
+If a mutation succeeds but the UI does not update:
+\`\`\`typescript
+onSuccess: () => {
+  queryClient.invalidateQueries({ queryKey: ["/api/your-resource"] });
+  // ↑ confirm this line exists and the queryKey matches exactly
+}
+\`\`\`
+
+## STALE.NEVER Queries Require Explicit Invalidation
+
+Queries with \`staleTime: STALE.NEVER\` (e.g., pipeline stages, statuses, templates) will NEVER auto-refresh. If a user edits a stage and the list doesn't update, verify the mutation calls:
+\`\`\`typescript
+queryClient.invalidateQueries({ queryKey: ["/api/pipeline/stages"] });
+\`\`\`
+
+## Service Worker Warning
+
+If the app is running a Service Worker, the SW intercepts requests before the HTTP cache. A stale SW can serve outdated assets even after a browser cache clear. Check DevTools → Application → Service Workers. If one is registered, click "Update" or "Unregister" and reload.
+
+Viva CRM does not currently register a Service Worker in production; this is informational for future reference.
+`,
+  },
+
   // ── Phase 5: Reporting Performance + SQL Aggregation ─────────────────
 
   {
