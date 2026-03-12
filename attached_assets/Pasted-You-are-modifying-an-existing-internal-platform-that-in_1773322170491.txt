@@ -1,0 +1,101 @@
+You are modifying an existing internal platform that includes **CRM Leads, Clients, and Sales Pipeline modules**. Implement a small, safe improvement to how leads are created so that a lead without a company name can still function properly across the system.
+
+This change must be **minimal and non-destructive**. Do not refactor unrelated modules or alter pipeline logic beyond what is necessary.
+
+---
+
+CURRENT ISSUE
+
+When a lead is created **without a company name**, that lead is not properly added to the **Clients module** later because the system expects a company value.
+
+This causes leads without a company name to fail downstream when they are converted or referenced by the Clients module.
+
+---
+
+OBJECTIVE
+
+Ensure every lead has a usable **company_name value** even when the user does not enter one.
+
+If no company name is provided during lead creation, automatically set:
+
+company_name = "FirstName LastName"
+
+This guarantees that a valid company_name value always exists.
+
+---
+
+IMPLEMENTATION RULES
+
+During **lead creation**:
+
+1. Check the company_name field.
+2. If company_name is empty, null, or blank:
+3. Automatically set:
+
+company_name = full_name
+
+Example:
+
+Input:
+name = "Jose Garcia"
+company_name = empty
+
+Result:
+company_name = "Jose Garcia"
+
+Another example:
+
+Input:
+name = "Maria Lopez"
+company_name = "Lopez Landscaping"
+
+Result:
+company_name remains "Lopez Landscaping"
+
+---
+
+WHERE THIS SHOULD APPLY
+
+This logic should run when a lead is created through:
+
+• the **Add Lead** form
+• any CRM lead creation flow
+• imports (only if company_name is missing)
+
+Do not overwrite company_name if the user already provided one.
+
+---
+
+DATA SAFETY
+
+Do NOT:
+
+• modify existing leads that already have company names
+• change pipeline behavior
+• change client onboarding logic
+• refactor database schemas
+• add new required fields
+• modify unrelated modules
+
+This should only affect **new lead creation when company_name is missing**.
+
+---
+
+UI BEHAVIOR
+
+The UI does not need additional complexity.
+
+If a user leaves the company field blank when creating a lead, simply save the lead normally and allow the system to apply the fallback company_name value automatically.
+
+No extra warnings or popups are necessary.
+
+---
+
+FINAL RESULT
+
+After this change:
+
+• Leads can be created without a company name
+• The system automatically assigns company_name = "FirstName LastName"
+• Leads can move into the Clients module without errors
+• Existing leads remain unchanged

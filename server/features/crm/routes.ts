@@ -296,13 +296,15 @@ router.post("/leads/manual", requireRole("admin", "developer", "sales_rep"), asy
       });
     }
 
-    // 2. Find or create company (if business name provided)
+    // 2. Find or create company — fallback to "First Last" if no business name provided
+    const fullName = `${data.firstName} ${data.lastName}`.trim();
+    const companyName = data.businessName?.trim() || fullName;
     let companyId: string | null = null;
-    if (data.businessName?.trim()) {
-      let company = await crmStorage.findCompanyByName(data.businessName.trim());
+    {
+      let company = await crmStorage.findCompanyByName(companyName);
       if (!company) {
         company = await crmStorage.createCompany({
-          name: data.businessName.trim(),
+          name: companyName,
           industry: data.businessTrade,
           website: data.website || null,
           phone: data.phone,
@@ -321,7 +323,6 @@ router.post("/leads/manual", requireRole("admin", "developer", "sales_rep"), asy
       (await crmStorage.getLeadStatusBySlug("new"));
 
     // 4. Build lead title
-    const fullName = `${data.firstName} ${data.lastName}`.trim();
     const leadTitle = data.businessName?.trim()
       ? `${data.businessName.trim()} – ${fullName}`
       : fullName;
