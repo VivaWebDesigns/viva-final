@@ -518,7 +518,6 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                     <SelectItem value="note">Note</SelectItem>
                     <SelectItem value="call">Call</SelectItem>
                     <SelectItem value="email">Email</SelectItem>
-                    <SelectItem value="task">Task</SelectItem>
                   </SelectContent>
                 </Select>
                 <RichTextEditorField

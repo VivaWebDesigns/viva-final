@@ -1,0 +1,96 @@
+Do not refactor the system broadly. Do not change database schemas, pipeline logic, CRM logic, task architecture, or activity timeline behavior beyond what is necessary.
+
+Implement a small UI cleanup in the Sales Pipeline activity timeline.
+
+--------------------------------------------------
+CURRENT ISSUE
+--------------------------------------------------
+
+The activity timeline dropdown currently includes:
+
+- Note
+- Call
+- Email
+- Task
+
+However, the system already has a real task system elsewhere:
+
+- the Follow-up Tasks section on the opportunity page
+- the main Tasks module
+
+Because of this, the "Task" option in the activity timeline dropdown is redundant and confusing.
+
+Right now:
+- Timeline "Task" only logs a text activity
+- It does NOT create a real task in the Tasks module
+- Real tasks are created through the Follow-up Tasks section and/or the Tasks module
+
+This creates an unnecessary duplicate task entry method inside the timeline.
+
+--------------------------------------------------
+OBJECTIVE
+--------------------------------------------------
+
+Remove the "Task" option from the activity timeline dropdown so the timeline is used only for logging past activity.
+
+Do NOT remove the ability to create real tasks elsewhere in the system.
+
+--------------------------------------------------
+EXPECTED ACTIVITY TYPES
+--------------------------------------------------
+
+After the change, the activity timeline dropdown should contain only:
+
+- Note
+- Call
+- Email
+
+These represent things that already happened.
+
+--------------------------------------------------
+TASK CREATION RULE
+--------------------------------------------------
+
+Real tasks should continue to be created through the existing real task entry points, including:
+
+- the Follow-up Tasks section on the opportunity page
+- the Tasks module
+
+Do not change or restrict those task creation flows.
+
+Only remove the fake/redundant "Task" option from the activity timeline dropdown.
+
+--------------------------------------------------
+UI RESULT
+--------------------------------------------------
+
+Activity Timeline dropdown:
+- Note
+- Call
+- Email
+
+Task creation remains available in the proper task areas of the system.
+
+--------------------------------------------------
+DATA SAFETY RULES
+--------------------------------------------------
+
+Do not:
+- remove existing activity history
+- modify the Follow-up Tasks system
+- modify the Tasks module
+- change how tasks are stored
+- break activity logging
+- restrict task creation in the real task areas
+
+Only remove the "Task" option from the activity timeline dropdown.
+
+--------------------------------------------------
+GOAL
+--------------------------------------------------
+
+Cleanly separate:
+- Activity Timeline = logs of past interactions
+- Tasks = future actions and reminders
+
+This removes confusion without changing the real task system.
