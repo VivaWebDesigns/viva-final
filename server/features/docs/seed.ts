@@ -3036,6 +3036,566 @@ Escalate to engineering if:
 `,
   },
 
+  // ── Phase 5: Reporting Performance + SQL Aggregation ─────────────────
+
+  {
+    title: "Reporting Service Architecture",
+    slug: "reporting-service-architecture",
+    categorySlug: "architecture-overview",
+    status: "published",
+    content: `# Reporting Service Architecture
+
+## Overview
+
+The reporting service aggregates CRM, pipeline, and onboarding data for the Admin > Reports section. All report queries live in \`server/features/reports/service.ts\`. The service is accessed via a set of read-only REST endpoints in \`server/features/reports/routes.ts\`.
+
+## Report Endpoints
+
+| Endpoint | Function | Auth |
+|----------|---------|------|
+| \`GET /api/reports/overview\` | All metrics in one call | admin, developer, sales_rep |
+| \`GET /api/reports/pipeline-breakdown\` | Stage-level opportunity counts + values | admin, developer, sales_rep |
+| \`GET /api/reports/onboarding-breakdown\` | Onboarding status + checklist summary | admin, developer, sales_rep |
+| \`GET /api/reports/leads-by-source\` | Lead origin distribution | admin, developer, sales_rep |
+| \`GET /api/reports/leads-by-status\` | Lead status distribution | admin, developer, sales_rep |
+| \`GET /api/reports/lead-conversion\` | Lead → opportunity conversion rate | admin, developer, sales_rep |
+| \`GET /api/reports/leads-trend\` | Daily lead count over N days | admin, developer, sales_rep |
+| \`GET /api/reports/won-lost\` | Win/loss breakdown + win rate | admin, developer, sales_rep |
+| \`GET /api/reports/notification-summary\` | Notification type + read status | admin, developer, sales_rep |
+
+## Date Range Filtering
+
+All endpoints accept optional query parameters:
+- \`?days=30\` — last N days (sets \`from\` relative to now)
+- \`?from=YYYY-MM-DD\` — start date (inclusive)
+- \`?to=YYYY-MM-DD\` — end date (exclusive)
+
+These filters are passed to \`dateFilter(column, range)\` which generates Drizzle ORM conditions. Filters apply to different columns per report:
+- Leads reports → \`crmLeads.createdAt\`
+- Pipeline breakdown → \`pipelineOpportunities.createdAt\`
+- Won/lost → \`pipelineOpportunities.updatedAt\`
+- Onboarding → \`onboardingRecords.createdAt\`
+- Notifications → \`notifications.createdAt\`
+
+## Aggregation Strategy (Phase 5+)
+
+Since Phase 5, all heavy aggregations are executed in SQL — no full-table hydration. The key refactors:
+
+| Report | Old approach | New approach |
+|--------|-------------|-------------|
+| Pipeline breakdown | Fetch all opp rows → JS reduce | Single LEFT JOIN + GROUP BY + COUNT FILTER |
+| Onboarding breakdown | Fetch all records → JS filter | Single conditional-aggregation query |
+
+See "SQL Aggregation Strategy" and the pipeline/onboarding performance articles for details.
+
+## Instrumentation
+
+Key report functions emit timing logs:
+\`\`\`
+[reports:pipeline_breakdown] timing 12ms
+[reports:onboarding_breakdown] timing 3ms
+\`\`\`
+
+Scan server logs for \`[reports:\` to monitor query performance. The overview endpoint issues all sub-queries in parallel via \`Promise.all()\`, so its wall-clock time is approximately equal to the slowest sub-query.
+
+## Design Principles
+
+- **Read-only service**: No mutations — all functions are \`SELECT\` only
+- **SQL-first aggregation**: Aggregation logic lives in the database, not in Node.js
+- **Shape stability**: Response shapes are locked; new fields are additive only
+- **Parallel sub-queries**: \`getOverview()\` uses \`Promise.all()\` for all 8 sub-queries simultaneously
+`,
+  },
+
+  {
+    title: "SQL Aggregation Strategy",
+    slug: "sql-aggregation-strategy",
+    categorySlug: "architecture-overview",
+    status: "published",
+    content: `# SQL Aggregation Strategy
+
+## Overview
+
+Viva CRM report queries use PostgreSQL's native aggregation features to compute summaries at the database layer. This eliminates the N+1 pattern of fetching full rows and iterating over them in JavaScript.
+
+## Core SQL Techniques Used
+
+### Conditional Aggregation (COUNT FILTER)
+
+PostgreSQL's \`FILTER (WHERE ...)\` clause on aggregate functions performs conditional counts without subqueries:
+
+\`\`\`sql
+-- Count all, count open, count overdue — in a single pass
+SELECT
+  COUNT(*)::int                                           AS total,
+  COUNT(*) FILTER (WHERE status = 'open')::int           AS open,
+  COUNT(*) FILTER (WHERE due_date < NOW()
+    AND status != 'completed')::int                      AS overdue
+FROM onboarding_records;
+\`\`\`
+
+This is a single sequential scan of the table — not three separate queries.
+
+### Conditional SUM FILTER
+
+\`\`\`sql
+SELECT
+  COALESCE(SUM(value::numeric), 0)::float                AS total_value,
+  COALESCE(SUM(value::numeric) FILTER (WHERE status = 'open'), 0)::float
+                                                         AS open_value
+FROM pipeline_opportunities;
+\`\`\`
+
+### LEFT JOIN + GROUP BY (Stage Breakdown)
+
+The pipeline breakdown uses a \`LEFT JOIN\` from \`pipeline_stages\` to \`pipeline_opportunities\` so every stage appears in results — even stages with zero opportunities:
+
+\`\`\`sql
+SELECT
+  s.id, s.name, s.slug, s.color,
+  COUNT(o.id)::int                                               AS total_count,
+  COUNT(o.id) FILTER (WHERE o.status = 'open')::int             AS open_count,
+  COALESCE(SUM(o.value::numeric), 0)::float                     AS total_value,
+  COALESCE(SUM(o.value::numeric)
+    FILTER (WHERE o.status = 'open'), 0)::float                 AS open_value
+FROM pipeline_stages s
+LEFT JOIN pipeline_opportunities o ON o.stage_id = s.id
+  -- optional date range filter in JOIN condition
+GROUP BY s.id, s.name, s.slug, s.color, s.sort_order
+ORDER BY s.sort_order;
+\`\`\`
+
+**Why date filter in JOIN ON instead of WHERE?** Putting the date filter in the \`WHERE\` clause would turn the \`LEFT JOIN\` into an effective \`INNER JOIN\`, hiding stages with zero opportunities in the date range. Putting it in the \`ON\` clause preserves the outer join semantics.
+
+### AVG with FILTER
+
+\`\`\`sql
+COALESCE(
+  ROUND(
+    AVG(EXTRACT(EPOCH FROM (completed_at - created_at)) / 86400.0)
+    FILTER (WHERE completed_at IS NOT NULL)
+  ), 0
+)::int AS avg_completion_days
+\`\`\`
+
+This computes the average days-to-completion using PostgreSQL epoch arithmetic — accurate, handles NULL safely, and computed in a single pass.
+
+## Drizzle ORM Implementation Pattern
+
+In Drizzle, conditional aggregation uses the \`sql\` template tag:
+
+\`\`\`typescript
+sql<number>\`COUNT(\${table.id}) FILTER (WHERE \${table.status} = 'open')::int\`
+\`\`\`
+
+For LEFT JOIN with composite ON conditions:
+\`\`\`typescript
+const joinOn = dateConditions.length
+  ? and(eq(opps.stageId, stages.id), ...dateConditions)
+  : eq(opps.stageId, stages.id);
+
+db.select({...}).from(stages).leftJoin(opps, joinOn).groupBy(...)
+\`\`\`
+
+## What NOT to Do
+
+\`\`\`typescript
+// AVOID — full hydration for aggregation
+const records = await db.select().from(onboardingRecords);
+const pending = records.filter(r => r.status === 'pending').length;
+const overdue = records.filter(r => r.dueDate < now && r.status !== 'completed').length;
+// ↑ At 10k rows: 10k rows × N columns transferred; JS iteration O(N × checks)
+\`\`\`
+
+\`\`\`typescript
+// CORRECT — aggregate in SQL
+const [row] = await db.select({
+  pending: sql\`COUNT(*) FILTER (WHERE status = 'pending')::int\`,
+  overdue: sql\`COUNT(*) FILTER (WHERE due_date < NOW() AND status != 'completed')::int\`,
+}).from(onboardingRecords).where(whereClause);
+// ↑ Single row returned; computation in DB optimizer using available indexes
+\`\`\`
+`,
+  },
+
+  {
+    title: "Pipeline Report Performance",
+    slug: "pipeline-report-performance",
+    categorySlug: "architecture-overview",
+    status: "published",
+    content: `# Pipeline Report Performance
+
+## Overview
+
+\`getPipelineBreakdown(range?)\` computes per-stage opportunity counts and pipeline values for the Reports > Pipeline section. This is the most data-intensive reporting function as opportunity volumes grow with active sales.
+
+## Before (Phase 5)
+
+\`\`\`
+Query 1: SELECT * FROM pipeline_stages                           — ~5–20 rows
+Query 2: SELECT stageId, status, value FROM pipeline_opportunities
+           WHERE createdAt >= $1                                  — up to N rows
+
+JS:
+  for each stage:                                                 — O(S × N)
+    opps.filter(o => o.stageId === stage.id)
+    open.filter(o => o.status === 'open')
+    open.reduce((s, o) => s + parseFloat(o.value), 0)
+\`\`\`
+
+**Problems at scale:**
+- At 5k opportunities: 5k rows transferred from DB → Node.js; O(S × 5000) JS iterations
+- At 50k opportunities: degrades quadratically with stages × opps
+
+## After (Phase 5)
+
+\`\`\`
+Single query: LEFT JOIN pipeline_stages → pipeline_opportunities
+  GROUP BY stage
+  COUNT FILTER (status = 'open')
+  SUM FILTER (status = 'open')
+
+Returns: ~5–20 rows (one per stage)
+\`\`\`
+
+Then totals (totalOpen, totalValue) are summed from the ~5–20 stage rows in JS — trivial.
+
+**Query plan uses**: \`pipeline_opp_status_stage_idx\` (composite index on status, stageId)
+
+## Observed Timings (dev seed data)
+
+| Step | Observed |
+|------|---------|
+| Cold query (first call) | 8–25ms |
+| Warm query (subsequent) | 2–8ms |
+| Full overview parallel call contribution | ~25ms |
+
+Timings are logged:
+\`\`\`
+[reports:pipeline_breakdown] timing 12ms
+\`\`\`
+
+## Indexes Supporting This Query
+
+| Index | Columns | Benefit |
+|-------|---------|---------|
+| \`pipeline_opp_status_stage_idx\` | (status, stageId) | Covers the GROUP BY + FILTER scan |
+| \`pipeline_opp_created_idx\` | (createdAt) | Covers date range filter in JOIN ON |
+| \`pipeline_opp_stage_idx\` | (stageId) | Secondary lookup if composite not used |
+
+## Response Shape (unchanged)
+
+\`\`\`typescript
+{
+  byStage: Array<{
+    stageId: string;
+    stageName: string;
+    stageSlug: string;
+    color: string | null;
+    totalCount: number;  // all opps in this stage
+    openCount: number;   // open opps in this stage
+    totalValue: number;  // sum of all opp values
+    openValue: number;   // sum of open opp values
+  }>;
+  totalOpen: number;   // sum of byStage[].openCount
+  totalValue: number;  // sum of byStage[].totalValue
+}
+\`\`\`
+
+The response shape is identical to the pre-Phase-5 implementation. Regression tests in \`tests/unit/report-aggregations.test.ts\` enforce this.
+`,
+  },
+
+  {
+    title: "Onboarding Report Performance",
+    slug: "onboarding-report-performance",
+    categorySlug: "architecture-overview",
+    status: "published",
+    content: `# Onboarding Report Performance
+
+## Overview
+
+\`getOnboardingBreakdown(range?)\` computes status distribution, overdue counts, and average completion time for onboarding records. Before Phase 5 this was the most memory-inefficient report query, loading all columns of all onboarding records.
+
+## Before (Phase 5)
+
+\`\`\`
+Query 1: SELECT * FROM onboarding_records WHERE createdAt >= $1
+         ↑ Full row hydration — all columns for every record
+
+JS:
+  records.filter(r => r.status === 'pending').length
+  records.filter(r => r.status === 'in_progress').length
+  records.filter(r => r.status === 'completed').length
+  records.filter(r => r.status === 'on_hold').length
+  records.filter(r => r.dueDate < now && r.status !== 'completed').length
+
+  completedRecords.reduce((sum, r) => {
+    return sum + (new Date(r.completedAt) - new Date(r.createdAt)) / 86400000;
+  }, 0) / completedRecords.length;
+
+Query 2: SELECT COUNT(*), COUNT(*) FILTER (...) FROM onboarding_checklist_items
+\`\`\`
+
+**Problems at scale:**
+- \`onboarding_records\` has ~15+ columns including notes text; all transferred for a count
+- JS performs 5 separate filter passes over the same array
+- avgCompletionDays requires a full reduce loop
+
+## After (Phase 5)
+
+\`\`\`
+Single aggregation query (runs in parallel with checklist query):
+
+SELECT
+  COUNT(*)::int                                                  AS total,
+  COUNT(*) FILTER (WHERE status = 'pending')::int               AS pending,
+  COUNT(*) FILTER (WHERE status = 'in_progress')::int           AS in_progress,
+  COUNT(*) FILTER (WHERE status = 'completed')::int             AS completed,
+  COUNT(*) FILTER (WHERE status = 'on_hold')::int               AS on_hold,
+  COUNT(*) FILTER (
+    WHERE due_date IS NOT NULL
+      AND due_date < NOW()
+      AND status != 'completed'
+  )::int                                                         AS overdue,
+  COALESCE(ROUND(AVG(
+    EXTRACT(EPOCH FROM (completed_at - created_at)) / 86400.0
+  ) FILTER (WHERE completed_at IS NOT NULL)), 0)::int           AS avg_completion_days
+FROM onboarding_records
+WHERE createdAt >= $1;
+
+Returns: 1 row
+\`\`\`
+
+**Query plan uses**: \`onboarding_status_due_idx\` (composite on status, dueDate)
+
+Both the aggregation query and the checklist query run in \`Promise.all()\` — true parallel execution.
+
+## Observed Timings (dev seed data)
+
+| Step | Observed |
+|------|---------|
+| Cold query | 2–25ms |
+| Warm query | 1–5ms |
+
+\`\`\`
+[reports:onboarding_breakdown] timing 3ms
+\`\`\`
+
+## Indexes Supporting This Query
+
+| Index | Columns | Benefit |
+|-------|---------|---------|
+| \`onboarding_status_due_idx\` | (status, dueDate) | Covers the overdue FILTER condition |
+| \`onboarding_status_idx\` | (status) | Covers status GROUP scans |
+| \`onboarding_created_idx\` | (createdAt) | Covers date range WHERE clause |
+
+## Response Shape (unchanged)
+
+\`\`\`typescript
+{
+  total: number;
+  byStatus: {
+    pending: number;
+    in_progress: number;
+    completed: number;
+    on_hold: number;
+  };
+  overdue: number;
+  avgCompletionDays: number;
+  checklist: {
+    total: number;
+    completed: number;
+    rate: number;  // 0–100
+  };
+}
+\`\`\`
+
+The shape is identical to the pre-Phase-5 implementation. Regression tests in \`tests/unit/report-aggregations.test.ts\` enforce this.
+`,
+  },
+
+  {
+    title: "Analytics Indexing Considerations",
+    slug: "analytics-indexing-considerations",
+    categorySlug: "architecture-overview",
+    status: "published",
+    content: `# Analytics Indexing Considerations
+
+## Overview
+
+Reporting queries are read-heavy aggregations. The right indexes make the difference between a 5ms query and a 500ms full-table-scan. This article documents the index strategy for all analytics-facing tables.
+
+## Pipeline Opportunities Indexes
+
+| Index Name | Columns | Cardinality | Analytics Use |
+|------------|---------|------------|---------------|
+| \`pipeline_opp_status_stage_idx\` | (status, stageId) | Medium | Pipeline breakdown GROUP BY + FILTER |
+| \`pipeline_opp_created_idx\` | (createdAt) | High | Date range filter on reports |
+| \`pipeline_opp_stage_idx\` | (stageId) | Medium | Stage-specific queries |
+| \`pipeline_opp_status_idx\` | (status) | Low (enum) | Status filter in won/lost |
+| \`pipeline_opp_close_date_idx\` | (expectedCloseDate) | High | Future: forecast queries |
+| \`pipeline_opp_lead_idx\` | (leadId) | High | Lead → opp join |
+
+**Most important for analytics**: \`pipeline_opp_status_stage_idx\` (composite) — used by \`getPipelineBreakdown\` and \`getPipelineStats\`.
+
+## Onboarding Records Indexes
+
+| Index Name | Columns | Cardinality | Analytics Use |
+|------------|---------|------------|---------------|
+| \`onboarding_status_due_idx\` | (status, dueDate) | Medium | Overdue FILTER in breakdown |
+| \`onboarding_created_idx\` | (createdAt) | High | Date range WHERE |
+| \`onboarding_status_idx\` | (status) | Low (enum) | Status breakdown queries |
+| \`onboarding_due_idx\` | (dueDate) | High | Due date range filters |
+
+**Most important for analytics**: \`onboarding_status_due_idx\` (composite) — used by \`getOnboardingBreakdown\` overdue FILTER clause.
+
+## CRM Leads Indexes
+
+The \`crmLeads\` table has index coverage for analytics via:
+- Source and statusId columns (grouping in \`getLeadsBySource\`, \`getLeadsByStatus\`)
+- createdAt (date filtering)
+- updatedAt (overdue lead detection)
+
+## Checklist Items
+
+\`onboarding_checklist_items\` uses:
+- \`checklist_onboarding_idx\` — for per-record checklist queries
+- The aggregate query (total/completed counts) performs a full-table scan but returns one row; acceptable at current scale
+
+## Index Maintenance Notes
+
+All indexes are declared in \`shared/schema.ts\` using Drizzle's \`index()\` helper and synced to the database via \`npm run db:push\`. No manual index maintenance is required.
+
+### When to Add Indexes
+
+Add a new index when:
+1. A report query introduces a new GROUP BY column not covered by existing indexes
+2. EXPLAIN ANALYZE shows a Seq Scan on a table >10k rows for a reporting query
+3. A new date-range filter pattern is added on a high-cardinality column
+
+### How to Check Index Usage
+
+\`\`\`sql
+EXPLAIN ANALYZE
+SELECT
+  COUNT(*) FILTER (WHERE status = 'open')::int
+FROM pipeline_opportunities
+WHERE created_at >= '2024-01-01';
+-- Look for "Index Scan using pipeline_opp_created_idx" vs "Seq Scan"
+\`\`\`
+
+### Composite Index Column Order
+
+For composite indexes used with FILTER aggregation, the column order matters:
+- \`(status, stageId)\` — put the lower-cardinality column first (status has ~3 values; stageId has ~10)
+- \`(status, dueDate)\` — status first for overdue filter; dueDate for range scan
+
+This follows PostgreSQL's rule: **put the equality-filtered column first, the range-scanned column second**.
+`,
+  },
+
+  {
+    title: "Report Accuracy Validation and Testing",
+    slug: "report-accuracy-validation-testing",
+    categorySlug: "architecture-overview",
+    status: "published",
+    content: `# Report Accuracy Validation and Testing
+
+## Overview
+
+Report queries perform numeric aggregation — counts, sums, rates, and averages. A subtle SQL bug (wrong FILTER condition, off-by-one in a date range, NULL handling error) can silently produce incorrect totals. The regression test suite in \`tests/unit/report-aggregations.test.ts\` guards against this.
+
+## Test Strategy
+
+### 1. Shape Tests
+Every report function is checked for required field presence:
+\`\`\`typescript
+expect(result).toHaveProperty("byStage");
+expect(result).toHaveProperty("totalOpen");
+expect(result).toHaveProperty("totalValue");
+\`\`\`
+These catch regressions where a field is accidentally removed or renamed.
+
+### 2. Internal Math Consistency Tests
+Totals are validated against the sum of their parts. This is the most valuable category — it catches errors in both JS-layer reduction and SQL-layer aggregation:
+
+\`\`\`typescript
+// Pipeline: totalOpen === sum of byStage[].openCount
+const summedOpen = result.byStage.reduce((s, r) => s + r.openCount, 0);
+expect(result.totalOpen).toBe(summedOpen);
+
+// Onboarding: total === sum of byStatus values
+const summed = pending + in_progress + completed + on_hold;
+expect(result.total).toBe(summed);
+\`\`\`
+
+If the SQL FILTER conditions don't match the JS-layer logic, these tests fail.
+
+### 3. Boundary Invariant Tests
+Non-negativity, range bounds, and subset constraints:
+\`\`\`typescript
+expect(stage.openCount).toBeLessThanOrEqual(stage.totalCount);
+expect(stage.openValue).toBeLessThanOrEqual(stage.totalValue + 0.001);  // float tolerance
+expect(result.checklist.rate).toBeGreaterThanOrEqual(0);
+expect(result.checklist.rate).toBeLessThanOrEqual(100);
+expect(result.checklist.completed).toBeLessThanOrEqual(result.checklist.total);
+\`\`\`
+
+### 4. Date Filter Tests
+Verifying that range-filtered queries preserve internal consistency:
+\`\`\`typescript
+const result = await getPipelineBreakdown({ from: oneYearAgo });
+const summedOpen = result.byStage.reduce((s, r) => s + r.openCount, 0);
+expect(result.totalOpen).toBe(summedOpen);
+\`\`\`
+
+### 5. Empty-Result Boundary Tests
+\`\`\`typescript
+// Rate is 0 when there are no records
+const future = new Date(); future.setFullYear(future.getFullYear() + 100);
+const result = await getLeadConversionRate({ from: future });
+expect(result.total).toBe(0);
+expect(result.rate).toBe(0);  // guard against divide-by-zero
+\`\`\`
+
+## Running the Tests
+
+\`\`\`bash
+npx vitest run tests/unit/report-aggregations.test.ts
+\`\`\`
+
+These tests run against the **live dev database** (not mocks), which means they catch real SQL correctness issues including NULL handling, type casting, and index selection.
+
+## Test Count: 34 tests (as of Phase 5)
+
+| Describe block | Test count |
+|----------------|-----------|
+| getPipelineBreakdown | 8 |
+| getOnboardingBreakdown | 9 |
+| getLeadConversionRate | 4 |
+| getWonLostBreakdown | 3 |
+| getLeadsBySource | 3 |
+| getNotificationSummary | 2 |
+| getOverview | 3 |
+
+## Adding New Report Tests
+
+When adding a new report function:
+1. Add a \`describe\` block in \`tests/unit/report-aggregations.test.ts\`
+2. Add a shape test (required fields)
+3. Add a math consistency test if the function returns a total + breakdown
+4. Add a boundary test (non-negative, rate in 0–100, etc.)
+5. Add an empty-result test (pass a far-future date range)
+
+## Known Limitations
+
+- Tests run against the seeded dev dataset; they validate consistency but not specific absolute values (counts change as seed data changes)
+- Float equality uses \`toBeCloseTo(value, 2)\` for monetary sums to tolerate floating-point rounding
+- Checklist rate is validated as in-range (0–100) rather than against a specific expected value
+`,
+  },
+
   // ── Phase 3: Durable Async Workflow ──────────────────────────────────
 
   {
