@@ -1,0 +1,294 @@
+Do not refactor the system broadly. Do not change authentication architecture, database schemas, pipeline logic, CRM logic, onboarding logic, or module behavior beyond what is necessary.
+
+Implement **role-based access control** for the existing internal platform using the current roles:
+
+- Admin
+- Developer
+- Sales Rep
+- Lead Gen
+
+This must be a **safe, non-destructive permissions layer** applied to the existing modules and UI.
+
+--------------------------------------------------
+OBJECTIVE
+--------------------------------------------------
+
+Restrict access to pages, actions, and navigation based on the user’s assigned role so each type of user only sees and touches what they need.
+
+The goal is to make the platform safe and easy to operate without changing how the underlying modules work.
+
+--------------------------------------------------
+CURRENT PLATFORM AREAS
+--------------------------------------------------
+
+The platform currently includes modules such as:
+
+- Dashboard
+- Clients
+- CRM
+- Sales Pipeline
+- Tasks
+- Client Onboarding
+- Team Chat
+- Payments
+- Team Members / Admin
+- Audit Logs
+
+Apply role-based access to these existing areas.
+
+--------------------------------------------------
+ROLE ACCESS MATRIX
+--------------------------------------------------
+
+Use the following access rules.
+
+1. ADMIN
+
+Admin should have full access to everything.
+
+Allow Admin to:
+- view all modules
+- create, edit, and delete records
+- manage team members
+- assign roles
+- view audit logs
+- access payments
+- access admin/settings areas
+
+2. DEVELOPER
+
+Developer is for platform/system work, not day-to-day sales operations.
+
+Allow Developer to:
+- view Dashboard
+- view CRM
+- view Sales Pipeline
+- view Tasks
+- view Clients
+- view Client Onboarding
+- view Team Chat
+- view Team Members
+- view Audit Logs
+
+Developer may also access developer/admin-facing pages only if those already exist and are intended for system maintenance.
+
+Developer should NOT be treated as a sales user by default.
+
+Do not automatically give Developer destructive business permissions unless they already inherit them by current architecture. Keep this role mainly for system visibility and platform support.
+
+3. SALES REP
+
+Sales Rep should have access only to the parts needed to manage leads and close deals.
+
+Allow Sales Rep to:
+- view Dashboard
+- access CRM
+- view and edit CRM leads
+- add CRM leads if that ability already exists
+- access Sales Pipeline
+- move opportunities through pipeline stages
+- view and manage Tasks
+- log Notes / Calls / Emails / Tasks in opportunity activity timeline
+- view Clients
+- view Team Chat
+
+Sales Rep should NOT have access to:
+- Payments admin/backend controls
+- Team Members management
+- Audit Logs
+- Admin/settings
+- Developer/system tools
+- Client Onboarding management unless you explicitly decide later to allow it
+
+Sales Rep should NOT be able to:
+- delete team members
+- change roles
+- access permission settings
+
+4. LEAD GEN
+
+Lead Gen should be limited to sourcing and entering leads.
+
+Allow Lead Gen to:
+- access CRM only
+- view CRM leads
+- add leads
+- edit basic lead information
+- add notes on leads
+
+Lead Gen should NOT have access to:
+- Dashboard
+- Clients
+- Sales Pipeline
+- Tasks
+- Client Onboarding
+- Team Chat
+- Payments
+- Team Members
+- Audit Logs
+- Admin/settings
+
+Lead Gen should NOT be able to:
+- move pipeline stages
+- mark deals won/lost
+- access payment actions
+- manage clients
+- manage onboarding
+- manage users
+
+--------------------------------------------------
+NAVIGATION / SIDEBAR RULES
+--------------------------------------------------
+
+Hide sidebar items the user does not have access to.
+
+Required sidebar visibility:
+
+ADMIN sees:
+- Dashboard
+- Clients
+- CRM
+- Sales Pipeline
+- Tasks
+- Client Onboarding
+- Team Chat
+- Payments
+- Team Members / Admin
+- Audit Logs
+
+DEVELOPER sees:
+- Dashboard
+- Clients
+- CRM
+- Sales Pipeline
+- Tasks
+- Client Onboarding
+- Team Chat
+- Team Members
+- Audit Logs
+
+SALES REP sees:
+- Dashboard
+- Clients
+- CRM
+- Sales Pipeline
+- Tasks
+- Team Chat
+
+LEAD GEN sees:
+- CRM
+
+Do not merely disable hidden modules in the UI. Remove them from navigation for unauthorized roles.
+
+--------------------------------------------------
+PAGE GUARD RULES
+--------------------------------------------------
+
+Do not rely on sidebar hiding alone.
+
+Also protect routes/pages so unauthorized users cannot access restricted pages by typing URLs directly.
+
+If a user tries to access a page they do not have permission for:
+- redirect them to an allowed page, or
+- show an Access Denied / Unauthorized message
+
+Reuse existing route protection patterns if they already exist.
+
+--------------------------------------------------
+ACTION-LEVEL PERMISSIONS
+--------------------------------------------------
+
+In addition to page access, restrict important actions.
+
+ADMIN
+- full create / edit / delete / manage permissions everywhere
+
+DEVELOPER
+- keep existing safe developer/system access
+- do not automatically give business delete permissions unless already appropriate
+- do not allow role changes unless this role already has that in current architecture
+
+SALES REP
+Allow:
+- add/edit CRM leads
+- work opportunities
+- move stages
+- create and manage tasks
+- log activity
+- view clients
+
+Do NOT allow:
+- manage users
+- view audit logs
+- access payments admin
+- change roles or permissions
+
+LEAD GEN
+Allow:
+- add/edit CRM leads
+- add notes
+
+Do NOT allow:
+- delete leads unless the system already requires it and you intentionally choose to permit it
+- access pipeline actions
+- access clients
+- access payments
+- access team management
+
+--------------------------------------------------
+TEAM MEMBER / ROLE MANAGEMENT
+--------------------------------------------------
+
+Only Admin should be able to:
+- create team members
+- edit team member roles
+- deactivate users
+- manage role assignments
+
+Other roles should not see role management controls.
+
+--------------------------------------------------
+AUDIT LOGS
+--------------------------------------------------
+
+Only Admin and Developer should have access to Audit Logs.
+
+Sales Rep and Lead Gen should not see or access Audit Logs.
+
+--------------------------------------------------
+PAYMENTS
+--------------------------------------------------
+
+Only Admin should have access to the Payments module and payment administration controls.
+
+If Sales Rep currently sends payment links as part of workflow, do not expose full Payments admin just for that. Keep payment administration restricted and preserve existing sales workflow behavior unless already intentionally designed otherwise.
+
+--------------------------------------------------
+IMPLEMENTATION CONSTRAINTS
+--------------------------------------------------
+
+Do not:
+- rewrite the auth system
+- redesign the whole app
+- change database schemas unless absolutely required
+- alter existing business workflows beyond access restriction
+- break existing modules
+
+Instead:
+- extend the current role system
+- add a clear permission mapping
+- gate navigation, routes, and sensitive actions
+- keep the implementation small and maintainable
+
+--------------------------------------------------
+GOAL
+--------------------------------------------------
+
+After this change:
+
+- Admin has full platform control
+- Developer has system/support visibility without being treated as normal sales staff
+- Sales Rep can work leads and deals without touching admin functions
+- Lead Gen can only work inside CRM
+
+The system should feel clean and safe, with each role only seeing and accessing what they actually need.
