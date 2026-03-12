@@ -4427,6 +4427,475 @@ The outbox job table for durable async processing of public form side effects.
 | \`server/routes.ts\` | Public form handlers that enqueue jobs |
 `,
   },
+
+  // ── Phase 7: Testing Architecture + QA Docs ───────────────────────────────
+
+  {
+    title: "Testing Architecture Overview",
+    slug: "testing-architecture-overview",
+    categorySlug: "architecture-overview",
+    status: "published",
+    content: `# Testing Architecture Overview
+
+## Overview
+
+Viva CRM uses a layered test architecture built on **Vitest** with three distinct test categories. Each layer tests different concerns at different isolation levels.
+
+\`\`\`
+tests/
+├── unit/           Pure logic, no I/O, no rendering — millisecond feedback
+├── smoke/          Frontend component render safety — JSDOM + MSW
+├── integration/    Server-side contract tests — real express, mocked DB
+└── helpers/        Shared fixtures, providers, MSW handlers, session stubs
+\`\`\`
+
+## Layer Definitions
+
+### Unit Tests (\`tests/unit/\`)
+Pure TypeScript function tests with no database, no HTTP, no React. Fast and deterministic.
+
+| File | What it covers |
+|------|---------------|
+| \`bootstrap.test.ts\` | \`shouldAutoSeed()\` decision logic across ENV combos |
+| \`channel-normalization.test.ts\` | \`normalizeChannelId()\` from \`shared/channels.ts\` |
+| \`provider-resilience.test.ts\` | \`withTimeout\`, \`classifyProviderError\`, \`logProviderEvent\` |
+| \`workflow-queue.test.ts\` | Job enqueue, retry backoff, dead-letter, status transitions |
+| \`report-aggregations.test.ts\` | Pipeline and onboarding breakdown SQL math consistency |
+| \`static-cache-headers.test.ts\` | Express static middleware cache-control headers |
+
+### Smoke Tests (\`tests/smoke/\`)
+React component render tests using **JSDOM** + **MSW** (network interception). Validate that pages render their key UI elements without crashing. Auth is mocked via \`vi.mock("@features/auth/authClient")\`. API responses come from \`tests/helpers/handlers.ts\`.
+
+### Integration Tests (\`tests/integration/\`)
+In-process Express tests using real middleware but mocked storage/auth. Validate HTTP contract behavior (status codes, response shapes, validation errors) without a database.
+
+| File | What it covers |
+|------|---------------|
+| \`auth-middleware.test.ts\` | \`requireAuth\` (401/pass), \`requireRole\` (401/403/pass) |
+| \`public-contact-form.test.ts\` | \`POST /api/contacts\` validation, honeypot, error handling |
+
+## Technology Stack
+
+| Library | Role |
+|---------|------|
+| **Vitest** | Test runner + assertion library |
+| **@testing-library/react** | React component rendering + queries |
+| **@testing-library/jest-dom** | DOM assertion matchers |
+| **msw** (Mock Service Worker) | Network layer mocking for smoke tests |
+| **happy-dom** | Lightweight DOM environment |
+
+## Test Configuration
+
+\`vitest.config.ts\` at project root configures:
+- \`environment: "happy-dom"\` — fast headless DOM for smoke tests
+- \`globals: true\` — \`describe\`, \`it\`, \`expect\` without imports
+- \`setupFiles: ["./tests/setup.ts"]\` — jest-dom matchers + browser API shims
+- \`css: false\` — skip CSS parsing (improves speed)
+- \`inline: ["framer-motion"]\` — resolve framer-motion in the test VM
+`,
+  },
+
+  {
+    title: "How to Run Tests",
+    slug: "how-to-run-tests",
+    categorySlug: "architecture-overview",
+    status: "published",
+    content: `# How to Run Tests
+
+## Package Scripts
+
+\`\`\`bash
+npm test                 # Run all tests once (unit + smoke + integration)
+npm run test:unit        # Unit tests only — fastest, no DOM needed
+npm run test:smoke       # Smoke/component render tests only
+npm run test:integration # Server-side integration tests only
+npm run test:watch       # Interactive watch mode for development
+npm run test:coverage    # Full run with coverage report (v8)
+\`\`\`
+
+## Running Individual Files
+
+\`\`\`bash
+npx vitest run tests/unit/bootstrap.test.ts
+npx vitest run tests/smoke/pipeline-board.test.tsx
+npx vitest run tests/integration/auth-middleware.test.ts
+\`\`\`
+
+## Running Tests by Pattern
+
+\`\`\`bash
+npx vitest run --reporter=verbose    # See each test name
+npx vitest -t "requireAuth"          # Run tests matching a name pattern
+npx vitest -t "POST /api/contacts"   # Target a specific describe block
+\`\`\`
+
+## Running with Watch Mode
+
+Watch mode is ideal during development. Vitest automatically re-runs only the files affected by your change:
+
+\`\`\`bash
+npm run test:watch
+# Press 'a' to re-run all tests
+# Press 'f' to filter by filename
+# Press 'q' to quit
+\`\`\`
+
+## Environment Requirements
+
+Tests do **not** require:
+- A running database connection
+- A running Express server
+- Any environment secrets
+
+All external dependencies (DB, auth, HTTP) are either mocked inline or intercepted by MSW.
+
+## Interpreting Results
+
+\`\`\`
+Test Files  21 passed (21)     # file count
+     Tests  154 passed (154)   # individual test count
+  Duration  21.0s              # total wall-clock time
+\`\`\`
+
+If a test fails, Vitest shows the failing assertion, the expected value, the actual value, and the stack trace. Look at the \`FAIL\` lines first, then read the assertion error underneath.
+
+## E2E Tests (Playwright — not yet installed)
+
+End-to-end browser tests are not yet wired up. When added, they would live in \`tests/e2e/\` and use the \`test:e2e\` script. See "Known Testing Gaps" for details.
+`,
+  },
+
+  {
+    title: "Critical Workflow Test Matrix",
+    slug: "critical-workflow-test-matrix",
+    categorySlug: "architecture-overview",
+    status: "published",
+    content: `# Critical Workflow Test Matrix
+
+## Coverage by Workflow
+
+| Critical Workflow | Coverage Level | Test Location |
+|-------------------|---------------|---------------|
+| Login page renders | Smoke | \`tests/smoke/login.test.tsx\` |
+| Auth middleware 401/403 | Integration | \`tests/integration/auth-middleware.test.ts\` |
+| requireRole multi-role | Integration | \`tests/integration/auth-middleware.test.ts\` |
+| getSession throws to 401 | Integration | \`tests/integration/auth-middleware.test.ts\` |
+| Contact form — valid submit | Integration | \`tests/integration/public-contact-form.test.ts\` |
+| Contact form — honeypot bot | Integration | \`tests/integration/public-contact-form.test.ts\` |
+| Contact form — validation 400 | Integration | \`tests/integration/public-contact-form.test.ts\` |
+| Contact form — storage error 500 | Integration | \`tests/integration/public-contact-form.test.ts\` |
+| Job enqueue after contact form | Integration | \`tests/integration/public-contact-form.test.ts\` |
+| Dashboard renders | Smoke | \`tests/smoke/dashboard.test.tsx\` |
+| Pipeline board renders | Smoke | \`tests/smoke/pipeline-board.test.tsx\` |
+| CRM lead list renders | Smoke | \`tests/smoke/crm-leads.test.tsx\` |
+| Clients page renders | Smoke | \`tests/smoke/clients.test.tsx\` |
+| Onboarding list renders | Smoke | \`tests/smoke/onboarding.test.tsx\` |
+| Team chat renders + channel list | Smoke | \`tests/smoke/team-chat.test.tsx\` |
+| Notifications page renders | Smoke | \`tests/smoke/notifications.test.tsx\` |
+| Reports page renders | Smoke | \`tests/smoke/reports.test.tsx\` |
+| Docs page renders | Smoke | \`tests/smoke/docs.test.tsx\` |
+| Admin settings renders | Smoke | \`tests/smoke/admin-settings.test.tsx\` |
+| Tasks due today renders | Smoke | \`tests/smoke/tasks.test.tsx\` |
+| Demo builder renders | Smoke | \`tests/smoke/demo-builder.test.tsx\` |
+| shouldAutoSeed logic | Unit | \`tests/unit/bootstrap.test.ts\` |
+| Channel normalization | Unit | \`tests/unit/channel-normalization.test.ts\` |
+| Provider resilience / timeout | Unit | \`tests/unit/provider-resilience.test.ts\` |
+| Workflow job retry / dead-letter | Unit | \`tests/unit/workflow-queue.test.ts\` |
+| Report SQL aggregation math | Unit | \`tests/unit/report-aggregations.test.ts\` |
+| Static asset cache headers | Unit | \`tests/unit/static-cache-headers.test.ts\` |
+
+## Test Count by Category
+
+| Category | Files | Tests |
+|----------|-------|-------|
+| Unit | 6 | 97 |
+| Smoke | 13 | 40 |
+| Integration | 2 | 17 |
+| **Total** | **21** | **154** |
+
+## What Each Layer Catches
+
+**Unit** — Logic bugs, off-by-one errors in SQL aggregations, incorrect retry backoff math, ENV flag parsing, channel ID normalization edge cases.
+
+**Smoke** — Component import failures, missing props causing crashes, routing configuration errors, broken query key paths that cause render failures.
+
+**Integration** — Middleware security regressions, HTTP contract changes (wrong status codes), Zod schema validation mismatches, job enqueueing side effects.
+`,
+  },
+
+  {
+    title: "Known Testing Gaps",
+    slug: "known-testing-gaps",
+    categorySlug: "architecture-overview",
+    status: "published",
+    content: `# Known Testing Gaps
+
+## What Is Not Yet Covered
+
+### 1. End-to-End Browser Tests (Playwright)
+
+No browser-level E2E tests currently exist. These would test full user flows including form submission, navigation, and real API calls against a test database.
+
+**Risk**: Authentication flows, multi-page navigation, and form submission with real server interaction are not tested end-to-end.
+
+**To add**: Install \`@playwright/test\` and create \`tests/e2e/\` with flows for login, pipeline board, and opportunity creation.
+
+---
+
+### 2. Inquiry Form Route (\`POST /api/inquiries\`)
+
+The public demo inquiry form follows the same pattern as the contact form but has no dedicated integration test.
+
+**Risk**: Low — same code pattern, covered by type-checker and Zod. But contract regressions would not be caught automatically.
+
+---
+
+### 3. Chat Socket.io Messages
+
+The team chat socket (send message, typing indicator, channel join) is mocked in the smoke test but the socket.io event handlers in \`server/features/chat/socket.ts\` have no unit tests.
+
+**Risk**: Socket event handler bugs (e.g. wrong channel broadcast, missing auth check) would only surface at runtime.
+
+---
+
+### 4. CRM Storage Layer
+
+\`server/features/crm/storage.ts\` has no tests. Complex queries (e.g. lead list with filters + pagination) could silently break.
+
+---
+
+### 5. Notification Trigger Logic
+
+\`server/features/notifications/triggers.ts\` functions (e.g. \`notifyLeadAssignment\`, \`notifyStageChange\`) have no tests. Bugs in notification delivery would only surface in production.
+
+---
+
+### 6. Pipeline Opportunity Routes
+
+\`GET /api/pipeline/opportunities\`, \`POST /api/pipeline/opportunities\`, and stage moves have no server-side integration tests.
+
+---
+
+### 7. Billing / Stripe Webhook
+
+The billing webhook handler (\`server/features/billing/routes.ts\`) has no test. Webhook signature verification and event handling are critical paths.
+
+---
+
+### 8. Report SQL Against Real DB
+
+\`report-aggregations.test.ts\` tests the math in-memory; it does not test the actual SQL query execution against a real database.
+
+---
+
+## Recommended Next Steps (Priority Order)
+
+1. Add Playwright E2E for login, pipeline board, and contact form
+2. Add integration tests for \`POST /api/inquiries\` and key pipeline routes
+3. Add socket.io handler unit tests using \`socket.io-mock\`
+4. Add notification trigger unit tests with mocked storage
+5. Add a dedicated test database configuration for SQL-level integration tests
+`,
+  },
+
+  {
+    title: "Debugging Checklist for Production Incidents",
+    slug: "debugging-checklist-for-production-incidents",
+    categorySlug: "architecture-overview",
+    status: "published",
+    content: `# Debugging Checklist for Production Incidents
+
+Use this checklist when investigating a reported issue in the live production environment.
+
+---
+
+## Step 1: Check Deployment Logs
+
+Look for:
+- Startup errors (DB connection failure, bootstrap failure, missing ENV vars)
+- 4xx/5xx response log entries with request IDs
+- Worker job failures or dead-letter events
+
+---
+
+## Step 2: Identify the Request ID
+
+Every API request is tagged with a \`requestId\` (8-char hex) in the structured request logger. When a user reports an error, ask them to open DevTools > Network, find the failed request, and look for the request ID in the response. Search deployment logs for the specific request ID to get full context.
+
+---
+
+## Step 3: Check the Auth Layer
+
+If users report being unexpectedly logged out or getting 401 errors:
+1. Check that session cookies are being sent (\`Cookie\` header present in requests)
+2. Verify the session has not expired
+3. Check that \`BETTER_AUTH_SECRET\` environment variable is set correctly in production
+
+---
+
+## Step 4: Check Workflow Job Queue
+
+If async operations (email notifications, CRM ingest) are silently failing:
+1. Query the \`workflowJobs\` table for \`status = 'failed'\` or \`status = 'dead_letter'\`
+2. Check \`lastError\` column for the error message
+3. Check \`attempts\` vs \`maxAttempts\` to see retry history
+4. Backoff schedule: 5 min → 20 min → 60 min (3 attempts max before dead-letter)
+
+---
+
+## Step 5: Check Provider Resilience Events
+
+Integration failures (email provider, etc.) are classified by error type:
+
+| Type | Meaning | Action |
+|------|---------|--------|
+| transient | Temporary network issue | Job will retry automatically |
+| rate_limit | Provider rate limit hit | Check provider dashboard |
+| permanent | Invalid API key / credentials | Check secrets in Replit |
+| config | Missing required config | Verify integration settings |
+| validation | Invalid data sent to provider | Check request payload |
+| timeout | Operation took too long | Investigate provider latency |
+
+---
+
+## Step 6: Check Query Cache Staleness
+
+If data shown to a user appears stale:
+1. Check the mutation's \`onSuccess\` callback — does it call \`queryClient.invalidateQueries\`?
+2. Check if the affected query has \`staleTime: STALE.NEVER\` — if so, invalidation is mandatory
+3. Have the user do a hard refresh (Ctrl+Shift+R) as a workaround
+
+---
+
+## Step 7: Database Health
+
+If the server logs show DB connection errors:
+1. Verify the \`DATABASE_URL\` secret is set and correct
+2. Check Replit PostgreSQL status in the integrations panel
+3. Restart the application workflow after fixing connection config
+
+---
+
+## Step 8: Socket.io / Realtime Issues
+
+If team chat is not showing messages or notifications are not arriving:
+1. Check browser DevTools > Network > WS (WebSocket) tab — is there a connected socket?
+2. Look for \`[socket]\` prefixed log entries in deployment logs
+3. Verify the client is connecting to the correct hostname (not localhost in production)
+
+---
+
+## Quick Reference: Critical ENV Variables
+
+| Variable | Purpose |
+|----------|---------|
+| \`DATABASE_URL\` | PostgreSQL connection string |
+| \`BETTER_AUTH_SECRET\` | Session signing secret |
+| \`MAILGUN_API_KEY\` | Email delivery |
+| \`VIVA_AUTO_SEED\` | Auto-seed on startup (default false in production) |
+`,
+  },
+
+  {
+    title: "CI Validation Expectations",
+    slug: "ci-validation-expectations",
+    categorySlug: "architecture-overview",
+    status: "published",
+    content: `# CI Validation Expectations
+
+## What Must Pass Before Merging
+
+The following checks are expected to pass on every pull request or feature merge:
+
+### 1. TypeScript Type Check
+
+\`\`\`bash
+npm run check    # tsc --noEmit
+\`\`\`
+
+Zero type errors expected. Type check validates both \`client/\` and \`server/\` together.
+
+### 2. Full Test Suite
+
+\`\`\`bash
+npm test         # vitest run — all 21 test files, all 154 tests
+\`\`\`
+
+All tests must pass. No skipped tests without documented justification.
+
+### 3. Build
+
+\`\`\`bash
+npm run build    # tsx script/build.ts
+\`\`\`
+
+The production bundle must build cleanly with no errors.
+
+---
+
+## Test Ownership by Phase
+
+| Phase | What was added | Test files |
+|-------|---------------|-----------|
+| 1 — Realtime Channel Stability | Channel normalization | \`channel-normalization.test.ts\` |
+| 2 — Safe Bootstrap | shouldAutoSeed logic | \`bootstrap.test.ts\` |
+| 3 — Durable Async Workflow | Job queue + retry | \`workflow-queue.test.ts\` |
+| 4 — Provider Resilience | withTimeout, classify | \`provider-resilience.test.ts\` |
+| 5 — Reporting Performance | SQL aggregation math | \`report-aggregations.test.ts\` |
+| 6 — Cache Policy | Static asset headers | \`static-cache-headers.test.ts\` |
+| 7 — QA Sprint | Auth middleware, contact form, task smoke, docs | \`auth-middleware.test.ts\`, \`public-contact-form.test.ts\`, \`tasks.test.tsx\` |
+
+---
+
+## Adding Tests for New Features
+
+Every new feature or bug fix PR should include at least one of:
+
+- **Unit test** — for any new pure function or utility
+- **Smoke test** — for any new page/route added to the admin UI
+- **Integration test** — for any new API endpoint that has non-trivial middleware or validation
+
+Minimum bar for a new API route:
+- Requires auth → covered by existing auth middleware integration tests
+- Requires role → 403 test
+- Validates body → 400 test for missing required field
+- Returns expected status on success → 200/201 test
+
+---
+
+## Running Subset Checks Locally
+
+\`\`\`bash
+npm run test:unit        # Just unit tests (6 files)
+npm run test:smoke       # Just smoke/render tests (13 files)
+npm run test:integration # Just server integration tests (2 files)
+npm run test:watch       # Interactive watch for development
+\`\`\`
+
+---
+
+## What Breaks CI (Common Failures)
+
+| Failure | Root Cause |
+|---------|-----------|
+| Cannot find module '@features/...' | Missing vitest.config.ts alias or typo in import |
+| vi.mock factory references top-level variable | Use \`vi.hoisted()\` for mock functions referenced in factory |
+| msw: unhandled request | New API endpoint not added to \`tests/helpers/handlers.ts\` |
+| expect(element).toBeInTheDocument() fails | Component changed — update test's findByTestId selector |
+
+---
+
+## Updating the Test Helpers
+
+When adding a new API endpoint that smoke tests call, open \`tests/helpers/handlers.ts\` and add the endpoint path pattern to \`pickResponse()\`:
+
+\`\`\`typescript
+if (pathname.includes("/my-new-feature")) return { items: [], total: 0 };
+\`\`\`
+
+This prevents new API calls from being silently bypassed in smoke tests.
+`,
+  },
 ];
 
 export async function seedDocs() {
