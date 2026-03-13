@@ -3,7 +3,7 @@ import { requireRole } from "../auth/middleware";
 import { logAudit } from "../audit/service";
 import { notifyStageChange, notifyOpportunityAssignment, notifyLeadConverted } from "../notifications/triggers";
 import * as pipelineStorage from "./storage";
-import { insertPipelineStageSchema, insertPipelineOpportunitySchema, insertPipelineActivitySchema, OPPORTUNITY_STATUSES, WEBSITE_PACKAGES, type InsertPipelineOpportunity, crmCompanies, pipelineActivities, pipelineOpportunities } from "@shared/schema";
+import { insertPipelineStageSchema, insertPipelineOpportunitySchema, insertPipelineActivitySchema, OPPORTUNITY_STATUSES, WEBSITE_PACKAGES, type InsertPipelineOpportunity, crmCompanies, pipelineActivities, pipelineOpportunities, followupTasks, onboardingRecords } from "@shared/schema";
 import { db } from "../../db";
 import { eq, isNull, and } from "drizzle-orm";
 import { appendHistorySafe } from "../history/service";
@@ -273,6 +273,8 @@ router.delete("/opportunities/:id", requireRole("admin"), async (req, res) => {
     if (!existing) return res.status(404).json({ message: "Opportunity not found" });
     await db.transaction(async (tx) => {
       await tx.delete(pipelineActivities).where(eq(pipelineActivities.opportunityId, id));
+      await tx.delete(followupTasks).where(eq(followupTasks.opportunityId, id));
+      await tx.update(onboardingRecords).set({ opportunityId: null }).where(eq(onboardingRecords.opportunityId, id));
       await tx.delete(pipelineOpportunities).where(eq(pipelineOpportunities.id, id));
     });
     await logAudit({
