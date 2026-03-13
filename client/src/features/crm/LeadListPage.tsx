@@ -224,7 +224,7 @@ export default function LeadListPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-4 mb-6 flex-wrap">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100" data-testid="text-crm-title">
             {t.crm.title}
@@ -234,7 +234,7 @@ export default function LeadListPage() {
           </p>
         </div>
         {(isAdmin || role === "sales_rep") && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <CsvExportDropdown />
             <Button
               size="sm"

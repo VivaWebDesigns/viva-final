@@ -422,22 +422,23 @@ export default function PipelineBoardPage() {
                 {t.pipeline.helperText}
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Link href="/admin/pipeline/list">
                 <Button variant="outline" size="sm" data-testid="button-list-view">
                   <List className="w-4 h-4 mr-1" />
-                  {t.pipeline.listView}
+                  <span className="hidden sm:inline">{t.pipeline.listView}</span>
                 </Button>
               </Link>
               <Link href="/admin/pipeline/stages">
                 <Button variant="outline" size="sm" data-testid="button-manage-stages">
-                  {t.pipeline.manageStages}
+                  <span className="hidden sm:inline">{t.pipeline.manageStages}</span>
+                  <span className="sm:hidden">Stages</span>
                 </Button>
               </Link>
             </div>
           </div>
 
-          <div className="flex-1 overflow-x-auto">
+          <div className="flex-1 overflow-x-auto overscroll-x-contain touch-pan-x">
             <div
               className="flex gap-4 min-h-[400px] pb-4"
               style={{ minWidth: stages.length * 288 }}

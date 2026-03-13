@@ -106,7 +106,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "leads" }: CsvIm
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
-      <DialogContent className="sm:max-w-xl" data-testid="csv-import-modal">
+      <DialogContent className="sm:max-w-xl max-h-[90dvh] overflow-y-auto" data-testid="csv-import-modal">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Upload className="w-4 h-4" /> {t.crm.importCsv}

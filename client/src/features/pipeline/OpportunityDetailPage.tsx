@@ -315,7 +315,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
         Back to Pipeline
       </button>
 
-      <div className="flex items-start justify-between mb-6">
+      <div className="flex flex-col sm:flex-row items-start justify-between gap-4 mb-6">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold text-gray-900" data-testid="text-opportunity-title">{opp.title}</h1>
@@ -342,7 +342,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {opp.status === "open" && (
             <>
               <Button
@@ -825,7 +825,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
       />
 
       <Dialog open={editSection !== null} onOpenChange={(open) => { if (!open) setEditSection(null); }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editSection === "details" && "Edit Opportunity Details"}

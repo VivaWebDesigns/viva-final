@@ -238,7 +238,7 @@ export default function LeadDetailPage({ id }: { id: string }) {
             Created {new Date(lead.createdAt).toLocaleDateString()}
           </p>
         </div>
-        <div className="flex items-center gap-3 flex-shrink-0">
+        <div className="flex items-center gap-3 flex-shrink-0 flex-wrap">
           {lead.value && (
             <span className="text-lg font-semibold text-gray-900" data-testid="text-lead-value">
               ${Number(lead.value).toLocaleString()}
@@ -289,7 +289,7 @@ export default function LeadDetailPage({ id }: { id: string }) {
                 value={lead.statusId || ""}
                 onValueChange={(v) => updateStatusMutation.mutate(v)}
               >
-                <SelectTrigger className="w-[180px]" data-testid="select-lead-status">
+                <SelectTrigger className="w-full sm:w-[180px]" data-testid="select-lead-status">
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>

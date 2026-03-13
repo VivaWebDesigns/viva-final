@@ -46,12 +46,12 @@ export default function ClientsPage() {
 
   return (
     <div className="h-full flex flex-col" data-testid="page-clients">
-      <div className="flex items-center justify-between mb-4 flex-shrink-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 flex-shrink-0">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{t.clients.title}</h1>
           <p className="text-sm text-gray-500 mt-1">{t.clients.subtitle}</p>
         </div>
-        <Badge variant="secondary" className="text-sm px-3 py-1">
+        <Badge variant="secondary" className="text-sm px-3 py-1 flex-shrink-0">
           {t.clients.companiesCount.replace("{{count}}", String(total))}
         </Badge>
       </div>

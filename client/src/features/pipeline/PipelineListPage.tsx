@@ -44,7 +44,7 @@ export default function PipelineListPage() {
 
   return (
     <div data-testid="page-pipeline-list">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900" data-testid="text-pipeline-list-title">Opportunities</h1>
           <p className="text-sm text-gray-500 mt-1">{total} total opportunities</p>
@@ -60,7 +60,7 @@ export default function PipelineListPage() {
       </div>
 
       <div className="flex flex-wrap gap-3 mb-4">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
+        <div className="relative flex-1 min-w-[180px] max-w-sm">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <Input
             placeholder="Search opportunities..."
@@ -71,7 +71,7 @@ export default function PipelineListPage() {
           />
         </div>
         <Select value={stageFilter} onValueChange={(v) => { setStageFilter(v === "all" ? "" : v); setPage(1); }}>
-          <SelectTrigger className="w-[160px]" data-testid="select-stage-filter">
+          <SelectTrigger className="w-full sm:w-[160px]" data-testid="select-stage-filter">
             <SelectValue placeholder={t.pipeline.allStages} />
           </SelectTrigger>
           <SelectContent>
@@ -82,7 +82,7 @@ export default function PipelineListPage() {
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v === "all" ? "" : v); setPage(1); }}>
-          <SelectTrigger className="w-[140px]" data-testid="select-status-filter">
+          <SelectTrigger className="w-full sm:w-[140px]" data-testid="select-status-filter">
             <SelectValue placeholder={t.pipeline.allStatus} />
           </SelectTrigger>
           <SelectContent>

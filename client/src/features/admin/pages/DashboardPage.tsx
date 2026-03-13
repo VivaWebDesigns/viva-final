@@ -72,7 +72,7 @@ export default function DashboardPage() {
         <p className="text-gray-500 text-sm mt-1">{t.dashboard.subtitle}</p>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 xl:grid-cols-8 gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-4 xl:grid-cols-8 gap-3 sm:gap-4 mb-8">
         {STAT_CARDS.map((card, i) => {
           const Icon = card.icon;
           const value = stats?.[card.key] ?? 0;
@@ -121,11 +121,11 @@ export default function DashboardPage() {
               {t.dashboard.viewAll} <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
-          <div className="flex gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:flex gap-2">
             {stats.pipelineStats.byStage.map((stage) => (
               <div
                 key={stage.stageId}
-                className="flex-1 rounded-lg border border-gray-100 p-3 text-center"
+                className="flex-1 rounded-lg border border-gray-100 p-3 text-center min-w-0"
                 data-testid={`pipeline-stage-${stage.stageId}`}
               >
                 <p className="text-xs text-gray-500 mb-1 truncate">{(t.pipeline.stageNames as Record<string, string>)[stage.stageSlug] || stage.stageName}</p>
@@ -158,7 +158,7 @@ export default function DashboardPage() {
               {t.dashboard.viewAll} <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
-          <div className="flex gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {onboardingRows.map((stat) => (
               <div key={stat.key} className="flex-1 rounded-lg border border-gray-100 p-3 text-center">
                 <p className="text-xs text-gray-500 mb-1">{stat.label}</p>
