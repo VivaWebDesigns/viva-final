@@ -418,7 +418,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-6 order-2 lg:order-none">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
               <CardTitle className="text-base">Details</CardTitle>
@@ -636,7 +636,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
           </Card>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-4 order-1 lg:order-none">
           <Card>
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
@@ -864,7 +864,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
 
           {editSection === "contact" && (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
                   <Label htmlFor="edit-first-name">First Name</Label>
                   <Input id="edit-first-name" value={editFirstName} onChange={(e) => setEditFirstName(e.target.value)} data-testid="input-edit-first-name" />
@@ -938,7 +938,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
       </Dialog>
 
       <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
-        <DialogContent className="sm:max-w-md" data-testid="dialog-delete-opportunity">
+        <DialogContent className="sm:max-w-md max-h-[90dvh] overflow-y-auto" data-testid="dialog-delete-opportunity">
           <DialogHeader>
             <DialogTitle>Delete Opportunity</DialogTitle>
           </DialogHeader>

@@ -289,7 +289,7 @@ export default function LeadDetailPage({ id }: { id: string }) {
                 value={lead.statusId || ""}
                 onValueChange={(v) => updateStatusMutation.mutate(v)}
               >
-                <SelectTrigger className="w-full sm:w-[180px]" data-testid="select-lead-status">
+                <SelectTrigger className="w-full md:w-[180px]" data-testid="select-lead-status">
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>

@@ -332,7 +332,7 @@ export default function AdminSettingsPage() {
       </Dialog>
 
       <Dialog open={!!editingUser} onOpenChange={() => setEditingUser(null)}>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent className="sm:max-w-sm max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t.settings.editMember.replace("{{name}}", editingUser?.name ?? "")}</DialogTitle>
           </DialogHeader>

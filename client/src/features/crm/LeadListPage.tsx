@@ -498,7 +498,7 @@ export default function LeadListPage() {
       )}
 
       {totalPages > 1 && (
-        <div className="flex items-center justify-between mt-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mt-6">
           <p className="text-sm text-gray-500">{t.crm.page.replace("{{page}}", String(page)).replace("{{total}}", String(totalPages))}</p>
           <div className="flex items-center gap-2">
             <Button
@@ -524,7 +524,7 @@ export default function LeadListPage() {
       )}
 
       <Dialog open={bulkDialog !== null} onOpenChange={open => !open && closeBulkDialog()}>
-        <DialogContent className="sm:max-w-md" data-testid="bulk-action-dialog">
+        <DialogContent className="sm:max-w-md max-h-[90dvh] overflow-y-auto" data-testid="bulk-action-dialog">
           {bulkDialog === "assign" && (
             <>
               <DialogHeader>

@@ -94,7 +94,7 @@ export default function CreateLeadModal({ open, onClose }: Props) {
             onSubmit={form.handleSubmit((v) => mutation.mutate(v))}
             className="space-y-4 pt-1"
           >
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="firstName"
