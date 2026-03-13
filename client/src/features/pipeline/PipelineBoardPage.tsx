@@ -438,14 +438,19 @@ export default function PipelineBoardPage() {
             </div>
           </div>
 
-          <div
-            className="flex-1 overflow-x-auto overscroll-x-contain touch-pan-x"
-            style={{ WebkitOverflowScrolling: "touch" }}
-          >
+          <div className="flex-1 relative">
             <div
-              className="flex gap-4 min-h-[400px] pb-4"
-              style={{ minWidth: stages.length * 288 }}
+              className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-gray-50 to-transparent pointer-events-none z-10 lg:hidden"
+              aria-hidden="true"
+            />
+            <div
+              className="h-full overflow-x-auto overscroll-x-contain touch-pan-x"
+              style={{ WebkitOverflowScrolling: "touch" }}
             >
+              <div
+                className="flex gap-4 min-h-[400px] pb-4"
+                style={{ minWidth: stages.length * 288 }}
+              >
               {stages.map((stage) => (
                 <StageColumn
                   key={stage.id}
@@ -457,6 +462,7 @@ export default function PipelineBoardPage() {
                   onTaskClick={(opp) => setTaskOpp(opp)}
                 />
               ))}
+              </div>
             </div>
           </div>
         </div>

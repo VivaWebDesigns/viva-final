@@ -137,7 +137,7 @@ function StripeConfigDialog({
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-lg" aria-describedby="stripe-config-desc">
+      <DialogContent className="max-w-lg max-h-[90dvh] overflow-y-auto" aria-describedby="stripe-config-desc">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CreditCard className="w-5 h-5 text-purple-500" />

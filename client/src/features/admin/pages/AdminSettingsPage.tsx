@@ -268,7 +268,7 @@ export default function AdminSettingsPage() {
       )}
 
       <Dialog open={showAddUser} onOpenChange={setShowAddUser}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t.settings.newMemberTitle}</DialogTitle>
           </DialogHeader>

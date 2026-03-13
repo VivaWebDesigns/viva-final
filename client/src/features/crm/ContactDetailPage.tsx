@@ -78,7 +78,7 @@ export default function ContactDetailPage({ id }: { id: string }) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1 space-y-6">
+        <div className="lg:col-span-1 space-y-6 order-1 lg:order-none">
           <Card className="p-5">
             <h2 className="font-semibold text-gray-900 mb-4">Contact Info</h2>
             <div className="space-y-3 text-sm">
@@ -159,7 +159,7 @@ export default function ContactDetailPage({ id }: { id: string }) {
           )}
         </div>
 
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 order-0 lg:order-none">
           <Card className="p-5">
             <h2 className="font-semibold text-gray-900 mb-4">
               Leads ({contact.leads?.length ?? 0})

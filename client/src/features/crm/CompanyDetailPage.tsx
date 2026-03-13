@@ -80,7 +80,7 @@ export default function CompanyDetailPage({ id }: { id: string }) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1 space-y-6">
+        <div className="lg:col-span-1 space-y-6 order-1 lg:order-none">
           <Card className="p-5">
             <h2 className="font-semibold text-gray-900 mb-4">Company Info</h2>
             <div className="space-y-3 text-sm">
@@ -148,7 +148,7 @@ export default function CompanyDetailPage({ id }: { id: string }) {
           </Card>
         </div>
 
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-6 order-0 lg:order-none">
           <Card className="p-5">
             <h2 className="font-semibold text-gray-900 mb-4">
               Contacts ({company.contacts?.length ?? 0})
