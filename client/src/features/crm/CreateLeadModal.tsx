@@ -19,34 +19,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 
-const US_STATES = [
-  "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA",
-  "HI","ID","IL","IN","IA","KS","KY","LA","ME","MD",
-  "MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ",
-  "NM","NY","NC","ND","OH","OK","OR","PA","RI","SC",
-  "SD","TN","TX","UT","VT","VA","WA","WV","WI","WY",
-] as const;
-
-const STATE_TIMEZONE: Record<string, string> = {
-  AL: "America/Chicago",   AK: "America/Anchorage",  AZ: "America/Phoenix",
-  AR: "America/Chicago",   CA: "America/Los_Angeles", CO: "America/Denver",
-  CT: "America/New_York",  DE: "America/New_York",    FL: "America/New_York",
-  GA: "America/New_York",  HI: "Pacific/Honolulu",    ID: "America/Boise",
-  IL: "America/Chicago",   IN: "America/Indiana/Indianapolis", IA: "America/Chicago",
-  KS: "America/Chicago",   KY: "America/New_York",    LA: "America/Chicago",
-  ME: "America/New_York",  MD: "America/New_York",    MA: "America/New_York",
-  MI: "America/Detroit",   MN: "America/Chicago",     MS: "America/Chicago",
-  MO: "America/Chicago",   MT: "America/Denver",      NE: "America/Chicago",
-  NV: "America/Los_Angeles", NH: "America/New_York",  NJ: "America/New_York",
-  NM: "America/Denver",    NY: "America/New_York",    NC: "America/New_York",
-  ND: "America/Chicago",   OH: "America/New_York",    OK: "America/Chicago",
-  OR: "America/Los_Angeles", PA: "America/New_York",  RI: "America/New_York",
-  SC: "America/New_York",  SD: "America/Chicago",     TN: "America/Chicago",
-  TX: "America/Chicago",   UT: "America/Denver",      VT: "America/New_York",
-  VA: "America/New_York",  WA: "America/Los_Angeles", WV: "America/New_York",
-  WI: "America/Chicago",   WY: "America/Denver",
-};
-
 const schema = z.object({
   firstName:     z.string().min(1),
   lastName:      z.string().min(1),
@@ -56,8 +28,6 @@ const schema = z.object({
   email:         z.string().email().optional().or(z.literal("")),
   website:       z.string().optional(),
   source:        z.enum(["website", "outreach"]),
-  city:          z.string().min(1, "City is required"),
-  state:         z.string().min(1, "State is required"),
   notes:         z.string().optional(),
 });
 
@@ -83,17 +53,13 @@ export default function CreateLeadModal({ open, onClose }: Props) {
       email: "",
       website: "",
       source: "website",
-      city: "",
-      state: "",
       notes: "",
     },
   });
 
   const mutation = useMutation({
-    mutationFn: (values: FormValues) => {
-      const timezone = STATE_TIMEZONE[values.state] ?? null;
-      return apiRequest("POST", "/api/crm/leads/manual", { ...values, timezone });
-    },
+    mutationFn: (values: FormValues) =>
+      apiRequest("POST", "/api/crm/leads/manual", values),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/crm/leads"] });
       queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities/board"] });
@@ -115,7 +81,7 @@ export default function CreateLeadModal({ open, onClose }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
-      <DialogContent className="sm:max-w-lg max-h-[90dvh] overflow-y-auto">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UserPlus className="w-5 h-5 text-indigo-500" />
@@ -226,44 +192,6 @@ export default function CreateLeadModal({ open, onClose }: Props) {
                 </FormItem>
               )}
             />
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="city"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>City <span className="text-red-500">*</span></FormLabel>
-                    <FormControl>
-                      <Input data-testid="input-city" placeholder="City" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="state"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>State <span className="text-red-500">*</span></FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <FormControl>
-                        <SelectTrigger data-testid="select-state">
-                          <SelectValue placeholder="Select state" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {US_STATES.map((s) => (
-                          <SelectItem key={s} value={s}>{s}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
 
             <FormField
               control={form.control}

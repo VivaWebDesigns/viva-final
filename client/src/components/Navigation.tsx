@@ -121,23 +121,14 @@ export default function Navigation() {
                 </button>
               </div>
             ) : (
-              <div className="flex items-center gap-3">
-                <Link
-                  href="/login"
-                  className="text-[11px] font-medium text-gray-400 hover:text-[#0D9488] transition-colors"
-                  data-testid="link-staff-login"
+              <Link href="/contacto">
+                <Button
+                  className="bg-[#0D9488] hover:bg-[#0F766E] text-white font-bold px-6 rounded-full transition-all duration-200 hover:shadow-lg"
+                  data-testid="button-cta-nav"
                 >
-                  Staff Login
-                </Link>
-                <Link href="/contacto">
-                  <Button
-                    className="bg-[#0D9488] hover:bg-[#0F766E] text-white font-bold px-6 rounded-full transition-all duration-200 hover:shadow-lg"
-                    data-testid="button-cta-nav"
-                  >
-                    {t("nav.cta")}
-                  </Button>
-                </Link>
-              </div>
+                  {t("nav.cta")}
+                </Button>
+              </Link>
             )}
           </div>
 
@@ -200,19 +191,11 @@ export default function Navigation() {
               </Link>
             ))}
             {!isAdminPage && (
-              <div className="pt-4 border-t border-gray-100 dark:border-gray-800 space-y-3">
+              <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
                 <Link href="/contacto" onClick={() => setIsOpen(false)}>
                   <Button className="w-full bg-[#0D9488] hover:bg-[#0F766E] text-white font-bold text-lg rounded-full" data-testid="button-cta-mobile">
                     {t("nav.cta")}
                   </Button>
-                </Link>
-                <Link
-                  href="/login"
-                  onClick={() => setIsOpen(false)}
-                  className="block text-center text-sm text-gray-400 hover:text-[#0D9488] transition-colors py-1"
-                  data-testid="link-staff-login-mobile"
-                >
-                  Staff Login
                 </Link>
               </div>
             )}

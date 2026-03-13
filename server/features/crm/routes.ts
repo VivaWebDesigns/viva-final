@@ -274,9 +274,6 @@ const manualLeadSchema = z.object({
   email:         z.string().email("Invalid email").optional().or(z.literal("")),
   website:       z.string().optional(),
   source:        z.enum(["website", "outreach"]),
-  city:          z.string().min(1, "City is required"),
-  state:         z.string().min(2, "State is required"),
-  timezone:      z.string().optional(),
   notes:         z.string().optional(),
 });
 
@@ -338,9 +335,6 @@ router.post("/leads/manual", requireRole("admin", "developer", "sales_rep", "lea
       statusId: defaultStatus?.id ?? null,
       source: data.source,
       sourceLabel: data.source === "website" ? "Website" : "Outreach",
-      city: data.city || null,
-      state: data.state || null,
-      timezone: data.timezone || null,
       notes: data.notes || null,
       fromWebsiteForm: false,
     });
