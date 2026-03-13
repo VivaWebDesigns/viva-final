@@ -1,0 +1,101 @@
+Optimize the CRM for responsive use, with desktop as the primary experience and mobile as a strong secondary experience.
+
+Goal:
+Preserve and protect the current desktop power-user workflow, density, and efficiency, while making the CRM clean, usable, and polished on mobile and tablet. Do not redesign the product around mobile-first constraints. Improve responsiveness without downgrading desktop.
+
+Core priority order:
+1. Desktop experience must remain strong or improve
+2. Tablet experience should be clean and usable
+3. Mobile experience should be fully functional and polished
+4. No regressions in workflow speed, information density, or usability for desktop users
+
+Tech / structure requirements:
+- Use modern responsive layout patterns with the latest stable Tailwind CSS conventions
+- Use a clean component architecture compatible with shadcn/ui-style structure and Radix-quality interaction patterns
+- Use lightweight motion only where it improves usability
+- Do not add bloated libraries just for visuals
+- Preserve all existing CRM functionality, routes, forms, permissions, filters, and integrations
+
+Desktop protection rules:
+- Do not reduce desktop information density just to accommodate mobile
+- Do not convert efficient desktop tables, multi-column layouts, or action panels into simplified layouts on desktop
+- Do not remove sidebar, split-panel, inline actions, or dense record views if they are valuable on desktop
+- Keep desktop workflows optimized for speed, scanning, and multitasking
+- Preserve large-screen layouts unless there is a clear usability issue
+
+Responsive behavior requirements:
+- Desktop layouts should remain the default at large breakpoints
+- Adapt layouts intelligently at tablet and phone breakpoints only where needed
+- Eliminate horizontal overflow on small screens where practical
+- For mobile, stack or collapse sections only below appropriate breakpoints
+- Keep tables on desktop where they are useful; only provide card/list alternatives on small screens if necessary
+- Use responsive variants, not one-size-fits-all layouts
+- Maintain clear hierarchy, spacing, and readability across all sizes
+
+CRM-specific requirements:
+Audit and optimize these areas for responsive behavior without degrading desktop:
+- Dashboard
+- Leads
+- Sales pipeline
+- Contact / company detail pages
+- Tasks
+- Notes / activity timeline
+- Calendar views
+- Forms
+- Settings
+
+Detailed screen behavior:
+- Dashboard:
+  - Keep desktop dashboard multi-column if effective
+  - Reflow cards sensibly for tablet and mobile
+- Leads / tables:
+  - Preserve table-based scanning on desktop
+  - On smaller screens, allow responsive column reduction, horizontal containment, or alternate card/list view where appropriate
+- Sales pipeline:
+  - Keep the best desktop kanban or pipeline workflow intact
+  - For mobile only, create a simplified stage view, collapsible sections, or touch-friendly swipeable structure if necessary
+- Record detail pages:
+  - Preserve desktop split layouts and fast access to key actions
+  - On smaller screens, reorder content so primary actions and core details appear first
+- Forms:
+  - Keep efficient multi-column forms on desktop where helpful
+  - Collapse to single-column only at smaller breakpoints
+- Modals / popovers:
+  - Preserve desktop modal behavior where it works well
+  - Use sheet, drawer, or full-screen patterns only on smaller screens when needed
+
+Implementation rules:
+- Reuse and refactor existing components where possible
+- Create shared responsive layout primitives if needed
+- Keep code modular and maintainable
+- Remove brittle fixed widths, overflow bugs, and layout assumptions that break on smaller screens
+- Do not use hacky one-off overrides
+- Do not perform a mobile-first redesign that weakens desktop
+- Prefer breakpoint-specific improvements over global simplification
+
+QA / validation:
+Test carefully at:
+- Desktop large
+- Desktop standard
+- 1024px
+- 768px
+- 414px
+- 390px
+- 375px
+- 320px
+
+Validate:
+- desktop workflow speed is not reduced
+- tables remain strong on desktop
+- layouts do not feel oversized or overly simplified on desktop
+- no broken overflow or clipped panels on tablet/mobile
+- modals, dropdowns, forms, and navigation work cleanly across sizes
+
+Deliverables:
+- Implement responsive improvements across the CRM
+- Preserve desktop-first usability
+- Briefly summarize:
+  1. what was changed,
+  2. what was improved specifically for tablet/mobile,
+  3. what was intentionally preserved for desktop,
+  4. any remaining screens that may need manual review
