@@ -224,10 +224,7 @@ function App() {
                   <LoginPage />
                 </Suspense>
               </Route>
-              <Route path="/admin/:rest*">
-                <AdminPages />
-              </Route>
-              <Route path="/admin">
+              <Route path="/admin/*?">
                 <AdminPages />
               </Route>
               <Route>
