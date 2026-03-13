@@ -1,9 +1,10 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { HelmetProvider } from "react-helmet-async";
+import SEO from "@/components/SEO";
 import ScrollToTop from "@/components/ScrollToTop";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
@@ -56,7 +57,24 @@ function PageFallback() {
   );
 }
 
-function AdminRoutes() {
+function MarketingRouter() {
+  return (
+    <Suspense fallback={<PageFallback />}>
+      <Switch>
+        <Route path="/" component={Home} />
+        <Route path="/paquetes" component={Paquetes} />
+        <Route path="/paquetes/empieza" component={PaqueteEmpieza} />
+        <Route path="/paquetes/crece" component={PaqueteCrece} />
+        <Route path="/paquetes/domina" component={PaqueteDomina} />
+        <Route path="/contacto" component={Contacto} />
+        <Route path="/demo" component={Demo} />
+        <Route component={NotFound} />
+      </Switch>
+    </Suspense>
+  );
+}
+
+function AdminRouter() {
   return (
     <ProtectedRoute>
       <AdminLayout>
@@ -184,99 +202,61 @@ function AdminRoutes() {
   );
 }
 
-function MarketingLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <PreviewLangProvider>
-      <ScrollToTop />
-      <JsonLd />
-      <div className="min-h-screen flex flex-col">
-        <Navigation />
-        <main className="flex-1">{children}</main>
-        <Footer />
-      </div>
-      <BookDemoButton />
-    </PreviewLangProvider>
-  );
-}
-
 function App() {
+  const [location] = useLocation();
+  const isAdmin = location.startsWith("/admin");
+  const isLogin = location === "/login";
+
+  if (isLogin) {
+    return (
+      <HelmetProvider>
+        <QueryClientProvider client={queryClient}>
+          <AdminLangProvider>
+            <TooltipProvider>
+              <Suspense fallback={<PageFallback />}>
+                <LoginPage />
+              </Suspense>
+              <Toaster />
+            </TooltipProvider>
+          </AdminLangProvider>
+        </QueryClientProvider>
+      </HelmetProvider>
+    );
+  }
+
+  if (isAdmin) {
+    return (
+      <HelmetProvider>
+        <QueryClientProvider client={queryClient}>
+          <AdminLangProvider>
+            <TooltipProvider>
+              <AdminRouter />
+              <Toaster />
+            </TooltipProvider>
+          </AdminLangProvider>
+        </QueryClientProvider>
+      </HelmetProvider>
+    );
+  }
+
   return (
     <HelmetProvider>
       <QueryClientProvider client={queryClient}>
-        <AdminLangProvider>
+        <PreviewLangProvider>
           <TooltipProvider>
-            <Switch>
-              <Route path="/login">
-                <Suspense fallback={<PageFallback />}>
-                  <LoginPage />
-                </Suspense>
-              </Route>
-
-              <Route path="/admin/:rest*">
-                <AdminRoutes />
-              </Route>
-
-              <Route path="/">
-                <MarketingLayout>
-                  <Suspense fallback={<PageFallback />}>
-                    <Home />
-                  </Suspense>
-                </MarketingLayout>
-              </Route>
-              <Route path="/paquetes">
-                <MarketingLayout>
-                  <Suspense fallback={<PageFallback />}>
-                    <Paquetes />
-                  </Suspense>
-                </MarketingLayout>
-              </Route>
-              <Route path="/paquetes/empieza">
-                <MarketingLayout>
-                  <Suspense fallback={<PageFallback />}>
-                    <PaqueteEmpieza />
-                  </Suspense>
-                </MarketingLayout>
-              </Route>
-              <Route path="/paquetes/crece">
-                <MarketingLayout>
-                  <Suspense fallback={<PageFallback />}>
-                    <PaqueteCrece />
-                  </Suspense>
-                </MarketingLayout>
-              </Route>
-              <Route path="/paquetes/domina">
-                <MarketingLayout>
-                  <Suspense fallback={<PageFallback />}>
-                    <PaqueteDomina />
-                  </Suspense>
-                </MarketingLayout>
-              </Route>
-              <Route path="/contacto">
-                <MarketingLayout>
-                  <Suspense fallback={<PageFallback />}>
-                    <Contacto />
-                  </Suspense>
-                </MarketingLayout>
-              </Route>
-              <Route path="/demo">
-                <MarketingLayout>
-                  <Suspense fallback={<PageFallback />}>
-                    <Demo />
-                  </Suspense>
-                </MarketingLayout>
-              </Route>
-
-              <Route>
-                <MarketingLayout>
-                  <Suspense fallback={<PageFallback />}>
-                    <NotFound />
-                  </Suspense>
-                </MarketingLayout>
-              </Route>
-            </Switch>
+            <ScrollToTop />
+            <JsonLd />
+            <div className="min-h-screen flex flex-col">
+              <Navigation />
+              <main className="flex-1">
+                <MarketingRouter />
+              </main>
+              <Footer />
+            </div>
+            <BookDemoButton />
             <Toaster />
           </TooltipProvider>
-        </AdminLangProvider>
+        </PreviewLangProvider>
       </QueryClientProvider>
     </HelmetProvider>
   );
