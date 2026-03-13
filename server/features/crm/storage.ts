@@ -323,11 +323,14 @@ export async function bulkDeleteLeads(ids: string[]): Promise<number> {
   if (ids.length === 0) return 0;
   await db.transaction(async (tx) => {
     const leadsToDelete = await tx
-      .select({ companyId: crmLeads.companyId })
+      .select({ companyId: crmLeads.companyId, contactId: crmLeads.contactId })
       .from(crmLeads)
       .where(inArray(crmLeads.id, ids));
     const companyIds = [...new Set(
       leadsToDelete.map(l => l.companyId).filter((c): c is string => c !== null)
+    )];
+    const contactIds = [...new Set(
+      leadsToDelete.map(l => l.contactId).filter((c): c is string => c !== null)
     )];
 
     await tx.delete(crmLeadTags).where(inArray(crmLeadTags.leadId, ids));
@@ -335,6 +338,26 @@ export async function bulkDeleteLeads(ids: string[]): Promise<number> {
     await tx.delete(followupTasks).where(inArray(followupTasks.leadId, ids));
     await tx.delete(pipelineOpportunities).where(inArray(pipelineOpportunities.leadId, ids));
     await tx.delete(crmLeads).where(inArray(crmLeads.id, ids));
+
+    for (const contactId of contactIds) {
+      const [refByLead] = await tx
+        .select({ n: count() })
+        .from(crmLeads)
+        .where(eq(crmLeads.contactId, contactId));
+      if ((refByLead?.n ?? 0) > 0) continue;
+      const [refByOpp] = await tx
+        .select({ n: count() })
+        .from(pipelineOpportunities)
+        .where(eq(pipelineOpportunities.contactId, contactId));
+      if ((refByOpp?.n ?? 0) > 0) continue;
+      const [refByOnboarding] = await tx
+        .select({ n: count() })
+        .from(onboardingRecords)
+        .where(eq(onboardingRecords.contactId, contactId));
+      if ((refByOnboarding?.n ?? 0) > 0) continue;
+      await tx.delete(followupTasks).where(eq(followupTasks.contactId, contactId));
+      await tx.delete(crmContacts).where(eq(crmContacts.id, contactId));
+    }
 
     for (const companyId of companyIds) {
       const [remainingLeads] = await tx
