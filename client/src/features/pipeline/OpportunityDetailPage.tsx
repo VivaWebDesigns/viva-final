@@ -187,7 +187,9 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
       await apiRequest("DELETE", `/api/pipeline/opportunities/${id}`);
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities/board"] });
       queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
       toast({ title: "Opportunity deleted" });
       navigate("/admin/pipeline");
     },
