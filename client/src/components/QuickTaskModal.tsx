@@ -102,7 +102,7 @@ export default function QuickTaskModal({
   };
 
   const getDueDate = (): string => {
-    if (preset === "custom") return new Date(customDate).toISOString();
+    if (preset === "custom") return new Date(customDate + "T12:00:00").toISOString();
     return calcDueDate(preset).toISOString();
   };
 

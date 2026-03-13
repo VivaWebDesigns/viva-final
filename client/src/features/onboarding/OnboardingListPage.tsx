@@ -178,7 +178,7 @@ export default function OnboardingListPage() {
                               {record.dueDate && (
                                 <span className={`flex items-center gap-1 ${isOverdue(record) ? "text-red-500 font-medium" : ""}`} data-testid={`text-due-date-${record.id}`}>
                                   <Calendar className="h-3 w-3" />
-                                  {t.onboarding.dueDate}: {new Date(record.dueDate).toLocaleDateString()}
+                                  {t.onboarding.dueDate}: {new Date(record.dueDate).toLocaleDateString(undefined, { timeZone: "UTC" })}
                                 </span>
                               )}
                               {record.kickoffDate && (

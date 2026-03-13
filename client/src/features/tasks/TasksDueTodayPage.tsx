@@ -106,7 +106,7 @@ function TaskRow({
 
       <div className="flex flex-col items-end gap-2 flex-shrink-0">
         <span className="text-xs text-gray-400 whitespace-nowrap" data-testid={`text-due-date-${task.id}`}>
-          {new Date(task.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+          {new Date(task.dueDate).toLocaleDateString("en-US", { timeZone: "UTC", month: "short", day: "numeric" })}
         </span>
         <Button
           size="sm"

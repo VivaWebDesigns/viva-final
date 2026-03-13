@@ -388,7 +388,7 @@ export default function OnboardingWizardPage() {
                   {dueDate && (
                     <div>
                       <span className="text-muted-foreground flex items-center gap-1"><Calendar className="h-3 w-3" /> Due:</span>
-                      <p className="font-semibold">{new Date(dueDate).toLocaleDateString()}</p>
+                      <p className="font-semibold">{new Date(dueDate).toLocaleDateString(undefined, { timeZone: "UTC" })}</p>
                     </div>
                   )}
                 </div>

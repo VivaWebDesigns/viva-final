@@ -385,7 +385,7 @@ export default function OnboardingDetailPage({ id }: { id: string }) {
                   <Calendar className="h-4 w-4 text-muted-foreground" />
                   <span className="text-muted-foreground">Due:</span>
                   <span className={isOverdue ? "text-red-600 font-semibold" : ""} data-testid="text-due-date">
-                    {new Date(record.dueDate).toLocaleDateString()}
+                    {new Date(record.dueDate).toLocaleDateString(undefined, { timeZone: "UTC" })}
                   </span>
                 </div>
               )}
