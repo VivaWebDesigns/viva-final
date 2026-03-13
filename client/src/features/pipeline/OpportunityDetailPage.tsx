@@ -418,7 +418,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6 order-2 lg:order-none">
+        <div className="lg:col-span-2 space-y-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
               <CardTitle className="text-base">Details</CardTitle>
@@ -636,7 +636,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
           </Card>
         </div>
 
-        <div className="space-y-4 order-1 lg:order-none">
+        <div className="space-y-4">
           <Card>
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
