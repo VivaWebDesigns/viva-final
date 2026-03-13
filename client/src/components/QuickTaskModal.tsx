@@ -171,7 +171,7 @@ export default function QuickTaskModal({
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="sm:max-w-md" data-testid="modal-quick-task">
+      <DialogContent className="sm:max-w-md max-h-[90dvh] overflow-y-auto" data-testid="modal-quick-task">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CheckCircle className="w-5 h-5 text-[#0D9488]" />

@@ -438,7 +438,10 @@ export default function PipelineBoardPage() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-x-auto overscroll-x-contain touch-pan-x">
+          <div
+            className="flex-1 overflow-x-auto overscroll-x-contain touch-pan-x"
+            style={{ WebkitOverflowScrolling: "touch" }}
+          >
             <div
               className="flex gap-4 min-h-[400px] pb-4"
               style={{ minWidth: stages.length * 288 }}

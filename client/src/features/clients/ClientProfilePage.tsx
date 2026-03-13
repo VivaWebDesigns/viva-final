@@ -687,7 +687,7 @@ export default function ClientProfilePage({ id }: { id: string }) {
                   Add Contact
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="max-h-[90dvh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>{editingContact ? "Edit Contact" : "Add New Contact"}</DialogTitle>
                 </DialogHeader>
@@ -769,7 +769,7 @@ export default function ClientProfilePage({ id }: { id: string }) {
                   New Task
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="max-h-[90dvh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Create Task</DialogTitle>
                 </DialogHeader>

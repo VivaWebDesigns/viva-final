@@ -462,12 +462,12 @@ export default function LeadListPage() {
                               </span>
                             )}
                             {lead.contact?.email && (
-                              <span className="flex items-center gap-1">
+                              <span className="hidden sm:flex items-center gap-1">
                                 <Mail className="w-3 h-3" /> {lead.contact.email}
                               </span>
                             )}
                             {lead.contact?.phone && (
-                              <span className="flex items-center gap-1">
+                              <span className="hidden sm:flex items-center gap-1">
                                 <Phone className="w-3 h-3" /> {lead.contact.phone}
                               </span>
                             )}
@@ -482,7 +482,7 @@ export default function LeadListPage() {
                               ${Number(lead.value).toLocaleString()}
                             </span>
                           )}
-                          <span className="text-xs text-gray-400">
+                          <span className="text-xs text-gray-400 hidden sm:inline">
                             {new Date(lead.createdAt).toLocaleDateString()}
                           </span>
                           <ChevronRight className="w-4 h-4 text-gray-300" />
