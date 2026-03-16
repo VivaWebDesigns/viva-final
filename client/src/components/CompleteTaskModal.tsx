@@ -149,7 +149,7 @@ export default function CompleteTaskModal({
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-md" data-testid="dialog-complete-task">
+      <DialogContent className="max-w-md flex flex-col max-h-[90vh]" data-testid="dialog-complete-task">
         <DialogHeader>
           <DialogTitle data-testid="text-complete-task-title">
             {t.tasks.completeTask}
@@ -159,7 +159,7 @@ export default function CompleteTaskModal({
           </p>
         </DialogHeader>
 
-        <div className="space-y-4 py-2">
+        <div className="space-y-4 py-2 overflow-y-auto flex-1 min-h-0">
           <div className="space-y-2">
             <Label>{t.tasks.outcome}</Label>
             <Select value={outcome} onValueChange={setOutcome}>
