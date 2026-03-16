@@ -136,7 +136,8 @@ export default function CompleteTaskModal({
 
   if (!task) return null;
 
-  const canSubmit = outcome !== "" && !submitMutation.isPending;
+  const customDateValid = followUp !== "custom" || customDate !== "";
+  const canSubmit = outcome !== "" && customDateValid && !submitMutation.isPending;
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
