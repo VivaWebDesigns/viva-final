@@ -6,10 +6,19 @@ import * as taskStorage from "./storage";
 
 const router = Router();
 
+function parseDueDate(raw: string): Date {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    return new Date(raw + "T00:00:00Z");
+  }
+  return new Date(raw);
+}
+
 const createTaskSchema = z.object({
   title: z.string().min(1),
   notes: z.string().nullable().optional(),
-  dueDate: z.string().datetime(),
+  dueDate: z.string().min(1),
+  followUpTime: z.string().regex(/^\d{2}:\d{2}$/).optional().nullable(),
+  followUpTimezone: z.string().optional().nullable(),
   opportunityId: z.string().nullable().optional(),
   leadId: z.string().nullable().optional(),
   contactId: z.string().nullable().optional(),
@@ -18,7 +27,9 @@ const createTaskSchema = z.object({
 const updateTaskSchema = z.object({
   title: z.string().min(1).optional(),
   notes: z.string().nullable().optional(),
-  dueDate: z.string().datetime().optional(),
+  dueDate: z.string().min(1).optional(),
+  followUpTime: z.string().regex(/^\d{2}:\d{2}$/).optional().nullable(),
+  followUpTimezone: z.string().optional().nullable(),
   completed: z.boolean().optional(),
 }).strict();
 
@@ -57,7 +68,7 @@ router.post("/", requireRole("admin", "developer", "sales_rep"), async (req, res
     const validated = createTaskSchema.parse(req.body);
     const task = await taskStorage.createTask({
       ...validated,
-      dueDate: new Date(validated.dueDate),
+      dueDate: parseDueDate(validated.dueDate),
       createdBy: req.authUser?.id,
       completed: false,
     });
@@ -96,7 +107,7 @@ router.put("/:id", requireRole("admin", "developer", "sales_rep"), async (req, r
   try {
     const validated = updateTaskSchema.parse(req.body);
     const data: Record<string, unknown> = { ...validated };
-    if (validated.dueDate) data.dueDate = new Date(validated.dueDate);
+    if (validated.dueDate) data.dueDate = parseDueDate(validated.dueDate);
     if (validated.completed === false) data.completedAt = null;
     const task = await taskStorage.updateTask(req.params.id as string, data as any);
     await logAudit({

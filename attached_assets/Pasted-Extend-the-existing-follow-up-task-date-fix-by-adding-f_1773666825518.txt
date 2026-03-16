@@ -1,0 +1,99 @@
+Extend the existing follow-up task date fix by adding follow-up time scheduling that is timezone-aware per lead.
+
+Context:
+We already investigated and fixed a bug where selecting a follow-up date (example: Mar 13) could save/render as the previous day due to timezone/date parsing issues. Follow-up dates must remain date-only and must not shift across the system.
+
+Now add a time dropdown to the "Schedule Follow Up" UI.
+
+Requirements:
+
+1. Add a required "Follow-Up Time" dropdown to the Schedule Follow Up form.
+2. The dropdown must:
+- start at 9:00 AM
+- end at 6:00 PM
+- use 30-minute increments
+- display user-friendly local time formatting (example: 9:00 AM, 9:30 AM, 10:00 AM, etc.)
+
+3. Timezone behavior:
+- The available time slots must be based on the LEAD'S timezone, not the logged-in rep's browser timezone.
+- If the lead has a stored timezone, use that automatically.
+- If no lead timezone exists, fall back in this order:
+  1. lead location-derived timezone if available
+  2. account default timezone
+  3. browser timezone as final fallback
+- Show a small label near the dropdown indicating the timezone being used, for example:
+  "Times shown in America/New_York"
+
+4. Data model:
+- Keep follow-up DATE as a date-only field. Do not convert it into a timestamp if that would reintroduce date shifting.
+- Store follow-up TIME separately in a clean, stable format.
+- Store or derive the timezone explicitly so future rendering is consistent.
+- Preferred approach:
+  - followUpDate = date-only string such as YYYY-MM-DD
+  - followUpTime = time-only string such as HH:mm
+  - followUpTimezone = IANA timezone string such as America/New_York
+- Do not rely on new Date("YYYY-MM-DD") for business logic.
+- Do not use toISOString() on date-only values.
+- Do not allow UTC conversion to move the chosen day backward or forward.
+
+5. Rendering behavior:
+- Anywhere the follow-up is displayed, show:
+  - the correct date
+  - the scheduled time
+  - rendered in the lead's timezone
+- Example:
+  Next Follow-Up: Mar 13 at 2:30 PM
+- The date must remain exactly the date selected by the user.
+- Do not alter Stage Entered logic.
+
+6. Edit behavior:
+- When editing an existing follow-up, the saved date, time, and timezone must load correctly into the form.
+- Re-saving without changes must not alter the stored values.
+
+7. Validation:
+- Follow-up time is required when scheduling a follow-up.
+- Only allow selections within the 9:00 AM–6:00 PM window.
+- Only allow the predefined 30-minute increment values.
+
+8. UX:
+- Keep the UI clean and simple.
+- The time dropdown should appear directly under or beside the follow-up date field in the Schedule Follow Up section.
+- Maintain current styling.
+- Do not break task creation from either:
+  - the sales pipeline / opportunity page
+  - the tasks module
+- Ensure both creation paths use the same date/time/timezone logic.
+
+9. Technical audit and implementation:
+Audit and update the full flow for follow-up scheduling:
+- date picker value
+- time dropdown value
+- frontend state
+- API payload
+- backend parsing
+- database storage
+- UI formatting
+- edit/reload behavior
+
+Look specifically for:
+- accidental conversion of date-only values into Date objects
+- timezone shifts during serialization/deserialization
+- mixing local browser timezone with lead timezone
+- timestamp storage for business fields that should remain date-only + time-only
+- formatting functions that reinterpret saved values incorrectly
+
+10. Testing:
+After implementing, test all of the following:
+- today with time selected
+- tomorrow with time selected
+- custom future date with time selected
+- past date with time selected if past dates are allowed
+- a lead in the same timezone as the user
+- a lead in a different timezone than the user
+- a lead with no timezone saved using fallback logic
+- edit existing follow-up and confirm date/time stay unchanged after save
+- create follow-up from sales pipeline and confirm it appears correctly in tasks module
+- create follow-up from tasks module and confirm it appears correctly in sales pipeline
+
+Goal:
+Follow-up scheduling must support both date and time, with time slots from 9:00 AM to 6:00 PM in 30-minute increments, automatically tied to the lead's timezone, while preserving the previously fixed rule that the selected follow-up date must never shift by one day due to timezone handling.

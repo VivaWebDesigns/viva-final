@@ -19,13 +19,40 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CalendarIcon, CheckCircle } from "lucide-react";
+import { CalendarIcon, CheckCircle, Clock } from "lucide-react";
 import { useAdminLang } from "@/i18n/LanguageContext";
 
 export const TASK_PRESET_VALUES = ["1d", "2d", "5d", "1w", "2w", "1mo", "2mo", "6mo", "1yr", "custom"] as const;
 export type TaskPreset = typeof TASK_PRESET_VALUES[number];
 
-function calcDueDate(preset: TaskPreset): Date {
+export const TIME_SLOTS: string[] = (() => {
+  const slots: string[] = [];
+  for (let h = 9; h <= 18; h++) {
+    for (let m = 0; m < 60; m += 30) {
+      if (h === 18 && m > 0) break;
+      slots.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
+    }
+  }
+  return slots;
+})();
+
+export function formatTimeSlot(t: string): string {
+  const [hStr, mStr] = t.split(":");
+  const h = parseInt(hStr, 10);
+  const suffix = h >= 12 ? "PM" : "AM";
+  const h12 = h > 12 ? h - 12 : h === 0 ? 12 : h;
+  return `${h12}:${mStr} ${suffix}`;
+}
+
+function todayLocalString(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function calcDueDateString(preset: Exclude<TaskPreset, "custom">): string {
   const d = new Date();
   switch (preset) {
     case "1d":  d.setDate(d.getDate() + 1); break;
@@ -37,10 +64,11 @@ function calcDueDate(preset: TaskPreset): Date {
     case "2mo": d.setMonth(d.getMonth() + 2); break;
     case "6mo": d.setMonth(d.getMonth() + 6); break;
     case "1yr": d.setFullYear(d.getFullYear() + 1); break;
-    default: break;
   }
-  d.setHours(9, 0, 0, 0);
-  return d;
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 function toInputDate(d: Date): string {
@@ -50,11 +78,6 @@ function toInputDate(d: Date): string {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-function localNoonFromDateString(dateStr: string): Date {
-  const [y, m, d] = dateStr.split("-").map(Number);
-  return new Date(y, m - 1, d, 12, 0, 0, 0);
-}
-
 interface QuickTaskModalProps {
   open: boolean;
   onClose: () => void;
@@ -62,7 +85,15 @@ interface QuickTaskModalProps {
   leadId?: string | null;
   contactId?: string | null;
   defaultTitle?: string;
-  editTask?: { id: string; title: string; notes?: string | null; dueDate: string } | null;
+  leadTimezone?: string | null;
+  editTask?: {
+    id: string;
+    title: string;
+    notes?: string | null;
+    dueDate: string;
+    followUpTime?: string | null;
+    followUpTimezone?: string | null;
+  } | null;
   onSuccess?: () => void;
 }
 
@@ -73,6 +104,7 @@ export default function QuickTaskModal({
   leadId,
   contactId,
   defaultTitle = "",
+  leadTimezone,
   editTask,
   onSuccess,
 }: QuickTaskModalProps) {
@@ -80,10 +112,14 @@ export default function QuickTaskModal({
   const { t } = useAdminLang();
   const isEdit = !!editTask;
 
+  const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const effectiveTimezone = leadTimezone ?? browserTimezone;
+
   const [title, setTitle] = useState(defaultTitle);
   const [notes, setNotes] = useState("");
   const [preset, setPreset] = useState<TaskPreset>("1w");
-  const [customDate, setCustomDate] = useState(toInputDate(calcDueDate("1w")));
+  const [dateStr, setDateStr] = useState(calcDueDateString("1w"));
+  const [followUpTime, setFollowUpTime] = useState("09:00");
 
   useEffect(() => {
     if (open) {
@@ -91,12 +127,14 @@ export default function QuickTaskModal({
         setTitle(editTask.title);
         setNotes(editTask.notes ?? "");
         setPreset("custom");
-        setCustomDate(toInputDate(new Date(editTask.dueDate)));
+        setDateStr(toInputDate(new Date(editTask.dueDate)));
+        setFollowUpTime(editTask.followUpTime ?? "09:00");
       } else {
         setTitle(defaultTitle);
         setNotes("");
         setPreset("1w");
-        setCustomDate(toInputDate(calcDueDate("1w")));
+        setDateStr(calcDueDateString("1w"));
+        setFollowUpTime("09:00");
       }
     }
   }, [open, editTask, defaultTitle]);
@@ -105,13 +143,8 @@ export default function QuickTaskModal({
     const p = val as TaskPreset;
     setPreset(p);
     if (p !== "custom") {
-      setCustomDate(toInputDate(calcDueDate(p)));
+      setDateStr(calcDueDateString(p as Exclude<TaskPreset, "custom">));
     }
-  };
-
-  const getDueDate = (): string => {
-    if (preset === "custom") return localNoonFromDateString(customDate).toISOString();
-    return calcDueDate(preset).toISOString();
   };
 
   const invalidateTaskQueries = () => {
@@ -121,16 +154,20 @@ export default function QuickTaskModal({
     if (contactId) queryClient.invalidateQueries({ queryKey: ["/api/tasks/for-contact", contactId] });
   };
 
+  const buildPayload = () => ({
+    title: title.trim(),
+    notes: notes.trim() || null,
+    dueDate: dateStr,
+    followUpTime,
+    followUpTimezone: effectiveTimezone,
+    opportunityId: opportunityId ?? null,
+    leadId: leadId ?? null,
+    contactId: contactId ?? null,
+  });
+
   const createMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/tasks", {
-        title: title.trim(),
-        notes: notes.trim() || null,
-        dueDate: getDueDate(),
-        opportunityId: opportunityId ?? null,
-        leadId: leadId ?? null,
-        contactId: contactId ?? null,
-      });
+      const res = await apiRequest("POST", "/api/tasks", buildPayload());
       return res.json();
     },
     onSuccess: () => {
@@ -146,11 +183,8 @@ export default function QuickTaskModal({
 
   const updateMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("PUT", `/api/tasks/${editTask!.id}`, {
-        title: title.trim(),
-        notes: notes.trim() || null,
-        dueDate: getDueDate(),
-      });
+      const { opportunityId: _o, leadId: _l, contactId: _c, ...updateFields } = buildPayload();
+      const res = await apiRequest("PUT", `/api/tasks/${editTask!.id}`, updateFields);
       return res.json();
     },
     onSuccess: () => {
@@ -173,9 +207,11 @@ export default function QuickTaskModal({
     else createMutation.mutate();
   };
 
-  const dueDatePreview = preset === "custom"
-    ? localNoonFromDateString(customDate).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })
-    : calcDueDate(preset).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+  const [dPreviewY, dPreviewM, dPreviewD] = dateStr.split("-").map(Number);
+  const previewDate = new Date(dPreviewY, dPreviewM - 1, dPreviewD, 12, 0, 0);
+  const dueDatePreview = previewDate.toLocaleDateString("en-US", {
+    weekday: "short", month: "short", day: "numeric", year: "numeric",
+  });
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
@@ -224,17 +260,39 @@ export default function QuickTaskModal({
                 id="task-custom-date"
                 type="date"
                 data-testid="input-task-custom-date"
-                value={customDate}
-                onChange={(e) => setCustomDate(e.target.value)}
-                min={toInputDate(new Date())}
+                value={dateStr}
+                onChange={(e) => setDateStr(e.target.value)}
+                min={todayLocalString()}
               />
             </div>
           )}
 
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="task-time">Follow-Up Time <span className="text-red-500">*</span></Label>
+              <span className="text-[10px] text-gray-400 flex items-center gap-1">
+                <Clock className="w-3 h-3" />
+                {effectiveTimezone}
+              </span>
+            </div>
+            <Select value={followUpTime} onValueChange={setFollowUpTime}>
+              <SelectTrigger id="task-time" data-testid="select-task-time">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TIME_SLOTS.map((slot) => (
+                  <SelectItem key={slot} value={slot} data-testid={`option-time-${slot}`}>
+                    {formatTimeSlot(slot)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="flex items-center gap-1.5 text-xs text-gray-500 bg-gray-50 rounded-md px-3 py-2">
             <CalendarIcon className="w-3.5 h-3.5 flex-shrink-0" />
             <span data-testid="text-due-date-preview">
-              {t.tasks.dueDate}: <strong>{dueDatePreview}</strong>
+              {t.tasks.dueDate}: <strong>{dueDatePreview} at {formatTimeSlot(followUpTime)}</strong>
             </span>
           </div>
 

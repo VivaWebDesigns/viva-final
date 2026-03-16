@@ -719,6 +719,8 @@ export const followupTasks = pgTable("followup_tasks", {
   companyId: varchar("company_id").references(() => crmCompanies.id),
   createdBy: text("created_by").references(() => user.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  followUpTime: text("follow_up_time"),
+  followUpTimezone: text("follow_up_timezone"),
 }, (t) => [
   index("followup_tasks_due_idx").on(t.dueDate),
   index("followup_tasks_opp_idx").on(t.opportunityId),

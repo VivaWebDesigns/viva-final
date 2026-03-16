@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Clock, Phone, Building2, AlertTriangle, CalendarClock, ExternalLink, Plus } from "lucide-react";
-import QuickTaskModal from "@/components/QuickTaskModal";
+import QuickTaskModal, { formatTimeSlot } from "@/components/QuickTaskModal";
 import type { FollowupTask } from "@shared/schema";
 import { useAdminLang } from "@/i18n/LanguageContext";
 
@@ -106,7 +106,7 @@ function TaskRow({
 
       <div className="flex flex-col items-end gap-2 flex-shrink-0">
         <span className="text-xs text-gray-400 whitespace-nowrap" data-testid={`text-due-date-${task.id}`}>
-          {new Date(task.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}
+          {new Date(task.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}{task.followUpTime ? ` at ${formatTimeSlot(task.followUpTime)}` : ""}
         </span>
         <Button
           size="sm"
@@ -256,6 +256,8 @@ export default function TasksDueTodayPage() {
           title: rescheduleTask.title,
           notes: rescheduleTask.notes,
           dueDate: typeof rescheduleTask.dueDate === "string" ? rescheduleTask.dueDate : rescheduleTask.dueDate.toISOString(),
+          followUpTime: rescheduleTask.followUpTime ?? null,
+          followUpTimezone: rescheduleTask.followUpTimezone ?? null,
         } : null}
         opportunityId={rescheduleTask?.opportunityId}
         leadId={rescheduleTask?.leadId}

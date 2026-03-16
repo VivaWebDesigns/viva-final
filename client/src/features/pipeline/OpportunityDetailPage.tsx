@@ -25,7 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 import type { PipelineStage, PipelineOpportunity, PipelineActivity, CrmCompany, CrmContact, CrmLead, FollowupTask } from "@shared/schema";
 import { WEBSITE_PACKAGES } from "@shared/schema";
-import QuickTaskModal from "@/components/QuickTaskModal";
+import QuickTaskModal, { formatTimeSlot } from "@/components/QuickTaskModal";
 import { RecordTimeline } from "@/components/RecordTimeline";
 
 const PKG_COLORS: Record<string, string> = {
@@ -464,7 +464,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                   <p className="text-sm font-medium flex items-center gap-1" data-testid="text-next-followup">
                     {nextTask ? (
                       <span className={new Date(nextTask.dueDate) < new Date() ? "text-red-500" : "text-gray-800"}>
-                        {new Date(nextTask.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}
+                        {new Date(nextTask.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}{nextTask.followUpTime ? ` at ${formatTimeSlot(nextTask.followUpTime)}` : ""}
                       </span>
                     ) : (
                       <span className="text-gray-400">{t.pipeline.noTaskScheduled}</span>
@@ -693,7 +693,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                         </p>
                         <div className={`flex items-center gap-1 mt-0.5 ${isOverdue ? "text-red-500" : "text-gray-400"}`}>
                           {isOverdue && <AlertCircle className="w-3 h-3 flex-shrink-0" />}
-                          <span>{new Date(task.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}</span>
+                          <span>{new Date(task.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}{task.followUpTime ? ` at ${formatTimeSlot(task.followUpTime)}` : ""}</span>
                         </div>
                       </div>
                       {!task.completed && (
@@ -815,12 +815,15 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
         onClose={() => { setTaskModalOpen(false); setRescheduleTask(null); }}
         opportunityId={id}
         contactId={opp.contactId ?? null}
+        leadTimezone={sourceLead?.timezone ?? null}
         defaultTitle={`Follow up with ${contact?.firstName ?? ""} ${contact?.lastName ?? ""}`.trim()}
         editTask={rescheduleTask ? {
           id: rescheduleTask.id,
           title: rescheduleTask.title,
           notes: rescheduleTask.notes,
           dueDate: rescheduleTask.dueDate.toString(),
+          followUpTime: rescheduleTask.followUpTime ?? null,
+          followUpTimezone: rescheduleTask.followUpTimezone ?? null,
         } : null}
       />
 
