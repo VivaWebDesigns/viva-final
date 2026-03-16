@@ -62,6 +62,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
   const [editingActivityContent, setEditingActivityContent] = useState("");
   const [taskModalOpen, setTaskModalOpen] = useState(false);
   const [rescheduleTask, setRescheduleTask] = useState<TaskWithContact | null>(null);
+  const [contactedPendingStageId, setContactedPendingStageId] = useState<string | null>(null);
 
   const { data: opp, isLoading } = useQuery<PipelineOpportunity>({
     queryKey: ["/api/pipeline/opportunities", id],
@@ -470,7 +471,14 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                         variant={stage.id === opp.stageId ? "default" : "outline"}
                         className="text-xs h-7"
                         style={stage.id === opp.stageId ? { backgroundColor: stage.color } : { borderColor: stage.color, color: stage.color }}
-                        onClick={() => stage.id !== opp.stageId && stageMutation.mutate(stage.id)}
+                        onClick={() => {
+                          if (stage.id === opp.stageId) return;
+                          if (stage.slug === "contacted") {
+                            setContactedPendingStageId(stage.id);
+                          } else {
+                            stageMutation.mutate(stage.id);
+                          }
+                        }}
                         disabled={stageMutation.isPending}
                         data-testid={`button-stage-${stage.slug}`}
                       >
@@ -811,6 +819,18 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
           followUpTime: rescheduleTask.followUpTime ?? null,
           followUpTimezone: rescheduleTask.followUpTimezone ?? null,
         } : null}
+      />
+      <QuickTaskModal
+        open={contactedPendingStageId !== null}
+        onClose={() => setContactedPendingStageId(null)}
+        opportunityId={id}
+        contactId={opp.contactId ?? null}
+        leadTimezone={sourceLead?.timezone ?? null}
+        defaultTitle={`Follow up with ${contact?.firstName ?? ""} ${contact?.lastName ?? ""}`.trim()}
+        onSuccess={() => {
+          if (contactedPendingStageId) stageMutation.mutate(contactedPendingStageId);
+          setContactedPendingStageId(null);
+        }}
       />
       <CompleteTaskModal
         open={!!completingTask}
