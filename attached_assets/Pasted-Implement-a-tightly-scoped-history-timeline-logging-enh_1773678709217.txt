@@ -1,0 +1,67 @@
+Implement a tightly scoped history/timeline logging enhancement for follow-up task completion.
+
+Problem:
+When a rep completes a follow-up task in CompleteTaskModal, the task is marked completed and a next follow-up may be created, but nothing is written to the lead/opportunity history or activity timeline. This leaves no visible audit trail of what happened.
+
+Goal:
+Whenever a follow-up task is completed, write clear history/timeline entries showing the completion event and any related outcome/note/next-follow-up scheduling.
+
+STRICT SCOPE:
+Only add history/timeline logging for follow-up task completion and next-follow-up creation.
+Do not modify:
+- task completion modal layout
+- task validation rules
+- timezone logic
+- task storage fields except where absolutely necessary to reuse existing history mechanisms
+- lead list layout
+- opportunity layout
+- unrelated forms
+- unrelated code review findings
+
+Only edit the minimum files necessary.
+After implementation, stop.
+
+Required behavior:
+
+1. When a follow-up task is completed, add a history/timeline entry tied to the relevant lead and/or opportunity using the app’s existing history/activity system.
+
+2. The history entry should include:
+- task completed
+- selected outcome
+- completion note if provided
+
+Example:
+Follow-up task completed
+Outcome: Left voicemail
+Note: Asked to call back Friday
+
+3. If the rep schedules a next follow-up during completion, add another history/timeline entry or include it in the same entry.
+
+Example:
+Next follow-up scheduled for Mar 17 at 10:00 AM
+
+4. If there is already an existing reusable history logging utility or activity creation flow in the app, reuse it.
+Do not create a separate parallel history system.
+
+5. Ensure these events appear in:
+- Lead history / activity timeline
+- Opportunity history / activity timeline if the completed task is tied to an opportunity
+
+6. Do not change existing task completion behavior.
+Do not change scheduling behavior.
+Only add missing history visibility.
+
+7. Testing:
+Verify that:
+- completing a task with outcome only creates a visible history entry
+- completing a task with outcome + note creates a visible history entry
+- completing a task with outcome + next follow-up creates visible history entry for both completion and next follow-up
+- lead/opportunity pages show the entries correctly
+- no unrelated UI changes occur
+
+Implementation approach:
+Reuse existing activity/history infrastructure if present.
+Keep this as a small audit-trail enhancement only.
+
+After implementation:
+Stop. Do not perform unrelated cleanup or reviewer-driven changes.

@@ -3,6 +3,8 @@ import { z } from "zod";
 import { requireAuth, requireRole } from "../auth/middleware";
 import { logAudit } from "../audit/service";
 import * as taskStorage from "./storage";
+import { addLeadNote } from "../crm/storage";
+import { addActivity } from "../pipeline/storage";
 
 const router = Router();
 
@@ -80,6 +82,12 @@ router.post("/", requireRole("admin", "developer", "sales_rep"), async (req, res
       metadata: { title: task.title, dueDate: task.dueDate },
       ipAddress: req.ip,
     });
+
+    const actorId = req.authUser?.id ?? null;
+    const scheduleContent = `Follow-up scheduled: ${task.title}`;
+    if (task.leadId) addLeadNote({ leadId: task.leadId, userId: actorId, type: "task", content: scheduleContent }).catch(() => {});
+    if (task.opportunityId) addActivity({ opportunityId: task.opportunityId, userId: actorId, type: "task", content: scheduleContent }).catch(() => {});
+
     res.status(201).json(task);
   } catch (err: any) {
     res.status(400).json({ message: err.message });
@@ -108,6 +116,15 @@ router.put("/:id/complete", requireRole("admin", "developer", "sales_rep"), asyn
       metadata: { action: "completed", title: task.title, outcome: body?.outcome },
       ipAddress: req.ip,
     });
+
+    const actorId = req.authUser?.id ?? null;
+    const parts = [`Task completed: ${task.title}`];
+    if (body?.outcome) parts.push(`Outcome: ${body.outcome}`);
+    if (body?.completionNote) parts.push(`Note: ${body.completionNote}`);
+    const completionContent = parts.join(" · ");
+    if (task.leadId) addLeadNote({ leadId: task.leadId, userId: actorId, type: "task", content: completionContent }).catch(() => {});
+    if (task.opportunityId) addActivity({ opportunityId: task.opportunityId, userId: actorId, type: "task", content: completionContent }).catch(() => {});
+
     res.json(task);
   } catch (err: any) {
     res.status(400).json({ message: err.message });
