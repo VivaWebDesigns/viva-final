@@ -250,7 +250,7 @@ export async function getActivities(opportunityId: string): Promise<ActivityWith
       .from(pipelineActivities)
       .leftJoin(user, eq(pipelineActivities.userId, user.id))
       .where(eq(pipelineActivities.opportunityId, opportunityId))
-      .orderBy(asc(pipelineActivities.createdAt)),
+      .orderBy(desc(pipelineActivities.createdAt)),
     db
       .select({ leadId: pipelineOpportunities.leadId })
       .from(pipelineOpportunities)
@@ -278,7 +278,7 @@ export async function getActivities(opportunityId: string): Promise<ActivityWith
   }
 
   const all = [...pipelineRows, ...crmNoteRows] as ActivityWithAuthor[];
-  all.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  all.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   return all;
 }
 
