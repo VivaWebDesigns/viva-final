@@ -30,7 +30,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const OUTCOME_KEYS = [
+export const OUTCOME_KEYS = [
   "noAnswer",
   "leftVoicemail",
   "spokeWithLead",
@@ -158,14 +158,11 @@ export default function CompleteTaskModal({
                 <SelectValue placeholder={t.tasks.selectOutcome} />
               </SelectTrigger>
               <SelectContent>
-                {OUTCOME_KEYS.map((key) => {
-                  const label = (t.tasks.outcomes as Record<string, string>)[key];
-                  return (
-                    <SelectItem key={key} value={label} data-testid={`option-outcome-${key}`}>
-                      {label}
-                    </SelectItem>
-                  );
-                })}
+                {OUTCOME_KEYS.map((key) => (
+                  <SelectItem key={key} value={key} data-testid={`option-outcome-${key}`}>
+                    {(t.tasks.outcomes as Record<string, string>)[key]}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
