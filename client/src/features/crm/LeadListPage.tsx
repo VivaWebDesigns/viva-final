@@ -405,143 +405,96 @@ export default function LeadListPage() {
           <p className="text-gray-400 text-sm mt-1">{t.crm.searchNoResults}</p>
         </Card>
       ) : (
-        <>
-          {/* Desktop table */}
-          <div className="hidden md:block rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-                <tr>
-                  <th className="w-10 px-3 py-2.5">
-                    <Checkbox
-                      checked={selectedIds.size === leads.length && leads.length > 0}
-                      onCheckedChange={(checked) => {
-                        if (checked) leads.forEach(l => setSelectedIds(prev => new Set([...prev, l.id])));
-                        else setSelectedIds(new Set());
-                      }}
-                      data-testid="checkbox-select-all"
-                    />
-                  </th>
-                  <th className="px-3 py-2.5 text-left font-medium text-gray-600 dark:text-gray-300">Lead</th>
-                  <th className="px-3 py-2.5 text-left font-medium text-gray-600 dark:text-gray-300">Contact</th>
-                  <th className="px-3 py-2.5 text-left font-medium text-gray-600 dark:text-gray-300 hidden lg:table-cell">Company</th>
-                  <th className="px-3 py-2.5 text-left font-medium text-gray-600 dark:text-gray-300 hidden lg:table-cell">Email</th>
-                  <th className="px-3 py-2.5 text-right font-medium text-gray-600 dark:text-gray-300">Value</th>
-                  <th className="px-3 py-2.5 text-right font-medium text-gray-600 dark:text-gray-300 hidden lg:table-cell">Created</th>
-                  <th className="w-8" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-700 bg-white dark:bg-gray-900">
-                {leads.map((lead) => {
-                  const isSelected = selectedIds.has(lead.id);
-                  return (
-                    <tr
-                      key={lead.id}
-                      className={cn(
-                        "cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors",
-                        isSelected && "bg-teal-50/40 dark:bg-teal-950/20"
-                      )}
-                      onClick={() => navigate(`/admin/crm/leads/${lead.id}`)}
-                      data-testid={`card-lead-${lead.id}`}
-                    >
-                      <td className="px-3 py-2.5" onClick={(e) => { e.stopPropagation(); toggleSelect(lead.id, e); }} data-testid={`checkbox-lead-${lead.id}`}>
-                        <Checkbox checked={isSelected} onCheckedChange={() => {}} className="pointer-events-none" />
-                      </td>
-                      <td className="px-3 py-2.5 max-w-[200px]">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-medium text-gray-900 dark:text-gray-100 truncate" data-testid={`text-lead-title-${lead.id}`}>{lead.title}</span>
-                          {getStatusBadge(lead)}
-                          {lead.fromWebsiteForm && (
-                            <Badge variant="secondary" className="text-xs" data-testid={`badge-web-form-${lead.id}`}>
-                              <Globe className="w-3 h-3 mr-1" /> Web Form
-                            </Badge>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-3 py-2.5 text-gray-600 dark:text-gray-300" data-testid={`text-lead-contact-${lead.id}`}>
-                        {getContactName(lead)}
-                      </td>
-                      <td className="px-3 py-2.5 text-gray-500 hidden lg:table-cell" data-testid={`text-lead-company-${lead.id}`}>
-                        {lead.company?.name ?? "—"}
-                      </td>
-                      <td className="px-3 py-2.5 text-gray-500 hidden lg:table-cell">
-                        {lead.contact?.email
-                          ? <span className="flex items-center gap-1"><Mail className="w-3 h-3" /> {lead.contact.email}</span>
-                          : "—"}
-                      </td>
-                      <td className="px-3 py-2.5 text-right font-medium text-gray-900 dark:text-gray-100" data-testid={`text-lead-value-${lead.id}`}>
-                        {lead.value ? `$${Number(lead.value).toLocaleString()}` : "—"}
-                      </td>
-                      <td className="px-3 py-2.5 text-right text-gray-400 text-xs hidden lg:table-cell">
-                        {new Date(lead.createdAt).toLocaleDateString()}
-                      </td>
-                      <td className="px-3 py-2.5">
-                        <ChevronRight className="w-4 h-4 text-gray-300" />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Mobile card list */}
-          <div className="md:hidden space-y-2">
-            {leads.map((lead) => {
-              const isSelected = selectedIds.has(lead.id);
-              return (
-                <motion.div
-                  key={lead.id}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.12 }}
+        <div className="space-y-2">
+          {leads.map((lead) => {
+            const isSelected = selectedIds.has(lead.id);
+            return (
+              <motion.div
+                key={lead.id}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.12 }}
+              >
+                <Card
+                  className={cn(
+                    "hover-elevate cursor-pointer transition-all duration-150",
+                    isSelected && "ring-2 ring-teal-500 bg-teal-50/40 dark:bg-teal-950/20"
+                  )}
+                  onClick={() => navigate(`/admin/crm/leads/${lead.id}`)}
+                  data-testid={`card-lead-${lead.id}`}
                 >
-                  <Card
-                    className={cn(
-                      "hover-elevate cursor-pointer transition-all duration-150",
-                      isSelected && "ring-2 ring-teal-500 bg-teal-50/40 dark:bg-teal-950/20"
-                    )}
-                    onClick={() => navigate(`/admin/crm/leads/${lead.id}`)}
-                    data-testid={`card-lead-${lead.id}-mobile`}
-                  >
-                    <div className="flex items-start gap-3 p-4">
-                      <div
-                        className="flex-shrink-0 pt-0.5"
-                        onClick={(e) => toggleSelect(lead.id, e)}
-                        data-testid={`checkbox-lead-${lead.id}`}
-                      >
-                        <Checkbox checked={isSelected} onCheckedChange={() => {}} className="pointer-events-none" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <h3 className="font-medium text-gray-900 dark:text-gray-100 text-sm truncate" data-testid={`text-lead-title-${lead.id}`}>
-                                {lead.title}
-                              </h3>
-                              {getStatusBadge(lead)}
-                            </div>
-                            <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-500 flex-wrap">
-                              <span data-testid={`text-lead-contact-${lead.id}`}>{getContactName(lead)}</span>
-                              {lead.company && <span data-testid={`text-lead-company-${lead.id}`}>{lead.company.name}</span>}
-                            </div>
+                  <div className="flex items-start gap-3 p-4">
+                    <div
+                      className="flex-shrink-0 pt-0.5"
+                      onClick={(e) => toggleSelect(lead.id, e)}
+                      data-testid={`checkbox-lead-${lead.id}`}
+                    >
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => {}}
+                        className="pointer-events-none"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3
+                              className="font-medium text-gray-900 dark:text-gray-100 text-sm truncate"
+                              data-testid={`text-lead-title-${lead.id}`}
+                            >
+                              {lead.title}
+                            </h3>
+                            {getStatusBadge(lead)}
+                            {lead.fromWebsiteForm && (
+                              <Badge variant="secondary" className="text-xs" data-testid={`badge-web-form-${lead.id}`}>
+                                <Globe className="w-3 h-3 mr-1" /> Web Form
+                              </Badge>
+                            )}
                           </div>
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            {lead.value && (
-                              <span className="text-sm font-medium text-gray-900 dark:text-gray-100" data-testid={`text-lead-value-${lead.id}`}>
-                                ${Number(lead.value).toLocaleString()}
+                          <div className="flex items-center gap-4 mt-1.5 text-xs text-gray-500 flex-wrap">
+                            <span data-testid={`text-lead-contact-${lead.id}`}>
+                              {getContactName(lead)}
+                            </span>
+                            {lead.company && (
+                              <span data-testid={`text-lead-company-${lead.id}`}>
+                                {lead.company.name}
                               </span>
                             )}
-                            <ChevronRight className="w-4 h-4 text-gray-300" />
+                            {lead.contact?.email && (
+                              <span className="hidden sm:flex items-center gap-1">
+                                <Mail className="w-3 h-3" /> {lead.contact.email}
+                              </span>
+                            )}
+                            {lead.contact?.phone && (
+                              <span className="hidden sm:flex items-center gap-1">
+                                <Phone className="w-3 h-3" /> {lead.contact.phone}
+                              </span>
+                            )}
                           </div>
+                        </div>
+                        <div className="flex items-center gap-3 flex-shrink-0">
+                          {lead.value && (
+                            <span
+                              className="text-sm font-medium text-gray-900 dark:text-gray-100"
+                              data-testid={`text-lead-value-${lead.id}`}
+                            >
+                              ${Number(lead.value).toLocaleString()}
+                            </span>
+                          )}
+                          <span className="text-xs text-gray-400 hidden sm:inline">
+                            {new Date(lead.createdAt).toLocaleDateString()}
+                          </span>
+                          <ChevronRight className="w-4 h-4 text-gray-300" />
                         </div>
                       </div>
                     </div>
-                  </Card>
-                </motion.div>
-              );
-            })}
-          </div>
-        </>
+                  </div>
+                </Card>
+              </motion.div>
+            );
+          })}
+        </div>
       )}
 
       {totalPages > 1 && (

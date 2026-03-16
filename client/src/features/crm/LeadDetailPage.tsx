@@ -23,8 +23,7 @@ import {
 import { queryClient, apiRequest, STALE } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { CrmLead, CrmLeadStatus, CrmContact, CrmCompany, CrmLeadNote, CrmTag, PipelineStage, FollowupTask, PipelineOpportunity, DemoConfig } from "@shared/schema";
-import QuickTaskModal from "@/components/QuickTaskModal";
-import { formatFollowUpForDisplay } from "@/lib/followUpDisplay";
+import QuickTaskModal, { formatTimeSlot } from "@/components/QuickTaskModal";
 import { RecordTimeline } from "@/components/RecordTimeline";
 import { useAdminLang } from "@/i18n/LanguageContext";
 
@@ -219,8 +218,6 @@ export default function LeadDetailPage({ id }: { id: string }) {
   const contactName = lead.contact
     ? [lead.contact.firstName, lead.contact.lastName].filter(Boolean).join(" ")
     : null;
-
-  const repTZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   return (
     <div>
@@ -628,8 +625,7 @@ export default function LeadDetailPage({ id }: { id: string }) {
                 <p className="text-xs text-gray-400 text-center py-2">No tasks yet</p>
               ) : (
                 tasks.map(task => {
-                  const taskFmt = formatFollowUpForDisplay(task.dueDate, task.followUpTime, task.followUpTimezone, repTZ);
-                  const isOverdue = !task.completed && (taskFmt.moment ?? new Date(task.dueDate)) < new Date();
+                  const isOverdue = !task.completed && new Date(task.dueDate) < new Date();
                   return (
                     <div
                       key={task.id}
@@ -656,10 +652,7 @@ export default function LeadDetailPage({ id }: { id: string }) {
                         </p>
                         <div className={`flex items-center gap-1 mt-0.5 ${isOverdue ? "text-red-500" : "text-gray-400"}`}>
                           {isOverdue && <AlertCircle className="w-3 h-3 flex-shrink-0" />}
-                          <span>
-                            {taskFmt.dateLabel}{taskFmt.leadTimeLabel && ` at ${taskFmt.leadTimeLabel}`}
-                            {taskFmt.repTimeLabel && <span className="text-gray-400 ml-1 font-normal">({taskFmt.repTimeLabel} your time)</span>}
-                          </span>
+                          <span>{new Date(task.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}{task.followUpTime ? ` at ${formatTimeSlot(task.followUpTime)}` : ""}</span>
                         </div>
                       </div>
                       {!task.completed && (
