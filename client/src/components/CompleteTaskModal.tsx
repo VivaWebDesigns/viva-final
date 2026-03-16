@@ -84,6 +84,7 @@ export default function CompleteTaskModal({
   }, [open]);
 
   const invalidateTaskQueries = () => {
+    queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
     queryClient.invalidateQueries({ queryKey: ["/api/tasks/due-today"] });
     if (task?.opportunityId) queryClient.invalidateQueries({ queryKey: ["/api/tasks/for-opportunity", task.opportunityId] });
     if (task?.leadId) queryClient.invalidateQueries({ queryKey: ["/api/tasks/for-lead", task.leadId] });
@@ -103,16 +104,21 @@ export default function CompleteTaskModal({
           ? customDate
           : calcDueDateString(followUp);
 
-        await apiRequest("POST", "/api/tasks", {
+        const payload: Record<string, unknown> = {
           title: "Follow up",
           notes: null,
           dueDate: dateStr,
-          followUpTime,
-          followUpTimezone: effectiveTimezone,
           opportunityId: task.opportunityId ?? null,
           leadId: task.leadId ?? null,
           contactId: task.contactId ?? null,
-        });
+        };
+
+        if (followUp === "custom") {
+          payload.followUpTime = followUpTime;
+          payload.followUpTimezone = effectiveTimezone;
+        }
+
+        await apiRequest("POST", "/api/tasks", payload);
       }
     },
     onSuccess: () => {
@@ -152,11 +158,14 @@ export default function CompleteTaskModal({
                 <SelectValue placeholder={t.tasks.selectOutcome} />
               </SelectTrigger>
               <SelectContent>
-                {OUTCOME_KEYS.map((key) => (
-                  <SelectItem key={key} value={key} data-testid={`option-outcome-${key}`}>
-                    {(t.tasks.outcomes as Record<string, string>)[key]}
-                  </SelectItem>
-                ))}
+                {OUTCOME_KEYS.map((key) => {
+                  const label = (t.tasks.outcomes as Record<string, string>)[key];
+                  return (
+                    <SelectItem key={key} value={label} data-testid={`option-outcome-${key}`}>
+                      {label}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>
