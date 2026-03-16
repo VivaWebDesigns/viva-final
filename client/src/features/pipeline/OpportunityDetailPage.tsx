@@ -325,11 +325,6 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                 {currentStage.name}
               </Badge>
             )}
-            {opp.status !== "open" && (
-              <Badge variant={opp.status === "won" ? "default" : "destructive"} data-testid="badge-status">
-                {opp.status === "won" ? t.pipeline.closeWon.split("—")[1]?.trim() || "Won" : t.pipeline.closeLost.split("—")[1]?.trim() || "Lost"}
-              </Badge>
-            )}
           </div>
         </div>
 
