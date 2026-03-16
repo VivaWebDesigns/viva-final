@@ -60,6 +60,24 @@ export async function getTasksForContact(contactId: string): Promise<FollowupTas
     .orderBy(asc(followupTasks.dueDate));
 }
 
+export async function getActiveTaskForContext(leadId?: string | null, opportunityId?: string | null): Promise<FollowupTask | null> {
+  if (leadId) {
+    const [task] = await db.select().from(followupTasks)
+      .where(and(eq(followupTasks.leadId, leadId), eq(followupTasks.completed, false)))
+      .orderBy(asc(followupTasks.dueDate))
+      .limit(1);
+    return task ?? null;
+  }
+  if (opportunityId) {
+    const [task] = await db.select().from(followupTasks)
+      .where(and(eq(followupTasks.opportunityId, opportunityId), eq(followupTasks.completed, false)))
+      .orderBy(asc(followupTasks.dueDate))
+      .limit(1);
+    return task ?? null;
+  }
+  return null;
+}
+
 export async function createTask(data: InsertFollowupTask): Promise<FollowupTask> {
   const [result] = await db.insert(followupTasks).values(data).returning();
   return result;

@@ -1,0 +1,95 @@
+Implement a tightly scoped guard that prevents multiple active follow-up tasks from existing at the same time for the same lead/opportunity context.
+
+Problem:
+Right now the system allows a rep to create a new follow-up task even when an older follow-up task for the same lead/opportunity is still open. This causes task stacking, confusion, and missed work.
+
+Goal:
+Only allow one active/open follow-up task at a time for the same lead/opportunity context.
+
+STRICT SCOPE:
+Only modify follow-up task creation and follow-up task completion flow as needed to prevent duplicate active follow-ups.
+
+Do not modify:
+- timezone storage logic
+- lead timezone logic
+- rep timezone display logic
+- task date/time scheduling logic
+- task history/activity logging
+- task completion modal layout
+- lead list layout
+- mobile ordering
+- unrelated forms
+- unrelated code review findings
+- styling outside minimal validation/error messaging if needed
+
+Only edit the minimum files necessary.
+After implementation, stop.
+
+Required behavior:
+
+1. Active follow-up uniqueness rule
+A lead/opportunity should not have more than one active/open follow-up task at the same time.
+
+“Active/open” means:
+- not completed
+- not cancelled (if cancellation exists)
+- still considered pending/upcoming/overdue
+
+2. When creating a follow-up
+If a rep tries to create a new follow-up task for a lead/opportunity that already has an open follow-up task, do NOT create a second active follow-up task.
+
+Instead, do one of these using the smallest clean implementation already supported by the codebase:
+
+Preferred behavior:
+- update/reschedule the existing open follow-up task
+
+Acceptable fallback behavior:
+- block creation and return a clear validation error/message indicating an active follow-up already exists
+
+Prefer reusing existing task update/reschedule logic over duplicating scheduling logic.
+
+3. Completion modal integration
+If the rep completes a task and chooses a next follow-up in CompleteTaskModal, that should still work correctly.
+Because the current task is being completed first, the next follow-up created in that same flow is allowed.
+
+In other words:
+- complete current task
+- create next follow-up
+- final result should still be only one active follow-up
+
+4. Scope of uniqueness
+Use the existing task context to determine uniqueness.
+At minimum, prevent duplicates for the same leadId.
+If the codebase already consistently ties follow-ups to opportunityId as well, use the cleanest existing context rules already present in the app.
+
+Do not redesign the data model.
+
+5. UI / UX behavior
+Do not redesign task cards or pages.
+If blocking is needed, use the smallest existing validation/error mechanism already used by the app.
+If rescheduling the existing follow-up is possible through existing utilities, prefer that.
+
+6. Data / logic rules
+- Do not delete historical/completed tasks
+- Do not modify completed task behavior
+- Do not change timezone-safe scheduling logic
+- Do not introduce duplicate scheduling code paths
+- Reuse existing task create/update utilities where possible
+
+7. Testing requirements
+Verify:
+- creating a follow-up when no active follow-up exists → allowed
+- creating a second follow-up for the same lead while one is still open → prevented or converted into reschedule
+- completing a task and scheduling the next follow-up in CompleteTaskModal → allowed and results in only one active follow-up
+- overdue/open follow-up still counts as active for duplicate prevention
+- completed follow-up does not block a new one
+- no date-shift bug is reintroduced
+- no timezone behavior is changed
+
+Implementation approach:
+Keep this as a small anti-duplication guard.
+Prefer one backend/source-of-truth check rather than multiple scattered frontend-only checks.
+Reuse existing task update/reschedule logic if available.
+
+After implementation:
+Stop. Do not perform unrelated cleanup or reviewer-driven changes.

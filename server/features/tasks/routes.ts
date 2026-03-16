@@ -68,9 +68,36 @@ router.get("/for-lead/:id", requireRole("admin", "sales_rep", "developer"), asyn
 router.post("/", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
     const validated = createTaskSchema.parse(req.body);
+    const parsedDueDate = parseDueDate(validated.dueDate);
+    const actorId = req.authUser?.id ?? null;
+
+    const existing = await taskStorage.getActiveTaskForContext(validated.leadId, validated.opportunityId);
+
+    if (existing) {
+      const task = await taskStorage.updateTask(existing.id, {
+        title: validated.title,
+        dueDate: parsedDueDate,
+        followUpTime: validated.followUpTime ?? null,
+        followUpTimezone: validated.followUpTimezone ?? null,
+        notes: validated.notes ?? null,
+      });
+      await logAudit({
+        userId: req.authUser?.id,
+        action: "update",
+        entity: "followup_task",
+        entityId: task.id,
+        metadata: { action: "rescheduled", title: task.title, dueDate: task.dueDate },
+        ipAddress: req.ip,
+      });
+      const rescheduleContent = `Follow-up rescheduled: ${task.title}`;
+      if (task.leadId) addLeadNote({ leadId: task.leadId, userId: actorId, type: "task", content: rescheduleContent }).catch(() => {});
+      if (task.opportunityId) addActivity({ opportunityId: task.opportunityId, userId: actorId, type: "task", content: rescheduleContent }).catch(() => {});
+      return res.status(200).json(task);
+    }
+
     const task = await taskStorage.createTask({
       ...validated,
-      dueDate: parseDueDate(validated.dueDate),
+      dueDate: parsedDueDate,
       createdBy: req.authUser?.id,
       completed: false,
     });
@@ -82,8 +109,6 @@ router.post("/", requireRole("admin", "developer", "sales_rep"), async (req, res
       metadata: { title: task.title, dueDate: task.dueDate },
       ipAddress: req.ip,
     });
-
-    const actorId = req.authUser?.id ?? null;
     const scheduleContent = `Follow-up scheduled: ${task.title}`;
     if (task.leadId) addLeadNote({ leadId: task.leadId, userId: actorId, type: "task", content: scheduleContent }).catch(() => {});
     if (task.opportunityId) addActivity({ opportunityId: task.opportunityId, userId: actorId, type: "task", content: scheduleContent }).catch(() => {});
