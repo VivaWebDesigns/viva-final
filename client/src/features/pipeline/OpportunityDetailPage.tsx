@@ -464,7 +464,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                   <p className="text-sm font-medium flex items-center gap-1" data-testid="text-next-followup">
                     {nextTask ? (
                       <span className={new Date(nextTask.dueDate) < new Date() ? "text-red-500" : "text-gray-800"}>
-                        {new Date(nextTask.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                        {new Date(nextTask.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}
                       </span>
                     ) : (
                       <span className="text-gray-400">{t.pipeline.noTaskScheduled}</span>
@@ -693,7 +693,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                         </p>
                         <div className={`flex items-center gap-1 mt-0.5 ${isOverdue ? "text-red-500" : "text-gray-400"}`}>
                           {isOverdue && <AlertCircle className="w-3 h-3 flex-shrink-0" />}
-                          <span>{new Date(task.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                          <span>{new Date(task.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}</span>
                         </div>
                       </div>
                       {!task.completed && (

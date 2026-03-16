@@ -44,7 +44,15 @@ function calcDueDate(preset: TaskPreset): Date {
 }
 
 function toInputDate(d: Date): string {
-  return d.toISOString().slice(0, 10);
+  const yyyy = d.getUTCFullYear();
+  const mm   = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const dd   = String(d.getUTCDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function localNoonFromDateString(dateStr: string): Date {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(y, m - 1, d, 12, 0, 0, 0);
 }
 
 interface QuickTaskModalProps {
@@ -102,7 +110,7 @@ export default function QuickTaskModal({
   };
 
   const getDueDate = (): string => {
-    if (preset === "custom") return new Date(customDate).toISOString();
+    if (preset === "custom") return localNoonFromDateString(customDate).toISOString();
     return calcDueDate(preset).toISOString();
   };
 
@@ -166,7 +174,7 @@ export default function QuickTaskModal({
   };
 
   const dueDatePreview = preset === "custom"
-    ? new Date(customDate).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })
+    ? localNoonFromDateString(customDate).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })
     : calcDueDate(preset).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
 
   return (
