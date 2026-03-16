@@ -6,11 +6,12 @@ import {
   ArrowLeft, Building2, User, Globe, Phone, Mail, MapPin,
   Calendar, Tag, MessageSquare, PhoneCall, MailIcon, ClipboardList,
   RefreshCw, Bot, Send, ExternalLink, TrendingUp,
-  Plus, CheckCircle, CheckCheck, Clock, AlertCircle, Monitor,
+  Plus, CheckCircle, CheckCheck, Clock, AlertCircle, Monitor, Pencil, Loader2, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import RichTextEditorField from "@/features/chat/RichTextEditorField";
 import { sanitizeHtml } from "@/features/chat/RichTextEditor";
 import {
@@ -26,6 +27,7 @@ import type { CrmLead, CrmLeadStatus, CrmContact, CrmCompany, CrmLeadNote, CrmTa
 import QuickTaskModal, { formatTaskTimeDisplay } from "@/components/QuickTaskModal";
 import { RecordTimeline } from "@/components/RecordTimeline";
 import { useAdminLang } from "@/i18n/LanguageContext";
+import { US_STATES } from "@/lib/usStates";
 
 type TaskWithContact = FollowupTask & {
   contact: { firstName: string; lastName: string | null; phone: string | null } | null;
@@ -73,6 +75,9 @@ export default function LeadDetailPage({ id }: { id: string }) {
   const [noteType, setNoteType] = useState("note");
   const [taskModalOpen, setTaskModalOpen] = useState(false);
   const [rescheduleTask, setRescheduleTask] = useState<TaskWithContact | null>(null);
+  const [editingLocation, setEditingLocation] = useState(false);
+  const [editCity, setEditCity] = useState("");
+  const [editState, setEditState] = useState("");
 
   const { data: lead, isLoading: leadLoading } = useQuery<LeadDetail>({
     queryKey: ["/api/crm/leads", id],
@@ -112,6 +117,20 @@ export default function LeadDetailPage({ id }: { id: string }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/crm/leads", id] });
       queryClient.invalidateQueries({ queryKey: ["/api/crm/leads", id, "notes"] });
+    },
+  });
+
+  const updateLocationMutation = useMutation({
+    mutationFn: async (data: { city: string; state: string }) => {
+      await apiRequest("PUT", `/api/crm/leads/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/crm/leads", id] });
+      setEditingLocation(false);
+      toast({ title: "Location updated" });
+    },
+    onError: (err: any) => {
+      toast({ title: err.message ?? "Failed to update location", variant: "destructive" });
     },
   });
 
@@ -331,6 +350,85 @@ export default function LeadDetailPage({ id }: { id: string }) {
                     </Badge>
                   )}
                 </div>
+              </div>
+              <div className="sm:col-span-2">
+                <div className="flex items-center gap-2 mb-1">
+                  <MapPin className="w-3.5 h-3.5 text-gray-400" />
+                  <p className="text-gray-500">Location</p>
+                  {!editingLocation && (
+                    <button
+                      onClick={() => {
+                        setEditCity(lead.city ?? "");
+                        setEditState(lead.state ?? "");
+                        setEditingLocation(true);
+                      }}
+                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                      data-testid="button-edit-location"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+                {editingLocation ? (
+                  <div className="flex flex-wrap items-end gap-2">
+                    <div className="flex-1 min-w-[120px]">
+                      <label className="text-xs text-gray-500 mb-1 block">City</label>
+                      <Input
+                        value={editCity}
+                        onChange={(e) => setEditCity(e.target.value)}
+                        placeholder="City"
+                        className="h-8 text-sm"
+                        data-testid="input-edit-city"
+                      />
+                    </div>
+                    <div className="w-[100px]">
+                      <label className="text-xs text-gray-500 mb-1 block">State</label>
+                      <Select value={editState} onValueChange={setEditState}>
+                        <SelectTrigger className="h-8 text-sm" data-testid="select-edit-state">
+                          <SelectValue placeholder="State" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {US_STATES.map((s) => (
+                            <SelectItem key={s} value={s}>{s}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button
+                        size="sm"
+                        variant="default"
+                        className="h-8 px-3"
+                        disabled={updateLocationMutation.isPending}
+                        onClick={() => updateLocationMutation.mutate({ city: editCity, state: editState })}
+                        data-testid="button-save-location"
+                      >
+                        {updateLocationMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Save"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 px-2"
+                        disabled={updateLocationMutation.isPending}
+                        onClick={() => setEditingLocation(false)}
+                        data-testid="button-cancel-location"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div data-testid="text-lead-location">
+                    {lead.city || lead.state ? (
+                      <span className="text-gray-900">{[lead.city, lead.state].filter(Boolean).join(", ")}</span>
+                    ) : (
+                      <span className="text-gray-400">Not set</span>
+                    )}
+                    {lead.timezone && (
+                      <span className="text-gray-400 text-xs ml-2" data-testid="text-lead-timezone">({lead.timezone})</span>
+                    )}
+                  </div>
+                )}
               </div>
               {lead.notes && (
                 <div className="sm:col-span-2">

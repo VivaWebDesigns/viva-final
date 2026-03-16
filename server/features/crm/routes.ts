@@ -25,6 +25,9 @@ const updateCrmLeadSchema = z.object({
   sourceLabel: z.string().nullable().optional(),
   assignedTo: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
+  city: z.string().nullable().optional(),
+  state: z.string().nullable().optional(),
+  timezone: z.string().nullable().optional(),
 }).strict();
 
 const updateCrmCompanySchema = z.object({
@@ -407,6 +410,9 @@ router.put("/leads/:id", requireRole("admin", "developer", "sales_rep", "lead_ge
     const existing = await crmStorage.getLeadById(id);
     if (!existing) return res.status(404).json({ message: "Lead not found" });
     const validated = updateCrmLeadSchema.parse(req.body);
+    if (validated.state !== undefined) {
+      validated.timezone = US_STATE_TIMEZONES[validated.state ?? ""] ?? validated.timezone ?? null;
+    }
     const lead = await crmStorage.updateLead(id, validated);
     await logAudit({
       userId: req.authUser?.id,
