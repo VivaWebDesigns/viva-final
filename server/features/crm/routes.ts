@@ -26,7 +26,7 @@ const updateCrmLeadSchema = z.object({
   assignedTo: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
   city: z.string().nullable().optional(),
-  state: z.string().nullable().optional(),
+  state: z.string().regex(/^[A-Z]{2}$/).nullable().optional(),
   timezone: z.string().nullable().optional(),
 }).strict();
 
