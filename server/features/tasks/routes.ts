@@ -86,8 +86,13 @@ router.post("/", requireRole("admin", "developer", "sales_rep"), async (req, res
   }
 });
 
+const ALLOWED_OUTCOMES = [
+  "No answer", "Left voicemail", "Spoke with lead", "Interested",
+  "Not interested", "Bad number", "Appointment set", "Other",
+] as const;
+
 const completeTaskSchema = z.object({
-  outcome: z.string().optional(),
+  outcome: z.enum(ALLOWED_OUTCOMES).optional(),
   completionNote: z.string().optional(),
 }).optional();
 

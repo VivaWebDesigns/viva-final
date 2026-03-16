@@ -30,16 +30,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-export const OUTCOME_KEYS = [
-  "noAnswer",
-  "leftVoicemail",
-  "spokeWithLead",
-  "interested",
-  "notInterested",
-  "badNumber",
-  "appointmentSet",
-  "other",
-] as const;
+export const OUTCOME_LABELS: Record<string, string> = {
+  noAnswer: "No answer",
+  leftVoicemail: "Left voicemail",
+  spokeWithLead: "Spoke with lead",
+  interested: "Interested",
+  notInterested: "Not interested",
+  badNumber: "Bad number",
+  appointmentSet: "Appointment set",
+  other: "Other",
+};
+
+export const OUTCOME_KEYS = Object.keys(OUTCOME_LABELS) as readonly string[];
 
 type FollowUpOption = "none" | "1d" | "3d" | "1w" | "custom";
 
@@ -160,8 +162,8 @@ export default function CompleteTaskModal({
               </SelectTrigger>
               <SelectContent>
                 {OUTCOME_KEYS.map((key) => (
-                  <SelectItem key={key} value={key} data-testid={`option-outcome-${key}`}>
-                    {(t.tasks.outcomes as Record<string, string>)[key]}
+                  <SelectItem key={key} value={OUTCOME_LABELS[key]} data-testid={`option-outcome-${key}`}>
+                    {(t.tasks.outcomes as Record<string, string>)[key] ?? OUTCOME_LABELS[key]}
                   </SelectItem>
                 ))}
               </SelectContent>
