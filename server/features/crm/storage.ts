@@ -189,7 +189,34 @@ export async function addLeadNote(data: InsertCrmLeadNote): Promise<CrmLeadNote>
 }
 
 export async function getLeadNotes(leadId: string): Promise<CrmLeadNote[]> {
-  return db.select().from(crmLeadNotes).where(eq(crmLeadNotes.leadId, leadId)).orderBy(desc(crmLeadNotes.createdAt));
+  const [ownNotes, opp] = await Promise.all([
+    db.select().from(crmLeadNotes).where(eq(crmLeadNotes.leadId, leadId)),
+    db.select({ id: pipelineOpportunities.id })
+      .from(pipelineOpportunities)
+      .where(eq(pipelineOpportunities.leadId, leadId))
+      .then(r => r[0]),
+  ]);
+
+  let mappedActivities: CrmLeadNote[] = [];
+  if (opp) {
+    const pipelineRows = await db
+      .select()
+      .from(pipelineActivities)
+      .where(eq(pipelineActivities.opportunityId, opp.id));
+    mappedActivities = pipelineRows.map(a => ({
+      id: a.id,
+      leadId,
+      userId: a.userId,
+      type: a.type,
+      content: a.content,
+      metadata: a.metadata,
+      createdAt: a.createdAt,
+    })) as CrmLeadNote[];
+  }
+
+  const all = [...ownNotes, ...mappedActivities];
+  all.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  return all;
 }
 
 export async function getLeadTags(leadId: string): Promise<CrmTag[]> {

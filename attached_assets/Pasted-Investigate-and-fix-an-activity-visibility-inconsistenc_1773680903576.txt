@@ -1,0 +1,62 @@
+Investigate and fix an activity visibility inconsistency between Sales Pipeline and CRM for the same lead.
+
+Problem:
+For a lead in the Sales Pipeline, the Activity Timeline shows follow-up/task activity correctly. But when viewing the same lead in the CRM, the CRM page shows no activity.
+
+Goal:
+Make the CRM view show the relevant activity/history for the same lead consistently, using the app’s existing activity/history infrastructure.
+
+STRICT SCOPE:
+Only investigate and fix activity/history retrieval/rendering for the CRM lead view so it reflects the same lead-related activity already visible in Sales Pipeline.
+
+Do not modify:
+- follow-up scheduling logic
+- task completion modal
+- task validation rules
+- timezone logic
+- lead deletion logic
+- pipeline stage logic
+- unrelated layouts
+- unrelated forms
+- unrelated code review findings
+
+Only edit the minimum files necessary.
+After implementation, stop.
+
+Required investigation:
+1. Compare how activity is loaded/rendered in:
+- Sales Pipeline lead/opportunity view
+- CRM lead detail view
+
+2. Identify the source mismatch:
+- opportunity activity feed
+- lead notes/history feed
+- task activity entries
+- filtering by leadId vs opportunityId
+- missing event types in CRM rendering
+- wrong query key / endpoint / selector in CRM
+
+Required behavior:
+3. The CRM lead detail view should display the relevant activity for the same lead, including follow-up/task completion and follow-up scheduling entries already visible in Sales Pipeline.
+
+4. Reuse the existing activity/history infrastructure already used by the app.
+Do not create a separate parallel activity system.
+
+5. If Pipeline shows a combined feed and CRM shows a narrower feed, update CRM to include the same relevant lead-linked task/activity entries with minimal change.
+
+Implementation rules:
+6. Prefer fixing the data/query wiring over adding duplicate writes.
+7. Do not change how activity entries are created unless investigation proves entries are only being written to opportunity and never to lead.
+8. Keep the fix tightly scoped to CRM activity visibility.
+9. Do not redesign the activity UI.
+
+Testing:
+10. Verify:
+- a lead with task activity visible in Pipeline also shows activity in CRM
+- task completed entries appear in CRM
+- follow-up scheduled entries appear in CRM
+- existing pipeline activity view remains unchanged
+- no unrelated UI changes occur
+
+After implementation:
+Stop. Do not perform unrelated cleanup or reviewer-driven changes.

@@ -91,7 +91,7 @@ router.post("/", requireRole("admin", "developer", "sales_rep"), async (req, res
       });
       const rescheduleContent = `Follow-up rescheduled: ${task.title}`;
       if (task.leadId) addLeadNote({ leadId: task.leadId, userId: actorId, type: "task", content: rescheduleContent }).catch(() => {});
-      if (task.opportunityId) addActivity({ opportunityId: task.opportunityId, userId: actorId, type: "task", content: rescheduleContent }).catch(() => {});
+      else if (task.opportunityId) addActivity({ opportunityId: task.opportunityId, userId: actorId, type: "task", content: rescheduleContent }).catch(() => {});
       return res.status(200).json(task);
     }
 
@@ -111,7 +111,7 @@ router.post("/", requireRole("admin", "developer", "sales_rep"), async (req, res
     });
     const scheduleContent = `Follow-up scheduled: ${task.title}`;
     if (task.leadId) addLeadNote({ leadId: task.leadId, userId: actorId, type: "task", content: scheduleContent }).catch(() => {});
-    if (task.opportunityId) addActivity({ opportunityId: task.opportunityId, userId: actorId, type: "task", content: scheduleContent }).catch(() => {});
+    else if (task.opportunityId) addActivity({ opportunityId: task.opportunityId, userId: actorId, type: "task", content: scheduleContent }).catch(() => {});
 
     res.status(201).json(task);
   } catch (err: any) {
@@ -148,7 +148,7 @@ router.put("/:id/complete", requireRole("admin", "developer", "sales_rep"), asyn
     if (body?.completionNote) parts.push(`Note: ${body.completionNote}`);
     const completionContent = parts.join(" · ");
     if (task.leadId) addLeadNote({ leadId: task.leadId, userId: actorId, type: "task", content: completionContent }).catch(() => {});
-    if (task.opportunityId) addActivity({ opportunityId: task.opportunityId, userId: actorId, type: "task", content: completionContent }).catch(() => {});
+    else if (task.opportunityId) addActivity({ opportunityId: task.opportunityId, userId: actorId, type: "task", content: completionContent }).catch(() => {});
 
     res.json(task);
   } catch (err: any) {
