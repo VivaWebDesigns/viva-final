@@ -122,7 +122,10 @@ export default function LeadDetailPage({ id }: { id: string }) {
 
   const updateLocationMutation = useMutation({
     mutationFn: async (data: { city: string; state: string }) => {
-      await apiRequest("PUT", `/api/crm/leads/${id}`, data);
+      await apiRequest("PUT", `/api/crm/leads/${id}`, {
+        city: data.city.trim() || null,
+        state: data.state || null,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/crm/leads", id] });
@@ -364,6 +367,7 @@ export default function LeadDetailPage({ id }: { id: string }) {
                       }}
                       className="text-gray-400 hover:text-gray-600 transition-colors"
                       data-testid="button-edit-location"
+                      aria-label="Edit location"
                     >
                       <Pencil className="w-3.5 h-3.5" />
                     </button>
