@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { resolveRepTimezone } from "@/lib/timezone";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -84,7 +85,7 @@ export function formatTaskTimeDisplay(
   followUpTimezone: string | null | undefined,
 ): string {
   if (!followUpTimezone) return formatTimeSlot(followUpTime);
-  const browserTZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const browserTZ = resolveRepTimezone();
   if (followUpTimezone === browserTZ) return formatTimeSlot(followUpTime);
   const d = new Date(dueDate);
   const dateStr = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
@@ -163,7 +164,7 @@ export default function QuickTaskModal({
   const { t } = useAdminLang();
   const isEdit = !!editTask;
 
-  const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const browserTimezone = resolveRepTimezone();
   const effectiveTimezone = leadTimezone ?? browserTimezone;
 
   const [title, setTitle] = useState(defaultTitle);
