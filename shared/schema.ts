@@ -272,6 +272,9 @@ export const crmLeads = pgTable("crm_leads", {
   fromWebsiteForm: boolean("from_website_form").notNull().default(false),
   assignedTo: text("assigned_to").references(() => user.id),
   notes: text("notes"),
+  city: text("city"),
+  state: text("state"),
+  timezone: text("timezone"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (t) => [
