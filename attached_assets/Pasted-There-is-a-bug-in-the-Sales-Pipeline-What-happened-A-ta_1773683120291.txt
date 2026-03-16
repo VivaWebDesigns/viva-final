@@ -1,0 +1,61 @@
+There is a bug in the Sales Pipeline.
+
+What happened
+A task outcome automatically marked an opportunity as Closed – Lost.
+In the CRM opportunity detail and activity timeline, the move is logged correctly:
+- task completed
+- stage change logged
+- moved from "New Lead" to "Closed Lost"
+
+But in the Sales Pipeline board, the opportunity does not appear
+in the "Closed – Lost" column.
+The card disappears from the board, and the Closed – Lost column
+still shows 0.
+
+I need you to investigate and fix this.
+
+Your task
+Trace the full data flow for an opportunity moved to Closed – Lost
+and determine why the pipeline board is not showing it.
+
+Check all of the following:
+1. Whether moveOpportunity() is correctly updating both:
+   - stageId
+   - status
+2. Whether the opportunity is actually persisted with the correct
+   Closed – Lost stageId in the database
+3. Whether the Sales Pipeline board query is filtering out
+   closed opportunities or lost opportunities
+4. Whether the board groups cards by stageId, status,
+   or another derived field
+5. Whether the Closed – Lost column is using the correct stage id
+6. Whether the board data is stale due to cache invalidation,
+   optimistic state, memoization, or missing refetch
+7. Whether there is a mismatch between:
+   - stage slug
+   - stage name
+   - stage id
+   - pipeline id
+8. Whether the board intentionally excludes closed stages,
+   while still rendering the column shell
+
+Requirements
+- Do not guess
+- Trace the real code path
+- Find the exact reason the opportunity is not appearing
+  in Closed – Lost
+- Fix the issue so that when an opportunity is moved to
+  Closed – Lost, it appears in the Closed – Lost column
+  immediately and the count updates correctly
+- Keep existing task completion logic
+- Keep existing activity timeline logging
+- Keep existing stage change behavior
+- Do not change unrelated pipeline UI
+
+Validation
+After the fix:
+- completing a task with an outcome that maps to closed-lost
+  should move the opportunity into the Closed – Lost column
+- the column count should increase correctly
+- the opportunity should no longer disappear from the pipeline
+- CRM detail view and pipeline board should stay in sync

@@ -95,6 +95,10 @@ export default function CompleteTaskModal({
     if (task?.opportunityId) queryClient.invalidateQueries({ queryKey: ["/api/tasks/for-opportunity", task.opportunityId] });
     if (task?.leadId) queryClient.invalidateQueries({ queryKey: ["/api/tasks/for-lead", task.leadId] });
     if (task?.contactId) queryClient.invalidateQueries({ queryKey: ["/api/tasks/for-contact", task.contactId] });
+    if (task?.opportunityId) {
+      queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities/board"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities", task.opportunityId] });
+    }
   };
 
   const submitMutation = useMutation({

@@ -94,7 +94,6 @@ export async function getOpportunities(filters: OpportunityFilters = {}) {
 export async function getOpportunitiesByStage() {
   const stages = await getStages();
   const allOpps = await db.select().from(pipelineOpportunities)
-    .where(eq(pipelineOpportunities.status, "open"))
     .orderBy(asc(pipelineOpportunities.createdAt));
 
   const board: Record<string, { stage: PipelineStage; opportunities: PipelineOpportunity[] }> = {};

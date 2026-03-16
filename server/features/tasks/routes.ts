@@ -160,12 +160,9 @@ router.put("/:id/complete", requireRole("admin", "developer", "sales_rep"), asyn
     if (body?.outcome && task.opportunityId) {
       const targetSlug = OUTCOME_STAGE_SLUG[body.outcome];
       if (targetSlug) {
-        getStages()
-          .then(stages => {
-            const stage = stages.find(s => s.slug === targetSlug);
-            if (stage) return moveOpportunity(task.opportunityId!, stage.id, actorId ?? undefined);
-          })
-          .catch(() => {});
+        const stages = await getStages();
+        const stage = stages.find(s => s.slug === targetSlug);
+        if (stage) await moveOpportunity(task.opportunityId!, stage.id, actorId ?? undefined).catch(() => {});
       }
     }
 
