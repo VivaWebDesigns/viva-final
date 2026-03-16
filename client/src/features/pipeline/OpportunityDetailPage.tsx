@@ -25,7 +25,8 @@ import { Textarea } from "@/components/ui/textarea";
 
 import type { PipelineStage, PipelineOpportunity, PipelineActivity, CrmCompany, CrmContact, CrmLead, FollowupTask } from "@shared/schema";
 import { WEBSITE_PACKAGES } from "@shared/schema";
-import QuickTaskModal, { formatTimeSlot } from "@/components/QuickTaskModal";
+import QuickTaskModal from "@/components/QuickTaskModal";
+import { formatFollowUpForDisplay } from "@/lib/followUpDisplay";
 import { RecordTimeline } from "@/components/RecordTimeline";
 
 const PKG_COLORS: Record<string, string> = {
@@ -304,6 +305,11 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
     ?.filter(task => !task.completed)
     .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())[0] ?? null;
 
+  const repTZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const nextTaskFmt = nextTask
+    ? formatFollowUpForDisplay(nextTask.dueDate, nextTask.followUpTime, nextTask.followUpTimezone, repTZ)
+    : null;
+
   return (
     <div className="max-w-4xl mx-auto" data-testid="page-opportunity-detail">
       <button
@@ -462,9 +468,10 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                     {t.pipeline.nextFollowUp}
                   </p>
                   <p className="text-sm font-medium flex items-center gap-1" data-testid="text-next-followup">
-                    {nextTask ? (
-                      <span className={new Date(nextTask.dueDate) < new Date() ? "text-red-500" : "text-gray-800"}>
-                        {new Date(nextTask.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}{nextTask.followUpTime ? ` at ${formatTimeSlot(nextTask.followUpTime)}` : ""}
+                    {nextTask && nextTaskFmt ? (
+                      <span className={(nextTaskFmt.moment ?? new Date(nextTask.dueDate)) < new Date() ? "text-red-500" : "text-gray-800"}>
+                        {nextTaskFmt.dateLabel}{nextTaskFmt.leadTimeLabel && ` at ${nextTaskFmt.leadTimeLabel}`}
+                        {nextTaskFmt.repTimeLabel && <span className="text-gray-400 ml-1 text-xs font-normal">({nextTaskFmt.repTimeLabel} your time)</span>}
                       </span>
                     ) : (
                       <span className="text-gray-400">{t.pipeline.noTaskScheduled}</span>
@@ -666,7 +673,8 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                 <p className="text-xs text-gray-400 text-center py-2">No tasks yet</p>
               ) : (
                 tasks.map(task => {
-                  const isOverdue = !task.completed && new Date(task.dueDate) < new Date();
+                  const taskFmt = formatFollowUpForDisplay(task.dueDate, task.followUpTime, task.followUpTimezone, repTZ);
+                  const isOverdue = !task.completed && (taskFmt.moment ?? new Date(task.dueDate)) < new Date();
                   return (
                     <div
                       key={task.id}
@@ -693,7 +701,10 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                         </p>
                         <div className={`flex items-center gap-1 mt-0.5 ${isOverdue ? "text-red-500" : "text-gray-400"}`}>
                           {isOverdue && <AlertCircle className="w-3 h-3 flex-shrink-0" />}
-                          <span>{new Date(task.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}{task.followUpTime ? ` at ${formatTimeSlot(task.followUpTime)}` : ""}</span>
+                          <span>
+                            {taskFmt.dateLabel}{taskFmt.leadTimeLabel && ` at ${taskFmt.leadTimeLabel}`}
+                            {taskFmt.repTimeLabel && <span className="text-gray-400 ml-1 font-normal">({taskFmt.repTimeLabel} your time)</span>}
+                          </span>
                         </div>
                       </div>
                       {!task.completed && (

@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Clock, Phone, Building2, AlertTriangle, CalendarClock, ExternalLink, Plus } from "lucide-react";
-import QuickTaskModal, { formatTimeSlot } from "@/components/QuickTaskModal";
+import QuickTaskModal from "@/components/QuickTaskModal";
+import { formatFollowUpForDisplay } from "@/lib/followUpDisplay";
 import type { FollowupTask } from "@shared/schema";
 import { useAdminLang } from "@/i18n/LanguageContext";
 
@@ -37,6 +38,9 @@ function TaskRow({
   const contactName = task.contact
     ? `${task.contact.firstName}${task.contact.lastName ? " " + task.contact.lastName : ""}`
     : null;
+
+  const repTZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const taskFmt = formatFollowUpForDisplay(task.dueDate, task.followUpTime, task.followUpTimezone, repTZ);
 
   return (
     <div
@@ -106,7 +110,8 @@ function TaskRow({
 
       <div className="flex flex-col items-end gap-2 flex-shrink-0">
         <span className="text-xs text-gray-400 whitespace-nowrap" data-testid={`text-due-date-${task.id}`}>
-          {new Date(task.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}{task.followUpTime ? ` at ${formatTimeSlot(task.followUpTime)}` : ""}
+          {taskFmt.dateLabel}{taskFmt.leadTimeLabel && ` at ${taskFmt.leadTimeLabel}`}
+          {taskFmt.repTimeLabel && <span className="ml-1 font-normal">({taskFmt.repTimeLabel} your time)</span>}
         </span>
         <Button
           size="sm"
