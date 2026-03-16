@@ -59,7 +59,7 @@ function calcAbsoluteUtcMs(dateStr: string, time24: string, timezone: string): n
     10,
   );
   const offsetMinutes = h * 60 + m - ((localH === 24 ? 0 : localH) * 60 + localM);
-  return naive - offsetMinutes * 60_000;
+  return naive + offsetMinutes * 60_000;
 }
 
 function fmtTime(absDate: Date, tz: string): string {
