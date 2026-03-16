@@ -350,11 +350,14 @@ export async function bulkDeleteLeads(ids: string[]): Promise<number> {
   if (ids.length === 0) return 0;
   await db.transaction(async (tx) => {
     const leadsToDelete = await tx
-      .select({ companyId: crmLeads.companyId })
+      .select({ companyId: crmLeads.companyId, contactId: crmLeads.contactId })
       .from(crmLeads)
       .where(inArray(crmLeads.id, ids));
     const companyIds = [...new Set(
       leadsToDelete.map(l => l.companyId).filter((c): c is string => c !== null)
+    )];
+    const contactIds = [...new Set(
+      leadsToDelete.map(l => l.contactId).filter((c): c is string => c !== null)
     )];
 
     await tx.delete(crmLeadTags).where(inArray(crmLeadTags.leadId, ids));
@@ -393,6 +396,44 @@ export async function bulkDeleteLeads(ids: string[]): Promise<number> {
       await tx.update(followupTasks).set({ companyId: null }).where(eq(followupTasks.companyId, companyId));
       await tx.update(pipelineOpportunities).set({ companyId: null }).where(eq(pipelineOpportunities.companyId, companyId));
       await tx.delete(crmCompanies).where(eq(crmCompanies.id, companyId));
+    }
+
+    for (const contactId of contactIds) {
+      const [remainingLeads] = await tx
+        .select({ n: count() })
+        .from(crmLeads)
+        .where(eq(crmLeads.contactId, contactId));
+      if ((remainingLeads?.n ?? 0) > 0) continue;
+
+      const [remainingOpps] = await tx
+        .select({ n: count() })
+        .from(pipelineOpportunities)
+        .where(eq(pipelineOpportunities.contactId, contactId));
+      if ((remainingOpps?.n ?? 0) > 0) continue;
+
+      const [remainingOnboarding] = await tx
+        .select({ n: count() })
+        .from(onboardingRecords)
+        .where(eq(onboardingRecords.contactId, contactId));
+      if ((remainingOnboarding?.n ?? 0) > 0) continue;
+
+      // No active anchors remain — delete any tasks that are solely tied to
+      // this contact (no leadId, no opportunityId) before removing the row.
+      await tx.delete(followupTasks)
+        .where(and(
+          eq(followupTasks.contactId, contactId),
+          sql`${followupTasks.leadId} IS NULL`,
+          sql`${followupTasks.opportunityId} IS NULL`,
+        ));
+
+      // Guard: skip if tasks with independent anchors still reference this contact.
+      const [remainingTasks] = await tx
+        .select({ n: count() })
+        .from(followupTasks)
+        .where(eq(followupTasks.contactId, contactId));
+      if ((remainingTasks?.n ?? 0) > 0) continue;
+
+      await tx.delete(crmContacts).where(eq(crmContacts.id, contactId));
     }
   });
   return ids.length;
