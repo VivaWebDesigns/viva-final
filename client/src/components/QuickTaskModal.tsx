@@ -44,6 +44,57 @@ export function formatTimeSlot(t: string): string {
   return `${h12}:${mStr} ${suffix}`;
 }
 
+function calcAbsoluteUtcMs(dateStr: string, time24: string, timezone: string): number {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  const [h, m] = time24.split(":").map(Number);
+  const naive = Date.UTC(year, month - 1, day, h, m, 0);
+  const probe = new Date(naive);
+  const localH = parseInt(
+    new Intl.DateTimeFormat("en-US", { timeZone: timezone, hour: "2-digit", hour12: false }).format(probe),
+    10,
+  );
+  const localM = parseInt(
+    new Intl.DateTimeFormat("en-US", { timeZone: timezone, minute: "2-digit", hour12: false }).format(probe),
+    10,
+  );
+  const offsetMinutes = h * 60 + m - ((localH === 24 ? 0 : localH) * 60 + localM);
+  return naive - offsetMinutes * 60_000;
+}
+
+function fmtTime(absDate: Date, tz: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: tz,
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(absDate);
+}
+
+function fmtTZAbbr(absDate: Date, tz: string): string {
+  return (
+    new Intl.DateTimeFormat("en-US", { timeZone: tz, timeZoneName: "short" })
+      .formatToParts(absDate)
+      .find((p) => p.type === "timeZoneName")?.value ?? ""
+  );
+}
+
+export function formatTaskTimeDisplay(
+  dueDate: Date | string,
+  followUpTime: string,
+  followUpTimezone: string | null | undefined,
+): string {
+  if (!followUpTimezone) return formatTimeSlot(followUpTime);
+  const browserTZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  if (followUpTimezone === browserTZ) return formatTimeSlot(followUpTime);
+  const d = new Date(dueDate);
+  const dateStr = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+  const absDate = new Date(calcAbsoluteUtcMs(dateStr, followUpTime, followUpTimezone));
+  const leadTime = fmtTime(absDate, followUpTimezone);
+  const leadAbbr = fmtTZAbbr(absDate, followUpTimezone);
+  const repTime = fmtTime(absDate, browserTZ);
+  return `${leadTime} ${leadAbbr} · ${repTime} your time`;
+}
+
 function todayLocalString(): string {
   const d = new Date();
   const y = d.getFullYear();

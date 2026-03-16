@@ -23,7 +23,7 @@ import {
 import { queryClient, apiRequest, STALE } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { CrmLead, CrmLeadStatus, CrmContact, CrmCompany, CrmLeadNote, CrmTag, PipelineStage, FollowupTask, PipelineOpportunity, DemoConfig } from "@shared/schema";
-import QuickTaskModal, { formatTimeSlot } from "@/components/QuickTaskModal";
+import QuickTaskModal, { formatTaskTimeDisplay } from "@/components/QuickTaskModal";
 import { RecordTimeline } from "@/components/RecordTimeline";
 import { useAdminLang } from "@/i18n/LanguageContext";
 
@@ -652,7 +652,7 @@ export default function LeadDetailPage({ id }: { id: string }) {
                         </p>
                         <div className={`flex items-center gap-1 mt-0.5 ${isOverdue ? "text-red-500" : "text-gray-400"}`}>
                           {isOverdue && <AlertCircle className="w-3 h-3 flex-shrink-0" />}
-                          <span>{new Date(task.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}{task.followUpTime ? ` at ${formatTimeSlot(task.followUpTime)}` : ""}</span>
+                          <span>{new Date(task.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}{task.followUpTime ? ` at ${formatTaskTimeDisplay(task.dueDate, task.followUpTime, task.followUpTimezone)}` : ""}</span>
                         </div>
                       </div>
                       {!task.completed && (
