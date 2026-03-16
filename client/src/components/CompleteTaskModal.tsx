@@ -105,7 +105,7 @@ export default function CompleteTaskModal({
           : calcDueDateString(followUp);
 
         const payload: Record<string, unknown> = {
-          title: "Follow up",
+          title: `Follow up: ${task.title}`,
           notes: null,
           dueDate: dateStr,
           opportunityId: task.opportunityId ?? null,
