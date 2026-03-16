@@ -38,10 +38,14 @@ export const OUTCOME_LABELS: Record<string, string> = {
   notInterested: "Not interested",
   badNumber: "Bad number",
   appointmentSet: "Appointment set",
-  other: "Other",
+  duplicateLead: "Duplicate lead",
 };
 
 export const OUTCOME_KEYS = Object.keys(OUTCOME_LABELS) as readonly string[];
+
+const REQUIRES_FOLLOW_UP = new Set([
+  "No answer", "Left voicemail", "Spoke with lead", "Interested",
+]);
 
 type FollowUpOption = "none" | "1d" | "3d" | "1w" | "custom";
 
@@ -139,7 +143,9 @@ export default function CompleteTaskModal({
   if (!task) return null;
 
   const customDateValid = followUp !== "custom" || customDate !== "";
-  const canSubmit = outcome !== "" && customDateValid && !submitMutation.isPending;
+  const followUpRequired = REQUIRES_FOLLOW_UP.has(outcome);
+  const followUpMissing = followUpRequired && followUp === "none";
+  const canSubmit = outcome !== "" && customDateValid && !followUpMissing && !submitMutation.isPending;
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
@@ -205,6 +211,12 @@ export default function CompleteTaskModal({
                 <Label htmlFor="fu-custom" className="font-normal cursor-pointer">{t.tasks.customDateTime}</Label>
               </div>
             </RadioGroup>
+
+            {followUpMissing && (
+              <p className="text-xs text-red-500 mt-1" data-testid="msg-followup-required">
+                {t.tasks.requireFollowUpMessage}
+              </p>
+            )}
 
             {followUp === "custom" && (
               <div className="ml-6 mt-2 space-y-3 p-3 bg-gray-50 rounded-md border border-gray-100">

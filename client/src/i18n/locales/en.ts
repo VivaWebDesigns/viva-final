@@ -472,6 +472,7 @@ export const en = {
     customDateTime: "Custom date & time",
     completing: "Completing...",
     taskCompletedNext: "Task completed — next follow-up scheduled",
+    requireFollowUpMessage: "Please schedule the next follow-up for this outcome.",
     outcomes: {
       noAnswer: "No answer",
       leftVoicemail: "Left voicemail",
@@ -480,7 +481,7 @@ export const en = {
       notInterested: "Not interested",
       badNumber: "Bad number",
       appointmentSet: "Appointment set",
-      other: "Other",
+      duplicateLead: "Duplicate lead",
     },
   },
   notifications: {

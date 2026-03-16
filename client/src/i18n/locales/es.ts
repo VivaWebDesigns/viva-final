@@ -474,6 +474,7 @@ export const es: AdminTranslations = {
     customDateTime: "Fecha y hora personalizada",
     completing: "Completando...",
     taskCompletedNext: "Tarea completada — próximo seguimiento programado",
+    requireFollowUpMessage: "Por favor programa el próximo seguimiento para este resultado.",
     outcomes: {
       noAnswer: "Sin respuesta",
       leftVoicemail: "Buzón de voz",
@@ -482,7 +483,7 @@ export const es: AdminTranslations = {
       notInterested: "No interesado",
       badNumber: "Número incorrecto",
       appointmentSet: "Cita programada",
-      other: "Otro",
+      duplicateLead: "Prospecto duplicado",
     },
   },
   notifications: {
