@@ -437,8 +437,8 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
               </button>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2 sm:col-span-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
                   <p className="text-xs text-gray-400 mb-1.5 flex items-center gap-1">
                     <Package className="w-3 h-3" />
                     {t.pipeline.package}
