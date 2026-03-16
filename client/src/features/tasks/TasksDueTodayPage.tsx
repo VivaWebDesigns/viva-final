@@ -1,13 +1,13 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { apiRequest, queryClient, STALE } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
+import { STALE } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Clock, Phone, Building2, AlertTriangle, CalendarClock, ExternalLink, Plus } from "lucide-react";
 import QuickTaskModal, { formatTaskTimeDisplay } from "@/components/QuickTaskModal";
+import CompleteTaskModal from "@/components/CompleteTaskModal";
 import type { FollowupTask } from "@shared/schema";
 import { useAdminLang } from "@/i18n/LanguageContext";
 
@@ -124,9 +124,8 @@ function TaskRow({
 }
 
 export default function TasksDueTodayPage() {
-  const { toast } = useToast();
   const { t } = useAdminLang();
-  const [completingId, setCompletingId] = useState<string | null>(null);
+  const [completingTask, setCompletingTask] = useState<TaskWithContact | null>(null);
   const [rescheduleTask, setRescheduleTask] = useState<TaskWithContact | null>(null);
   const [showNewTask, setShowNewTask] = useState(false);
 
@@ -134,22 +133,6 @@ export default function TasksDueTodayPage() {
     queryKey: ["/api/tasks/due-today"],
     staleTime: STALE.FAST,
     refetchOnWindowFocus: true,
-  });
-
-  const completeMutation = useMutation({
-    mutationFn: async (id: string) => {
-      setCompletingId(id);
-      const res = await apiRequest("PUT", `/api/tasks/${id}/complete`, {});
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks/due-today"] });
-      toast({ title: t.tasks.taskCompleted });
-    },
-    onError: (err: Error) => {
-      toast({ title: t.common.error, description: err.message, variant: "destructive" });
-    },
-    onSettled: () => setCompletingId(null),
   });
 
   const dueToday = data?.dueToday ?? [];
@@ -212,9 +195,12 @@ export default function TasksDueTodayPage() {
                   <TaskRow
                     key={task.id}
                     task={task}
-                    onComplete={(id) => completeMutation.mutate(id)}
+                    onComplete={(id) => {
+                      const found = overdue.find(t2 => t2.id === id);
+                      if (found) setCompletingTask(found);
+                    }}
                     onReschedule={(tsk) => setRescheduleTask(tsk)}
-                    isCompleting={completingId === task.id && completeMutation.isPending}
+                    isCompleting={false}
                     tTasks={tTasks}
                   />
                 ))}
@@ -236,9 +222,12 @@ export default function TasksDueTodayPage() {
                   <TaskRow
                     key={task.id}
                     task={task}
-                    onComplete={(id) => completeMutation.mutate(id)}
+                    onComplete={(id) => {
+                      const found = dueToday.find(t2 => t2.id === id);
+                      if (found) setCompletingTask(found);
+                    }}
                     onReschedule={(tsk) => setRescheduleTask(tsk)}
-                    isCompleting={completingId === task.id && completeMutation.isPending}
+                    isCompleting={false}
                     tTasks={tTasks}
                   />
                 ))}
@@ -268,6 +257,12 @@ export default function TasksDueTodayPage() {
         open={showNewTask}
         onClose={() => setShowNewTask(false)}
         onSuccess={() => setShowNewTask(false)}
+      />
+      <CompleteTaskModal
+        open={!!completingTask}
+        onClose={() => setCompletingTask(null)}
+        task={completingTask}
+        leadTimezone={null}
       />
     </div>
   );

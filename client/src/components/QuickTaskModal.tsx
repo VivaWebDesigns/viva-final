@@ -23,7 +23,7 @@ import {
 import { CalendarIcon, CheckCircle, Clock } from "lucide-react";
 import { useAdminLang } from "@/i18n/LanguageContext";
 
-export const TASK_PRESET_VALUES = ["1d", "2d", "5d", "1w", "2w", "1mo", "2mo", "6mo", "1yr", "custom"] as const;
+export const TASK_PRESET_VALUES = ["1d", "2d", "3d", "5d", "1w", "2w", "1mo", "2mo", "6mo", "1yr", "custom"] as const;
 export type TaskPreset = typeof TASK_PRESET_VALUES[number];
 
 export const TIME_SLOTS: string[] = (() => {
@@ -96,7 +96,7 @@ export function formatTaskTimeDisplay(
   return `${leadTime} ${leadAbbr} · ${repTime} your time`;
 }
 
-function todayLocalString(): string {
+export function todayLocalString(): string {
   const d = new Date();
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -104,11 +104,12 @@ function todayLocalString(): string {
   return `${y}-${m}-${day}`;
 }
 
-function calcDueDateString(preset: Exclude<TaskPreset, "custom">): string {
+export function calcDueDateString(preset: Exclude<TaskPreset, "custom">): string {
   const d = new Date();
   switch (preset) {
     case "1d":  d.setDate(d.getDate() + 1); break;
     case "2d":  d.setDate(d.getDate() + 2); break;
+    case "3d":  d.setDate(d.getDate() + 3); break;
     case "5d":  d.setDate(d.getDate() + 5); break;
     case "1w":  d.setDate(d.getDate() + 7); break;
     case "2w":  d.setDate(d.getDate() + 14); break;

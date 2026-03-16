@@ -25,6 +25,7 @@ import { queryClient, apiRequest, STALE } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { CrmLead, CrmLeadStatus, CrmContact, CrmCompany, CrmLeadNote, CrmTag, PipelineStage, FollowupTask, PipelineOpportunity, DemoConfig } from "@shared/schema";
 import QuickTaskModal, { formatTaskTimeDisplay } from "@/components/QuickTaskModal";
+import CompleteTaskModal from "@/components/CompleteTaskModal";
 import { RecordTimeline } from "@/components/RecordTimeline";
 import { useAdminLang } from "@/i18n/LanguageContext";
 import { US_STATES } from "@/lib/usStates";
@@ -182,17 +183,7 @@ export default function LeadDetailPage({ id }: { id: string }) {
     enabled: !!id,
   });
 
-  const completeTaskMutation = useMutation({
-    mutationFn: async (taskId: string) => {
-      const res = await apiRequest("PUT", `/api/tasks/${taskId}/complete`, {});
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks/for-lead", id] });
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks/due-today"] });
-      toast({ title: "Task completed" });
-    },
-  });
+  const [completingTask, setCompletingTask] = useState<FollowupTask | null>(null);
 
   const convertMutation = useMutation({
     mutationFn: async (stageId: string) => {
@@ -738,8 +729,8 @@ export default function LeadDetailPage({ id }: { id: string }) {
                       data-testid={`lead-task-row-${task.id}`}
                     >
                       <button
-                        onClick={() => !task.completed && completeTaskMutation.mutate(task.id)}
-                        disabled={task.completed || completeTaskMutation.isPending}
+                        onClick={() => !task.completed && setCompletingTask(task)}
+                        disabled={task.completed}
                         className="flex-shrink-0 mt-0.5"
                         data-testid={`button-complete-lead-task-${task.id}`}
                       >
@@ -850,6 +841,12 @@ export default function LeadDetailPage({ id }: { id: string }) {
           followUpTime: rescheduleTask.followUpTime ?? null,
           followUpTimezone: rescheduleTask.followUpTimezone ?? null,
         } : null}
+      />
+      <CompleteTaskModal
+        open={!!completingTask}
+        onClose={() => setCompletingTask(null)}
+        task={completingTask}
+        leadTimezone={lead.timezone ?? null}
       />
     </div>
   );

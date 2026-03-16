@@ -721,6 +721,8 @@ export const followupTasks = pgTable("followup_tasks", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   followUpTime: text("follow_up_time"),
   followUpTimezone: text("follow_up_timezone"),
+  outcome: text("outcome"),
+  completionNote: text("completion_note"),
 }, (t) => [
   index("followup_tasks_due_idx").on(t.dueDate),
   index("followup_tasks_opp_idx").on(t.opportunityId),

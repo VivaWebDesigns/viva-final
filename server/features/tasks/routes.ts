@@ -86,15 +86,21 @@ router.post("/", requireRole("admin", "developer", "sales_rep"), async (req, res
   }
 });
 
+const completeTaskSchema = z.object({
+  outcome: z.string().optional(),
+  completionNote: z.string().optional(),
+}).optional();
+
 router.put("/:id/complete", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
-    const task = await taskStorage.completeTask(req.params.id as string);
+    const body = completeTaskSchema.parse(req.body);
+    const task = await taskStorage.completeTask(req.params.id as string, body ?? undefined);
     await logAudit({
       userId: req.authUser?.id,
       action: "update",
       entity: "followup_task",
       entityId: task.id,
-      metadata: { action: "completed", title: task.title },
+      metadata: { action: "completed", title: task.title, outcome: body?.outcome },
       ipAddress: req.ip,
     });
     res.json(task);

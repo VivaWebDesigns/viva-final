@@ -26,6 +26,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { PipelineStage, PipelineOpportunity, PipelineActivity, CrmCompany, CrmContact, CrmLead, FollowupTask } from "@shared/schema";
 import { WEBSITE_PACKAGES } from "@shared/schema";
 import QuickTaskModal, { formatTaskTimeDisplay } from "@/components/QuickTaskModal";
+import CompleteTaskModal from "@/components/CompleteTaskModal";
 import { RecordTimeline } from "@/components/RecordTimeline";
 
 const PKG_COLORS: Record<string, string> = {
@@ -100,17 +101,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
     staleTime: STALE.FAST,
   });
 
-  const completeMutation = useMutation({
-    mutationFn: async (taskId: string) => {
-      const res = await apiRequest("PUT", `/api/tasks/${taskId}/complete`, {});
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks/for-opportunity", id] });
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks/due-today"] });
-      toast({ title: t.tasks.taskCompleted });
-    },
-  });
+  const [completingTask, setCompletingTask] = useState<FollowupTask | null>(null);
 
   const stageMutation = useMutation({
     mutationFn: async (stageId: string) => {
@@ -677,8 +668,8 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                       data-testid={`task-row-${task.id}`}
                     >
                       <button
-                        onClick={() => !task.completed && completeMutation.mutate(task.id)}
-                        disabled={task.completed || completeMutation.isPending}
+                        onClick={() => !task.completed && setCompletingTask(task)}
+                        disabled={task.completed}
                         className="flex-shrink-0 mt-0.5"
                         data-testid={`button-complete-task-${task.id}`}
                       >
@@ -825,6 +816,12 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
           followUpTime: rescheduleTask.followUpTime ?? null,
           followUpTimezone: rescheduleTask.followUpTimezone ?? null,
         } : null}
+      />
+      <CompleteTaskModal
+        open={!!completingTask}
+        onClose={() => setCompletingTask(null)}
+        task={completingTask}
+        leadTimezone={sourceLead?.timezone ?? null}
       />
 
       <Dialog open={editSection !== null} onOpenChange={(open) => { if (!open) setEditSection(null); }}>
