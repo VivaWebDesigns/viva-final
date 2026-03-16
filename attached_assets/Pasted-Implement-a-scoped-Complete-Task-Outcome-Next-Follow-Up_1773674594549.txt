@@ -1,0 +1,120 @@
+Implement a scoped “Complete Task → Outcome + Next Follow-Up” workflow for follow-up tasks.
+
+Problem:
+Right now when a rep clicks “Complete” on a follow-up task, the task is immediately marked completed with no prompt to log the outcome or schedule the next follow-up. This creates a risk that leads go cold.
+
+Goal:
+When a rep clicks Complete, open a small modal that lets them:
+1. choose an outcome
+2. optionally add a note
+3. choose whether to schedule the next follow-up
+Then submit in one flow.
+
+STRICT SCOPE:
+Only modify the follow-up task completion flow.
+Do not modify:
+- timezone storage logic
+- lead timezone logic
+- rep timezone display logic
+- task date/time scheduling logic
+- task row layout
+- lead list layout
+- mobile ordering
+- unrelated forms
+- unrelated code review findings
+- general styling outside the completion modal and complete-action wiring
+
+Only edit the minimum files necessary.
+After implementation, stop.
+
+Required behavior:
+
+1. Intercept follow-up task completion
+Wherever a rep can currently click “Complete” on a follow-up task, do not instantly complete it.
+Instead, open a completion modal.
+
+2. Completion modal fields
+Include:
+- Outcome dropdown (required)
+- Notes textarea (optional)
+- Next action section
+
+Outcome dropdown options:
+- No answer
+- Left voicemail
+- Spoke with lead
+- Interested
+- Not interested
+- Bad number
+- Appointment set
+- Other
+
+3. Next follow-up options
+In the modal, include:
+- No next follow-up
+- Follow up tomorrow
+- Follow up in 3 days
+- Follow up in 1 week
+- Custom date/time
+
+If “Custom date/time” is selected:
+- reuse the existing follow-up scheduling logic already in the app
+- reuse the existing timezone-safe date/time handling
+- reuse the existing 9:00 AM–6:00 PM, 30-minute increment logic
+- reuse the existing lead-timezone-based scheduling rules
+Do not rebuild separate scheduling logic.
+
+4. Submit behavior
+When modal is submitted:
+- current task becomes Completed
+- completed task is removed from active task lists
+- completed task remains in history / activity timeline
+- selected outcome is logged
+- optional note is logged
+- if a next follow-up is selected, create the next follow-up task immediately in the same flow
+
+5. Cancel behavior
+If the rep closes or cancels the modal:
+- do not complete the task
+- do not create a new task
+
+6. Where this should work
+Apply this completion flow consistently wherever follow-up tasks are completed, including:
+- Tasks page
+- Opportunity detail / sales pipeline page
+- Lead detail page
+But do not redesign those pages. Only replace the direct-complete action with this modal flow.
+
+7. Data / logic rules
+- Do not delete completed tasks
+- Do not change existing task storage structure unless absolutely required for storing outcome/notes
+- If storing outcome/notes requires a minimal schema update, keep it tightly scoped to task completion metadata only
+- Do not change followUpDate / followUpTime / followUpTimezone behavior
+- Do not change task display formatting except where needed to trigger the modal flow
+
+8. UI rules
+- Keep the modal compact and simple
+- Maintain current design language
+- No layout refactors
+- No unrelated styling cleanup
+- No responsiveness refactors beyond what is strictly necessary for the modal to function
+
+9. Testing requirements
+Verify:
+- clicking Complete opens the modal
+- canceling leaves the task untouched
+- submitting with “No next follow-up” completes only the current task
+- submitting with a preset next follow-up creates the next task correctly
+- submitting with custom date/time uses the existing timezone-safe scheduling logic
+- task completion from Tasks page works
+- task completion from Opportunity page works
+- task completion from Lead page works
+- no date-shift bug is reintroduced
+- no rep-local / lead-timezone display behavior is broken
+
+Implementation approach:
+Prefer reusing existing scheduling utilities and existing task creation functions rather than duplicating logic.
+Prefer one shared completion handler/modal over separate implementations in multiple pages.
+
+After implementation:
+Stop. Do not perform any unrelated cleanup or reviewer-driven changes.
