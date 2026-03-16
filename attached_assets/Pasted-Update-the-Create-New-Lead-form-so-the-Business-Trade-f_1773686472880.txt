@@ -1,0 +1,93 @@
+Update the Create New Lead form so the Business Trade field uses a required dropdown that works correctly in both English and Spanish.
+
+Goal
+Replace the current Business Trade text input with a required select dropdown in the Create New Lead modal/form, and make sure it supports the existing EN/ES language toggle.
+
+Core requirement
+The system must store one consistent canonical trade value regardless of language, while displaying translated labels in the UI.
+
+Approved trade list
+Use these as the canonical trade values:
+
+painting
+plumbing
+roofing
+electrical
+landscaping
+hvac
+general_contractor
+house_cleaning
+pressure_washing
+carpentry
+flooring
+tile_installation
+fence_installation
+deck_building
+shed_building
+concrete_asphalt
+tree_service
+
+English labels
+painting = Painting
+plumbing = Plumbing
+roofing = Roofing
+electrical = Electrical
+landscaping = Landscaping
+hvac = HVAC
+general_contractor = General Contractor
+house_cleaning = House Cleaning
+pressure_washing = Pressure Washing
+carpentry = Carpentry
+flooring = Flooring
+tile_installation = Tile Installation
+fence_installation = Fence Installation
+deck_building = Deck Building
+shed_building = Shed Building
+concrete_asphalt = Concrete & Asphalt
+tree_service = Tree Service
+
+Spanish labels
+painting = Pintura
+plumbing = Plomería
+roofing = Techado
+electrical = Electricidad
+landscaping = Paisajismo
+hvac = HVAC
+general_contractor = Contratista General
+house_cleaning = Limpieza de Casas
+pressure_washing = Lavado a Presión
+carpentry = Carpintería
+flooring = Instalación de Pisos
+tile_installation = Instalación de Azulejos
+fence_installation = Instalación de Cercas
+deck_building = Construcción de Decks
+shed_building = Construcción de Cobertizos
+concrete_asphalt = Concreto y Asfalto
+tree_service = Servicio de Árboles
+
+Requirements
+- Replace the existing Business Trade text input with a select dropdown.
+- Keep Business Trade as a required field.
+- Use the canonical values above as the stored values.
+- In English mode, show the English labels.
+- In Spanish mode, show the Spanish labels.
+- Add a placeholder option that is also translated:
+  English: Select business trade
+  Spanish: Selecciona el giro del negocio
+- Do not preselect a real trade by default.
+- The form must not submit unless a trade is selected.
+- Save the canonical value into the existing Business Trade field.
+- Do not store separate English/Spanish text values depending on language.
+- Existing records should still display correctly.
+- If old records contain plain English text instead of canonical values, make the display layer handle them gracefully rather than breaking.
+- Keep styling consistent with the rest of the form.
+- Do not change any other lead fields.
+- Do not change lead creation logic other than the Business Trade input type and label rendering.
+
+Validation
+- In EN mode, the dropdown shows English trade names.
+- In ES mode, the dropdown shows Spanish trade names.
+- Selecting a trade in either language stores the same canonical value.
+- Switching languages changes only the visible labels, not the saved underlying value.
+- Business Trade remains required.
+- No other form behavior changes.

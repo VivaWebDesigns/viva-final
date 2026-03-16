@@ -20,6 +20,26 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { US_STATES } from "@/lib/usStates";
 
+export const BUSINESS_TRADES = [
+  "painting",
+  "plumbing",
+  "roofing",
+  "electrical",
+  "landscaping",
+  "hvac",
+  "general_contractor",
+  "house_cleaning",
+  "pressure_washing",
+  "carpentry",
+  "flooring",
+  "tile_installation",
+  "fence_installation",
+  "deck_building",
+  "shed_building",
+  "concrete_asphalt",
+  "tree_service",
+] as const;
+
 const schema = z.object({
   firstName:     z.string().min(1),
   lastName:      z.string().min(1),
@@ -148,9 +168,20 @@ export default function CreateLeadModal({ open, onClose }: Props) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>{t.crm.businessTrade} <span className="text-red-500">*</span></FormLabel>
-                  <FormControl>
-                    <Input data-testid="input-business-trade" placeholder={t.crm.businessTrade} {...field} />
-                  </FormControl>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger data-testid="select-business-trade">
+                        <SelectValue placeholder={t.crm.selectBusinessTrade} />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {BUSINESS_TRADES.map((trade) => (
+                        <SelectItem key={trade} value={trade}>
+                          {(t.crm.trades as Record<string, string>)[trade] ?? trade}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
