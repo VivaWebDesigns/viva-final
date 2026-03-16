@@ -1,0 +1,124 @@
+Implement a tightly scoped validation rule in the Complete Task → Outcome + Next Follow-Up modal.
+
+Problem:
+Some outcomes mean the lead is still active and should not be allowed to disappear without a next follow-up being scheduled. Right now the completion flow allows reps to complete tasks without scheduling the next follow-up, which can cause leads to go cold.
+
+Goal:
+Require a next follow-up for outcomes where the conversation is still active.
+
+STRICT SCOPE:
+Only modify validation and submit behavior inside the existing CompleteTaskModal flow.
+
+Do not modify:
+- timezone storage logic
+- lead timezone logic
+- rep timezone display logic
+- task date/time scheduling logic
+- task row layout
+- lead list layout
+- mobile ordering
+- unrelated forms
+- unrelated code review findings
+- styling outside the completion modal
+- schema unless absolutely necessary (it should not be necessary)
+
+Only edit the minimum files necessary.
+After implementation, stop.
+
+Required behavior:
+
+1. Update the outcome list used in the completion modal.
+
+The outcome dropdown should contain exactly:
+
+- No answer
+- Left voicemail
+- Spoke with lead
+- Interested
+- Not interested
+- Bad number
+- Appointment set
+- Duplicate lead
+
+Remove any generic “Other” option.
+
+2. Add conditional validation inside CompleteTaskModal.
+
+If Outcome is:
+
+- No answer
+- Left voicemail
+- Spoke with lead
+- Interested
+
+Then Next follow-up may NOT be:
+
+- No next follow-up
+
+In these cases the rep must choose one of:
+
+- Follow up tomorrow
+- Follow up in 3 days
+- Follow up in 1 week
+- Custom date & time
+
+3. Outcomes that may allow "No next follow-up"
+
+These outcomes represent closed or completed situations and may allow “No next follow-up”:
+
+- Not interested
+- Bad number
+- Appointment set
+- Duplicate lead
+
+4. Validation UX
+
+If the rep selects:
+
+Outcome = (No answer, Left voicemail, Spoke with lead, Interested)
+AND
+Next follow-up = No next follow-up
+
+Then block submit and show a small inline validation message near the Next follow-up section.
+
+Example message:
+
+“Please schedule the next follow-up for this outcome.”
+
+Do not introduce large UI changes, new layouts, or styling refactors.
+
+5. Submit behavior
+
+If validation passes:
+
+- existing completion behavior should remain unchanged
+- reuse the existing completion + next follow-up logic
+- do not duplicate scheduling logic
+- do not modify timezone-safe scheduling behavior
+
+6. Cancel behavior
+
+Cancel/close should leave the task untouched.
+
+7. Testing requirements
+
+Verify:
+
+- No answer + none → blocked
+- Left voicemail + none → blocked
+- Spoke with lead + none → blocked
+- Interested + none → blocked
+- Not interested + none → allowed
+- Bad number + none → allowed
+- Appointment set + none → allowed
+- Duplicate lead + none → allowed
+- timezone-safe scheduling still works
+- no date-shift bug is reintroduced
+
+Implementation approach:
+
+Keep this as a small validation-only enhancement inside CompleteTaskModal.
+Do not refactor unrelated code.
+
+After implementation:
+Stop. Do not perform unrelated cleanup or reviewer-driven changes.
