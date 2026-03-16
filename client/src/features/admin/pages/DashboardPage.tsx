@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { STALE } from "@/lib/queryClient";
 import { motion } from "framer-motion";
 import { Users, FileText, BookOpen, Puzzle, Phone, Building2, UserCheck, TrendingUp, ArrowRight, DollarSign, Target, UserPlus } from "lucide-react";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 import type { CrmLead } from "@shared/schema";
 import { useAdminLang } from "@/i18n/LanguageContext";
 
@@ -48,14 +48,14 @@ export default function DashboardPage() {
   const [, setLocation] = useLocation();
 
   const STAT_CARDS = [
-    { key: "leads" as const,         label: t.dashboard.crmLeads,       icon: TrendingUp, color: "bg-teal-500" },
-    { key: "opportunities" as const,  label: t.dashboard.opportunities,  icon: Target,     color: "bg-cyan-500" },
-    { key: "companies" as const,      label: t.dashboard.companies,      icon: Building2,  color: "bg-indigo-500" },
-    { key: "crmContacts" as const,    label: t.dashboard.crmContacts,    icon: UserCheck,  color: "bg-emerald-500" },
-    { key: "users" as const,          label: t.dashboard.teamMembers,    icon: Users,      color: "bg-blue-500" },
-    { key: "contacts" as const,       label: t.dashboard.formSubmissions,icon: Phone,      color: "bg-amber-500" },
-    { key: "articles" as const,       label: t.dashboard.docArticles,    icon: FileText,   color: "bg-purple-500" },
-    { key: "integrations" as const,   label: t.dashboard.integrations,   icon: Puzzle,     color: "bg-rose-500" },
+    { key: "leads" as const,         label: t.dashboard.crmLeads,       icon: TrendingUp, color: "bg-teal-500",    href: "/admin/crm" },
+    { key: "opportunities" as const,  label: t.dashboard.opportunities,  icon: Target,     color: "bg-cyan-500",    href: "/admin/pipeline" },
+    { key: "companies" as const,      label: t.dashboard.companies,      icon: Building2,  color: "bg-indigo-500",  href: "/admin/crm" },
+    { key: "crmContacts" as const,    label: t.dashboard.crmContacts,    icon: UserCheck,  color: "bg-emerald-500", href: "/admin/crm" },
+    { key: "users" as const,          label: t.dashboard.teamMembers,    icon: Users,      color: "bg-blue-500",    href: "/admin/settings" },
+    { key: "contacts" as const,       label: t.dashboard.formSubmissions,icon: Phone,      color: "bg-amber-500",   href: "/admin/crm" },
+    { key: "articles" as const,       label: t.dashboard.docArticles,    icon: FileText,   color: "bg-purple-500",  href: "/admin/docs" },
+    { key: "integrations" as const,   label: t.dashboard.integrations,   icon: Puzzle,     color: "bg-rose-500",    href: "/admin/integrations" },
   ];
 
   const onboardingRows = [
@@ -77,26 +77,27 @@ export default function DashboardPage() {
           const Icon = card.icon;
           const value = stats?.[card.key] ?? 0;
           return (
-            <motion.div
-              key={card.key}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.05 }}
-              className="bg-white rounded-xl border border-gray-200 p-4"
-              data-testid={`card-stat-${card.key}`}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <div className={`w-9 h-9 ${card.color} rounded-lg flex items-center justify-center`}>
-                  <Icon className="w-4 h-4 text-white" />
+            <Link key={card.key} href={card.href}>
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.05 }}
+                className="bg-white rounded-xl border border-gray-200 p-4 cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 hover:border-gray-300"
+                data-testid={`card-stat-${card.key}`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className={`w-9 h-9 ${card.color} rounded-lg flex items-center justify-center`}>
+                    <Icon className="w-4 h-4 text-white" />
+                  </div>
                 </div>
-              </div>
-              {isLoading ? (
-                <div className="h-7 w-12 bg-gray-100 rounded animate-pulse" />
-              ) : (
-                <p className="text-xl font-bold text-gray-900">{value}</p>
-              )}
-              <p className="text-xs text-gray-500 mt-1">{card.label}</p>
-            </motion.div>
+                {isLoading ? (
+                  <div className="h-7 w-12 bg-gray-100 rounded animate-pulse" />
+                ) : (
+                  <p className="text-xl font-bold text-gray-900">{value}</p>
+                )}
+                <p className="text-xs text-gray-500 mt-1">{card.label}</p>
+              </motion.div>
+            </Link>
           );
         })}
       </div>
