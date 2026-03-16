@@ -1,0 +1,96 @@
+Implement exact pipeline stage updates triggered by follow-up task completion outcomes.
+
+Problem:
+When reps complete follow-up tasks, the selected outcome does not automatically move the opportunity to the correct pipeline stage. This leaves inactive or advanced leads sitting in the wrong stage.
+
+Goal:
+Apply exact, deterministic stage updates for specific outcomes with no ambiguous fallback behavior.
+
+STRICT SCOPE:
+Only modify pipeline stage updates triggered by outcome selection during follow-up task completion.
+
+Do not modify:
+- follow-up scheduling logic
+- CompleteTaskModal layout
+- task validation rules
+- timezone logic
+- task history/activity logging
+- lead deletion logic
+- task creation logic
+- CRM activity/history queries
+- unrelated layouts
+- unrelated forms
+- unrelated code review findings
+
+Only edit the minimum files necessary.
+After implementation, stop.
+
+Exact required behavior:
+
+1. Outcomes that must NOT change stage
+When the completed task outcome is any of the following, do not change the opportunity stage:
+- No answer
+- Left voicemail
+- Spoke with lead
+- Interested
+
+2. Outcome: Not interested
+When the completed task outcome is:
+- Not interested
+
+Then:
+- Move the associated opportunity to the exact stage: Closed - Lost
+- Do not create any other stage behavior
+- If no opportunity is associated, do nothing beyond completing the task
+
+3. Outcome: Bad number
+When the completed task outcome is:
+- Bad number
+
+Then:
+- Move the associated opportunity to the exact stage: Closed - Lost
+- If no opportunity is associated, do nothing beyond completing the task
+
+4. Outcome: Appointment set
+When the completed task outcome is:
+- Appointment set
+
+Then:
+- Move the associated opportunity to the exact stage: Demo Scheduled
+- If no opportunity is associated, do nothing beyond completing the task
+
+5. Outcome: Duplicate lead
+When the completed task outcome is:
+- Duplicate lead
+
+Then:
+- Move the associated opportunity to the exact stage: Closed - Lost
+- Do not archive
+- Do not soft delete
+- Do not hard delete
+- Do not invent a “Duplicate” stage
+- If no opportunity is associated, do nothing beyond completing the task
+
+6. Implementation rules
+- Trigger this logic only after task completion succeeds
+- Reuse the app’s existing opportunity stage update logic
+- Do not create a parallel stage update system
+- Do not modify lead records beyond what already happens today
+- Do not alter task completion behavior except for this stage update side effect
+
+7. Testing requirements
+Verify:
+- No answer → no stage change
+- Left voicemail → no stage change
+- Spoke with lead → no stage change
+- Interested → no stage change
+- Not interested → Closed - Lost
+- Bad number → Closed - Lost
+- Appointment set → Demo Scheduled
+- Duplicate lead → Closed - Lost
+- Completing a task with no opportunity attached does not error
+- Activity timeline logging still works
+- No new errors occur during task completion
+
+After implementation:
+Stop. Do not perform unrelated cleanup or reviewer-driven changes.

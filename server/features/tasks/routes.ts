@@ -4,7 +4,7 @@ import { requireAuth, requireRole } from "../auth/middleware";
 import { logAudit } from "../audit/service";
 import * as taskStorage from "./storage";
 import { addLeadNote } from "../crm/storage";
-import { addActivity } from "../pipeline/storage";
+import { addActivity, getStages, moveOpportunity } from "../pipeline/storage";
 
 const router = Router();
 
@@ -124,6 +124,13 @@ const ALLOWED_OUTCOMES = [
   "Not interested", "Bad number", "Appointment set", "Duplicate lead",
 ] as const;
 
+const OUTCOME_STAGE_SLUG: Partial<Record<typeof ALLOWED_OUTCOMES[number], string>> = {
+  "Not interested": "closed-lost",
+  "Bad number":     "closed-lost",
+  "Appointment set":"demo-scheduled",
+  "Duplicate lead": "closed-lost",
+};
+
 const completeTaskSchema = z.object({
   outcome: z.enum(ALLOWED_OUTCOMES).optional(),
   completionNote: z.string().optional(),
@@ -149,6 +156,18 @@ router.put("/:id/complete", requireRole("admin", "developer", "sales_rep"), asyn
     const completionContent = parts.join(" · ");
     if (task.leadId) addLeadNote({ leadId: task.leadId, userId: actorId, type: "task", content: completionContent }).catch(() => {});
     else if (task.opportunityId) addActivity({ opportunityId: task.opportunityId, userId: actorId, type: "task", content: completionContent }).catch(() => {});
+
+    if (body?.outcome && task.opportunityId) {
+      const targetSlug = OUTCOME_STAGE_SLUG[body.outcome];
+      if (targetSlug) {
+        getStages()
+          .then(stages => {
+            const stage = stages.find(s => s.slug === targetSlug);
+            if (stage) return moveOpportunity(task.opportunityId!, stage.id, actorId ?? undefined);
+          })
+          .catch(() => {});
+      }
+    }
 
     res.json(task);
   } catch (err: any) {
