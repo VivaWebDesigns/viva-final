@@ -1,7 +1,7 @@
 import { db } from "../../db";
 import {
   crmCompanies, crmContacts, crmLeadStatuses, crmLeads, crmLeadNotes,
-  crmTags, crmLeadTags, pipelineOpportunities, followupTasks, user,
+  crmTags, crmLeadTags, pipelineOpportunities, pipelineActivities, followupTasks, user,
   onboardingRecords, clientNotes,
   type InsertCrmCompany, type InsertCrmContact, type InsertCrmLeadStatus,
   type InsertCrmLead, type InsertCrmLeadNote, type InsertCrmTag,
@@ -333,6 +333,18 @@ export async function bulkDeleteLeads(ids: string[]): Promise<number> {
     await tx.delete(crmLeadTags).where(inArray(crmLeadTags.leadId, ids));
     await tx.delete(crmLeadNotes).where(inArray(crmLeadNotes.leadId, ids));
     await tx.delete(followupTasks).where(inArray(followupTasks.leadId, ids));
+
+    const oppsToDelete = await tx
+      .select({ id: pipelineOpportunities.id })
+      .from(pipelineOpportunities)
+      .where(inArray(pipelineOpportunities.leadId, ids));
+    const oppIds = oppsToDelete.map(o => o.id);
+    if (oppIds.length > 0) {
+      await tx.delete(pipelineActivities).where(inArray(pipelineActivities.opportunityId, oppIds));
+      await tx.update(followupTasks).set({ opportunityId: null }).where(inArray(followupTasks.opportunityId, oppIds));
+      await tx.update(onboardingRecords).set({ opportunityId: null }).where(inArray(onboardingRecords.opportunityId, oppIds));
+    }
+
     await tx.delete(pipelineOpportunities).where(inArray(pipelineOpportunities.leadId, ids));
     await tx.delete(crmLeads).where(inArray(crmLeads.id, ids));
 
