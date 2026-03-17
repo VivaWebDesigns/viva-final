@@ -1,0 +1,67 @@
+Fix redundant "Follow up:" prefix stacking in chained follow-up task titles.
+
+DO NOT refactor anything unrelated.
+DO NOT modify backend logic.
+DO NOT change activity feed rendering.
+DO NOT change database schema.
+DO NOT introduce new abstractions.
+
+Scope of change must be limited to ONE place:
+client/src/components/CompleteTaskModal.tsx
+
+Problem:
+When scheduling a follow-up, the new task title is currently built as:
+
+`Follow up: ${task.title}`
+
+Because `task.title` may already start with "Follow up:" (from prior cycles),
+this causes prefix stacking:
+
+- Follow up with Joseph Yomama
+- Follow up: Follow up with Joseph Yomama
+- Follow up: Follow up: Follow up with Joseph Yomama
+
+Goal:
+Ensure that only ONE "Follow up:" prefix exists, no matter how many times a task is rescheduled.
+
+Implementation requirements:
+
+1. Before building the new title, normalize `task.title` by removing ALL leading follow-up prefixes:
+   - "Follow up: "
+   - "Follow-up: "
+   - Any repeated versions of these
+   - Case-insensitive
+   - Only strip from the START of the string (do not modify the middle)
+
+2. After normalization, construct the title exactly as:
+   `Follow up: ${normalizedTitle}`
+
+3. Do not modify titles that simply contain "follow up" later in the string.
+
+4. Do not change any other behavior in CompleteTaskModal.
+
+5. Do not modify how the backend logs:
+   `Follow-up scheduled: ${task.title}`
+
+6. Do not add new dependencies.
+
+7. Keep the change minimal and localized.
+
+Expected behavior after fix:
+
+Input title:
+- "Follow up with Joseph Yomama"
+→ "Follow up: Follow up with Joseph Yomama"
+
+Input title:
+- "Follow up: Follow up with Joseph Yomama"
+→ "Follow up: Follow up with Joseph Yomama"
+
+Input title:
+- "Follow-up: Follow up: Follow up with Joseph Yomama"
+→ "Follow up: Follow up with Joseph Yomama"
+
+Deliverables:
+- Show the exact code change (before and after)
+- Confirm only CompleteTaskModal.tsx was modified
+- Briefly explain why this prevents prefix accumulation

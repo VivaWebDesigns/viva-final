@@ -114,8 +114,9 @@ export default function CompleteTaskModal({
           ? customDate
           : calcDueDateString(followUp);
 
+        const baseTitle = task.title.replace(/^(follow[\s-]up:\s*)+/gi, "").trim();
         const payload: Record<string, unknown> = {
-          title: `Follow up: ${task.title}`,
+          title: `Follow up: ${baseTitle}`,
           notes: null,
           dueDate: dateStr,
           opportunityId: task.opportunityId ?? null,
