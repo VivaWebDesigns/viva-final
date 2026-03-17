@@ -7,8 +7,6 @@ import { auth } from "./features/auth/auth";
 import { runBootstrap } from "./bootstrap";
 import path from "path";
 import fs from "fs";
-import { fileURLToPath } from "url";
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 const httpServer = createServer(app);
@@ -20,10 +18,10 @@ declare module "http" {
 }
 
 // Serve sitemap.xml and robots.txt with explicit Content-Type before any SPA fallback.
-// In production __dirname is dist/, in dev it is server/ — resolve public dir for each.
+// process.cwd() is always the project root in both dev (tsx) and production (CJS bundle).
 const publicDir = process.env.NODE_ENV === "production"
-  ? path.resolve(__dirname, "public")
-  : path.resolve(__dirname, "..", "client", "public");
+  ? path.resolve(process.cwd(), "dist", "public")
+  : path.resolve(process.cwd(), "client", "public");
 
 app.get("/sitemap.xml", (_req, res) => {
   const file = path.join(publicDir, "sitemap.xml");
