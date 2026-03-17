@@ -502,7 +502,7 @@ export const es: AdminTranslations = {
       interested: "Interesado",
       notInterested: "No interesado",
       badNumber: "Número incorrecto",
-      appointmentSet: "Cita programada",
+      appointmentSet: "Demo programada",
       duplicateLead: "Prospecto duplicado",
     },
   },

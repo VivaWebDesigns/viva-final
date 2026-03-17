@@ -500,7 +500,7 @@ export const en = {
       interested: "Interested",
       notInterested: "Not interested",
       badNumber: "Bad number",
-      appointmentSet: "Appointment set",
+      appointmentSet: "Demo scheduled",
       duplicateLead: "Duplicate lead",
     },
   },
