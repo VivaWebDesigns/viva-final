@@ -5,6 +5,10 @@ import { createServer } from "http";
 import { toNodeHandler } from "better-auth/node";
 import { auth } from "./features/auth/auth";
 import { runBootstrap } from "./bootstrap";
+import path from "path";
+import fs from "fs";
+import { fileURLToPath } from "url";
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 const httpServer = createServer(app);
@@ -14,6 +18,26 @@ declare module "http" {
     rawBody: unknown;
   }
 }
+
+// Serve sitemap.xml and robots.txt with explicit Content-Type before any SPA fallback.
+// In production __dirname is dist/, in dev it is server/ — resolve public dir for each.
+const publicDir = process.env.NODE_ENV === "production"
+  ? path.resolve(__dirname, "public")
+  : path.resolve(__dirname, "..", "client", "public");
+
+app.get("/sitemap.xml", (_req, res) => {
+  const file = path.join(publicDir, "sitemap.xml");
+  if (!fs.existsSync(file)) return res.status(404).end();
+  res.setHeader("Content-Type", "application/xml; charset=utf-8");
+  res.sendFile(file);
+});
+
+app.get("/robots.txt", (_req, res) => {
+  const file = path.join(publicDir, "robots.txt");
+  if (!fs.existsSync(file)) return res.status(404).end();
+  res.setHeader("Content-Type", "text/plain; charset=utf-8");
+  res.sendFile(file);
+});
 
 app.all("/api/auth/*splat", toNodeHandler(auth));
 

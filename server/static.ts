@@ -34,6 +34,9 @@ export function serveStatic(app: Express) {
           res.setHeader("Pragma", "no-cache");
           res.setHeader("Expires", "0");
         }
+        if (filePath.endsWith(".xml")) {
+          res.setHeader("Content-Type", "application/xml; charset=utf-8");
+        }
       },
     }),
   );
