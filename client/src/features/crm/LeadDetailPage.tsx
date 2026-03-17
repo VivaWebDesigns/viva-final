@@ -232,6 +232,14 @@ export default function LeadDetailPage({ id }: { id: string }) {
     ? [lead.contact.firstName, lead.contact.lastName].filter(Boolean).join(" ")
     : null;
 
+  const sortedTasks = tasks ? [...tasks].sort((a, b) => {
+    if (a.completed !== b.completed) return a.completed ? 1 : -1;
+    if (!a.completed) return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+    const aTime = a.completedAt ? new Date(a.completedAt).getTime() : new Date(a.dueDate).getTime();
+    const bTime = b.completedAt ? new Date(b.completedAt).getTime() : new Date(b.dueDate).getTime();
+    return bTime - aTime;
+  }) : [];
+
   return (
     <div>
       <div className="flex items-center gap-3 mb-6">
@@ -717,7 +725,7 @@ export default function LeadDetailPage({ id }: { id: string }) {
               {(!tasks || tasks.length === 0) ? (
                 <p className="text-xs text-gray-400 text-center py-2">No tasks yet</p>
               ) : (
-                tasks.map(task => {
+                sortedTasks.map(task => {
                   const isOverdue = !task.completed && new Date(task.dueDate) < new Date();
                   return (
                     <div

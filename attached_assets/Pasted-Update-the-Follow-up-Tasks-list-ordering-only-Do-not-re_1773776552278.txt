@@ -1,0 +1,55 @@
+Update the Follow-up Tasks list ordering only.
+
+Do not refactor unrelated code.
+Do not change task creation logic.
+Do not change completion logic.
+Do not change database schema.
+Do not change API payloads.
+Do not change styling unless needed for section labels.
+Do not change any other task lists in the app.
+
+Goal:
+In the Follow-up Tasks panel on the lead / opportunity detail view,
+show the most relevant actionable task first instead of pushing the
+new active follow-up to the bottom under completed history.
+
+Desired behavior:
+1. Active / incomplete follow-up tasks must appear at the top.
+2. Completed follow-up tasks must appear below active tasks.
+3. Within active tasks, sort by due date ascending
+   (soonest first; overdue first if applicable).
+4. Within completed tasks, sort by completed date descending
+   (most recently completed first).
+5. If completed date is not available, use updated_at or created_at
+   as a fallback for completed tasks.
+6. Keep existing task cards, icons, and visual styling the same
+   unless a tiny label is needed.
+7. Do not affect how tasks are stored.
+8. Do not affect how tasks are written to the timeline.
+9. Limit the change to the Follow-up Tasks panel only.
+
+Implementation guidance:
+- Find the exact component that renders the Follow-up Tasks list on the
+  lead / opportunity detail page.
+- Change only the list ordering logic for that panel.
+- If the list is currently rendered from a single array, derive a
+  display-only sorted array before rendering.
+- Do not mutate the original fetched data in a way that could affect
+  other components.
+- Preserve all existing click behavior and editing behavior.
+
+Expected result from the screenshot scenario:
+- The current open task "Follow up with jill jones" should be shown
+  first.
+- The completed "Follow up..." history items should be listed below it.
+
+Before making changes, state:
+1. Which file renders this Follow-up Tasks panel
+2. What the current sort logic is
+3. What exact sort rule you will replace it with
+
+After making changes, show:
+1. Exact file changed
+2. Exact before / after code for the ordering logic
+3. Brief explanation of why this will prevent new active tasks from
+   being pushed to the bottom

@@ -296,6 +296,14 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
     ?.filter(task => !task.completed)
     .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())[0] ?? null;
 
+  const sortedTasks = tasks ? [...tasks].sort((a, b) => {
+    if (a.completed !== b.completed) return a.completed ? 1 : -1;
+    if (!a.completed) return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+    const aTime = a.completedAt ? new Date(a.completedAt).getTime() : new Date(a.dueDate).getTime();
+    const bTime = b.completedAt ? new Date(b.completedAt).getTime() : new Date(b.dueDate).getTime();
+    return bTime - aTime;
+  }) : [];
+
   return (
     <div className="max-w-4xl mx-auto" data-testid="page-opportunity-detail">
       <button
@@ -659,7 +667,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
               {(!tasks || tasks.length === 0) ? (
                 <p className="text-xs text-gray-400 text-center py-2">No tasks yet</p>
               ) : (
-                tasks.map(task => {
+                sortedTasks.map(task => {
                   const isOverdue = !task.completed && new Date(task.dueDate) < new Date();
                   return (
                     <div
