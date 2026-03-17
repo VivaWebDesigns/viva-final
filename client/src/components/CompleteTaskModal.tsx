@@ -60,6 +60,11 @@ interface CompleteTaskModalProps {
     contactId?: string | null;
   } | null;
   leadTimezone?: string | null;
+  opportunityId?: string | null;
+  leadId?: string | null;
+  contactId?: string | null;
+  defaultTaskTitle?: string;
+  onSuccess?: () => void;
 }
 
 export default function CompleteTaskModal({
@@ -67,6 +72,11 @@ export default function CompleteTaskModal({
   onClose,
   task,
   leadTimezone,
+  opportunityId,
+  leadId,
+  contactId,
+  defaultTaskTitle,
+  onSuccess,
 }: CompleteTaskModalProps) {
   const { toast } = useToast();
   const { t } = useAdminLang();
@@ -78,6 +88,10 @@ export default function CompleteTaskModal({
   const [followUpTime, setFollowUpTime] = useState("09:00");
 
   const effectiveTimezone = leadTimezone ?? resolveRepTimezone();
+
+  const effOppId = task?.opportunityId ?? opportunityId ?? null;
+  const effLeadId = task?.leadId ?? leadId ?? null;
+  const effContactId = task?.contactId ?? contactId ?? null;
 
   useEffect(() => {
     if (open) {
@@ -92,29 +106,31 @@ export default function CompleteTaskModal({
   const invalidateTaskQueries = () => {
     queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
     queryClient.invalidateQueries({ queryKey: ["/api/tasks/due-today"] });
-    if (task?.opportunityId) queryClient.invalidateQueries({ queryKey: ["/api/tasks/for-opportunity", task.opportunityId] });
-    if (task?.leadId) queryClient.invalidateQueries({ queryKey: ["/api/tasks/for-lead", task.leadId] });
-    if (task?.contactId) queryClient.invalidateQueries({ queryKey: ["/api/tasks/for-contact", task.contactId] });
-    if (task?.opportunityId) {
+    if (effOppId) {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks/for-opportunity", effOppId] });
       queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities/board"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities", task.opportunityId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities", effOppId] });
     }
+    if (effLeadId) queryClient.invalidateQueries({ queryKey: ["/api/tasks/for-lead", effLeadId] });
+    if (effContactId) queryClient.invalidateQueries({ queryKey: ["/api/tasks/for-contact", effContactId] });
   };
 
   const submitMutation = useMutation({
     mutationFn: async () => {
-      if (!task) return;
-      await apiRequest("PUT", `/api/tasks/${task.id}/complete`, {
-        outcome,
-        completionNote: completionNote.trim() || undefined,
-      });
+      if (task) {
+        await apiRequest("PUT", `/api/tasks/${task.id}/complete`, {
+          outcome,
+          completionNote: completionNote.trim() || undefined,
+        });
+      }
 
       if (followUp !== "none") {
         const dateStr = followUp === "custom"
           ? customDate
           : calcDueDateString(followUp);
 
-        const baseTitle = task.title.replace(/^(follow[\s-]up:\s*)+/gi, "").trim();
+        const rawTitle = task ? task.title : (defaultTaskTitle ?? "Follow up");
+        const baseTitle = rawTitle.replace(/^(follow[\s-]up:\s*)+/gi, "").trim();
         const newTitle = /^follow[\s-]up with\b/i.test(baseTitle)
           ? baseTitle
           : `Follow up: ${baseTitle}`;
@@ -122,9 +138,9 @@ export default function CompleteTaskModal({
           title: newTitle,
           notes: null,
           dueDate: dateStr,
-          opportunityId: task.opportunityId ?? null,
-          leadId: task.leadId ?? null,
-          contactId: task.contactId ?? null,
+          opportunityId: effOppId,
+          leadId: effLeadId,
+          contactId: effContactId,
         };
 
         if (followUp === "custom") {
@@ -141,6 +157,7 @@ export default function CompleteTaskModal({
         ? t.tasks.taskCompletedNext
         : t.tasks.taskCompleted;
       toast({ title: msg });
+      onSuccess?.();
       onClose();
     },
     onError: (err: Error) => {
@@ -148,12 +165,12 @@ export default function CompleteTaskModal({
     },
   });
 
-  if (!task) return null;
-
   const customDateValid = followUp !== "custom" || customDate !== "";
   const followUpRequired = REQUIRES_FOLLOW_UP.has(outcome);
   const followUpMissing = followUpRequired && followUp === "none";
   const canSubmit = outcome !== "" && customDateValid && !followUpMissing && !submitMutation.isPending;
+
+  const displayTitle = task?.title ?? defaultTaskTitle ?? null;
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
@@ -162,9 +179,11 @@ export default function CompleteTaskModal({
           <DialogTitle data-testid="text-complete-task-title">
             {t.tasks.completeTask}
           </DialogTitle>
-          <p className="text-sm text-gray-500 truncate mt-1" data-testid="text-completing-task-name">
-            {task.title}
-          </p>
+          {displayTitle && (
+            <p className="text-sm text-gray-500 truncate mt-1" data-testid="text-completing-task-name">
+              {displayTitle}
+            </p>
+          )}
         </DialogHeader>
 
         <div className="space-y-4 py-2 overflow-y-auto flex-1 min-h-0">

@@ -1,0 +1,90 @@
+Do not invent a new workflow.
+
+Do not build a separate system for first contact.
+
+I want the "move lead to Contacted" flow to use the
+EXACT same behavior that already exists in
+CompleteTaskModal.
+
+Current problem:
+When a lead is moved to Contacted, the system opens
+"Schedule Follow-up" and skips asking what happened
+on the call.
+
+However, CompleteTaskModal already handles this
+correctly by:
+
+* requiring an Outcome
+* allowing a Note
+* enforcing follow-up scheduling for certain outcomes
+* allowing no follow-up for others
+
+Goal:
+When a lead is moved to Contacted, trigger the same
+CompleteTaskModal flow BEFORE scheduling a follow-up.
+
+Desired behavior:
+
+1. User moves lead to Contacted.
+
+2. Instead of opening "Schedule Follow-up",
+   open the same outcome-driven modal used when
+   completing a follow-up task.
+
+3. The modal must:
+
+   * require Outcome
+   * allow Note
+   * enforce follow-up scheduling rules EXACTLY as
+     they currently exist
+
+4. If the selected outcome requires a follow-up,
+   the user MUST schedule one before continuing.
+
+5. If the selected outcome does not require a
+   follow-up, allow completion without scheduling.
+
+6. After completion, reuse the SAME logic for:
+
+   * creating the next task
+   * logging activity
+   * moving stages if applicable
+
+Important constraints:
+
+1. Reuse CompleteTaskModal directly if possible.
+
+2. If reuse is not possible, extract shared logic
+   but DO NOT duplicate or reimplement rules.
+
+3. Do NOT weaken or change outcome rules.
+
+4. Do NOT change which outcomes require follow-up.
+
+5. Do NOT change task creation behavior.
+
+6. Do NOT change database schema.
+
+7. Do NOT create a parallel modal system.
+
+Before making changes, tell me:
+
+1. Where the outcome → follow-up requirement logic
+   currently lives
+
+2. How that exact logic will be reused without
+   duplication
+
+3. How you will guarantee that required follow-ups
+   are still enforced
+
+After making changes, show:
+
+1. Exact files changed
+
+2. How CompleteTaskModal (or its logic) is reused
+
+3. Proof that required follow-up enforcement still
+   works exactly the same
+
+4. Confirmation that no new workflow was created

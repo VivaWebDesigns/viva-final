@@ -828,16 +828,16 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
           followUpTimezone: rescheduleTask.followUpTimezone ?? null,
         } : null}
       />
-      <QuickTaskModal
+      <CompleteTaskModal
         open={contactedPendingStageId !== null}
         onClose={() => setContactedPendingStageId(null)}
+        task={null}
         opportunityId={id}
         contactId={opp.contactId ?? null}
         leadTimezone={sourceLead?.timezone ?? null}
-        defaultTitle={`Follow up with ${contact?.firstName ?? ""} ${contact?.lastName ?? ""}`.trim()}
+        defaultTaskTitle={`Follow up with ${contact?.firstName ?? ""} ${contact?.lastName ?? ""}`.trim()}
         onSuccess={() => {
           if (contactedPendingStageId) stageMutation.mutate(contactedPendingStageId);
-          setContactedPendingStageId(null);
         }}
       />
       <CompleteTaskModal
