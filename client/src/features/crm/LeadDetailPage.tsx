@@ -376,20 +376,20 @@ export default function LeadDetailPage({ id }: { id: string }) {
                 {editingLocation ? (
                   <div className="flex flex-wrap items-end gap-2">
                     <div className="flex-1 min-w-[120px]">
-                      <label className="text-xs text-gray-500 mb-1 block">City</label>
+                      <label className="text-xs text-gray-500 mb-1 block">{t.common.city}</label>
                       <Input
                         value={editCity}
                         onChange={(e) => setEditCity(e.target.value)}
-                        placeholder="City"
+                        placeholder={t.common.city}
                         className="h-8 text-sm"
                         data-testid="input-edit-city"
                       />
                     </div>
                     <div className="w-[100px]">
-                      <label className="text-xs text-gray-500 mb-1 block">State</label>
+                      <label className="text-xs text-gray-500 mb-1 block">{t.common.state}</label>
                       <Select value={editState} onValueChange={setEditState}>
                         <SelectTrigger className="h-8 text-sm" data-testid="select-edit-state">
-                          <SelectValue placeholder="State" />
+                          <SelectValue placeholder={t.common.state} />
                         </SelectTrigger>
                         <SelectContent>
                           {US_STATES.map((s) => (
@@ -698,12 +698,12 @@ export default function LeadDetailPage({ id }: { id: string }) {
             <div className="space-y-2 text-sm">
               <div className="flex items-center gap-2">
                 <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                <span className="text-gray-500">Created</span>
+                <span className="text-gray-500">{t.common.created}</span>
                 <span className="text-gray-900 ml-auto">{new Date(lead.createdAt).toLocaleDateString()}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                <span className="text-gray-500">Updated</span>
+                <span className="text-gray-500">{t.common.updated}</span>
                 <span className="text-gray-900 ml-auto">{new Date(lead.updatedAt).toLocaleDateString()}</span>
               </div>
             </div>
@@ -713,7 +713,7 @@ export default function LeadDetailPage({ id }: { id: string }) {
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-semibold text-gray-900 text-sm flex items-center gap-1.5">
                 <ClipboardList className="w-4 h-4 text-gray-400" />
-                Follow-up Tasks
+                {t.pipeline.tasks}
                 {tasks && tasks.filter(t => !t.completed).length > 0 && (
                   <Badge variant="secondary" className="text-xs ml-1" data-testid="badge-lead-pending-tasks">
                     {tasks.filter(t => !t.completed).length}
@@ -728,12 +728,12 @@ export default function LeadDetailPage({ id }: { id: string }) {
                 data-testid="button-add-lead-task"
               >
                 <Plus className="w-3.5 h-3.5 mr-1" />
-                Add
+                {t.common.add}
               </Button>
             </div>
             <div className="space-y-2">
               {(!tasks || tasks.length === 0) ? (
-                <p className="text-xs text-gray-400 text-center py-2">No tasks yet</p>
+                <p className="text-xs text-gray-400 text-center py-2">{t.pipeline.noTasksYet}</p>
               ) : (
                 sortedTasks.map(task => {
                   const isOverdue = !task.completed && new Date(task.dueDate) < new Date();
@@ -838,7 +838,7 @@ export default function LeadDetailPage({ id }: { id: string }) {
           <Card className="p-5">
             <div className="flex items-center gap-2 mb-4">
               <Clock className="w-4 h-4 text-gray-400" />
-              <h3 className="font-semibold text-gray-900 text-sm">History</h3>
+              <h3 className="font-semibold text-gray-900 text-sm">{t.common.history}</h3>
             </div>
             <RecordTimeline entityType="lead" entityId={id} limit={10} />
           </Card>

@@ -653,7 +653,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm flex items-center gap-1.5">
                   <ClipboardList className="w-4 h-4 text-gray-400" />
-                  Follow-up Tasks
+                  {t.pipeline.tasks}
                   {tasks && tasks.filter(t => !t.completed).length > 0 && (
                     <Badge variant="secondary" className="text-xs ml-1" data-testid="badge-pending-tasks">
                       {tasks.filter(t => !t.completed).length}
@@ -668,13 +668,13 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                   data-testid="button-add-task"
                 >
                   <Plus className="w-3.5 h-3.5 mr-1" />
-                  Add
+                  {t.common.add}
                 </Button>
               </div>
             </CardHeader>
             <CardContent className="space-y-2">
               {(!tasks || tasks.length === 0) ? (
-                <p className="text-xs text-gray-400 text-center py-2">No tasks yet</p>
+                <p className="text-xs text-gray-400 text-center py-2">{t.pipeline.noTasksYet}</p>
               ) : (
                 sortedTasks.map(task => {
                   const isOverdue = !task.completed && new Date(task.dueDate) < new Date();
@@ -729,7 +729,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
               <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
                 <CardTitle className="text-sm flex items-center gap-1.5">
                   <Building2 className="w-4 h-4 text-gray-400" />
-                  Company
+                  {t.pipeline.company}
                 </CardTitle>
                 <button onClick={() => openEdit("company")} className="text-gray-300 hover:text-[#0D9488] transition-colors" data-testid="button-edit-company">
                   <Pencil className="w-3 h-3" />
@@ -752,7 +752,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
               <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
                 <CardTitle className="text-sm flex items-center gap-1.5">
                   <UserIcon className="w-4 h-4 text-gray-400" />
-                  Contact
+                  {t.pipeline.contact}
                 </CardTitle>
                 <button onClick={() => openEdit("contact")} className="text-gray-300 hover:text-[#0D9488] transition-colors" data-testid="button-edit-contact">
                   <Pencil className="w-3 h-3" />
@@ -775,7 +775,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
               <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
                 <CardTitle className="text-sm flex items-center gap-1.5">
                   <Zap className="w-4 h-4 text-gray-400" />
-                  Source Lead
+                  {t.pipeline.sourceLeadLabel}
                 </CardTitle>
                 <button onClick={() => openEdit("lead")} className="text-gray-300 hover:text-[#0D9488] transition-colors" data-testid="button-edit-source-lead">
                   <Pencil className="w-3 h-3" />
@@ -788,7 +788,9 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                   </p>
                 </Link>
                 {sourceLead.source && (
-                  <p className="text-xs text-gray-500 mt-1">Source: {sourceLead.source}</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {t.common.source}: {sourceLead.source === "website" ? t.crm.sourceWebsite : sourceLead.source === "outreach" ? t.crm.sourceOutreach : sourceLead.source}
+                  </p>
                 )}
               </CardContent>
             </Card>
@@ -796,7 +798,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
 
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Created</CardTitle>
+              <CardTitle className="text-sm">{t.common.created}</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-gray-600" data-testid="text-created-date">
@@ -811,7 +813,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-1.5">
                 <Clock className="w-4 h-4 text-gray-400" />
-                History
+                {t.pipeline.history}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -868,27 +870,27 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
         <DialogContent className="max-w-md max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {editSection === "details" && "Edit Opportunity Details"}
-              {editSection === "contact" && "Edit Contact"}
-              {editSection === "company" && "Edit Company"}
-              {editSection === "lead" && "Edit Source Lead"}
+              {editSection === "details" && t.pipeline.editOpportunityDetails}
+              {editSection === "contact" && t.pipeline.editContact}
+              {editSection === "company" && t.pipeline.editCompany}
+              {editSection === "lead" && t.pipeline.editSourceLead}
             </DialogTitle>
           </DialogHeader>
 
           {editSection === "details" && (
             <div className="space-y-4">
               <div>
-                <Label htmlFor="edit-title">Title</Label>
+                <Label htmlFor="edit-title">{t.pipeline.opportunityTitle}</Label>
                 <Input id="edit-title" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} data-testid="input-edit-title" />
               </div>
               <div>
-                <Label htmlFor="edit-pkg">Website Package</Label>
+                <Label htmlFor="edit-pkg">{t.pipeline.websitePackage}</Label>
                 <Select value={editPkg} onValueChange={setEditPkg}>
                   <SelectTrigger id="edit-pkg" data-testid="select-edit-package">
-                    <SelectValue placeholder="Select package" />
+                    <SelectValue placeholder={t.pipeline.selectPackage} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
+                    <SelectItem value="none">{t.common.none}</SelectItem>
                     {WEBSITE_PACKAGES.map((p) => (
                       <SelectItem key={p} value={p} className="capitalize">{p.charAt(0).toUpperCase() + p.slice(1)}</SelectItem>
                     ))}
@@ -896,7 +898,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                 </Select>
               </div>
               <div>
-                <Label htmlFor="edit-notes">Notes</Label>
+                <Label htmlFor="edit-notes">{t.common.notes}</Label>
                 <Textarea id="edit-notes" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} rows={4} data-testid="textarea-edit-notes" />
               </div>
             </div>
@@ -906,20 +908,20 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <Label htmlFor="edit-first-name">First Name</Label>
+                  <Label htmlFor="edit-first-name">{t.crm.firstName}</Label>
                   <Input id="edit-first-name" value={editFirstName} onChange={(e) => setEditFirstName(e.target.value)} data-testid="input-edit-first-name" />
                 </div>
                 <div>
-                  <Label htmlFor="edit-last-name">Last Name</Label>
+                  <Label htmlFor="edit-last-name">{t.crm.lastName}</Label>
                   <Input id="edit-last-name" value={editLastName} onChange={(e) => setEditLastName(e.target.value)} data-testid="input-edit-last-name" />
                 </div>
               </div>
               <div>
-                <Label htmlFor="edit-contact-phone">Phone</Label>
+                <Label htmlFor="edit-contact-phone">{t.common.phone}</Label>
                 <Input id="edit-contact-phone" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} data-testid="input-edit-contact-phone" />
               </div>
               <div>
-                <Label htmlFor="edit-contact-email">Email</Label>
+                <Label htmlFor="edit-contact-email">{t.common.email}</Label>
                 <Input id="edit-contact-email" type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} data-testid="input-edit-contact-email" />
               </div>
             </div>
@@ -928,23 +930,23 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
           {editSection === "company" && (
             <div className="space-y-4">
               <div>
-                <Label htmlFor="edit-company-name">Company Name</Label>
+                <Label htmlFor="edit-company-name">{t.pipeline.companyName}</Label>
                 <Input id="edit-company-name" value={editCompanyName} onChange={(e) => setEditCompanyName(e.target.value)} data-testid="input-edit-company-name" />
               </div>
               <div>
-                <Label htmlFor="edit-company-phone">Phone</Label>
+                <Label htmlFor="edit-company-phone">{t.common.phone}</Label>
                 <Input id="edit-company-phone" value={editCompanyPhone} onChange={(e) => setEditCompanyPhone(e.target.value)} data-testid="input-edit-company-phone" />
               </div>
               <div>
-                <Label htmlFor="edit-company-email">Email</Label>
+                <Label htmlFor="edit-company-email">{t.common.email}</Label>
                 <Input id="edit-company-email" type="email" value={editCompanyEmail} onChange={(e) => setEditCompanyEmail(e.target.value)} data-testid="input-edit-company-email" />
               </div>
               <div>
-                <Label htmlFor="edit-company-website">Website</Label>
+                <Label htmlFor="edit-company-website">{t.common.website}</Label>
                 <Input id="edit-company-website" value={editCompanyWebsite} onChange={(e) => setEditCompanyWebsite(e.target.value)} data-testid="input-edit-company-website" />
               </div>
               <div>
-                <Label htmlFor="edit-company-industry">Industry</Label>
+                <Label htmlFor="edit-company-industry">{t.pipeline.industry}</Label>
                 <Input id="edit-company-industry" value={editCompanyIndustry} onChange={(e) => setEditCompanyIndustry(e.target.value)} data-testid="input-edit-company-industry" />
               </div>
             </div>
@@ -953,25 +955,25 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
           {editSection === "lead" && (
             <div className="space-y-4">
               <div>
-                <Label htmlFor="edit-lead-title">Lead Title</Label>
+                <Label htmlFor="edit-lead-title">{t.pipeline.leadTitle}</Label>
                 <Input id="edit-lead-title" value={editLeadTitle} onChange={(e) => setEditLeadTitle(e.target.value)} data-testid="input-edit-lead-title" />
               </div>
               <div>
-                <Label htmlFor="edit-lead-source">Source</Label>
-                <Input id="edit-lead-source" value={editLeadSource} onChange={(e) => setEditLeadSource(e.target.value)} placeholder="e.g. referral, website, cold call" data-testid="input-edit-lead-source" />
+                <Label htmlFor="edit-lead-source">{t.common.source}</Label>
+                <Input id="edit-lead-source" value={editLeadSource} onChange={(e) => setEditLeadSource(e.target.value)} placeholder={t.pipeline.sourcePlaceholder} data-testid="input-edit-lead-source" />
               </div>
             </div>
           )}
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditSection(null)} data-testid="button-cancel-edit">Cancel</Button>
+            <Button variant="outline" onClick={() => setEditSection(null)} data-testid="button-cancel-edit">{t.common.cancel}</Button>
             <Button
               onClick={() => saveMutation.mutate()}
               disabled={saveMutation.isPending}
               className="bg-[#0D9488] hover:bg-[#0b7a70] text-white"
               data-testid="button-save-edit"
             >
-              {saveMutation.isPending ? "Saving…" : "Save"}
+              {saveMutation.isPending ? t.common.saving : t.common.save}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -980,20 +982,20 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
       <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <DialogContent className="sm:max-w-md max-h-[90dvh] overflow-y-auto" data-testid="dialog-delete-opportunity">
           <DialogHeader>
-            <DialogTitle>Delete Opportunity</DialogTitle>
+            <DialogTitle>{t.pipeline.deleteOpportunity}</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-gray-600">
-            Are you sure you want to delete this opportunity? This action cannot be undone.
+            {t.pipeline.deleteOpportunityConfirm}
           </p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)} data-testid="button-cancel-delete">Cancel</Button>
+            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)} data-testid="button-cancel-delete">{t.common.cancel}</Button>
             <Button
               variant="destructive"
               onClick={() => { deleteMutation.mutate(); setDeleteConfirmOpen(false); }}
               disabled={deleteMutation.isPending}
               data-testid="button-confirm-delete"
             >
-              {deleteMutation.isPending ? "Deleting…" : "Delete"}
+              {deleteMutation.isPending ? t.common.deleting : t.common.delete}
             </Button>
           </DialogFooter>
         </DialogContent>
