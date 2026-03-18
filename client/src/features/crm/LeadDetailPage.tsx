@@ -85,6 +85,18 @@ export default function LeadDetailPage({ id }: { id: string }) {
   const [editIndustryValue, setEditIndustryValue] = useState("");
   const [editingLang, setEditingLang] = useState(false);
   const [editLangValue, setEditLangValue] = useState("");
+  const [editingFirstName, setEditingFirstName] = useState(false);
+  const [editFirstNameValue, setEditFirstNameValue] = useState("");
+  const [editingLastName, setEditingLastName] = useState(false);
+  const [editLastNameValue, setEditLastNameValue] = useState("");
+  const [editingPhone, setEditingPhone] = useState(false);
+  const [editPhoneValue, setEditPhoneValue] = useState("");
+  const [editingEmail, setEditingEmail] = useState(false);
+  const [editEmailValue, setEditEmailValue] = useState("");
+  const [editingBusinessName, setEditingBusinessName] = useState(false);
+  const [editBusinessNameValue, setEditBusinessNameValue] = useState("");
+  const [editingWebsite, setEditingWebsite] = useState(false);
+  const [editWebsiteValue, setEditWebsiteValue] = useState("");
 
   const { data: lead, isLoading: leadLoading } = useQuery<LeadDetail>({
     queryKey: ["/api/crm/leads", id],
@@ -164,6 +176,32 @@ export default function LeadDetailPage({ id }: { id: string }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/crm/leads", id] });
       setEditingLang(false);
+    },
+    onError: (err: any) => {
+      toast({ title: err.message ?? t.common.error, variant: "destructive" });
+    },
+  });
+
+  const updateContactMutation = useMutation({
+    mutationFn: async (payload: Record<string, any>) => {
+      await apiRequest("PUT", `/api/crm/contacts/${lead?.contactId}`, payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/crm/leads", id] });
+      toast({ title: t.common.success });
+    },
+    onError: (err: any) => {
+      toast({ title: err.message ?? t.common.error, variant: "destructive" });
+    },
+  });
+
+  const updateCompanyMutation = useMutation({
+    mutationFn: async (payload: Record<string, any>) => {
+      await apiRequest("PUT", `/api/crm/companies/${lead?.companyId}`, payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/crm/leads", id] });
+      toast({ title: t.common.success });
     },
     onError: (err: any) => {
       toast({ title: err.message ?? t.common.error, variant: "destructive" });
@@ -358,171 +396,444 @@ export default function LeadDetailPage({ id }: { id: string }) {
               </Select>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-              <div>
-                <p className="text-gray-500 mb-1">Status</p>
-                {lead.status ? (
-                  <Badge
-                    variant="outline"
-                    style={{ borderColor: lead.status.color, color: lead.status.color }}
-                    data-testid="badge-lead-status"
-                  >
-                    {(t.crm.statusNames as Record<string, string>)[lead.status.slug] || lead.status.name}
-                  </Badge>
-                ) : (
-                  <span className="text-gray-400">No status</span>
-                )}
-              </div>
-              <div>
-                <p className="text-gray-500 mb-1">Source</p>
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-900" data-testid="text-lead-source">{lead.sourceLabel || lead.source || "Unknown"}</span>
-                  {lead.fromWebsiteForm && (
-                    <Badge variant="secondary" className="text-xs">
-                      <Globe className="w-3 h-3 mr-1" />
-                      Web Form
+            <div className="space-y-5 text-sm">
+              {/* Status & Source */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-gray-500 mb-1">Status</p>
+                  {lead.status ? (
+                    <Badge
+                      variant="outline"
+                      style={{ borderColor: lead.status.color, color: lead.status.color }}
+                      data-testid="badge-lead-status"
+                    >
+                      {(t.crm.statusNames as Record<string, string>)[lead.status.slug] || lead.status.name}
                     </Badge>
+                  ) : (
+                    <span className="text-gray-400">No status</span>
                   )}
                 </div>
-              </div>
-
-              {/* Industry */}
-              <div>
-                <div className="flex items-center gap-1.5 mb-1">
-                  <p className="text-gray-500">{t.pipeline.industry}</p>
-                  {lead.company && !editingIndustry && (
-                    <button
-                      onClick={() => {
-                        setEditIndustryValue(lead.company?.industry ?? "");
-                        setEditingIndustry(true);
-                      }}
-                      className="text-gray-400 hover:text-gray-600 transition-colors"
-                      data-testid="button-edit-industry"
-                      aria-label="Edit industry"
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
-                {editingIndustry ? (
-                  <div className="flex items-center gap-1.5">
-                    <Select value={editIndustryValue} onValueChange={setEditIndustryValue}>
-                      <SelectTrigger className="h-8 text-sm flex-1" data-testid="select-edit-industry">
-                        <SelectValue placeholder={t.crm.selectBusinessTrade} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {BUSINESS_TRADES.map((trade) => (
-                          <SelectItem key={trade} value={trade}>
-                            {(t.crm.trades as Record<string, string>)[trade] ?? trade}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      size="sm"
-                      variant="default"
-                      className="h-8 px-3"
-                      disabled={updateIndustryMutation.isPending || !editIndustryValue}
-                      onClick={() => updateIndustryMutation.mutate(editIndustryValue)}
-                      data-testid="button-save-industry"
-                    >
-                      {updateIndustryMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : t.common.save}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-8 px-2"
-                      disabled={updateIndustryMutation.isPending}
-                      onClick={() => setEditingIndustry(false)}
-                      data-testid="button-cancel-industry"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </Button>
+                <div>
+                  <p className="text-gray-500 mb-1">Source</p>
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-900" data-testid="text-lead-source">{lead.sourceLabel || lead.source || "Unknown"}</span>
+                    {lead.fromWebsiteForm && (
+                      <Badge variant="secondary" className="text-xs">
+                        <Globe className="w-3 h-3 mr-1" />
+                        Web Form
+                      </Badge>
+                    )}
                   </div>
-                ) : (
-                  <p className="text-gray-900" data-testid="text-lead-industry">
-                    {lead.company?.industry
-                      ? (t.crm.trades as Record<string, string>)[lead.company.industry] ?? lead.company.industry
-                      : "—"}
-                  </p>
-                )}
+                </div>
               </div>
 
-              {/* Preferred Language */}
-              <div>
-                <div className="flex items-center gap-1.5 mb-1">
-                  <p className="text-gray-500">{t.clients.preferredLanguage}</p>
-                  {lead.contact && !editingLang && (
-                    <button
-                      onClick={() => {
-                        setEditLangValue(lead.contact?.preferredLanguage ?? "es");
-                        setEditingLang(true);
-                      }}
-                      className="text-gray-400 hover:text-gray-600 transition-colors"
-                      data-testid="button-edit-lang"
-                      aria-label="Edit preferred language"
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                    </button>
+              {/* CONTACT GROUP */}
+              <div className="pt-4 border-t border-gray-100">
+                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Contact</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+                  {/* First Name */}
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <p className="text-gray-500">{t.crm.firstName}</p>
+                      {lead.contact && !editingFirstName && (
+                        <button
+                          onClick={() => { setEditFirstNameValue(lead.contact!.firstName); setEditingFirstName(true); }}
+                          className="text-gray-400 hover:text-gray-600 transition-colors"
+                          data-testid="button-edit-first-name" aria-label="Edit first name"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                    {editingFirstName ? (
+                      <div className="flex items-center gap-1.5">
+                        <Input
+                          value={editFirstNameValue}
+                          onChange={(e) => setEditFirstNameValue(e.target.value)}
+                          className="h-8 text-sm flex-1"
+                          data-testid="input-edit-first-name"
+                        />
+                        <Button size="sm" variant="default" className="h-8 px-3"
+                          disabled={updateContactMutation.isPending || !editFirstNameValue.trim()}
+                          onClick={() => updateContactMutation.mutate({ firstName: editFirstNameValue.trim() }, { onSuccess: () => setEditingFirstName(false) })}
+                          data-testid="button-save-first-name"
+                        >
+                          {updateContactMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : t.common.save}
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-8 px-2"
+                          onClick={() => setEditingFirstName(false)} data-testid="button-cancel-first-name"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="text-gray-900" data-testid="text-lead-first-name">{lead.contact?.firstName || "—"}</p>
+                    )}
+                  </div>
+
+                  {/* Last Name */}
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <p className="text-gray-500">{t.crm.lastName}</p>
+                      {lead.contact && !editingLastName && (
+                        <button
+                          onClick={() => { setEditLastNameValue(lead.contact!.lastName ?? ""); setEditingLastName(true); }}
+                          className="text-gray-400 hover:text-gray-600 transition-colors"
+                          data-testid="button-edit-last-name" aria-label="Edit last name"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                    {editingLastName ? (
+                      <div className="flex items-center gap-1.5">
+                        <Input
+                          value={editLastNameValue}
+                          onChange={(e) => setEditLastNameValue(e.target.value)}
+                          className="h-8 text-sm flex-1"
+                          data-testid="input-edit-last-name"
+                        />
+                        <Button size="sm" variant="default" className="h-8 px-3"
+                          disabled={updateContactMutation.isPending}
+                          onClick={() => updateContactMutation.mutate({ lastName: editLastNameValue.trim() || null }, { onSuccess: () => setEditingLastName(false) })}
+                          data-testid="button-save-last-name"
+                        >
+                          {updateContactMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : t.common.save}
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-8 px-2"
+                          onClick={() => setEditingLastName(false)} data-testid="button-cancel-last-name"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="text-gray-900" data-testid="text-lead-last-name">{lead.contact?.lastName || "—"}</p>
+                    )}
+                  </div>
+
+                  {/* Phone */}
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <p className="text-gray-500">{t.common.phone}</p>
+                      {lead.contact && !editingPhone && (
+                        <button
+                          onClick={() => { setEditPhoneValue(lead.contact!.phone ?? ""); setEditingPhone(true); }}
+                          className="text-gray-400 hover:text-gray-600 transition-colors"
+                          data-testid="button-edit-phone" aria-label="Edit phone"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                    {editingPhone ? (
+                      <div className="flex items-center gap-1.5">
+                        <Input
+                          value={editPhoneValue}
+                          onChange={(e) => setEditPhoneValue(e.target.value)}
+                          className="h-8 text-sm flex-1"
+                          data-testid="input-edit-phone"
+                          type="tel"
+                        />
+                        <Button size="sm" variant="default" className="h-8 px-3"
+                          disabled={updateContactMutation.isPending}
+                          onClick={() => updateContactMutation.mutate({ phone: editPhoneValue.trim() || null }, { onSuccess: () => setEditingPhone(false) })}
+                          data-testid="button-save-phone"
+                        >
+                          {updateContactMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : t.common.save}
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-8 px-2"
+                          onClick={() => setEditingPhone(false)} data-testid="button-cancel-phone"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="text-gray-900" data-testid="text-lead-phone">
+                        {(lead.contact?.phone || lead.company?.phone) ? (
+                          <a href={`tel:${lead.contact?.phone || lead.company?.phone}`} className="text-[#0D9488] hover:underline">
+                            {lead.contact?.phone || lead.company?.phone}
+                          </a>
+                        ) : "—"}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Email */}
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <p className="text-gray-500">{t.common.email}</p>
+                      {lead.contact && !editingEmail && (
+                        <button
+                          onClick={() => { setEditEmailValue(lead.contact!.email ?? ""); setEditingEmail(true); }}
+                          className="text-gray-400 hover:text-gray-600 transition-colors"
+                          data-testid="button-edit-email" aria-label="Edit email"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                    {editingEmail ? (
+                      <div className="flex items-center gap-1.5">
+                        <Input
+                          value={editEmailValue}
+                          onChange={(e) => setEditEmailValue(e.target.value)}
+                          className="h-8 text-sm flex-1"
+                          data-testid="input-edit-email"
+                          type="email"
+                        />
+                        <Button size="sm" variant="default" className="h-8 px-3"
+                          disabled={updateContactMutation.isPending}
+                          onClick={() => updateContactMutation.mutate({ email: editEmailValue.trim() || null }, { onSuccess: () => setEditingEmail(false) })}
+                          data-testid="button-save-email"
+                        >
+                          {updateContactMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : t.common.save}
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-8 px-2"
+                          onClick={() => setEditingEmail(false)} data-testid="button-cancel-email"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="text-gray-900" data-testid="text-lead-email">
+                        {(lead.contact?.email || lead.company?.email) ? (
+                          <a href={`mailto:${lead.contact?.email || lead.company?.email}`} className="text-[#0D9488] hover:underline truncate block">
+                            {lead.contact?.email || lead.company?.email}
+                          </a>
+                        ) : "—"}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Preferred Language */}
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <p className="text-gray-500">{t.clients.preferredLanguage}</p>
+                      {lead.contact && !editingLang && (
+                        <button
+                          onClick={() => { setEditLangValue(lead.contact?.preferredLanguage ?? "es"); setEditingLang(true); }}
+                          className="text-gray-400 hover:text-gray-600 transition-colors"
+                          data-testid="button-edit-lang" aria-label="Edit preferred language"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                    {editingLang ? (
+                      <div className="flex items-center gap-1.5">
+                        <Select value={editLangValue} onValueChange={setEditLangValue}>
+                          <SelectTrigger className="h-8 text-sm flex-1" data-testid="select-edit-lang">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="es">{t.clients.langSpanish}</SelectItem>
+                            <SelectItem value="en">{t.clients.langEnglish}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button size="sm" variant="default" className="h-8 px-3"
+                          disabled={updateLangMutation.isPending}
+                          onClick={() => updateLangMutation.mutate(editLangValue)}
+                          data-testid="button-save-lang"
+                        >
+                          {updateLangMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : t.common.save}
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-8 px-2"
+                          disabled={updateLangMutation.isPending}
+                          onClick={() => setEditingLang(false)} data-testid="button-cancel-lang"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="text-gray-900" data-testid="text-lead-lang">
+                        {lead.contact?.preferredLanguage === "es"
+                          ? t.clients.langSpanish
+                          : lead.contact?.preferredLanguage === "en"
+                          ? t.clients.langEnglish
+                          : "—"}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Contact title if present */}
+                  {lead.contact?.title && (
+                    <div>
+                      <p className="text-gray-500 mb-1">Title</p>
+                      <p className="text-gray-900">{lead.contact.title}</p>
+                    </div>
                   )}
                 </div>
-                {editingLang ? (
-                  <div className="flex items-center gap-1.5">
-                    <Select value={editLangValue} onValueChange={setEditLangValue}>
-                      <SelectTrigger className="h-8 text-sm flex-1" data-testid="select-edit-lang">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="es">{t.clients.langSpanish}</SelectItem>
-                        <SelectItem value="en">{t.clients.langEnglish}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      size="sm"
-                      variant="default"
-                      className="h-8 px-3"
-                      disabled={updateLangMutation.isPending}
-                      onClick={() => updateLangMutation.mutate(editLangValue)}
-                      data-testid="button-save-lang"
-                    >
-                      {updateLangMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : t.common.save}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-8 px-2"
-                      disabled={updateLangMutation.isPending}
-                      onClick={() => setEditingLang(false)}
-                      data-testid="button-cancel-lang"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </Button>
-                  </div>
-                ) : (
-                  <p className="text-gray-900" data-testid="text-lead-lang">
-                    {lead.contact?.preferredLanguage === "es"
-                      ? t.clients.langSpanish
-                      : lead.contact?.preferredLanguage === "en"
-                      ? t.clients.langEnglish
-                      : "—"}
-                  </p>
-                )}
               </div>
 
-              <div className="sm:col-span-2">
+              {/* BUSINESS GROUP */}
+              <div className="pt-4 border-t border-gray-100">
+                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Business</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+                  {/* Business Name */}
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <p className="text-gray-500">{t.crm.businessName}</p>
+                      {lead.company && !editingBusinessName && (
+                        <button
+                          onClick={() => { setEditBusinessNameValue(lead.company!.name); setEditingBusinessName(true); }}
+                          className="text-gray-400 hover:text-gray-600 transition-colors"
+                          data-testid="button-edit-business-name" aria-label="Edit business name"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                    {editingBusinessName ? (
+                      <div className="flex items-center gap-1.5">
+                        <Input
+                          value={editBusinessNameValue}
+                          onChange={(e) => setEditBusinessNameValue(e.target.value)}
+                          className="h-8 text-sm flex-1"
+                          data-testid="input-edit-business-name"
+                        />
+                        <Button size="sm" variant="default" className="h-8 px-3"
+                          disabled={updateCompanyMutation.isPending || !editBusinessNameValue.trim()}
+                          onClick={() => updateCompanyMutation.mutate({ name: editBusinessNameValue.trim() }, { onSuccess: () => setEditingBusinessName(false) })}
+                          data-testid="button-save-business-name"
+                        >
+                          {updateCompanyMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : t.common.save}
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-8 px-2"
+                          onClick={() => setEditingBusinessName(false)} data-testid="button-cancel-business-name"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="text-gray-900" data-testid="text-lead-business-name">{lead.company?.name || "—"}</p>
+                    )}
+                  </div>
+
+                  {/* Industry */}
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <p className="text-gray-500">{t.pipeline.industry}</p>
+                      {lead.company && !editingIndustry && (
+                        <button
+                          onClick={() => { setEditIndustryValue(lead.company?.industry ?? ""); setEditingIndustry(true); }}
+                          className="text-gray-400 hover:text-gray-600 transition-colors"
+                          data-testid="button-edit-industry" aria-label="Edit industry"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                    {editingIndustry ? (
+                      <div className="flex items-center gap-1.5">
+                        <Select value={editIndustryValue} onValueChange={setEditIndustryValue}>
+                          <SelectTrigger className="h-8 text-sm flex-1" data-testid="select-edit-industry">
+                            <SelectValue placeholder={t.crm.selectBusinessTrade} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {BUSINESS_TRADES.map((trade) => (
+                              <SelectItem key={trade} value={trade}>
+                                {(t.crm.trades as Record<string, string>)[trade] ?? trade}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button size="sm" variant="default" className="h-8 px-3"
+                          disabled={updateIndustryMutation.isPending || !editIndustryValue}
+                          onClick={() => updateIndustryMutation.mutate(editIndustryValue)}
+                          data-testid="button-save-industry"
+                        >
+                          {updateIndustryMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : t.common.save}
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-8 px-2"
+                          disabled={updateIndustryMutation.isPending}
+                          onClick={() => setEditingIndustry(false)} data-testid="button-cancel-industry"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="text-gray-900" data-testid="text-lead-industry">
+                        {lead.company?.industry
+                          ? (t.crm.trades as Record<string, string>)[lead.company.industry] ?? lead.company.industry
+                          : "—"}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Website */}
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <p className="text-gray-500">{t.common.website}</p>
+                      {lead.company && !editingWebsite && (
+                        <button
+                          onClick={() => { setEditWebsiteValue(lead.company?.website ?? ""); setEditingWebsite(true); }}
+                          className="text-gray-400 hover:text-gray-600 transition-colors"
+                          data-testid="button-edit-website" aria-label="Edit website"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                    {editingWebsite ? (
+                      <div className="flex items-center gap-1.5">
+                        <Input
+                          value={editWebsiteValue}
+                          onChange={(e) => setEditWebsiteValue(e.target.value)}
+                          className="h-8 text-sm flex-1"
+                          data-testid="input-edit-website"
+                          placeholder="https://"
+                        />
+                        <Button size="sm" variant="default" className="h-8 px-3"
+                          disabled={updateCompanyMutation.isPending}
+                          onClick={() => updateCompanyMutation.mutate({ website: editWebsiteValue.trim() || null }, { onSuccess: () => setEditingWebsite(false) })}
+                          data-testid="button-save-website"
+                        >
+                          {updateCompanyMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : t.common.save}
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-8 px-2"
+                          onClick={() => setEditingWebsite(false)} data-testid="button-cancel-website"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="text-gray-900" data-testid="text-lead-website">
+                        {lead.company?.website ? (
+                          <a href={lead.company.website} target="_blank" rel="noopener noreferrer" className="text-[#0D9488] hover:underline truncate block">
+                            {lead.company.website}
+                          </a>
+                        ) : "—"}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Company DBA if present */}
+                  {lead.company?.dba && (
+                    <div>
+                      <p className="text-gray-500 mb-1">DBA</p>
+                      <p className="text-gray-900">{lead.company.dba}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* LOCATION GROUP */}
+              <div className="pt-4 border-t border-gray-100">
+                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Location</p>
                 <div className="flex items-center gap-2 mb-1">
                   <MapPin className="w-3.5 h-3.5 text-gray-400" />
-                  <p className="text-gray-500">Location</p>
+                  <p className="text-gray-500">City &amp; State</p>
                   {!editingLocation && (
                     <button
                       onClick={() => {
-                        setEditCity(lead.city ?? "");
-                        setEditState(lead.state ?? "");
+                        setEditCity(lead.city ?? (lead.company as any)?.city ?? "");
+                        setEditState(lead.state ?? (lead.company as any)?.state ?? "");
                         setEditingLocation(true);
                       }}
                       className="text-gray-400 hover:text-gray-600 transition-colors"
-                      data-testid="button-edit-location"
-                      aria-label="Edit location"
+                      data-testid="button-edit-location" aria-label="Edit location"
                     >
                       <Pencil className="w-3.5 h-3.5" />
                     </button>
@@ -554,23 +865,16 @@ export default function LeadDetailPage({ id }: { id: string }) {
                       </Select>
                     </div>
                     <div className="flex gap-1">
-                      <Button
-                        size="sm"
-                        variant="default"
-                        className="h-8 px-3"
+                      <Button size="sm" variant="default" className="h-8 px-3"
                         disabled={updateLocationMutation.isPending}
                         onClick={() => updateLocationMutation.mutate({ city: editCity, state: editState })}
                         data-testid="button-save-location"
                       >
                         {updateLocationMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Save"}
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-8 px-2"
+                      <Button size="sm" variant="ghost" className="h-8 px-2"
                         disabled={updateLocationMutation.isPending}
-                        onClick={() => setEditingLocation(false)}
-                        data-testid="button-cancel-location"
+                        onClick={() => setEditingLocation(false)} data-testid="button-cancel-location"
                       >
                         <X className="w-3.5 h-3.5" />
                       </Button>
@@ -578,8 +882,10 @@ export default function LeadDetailPage({ id }: { id: string }) {
                   </div>
                 ) : (
                   <div data-testid="text-lead-location">
-                    {lead.city || lead.state ? (
-                      <span className="text-gray-900">{[lead.city, lead.state].filter(Boolean).join(", ")}</span>
+                    {(lead.city || lead.state || (lead.company as any)?.city || (lead.company as any)?.state) ? (
+                      <span className="text-gray-900">
+                        {[lead.city || (lead.company as any)?.city, lead.state || (lead.company as any)?.state].filter(Boolean).join(", ")}
+                      </span>
                     ) : (
                       <span className="text-gray-400">Not set</span>
                     )}
@@ -589,8 +895,10 @@ export default function LeadDetailPage({ id }: { id: string }) {
                   </div>
                 )}
               </div>
+
+              {/* Notes */}
               {lead.notes && (
-                <div className="sm:col-span-2">
+                <div className="pt-4 border-t border-gray-100">
                   <p className="text-gray-500 mb-1">Notes</p>
                   <p className="text-gray-900 whitespace-pre-wrap" data-testid="text-lead-notes">{lead.notes}</p>
                 </div>
@@ -762,92 +1070,6 @@ export default function LeadDetailPage({ id }: { id: string }) {
         </div>
 
         <div className="space-y-6">
-          {lead.contact && (
-            <Card
-              className="p-5 hover-elevate cursor-pointer"
-              onClick={() => navigate(`/admin/crm/contacts/${lead.contact!.id}`)}
-              data-testid="card-lead-contact"
-            >
-              <div className="flex items-center gap-2 mb-3">
-                <User className="w-4 h-4 text-gray-400" />
-                <h3 className="font-semibold text-gray-900 text-sm">Contact</h3>
-              </div>
-              <p className="font-medium text-gray-900" data-testid="text-contact-name">
-                {contactName}
-              </p>
-              {lead.contact.title && (
-                <p className="text-xs text-gray-500 mt-0.5">{lead.contact.title}</p>
-              )}
-              <div className="mt-3 space-y-1.5 text-sm">
-                {lead.contact.email && (
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <Mail className="w-3.5 h-3.5 text-gray-400" />
-                    <span className="truncate">{lead.contact.email}</span>
-                  </div>
-                )}
-                {lead.contact.phone && (
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <Phone className="w-3.5 h-3.5 text-gray-400" />
-                    <span>{lead.contact.phone}</span>
-                  </div>
-                )}
-              </div>
-            </Card>
-          )}
-
-          {lead.company && (
-            <Card
-              className="p-5 hover-elevate cursor-pointer"
-              onClick={() => navigate(`/admin/crm/companies/${lead.company!.id}`)}
-              data-testid="card-lead-company"
-            >
-              <div className="flex items-center gap-2 mb-3">
-                <Building2 className="w-4 h-4 text-gray-400" />
-                <h3 className="font-semibold text-gray-900 text-sm">Company</h3>
-              </div>
-              <p className="font-medium text-gray-900" data-testid="text-company-name">
-                {lead.company.name}
-              </p>
-              {lead.company.dba && (
-                <p className="text-xs text-gray-500 mt-0.5">DBA: {lead.company.dba}</p>
-              )}
-              <div className="mt-3 space-y-1.5 text-sm">
-                {lead.company.email && (
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <Mail className="w-3.5 h-3.5 text-gray-400" />
-                    <span className="truncate">{lead.company.email}</span>
-                  </div>
-                )}
-                {lead.company.phone && (
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <Phone className="w-3.5 h-3.5 text-gray-400" />
-                    <span>{lead.company.phone}</span>
-                  </div>
-                )}
-                {lead.company.city && (
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <MapPin className="w-3.5 h-3.5 text-gray-400" />
-                    <span>{[lead.company.city, lead.company.state].filter(Boolean).join(", ")}</span>
-                  </div>
-                )}
-                {lead.company.website && (
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <ExternalLink className="w-3.5 h-3.5 text-gray-400" />
-                    <a
-                      href={lead.company.website}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="truncate text-[#0D9488] hover:underline"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {lead.company.website}
-                    </a>
-                  </div>
-                )}
-              </div>
-            </Card>
-          )}
-
           <Card className="p-5">
             <h3 className="font-semibold text-gray-900 text-sm mb-3">Timeline</h3>
             <div className="space-y-2 text-sm">
