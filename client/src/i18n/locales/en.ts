@@ -375,6 +375,8 @@ export const en = {
       saveAndMove: "Save & Move to Payment Sent",
       saving: "Saving...",
       toastSuccess: "Follow-up scheduled",
+      activitySentVia: "Payment link sent via",
+      activityAt: "at",
     },
   },
   onboarding: {

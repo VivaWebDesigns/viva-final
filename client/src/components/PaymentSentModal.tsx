@@ -120,11 +120,18 @@ export default function PaymentSentModal({
       });
 
       const timeFmt = formatTimeSlot(timeSent);
+      const userNote = notes.trim() || null;
       const activityParts = [`Payment link sent via ${method} at ${timeFmt}.`];
-      if (notes.trim()) activityParts.push(notes.trim());
+      if (userNote) activityParts.push(userNote);
       await apiRequest("POST", `/api/pipeline/opportunities/${opportunityId}/activities`, {
         type: "note",
         content: activityParts.join(" "),
+        metadata: {
+          event: "payment_sent",
+          method,
+          timeFmt,
+          userNote,
+        },
       });
     },
     onSuccess: () => {

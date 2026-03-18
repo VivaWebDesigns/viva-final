@@ -377,6 +377,8 @@ export const es: AdminTranslations = {
       saveAndMove: "Guardar y Mover a Pago Enviado",
       saving: "Guardando...",
       toastSuccess: "Seguimiento programado",
+      activitySentVia: "Enlace de pago enviado v\u00eda",
+      activityAt: "a las",
     },
   },
   onboarding: {

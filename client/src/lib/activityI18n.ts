@@ -70,6 +70,17 @@ export function getActivityTypeLabel(type: string, t: AdminTranslations): string
   return type.replace(/_/g, " ");
 }
 
+export function getPaymentMethodLabel(method: string | undefined | null, t: AdminTranslations): string {
+  if (!method) return "";
+  const ps = t.pipeline.paymentSent as Record<string, string>;
+  const map: Record<string, string> = {
+    Text:  ps.methodText  ?? "Text",
+    Email: ps.methodEmail ?? "Email",
+    Both:  ps.methodBoth  ?? "Both",
+  };
+  return map[method] ?? method;
+}
+
 interface ActivityMetadata {
   event?: string;
   fromStageSlug?: string;
@@ -80,6 +91,9 @@ interface ActivityMetadata {
   outcome?: string;
   outcomeKey?: string;
   completionNote?: string;
+  method?: string;
+  timeFmt?: string;
+  userNote?: string;
 }
 
 interface ActivityRecord {
@@ -105,6 +119,13 @@ export function renderActivityContent(act: ActivityRecord, t: AdminTranslations)
       return `${activity.followUpScheduled ?? "Follow-up scheduled"}: ${meta.taskTitle ?? ""}`;
     case "follow_up_rescheduled":
       return `${activity.followUpRescheduled ?? "Follow-up rescheduled"}: ${meta.taskTitle ?? ""}`;
+    case "payment_sent": {
+      const ps = t.pipeline.paymentSent as Record<string, string>;
+      const methodLabel = getPaymentMethodLabel(meta.method, t);
+      const sentence = `${ps.activitySentVia ?? "Payment link sent via"} ${methodLabel} ${ps.activityAt ?? "at"} ${meta.timeFmt ?? ""}`.trimEnd();
+      if (meta.userNote) return `${sentence}. ${meta.userNote}`;
+      return `${sentence}.`;
+    }
     case "task_completed": {
       const parts: string[] = [];
       const taskCompletedLabel = activity.taskCompleted ?? "Task completed";
