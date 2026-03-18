@@ -4,7 +4,7 @@ import { Clock, ArrowRight, User, CheckCircle2, XCircle, Shuffle, GitBranch, Plu
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { useAdminLang } from "@/i18n/LanguageContext";
-import { getStageLabel } from "@/lib/activityI18n";
+import { getStageLabel, KNOWN_SLUGS } from "@/lib/activityI18n";
 import type { AdminTranslations } from "@/i18n/locales/en";
 
 interface HistoryEvent {
@@ -21,12 +21,13 @@ interface HistoryEvent {
   createdAt: string;
 }
 
-const SLUG_PAIR_RE = /^[\w-]+ → [\w-]+$/;
-
 function renderStageNote(note: string | null | undefined, t: AdminTranslations): string | null {
   if (!note) return null;
-  if (!SLUG_PAIR_RE.test(note)) return null;
-  const [from, to] = note.split(" → ");
+  if (!note.includes(" → ")) return null;
+  const parts = note.split(" → ");
+  if (parts.length !== 2) return null;
+  const [from, to] = parts;
+  if (!KNOWN_SLUGS.has(from) || !KNOWN_SLUGS.has(to)) return null;
   return `${getStageLabel(from, t)} → ${getStageLabel(to, t)}`;
 }
 

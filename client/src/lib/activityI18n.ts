@@ -15,7 +15,7 @@ export const STAGE_NAME_TO_SLUG: Record<string, string> = {
   "None":           "",
 };
 
-const KNOWN_SLUGS = new Set([
+export const KNOWN_SLUGS = new Set([
   "new-lead", "contacted", "demo-scheduled", "demo-completed",
   "payment-sent", "closed-won", "closed-lost", "discovery", "proposal",
 ]);
@@ -106,19 +106,27 @@ export function renderActivityContent(act: ActivityRecord, t: AdminTranslations)
     case "follow_up_rescheduled":
       return `${activity.followUpRescheduled ?? "Follow-up rescheduled"}: ${meta.taskTitle ?? ""}`;
     case "task_completed": {
-      const parts: string[] = [
-        `${activity.taskCompleted ?? "Task completed"}: ${meta.taskTitle ?? ""}`,
-      ];
+      const parts: string[] = [];
+      const taskCompletedLabel = activity.taskCompleted ?? "Task completed";
+      if (meta.taskTitle) {
+        parts.push(`${taskCompletedLabel}: ${meta.taskTitle}`);
+      } else {
+        parts.push(taskCompletedLabel);
+      }
       if (meta.outcomeKey ?? meta.outcome) {
         const outcomeDisplay = meta.outcomeKey
           ? ((t.tasks.outcomes as Record<string, string>)[meta.outcomeKey] ?? meta.outcome ?? "")
           : getOutcomeLabel(meta.outcome, t);
-        parts.push(`${activity.outcome ?? t.common.note}: ${outcomeDisplay}`);
+        if (outcomeDisplay) {
+          const outcomeLabel = activity.outcome ?? t.common?.note ?? "Outcome";
+          parts.push(`${outcomeLabel}: ${outcomeDisplay}`);
+        }
       }
       if (meta.completionNote) {
-        parts.push(`${t.common.note}: ${meta.completionNote}`);
+        const noteLabel = t.common?.note ?? "Note";
+        parts.push(`${noteLabel}: ${meta.completionNote}`);
       }
-      return parts.join(" · ");
+      return parts.length > 0 ? parts.join(" · ") : act.content;
     }
     default:
       return act.content;

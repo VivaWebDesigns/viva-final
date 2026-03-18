@@ -1,0 +1,58 @@
+Regression found after the bilingual timeline change. Fix this now.
+
+Current bugs:
+
+1. History stage changes are showing "undefined → undefined" repeatedly.
+This means either:
+- the stage_changed note is still being written with wrong keys, or
+- RecordTimeline is not suppressing / translating bad notes correctly, or
+- the new renderer is reading the wrong metadata fields.
+
+2. Follow-up notes entered in Spanish do not display, but English notes do.
+User-entered note text must always render verbatim regardless of locale.
+Do not treat user note text as a translation key or drop it during
+structured activity rendering.
+
+Required debugging steps:
+
+A. Audit every write path for stage change history and activity metadata
+- verify the exact object shape being written for stage changes
+- verify the exact note string being written to history
+- confirm fromStageSlug and toStageSlug actually exist at runtime on the
+metadata object used by routes.ts
+- add temporary logging if needed to inspect the real metadata shape
+
+B. Fix stage history rendering defensively
+- if note is "undefined → undefined", suppress it
+- if note contains slug pair, translate slugs
+- if note contains legacy English pair, normalize and translate if possible
+- never render literal undefined values to the UI
+
+C. Fix structured activity rendering for task completion / follow-up notes
+- if metadata.event exists, translated system labels may come from metadata
+- but user-entered note text (completionNote / raw note content) must always
+render verbatim exactly as entered, in any language
+- Spanish note text must display exactly the same as English note text
+
+D. Inspect renderActivityContent logic carefully
+- make sure it does not discard completionNote when locale is ES
+- make sure it does not require outcomeKey or translation lookup success in
+order to show the note
+- if translated parts fail, still show the raw note text rather than nothing
+
+E. Verify with these tests:
+1. Move a lead between stages in ES and EN
+   - no undefined values
+   - translated stage names render correctly
+2. Complete a follow-up with a Spanish note
+   - note displays verbatim
+3. Complete a follow-up with an English note
+   - still displays
+4. Open older bad history records
+   - undefined → undefined is suppressed, not shown
+
+Do not do a broad rewrite.
+Make a targeted regression fix and report:
+- root cause for undefined stages
+- root cause for Spanish note text not rendering
+- exact files changed
