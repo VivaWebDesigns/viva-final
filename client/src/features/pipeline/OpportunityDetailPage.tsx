@@ -27,6 +27,7 @@ import type { PipelineStage, PipelineOpportunity, PipelineActivity, CrmCompany, 
 import { WEBSITE_PACKAGES } from "@shared/schema";
 import QuickTaskModal, { formatTaskTimeDisplay } from "@/components/QuickTaskModal";
 import CompleteTaskModal from "@/components/CompleteTaskModal";
+import PaymentSentModal from "@/components/PaymentSentModal";
 import { RecordTimeline } from "@/components/RecordTimeline";
 
 const PKG_COLORS: Record<string, string> = {
@@ -63,6 +64,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
   const [taskModalOpen, setTaskModalOpen] = useState(false);
   const [rescheduleTask, setRescheduleTask] = useState<TaskWithContact | null>(null);
   const [contactedPendingStageId, setContactedPendingStageId] = useState<string | null>(null);
+  const [paymentSentPendingStageId, setPaymentSentPendingStageId] = useState<string | null>(null);
 
   const { data: opp, isLoading } = useQuery<PipelineOpportunity>({
     queryKey: ["/api/pipeline/opportunities", id],
@@ -483,6 +485,8 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                           if (stage.id === opp.stageId) return;
                           if (stage.slug === "contacted") {
                             setContactedPendingStageId(stage.id);
+                          } else if (stage.slug === "payment-sent") {
+                            setPaymentSentPendingStageId(stage.id);
                           } else {
                             stageMutation.mutate(stage.id);
                           }
@@ -838,6 +842,14 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
         defaultTaskTitle={`Follow up with ${contact?.firstName ?? ""} ${contact?.lastName ?? ""}`.trim()}
         onSuccess={() => {
           if (contactedPendingStageId) stageMutation.mutate(contactedPendingStageId);
+        }}
+      />
+      <PaymentSentModal
+        open={paymentSentPendingStageId !== null}
+        onClose={() => setPaymentSentPendingStageId(null)}
+        opportunityId={id}
+        onSuccess={() => {
+          if (paymentSentPendingStageId) stageMutation.mutate(paymentSentPendingStageId);
         }}
       />
       <CompleteTaskModal

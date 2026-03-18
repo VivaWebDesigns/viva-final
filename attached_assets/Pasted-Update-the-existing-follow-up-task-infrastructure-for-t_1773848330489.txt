@@ -1,0 +1,135 @@
+Update the existing follow-up task infrastructure for the
+Sales Pipeline. Do NOT build a new follow-up task system.
+Reuse the same follow-up task architecture, task creation
+flow, styling, scheduling logic, and task module behavior
+already being used for the other stage-based follow-ups.
+
+Goal:
+When an opportunity is moved to the stage "Payment Sent",
+the system should immediately use the existing follow-up
+task flow to create a payment follow-up task, but with a
+few required inputs and a tighter timing selector.
+
+Requirements:
+
+1. Trigger behavior
+- When a rep moves an opportunity to "Payment Sent",
+  trigger the existing follow-up task workflow.
+- Do not create a separate custom workflow outside the
+  existing follow-up task system.
+- The new behavior should plug into the same
+  infrastructure already used for other stage-triggered
+  follow-up tasks.
+
+2. Required fields before the stage change completes
+Before the opportunity is fully moved to "Payment Sent",
+require the rep to complete these fields:
+
+- Time Sent
+  - required
+  - use a time picker
+- Method
+  - required
+  - dropdown with exactly:
+    - Text
+    - Email
+    - Both
+- Notes
+  - optional
+  - free text field
+
+If required fields are missing, do not allow the move to
+"Payment Sent" to complete.
+
+3. Follow-up timing selector
+After the required fields above are filled, show a dropdown
+for the next follow-up timing with exactly these options:
+
+- 2 hours (aggressive)
+- 3 hours (standard)
+- 4 hours (light)
+
+Set the default to:
+- 3 hours (standard)
+
+4. Scheduling logic
+Use the existing follow-up task creation logic, but for
+"Payment Sent" calculate the due time from the entered
+"Time Sent" value, not from the moment the modal is
+submitted.
+
+Example:
+If Time Sent is 2:15 PM and the rep chooses
+"3 hours (standard)", the follow-up task due time should be
+5:15 PM.
+
+5. Task content
+Use the existing follow-up task creation structure, but for
+this stage the task should be created with:
+
+Title:
+Follow up on payment
+
+Task note / description:
+Follow up on payment link. Check if they had any issues and
+resend the link if needed.
+
+If your existing task model separates title and notes,
+store that sentence in the notes/description field.
+
+6. Notes from the stage-change modal
+Save the user-entered optional Notes field from the
+Payment Sent modal in a way that is visible and useful for
+the rep/admin, consistent with how the current follow-up
+task system stores or displays contextual notes.
+
+7. No new parallel system
+- Do not create a brand new task engine
+- Do not create a one-off standalone modal unrelated to the
+  current follow-up flow
+- Do not break or replace the existing follow-up behavior
+  for other stages
+- Extend the current system cleanly and minimally
+
+8. Preserve current behavior elsewhere
+All existing stage-triggered follow-up behavior for other
+stages must continue to work exactly as it does now unless
+directly required for this Payment Sent enhancement.
+
+9. UX expectations
+- Keep the UI tight and clean
+- Make the Payment Sent inputs feel like a natural extension
+  of the current workflow
+- Avoid unnecessary new screens or extra clicks
+- The rep experience should be:
+  move to Payment Sent ->
+  enter Time Sent / Method / optional Notes ->
+  choose 2/3/4 hour follow-up ->
+  save ->
+  existing system creates the follow-up task
+
+10. Implementation expectation
+Before making changes, inspect the existing code paths for:
+- stage change handling
+- current follow-up task creation
+- task modal / task form reuse opportunities
+- due date / due time calculation
+- task notes storage
+
+Then implement this by extending the existing code in the
+smallest, cleanest way possible.
+
+Success criteria:
+- Payment Sent uses the same follow-up infrastructure as the
+  other stages
+- required Time Sent and Method fields are enforced
+- Notes remain optional
+- follow-up timing options are exactly 2/3/4 hours with
+  labels aggressive / standard / light
+- default is 3 hours (standard)
+- follow-up due time is based on Time Sent
+- created task title is "Follow up on payment"
+- task notes say:
+  "Follow up on payment link. Check if they had any issues
+  and resend the link if needed."
+- no duplicate or parallel task system is introduced
