@@ -37,6 +37,10 @@ const PKG_COLORS: Record<string, string> = {
   domina:  "bg-amber-100 text-amber-700",
 };
 
+function humanizeSlug(slug: string): string {
+  return slug.replace(/[_-]+/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+}
+
 type TaskWithContact = FollowupTask & {
   contact: { firstName: string; lastName: string | null; phone: string | null } | null;
   company: { name: string } | null;
@@ -295,6 +299,13 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
   }
 
   const currentStage = stages?.find(s => s.id === opp.stageId);
+
+  const resolvedPhone   = contact?.phone   ?? company?.phone   ?? null;
+  const resolvedEmail   = contact?.email   ?? company?.email   ?? null;
+  const resolvedLang    = contact?.preferredLanguage ?? company?.preferredLanguage ?? null;
+  const resolvedSource  = sourceLead?.sourceLabel
+    ?? (sourceLead?.source ? humanizeSlug(sourceLead.source) : null);
+
   const nextTask = tasks
     ?.filter(task => !task.completed)
     .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())[0] ?? null;
@@ -468,6 +479,82 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                       <span className="text-gray-400">{t.pipeline.noTaskScheduled}</span>
                     )}
                   </p>
+                </div>
+              </div>
+
+              <div className="pt-3 border-t">
+                <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                  <div>
+                    <p className="text-xs text-gray-400 mb-1 flex items-center gap-1">
+                      <Phone className="w-3 h-3" />
+                      {t.pipeline.phone}
+                    </p>
+                    {resolvedPhone ? (
+                      <a
+                        href={`tel:${resolvedPhone}`}
+                        data-testid="link-phone"
+                        className="text-sm font-medium text-gray-800 hover:text-[#0D9488]"
+                      >
+                        {resolvedPhone}
+                      </a>
+                    ) : (
+                      <span className="text-sm text-gray-400">—</span>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 mb-1 flex items-center gap-1">
+                      <Mail className="w-3 h-3" />
+                      {t.pipeline.email}
+                    </p>
+                    {resolvedEmail ? (
+                      <a
+                        href={`mailto:${resolvedEmail}`}
+                        data-testid="link-email"
+                        className="text-sm font-medium text-gray-800 hover:text-[#0D9488]"
+                      >
+                        {resolvedEmail}
+                      </a>
+                    ) : (
+                      <span className="text-sm text-gray-400">—</span>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 mb-1 flex items-center gap-1">
+                      <Building2 className="w-3 h-3" />
+                      {t.pipeline.industry}
+                    </p>
+                    {company?.industry ? (
+                      <p className="text-sm font-medium text-gray-800" data-testid="text-industry">
+                        {company.industry}
+                      </p>
+                    ) : (
+                      <span className="text-sm text-gray-400">—</span>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 mb-1">
+                      {t.pipeline.preferredLanguage}
+                    </p>
+                    {resolvedLang ? (
+                      <p className="text-sm font-medium text-gray-800" data-testid="text-preferred-language">
+                        {resolvedLang === "en" ? t.pipeline.langEn : resolvedLang === "es" ? t.pipeline.langEs : resolvedLang}
+                      </p>
+                    ) : (
+                      <span className="text-sm text-gray-400">—</span>
+                    )}
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-xs text-gray-400 mb-1">
+                      {t.pipeline.source}
+                    </p>
+                    {resolvedSource ? (
+                      <p className="text-sm font-medium text-gray-800" data-testid="text-source">
+                        {resolvedSource}
+                      </p>
+                    ) : (
+                      <span className="text-sm text-gray-400">—</span>
+                    )}
+                  </div>
                 </div>
               </div>
 
