@@ -521,9 +521,9 @@ export default function LeadDetailPage({ id }: { id: string }) {
                       </div>
                     ) : (
                       <p className="text-gray-900" data-testid="text-lead-phone">
-                        {(lead.contact?.phone || lead.company?.phone) ? (
-                          <a href={`tel:${lead.contact?.phone || lead.company?.phone}`} className="text-[#0D9488] hover:underline">
-                            {lead.contact?.phone || lead.company?.phone}
+                        {lead.contact?.phone ? (
+                          <a href={`tel:${lead.contact.phone}`} className="text-[#0D9488] hover:underline">
+                            {lead.contact.phone}
                           </a>
                         ) : "—"}
                       </p>
@@ -568,9 +568,9 @@ export default function LeadDetailPage({ id }: { id: string }) {
                       </div>
                     ) : (
                       <p className="text-gray-900" data-testid="text-lead-email">
-                        {(lead.contact?.email || lead.company?.email) ? (
-                          <a href={`mailto:${lead.contact?.email || lead.company?.email}`} className="text-[#0D9488] hover:underline truncate block">
-                            {lead.contact?.email || lead.company?.email}
+                        {lead.contact?.email ? (
+                          <a href={`mailto:${lead.contact.email}`} className="text-[#0D9488] hover:underline truncate block">
+                            {lead.contact.email}
                           </a>
                         ) : "—"}
                       </p>
@@ -868,7 +868,7 @@ export default function LeadDetailPage({ id }: { id: string }) {
                       <p className="text-gray-500">{t.common.city}</p>
                       {!editingCity && (
                         <button
-                          onClick={() => { setEditCityValue(lead.city ?? lead.company?.city ?? ""); setEditingCity(true); }}
+                          onClick={() => { setEditCityValue(lead.city ?? ""); setEditingCity(true); }}
                           className="text-gray-400 hover:text-gray-600 transition-colors"
                           data-testid="button-edit-city" aria-label="Edit city"
                         >
@@ -900,7 +900,7 @@ export default function LeadDetailPage({ id }: { id: string }) {
                       </div>
                     ) : (
                       <p className="text-gray-900" data-testid="text-lead-city">
-                        {lead.city || lead.company?.city || <span className="text-gray-400">—</span>}
+                        {lead.city || <span className="text-gray-400">—</span>}
                       </p>
                     )}
                   </div>
@@ -911,7 +911,7 @@ export default function LeadDetailPage({ id }: { id: string }) {
                       <p className="text-gray-500">{t.common.state}</p>
                       {!editingState && (
                         <button
-                          onClick={() => { setEditStateValue(lead.state ?? lead.company?.state ?? ""); setEditingState(true); }}
+                          onClick={() => { setEditStateValue(lead.state ?? ""); setEditingState(true); }}
                           className="text-gray-400 hover:text-gray-600 transition-colors"
                           data-testid="button-edit-state" aria-label="Edit state"
                         >
@@ -944,7 +944,7 @@ export default function LeadDetailPage({ id }: { id: string }) {
                       </div>
                     ) : (
                       <p className="text-gray-900" data-testid="text-lead-state">
-                        {lead.state || lead.company?.state || <span className="text-gray-400">—</span>}
+                        {lead.state || <span className="text-gray-400">—</span>}
                       </p>
                     )}
                     {lead.timezone && (

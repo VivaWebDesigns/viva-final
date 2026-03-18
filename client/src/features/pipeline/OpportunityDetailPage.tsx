@@ -299,9 +299,9 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
 
   const currentStage = stages?.find(s => s.id === opp.stageId);
 
-  const resolvedPhone   = contact?.phone   ?? company?.phone   ?? null;
-  const resolvedEmail   = contact?.email   ?? company?.email   ?? null;
-  const resolvedLang    = contact?.preferredLanguage ?? company?.preferredLanguage ?? null;
+  const resolvedPhone   = contact?.phone   ?? null;
+  const resolvedEmail   = contact?.email   ?? null;
+  const resolvedLang    = contact?.preferredLanguage ?? null;
   const SOURCE_LABELS: Record<string, string> = {
     website:  t.crm.sourceWebsite,
     outreach: t.crm.sourceOutreach,
