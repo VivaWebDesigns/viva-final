@@ -4,6 +4,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { resolveRepTimezone } from "@/lib/timezone";
 import { todayLocalString, formatTimeSlot } from "@/components/QuickTaskModal";
+import { useAdminLang } from "@/i18n/LanguageContext";
 import {
   Dialog,
   DialogContent,
@@ -23,14 +24,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const PAYMENT_METHODS = ["Text", "Email", "Both"] as const;
-type PaymentMethod = typeof PAYMENT_METHODS[number];
-
-const FOLLOWUP_OFFSETS = [
-  { value: 2, label: "2 hours (aggressive)" },
-  { value: 3, label: "3 hours (standard)" },
-  { value: 4, label: "4 hours (light)" },
-] as const;
+const PAYMENT_METHOD_VALUES = ["Text", "Email", "Both"] as const;
+type PaymentMethod = typeof PAYMENT_METHOD_VALUES[number];
 
 const TASK_TITLE = "Follow up on payment";
 const TASK_NOTES =
@@ -78,9 +73,9 @@ export default function PaymentSentModal({
   onSuccess,
 }: PaymentSentModalProps) {
   const { toast } = useToast();
-  // Time Sent is REP-local time. followUpTimezone is always the rep's timezone
-  // so the task system stores and displays it in rep time — no lead-timezone
-  // conversion, no timezone math required from the rep.
+  const { t } = useAdminLang();
+  const ps = t.pipeline.paymentSent;
+
   const repTimezone = resolveRepTimezone();
 
   const [timeSent, setTimeSent] = useState("");
@@ -98,6 +93,18 @@ export default function PaymentSentModal({
   }, [open]);
 
   const followUpResult = timeSent ? computeFollowUp(timeSent, offsetHours) : null;
+
+  const methodLabels: Record<PaymentMethod, string> = {
+    Text:  ps.methodText,
+    Email: ps.methodEmail,
+    Both:  ps.methodBoth,
+  };
+
+  const followUpOffsets = [
+    { value: 2, label: ps.timing2h },
+    { value: 3, label: ps.timing3h },
+    { value: 4, label: ps.timing4h },
+  ];
 
   const submitMutation = useMutation({
     mutationFn: async () => {
@@ -128,12 +135,12 @@ export default function PaymentSentModal({
       queryClient.invalidateQueries({
         queryKey: ["/api/pipeline/opportunities", opportunityId, "activities"],
       });
-      toast({ title: "Follow-up scheduled" });
+      toast({ title: ps.toastSuccess });
       onSuccess();
       onClose();
     },
     onError: (err: Error) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: t.common.error ?? "Error", description: err.message, variant: "destructive" });
     },
   });
 
@@ -144,17 +151,17 @@ export default function PaymentSentModal({
       <DialogContent className="max-w-md" data-testid="dialog-payment-sent">
         <DialogHeader>
           <DialogTitle data-testid="text-payment-sent-title">
-            Payment Sent — Schedule Follow-Up
+            {ps.title}
           </DialogTitle>
           <p className="text-sm text-gray-500 mt-1">
-            Log the payment details and set a follow-up reminder.
+            {ps.subtitle}
           </p>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           <div className="space-y-2">
             <Label htmlFor="ps-time-sent">
-              Time Sent <span className="text-red-500">*</span>
+              {ps.timeSent} <span className="text-red-500">*</span>
             </Label>
             <Input
               id="ps-time-sent"
@@ -167,20 +174,20 @@ export default function PaymentSentModal({
 
           <div className="space-y-2">
             <Label>
-              Method <span className="text-red-500">*</span>
+              {ps.method} <span className="text-red-500">*</span>
             </Label>
             <Select value={method} onValueChange={(v) => setMethod(v as PaymentMethod)}>
               <SelectTrigger data-testid="select-payment-method">
-                <SelectValue placeholder="Select method..." />
+                <SelectValue placeholder={ps.selectMethod} />
               </SelectTrigger>
               <SelectContent>
-                {PAYMENT_METHODS.map((m) => (
+                {PAYMENT_METHOD_VALUES.map((m) => (
                   <SelectItem
                     key={m}
                     value={m}
                     data-testid={`option-method-${m.toLowerCase()}`}
                   >
-                    {m}
+                    {methodLabels[m]}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -189,21 +196,21 @@ export default function PaymentSentModal({
 
           <div className="space-y-2">
             <Label htmlFor="ps-notes">
-              Notes{" "}
-              <span className="text-gray-400 text-xs font-normal">(optional)</span>
+              {ps.notes}{" "}
+              <span className="text-gray-400 text-xs font-normal">{ps.optional}</span>
             </Label>
             <Textarea
               id="ps-notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Any additional context..."
+              placeholder={ps.notesPlaceholder}
               rows={2}
               data-testid="textarea-payment-notes"
             />
           </div>
 
           <div className="border-t pt-4 space-y-2">
-            <Label>Follow-Up Timing</Label>
+            <Label>{ps.followUpTiming}</Label>
             <Select
               value={String(offsetHours)}
               onValueChange={(v) => setOffsetHours(Number(v))}
@@ -212,7 +219,7 @@ export default function PaymentSentModal({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {FOLLOWUP_OFFSETS.map((o) => (
+                {followUpOffsets.map((o) => (
                   <SelectItem
                     key={o.value}
                     value={String(o.value)}
@@ -225,11 +232,11 @@ export default function PaymentSentModal({
             </Select>
             {followUpResult && (
               <p className="text-xs text-gray-500" data-testid="text-followup-preview">
-                Follow-up due at{" "}
+                {ps.followUpDueAt}{" "}
                 <span className="font-medium">
                   {formatTimeSlot(followUpResult.followUpTime)}
                 </span>{" "}
-                your time
+                {ps.yourTime}
               </p>
             )}
           </div>
@@ -242,14 +249,14 @@ export default function PaymentSentModal({
             disabled={submitMutation.isPending}
             data-testid="button-cancel-payment-sent"
           >
-            Cancel
+            {t.common.cancel}
           </Button>
           <Button
             onClick={() => submitMutation.mutate()}
             disabled={!canSubmit}
             data-testid="button-submit-payment-sent"
           >
-            {submitMutation.isPending ? "Saving..." : "Save & Move to Payment Sent"}
+            {submitMutation.isPending ? ps.saving : ps.saveAndMove}
           </Button>
         </DialogFooter>
       </DialogContent>
