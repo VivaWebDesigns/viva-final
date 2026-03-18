@@ -303,7 +303,15 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
   const resolvedPhone   = contact?.phone   ?? company?.phone   ?? null;
   const resolvedEmail   = contact?.email   ?? company?.email   ?? null;
   const resolvedLang    = contact?.preferredLanguage ?? company?.preferredLanguage ?? null;
-  const resolvedSource  = sourceLead?.sourceLabel
+  const SOURCE_LABELS: Record<string, string> = {
+    website:  t.crm.sourceWebsite,
+    outreach: t.crm.sourceOutreach,
+  };
+  const resolvedIndustry = company?.industry
+    ? ((t.crm.trades as Record<string, string>)[company.industry] ?? humanizeSlug(company.industry))
+    : null;
+  const resolvedSource = (sourceLead?.source ? SOURCE_LABELS[sourceLead.source] : undefined)
+    ?? sourceLead?.sourceLabel
     ?? (sourceLead?.source ? humanizeSlug(sourceLead.source) : null);
 
   const nextTask = tasks
@@ -523,9 +531,9 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                       <Building2 className="w-3 h-3" />
                       {t.pipeline.industry}
                     </p>
-                    {company?.industry ? (
+                    {resolvedIndustry ? (
                       <p className="text-sm font-medium text-gray-800" data-testid="text-industry">
-                        {company.industry}
+                        {resolvedIndustry}
                       </p>
                     ) : (
                       <span className="text-sm text-gray-400">—</span>
