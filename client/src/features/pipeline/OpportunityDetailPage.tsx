@@ -288,7 +288,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
       <div className="text-center py-12">
         <p className="text-gray-500">Opportunity not found</p>
         <Link href="/admin/pipeline">
-          <Button variant="ghost" className="mt-2">Back to Pipeline</Button>
+          <Button variant="ghost" className="mt-2">{t.pipeline.backToPipeline}</Button>
         </Link>
       </div>
     );
@@ -315,7 +315,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
         data-testid="button-back-pipeline"
       >
         <ArrowLeft className="w-4 h-4" />
-        Back to Pipeline
+        {t.pipeline.backToPipeline}
       </button>
 
       <div className="flex flex-col sm:flex-row items-start justify-between gap-4 mb-6">
@@ -334,7 +334,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
           <div className="flex items-center gap-3 mt-2">
             {currentStage && (
               <Badge style={{ backgroundColor: currentStage.color, color: "white" }} data-testid="badge-current-stage">
-                {currentStage.name}
+                {(t.pipeline.stageNames as Record<string, string>)[currentStage.slug] || currentStage.name}
               </Badge>
             )}
           </div>
@@ -419,7 +419,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
         <div className="lg:col-span-2 space-y-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
-              <CardTitle className="text-base">Details</CardTitle>
+              <CardTitle className="text-base">{t.pipeline.details}</CardTitle>
               <button
                 onClick={() => openEdit("details")}
                 className="text-gray-300 hover:text-[#0D9488] transition-colors"
@@ -473,7 +473,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
 
               {stages && opp.status === "open" && (
                 <div className="pt-3 border-t">
-                  <p className="text-xs text-gray-400 mb-2">Move to Stage</p>
+                  <p className="text-xs text-gray-400 mb-2">{t.pipeline.moveToStage}</p>
                   <div className="flex flex-wrap gap-1.5">
                     {stages.map(stage => (
                       <Button
@@ -513,7 +513,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Activity Timeline</CardTitle>
+              <CardTitle className="text-base">{t.pipeline.activityTimeline}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2 mb-5">
