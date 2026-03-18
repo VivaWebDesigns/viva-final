@@ -1,0 +1,96 @@
+We need to fix a deeper data-flow problem in the CRM / Sales Pipeline system.
+
+Problem:
+Leads are created from CRM using the + Add Lead flow, where the user enters
+fields like phone, email, industry/trade, preferred language, and source.
+However, after creation, much of that information is more visible/useful in
+the Sales Pipeline detail view than in the CRM detail view. That feels
+backwards.
+
+Desired architecture:
+- CRM should be the source of truth
+- Sales Pipeline should reference and surface the same CRM-linked data
+- If a field is entered during CRM + Add Lead, it should be:
+  1. stored on the correct CRM-linked entity/entities
+  2. visible in CRM detail view
+  3. editable in CRM
+  4. also visible in Sales Pipeline where relevant
+
+I want a focused technical plan only. Do not implement yet.
+
+Please produce a plan that covers:
+
+1. Current write path audit
+Trace the full + Add Lead flow and identify exactly where each field is
+written today:
+- first name / last name
+- phone
+- email
+- company name
+- industry / trade
+- preferred language
+- source
+- any other important fields collected in the Add Lead form
+
+For each field, specify:
+- which table/entity it is written to now
+- whether it is duplicated across multiple entities
+- whether it is only visible in Pipeline vs CRM vs both
+
+2. Current read path audit
+Identify which objects/queries the CRM detail page reads from, and which
+objects/queries the Sales Pipeline detail page reads from.
+
+For each field above, explain:
+- why it currently appears in one place and not the other
+- whether the issue is missing writes, missing reads, or missing rendering
+
+3. Source-of-truth recommendation
+Recommend the correct canonical owner for each field:
+- contact
+- company
+- lead
+- opportunity
+or another existing entity if appropriate
+
+Be explicit field by field.
+
+4. Minimal safe correction strategy
+Design the safest way to make CRM the real source of truth without breaking
+the current working Sales Pipeline behavior.
+
+Important constraints:
+- Do NOT propose a broad rewrite
+- Do NOT break existing pipeline logic
+- Do NOT break existing lead/opportunity links
+- Prefer targeted fixes and backfills over risky refactors
+- Preserve backward compatibility for existing records
+
+5. UI implications
+Specify what the CRM detail view should surface once the write/read paths are
+corrected.
+At minimum address whether CRM should show and allow editing of:
+- phone
+- email
+- industry / trade
+- preferred language
+- source
+
+6. Migration / backfill considerations
+If existing records may already have data split across entities, explain:
+- whether a backfill is needed
+- whether it can be lazy / on-read / on-edit
+- or whether no migration is required
+
+7. Exact implementation scope
+List the exact likely files/components/routes involved in:
+- Add Lead creation
+- CRM detail rendering
+- Sales Pipeline detail rendering
+- any storage/repository layer involved
+
+Output requirements:
+- concise but specific
+- no coding yet
+- no generic audit language
+- I want a concrete plan tied to the actual current architecture
