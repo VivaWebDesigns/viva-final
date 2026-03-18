@@ -398,36 +398,6 @@ export default function LeadDetailPage({ id }: { id: string }) {
             </div>
 
             <div className="space-y-5 text-sm">
-              {/* Status & Source */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-gray-500 mb-1">Status</p>
-                  {lead.status ? (
-                    <Badge
-                      variant="outline"
-                      style={{ borderColor: lead.status.color, color: lead.status.color }}
-                      data-testid="badge-lead-status"
-                    >
-                      {(t.crm.statusNames as Record<string, string>)[lead.status.slug] || lead.status.name}
-                    </Badge>
-                  ) : (
-                    <span className="text-gray-400">No status</span>
-                  )}
-                </div>
-                <div>
-                  <p className="text-gray-500 mb-1">Source</p>
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-900" data-testid="text-lead-source">{lead.sourceLabel || lead.source || "Unknown"}</span>
-                    {lead.fromWebsiteForm && (
-                      <Badge variant="secondary" className="text-xs">
-                        <Globe className="w-3 h-3 mr-1" />
-                        Web Form
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              </div>
-
               {/* CONTACT GROUP */}
               <div className="pt-4 border-t border-gray-100">
                 <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Contact</p>
@@ -898,7 +868,7 @@ export default function LeadDetailPage({ id }: { id: string }) {
                       <p className="text-gray-500">{t.common.city}</p>
                       {!editingCity && (
                         <button
-                          onClick={() => { setEditCityValue(lead.city ?? (lead.company as any)?.city ?? ""); setEditingCity(true); }}
+                          onClick={() => { setEditCityValue(lead.city ?? lead.company?.city ?? ""); setEditingCity(true); }}
                           className="text-gray-400 hover:text-gray-600 transition-colors"
                           data-testid="button-edit-city" aria-label="Edit city"
                         >
@@ -930,7 +900,7 @@ export default function LeadDetailPage({ id }: { id: string }) {
                       </div>
                     ) : (
                       <p className="text-gray-900" data-testid="text-lead-city">
-                        {lead.city || (lead.company as any)?.city || <span className="text-gray-400">—</span>}
+                        {lead.city || lead.company?.city || <span className="text-gray-400">—</span>}
                       </p>
                     )}
                   </div>
@@ -941,7 +911,7 @@ export default function LeadDetailPage({ id }: { id: string }) {
                       <p className="text-gray-500">{t.common.state}</p>
                       {!editingState && (
                         <button
-                          onClick={() => { setEditStateValue(lead.state ?? (lead.company as any)?.state ?? ""); setEditingState(true); }}
+                          onClick={() => { setEditStateValue(lead.state ?? lead.company?.state ?? ""); setEditingState(true); }}
                           className="text-gray-400 hover:text-gray-600 transition-colors"
                           data-testid="button-edit-state" aria-label="Edit state"
                         >
@@ -974,12 +944,45 @@ export default function LeadDetailPage({ id }: { id: string }) {
                       </div>
                     ) : (
                       <p className="text-gray-900" data-testid="text-lead-state">
-                        {lead.state || (lead.company as any)?.state || <span className="text-gray-400">—</span>}
+                        {lead.state || lead.company?.state || <span className="text-gray-400">—</span>}
                       </p>
                     )}
                     {lead.timezone && (
                       <span className="text-gray-400 text-xs mt-1 block" data-testid="text-lead-timezone">({lead.timezone})</span>
                     )}
+                  </div>
+                </div>
+              </div>
+
+              {/* LEAD GROUP */}
+              <div className="pt-4 border-t border-gray-100">
+                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Lead</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-gray-500 mb-1">Status</p>
+                    {lead.status ? (
+                      <Badge
+                        variant="outline"
+                        style={{ borderColor: lead.status.color, color: lead.status.color }}
+                        data-testid="badge-lead-status"
+                      >
+                        {(t.crm.statusNames as Record<string, string>)[lead.status.slug] || lead.status.name}
+                      </Badge>
+                    ) : (
+                      <span className="text-gray-400">No status</span>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-gray-500 mb-1">Source</p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-900" data-testid="text-lead-source">{lead.sourceLabel || lead.source || "Unknown"}</span>
+                      {lead.fromWebsiteForm && (
+                        <Badge variant="secondary" className="text-xs">
+                          <Globe className="w-3 h-3 mr-1" />
+                          Web Form
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

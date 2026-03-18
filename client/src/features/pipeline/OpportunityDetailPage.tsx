@@ -484,7 +484,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                       </Select>
                       <Button size="sm" className="h-7 px-2 text-xs bg-[#0D9488] hover:bg-[#0b7a70] text-white"
                         disabled={updateOppMutation.isPending}
-                        onClick={() => updateOppMutation.mutate({ websitePackage: (editOppPkgValue && editOppPkgValue !== "none" ? editOppPkgValue : null) as any }, { onSuccess: () => setEditingOppPkg(false) })}
+                        onClick={() => updateOppMutation.mutate({ websitePackage: editOppPkgValue && editOppPkgValue !== "none" ? editOppPkgValue : null }, { onSuccess: () => setEditingOppPkg(false) })}
                         data-testid="button-save-opp-pkg">
                         {updateOppMutation.isPending ? "…" : t.common.save}
                       </Button>
@@ -780,12 +780,12 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                         </div>
                       ) : (
                         <>
-                          {(company as any)?.website ? (
-                            <a href={(company as any).website} target="_blank" rel="noopener noreferrer" className="font-medium text-[#0D9488] hover:underline truncate" data-testid="text-opp-website">{(company as any).website}</a>
+                          {company?.website ? (
+                            <a href={company.website} target="_blank" rel="noopener noreferrer" className="font-medium text-[#0D9488] hover:underline truncate" data-testid="text-opp-website">{company.website}</a>
                           ) : (
                             <span className="text-gray-400">—</span>
                           )}
-                          {company && <button onClick={() => { setEditOppWebsite((company as any).website ?? ""); setEditingOppWebsite(true); }} className="ml-1 text-gray-300 hover:text-[#0D9488] transition-colors flex-shrink-0" data-testid="button-edit-opp-website"><Pencil className="w-3 h-3" /></button>}
+                          {company && <button onClick={() => { setEditOppWebsite(company.website ?? ""); setEditingOppWebsite(true); }} className="ml-1 text-gray-300 hover:text-[#0D9488] transition-colors flex-shrink-0" data-testid="button-edit-opp-website"><Pencil className="w-3 h-3" /></button>}
                         </>
                       )}
                     </div>
@@ -809,8 +809,8 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                         </div>
                       ) : (
                         <>
-                          <span className="font-medium text-gray-800" data-testid="text-opp-dba">{(company as any)?.dba || "—"}</span>
-                          {company && <button onClick={() => { setEditOppDba((company as any)?.dba ?? ""); setEditingOppDba(true); }} className="ml-1 text-gray-300 hover:text-[#0D9488] transition-colors" data-testid="button-edit-opp-dba"><Pencil className="w-3 h-3" /></button>}
+                          <span className="font-medium text-gray-800" data-testid="text-opp-dba">{company?.dba || "—"}</span>
+                          {company && <button onClick={() => { setEditOppDba(company.dba ?? ""); setEditingOppDba(true); }} className="ml-1 text-gray-300 hover:text-[#0D9488] transition-colors" data-testid="button-edit-opp-dba"><Pencil className="w-3 h-3" /></button>}
                         </>
                       )}
                     </div>
@@ -841,8 +841,8 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                         </div>
                       ) : (
                         <>
-                          <span className="font-medium text-gray-800" data-testid="text-opp-city">{(sourceLead as any)?.city || "—"}</span>
-                          {sourceLead && <button onClick={() => { setEditOppCityValue((sourceLead as any).city ?? ""); setEditingOppCity(true); }} className="ml-1 text-gray-300 hover:text-[#0D9488] transition-colors" data-testid="button-edit-opp-city"><Pencil className="w-3 h-3" /></button>}
+                          <span className="font-medium text-gray-800" data-testid="text-opp-city">{sourceLead?.city || "—"}</span>
+                          {sourceLead && <button onClick={() => { setEditOppCityValue(sourceLead.city ?? ""); setEditingOppCity(true); }} className="ml-1 text-gray-300 hover:text-[#0D9488] transition-colors" data-testid="button-edit-opp-city"><Pencil className="w-3 h-3" /></button>}
                         </>
                       )}
                     </div>
@@ -872,8 +872,8 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                         </div>
                       ) : (
                         <>
-                          <span className="font-medium text-gray-800" data-testid="text-opp-state">{(sourceLead as any)?.state || "—"}</span>
-                          {sourceLead && <button onClick={() => { setEditOppStateValue((sourceLead as any).state ?? ""); setEditingOppState(true); }} className="ml-1 text-gray-300 hover:text-[#0D9488] transition-colors" data-testid="button-edit-opp-state"><Pencil className="w-3 h-3" /></button>}
+                          <span className="font-medium text-gray-800" data-testid="text-opp-state">{sourceLead?.state || "—"}</span>
+                          {sourceLead && <button onClick={() => { setEditOppStateValue(sourceLead.state ?? ""); setEditingOppState(true); }} className="ml-1 text-gray-300 hover:text-[#0D9488] transition-colors" data-testid="button-edit-opp-state"><Pencil className="w-3 h-3" /></button>}
                         </>
                       )}
                     </div>
