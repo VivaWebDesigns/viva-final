@@ -240,6 +240,9 @@ export const en = {
     businessName: "Business Name",
     businessTrade: "Business Trade",
     selectBusinessTrade: "Select business trade",
+    selectState: "Select state",
+    cityRequired: "City is required",
+    stateRequired: "State is required",
     trades: {
       painting: "Painting",
       plumbing: "Plumbing",

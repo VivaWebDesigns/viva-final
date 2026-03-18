@@ -242,6 +242,9 @@ export const es: AdminTranslations = {
     businessName: "Nombre del Negocio",
     businessTrade: "Tipo de Negocio",
     selectBusinessTrade: "Selecciona el giro del negocio",
+    selectState: "Seleccionar estado",
+    cityRequired: "La ciudad es requerida",
+    stateRequired: "El estado es requerido",
     trades: {
       painting: "Pintura",
       plumbing: "Plomería",

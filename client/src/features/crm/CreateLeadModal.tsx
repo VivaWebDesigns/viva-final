@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -40,7 +41,7 @@ export const BUSINESS_TRADES = [
   "tree_service",
 ] as const;
 
-const schema = z.object({
+const baseSchema = z.object({
   firstName:     z.string().min(1),
   lastName:      z.string().min(1),
   businessName:  z.string().optional(),
@@ -50,11 +51,11 @@ const schema = z.object({
   website:       z.string().optional(),
   source:        z.enum(["website", "outreach"]),
   notes:         z.string().optional(),
-  city:          z.string().min(1, "City is required"),
-  state:         z.enum(US_STATES, { required_error: "State is required" }),
+  city:          z.string().min(1),
+  state:         z.enum(US_STATES),
 });
 
-type FormValues = z.infer<typeof schema>;
+type FormValues = z.infer<typeof baseSchema>;
 
 interface Props {
   open: boolean;
@@ -65,8 +66,13 @@ export default function CreateLeadModal({ open, onClose }: Props) {
   const { t } = useAdminLang();
   const { toast } = useToast();
 
+  const validatedSchema = useMemo(() => baseSchema.extend({
+    city:  z.string().min(1, t.crm.cityRequired),
+    state: z.enum(US_STATES, { required_error: t.crm.stateRequired }),
+  }), [t]);
+
   const form = useForm<FormValues>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(validatedSchema),
     defaultValues: {
       firstName: "",
       lastName: "",
@@ -235,9 +241,9 @@ export default function CreateLeadModal({ open, onClose }: Props) {
                 name="city"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>City <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>{t.common.city} <span className="text-red-500">*</span></FormLabel>
                     <FormControl>
-                      <Input data-testid="input-city" placeholder="City" {...field} />
+                      <Input data-testid="input-city" placeholder={t.common.city} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -248,11 +254,11 @@ export default function CreateLeadModal({ open, onClose }: Props) {
                 name="state"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>State <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>{t.common.state} <span className="text-red-500">*</span></FormLabel>
                     <Select value={field.value} onValueChange={field.onChange}>
                       <FormControl>
                         <SelectTrigger data-testid="select-state">
-                          <SelectValue placeholder="Select state" />
+                          <SelectValue placeholder={t.crm.selectState} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
