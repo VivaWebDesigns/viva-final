@@ -10,6 +10,7 @@ import QuickTaskModal, { formatTaskTimeDisplay } from "@/components/QuickTaskMod
 import CompleteTaskModal from "@/components/CompleteTaskModal";
 import type { FollowupTask } from "@shared/schema";
 import { useAdminLang } from "@/i18n/LanguageContext";
+import { renderTaskTitle } from "@/lib/activityI18n";
 
 interface TaskWithContact extends FollowupTask {
   contact: { firstName: string; lastName: string | null; phone: string | null } | null;
@@ -27,12 +28,14 @@ function TaskRow({
   onReschedule,
   isCompleting,
   tTasks,
+  renderTitle,
 }: {
   task: TaskWithContact;
   onComplete: (id: string) => void;
   onReschedule: (task: TaskWithContact) => void;
   isCompleting: boolean;
   tTasks: { markComplete: string; reschedule: string; viewOpportunity: string; viewLead: string };
+  renderTitle: (task: { title: string }) => string;
 }) {
   const contactName = task.contact
     ? `${task.contact.firstName}${task.contact.lastName ? " " + task.contact.lastName : ""}`
@@ -55,7 +58,7 @@ function TaskRow({
 
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-gray-900 leading-tight" data-testid={`text-task-title-${task.id}`}>
-          {task.title}
+          {renderTitle(task)}
         </p>
 
         {task.notes && (
@@ -202,6 +205,7 @@ export default function TasksDueTodayPage() {
                     onReschedule={(tsk) => setRescheduleTask(tsk)}
                     isCompleting={false}
                     tTasks={tTasks}
+                    renderTitle={(task) => renderTaskTitle(task, t)}
                   />
                 ))}
               </CardContent>
@@ -229,6 +233,7 @@ export default function TasksDueTodayPage() {
                     onReschedule={(tsk) => setRescheduleTask(tsk)}
                     isCompleting={false}
                     tTasks={tTasks}
+                    renderTitle={(task) => renderTaskTitle(task, t)}
                   />
                 ))}
               </CardContent>

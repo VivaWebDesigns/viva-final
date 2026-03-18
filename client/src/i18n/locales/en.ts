@@ -505,6 +505,7 @@ export const en = {
     updateTask: "Update Task",
     saving: "Saving...",
     cancel: "Cancel",
+    followUpOnPayment: "Follow up on payment",
     taskCreated: "Task scheduled",
     taskUpdated: "Task updated",
     taskCompleted: "Task completed",

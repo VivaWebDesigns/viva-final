@@ -507,6 +507,7 @@ export const es: AdminTranslations = {
     updateTask: "Actualizar Tarea",
     saving: "Guardando...",
     cancel: "Cancelar",
+    followUpOnPayment: "Seguimiento de pago",
     taskCreated: "Tarea programada",
     taskUpdated: "Tarea actualizada",
     taskCompleted: "Tarea completada",

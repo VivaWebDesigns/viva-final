@@ -34,6 +34,7 @@ import { z } from "zod";
 import { apiRequest, queryClient, STALE } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAdminLang } from "@/i18n/LanguageContext";
+import { renderTaskTitle } from "@/lib/activityI18n";
 import { format, isPast, isToday } from "date-fns";
 import type {
   CrmCompany, CrmContact, CrmLead, CrmLeadStatus,
@@ -804,6 +805,7 @@ export default function ClientProfilePage({ id }: { id: string }) {
                       onToggle={() => toggleTaskMutation.mutate(task.id)}
                       onDelete={() => deleteTaskMutation.mutate(task.id)}
                       isToggling={toggleTaskMutation.isPending}
+                      renderTitle={(tk) => renderTaskTitle(tk, t)}
                     />
                   ))}
                 </div>
@@ -819,6 +821,7 @@ export default function ClientProfilePage({ id }: { id: string }) {
                       onToggle={() => toggleTaskMutation.mutate(task.id)}
                       onDelete={() => deleteTaskMutation.mutate(task.id)}
                       isToggling={toggleTaskMutation.isPending}
+                      renderTitle={(tk) => renderTaskTitle(tk, t)}
                     />
                   ))}
                 </div>
@@ -834,6 +837,7 @@ export default function ClientProfilePage({ id }: { id: string }) {
                       onToggle={() => toggleTaskMutation.mutate(task.id)}
                       onDelete={() => deleteTaskMutation.mutate(task.id)}
                       isToggling={toggleTaskMutation.isPending}
+                      renderTitle={(tk) => renderTaskTitle(tk, t)}
                     />
                   ))}
                 </div>
@@ -1080,11 +1084,12 @@ export default function ClientProfilePage({ id }: { id: string }) {
 
 // ─── Helper Components ────────────────────────────────────────────────────────
 
-function TaskRow({ task, onToggle, onDelete, isToggling }: {
+function TaskRow({ task, onToggle, onDelete, isToggling, renderTitle }: {
   task: ClientTask;
   onToggle: () => void;
   onDelete: () => void;
   isToggling: boolean;
+  renderTitle: (task: { title: string }) => string;
 }) {
   const taskTypeColors: Record<string, string> = {
     follow_up: "bg-blue-100 text-blue-700",
@@ -1113,7 +1118,7 @@ function TaskRow({ task, onToggle, onDelete, isToggling }: {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <p className={`text-sm font-medium ${isDone ? "line-through text-gray-400" : "text-gray-900"}`} data-testid={`task-title-${task.id}`}>
-            {task.title}
+            {renderTitle(task)}
           </p>
           {task.taskType && (
             <Badge className={`text-[10px] px-1.5 ${taskTypeColors[task.taskType] || "bg-gray-100 text-gray-700"}`}>

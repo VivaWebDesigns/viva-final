@@ -28,7 +28,7 @@ import QuickTaskModal, { formatTaskTimeDisplay } from "@/components/QuickTaskMod
 import CompleteTaskModal from "@/components/CompleteTaskModal";
 import { RecordTimeline } from "@/components/RecordTimeline";
 import { useAdminLang } from "@/i18n/LanguageContext";
-import { renderActivityContent } from "@/lib/activityI18n";
+import { renderActivityContent, renderTaskTitle } from "@/lib/activityI18n";
 import { US_STATES } from "@/lib/usStates";
 
 type TaskWithContact = FollowupTask & {
@@ -759,7 +759,7 @@ export default function LeadDetailPage({ id }: { id: string }) {
                       </button>
                       <div className="flex-1 min-w-0">
                         <p className={`font-medium leading-tight truncate ${task.completed ? "line-through text-gray-400" : "text-gray-800"}`}>
-                          {task.title}
+                          {renderTaskTitle(task, t)}
                         </p>
                         <div className={`flex items-center gap-1 mt-0.5 ${isOverdue ? "text-red-500" : "text-gray-400"}`}>
                           {isOverdue && <AlertCircle className="w-3 h-3 flex-shrink-0" />}

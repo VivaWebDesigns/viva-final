@@ -70,6 +70,20 @@ export function getActivityTypeLabel(type: string, t: AdminTranslations): string
   return type.replace(/_/g, " ");
 }
 
+const FOLLOW_UP_WITH_PREFIX = "Follow up with ";
+const FOLLOW_UP_ON_PAYMENT = "Follow up on payment";
+
+export function renderTaskTitle(task: { title: string }, t: AdminTranslations): string {
+  if (task.title === FOLLOW_UP_ON_PAYMENT) {
+    return t.tasks.followUpOnPayment ?? FOLLOW_UP_ON_PAYMENT;
+  }
+  if (task.title.startsWith(FOLLOW_UP_WITH_PREFIX)) {
+    const name = task.title.slice(FOLLOW_UP_WITH_PREFIX.length);
+    return `${t.pipeline.followUpWith ?? FOLLOW_UP_WITH_PREFIX.trim()} ${name}`;
+  }
+  return task.title;
+}
+
 export function getPaymentMethodLabel(method: string | undefined | null, t: AdminTranslations): string {
   if (!method) return "";
   const ps = t.pipeline.paymentSent as Record<string, string>;

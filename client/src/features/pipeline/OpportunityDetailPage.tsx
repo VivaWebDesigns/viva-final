@@ -25,7 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 import type { PipelineStage, PipelineOpportunity, PipelineActivity, CrmCompany, CrmContact, CrmLead, FollowupTask } from "@shared/schema";
 import { WEBSITE_PACKAGES } from "@shared/schema";
-import { renderActivityContent, getActivityTypeLabel } from "@/lib/activityI18n";
+import { renderActivityContent, getActivityTypeLabel, renderTaskTitle } from "@/lib/activityI18n";
 import QuickTaskModal, { formatTaskTimeDisplay } from "@/components/QuickTaskModal";
 import CompleteTaskModal from "@/components/CompleteTaskModal";
 import PaymentSentModal from "@/components/PaymentSentModal";
@@ -700,7 +700,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                       </button>
                       <div className="flex-1 min-w-0">
                         <p className={`font-medium leading-tight truncate ${task.completed ? "line-through text-gray-400" : "text-gray-800"}`}>
-                          {task.title}
+                          {renderTaskTitle(task, t)}
                         </p>
                         <div className={`flex items-center gap-1 mt-0.5 ${isOverdue ? "text-red-500" : "text-gray-400"}`}>
                           {isOverdue && <AlertCircle className="w-3 h-3 flex-shrink-0" />}
