@@ -78,9 +78,14 @@ export default function LeadDetailPage({ id }: { id: string }) {
   const [noteType, setNoteType] = useState("note");
   const [taskModalOpen, setTaskModalOpen] = useState(false);
   const [rescheduleTask, setRescheduleTask] = useState<TaskWithContact | null>(null);
-  const [editingLocation, setEditingLocation] = useState(false);
-  const [editCity, setEditCity] = useState("");
-  const [editState, setEditState] = useState("");
+  const [editingCity, setEditingCity] = useState(false);
+  const [editCityValue, setEditCityValue] = useState("");
+  const [editingState, setEditingState] = useState(false);
+  const [editStateValue, setEditStateValue] = useState("");
+  const [editingContactTitle, setEditingContactTitle] = useState(false);
+  const [editContactTitleValue, setEditContactTitleValue] = useState("");
+  const [editingDba, setEditingDba] = useState(false);
+  const [editDbaValue, setEditDbaValue] = useState("");
   const [editingIndustry, setEditingIndustry] = useState(false);
   const [editIndustryValue, setEditIndustryValue] = useState("");
   const [editingLang, setEditingLang] = useState(false);
@@ -139,20 +144,16 @@ export default function LeadDetailPage({ id }: { id: string }) {
     },
   });
 
-  const updateLocationMutation = useMutation({
-    mutationFn: async (data: { city: string; state: string }) => {
-      await apiRequest("PUT", `/api/crm/leads/${id}`, {
-        city: data.city.trim() || null,
-        state: data.state || null,
-      });
+  const updateLeadFieldMutation = useMutation({
+    mutationFn: async (payload: Record<string, any>) => {
+      await apiRequest("PUT", `/api/crm/leads/${id}`, payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/crm/leads", id] });
-      setEditingLocation(false);
-      toast({ title: "Location updated" });
+      toast({ title: t.common.success });
     },
     onError: (err: any) => {
-      toast({ title: err.message ?? "Failed to update location", variant: "destructive" });
+      toast({ title: err.message ?? t.common.error, variant: "destructive" });
     },
   });
 
@@ -656,13 +657,46 @@ export default function LeadDetailPage({ id }: { id: string }) {
                     )}
                   </div>
 
-                  {/* Contact title if present */}
-                  {lead.contact?.title && (
-                    <div>
-                      <p className="text-gray-500 mb-1">Title</p>
-                      <p className="text-gray-900">{lead.contact.title}</p>
+                  {/* Contact title — editable */}
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <p className="text-gray-500">Title</p>
+                      {lead.contact && !editingContactTitle && (
+                        <button
+                          onClick={() => { setEditContactTitleValue(lead.contact?.title ?? ""); setEditingContactTitle(true); }}
+                          className="text-gray-400 hover:text-gray-600 transition-colors"
+                          data-testid="button-edit-contact-title" aria-label="Edit contact title"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
-                  )}
+                    {editingContactTitle ? (
+                      <div className="flex items-center gap-1.5">
+                        <Input
+                          value={editContactTitleValue}
+                          onChange={(e) => setEditContactTitleValue(e.target.value)}
+                          className="h-8 text-sm flex-1"
+                          placeholder="e.g. Owner"
+                          data-testid="input-edit-contact-title"
+                        />
+                        <Button size="sm" variant="default" className="h-8 px-3"
+                          disabled={updateContactMutation.isPending}
+                          onClick={() => updateContactMutation.mutate({ title: editContactTitleValue.trim() || null }, { onSuccess: () => setEditingContactTitle(false) })}
+                          data-testid="button-save-contact-title"
+                        >
+                          {updateContactMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : t.common.save}
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-8 px-2"
+                          onClick={() => setEditingContactTitle(false)} data-testid="button-cancel-contact-title"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="text-gray-900" data-testid="text-lead-contact-title">{lead.contact?.title || "—"}</p>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -809,91 +843,145 @@ export default function LeadDetailPage({ id }: { id: string }) {
                     )}
                   </div>
 
-                  {/* Company DBA if present */}
-                  {lead.company?.dba && (
-                    <div>
-                      <p className="text-gray-500 mb-1">DBA</p>
-                      <p className="text-gray-900">{lead.company.dba}</p>
+                  {/* Company DBA — editable */}
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <p className="text-gray-500">DBA</p>
+                      {lead.company && !editingDba && (
+                        <button
+                          onClick={() => { setEditDbaValue(lead.company?.dba ?? ""); setEditingDba(true); }}
+                          className="text-gray-400 hover:text-gray-600 transition-colors"
+                          data-testid="button-edit-dba" aria-label="Edit DBA"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
-                  )}
+                    {editingDba ? (
+                      <div className="flex items-center gap-1.5">
+                        <Input
+                          value={editDbaValue}
+                          onChange={(e) => setEditDbaValue(e.target.value)}
+                          className="h-8 text-sm flex-1"
+                          placeholder="Doing business as"
+                          data-testid="input-edit-dba"
+                        />
+                        <Button size="sm" variant="default" className="h-8 px-3"
+                          disabled={updateCompanyMutation.isPending}
+                          onClick={() => updateCompanyMutation.mutate({ dba: editDbaValue.trim() || null }, { onSuccess: () => setEditingDba(false) })}
+                          data-testid="button-save-dba"
+                        >
+                          {updateCompanyMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : t.common.save}
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-8 px-2"
+                          onClick={() => setEditingDba(false)} data-testid="button-cancel-dba"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="text-gray-900" data-testid="text-lead-dba">{lead.company?.dba || "—"}</p>
+                    )}
+                  </div>
                 </div>
               </div>
 
               {/* LOCATION GROUP */}
               <div className="pt-4 border-t border-gray-100">
                 <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Location</p>
-                <div className="flex items-center gap-2 mb-1">
-                  <MapPin className="w-3.5 h-3.5 text-gray-400" />
-                  <p className="text-gray-500">City &amp; State</p>
-                  {!editingLocation && (
-                    <button
-                      onClick={() => {
-                        setEditCity(lead.city ?? (lead.company as any)?.city ?? "");
-                        setEditState(lead.state ?? (lead.company as any)?.state ?? "");
-                        setEditingLocation(true);
-                      }}
-                      className="text-gray-400 hover:text-gray-600 transition-colors"
-                      data-testid="button-edit-location" aria-label="Edit location"
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
-                {editingLocation ? (
-                  <div className="flex flex-wrap items-end gap-2">
-                    <div className="flex-1 min-w-[120px]">
-                      <label className="text-xs text-gray-500 mb-1 block">{t.common.city}</label>
-                      <Input
-                        value={editCity}
-                        onChange={(e) => setEditCity(e.target.value)}
-                        placeholder={t.common.city}
-                        className="h-8 text-sm"
-                        data-testid="input-edit-city"
-                      />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+                  {/* City */}
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <MapPin className="w-3.5 h-3.5 text-gray-400" />
+                      <p className="text-gray-500">{t.common.city}</p>
+                      {!editingCity && (
+                        <button
+                          onClick={() => { setEditCityValue(lead.city ?? (lead.company as any)?.city ?? ""); setEditingCity(true); }}
+                          className="text-gray-400 hover:text-gray-600 transition-colors"
+                          data-testid="button-edit-city" aria-label="Edit city"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
-                    <div className="w-[100px]">
-                      <label className="text-xs text-gray-500 mb-1 block">{t.common.state}</label>
-                      <Select value={editState} onValueChange={setEditState}>
-                        <SelectTrigger className="h-8 text-sm" data-testid="select-edit-state">
-                          <SelectValue placeholder={t.common.state} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {US_STATES.map((s) => (
-                            <SelectItem key={s} value={s}>{s}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="default" className="h-8 px-3"
-                        disabled={updateLocationMutation.isPending}
-                        onClick={() => updateLocationMutation.mutate({ city: editCity, state: editState })}
-                        data-testid="button-save-location"
-                      >
-                        {updateLocationMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Save"}
-                      </Button>
-                      <Button size="sm" variant="ghost" className="h-8 px-2"
-                        disabled={updateLocationMutation.isPending}
-                        onClick={() => setEditingLocation(false)} data-testid="button-cancel-location"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div data-testid="text-lead-location">
-                    {(lead.city || lead.state || (lead.company as any)?.city || (lead.company as any)?.state) ? (
-                      <span className="text-gray-900">
-                        {[lead.city || (lead.company as any)?.city, lead.state || (lead.company as any)?.state].filter(Boolean).join(", ")}
-                      </span>
+                    {editingCity ? (
+                      <div className="flex items-center gap-1.5">
+                        <Input
+                          value={editCityValue}
+                          onChange={(e) => setEditCityValue(e.target.value)}
+                          placeholder={t.common.city}
+                          className="h-8 text-sm flex-1"
+                          data-testid="input-edit-city"
+                        />
+                        <Button size="sm" variant="default" className="h-8 px-3"
+                          disabled={updateLeadFieldMutation.isPending}
+                          onClick={() => updateLeadFieldMutation.mutate({ city: editCityValue.trim() || null }, { onSuccess: () => setEditingCity(false) })}
+                          data-testid="button-save-city"
+                        >
+                          {updateLeadFieldMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : t.common.save}
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-8 px-2"
+                          onClick={() => setEditingCity(false)} data-testid="button-cancel-city"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
                     ) : (
-                      <span className="text-gray-400">Not set</span>
+                      <p className="text-gray-900" data-testid="text-lead-city">
+                        {lead.city || (lead.company as any)?.city || <span className="text-gray-400">—</span>}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* State */}
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <p className="text-gray-500">{t.common.state}</p>
+                      {!editingState && (
+                        <button
+                          onClick={() => { setEditStateValue(lead.state ?? (lead.company as any)?.state ?? ""); setEditingState(true); }}
+                          className="text-gray-400 hover:text-gray-600 transition-colors"
+                          data-testid="button-edit-state" aria-label="Edit state"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                    {editingState ? (
+                      <div className="flex items-center gap-1.5">
+                        <Select value={editStateValue} onValueChange={setEditStateValue}>
+                          <SelectTrigger className="h-8 text-sm flex-1" data-testid="select-edit-state">
+                            <SelectValue placeholder={t.common.state} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {US_STATES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                        <Button size="sm" variant="default" className="h-8 px-3"
+                          disabled={updateLeadFieldMutation.isPending}
+                          onClick={() => updateLeadFieldMutation.mutate({ state: editStateValue || null }, { onSuccess: () => setEditingState(false) })}
+                          data-testid="button-save-state"
+                        >
+                          {updateLeadFieldMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : t.common.save}
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-8 px-2"
+                          onClick={() => setEditingState(false)} data-testid="button-cancel-state"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="text-gray-900" data-testid="text-lead-state">
+                        {lead.state || (lead.company as any)?.state || <span className="text-gray-400">—</span>}
+                      </p>
                     )}
                     {lead.timezone && (
-                      <span className="text-gray-400 text-xs ml-2" data-testid="text-lead-timezone">({lead.timezone})</span>
+                      <span className="text-gray-400 text-xs mt-1 block" data-testid="text-lead-timezone">({lead.timezone})</span>
                     )}
                   </div>
-                )}
+                </div>
               </div>
 
               {/* Notes */}

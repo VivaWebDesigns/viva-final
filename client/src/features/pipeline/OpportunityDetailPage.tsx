@@ -21,7 +21,6 @@ import {
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
 import type { PipelineStage, PipelineOpportunity, PipelineActivity, CrmCompany, CrmContact, CrmLead, FollowupTask } from "@shared/schema";
@@ -196,36 +195,12 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
-  const [editSection, setEditSection] = useState<"details" | null>(null);
-  const [editTitle, setEditTitle] = useState("");
-  const [editPkg, setEditPkg] = useState("");
-  const [editNotes, setEditNotes] = useState("");
-
-  const openEdit = () => {
-    if (!opp) return;
-    setEditTitle(opp.title);
-    setEditPkg(opp.websitePackage ?? "");
-    setEditNotes(opp.notes ?? "");
-    setEditSection("details");
-  };
-
-  const saveMutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("PUT", `/api/pipeline/opportunities/${id}`, {
-        title: editTitle,
-        websitePackage: (editPkg && editPkg !== "none" ? editPkg : null) as any,
-        notes: editNotes || null,
-      });
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities", id] });
-      setEditSection(null);
-      toast({ title: "Saved" });
-    },
-    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
-  });
-
+  const [editingOppTitle, setEditingOppTitle] = useState(false);
+  const [editOppTitleValue, setEditOppTitleValue] = useState("");
+  const [editingOppPkg, setEditingOppPkg] = useState(false);
+  const [editOppPkgValue, setEditOppPkgValue] = useState("");
+  const [editingOppNotes, setEditingOppNotes] = useState(false);
+  const [editOppNotesValue, setEditOppNotesValue] = useState("");
   const [editingOppFirstName, setEditingOppFirstName] = useState(false);
   const [editOppFirstName, setEditOppFirstName] = useState("");
   const [editingOppLastName, setEditingOppLastName] = useState(false);
@@ -236,15 +211,20 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
   const [editOppEmail, setEditOppEmail] = useState("");
   const [editingOppLang, setEditingOppLang] = useState(false);
   const [editOppLang, setEditOppLang] = useState("");
+  const [editingOppContactTitle, setEditingOppContactTitle] = useState(false);
+  const [editOppContactTitle, setEditOppContactTitle] = useState("");
   const [editingOppBizName, setEditingOppBizName] = useState(false);
   const [editOppBizName, setEditOppBizName] = useState("");
   const [editingOppIndustry, setEditingOppIndustry] = useState(false);
   const [editOppIndustry, setEditOppIndustry] = useState("");
   const [editingOppWebsite, setEditingOppWebsite] = useState(false);
   const [editOppWebsite, setEditOppWebsite] = useState("");
-  const [editingOppLocation, setEditingOppLocation] = useState(false);
-  const [editOppCity, setEditOppCity] = useState("");
-  const [editOppState, setEditOppState] = useState("");
+  const [editingOppDba, setEditingOppDba] = useState(false);
+  const [editOppDba, setEditOppDba] = useState("");
+  const [editingOppCity, setEditingOppCity] = useState(false);
+  const [editOppCityValue, setEditOppCityValue] = useState("");
+  const [editingOppState, setEditingOppState] = useState(false);
+  const [editOppStateValue, setEditOppStateValue] = useState("");
 
   const updateOppContactMutation = useMutation({
     mutationFn: async (payload: Record<string, any>) => {
@@ -280,6 +260,19 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/crm/leads", opp?.leadId ?? ""] });
       queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities", id] });
+      toast({ title: "Saved" });
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const updateOppMutation = useMutation({
+    mutationFn: async (payload: Record<string, any>) => {
+      const res = await apiRequest("PUT", `/api/pipeline/opportunities/${id}`, payload);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities", id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities/board"] });
       toast({ title: "Saved" });
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
@@ -346,15 +339,38 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
       <div className="flex flex-col sm:flex-row items-start justify-between gap-4 mb-6">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold text-gray-900" data-testid="text-opportunity-title">{opp.title}</h1>
-            <button
-              onClick={() => openEdit()}
-              className="text-gray-300 hover:text-[#0D9488] transition-colors"
-              title="Edit opportunity"
-              data-testid="button-edit-opportunity-title"
-            >
-              <Pencil className="w-4 h-4" />
-            </button>
+            {editingOppTitle ? (
+              <div className="flex items-center gap-2">
+                <Input
+                  value={editOppTitleValue}
+                  onChange={(e) => setEditOppTitleValue(e.target.value)}
+                  className="text-lg font-bold h-9"
+                  data-testid="input-opp-title"
+                  autoFocus
+                />
+                <Button size="sm" className="h-9 px-3 bg-[#0D9488] hover:bg-[#0b7a70] text-white"
+                  disabled={updateOppMutation.isPending || !editOppTitleValue.trim()}
+                  onClick={() => updateOppMutation.mutate({ title: editOppTitleValue.trim() }, { onSuccess: () => setEditingOppTitle(false) })}
+                  data-testid="button-save-opp-title">
+                  {updateOppMutation.isPending ? "…" : t.common.save}
+                </Button>
+                <button onClick={() => setEditingOppTitle(false)} className="text-gray-400 hover:text-gray-600" data-testid="button-cancel-opp-title">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <>
+                <h1 className="text-2xl font-bold text-gray-900" data-testid="text-opportunity-title">{opp.title}</h1>
+                <button
+                  onClick={() => { setEditOppTitleValue(opp.title); setEditingOppTitle(true); }}
+                  className="text-gray-300 hover:text-[#0D9488] transition-colors"
+                  title="Edit title"
+                  data-testid="button-edit-opportunity-title"
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
+              </>
+            )}
           </div>
           <div className="flex items-center gap-3 mt-2">
             {currentStage && (
@@ -445,13 +461,6 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
               <CardTitle className="text-base">{t.pipeline.details}</CardTitle>
-              <button
-                onClick={() => openEdit()}
-                className="text-gray-300 hover:text-[#0D9488] transition-colors"
-                data-testid="button-edit-details"
-              >
-                <Pencil className="w-3.5 h-3.5" />
-              </button>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="grid grid-cols-2 gap-4">
@@ -460,15 +469,41 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                     <Package className="w-3 h-3" />
                     {t.pipeline.package}
                   </p>
-                  {opp.websitePackage ? (
-                    <span
-                      className={`inline-block text-xs font-semibold rounded px-2 py-0.5 uppercase tracking-wide ${PKG_COLORS[opp.websitePackage] ?? "bg-gray-100 text-gray-600"}`}
-                      data-testid="badge-website-package"
-                    >
-                      {opp.websitePackage}
-                    </span>
+                  {editingOppPkg ? (
+                    <div className="flex items-center gap-1">
+                      <Select value={editOppPkgValue} onValueChange={setEditOppPkgValue}>
+                        <SelectTrigger className="h-7 text-xs flex-1" data-testid="select-opp-pkg">
+                          <SelectValue placeholder={t.pipeline.selectPackage} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">{t.common.none}</SelectItem>
+                          {WEBSITE_PACKAGES.map((p) => (
+                            <SelectItem key={p} value={p} className="capitalize">{p.charAt(0).toUpperCase() + p.slice(1)}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button size="sm" className="h-7 px-2 text-xs bg-[#0D9488] hover:bg-[#0b7a70] text-white"
+                        disabled={updateOppMutation.isPending}
+                        onClick={() => updateOppMutation.mutate({ websitePackage: (editOppPkgValue && editOppPkgValue !== "none" ? editOppPkgValue : null) as any }, { onSuccess: () => setEditingOppPkg(false) })}
+                        data-testid="button-save-opp-pkg">
+                        {updateOppMutation.isPending ? "…" : t.common.save}
+                      </Button>
+                      <button onClick={() => setEditingOppPkg(false)} className="text-gray-400 hover:text-gray-600" data-testid="button-cancel-opp-pkg"><X className="w-3.5 h-3.5" /></button>
+                    </div>
                   ) : (
-                    <span className="text-sm text-gray-400">—</span>
+                    <div className="flex items-center gap-1">
+                      {opp.websitePackage ? (
+                        <span
+                          className={`inline-block text-xs font-semibold rounded px-2 py-0.5 uppercase tracking-wide ${PKG_COLORS[opp.websitePackage] ?? "bg-gray-100 text-gray-600"}`}
+                          data-testid="badge-website-package"
+                        >
+                          {opp.websitePackage}
+                        </span>
+                      ) : (
+                        <span className="text-sm text-gray-400">—</span>
+                      )}
+                      <button onClick={() => { setEditOppPkgValue(opp.websitePackage ?? "none"); setEditingOppPkg(true); }} className="ml-1 text-gray-300 hover:text-[#0D9488] transition-colors" data-testid="button-edit-opp-pkg"><Pencil className="w-3 h-3" /></button>
+                    </div>
                   )}
                 </div>
                 <div>
@@ -634,6 +669,31 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                       )}
                     </div>
                   </div>
+
+                  {/* Contact Title */}
+                  <div>
+                    <p className="text-xs text-gray-400 mb-1">Title</p>
+                    <div className="flex items-center gap-1">
+                      {editingOppContactTitle ? (
+                        <div className="flex items-center gap-1 flex-1">
+                          <Input value={editOppContactTitle} onChange={(e) => setEditOppContactTitle(e.target.value)}
+                            className="h-7 text-xs flex-1" placeholder="e.g. Owner" data-testid="input-opp-contact-title" />
+                          <Button size="sm" className="h-7 px-2 text-xs bg-[#0D9488] hover:bg-[#0b7a70] text-white"
+                            disabled={updateOppContactMutation.isPending}
+                            onClick={() => updateOppContactMutation.mutate({ title: editOppContactTitle.trim() || null }, { onSuccess: () => setEditingOppContactTitle(false) })}
+                            data-testid="button-save-opp-contact-title">
+                            {updateOppContactMutation.isPending ? "…" : t.common.save}
+                          </Button>
+                          <button onClick={() => setEditingOppContactTitle(false)} className="text-gray-400 hover:text-gray-600" data-testid="button-cancel-opp-contact-title"><X className="w-3.5 h-3.5" /></button>
+                        </div>
+                      ) : (
+                        <>
+                          <span className="font-medium text-gray-800" data-testid="text-opp-contact-title">{contact?.title || "—"}</span>
+                          {contact && <button onClick={() => { setEditOppContactTitle(contact.title ?? ""); setEditingOppContactTitle(true); }} className="ml-1 text-gray-300 hover:text-[#0D9488] transition-colors" data-testid="button-edit-opp-contact-title"><Pencil className="w-3 h-3" /></button>}
+                        </>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -730,68 +790,112 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                       )}
                     </div>
                   </div>
+
+                  {/* DBA */}
+                  <div>
+                    <p className="text-xs text-gray-400 mb-1">DBA</p>
+                    <div className="flex items-center gap-1">
+                      {editingOppDba ? (
+                        <div className="flex items-center gap-1 flex-1">
+                          <Input value={editOppDba} onChange={(e) => setEditOppDba(e.target.value)}
+                            className="h-7 text-xs flex-1" placeholder="Doing business as" data-testid="input-opp-dba" />
+                          <Button size="sm" className="h-7 px-2 text-xs bg-[#0D9488] hover:bg-[#0b7a70] text-white"
+                            disabled={updateOppCompanyMutation.isPending}
+                            onClick={() => updateOppCompanyMutation.mutate({ dba: editOppDba.trim() || null }, { onSuccess: () => setEditingOppDba(false) })}
+                            data-testid="button-save-opp-dba">
+                            {updateOppCompanyMutation.isPending ? "…" : t.common.save}
+                          </Button>
+                          <button onClick={() => setEditingOppDba(false)} className="text-gray-400 hover:text-gray-600" data-testid="button-cancel-opp-dba"><X className="w-3.5 h-3.5" /></button>
+                        </div>
+                      ) : (
+                        <>
+                          <span className="font-medium text-gray-800" data-testid="text-opp-dba">{(company as any)?.dba || "—"}</span>
+                          {company && <button onClick={() => { setEditOppDba((company as any)?.dba ?? ""); setEditingOppDba(true); }} className="ml-1 text-gray-300 hover:text-[#0D9488] transition-colors" data-testid="button-edit-opp-dba"><Pencil className="w-3 h-3" /></button>}
+                        </>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* LOCATION + SOURCE GROUP */}
+              {/* LOCATION GROUP */}
               <div className="pt-3 border-t text-sm">
-                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Location &amp; Source</p>
+                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Location</p>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-3">
 
-                  {/* City & State */}
-                  <div className="col-span-2">
-                    <p className="text-xs text-gray-400 mb-1 flex items-center gap-1"><MapPin className="w-3 h-3" />City &amp; State</p>
-                    {editingOppLocation ? (
-                      <div className="flex flex-wrap items-end gap-2">
-                        <div className="flex-1 min-w-[100px]">
-                          <Input value={editOppCity} onChange={(e) => setEditOppCity(e.target.value)}
-                            placeholder="City" className="h-7 text-xs" data-testid="input-opp-city" />
+                  {/* City */}
+                  <div>
+                    <p className="text-xs text-gray-400 mb-1 flex items-center gap-1"><MapPin className="w-3 h-3" />{t.common.city}</p>
+                    <div className="flex items-center gap-1">
+                      {editingOppCity ? (
+                        <div className="flex items-center gap-1 flex-1">
+                          <Input value={editOppCityValue} onChange={(e) => setEditOppCityValue(e.target.value)}
+                            placeholder="City" className="h-7 text-xs flex-1" data-testid="input-opp-city" />
+                          <Button size="sm" className="h-7 px-2 text-xs bg-[#0D9488] hover:bg-[#0b7a70] text-white"
+                            disabled={updateOppLeadMutation.isPending}
+                            onClick={() => updateOppLeadMutation.mutate({ city: editOppCityValue.trim() || null }, { onSuccess: () => setEditingOppCity(false) })}
+                            data-testid="button-save-opp-city">
+                            {updateOppLeadMutation.isPending ? "…" : t.common.save}
+                          </Button>
+                          <button onClick={() => setEditingOppCity(false)} className="text-gray-400 hover:text-gray-600" data-testid="button-cancel-opp-city"><X className="w-3.5 h-3.5" /></button>
                         </div>
-                        <div className="w-[90px]">
-                          <Select value={editOppState} onValueChange={setEditOppState}>
-                            <SelectTrigger className="h-7 text-xs" data-testid="select-opp-state">
+                      ) : (
+                        <>
+                          <span className="font-medium text-gray-800" data-testid="text-opp-city">{(sourceLead as any)?.city || "—"}</span>
+                          {sourceLead && <button onClick={() => { setEditOppCityValue((sourceLead as any).city ?? ""); setEditingOppCity(true); }} className="ml-1 text-gray-300 hover:text-[#0D9488] transition-colors" data-testid="button-edit-opp-city"><Pencil className="w-3 h-3" /></button>}
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* State */}
+                  <div>
+                    <p className="text-xs text-gray-400 mb-1">{t.common.state}</p>
+                    <div className="flex items-center gap-1">
+                      {editingOppState ? (
+                        <div className="flex items-center gap-1 flex-1">
+                          <Select value={editOppStateValue} onValueChange={setEditOppStateValue}>
+                            <SelectTrigger className="h-7 text-xs flex-1" data-testid="select-opp-state">
                               <SelectValue placeholder="State" />
                             </SelectTrigger>
                             <SelectContent>
                               {US_STATES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                             </SelectContent>
                           </Select>
-                        </div>
-                        <div className="flex gap-1">
                           <Button size="sm" className="h-7 px-2 text-xs bg-[#0D9488] hover:bg-[#0b7a70] text-white"
                             disabled={updateOppLeadMutation.isPending}
-                            onClick={() => updateOppLeadMutation.mutate({ city: editOppCity, state: editOppState }, { onSuccess: () => setEditingOppLocation(false) })}
-                            data-testid="button-save-opp-location">
+                            onClick={() => updateOppLeadMutation.mutate({ state: editOppStateValue || null }, { onSuccess: () => setEditingOppState(false) })}
+                            data-testid="button-save-opp-state">
                             {updateOppLeadMutation.isPending ? "…" : t.common.save}
                           </Button>
-                          <button onClick={() => setEditingOppLocation(false)} className="text-gray-400 hover:text-gray-600" data-testid="button-cancel-opp-location"><X className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => setEditingOppState(false)} className="text-gray-400 hover:text-gray-600" data-testid="button-cancel-opp-state"><X className="w-3.5 h-3.5" /></button>
                         </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-1">
-                        <span className="font-medium text-gray-800" data-testid="text-opp-location">
-                          {(sourceLead?.city || sourceLead?.state) ? [sourceLead.city, sourceLead.state].filter(Boolean).join(", ") : "—"}
-                        </span>
-                        {sourceLead && <button onClick={() => { setEditOppCity((sourceLead as any).city ?? ""); setEditOppState((sourceLead as any).state ?? ""); setEditingOppLocation(true); }} className="ml-1 text-gray-300 hover:text-[#0D9488] transition-colors" data-testid="button-edit-opp-location"><Pencil className="w-3 h-3" /></button>}
-                      </div>
-                    )}
+                      ) : (
+                        <>
+                          <span className="font-medium text-gray-800" data-testid="text-opp-state">{(sourceLead as any)?.state || "—"}</span>
+                          {sourceLead && <button onClick={() => { setEditOppStateValue((sourceLead as any).state ?? ""); setEditingOppState(true); }} className="ml-1 text-gray-300 hover:text-[#0D9488] transition-colors" data-testid="button-edit-opp-state"><Pencil className="w-3 h-3" /></button>}
+                        </>
+                      )}
+                    </div>
                   </div>
+                </div>
+              </div>
 
+              {/* LEAD GROUP */}
+              <div className="pt-3 border-t text-sm">
+                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Lead</p>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-3">
                   {/* Source — display only */}
-                  <div className="col-span-2">
+                  <div>
                     <p className="text-xs text-gray-400 mb-1">{t.pipeline.source}</p>
-                    {resolvedSource ? (
-                      <p className="font-medium text-gray-800" data-testid="text-source">{resolvedSource}</p>
-                    ) : (
-                      <span className="text-gray-400">—</span>
-                    )}
+                    <span className="font-medium text-gray-800" data-testid="text-source">{resolvedSource || "—"}</span>
                   </div>
 
-                  {/* Lead title (parity with Source Lead card) */}
+                  {/* Lead title link */}
                   {sourceLead?.title && (
-                    <div className="col-span-2">
-                      <p className="text-xs text-gray-400 mb-1">Lead</p>
-                      <a href={`/admin/crm/leads/${sourceLead.id}`} className="font-medium text-[#0D9488] hover:underline text-sm" data-testid="link-source-lead">
+                    <div>
+                      <p className="text-xs text-gray-400 mb-1">CRM Lead</p>
+                      <a href={`/admin/crm/leads/${sourceLead.id}`} className="font-medium text-[#0D9488] hover:underline" data-testid="link-source-lead">
                         {sourceLead.title}
                       </a>
                     </div>
@@ -830,12 +934,34 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                 </div>
               )}
 
-              {opp.notes && (
-                <div className="pt-3 border-t">
-                  <p className="text-xs text-gray-400 mb-1">Notes</p>
-                  <div className="text-sm text-gray-700 chat-message-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(opp.notes ?? "") }} />
+              <div className="pt-3 border-t">
+                <div className="flex items-center gap-1 mb-1">
+                  <p className="text-xs text-gray-400">Notes</p>
+                  {!editingOppNotes && (
+                    <button onClick={() => { setEditOppNotesValue(opp.notes ?? ""); setEditingOppNotes(true); }} className="text-gray-300 hover:text-[#0D9488] transition-colors" data-testid="button-edit-opp-notes"><Pencil className="w-3 h-3" /></button>
+                  )}
                 </div>
-              )}
+                {editingOppNotes ? (
+                  <div className="space-y-2">
+                    <Textarea value={editOppNotesValue} onChange={(e) => setEditOppNotesValue(e.target.value)} rows={4} className="text-sm" data-testid="textarea-opp-notes" />
+                    <div className="flex gap-1">
+                      <Button size="sm" className="h-7 px-2 text-xs bg-[#0D9488] hover:bg-[#0b7a70] text-white"
+                        disabled={updateOppMutation.isPending}
+                        onClick={() => updateOppMutation.mutate({ notes: editOppNotesValue.trim() || null }, { onSuccess: () => setEditingOppNotes(false) })}
+                        data-testid="button-save-opp-notes">
+                        {updateOppMutation.isPending ? "…" : t.common.save}
+                      </Button>
+                      <button onClick={() => setEditingOppNotes(false)} className="text-gray-400 hover:text-gray-600 flex items-center" data-testid="button-cancel-opp-notes"><X className="w-3.5 h-3.5" /></button>
+                    </div>
+                  </div>
+                ) : (
+                  opp.notes ? (
+                    <div className="text-sm text-gray-700 chat-message-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(opp.notes) }} />
+                  ) : (
+                    <span className="text-gray-400 text-sm">—</span>
+                  )
+                )}
+              </div>
             </CardContent>
           </Card>
 
@@ -1121,51 +1247,6 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
         task={completingTask}
         leadTimezone={sourceLead?.timezone ?? null}
       />
-
-      <Dialog open={editSection !== null} onOpenChange={(open) => { if (!open) setEditSection(null); }}>
-        <DialogContent className="max-w-md max-h-[90dvh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{t.pipeline.editOpportunityDetails}</DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="edit-title">{t.pipeline.opportunityTitle}</Label>
-              <Input id="edit-title" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} data-testid="input-edit-title" />
-            </div>
-            <div>
-              <Label htmlFor="edit-pkg">{t.pipeline.websitePackage}</Label>
-              <Select value={editPkg} onValueChange={setEditPkg}>
-                <SelectTrigger id="edit-pkg" data-testid="select-edit-package">
-                  <SelectValue placeholder={t.pipeline.selectPackage} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">{t.common.none}</SelectItem>
-                  {WEBSITE_PACKAGES.map((p) => (
-                    <SelectItem key={p} value={p} className="capitalize">{p.charAt(0).toUpperCase() + p.slice(1)}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="edit-notes">{t.common.notes}</Label>
-              <Textarea id="edit-notes" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} rows={4} data-testid="textarea-edit-notes" />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditSection(null)} data-testid="button-cancel-edit">{t.common.cancel}</Button>
-            <Button
-              onClick={() => saveMutation.mutate()}
-              disabled={saveMutation.isPending}
-              className="bg-[#0D9488] hover:bg-[#0b7a70] text-white"
-              data-testid="button-save-edit"
-            >
-              {saveMutation.isPending ? t.common.saving : t.common.save}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <DialogContent className="sm:max-w-md max-h-[90dvh] overflow-y-auto" data-testid="dialog-delete-opportunity">
