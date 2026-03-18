@@ -3,11 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { resolveRepTimezone } from "@/lib/timezone";
-import {
-  todayLocalString,
-  formatTimeSlot,
-  formatTaskTimeDisplay,
-} from "@/components/QuickTaskModal";
+import { todayLocalString, formatTimeSlot } from "@/components/QuickTaskModal";
 import {
   Dialog,
   DialogContent,
@@ -40,6 +36,11 @@ const TASK_TITLE = "Follow up on payment";
 const TASK_NOTES =
   "Follow up on payment link. Check if they had any issues and resend the link if needed.";
 
+/**
+ * Add offsetHours to a HH:MM rep-local time string.
+ * Returns { dueDate, followUpTime } — dueDate rolls to the next day if needed.
+ * Time Sent is always treated as the rep's local wall-clock time.
+ */
 function computeFollowUp(
   timeSent: string,
   offsetHours: number,
@@ -56,17 +57,17 @@ function computeFollowUp(
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
-  const dueDate = `${yyyy}-${mm}-${dd}`;
-  const followUpTime = `${String(newH).padStart(2, "0")}:${String(newM).padStart(2, "0")}`;
 
-  return { dueDate, followUpTime };
+  return {
+    dueDate: `${yyyy}-${mm}-${dd}`,
+    followUpTime: `${String(newH).padStart(2, "0")}:${String(newM).padStart(2, "0")}`,
+  };
 }
 
 interface PaymentSentModalProps {
   open: boolean;
   onClose: () => void;
   opportunityId: string;
-  leadTimezone?: string | null;
   onSuccess: () => void;
 }
 
@@ -74,12 +75,13 @@ export default function PaymentSentModal({
   open,
   onClose,
   opportunityId,
-  leadTimezone,
   onSuccess,
 }: PaymentSentModalProps) {
   const { toast } = useToast();
+  // Time Sent is REP-local time. followUpTimezone is always the rep's timezone
+  // so the task system stores and displays it in rep time — no lead-timezone
+  // conversion, no timezone math required from the rep.
   const repTimezone = resolveRepTimezone();
-  const effectiveTimezone = leadTimezone ?? repTimezone;
 
   const [timeSent, setTimeSent] = useState("");
   const [method, setMethod] = useState<PaymentMethod | "">("");
@@ -106,7 +108,7 @@ export default function PaymentSentModal({
         notes: TASK_NOTES,
         dueDate,
         followUpTime,
-        followUpTimezone: effectiveTimezone,
+        followUpTimezone: repTimezone,
         opportunityId,
       });
 
@@ -223,14 +225,11 @@ export default function PaymentSentModal({
             </Select>
             {followUpResult && (
               <p className="text-xs text-gray-500" data-testid="text-followup-preview">
-                Follow-up task due at{" "}
+                Follow-up due at{" "}
                 <span className="font-medium">
-                  {formatTaskTimeDisplay(
-                    followUpResult.dueDate + "T00:00:00Z",
-                    followUpResult.followUpTime,
-                    effectiveTimezone,
-                  )}
-                </span>
+                  {formatTimeSlot(followUpResult.followUpTime)}
+                </span>{" "}
+                your time
               </p>
             )}
           </div>

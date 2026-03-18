@@ -1,0 +1,58 @@
+Adjust the Payment Sent follow-up scheduling so it uses a
+different time-entry model from the normal lead follow-up
+scheduler.
+
+Important distinction:
+- Existing follow-up tasks should keep their current behavior:
+  they are lead-time based, so selecting a time means choosing
+  the time in the LEAD'S timezone.
+- Payment Sent follow-up should behave differently:
+  it is REP-time based.
+
+Required behavior for Payment Sent only:
+1. The "Time Sent" field represents the REP'S local time when
+   the payment link was actually sent.
+2. The selected offset (2 / 3 / 4 hours) must be added from
+   the REP'S local time.
+3. The follow-up reminder should primarily display the REP'S
+   local due time so the rep does not have to do timezone math.
+4. If lead-local time is also shown, it should be secondary,
+   not primary.
+
+Example:
+- Rep timezone: Eastern
+- Lead timezone: Pacific
+- Time Sent entered: 2:30 PM
+- Follow-up timing: 3 hours
+
+Correct result:
+- Due time for rep = 5:30 PM your time
+- Optional secondary lead time = 2:30 PM PDT
+
+This Payment Sent flow should NOT use the existing lead-time
+selection behavior, because this is not "pick a time to call
+the lead in their timezone." It is "log when the rep sent the
+payment link and remind the rep a few hours later."
+
+Requirements:
+- Keep existing behavior unchanged for all other follow-up
+  task creation flows.
+- Only change the Payment Sent flow.
+- Reuse existing timezone utilities where possible.
+- Do not create a new parallel task system.
+- Do not force the rep to mentally convert timezones when
+  entering Time Sent or reading the reminder.
+
+UX requirements for Payment Sent:
+- Time Sent input = rep local time
+- Reminder preview = rep local due time as primary
+- Stored task due time should still be compatible with the
+  rest of the task system
+- Follow-up task card / details for Payment Sent should show
+  rep-local due time clearly and correctly
+
+Success criteria:
+- Payment Sent no longer interprets entered time as lead time
+- Rep can log send time without doing timezone math
+- Rep sees the follow-up reminder in their own time
+- Existing lead-time-based follow-up flows remain unchanged
