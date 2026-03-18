@@ -1,0 +1,64 @@
+Fix the Payment Sent follow-up so it uses the EXACT same
+timezone handling and display logic as the existing
+follow-up task system.
+
+Do NOT introduce UTC or new time logic.
+Do NOT create new formatting functions.
+Reuse what already works.
+
+Current issue:
+Payment Sent follow-ups are showing a raw time (e.g. 5:30 PM)
+and NOT displaying:
+- lead-local time
+- rep-local “your time”
+like the existing follow-ups do.
+
+Goal:
+Make Payment Sent follow-ups behave IDENTICALLY to existing
+stage-based follow-ups in storage, calculation, and display.
+
+Requirements:
+
+1. Time interpretation
+- "Time Sent" must be treated as REP LOCAL TIME.
+- Use the same parsing/handling used elsewhere in the app.
+- Do NOT treat it as UTC or server time.
+
+2. Due time calculation
+- Add selected offset (2 / 3 / 4 hours) to Time Sent.
+- Perform this using the SAME logic used by existing
+  follow-up scheduling.
+- Store the result the same way existing tasks are stored.
+
+3. Reuse existing pipeline
+- Route Payment Sent follow-up creation through the SAME
+  code path/helpers used by other stage-triggered follow-ups.
+- Do NOT create a parallel scheduling or formatting system.
+
+4. Display
+- Everywhere a follow-up is shown (Next Follow-Up,
+  task list, etc.), the Payment Sent follow-up must render
+  exactly like existing ones:
+  Example format:
+  "Mar 18 at 9:00 AM PDT · 12:00 PM your time"
+
+5. Modal preview
+- The preview under “Follow-Up Timing” must also use the
+  SAME display helper.
+- Replace raw "5:30 PM" with the proper dual-time format.
+
+6. No regression
+- Do NOT change any existing follow-up behavior.
+- Only fix Payment Sent to match it.
+
+7. Implementation approach
+- Inspect existing follow-up creation + timezone formatting.
+- Reuse those exact utilities/components.
+- Ensure Payment Sent flows through them instead of bypassing.
+
+Success criteria:
+- Payment Sent follow-up shows lead time + rep time
+- Matches formatting of existing follow-ups exactly
+- No raw standalone times displayed
+- No new time logic introduced
+- No duplicate systems created

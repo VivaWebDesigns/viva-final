@@ -848,6 +848,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
         open={paymentSentPendingStageId !== null}
         onClose={() => setPaymentSentPendingStageId(null)}
         opportunityId={id}
+        leadTimezone={sourceLead?.timezone ?? null}
         onSuccess={() => {
           if (paymentSentPendingStageId) stageMutation.mutate(paymentSentPendingStageId);
         }}

@@ -3,7 +3,11 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { resolveRepTimezone } from "@/lib/timezone";
-import { todayLocalString, formatTimeSlot } from "@/components/QuickTaskModal";
+import {
+  todayLocalString,
+  formatTimeSlot,
+  formatTaskTimeDisplay,
+} from "@/components/QuickTaskModal";
 import {
   Dialog,
   DialogContent,
@@ -33,20 +37,36 @@ const FOLLOWUP_OFFSETS = [
 ] as const;
 
 const TASK_TITLE = "Follow up on payment";
-const TASK_NOTES = "Follow up on payment link. Check if they had any issues and resend the link if needed.";
+const TASK_NOTES =
+  "Follow up on payment link. Check if they had any issues and resend the link if needed.";
 
-function addHoursToTime(time24: string, hours: number): string {
-  const [h, m] = time24.split(":").map(Number);
-  const totalMinutes = h * 60 + m + hours * 60;
-  const newH = Math.floor(totalMinutes / 60) % 24;
-  const newM = totalMinutes % 60;
-  return `${String(newH).padStart(2, "0")}:${String(newM).padStart(2, "0")}`;
+function computeFollowUp(
+  timeSent: string,
+  offsetHours: number,
+): { dueDate: string; followUpTime: string } {
+  const [h, m] = timeSent.split(":").map(Number);
+  const totalMinutes = h * 60 + m + offsetHours * 60;
+  const dayOffset = Math.floor(totalMinutes / (60 * 24));
+  const minutesInDay = totalMinutes % (60 * 24);
+  const newH = Math.floor(minutesInDay / 60);
+  const newM = minutesInDay % 60;
+
+  const d = new Date();
+  d.setDate(d.getDate() + dayOffset);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const dueDate = `${yyyy}-${mm}-${dd}`;
+  const followUpTime = `${String(newH).padStart(2, "0")}:${String(newM).padStart(2, "0")}`;
+
+  return { dueDate, followUpTime };
 }
 
 interface PaymentSentModalProps {
   open: boolean;
   onClose: () => void;
   opportunityId: string;
+  leadTimezone?: string | null;
   onSuccess: () => void;
 }
 
@@ -54,10 +74,12 @@ export default function PaymentSentModal({
   open,
   onClose,
   opportunityId,
+  leadTimezone,
   onSuccess,
 }: PaymentSentModalProps) {
   const { toast } = useToast();
   const repTimezone = resolveRepTimezone();
+  const effectiveTimezone = leadTimezone ?? repTimezone;
 
   const [timeSent, setTimeSent] = useState("");
   const [method, setMethod] = useState<PaymentMethod | "">("");
@@ -73,17 +95,18 @@ export default function PaymentSentModal({
     }
   }, [open]);
 
+  const followUpResult = timeSent ? computeFollowUp(timeSent, offsetHours) : null;
+
   const submitMutation = useMutation({
     mutationFn: async () => {
-      const today = todayLocalString();
-      const followUpTime = addHoursToTime(timeSent, offsetHours);
+      const { dueDate, followUpTime } = followUpResult ?? computeFollowUp(timeSent, offsetHours);
 
       await apiRequest("POST", "/api/tasks", {
         title: TASK_TITLE,
         notes: TASK_NOTES,
-        dueDate: today,
+        dueDate,
         followUpTime,
-        followUpTimezone: repTimezone,
+        followUpTimezone: effectiveTimezone,
         opportunityId,
       });
 
@@ -100,7 +123,9 @@ export default function PaymentSentModal({
       queryClient.invalidateQueries({ queryKey: ["/api/tasks/due-today"] });
       queryClient.invalidateQueries({ queryKey: ["/api/tasks/for-opportunity", opportunityId] });
       queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities/board"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities", opportunityId, "activities"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/pipeline/opportunities", opportunityId, "activities"],
+      });
       toast({ title: "Follow-up scheduled" });
       onSuccess();
       onClose();
@@ -110,7 +135,6 @@ export default function PaymentSentModal({
     },
   });
 
-  const followUpTime = timeSent ? addHoursToTime(timeSent, offsetHours) : null;
   const canSubmit = timeSent !== "" && method !== "" && !submitMutation.isPending;
 
   return (
@@ -197,10 +221,16 @@ export default function PaymentSentModal({
                 ))}
               </SelectContent>
             </Select>
-            {followUpTime && (
+            {followUpResult && (
               <p className="text-xs text-gray-500" data-testid="text-followup-preview">
                 Follow-up task due at{" "}
-                <span className="font-medium">{formatTimeSlot(followUpTime)}</span>
+                <span className="font-medium">
+                  {formatTaskTimeDisplay(
+                    followUpResult.dueDate + "T00:00:00Z",
+                    followUpResult.followUpTime,
+                    effectiveTimezone,
+                  )}
+                </span>
               </p>
             )}
           </div>
