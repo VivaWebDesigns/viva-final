@@ -25,6 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 import type { PipelineStage, PipelineOpportunity, PipelineActivity, CrmCompany, CrmContact, CrmLead, FollowupTask } from "@shared/schema";
 import { WEBSITE_PACKAGES } from "@shared/schema";
+import { renderActivityContent, getActivityTypeLabel } from "@/lib/activityI18n";
 import QuickTaskModal, { formatTaskTimeDisplay } from "@/components/QuickTaskModal";
 import CompleteTaskModal from "@/components/CompleteTaskModal";
 import PaymentSentModal from "@/components/PaymentSentModal";
@@ -521,9 +522,9 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="note">Note</SelectItem>
-                    <SelectItem value="call">Call</SelectItem>
-                    <SelectItem value="email">Email</SelectItem>
+                    <SelectItem value="note">{t.pipeline.activity.note}</SelectItem>
+                    <SelectItem value="call">{t.pipeline.activity.call}</SelectItem>
+                    <SelectItem value="email">{t.pipeline.activity.email}</SelectItem>
                   </SelectContent>
                 </Select>
                 <RichTextEditorField
@@ -575,7 +576,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                             {act.authorName && (
                               <span className="text-xs font-medium text-gray-700">{act.authorName}</span>
                             )}
-                            <span className="text-xs text-gray-400 capitalize">{act.type.replace("_", " ")}</span>
+                            <span className="text-xs text-gray-400 capitalize">{getActivityTypeLabel(act.type, t)}</span>
                             {act.isFromCrm && (
                               <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-teal-50 text-teal-600 border border-teal-200 font-medium leading-none">CRM</span>
                             )}
@@ -624,6 +625,10 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                               </Button>
                             </div>
                           </div>
+                        ) : (act.metadata as any)?.event ? (
+                          <p className="text-sm text-gray-700 mt-1">
+                            {renderActivityContent(act, t)}
+                          </p>
                         ) : (
                           <div
                             className="text-sm text-gray-700 mt-1 prose prose-sm max-w-none"
@@ -635,7 +640,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                   );
                 })}
                 {(!activities || activities.length === 0) && (
-                  <p className="text-sm text-gray-400 text-center py-4">No activity yet</p>
+                  <p className="text-sm text-gray-400 text-center py-4">{t.pipeline.noActivity}</p>
                 )}
               </div>
             </CardContent>

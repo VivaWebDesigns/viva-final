@@ -1,0 +1,135 @@
+Audit and fix the CRM so Spanish mode is fully translated
+without breaking existing pipeline logic, task logic, or DB
+history.
+
+Problem observed:
+- Static UI labels translate correctly to Spanish
+- Activity timeline content still shows English strings like:
+  - Admin Stage Change
+  - Moved from "New Lead" to "Payment Sent"
+  - Follow-up scheduled
+- This means the app is mixing translated UI text with
+English stored values / hardcoded timeline strings
+
+Goal:
+Make the CRM bilingual the correct way:
+- Internal values should be stable slugs / keys
+- Display text should come from i18n
+- Existing records should still render correctly
+- Do NOT break current stage movement, task creation,
+outcome mapping, reporting, or timeline history
+
+Required approach:
+1. Find where stage names, outcome names, activity labels,
+and timeline messages are currently stored or rendered
+2. Identify every place where display text is being used as
+business logic or persisted data
+3. Refactor so display text is never used as the primary
+business identifier
+
+Implement this pattern:
+- Store internal values as stable slugs, for example:
+  - new-lead
+  - contacted
+  - payment-sent
+  - demo-scheduled
+  - closed-lost
+- Render labels through i18n, for example:
+  - t("crm.stages.newLead")
+  - t("crm.stages.paymentSent")
+- Timeline event templates must also use i18n, for example:
+  - t("crm.activity.stageChanged", { from, to })
+  - t("crm.activity.followUpScheduled", { title })
+  - t("crm.activity.followUpRescheduled", { title })
+  - t("crm.activity.adminTask")
+  - t("crm.activity.adminNote")
+
+Important constraints:
+- Do NOT rewrite the whole app
+- Do NOT do a destructive migration
+- Do NOT assume all existing DB records already use slugs
+- Backward compatibility is required
+- Preserve existing behavior for stage transitions, tasks,
+outcomes, and timeline ordering
+- Keep desktop behavior unchanged except for translation fixes
+
+Backward compatibility requirement:
+Support both old English stored values and new slug values.
+Create a normalization layer so if old records contain values
+like:
+- "New Lead"
+- "Payment Sent"
+- "Appointment set"
+they map safely to internal canonical slugs before rendering
+or logic evaluation.
+
+Implement helpers like:
+- normalizeStageValue(value)
+- normalizeOutcomeValue(value)
+- getStageLabel(value, locale)
+- getOutcomeLabel(value, locale)
+
+These helpers should:
+- accept legacy English strings or slugs
+- return canonical slugs for logic
+- return translated labels for UI
+
+Timeline fix requirements:
+- Replace hardcoded English activity text with structured
+event rendering
+- If timeline records already store plain English message
+strings, do not destroy them
+- Prefer rendering from structured metadata when available
+- For legacy message-only records, keep showing them as-is
+rather than risking corruption
+- For all new timeline entries, store structured event data
+sufficient for bilingual rendering
+
+Example of desired structured timeline shape:
+- type: "stage_change"
+- actorType: "admin"
+- fromStage: "new-lead"
+- toStage: "payment-sent"
+
+Then render using i18n instead of storing the final English
+sentence.
+
+Also translate:
+- Admin Task
+- Admin Note
+- Admin Stage Change
+- Any activity badges / event titles / timeline action labels
+- Any stage names shown anywhere in CRM, pipeline, tasks,
+filters, cards, detail pages, and modals
+
+Search carefully for:
+- hardcoded English strings in components
+- stage names compared by label text
+- outcome names compared by label text
+- timeline strings composed with template literals
+- selects using label as value
+- APIs returning English labels directly
+- DB fields that store display strings instead of slugs
+
+Output requirements:
+1. Make the code changes
+2. Show a concise summary of:
+   - files changed
+   - old pattern vs new pattern
+   - any legacy compatibility layer added
+3. List any places that still intentionally remain legacy-only
+if they could not be safely converted in this pass
+
+Validation checklist:
+- Switching app to Spanish translates sidebar and CRM timeline
+UI consistently
+- Stage names display in Spanish in Spanish mode
+- New timeline events render in the active language
+- Existing legacy records still render without crashing
+- Stage movement logic still works
+- Outcome-to-stage mapping still works
+- Follow-up tasks still work
+- No regression to desktop layout
+
+Be precise and conservative.
+Prefer adapter / normalization layers over risky DB rewrites.

@@ -28,6 +28,7 @@ import QuickTaskModal, { formatTaskTimeDisplay } from "@/components/QuickTaskMod
 import CompleteTaskModal from "@/components/CompleteTaskModal";
 import { RecordTimeline } from "@/components/RecordTimeline";
 import { useAdminLang } from "@/i18n/LanguageContext";
+import { renderActivityContent } from "@/lib/activityI18n";
 import { US_STATES } from "@/lib/usStates";
 
 type TaskWithContact = FollowupTask & {
@@ -582,11 +583,20 @@ export default function LeadDetailPage({ id }: { id: string }) {
                             {new Date(note.createdAt).toLocaleString()}
                           </span>
                         </div>
-                        <div
-                          className="text-sm text-gray-700 mt-1 chat-message-content"
-                          data-testid={`text-note-content-${note.id}`}
-                          dangerouslySetInnerHTML={{ __html: sanitizeHtml(note.content) }}
-                        />
+                        {(note.metadata as any)?.event ? (
+                          <p
+                            className="text-sm text-gray-700 mt-1"
+                            data-testid={`text-note-content-${note.id}`}
+                          >
+                            {renderActivityContent(note, t)}
+                          </p>
+                        ) : (
+                          <div
+                            className="text-sm text-gray-700 mt-1 chat-message-content"
+                            data-testid={`text-note-content-${note.id}`}
+                            dangerouslySetInnerHTML={{ __html: sanitizeHtml(note.content) }}
+                          />
+                        )}
                       </div>
                     </motion.div>
                   );

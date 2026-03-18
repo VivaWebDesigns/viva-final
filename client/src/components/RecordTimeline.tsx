@@ -4,6 +4,8 @@ import { Clock, ArrowRight, User, CheckCircle2, XCircle, Shuffle, GitBranch, Plu
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { useAdminLang } from "@/i18n/LanguageContext";
+import { getStageLabel } from "@/lib/activityI18n";
+import type { AdminTranslations } from "@/i18n/locales/en";
 
 interface HistoryEvent {
   id: string;
@@ -17,6 +19,15 @@ interface HistoryEvent {
   actorName?: string | null;
   note?: string | null;
   createdAt: string;
+}
+
+const SLUG_PAIR_RE = /^[\w-]+ → [\w-]+$/;
+
+function renderStageNote(note: string | null | undefined, t: AdminTranslations): string | null {
+  if (!note) return null;
+  if (!SLUG_PAIR_RE.test(note)) return null;
+  const [from, to] = note.split(" → ");
+  return `${getStageLabel(from, t)} → ${getStageLabel(to, t)}`;
 }
 
 const EVENT_ICONS: Record<string, { icon: typeof Clock; color: string }> = {
@@ -99,10 +110,17 @@ export function RecordTimeline({ entityType, entityId, limit = 15, className }: 
                   </span>
                   <span className="text-xs text-gray-400 flex-shrink-0">{ago}</span>
                 </div>
-                {ev.note && (
+                {ev.event === "stage_changed" ? (
+                  (() => {
+                    const translated = renderStageNote(ev.note, t);
+                    return translated ? (
+                      <p className="text-xs text-gray-500 mt-0.5">{translated}</p>
+                    ) : null;
+                  })()
+                ) : ev.note ? (
                   <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{ev.note}</p>
-                )}
-                {!ev.note && ev.fromValue && ev.toValue && (
+                ) : null}
+                {!ev.note && ev.fromValue && ev.toValue && ev.event !== "stage_changed" && (
                   <p className="text-xs text-gray-500 mt-0.5">
                     <span className="line-through mr-1">{ev.fromValue}</span>→{" "}
                     <span className="text-gray-700 dark:text-gray-300">{ev.toValue}</span>

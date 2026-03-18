@@ -1,0 +1,65 @@
+Good direction, but expand the plan before coding.
+
+Your current plan covers the activity feed at a high level, but I need
+the plan to explicitly address all bilingual-risk areas and all logic
+dependencies on English labels.
+
+Please revise the plan to include:
+
+1. Stage name handling
+- Explain whether stage names are currently stored as English labels or
+slugs
+- Add a normalization strategy so legacy English stage values and new
+slug values both resolve to canonical internal stage keys
+- Confirm stage labels across the CRM will be rendered through i18n, not
+directly from stored English text
+
+2. Outcome handling
+- Audit outcome values the same way
+- Add a normalization layer for outcomes so business logic never depends
+on English display text
+
+3. Activity badge / title translations
+- Explicitly include translation of labels like:
+  - Admin Stage Change
+  - Admin Task
+  - Admin Note
+- These should be rendered through i18n as well
+
+4. Structured activity schema for new records
+- Define the metadata shape for new activity events
+- Example fields:
+  - type
+  - actorType
+  - fromStage
+  - toStage
+  - taskTitle
+  - outcome
+- I want a consistent schema, not ad hoc metadata per file
+
+5. Legacy fallback rules
+- Explicitly state:
+  - if structured metadata exists, render translated text from metadata
+  - if only a legacy message string exists, render it unchanged
+- No destructive DB migration
+
+6. Logic audit
+- Search for all places where English labels are used in logic, including:
+  - stage comparisons
+  - outcome comparisons
+  - filters
+  - select values
+  - API payloads
+  - task completion logic
+  - outcome-to-stage mapping
+- Refactor those areas to use normalized canonical values
+
+7. Deliverables before implementation
+Please revise the plan to list:
+- files likely affected
+- normalization helpers to be added
+- structured event types to be introduced
+- exact compatibility strategy for legacy records
+
+Do not implement yet.
+First provide the expanded technical plan with those specifics.

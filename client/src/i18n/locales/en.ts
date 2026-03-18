@@ -348,7 +348,12 @@ export const en = {
       task: "Task",
       stageChange: "Stage moved",
       system: "System",
+      followUpScheduled: "Follow-up scheduled",
+      followUpRescheduled: "Follow-up rescheduled",
+      taskCompleted: "Task completed",
+      outcome: "Outcome",
     },
+    noActivity: "No activity yet",
   },
   onboarding: {
     title: "Client Onboarding",

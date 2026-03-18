@@ -90,8 +90,9 @@ router.post("/", requireRole("admin", "developer", "sales_rep"), async (req, res
         ipAddress: req.ip,
       });
       const rescheduleContent = `Follow-up rescheduled: ${task.title}`;
-      if (task.leadId) addLeadNote({ leadId: task.leadId, userId: actorId, type: "task", content: rescheduleContent }).catch(() => {});
-      else if (task.opportunityId) addActivity({ opportunityId: task.opportunityId, userId: actorId, type: "task", content: rescheduleContent }).catch(() => {});
+      const rescheduleMeta = { event: "follow_up_rescheduled", taskTitle: task.title };
+      if (task.leadId) addLeadNote({ leadId: task.leadId, userId: actorId, type: "task", content: rescheduleContent, metadata: rescheduleMeta }).catch(() => {});
+      else if (task.opportunityId) addActivity({ opportunityId: task.opportunityId, userId: actorId, type: "task", content: rescheduleContent, metadata: rescheduleMeta }).catch(() => {});
       return res.status(200).json(task);
     }
 
@@ -110,8 +111,9 @@ router.post("/", requireRole("admin", "developer", "sales_rep"), async (req, res
       ipAddress: req.ip,
     });
     const scheduleContent = `Follow-up scheduled: ${task.title}`;
-    if (task.leadId) addLeadNote({ leadId: task.leadId, userId: actorId, type: "task", content: scheduleContent }).catch(() => {});
-    else if (task.opportunityId) addActivity({ opportunityId: task.opportunityId, userId: actorId, type: "task", content: scheduleContent }).catch(() => {});
+    const scheduleMeta = { event: "follow_up_scheduled", taskTitle: task.title };
+    if (task.leadId) addLeadNote({ leadId: task.leadId, userId: actorId, type: "task", content: scheduleContent, metadata: scheduleMeta }).catch(() => {});
+    else if (task.opportunityId) addActivity({ opportunityId: task.opportunityId, userId: actorId, type: "task", content: scheduleContent, metadata: scheduleMeta }).catch(() => {});
 
     res.status(201).json(task);
   } catch (err: any) {
@@ -123,6 +125,17 @@ const ALLOWED_OUTCOMES = [
   "No answer", "Left voicemail", "Spoke with lead", "Interested",
   "Not interested", "Bad number", "Appointment set", "Duplicate lead",
 ] as const;
+
+const OUTCOME_VALUE_TO_KEY: Record<string, string> = {
+  "No answer":       "noAnswer",
+  "Left voicemail":  "leftVoicemail",
+  "Spoke with lead": "spokeWithLead",
+  "Interested":      "interested",
+  "Not interested":  "notInterested",
+  "Bad number":      "badNumber",
+  "Appointment set": "appointmentSet",
+  "Duplicate lead":  "duplicateLead",
+};
 
 const OUTCOME_STAGE_SLUG: Partial<Record<typeof ALLOWED_OUTCOMES[number], string>> = {
   "Not interested": "closed-lost",
@@ -154,8 +167,15 @@ router.put("/:id/complete", requireRole("admin", "developer", "sales_rep"), asyn
     if (body?.outcome) parts.push(`Outcome: ${body.outcome}`);
     if (body?.completionNote) parts.push(`Note: ${body.completionNote}`);
     const completionContent = parts.join(" · ");
-    if (task.leadId) addLeadNote({ leadId: task.leadId, userId: actorId, type: "task", content: completionContent }).catch(() => {});
-    else if (task.opportunityId) addActivity({ opportunityId: task.opportunityId, userId: actorId, type: "task", content: completionContent }).catch(() => {});
+    const completionMeta = {
+      event: "task_completed",
+      taskTitle: task.title,
+      outcome: body?.outcome,
+      outcomeKey: body?.outcome ? OUTCOME_VALUE_TO_KEY[body.outcome] : undefined,
+      completionNote: body?.completionNote,
+    };
+    if (task.leadId) addLeadNote({ leadId: task.leadId, userId: actorId, type: "task", content: completionContent, metadata: completionMeta }).catch(() => {});
+    else if (task.opportunityId) addActivity({ opportunityId: task.opportunityId, userId: actorId, type: "task", content: completionContent, metadata: completionMeta }).catch(() => {});
 
     if (body?.outcome && task.opportunityId) {
       const targetSlug = OUTCOME_STAGE_SLUG[body.outcome];

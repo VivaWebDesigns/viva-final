@@ -241,11 +241,11 @@ router.put("/opportunities/:id/stage", requireRole("admin", "developer", "sales_
       fieldName: "stageId",
       fromValue: existing?.stageId ?? null,
       toValue: stageId,
-      note: meta ? `${meta.fromStage} → ${meta.toStage}` : undefined,
+      note: meta?.fromStageSlug && meta?.toStageSlug ? `${meta.fromStageSlug} → ${meta.toStageSlug}` : undefined,
       ...actor,
     });
-    if (meta?.fromStage && meta?.toStage) {
-      try { notifyStageChange({ id, title: result.opportunity.title, ownerId: result.opportunity.assignedTo }, meta.fromStage as string, meta.toStage as string); } catch (_) {}
+    if (meta?.fromStageName && meta?.toStageName) {
+      try { notifyStageChange({ id, title: result.opportunity.title, ownerId: result.opportunity.assignedTo }, meta.fromStageName as string, meta.toStageName as string); } catch (_) {}
     }
     if (result.opportunity.status === "won" && result.opportunity.companyId) {
       try {

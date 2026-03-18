@@ -350,7 +350,12 @@ export const es: AdminTranslations = {
       task: "Tarea",
       stageChange: "Cambio de etapa",
       system: "Sistema",
+      followUpScheduled: "Seguimiento programado",
+      followUpRescheduled: "Seguimiento reprogramado",
+      taskCompleted: "Tarea completada",
+      outcome: "Resultado",
     },
+    noActivity: "Sin actividad aún",
   },
   onboarding: {
     title: "Incorporación de Clientes",

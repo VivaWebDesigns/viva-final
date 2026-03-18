@@ -178,10 +178,13 @@ export async function moveOpportunity(
     type: "stage_change",
     content: `Moved from "${oldStage?.name || "None"}" to "${newStage.name}"`,
     metadata: {
+      event: "stage_change",
       fromStageId: existing.stageId,
       fromStageName: oldStage?.name,
+      fromStageSlug: oldStage?.slug ?? null,
       toStageId: newStageId,
       toStageName: newStage.name,
+      toStageSlug: newStage.slug,
       newStatus,
     },
   });
