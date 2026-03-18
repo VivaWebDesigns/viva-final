@@ -289,17 +289,18 @@ const US_STATE_TIMEZONES: Record<string, string> = {
 };
 
 const manualLeadSchema = z.object({
-  firstName:     z.string().min(1, "First name is required"),
-  lastName:      z.string().min(1, "Last name is required"),
-  businessName:  z.string().optional(),
-  businessTrade: z.string().min(1, "Business trade is required"),
-  phone:         z.string().min(1, "Phone is required"),
-  email:         z.string().email("Invalid email").optional().or(z.literal("")),
-  website:       z.string().optional(),
-  source:        z.enum(["website", "outreach"]),
-  notes:         z.string().optional(),
-  city:          z.string().min(1, "City is required"),
-  state:         z.string().length(2, "State is required"),
+  firstName:         z.string().min(1, "First name is required"),
+  lastName:          z.string().min(1, "Last name is required"),
+  businessName:      z.string().optional(),
+  businessTrade:     z.string().min(1, "Business trade is required"),
+  phone:             z.string().min(1, "Phone is required"),
+  email:             z.string().email("Invalid email").optional().or(z.literal("")),
+  website:           z.string().optional(),
+  source:            z.enum(["website", "outreach"]),
+  preferredLanguage: z.enum(["es", "en"]).default("es"),
+  notes:             z.string().optional(),
+  city:              z.string().min(1, "City is required"),
+  state:             z.string().length(2, "State is required"),
 });
 
 router.post("/leads/manual", requireRole("admin", "developer", "sales_rep", "lead_gen"), async (req, res) => {
@@ -308,6 +309,7 @@ router.post("/leads/manual", requireRole("admin", "developer", "sales_rep", "lea
 
     // 1. Find or create contact
     let contact = null;
+    let contactWasCreated = false;
     if (data.email) contact = await crmStorage.findContactByEmail(data.email);
     if (!contact && data.phone) contact = await crmStorage.findContactByPhone(data.phone);
     if (!contact) {
@@ -318,7 +320,9 @@ router.post("/leads/manual", requireRole("admin", "developer", "sales_rep", "lea
         email: data.email || null,
         notes: null,
         isPrimary: true,
+        preferredLanguage: data.preferredLanguage,
       });
+      contactWasCreated = true;
     }
 
     // 2. Find or create company — fallback to "First Last" if no business name provided
@@ -340,6 +344,11 @@ router.post("/leads/manual", requireRole("admin", "developer", "sales_rep", "lea
       if (!contact.companyId) {
         await crmStorage.updateContact(contact.id, { companyId: company.id });
       }
+    }
+
+    // 3a. Preferred language guardrail — for existing contacts, only write if currently empty
+    if (!contactWasCreated && !contact.preferredLanguage) {
+      await crmStorage.updateContact(contact.id, { preferredLanguage: data.preferredLanguage });
     }
 
     // 3. Resolve default CRM status

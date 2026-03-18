@@ -30,6 +30,7 @@ import { RecordTimeline } from "@/components/RecordTimeline";
 import { useAdminLang } from "@/i18n/LanguageContext";
 import { renderActivityContent, renderTaskTitle } from "@/lib/activityI18n";
 import { US_STATES } from "@/lib/usStates";
+import { BUSINESS_TRADES } from "@/features/crm/CreateLeadModal";
 
 type TaskWithContact = FollowupTask & {
   contact: { firstName: string; lastName: string | null; phone: string | null } | null;
@@ -80,6 +81,10 @@ export default function LeadDetailPage({ id }: { id: string }) {
   const [editingLocation, setEditingLocation] = useState(false);
   const [editCity, setEditCity] = useState("");
   const [editState, setEditState] = useState("");
+  const [editingIndustry, setEditingIndustry] = useState(false);
+  const [editIndustryValue, setEditIndustryValue] = useState("");
+  const [editingLang, setEditingLang] = useState(false);
+  const [editLangValue, setEditLangValue] = useState("");
 
   const { data: lead, isLoading: leadLoading } = useQuery<LeadDetail>({
     queryKey: ["/api/crm/leads", id],
@@ -136,6 +141,32 @@ export default function LeadDetailPage({ id }: { id: string }) {
     },
     onError: (err: any) => {
       toast({ title: err.message ?? "Failed to update location", variant: "destructive" });
+    },
+  });
+
+  const updateIndustryMutation = useMutation({
+    mutationFn: async (industry: string) => {
+      await apiRequest("PUT", `/api/crm/companies/${lead?.companyId}`, { industry });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/crm/leads", id] });
+      setEditingIndustry(false);
+    },
+    onError: (err: any) => {
+      toast({ title: err.message ?? t.common.error, variant: "destructive" });
+    },
+  });
+
+  const updateLangMutation = useMutation({
+    mutationFn: async (preferredLanguage: string) => {
+      await apiRequest("PUT", `/api/crm/contacts/${lead?.contactId}`, { preferredLanguage });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/crm/leads", id] });
+      setEditingLang(false);
+    },
+    onError: (err: any) => {
+      toast({ title: err.message ?? t.common.error, variant: "destructive" });
     },
   });
 
@@ -354,6 +385,130 @@ export default function LeadDetailPage({ id }: { id: string }) {
                   )}
                 </div>
               </div>
+
+              {/* Industry */}
+              <div>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <p className="text-gray-500">{t.pipeline.industry}</p>
+                  {lead.company && !editingIndustry && (
+                    <button
+                      onClick={() => {
+                        setEditIndustryValue(lead.company?.industry ?? "");
+                        setEditingIndustry(true);
+                      }}
+                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                      data-testid="button-edit-industry"
+                      aria-label="Edit industry"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+                {editingIndustry ? (
+                  <div className="flex items-center gap-1.5">
+                    <Select value={editIndustryValue} onValueChange={setEditIndustryValue}>
+                      <SelectTrigger className="h-8 text-sm flex-1" data-testid="select-edit-industry">
+                        <SelectValue placeholder={t.crm.selectBusinessTrade} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {BUSINESS_TRADES.map((trade) => (
+                          <SelectItem key={trade} value={trade}>
+                            {(t.crm.trades as Record<string, string>)[trade] ?? trade}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      size="sm"
+                      variant="default"
+                      className="h-8 px-3"
+                      disabled={updateIndustryMutation.isPending || !editIndustryValue}
+                      onClick={() => updateIndustryMutation.mutate(editIndustryValue)}
+                      data-testid="button-save-industry"
+                    >
+                      {updateIndustryMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : t.common.save}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 px-2"
+                      disabled={updateIndustryMutation.isPending}
+                      onClick={() => setEditingIndustry(false)}
+                      data-testid="button-cancel-industry"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-gray-900" data-testid="text-lead-industry">
+                    {lead.company?.industry
+                      ? (t.crm.trades as Record<string, string>)[lead.company.industry] ?? lead.company.industry
+                      : "—"}
+                  </p>
+                )}
+              </div>
+
+              {/* Preferred Language */}
+              <div>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <p className="text-gray-500">{t.clients.preferredLanguage}</p>
+                  {lead.contact && !editingLang && (
+                    <button
+                      onClick={() => {
+                        setEditLangValue(lead.contact?.preferredLanguage ?? "es");
+                        setEditingLang(true);
+                      }}
+                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                      data-testid="button-edit-lang"
+                      aria-label="Edit preferred language"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+                {editingLang ? (
+                  <div className="flex items-center gap-1.5">
+                    <Select value={editLangValue} onValueChange={setEditLangValue}>
+                      <SelectTrigger className="h-8 text-sm flex-1" data-testid="select-edit-lang">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="es">{t.clients.langSpanish}</SelectItem>
+                        <SelectItem value="en">{t.clients.langEnglish}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      size="sm"
+                      variant="default"
+                      className="h-8 px-3"
+                      disabled={updateLangMutation.isPending}
+                      onClick={() => updateLangMutation.mutate(editLangValue)}
+                      data-testid="button-save-lang"
+                    >
+                      {updateLangMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : t.common.save}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 px-2"
+                      disabled={updateLangMutation.isPending}
+                      onClick={() => setEditingLang(false)}
+                      data-testid="button-cancel-lang"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-gray-900" data-testid="text-lead-lang">
+                    {lead.contact?.preferredLanguage === "es"
+                      ? t.clients.langSpanish
+                      : lead.contact?.preferredLanguage === "en"
+                      ? t.clients.langEnglish
+                      : "—"}
+                  </p>
+                )}
+              </div>
+
               <div className="sm:col-span-2">
                 <div className="flex items-center gap-2 mb-1">
                   <MapPin className="w-3.5 h-3.5 text-gray-400" />

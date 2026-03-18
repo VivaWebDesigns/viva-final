@@ -42,17 +42,18 @@ export const BUSINESS_TRADES = [
 ] as const;
 
 const baseSchema = z.object({
-  firstName:     z.string().min(1),
-  lastName:      z.string().min(1),
-  businessName:  z.string().optional(),
-  businessTrade: z.string().min(1),
-  phone:         z.string().min(1),
-  email:         z.string().email().optional().or(z.literal("")),
-  website:       z.string().optional(),
-  source:        z.enum(["website", "outreach"]),
-  notes:         z.string().optional(),
-  city:          z.string().min(1),
-  state:         z.enum(US_STATES),
+  firstName:         z.string().min(1),
+  lastName:          z.string().min(1),
+  businessName:      z.string().optional(),
+  businessTrade:     z.string().min(1),
+  phone:             z.string().min(1),
+  email:             z.string().email().optional().or(z.literal("")),
+  website:           z.string().optional(),
+  source:            z.enum(["website", "outreach"]),
+  preferredLanguage: z.enum(["es", "en"]),
+  notes:             z.string().optional(),
+  city:              z.string().min(1),
+  state:             z.enum(US_STATES),
 });
 
 type FormValues = z.infer<typeof baseSchema>;
@@ -82,6 +83,7 @@ export default function CreateLeadModal({ open, onClose }: Props) {
       email: "",
       website: "",
       source: "website",
+      preferredLanguage: "es",
       notes: "",
       city: "",
       state: undefined,
@@ -288,6 +290,28 @@ export default function CreateLeadModal({ open, onClose }: Props) {
                     <SelectContent>
                       <SelectItem value="website">{t.crm.sourceWebsite}</SelectItem>
                       <SelectItem value="outreach">{t.crm.sourceOutreach}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="preferredLanguage"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t.clients.preferredLanguage}</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger data-testid="select-preferred-language">
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="es">{t.clients.langSpanish}</SelectItem>
+                      <SelectItem value="en">{t.clients.langEnglish}</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
