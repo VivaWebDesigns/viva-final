@@ -341,15 +341,17 @@ export default function LeadListPage() {
             )}
 
             <div className="flex flex-wrap items-center gap-1.5 ml-auto">
-              <Button
-                size="sm"
-                className="h-7 text-xs bg-white/20 hover:bg-white/30 text-white border-0"
-                onClick={() => setBulkDialog("assign")}
-                disabled={anyBulkPending}
-                data-testid="button-bulk-assign"
-              >
-                <UserCheck className="w-3 h-3 mr-1" /> {t.crm.bulkAssign}
-              </Button>
+              {!isRestricted && (
+                <Button
+                  size="sm"
+                  className="h-7 text-xs bg-white/20 hover:bg-white/30 text-white border-0"
+                  onClick={() => setBulkDialog("assign")}
+                  disabled={anyBulkPending}
+                  data-testid="button-bulk-assign"
+                >
+                  <UserCheck className="w-3 h-3 mr-1" /> {t.crm.bulkAssign}
+                </Button>
+              )}
               <Button
                 size="sm"
                 className="h-7 text-xs bg-white/20 hover:bg-white/30 text-white border-0"

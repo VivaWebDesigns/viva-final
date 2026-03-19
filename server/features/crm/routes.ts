@@ -153,7 +153,7 @@ router.get("/leads/assignable-users", requireRole("admin", "developer", "sales_r
   }
 });
 
-router.post("/leads/bulk/assign", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
+router.post("/leads/bulk/assign", requireRole("admin", "developer"), async (req, res) => {
   try {
     const { ids, assignedTo } = bulkAssignSchema.parse(req.body);
     const count = await crmStorage.bulkAssignLeads(ids, assignedTo);
@@ -454,7 +454,10 @@ router.put("/leads/:id", requireRole("admin", "developer", "sales_rep", "lead_ge
     if (isRestricted(req) && existing.assignedTo !== req.authUser!.id) {
       return res.status(403).json({ message: "Access denied" });
     }
-    const validated = updateCrmLeadSchema.parse(req.body);
+    // Restricted roles cannot reassign ownership — strip assignedTo before validation.
+    const { assignedTo: _stripAssigned, ...restBody } = req.body;
+    const bodyToParse = isRestricted(req) ? restBody : req.body;
+    const validated = updateCrmLeadSchema.parse(bodyToParse);
     if (validated.state !== undefined) {
       validated.timezone = US_STATE_TIMEZONES[validated.state ?? ""] ?? validated.timezone ?? null;
     }

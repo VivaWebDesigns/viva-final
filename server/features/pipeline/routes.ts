@@ -200,7 +200,10 @@ router.put("/opportunities/:id", requireRole("admin", "developer", "sales_rep", 
     if (isRestricted(req) && existing.assignedTo !== req.authUser!.id) {
       return res.status(403).json({ message: "Access denied" });
     }
-    const validated = updateOpportunitySchema.parse(req.body);
+    // Restricted roles cannot reassign ownership — strip assignedTo before validation.
+    const { assignedTo: _stripAssigned, ...restBody } = req.body;
+    const bodyToParse = isRestricted(req) ? restBody : req.body;
+    const validated = updateOpportunitySchema.parse(bodyToParse);
     const opp = await pipelineStorage.updateOpportunity(id, validated as Partial<InsertPipelineOpportunity>);
     await logAudit({
       userId: req.authUser?.id,
