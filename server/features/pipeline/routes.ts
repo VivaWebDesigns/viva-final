@@ -38,6 +38,12 @@ const updateOpportunitySchema = z.object({
 
 const router = Router();
 
+// Roles restricted to their own records only.
+const RESTRICTED_ROLES = ["sales_rep", "lead_gen"] as const;
+function isRestricted(req: { authUser?: { role?: string } }): boolean {
+  return RESTRICTED_ROLES.includes(req.authUser?.role as any);
+}
+
 router.get("/stages", requireRole("admin", "developer", "sales_rep"), async (_req, res) => {
   const stages = await pipelineStorage.getStages();
   res.json(stages);
@@ -106,10 +112,14 @@ router.delete("/stages/:id", requireRole("admin"), async (req, res) => {
 router.get("/opportunities", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
     const { search, stageId, assignedTo, status, page, limit } = req.query;
+    // Restricted roles can only see their own opportunities.
+    const resolvedAssignedTo = isRestricted(req)
+      ? req.authUser!.id
+      : (assignedTo as string | undefined);
     const result = await pipelineStorage.getOpportunities({
       search: search as string | undefined,
       stageId: stageId as string | undefined,
-      assignedTo: assignedTo as string | undefined,
+      assignedTo: resolvedAssignedTo,
       status: status as string | undefined,
       page: page ? parseInt(page as string, 10) : undefined,
       limit: limit ? parseInt(limit as string, 10) : undefined,
@@ -120,9 +130,11 @@ router.get("/opportunities", requireRole("admin", "developer", "sales_rep"), asy
   }
 });
 
-router.get("/opportunities/board", requireRole("admin", "developer", "sales_rep"), async (_req, res) => {
+router.get("/opportunities/board", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
-    const result = await pipelineStorage.getOpportunitiesByStage();
+    // Restricted roles see only their own opportunities on the board.
+    const userId = isRestricted(req) ? req.authUser!.id : undefined;
+    const result = await pipelineStorage.getOpportunitiesByStage(userId);
     res.json(result);
   } catch (error: any) {
     res.status(500).json({ message: error.message });
@@ -171,6 +183,9 @@ router.post("/opportunities", requireRole("admin", "developer", "sales_rep"), as
 router.get("/opportunities/:id", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   const opp = await pipelineStorage.getOpportunityById(req.params.id as string);
   if (!opp) return res.status(404).json({ message: "Opportunity not found" });
+  if (isRestricted(req) && opp.assignedTo !== req.authUser!.id) {
+    return res.status(403).json({ message: "Access denied" });
+  }
   res.json(opp);
 });
 
@@ -179,6 +194,9 @@ router.put("/opportunities/:id", requireRole("admin", "developer", "sales_rep"),
     const { id } = req.params as Record<string, string>;
     const existing = await pipelineStorage.getOpportunityById(id);
     if (!existing) return res.status(404).json({ message: "Opportunity not found" });
+    if (isRestricted(req) && existing.assignedTo !== req.authUser!.id) {
+      return res.status(403).json({ message: "Access denied" });
+    }
     const validated = updateOpportunitySchema.parse(req.body);
     const opp = await pipelineStorage.updateOpportunity(id, validated as Partial<InsertPipelineOpportunity>);
     await logAudit({

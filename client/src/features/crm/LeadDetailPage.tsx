@@ -6,8 +6,9 @@ import {
   ArrowLeft, Building2, User, Globe, Phone, Mail, MapPin,
   Calendar, Tag, MessageSquare, PhoneCall, MailIcon, ClipboardList,
   RefreshCw, Bot, Send, ExternalLink, TrendingUp,
-  Plus, CheckCircle, CheckCheck, Clock, AlertCircle, Monitor, Pencil, Loader2, X,
+  Plus, CheckCircle, CheckCheck, Clock, AlertCircle, Monitor, Pencil, Loader2, X, UserCircle,
 } from "lucide-react";
+import { useAuth } from "@features/auth/useAuth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -61,10 +62,19 @@ const NOTE_TYPE_BADGE: Record<string, { badge: string; iconBg: string; icon: str
   system:        { badge: "bg-gray-100 text-gray-600 border-gray-200",     iconBg: "bg-gray-100",   icon: "text-gray-400" },
 };
 
+interface AssignableUser {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+}
+
 export default function LeadDetailPage({ id }: { id: string }) {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const { t } = useAdminLang();
+  const { role: authRole } = useAuth();
+  const isRestricted = authRole === "sales_rep" || authRole === "lead_gen";
 
   const NOTE_TYPE_LABELS: Record<string, string> = {
     note: t.crm.note,
@@ -85,14 +95,18 @@ export default function LeadDetailPage({ id }: { id: string }) {
   const [editIndustryValue, setEditIndustryValue] = useState("");
   const [editingLang, setEditingLang] = useState(false);
   const [editLangValue, setEditLangValue] = useState("");
+  const [editingAssignee, setEditingAssignee] = useState(false);
+  const [editAssigneeValue, setEditAssigneeValue] = useState("");
 
-  const { data: lead, isLoading: leadLoading } = useQuery<LeadDetail>({
+  const { data: lead, isLoading: leadLoading, error: leadError } = useQuery<LeadDetail>({
     queryKey: ["/api/crm/leads", id],
     queryFn: async () => {
       const res = await fetch(`/api/crm/leads/${id}`, { credentials: "include" });
+      if (res.status === 403) throw Object.assign(new Error("Access denied"), { status: 403 });
       if (!res.ok) throw new Error("Failed to fetch lead");
       return res.json();
     },
+    retry: false,
   });
 
   const { data: statuses = [] } = useQuery<CrmLeadStatus[]>({
@@ -103,18 +117,28 @@ export default function LeadDetailPage({ id }: { id: string }) {
     queryKey: ["/api/crm/leads", id, "notes"],
     queryFn: async () => {
       const res = await fetch(`/api/crm/leads/${id}/notes`, { credentials: "include" });
+      if (res.status === 403) return [];
       if (!res.ok) throw new Error("Failed to fetch notes");
       return res.json();
     },
+    enabled: !!lead,
   });
 
   const { data: leadTags = [] } = useQuery<CrmTag[]>({
     queryKey: ["/api/crm/leads", id, "tags"],
     queryFn: async () => {
       const res = await fetch(`/api/crm/leads/${id}/tags`, { credentials: "include" });
+      if (res.status === 403) return [];
       if (!res.ok) throw new Error("Failed to fetch tags");
       return res.json();
     },
+    enabled: !!lead,
+  });
+
+  const { data: assignableUsers = [] } = useQuery<AssignableUser[]>({
+    queryKey: ["/api/crm/leads/assignable-users"],
+    staleTime: 60_000,
+    enabled: !isRestricted,
   });
 
   const updateStatusMutation = useMutation({
@@ -164,6 +188,21 @@ export default function LeadDetailPage({ id }: { id: string }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/crm/leads", id] });
       setEditingLang(false);
+    },
+    onError: (err: any) => {
+      toast({ title: err.message ?? t.common.error, variant: "destructive" });
+    },
+  });
+
+  const updateAssigneeMutation = useMutation({
+    mutationFn: async (assignedTo: string | null) => {
+      await apiRequest("PUT", `/api/crm/leads/${id}`, { assignedTo });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/crm/leads", id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/crm/leads"] });
+      setEditingAssignee(false);
+      toast({ title: "Assignee updated" });
     },
     onError: (err: any) => {
       toast({ title: err.message ?? t.common.error, variant: "destructive" });
@@ -245,6 +284,18 @@ export default function LeadDetailPage({ id }: { id: string }) {
       <div className="space-y-4">
         <div className="h-8 w-48 bg-gray-100 rounded animate-pulse" />
         <div className="h-64 bg-gray-100 rounded-xl animate-pulse" />
+      </div>
+    );
+  }
+
+  if ((leadError as any)?.status === 403) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-gray-500 font-medium">Access denied</p>
+        <p className="text-gray-400 text-sm mt-1">You don't have permission to view this lead.</p>
+        <Button variant="outline" className="mt-4" onClick={() => navigate("/admin/crm")} data-testid="button-back-to-leads">
+          Back to Leads
+        </Button>
       </div>
     );
   }
@@ -505,6 +556,69 @@ export default function LeadDetailPage({ id }: { id: string }) {
                       : lead.contact?.preferredLanguage === "en"
                       ? t.clients.langEnglish
                       : "—"}
+                  </p>
+                )}
+              </div>
+
+              {/* Assigned To */}
+              <div>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <UserCircle className="w-3.5 h-3.5 text-gray-400" />
+                  <p className="text-gray-500">Assigned To</p>
+                  {!isRestricted && !editingAssignee && (
+                    <button
+                      onClick={() => {
+                        setEditAssigneeValue(lead.assignedTo ?? "");
+                        setEditingAssignee(true);
+                      }}
+                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                      data-testid="button-edit-assignee"
+                      aria-label="Edit assignee"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+                {editingAssignee && !isRestricted ? (
+                  <div className="flex items-center gap-1.5">
+                    <Select value={editAssigneeValue} onValueChange={setEditAssigneeValue}>
+                      <SelectTrigger className="h-8 text-sm flex-1" data-testid="select-edit-assignee">
+                        <SelectValue placeholder="Unassigned" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__unassigned__">Unassigned</SelectItem>
+                        {assignableUsers.map(u => (
+                          <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      size="sm"
+                      variant="default"
+                      className="h-8 px-3"
+                      disabled={updateAssigneeMutation.isPending}
+                      onClick={() => updateAssigneeMutation.mutate(editAssigneeValue === "__unassigned__" ? null : editAssigneeValue || null)}
+                      data-testid="button-save-assignee"
+                    >
+                      {updateAssigneeMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : t.common.save}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 px-2"
+                      disabled={updateAssigneeMutation.isPending}
+                      onClick={() => setEditingAssignee(false)}
+                      data-testid="button-cancel-assignee"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-gray-900" data-testid="text-lead-assignee">
+                    {(() => {
+                      const u = assignableUsers.find(u => u.id === lead.assignedTo);
+                      return u ? u.name : lead.assignedTo ? lead.assignedTo : "—";
+                    })()}
                   </p>
                 )}
               </div>

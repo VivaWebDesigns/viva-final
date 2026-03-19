@@ -80,14 +80,42 @@ const bulkTagsSchema = bulkIdsSchema.extend({
 
 const router = Router();
 
+// ── Ownership helpers ────────────────────────────────────────────────────────
+// Roles that are restricted to their own assigned records.
+const RESTRICTED_ROLES = ["sales_rep", "lead_gen"] as const;
+
+function isRestricted(req: express.Request): boolean {
+  return RESTRICTED_ROLES.includes(req.authUser?.role as any);
+}
+
+// Returns true if access is allowed, false (+ sends 403) if not.
+async function assertLeadAccess(
+  req: express.Request,
+  res: express.Response,
+  leadId: string,
+): Promise<boolean> {
+  if (!isRestricted(req)) return true;
+  const lead = await crmStorage.getLeadById(leadId);
+  if (!lead || lead.assignedTo !== req.authUser!.id) {
+    res.status(403).json({ message: "Access denied" });
+    return false;
+  }
+  return true;
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 router.get("/leads", requireRole("admin", "developer", "sales_rep", "lead_gen"), async (req, res) => {
   try {
     const { search, statusId, source, assignedTo, fromWebsiteForm, page, limit } = req.query;
+    // Restricted roles can only see their own leads — ignore any client-supplied filter.
+    const resolvedAssignedTo = isRestricted(req)
+      ? req.authUser!.id
+      : (assignedTo as string | undefined);
     const result = await crmStorage.getLeads({
       search: search as string | undefined,
       statusId: statusId as string | undefined,
       source: source as string | undefined,
-      assignedTo: assignedTo as string | undefined,
+      assignedTo: resolvedAssignedTo,
       fromWebsiteForm: fromWebsiteForm === "true" ? true : fromWebsiteForm === "false" ? false : undefined,
       page: page ? parseInt(page as string, 10) : undefined,
       limit: limit ? parseInt(limit as string, 10) : undefined,
@@ -361,7 +389,8 @@ router.post("/leads/manual", requireRole("admin", "developer", "sales_rep", "lea
       ? `${data.businessName.trim()} – ${fullName}`
       : fullName;
 
-    // 5. Create CRM lead
+    // 5. Create CRM lead — auto-assign to the creating user
+    const creatorId = req.authUser!.id;
     const lead = await crmStorage.createLead({
       title: leadTitle,
       companyId,
@@ -374,9 +403,10 @@ router.post("/leads/manual", requireRole("admin", "developer", "sales_rep", "lea
       city: data.city,
       state: data.state,
       timezone: US_STATE_TIMEZONES[data.state] ?? null,
+      assignedTo: creatorId,
     });
 
-    // 6. Create pipeline opportunity in the "new-lead" stage
+    // 6. Create pipeline opportunity in the "new-lead" stage — inherit owner from lead
     const newLeadStage = await pipelineStorage.getStageBySlug("new-lead");
     if (newLeadStage) {
       await pipelineStorage.createOpportunity({
@@ -388,6 +418,7 @@ router.post("/leads/manual", requireRole("admin", "developer", "sales_rep", "lea
         status: "open",
         sourceLeadTitle: leadTitle,
         notes: data.notes || null,
+        assignedTo: creatorId,
       });
     }
 
@@ -410,6 +441,9 @@ router.get("/leads/:id", requireRole("admin", "developer", "sales_rep", "lead_ge
   const id = req.params.id as string;
   const lead = await crmStorage.getLeadById(id);
   if (!lead) return res.status(404).json({ message: "Lead not found" });
+  if (isRestricted(req) && lead.assignedTo !== req.authUser!.id) {
+    return res.status(403).json({ message: "Access denied" });
+  }
   res.json(lead);
 });
 
@@ -418,6 +452,9 @@ router.put("/leads/:id", requireRole("admin", "developer", "sales_rep", "lead_ge
     const id = req.params.id as string;
     const existing = await crmStorage.getLeadById(id);
     if (!existing) return res.status(404).json({ message: "Lead not found" });
+    if (isRestricted(req) && existing.assignedTo !== req.authUser!.id) {
+      return res.status(403).json({ message: "Access denied" });
+    }
     const validated = updateCrmLeadSchema.parse(req.body);
     if (validated.state !== undefined) {
       validated.timezone = US_STATE_TIMEZONES[validated.state ?? ""] ?? validated.timezone ?? null;
@@ -449,6 +486,7 @@ router.put("/leads/:id", requireRole("admin", "developer", "sales_rep", "lead_ge
 
 router.get("/leads/:id/notes", requireRole("admin", "developer", "sales_rep", "lead_gen"), async (req, res) => {
   const id = req.params.id as string;
+  if (!await assertLeadAccess(req, res, id)) return;
   const notes = await crmStorage.getLeadNotes(id);
   res.json(notes);
 });
@@ -456,6 +494,7 @@ router.get("/leads/:id/notes", requireRole("admin", "developer", "sales_rep", "l
 router.post("/leads/:id/notes", requireRole("admin", "developer", "sales_rep", "lead_gen"), async (req, res) => {
   try {
     const id = req.params.id as string;
+    if (!await assertLeadAccess(req, res, id)) return;
     const data = insertCrmLeadNoteSchema.parse({
       ...req.body,
       leadId: id,
@@ -478,6 +517,7 @@ router.post("/leads/:id/notes", requireRole("admin", "developer", "sales_rep", "
 
 router.get("/leads/:id/tags", requireRole("admin", "developer", "sales_rep", "lead_gen"), async (req, res) => {
   const id = req.params.id as string;
+  if (!await assertLeadAccess(req, res, id)) return;
   const tags = await crmStorage.getLeadTags(id);
   res.json(tags);
 });
@@ -485,6 +525,7 @@ router.get("/leads/:id/tags", requireRole("admin", "developer", "sales_rep", "le
 router.put("/leads/:id/tags", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
     const id = req.params.id as string;
+    if (!await assertLeadAccess(req, res, id)) return;
     const { tagIds } = tagIdsSchema.parse(req.body);
     await crmStorage.setLeadTags(id, tagIds);
     await logAudit({

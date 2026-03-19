@@ -91,10 +91,15 @@ export async function getOpportunities(filters: OpportunityFilters = {}) {
   return { items, total: totalResult[0]?.total ?? 0, page, limit };
 }
 
-export async function getOpportunitiesByStage() {
+export async function getOpportunitiesByStage(userId?: string) {
   const stages = await getStages();
-  const allOpps = await db.select().from(pipelineOpportunities)
-    .orderBy(asc(pipelineOpportunities.createdAt));
+  // If userId provided, filter to only opportunities assigned to that user (before building board).
+  const query = db.select().from(pipelineOpportunities).orderBy(asc(pipelineOpportunities.createdAt));
+  const allOpps = userId
+    ? await db.select().from(pipelineOpportunities)
+        .where(eq(pipelineOpportunities.assignedTo, userId))
+        .orderBy(asc(pipelineOpportunities.createdAt))
+    : await query;
 
   const board: Record<string, { stage: PipelineStage; opportunities: PipelineOpportunity[] }> = {};
   for (const stage of stages) {

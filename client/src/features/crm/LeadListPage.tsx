@@ -5,7 +5,7 @@ import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, ChevronLeft, ChevronRight, Globe, Phone, Mail,
-  X, Trash2, UserCheck, CircleDot, Tag, Tags, AlertTriangle, Users, Upload, UserPlus,
+  X, Trash2, UserCheck, CircleDot, Tag, Tags, AlertTriangle, Users, Upload, UserPlus, UserCircle,
 } from "lucide-react";
 import { CsvImportModal, CsvExportDropdown } from "./CsvImportExportModal";
 import CreateLeadModal from "./CreateLeadModal";
@@ -54,6 +54,7 @@ export default function LeadListPage() {
   const { t } = useAdminLang();
   const { role } = useAuth();
   const isAdmin = role === "admin";
+  const isRestricted = role === "sales_rep" || role === "lead_gen";
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -469,6 +470,12 @@ export default function LeadListPage() {
                             {lead.contact?.phone && (
                               <span className="hidden sm:flex items-center gap-1">
                                 <Phone className="w-3 h-3" /> {lead.contact.phone}
+                              </span>
+                            )}
+                            {lead.assignedTo && !isRestricted && (
+                              <span className="hidden sm:flex items-center gap-1" data-testid={`text-lead-assignee-${lead.id}`}>
+                                <UserCircle className="w-3 h-3" />
+                                {assignableUsers.find(u => u.id === lead.assignedTo)?.name ?? lead.assignedTo}
                               </span>
                             )}
                           </div>
