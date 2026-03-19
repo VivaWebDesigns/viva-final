@@ -1,0 +1,138 @@
+Before making any code changes, analyze how lead ownership and
+access control currently work in this CRM.
+
+We want to move to a strict ownership model:
+
+Ownership model to implement:
+- Admin can see and access all leads
+- Sales reps can only see and access leads assigned to them
+- Sales reps should NOT see leads assigned to other reps
+- Sales reps should NOT see unassigned leads
+- Lead ownership should be visible in the UI
+- Ownership should remain consistent downstream where appropriate
+
+Current observed issue:
+- A lead can be assigned (example: assigned to Admin)
+- When signing in as Sales Rep, that rep still had full access
+  to the lead
+- There was no obvious place in the UI showing who the lead was
+  assigned to
+
+This suggests assignment may be stored but not enforced or
+surfaced properly.
+
+Phase 1 — Analysis first, no implementation yet:
+Inspect the current codebase end-to-end and determine exactly how
+ownership is stored, returned, displayed, and enforced.
+
+Analyze all relevant areas:
+- Add Lead form / modal
+- lead form state and default values
+- createLead API payload
+- backend lead creation route/controller
+- lead database schema
+- user roles / auth context
+- lead list API queries
+- lead detail API queries
+- lead detail page UI
+- pipeline / opportunity list queries
+- opportunity detail page
+- task creation / follow-up creation logic
+- any assigned user / owner / rep fields already in use
+- any role-based filtering or access-control middleware
+- any duplicate ownership concepts
+
+Questions to answer in the analysis:
+1. What exact field stores lead ownership?
+2. Is assignment actually saved on create/edit?
+3. Is that field returned by the API?
+4. Where, if anywhere, is ownership shown in the UI now?
+5. Why can a sales rep currently access a lead assigned to Admin?
+6. Which routes/queries need filtering for strict ownership?
+7. Is access controlled only in the UI, only in the backend, or
+   not at all?
+8. Do opportunities inherit lead ownership now?
+9. Do tasks inherit lead/opportunity ownership now?
+10. Are there naming mismatches or duplicate ownership fields
+    causing confusion?
+11. What should be the single source of truth for ownership?
+
+After analysis, provide a concise implementation plan before
+editing code.
+
+The plan must state:
+- the exact ownership field to use as source of truth
+- which backend routes must be restricted
+- which frontend views must be filtered
+- where "Assigned To" should be shown in the UI
+- whether opportunity/task ownership should be preserved as-is
+  or fixed
+- what should NOT be changed
+
+Phase 2 — Implementation:
+After analysis, implement strict ownership safely.
+
+Required behavior after implementation:
+
+Access control:
+- Admin users can see all leads
+- Sales reps can only see leads assigned to their own user id
+- Sales reps cannot open lead detail pages for leads not assigned
+  to them
+- Sales reps cannot edit leads not assigned to them
+- Sales reps cannot see unassigned leads
+- Backend enforcement is required; do not rely on frontend-only
+  hiding
+
+UI visibility:
+- Show "Assigned To" clearly in the lead detail UI
+- Show ownership in lead list rows/cards if practical
+- If opportunities/tasks have ownership in the UI, keep that
+  consistent and visible where appropriate
+- Do not bloat the interface
+
+Data behavior:
+- Reuse the existing ownership field if one already exists
+- Do not invent a second assigned-user system
+- Do not rename fields unless absolutely necessary
+- Preserve the assigned user on create/edit
+- Preserve or fix downstream mapping so ownership remains
+  consistent in opportunities and tasks where appropriate
+
+Security / correctness requirements:
+- Enforce access in backend queries/routes, not just frontend
+- Audit both list endpoints and single-record detail endpoints
+- Audit create, edit, and related actions that should be blocked
+  for non-owners
+- Keep TypeScript clean
+- Avoid unrelated refactors
+- Make the smallest correct architecture fix, not a superficial
+  patch
+
+Validation requirements:
+After implementation, verify:
+1. Admin can view all leads
+2. Sales Rep A can only view their own leads
+3. Sales Rep A cannot see Admin-assigned leads
+4. Sales Rep A cannot open a direct URL to another user's lead
+5. Lead detail clearly shows Assigned To
+6. Add Lead / Edit Lead preserves correct ownership
+7. Pipeline/opportunity/task ownership behavior is still
+   consistent and not broken
+8. No duplicate ownership concepts appear in the UI or schema
+
+Deliverables:
+1. First provide a concise analysis report:
+   - current ownership field(s)
+   - current filtering/access behavior
+   - where enforcement is missing
+   - UI gaps
+   - recommended source of truth
+2. Then implement the fix
+3. Then provide a concise change report:
+   - files changed
+   - routes restricted
+   - UI areas updated
+   - ownership field used
+   - downstream ownership behavior preserved/fixed
+   - any remaining technical debt or risk

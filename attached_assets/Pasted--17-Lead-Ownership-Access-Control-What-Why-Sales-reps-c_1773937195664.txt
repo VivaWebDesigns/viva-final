@@ -1,0 +1,181 @@
+#17 - Lead Ownership & Access Control
+
+What & Why
+Sales reps can currently view and edit every lead and pipeline
+opportunity in the system regardless of assignment because the
+backend has no object-level ownership enforcement.
+
+crmLeads.assignedTo (FK -> user.id) already exists and is indexed.
+It is the canonical ownership field for leads. No schema changes
+are needed.
+
+This task closes 3 gaps:
+1. Write path: manually created leads are currently created with
+   no owner
+2. Read/edit path: no server-side ownership checks exist on lead
+   and opportunity routes
+3. Display path: the UI does not clearly show who a lead is
+   assigned to
+
+Key findings
+- crmLeads.assignedTo is the canonical lead ownership field
+- POST /api/crm/leads/manual does not currently set assignedTo,
+  so manually created leads end up null
+- Pipeline creation already inherits ownership from the lead at
+  creation time (extraData.assignedTo || lead.assignedTo), so
+  fixing the manual lead create path should fix ownership
+  inheritance for new linked opportunities
+- GET /api/crm/leads accepts assignedTo as an optional filter but
+  does not enforce it by role, so sales_rep and lead_gen can see
+  all leads
+- GET /api/crm/leads/:id has no ownership check, same for related
+  sub-routes like /notes and /tags
+- GET /api/pipeline/opportunities, /opportunities/board, and
+  /opportunities/:id have the same ownership gap
+- requireRole only checks role membership, not object ownership
+- req.authUser.id and req.authUser.role are already available
+- Frontend useAuth() already exposes role and user.id
+- LeadDetailPage currently does not show Assigned To anywhere
+
+Target behavior
+- admin and developer continue to see and edit all leads and
+  opportunities
+- sales_rep and lead_gen can only see and access records assigned
+  to their own user id
+- sales_rep and lead_gen cannot see unassigned leads
+- sales_rep and lead_gen cannot view or edit records assigned to
+  other users
+- backend must enforce this; frontend filtering alone is not
+  sufficient
+- Lead Detail shows Assigned To clearly
+- admins/developers can reassign from the detail view using the
+  existing assignment flow if available
+- non-admin roles see assignee as read-only
+- lead list cards show assignee name or initials
+- newly created manual leads are auto-assigned to the creating
+  user
+- linked opportunities created from those new leads inherit the
+  same owner
+- older unassigned leads remain invisible to sales_rep and
+  lead_gen until reassigned by admin/developer
+
+Out of scope
+- schema changes
+- task ownership
+- onboarding routes
+- web-form-ingested leads remaining unassigned
+- CSV import behavior
+
+Implementation tasks
+
+1. CRM backend: enforce lead ownership
+- Treat sales_rep and lead_gen as restricted roles
+- For GET /api/crm/leads, automatically inject
+  assignedTo = req.authUser.id for restricted roles
+- Add a shared helper such as assertLeadAccess(lead, authUser)
+  that returns 403 when a restricted user does not own the lead
+- Apply ownership enforcement to:
+  - GET /api/crm/leads/:id
+  - PUT /api/crm/leads/:id
+  - GET /api/crm/leads/:id/notes
+  - POST /api/crm/leads/:id/notes
+  - GET /api/crm/leads/:id/tags
+  - PUT /api/crm/leads/:id/tags
+- On POST /api/crm/leads/manual, set
+  assignedTo = req.authUser.id for the new lead and ensure the
+  linked opportunity created in the same flow inherits the same
+  owner
+
+2. Pipeline backend: enforce opportunity ownership (role + ownership layered)
+
+- Do NOT replace the existing role-based permission system
+
+- Keep current role checks intact (requireRole, etc.)
+  - admin continues to have full access
+  - developer keeps its existing intended access level
+  - sales_rep and lead_gen keep their allowed actions
+
+- Add ownership enforcement ON TOP of roles for restricted roles
+
+Meaning:
+- Role determines WHAT actions a user can perform
+- Ownership determines WHICH records they can perform them on
+- Both checks must pass
+
+Implementation:
+- For sales_rep and lead_gen:
+  - Inject assignedTo = req.authUser.id into:
+    GET /api/pipeline/opportunities
+  - Add optional userId param to
+    pipelineStorage.getOpportunitiesBoard()
+  - Filter the dataset BEFORE building the board (not after)
+  - Call getOpportunitiesBoard(req.authUser.id) for restricted roles
+
+- For admin and developer:
+  - No ownership filtering (full dataset)
+
+- Add ownership enforcement (403) to:
+  - GET /api/pipeline/opportunities/:id
+  - PUT /api/pipeline/opportunities/:id
+
+- Ensure:
+  - sales_rep and lead_gen can only access opportunities where
+    assignedTo === req.authUser.id
+  - admin/developer can access all
+
+3. Frontend: display ownership cleanly
+- Add an Assigned To row to the Lead Detail card
+- Reuse /api/crm/leads/assignable-users for the assignee display
+  and reassignment UI if appropriate
+- admin and developer get editable reassignment UI
+- restricted roles get read-only assignee display
+- Add a compact assignee indicator (name or initials) to each
+  lead card in the lead list
+- LeadDetailPage must handle 403 from lead detail, notes, and
+  tags gracefully:
+  - show an access-denied state
+  - do not crash
+  - do not render stale previous lead data
+  - do not infinite-retry forbidden requests
+
+Rules
+- Do not create a second ownership field
+- Do not rename assignedTo unless absolutely necessary
+- Do not rely on frontend-only hiding
+- Do not change admin/developer behavior
+- Keep TypeScript clean
+- Keep the fix narrow and architectural, not a broad refactor
+
+Validation
+- admin can view and edit all leads/opportunities
+- developer can view and edit all leads/opportunities (as per
+  existing intended permissions)
+- sales_rep can only view/edit their own assigned records
+- lead_gen can only view/edit their own assigned records
+- restricted users cannot see unassigned records
+- restricted users cannot open direct URLs for other users'
+  records; API returns 403
+- Lead Detail clearly shows Assigned To
+- lead list shows assignee indicator
+- Add Lead / manual create assigns ownership to creator
+- new linked opportunity inherits same ownership
+- board columns, counts, and cards are all built only from the
+  authorized filtered set
+
+Relevant files
+- server/features/crm/routes.ts
+- server/features/pipeline/routes.ts
+- server/features/pipeline/storage.ts
+- server/features/auth/middleware.ts
+- client/src/features/crm/LeadListPage.tsx
+- client/src/features/crm/LeadDetailPage.tsx
+- client/src/features/auth/useAuth.ts
+- shared/schema.ts
+
+Deliverable
+After implementation, provide:
+1. concise analysis of what was changed
+2. files changed
+3. exact routes now enforcing ownership
+4. UI areas updated
+5. any remaining edge cases or technical debt
