@@ -109,7 +109,7 @@ router.delete("/stages/:id", requireRole("admin"), async (req, res) => {
   }
 });
 
-router.get("/opportunities", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
+router.get("/opportunities", requireRole("admin", "developer", "sales_rep", "lead_gen"), async (req, res) => {
   try {
     const { search, stageId, assignedTo, status, page, limit } = req.query;
     // Restricted roles can only see their own opportunities.
@@ -130,7 +130,7 @@ router.get("/opportunities", requireRole("admin", "developer", "sales_rep"), asy
   }
 });
 
-router.get("/opportunities/board", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
+router.get("/opportunities/board", requireRole("admin", "developer", "sales_rep", "lead_gen"), async (req, res) => {
   try {
     // Restricted roles see only their own opportunities on the board.
     const userId = isRestricted(req) ? req.authUser!.id : undefined;
@@ -150,7 +150,7 @@ router.get("/opportunities/stats", requireRole("admin", "developer", "sales_rep"
   }
 });
 
-router.get("/opportunities/by-lead/:leadId", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
+router.get("/opportunities/by-lead/:leadId", requireRole("admin", "developer", "sales_rep", "lead_gen"), async (req, res) => {
   const { leadId } = req.params as Record<string, string>;
   const opp = await pipelineStorage.getOpportunityByLeadId(leadId);
   if (opp && isRestricted(req) && opp.assignedTo !== req.authUser!.id) {
@@ -183,7 +183,7 @@ router.post("/opportunities", requireRole("admin", "developer", "sales_rep"), as
   }
 });
 
-router.get("/opportunities/:id", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
+router.get("/opportunities/:id", requireRole("admin", "developer", "sales_rep", "lead_gen"), async (req, res) => {
   const opp = await pipelineStorage.getOpportunityById(req.params.id as string);
   if (!opp) return res.status(404).json({ message: "Opportunity not found" });
   if (isRestricted(req) && opp.assignedTo !== req.authUser!.id) {
@@ -192,7 +192,7 @@ router.get("/opportunities/:id", requireRole("admin", "developer", "sales_rep"),
   res.json(opp);
 });
 
-router.put("/opportunities/:id", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
+router.put("/opportunities/:id", requireRole("admin", "developer", "sales_rep", "lead_gen"), async (req, res) => {
   try {
     const { id } = req.params as Record<string, string>;
     const existing = await pipelineStorage.getOpportunityById(id);
@@ -238,12 +238,16 @@ router.put("/opportunities/:id", requireRole("admin", "developer", "sales_rep"),
   }
 });
 
-router.put("/opportunities/:id/stage", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
+router.put("/opportunities/:id/stage", requireRole("admin", "developer", "sales_rep", "lead_gen"), async (req, res) => {
   try {
     const { id } = req.params as Record<string, string>;
     const { stageId } = req.body;
     if (!stageId) return res.status(400).json({ message: "stageId is required" });
     const existing = await pipelineStorage.getOpportunityById(id);
+    if (!existing) return res.status(404).json({ message: "Opportunity not found" });
+    if (isRestricted(req) && existing.assignedTo !== req.authUser!.id) {
+      return res.status(403).json({ message: "Access denied" });
+    }
     const result = await pipelineStorage.moveOpportunity(id, stageId, req.authUser?.id);
     await logAudit({
       userId: req.authUser?.id,
@@ -310,12 +314,19 @@ router.delete("/opportunities/:id", requireRole("admin"), async (req, res) => {
   }
 });
 
-router.get("/opportunities/:id/activities", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
-  const activities = await pipelineStorage.getActivities(req.params.id as string);
+router.get("/opportunities/:id/activities", requireRole("admin", "developer", "sales_rep", "lead_gen"), async (req, res) => {
+  const oppId = req.params.id as string;
+  if (isRestricted(req)) {
+    const opp = await pipelineStorage.getOpportunityById(oppId);
+    if (!opp || opp.assignedTo !== req.authUser!.id) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+  }
+  const activities = await pipelineStorage.getActivities(oppId);
   res.json(activities);
 });
 
-router.put("/opportunities/:id/activities/:activityId", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
+router.put("/opportunities/:id/activities/:activityId", requireRole("admin", "developer", "sales_rep", "lead_gen"), async (req, res) => {
   try {
     const { activityId } = req.params as Record<string, string>;
     const { content } = z.object({ content: z.string().min(1) }).parse(req.body);
@@ -327,11 +338,14 @@ router.put("/opportunities/:id/activities/:activityId", requireRole("admin", "de
   }
 });
 
-router.post("/opportunities/:id/activities", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
+router.post("/opportunities/:id/activities", requireRole("admin", "developer", "sales_rep", "lead_gen"), async (req, res) => {
   try {
     const { id } = req.params as Record<string, string>;
     const existing = await pipelineStorage.getOpportunityById(id);
     if (!existing) return res.status(404).json({ message: "Opportunity not found" });
+    if (isRestricted(req) && existing.assignedTo !== req.authUser!.id) {
+      return res.status(403).json({ message: "Access denied" });
+    }
     const data = insertPipelineActivitySchema.parse({
       ...req.body,
       opportunityId: id,
@@ -361,7 +375,7 @@ const convertLeadSchema = z.object({
   expectedCloseDate: z.string().nullable().optional(),
 }).strict();
 
-router.post("/convert-lead/:leadId", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
+router.post("/convert-lead/:leadId", requireRole("admin", "developer", "sales_rep", "lead_gen"), async (req, res) => {
   try {
     const { leadId } = req.params as Record<string, string>;
     const { stageId, ...extraData } = convertLeadSchema.parse(req.body);
@@ -373,14 +387,23 @@ router.post("/convert-lead/:leadId", requireRole("admin", "developer", "sales_re
 
     const existingOpp = await pipelineStorage.getOpportunityByLeadId(leadId);
     if (existingOpp) {
+      if (isRestricted(req) && existingOpp.assignedTo !== req.authUser!.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
       return res.status(409).json({
         message: "This lead has already been converted to an opportunity",
         opportunityId: existingOpp.id,
       });
     }
 
+    // Restricted roles must remain the owner of converted opportunities.
+    const finalExtraData: Partial<InsertPipelineOpportunity> = extraData as Partial<InsertPipelineOpportunity>;
+    if (isRestricted(req)) {
+      finalExtraData.assignedTo = req.authUser!.id;
+    }
+
     const opportunity = await pipelineStorage.convertLeadToOpportunity(
-      leadId, stageId, req.authUser?.id, extraData as Partial<InsertPipelineOpportunity>
+      leadId, stageId, req.authUser?.id, finalExtraData
     );
 
     await logAudit({
