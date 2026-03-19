@@ -472,10 +472,10 @@ export default function LeadListPage() {
                                 <Phone className="w-3 h-3" /> {lead.contact.phone}
                               </span>
                             )}
-                            {lead.assignedTo && !isRestricted && (
+                            {lead.assignedTo && (
                               <span className="hidden sm:flex items-center gap-1" data-testid={`text-lead-assignee-${lead.id}`}>
                                 <UserCircle className="w-3 h-3" />
-                                {assignableUsers.find(u => u.id === lead.assignedTo)?.name ?? lead.assignedTo}
+                                {assignableUsers.find(u => u.id === lead.assignedTo)?.name ?? (isRestricted ? "You" : lead.assignedTo)}
                               </span>
                             )}
                           </div>

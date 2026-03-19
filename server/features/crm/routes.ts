@@ -82,10 +82,9 @@ const router = Router();
 
 // ── Ownership helpers ────────────────────────────────────────────────────────
 // Roles that are restricted to their own assigned records.
-const RESTRICTED_ROLES = ["sales_rep", "lead_gen"] as const;
-
 function isRestricted(req: express.Request): boolean {
-  return RESTRICTED_ROLES.includes(req.authUser?.role as any);
+  const role = req.authUser?.role;
+  return role === "sales_rep" || role === "lead_gen";
 }
 
 // Returns true if access is allowed, false (+ sends 403) if not.

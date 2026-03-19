@@ -616,8 +616,10 @@ export default function LeadDetailPage({ id }: { id: string }) {
                 ) : (
                   <p className="text-gray-900" data-testid="text-lead-assignee">
                     {(() => {
+                      if (!lead.assignedTo) return "—";
                       const u = assignableUsers.find(u => u.id === lead.assignedTo);
-                      return u ? u.name : lead.assignedTo ? lead.assignedTo : "—";
+                      if (u) return u.name;
+                      return isRestricted ? "You" : lead.assignedTo;
                     })()}
                   </p>
                 )}

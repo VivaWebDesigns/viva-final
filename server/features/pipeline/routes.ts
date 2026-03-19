@@ -39,9 +39,9 @@ const updateOpportunitySchema = z.object({
 const router = Router();
 
 // Roles restricted to their own records only.
-const RESTRICTED_ROLES = ["sales_rep", "lead_gen"] as const;
 function isRestricted(req: { authUser?: { role?: string } }): boolean {
-  return RESTRICTED_ROLES.includes(req.authUser?.role as any);
+  const role = req.authUser?.role;
+  return role === "sales_rep" || role === "lead_gen";
 }
 
 router.get("/stages", requireRole("admin", "developer", "sales_rep"), async (_req, res) => {
@@ -153,6 +153,9 @@ router.get("/opportunities/stats", requireRole("admin", "developer", "sales_rep"
 router.get("/opportunities/by-lead/:leadId", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   const { leadId } = req.params as Record<string, string>;
   const opp = await pipelineStorage.getOpportunityByLeadId(leadId);
+  if (opp && isRestricted(req) && opp.assignedTo !== req.authUser!.id) {
+    return res.status(403).json({ message: "Access denied" });
+  }
   res.json(opp ?? null);
 });
 
