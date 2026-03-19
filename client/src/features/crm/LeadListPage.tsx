@@ -477,7 +477,16 @@ export default function LeadListPage() {
                             {lead.assignedTo && (
                               <span className="hidden sm:flex items-center gap-1" data-testid={`text-lead-assignee-${lead.id}`}>
                                 <UserCircle className="w-3 h-3" />
-                                {assignableUsers.find(u => u.id === lead.assignedTo)?.name ?? (isRestricted ? "You" : lead.assignedTo)}
+                                {(() => {
+                                  const u = assignableUsers.find(u => u.id === lead.assignedTo);
+                                  if (u) {
+                                    const parts = u.name.trim().split(" ");
+                                    return parts.length >= 2
+                                      ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
+                                      : u.name.substring(0, 2).toUpperCase();
+                                  }
+                                  return isRestricted ? "You" : "—";
+                                })()}
                               </span>
                             )}
                           </div>
