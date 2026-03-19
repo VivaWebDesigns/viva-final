@@ -1,0 +1,61 @@
+#18 - Reassignment must sync linked opportunity ownership
+
+What & Why
+After Task #17, lead ownership restrictions are working, but a new
+mismatch exists between CRM lead visibility and Sales Pipeline
+visibility.
+
+Observed behavior:
+- A lead reassigned to a sales rep appears correctly in the CRM
+  lead list for that rep
+- The same user cannot see the linked record in Sales Pipeline
+- This strongly suggests crmLeads.assignedTo is updated, but the
+  linked opportunity.assignedTo is not
+
+This is not a permissions redesign task. Ownership filtering should
+remain intact. The likely issue is data sync between lead ownership
+and opportunity ownership.
+
+Do NOT implement yet. Plan mode only.
+
+Analyze the current system end-to-end.
+
+Focus on:
+- crmLeads.assignedTo as the canonical lead ownership field
+- opportunity assignedTo field
+- relationship between leads and opportunities (leadId or equivalent)
+- bulk assign route (/api/crm/leads/bulk/assign)
+- single lead reassignment path (PUT /api/crm/leads/:id or equivalent)
+- lead detail reassignment flow
+- lead creation route (/api/crm/leads/manual)
+- opportunity creation/inheritance logic
+- pipeline list and board filtering logic
+- whether reassignment currently updates only the lead, or also the
+  linked opportunity/opportunities
+
+Questions to answer:
+1. When a lead is reassigned, does the linked opportunity also get
+   reassigned?
+2. If not, exactly where is that gap occurring?
+3. Is pipeline filtering based solely on opportunity.assignedTo?
+4. Are the missing pipeline records caused by stale or null
+   opportunity ownership?
+5. Can one lead have multiple linked opportunities, and if so how
+   should reassignment behave?
+6. What should be the source of truth for ownership after a lead
+   already has a linked opportunity?
+
+Desired direction:
+- Keep lead ownership as the source of truth
+- Keep existing strict access control from Task #17
+- Do not loosen pipeline filtering
+- Do not create a second ownership system
+- Reassignment of a lead should keep linked opportunity ownership
+  in sync
+
+Output:
+1. Root cause explanation
+2. Exact routes/functions where ownership sync is breaking
+3. Recommended implementation plan
+4. Files that need to change
+5. Any edge cases or risks

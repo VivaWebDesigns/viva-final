@@ -353,3 +353,10 @@ export async function getPipelineStats() {
 
   return { totalOpen, totalValue, byStage };
 }
+
+export async function bulkAssignOpportunitiesByLeadIds(leadIds: string[], assignedTo: string | null): Promise<void> {
+  if (leadIds.length === 0) return;
+  await db.update(pipelineOpportunities)
+    .set({ assignedTo, updatedAt: new Date() })
+    .where(inArray(pipelineOpportunities.leadId, leadIds));
+}

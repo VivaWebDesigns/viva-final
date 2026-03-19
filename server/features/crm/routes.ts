@@ -157,6 +157,7 @@ router.post("/leads/bulk/assign", requireRole("admin", "developer"), async (req,
   try {
     const { ids, assignedTo } = bulkAssignSchema.parse(req.body);
     const count = await crmStorage.bulkAssignLeads(ids, assignedTo);
+    await pipelineStorage.bulkAssignOpportunitiesByLeadIds(ids, assignedTo);
     await logAudit({
       userId: req.authUser?.id,
       action: "bulk_assign",
@@ -479,6 +480,12 @@ router.put("/leads/:id", requireRole("admin", "developer", "sales_rep", "lead_ge
       if (validated.assignedTo) {
         try { notifyLeadAssignment({ id: lead.id, title: lead.title }, validated.assignedTo); } catch (_) {}
       }
+      try {
+        const linkedOpp = await pipelineStorage.getOpportunityByLeadId(id);
+        if (linkedOpp) {
+          await pipelineStorage.updateOpportunity(linkedOpp.id, { assignedTo: validated.assignedTo ?? null });
+        }
+      } catch (_) {}
     }
     res.json(lead);
   } catch (error: any) {

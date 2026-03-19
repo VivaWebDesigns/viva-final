@@ -1,0 +1,48 @@
+Root Cause
+There are two reassignment paths, and neither one syncs the linked opportunity:
+
+Path 1 — Single lead reassignment (PUT /api/crm/leads/:id)
+In server/features/crm/routes.ts (line 477), when assignedTo changes, the route correctly detects the change, logs audit history, and fires a notification — but then calls crmStorage.updateLead() which only writes to crmLeads. It never looks up or updates pipelineOpportunities.assignedTo.
+
+Path 2 — Bulk assign (POST /api/crm/leads/bulk/assign)
+Calls bulkAssignLeads() in server/features/crm/storage.ts (line 321–327), which is a single db.update(crmLeads) call. Opportunities are never touched.
+
+Answers to the Questions
+Q1: When a lead is reassigned, does the linked opportunity also get reassigned?
+No. Both reassignment paths update crmLeads.assignedTo only.
+
+Q2: Where exactly is the gap?
+
+Single reassign: routes.ts line 464 (updateLead) — no follow-up opportunity sync after line 477's change detection
+Bulk reassign: storage.ts line 321 (bulkAssignLeads) — only updates crmLeads
+Q3: Is pipeline filtering based solely on opportunity.assignedTo?
+Yes. server/features/pipeline/storage.ts line 77: eq(pipelineOpportunities.assignedTo, assignedTo) — pipeline list and board both filter exclusively on pipelineOpportunities.assignedTo.
+
+Q4: Are missing pipeline records caused by stale opportunity ownership?
+Yes. When a lead is created and converted, the opportunity inherits lead.assignedTo at creation time (pipeline storage.ts line 216). After that, it's never updated, so it stays pointing at the original owner even after reassignment.
+
+Q5: Can one lead have multiple linked opportunities?
+No. The schema has leadId on pipelineOpportunities with an index, and getOpportunityByLeadId() returns a single result. One-to-one relationship in practice.
+
+Q6: What should be the source of truth?
+crmLeads.assignedTo is the source of truth. Opportunity ownership should always mirror it.
+
+Recommended Implementation Plan
+Two surgical changes — no schema changes, no new tables, no permissions redesign:
+
+Change 1 — server/features/crm/routes.ts (single lead reassign)
+After line 477 detects an assignedTo change, add a lookup for the linked opportunity via getOpportunityByLeadId(id) and if found, call updateOpportunity(opp.id, { assignedTo: validated.assignedTo }). This happens in the same request, no extra endpoints needed.
+
+Change 2 — server/features/crm/routes.ts (bulk assign, lines ~155–165)
+After calling bulkAssignLeads(ids, assignedTo), query pipelineOpportunities where leadId IN (ids) and update their assignedTo in one batch update. This is most cleanly done by adding a bulkAssignOpportunitiesByLeadIds(leadIds, assignedTo) helper in server/features/pipeline/storage.ts.
+
+Files That Need to Change
+File	Change
+server/features/crm/routes.ts	After single-lead assignedTo change detected (line 477), sync linked opportunity. After bulk assign call, sync linked opportunities.
+server/features/pipeline/storage.ts	Add bulkAssignOpportunitiesByLeadIds(leadIds: string[], assignedTo: string | null) for the bulk path.
+Edge Cases / Risks
+Lead with no opportunity yet: getOpportunityByLeadId() returns undefined — sync is a no-op, which is correct. When the opportunity is later created via convertLeadToOpportunity, it already reads the current lead.assignedTo, so it will pick up the correct owner.
+Null assignedTo (unassign): Both paths should handle null — setting opportunity assignedTo = null is valid and consistent with the lead being unassigned.
+Bulk assign with null: Same — unassigning leads should also unassign linked opportunities.
+No risk to permissions logic from Task #17: These changes only write data; they don't alter any read filtering or role checks.
+Ready to create a task for this and build it whenever you are.
