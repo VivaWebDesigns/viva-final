@@ -147,9 +147,36 @@ Returns `{ invalidate, addNote, updateStatus, assignOwner }`.
 - `invalidate()` clears the profile cache **and** the underlying raw-entity caches (CRM leads, pipeline opportunities, etc.) so detail pages stay in sync.
 - Stub mutations are wired to `invalidate` on success; `mutationFn` bodies will be filled in when the corresponding unified-write API routes are built.
 
+#### `ProfileShell` — `client/src/features/profiles/ProfileShell.tsx`
+
+Fully reusable, context-aware profile viewer. Drop it into any page:
+
+```tsx
+<ProfileShell entry={{ type: "company",     id: "..." }} />
+<ProfileShell entry={{ type: "lead",        id: "..." }} />
+<ProfileShell entry={{ type: "opportunity", id: "..." }} />
+```
+
+Tabbed layout: **Overview** (company/contact + sales snapshot) | **Timeline** | **Tasks** | **Files** | **Service** (billing + onboarding)
+
+Named section exports for independent composition in sidebars/drawers:
+
+| Export | Props | Description |
+|---|---|---|
+| `ProfileHeader` | `entry, company, derived` | Name, health badge, owner, context label, location |
+| `CompanyContactCard` | `company, primaryContact, contacts` | Company fields + primary contact |
+| `SalesSnapshotCard` | `entry, sales` | Active opportunity, source lead, counts |
+| `TimelineSection` | `entry` | Calls `useProfileTimeline`; icon-per-type list |
+| `TasksCard` | `work` | Next action highlight + task list with overdue indicators |
+| `FilesCard` | `files` | File list with type icons and download links |
+| `BillingOnboardingCard` | `service` | Stripe status + onboarding records |
+
+Safe fallbacks everywhere: loading skeleton, error state, per-section empty states.
+All interactive/display elements carry `data-testid` attributes.
+
 ### Migration Plan (future phases)
 1. Migrate `/admin/clients/:id` tabs to consume `UnifiedProfileDto` via `useUnifiedProfile`
-2. Migrate opportunity detail sidebar to use `useUnifiedProfile({ type: "opportunity", id })`
+2. Migrate opportunity detail sidebar to use `<ProfileShell entry={{ type: "opportunity", id }}/>`
 3. Implement unified-write API routes so `useProfileMutations` stubs become real
 
 ## File Structure
