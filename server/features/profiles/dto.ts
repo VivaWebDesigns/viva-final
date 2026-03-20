@@ -27,6 +27,8 @@ export interface MappedCompany {
   websiteStatus: string | null;
   carePlanStatus: string | null;
   serviceTier: string | null;
+  notes: string | null;
+  billingNotes: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

@@ -60,6 +60,8 @@ export function mapCompany(row: CrmCompany): MappedCompany {
     websiteStatus: row.websiteStatus ?? null,
     carePlanStatus: row.carePlanStatus ?? null,
     serviceTier: row.serviceTier ?? null,
+    notes: row.notes ?? null,
+    billingNotes: row.billingNotes ?? null,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };

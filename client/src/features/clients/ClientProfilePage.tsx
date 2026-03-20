@@ -31,7 +31,7 @@ import {
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { apiRequest, queryClient, STALE } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAdminLang } from "@/i18n/LanguageContext";
 import { renderTaskTitle } from "@/lib/activityI18n";
@@ -41,6 +41,8 @@ import type {
   PipelineOpportunity, PipelineStage, OnboardingRecord,
   ClientNote, User as DbUser, FollowupTask,
 } from "@shared/schema";
+import { useUnifiedProfile, PROFILE_KEYS } from "@/features/profiles/hooks";
+import type { UnifiedProfileDto } from "@/features/profiles/types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -135,6 +137,75 @@ const taskSchema = z.object({
   dueDate: z.string().min(1, "Due date is required"),
 });
 
+// ─── Profile → ClientProfile adapter ─────────────────────────────────────────
+// Maps UnifiedProfileDto to the shape the existing page UI expects.
+// All date fields are left as strings — every call site already wraps them
+// in `new Date(...)`, so the coercion is transparent.
+
+function adaptToClient(
+  profile: UnifiedProfileDto,
+  recentNotes: (ClientNote & { user?: Pick<DbUser, "id" | "name"> })[],
+): ClientProfile {
+  const co = profile.identity.company;
+  return {
+    // ── CrmCompany scalars ────────────────────────────────────────────────────
+    id: co.id,
+    name: co.name,
+    dba: co.dba,
+    website: co.website,
+    phone: co.phone,
+    email: co.email,
+    address: co.address,
+    city: co.city,
+    state: co.state,
+    zip: co.zip,
+    country: co.country,
+    industry: co.industry,
+    preferredLanguage: co.preferredLanguage,
+    clientStatus: co.clientStatus,
+    accountOwnerId: co.accountOwnerId,
+    // Dates arrive as ISO strings; cast to satisfy the CrmCompany type while
+    // keeping the runtime value as a string (which all formatters accept).
+    nextFollowUpDate: co.nextFollowUpDate as unknown as Date | null,
+    preferredContactMethod: co.preferredContactMethod,
+    launchDate: co.launchDate as unknown as Date | null,
+    renewalDate: co.renewalDate as unknown as Date | null,
+    websiteStatus: co.websiteStatus,
+    carePlanStatus: co.carePlanStatus,
+    serviceTier: co.serviceTier,
+    notes: co.notes,
+    billingNotes: co.billingNotes,
+    createdAt: co.createdAt as unknown as Date,
+    updatedAt: co.updatedAt as unknown as Date,
+
+    // ── ClientProfile additions ───────────────────────────────────────────────
+    contacts: profile.identity.contacts as unknown as ClientProfile["contacts"],
+    leads: profile.sales.leadHistory.map(l => ({
+      ...l,
+      createdAt: l.createdAt as unknown as Date,
+      updatedAt: l.updatedAt as unknown as Date,
+      // status object not in MappedLead; badge falls back gracefully to null
+      status: null,
+    })) as unknown as ClientProfile["leads"],
+    opportunities: profile.sales.opportunities.map(o => ({
+      ...o,
+      createdAt: o.createdAt as unknown as Date,
+      updatedAt: o.updatedAt as unknown as Date,
+      stage: null,
+    })) as unknown as ClientProfile["opportunities"],
+    onboardings: profile.service.onboarding.map(ob => ({
+      ...ob,
+      createdAt: ob.createdAt as unknown as Date,
+      updatedAt: ob.updatedAt as unknown as Date,
+    })) as unknown as ClientProfile["onboardings"],
+    accountOwner: co.accountOwnerId && profile.derived.owner
+      ? { id: co.accountOwnerId, name: profile.derived.owner, email: "" }
+      : null,
+    recentNotes,
+    openTaskCount: profile.work.tasks.filter(t => !t.completed).length,
+  };
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function ClientProfilePage({ id }: { id: string }) {
@@ -148,16 +219,17 @@ export default function ClientProfilePage({ id }: { id: string }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingFile, setUploadingFile] = useState(false);
 
-  const { data: client, isLoading, error } = useQuery<ClientProfile>({
-    queryKey: ["/api/clients", id],
-    staleTime: STALE.FAST,
-  });
+  // ── Primary data: unified profile (replaces /api/clients/:id) ────────────────
+  const profileEntry = { type: "company" as const, id };
+  const { data: profile, isLoading, error } = useUnifiedProfile(profileEntry);
 
+  // ── Notes (still fetched separately — not part of unified profile) ──────────
   const { data: notes = [] } = useQuery<(ClientNote & { user?: { name: string } })[]>({
     queryKey: ["/api/clients", id, "notes"],
     enabled: !!id,
   });
 
+  // ── Tab-gated queries (unchanged — unified profile doesn't carry full details)
   const { data: tasks = [], isLoading: tasksLoading } = useQuery<ClientTask[]>({
     queryKey: ["/api/clients", id, "tasks"],
     enabled: activeTab === "tasks" && !!id,
@@ -177,6 +249,14 @@ export default function ClientProfilePage({ id }: { id: string }) {
     queryKey: ["/api/admin/users"],
   });
 
+  // ─── Helpers ─────────────────────────────────────────────────────────────────
+
+  /** Invalidate both the legacy client key AND the unified profile cache. */
+  function invalidateClient() {
+    queryClient.invalidateQueries({ queryKey: ["/api/clients", id] });
+    queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(profileEntry) });
+  }
+
   // ─── Mutations ───────────────────────────────────────────────────────────────
 
   const updateClientMutation = useMutation({
@@ -184,7 +264,7 @@ export default function ClientProfilePage({ id }: { id: string }) {
       await apiRequest("PATCH", `/api/clients/${id}`, values);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/clients", id] });
+      invalidateClient();
       toast({ title: "Success", description: "Account updated successfully" });
     },
     onError: (err: Error) => {
@@ -207,7 +287,7 @@ export default function ClientProfilePage({ id }: { id: string }) {
       await apiRequest("PATCH", `/api/clients/${id}/account`, payload);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/clients", id] });
+      invalidateClient();
       queryClient.invalidateQueries({ queryKey: ["/api/clients", id, "billing"] });
       toast({ title: "Account health updated" });
     },
@@ -222,7 +302,7 @@ export default function ClientProfilePage({ id }: { id: string }) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/clients", id, "notes"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/clients", id] });
+      invalidateClient();
       toast({ title: "Note added" });
     },
   });
@@ -246,7 +326,7 @@ export default function ClientProfilePage({ id }: { id: string }) {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/clients", id] });
+      invalidateClient();
       setIsContactDialogOpen(false);
       setEditingContact(null);
       toast({ title: editingContact ? "Contact updated" : "Contact added" });
@@ -264,7 +344,7 @@ export default function ClientProfilePage({ id }: { id: string }) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/clients", id, "tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/clients", id] });
+      invalidateClient();
       setIsTaskDialogOpen(false);
       toast({ title: "Task created" });
     },
@@ -279,7 +359,7 @@ export default function ClientProfilePage({ id }: { id: string }) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/clients", id, "tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/clients", id] });
+      invalidateClient();
     },
   });
 
@@ -289,7 +369,7 @@ export default function ClientProfilePage({ id }: { id: string }) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/clients", id, "tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/clients", id] });
+      invalidateClient();
       toast({ title: "Task deleted" });
     },
   });
@@ -300,6 +380,7 @@ export default function ClientProfilePage({ id }: { id: string }) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/clients", id, "files"] });
+      queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(profileEntry) });
       toast({ title: "File deleted" });
     },
   });
@@ -324,6 +405,7 @@ export default function ClientProfilePage({ id }: { id: string }) {
         throw new Error(err.message || "Upload failed");
       }
       queryClient.invalidateQueries({ queryKey: ["/api/clients", id, "files"] });
+      queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(profileEntry) });
       toast({ title: "File uploaded successfully" });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Upload failed", description: err.message });
@@ -342,7 +424,7 @@ export default function ClientProfilePage({ id }: { id: string }) {
     </div>
   );
 
-  if (error || !client) return (
+  if (error || !profile) return (
     <div className="p-8 text-center">
       <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
       <h2 className="text-xl font-bold">Client not found</h2>
@@ -351,6 +433,9 @@ export default function ClientProfilePage({ id }: { id: string }) {
       </Button>
     </div>
   );
+
+  // ─── Adapt profile to legacy ClientProfile shape ───────────────────────────
+  const client = adaptToClient(profile, notes as (ClientNote & { user?: Pick<DbUser, "id" | "name"> })[]);
 
   const statusColors: Record<string, string> = {
     active: "bg-emerald-100 text-emerald-700 border-emerald-200",
@@ -742,7 +827,7 @@ export default function ClientProfilePage({ id }: { id: string }) {
                     size="icon"
                     className="opacity-0 group-hover:opacity-100 transition-opacity"
                     onClick={() => {
-                      setEditingContact(contact);
+                      setEditingContact(contact as unknown as CrmContact);
                       setIsContactDialogOpen(true);
                     }}
                   >
