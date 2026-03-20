@@ -101,12 +101,14 @@ export async function getOpportunitiesByStage(userId?: string) {
         .orderBy(asc(pipelineOpportunities.createdAt))
     : await query;
 
+  const buckets = new Map<string, PipelineOpportunity[]>(stages.map(s => [s.id, []]));
+  for (const opp of allOpps) {
+    if (opp.stageId) buckets.get(opp.stageId)?.push(opp);
+  }
+
   const board: Record<string, { stage: PipelineStage; opportunities: PipelineOpportunity[] }> = {};
   for (const stage of stages) {
-    board[stage.id] = {
-      stage,
-      opportunities: allOpps.filter(o => o.stageId === stage.id),
-    };
+    board[stage.id] = { stage, opportunities: buckets.get(stage.id) ?? [] };
   }
 
   // Enrich board with contact + company snapshots for card display.

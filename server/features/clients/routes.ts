@@ -89,6 +89,29 @@ router.get("/", requireRole("admin", "developer", "sales_rep"), async (req, res)
         )!
       : clientFilter;
 
+    const contactAgg = db.select({
+      companyId: crmContacts.companyId,
+      contactCount: sql<number>`count(*)::int`,
+    }).from(crmContacts).groupBy(crmContacts.companyId).as("contact_agg");
+
+    const leadAgg = db.select({
+      companyId: crmLeads.companyId,
+      leadCount: sql<number>`count(*)::int`,
+    }).from(crmLeads).groupBy(crmLeads.companyId).as("lead_agg");
+
+    const oppAgg = db.select({
+      companyId: pipelineOpportunities.companyId,
+      opportunityCount: sql<number>`count(*)::int`,
+      opportunityValue: sql<number>`coalesce(sum(value::numeric), 0)`,
+    }).from(pipelineOpportunities).groupBy(pipelineOpportunities.companyId).as("opp_agg");
+
+    const onbAgg = db.select({
+      companyId: onboardingRecords.companyId,
+      activeOnboardings: sql<number>`count(*)::int`,
+    }).from(onboardingRecords)
+      .where(sql`${onboardingRecords.status} NOT IN ('completed', 'on_hold')`)
+      .groupBy(onboardingRecords.companyId).as("onb_agg");
+
     const [rows, [{ total }]] = await Promise.all([
       db
         .select({
@@ -103,23 +126,17 @@ router.get("/", requireRole("admin", "developer", "sales_rep"), async (req, res)
           website: crmCompanies.website,
           clientStatus: crmCompanies.clientStatus,
           createdAt: crmCompanies.createdAt,
-          contactCount: sql<number>`(
-            SELECT count(*)::int FROM crm_contacts WHERE company_id = ${crmCompanies.id}
-          )`,
-          leadCount: sql<number>`(
-            SELECT count(*)::int FROM crm_leads WHERE company_id = ${crmCompanies.id}
-          )`,
-          opportunityValue: sql<number>`(
-            SELECT coalesce(sum(value::numeric), 0) FROM pipeline_opportunities WHERE company_id = ${crmCompanies.id}
-          )`,
-          opportunityCount: sql<number>`(
-            SELECT count(*)::int FROM pipeline_opportunities WHERE company_id = ${crmCompanies.id}
-          )`,
-          activeOnboardings: sql<number>`(
-            SELECT count(*)::int FROM onboarding_records WHERE company_id = ${crmCompanies.id} AND status NOT IN ('completed', 'on_hold')
-          )`,
+          contactCount:      sql<number>`coalesce(${contactAgg.contactCount}, 0)`,
+          leadCount:         sql<number>`coalesce(${leadAgg.leadCount}, 0)`,
+          opportunityValue:  sql<number>`coalesce(${oppAgg.opportunityValue}, 0)`,
+          opportunityCount:  sql<number>`coalesce(${oppAgg.opportunityCount}, 0)`,
+          activeOnboardings: sql<number>`coalesce(${onbAgg.activeOnboardings}, 0)`,
         })
         .from(crmCompanies)
+        .leftJoin(contactAgg, eq(crmCompanies.id, contactAgg.companyId))
+        .leftJoin(leadAgg,    eq(crmCompanies.id, leadAgg.companyId))
+        .leftJoin(oppAgg,     eq(crmCompanies.id, oppAgg.companyId))
+        .leftJoin(onbAgg,     eq(crmCompanies.id, onbAgg.companyId))
         .$dynamic()
         .where(whereClause)
         .orderBy(desc(crmCompanies.createdAt))

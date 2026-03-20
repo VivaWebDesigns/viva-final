@@ -59,6 +59,7 @@ export function useUnifiedProfile(
   return useQuery<UnifiedProfileDto>({
     queryKey: PROFILE_KEYS.detail(entry),
     staleTime: STALE.REALTIME,
+    refetchOnWindowFocus: true,
     enabled: enabled !== undefined ? enabled : Boolean(entry.id),
   });
 }
@@ -82,6 +83,7 @@ export function useProfileTimeline(
   return useQuery<UnifiedProfileDto, Error, UnifiedTimelineEvent[]>({
     queryKey: PROFILE_KEYS.detail(entry),
     staleTime: STALE.REALTIME,
+    refetchOnWindowFocus: true,
     enabled: enabled !== undefined ? enabled : Boolean(entry.id),
     select: (profile) => profile.timeline.events,
   });

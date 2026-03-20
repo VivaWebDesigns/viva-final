@@ -29,6 +29,12 @@ All admin UI is bilingual EN/ES. `client/src/i18n/LanguageContext.tsx` exports `
 - **Mutations**: `apiRequest` from `@/lib/queryClient`; always invalidate relevant query keys after
 - **Forms**: `useForm` + `zodResolver` + shadcn `Form` components; always provide `defaultValues`
 - **data-testid**: Every interactive and meaningful display element must have a descriptive `data-testid`
+- **Search debounce**: `useDebounce` hook at `client/src/hooks/use-debounce.ts` (300ms) — used in LeadListPage, PipelineListPage, OnboardingListPage, ClientsPage. Input state is `rawSearch`; debounced `search` drives the query key.
+
+## Performance Notes
+- **`/api/clients` aggregates**: Replaced 5 correlated subqueries with 4 grouped LEFT JOINs (`contact_agg`, `lead_agg`, `opp_agg`, `onb_agg`). Drizzle subquery aliases pattern: `db.select({...}).from(table).groupBy(...).as("alias")`.
+- **Pipeline board grouping**: `getOpportunitiesByStage()` uses a single-pass `Map` to group opportunities by stageId instead of `Array.filter` inside a `for` loop.
+- **Profile freshness**: `useUnifiedProfile` + `useProfileTimeline` have `refetchOnWindowFocus: true` so detail views refresh when the user returns to a tab.
 
 ## Database — Seed Strategy
 **On startup** (auto, idempotent): users (admin/dev/sales), pipeline stages, CRM lead statuses, onboarding templates, integration configs, doc categories.

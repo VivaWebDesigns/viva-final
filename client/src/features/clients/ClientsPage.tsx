@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useDebounce } from "@/hooks/use-debounce";
 import { useQuery } from "@tanstack/react-query";
 import { STALE } from "@/lib/queryClient";
 import { Link } from "wouter";
@@ -34,7 +35,8 @@ interface ClientsResponse {
 
 export default function ClientsPage() {
   const { t } = useAdminLang();
-  const [search, setSearch] = useState("");
+  const [rawSearch, setRawSearch] = useState("");
+  const search = useDebounce(rawSearch, 300);
 
   const { data, isLoading } = useQuery<ClientsResponse>({
     queryKey: [`/api/clients?search=${encodeURIComponent(search)}&limit=50`],
@@ -60,8 +62,8 @@ export default function ClientsPage() {
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <Input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
+            value={rawSearch}
+            onChange={e => setRawSearch(e.target.value)}
             placeholder={t.clients.searchPlaceholder}
             className="pl-10 bg-white"
             data-testid="input-client-search"

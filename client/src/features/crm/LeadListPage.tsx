@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useDebounce } from "@/hooks/use-debounce";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { STALE, queryClient, apiRequest } from "@/lib/queryClient";
 import { useLocation } from "wouter";
@@ -56,10 +57,12 @@ export default function LeadListPage() {
   const isAdmin = role === "admin";
   const isRestricted = role === "sales_rep" || role === "lead_gen";
 
-  const [search, setSearch] = useState("");
+  const [rawSearch, setRawSearch] = useState("");
+  const search = useDebounce(rawSearch, 300);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [page, setPage] = useState(1);
+  useEffect(() => { setPage(1); }, [search]);
   const pageSize = 20;
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -266,8 +269,8 @@ export default function LeadListPage() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <Input
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              value={rawSearch}
+              onChange={(e) => setRawSearch(e.target.value)}
               placeholder={t.crm.searchPlaceholder}
               className="pl-10"
               data-testid="input-search-leads"

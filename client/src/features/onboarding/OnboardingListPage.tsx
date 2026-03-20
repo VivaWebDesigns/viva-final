@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useDebounce } from "@/hooks/use-debounce";
 import { useQuery } from "@tanstack/react-query";
 import { STALE } from "@/lib/queryClient";
 import { Link } from "wouter";
@@ -17,9 +18,11 @@ import { useAdminLang } from "@/i18n/LanguageContext";
 
 export default function OnboardingListPage() {
   const { t } = useAdminLang();
-  const [search, setSearch] = useState("");
+  const [rawSearch, setRawSearch] = useState("");
+  const search = useDebounce(rawSearch, 300);
   const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage] = useState(1);
+  useEffect(() => { setPage(1); }, [search]);
 
   const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof CheckCircle2 }> = {
     pending: { label: t.onboarding.status.pending, color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200", icon: Clock },
@@ -98,8 +101,8 @@ export default function OnboardingListPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder={t.onboarding.searchPlaceholder}
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            value={rawSearch}
+            onChange={(e) => setRawSearch(e.target.value)}
             className="pl-10"
             data-testid="input-search-onboarding"
           />

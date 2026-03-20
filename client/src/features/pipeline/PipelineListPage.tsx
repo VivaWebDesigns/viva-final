@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useDebounce } from "@/hooks/use-debounce";
 import { useQuery } from "@tanstack/react-query";
 import { STALE } from "@/lib/queryClient";
 import { Link } from "wouter";
@@ -15,10 +16,12 @@ import { useAdminLang } from "@/i18n/LanguageContext";
 
 export default function PipelineListPage() {
   const { t } = useAdminLang();
-  const [search, setSearch] = useState("");
+  const [rawSearch, setRawSearch] = useState("");
+  const search = useDebounce(rawSearch, 300);
   const [stageFilter, setStageFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
+  useEffect(() => { setPage(1); }, [search]);
 
   const params = new URLSearchParams();
   if (search) params.set("search", search);
@@ -64,8 +67,8 @@ export default function PipelineListPage() {
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <Input
             placeholder="Search opportunities..."
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            value={rawSearch}
+            onChange={(e) => setRawSearch(e.target.value)}
             className="pl-9"
             data-testid="input-search-opportunities"
           />
