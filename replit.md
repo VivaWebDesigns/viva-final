@@ -77,6 +77,40 @@ Socket.io on same HTTP server (single port). Channels: `general`, `sales`, `onbo
 | `/admin/demo-builder` | Demo site generator |
 | `/demo/*` | Public demo sites (empieza/crece/domina templates) |
 
+## Unified Profile Architecture
+
+`server/features/profiles/` is a cross-domain service layer that assembles a canonical view of a client account from all related entities. It is additive and non-destructive — existing routes, storage, and UI are unchanged.
+
+### Files
+| File | Purpose |
+|---|---|
+| `types.ts` | `ProfileContextType`, `ProfileHealth`, `TimelineEventType`, `ResolvedIdentity`, `BillingSummary` |
+| `dto.ts` | `UnifiedProfileDto`, `UnifiedTimelineEvent` — the canonical output shape |
+| `relationships.ts` | Identity resolution: given a companyId/leadId/opportunityId, resolves all linked entity IDs |
+| `mappers.ts` | Pure functions: `deriveHealth`, `resolveValue`, `resolvePrimaryContact`, `resolveNextAction`, `resolveLastActivityAt`, timeline event mappers |
+| `service.ts` | `getProfileByCompanyId`, `getProfileByLeadId`, `getProfileByOpportunityId` |
+| `index.ts` | Public re-exports |
+
+### Domain Relationships
+- `crmCompanies` is the identity hub. All other entities resolve to a company.
+- `crmContacts` → `crmCompanies` (via `companyId`); `isPrimary` flag identifies the primary contact
+- `crmLeads` → `crmCompanies` + `crmContacts` (via `companyId`, `contactId`)
+- `pipelineOpportunities` → `crmLeads` (via `leadId`); 1-to-1 in practice
+- `onboardingRecords` → `pipelineOpportunities` + `crmCompanies` (via `opportunityId`, `companyId`)
+- `followupTasks` → all four domains (polymorphic: `leadId`, `opportunityId`, `contactId`, `companyId`)
+- `attachments` / `stripeCustomers` → polymorphic via `entityType` + `entityId`
+
+### Health Derivation
+`deriveHealth(lastActivityAt)` → healthy (<14 days), at_risk (14–30 days), stale (>30 days), unknown (no activity)
+
+### Tests
+`tests/unit/profiles-mappers.test.ts` — 24 unit tests for all pure mapper functions (no DB dependency)
+
+### Migration Plan (future phases)
+1. Add a `GET /api/profiles/:companyId` route (thin — calls `getProfileByCompanyId` only)
+2. Migrate `/admin/clients/:id` tabs to consume `UnifiedProfileDto` instead of ad-hoc queries
+3. Migrate opportunity detail sidebar to use `getProfileByOpportunityId`
+
 ## File Structure
 ```
 client/src/
@@ -86,6 +120,7 @@ client/src/
   pages/             # Top-level page wrappers + App.tsx routing
 server/
   features/          # API routes + storage per feature
+  features/profiles/ # Unified Profile domain — cross-domain composition layer
   features/index.ts  # All route mounting + /admin/seed endpoint
   index.ts           # Server startup + seed auto-runs
 shared/

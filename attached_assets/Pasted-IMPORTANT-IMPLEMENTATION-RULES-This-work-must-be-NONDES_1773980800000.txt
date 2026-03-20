@@ -1,0 +1,140 @@
+IMPORTANT IMPLEMENTATION RULES
+
+- This work must be NONDESTRUCTIVE.
+- DO NOT break or remove existing routes, pages, or APIs.
+- All new architecture must be additive and backward compatible.
+- DO NOT modify database schema in this phase.
+- Route files MUST remain thin (validation + service call only).
+- ALL cross-domain composition must live in a dedicated service layer.
+- DO NOT duplicate logic across routes or frontend.
+- Strict TypeScript — no “any”.
+- Add tests for service logic.
+- Update App Docs (mandatory).
+- App must compile and function after completion.
+
+--------------------------------------------------------------------------------
+
+OBJECTIVE
+
+Introduce a canonical “Unified Profile” architecture to eliminate:
+- fragmented data assembly
+- inconsistent UI representations
+- duplicated composition logic
+
+--------------------------------------------------------------------------------
+
+STEP 1 — DOMAIN AUDIT
+
+Analyze relationships between:
+- crm_companies
+- crm_contacts
+- crm_leads
+- pipeline_opportunities
+- followup_tasks
+- crm_lead_notes
+- client_notes
+- pipeline_activities
+- onboarding
+- billing/files
+
+Output:
+- relationship map
+- identity resolution rules
+- duplication points
+
+--------------------------------------------------------------------------------
+
+STEP 2 — CREATE PROFILE DOMAIN
+
+Create:
+
+server/features/profiles/
+
+Files:
+- service.ts
+- dto.ts
+- types.ts
+- mappers.ts
+- relationships.ts
+- index.ts
+
+--------------------------------------------------------------------------------
+
+STEP 3 — DEFINE DTO
+
+UnifiedProfileDto:
+
+identity:
+- company
+- primaryContact
+- contacts[]
+
+sales:
+- sourceLead
+- leadHistory[]
+- activeOpportunity
+- opportunities[]
+
+work:
+- tasks[]
+- nextAction
+
+timeline:
+- events[]
+
+service:
+- onboarding[]
+- billingSummary
+- files[]
+
+derived:
+- owner
+- status
+- health
+- stage
+- value
+- lastActivityAt
+
+Also define:
+- UnifiedTimelineEvent
+- ProfileContextType
+
+--------------------------------------------------------------------------------
+
+STEP 4 — RELATIONSHIP LAYER
+
+Centralize entity resolution:
+- lead → company/contact/opportunity
+- opportunity → company/contact/lead
+- company → contacts/leads/opportunities
+
+NO duplication elsewhere.
+
+--------------------------------------------------------------------------------
+
+STEP 5 — SERVICE SKELETON
+
+Create:
+- getProfileByCompanyId
+- getProfileByLeadId
+- getProfileByOpportunityId
+
+Stub logic only.
+
+--------------------------------------------------------------------------------
+
+STEP 6 — APP DOCS
+
+Document:
+- architecture
+- DTO
+- migration plan
+
+--------------------------------------------------------------------------------
+
+ACCEPTANCE
+
+- Clean domain scaffold
+- DTO complete
+- No UI changes
+- App builds
