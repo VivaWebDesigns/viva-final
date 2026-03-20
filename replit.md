@@ -106,11 +106,22 @@ Socket.io on same HTTP server (single port). Channels: `general`, `sales`, `onbo
 ### Tests
 `tests/unit/profiles-mappers.test.ts` — 38 unit tests covering all mapper functions and derived-value helpers (no DB dependency)
 `tests/unit/profiles-service.test.ts` — 12 tests covering all three entry paths, error cases, and DTO invariants (runs against live seeded DB)
+`tests/integration/profiles-routes.test.ts` — 22 integration tests covering auth enforcement, UUID validation, role-based access control (restricted vs unrestricted roles), 404 propagation, and DTO shape consistency across all three entry points
+
+### REST Endpoints
+All mounted at `/api/profiles/` via `server/features/profiles/routes.ts` → `server/features/index.ts`.
+
+| Method | Path | Auth |
+|---|---|---|
+| GET | `/api/profiles/company/:id` | `admin`, `developer` = unrestricted; `sales_rep`, `lead_gen` = must own a lead assigned to the company |
+| GET | `/api/profiles/lead/:id` | `admin`, `developer` = unrestricted; `sales_rep`, `lead_gen` = must own the lead (`assignedTo = userId`) |
+| GET | `/api/profiles/opportunity/:id` | `admin`, `developer` = unrestricted; `sales_rep`, `lead_gen` = must own the opportunity (`assignedTo = userId`) |
+
+All routes validate `:id` is a valid UUID (400 on bad format), return 403 on access denial, 404 when the entity doesn't exist, and always return `UnifiedProfileDto`.
 
 ### Migration Plan (future phases)
-1. Add a `GET /api/profiles/:companyId` route (thin — calls `getProfileByCompanyId` only)
-2. Migrate `/admin/clients/:id` tabs to consume `UnifiedProfileDto` instead of ad-hoc queries
-3. Migrate opportunity detail sidebar to use `getProfileByOpportunityId`
+1. Migrate `/admin/clients/:id` tabs to consume `UnifiedProfileDto` instead of ad-hoc queries
+2. Migrate opportunity detail sidebar to use `getProfileByOpportunityId`
 
 ## File Structure
 ```
