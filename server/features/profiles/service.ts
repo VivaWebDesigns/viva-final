@@ -18,6 +18,13 @@ import {
   resolveByOpportunityId,
 } from "./relationships";
 import {
+  mapCompany,
+  mapContact,
+  mapLead,
+  mapOpportunity,
+  mapTask,
+  mapOnboarding,
+  mapFile,
   deriveHealth,
   resolveValue,
   resolvePrimaryContact,
@@ -30,43 +37,50 @@ import type { UnifiedProfileDto } from "./dto";
 import type { BillingSummary } from "./types";
 
 async function assembleProfile(companyId: string): Promise<UnifiedProfileDto> {
-  const [company] = await db
+  const [companyRow] = await db
     .select()
     .from(crmCompanies)
     .where(eq(crmCompanies.id, companyId));
 
-  if (!company) throw new Error(`Company not found: ${companyId}`);
+  if (!companyRow) throw new Error(`Company not found: ${companyId}`);
 
-  const [contacts, leads, opportunities, onboarding, tasks, stripeRows, files] =
-    await Promise.all([
-      db.select().from(crmContacts).where(eq(crmContacts.companyId, companyId)),
-      db.select().from(crmLeads).where(eq(crmLeads.companyId, companyId)),
-      db
-        .select()
-        .from(pipelineOpportunities)
-        .where(eq(pipelineOpportunities.companyId, companyId)),
-      db
-        .select()
-        .from(onboardingRecords)
-        .where(eq(onboardingRecords.companyId, companyId)),
-      db
-        .select()
-        .from(followupTasks)
-        .where(eq(followupTasks.companyId, companyId)),
-      db
-        .select()
-        .from(stripeCustomers)
-        .where(eq(stripeCustomers.entityId, companyId)),
-      db
-        .select()
-        .from(attachments)
-        .where(eq(attachments.entityId, companyId)),
-    ]);
+  const [
+    contactRows,
+    leadRows,
+    opportunityRows,
+    onboardingRows,
+    taskRows,
+    stripeRows,
+    fileRows,
+  ] = await Promise.all([
+    db.select().from(crmContacts).where(eq(crmContacts.companyId, companyId)),
+    db.select().from(crmLeads).where(eq(crmLeads.companyId, companyId)),
+    db
+      .select()
+      .from(pipelineOpportunities)
+      .where(eq(pipelineOpportunities.companyId, companyId)),
+    db
+      .select()
+      .from(onboardingRecords)
+      .where(eq(onboardingRecords.companyId, companyId)),
+    db
+      .select()
+      .from(followupTasks)
+      .where(eq(followupTasks.companyId, companyId)),
+    db
+      .select()
+      .from(stripeCustomers)
+      .where(eq(stripeCustomers.entityId, companyId)),
+    db
+      .select()
+      .from(attachments)
+      .where(eq(attachments.entityId, companyId)),
+  ]);
 
-  const leadIds = leads.map((l) => l.id);
-  const oppIds = opportunities.map((o) => o.id);
+  const leadIds = leadRows.map((l) => l.id);
+  const oppIds = opportunityRows.map((o) => o.id);
 
-  const [leadNotes, pipelineActs] = await Promise.all([
+  const [leadNoteRows, pipelineActivityRows] = await Promise.all([
     leadIds.length > 0
       ? db.select().from(crmLeadNotes).where(inArray(crmLeadNotes.leadId, leadIds))
       : Promise.resolve([]),
@@ -78,20 +92,30 @@ async function assembleProfile(companyId: string): Promise<UnifiedProfileDto> {
       : Promise.resolve([]),
   ]);
 
+  // ── Map all DB rows through mappers ───────────────────────────────────────
+  const company = mapCompany(companyRow);
+  const contacts = contactRows.map(mapContact);
+  const leads = leadRows.map(mapLead);
+  const opportunities = opportunityRows.map(mapOpportunity);
+  const tasks = taskRows.map(mapTask);
+  const onboarding = onboardingRows.map(mapOnboarding);
+  const files = fileRows.map(mapFile);
+
+  // ── Derive values ─────────────────────────────────────────────────────────
   const activeOpportunity = opportunities.find((o) => o.status === "open") ?? null;
   const sourceLead = leads[0] ?? null;
 
   const primaryContact = resolvePrimaryContact(contacts);
   const nextAction = resolveNextAction(tasks);
-  const lastActivityAt = resolveLastActivityAt(leadNotes, pipelineActs);
+  const lastActivityAt = resolveLastActivityAt(leadNoteRows, pipelineActivityRows);
 
   const timelineEvents = [
-    ...leadNotes.map(mapLeadNoteToTimelineEvent),
-    ...pipelineActs.map(mapPipelineActivityToTimelineEvent),
+    ...leadNoteRows.map(mapLeadNoteToTimelineEvent),
+    ...pipelineActivityRows.map(mapPipelineActivityToTimelineEvent),
   ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
   const stripeRow = stripeRows[0] ?? null;
-  const billingSummary: BillingSummary | null = stripeRow
+  const billingSummary: BillingSummary = stripeRow
     ? { stripeCustomerId: stripeRow.stripeCustomerId, hasStripe: true }
     : { stripeCustomerId: null, hasStripe: false };
 

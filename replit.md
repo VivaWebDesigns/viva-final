@@ -87,7 +87,7 @@ Socket.io on same HTTP server (single port). Channels: `general`, `sales`, `onbo
 | `types.ts` | `ProfileContextType`, `ProfileHealth`, `TimelineEventType`, `ResolvedIdentity`, `BillingSummary` |
 | `dto.ts` | `UnifiedProfileDto`, `UnifiedTimelineEvent` — the canonical output shape |
 | `relationships.ts` | Identity resolution: given a companyId/leadId/opportunityId, resolves all linked entity IDs |
-| `mappers.ts` | Pure functions: `deriveHealth`, `resolveValue`, `resolvePrimaryContact`, `resolveNextAction`, `resolveLastActivityAt`, timeline event mappers |
+| `mappers.ts` | Entity mappers (`mapCompany`, `mapContact`, `mapLead`, `mapOpportunity`, `mapTask`, `mapOnboarding`, `mapFile`) + derived-value helpers (`deriveHealth`, `resolveValue`, `resolvePrimaryContact`, `resolveNextAction`, `resolveLastActivityAt`) + timeline event mappers |
 | `service.ts` | `getProfileByCompanyId`, `getProfileByLeadId`, `getProfileByOpportunityId` |
 | `index.ts` | Public re-exports |
 
@@ -104,7 +104,8 @@ Socket.io on same HTTP server (single port). Channels: `general`, `sales`, `onbo
 `deriveHealth(lastActivityAt)` → healthy (<14 days), at_risk (14–30 days), stale (>30 days), unknown (no activity)
 
 ### Tests
-`tests/unit/profiles-mappers.test.ts` — 24 unit tests for all pure mapper functions (no DB dependency)
+`tests/unit/profiles-mappers.test.ts` — 38 unit tests covering all mapper functions and derived-value helpers (no DB dependency)
+`tests/unit/profiles-service.test.ts` — 12 tests covering all three entry paths, error cases, and DTO invariants (runs against live seeded DB)
 
 ### Migration Plan (future phases)
 1. Add a `GET /api/profiles/:companyId` route (thin — calls `getProfileByCompanyId` only)

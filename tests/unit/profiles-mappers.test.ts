@@ -5,12 +5,20 @@ import {
   resolvePrimaryContact,
   resolveNextAction,
   resolveLastActivityAt,
+  mapCompany,
+  mapContact,
+  mapLead,
+  mapOpportunity,
+  mapTask,
+  mapOnboarding,
+  mapFile,
   mapLeadNoteToTimelineEvent,
   mapPipelineActivityToTimelineEvent,
 } from "../../server/features/profiles/mappers";
-import type { CrmContact, PipelineOpportunity, FollowupTask, CrmLeadNote, PipelineActivity } from "../../shared/schema";
+import type { MappedContact, MappedOpportunity, MappedTask } from "../../server/features/profiles/dto";
+import type { CrmLeadNote, PipelineActivity } from "../../shared/schema";
 
-// ── deriveHealth ──────────────────────────────────────────────────────
+// ── deriveHealth ──────────────────────────────────────────────────────────────
 
 describe("deriveHealth", () => {
   it("returns 'unknown' when lastActivityAt is null", () => {
@@ -37,10 +45,16 @@ describe("deriveHealth", () => {
   });
 });
 
-// ── resolveValue ──────────────────────────────────────────────────────
+// ── resolveValue ──────────────────────────────────────────────────────────────
 
-const makeOpp = (status: "open" | "won" | "lost", value: string | null): PipelineOpportunity =>
-  ({ id: "o1", title: "T", status, value } as unknown as PipelineOpportunity);
+const makeOpp = (status: "open" | "won" | "lost", value: string | null): MappedOpportunity =>
+  ({
+    id: "o1", title: "T", status, value,
+    websitePackage: null, stageId: null, leadId: null, companyId: null,
+    contactId: null, assignedTo: null, expectedCloseDate: null,
+    nextActionDate: null, followUpDate: null, stageEnteredAt: null,
+    sourceLeadTitle: null, createdAt: new Date(), updatedAt: new Date(),
+  });
 
 describe("resolveValue", () => {
   it("returns null for empty list", () => {
@@ -64,10 +78,15 @@ describe("resolveValue", () => {
   });
 });
 
-// ── resolvePrimaryContact ─────────────────────────────────────────────
+// ── resolvePrimaryContact ─────────────────────────────────────────────────────
 
-const makeContact = (id: string, isPrimary: boolean): CrmContact =>
-  ({ id, isPrimary, firstName: "A", lastName: "B" } as unknown as CrmContact);
+const makeContact = (id: string, isPrimary: boolean): MappedContact =>
+  ({
+    id, isPrimary, firstName: "A", lastName: "B",
+    companyId: null, email: null, phone: null, altPhone: null,
+    title: null, preferredLanguage: null,
+    createdAt: new Date(), updatedAt: new Date(),
+  });
 
 describe("resolvePrimaryContact", () => {
   it("returns null for empty list", () => {
@@ -85,15 +104,16 @@ describe("resolvePrimaryContact", () => {
   });
 });
 
-// ── resolveNextAction ─────────────────────────────────────────────────
+// ── resolveNextAction ─────────────────────────────────────────────────────────
 
-const makeTask = (id: string, completed: boolean, daysFromNow: number): FollowupTask =>
+const makeTask = (id: string, completed: boolean, daysFromNow: number): MappedTask =>
   ({
-    id,
-    completed,
+    id, completed,
     dueDate: new Date(Date.now() + daysFromNow * 86400000),
-    title: "T",
-  } as unknown as FollowupTask);
+    title: "T", notes: null, taskType: null, completedAt: null,
+    assignedTo: null, opportunityId: null, leadId: null,
+    contactId: null, companyId: null, createdBy: null, createdAt: new Date(),
+  });
 
 describe("resolveNextAction", () => {
   it("returns null when no tasks", () => {
@@ -115,7 +135,7 @@ describe("resolveNextAction", () => {
   });
 });
 
-// ── resolveLastActivityAt ─────────────────────────────────────────────
+// ── resolveLastActivityAt ─────────────────────────────────────────────────────
 
 const makeNote = (createdAt: Date): CrmLeadNote =>
   ({ id: "n1", leadId: "l1", type: "note", content: "", userId: null, createdAt, metadata: null } as unknown as CrmLeadNote);
@@ -141,7 +161,122 @@ describe("resolveLastActivityAt", () => {
   });
 });
 
-// ── mapLeadNoteToTimelineEvent ────────────────────────────────────────
+// ── Entity mappers ────────────────────────────────────────────────────────────
+
+describe("mapCompany", () => {
+  it("maps all required fields", () => {
+    const row = {
+      id: "c1", name: "Acme", dba: null, website: null, phone: null,
+      email: null, address: null, city: null, state: null, zip: null,
+      country: "US", industry: null, preferredLanguage: "es", notes: null,
+      clientStatus: null, accountOwnerId: null, nextFollowUpDate: null,
+      preferredContactMethod: null, launchDate: null, renewalDate: null,
+      websiteStatus: null, carePlanStatus: null, serviceTier: null,
+      billingNotes: null,
+      createdAt: new Date(), updatedAt: new Date(),
+    } as unknown as Parameters<typeof mapCompany>[0];
+    const mapped = mapCompany(row);
+    expect(mapped.id).toBe("c1");
+    expect(mapped.name).toBe("Acme");
+    expect(mapped.preferredLanguage).toBe("es");
+  });
+});
+
+describe("mapContact", () => {
+  it("maps all required fields including isPrimary", () => {
+    const row = {
+      id: "ct1", companyId: "c1", firstName: "Jane", lastName: "Doe",
+      email: "jane@example.com", phone: null, altPhone: null, title: null,
+      preferredLanguage: "en", isPrimary: true,
+      createdAt: new Date(), updatedAt: new Date(),
+    } as unknown as Parameters<typeof mapContact>[0];
+    const mapped = mapContact(row);
+    expect(mapped.id).toBe("ct1");
+    expect(mapped.isPrimary).toBe(true);
+    expect(mapped.email).toBe("jane@example.com");
+  });
+});
+
+describe("mapLead", () => {
+  it("maps all required fields", () => {
+    const row = {
+      id: "l1", title: "Lead A", companyId: "c1", contactId: null,
+      statusId: null, value: "5000", source: "website", sourceLabel: null,
+      utmSource: null, utmMedium: null, utmCampaign: null, utmTerm: null,
+      utmContent: null, referrer: null, landingPage: null, formPageUrl: null,
+      fromWebsiteForm: false, assignedTo: null, notes: null,
+      city: null, state: null, timezone: null,
+      createdAt: new Date(), updatedAt: new Date(),
+    } as unknown as Parameters<typeof mapLead>[0];
+    const mapped = mapLead(row);
+    expect(mapped.id).toBe("l1");
+    expect(mapped.value).toBe("5000");
+    expect(mapped.fromWebsiteForm).toBe(false);
+  });
+});
+
+describe("mapOpportunity", () => {
+  it("maps status and value correctly", () => {
+    const row = {
+      id: "o1", title: "Opp A", value: "12000", websitePackage: "domina",
+      stageId: "s1", leadId: "l1", companyId: "c1", contactId: null,
+      assignedTo: null, status: "open", expectedCloseDate: null,
+      nextActionDate: null, followUpDate: null, stageEnteredAt: null,
+      probability: 0, sourceLeadTitle: null, notes: null,
+      createdAt: new Date(), updatedAt: new Date(),
+    } as unknown as Parameters<typeof mapOpportunity>[0];
+    const mapped = mapOpportunity(row);
+    expect(mapped.status).toBe("open");
+    expect(mapped.value).toBe("12000");
+    expect(mapped.websitePackage).toBe("domina");
+  });
+});
+
+describe("mapTask", () => {
+  it("maps completed and dueDate correctly", () => {
+    const due = new Date(Date.now() + 86400000);
+    const row = {
+      id: "t1", title: "Follow up", notes: null, taskType: "follow_up",
+      dueDate: due, completed: false, completedAt: null, assignedTo: null,
+      opportunityId: "o1", leadId: null, contactId: null, companyId: null,
+      createdBy: null, createdAt: new Date(), followUpTime: null,
+      followUpTimezone: null, outcome: null, completionNote: null,
+    } as unknown as Parameters<typeof mapTask>[0];
+    const mapped = mapTask(row);
+    expect(mapped.completed).toBe(false);
+    expect(mapped.dueDate.getTime()).toBe(due.getTime());
+  });
+});
+
+describe("mapOnboarding", () => {
+  it("maps status and client name", () => {
+    const row = {
+      id: "ob1", clientName: "Acme Corp", status: "in_progress",
+      opportunityId: "o1", companyId: "c1", contactId: null, assignedTo: null,
+      templateId: null, kickoffDate: null, dueDate: null, completedAt: null,
+      notes: null, createdAt: new Date(), updatedAt: new Date(),
+    } as unknown as Parameters<typeof mapOnboarding>[0];
+    const mapped = mapOnboarding(row);
+    expect(mapped.clientName).toBe("Acme Corp");
+    expect(mapped.status).toBe("in_progress");
+  });
+});
+
+describe("mapFile", () => {
+  it("maps url and mimeType", () => {
+    const row = {
+      id: "f1", key: "uploads/f1.pdf", url: "https://cdn/f1.pdf",
+      originalName: "contract.pdf", mimeType: "application/pdf",
+      sizeBytes: 12345, uploaderUserId: null, entityType: "company",
+      entityId: "c1", createdAt: new Date(),
+    } as unknown as Parameters<typeof mapFile>[0];
+    const mapped = mapFile(row);
+    expect(mapped.url).toBe("https://cdn/f1.pdf");
+    expect(mapped.mimeType).toBe("application/pdf");
+  });
+});
+
+// ── Timeline event mappers ────────────────────────────────────────────────────
 
 describe("mapLeadNoteToTimelineEvent", () => {
   it("maps a lead note to a timeline event with entityType=lead", () => {
@@ -158,8 +293,6 @@ describe("mapLeadNoteToTimelineEvent", () => {
     expect(event.metadata).toEqual({ foo: "bar" });
   });
 });
-
-// ── mapPipelineActivityToTimelineEvent ────────────────────────────────
 
 describe("mapPipelineActivityToTimelineEvent", () => {
   it("maps a pipeline activity to a timeline event with entityType=opportunity", () => {

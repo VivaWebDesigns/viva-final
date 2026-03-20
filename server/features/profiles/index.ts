@@ -1,4 +1,14 @@
-export type { UnifiedProfileDto, UnifiedTimelineEvent } from "./dto";
+export type {
+  UnifiedProfileDto,
+  UnifiedTimelineEvent,
+  MappedCompany,
+  MappedContact,
+  MappedLead,
+  MappedOpportunity,
+  MappedTask,
+  MappedOnboarding,
+  MappedFile,
+} from "./dto";
 export type {
   ProfileContextType,
   ProfileHealth,
@@ -17,6 +27,13 @@ export {
   resolveByOpportunityId,
 } from "./relationships";
 export {
+  mapCompany,
+  mapContact,
+  mapLead,
+  mapOpportunity,
+  mapTask,
+  mapOnboarding,
+  mapFile,
   deriveHealth,
   resolveValue,
   resolvePrimaryContact,
