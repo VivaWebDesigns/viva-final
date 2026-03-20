@@ -13,6 +13,7 @@ export type {
   ProfileContextType,
   ProfileHealth,
   TimelineEventType,
+  TimelineEventSource,
   ResolvedIdentity,
   BillingSummary,
 } from "./types";
@@ -40,5 +41,6 @@ export {
   resolveNextAction,
   resolveLastActivityAt,
   mapLeadNoteToTimelineEvent,
+  mapClientNoteToTimelineEvent,
   mapPipelineActivityToTimelineEvent,
 } from "./mappers";

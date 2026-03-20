@@ -30,6 +30,7 @@ import type {
   ProfileEntry,
   ProfileHealth,
   TimelineEventType,
+  TimelineEventSource,
   MappedCompany,
   MappedContact,
   MappedLead,
@@ -77,6 +78,12 @@ const TIMELINE_ICON: Record<TimelineEventType, typeof MessageSquare> = {
   status_change:  RefreshCw,
   stage_change:   ArrowRight,
   system:         Info,
+};
+
+const SOURCE_LABEL: Record<TimelineEventSource, string> = {
+  crm_lead_notes:       "Lead Note",
+  client_notes:         "Client Note",
+  pipeline_activities:  "Activity",
 };
 
 const CONTEXT_LABEL: Record<ProfileEntry["type"], string> = {
@@ -681,6 +688,7 @@ export function TimelineSection({ entry }: TimelineSectionProps) {
 
 function TimelineEventRow({ event }: { event: UnifiedTimelineEvent }) {
   const IconComponent = TIMELINE_ICON[event.type] ?? Info;
+  const sourceLabel = SOURCE_LABEL[event.source] ?? event.source;
 
   return (
     <div
@@ -694,8 +702,16 @@ function TimelineEventRow({ event }: { event: UnifiedTimelineEvent }) {
         <p className="text-sm text-gray-800" data-testid={`text-timeline-content-${event.id}`}>
           {event.content}
         </p>
-        <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-400">
-          <span data-testid={`text-timeline-date-${event.id}`}>{fmtRelative(event.createdAt)}</span>
+        <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-400 flex-wrap">
+          <span data-testid={`text-timeline-date-${event.id}`}>{fmtRelative(event.timestamp)}</span>
+          {event.actor && (
+            <span className="text-gray-500" data-testid={`text-timeline-actor-${event.id}`}>
+              · {event.actor}
+            </span>
+          )}
+          <Badge variant="outline" className="text-xs py-0 capitalize" data-testid={`badge-timeline-source-${event.id}`}>
+            {sourceLabel}
+          </Badge>
           <Badge variant="outline" className="text-xs py-0 capitalize" data-testid={`badge-timeline-type-${event.id}`}>
             {event.type.replace(/_/g, " ")}
           </Badge>

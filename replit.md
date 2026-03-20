@@ -181,7 +181,9 @@ All interactive/display elements carry `data-testid` attributes.
    Route `/admin/pipeline/opportunities/:id` → `OpportunityProfilePage` (thin wrapper around `ProfileShell entry={{ type: "opportunity" }}`)
    Legacy `LeadDetailPage.tsx` + `OpportunityDetailPage.tsx` preserved intact (nondestructive)
 3. `MappedCompany` extended with `notes` + `billingNotes` so the company profile round-trips all editable fields
-4. Implement unified-write API routes so `useProfileMutations` stubs become real
+4. ✅ Unified timeline (Step 8): merged `crm_lead_notes` + `client_notes` + `pipeline_activities` into single `UnifiedTimelineEvent` stream
+   — `source` field preserves table attribution; `actor` resolves userId→name in one batch query; sorted newest-first across all views
+5. Implement unified-write API routes so `useProfileMutations` stubs become real
 
 ## File Structure
 ```

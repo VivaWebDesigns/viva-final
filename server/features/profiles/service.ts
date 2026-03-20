@@ -4,12 +4,14 @@ import {
   crmContacts,
   crmLeads,
   crmLeadNotes,
+  clientNotes,
   pipelineOpportunities,
   pipelineActivities,
   followupTasks,
   onboardingRecords,
   attachments,
   stripeCustomers,
+  user,
 } from "@shared/schema";
 import { eq, inArray } from "drizzle-orm";
 import {
@@ -31,6 +33,7 @@ import {
   resolveNextAction,
   resolveLastActivityAt,
   mapLeadNoteToTimelineEvent,
+  mapClientNoteToTimelineEvent,
   mapPipelineActivityToTimelineEvent,
 } from "./mappers";
 import type { UnifiedProfileDto } from "./dto";
@@ -52,6 +55,7 @@ async function assembleProfile(companyId: string): Promise<UnifiedProfileDto> {
     taskRows,
     stripeRows,
     fileRows,
+    clientNoteRows,
   ] = await Promise.all([
     db.select().from(crmContacts).where(eq(crmContacts.companyId, companyId)),
     db.select().from(crmLeads).where(eq(crmLeads.companyId, companyId)),
@@ -75,6 +79,10 @@ async function assembleProfile(companyId: string): Promise<UnifiedProfileDto> {
       .select()
       .from(attachments)
       .where(eq(attachments.entityId, companyId)),
+    db
+      .select()
+      .from(clientNotes)
+      .where(eq(clientNotes.companyId, companyId)),
   ]);
 
   const leadIds = leadRows.map((l) => l.id);
@@ -92,6 +100,25 @@ async function assembleProfile(companyId: string): Promise<UnifiedProfileDto> {
       : Promise.resolve([]),
   ]);
 
+  // ── Batch-resolve actor names (one query for all three sources) ────────────
+  const allUserIds = [
+    ...new Set(
+      [
+        ...leadNoteRows.map((n) => n.userId),
+        ...clientNoteRows.map((n) => n.userId),
+        ...pipelineActivityRows.map((a) => a.userId),
+      ].filter((id): id is string => id !== null && id !== undefined),
+    ),
+  ];
+  const actorMap = new Map<string, string>();
+  if (allUserIds.length > 0) {
+    const userRows = await db
+      .select({ id: user.id, name: user.name })
+      .from(user)
+      .where(inArray(user.id, allUserIds));
+    for (const u of userRows) actorMap.set(u.id, u.name);
+  }
+
   // ── Map all DB rows through mappers ───────────────────────────────────────
   const company = mapCompany(companyRow);
   const contacts = contactRows.map(mapContact);
@@ -107,12 +134,13 @@ async function assembleProfile(companyId: string): Promise<UnifiedProfileDto> {
 
   const primaryContact = resolvePrimaryContact(contacts);
   const nextAction = resolveNextAction(tasks);
-  const lastActivityAt = resolveLastActivityAt(leadNoteRows, pipelineActivityRows);
+  const lastActivityAt = resolveLastActivityAt(leadNoteRows, clientNoteRows, pipelineActivityRows);
 
   const timelineEvents = [
-    ...leadNoteRows.map(mapLeadNoteToTimelineEvent),
-    ...pipelineActivityRows.map(mapPipelineActivityToTimelineEvent),
-  ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    ...leadNoteRows.map((n) => mapLeadNoteToTimelineEvent(n, actorMap)),
+    ...clientNoteRows.map((n) => mapClientNoteToTimelineEvent(n, actorMap)),
+    ...pipelineActivityRows.map((a) => mapPipelineActivityToTimelineEvent(a, actorMap)),
+  ].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 
   const stripeRow = stripeRows[0] ?? null;
   const billingSummary: BillingSummary = stripeRow

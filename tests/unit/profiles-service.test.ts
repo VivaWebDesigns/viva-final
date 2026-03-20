@@ -249,8 +249,8 @@ describe("derived field invariants", () => {
     const profile = await getProfileByCompanyId(row.id);
     const events = profile.timeline.events;
     for (let i = 1; i < events.length; i++) {
-      expect(events[i - 1].createdAt.getTime()).toBeGreaterThanOrEqual(
-        events[i].createdAt.getTime(),
+      expect(events[i - 1].timestamp.getTime()).toBeGreaterThanOrEqual(
+        events[i].timestamp.getTime(),
       );
     }
   });

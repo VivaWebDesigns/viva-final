@@ -21,6 +21,11 @@ export type TimelineEventType =
   | "stage_change"
   | "system";
 
+export type TimelineEventSource =
+  | "crm_lead_notes"
+  | "client_notes"
+  | "pipeline_activities";
+
 // ── Mapped entity shapes ───────────────────────────────────────────────────────
 // These mirror the server-side MappedEntity types in server/features/profiles/dto.ts.
 // Dates arrive as ISO strings over JSON; the hooks expose them as `string` so
@@ -159,16 +164,16 @@ export interface BillingSummary {
 }
 
 // ── Timeline event ─────────────────────────────────────────────────────────────
+// Source attribution is preserved via `source` (which DB table the row came from).
+// Dates arrive as ISO strings over JSON.
 
 export interface UnifiedTimelineEvent {
   id: string;
   type: TimelineEventType;
-  entityType: "lead" | "opportunity" | "company";
-  entityId: string;
+  source: TimelineEventSource;
+  timestamp: string;
+  actor: string | null;
   content: string;
-  authorId: string | null;
-  createdAt: string;
-  metadata: Record<string, unknown> | null;
 }
 
 // ── Canonical profile DTO ──────────────────────────────────────────────────────

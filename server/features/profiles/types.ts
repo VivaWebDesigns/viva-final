@@ -11,6 +11,11 @@ export type TimelineEventType =
   | "stage_change"
   | "system";
 
+export type TimelineEventSource =
+  | "crm_lead_notes"
+  | "client_notes"
+  | "pipeline_activities";
+
 export interface ResolvedIdentity {
   companyId: string | null;
   leadId: string | null;

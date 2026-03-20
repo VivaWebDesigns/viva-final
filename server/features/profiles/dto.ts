@@ -1,4 +1,4 @@
-import type { ProfileHealth, TimelineEventType, BillingSummary } from "./types";
+import type { ProfileHealth, TimelineEventType, TimelineEventSource, BillingSummary } from "./types";
 
 // ── Mapped entity shapes ─────────────────────────────────────────────────────
 // These are the explicit, stable DTO shapes the service layer exposes.
@@ -132,16 +132,16 @@ export interface MappedFile {
 }
 
 // ── Timeline event ───────────────────────────────────────────────────────────
+// Unified read-side shape. Source attribution is preserved via `source`.
+// Never contains raw DB FKs — `actor` is the resolved display name.
 
 export interface UnifiedTimelineEvent {
   id: string;
   type: TimelineEventType;
-  entityType: "lead" | "opportunity" | "company";
-  entityId: string;
+  source: TimelineEventSource;
+  timestamp: Date;
+  actor: string | null;
   content: string;
-  authorId: string | null;
-  createdAt: Date;
-  metadata: Record<string, unknown> | null;
 }
 
 // ── Canonical profile DTO ────────────────────────────────────────────────────

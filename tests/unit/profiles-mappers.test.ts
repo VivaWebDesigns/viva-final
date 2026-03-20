@@ -13,6 +13,7 @@ import {
   mapOnboarding,
   mapFile,
   mapLeadNoteToTimelineEvent,
+  mapClientNoteToTimelineEvent,
   mapPipelineActivityToTimelineEvent,
 } from "../../server/features/profiles/mappers";
 import type { MappedContact, MappedOpportunity, MappedTask } from "../../server/features/profiles/dto";
@@ -145,19 +146,19 @@ const makeActivity = (createdAt: Date): PipelineActivity =>
 
 describe("resolveLastActivityAt", () => {
   it("returns null when no notes or activities", () => {
-    expect(resolveLastActivityAt([], [])).toBeNull();
+    expect(resolveLastActivityAt([], [], [])).toBeNull();
   });
 
-  it("returns the most recent date across both collections", () => {
+  it("returns the most recent date across all three collections", () => {
     const older = new Date(Date.now() - 10 * 86400000);
     const newer = new Date(Date.now() - 1 * 86400000);
-    const result = resolveLastActivityAt([makeNote(older)], [makeActivity(newer)]);
+    const result = resolveLastActivityAt([makeNote(older)], [], [makeActivity(newer)]);
     expect(result?.getTime()).toBe(newer.getTime());
   });
 
   it("works when only lead notes are present", () => {
     const d = new Date(Date.now() - 5 * 86400000);
-    expect(resolveLastActivityAt([makeNote(d)], [])?.getTime()).toBe(d.getTime());
+    expect(resolveLastActivityAt([makeNote(d)], [], [])?.getTime()).toBe(d.getTime());
   });
 });
 
@@ -278,28 +279,50 @@ describe("mapFile", () => {
 
 // ── Timeline event mappers ────────────────────────────────────────────────────
 
+const emptyActorMap = new Map<string, string>();
+
 describe("mapLeadNoteToTimelineEvent", () => {
-  it("maps a lead note to a timeline event with entityType=lead", () => {
-    const note = makeNote(new Date());
-    const event = mapLeadNoteToTimelineEvent({ ...note, id: "n42", leadId: "l99" });
-    expect(event.entityType).toBe("lead");
-    expect(event.entityId).toBe("l99");
+  it("maps a lead note with source=crm_lead_notes", () => {
+    const ts = new Date();
+    const note = makeNote(ts);
+    const event = mapLeadNoteToTimelineEvent({ ...note, id: "n42" }, emptyActorMap);
     expect(event.id).toBe("n42");
+    expect(event.source).toBe("crm_lead_notes");
+    expect(event.timestamp).toBe(ts);
+    expect(event.actor).toBeNull();
   });
 
-  it("maps metadata field correctly", () => {
-    const note = { ...makeNote(new Date()), metadata: { foo: "bar" } } as unknown as CrmLeadNote;
-    const event = mapLeadNoteToTimelineEvent(note);
-    expect(event.metadata).toEqual({ foo: "bar" });
+  it("resolves actor name from actorMap", () => {
+    const note = { ...makeNote(new Date()), userId: "u1" } as unknown as CrmLeadNote;
+    const actorMap = new Map([["u1", "Alice"]]);
+    const event = mapLeadNoteToTimelineEvent(note, actorMap);
+    expect(event.actor).toBe("Alice");
+  });
+});
+
+describe("mapClientNoteToTimelineEvent", () => {
+  it("maps a client note with source=client_notes", () => {
+    const ts = new Date();
+    const note = {
+      id: "cn1", companyId: "c1", type: "general", content: "hello",
+      userId: null, isPinned: false, createdAt: ts,
+    } as unknown as import("@shared/schema").ClientNote;
+    const event = mapClientNoteToTimelineEvent(note, emptyActorMap);
+    expect(event.id).toBe("cn1");
+    expect(event.source).toBe("client_notes");
+    expect(event.timestamp).toBe(ts);
+    expect(event.actor).toBeNull();
   });
 });
 
 describe("mapPipelineActivityToTimelineEvent", () => {
-  it("maps a pipeline activity to a timeline event with entityType=opportunity", () => {
-    const activity = makeActivity(new Date());
-    const event = mapPipelineActivityToTimelineEvent({ ...activity, id: "a99", opportunityId: "o42" });
-    expect(event.entityType).toBe("opportunity");
-    expect(event.entityId).toBe("o42");
+  it("maps a pipeline activity with source=pipeline_activities", () => {
+    const ts = new Date();
+    const activity = makeActivity(ts);
+    const event = mapPipelineActivityToTimelineEvent({ ...activity, id: "a99", opportunityId: "o42" }, emptyActorMap);
     expect(event.id).toBe("a99");
+    expect(event.source).toBe("pipeline_activities");
+    expect(event.timestamp).toBe(ts);
+    expect(event.actor).toBeNull();
   });
 });

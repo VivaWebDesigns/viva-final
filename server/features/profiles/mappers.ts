@@ -7,6 +7,7 @@ import type {
   OnboardingRecord,
   Attachment,
   CrmLeadNote,
+  ClientNote,
   PipelineActivity,
 } from "@shared/schema";
 import type {
@@ -19,7 +20,7 @@ import type {
   MappedFile,
   UnifiedTimelineEvent,
 } from "./dto";
-import type { ProfileHealth } from "./types";
+import type { ProfileHealth, TimelineEventSource } from "./types";
 
 // ── Health derivation ────────────────────────────────────────────────────────
 
@@ -200,10 +201,12 @@ export function resolveNextAction(tasks: MappedTask[]): MappedTask | null {
 
 export function resolveLastActivityAt(
   leadNotes: CrmLeadNote[],
+  clientNotes: ClientNote[],
   pipelineActivities: PipelineActivity[],
 ): Date | null {
   const dates: Date[] = [
     ...leadNotes.map((n) => n.createdAt),
+    ...clientNotes.map((n) => n.createdAt),
     ...pipelineActivities.map((a) => a.createdAt),
   ];
   if (dates.length === 0) return null;
@@ -211,33 +214,55 @@ export function resolveLastActivityAt(
 }
 
 // ── Timeline event mappers ───────────────────────────────────────────────────
+// Each mapper takes an actor lookup map (userId → display name) so the service
+// can batch-fetch user names in a single query rather than N+1 lookups.
+
+function resolveActor(
+  userId: string | null | undefined,
+  actorMap: Map<string, string>,
+): string | null {
+  if (!userId) return null;
+  return actorMap.get(userId) ?? null;
+}
 
 export function mapLeadNoteToTimelineEvent(
   note: CrmLeadNote,
+  actorMap: Map<string, string>,
 ): UnifiedTimelineEvent {
   return {
     id: note.id,
     type: note.type as UnifiedTimelineEvent["type"],
-    entityType: "lead",
-    entityId: note.leadId,
+    source: "crm_lead_notes" as TimelineEventSource,
+    timestamp: note.createdAt,
+    actor: resolveActor(note.userId, actorMap),
     content: note.content,
-    authorId: note.userId,
-    createdAt: note.createdAt,
-    metadata: (note.metadata as Record<string, unknown> | null) ?? null,
+  };
+}
+
+export function mapClientNoteToTimelineEvent(
+  note: ClientNote,
+  actorMap: Map<string, string>,
+): UnifiedTimelineEvent {
+  return {
+    id: note.id,
+    type: note.type as UnifiedTimelineEvent["type"],
+    source: "client_notes" as TimelineEventSource,
+    timestamp: note.createdAt,
+    actor: resolveActor(note.userId, actorMap),
+    content: note.content,
   };
 }
 
 export function mapPipelineActivityToTimelineEvent(
   activity: PipelineActivity,
+  actorMap: Map<string, string>,
 ): UnifiedTimelineEvent {
   return {
     id: activity.id,
     type: activity.type as UnifiedTimelineEvent["type"],
-    entityType: "opportunity",
-    entityId: activity.opportunityId,
+    source: "pipeline_activities" as TimelineEventSource,
+    timestamp: activity.createdAt,
+    actor: resolveActor(activity.userId, actorMap),
     content: activity.content,
-    authorId: activity.userId,
-    createdAt: activity.createdAt,
-    metadata: (activity.metadata as Record<string, unknown> | null) ?? null,
   };
 }
