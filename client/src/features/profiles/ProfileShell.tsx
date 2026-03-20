@@ -18,7 +18,7 @@ import {
   AlertCircle, CheckSquare2, Square, Clock, Paperclip,
   MessageSquare, RefreshCw, ArrowRight, Info, CreditCard,
   Rocket, TrendingUp, FileText, Download, Activity,
-  CheckCircle2, Circle,
+  CheckCircle2, Circle, Pencil,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +26,10 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUnifiedProfile, useProfileTimeline } from "./hooks";
+import { EditCompanyDialog } from "./edit/EditCompanyDialog";
+import { EditContactDialog } from "./edit/EditContactDialog";
+import { EditLeadDialog } from "./edit/EditLeadDialog";
+import { EditOpportunityDialog } from "./edit/EditOpportunityDialog";
 import type {
   ProfileEntry,
   ProfileHealth,
@@ -231,18 +235,31 @@ export function ProfileHeader({ entry, company, derived }: ProfileHeaderProps) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface CompanyContactCardProps {
+  entry: ProfileEntry;
   company: MappedCompany;
   primaryContact: MappedContact | null;
   contacts: MappedContact[];
 }
 
-export function CompanyContactCard({ company, primaryContact, contacts }: CompanyContactCardProps) {
+export function CompanyContactCard({ entry, company, primaryContact, contacts }: CompanyContactCardProps) {
+  const [editCompanyOpen, setEditCompanyOpen] = useState(false);
+  const [editContactOpen, setEditContactOpen] = useState(false);
+
   return (
+    <>
     <Card className="p-5 space-y-5" data-testid="card-company-contact">
       <div>
         <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
           <Building2 className="w-4 h-4 text-gray-400" />
           Company
+          <button
+            onClick={() => setEditCompanyOpen(true)}
+            className="ml-auto text-gray-400 hover:text-gray-600 transition-colors"
+            aria-label="Edit company"
+            data-testid="button-edit-company"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
         </h3>
         <dl className="space-y-2 text-sm">
           {company.phone && (
@@ -303,6 +320,14 @@ export function CompanyContactCard({ company, primaryContact, contacts }: Compan
           <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
             <User className="w-4 h-4 text-gray-400" />
             Primary Contact
+            <button
+              onClick={() => setEditContactOpen(true)}
+              className="ml-auto text-gray-400 hover:text-gray-600 transition-colors"
+              aria-label="Edit contact"
+              data-testid="button-edit-contact"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
           </h3>
           <dl className="space-y-2 text-sm">
             <div data-testid="text-contact-name" className="font-medium text-gray-900">
@@ -345,6 +370,22 @@ export function CompanyContactCard({ company, primaryContact, contacts }: Compan
         </p>
       )}
     </Card>
+
+    <EditCompanyDialog
+      open={editCompanyOpen}
+      onOpenChange={setEditCompanyOpen}
+      company={company}
+      entry={entry}
+    />
+    {primaryContact && (
+      <EditContactDialog
+        open={editContactOpen}
+        onOpenChange={setEditContactOpen}
+        contact={primaryContact}
+        entry={entry}
+      />
+    )}
+    </>
   );
 }
 
@@ -361,7 +402,11 @@ export function SalesSnapshotCard({ entry, sales }: SalesSnapshotCardProps) {
   const { sourceLead, leadHistory, activeOpportunity, opportunities } = sales;
   const hasAnything = sourceLead || activeOpportunity || leadHistory.length > 0;
 
+  const [editOppOpen,  setEditOppOpen]  = useState(false);
+  const [editLeadOpen, setEditLeadOpen] = useState(false);
+
   return (
+    <>
     <Card className="p-5" data-testid="card-sales-snapshot">
       <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
         <TrendingUp className="w-4 h-4 text-gray-400" />
@@ -377,11 +422,21 @@ export function SalesSnapshotCard({ entry, sales }: SalesSnapshotCardProps) {
             <div className="rounded-lg bg-violet-50 border border-violet-100 p-3" data-testid="card-active-opportunity">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-xs font-semibold text-violet-700 uppercase tracking-wide">Active Opportunity</p>
-                {activeOpportunity.websitePackage && (
-                  <Badge className="bg-violet-100 text-violet-700 border-violet-200 text-xs" data-testid="badge-opportunity-package">
-                    {activeOpportunity.websitePackage}
-                  </Badge>
-                )}
+                <div className="flex items-center gap-1.5">
+                  {activeOpportunity.websitePackage && (
+                    <Badge className="bg-violet-100 text-violet-700 border-violet-200 text-xs" data-testid="badge-opportunity-package">
+                      {activeOpportunity.websitePackage}
+                    </Badge>
+                  )}
+                  <button
+                    onClick={() => setEditOppOpen(true)}
+                    className="text-violet-400 hover:text-violet-600 transition-colors"
+                    aria-label="Edit opportunity"
+                    data-testid="button-edit-opportunity"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
               <p className="font-medium text-gray-900 mt-1 text-sm truncate" data-testid="text-opportunity-title">
                 {activeOpportunity.title}
@@ -402,13 +457,37 @@ export function SalesSnapshotCard({ entry, sales }: SalesSnapshotCardProps) {
           {/* Source lead */}
           {sourceLead && entry.type !== "lead" && (
             <div className="space-y-1" data-testid="div-source-lead">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Source Lead</p>
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Source Lead</p>
+                <button
+                  onClick={() => setEditLeadOpen(true)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  aria-label="Edit lead"
+                  data-testid="button-edit-lead"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                </button>
+              </div>
               <p className="text-sm text-gray-800 font-medium truncate" data-testid="text-source-lead-title">{sourceLead.title}</p>
               {sourceLead.sourceLabel && (
                 <Badge variant="outline" className="text-xs" data-testid="badge-lead-source">
                   {sourceLead.sourceLabel}
                 </Badge>
               )}
+            </div>
+          )}
+
+          {/* Lead view: show current lead edit button */}
+          {entry.type === "lead" && sourceLead && (
+            <div className="flex justify-end">
+              <button
+                onClick={() => setEditLeadOpen(true)}
+                className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1 transition-colors"
+                aria-label="Edit lead"
+                data-testid="button-edit-lead-direct"
+              >
+                <Pencil className="w-3 h-3" /> Edit Lead
+              </button>
             </div>
           )}
 
@@ -426,6 +505,24 @@ export function SalesSnapshotCard({ entry, sales }: SalesSnapshotCardProps) {
         </div>
       )}
     </Card>
+
+    {activeOpportunity && (
+      <EditOpportunityDialog
+        open={editOppOpen}
+        onOpenChange={setEditOppOpen}
+        opportunity={activeOpportunity}
+        entry={entry}
+      />
+    )}
+    {sourceLead && (
+      <EditLeadDialog
+        open={editLeadOpen}
+        onOpenChange={setEditLeadOpen}
+        lead={sourceLead}
+        entry={entry}
+      />
+    )}
+    </>
   );
 }
 
@@ -778,6 +875,7 @@ export default function ProfileShell({
         <TabsContent value="overview" className="mt-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <CompanyContactCard
+              entry={entry}
               company={identity.company}
               primaryContact={identity.primaryContact}
               contacts={identity.contacts}
