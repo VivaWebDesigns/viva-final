@@ -32,12 +32,12 @@ const DashboardPage = lazy(() => import("@features/admin/pages/DashboardPage"));
 const DocsPage = lazy(() => import("@features/docs/DocsPage"));
 const IntegrationsPage = lazy(() => import("@features/integrations/IntegrationsPage"));
 const LeadListPage = lazy(() => import("@features/crm/LeadListPage"));
-const LeadDetailPage = lazy(() => import("@features/crm/LeadDetailPage"));
+const LeadProfilePage = lazy(() => import("@features/profiles/LeadProfilePage"));
 const CompanyDetailPage = lazy(() => import("@features/crm/CompanyDetailPage"));
 const ContactDetailPage = lazy(() => import("@features/crm/ContactDetailPage"));
 const PipelineBoardPage = lazy(() => import("@features/pipeline/PipelineBoardPage"));
 const PipelineListPage = lazy(() => import("@features/pipeline/PipelineListPage"));
-const OpportunityDetailPage = lazy(() => import("@features/pipeline/OpportunityDetailPage"));
+const OpportunityProfilePage = lazy(() => import("@features/profiles/OpportunityProfilePage"));
 const StageManagementPage = lazy(() => import("@features/pipeline/StageManagementPage"));
 const OnboardingListPage = lazy(() => import("@features/onboarding/OnboardingListPage"));
 const OnboardingDetailPage = lazy(() => import("@features/onboarding/OnboardingDetailPage"));
@@ -87,7 +87,7 @@ function AdminRouter() {
             </Route>
             <Route path="/admin/crm" component={LeadListPage} />
             <Route path="/admin/crm/leads/:id">
-              {(params) => <LeadDetailPage id={params.id} />}
+              {(params) => <LeadProfilePage id={params.id} />}
             </Route>
             <Route path="/admin/crm/companies/:id">
               {(params) => <CompanyDetailPage id={params.id} />}
@@ -112,7 +112,7 @@ function AdminRouter() {
             <Route path="/admin/pipeline/opportunities/:id">
               {(params) => (
                 <ProtectedRoute roles={["admin", "developer", "sales_rep"]}>
-                  <OpportunityDetailPage id={params.id} />
+                  <OpportunityProfilePage id={params.id} />
                 </ProtectedRoute>
               )}
             </Route>

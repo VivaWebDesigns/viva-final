@@ -65,8 +65,9 @@ Socket.io on same HTTP server (single port). Channels: `general`, `sales`, `onbo
 |---|---|
 | `/admin/dashboard` | Overview stats (real DB counts only — no fake data) |
 | `/admin/crm/*` | Leads, contacts, companies |
+| `/admin/crm/leads/:id` | **Lead Profile** — unified ProfileShell (lead context) |
 | `/admin/pipeline` | Kanban board + list view |
-| `/admin/pipeline/:id` | Opportunity detail |
+| `/admin/pipeline/opportunities/:id` | **Opportunity Profile** — unified ProfileShell (opportunity context) |
 | `/admin/onboarding` | Client onboarding checklists |
 | `/admin/clients/:id` | Account hub (7 tabs: Overview, Notes, Contacts, Tasks, Files, Billing, Activity) |
 | `/admin/tasks` | Tasks due today + overdue |
@@ -174,10 +175,13 @@ Named section exports for independent composition in sidebars/drawers:
 Safe fallbacks everywhere: loading skeleton, error state, per-section empty states.
 All interactive/display elements carry `data-testid` attributes.
 
-### Migration Plan (future phases)
-1. Migrate `/admin/clients/:id` tabs to consume `UnifiedProfileDto` via `useUnifiedProfile`
-2. Migrate opportunity detail sidebar to use `<ProfileShell entry={{ type: "opportunity", id }}/>`
-3. Implement unified-write API routes so `useProfileMutations` stubs become real
+### Migration Plan
+1. ✅ Migrate `/admin/clients/:id` main query to `useUnifiedProfile` (Step 6 — `adaptToClient` adapter, nondestructive)
+2. ✅ Route `/admin/crm/leads/:id` → `LeadProfilePage` (thin wrapper around `ProfileShell entry={{ type: "lead" }}`)
+   Route `/admin/pipeline/opportunities/:id` → `OpportunityProfilePage` (thin wrapper around `ProfileShell entry={{ type: "opportunity" }}`)
+   Legacy `LeadDetailPage.tsx` + `OpportunityDetailPage.tsx` preserved intact (nondestructive)
+3. `MappedCompany` extended with `notes` + `billingNotes` so the company profile round-trips all editable fields
+4. Implement unified-write API routes so `useProfileMutations` stubs become real
 
 ## File Structure
 ```
