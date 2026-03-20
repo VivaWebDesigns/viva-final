@@ -421,7 +421,9 @@ export function SalesSnapshotCard({ entry, sales }: SalesSnapshotCardProps) {
           {activeOpportunity && (
             <div className="rounded-lg bg-violet-50 border border-violet-100 p-3" data-testid="card-active-opportunity">
               <div className="flex items-center justify-between gap-2">
-                <p className="text-xs font-semibold text-violet-700 uppercase tracking-wide">Active Opportunity</p>
+                <p className="text-xs font-semibold text-violet-700 uppercase tracking-wide">
+                  {entry.type === "opportunity" ? "Current Opportunity" : "Active Opportunity"}
+                </p>
                 <div className="flex items-center gap-1.5">
                   {activeOpportunity.websitePackage && (
                     <Badge className="bg-violet-100 text-violet-700 border-violet-200 text-xs" data-testid="badge-opportunity-package">

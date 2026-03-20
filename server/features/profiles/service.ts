@@ -13,7 +13,7 @@ import {
   stripeCustomers,
   user,
 } from "@shared/schema";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, and, desc } from "drizzle-orm";
 import {
   resolveByCompanyId,
   resolveByLeadId,
@@ -39,7 +39,12 @@ import {
 import type { UnifiedProfileDto } from "./dto";
 import type { BillingSummary } from "./types";
 
-async function assembleProfile(companyId: string): Promise<UnifiedProfileDto> {
+interface AssembleOpts {
+  primaryLeadId?: string;
+  primaryOpportunityId?: string;
+}
+
+async function assembleProfile(companyId: string, opts?: AssembleOpts): Promise<UnifiedProfileDto> {
   const [companyRow] = await db
     .select()
     .from(crmCompanies)
@@ -58,7 +63,7 @@ async function assembleProfile(companyId: string): Promise<UnifiedProfileDto> {
     clientNoteRows,
   ] = await Promise.all([
     db.select().from(crmContacts).where(eq(crmContacts.companyId, companyId)),
-    db.select().from(crmLeads).where(eq(crmLeads.companyId, companyId)),
+    db.select().from(crmLeads).where(eq(crmLeads.companyId, companyId)).orderBy(desc(crmLeads.createdAt)),
     db
       .select()
       .from(pipelineOpportunities)
@@ -78,7 +83,7 @@ async function assembleProfile(companyId: string): Promise<UnifiedProfileDto> {
     db
       .select()
       .from(attachments)
-      .where(eq(attachments.entityId, companyId)),
+      .where(and(eq(attachments.entityType, "client"), eq(attachments.entityId, companyId))),
     db
       .select()
       .from(clientNotes)
@@ -129,8 +134,15 @@ async function assembleProfile(companyId: string): Promise<UnifiedProfileDto> {
   const files = fileRows.map(mapFile);
 
   // ── Derive values ─────────────────────────────────────────────────────────
-  const activeOpportunity = opportunities.find((o) => o.status === "open") ?? null;
-  const sourceLead = leads[0] ?? null;
+  const activeOpportunity = opts?.primaryOpportunityId
+    ? (opportunities.find((o) => o.id === opts.primaryOpportunityId)
+        ?? opportunities.find((o) => o.status === "open")
+        ?? null)
+    : (opportunities.find((o) => o.status === "open") ?? null);
+
+  const sourceLead = opts?.primaryLeadId
+    ? (leads.find((l) => l.id === opts.primaryLeadId) ?? leads[0] ?? null)
+    : (leads[0] ?? null);
 
   const primaryContact = resolvePrimaryContact(contacts);
   const nextAction = resolveNextAction(tasks);
@@ -202,7 +214,7 @@ export async function getProfileByLeadId(
   if (!identity.companyId) {
     throw new Error(`Lead ${leadId} has no linked company — cannot build profile`);
   }
-  return assembleProfile(identity.companyId);
+  return assembleProfile(identity.companyId, { primaryLeadId: leadId });
 }
 
 export async function getProfileByOpportunityId(
@@ -214,5 +226,5 @@ export async function getProfileByOpportunityId(
       `Opportunity ${opportunityId} has no linked company — cannot build profile`,
     );
   }
-  return assembleProfile(identity.companyId);
+  return assembleProfile(identity.companyId, { primaryOpportunityId: opportunityId });
 }
