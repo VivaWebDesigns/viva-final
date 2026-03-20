@@ -119,9 +119,38 @@ All mounted at `/api/profiles/` via `server/features/profiles/routes.ts` → `se
 
 All routes validate `:id` is a valid UUID (400 on bad format), return 403 on access denial, 404 when the entity doesn't exist, and always return `UnifiedProfileDto`.
 
+### Frontend Hooks — `client/src/features/profiles/`
+
+| File | Purpose |
+|---|---|
+| `types.ts` | Frontend-safe mirror of `UnifiedProfileDto` and all `Mapped*` types (dates as `string`; no server imports) |
+| `hooks.ts` | `useUnifiedProfile`, `useProfileTimeline`, `useProfileMutations` + `PROFILE_KEYS` factory |
+
+#### `PROFILE_KEYS` — centralized cache key factory
+
+```ts
+PROFILE_KEYS.all                      // ["/api/profiles"]
+PROFILE_KEYS.byType("lead")           // ["/api/profiles", "lead"]
+PROFILE_KEYS.detail({ type, id })     // ["/api/profiles", type, id]
+```
+
+The TanStack default fetcher joins the array with `/`, mapping exactly to the REST endpoints.
+
+#### `useUnifiedProfile(entry, { enabled? })`
+Fetches the full `UnifiedProfileDto`. `staleTime: STALE.REALTIME` (30 s — shorter than the 1-min global default).
+
+#### `useProfileTimeline(entry, { enabled? })`
+Same query key as `useUnifiedProfile`; uses `select` to extract `profile.timeline.events`. No extra HTTP call when both hooks are mounted — zero duplicate transformations.
+
+#### `useProfileMutations(entry)`
+Returns `{ invalidate, addNote, updateStatus, assignOwner }`.
+- `invalidate()` clears the profile cache **and** the underlying raw-entity caches (CRM leads, pipeline opportunities, etc.) so detail pages stay in sync.
+- Stub mutations are wired to `invalidate` on success; `mutationFn` bodies will be filled in when the corresponding unified-write API routes are built.
+
 ### Migration Plan (future phases)
-1. Migrate `/admin/clients/:id` tabs to consume `UnifiedProfileDto` instead of ad-hoc queries
-2. Migrate opportunity detail sidebar to use `getProfileByOpportunityId`
+1. Migrate `/admin/clients/:id` tabs to consume `UnifiedProfileDto` via `useUnifiedProfile`
+2. Migrate opportunity detail sidebar to use `useUnifiedProfile({ type: "opportunity", id })`
+3. Implement unified-write API routes so `useProfileMutations` stubs become real
 
 ## File Structure
 ```
