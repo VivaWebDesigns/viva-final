@@ -1030,6 +1030,15 @@ export const en = {
     carePlanStatus: "Care Plan Status",
     websiteStatus: "Website Status",
     billingNotes: "Billing Notes",
+    preferredMethod: "Preferred Method",
+    nextFollowUp: "Next Follow-up",
+    accountManagement: "Account Management",
+    clientStatus: "Client Status",
+    accountOwner: "Account Owner",
+    internalNotes: "Internal Account Notes",
+    saveChanges: "Save Changes",
+    creating: "Creating...",
+    updateContact: "Update Contact",
   },
 };
 

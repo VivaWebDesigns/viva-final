@@ -1143,7 +1143,7 @@ function NoteForm({ onSubmit, isPending }: { onSubmit: (data: Record<string, unk
 // Sub-form: TaskForm
 // ─────────────────────────────────────────────────────────────────────────────
 
-function TaskForm({ onSubmit, isPending }: { onSubmit: (data: Record<string, unknown>) => void; isPending: boolean }) {
+function TaskForm({ onSubmit, isPending, t }: { onSubmit: (data: Record<string, unknown>) => void; isPending: boolean; t: AdminTranslations }) {
   const form = useForm({
     resolver: zodResolver(taskSchema),
     defaultValues: {
@@ -1167,7 +1167,7 @@ function TaskForm({ onSubmit, isPending }: { onSubmit: (data: Record<string, unk
           name="title"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Task Title</FormLabel>
+              <FormLabel>{t.profileShell.taskTitle}</FormLabel>
               <FormControl>
                 <Input {...field} placeholder="e.g. Follow up on proposal" data-testid="input-task-title" />
               </FormControl>
@@ -1181,7 +1181,7 @@ function TaskForm({ onSubmit, isPending }: { onSubmit: (data: Record<string, unk
             name="taskType"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Type</FormLabel>
+                <FormLabel>{t.profileShell.taskType}</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger data-testid="select-task-type">
@@ -1205,7 +1205,7 @@ function TaskForm({ onSubmit, isPending }: { onSubmit: (data: Record<string, unk
             name="dueDate"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Due Date</FormLabel>
+                <FormLabel>{t.profileShell.dueDate}</FormLabel>
                 <FormControl>
                   <Input type="date" {...field} data-testid="input-task-due-date" />
                 </FormControl>
@@ -1219,7 +1219,7 @@ function TaskForm({ onSubmit, isPending }: { onSubmit: (data: Record<string, unk
           name="notes"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Notes (optional)</FormLabel>
+              <FormLabel>{t.profileShell.notesOptional}</FormLabel>
               <FormControl>
                 <RichTextEditorField
                   value={field.value || ""}
@@ -1236,7 +1236,7 @@ function TaskForm({ onSubmit, isPending }: { onSubmit: (data: Record<string, unk
         />
         <DialogFooter>
           <Button type="submit" disabled={isPending} data-testid="button-submit-task">
-            {isPending ? "Creating..." : "Create Task"}
+            {isPending ? "..." : t.profileShell.createTask}
           </Button>
         </DialogFooter>
       </form>
@@ -1248,10 +1248,11 @@ function TaskForm({ onSubmit, isPending }: { onSubmit: (data: Record<string, unk
 // Sub-form: ContactForm
 // ─────────────────────────────────────────────────────────────────────────────
 
-function ContactForm({ initialData, onSubmit, isPending }: {
+function ContactForm({ initialData, onSubmit, isPending, t }: {
   initialData: MappedContact | null;
   onSubmit: (data: Record<string, unknown>) => void;
   isPending: boolean;
+  t: AdminTranslations;
 }) {
   const form = useForm({
     resolver: zodResolver(contactSchema),
@@ -1275,7 +1276,7 @@ function ContactForm({ initialData, onSubmit, isPending }: {
             name="firstName"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>First Name</FormLabel>
+                <FormLabel>{t.profileShell.firstName}</FormLabel>
                 <FormControl><Input {...field} data-testid="input-contact-first-name" /></FormControl>
                 <FormMessage />
               </FormItem>
@@ -1286,7 +1287,7 @@ function ContactForm({ initialData, onSubmit, isPending }: {
             name="lastName"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Last Name</FormLabel>
+                <FormLabel>{t.profileShell.lastName}</FormLabel>
                 <FormControl><Input {...field} value={field.value || ""} data-testid="input-contact-last-name" /></FormControl>
                 <FormMessage />
               </FormItem>
@@ -1298,7 +1299,7 @@ function ContactForm({ initialData, onSubmit, isPending }: {
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email</FormLabel>
+              <FormLabel>{t.profileShell.email}</FormLabel>
               <FormControl><Input {...field} value={field.value || ""} data-testid="input-contact-email" /></FormControl>
               <FormMessage />
             </FormItem>
@@ -1309,7 +1310,7 @@ function ContactForm({ initialData, onSubmit, isPending }: {
           name="phone"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Phone</FormLabel>
+              <FormLabel>{t.profileShell.phone}</FormLabel>
               <FormControl><Input {...field} value={field.value || ""} data-testid="input-contact-phone" /></FormControl>
               <FormMessage />
             </FormItem>
@@ -1320,7 +1321,7 @@ function ContactForm({ initialData, onSubmit, isPending }: {
           name="title"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Title / Position</FormLabel>
+              <FormLabel>{t.profileShell.titlePosition}</FormLabel>
               <FormControl><Input {...field} value={field.value || ""} data-testid="input-contact-title" /></FormControl>
               <FormMessage />
             </FormItem>
@@ -1332,7 +1333,7 @@ function ContactForm({ initialData, onSubmit, isPending }: {
             name="preferredLanguage"
             render={({ field }) => (
               <FormItem className="flex-1">
-                <FormLabel>Language</FormLabel>
+                <FormLabel>{t.profileShell.language}</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger data-testid="select-contact-language">
@@ -1355,14 +1356,14 @@ function ContactForm({ initialData, onSubmit, isPending }: {
                 <FormControl>
                   <Checkbox checked={field.value} onCheckedChange={field.onChange} />
                 </FormControl>
-                <FormLabel>Primary Contact</FormLabel>
+                <FormLabel>{t.profileShell.primaryContact}</FormLabel>
               </FormItem>
             )}
           />
         </div>
         <DialogFooter>
           <Button type="submit" disabled={isPending} data-testid="button-submit-contact">
-            {isPending ? "Saving..." : (initialData ? "Update Contact" : "Add Contact")}
+            {isPending ? t.profileShell.saving : (initialData ? t.profileShell.updateContact : t.profileShell.addContact)}
           </Button>
         </DialogFooter>
       </form>
@@ -1537,9 +1538,9 @@ function AccountManagementForm({ company, users, onSubmit, isPending, t }: {
       accountOwnerId: company.accountOwnerId || "",
       nextFollowUpDate: company.nextFollowUpDate ? new Date(company.nextFollowUpDate).toISOString().split("T")[0] : "",
       preferredContactMethod: company.preferredContactMethod || "email",
-      preferredLanguage: "es",
+      preferredLanguage: company.preferredLanguage || "es",
       name: company.name,
-      dba: "",
+      dba: company.dba || "",
       phone: company.phone || "",
       email: company.email || "",
       website: company.website || "",
@@ -1548,7 +1549,7 @@ function AccountManagementForm({ company, users, onSubmit, isPending, t }: {
       city: company.city || "",
       state: company.state || "",
       zip: company.zip || "",
-      notes: "",
+      notes: company.notes || "",
     },
   });
 
@@ -1557,7 +1558,7 @@ function AccountManagementForm({ company, users, onSubmit, isPending, t }: {
       <CardHeader className="pb-3">
         <CardTitle className="text-lg flex items-center gap-2">
           <ClipboardList className="w-5 h-5 text-teal-500" />
-          Account Management
+          {t.profileShell.accountManagement}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -1569,7 +1570,7 @@ function AccountManagementForm({ company, users, onSubmit, isPending, t }: {
                 name="clientStatus"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Client Status</FormLabel>
+                    <FormLabel>{t.profileShell.clientStatus}</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
                       <FormControl>
                         <SelectTrigger data-testid="select-client-status-overview">
@@ -1593,7 +1594,7 @@ function AccountManagementForm({ company, users, onSubmit, isPending, t }: {
                 name="accountOwnerId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Account Owner</FormLabel>
+                    <FormLabel>{t.profileShell.accountOwner}</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
                       <FormControl>
                         <SelectTrigger data-testid="select-account-owner-overview">
@@ -1615,7 +1616,7 @@ function AccountManagementForm({ company, users, onSubmit, isPending, t }: {
                 name="nextFollowUpDate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t.profileShell.dueDate}</FormLabel>
+                    <FormLabel>{t.profileShell.nextFollowUp}</FormLabel>
                     <FormControl>
                       <Input type="date" {...field} value={field.value?.toString() || ""} data-testid="input-next-followup-overview" />
                     </FormControl>
@@ -1628,7 +1629,7 @@ function AccountManagementForm({ company, users, onSubmit, isPending, t }: {
                 name="preferredContactMethod"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t.profileShell.language}</FormLabel>
+                    <FormLabel>{t.profileShell.preferredMethod}</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
                       <FormControl>
                         <SelectTrigger data-testid="select-preferred-method-overview">
@@ -1652,7 +1653,7 @@ function AccountManagementForm({ company, users, onSubmit, isPending, t }: {
               name="notes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t.profileShell.billingNotes}</FormLabel>
+                  <FormLabel>{t.profileShell.internalNotes}</FormLabel>
                   <FormControl>
                     <RichTextEditorField
                       value={field.value || ""}
@@ -1668,7 +1669,7 @@ function AccountManagementForm({ company, users, onSubmit, isPending, t }: {
             />
             <div className="flex justify-end">
               <Button type="submit" disabled={isPending} data-testid="button-save-account-overview">
-                {isPending ? t.profileShell.saving : t.profileShell.accountUpdated}
+                {isPending ? t.profileShell.saving : t.profileShell.saveChanges}
               </Button>
             </div>
           </form>
@@ -2210,6 +2211,7 @@ function ProfileShellInner({
                   initialData={null}
                   onSubmit={(data) => addContactMutation.mutate(data)}
                   isPending={addContactMutation.isPending}
+                  t={t}
                 />
               </DialogContent>
             </Dialog>
@@ -2218,7 +2220,7 @@ function ProfileShellInner({
           {identity.contacts.length === 0 ? (
             <Card className="p-8 text-center">
               <Users className="w-10 h-10 text-gray-200 mx-auto mb-3" />
-              <p className="text-sm text-gray-500">No contacts yet.</p>
+              <p className="text-sm text-gray-500">{t.profileShell.noContactsYet}</p>
             </Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -2275,6 +2277,7 @@ function ProfileShellInner({
                   initialData={editingContact}
                   onSubmit={(data) => updateContactMutation.mutate({ contactId: editingContact.id, data })}
                   isPending={updateContactMutation.isPending}
+                  t={t}
                 />
               )}
             </DialogContent>
@@ -2293,11 +2296,12 @@ function ProfileShellInner({
               </DialogTrigger>
               <DialogContent className="max-w-md max-h-[90dvh] overflow-y-auto">
                 <DialogHeader>
-                  <DialogTitle>Create Task</DialogTitle>
+                  <DialogTitle>{t.profileShell.createTask}</DialogTitle>
                 </DialogHeader>
                 <TaskForm
                   onSubmit={(data) => addTaskMutation.mutate(data)}
                   isPending={addTaskMutation.isPending}
+                  t={t}
                 />
               </DialogContent>
             </Dialog>
