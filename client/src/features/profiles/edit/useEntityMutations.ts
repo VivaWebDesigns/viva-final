@@ -48,7 +48,10 @@ export function useEditCompany(companyId: string, entry: ProfileEntry) {
     onSuccess: () => {
       invalidateProfile(entry);
       queryClient.invalidateQueries({ queryKey: ["/api/crm/companies"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/clients", companyId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/crm/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities/board"] });
     },
   });
 }
@@ -74,6 +77,7 @@ export function useEditContact(contactId: string, entry: ProfileEntry) {
     onSuccess: () => {
       invalidateProfile(entry);
       queryClient.invalidateQueries({ queryKey: ["/api/crm/contacts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/crm/leads"] });
       queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
     },
   });

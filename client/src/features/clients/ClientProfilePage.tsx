@@ -264,6 +264,11 @@ export default function ClientProfilePage({ id }: { id: string }) {
   /** Invalidate both the legacy client key AND the unified profile cache. */
   function invalidateClient() {
     queryClient.invalidateQueries({ queryKey: ["/api/clients", id] });
+    queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/crm/leads"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/crm/companies"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities/board"] });
     queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(profileEntry) });
   }
 
