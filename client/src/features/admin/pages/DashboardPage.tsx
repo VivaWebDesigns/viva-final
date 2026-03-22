@@ -3,8 +3,13 @@ import { STALE } from "@/lib/queryClient";
 import { motion } from "framer-motion";
 import { Users, FileText, BookOpen, Puzzle, Phone, Building2, UserCheck, TrendingUp, ArrowRight, DollarSign, Target, UserPlus } from "lucide-react";
 import { Link, useLocation } from "wouter";
-import type { CrmLead } from "@shared/schema";
+import type { CrmLead, CrmContact, CrmCompany } from "@shared/schema";
 import { useAdminLang } from "@/i18n/LanguageContext";
+
+interface EnrichedLead extends CrmLead {
+  contact?: CrmContact | null;
+  company?: CrmCompany | null;
+}
 
 interface PipelineStats {
   totalOpen: number;
@@ -23,7 +28,7 @@ interface Stats {
   crmContacts: number;
   opportunities: number;
   pipelineStats: PipelineStats;
-  recentLeads: CrmLead[];
+  recentLeads: EnrichedLead[];
 }
 
 interface OnboardingStats {
@@ -196,11 +201,10 @@ export default function DashboardPage() {
                   data-testid={`link-recent-lead-${lead.id}`}
                 >
                   <p className="text-sm font-medium text-gray-900 truncate">{(() => {
-                    const c = (lead as any).contact;
-                    const co = (lead as any).company;
-                    const cn = c ? [c.firstName, c.lastName].filter(Boolean).join(" ") : null;
-                    if (co?.name && cn) return `${co.name} – ${cn}`;
-                    if (co?.name) return co.name;
+                    const cn = lead.contact ? [lead.contact.firstName, lead.contact.lastName].filter(Boolean).join(" ") : null;
+                    const co = lead.company?.name;
+                    if (co && cn) return `${co} – ${cn}`;
+                    if (co) return co;
                     if (cn) return cn;
                     return lead.title;
                   })()}</p>

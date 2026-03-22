@@ -14,6 +14,32 @@ import {
 import type { PipelineStage, PipelineOpportunity } from "@shared/schema";
 import { useAdminLang } from "@/i18n/LanguageContext";
 
+interface ContactSnap { firstName: string; lastName?: string | null }
+interface CompanySnap { name: string }
+
+interface OppsResponse {
+  items: PipelineOpportunity[];
+  total: number;
+  page: number;
+  limit: number;
+  companyMap?: Record<string, CompanySnap>;
+  contactMap?: Record<string, ContactSnap>;
+}
+
+function buildOppDisplayTitle(
+  opp: PipelineOpportunity,
+  companyMap?: Record<string, CompanySnap>,
+  contactMap?: Record<string, ContactSnap>,
+): string {
+  const co = opp.companyId && companyMap?.[opp.companyId];
+  const ct = opp.contactId && contactMap?.[opp.contactId];
+  const cn = ct ? [ct.firstName, ct.lastName].filter(Boolean).join(" ") : null;
+  if (co && cn) return `${co.name} – ${cn}`;
+  if (co) return co.name;
+  if (cn) return cn;
+  return opp.title;
+}
+
 export default function PipelineListPage() {
   const { t } = useAdminLang();
   const [rawSearch, setRawSearch] = useState("");
@@ -34,7 +60,7 @@ export default function PipelineListPage() {
     queryKey: ["/api/pipeline/stages"],
   });
 
-  const { data, isLoading } = useQuery<{ items: PipelineOpportunity[]; total: number; page: number; limit: number }>({
+  const { data, isLoading } = useQuery<OppsResponse>({
     queryKey: ["/api/pipeline/opportunities", `?${params.toString()}`],
     staleTime: STALE.FAST,
   });
@@ -117,7 +143,7 @@ export default function PipelineListPage() {
                   <CardContent className="p-4 flex items-center gap-4">
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-gray-900 truncate" data-testid={`text-opp-title-${opp.id}`}>
-                        {opp.title}
+                        {buildOppDisplayTitle(opp, data?.companyMap, data?.contactMap)}
                       </p>
                       {opp.sourceLeadTitle && opp.sourceLeadTitle !== opp.title && (
                         <p className="text-xs text-gray-400 truncate mt-0.5">From: {opp.sourceLeadTitle}</p>

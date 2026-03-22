@@ -664,7 +664,14 @@ export function SalesSnapshotCard({ entry, sales }: SalesSnapshotCardProps) {
                 </div>
               </div>
               <p className="font-medium text-gray-900 mt-1 text-sm truncate" data-testid="text-opportunity-title">
-                {activeOpportunity.title}
+                {(() => {
+                  const cn = primaryContact ? [primaryContact.firstName, primaryContact.lastName].filter(Boolean).join(" ") : null;
+                  const co = profile?.identity.company?.name;
+                  if (co && cn) return `${co} – ${cn}`;
+                  if (co) return co;
+                  if (cn) return cn;
+                  return activeOpportunity.title;
+                })()}
               </p>
               <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
                 {activeOpportunity.value && (
@@ -692,7 +699,16 @@ export function SalesSnapshotCard({ entry, sales }: SalesSnapshotCardProps) {
                   <Pencil className="w-3.5 h-3.5" />
                 </button>
               </div>
-              <p className="text-sm text-gray-800 font-medium truncate" data-testid="text-source-lead-title">{sourceLead.title}</p>
+              <p className="text-sm text-gray-800 font-medium truncate" data-testid="text-source-lead-title">
+                {(() => {
+                  const cn = primaryContact ? [primaryContact.firstName, primaryContact.lastName].filter(Boolean).join(" ") : null;
+                  const co = profile?.identity.company?.name;
+                  if (co && cn) return `${co} – ${cn}`;
+                  if (co) return co;
+                  if (cn) return cn;
+                  return sourceLead.title;
+                })()}
+              </p>
               {sourceLead.sourceLabel && (
                 <Badge variant="outline" className="text-xs" data-testid="badge-lead-source">
                   {sourceLead.sourceLabel}

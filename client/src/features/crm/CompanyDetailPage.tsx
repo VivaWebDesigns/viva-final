@@ -12,9 +12,24 @@ import type { CrmCompany, CrmContact, CrmLead, CrmLeadStatus } from "@shared/sch
 import { useAdminLang } from "@/i18n/LanguageContext";
 import { STALE } from "@/lib/queryClient";
 
+interface LeadWithStatus extends CrmLead {
+  status?: CrmLeadStatus | null;
+}
+
 interface CompanyDetail extends CrmCompany {
   contacts?: CrmContact[];
-  leads?: (CrmLead & { status?: CrmLeadStatus | null })[];
+  leads?: LeadWithStatus[];
+}
+
+function buildCompanyLeadTitle(lead: LeadWithStatus, company: CompanyDetail): string {
+  const contact = lead.contactId && company.contacts
+    ? company.contacts.find(c => c.id === lead.contactId)
+    : null;
+  const cn = contact ? [contact.firstName, contact.lastName].filter(Boolean).join(" ") : null;
+  if (company.name && cn) return `${company.name} – ${cn}`;
+  if (company.name) return company.name;
+  if (cn) return cn;
+  return lead.title;
 }
 
 export default function CompanyDetailPage({ id }: { id: string }) {
@@ -218,7 +233,7 @@ export default function CompanyDetailPage({ id }: { id: string }) {
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <p className="font-medium text-gray-900 text-sm truncate" data-testid={`text-lead-title-${lead.id}`}>
-                              {lead.title}
+                              {buildCompanyLeadTitle(lead, company!)}
                             </p>
                             {lead.status && (
                               <Badge

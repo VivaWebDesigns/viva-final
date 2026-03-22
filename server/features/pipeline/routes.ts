@@ -3,9 +3,9 @@ import { requireRole } from "../auth/middleware";
 import { logAudit } from "../audit/service";
 import { notifyStageChange, notifyOpportunityAssignment, notifyLeadConverted } from "../notifications/triggers";
 import * as pipelineStorage from "./storage";
-import { insertPipelineStageSchema, insertPipelineOpportunitySchema, insertPipelineActivitySchema, OPPORTUNITY_STATUSES, WEBSITE_PACKAGES, type InsertPipelineOpportunity, crmCompanies, pipelineActivities, pipelineOpportunities } from "@shared/schema";
+import { insertPipelineStageSchema, insertPipelineOpportunitySchema, insertPipelineActivitySchema, OPPORTUNITY_STATUSES, WEBSITE_PACKAGES, type InsertPipelineOpportunity, crmCompanies, crmContacts, pipelineActivities, pipelineOpportunities } from "@shared/schema";
 import { db } from "../../db";
-import { eq, isNull, and } from "drizzle-orm";
+import { eq, isNull, and, inArray } from "drizzle-orm";
 import { appendHistorySafe } from "../history/service";
 import { upsertLeadStatus, updateLead } from "../crm/storage";
 import { z } from "zod";
@@ -113,7 +113,6 @@ router.delete("/stages/:id", requireRole("admin"), async (req, res) => {
 router.get("/opportunities", requireRole("admin", "developer", "sales_rep", "lead_gen"), async (req, res) => {
   try {
     const { search, stageId, assignedTo, status, page, limit } = req.query;
-    // Restricted roles can only see their own opportunities.
     const resolvedAssignedTo = isRestricted(req)
       ? req.authUser!.id
       : (assignedTo as string | undefined);
@@ -125,7 +124,17 @@ router.get("/opportunities", requireRole("admin", "developer", "sales_rep", "lea
       page: page ? parseInt(page as string, 10) : undefined,
       limit: limit ? parseInt(limit as string, 10) : undefined,
     });
-    res.json(result);
+
+    const companyIds = [...new Set(result.items.map((o: any) => o.companyId).filter(Boolean))];
+    const contactIds = [...new Set(result.items.map((o: any) => o.contactId).filter(Boolean))];
+    const [companies, contacts] = await Promise.all([
+      companyIds.length > 0 ? db.select().from(crmCompanies).where(inArray(crmCompanies.id, companyIds as string[])) : [],
+      contactIds.length > 0 ? db.select().from(crmContacts).where(inArray(crmContacts.id, contactIds as string[])) : [],
+    ]);
+    const companyMap = Object.fromEntries(companies.map(c => [c.id, { name: c.name }]));
+    const contactMap = Object.fromEntries(contacts.map(c => [c.id, { firstName: c.firstName, lastName: c.lastName }]));
+
+    res.json({ ...result, companyMap, contactMap });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
