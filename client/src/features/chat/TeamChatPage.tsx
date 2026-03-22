@@ -910,9 +910,10 @@ export default function TeamChatPage() {
                           {!sameUser && !isMine && (
                             <span className="text-xs text-gray-500 mb-0.5 ml-1">{senderName}</span>
                           )}
-                          <div className={`rounded-2xl px-3 py-2 text-sm ${isMine ? "bg-[#0D9488] text-white rounded-br-sm" : "bg-gray-100 text-gray-900 rounded-bl-sm"}`}>
-                            {msg.content}
-                          </div>
+                          <div
+                            className={`rounded-2xl px-3 py-2 text-sm chat-message-content ${isMine ? "bg-[#0D9488] text-white rounded-br-sm" : "bg-gray-100 text-gray-900 rounded-bl-sm"}`}
+                            dangerouslySetInnerHTML={{ __html: sanitizeHtml(msg.content) }}
+                          />
                           <span className="text-[10px] text-gray-300 mt-0.5 px-1">{formatTime(msg.createdAt)}</span>
                         </div>
                       </div>
@@ -1015,7 +1016,7 @@ export default function TeamChatPage() {
               {threadParentMsg && (
                 <div className="px-3 py-2 bg-white border-b border-gray-100 flex-shrink-0">
                   <p className="text-xs font-medium text-gray-500">{threadParentMsg.senderName}</p>
-                  <p className="text-xs text-gray-700 mt-0.5 whitespace-pre-wrap line-clamp-3">{threadParentMsg.content}</p>
+                  <div className="text-xs text-gray-700 mt-0.5 whitespace-pre-wrap line-clamp-3 chat-message-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(threadParentMsg.content) }} />
                 </div>
               )}
 
