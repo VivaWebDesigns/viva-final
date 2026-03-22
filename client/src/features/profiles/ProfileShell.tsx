@@ -620,9 +620,11 @@ export function CompanyContactCard({ entry, company, primaryContact, contacts }:
 export interface SalesSnapshotCardProps {
   entry: ProfileEntry;
   sales: UnifiedProfileDto["sales"];
+  companyName?: string | null;
+  contactName?: string | null;
 }
 
-export function SalesSnapshotCard({ entry, sales }: SalesSnapshotCardProps) {
+export function SalesSnapshotCard({ entry, sales, companyName, contactName }: SalesSnapshotCardProps) {
   const { sourceLead, leadHistory, activeOpportunity, opportunities } = sales;
   const hasAnything = sourceLead || activeOpportunity || leadHistory.length > 0;
 
@@ -664,14 +666,7 @@ export function SalesSnapshotCard({ entry, sales }: SalesSnapshotCardProps) {
                 </div>
               </div>
               <p className="font-medium text-gray-900 mt-1 text-sm truncate" data-testid="text-opportunity-title">
-                {(() => {
-                  const cn = primaryContact ? [primaryContact.firstName, primaryContact.lastName].filter(Boolean).join(" ") : null;
-                  const co = profile?.identity.company?.name;
-                  if (co && cn) return `${co} – ${cn}`;
-                  if (co) return co;
-                  if (cn) return cn;
-                  return activeOpportunity.title;
-                })()}
+                {companyName && contactName ? `${companyName} – ${contactName}` : companyName || contactName || activeOpportunity.title}
               </p>
               <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
                 {activeOpportunity.value && (
@@ -700,14 +695,7 @@ export function SalesSnapshotCard({ entry, sales }: SalesSnapshotCardProps) {
                 </button>
               </div>
               <p className="text-sm text-gray-800 font-medium truncate" data-testid="text-source-lead-title">
-                {(() => {
-                  const cn = primaryContact ? [primaryContact.firstName, primaryContact.lastName].filter(Boolean).join(" ") : null;
-                  const co = profile?.identity.company?.name;
-                  if (co && cn) return `${co} – ${cn}`;
-                  if (co) return co;
-                  if (cn) return cn;
-                  return sourceLead.title;
-                })()}
+                {companyName && contactName ? `${companyName} – ${contactName}` : companyName || contactName || sourceLead.title}
               </p>
               {sourceLead.sourceLabel && (
                 <Badge variant="outline" className="text-xs" data-testid="badge-lead-source">
@@ -2155,7 +2143,12 @@ function ProfileShellInner({
               primaryContact={identity.primaryContact}
               contacts={identity.contacts}
             />
-            <SalesSnapshotCard entry={entry} sales={sales} />
+            <SalesSnapshotCard
+              entry={entry}
+              sales={sales}
+              companyName={identity.company?.name}
+              contactName={identity.primaryContact ? [identity.primaryContact.firstName, identity.primaryContact.lastName].filter(Boolean).join(" ") : null}
+            />
           </div>
           <AccountManagementForm
             company={identity.company}

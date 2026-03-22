@@ -125,8 +125,8 @@ router.get("/opportunities", requireRole("admin", "developer", "sales_rep", "lea
       limit: limit ? parseInt(limit as string, 10) : undefined,
     });
 
-    const companyIds = [...new Set(result.items.map((o: any) => o.companyId).filter(Boolean))];
-    const contactIds = [...new Set(result.items.map((o: any) => o.contactId).filter(Boolean))];
+    const companyIds = [...new Set(result.items.map((o: { companyId?: string | null }) => o.companyId).filter((id): id is string => !!id))];
+    const contactIds = [...new Set(result.items.map((o: { contactId?: string | null }) => o.contactId).filter((id): id is string => !!id))];
     const [companies, contacts] = await Promise.all([
       companyIds.length > 0 ? db.select().from(crmCompanies).where(inArray(crmCompanies.id, companyIds as string[])) : [],
       contactIds.length > 0 ? db.select().from(crmContacts).where(inArray(crmContacts.id, contactIds as string[])) : [],
