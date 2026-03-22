@@ -702,28 +702,6 @@ export default function ClientProfilePage({ id }: { id: string }) {
               </Card>
             )}
 
-            {/* Recent Leads */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Recent Leads</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {client.leads.slice(0, 5).map(lead => (
-                  <div key={lead.id} className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => navigate(`/admin/crm/leads/${lead.id}`)}>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{lead.title}</p>
-                      <p className="text-xs text-gray-500">{format(new Date(lead.createdAt), "MMM d, yyyy")}</p>
-                    </div>
-                    {lead.status && (
-                      <Badge variant="outline" style={{ borderColor: lead.status.color, color: lead.status.color }}>
-                        {lead.status.name}
-                      </Badge>
-                    )}
-                  </div>
-                ))}
-                {client.leads.length === 0 && <p className="text-center py-4 text-sm text-gray-400">No leads found</p>}
-              </CardContent>
-            </Card>
           </div>
         </TabsContent>
 
