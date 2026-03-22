@@ -18,7 +18,7 @@ import {
   AlertCircle, CheckSquare2, Square, Clock, Paperclip,
   MessageSquare, RefreshCw, ArrowRight, Info, CreditCard,
   Rocket, TrendingUp, FileText, Download, Activity,
-  CheckCircle2, Circle, Pencil,
+  CheckCircle2, Circle, Pencil, Zap,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { Badge } from "@/components/ui/badge";
@@ -569,6 +569,17 @@ function TaskRow({ task }: { task: MappedTask }) {
           {task.taskType && (
             <Badge variant="outline" className="text-xs py-0">
               {task.taskType.replace(/_/g, " ")}
+            </Badge>
+          )}
+          {task.automationMeta && (
+            <Badge
+              variant="outline"
+              className="text-xs py-0 px-1.5 bg-violet-50 text-violet-700 border-violet-200 gap-1"
+              data-testid={`badge-automation-${task.id}`}
+              title={`Stage: ${task.automationMeta.triggerStageSlug.replace(/-/g, " ")}`}
+            >
+              <Zap className="w-3 h-3" />
+              Auto
             </Badge>
           )}
         </div>

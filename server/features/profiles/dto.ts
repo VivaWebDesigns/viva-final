@@ -86,6 +86,12 @@ export interface MappedOpportunity {
   updatedAt: Date;
 }
 
+export interface AutomationMeta {
+  triggerStageSlug: string;
+  templateId: string;
+  executedAt: Date;
+}
+
 export interface MappedTask {
   id: string;
   title: string;
@@ -101,6 +107,7 @@ export interface MappedTask {
   companyId: string | null;
   createdBy: string | null;
   createdAt: Date;
+  automationMeta: AutomationMeta | null;
 }
 
 export interface MappedOnboarding {

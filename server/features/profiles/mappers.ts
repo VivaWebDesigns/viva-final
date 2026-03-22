@@ -19,6 +19,7 @@ import type {
   MappedOnboarding,
   MappedFile,
   UnifiedTimelineEvent,
+  AutomationMeta,
 } from "./dto";
 import type { ProfileHealth, TimelineEventSource } from "./types";
 
@@ -127,7 +128,7 @@ export function mapOpportunity(row: PipelineOpportunity): MappedOpportunity {
   };
 }
 
-export function mapTask(row: FollowupTask): MappedTask {
+export function mapTask(row: FollowupTask, automationMeta?: AutomationMeta | null): MappedTask {
   return {
     id: row.id,
     title: row.title,
@@ -143,6 +144,7 @@ export function mapTask(row: FollowupTask): MappedTask {
     companyId: row.companyId ?? null,
     createdBy: row.createdBy ?? null,
     createdAt: row.createdAt,
+    automationMeta: automationMeta ?? null,
   };
 }
 

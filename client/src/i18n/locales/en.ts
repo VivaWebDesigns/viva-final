@@ -510,6 +510,8 @@ export const en = {
     viewOpportunity: "View Opportunity",
     viewLead: "View Lead",
     scheduleFollowUp: "Schedule Follow-up",
+    automationBadge: "Auto",
+    automationStageLabel: "Generated at stage: {stage}",
     taskTitle: "Task title",
     taskTitlePlaceholder: "Follow up with...",
     dueDate: "Due Date",

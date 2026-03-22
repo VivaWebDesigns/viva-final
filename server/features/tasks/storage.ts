@@ -1,13 +1,20 @@
 import { db } from "../../db";
 import {
-  followupTasks, crmContacts, crmCompanies,
+  followupTasks, crmContacts, crmCompanies, automationExecutionLogs,
   type InsertFollowupTask, type FollowupTask,
 } from "@shared/schema";
 import { eq, and, gte, lte, lt, desc, asc, inArray } from "drizzle-orm";
 
+export interface TaskAutomationMeta {
+  triggerStageSlug: string;
+  templateId: string;
+  executedAt: Date;
+}
+
 export type TaskWithContact = FollowupTask & {
   contact: { firstName: string; lastName: string | null; phone: string | null } | null;
   company: { name: string } | null;
+  automationMeta: TaskAutomationMeta | null;
 };
 
 function todayRange() {
@@ -108,12 +115,29 @@ export async function deleteTask(id: string): Promise<void> {
 async function enrichTasks(tasks: FollowupTask[]): Promise<TaskWithContact[]> {
   if (tasks.length === 0) return [];
 
+  const taskIds = tasks.map(t => t.id);
   const contactIds = [...new Set(tasks.map(t => t.contactId).filter(Boolean) as string[])];
-  const contacts = contactIds.length
-    ? await db.select({ id: crmContacts.id, firstName: crmContacts.firstName, lastName: crmContacts.lastName, phone: crmContacts.phone, companyId: crmContacts.companyId })
-        .from(crmContacts)
-        .where(inArray(crmContacts.id, contactIds))
-    : [];
+
+  const [contacts, automationLogRows] = await Promise.all([
+    contactIds.length
+      ? db.select({ id: crmContacts.id, firstName: crmContacts.firstName, lastName: crmContacts.lastName, phone: crmContacts.phone, companyId: crmContacts.companyId })
+          .from(crmContacts)
+          .where(inArray(crmContacts.id, contactIds))
+      : Promise.resolve([]),
+    db.select({
+      generatedTaskId: automationExecutionLogs.generatedTaskId,
+      triggerStageSlug: automationExecutionLogs.triggerStageSlug,
+      templateId: automationExecutionLogs.templateId,
+      createdAt: automationExecutionLogs.createdAt,
+    })
+      .from(automationExecutionLogs)
+      .where(
+        and(
+          inArray(automationExecutionLogs.generatedTaskId, taskIds),
+          eq(automationExecutionLogs.status, "success"),
+        ),
+      ),
+  ]);
 
   const companyIds = [...new Set(contacts.map(c => c.companyId).filter(Boolean) as string[])];
   const companies = companyIds.length
@@ -124,10 +148,19 @@ async function enrichTasks(tasks: FollowupTask[]): Promise<TaskWithContact[]> {
 
   const contactMap = Object.fromEntries(contacts.map(c => [c.id, c]));
   const companyMap = Object.fromEntries(companies.map(c => [c.id, c]));
+  const automationMetaMap = new Map<string, TaskAutomationMeta>(
+    automationLogRows
+      .filter((r) => r.generatedTaskId)
+      .map((r) => [
+        r.generatedTaskId!,
+        { triggerStageSlug: r.triggerStageSlug, templateId: r.templateId!, executedAt: r.createdAt },
+      ]),
+  );
 
   return tasks.map(task => {
     const contact = task.contactId ? contactMap[task.contactId] ?? null : null;
     const company = contact?.companyId ? companyMap[contact.companyId] ?? null : null;
-    return { ...task, contact, company };
+    const automationMeta = automationMetaMap.get(task.id) ?? null;
+    return { ...task, contact, company, automationMeta };
   });
 }

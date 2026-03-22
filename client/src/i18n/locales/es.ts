@@ -512,6 +512,8 @@ export const es: AdminTranslations = {
     viewOpportunity: "Ver Oportunidad",
     viewLead: "Ver Prospecto",
     scheduleFollowUp: "Programar Seguimiento",
+    automationBadge: "Auto",
+    automationStageLabel: "Generada en etapa: {stage}",
     taskTitle: "Título de la tarea",
     taskTitlePlaceholder: "Seguimiento con...",
     dueDate: "Fecha Límite",

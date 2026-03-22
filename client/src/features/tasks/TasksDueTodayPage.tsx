@@ -5,16 +5,23 @@ import { STALE } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Clock, Phone, Building2, AlertTriangle, CalendarClock, ExternalLink, Plus } from "lucide-react";
+import { CheckCircle2, Clock, Phone, Building2, AlertTriangle, CalendarClock, ExternalLink, Plus, Zap } from "lucide-react";
 import QuickTaskModal, { formatTaskTimeDisplay } from "@/components/QuickTaskModal";
 import CompleteTaskModal from "@/components/CompleteTaskModal";
 import type { FollowupTask } from "@shared/schema";
 import { useAdminLang } from "@/i18n/LanguageContext";
 import { renderTaskTitle } from "@/lib/activityI18n";
 
+interface AutomationMeta {
+  triggerStageSlug: string;
+  templateId: string;
+  executedAt: string;
+}
+
 interface TaskWithContact extends FollowupTask {
   contact: { firstName: string; lastName: string | null; phone: string | null } | null;
   company: { name: string } | null;
+  automationMeta: AutomationMeta | null;
 }
 
 interface DueTodayData {
@@ -63,6 +70,18 @@ function TaskRow({
 
         {task.notes && (
           <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{task.notes}</p>
+        )}
+
+        {task.automationMeta && (
+          <div className="flex items-center gap-1.5 mt-1" data-testid={`badge-automation-${task.id}`}>
+            <Badge variant="outline" className="text-xs py-0 px-1.5 bg-violet-50 text-violet-700 border-violet-200 gap-1">
+              <Zap className="w-3 h-3" />
+              {t.tasks.automationBadge}
+            </Badge>
+            <span className="text-xs text-gray-400">
+              {t.tasks.automationStageLabel.replace("{stage}", task.automationMeta.triggerStageSlug.replace(/-/g, " "))}
+            </span>
+          </div>
         )}
 
         <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1.5">

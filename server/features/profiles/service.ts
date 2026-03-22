@@ -12,6 +12,7 @@ import {
   attachments,
   stripeCustomers,
   user,
+  automationExecutionLogs,
 } from "@shared/schema";
 import { eq, inArray, and, desc } from "drizzle-orm";
 import {
@@ -124,12 +125,39 @@ async function assembleProfile(companyId: string, opts?: AssembleOpts): Promise<
     for (const u of userRows) actorMap.set(u.id, u.name);
   }
 
+  // ── Enrich tasks with automation provenance ──────────────────────────────
+  const taskIds = taskRows.map((t) => t.id);
+  const automationLogRows = taskIds.length > 0
+    ? await db
+        .select({
+          generatedTaskId: automationExecutionLogs.generatedTaskId,
+          triggerStageSlug: automationExecutionLogs.triggerStageSlug,
+          templateId: automationExecutionLogs.templateId,
+          createdAt: automationExecutionLogs.createdAt,
+        })
+        .from(automationExecutionLogs)
+        .where(
+          and(
+            inArray(automationExecutionLogs.generatedTaskId, taskIds),
+            eq(automationExecutionLogs.status, "success"),
+          ),
+        )
+    : [];
+  const automationMetaMap = new Map(
+    automationLogRows
+      .filter((r) => r.generatedTaskId)
+      .map((r) => [
+        r.generatedTaskId!,
+        { triggerStageSlug: r.triggerStageSlug, templateId: r.templateId!, executedAt: r.createdAt },
+      ]),
+  );
+
   // ── Map all DB rows through mappers ───────────────────────────────────────
   const company = mapCompany(companyRow);
   const contacts = contactRows.map(mapContact);
   const leads = leadRows.map(mapLead);
   const opportunities = opportunityRows.map(mapOpportunity);
-  const tasks = taskRows.map(mapTask);
+  const tasks = taskRows.map((t) => mapTask(t, automationMetaMap.get(t.id)));
   const onboarding = onboardingRows.map(mapOnboarding);
   const files = fileRows.map(mapFile);
 
