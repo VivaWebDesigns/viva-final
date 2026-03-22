@@ -41,6 +41,7 @@ export default function ClientsPage() {
   const { data, isLoading } = useQuery<ClientsResponse>({
     queryKey: [`/api/clients?search=${encodeURIComponent(search)}&limit=50`],
     staleTime: STALE.FAST,
+    refetchInterval: 30_000,
   });
 
   const clients = data?.items || [];

@@ -120,6 +120,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
       queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities", id] });
       queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities", id, "activities"] });
       queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities/board"] });
+      queryClient.invalidateQueries({ predicate: (q) => typeof q.queryKey[0] === "string" && q.queryKey[0].startsWith("/api/clients") });
       toast({ title: t.pipeline.stageUpdated });
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),

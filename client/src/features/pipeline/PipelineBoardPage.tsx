@@ -316,6 +316,7 @@ export default function PipelineBoardPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities/board"] });
       queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+      queryClient.invalidateQueries({ predicate: (q) => typeof q.queryKey[0] === "string" && q.queryKey[0].startsWith("/api/clients") });
     },
     onError: (err: Error) => {
       queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities/board"] });
