@@ -312,11 +312,13 @@ export default function PipelineBoardPage() {
       const res = await apiRequest("PUT", `/api/pipeline/opportunities/${oppId}/stage`, { stageId });
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities/board"] });
       queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
-      queryClient.invalidateQueries({ predicate: (q) => typeof q.queryKey[0] === "string" && q.queryKey[0].startsWith("/api/clients") });
+      if (data?.opportunity?.status === "won") {
+        queryClient.invalidateQueries({ predicate: (q) => typeof q.queryKey[0] === "string" && q.queryKey[0].startsWith("/api/clients") });
+      }
     },
     onError: (err: Error) => {
       queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities/board"] });
