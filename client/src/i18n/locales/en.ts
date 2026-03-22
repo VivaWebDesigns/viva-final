@@ -1039,6 +1039,8 @@ export const en = {
     saveChanges: "Save Changes",
     creating: "Creating...",
     updateContact: "Update Contact",
+    today: "Today",
+    noDueDate: "No due date",
   },
 };
 

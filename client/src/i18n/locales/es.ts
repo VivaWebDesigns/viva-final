@@ -1041,5 +1041,7 @@ export const es: AdminTranslations = {
     saveChanges: "Guardar Cambios",
     creating: "Creando...",
     updateContact: "Actualizar Contacto",
+    today: "Hoy",
+    noDueDate: "Sin fecha",
   },
 };

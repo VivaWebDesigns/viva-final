@@ -1683,11 +1683,12 @@ function AccountManagementForm({ company, users, onSubmit, isPending, t }: {
 // Section: ClientTaskRow (full CRUD version)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function ClientTaskRow({ task, onToggle, onDelete, isToggling }: {
+function ClientTaskRow({ task, onToggle, onDelete, isToggling, t }: {
   task: ClientTask;
   onToggle: () => void;
   onDelete: () => void;
   isToggling: boolean;
+  t: AdminTranslations;
 }) {
   const isOverdue = task.status === "overdue";
   const isDone = task.status === "completed";
@@ -1722,7 +1723,7 @@ function ClientTaskRow({ task, onToggle, onDelete, isToggling }: {
         <div className="flex items-center gap-3 mt-1.5">
           <span className={`text-xs flex items-center gap-1 ${isOverdue ? "text-red-500 font-medium" : "text-gray-400"}`}>
             <CalendarDays className="w-3 h-3" />
-            {task.dueDate ? (isToday(new Date(task.dueDate)) ? "Today" : format(new Date(task.dueDate), "MMM d, yyyy")) : "No due date"}
+            {task.dueDate ? (isToday(new Date(task.dueDate)) ? t.profileShell.today : format(new Date(task.dueDate), "MMM d, yyyy")) : t.profileShell.noDueDate}
           </span>
           {task.creatorName && (
             <span className="text-xs text-gray-400">by {task.creatorName}</span>
@@ -2330,6 +2331,7 @@ function ProfileShellInner({
                       onToggle={() => toggleTaskMutation.mutate(task.id)}
                       onDelete={() => deleteTaskMutation.mutate(task.id)}
                       isToggling={togglingTaskId === task.id}
+                      t={t}
                     />
                   ))}
                 </div>
@@ -2346,6 +2348,7 @@ function ProfileShellInner({
                       onToggle={() => toggleTaskMutation.mutate(task.id)}
                       onDelete={() => deleteTaskMutation.mutate(task.id)}
                       isToggling={togglingTaskId === task.id}
+                      t={t}
                     />
                   ))}
                 </div>
@@ -2362,6 +2365,7 @@ function ProfileShellInner({
                       onToggle={() => toggleTaskMutation.mutate(task.id)}
                       onDelete={() => deleteTaskMutation.mutate(task.id)}
                       isToggling={togglingTaskId === task.id}
+                      t={t}
                     />
                   ))}
                 </div>
