@@ -212,7 +212,9 @@ export default function ClientProfilePage({ id }: { id: string }) {
   const { toast } = useToast();
   const { t } = useAdminLang();
   const [, navigate] = useLocation();
-  const [activeTab, setActiveTab] = useState("overview");
+  const urlTab = new URLSearchParams(window.location.search).get("tab");
+  const validTabs = ["overview", "notes", "contacts", "tasks", "files", "billing", "activity"];
+  const [activeTab, setActiveTab] = useState(urlTab && validTabs.includes(urlTab) ? urlTab : "overview");
   const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<CrmContact | null>(null);
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);

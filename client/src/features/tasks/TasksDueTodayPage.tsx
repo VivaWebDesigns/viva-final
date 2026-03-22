@@ -146,6 +146,7 @@ function TaskRow({
 }
 
 function getProfileLink(task: TaskWithContact): string | null {
+  if (task.companyId) return `/admin/clients/${task.companyId}?tab=tasks`;
   if (task.opportunityId) return `/admin/pipeline/opportunities/${task.opportunityId}?tab=tasks`;
   if (task.leadId) return `/admin/crm/leads/${task.leadId}?tab=tasks`;
   return null;

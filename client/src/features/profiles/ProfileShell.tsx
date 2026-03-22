@@ -1759,7 +1759,10 @@ export default function ProfileShell({
   className = "",
 }: ProfileShellProps) {
   const { data: profile, isLoading, error } = useUnifiedProfile(entry);
-  const [activeTab, setActiveTab] = useState<string>(defaultTab);
+  const urlTab = new URLSearchParams(window.location.search).get("tab");
+  const validTabs = ["overview", "notes", "contacts", "tasks", "files", "billing", "activity"];
+  const resolvedTab = urlTab && validTabs.includes(urlTab) ? urlTab : defaultTab;
+  const [activeTab, setActiveTab] = useState<string>(resolvedTab);
   const { toast } = useToast();
   const { t } = useAdminLang();
   const [, navigate] = useLocation();
