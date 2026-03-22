@@ -26,6 +26,7 @@ import { seedOnboardingTemplates } from "./features/onboarding/seed";
 import { seedIntegrations } from "./features/integrations/seed";
 import { seedDocs } from "./features/docs/seed";
 import { startWorker } from "./features/workflow/worker";
+import { backfillTaskCompanyIds } from "./features/tasks/backfill";
 
 const TAG = "[bootstrap]";
 
@@ -123,10 +124,16 @@ export async function runBootstrap(): Promise<void> {
   // Run `npm run db:push` to apply schema changes before seeding.
   console.log(`${TAG} schema management: drizzle push model (run 'npm run db:push' for schema changes)`);
 
+  await backfillTaskCompanyIds().catch((err) =>
+    console.error(`${TAG} task companyId backfill error:`, err.message),
+  );
+
   if (!shouldAutoSeed(process.env)) {
     console.log(
       `${TAG} auto-seed: SKIPPED (set VIVA_AUTO_SEED=true or run 'npx tsx scripts/seed.ts' to seed manually)`,
     );
+    startWorker();
+    console.log(`${TAG} bootstrap complete`);
     return;
   }
 

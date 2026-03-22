@@ -1,10 +1,13 @@
 import { Router } from "express";
 import { z } from "zod";
+import { eq } from "drizzle-orm";
 import { requireAuth, requireRole } from "../auth/middleware";
 import { logAudit } from "../audit/service";
 import * as taskStorage from "./storage";
 import { addLeadNote } from "../crm/storage";
 import { addActivity, getStages, moveOpportunity } from "../pipeline/storage";
+import { db } from "../../db";
+import { crmLeads, pipelineOpportunities } from "@shared/schema";
 
 const router = Router();
 
@@ -24,7 +27,36 @@ const createTaskSchema = z.object({
   opportunityId: z.string().nullable().optional(),
   leadId: z.string().nullable().optional(),
   contactId: z.string().nullable().optional(),
+  companyId: z.string().nullable().optional(),
 });
+
+async function resolveCompanyId(
+  companyId: string | null | undefined,
+  leadId: string | null | undefined,
+  opportunityId: string | null | undefined,
+): Promise<string | null> {
+  if (companyId) return companyId;
+
+  if (leadId) {
+    const [lead] = await db
+      .select({ companyId: crmLeads.companyId })
+      .from(crmLeads)
+      .where(eq(crmLeads.id, leadId))
+      .limit(1);
+    if (lead?.companyId) return lead.companyId;
+  }
+
+  if (opportunityId) {
+    const [opp] = await db
+      .select({ companyId: pipelineOpportunities.companyId })
+      .from(pipelineOpportunities)
+      .where(eq(pipelineOpportunities.id, opportunityId))
+      .limit(1);
+    if (opp?.companyId) return opp.companyId;
+  }
+
+  return null;
+}
 
 const updateTaskSchema = z.object({
   title: z.string().min(1).optional(),
@@ -107,8 +139,11 @@ router.post("/", requireRole("admin", "developer", "sales_rep"), async (req, res
       return res.status(200).json(task);
     }
 
+    const resolvedCompanyId = await resolveCompanyId(validated.companyId, validated.leadId, validated.opportunityId);
+
     const task = await taskStorage.createTask({
       ...validated,
+      companyId: resolvedCompanyId,
       dueDate: parsedDueDate,
       createdBy: req.authUser?.id,
       completed: false,

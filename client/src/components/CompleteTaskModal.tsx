@@ -106,6 +106,12 @@ export default function CompleteTaskModal({
   const invalidateTaskQueries = () => {
     queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
     queryClient.invalidateQueries({ queryKey: ["/api/tasks/due-today"] });
+    queryClient.invalidateQueries({
+      predicate: (query) =>
+        Array.isArray(query.queryKey) &&
+        query.queryKey[0] === "/api/clients" &&
+        query.queryKey[2] === "tasks",
+    });
     if (effOppId) {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks/for-opportunity", effOppId] });
       queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities/board"] });
