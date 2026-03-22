@@ -53,3 +53,7 @@ VITE_DEV_DEVELOPER_EMAIL = "dev@vivawebdesigns.com"
 VITE_DEV_DEVELOPER_PASSWORD = "DevTest2024!"
 VITE_DEV_SALESREP_EMAIL = "sales@vivawebdesigns.com"
 VITE_DEV_SALESREP_PASSWORD = "SalesTest2024!"
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 20000
