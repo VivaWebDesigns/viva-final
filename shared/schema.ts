@@ -1003,6 +1003,7 @@ export const automationExecutionLogs = pgTable("automation_execution_logs", {
   index("auto_exec_log_stage_idx").on(t.triggerStageSlug),
   index("auto_exec_log_tpl_idx").on(t.templateId),
   index("auto_exec_log_created_idx").on(t.createdAt),
+  index("auto_exec_log_dup_check_idx").on(t.opportunityId, t.templateId, t.triggerStageSlug, t.status),
 ]);
 
 export const insertAutomationExecutionLogSchema = createInsertSchema(automationExecutionLogs).omit({ id: true, createdAt: true });

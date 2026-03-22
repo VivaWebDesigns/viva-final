@@ -9,7 +9,7 @@ import {
   type InsertAutomationExecutionLog,
   type AutomationExecutionLog,
 } from "@shared/schema";
-import { eq, and, asc, desc, inArray, sql, gte, lte, count } from "drizzle-orm";
+import { eq, and, asc, desc, gte, lte, count } from "drizzle-orm";
 
 export async function listTemplates(): Promise<StageAutomationTemplate[]> {
   return db

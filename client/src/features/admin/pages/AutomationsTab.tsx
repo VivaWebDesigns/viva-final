@@ -33,7 +33,6 @@ import {
   GripVertical,
   ChevronRight,
   ListChecks,
-  AlertCircle,
   History,
   CheckCircle2,
   XCircle,

@@ -6055,6 +6055,115 @@ Follow these steps:
 The Templates tab sidebar shows template counts per stage in the format **active/total** (e.g., "2/3" means 2 active out of 3 total templates). This helps quickly identify stages with paused templates.
 `,
   },
+  {
+    title: "Automations — Troubleshooting Guide",
+    slug: "automation-troubleshooting-guide",
+    categorySlug: "stage-automations",
+    status: "published",
+    content: `# Automations — Troubleshooting Guide
+
+A quick-reference guide for diagnosing common automation issues.
+
+## Task Not Created After Stage Change
+
+**Symptom**: An opportunity moved to a stage that has active templates, but no task appeared.
+
+**Checklist**:
+1. **Is the template active?** Go to Admin Settings > Automations > Templates tab and confirm the template's toggle is ON for the correct stage.
+2. **Is this a duplicate?** Check the Execution Logs tab — a "Skipped" entry means the same template already created a task for this opportunity and stage. Duplicate prevention blocks re-creation even if the original task was completed.
+3. **Did the stage actually change?** Automations only fire when the opportunity transitions into a different stage. Saving an opportunity without changing its stage does not trigger automations.
+4. **Is the stage slug correct?** Templates must target one of the 7 supported slugs: \`new-lead\`, \`contacted\`, \`demo-scheduled\`, \`demo-completed\`, \`payment-sent\`, \`closed-won\`, \`closed-lost\`.
+5. **Check for errors**: Filter the Execution Logs by "Failed" status. The Details column shows the error message.
+
+## Task Created But Not Visible
+
+**Symptom**: Execution log shows "Created" but the task doesn't appear for a user.
+
+**Possible causes**:
+- The task was created with \`assignedTo\` set to the opportunity owner. If the viewing user is a sales rep with restricted access, they may not see tasks assigned to other users.
+- The task may appear under a different profile tab (check the opportunity, lead, or company profile's Tasks tab).
+
+## Multiple Tasks Created for Same Stage
+
+**Symptom**: More than one task appeared for a single stage change.
+
+**This is expected** if multiple active templates are configured for the same stage. Each active template generates its own task. Check the Templates tab to review which templates are active for that stage.
+
+## Automation Fired for Wrong Stage
+
+**Symptom**: A task template for stage X was triggered, but the opportunity was moved to stage Y.
+
+**Diagnosis**: This should not happen — the trigger system uses the exact stage slug of the destination stage. If this occurs, check:
+- Whether the opportunity was briefly moved through multiple stages in quick succession (each intermediate stage fires its own automations).
+- Review the Execution Logs to confirm which stage slug was actually recorded.
+
+## Tasks Appear Without "Auto" Badge
+
+**Symptom**: A task was created by an automation but doesn't show the purple "Auto" badge.
+
+**Possible cause**: The execution log entry linking the task to its template may be missing or have a non-"success" status. The Auto badge requires a successful execution log with a matching \`generatedTaskId\`. This is an edge case that should not occur under normal operation.
+`,
+  },
+  {
+    title: "Automations — Edge Cases & Known Limits (v1)",
+    slug: "automation-edge-cases-v1",
+    categorySlug: "stage-automations",
+    status: "published",
+    content: `# Automations — Edge Cases & Known Limits (v1)
+
+This document covers known behavioral edge cases and intentional limitations of the Stage-Based Task Automations system in its first version.
+
+## Edge Cases
+
+### Re-entering a Stage After Task Completion
+If an opportunity moves to Stage A (creating a task), then moves to Stage B, then back to Stage A, the duplicate check will **prevent** a new task from being created. The check looks for any prior "success" execution log for the same opportunity + template + stage combination, regardless of whether the original task was completed or deleted.
+
+**Rationale**: This prevents accidental task flooding when opportunities move back and forth between stages. In v1, this is an intentional design choice favoring safety over flexibility.
+
+### Rapid Stage Changes
+If an opportunity is quickly moved through multiple stages (e.g., dragged across several columns in the pipeline board), each stage transition fires its own automation independently. This can create multiple tasks in rapid succession — one set per stage. This is expected behavior since each stage change is a distinct event.
+
+### Deleted Templates
+When a template is deleted, it stops generating tasks immediately. However, execution logs referencing the deleted template are preserved for audit purposes. The template title in the Execution Logs table will show "—" for deleted templates since the join returns null.
+
+### Deleted Opportunities
+If an opportunity is deleted after automations have fired, the execution logs for that opportunity are preserved. The opportunity title in the Execution Logs table will show the opportunity ID (truncated) since the join returns null.
+
+### Concurrent Stage Changes
+If two users simultaneously change an opportunity's stage, the fire-and-forget design means both triggers will execute. The duplicate check prevents double task creation — the second execution will log a "Skipped" entry.
+
+### Task Assignment
+Automation-generated tasks inherit the \`assignedTo\` from the opportunity. If the opportunity has no owner (\`assignedTo\` is null), the task will be unassigned. The \`createdBy\` field is set to the user who triggered the stage change.
+
+## Known Limits of v1
+
+| Limitation | Description |
+|---|---|
+| **No conditional logic** | Templates cannot include conditions (e.g., "only if deal value > $5000"). All active templates for a stage fire unconditionally. |
+| **No assignee override** | Tasks always inherit the opportunity owner. Templates cannot specify a different assignee or team. |
+| **No email/notification actions** | Automations only create follow-up tasks. They cannot send emails, Slack messages, or trigger other actions. |
+| **No delay/scheduling** | All templates for a stage fire immediately on stage entry. There is no ability to delay execution (e.g., "fire 2 hours after stage entry"). |
+| **No cross-stage dependencies** | Templates cannot reference other stages (e.g., "only fire if stage B was visited before stage C"). |
+| **Fixed duplicate rule** | Duplicate prevention is all-or-nothing based on the execution log. There is no option to allow re-creation after task completion. |
+| **No bulk operations** | Templates are managed one at a time. There is no bulk import/export, copy-to-stage, or clone functionality. |
+| **100-row log limit** | The Execution Logs tab defaults to the most recent 100 entries. Historical logs beyond this require direct database access. |
+| **No webhook/external triggers** | Automations only fire from internal pipeline stage changes. External events cannot trigger automations. |
+
+## Behavioral Summary Table
+
+| Scenario | Result |
+|---|---|
+| Stage unchanged (same stage saved) | No automation fires |
+| Active template for new stage | Task created, logged as "success" |
+| Inactive template for new stage | Skipped silently (not logged) |
+| Deleted template for stage | No automation fires |
+| Re-enter stage with prior success log | Skipped, logged as "skipped" |
+| Multiple active templates in same stage | All fire in sort order |
+| Lead conversion to initial stage | Automation fires for target stage |
+| Non-admin tries to manage templates | 403 Forbidden |
+| Invalid stage slug in filter | Filter ignored, all results returned |
+`,
+  },
 ];
 
 export async function seedDocs() {

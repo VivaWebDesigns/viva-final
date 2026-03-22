@@ -41,7 +41,7 @@ function TaskRow({
   onComplete: (id: string) => void;
   onReschedule: (task: TaskWithContact) => void;
   isCompleting: boolean;
-  tTasks: { markComplete: string; reschedule: string; viewOpportunity: string; viewLead: string };
+  tTasks: { markComplete: string; reschedule: string; viewOpportunity: string; viewLead: string; automationBadge: string; automationStageLabel: string };
   renderTitle: (task: { title: string }) => string;
 }) {
   const contactName = task.contact
@@ -76,10 +76,10 @@ function TaskRow({
           <div className="flex items-center gap-1.5 mt-1" data-testid={`badge-automation-${task.id}`}>
             <Badge variant="outline" className="text-xs py-0 px-1.5 bg-violet-50 text-violet-700 border-violet-200 gap-1">
               <Zap className="w-3 h-3" />
-              {t.tasks.automationBadge}
+              {tTasks.automationBadge}
             </Badge>
             <span className="text-xs text-gray-400">
-              {t.tasks.automationStageLabel.replace("{stage}", task.automationMeta.triggerStageSlug.replace(/-/g, " "))}
+              {tTasks.automationStageLabel.replace("{stage}", task.automationMeta.triggerStageSlug.replace(/-/g, " "))}
             </span>
           </div>
         )}
@@ -166,6 +166,8 @@ export default function TasksDueTodayPage() {
     reschedule: t.tasks.reschedule,
     viewOpportunity: t.tasks.viewOpportunity,
     viewLead: t.tasks.viewLead,
+    automationBadge: t.tasks.automationBadge,
+    automationStageLabel: t.tasks.automationStageLabel,
   };
 
   return (

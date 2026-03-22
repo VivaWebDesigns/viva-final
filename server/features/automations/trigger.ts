@@ -3,6 +3,7 @@ import {
   followupTasks,
   automationExecutionLogs,
   type StageAutomationTemplate,
+  type AutomationExecStatus,
   AUTOMATION_TRIGGER_STAGES,
 } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
@@ -152,7 +153,7 @@ async function logExecution(data: {
   triggerStageSlug: string;
   templateId: string;
   generatedTaskId: string | null;
-  status: string;
+  status: AutomationExecStatus;
   details: string | null;
 }): Promise<void> {
   await automationStorage.createExecutionLog(data);

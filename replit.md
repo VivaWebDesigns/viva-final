@@ -56,7 +56,7 @@ Admin-configurable task templates that auto-generate tasks when opportunities en
   1. `PUT /opportunities/:id/stage` — Pipeline Board drag-drop and detail page stage change
   2. `PUT /opportunities/:id` — General opportunity update when `stageId` changes
   3. `POST /convert-lead/:leadId` — Lead conversion (initial stage entry)
-- **Duplicate prevention**: Checks `automationExecutionLogs` for existing `success` entry with same `opportunityId + templateId + triggerStageSlug`
+- **Duplicate prevention**: Checks `automationExecutionLogs` for existing `success` entry with same `opportunityId + templateId + triggerStageSlug`. Composite index `auto_exec_log_dup_check_idx` on `(opportunityId, templateId, triggerStageSlug, status)` optimizes this query.
 - **Admin UI**: Admin Settings > Automations tab — `client/src/features/admin/pages/AutomationsTab.tsx` — tabbed layout with Templates and Execution Logs panels; stage sidebar shows active/total counts; execution logs table with stage/status filters and enriched data (template title, opportunity title/link, generated task title)
 - **i18n**: Full EN/ES under `t.automations.*`
 

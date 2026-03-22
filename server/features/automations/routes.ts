@@ -2,8 +2,11 @@ import { Router } from "express";
 import { z } from "zod";
 import { requireRole } from "../auth/middleware";
 import { logAudit } from "../audit/service";
-import { AUTOMATION_TRIGGER_STAGES, AUTOMATION_PRIORITIES } from "@shared/schema";
+import { AUTOMATION_TRIGGER_STAGES, AUTOMATION_PRIORITIES, AUTOMATION_EXEC_STATUSES } from "@shared/schema";
 import * as automationStorage from "./storage";
+
+const VALID_STATUSES = new Set(AUTOMATION_EXEC_STATUSES as readonly string[]);
+const VALID_STAGE_SLUGS = new Set(AUTOMATION_TRIGGER_STAGES as readonly string[]);
 
 const router = Router();
 
@@ -46,7 +49,8 @@ router.get("/templates", requireRole("admin"), async (_req, res) => {
 
 router.get("/templates/stage/:slug", requireRole("admin"), async (req, res) => {
   try {
-    const templates = await automationStorage.listTemplatesByStage(req.params.slug);
+    const slug = req.params.slug as string;
+    const templates = await automationStorage.listTemplatesByStage(slug);
     res.json(templates);
   } catch (err: any) {
     res.status(500).json({ message: err.message });
@@ -65,7 +69,8 @@ router.put("/templates/reorder", requireRole("admin"), async (req, res) => {
 
 router.get("/templates/:id", requireRole("admin"), async (req, res) => {
   try {
-    const template = await automationStorage.getTemplateById(req.params.id);
+    const id = req.params.id as string;
+    const template = await automationStorage.getTemplateById(id);
     if (!template) return res.status(404).json({ message: "Template not found" });
     res.json(template);
   } catch (err: any) {
@@ -99,10 +104,11 @@ router.post("/templates", requireRole("admin"), async (req, res) => {
 
 router.put("/templates/:id", requireRole("admin"), async (req, res) => {
   try {
-    const existing = await automationStorage.getTemplateById(req.params.id);
+    const id = req.params.id as string;
+    const existing = await automationStorage.getTemplateById(id);
     if (!existing) return res.status(404).json({ message: "Template not found" });
     const validated = updateTemplateSchema.parse(req.body);
-    const template = await automationStorage.updateTemplate(req.params.id, {
+    const template = await automationStorage.updateTemplate(id, {
       ...validated,
       updatedBy: req.authUser?.id ?? null,
     });
@@ -122,14 +128,15 @@ router.put("/templates/:id", requireRole("admin"), async (req, res) => {
 
 router.delete("/templates/:id", requireRole("admin"), async (req, res) => {
   try {
-    const existing = await automationStorage.getTemplateById(req.params.id);
+    const id = req.params.id as string;
+    const existing = await automationStorage.getTemplateById(id);
     if (!existing) return res.status(404).json({ message: "Template not found" });
-    await automationStorage.deleteTemplate(req.params.id);
+    await automationStorage.deleteTemplate(id);
     await logAudit({
       userId: req.authUser?.id,
       action: "delete",
       entity: "stage_automation_template",
-      entityId: req.params.id,
+      entityId: id,
       metadata: { title: existing.title, triggerStageSlug: existing.triggerStageSlug },
       ipAddress: req.ip,
     });
@@ -143,13 +150,20 @@ router.get("/execution-logs", requireRole("admin"), async (req, res) => {
   try {
     const rawLimit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
     const limit = rawLimit && !isNaN(rawLimit) ? Math.min(Math.max(rawLimit, 1), 200) : undefined;
+    const rawStatus = req.query.status as string | undefined;
+    const rawStage = req.query.stageSlug as string | undefined;
+    const status = rawStatus && VALID_STATUSES.has(rawStatus) ? rawStatus : undefined;
+    const triggerStageSlug = rawStage && VALID_STAGE_SLUGS.has(rawStage) ? rawStage : undefined;
+    const sinceDate = req.query.since ? new Date(req.query.since as string) : undefined;
+    const untilDate = req.query.until ? new Date(req.query.until as string) : undefined;
+
     const logs = await automationStorage.getExecutionLogs({
       leadId: req.query.leadId as string | undefined,
       opportunityId: req.query.opportunityId as string | undefined,
-      triggerStageSlug: req.query.stageSlug as string | undefined,
-      status: req.query.status as string | undefined,
-      since: req.query.since ? new Date(req.query.since as string) : undefined,
-      until: req.query.until ? new Date(req.query.until as string) : undefined,
+      triggerStageSlug,
+      status,
+      since: sinceDate && !isNaN(sinceDate.getTime()) ? sinceDate : undefined,
+      until: untilDate && !isNaN(untilDate.getTime()) ? untilDate : undefined,
       limit,
     });
     res.json(logs);
