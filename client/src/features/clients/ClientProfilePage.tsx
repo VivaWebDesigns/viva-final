@@ -46,6 +46,10 @@ import type { UnifiedProfileDto } from "@/features/profiles/types";
 import { EditCompanyDialog } from "@/features/profiles/edit/EditCompanyDialog";
 import { EditContactDialog } from "@/features/profiles/edit/EditContactDialog";
 
+function toTitleCase(str: string): string {
+  return str.replace(/\b\w/g, ch => ch.toUpperCase());
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface ClientProfile extends CrmCompany {
@@ -465,7 +469,7 @@ export default function ClientProfilePage({ id }: { id: string }) {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-2xl font-bold text-gray-900 truncate" data-testid="text-client-name">
-                {client.name}
+                {toTitleCase(client.name)}
               </h1>
               {client.clientStatus && (
                 <Badge className={statusColors[client.clientStatus] || ""} data-testid={`badge-status-${client.clientStatus}`}>
@@ -1867,17 +1871,22 @@ function ContactForm({ initialData, onSubmit, isPending }: {
 
 // ─── Activity Timeline ────────────────────────────────────────────────────────
 
+interface HistoryRecord {
+  id: string;
+  event: string;
+  entityType: string;
+  entityId: string;
+  actorId?: string | null;
+  actorName?: string | null;
+  fieldName?: string | null;
+  fromValue?: string | null;
+  toValue?: string | null;
+  note?: string | null;
+  createdAt: string;
+}
+
 function ActivityTimeline({ clientId, clientData }: { clientId: string; clientData: ClientProfile }) {
-  const { data: history = [], isLoading } = useQuery<{
-    id: string;
-    event: string;
-    entityType: string;
-    entityId: string;
-    userId: string | null;
-    metadata: any;
-    createdAt: string;
-    user?: { name: string };
-  }[]>({
+  const { data: history = [], isLoading } = useQuery<HistoryRecord[]>({
     queryKey: ["/api/history/client", clientId],
   });
 
@@ -1890,34 +1899,23 @@ function ActivityTimeline({ clientId, clientData }: { clientId: string; clientDa
   const timelineItems: {
     id: string; date: Date; type: string; event: string;
     user: string; content: string; icon: JSX.Element; noteType?: string;
-  }[] = [
-    ...history.map(h => ({
-      id: h.id,
-      date: new Date(h.createdAt),
-      type: 'history',
-      event: h.event,
-      user: h.user?.name || 'System',
-      content: getEventDescription(h),
-      icon: getEventIcon(h.event),
-    })),
-    ...clientData.recentNotes.map(n => ({
-      id: n.id,
-      date: new Date(n.createdAt),
-      type: 'note',
-      event: 'note_added',
-      user: n.user?.name || 'System',
-      content: n.content,
-      icon: <MessageSquare className="w-4 h-4 text-blue-500" />,
-      noteType: n.type,
-    }))
-  ];
+  }[] = history.map(h => ({
+    id: h.id,
+    date: new Date(h.createdAt),
+    type: (h.event === 'note_added' || h.event === 'note_deleted') ? 'note' : 'history',
+    event: h.event,
+    user: h.actorName || 'System',
+    content: getEventDescription(h),
+    icon: getEventIcon(h.event),
+    noteType: (h.event === 'note_added' || h.event === 'note_deleted') && h.note ? extractNoteType(h.note) : undefined,
+  }));
 
   timelineItems.sort((a, b) => b.date.getTime() - a.date.getTime());
 
   return (
-    <div className="relative space-y-4 before:absolute before:inset-0 before:ml-5 before:h-full before:w-0.5 before:bg-gray-100">
+    <div className="relative space-y-4 before:absolute before:inset-0 before:ml-5 before:h-full before:w-0.5 before:bg-gray-100" data-testid="activity-timeline">
       {timelineItems.map((item) => (
-        <div key={item.id} className="relative pl-12">
+        <div key={item.id} className="relative pl-12" data-testid={`activity-item-${item.id}`}>
           <div className="absolute left-0 mt-1 flex h-10 w-10 items-center justify-center rounded-full border bg-white ring-4 ring-white shadow-sm">
             {item.icon}
           </div>
@@ -1929,7 +1927,7 @@ function ActivityTimeline({ clientId, clientData }: { clientId: string; clientDa
             <div className="mt-1 text-sm text-gray-600">
               {item.type === 'note' ? (
                 <div className="bg-gray-50 p-3 rounded-lg border">
-                  <Badge variant="outline" className="text-[9px] mb-2">{item.noteType}</Badge>
+                  {item.noteType && <Badge variant="outline" className="text-[9px] mb-2">{item.noteType}</Badge>}
                   <p className="line-clamp-3">{item.content}</p>
                 </div>
               ) : (
@@ -1940,32 +1938,99 @@ function ActivityTimeline({ clientId, clientData }: { clientId: string; clientDa
         </div>
       ))}
       {timelineItems.length === 0 && (
-        <p className="text-center py-8 text-gray-400">No activity recorded yet.</p>
+        <p className="text-center py-8 text-gray-400" data-testid="text-no-activity">No activity recorded yet.</p>
       )}
     </div>
   );
 }
 
-function getEventIcon(event: string) {
-  if (event.includes('status')) return <Clock className="w-4 h-4 text-amber-500" />;
-  if (event.includes('contact')) return <Users className="w-4 h-4 text-blue-500" />;
-  if (event.includes('onboarding')) return <CheckCircle className="w-4 h-4 text-emerald-500" />;
-  if (event.includes('task')) return <ClipboardList className="w-4 h-4 text-purple-500" />;
-  if (event.includes('file') || event.includes('attachment')) return <Paperclip className="w-4 h-4 text-gray-400" />;
-  return <History className="w-4 h-4 text-gray-400" />;
+function extractNoteType(note: string): string | undefined {
+  const match = note.match(/^\[([^\]]+)\]/);
+  return match ? match[1] : undefined;
 }
 
-function getEventDescription(h: any) {
-  const meta = h.metadata || {};
-  if (h.event === 'client_status_updated') return `Status changed to ${meta.newStatus || 'unknown'}`;
-  if (h.event === 'client_contact_added') return `New contact added`;
-  if (h.event === 'onboarding_started') return `Onboarding started: ${meta.recordName || 'unknown'}`;
-  if (h.event === 'client_task_created') return `Task created: ${meta.title || 'unknown'}`;
-  if (h.event === 'client_task_completed') return `Task completed: ${meta.title || ''}`;
-  if (h.event === 'client_task_reopened') return `Task reopened: ${meta.title || ''}`;
-  if (h.event === 'client_account_updated') return `Account health updated`;
-  if (h.event === 'field_updated' && meta.note) return meta.note;
-  if (h.event === 'status_changed') return `Status changed: ${meta.fromValue || ''} → ${meta.toValue || ''}`;
-  if (h.event === 'owner_changed') return `Account owner changed`;
-  return h.event.replace(/_/g, ' ');
+function extractNoteContent(note: string): string {
+  return note.replace(/^\[[^\]]+\]\s*/, '');
+}
+
+function getEventIcon(event: string) {
+  switch (event) {
+    case 'status_changed': return <Clock className="w-4 h-4 text-amber-500" />;
+    case 'owner_changed': return <Users className="w-4 h-4 text-indigo-500" />;
+    case 'contact_added':
+    case 'contact_updated': return <Users className="w-4 h-4 text-blue-500" />;
+    case 'note_added': return <MessageSquare className="w-4 h-4 text-blue-500" />;
+    case 'note_deleted': return <MessageSquare className="w-4 h-4 text-red-400" />;
+    case 'task_created': return <ClipboardList className="w-4 h-4 text-purple-500" />;
+    case 'task_completed': return <CheckCircle className="w-4 h-4 text-emerald-500" />;
+    case 'task_reopened': return <ClipboardList className="w-4 h-4 text-amber-500" />;
+    case 'task_deleted': return <ClipboardList className="w-4 h-4 text-red-400" />;
+    case 'service_tier_changed': return <Clock className="w-4 h-4 text-teal-500" />;
+    case 'field_updated': return <History className="w-4 h-4 text-gray-500" />;
+    case 'billing_event': return <History className="w-4 h-4 text-green-500" />;
+    case 'created': return <History className="w-4 h-4 text-blue-500" />;
+    default:
+      if (event.includes('file') || event.includes('attachment')) return <Paperclip className="w-4 h-4 text-gray-400" />;
+      return <History className="w-4 h-4 text-gray-400" />;
+  }
+}
+
+function getEventDescription(h: HistoryRecord): string {
+  switch (h.event) {
+    case 'status_changed':
+      if (h.fromValue && h.toValue) return `Status changed: ${h.fromValue} → ${h.toValue}`;
+      if (h.toValue) return `Status changed to ${h.toValue}`;
+      return 'Status changed';
+    case 'owner_changed':
+      if (h.fromValue && h.toValue) return `Account owner changed: ${h.fromValue} → ${h.toValue}`;
+      if (h.toValue) return `Account owner set to ${h.toValue}`;
+      return 'Account owner changed';
+    case 'note_added':
+      return h.note ? extractNoteContent(h.note) : 'Note added';
+    case 'note_deleted':
+      return h.note ? `Note deleted: ${extractNoteContent(h.note)}` : 'Note deleted';
+    case 'task_created':
+      return h.note ? `Task created: ${h.note}` : 'Task created';
+    case 'task_completed':
+      return h.note ? `Task completed: ${h.note}` : 'Task completed';
+    case 'task_reopened':
+      return h.note ? `Task reopened: ${h.note}` : 'Task reopened';
+    case 'task_deleted':
+      return h.note ? `Task deleted: ${h.note}` : 'Task deleted';
+    case 'contact_added':
+      return h.note ? `Contact added: ${h.note}` : 'Contact added';
+    case 'contact_updated':
+      return h.note ? `Contact updated: ${h.note}` : 'Contact updated';
+    case 'service_tier_changed':
+      if (h.fromValue && h.toValue) return `Service tier changed: ${h.fromValue} → ${h.toValue}`;
+      return h.note || 'Service tier changed';
+    case 'field_updated':
+      if (h.fieldName && h.fromValue && h.toValue) return `${h.fieldName}: ${h.fromValue} → ${h.toValue}`;
+      if (h.fieldName && h.toValue) return `${h.fieldName} set to ${h.toValue}`;
+      return h.note || h.fieldName || 'Field updated';
+    case 'billing_event':
+      return h.note || 'Billing event';
+    case 'created':
+      return 'Account created';
+    case 'assigned':
+      if (h.toValue) return `Assigned to ${h.toValue}`;
+      return 'Assigned';
+    case 'converted':
+      return 'Converted to opportunity';
+    case 'created_from_lead':
+      return 'Created from lead';
+    case 'closed_won':
+      return 'Closed — Won';
+    case 'closed_lost':
+      return 'Closed — Lost';
+    case 'stage_changed':
+      if (h.fromValue && h.toValue) return `Stage moved: ${h.fromValue} → ${h.toValue}`;
+      return h.note || 'Stage changed';
+    case 'checklist_completed':
+      return h.note || 'Checklist item completed';
+    case 'checklist_uncompleted':
+      return h.note || 'Checklist item unchecked';
+    default:
+      return h.note || 'Activity recorded';
+  }
 }

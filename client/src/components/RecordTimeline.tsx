@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { STALE } from "@/lib/queryClient";
-import { Clock, ArrowRight, User, CheckCircle2, XCircle, Shuffle, GitBranch, Plus, AlertCircle } from "lucide-react";
+import { Clock, ArrowRight, User, CheckCircle2, XCircle, Shuffle, GitBranch, Plus, AlertCircle, MessageSquare, ClipboardList, Users, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { useAdminLang } from "@/i18n/LanguageContext";
@@ -43,6 +43,17 @@ const EVENT_ICONS: Record<string, { icon: typeof Clock; color: string }> = {
   checklist_completed:   { icon: CheckCircle2, color: "text-green-500" },
   checklist_uncompleted: { icon: AlertCircle,  color: "text-amber-500" },
   field_updated:         { icon: Clock,        color: "text-gray-500" },
+  note_added:            { icon: MessageSquare, color: "text-blue-500" },
+  note_deleted:          { icon: MessageSquare, color: "text-red-400" },
+  task_created:          { icon: ClipboardList, color: "text-purple-500" },
+  task_completed:        { icon: CheckCircle2,  color: "text-green-500" },
+  task_reopened:         { icon: ClipboardList, color: "text-amber-500" },
+  task_deleted:          { icon: Trash2,        color: "text-red-400" },
+  contact_added:         { icon: Users,         color: "text-blue-500" },
+  contact_updated:       { icon: Users,         color: "text-blue-500" },
+  owner_changed:         { icon: User,          color: "text-indigo-500" },
+  service_tier_changed:  { icon: Shuffle,       color: "text-teal-500" },
+  billing_event:         { icon: Clock,         color: "text-green-500" },
 };
 
 function EventIcon({ event }: { event: string }) {

@@ -560,10 +560,10 @@ export function CompanyContactCard({ entry, company, primaryContact, contacts }:
                 <span className="font-normal text-gray-500"> · {primaryContact.title}</span>
               )}
             </div>
-            {primaryContact.phone && (
+            {(primaryContact.phone || company.phone) && (
               <div className="flex items-center gap-2">
                 <Phone className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                <span className="text-gray-700" data-testid="text-contact-phone">{primaryContact.phone}</span>
+                <span className="text-gray-700" data-testid="text-contact-phone">{primaryContact.phone || company.phone}</span>
               </div>
             )}
             {primaryContact.email && (

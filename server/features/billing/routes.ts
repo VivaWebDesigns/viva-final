@@ -15,6 +15,7 @@ import { stripeCustomers, stripeWebhookEvents } from "@shared/schema";
 import { eq, desc, and } from "drizzle-orm";
 import { z } from "zod";
 import { getLiveStripeConfig, getMaskedStripeStatus } from "../integrations/stripe-config";
+import { appendHistorySafe } from "../history/service";
 
 const router = Router();
 
@@ -71,20 +72,52 @@ router.post("/webhook", async (req: Request, res: Response) => {
   res.json({ received: true });
 });
 
-async function processWebhookEvent(id: string, type: string, event: any) {
+async function processWebhookEvent(id: string, type: string, event: Record<string, unknown>) {
   try {
+    const data = event.data as Record<string, unknown> | undefined;
+    const obj = data?.object as Record<string, unknown> | undefined;
+
     switch (type) {
       case "customer.created":
       case "customer.updated": {
-        const cust = event.data?.object;
-        if (cust?.id) {
-          const existing = await db.select().from(stripeCustomers).where(eq(stripeCustomers.stripeCustomerId, cust.id));
+        const custId = obj?.id as string | undefined;
+        if (custId) {
+          const metadata = obj?.metadata as Record<string, string> | undefined;
+          const existing = await db.select().from(stripeCustomers).where(eq(stripeCustomers.stripeCustomerId, custId));
           if (!existing.length) {
             await db.insert(stripeCustomers).values({
               entityType: "contact",
-              entityId: cust.metadata?.entityId ?? cust.id,
-              stripeCustomerId: cust.id,
-              email: cust.email ?? null,
+              entityId: metadata?.entityId ?? custId,
+              stripeCustomerId: custId,
+              email: (obj?.email as string) ?? null,
+            });
+          }
+          if (metadata?.entityId) {
+            appendHistorySafe({
+              entityType: "client",
+              entityId: metadata.entityId,
+              event: "billing_event",
+              note: `Stripe customer ${type === "customer.created" ? "created" : "updated"}: ${custId}`,
+            });
+          }
+        }
+        break;
+      }
+      case "invoice.paid":
+      case "invoice.payment_failed": {
+        const custId = obj?.customer as string | undefined;
+        if (custId) {
+          const customers = await db.select().from(stripeCustomers).where(eq(stripeCustomers.stripeCustomerId, custId));
+          if (customers.length > 0) {
+            const amount = obj?.amount_paid as number | undefined;
+            const amountStr = amount !== undefined ? ` ($${(amount / 100).toFixed(2)})` : '';
+            appendHistorySafe({
+              entityType: "client",
+              entityId: customers[0].entityId,
+              event: "billing_event",
+              note: type === "invoice.paid"
+                ? `Invoice paid${amountStr}`
+                : `Invoice payment failed${amountStr}`,
             });
           }
         }

@@ -754,6 +754,17 @@ export const RECORD_HISTORY_EVENTS = [
   "checklist_completed",
   "checklist_uncompleted",
   "field_updated",
+  "note_added",
+  "note_deleted",
+  "task_created",
+  "task_completed",
+  "task_reopened",
+  "task_deleted",
+  "contact_added",
+  "contact_updated",
+  "owner_changed",
+  "service_tier_changed",
+  "billing_event",
 ] as const;
 export type RecordHistoryEvent = typeof RECORD_HISTORY_EVENTS[number];
 

@@ -283,13 +283,23 @@ router.patch("/:id", requireRole("admin", "developer", "sales_rep"), async (req,
     }
 
     if (validated.accountOwnerId !== undefined && validated.accountOwnerId !== existing.accountOwnerId) {
+      const ownerIds = [existing.accountOwnerId, validated.accountOwnerId].filter(Boolean) as string[];
+      let ownerNames: Record<string, string> = {};
+      if (ownerIds.length > 0) {
+        const owners = await db.select({ id: user.id, name: user.name }).from(user).where(
+          ownerIds.length === 1 ? eq(user.id, ownerIds[0]) : or(eq(user.id, ownerIds[0]), eq(user.id, ownerIds[1]))!
+        );
+        for (const o of owners) ownerNames[o.id] = o.name;
+      }
+      const oldName = existing.accountOwnerId ? (ownerNames[existing.accountOwnerId] ?? existing.accountOwnerId) : null;
+      const newName = validated.accountOwnerId ? (ownerNames[validated.accountOwnerId] ?? validated.accountOwnerId) : null;
       appendHistorySafe({
         entityType: "client",
         entityId: id,
         event: "owner_changed",
         fieldName: "accountOwnerId",
-        fromValue: (existing.accountOwnerId as string) ?? null,
-        toValue: (validated.accountOwnerId as string) ?? null,
+        fromValue: oldName,
+        toValue: newName,
         ...actor
       });
     }
@@ -320,14 +330,42 @@ router.patch("/:id/account", requireRole("admin", "developer", "sales_rep"), asy
       ipAddress: req.ip,
     });
 
-    appendHistorySafe({
-      entityType: "client",
-      entityId: id,
-      event: "field_updated",
-      note: "Account health / key dates updated",
-      actorId: req.authUser?.id,
-      actorName: req.authUser?.name,
-    });
+    const actor = { actorId: req.authUser?.id, actorName: req.authUser?.name };
+
+    type AccountHealthKey = keyof typeof validated;
+    const fieldLabels: Record<AccountHealthKey, string> = {
+      launchDate: "Launch date",
+      renewalDate: "Renewal date",
+      websiteStatus: "Website status",
+      carePlanStatus: "Care plan status",
+      serviceTier: "Service tier",
+      billingNotes: "Billing notes",
+    };
+
+    function formatFieldValue(val: unknown): string {
+      if (val === null || val === undefined) return '';
+      if (val instanceof Date) return val.toISOString().split('T')[0];
+      return String(val);
+    }
+
+    const accountHealthKeys: AccountHealthKey[] = ["launchDate", "renewalDate", "websiteStatus", "carePlanStatus", "serviceTier", "billingNotes"];
+    for (const key of accountHealthKeys) {
+      if (!(key in validated)) continue;
+      const oldStr = formatFieldValue(existing[key]);
+      const newStr = formatFieldValue(validated[key]);
+      if (oldStr !== newStr) {
+        const event = key === "serviceTier" ? "service_tier_changed" as const : "field_updated" as const;
+        appendHistorySafe({
+          entityType: "client",
+          entityId: id,
+          event,
+          fieldName: fieldLabels[key],
+          fromValue: oldStr || null,
+          toValue: newStr || null,
+          ...actor,
+        });
+      }
+    }
 
     res.json(updated);
   } catch (err: any) {
@@ -389,7 +427,7 @@ router.post("/:id/notes", requireRole("admin", "developer", "sales_rep"), async 
       entityType: "client",
       entityId: id,
       event: "note_added",
-      metadata: { noteId: note.id, type: note.type },
+      note: `[${note.type}] ${note.content.slice(0, 120)}`,
       actorId: req.authUser?.id,
       actorName: req.authUser?.name,
     });
@@ -402,8 +440,24 @@ router.post("/:id/notes", requireRole("admin", "developer", "sales_rep"), async 
 
 router.delete("/:id/notes/:noteId", requireRole("admin", "developer"), async (req, res) => {
   try {
+    const companyId = req.params.id;
     const noteId = req.params.noteId;
-    await db.delete(clientNotes).where(eq(clientNotes.id, noteId));
+    const [existing] = await db.select().from(clientNotes)
+      .where(and(eq(clientNotes.id, noteId), eq(clientNotes.companyId, companyId)))
+      .limit(1);
+    if (!existing) return res.status(404).json({ message: "Note not found" });
+
+    await db.delete(clientNotes).where(and(eq(clientNotes.id, noteId), eq(clientNotes.companyId, companyId)));
+
+    appendHistorySafe({
+      entityType: "client",
+      entityId: companyId,
+      event: "note_deleted",
+      note: `[${existing.type}] ${existing.content.slice(0, 120)}`,
+      actorId: req.authUser?.id,
+      actorName: req.authUser?.name,
+    });
+
     res.status(204).end();
   } catch (err: any) {
     res.status(500).json({ message: err.message });
@@ -441,6 +495,15 @@ router.post("/:id/contacts", requireRole("admin", "developer", "sales_rep"), asy
       ipAddress: req.ip,
     });
 
+    appendHistorySafe({
+      entityType: "client",
+      entityId: id,
+      event: "contact_added",
+      note: `${contact.firstName}${contact.lastName ? ' ' + contact.lastName : ''}${contact.email ? ' (' + contact.email + ')' : ''}`,
+      actorId: req.authUser?.id,
+      actorName: req.authUser?.name,
+    });
+
     res.status(201).json(contact);
   } catch (err: any) {
     res.status(400).json({ message: err.message });
@@ -452,6 +515,8 @@ router.patch("/:id/contacts/:contactId", requireRole("admin", "developer", "sale
     const id = req.params.id;
     const contactId = req.params.contactId;
     const validated = contactSchema.partial().parse(req.body);
+
+    const [existingContact] = await db.select().from(crmContacts).where(eq(crmContacts.id, contactId)).limit(1);
 
     if (validated.isPrimary) {
       await db.update(crmContacts).set({ isPrimary: false }).where(eq(crmContacts.companyId, id));
@@ -467,6 +532,24 @@ router.patch("/:id/contacts/:contactId", requireRole("admin", "developer", "sale
       metadata: { companyId: id },
       ipAddress: req.ip,
     });
+
+    type ContactKey = keyof typeof validated;
+    const contactKeys: ContactKey[] = ["firstName", "lastName", "email", "phone", "title", "preferredLanguage", "isPrimary"];
+    const changedFields = contactKeys.filter(k => {
+      if (!(k in validated)) return false;
+      return existingContact?.[k] !== validated[k];
+    });
+    if (changedFields.length > 0) {
+      const contactName = `${contact.firstName}${contact.lastName ? ' ' + contact.lastName : ''}`;
+      appendHistorySafe({
+        entityType: "client",
+        entityId: id,
+        event: "contact_updated",
+        note: `${contactName}: ${changedFields.join(', ')} updated`,
+        actorId: req.authUser?.id,
+        actorName: req.authUser?.name,
+      });
+    }
 
     res.json(contact);
   } catch (err: any) {
@@ -558,8 +641,8 @@ router.post("/:id/tasks", requireRole("admin", "developer", "sales_rep"), async 
     appendHistorySafe({
       entityType: "client",
       entityId: id,
-      event: "field_updated",
-      note: `Task created: ${task.title}`,
+      event: "task_created",
+      note: `${task.title} [${task.taskType}]`,
       actorId: req.authUser?.id,
       actorName: req.authUser?.name,
     });
@@ -572,17 +655,28 @@ router.post("/:id/tasks", requireRole("admin", "developer", "sales_rep"), async 
 
 router.put("/:id/tasks/:taskId/complete", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
+    const companyId = req.params.id;
     const taskId = req.params.taskId;
-    const [existing] = await db.select().from(followupTasks).where(eq(followupTasks.id, taskId)).limit(1);
+    const [existing] = await db.select().from(followupTasks)
+      .where(and(eq(followupTasks.id, taskId), eq(followupTasks.companyId, companyId)))
+      .limit(1);
     if (!existing) return res.status(404).json({ message: "Task not found" });
 
     const nowCompleted = !existing.completed;
+    const outcome = req.body?.outcome as string | undefined;
+    const completionNote = req.body?.completionNote as string | undefined;
+
+    const updateFields: Record<string, unknown> = {
+      completed: nowCompleted,
+      completedAt: nowCompleted ? new Date() : null,
+    };
+    if (nowCompleted && outcome) updateFields.outcome = outcome;
+    if (nowCompleted && completionNote) updateFields.completionNote = completionNote;
+    if (!nowCompleted) { updateFields.outcome = null; updateFields.completionNote = null; }
+
     const [task] = await db.update(followupTasks)
-      .set({
-        completed: nowCompleted,
-        completedAt: nowCompleted ? new Date() : null,
-      })
-      .where(eq(followupTasks.id, taskId))
+      .set(updateFields)
+      .where(and(eq(followupTasks.id, taskId), eq(followupTasks.companyId, companyId)))
       .returning();
 
     await logAudit({
@@ -590,8 +684,20 @@ router.put("/:id/tasks/:taskId/complete", requireRole("admin", "developer", "sal
       action: nowCompleted ? "client_task_completed" : "client_task_reopened",
       entity: "followup_task",
       entityId: taskId,
-      metadata: { companyId: req.params.id, title: task.title },
+      metadata: { companyId, title: task.title },
       ipAddress: req.ip,
+    });
+
+    const noteParts = [task.title, `[${task.taskType}]`];
+    if (nowCompleted && outcome) noteParts.push(`Outcome: ${outcome}`);
+    if (nowCompleted && completionNote) noteParts.push(`Note: ${completionNote}`);
+    appendHistorySafe({
+      entityType: "client",
+      entityId: companyId,
+      event: nowCompleted ? "task_completed" : "task_reopened",
+      note: noteParts.join(' · '),
+      actorId: req.authUser?.id,
+      actorName: req.authUser?.name,
     });
 
     res.json(task);
@@ -602,16 +708,32 @@ router.put("/:id/tasks/:taskId/complete", requireRole("admin", "developer", "sal
 
 router.delete("/:id/tasks/:taskId", requireRole("admin", "developer"), async (req, res) => {
   try {
+    const companyId = req.params.id;
     const taskId = req.params.taskId;
-    await db.delete(followupTasks).where(and(eq(followupTasks.id, taskId), eq(followupTasks.companyId, req.params.id)));
+    const [existingTask] = await db.select().from(followupTasks)
+      .where(and(eq(followupTasks.id, taskId), eq(followupTasks.companyId, companyId)))
+      .limit(1);
+    if (!existingTask) return res.status(404).json({ message: "Task not found" });
+
+    await db.delete(followupTasks).where(and(eq(followupTasks.id, taskId), eq(followupTasks.companyId, companyId)));
     await logAudit({
       userId: req.authUser?.id,
       action: "client_task_deleted",
       entity: "followup_task",
       entityId: taskId,
-      metadata: { companyId: req.params.id },
+      metadata: { companyId },
       ipAddress: req.ip,
     });
+
+    appendHistorySafe({
+      entityType: "client",
+      entityId: companyId,
+      event: "task_deleted",
+      note: existingTask.title,
+      actorId: req.authUser?.id,
+      actorName: req.authUser?.name,
+    });
+
     res.status(204).end();
   } catch (err: any) {
     res.status(500).json({ message: err.message });
