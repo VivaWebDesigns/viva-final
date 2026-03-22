@@ -507,6 +507,8 @@ export const en = {
     allCaughtUpDesc: "No active tasks.",
     allActiveTasks: "All active tasks across clients & pipeline",
     upcoming: "Upcoming",
+    tabOpenTasks: "Open Tasks",
+    tabCompleted: "Completed",
     markComplete: "Mark as complete",
     reschedule: "Reschedule",
     viewOpportunity: "View Opportunity",

@@ -509,6 +509,8 @@ export const es: AdminTranslations = {
     allCaughtUpDesc: "Sin tareas activas.",
     allActiveTasks: "Todas las tareas activas de clientes y pipeline",
     upcoming: "Próximas",
+    tabOpenTasks: "Tareas Abiertas",
+    tabCompleted: "Completadas",
     markComplete: "Marcar como completado",
     reschedule: "Reprogramar",
     viewOpportunity: "Ver Oportunidad",

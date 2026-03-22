@@ -5,6 +5,7 @@ import { STALE } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CheckCircle2, Clock, Phone, Building2, AlertTriangle, CalendarClock, ExternalLink, Plus, Zap, History, FileText } from "lucide-react";
 import QuickTaskModal, { formatTaskTimeDisplay } from "@/components/QuickTaskModal";
 import CompleteTaskModal from "@/components/CompleteTaskModal";
@@ -301,163 +302,172 @@ export default function TasksDueTodayPage() {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6" data-testid="page-tasks-due-today">
-      <div className="lg:col-span-3 space-y-4 sm:space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900" data-testid="text-tasks-title">
-              {t.tasks.title}
-            </h1>
-            <p className="text-sm text-gray-500 mt-1">
-              {t.tasks.allActiveTasks}
-            </p>
-          </div>
-          <Button
-            size="sm"
-            onClick={() => setShowNewTask(true)}
-            data-testid="button-new-task"
-          >
-            <Plus className="w-4 h-4 mr-1.5" />
-            {t.tasks.scheduleFollowUp}
-          </Button>
-        </div>
-
-        {isLoading ? (
-          <div className="flex items-center justify-center h-40">
-            <div className="w-8 h-8 border-4 border-[#0D9488] border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : totalCount === 0 ? (
-          <Card>
-            <CardContent className="py-16 text-center">
-              <CheckCircle2 className="w-12 h-12 text-[#0D9488] mx-auto mb-3 opacity-50" />
-              <p className="text-gray-500 font-medium">{t.tasks.allCaughtUp}</p>
-              <p className="text-sm text-gray-400 mt-1">{t.tasks.allCaughtUpDesc}</p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-4">
-            {overdue.length > 0 && (
-              <Card className="border-red-200">
-                <CardHeader className="pb-2 pt-4 px-4">
-                  <CardTitle className="text-sm font-semibold text-red-600 flex items-center gap-2" data-testid="section-overdue">
-                    <AlertTriangle className="w-4 h-4" />
-                    {t.tasks.overdue}
-                    <Badge variant="destructive" className="text-xs">{overdue.length}</Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="px-4 pb-3">
-                  {overdue.map((task) => (
-                    <TaskRow
-                      key={task.id}
-                      task={task}
-                      onComplete={(id) => {
-                        const found = overdue.find(t2 => t2.id === id);
-                        if (found) setCompletingTask(found);
-                      }}
-                      onReschedule={(tsk) => setRescheduleTask(tsk)}
-                      isCompleting={false}
-                      tTasks={tTasks}
-                      renderTitle={(task) => renderTaskTitle(task, t)}
-                    />
-                  ))}
-                </CardContent>
-              </Card>
-            )}
-
-            {dueToday.length > 0 && (
-              <Card>
-                <CardHeader className="pb-2 pt-4 px-4">
-                  <CardTitle className="text-sm font-semibold text-gray-700 flex items-center gap-2" data-testid="section-due-today">
-                    <Clock className="w-4 h-4 text-[#0D9488]" />
-                    {t.tasks.dueToday}
-                    <Badge variant="secondary" className="text-xs">{dueToday.length}</Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="px-4 pb-3">
-                  {dueToday.map((task) => (
-                    <TaskRow
-                      key={task.id}
-                      task={task}
-                      onComplete={(id) => {
-                        const found = dueToday.find(t2 => t2.id === id);
-                        if (found) setCompletingTask(found);
-                      }}
-                      onReschedule={(tsk) => setRescheduleTask(tsk)}
-                      isCompleting={false}
-                      tTasks={tTasks}
-                      renderTitle={(task) => renderTaskTitle(task, t)}
-                    />
-                  ))}
-                </CardContent>
-              </Card>
-            )}
-
-            {upcoming.length > 0 && (
-              <Card>
-                <CardHeader className="pb-2 pt-4 px-4">
-                  <CardTitle className="text-sm font-semibold text-gray-700 flex items-center gap-2" data-testid="section-upcoming">
-                    <CalendarClock className="w-4 h-4 text-blue-500" />
-                    {t.tasks.upcoming}
-                    <Badge variant="secondary" className="text-xs">{upcoming.length}</Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="px-4 pb-3">
-                  {upcoming.map((task) => (
-                    <TaskRow
-                      key={task.id}
-                      task={task}
-                      onComplete={(id) => {
-                        const found = upcoming.find(t2 => t2.id === id);
-                        if (found) setCompletingTask(found);
-                      }}
-                      onReschedule={(tsk) => setRescheduleTask(tsk)}
-                      isCompleting={false}
-                      tTasks={tTasks}
-                      renderTitle={(task) => renderTaskTitle(task, t)}
-                    />
-                  ))}
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        )}
-      </div>
-
-      <div className="lg:col-span-2 space-y-4" data-testid="section-completed-history">
+    <div data-testid="page-tasks-due-today">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2" data-testid="text-completed-history-title">
-            <History className="w-5 h-5 text-[#0D9488]" />
-            {t.tasks.completedHistory}
-          </h2>
-          <p className="text-sm text-gray-500 mt-0.5">{t.tasks.completedHistoryDesc}</p>
+          <h1 className="text-2xl font-bold text-gray-900" data-testid="text-tasks-title">
+            {t.tasks.title}
+          </h1>
+          <p className="text-sm text-gray-500 mt-1">
+            {t.tasks.allActiveTasks}
+          </p>
         </div>
-
-        {isLoadingHistory ? (
-          <div className="flex items-center justify-center h-40">
-            <div className="w-8 h-8 border-4 border-[#0D9488] border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : history.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <CheckCircle2 className="w-10 h-10 text-gray-200 mx-auto mb-3" />
-              <p className="text-gray-500 font-medium text-sm">{t.tasks.noCompletedTasks}</p>
-              <p className="text-xs text-gray-400 mt-1">{t.tasks.noCompletedTasksDesc}</p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-2 max-h-[calc(100vh-12rem)] overflow-y-auto pr-1">
-            {history.map((task) => (
-              <CompletedTaskCard
-                key={task.id}
-                task={task}
-                tTasks={tCompleted}
-                outcomeLabels={outcomeLabels}
-                renderTitle={(task) => renderTaskTitle(task, t)}
-              />
-            ))}
-          </div>
-        )}
+        <Button
+          size="sm"
+          onClick={() => setShowNewTask(true)}
+          data-testid="button-new-task"
+        >
+          <Plus className="w-4 h-4 mr-1.5" />
+          {t.tasks.scheduleFollowUp}
+        </Button>
       </div>
+
+      <Tabs defaultValue="open" className="w-full">
+        <TabsList className="mb-4" data-testid="tabs-tasks">
+          <TabsTrigger value="open" data-testid="tab-open-tasks">
+            {t.tasks.tabOpenTasks}
+            {totalCount > 0 && (
+              <Badge variant="secondary" className="ml-2 text-xs">{totalCount}</Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="completed" data-testid="tab-completed-tasks">
+            {t.tasks.tabCompleted}
+            {history.length > 0 && (
+              <Badge variant="secondary" className="ml-2 text-xs">{history.length}</Badge>
+            )}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="open" className="space-y-4">
+          {isLoading ? (
+            <div className="flex items-center justify-center h-40">
+              <div className="w-8 h-8 border-4 border-[#0D9488] border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : totalCount === 0 ? (
+            <Card>
+              <CardContent className="py-16 text-center">
+                <CheckCircle2 className="w-12 h-12 text-[#0D9488] mx-auto mb-3 opacity-50" />
+                <p className="text-gray-500 font-medium">{t.tasks.allCaughtUp}</p>
+                <p className="text-sm text-gray-400 mt-1">{t.tasks.allCaughtUpDesc}</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {overdue.length > 0 && (
+                <Card className="border-red-200">
+                  <CardHeader className="pb-2 pt-4 px-4">
+                    <CardTitle className="text-sm font-semibold text-red-600 flex items-center gap-2" data-testid="section-overdue">
+                      <AlertTriangle className="w-4 h-4" />
+                      {t.tasks.overdue}
+                      <Badge variant="destructive" className="text-xs">{overdue.length}</Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="px-4 pb-3">
+                    {overdue.map((task) => (
+                      <TaskRow
+                        key={task.id}
+                        task={task}
+                        onComplete={(id) => {
+                          const found = overdue.find(t2 => t2.id === id);
+                          if (found) setCompletingTask(found);
+                        }}
+                        onReschedule={(tsk) => setRescheduleTask(tsk)}
+                        isCompleting={false}
+                        tTasks={tTasks}
+                        renderTitle={(task) => renderTaskTitle(task, t)}
+                      />
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
+
+              {dueToday.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-2 pt-4 px-4">
+                    <CardTitle className="text-sm font-semibold text-gray-700 flex items-center gap-2" data-testid="section-due-today">
+                      <Clock className="w-4 h-4 text-[#0D9488]" />
+                      {t.tasks.dueToday}
+                      <Badge variant="secondary" className="text-xs">{dueToday.length}</Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="px-4 pb-3">
+                    {dueToday.map((task) => (
+                      <TaskRow
+                        key={task.id}
+                        task={task}
+                        onComplete={(id) => {
+                          const found = dueToday.find(t2 => t2.id === id);
+                          if (found) setCompletingTask(found);
+                        }}
+                        onReschedule={(tsk) => setRescheduleTask(tsk)}
+                        isCompleting={false}
+                        tTasks={tTasks}
+                        renderTitle={(task) => renderTaskTitle(task, t)}
+                      />
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
+
+              {upcoming.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-2 pt-4 px-4">
+                    <CardTitle className="text-sm font-semibold text-gray-700 flex items-center gap-2" data-testid="section-upcoming">
+                      <CalendarClock className="w-4 h-4 text-blue-500" />
+                      {t.tasks.upcoming}
+                      <Badge variant="secondary" className="text-xs">{upcoming.length}</Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="px-4 pb-3">
+                    {upcoming.map((task) => (
+                      <TaskRow
+                        key={task.id}
+                        task={task}
+                        onComplete={(id) => {
+                          const found = upcoming.find(t2 => t2.id === id);
+                          if (found) setCompletingTask(found);
+                        }}
+                        onReschedule={(tsk) => setRescheduleTask(tsk)}
+                        isCompleting={false}
+                        tTasks={tTasks}
+                        renderTitle={(task) => renderTaskTitle(task, t)}
+                      />
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="completed" data-testid="section-completed-history">
+          {isLoadingHistory ? (
+            <div className="flex items-center justify-center h-40">
+              <div className="w-8 h-8 border-4 border-[#0D9488] border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : history.length === 0 ? (
+            <Card>
+              <CardContent className="py-16 text-center">
+                <CheckCircle2 className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+                <p className="text-gray-500 font-medium text-sm">{t.tasks.noCompletedTasks}</p>
+                <p className="text-xs text-gray-400 mt-1">{t.tasks.noCompletedTasksDesc}</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-2">
+              {history.map((task) => (
+                <CompletedTaskCard
+                  key={task.id}
+                  task={task}
+                  tTasks={tCompleted}
+                  outcomeLabels={outcomeLabels}
+                  renderTitle={(task) => renderTaskTitle(task, t)}
+                />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
 
       <QuickTaskModal
         open={!!rescheduleTask}
