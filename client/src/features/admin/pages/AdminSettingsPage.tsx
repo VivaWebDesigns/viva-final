@@ -13,11 +13,12 @@ import {
 } from "@/components/ui/dialog";
 import {
   Settings, Users, Shield, Activity, Plus, Edit2, Ban, CheckCircle2,
-  Clock, AlertCircle,
+  Clock, AlertCircle, Zap,
 } from "lucide-react";
 import { useAdminLang } from "@/i18n/LanguageContext";
+import AutomationsTab from "./AutomationsTab";
 
-type Tab = "users" | "audit";
+type Tab = "users" | "audit" | "automations";
 
 interface AdminUser {
   id: string;
@@ -98,6 +99,7 @@ export default function AdminSettingsPage() {
 
   const TABS = [
     { id: "users" as Tab, label: t.settings.teamMembers, icon: Users },
+    { id: "automations" as Tab, label: t.automations.tabLabel, icon: Zap },
     { id: "audit" as Tab, label: t.settings.auditLogs, icon: Activity },
   ];
 
@@ -266,6 +268,8 @@ export default function AdminSettingsPage() {
           </div>
         </div>
       )}
+
+      {tab === "automations" && <AutomationsTab />}
 
       <Dialog open={showAddUser} onOpenChange={setShowAddUser}>
         <DialogContent className="sm:max-w-md max-h-[90dvh] overflow-y-auto">

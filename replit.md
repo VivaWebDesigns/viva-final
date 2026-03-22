@@ -44,6 +44,17 @@ The admin UI is fully bilingual (EN/ES) and uses React with Vite, Tailwind CSS, 
     - **`ProfileShell`**: A reusable tabbed UI component for displaying unified client profiles, offering sections for Overview, Timeline, Tasks, Files, and Service (billing + onboarding), each with dedicated edit dialogs.
     - **ClientProfilePage**: Adapts the `UnifiedProfileDto` to the legacy `ClientProfile` type for existing client account pages.
 
+### Stage-Based Task Automations
+Admin-configurable task templates that auto-generate tasks when opportunities enter specific pipeline stages.
+- **Tables**: `stage_automation_templates`, `automation_execution_logs`
+- **API**: `/api/automations/templates` (CRUD), `/api/automations/execution-logs` — admin-only
+- **Trigger stages**: Uses `pipeline_stages.slug` values: `new-lead`, `contacted`, `demo-scheduled`, `demo-completed`, `payment-sent`, `closed-won`, `closed-lost`
+- **Shared types**: `AUTOMATION_TRIGGER_STAGES`, `AUTOMATION_PRIORITIES`, `AUTOMATION_EXEC_STATUSES` in `shared/schema.ts`
+- **Service**: `server/features/automations/` — storage.ts (Drizzle CRUD), routes.ts (Express), index.ts
+- **Admin UI**: Admin Settings > Automations tab — `client/src/features/admin/pages/AutomationsTab.tsx`
+- **i18n**: Full EN/ES under `t.automations.*`
+- **Pending**: Wire trigger execution into `moveOpportunity()` pipeline flow (Phase 3)
+
 ### System Design Choices
 - **Database Seed Strategy**: Idempotent seeding on startup for core data (users, stages, templates, integrations). Structural seeds use upserts. Dev-only fake data is separate.
 - **Data-testid Attributes**: Every interactive and meaningful display element includes a descriptive `data-testid` for robust testing.

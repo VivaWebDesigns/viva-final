@@ -5784,6 +5784,116 @@ If a matching log entry exists, skip the template and log a "skipped" entry with
 4. Document each expansion phase in App Docs before implementation
 `,
   },
+  {
+    title: "Automations Admin UI Overview",
+    slug: "stage-automations-admin-ui",
+    categorySlug: "stage-automations",
+    status: "published",
+    content: `# Automations Admin UI Overview
+
+## Location
+Admin > Admin Settings > Automations tab
+
+## Layout
+The Automations tab has a two-panel layout:
+
+### Left Panel — Stage Selector
+- Vertical list of all 7 supported pipeline stages
+- Clicking a stage loads its configured task templates in the main panel
+- Active stage is highlighted with the brand teal color
+- Shows template count for the currently selected stage
+
+### Right Panel — Template List
+- Displays all task templates for the selected stage, ordered by sort order
+- Each template row shows: title, priority badge, description preview, due offset, and active toggle
+- Edit and delete buttons appear on hover
+- Drag handles are visible for future reordering support
+
+## Access Control
+- Only users with the **admin** role can see the Automations tab in Admin Settings
+- The tab is hidden for developers, sales reps, and lead gen roles
+- All API calls use admin-only endpoints
+
+## Bilingual Support
+All labels, buttons, toasts, and descriptions support EN/ES via the existing i18n system.
+`,
+  },
+  {
+    title: "How to Configure Stage-Based Task Templates",
+    slug: "stage-automations-howto",
+    categorySlug: "stage-automations",
+    status: "published",
+    content: `# How to Configure Stage-Based Task Templates
+
+## Creating a Template
+1. Navigate to Admin > Admin Settings > Automations
+2. Select the pipeline stage you want to configure
+3. Click "Add Task" (or "Add First Task Template" if the stage has no templates)
+4. Fill in the form:
+   - **Task Title** (required): The name of the task that will be generated
+   - **Description / Instructions** (optional): Notes or instructions for the assignee
+   - **Due Date**: Number of days after stage entry when the task is due (0 = same day)
+   - **Priority**: Low, Medium, High, or Urgent
+   - **Active**: Whether this template should generate tasks (can be toggled later)
+5. Click "Create Template"
+
+## Editing a Template
+1. Hover over a template row to reveal the edit button (pencil icon)
+2. Click to open the edit form
+3. Modify any fields and click "Save Changes"
+
+## Deleting a Template
+1. Hover over a template row to reveal the delete button (trash icon)
+2. Click to open the confirmation dialog
+3. Confirm deletion — this cannot be undone
+
+## Activating / Deactivating a Template
+- Use the toggle switch on each template row to activate or deactivate it
+- Inactive templates will not generate tasks when a lead enters the stage
+- Deactivating a template does not affect previously generated tasks
+
+## Example Setup
+For the "Demo Scheduled" stage, you might configure:
+1. "Send demo confirmation email" — Due: 0 days, Priority: High
+2. "Prepare demo environment" — Due: 0 days, Priority: Medium
+3. "Follow up after demo" — Due: 1 day, Priority: High
+`,
+  },
+  {
+    title: "Automations — Template Fields Reference",
+    slug: "stage-automations-fields",
+    categorySlug: "stage-automations",
+    status: "published",
+    content: `# Automations — Template Fields Reference
+
+## Task Template Fields
+
+| Field | Required | Type | Description |
+|---|---|---|---|
+| Task Title | Yes | Text | The title of the generated task |
+| Description | No | Text | Optional instructions or notes |
+| Due Offset (Days) | Yes | Number (0+) | Days after stage entry for due date |
+| Priority | Yes | Select | Low, Medium, High, or Urgent |
+| Active | Yes | Toggle | Whether the template generates tasks |
+
+## How Due Offset Works
+- **0 days**: Task is due the same day the lead enters the stage
+- **1 day**: Task is due the next day
+- **N days**: Task is due N calendar days after stage entry
+
+## Priority Levels
+- **Low** (gray): Non-urgent background tasks
+- **Medium** (blue): Standard follow-up tasks
+- **High** (orange): Time-sensitive actions
+- **Urgent** (red): Immediate attention required
+
+## Auto-Generated Fields
+When a task is generated from a template, the system automatically sets:
+- **Assigned To**: The opportunity's current assignee
+- **Due Date**: Stage entry date + due offset days
+- **Linked Records**: Lead, contact, company, and opportunity from the pipeline record
+`,
+  },
 ];
 
 export async function seedDocs() {
