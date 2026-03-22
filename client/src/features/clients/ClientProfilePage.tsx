@@ -9,7 +9,7 @@ import {
   Download, CreditCard, Shield, Rocket, RefreshCw,
   ClipboardList, ExternalLink, CheckSquare, Square,
   CalendarDays, Tag, ServerCrash, Wifi, WifiOff, Wrench,
-  Building, BarChart3, Paperclip,
+  Building, BarChart3, Paperclip, Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -43,6 +43,8 @@ import type {
 } from "@shared/schema";
 import { useUnifiedProfile, PROFILE_KEYS } from "@/features/profiles/hooks";
 import type { UnifiedProfileDto } from "@/features/profiles/types";
+import { EditCompanyDialog } from "@/features/profiles/edit/EditCompanyDialog";
+import { EditContactDialog } from "@/features/profiles/edit/EditContactDialog";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -218,6 +220,8 @@ export default function ClientProfilePage({ id }: { id: string }) {
   const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<CrmContact | null>(null);
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
+  const [editCompanyOpen, setEditCompanyOpen] = useState(false);
+  const [editContactOpen, setEditContactOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingFile, setUploadingFile] = useState(false);
 
@@ -438,6 +442,7 @@ export default function ClientProfilePage({ id }: { id: string }) {
 
   // ─── Adapt profile to legacy ClientProfile shape ───────────────────────────
   const client = adaptToClient(profile, notes as (ClientNote & { user?: Pick<DbUser, "id" | "name"> })[]);
+  const primaryContact = profile.identity.contacts.find(c => c.isPrimary) ?? profile.identity.contacts[0] ?? null;
 
   const statusColors: Record<string, string> = {
     active: "bg-emerald-100 text-emerald-700 border-emerald-200",
@@ -571,6 +576,14 @@ export default function ClientProfilePage({ id }: { id: string }) {
                 <CardTitle className="text-lg flex items-center gap-2">
                   <Building2 className="w-5 h-5 text-gray-400" />
                   Company Info
+                  <button
+                    onClick={() => setEditCompanyOpen(true)}
+                    className="ml-auto text-gray-400 hover:text-gray-600 transition-colors"
+                    aria-label="Edit company info"
+                    data-testid="button-edit-company-info"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -619,8 +632,60 @@ export default function ClientProfilePage({ id }: { id: string }) {
                     </div>
                   )}
                 </div>
+
+                {primaryContact && (
+                  <div className="pt-4 border-t">
+                    <div className="flex items-center gap-2 mb-3">
+                      <User className="w-4 h-4 text-gray-400" />
+                      <p className="text-xs text-gray-500 uppercase font-semibold">Primary Contact</p>
+                      <button
+                        onClick={() => setEditContactOpen(true)}
+                        className="ml-auto text-gray-400 hover:text-gray-600 transition-colors"
+                        aria-label="Edit primary contact"
+                        data-testid="button-edit-primary-contact"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <div className="space-y-2 text-sm">
+                      <p className="font-medium text-gray-900">
+                        {[primaryContact.firstName, primaryContact.lastName].filter(Boolean).join(" ")}
+                        {primaryContact.title && (
+                          <span className="font-normal text-gray-500"> · {primaryContact.title}</span>
+                        )}
+                      </p>
+                      {primaryContact.phone && (
+                        <div className="flex items-center gap-3">
+                          <Phone className="w-3.5 h-3.5 text-gray-400" />
+                          <span>{primaryContact.phone}</span>
+                        </div>
+                      )}
+                      {primaryContact.email && (
+                        <div className="flex items-center gap-3">
+                          <Mail className="w-3.5 h-3.5 text-gray-400" />
+                          <span className="truncate text-blue-600">{primaryContact.email}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
+
+            <EditCompanyDialog
+              open={editCompanyOpen}
+              onOpenChange={setEditCompanyOpen}
+              company={profile!.identity.company}
+              entry={profileEntry}
+            />
+            {primaryContact && (
+              <EditContactDialog
+                open={editContactOpen}
+                onOpenChange={setEditContactOpen}
+                contact={primaryContact}
+                entry={profileEntry}
+              />
+            )}
 
             {/* Account Management Form */}
             <Card className="lg:col-span-2">
