@@ -8,7 +8,7 @@ import {
   user, clientNotes, followupTasks, stripeCustomers, stripeWebhookEvents,
   attachments,
 } from "@shared/schema";
-import { sql, desc, asc, ilike, or, SQL, eq, and, isNotNull } from "drizzle-orm";
+import { sql, desc, asc, ilike, or, SQL, eq, and, isNotNull, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { logAudit } from "../audit/service";
 import { appendHistorySafe } from "../history/service";
@@ -481,6 +481,15 @@ router.get("/:id/tasks", requireRole("admin", "developer", "sales_rep"), async (
     const id = req.params.id;
     const status = req.query.status as string | undefined;
 
+    const leadRows = await db.select({ id: crmLeads.id }).from(crmLeads).where(eq(crmLeads.companyId, id));
+    const oppRows = await db.select({ id: pipelineOpportunities.id }).from(pipelineOpportunities).where(eq(pipelineOpportunities.companyId, id));
+    const leadIds = leadRows.map((l) => l.id);
+    const oppIds = oppRows.map((o) => o.id);
+
+    const conditions: SQL[] = [eq(followupTasks.companyId, id)];
+    if (leadIds.length > 0) conditions.push(inArray(followupTasks.leadId, leadIds));
+    if (oppIds.length > 0) conditions.push(inArray(followupTasks.opportunityId, oppIds));
+
     const now = new Date();
     const tasks = await db
       .select({
@@ -499,7 +508,7 @@ router.get("/:id/tasks", requireRole("admin", "developer", "sales_rep"), async (
       })
       .from(followupTasks)
       .leftJoin(user, eq(followupTasks.createdBy, user.id))
-      .where(eq(followupTasks.companyId, id))
+      .where(or(...conditions))
       .orderBy(asc(followupTasks.dueDate));
 
     const enriched = tasks.map(task => ({

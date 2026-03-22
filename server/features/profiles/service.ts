@@ -94,7 +94,8 @@ async function assembleProfile(companyId: string, opts?: AssembleOpts): Promise<
   const leadIds = leadRows.map((l) => l.id);
   const oppIds = opportunityRows.map((o) => o.id);
 
-  const [leadNoteRows, pipelineActivityRows] = await Promise.all([
+  const existingTaskIds = new Set(taskRows.map((t) => t.id));
+  const [leadNoteRows, pipelineActivityRows, leadTaskRows, oppTaskRows] = await Promise.all([
     leadIds.length > 0
       ? db.select().from(crmLeadNotes).where(inArray(crmLeadNotes.leadId, leadIds))
       : Promise.resolve([]),
@@ -104,7 +105,19 @@ async function assembleProfile(companyId: string, opts?: AssembleOpts): Promise<
           .from(pipelineActivities)
           .where(inArray(pipelineActivities.opportunityId, oppIds))
       : Promise.resolve([]),
+    leadIds.length > 0
+      ? db.select().from(followupTasks).where(inArray(followupTasks.leadId, leadIds))
+      : Promise.resolve([]),
+    oppIds.length > 0
+      ? db.select().from(followupTasks).where(inArray(followupTasks.opportunityId, oppIds))
+      : Promise.resolve([]),
   ]);
+  for (const t of [...leadTaskRows, ...oppTaskRows]) {
+    if (!existingTaskIds.has(t.id)) {
+      taskRows.push(t);
+      existingTaskIds.add(t.id);
+    }
+  }
 
   // ── Batch-resolve actor names (one query for all three sources) ────────────
   const allUserIds = [
