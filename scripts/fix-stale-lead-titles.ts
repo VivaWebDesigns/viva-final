@@ -1,4 +1,7 @@
 (async () => {
+  const dryRun = process.argv.includes("--dry-run");
+  if (dryRun) console.log("DRY RUN MODE — no changes will be written\n");
+
   const { db } = await import("../server/db");
   const { crmLeads, crmCompanies, crmContacts, pipelineOpportunities } = await import("../shared/schema");
   const { eq } = await import("drizzle-orm");
@@ -40,7 +43,9 @@
 
     if (lead.title !== expectedTitle) {
       console.log(`Lead ${lead.id}: ${JSON.stringify(lead.title)} -> ${JSON.stringify(expectedTitle)}`);
-      await db.update(crmLeads).set({ title: expectedTitle }).where(eq(crmLeads.id, lead.id));
+      if (!dryRun) {
+        await db.update(crmLeads).set({ title: expectedTitle }).where(eq(crmLeads.id, lead.id));
+      }
       fixedLeads++;
     }
   }
@@ -98,7 +103,9 @@
 
     if (Object.keys(updates).length > 0) {
       console.log(`Opp ${opp.id}: ${JSON.stringify(opp.title)} -> ${JSON.stringify(updates.title || opp.title)}`);
-      await db.update(pipelineOpportunities).set(updates).where(eq(pipelineOpportunities.id, opp.id));
+      if (!dryRun) {
+        await db.update(pipelineOpportunities).set(updates).where(eq(pipelineOpportunities.id, opp.id));
+      }
       fixedOpps++;
     }
   }
