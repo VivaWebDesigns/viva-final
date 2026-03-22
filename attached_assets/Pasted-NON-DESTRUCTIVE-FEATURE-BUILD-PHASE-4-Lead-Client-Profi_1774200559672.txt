@@ -1,0 +1,93 @@
+NON-DESTRUCTIVE FEATURE BUILD — PHASE 4
+Lead/Client Profile Tasks Tab Integration + Visibility Polish
+
+You are working in the Viva Web Designs / Viva-Sales-Spanish internal CRM/admin platform codebase.
+
+This must be a NON-DESTRUCTIVE implementation pass. Improve task visibility and provenance for automation-generated tasks without breaking existing task/profile UX.
+
+FEATURE GOAL
+Ensure stage-automation-generated tasks appear cleanly and consistently in the Tasks tab for the relevant lead/client profile, and are visible to both admins and sales reps.
+
+IMPORTANT IMPLEMENTATION RULES
+1. Preserve existing Tasks tab functionality.
+2. Do NOT create a separate task system.
+3. Automation-generated tasks must render as normal tasks within the current task architecture.
+4. Add clear but lightweight provenance so users understand where a task came from.
+5. Do not clutter the UI.
+6. Keep the display useful for both sales reps and admins.
+7. Fully document the behavior in App Docs.
+
+PHASE 4 OBJECTIVES
+Polish the profile/task experience so automation-generated tasks are clearly visible, understandable, and manageable.
+
+REQUIRED WORK
+
+A. TASKS TAB INTEGRATION
+Audit the current Tasks tab in lead/client profiles and ensure automation-generated tasks appear correctly there using the normal task retrieval/display flow.
+
+B. PROVENANCE / LABELING
+Add a lightweight visual indicator for automation-generated tasks, such as:
+- “Automation”
+- “Auto-generated”
+- “Stage Automation”
+
+Also expose the trigger source context somewhere appropriate, for example:
+- “Generated when lead entered: Demo Scheduled”
+
+Keep this elegant and non-intrusive.
+
+C. TASK DETAIL METADATA
+Where appropriate in task details/cards/modals, expose useful metadata such as:
+- source stage
+- automation-generated flag
+- created timestamp
+
+Do not overwhelm the default view.
+
+D. SALES REP + ADMIN VISIBILITY
+Ensure both admins and sales reps can see these generated tasks in their normal task/profile context, subject to existing permissions/ownership rules already established in the platform.
+
+E. FILTERS / SEARCH / SORT COMPATIBILITY
+Ensure generated tasks behave properly within:
+- task lists
+- sorting
+- filtering
+- status changes
+- completion flows
+
+Do not create odd edge cases where automation tasks are treated differently than standard tasks unless intentionally designed.
+
+F. OPTIONAL SMALL UX IMPROVEMENTS
+If safe and useful, add minor improvements such as:
+- filter by task source
+- automation badge in task card
+- tooltip or helper text
+
+Only do this if it fits the current UI architecture cleanly.
+
+G. APP DOCS
+Update Super Admin > App Docs with:
+- How automation-generated tasks appear in profiles
+- Visibility rules for admins vs sales reps
+- Task provenance indicators
+- How generated tasks behave in normal task workflows
+- Notes on filtering/search/sorting compatibility
+
+H. TESTING
+Add frontend/integration tests where practical for:
+- generated task appears in Tasks tab
+- automation provenance label renders
+- task still supports normal completion/update flows
+- admin and sales rep visibility remains correct
+
+DELIVERABLES
+1. Clean Tasks tab integration for automation-generated tasks
+2. Provenance labeling/metadata display
+3. Visibility verification for admin and sales roles
+4. Tests added where practical
+5. App Docs updated
+6. Output a concise summary including:
+   - profile/task views updated
+   - provenance UX added
+   - tests added
+   - App Docs sections added

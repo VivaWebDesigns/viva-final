@@ -940,3 +940,72 @@ export const insertDemoConfigSchema = createInsertSchema(demoConfigs).omit({ id:
 // @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
 export type InsertDemoConfig = z.infer<typeof insertDemoConfigSchema>;
 export type DemoConfig = typeof demoConfigs.$inferSelect;
+
+// ─── Stage-Based Task Automation Templates ────────────────────────────
+
+export const AUTOMATION_TRIGGER_STAGES = [
+  "new-lead",
+  "contacted",
+  "demo-scheduled",
+  "demo-completed",
+  "payment-sent",
+  "closed-won",
+  "closed-lost",
+] as const;
+export type AutomationTriggerStage = typeof AUTOMATION_TRIGGER_STAGES[number];
+
+export const AUTOMATION_PRIORITIES = ["low", "medium", "high", "urgent"] as const;
+export type AutomationPriority = typeof AUTOMATION_PRIORITIES[number];
+
+export const stageAutomationTemplates = pgTable("stage_automation_templates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  triggerStageSlug: text("trigger_stage_slug").notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  dueOffsetDays: integer("due_offset_days").notNull().default(0),
+  priority: text("priority").notNull().default("medium"),
+  taskType: text("task_type").notNull().default("follow_up"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  createdBy: text("created_by").references(() => user.id),
+  updatedBy: text("updated_by").references(() => user.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (t) => [
+  index("stage_auto_tpl_stage_idx").on(t.triggerStageSlug),
+  index("stage_auto_tpl_active_idx").on(t.isActive),
+  index("stage_auto_tpl_sort_idx").on(t.triggerStageSlug, t.sortOrder),
+]);
+
+export const insertStageAutomationTemplateSchema = createInsertSchema(stageAutomationTemplates).omit({ id: true, createdAt: true, updatedAt: true });
+// @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
+export type InsertStageAutomationTemplate = z.infer<typeof insertStageAutomationTemplateSchema>;
+export type StageAutomationTemplate = typeof stageAutomationTemplates.$inferSelect;
+
+// ─── Automation Execution Log ─────────────────────────────────────────
+
+export const AUTOMATION_EXEC_STATUSES = ["success", "skipped", "failed"] as const;
+export type AutomationExecStatus = typeof AUTOMATION_EXEC_STATUSES[number];
+
+export const automationExecutionLogs = pgTable("automation_execution_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  leadId: varchar("lead_id").references(() => crmLeads.id),
+  opportunityId: varchar("opportunity_id").references(() => pipelineOpportunities.id),
+  triggerStageSlug: text("trigger_stage_slug").notNull(),
+  templateId: varchar("template_id").references(() => stageAutomationTemplates.id),
+  generatedTaskId: varchar("generated_task_id").references(() => followupTasks.id),
+  status: text("status").notNull().default("success"),
+  details: text("details"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("auto_exec_log_lead_idx").on(t.leadId),
+  index("auto_exec_log_opp_idx").on(t.opportunityId),
+  index("auto_exec_log_stage_idx").on(t.triggerStageSlug),
+  index("auto_exec_log_tpl_idx").on(t.templateId),
+  index("auto_exec_log_created_idx").on(t.createdAt),
+]);
+
+export const insertAutomationExecutionLogSchema = createInsertSchema(automationExecutionLogs).omit({ id: true, createdAt: true });
+// @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
+export type InsertAutomationExecutionLog = z.infer<typeof insertAutomationExecutionLogSchema>;
+export type AutomationExecutionLog = typeof automationExecutionLogs.$inferSelect;

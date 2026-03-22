@@ -1,0 +1,113 @@
+NON-DESTRUCTIVE FEATURE BUILD — PHASE 3
+Stage Entry Trigger Integration + Task Generation
+
+You are working in the Viva Web Designs / Viva-Sales-Spanish internal CRM/admin platform codebase.
+
+This must be a NON-DESTRUCTIVE implementation pass. Integrate the automation behavior safely into the existing lead pipeline/stage update flow without breaking current lead/task behavior.
+
+FEATURE GOAL
+When a lead moves into one of the supported pipeline stages, automatically generate all active task templates configured for that stage and attach those tasks to the lead/client profile.
+
+SUPPORTED TRIGGER STAGES
+- New Lead
+- Contacted
+- Demo Scheduled
+- Demo Completed
+- Payment Sent
+- Closed-Won
+- Closed-Lost
+
+IMPORTANT IMPLEMENTATION RULES
+1. Trigger logic is only based on destination stage entry.
+2. Do NOT implement “from stage to stage” rules in v1.
+3. Do NOT implement generic field-change automations.
+4. Do NOT generate tasks unless the stage actually changed.
+5. Do NOT break existing lead update flows.
+6. Make the trigger integration modular and easy to reason about.
+7. Use the service foundation from prior phases.
+8. Generated tasks must be real task records, not just virtual display items.
+9. Generated tasks must attach cleanly to the relevant lead/client profile so they appear in the Tasks tab.
+10. Fully document the trigger flow in App Docs.
+
+PHASE 3 OBJECTIVES
+Integrate automation execution into the lead stage-change lifecycle.
+
+REQUIRED WORK
+
+A. DETECT STAGE ENTRY
+Identify the canonical backend location where a lead’s pipeline stage/status is changed.
+Safely detect when the destination stage changes into one of the supported trigger stages.
+
+B. EXECUTE AUTOMATION TASK GENERATION
+On valid stage entry:
+1. Fetch all active automation task templates for the destination stage
+2. Generate real task records
+3. Attach them to the correct lead/client profile/task context
+4. Preserve compatibility with existing task rendering and task workflows
+
+C. TASK FIELD POPULATION
+For each generated task, populate:
+- title
+- description
+- due date based on configured due offset
+- priority
+- ownership/visibility according to current task system defaults (unless a better existing standard exists)
+- metadata indicating it was created by stage automation
+
+D. DUPLICATE PREVENTION
+Implement safe v1 duplicate prevention.
+
+Required v1 rule:
+Do not create a new automated task if an existing OPEN task already exists for the same lead, same trigger stage, and same source template.
+
+This is critical.
+
+If an identical open automation-generated task already exists, skip generating that specific task and log/track the skip if execution logging exists.
+
+E. EXECUTION LOGGING
+If the execution log structure was added in prior phases, write execution entries showing:
+- lead
+- trigger stage
+- template
+- generated task id or skip status
+- created timestamp
+- status / reason
+
+If no execution log exists yet, add a lightweight one now.
+
+F. SAFETY / FAILURE BEHAVIOR
+- A single task generation failure should not corrupt the lead update transaction flow
+- Handle partial failures safely and visibly
+- Use structured logging for failures/skips where appropriate
+- Maintain data consistency
+
+G. APP DOCS
+Update Super Admin > App Docs with:
+- Trigger execution lifecycle
+- How stage entry generates tasks
+- Duplicate prevention rules
+- Generated task metadata model
+- Execution logging/debugging overview
+- Failure handling behavior
+
+H. TESTING
+Add backend tests for:
+- stage changed into supported trigger stage => tasks created
+- no stage change => no tasks created
+- inactive templates do not generate tasks
+- duplicate open task => skip generation
+- multiple templates for one stage => all valid tasks created
+- execution log entries recorded
+
+DELIVERABLES
+1. Stage entry detection integrated into lead update flow
+2. Automation task generation service wired into lifecycle
+3. Duplicate prevention implemented
+4. Execution logging implemented/used
+5. Tests added
+6. App Docs updated
+7. Output a concise summary including:
+   - where trigger detection was integrated
+   - duplicate logic used
+   - tests added
+   - App Docs sections added

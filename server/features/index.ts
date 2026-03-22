@@ -18,6 +18,7 @@ import billingRoutes from "./billing/routes";
 import attachmentRoutes from "./attachments/routes";
 import demoConfigRoutes from "./demo/routes";
 import profileRoutes from "./profiles/routes";
+import { automationRoutes } from "./automations";
 import { seedDocs } from "./docs/seed";
 import { seedIntegrations } from "./integrations/seed";
 import { seedCrmStatuses } from "./crm/seed";
@@ -44,6 +45,7 @@ router.use("/billing", billingRoutes);
 router.use("/attachments", attachmentRoutes);
 router.use("/demo-configs", demoConfigRoutes);
 router.use("/profiles", profileRoutes);
+router.use("/automations", automationRoutes);
 
 router.post("/admin/seed", requireRole("admin"), async (_req, res) => {
   try {

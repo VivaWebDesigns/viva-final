@@ -1,0 +1,129 @@
+NON-DESTRUCTIVE FEATURE BUILD — PHASE 2
+Admin > Admin Settings > Automations UI
+
+You are working in the Viva Web Designs / Viva-Sales-Spanish internal CRM/admin platform codebase.
+
+This must be a NON-DESTRUCTIVE implementation pass. Extend the admin UI safely without disrupting existing Admin Settings functionality.
+
+FEATURE GOAL
+Add a new tab in Admin > Admin Settings called "Automations" where admins can manage stage-based task automation templates for each supported pipeline stage.
+
+V1 SCOPE
+The Automations tab is only for configuring task templates tied to these destination stages:
+- New Lead
+- Contacted
+- Demo Scheduled
+- Demo Completed
+- Payment Sent
+- Closed-Won
+- Closed-Lost
+
+For each stage, admins should be able to configure a series of task templates that will be automatically generated when a lead moves into that stage.
+
+IMPORTANT IMPLEMENTATION RULES
+1. Keep the UI simple and highly usable.
+2. This is NOT a generic workflow builder.
+3. Do NOT add visual automation graphs/canvases.
+4. Do NOT add conditions, branching, or multi-trigger logic.
+5. Only admins can access management controls in this area.
+6. Use the existing design system (React + TypeScript + Tailwind + shadcn/ui if applicable).
+7. Match the styling and admin UX conventions already used in the app.
+8. Keep the layout clean, production-ready, and scalable.
+9. Build for clarity over cleverness.
+10. Fully document all new UI behavior in App Docs.
+
+PHASE 2 OBJECTIVES
+Build the full admin management UI for stage-based automation templates.
+
+REQUIRED UI/UX
+
+A. ADD NEW ADMIN SETTINGS TAB
+Add a new tab/section:
+- Admin > Admin Settings > Automations
+
+B. AUTOMATIONS PAGE LAYOUT
+Create a clean layout that includes:
+1. Page header / overview text
+2. Stage selector (tabs, cards, sidebar, or segmented control)
+3. Main panel showing task templates for the selected stage
+4. Controls to add/edit/delete/reorder templates
+
+Recommended stage selector labels:
+- New Lead
+- Contacted
+- Demo Scheduled
+- Demo Completed
+- Payment Sent
+- Closed-Won
+- Closed-Lost
+
+C. TEMPLATE LIST UI
+For the selected stage, display all configured task templates with key fields such as:
+- task title
+- description preview
+- due offset
+- priority
+- active/inactive status
+- sort order / drag handle if reorder is supported safely
+
+D. TEMPLATE CREATE/EDIT FORM
+Build a create/edit form or modal for a task template with fields like:
+- Task Title
+- Description / Instructions
+- Due Offset (simple numeric days, or existing due offset pattern if available)
+- Priority
+- Active toggle
+
+Keep v1 simple. Do not add advanced templating logic unless already established in the app.
+
+E. CRUD ACTIONS
+Support:
+- create template
+- edit template
+- delete template
+- activate/deactivate template
+- reorder within stage if feasible and safe
+
+F. EMPTY STATES / UX
+Provide clean empty states, for example:
+- “No automation tasks configured for this stage yet.”
+- CTA to add first task template
+
+G. ROLE RESTRICTIONS
+Only admins can manage templates in this UI.
+If the app has route guards or permission wrappers, use them consistently.
+
+H. DATA FETCHING / STATE
+Use the app’s existing frontend data architecture consistently.
+Keep the UI responsive, type-safe, and easy to maintain.
+Avoid stale state bugs. Ensure creates/updates/deletes invalidate/refetch appropriately.
+
+I. APP DOCS
+Update Super Admin > App Docs with:
+- Automations Admin UI Overview
+- How to configure stage-based task templates
+- Supported fields for task templates
+- Stage selector behavior
+- CRUD behavior for templates
+- Admin-only access rules
+- Reordering behavior if supported
+
+J. QUALITY
+- Strong typing throughout
+- Good validation and error messages
+- No broken admin navigation
+- No disruption to other Admin Settings tabs
+- Maintain enterprise-grade code organization
+
+DELIVERABLES
+1. New Admin Settings > Automations tab
+2. Stage selector UI
+3. Task template list UI
+4. Create/edit/delete management flows
+5. Reordering/activation controls if implemented
+6. App Docs updates for admin UI usage
+7. Output a concise summary including:
+   - routes/pages/components added
+   - API hooks used
+   - admin restrictions enforced
+   - App Docs sections added

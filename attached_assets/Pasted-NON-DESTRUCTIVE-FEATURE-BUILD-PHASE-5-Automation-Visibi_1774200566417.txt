@@ -1,0 +1,94 @@
+NON-DESTRUCTIVE FEATURE BUILD — PHASE 5
+Automation Visibility + Execution History + Support Diagnostics
+
+You are working in the Viva Web Designs / Viva-Sales-Spanish internal CRM/admin platform codebase.
+
+This must be a NON-DESTRUCTIVE implementation pass. Extend the feature safely to improve admin visibility and supportability.
+
+FEATURE GOAL
+Give admins clear visibility into configured stage automations and their execution behavior without turning this into a full workflow engine.
+
+V1 SCOPE
+Admins can manage rules/templates.
+Both admins and sales reps can see generated tasks.
+In this phase, improve admin supportability by surfacing execution history and debugging visibility where appropriate.
+
+IMPORTANT IMPLEMENTATION RULES
+1. Keep this lightweight and practical.
+2. Do NOT build a massive reporting dashboard.
+3. Do NOT add advanced analytics unless necessary for supportability.
+4. Prefer useful operational visibility over flashy UI.
+5. Keep the feature easy for admins to understand.
+6. Fully document all diagnostics/support features in App Docs.
+
+PHASE 5 OBJECTIVES
+Add support and admin-read tooling for the automation system.
+
+REQUIRED WORK
+
+A. ADMIN READ VISIBILITY
+Within Admin > Admin Settings > Automations, add visibility into:
+- template counts per stage
+- whether templates are active/inactive
+- last updated information if appropriate
+
+B. EXECUTION HISTORY / LOG VIEW
+If execution logging exists, provide a simple admin-facing execution history/log view or panel showing:
+- lead reference
+- trigger stage
+- task template
+- generated task id/reference if created
+- status (created / skipped / failed)
+- timestamp
+- optional skip/failure reason
+
+Keep this simple, filterable, and useful.
+
+C. BASIC FILTERS
+Add practical filters where appropriate, such as:
+- stage
+- status
+- date range or recent entries
+- search by lead/template if easy to support
+
+D. SUPPORT DIAGNOSTICS
+Add enough information so admins can answer:
+- Did the automation fire?
+- Was a task created?
+- Was it skipped as duplicate?
+- Did it fail?
+
+E. CONSISTENCY REVIEW
+Review the end-to-end automation flow and tighten any low-risk inconsistencies in:
+- naming
+- metadata
+- UI labels
+- status handling
+- empty states
+
+F. APP DOCS
+Update Super Admin > App Docs with:
+- Execution history overview
+- Status meanings (created / skipped / failed)
+- Duplicate-skip behavior explanation
+- How admins troubleshoot “why wasn’t a task created?”
+- Admin diagnostics overview
+
+G. TESTING
+Add tests where practical for:
+- execution log rendering
+- admin visibility access
+- status display correctness
+- duplicate skip history visibility if applicable
+
+DELIVERABLES
+1. Admin execution history/support visibility
+2. Basic filters/search if practical
+3. Support diagnostics improvements
+4. Consistency cleanup where safe
+5. App Docs updates
+6. Output a concise summary including:
+   - admin diagnostics UI added
+   - execution log support added
+   - tests added
+   - App Docs sections added

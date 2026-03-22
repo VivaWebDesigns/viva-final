@@ -25,6 +25,7 @@ const CATEGORIES = [
   { name: "Changelog / Release Notes", slug: "changelog", description: "Version history and release notes", sortOrder: 19 },
   { name: "Known Issues / Technical Debt", slug: "known-issues", description: "Tracked issues and improvement areas", sortOrder: 20 },
   { name: "Reports & Analytics", slug: "reports-analytics", description: "Dashboard reporting and analytics", sortOrder: 21 },
+  { name: "Stage-Based Automations", slug: "stage-automations", description: "Automated task generation on pipeline stage transitions", sortOrder: 22 },
 ];
 
 const SEED_ARTICLES = [
@@ -5487,6 +5488,300 @@ The admin UI for Demo Builder respects the \`useAdminLang()\` hook from \`client
 - Phases 5–8 Release Notes (this document)
 
 **Test results**: 21 files, 154 tests — all passing.
+`,
+  },
+  {
+    title: "Stage-Based Task Automations — Feature Overview",
+    slug: "stage-automations-overview",
+    categorySlug: "stage-automations",
+    status: "published",
+    content: `# Stage-Based Task Automations — Feature Overview
+
+## Purpose
+Automatically generate follow-up tasks when a pipeline opportunity moves into a specific stage. This eliminates manual task creation for repeatable workflows and ensures consistent processes across the sales team.
+
+## How It Works
+1. An admin creates **automation templates** in Admin Settings > Automations.
+2. Each template is attached to a specific **trigger stage** (e.g., "Contacted", "Demo Scheduled").
+3. When an opportunity moves into that stage, the system generates tasks from all active templates for that stage.
+4. Generated tasks appear in the opportunity's Tasks tab and the assigned rep's task dashboard.
+
+## V1 Scope
+- **Trigger type**: Stage entry only (no "from stage" conditions).
+- **Action type**: Task creation only (no emails, webhooks, or other automations).
+- **Management**: Admin-only template CRUD; all roles can view generated tasks.
+- **Stages supported**: New Lead, Contacted, Demo Scheduled, Demo Completed, Payment Sent, Closed-Won, Closed-Lost.
+
+## Key Concepts
+- **Automation Template**: A reusable task definition tied to a trigger stage (title, description, due offset, priority).
+- **Due Offset Days**: Number of days after stage entry when the generated task is due. 0 = due the same day.
+- **Execution Log**: Record of every automation run, including skipped/failed entries for debugging.
+- **Duplicate Prevention**: The system checks execution logs to avoid creating duplicate tasks for the same opportunity + template + stage transition.
+`,
+  },
+  {
+    title: "Supported Trigger Stages",
+    slug: "stage-automations-trigger-stages",
+    categorySlug: "stage-automations",
+    status: "published",
+    content: `# Supported Trigger Stages
+
+## Stage Keys
+The automation system uses pipeline stage **slugs** (not display names) as stable identifiers:
+
+| Display Name | Stage Slug | Typical Use |
+|---|---|---|
+| New Lead | \`new-lead\` | Initial intake tasks |
+| Contacted | \`contacted\` | Follow-up scheduling |
+| Demo Scheduled | \`demo-scheduled\` | Pre-demo preparation |
+| Demo Completed | \`demo-completed\` | Post-demo follow-up |
+| Payment Sent | \`payment-sent\` | Payment confirmation tasks |
+| Closed – Won | \`closed-won\` | Onboarding kickoff |
+| Closed – Lost | \`closed-lost\` | Win-back or archive tasks |
+
+## Why Slugs?
+Stage display names can be renamed by admins. Slugs are stable, unique identifiers stored in the \`pipeline_stages.slug\` column. The automation system references these slugs so templates survive any display name changes.
+
+## Adding New Stages
+If new pipeline stages are added in the future, their slugs must be added to the \`AUTOMATION_TRIGGER_STAGES\` array in \`shared/schema.ts\` to be available as automation triggers.
+`,
+  },
+  {
+    title: "Automations Data Model / Schema",
+    slug: "stage-automations-schema",
+    categorySlug: "stage-automations",
+    status: "published",
+    content: `# Automations Data Model / Schema
+
+## Tables
+
+### stage_automation_templates
+Stores the task templates that admins configure.
+
+| Column | Type | Description |
+|---|---|---|
+| id | varchar (UUID) | Primary key |
+| trigger_stage_slug | text | Pipeline stage slug that triggers this template |
+| title | text | Task title to generate |
+| description | text | Optional task description |
+| due_offset_days | integer | Days after stage entry for due date (default 0) |
+| priority | text | low / medium / high / urgent |
+| task_type | text | Task type label (default "follow_up") |
+| sort_order | integer | Display ordering within a stage |
+| is_active | boolean | Whether this template fires on stage entry |
+| created_by | text (FK) | Admin who created the template |
+| updated_by | text (FK) | Admin who last updated |
+| created_at | timestamp | Creation timestamp |
+| updated_at | timestamp | Last update timestamp |
+
+### automation_execution_logs
+Audit trail for every automation execution attempt.
+
+| Column | Type | Description |
+|---|---|---|
+| id | varchar (UUID) | Primary key |
+| lead_id | varchar (FK) | Associated CRM lead |
+| opportunity_id | varchar (FK) | Associated pipeline opportunity |
+| trigger_stage_slug | text | Stage that triggered the automation |
+| template_id | varchar (FK) | Source automation template |
+| generated_task_id | varchar (FK) | The task that was created (null if skipped/failed) |
+| status | text | success / skipped / failed |
+| details | text | Reason for skip/failure |
+| created_at | timestamp | Execution timestamp |
+
+## Relationships
+- Templates reference \`user\` table via created_by/updated_by.
+- Execution logs reference \`crm_leads\`, \`pipeline_opportunities\`, \`stage_automation_templates\`, and \`followup_tasks\`.
+- Generated tasks use the existing \`followup_tasks\` table — no schema changes to the task system.
+`,
+  },
+  {
+    title: "Automations Service Layer Architecture",
+    slug: "stage-automations-service",
+    categorySlug: "stage-automations",
+    status: "published",
+    content: `# Automations Service Layer Architecture
+
+## File Structure
+\`\`\`
+server/features/automations/
+├── index.ts        # Module exports
+├── routes.ts       # Express route handlers (admin-only)
+└── storage.ts      # Database operations (Drizzle ORM)
+\`\`\`
+
+## Storage Layer (storage.ts)
+CRUD operations for templates and execution logs:
+
+### Template Operations
+- \`listTemplates()\` — All templates, ordered by stage then sort order
+- \`listTemplatesByStage(slug)\` — Templates for a specific stage
+- \`getActiveTemplatesForStage(slug)\` — Only active templates (used during automation execution)
+- \`getTemplateById(id)\` — Single template lookup
+- \`createTemplate(data)\` — Create with auto-assigned sort order
+- \`updateTemplate(id, data)\` — Partial update with timestamp
+- \`deleteTemplate(id)\` — Hard delete
+- \`reorderTemplates(slug, orderedIds)\` — Batch sort order update
+- \`getMaxSortOrder(slug)\` — Helper for auto-incrementing sort order
+
+### Execution Log Operations
+- \`createExecutionLog(data)\` — Record an automation execution
+- \`getExecutionLogs(filters)\` — Query logs by lead, opportunity, or stage
+
+## API Routes (routes.ts)
+All routes are mounted at \`/api/automations\` and require admin role:
+
+| Method | Path | Description |
+|---|---|---|
+| GET | /templates | List all templates |
+| GET | /templates/stage/:slug | List templates for a stage |
+| GET | /templates/:id | Get single template |
+| POST | /templates | Create template |
+| PUT | /templates/reorder | Reorder templates within a stage |
+| PUT | /templates/:id | Update template |
+| DELETE | /templates/:id | Delete template |
+| GET | /execution-logs | Query execution logs |
+
+## Audit Logging
+All create, update, and delete operations are logged via the existing audit service.
+`,
+  },
+  {
+    title: "Automations Security / Permission Model",
+    slug: "stage-automations-permissions",
+    categorySlug: "stage-automations",
+    status: "published",
+    content: `# Automations Security / Permission Model
+
+## Role-Based Access
+
+### Admin
+- Full CRUD access to automation templates
+- View execution logs
+- Configure which stages trigger which tasks
+- Reorder templates within stages
+
+### Sales Rep / Developer
+- **Cannot** access automation template management endpoints
+- **Can** view and complete tasks generated by automations (through normal task views)
+- Generated tasks appear in their task dashboard and opportunity detail pages like any other task
+
+## Implementation
+- All \`/api/automations/*\` routes use \`requireRole("admin")\` middleware.
+- Generated tasks use the existing \`followup_tasks\` table, so existing task permission rules apply automatically.
+- No separate permission system is needed — the separation is enforced at the route level.
+
+## Security Considerations
+- Template management is admin-only to prevent unauthorized workflow modifications.
+- Execution logs are admin-only to avoid exposing internal automation behavior to non-admin users.
+- All template modifications are audit-logged for compliance tracking.
+`,
+  },
+  {
+    title: "Planned Trigger Flow for Task Generation",
+    slug: "stage-automations-trigger-flow",
+    categorySlug: "stage-automations",
+    status: "published",
+    content: `# Planned Trigger Flow for Task Generation
+
+## Overview
+This document describes how the automation system will generate tasks when opportunities move between pipeline stages. The foundation (schema, service, API) is built — this flow will be wired in during Phase 2.
+
+## Trigger Flow (Planned)
+1. User moves an opportunity to a new stage (via Pipeline Board drag-drop or Opportunity Detail page).
+2. The stage-change handler calls \`getActiveTemplatesForStage(newStageSlug)\`.
+3. For each active template:
+   a. Check execution logs for duplicate prevention (same opportunity + template + stage).
+   b. If no duplicate found, create a \`followup_task\` with:
+      - Title from template
+      - Due date = stage entry date + template's due_offset_days
+      - Priority from template
+      - Linked to the opportunity's lead, contact, and company
+      - Assigned to the opportunity's current assignee
+   c. Log the execution in \`automation_execution_logs\`.
+4. If a template was already executed for this opportunity + stage, log a "skipped" entry.
+
+## Integration Points
+- \`server/features/pipeline/storage.ts\` — \`moveOpportunity()\` function
+- \`server/features/pipeline/routes.ts\` — Stage change endpoint
+- \`server/features/tasks/routes.ts\` — Existing task creation (reused)
+
+## Due Date Calculation
+\`\`\`
+dueDate = stageEnteredAt + dueOffsetDays
+\`\`\`
+Example: If \`dueOffsetDays = 3\` and the lead enters "Demo Scheduled" on March 10, the task is due March 13.
+`,
+  },
+  {
+    title: "Duplicate Prevention Strategy",
+    slug: "stage-automations-duplicate-prevention",
+    categorySlug: "stage-automations",
+    status: "published",
+    content: `# Duplicate Prevention Strategy
+
+## Problem
+Without duplicate prevention, moving an opportunity back and forth between stages would create redundant tasks each time.
+
+## V1 Approach
+Before generating a task from a template, query the \`automation_execution_logs\` table:
+
+\`\`\`sql
+SELECT id FROM automation_execution_logs
+WHERE opportunity_id = ?
+  AND template_id = ?
+  AND trigger_stage_slug = ?
+  AND status = 'success'
+LIMIT 1
+\`\`\`
+
+If a matching log entry exists, skip the template and log a "skipped" entry with the reason "duplicate — already executed for this opportunity and stage."
+
+## Limitations
+- V1 does not support re-triggering automations for the same stage. If business logic requires re-triggering (e.g., a lead re-enters "Contacted"), a future version could add a "allow re-trigger" flag per template.
+- Duplicate check is per-opportunity, per-template, per-stage. Different opportunities will always generate their own tasks independently.
+
+## Future Enhancements
+- Per-template "allow re-trigger" toggle
+- Time-based re-trigger windows (e.g., allow re-trigger after 30 days)
+- Bulk duplicate cleanup utilities for admins
+`,
+  },
+  {
+    title: "Automations — Future Expansion Notes",
+    slug: "stage-automations-future",
+    categorySlug: "stage-automations",
+    status: "published",
+    content: `# Automations — Future Expansion Notes
+
+## Planned for Later Phases (Not Implemented Yet)
+
+### Phase 2 — Trigger Wiring
+- Connect automation execution to the pipeline stage-change flow
+- Wire into both Pipeline Board drag-drop and Opportunity Detail stage changes
+- Add generated task metadata (sourceType, sourceTemplateId, sourceStageKey) to task records
+
+### Phase 3 — Admin UI
+- Automations management page under Admin Settings
+- Template CRUD interface grouped by stage
+- Drag-to-reorder within stages
+- Toggle active/inactive per template
+- Execution log viewer with filtering
+
+### Possible Future Features (Not Planned Yet)
+- **From-stage conditions**: Only trigger when moving from a specific stage (not just "enters stage")
+- **Assignee override**: Assign generated tasks to a specific user instead of the opportunity owner
+- **Email/SMS automations**: Send notifications on stage entry (requires separate design)
+- **Webhook triggers**: Call external URLs on stage transitions
+- **Conditional logic**: Only trigger based on opportunity value, package type, or other fields
+- **Scheduled delays**: Trigger automation after a delay (e.g., 2 hours after entering stage)
+- **Template groups**: Group templates into reusable automation bundles
+
+## Design Principles for Expansion
+1. Keep the trigger model simple — one trigger type at a time
+2. Add new trigger types as separate modules, not by complicating the existing one
+3. Maintain backwards compatibility with existing templates
+4. Document each expansion phase in App Docs before implementation
 `,
   },
 ];

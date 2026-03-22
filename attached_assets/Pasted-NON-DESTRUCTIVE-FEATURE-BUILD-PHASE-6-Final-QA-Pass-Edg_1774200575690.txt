@@ -1,0 +1,110 @@
+NON-DESTRUCTIVE FEATURE BUILD — PHASE 6
+Final QA Pass + Edge Cases + Cleanup + Performance + App Docs Completion
+
+You are working in the Viva Web Designs / Viva-Sales-Spanish internal CRM/admin platform codebase.
+
+This is the final stabilization pass for the Stage-Based Task Automations feature. It must be NON-DESTRUCTIVE, cautious, and production-safe.
+
+FEATURE GOAL
+Perform a comprehensive end-of-feature hardening pass for the new Admin > Admin Settings > Automations system.
+
+FEATURE SUMMARY
+Admins configure task templates by destination pipeline stage:
+- New Lead
+- Contacted
+- Demo Scheduled
+- Demo Completed
+- Payment Sent
+- Closed-Won
+- Closed-Lost
+
+When a lead moves into a supported stage, active templates for that stage generate real tasks attached to the lead/client profile Tasks tab.
+Admins and sales reps can see the generated tasks.
+Admins manage the configuration.
+
+IMPORTANT IMPLEMENTATION RULES
+1. Do not introduce large refactors unless absolutely necessary.
+2. Focus on validation, edge-case handling, cleanup, and supportability.
+3. Preserve the final v1 scope; do not expand into a generic automation engine.
+4. Fully complete App Docs coverage in Super Admin.
+5. Leave the feature in a stable, supportable, production-ready state.
+
+PHASE 6 OBJECTIVES
+Perform final debugging, testing, cleanup, and documentation completion.
+
+REQUIRED WORK
+
+A. QA / EDGE CASE REVIEW
+Review and test the feature end-to-end for edge cases including:
+- lead stage unchanged => no task generation
+- lead re-enters stage with existing open matching automation task => skip duplicate
+- lead re-enters stage after matching task completed/closed => ensure behavior follows implemented duplicate rules
+- inactive templates do not generate tasks
+- deleted templates no longer generate tasks
+- multiple templates in same stage generate correctly in sort order if supported
+- admin-only management access enforced
+- generated tasks appear in Tasks tab for correct lead/profile
+- both sales rep and admin can see generated tasks through normal workflow
+
+B. CLEANUP
+Perform low-risk cleanup including:
+- remove unused imports/helpers from this feature work
+- tighten typings
+- normalize labels/status strings
+- improve validation messages
+- simplify awkward code paths introduced during implementation
+
+C. PERFORMANCE REVIEW
+Review this feature for low-risk performance improvements:
+- avoid unnecessary refetches
+- reduce duplicate API calls in admin automations UI
+- ensure template list queries are efficient
+- ensure execution history queries are paginated/limited if needed
+- avoid expensive task duplication checks where indexes/queries can be improved safely
+
+D. TESTING
+Ensure strong coverage with:
+- backend tests
+- frontend/integration tests where practical
+- smoke validation of admin settings navigation and task generation flow
+
+E. APP DOCS COMPLETION
+Complete all missing documentation in Super Admin App Docs for this feature.
+
+Required final App Docs coverage:
+- Feature Overview
+- Supported Trigger Stages
+- Admin Configuration Guide
+- Template Field Reference
+- Trigger Execution Lifecycle
+- Duplicate Prevention Rules
+- Generated Task Metadata
+- Tasks Tab Display Behavior
+- Execution History / Status Definitions
+- Permissions Model
+- Troubleshooting Guide
+- Edge Cases / Known Limits of v1
+- Future Expansion Opportunities (document only, do not implement)
+
+F. FINAL CONSISTENCY PASS
+Ensure naming is consistent everywhere:
+- Automations
+- Stage-Based Task Automations
+- trigger stage labels
+- task provenance labels
+- execution statuses
+
+FINAL DELIVERABLES
+1. QA/debugging fixes
+2. low-risk cleanup
+3. performance improvements where justified
+4. tests added/updated
+5. full App Docs completion
+6. final implementation report including:
+   - files changed
+   - bugs fixed
+   - edge cases handled
+   - tests run/added
+   - performance improvements made
+   - App Docs sections completed
+   - any remaining low-priority follow-up recommendations

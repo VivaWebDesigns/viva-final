@@ -1,0 +1,152 @@
+NON-DESTRUCTIVE FEATURE BUILD — PHASE 1
+Stage-Based Task Automations Foundation
+
+You are working in the Viva Web Designs / Viva-Sales-Spanish internal CRM/admin platform codebase.
+
+This must be a NON-DESTRUCTIVE implementation pass. Do not break existing working features. Do not remove existing task, lead, pipeline, admin settings, or profile functionality. Extend the system carefully and incrementally.
+
+FEATURE GOAL
+Create the backend/data foundation for a new Admin > Admin Settings > Automations area that allows admins to configure task templates that automatically generate when a lead moves into a specific pipeline stage.
+
+V1 SCOPE ONLY
+Keep this implementation intentionally narrow and simple.
+
+Supported trigger stages:
+- New Lead
+- Contacted
+- Demo Scheduled
+- Demo Completed
+- Payment Sent
+- Closed-Won
+- Closed-Lost
+
+When a lead moves into one of those stages, the system should generate all active task templates configured for that stage and attach those generated tasks to the lead/client profile so they appear in the Tasks tab.
+
+Only admins can manage these automation templates.
+Both admins and sales reps can see the generated tasks.
+
+IMPORTANT IMPLEMENTATION RULES
+1. Do NOT build a generic automation engine.
+2. Do NOT build drag-and-drop workflow logic.
+3. Do NOT add email/SMS/webhook automations.
+4. Do NOT add arbitrary trigger conditions.
+5. Do NOT require “from stage” logic in v1.
+6. Trigger logic is only: lead enters destination stage.
+7. Use stable internal stage keys/IDs, not fragile display strings wherever possible.
+8. Preserve existing task system behavior and existing profile/task rendering.
+9. Keep all changes backwards-compatible and production-safe.
+10. Fully document the feature in Super Admin App Docs as it is built.
+
+PHASE 1 OBJECTIVES
+Build the architecture, schema, domain contracts, and service layer foundation for stage-based task automations.
+
+REQUIRED WORK
+
+A. DOMAIN MODEL / ARCHITECTURE
+Design and implement a narrow domain model for this feature, such as:
+- stage automation task templates/configuration records
+- automation-generated task metadata
+- optional automation execution log for debugging and duplicate prevention
+
+Recommended concepts:
+1. Stage automation template/config
+   - one record per task template attached to a trigger stage
+2. Generated task metadata
+   - identifies a task as automation-generated
+   - identifies source stage trigger and source template
+3. Execution log
+   - optional but strongly recommended
+   - used for observability/debugging/idempotency support
+
+B. SCHEMA / DATABASE
+Add the necessary database schema changes/migrations for a safe v1 implementation.
+
+Suggested fields for stage automation templates:
+- id
+- triggerStageKey
+- title
+- description
+- dueOffsetDays (or other simple due offset mechanism)
+- priority
+- sortOrder
+- isActive
+- createdBy
+- updatedBy
+- createdAt
+- updatedAt
+
+Suggested metadata for generated tasks:
+- sourceType = "stage_automation"
+- sourceStageKey
+- sourceTemplateId
+
+Suggested execution log fields if added:
+- id
+- leadId
+- triggerStageKey
+- templateId
+- generatedTaskId
+- status
+- details / skipReason / failureReason
+- createdAt
+
+C. SHARED TYPES / CONTRACTS
+Create shared type-safe contracts for:
+- supported trigger stages
+- stage automation template payloads
+- create/update DTOs
+- execution log DTOs if needed
+- generated task metadata
+
+D. SERVICE LAYER
+Build a dedicated backend service/module for stage-based task automations.
+
+This service should support:
+- list stage templates
+- list templates by stage
+- create template
+- update template
+- delete template (soft delete preferred if pattern exists, otherwise safe delete)
+- reorder templates within a stage if supported by current architecture
+- fetch active templates for a stage
+- helper methods for automation task generation later
+
+E. SECURITY / AUTH MODEL
+Prepare the service/API so:
+- only admins can create/update/delete automation templates
+- both admins and sales reps can read generated tasks through normal task/profile views
+- avoid exposing management actions to non-admin roles
+
+F. APP DOCS
+Create or update Super Admin > App Docs with comprehensive documentation for this feature foundation.
+
+Required App Docs entries:
+- Stage-Based Task Automations — Feature Overview
+- Supported Trigger Stages
+- Data Model / Schema Overview
+- Service Layer Architecture
+- Security / Permission Model
+- Planned Trigger Flow for Task Generation
+- Duplicate Prevention Strategy (planned v1 approach)
+- Future Expansion Notes (without implementing them yet)
+
+G. NON-DESTRUCTIVE STANDARDS
+- Do not remove or rewrite large existing modules unless necessary
+- Prefer additive modular changes
+- Follow existing project conventions for routes, services, schema, and UI contracts
+- Keep naming clear and consistent
+- Maintain enterprise-level route/service organization
+- Update technical docs inside the app as part of the implementation
+
+DELIVERABLES
+1. Schema/migration updates
+2. Service/module foundation
+3. Shared types/contracts
+4. Admin-safe backend CRUD foundation for automation templates
+5. App Docs entries for the feature foundation
+6. Output a concise implementation summary including:
+   - files created/changed
+   - schema changes
+   - services/modules added
+   - permissions model applied
+   - App Docs sections added
