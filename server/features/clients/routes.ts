@@ -91,23 +91,23 @@ router.get("/", requireRole("admin", "developer", "sales_rep"), async (req, res)
 
     const contactAgg = db.select({
       companyId: crmContacts.companyId,
-      contactCount: sql<number>`count(*)::int`,
+      contactCount: sql<number>`count(*)::int`.as("contactCount"),
     }).from(crmContacts).groupBy(crmContacts.companyId).as("contact_agg");
 
     const leadAgg = db.select({
       companyId: crmLeads.companyId,
-      leadCount: sql<number>`count(*)::int`,
+      leadCount: sql<number>`count(*)::int`.as("leadCount"),
     }).from(crmLeads).groupBy(crmLeads.companyId).as("lead_agg");
 
     const oppAgg = db.select({
       companyId: pipelineOpportunities.companyId,
-      opportunityCount: sql<number>`count(*)::int`,
-      opportunityValue: sql<number>`coalesce(sum(value::numeric), 0)`,
+      opportunityCount: sql<number>`count(*)::int`.as("opportunityCount"),
+      opportunityValue: sql<number>`coalesce(sum(value::numeric), 0)`.as("opportunityValue"),
     }).from(pipelineOpportunities).groupBy(pipelineOpportunities.companyId).as("opp_agg");
 
     const onbAgg = db.select({
       companyId: onboardingRecords.companyId,
-      activeOnboardings: sql<number>`count(*)::int`,
+      activeOnboardings: sql<number>`count(*)::int`.as("activeOnboardings"),
     }).from(onboardingRecords)
       .where(sql`${onboardingRecords.status} NOT IN ('completed', 'on_hold')`)
       .groupBy(onboardingRecords.companyId).as("onb_agg");
