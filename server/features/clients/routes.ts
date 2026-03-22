@@ -63,7 +63,7 @@ const createTaskSchema = z.object({
   title: z.string().min(1, "Title is required"),
   notes: z.string().nullable().optional(),
   taskType: z.enum(["follow_up", "onboarding", "billing", "general", "review"]).default("follow_up"),
-  dueDate: z.string().datetime({ message: "Valid due date required" }),
+  dueDate: z.string().min(1, "Valid due date required"),
   assignedTo: z.string().nullable().optional(),
 }).strict();
 
@@ -622,7 +622,9 @@ router.post("/:id/tasks", requireRole("admin", "developer", "sales_rep"), async 
       title: validated.title,
       notes: validated.notes ?? null,
       taskType: validated.taskType,
-      dueDate: new Date(validated.dueDate),
+      dueDate: /^\d{4}-\d{2}-\d{2}$/.test(validated.dueDate)
+        ? new Date(validated.dueDate + "T00:00:00Z")
+        : new Date(validated.dueDate),
       companyId: id,
       assignedTo: validated.assignedTo ?? null,
       createdBy: req.authUser?.id,
