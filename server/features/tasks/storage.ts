@@ -67,6 +67,17 @@ export async function getTasksForContact(contactId: string): Promise<FollowupTas
     .orderBy(asc(followupTasks.dueDate));
 }
 
+export async function getUpcomingTasks(): Promise<TaskWithContact[]> {
+  const { end } = todayRange();
+  const tasks = await db.select().from(followupTasks)
+    .where(and(
+      eq(followupTasks.completed, false),
+      gte(followupTasks.dueDate, new Date(end.getTime() + 1)),
+    ))
+    .orderBy(asc(followupTasks.dueDate));
+  return enrichTasks(tasks);
+}
+
 export async function getActiveTaskForContext(leadId?: string | null, opportunityId?: string | null): Promise<FollowupTask | null> {
   if (leadId) {
     const [task] = await db.select().from(followupTasks)
@@ -147,14 +158,18 @@ async function enrichTasks(tasks: FollowupTask[]): Promise<TaskWithContact[]> {
       ),
   ]);
 
-  const companyIds = [...new Set(contacts.map(c => c.companyId).filter(Boolean) as string[])];
+  const contactMap = Object.fromEntries(contacts.map(c => [c.id, c]));
+
+  const companyIds = [...new Set([
+    ...contacts.map(c => c.companyId).filter(Boolean) as string[],
+    ...tasks.map(t => t.companyId).filter(Boolean) as string[],
+  ])];
   const companies = companyIds.length
     ? await db.select({ id: crmCompanies.id, name: crmCompanies.name })
         .from(crmCompanies)
         .where(inArray(crmCompanies.id, companyIds))
     : [];
 
-  const contactMap = Object.fromEntries(contacts.map(c => [c.id, c]));
   const companyMap = Object.fromEntries(companies.map(c => [c.id, c]));
   const automationMetaMap = new Map<string, TaskAutomationMeta>(
     automationLogRows
@@ -167,7 +182,9 @@ async function enrichTasks(tasks: FollowupTask[]): Promise<TaskWithContact[]> {
 
   return tasks.map(task => {
     const contact = task.contactId ? contactMap[task.contactId] ?? null : null;
-    const company = contact?.companyId ? companyMap[contact.companyId] ?? null : null;
+    const company = (task.companyId ? companyMap[task.companyId] : null)
+      ?? (contact?.companyId ? companyMap[contact.companyId] : null)
+      ?? null;
     const automationMeta = automationMetaMap.get(task.id) ?? null;
     return { ...task, contact, company, automationMeta };
   });

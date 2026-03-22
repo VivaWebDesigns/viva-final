@@ -69,11 +69,12 @@ const updateTaskSchema = z.object({
 
 router.get("/due-today", requireRole("admin", "sales_rep", "developer"), async (_req, res) => {
   try {
-    const [dueTodayTasks, overdueTasks] = await Promise.all([
+    const [dueTodayTasks, overdueTasks, upcomingTasks] = await Promise.all([
       taskStorage.getTasksDueToday(),
       taskStorage.getOverdueTasks(),
+      taskStorage.getUpcomingTasks(),
     ]);
-    res.json({ dueToday: dueTodayTasks, overdue: overdueTasks });
+    res.json({ dueToday: dueTodayTasks, overdue: overdueTasks, upcoming: upcomingTasks });
   } catch (err: any) {
     res.status(500).json({ message: err.message });
   }

@@ -27,6 +27,7 @@ interface TaskWithContact extends FollowupTask {
 interface DueTodayData {
   dueToday: TaskWithContact[];
   overdue: TaskWithContact[];
+  upcoming: TaskWithContact[];
 }
 
 function TaskRow({
@@ -269,7 +270,8 @@ export default function TasksDueTodayPage() {
 
   const dueToday = data?.dueToday ?? [];
   const overdue = data?.overdue ?? [];
-  const totalCount = dueToday.length + overdue.length;
+  const upcoming = data?.upcoming ?? [];
+  const totalCount = dueToday.length + overdue.length + upcoming.length;
   const history = completedTasks ?? [];
 
   const tTasks = {
@@ -307,7 +309,7 @@ export default function TasksDueTodayPage() {
               {t.tasks.title}
             </h1>
             <p className="text-sm text-gray-500 mt-1">
-              {t.tasks.dueToday}
+              {t.tasks.allActiveTasks}
             </p>
           </div>
           <Button
@@ -378,6 +380,34 @@ export default function TasksDueTodayPage() {
                       task={task}
                       onComplete={(id) => {
                         const found = dueToday.find(t2 => t2.id === id);
+                        if (found) setCompletingTask(found);
+                      }}
+                      onReschedule={(tsk) => setRescheduleTask(tsk)}
+                      isCompleting={false}
+                      tTasks={tTasks}
+                      renderTitle={(task) => renderTaskTitle(task, t)}
+                    />
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+
+            {upcoming.length > 0 && (
+              <Card>
+                <CardHeader className="pb-2 pt-4 px-4">
+                  <CardTitle className="text-sm font-semibold text-gray-700 flex items-center gap-2" data-testid="section-upcoming">
+                    <CalendarClock className="w-4 h-4 text-blue-500" />
+                    {t.tasks.upcoming}
+                    <Badge variant="secondary" className="text-xs">{upcoming.length}</Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-4 pb-3">
+                  {upcoming.map((task) => (
+                    <TaskRow
+                      key={task.id}
+                      task={task}
+                      onComplete={(id) => {
+                        const found = upcoming.find(t2 => t2.id === id);
                         if (found) setCompletingTask(found);
                       }}
                       onReschedule={(tsk) => setRescheduleTask(tsk)}
