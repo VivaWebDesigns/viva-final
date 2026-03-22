@@ -596,6 +596,9 @@ router.put("/companies/:id", requireRole("admin", "developer", "sales_rep"), asy
     const existing = await crmStorage.getCompanyById(id);
     if (!existing) return res.status(404).json({ message: "Company not found" });
     const validated = updateCrmCompanySchema.parse(req.body);
+    if (validated.website && !/^https?:\/\//i.test(validated.website)) {
+      validated.website = `https://${validated.website}`;
+    }
     const company = await crmStorage.updateCompany(id, validated);
     await logAudit({
       userId: req.authUser?.id,
