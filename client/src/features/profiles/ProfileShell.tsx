@@ -376,15 +376,16 @@ interface QuickStatsProps {
   deals: number;
   dealValue: number;
   openTasks: number;
+  t: AdminTranslations;
 }
 
-function QuickStats({ contacts, leads, deals, dealValue, openTasks }: QuickStatsProps) {
+function QuickStats({ contacts, leads, deals, dealValue, openTasks, t }: QuickStatsProps) {
   const stats = [
-    { label: "Contacts", value: contacts, icon: Users, color: "text-blue-600 bg-blue-50" },
-    { label: "Leads", value: leads, icon: TrendingUp, color: "text-emerald-600 bg-emerald-50" },
-    { label: "Deals", value: deals, icon: FileText, color: "text-violet-600 bg-violet-50" },
-    { label: "Deal Value", value: `$${dealValue.toLocaleString()}`, icon: CreditCard, color: "text-amber-600 bg-amber-50" },
-    { label: "Open Tasks", value: openTasks, icon: CheckSquare2, color: "text-rose-600 bg-rose-50" },
+    { label: t.profileShell.quickStats.contacts, value: contacts, icon: Users, color: "text-blue-600 bg-blue-50" },
+    { label: t.profileShell.quickStats.leads, value: leads, icon: TrendingUp, color: "text-emerald-600 bg-emerald-50" },
+    { label: t.profileShell.quickStats.deals, value: deals, icon: FileText, color: "text-violet-600 bg-violet-50" },
+    { label: t.profileShell.quickStats.dealValue, value: `$${dealValue.toLocaleString()}`, icon: CreditCard, color: "text-amber-600 bg-amber-50" },
+    { label: t.profileShell.quickStats.openTasks, value: openTasks, icon: CheckSquare2, color: "text-rose-600 bg-rose-50" },
   ];
 
   return (
@@ -414,8 +415,8 @@ interface MoveToStageBarProps {
   stages: PipelineStage[];
   onContactedPending: (stageId: string) => void;
   onPaymentSentPending: (stageId: string) => void;
-  stageMutation: ReturnType<typeof useMutation<any, Error, string>>;
-  t: any;
+  stageMutation: ReturnType<typeof useMutation<unknown, Error, string>>;
+  t: AdminTranslations;
 }
 
 function MoveToStageBar({
@@ -1052,13 +1053,13 @@ function TimelineEventRow({ event }: { event: UnifiedTimelineEvent }) {
 // Sub-form: NoteForm
 // ─────────────────────────────────────────────────────────────────────────────
 
-function NoteForm({ onSubmit, isPending }: { onSubmit: (data: any) => void; isPending: boolean }) {
+function NoteForm({ onSubmit, isPending }: { onSubmit: (data: Record<string, unknown>) => void; isPending: boolean }) {
   const form = useForm({
     resolver: zodResolver(createNoteSchema),
-    defaultValues: { type: "general", content: "", isPinned: false },
+    defaultValues: { type: "general" as const, content: "", isPinned: false },
   });
 
-  const handleSubmit = (data: any) => {
+  const handleSubmit = (data: Record<string, unknown>) => {
     onSubmit(data);
     form.reset({ type: "general", content: "", isPinned: false });
   };
@@ -1142,7 +1143,7 @@ function NoteForm({ onSubmit, isPending }: { onSubmit: (data: any) => void; isPe
 // Sub-form: TaskForm
 // ─────────────────────────────────────────────────────────────────────────────
 
-function TaskForm({ onSubmit, isPending }: { onSubmit: (data: any) => void; isPending: boolean }) {
+function TaskForm({ onSubmit, isPending }: { onSubmit: (data: Record<string, unknown>) => void; isPending: boolean }) {
   const form = useForm({
     resolver: zodResolver(taskSchema),
     defaultValues: {
@@ -1153,7 +1154,7 @@ function TaskForm({ onSubmit, isPending }: { onSubmit: (data: any) => void; isPe
     },
   });
 
-  const handleSubmit = (data: any) => {
+  const handleSubmit = (data: Record<string, unknown>) => {
     onSubmit(data);
     form.reset();
   };
@@ -1248,8 +1249,8 @@ function TaskForm({ onSubmit, isPending }: { onSubmit: (data: any) => void; isPe
 // ─────────────────────────────────────────────────────────────────────────────
 
 function ContactForm({ initialData, onSubmit, isPending }: {
-  initialData: any;
-  onSubmit: (data: any) => void;
+  initialData: MappedContact | null;
+  onSubmit: (data: Record<string, unknown>) => void;
   isPending: boolean;
 }) {
   const form = useForm({
@@ -1375,7 +1376,7 @@ function ContactForm({ initialData, onSubmit, isPending }: {
 
 function AccountHealthForm({ company, onSubmit, isPending }: {
   company: MappedCompany;
-  onSubmit: (data: any) => void;
+  onSubmit: (data: Record<string, unknown>) => void;
   isPending: boolean;
 }) {
   const form = useForm({
@@ -1510,7 +1511,7 @@ function AccountHealthForm({ company, onSubmit, isPending }: {
         />
         <div className="flex justify-end">
           <Button type="submit" disabled={isPending} data-testid="button-save-account-health">
-            {isPending ? "Saving..." : "Save Account Health"}
+            {isPending ? "..." : "Save"}
           </Button>
         </div>
       </form>
@@ -2052,15 +2053,17 @@ function ProfileShellInner({
     leads: sales.leadHistory.length,
     deals: sales.opportunities.length,
     dealValue: sales.opportunities.reduce((sum, o) => sum + (Number(o.value) || 0), 0),
-    openTasks: work.tasks.filter((t) => !t.completed).length,
+    openTasks: work.tasks.filter((wt) => !wt.completed).length,
+    t,
   };
 
   const pinnedNotes = notes.filter((n) => n.isPinned);
   const unpinnedNotes = notes.filter((n) => !n.isPinned);
   const sortedNotes = [...pinnedNotes, ...unpinnedNotes];
 
-  const openTasks = clientTasks.filter((t) => t.status !== "completed");
-  const completedTasks = clientTasks.filter((t) => t.status === "completed");
+  const overdueTasks = clientTasks.filter((ct) => ct.status === "overdue");
+  const openTasks = clientTasks.filter((ct) => ct.status === "open");
+  const completedTasks = clientTasks.filter((ct) => ct.status === "completed");
 
   const primaryContact = identity.primaryContact;
   const contact = primaryContact;
@@ -2192,7 +2195,7 @@ function ProfileShellInner({
         {/* ── Contacts Tab ─────────────────────────────────────────────────── */}
         <TabsContent value="contacts" className="mt-4 space-y-4">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-gray-900">Contacts ({identity.contacts.length})</h3>
+            <h3 className="text-lg font-semibold text-gray-900">{t.profileShell.contacts} ({identity.contacts.length})</h3>
             <Dialog open={isContactDialogOpen} onOpenChange={setIsContactDialogOpen}>
               <DialogTrigger asChild>
                 <Button size="sm" data-testid="button-add-contact">
@@ -2281,7 +2284,7 @@ function ProfileShellInner({
         {/* ── Tasks Tab (full CRUD) ────────────────────────────────────────── */}
         <TabsContent value="tasks" className="mt-4 space-y-4">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-gray-900">Tasks</h3>
+            <h3 className="text-lg font-semibold text-gray-900">{t.profileShell.tasks}</h3>
             <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
               <DialogTrigger asChild>
                 <Button size="sm" data-testid="button-add-task">
@@ -2311,10 +2314,26 @@ function ProfileShellInner({
             </Card>
           ) : (
             <div className="space-y-4">
+              {overdueTasks.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-red-600 uppercase tracking-wide">
+                    {t.profileShell.overdue} ({overdueTasks.length})
+                  </p>
+                  {overdueTasks.map((task) => (
+                    <ClientTaskRow
+                      key={task.id}
+                      task={task}
+                      onToggle={() => toggleTaskMutation.mutate(task.id)}
+                      onDelete={() => deleteTaskMutation.mutate(task.id)}
+                      isToggling={togglingTaskId === task.id}
+                    />
+                  ))}
+                </div>
+              )}
               {openTasks.length > 0 && (
                 <div className="space-y-2">
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                    Open ({openTasks.length})
+                    {t.profileShell.open} ({openTasks.length})
                   </p>
                   {openTasks.map((task) => (
                     <ClientTaskRow
@@ -2330,7 +2349,7 @@ function ProfileShellInner({
               {completedTasks.length > 0 && (
                 <div className="space-y-2">
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                    Completed ({completedTasks.length})
+                    {t.profileShell.completed} ({completedTasks.length})
                   </p>
                   {completedTasks.map((task) => (
                     <ClientTaskRow
@@ -2350,7 +2369,7 @@ function ProfileShellInner({
         {/* ── Files Tab ────────────────────────────────────────────────────── */}
         <TabsContent value="files" className="mt-4 space-y-4">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-gray-900">Files</h3>
+            <h3 className="text-lg font-semibold text-gray-900">{t.profileShell.files}</h3>
             <div>
               <input
                 type="file"
@@ -2382,7 +2401,7 @@ function ProfileShellInner({
           ) : (
             <Card className="p-5">
               <div className="space-y-2">
-                {(clientFiles.length > 0 ? clientFiles : service.files).map((f: any) => (
+                {(clientFiles.length > 0 ? clientFiles : service.files as Array<{ id: string; originalName: string; mimeType: string; sizeBytes: number; url: string; createdAt: string; uploaderName?: string | null }>).map((f) => (
                   <div
                     key={f.id}
                     className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors"

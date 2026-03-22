@@ -983,6 +983,7 @@ export const en = {
     noContactsYet: "No contacts yet.",
     noTasksYet: "No tasks yet.",
     noFilesYet: "No files yet.",
+    overdue: "Overdue",
     open: "Open",
     completed: "Completed",
     stripeAccount: "Stripe Account",

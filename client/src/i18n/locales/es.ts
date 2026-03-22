@@ -985,6 +985,7 @@ export const es: AdminTranslations = {
     noContactsYet: "Sin contactos aún.",
     noTasksYet: "Sin tareas aún.",
     noFilesYet: "Sin archivos aún.",
+    overdue: "Vencidas",
     open: "Abiertas",
     completed: "Completadas",
     stripeAccount: "Cuenta Stripe",
