@@ -5894,6 +5894,45 @@ When a task is generated from a template, the system automatically sets:
 - **Linked Records**: Lead, contact, company, and opportunity from the pipeline record
 `,
   },
+  {
+    title: "How Stage-Based Automations Trigger",
+    slug: "how-stage-automations-trigger",
+    categorySlug: "automations",
+    status: "published",
+    content: `# How Stage-Based Automations Trigger
+
+Stage-Based Task Automations run automatically whenever an opportunity enters a configured pipeline stage. No manual action is required — the system detects the stage change and generates follow-up tasks in the background.
+
+## Trigger Points
+Automations fire in three scenarios:
+
+1. **Pipeline Board Drag & Drop** — When a team member drags an opportunity card from one stage to another on the Pipeline Board.
+2. **Opportunity Detail Stage Change** — When a stage is changed from the Opportunity detail page.
+3. **Lead Conversion** — When a lead is converted to an opportunity. The initial target stage is treated as the "entered" stage.
+
+## What Happens When Automations Fire
+1. The system checks for **active** automation templates configured for the new stage.
+2. For each matching template, it checks whether an identical automation task has already been created for that opportunity and stage (duplicate prevention).
+3. If no duplicate exists, a new follow-up task is created with:
+   - The template's title, description, and task type
+   - A due date calculated from the stage entry date plus the template's due offset
+   - Assignment to the opportunity's current owner
+   - Links to the opportunity's lead, contact, and company records
+4. An execution log entry is recorded for auditing purposes.
+
+## Duplicate Prevention
+The system prevents the same automation template from generating duplicate tasks. If an opportunity is moved out of a stage and then moved back, the automation will **not** fire again for templates that already have a successful execution log for that opportunity and stage combination.
+
+## Non-Blocking Execution
+Automations run in the background and never block the stage change itself. If an automation encounters an error, the stage move still completes normally and the error is logged for admin review.
+
+## Troubleshooting
+If automations don't seem to be firing:
+- Verify the template is set to **Active** in Admin Settings > Automations.
+- Check that the template's trigger stage matches the stage the opportunity entered.
+- Review the Execution Logs tab for any error or skipped entries.
+`,
+  },
 ];
 
 export async function seedDocs() {

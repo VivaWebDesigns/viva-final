@@ -50,10 +50,15 @@ Admin-configurable task templates that auto-generate tasks when opportunities en
 - **API**: `/api/automations/templates` (CRUD), `/api/automations/execution-logs` — admin-only
 - **Trigger stages**: Uses `pipeline_stages.slug` values: `new-lead`, `contacted`, `demo-scheduled`, `demo-completed`, `payment-sent`, `closed-won`, `closed-lost`
 - **Shared types**: `AUTOMATION_TRIGGER_STAGES`, `AUTOMATION_PRIORITIES`, `AUTOMATION_EXEC_STATUSES` in `shared/schema.ts`
-- **Service**: `server/features/automations/` — storage.ts (Drizzle CRUD), routes.ts (Express), index.ts
+- **Service**: `server/features/automations/` — storage.ts (Drizzle CRUD), routes.ts (Express), trigger.ts (stage-change trigger), index.ts
+- **Trigger service** (`trigger.ts`): `executeStageAutomations()` — fetches active templates, checks for duplicates via execution logs, creates follow-up tasks, logs each execution. Fire-and-forget (`.catch()`) so it never blocks the parent route.
+- **Trigger integration points** (in `server/features/pipeline/routes.ts`):
+  1. `PUT /opportunities/:id/stage` — Pipeline Board drag-drop and detail page stage change
+  2. `PUT /opportunities/:id` — General opportunity update when `stageId` changes
+  3. `POST /convert-lead/:leadId` — Lead conversion (initial stage entry)
+- **Duplicate prevention**: Checks `automationExecutionLogs` for existing `success` entry with same `opportunityId + templateId + triggerStageSlug`
 - **Admin UI**: Admin Settings > Automations tab — `client/src/features/admin/pages/AutomationsTab.tsx`
 - **i18n**: Full EN/ES under `t.automations.*`
-- **Pending**: Wire trigger execution into `moveOpportunity()` pipeline flow (Phase 3)
 
 ### System Design Choices
 - **Database Seed Strategy**: Idempotent seeding on startup for core data (users, stages, templates, integrations). Structural seeds use upserts. Dev-only fake data is separate.

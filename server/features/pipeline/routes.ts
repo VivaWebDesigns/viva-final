@@ -9,6 +9,7 @@ import { eq, isNull, and } from "drizzle-orm";
 import { appendHistorySafe } from "../history/service";
 import { upsertLeadStatus, updateLead } from "../crm/storage";
 import { z } from "zod";
+import { executeStageAutomations } from "../automations/trigger";
 
 const updateStageSchema = z.object({
   name: z.string().min(1).optional(),
@@ -235,6 +236,21 @@ router.put("/opportunities/:id", requireRole("admin", "developer", "sales_rep", 
         try { notifyOpportunityAssignment({ id: opp.id, title: opp.title }, validated.assignedTo); } catch (_) {}
       }
     }
+    if (validated.stageId && validated.stageId !== existing.stageId) {
+      const newStage = await pipelineStorage.getStageById(validated.stageId);
+      if (newStage) {
+        executeStageAutomations({
+          opportunityId: id,
+          leadId: opp.leadId,
+          contactId: opp.contactId,
+          companyId: opp.companyId,
+          assignedTo: opp.assignedTo,
+          stageSlug: newStage.slug,
+          stageEnteredAt: opp.stageEnteredAt ?? new Date(),
+          actorId: req.authUser?.id ?? null,
+        }).catch((err) => console.error("[automations] trigger error:", err));
+      }
+    }
     res.json(opp);
   } catch (error: any) {
     res.status(400).json({ message: error.message });
@@ -287,6 +303,19 @@ router.put("/opportunities/:id/stage", requireRole("admin", "developer", "sales_
         const lostStatus = await upsertLeadStatus({ name: "Lost", slug: "lost", color: "#6b7280", sortOrder: 99 });
         await updateLead(result.opportunity.leadId, { statusId: lostStatus.id });
       } catch (_) {}
+    }
+    const toStageSlug = (meta?.toStageSlug as string) ?? null;
+    if (toStageSlug && existing.stageId !== stageId) {
+      executeStageAutomations({
+        opportunityId: id,
+        leadId: result.opportunity.leadId,
+        contactId: result.opportunity.contactId,
+        companyId: result.opportunity.companyId,
+        assignedTo: result.opportunity.assignedTo,
+        stageSlug: toStageSlug,
+        stageEnteredAt: result.opportunity.stageEnteredAt ?? new Date(),
+        actorId: req.authUser?.id ?? null,
+      }).catch((err) => console.error("[automations] trigger error:", err));
     }
     res.json(result);
   } catch (error: any) {
@@ -432,6 +461,19 @@ router.post("/convert-lead/:leadId", requireRole("admin", "developer", "sales_re
       await updateLead(leadId, { statusId: convertedStatus.id });
     } catch (statusErr) {
       console.error("[convert-lead] Failed to set converted status (non-blocking):", statusErr);
+    }
+
+    if (targetStage) {
+      executeStageAutomations({
+        opportunityId: opportunity.id,
+        leadId,
+        contactId: opportunity.contactId,
+        companyId: opportunity.companyId,
+        assignedTo: opportunity.assignedTo,
+        stageSlug: targetStage.slug,
+        stageEnteredAt: opportunity.stageEnteredAt ?? new Date(),
+        actorId: req.authUser?.id ?? null,
+      }).catch((err) => console.error("[automations] trigger error on convert:", err));
     }
 
     res.status(201).json(opportunity);
