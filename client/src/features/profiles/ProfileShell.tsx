@@ -2023,10 +2023,21 @@ function ProfileShellInner({
 
   const updateAccountMutation = useMutation({
     mutationFn: async (data: Record<string, unknown>) => {
-      await apiRequest("PATCH", `/api/clients/${companyId}`, data);
+      const payload = Object.fromEntries(
+        Object.entries(data).map(([k, v]) => [k, v === "" ? null : v])
+      );
+      if (payload.website && typeof payload.website === "string" && !/^https?:\/\//i.test(payload.website)) {
+        payload.website = `https://${payload.website}`;
+      }
+      await apiRequest("PATCH", `/api/clients/${companyId}`, payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
+      queryClient.invalidateQueries({ queryKey: ["/api/crm/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/crm/companies"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities/board"] });
       toast({ title: t.profileShell.accountUpdated });
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),

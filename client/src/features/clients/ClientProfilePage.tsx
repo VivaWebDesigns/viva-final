@@ -276,7 +276,13 @@ export default function ClientProfilePage({ id }: { id: string }) {
 
   const updateClientMutation = useMutation({
     mutationFn: async (values: z.infer<typeof updateAccountSchema>) => {
-      await apiRequest("PATCH", `/api/clients/${id}`, values);
+      const payload = Object.fromEntries(
+        Object.entries(values).map(([k, v]) => [k, v === "" ? null : v])
+      );
+      if (payload.website && typeof payload.website === "string" && !/^https?:\/\//i.test(payload.website)) {
+        payload.website = `https://${payload.website}`;
+      }
+      await apiRequest("PATCH", `/api/clients/${id}`, payload);
     },
     onSuccess: () => {
       invalidateClient();

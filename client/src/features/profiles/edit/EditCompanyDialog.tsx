@@ -94,11 +94,15 @@ export function EditCompanyDialog({
   }, [open, company]);
 
   function onSubmit(values: FormValues) {
+    let website = values.website || null;
+    if (website && !/^https?:\/\//i.test(website)) {
+      website = `https://${website}`;
+    }
     const payload = {
       ...values,
       email:  values.email  || null,
       phone:  values.phone  || null,
-      website: values.website || null,
+      website,
       dba:    values.dba    || null,
       address: values.address || null,
       city:   values.city   || null,
