@@ -257,6 +257,9 @@ router.patch("/:id", requireRole("admin", "developer", "sales_rep"), async (req,
     if (!existing) return res.status(404).json({ message: "Client not found" });
 
     const validated = updateClientSchema.parse(req.body);
+    if (validated.website && !/^https?:\/\//i.test(validated.website)) {
+      validated.website = `https://${validated.website}`;
+    }
     const [updated] = await db.update(crmCompanies).set(validated).where(eq(crmCompanies.id, id)).returning();
 
     await logAudit({

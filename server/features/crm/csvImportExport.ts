@@ -126,7 +126,8 @@ export async function importLeadsFromCSV(csvText: string): Promise<ImportResult>
         if (existing) {
           companyId = existing.id;
         } else {
-          const website = row["company_website"]?.trim() || null;
+          let website = row["company_website"]?.trim() || null;
+          if (website && !/^https?:\/\//i.test(website)) website = `https://${website}`;
           const created = await createCompany({ name: companyName, website });
           companyId = created.id;
         }
