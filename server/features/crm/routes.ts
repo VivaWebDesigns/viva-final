@@ -1,5 +1,6 @@
 import express, { Router } from "express";
 import { z } from "zod";
+import { eq } from "drizzle-orm";
 import { requireRole } from "../auth/middleware";
 import { logAudit } from "../audit/service";
 import { notifyLeadAssignment } from "../notifications/triggers";
@@ -12,8 +13,9 @@ import {
 } from "./csvImportExport";
 import {
   insertCrmCompanySchema, insertCrmContactSchema, insertCrmLeadSchema,
-  insertCrmLeadNoteSchema, insertCrmTagSchema,
+  insertCrmLeadNoteSchema, insertCrmTagSchema, crmLeads,
 } from "@shared/schema";
+import { db } from "../../db";
 
 const updateCrmLeadSchema = z.object({
   title: z.string().min(1).optional(),
@@ -600,6 +602,19 @@ router.put("/companies/:id", requireRole("admin", "developer", "sales_rep"), asy
       validated.website = `https://${validated.website}`;
     }
     const company = await crmStorage.updateCompany(id, validated);
+
+    if (validated.name && validated.name !== existing.name) {
+      const companyLeads = await db.select({ id: crmLeads.id, title: crmLeads.title })
+        .from(crmLeads)
+        .where(eq(crmLeads.companyId, id));
+      for (const lead of companyLeads) {
+        if (lead.title && lead.title.includes(existing.name)) {
+          const newTitle = lead.title.replace(existing.name, validated.name);
+          await db.update(crmLeads).set({ title: newTitle }).where(eq(crmLeads.id, lead.id));
+        }
+      }
+    }
+
     await logAudit({
       userId: req.authUser?.id,
       action: "update",

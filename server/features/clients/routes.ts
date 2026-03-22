@@ -262,6 +262,18 @@ router.patch("/:id", requireRole("admin", "developer", "sales_rep"), async (req,
     }
     const [updated] = await db.update(crmCompanies).set(validated).where(eq(crmCompanies.id, id)).returning();
 
+    if (validated.name && validated.name !== existing.name) {
+      const companyLeads = await db.select({ id: crmLeads.id, title: crmLeads.title })
+        .from(crmLeads)
+        .where(eq(crmLeads.companyId, id));
+      for (const lead of companyLeads) {
+        if (lead.title && lead.title.includes(existing.name)) {
+          const newTitle = lead.title.replace(existing.name, validated.name);
+          await db.update(crmLeads).set({ title: newTitle }).where(eq(crmLeads.id, lead.id));
+        }
+      }
+    }
+
     await logAudit({
       userId: req.authUser?.id,
       action: "client_updated",
