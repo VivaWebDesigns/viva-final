@@ -47,7 +47,7 @@ The admin UI is fully bilingual (EN/ES) and uses React with Vite, Tailwind CSS, 
 ### Stage-Based Task Automations
 Admin-configurable task templates that auto-generate tasks when opportunities enter specific pipeline stages.
 - **Tables**: `stage_automation_templates`, `automation_execution_logs`
-- **API**: `/api/automations/templates` (CRUD), `/api/automations/execution-logs` — admin-only
+- **API**: `/api/automations/templates` (CRUD), `/api/automations/execution-logs` (enriched with template/opportunity/task titles, supports `status`/`since`/`until` filters), `/api/automations/stats/stage-counts` — admin-only
 - **Trigger stages**: Uses `pipeline_stages.slug` values: `new-lead`, `contacted`, `demo-scheduled`, `demo-completed`, `payment-sent`, `closed-won`, `closed-lost`
 - **Shared types**: `AUTOMATION_TRIGGER_STAGES`, `AUTOMATION_PRIORITIES`, `AUTOMATION_EXEC_STATUSES` in `shared/schema.ts`
 - **Service**: `server/features/automations/` — storage.ts (Drizzle CRUD), routes.ts (Express), trigger.ts (stage-change trigger), index.ts
@@ -57,7 +57,7 @@ Admin-configurable task templates that auto-generate tasks when opportunities en
   2. `PUT /opportunities/:id` — General opportunity update when `stageId` changes
   3. `POST /convert-lead/:leadId` — Lead conversion (initial stage entry)
 - **Duplicate prevention**: Checks `automationExecutionLogs` for existing `success` entry with same `opportunityId + templateId + triggerStageSlug`
-- **Admin UI**: Admin Settings > Automations tab — `client/src/features/admin/pages/AutomationsTab.tsx`
+- **Admin UI**: Admin Settings > Automations tab — `client/src/features/admin/pages/AutomationsTab.tsx` — tabbed layout with Templates and Execution Logs panels; stage sidebar shows active/total counts; execution logs table with stage/status filters and enriched data (template title, opportunity title/link, generated task title)
 - **i18n**: Full EN/ES under `t.automations.*`
 
 ### System Design Choices

@@ -5989,6 +5989,72 @@ When a task is auto-generated, the system creates an entry in the execution log 
 This approach keeps the task schema clean — automation tasks are regular tasks with provenance metadata attached at query time.
 `,
   },
+  {
+    title: "Execution History & Admin Diagnostics",
+    slug: "automation-execution-history",
+    categorySlug: "automations",
+    status: "published",
+    content: `# Execution History & Admin Diagnostics
+
+The Execution Logs tab in Admin Settings > Automations provides a complete audit trail of every automation execution, helping admins diagnose and troubleshoot automation behavior.
+
+## Accessing Execution History
+
+Navigate to **Admin Settings > Automations > Execution Logs** tab. The log table shows the most recent 100 executions by default.
+
+## Log Entry Fields
+
+Each execution log entry includes:
+
+| Field | Description |
+|-------|-------------|
+| **Status** | Whether the task was Created, Skipped, or Failed |
+| **Stage** | The pipeline stage that triggered the automation |
+| **Template** | The task template that was used |
+| **Opportunity** | The opportunity that triggered the automation (clickable link) |
+| **Task Created** | The generated task name (if created) |
+| **Time** | When the automation executed |
+| **Details** | Additional context (especially for skips and failures) |
+
+## Status Meanings
+
+### Created (Green)
+The automation successfully generated a follow-up task. The task appears in normal task views and is assigned to the opportunity's owner.
+
+### Skipped (Amber)
+The automation detected a duplicate and did not create a task. This happens when:
+- The same template already created a task for the same opportunity and stage
+- An opportunity was moved back to a stage it previously passed through
+
+The Details column shows: "Duplicate: open automation task already exists for this opportunity, template, and stage."
+
+### Failed (Red)
+The automation encountered an error. The Details column shows the error message. Common causes:
+- Database connectivity issues (transient)
+- Template references deleted data
+
+## Filters
+
+The execution logs support filtering by:
+- **Stage**: View logs for a specific pipeline stage
+- **Status**: Filter by Created, Skipped, or Failed
+
+## Troubleshooting: "Why wasn't a task created?"
+
+Follow these steps:
+
+1. **Check template status**: Go to the Templates tab and verify the template is set to **Active** for the correct stage.
+2. **Check execution logs**: Switch to the Execution Logs tab and filter by the relevant stage. Look for:
+   - A "Skipped" entry indicates the task was already created previously (duplicate prevention).
+   - A "Failed" entry indicates an error occurred — check the Details column.
+   - No entry at all means the stage change did not trigger the automation (verify the stage slug matches).
+3. **Verify the stage change**: Automations only fire when an opportunity actually enters a new stage. Moving an opportunity within the same stage does not trigger automations.
+
+## Stage Sidebar Counts
+
+The Templates tab sidebar shows template counts per stage in the format **active/total** (e.g., "2/3" means 2 active out of 3 total templates). This helps quickly identify stages with paused templates.
+`,
+  },
 ];
 
 export async function seedDocs() {

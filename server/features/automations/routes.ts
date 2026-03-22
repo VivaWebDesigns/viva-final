@@ -147,9 +147,21 @@ router.get("/execution-logs", requireRole("admin"), async (req, res) => {
       leadId: req.query.leadId as string | undefined,
       opportunityId: req.query.opportunityId as string | undefined,
       triggerStageSlug: req.query.stageSlug as string | undefined,
+      status: req.query.status as string | undefined,
+      since: req.query.since ? new Date(req.query.since as string) : undefined,
+      until: req.query.until ? new Date(req.query.until as string) : undefined,
       limit,
     });
     res.json(logs);
+  } catch (err: any) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.get("/stats/stage-counts", requireRole("admin"), async (_req, res) => {
+  try {
+    const counts = await automationStorage.getTemplateStageCounts();
+    res.json(counts);
   } catch (err: any) {
     res.status(500).json({ message: err.message });
   }

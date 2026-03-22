@@ -2,12 +2,14 @@ import { db } from "../../db";
 import {
   stageAutomationTemplates,
   automationExecutionLogs,
+  pipelineOpportunities,
+  followupTasks,
   type InsertStageAutomationTemplate,
   type StageAutomationTemplate,
   type InsertAutomationExecutionLog,
   type AutomationExecutionLog,
 } from "@shared/schema";
-import { eq, and, asc, desc, inArray } from "drizzle-orm";
+import { eq, and, asc, desc, inArray, sql, gte, lte, count } from "drizzle-orm";
 
 export async function listTemplates(): Promise<StageAutomationTemplate[]> {
   return db
@@ -112,18 +114,67 @@ export async function createExecutionLog(data: InsertAutomationExecutionLog): Pr
   return result;
 }
 
+export interface EnrichedExecutionLog extends AutomationExecutionLog {
+  templateTitle: string | null;
+  opportunityTitle: string | null;
+  generatedTaskTitle: string | null;
+}
+
 export async function getExecutionLogs(filters: {
   leadId?: string;
   opportunityId?: string;
   triggerStageSlug?: string;
+  status?: string;
+  since?: Date;
+  until?: Date;
   limit?: number;
-}): Promise<AutomationExecutionLog[]> {
+}): Promise<EnrichedExecutionLog[]> {
   const conditions = [];
   if (filters.leadId) conditions.push(eq(automationExecutionLogs.leadId, filters.leadId));
   if (filters.opportunityId) conditions.push(eq(automationExecutionLogs.opportunityId, filters.opportunityId));
   if (filters.triggerStageSlug) conditions.push(eq(automationExecutionLogs.triggerStageSlug, filters.triggerStageSlug));
+  if (filters.status) conditions.push(eq(automationExecutionLogs.status, filters.status));
+  if (filters.since) conditions.push(gte(automationExecutionLogs.createdAt, filters.since));
+  if (filters.until) conditions.push(lte(automationExecutionLogs.createdAt, filters.until));
 
-  const query = db.select().from(automationExecutionLogs);
-  const withWhere = conditions.length > 0 ? query.where(and(...conditions)) : query;
-  return withWhere.orderBy(desc(automationExecutionLogs.createdAt)).limit(filters.limit ?? 100);
+  const rows = await db
+    .select({
+      log: automationExecutionLogs,
+      templateTitle: stageAutomationTemplates.title,
+      opportunityTitle: pipelineOpportunities.title,
+      generatedTaskTitle: followupTasks.title,
+    })
+    .from(automationExecutionLogs)
+    .leftJoin(stageAutomationTemplates, eq(automationExecutionLogs.templateId, stageAutomationTemplates.id))
+    .leftJoin(pipelineOpportunities, eq(automationExecutionLogs.opportunityId, pipelineOpportunities.id))
+    .leftJoin(followupTasks, eq(automationExecutionLogs.generatedTaskId, followupTasks.id))
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .orderBy(desc(automationExecutionLogs.createdAt))
+    .limit(filters.limit ?? 100);
+
+  return rows.map((r) => ({
+    ...r.log,
+    templateTitle: r.templateTitle ?? null,
+    opportunityTitle: r.opportunityTitle ?? null,
+    generatedTaskTitle: r.generatedTaskTitle ?? null,
+  }));
+}
+
+export async function getTemplateStageCounts(): Promise<Record<string, { total: number; active: number }>> {
+  const rows = await db
+    .select({
+      stage: stageAutomationTemplates.triggerStageSlug,
+      isActive: stageAutomationTemplates.isActive,
+      cnt: count(),
+    })
+    .from(stageAutomationTemplates)
+    .groupBy(stageAutomationTemplates.triggerStageSlug, stageAutomationTemplates.isActive);
+
+  const result: Record<string, { total: number; active: number }> = {};
+  for (const row of rows) {
+    if (!result[row.stage]) result[row.stage] = { total: 0, active: 0 };
+    result[row.stage].total += Number(row.cnt);
+    if (row.isActive) result[row.stage].active += Number(row.cnt);
+  }
+  return result;
 }
