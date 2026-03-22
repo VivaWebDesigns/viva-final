@@ -49,6 +49,7 @@ import { sanitizeHtml } from "@/features/chat/RichTextEditor";
 import { apiRequest, queryClient, STALE } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAdminLang } from "@/i18n/LanguageContext";
+import type { AdminTranslations } from "@/i18n/locales/en";
 import { useUnifiedProfile, useProfileTimeline, PROFILE_KEYS } from "./hooks";
 import { EditCompanyDialog } from "./edit/EditCompanyDialog";
 import { EditContactDialog } from "./edit/EditContactDialog";
@@ -100,8 +101,8 @@ interface BillingSnapshot {
   billingNotes: string | null;
   serviceTier: string | null;
   carePlanStatus: string | null;
-  stripeCustomer: { id: string; stripeCustomerId: string; email: string | null; metadata: any } | null;
-  recentEvents: any[];
+  stripeCustomer: { id: string; stripeCustomerId: string; email: string | null; metadata: Record<string, unknown> } | null;
+  recentEvents: Array<{ id: string; type: string; amount: number; status: string; created: number }>;
 }
 
 // ── Schemas ────────────────────────────────────────────────────────────────────
@@ -1518,6 +1519,165 @@ function AccountHealthForm({ company, onSubmit, isPending }: {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Section: AccountManagementForm (Overview tab)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function AccountManagementForm({ company, users, onSubmit, isPending, t }: {
+  company: MappedCompany;
+  users: Pick<DbUser, "id" | "name">[];
+  onSubmit: (data: Record<string, unknown>) => void;
+  isPending: boolean;
+  t: AdminTranslations;
+}) {
+  const form = useForm({
+    resolver: zodResolver(updateAccountSchema),
+    defaultValues: {
+      clientStatus: company.clientStatus || "prospect",
+      accountOwnerId: company.accountOwnerId || "",
+      nextFollowUpDate: company.nextFollowUpDate ? new Date(company.nextFollowUpDate).toISOString().split("T")[0] : "",
+      preferredContactMethod: company.preferredContactMethod || "email",
+      preferredLanguage: "es",
+      name: company.name,
+      dba: "",
+      phone: company.phone || "",
+      email: company.email || "",
+      website: company.website || "",
+      industry: company.industry || "",
+      address: company.address || "",
+      city: company.city || "",
+      state: company.state || "",
+      zip: company.zip || "",
+      notes: "",
+    },
+  });
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-lg flex items-center gap-2">
+          <ClipboardList className="w-5 h-5 text-teal-500" />
+          Account Management
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit((data) => onSubmit(data as Record<string, unknown>))} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="clientStatus"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Client Status</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-client-status-overview">
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="prospect">Prospect</SelectItem>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="at_risk">At Risk</SelectItem>
+                        <SelectItem value="churned">Churned</SelectItem>
+                        <SelectItem value="inactive">Inactive</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="accountOwnerId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Account Owner</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-account-owner-overview">
+                          <SelectValue placeholder="Select owner" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {users.map((u) => (
+                          <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="nextFollowUpDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t.profileShell.dueDate}</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} value={field.value?.toString() || ""} data-testid="input-next-followup-overview" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="preferredContactMethod"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t.profileShell.language}</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-preferred-method-overview">
+                          <SelectValue placeholder="Select method" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="email">{t.profileShell.email}</SelectItem>
+                        <SelectItem value="phone">{t.profileShell.phone}</SelectItem>
+                        <SelectItem value="text">Text</SelectItem>
+                        <SelectItem value="in_person">In Person</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <FormField
+              control={form.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t.profileShell.billingNotes}</FormLabel>
+                  <FormControl>
+                    <RichTextEditorField
+                      value={field.value || ""}
+                      onChange={(html) => field.onChange(html)}
+                      onBlur={field.onBlur}
+                      placeholder="Internal details about this account..."
+                      minHeight="80px"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <div className="flex justify-end">
+              <Button type="submit" disabled={isPending} data-testid="button-save-account-overview">
+                {isPending ? t.profileShell.saving : t.profileShell.accountUpdated}
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Section: ClientTaskRow (full CRUD version)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1604,7 +1764,7 @@ export default function ProfileShell({
   const [contactedPendingStageId, setContactedPendingStageId] = useState<string | null>(null);
   const [paymentSentPendingStageId, setPaymentSentPendingStageId] = useState<string | null>(null);
   const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
-  const [editingContact, setEditingContact] = useState<any>(null);
+  const [editingContact, setEditingContact] = useState<MappedContact | null>(null);
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [togglingTaskId, setTogglingTaskId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1662,7 +1822,7 @@ interface ProfileShellInnerProps {
   activeTab: string;
   setActiveTab: (t: string) => void;
   toast: ReturnType<typeof useToast>["toast"];
-  t: any;
+  t: AdminTranslations;
   navigate: (to: string) => void;
   contactedPendingStageId: string | null;
   setContactedPendingStageId: (v: string | null) => void;
@@ -1670,8 +1830,8 @@ interface ProfileShellInnerProps {
   setPaymentSentPendingStageId: (v: string | null) => void;
   isContactDialogOpen: boolean;
   setIsContactDialogOpen: (v: boolean) => void;
-  editingContact: any;
-  setEditingContact: (v: any) => void;
+  editingContact: MappedContact | null;
+  setEditingContact: (v: MappedContact | null) => void;
   isTaskDialogOpen: boolean;
   setIsTaskDialogOpen: (v: boolean) => void;
   togglingTaskId: string | null;
@@ -1729,7 +1889,7 @@ function ProfileShellInner({
 
   const { data: activityHistory = [], isLoading: activityLoading } = useQuery<{
     id: string; event: string; entityType: string; entityId: string;
-    userId: string | null; metadata: any; createdAt: string;
+    userId: string | null; metadata: Record<string, unknown>; createdAt: string;
     user?: { name: string };
   }[]>({
     queryKey: ["/api/history/client", companyId],
@@ -1755,13 +1915,13 @@ function ProfileShellInner({
   });
 
   const addNoteMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: Record<string, unknown>) => {
       await apiRequest("POST", `/api/clients/${companyId}/notes`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/clients", companyId, "notes"] });
       queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
-      toast({ title: "Note added" });
+      toast({ title: t.profileShell.noteAdded });
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
@@ -1773,44 +1933,44 @@ function ProfileShellInner({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/clients", companyId, "notes"] });
       queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
-      toast({ title: "Note deleted" });
+      toast({ title: t.profileShell.noteDeleted });
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
   const addContactMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: Record<string, unknown>) => {
       await apiRequest("POST", `/api/clients/${companyId}/contacts`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
       setIsContactDialogOpen(false);
-      toast({ title: "Contact added" });
+      toast({ title: t.profileShell.contactAdded });
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
   const updateContactMutation = useMutation({
-    mutationFn: async ({ contactId, data }: { contactId: string; data: any }) => {
+    mutationFn: async ({ contactId, data }: { contactId: string; data: Record<string, unknown> }) => {
       await apiRequest("PATCH", `/api/clients/${companyId}/contacts/${contactId}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
       setEditingContact(null);
-      toast({ title: "Contact updated" });
+      toast({ title: t.profileShell.contactUpdated });
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
   const addTaskMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: Record<string, unknown>) => {
       await apiRequest("POST", `/api/clients/${companyId}/tasks`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/clients", companyId, "tasks"] });
       queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
       setIsTaskDialogOpen(false);
-      toast({ title: "Task created" });
+      toast({ title: t.profileShell.taskCreated });
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
@@ -1838,30 +1998,30 @@ function ProfileShellInner({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/clients", companyId, "tasks"] });
       queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
-      toast({ title: "Task deleted" });
+      toast({ title: t.profileShell.taskDeleted });
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
   const updateHealthMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: Record<string, unknown>) => {
       await apiRequest("PATCH", `/api/clients/${companyId}/account`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/clients", companyId, "billing"] });
       queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
-      toast({ title: "Account health updated" });
+      toast({ title: t.profileShell.accountHealthUpdated });
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
   const updateAccountMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: Record<string, unknown>) => {
       await apiRequest("PATCH", `/api/clients/${companyId}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
-      toast({ title: "Account updated" });
+      toast({ title: t.profileShell.accountUpdated });
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
@@ -1878,9 +2038,9 @@ function ProfileShellInner({
       if (!res.ok) throw new Error("Upload failed");
       queryClient.invalidateQueries({ queryKey: ["/api/clients", companyId, "files"] });
       queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
-      toast({ title: "File uploaded" });
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: t.profileShell.fileUploaded });
+    } catch (err: unknown) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : "Upload failed", variant: "destructive" });
     } finally {
       setUploadingFile(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -1928,10 +2088,10 @@ function ProfileShellInner({
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="w-full justify-start overflow-x-auto" data-testid="tabs-profile">
-          <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
-          <TabsTrigger value="notes" data-testid="tab-notes">Notes</TabsTrigger>
+          <TabsTrigger value="overview" data-testid="tab-overview">{t.profileShell.overview}</TabsTrigger>
+          <TabsTrigger value="notes" data-testid="tab-notes">{t.profileShell.notes}</TabsTrigger>
           <TabsTrigger value="contacts" data-testid="tab-contacts">
-            Contacts
+            {t.profileShell.contacts}
             {identity.contacts.length > 0 && (
               <span className="ml-1.5 bg-blue-100 text-blue-700 rounded-full text-xs px-1.5 py-0 font-medium">
                 {identity.contacts.length}
@@ -1939,20 +2099,20 @@ function ProfileShellInner({
             )}
           </TabsTrigger>
           <TabsTrigger value="tasks" data-testid="tab-tasks">
-            Tasks
+            {t.profileShell.tasks}
             {work.tasks.length > 0 && (
               <span className="ml-1.5 bg-amber-100 text-amber-700 rounded-full text-xs px-1.5 py-0 font-medium">
-                {work.tasks.filter((t) => !t.completed).length}
+                {work.tasks.filter((wt) => !wt.completed).length}
               </span>
             )}
           </TabsTrigger>
-          <TabsTrigger value="files" data-testid="tab-files">Files</TabsTrigger>
-          <TabsTrigger value="billing" data-testid="tab-billing">Billing</TabsTrigger>
-          <TabsTrigger value="activity" data-testid="tab-activity">Activity</TabsTrigger>
+          <TabsTrigger value="files" data-testid="tab-files">{t.profileShell.files}</TabsTrigger>
+          <TabsTrigger value="billing" data-testid="tab-billing">{t.profileShell.billing}</TabsTrigger>
+          <TabsTrigger value="activity" data-testid="tab-activity">{t.profileShell.activity}</TabsTrigger>
         </TabsList>
 
         {/* ── Overview Tab ─────────────────────────────────────────────────── */}
-        <TabsContent value="overview" className="mt-4">
+        <TabsContent value="overview" className="mt-4 space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <CompanyContactCard
               entry={entry}
@@ -1962,6 +2122,13 @@ function ProfileShellInner({
             />
             <SalesSnapshotCard entry={entry} sales={sales} />
           </div>
+          <AccountManagementForm
+            company={identity.company}
+            users={users}
+            onSubmit={(data) => updateAccountMutation.mutate(data)}
+            isPending={updateAccountMutation.isPending}
+            t={t}
+          />
         </TabsContent>
 
         {/* ── Notes Tab ────────────────────────────────────────────────────── */}
@@ -1975,7 +2142,7 @@ function ProfileShellInner({
           ) : sortedNotes.length === 0 ? (
             <Card className="p-8 text-center">
               <MessageSquare className="w-10 h-10 text-gray-200 mx-auto mb-3" />
-              <p className="text-sm text-gray-500">No notes yet. Add one above.</p>
+              <p className="text-sm text-gray-500">{t.profileShell.noNotesYet}</p>
             </Card>
           ) : (
             <div className="space-y-3">
@@ -1995,7 +2162,7 @@ function ProfileShellInner({
                             </Badge>
                             {note.isPinned && (
                               <Badge className="text-[10px] bg-amber-100 text-amber-700 border-amber-200">
-                                <Pin className="w-2.5 h-2.5 mr-0.5" /> Pinned
+                                <Pin className="w-2.5 h-2.5 mr-0.5" /> {t.profileShell.pinned}
                               </Badge>
                             )}
                             <span className="text-[10px] text-gray-400">
@@ -2029,12 +2196,12 @@ function ProfileShellInner({
             <Dialog open={isContactDialogOpen} onOpenChange={setIsContactDialogOpen}>
               <DialogTrigger asChild>
                 <Button size="sm" data-testid="button-add-contact">
-                  <Plus className="w-4 h-4 mr-1.5" /> Add Contact
+                  <Plus className="w-4 h-4 mr-1.5" /> {t.profileShell.addContact}
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-md max-h-[90dvh] overflow-y-auto">
                 <DialogHeader>
-                  <DialogTitle>Add Contact</DialogTitle>
+                  <DialogTitle>{t.profileShell.addContact}</DialogTitle>
                 </DialogHeader>
                 <ContactForm
                   initialData={null}
@@ -2098,7 +2265,7 @@ function ProfileShellInner({
           <Dialog open={!!editingContact} onOpenChange={(open) => { if (!open) setEditingContact(null); }}>
             <DialogContent className="max-w-md max-h-[90dvh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Edit Contact</DialogTitle>
+                <DialogTitle>{t.profileShell.editContact}</DialogTitle>
               </DialogHeader>
               {editingContact && (
                 <ContactForm
@@ -2118,7 +2285,7 @@ function ProfileShellInner({
             <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
               <DialogTrigger asChild>
                 <Button size="sm" data-testid="button-add-task">
-                  <Plus className="w-4 h-4 mr-1.5" /> New Task
+                  <Plus className="w-4 h-4 mr-1.5" /> {t.profileShell.newTask}
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-md max-h-[90dvh] overflow-y-auto">
@@ -2140,7 +2307,7 @@ function ProfileShellInner({
           ) : clientTasks.length === 0 ? (
             <Card className="p-8 text-center">
               <CheckSquare2 className="w-10 h-10 text-gray-200 mx-auto mb-3" />
-              <p className="text-sm text-gray-500">No tasks yet.</p>
+              <p className="text-sm text-gray-500">{t.profileShell.noTasksYet}</p>
             </Card>
           ) : (
             <div className="space-y-4">
@@ -2198,7 +2365,7 @@ function ProfileShellInner({
                 data-testid="button-upload-file"
               >
                 <Upload className="w-4 h-4 mr-1.5" />
-                {uploadingFile ? "Uploading..." : "Upload File"}
+                {uploadingFile ? t.profileShell.uploading : t.profileShell.uploadFile}
               </Button>
             </div>
           </div>
@@ -2210,7 +2377,7 @@ function ProfileShellInner({
           ) : clientFiles.length === 0 && service.files.length === 0 ? (
             <Card className="p-8 text-center">
               <Paperclip className="w-10 h-10 text-gray-200 mx-auto mb-3" />
-              <p className="text-sm text-gray-500">No files yet.</p>
+              <p className="text-sm text-gray-500">{t.profileShell.noFilesYet}</p>
             </Card>
           ) : (
             <Card className="p-5">
@@ -2253,7 +2420,7 @@ function ProfileShellInner({
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <CreditCard className="w-5 h-5 text-indigo-400" />
-                  Stripe Account
+                  {t.profileShell.stripeAccount}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -2265,31 +2432,31 @@ function ProfileShellInner({
                 ) : billing?.stripeCustomer ? (
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
-                      <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">Connected</Badge>
+                      <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">{t.profileShell.connected}</Badge>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Stripe Customer ID</p>
+                      <p className="text-xs text-gray-500 uppercase font-semibold mb-1">{t.profileShell.stripeCustomerId}</p>
                       <p className="text-sm font-mono bg-gray-50 px-2 py-1 rounded border" data-testid="text-stripe-customer-id-billing">
                         {billing.stripeCustomer.stripeCustomerId}
                       </p>
                     </div>
                     {billing.stripeCustomer.email && (
                       <div>
-                        <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Billing Email</p>
+                        <p className="text-xs text-gray-500 uppercase font-semibold mb-1">{t.profileShell.billingEmail}</p>
                         <p className="text-sm">{billing.stripeCustomer.email}</p>
                       </div>
                     )}
                     <Button variant="outline" size="sm" asChild>
                       <a href={`https://dashboard.stripe.com/customers/${billing.stripeCustomer.stripeCustomerId}`} target="_blank" rel="noreferrer">
                         <ExternalLink className="w-3.5 h-3.5 mr-1.5" />
-                        Open in Stripe
+                        {t.profileShell.openInStripe}
                       </a>
                     </Button>
                   </div>
                 ) : (
                   <div className="py-6 text-center">
                     <CreditCard className="w-10 h-10 text-gray-200 mx-auto mb-3" />
-                    <p className="text-sm text-gray-500">No Stripe customer linked</p>
+                    <p className="text-sm text-gray-500">{t.profileShell.noStripeCustomer}</p>
                     <Button
                       variant="outline"
                       size="sm"
@@ -2297,7 +2464,7 @@ function ProfileShellInner({
                       onClick={() => navigate("/admin/payments")}
                       data-testid="button-go-to-payments"
                     >
-                      Go to Payments
+                      {t.profileShell.goToPayments}
                     </Button>
                   </div>
                 )}
@@ -2308,13 +2475,13 @@ function ProfileShellInner({
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <BarChart3 className="w-5 h-5 text-purple-400" />
-                  Service Overview
+                  {t.profileShell.serviceOverview}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-xs text-gray-500 uppercase font-semibold mb-1.5">Service Tier</p>
+                    <p className="text-xs text-gray-500 uppercase font-semibold mb-1.5">{t.profileShell.serviceTier}</p>
                     {identity.company.serviceTier ? (
                       <Badge className={{
                         basic: "bg-gray-100 text-gray-700",
@@ -2324,11 +2491,11 @@ function ProfileShellInner({
                         {identity.company.serviceTier.charAt(0).toUpperCase() + identity.company.serviceTier.slice(1)}
                       </Badge>
                     ) : (
-                      <p className="text-sm text-gray-400">Not set</p>
+                      <p className="text-sm text-gray-400">{t.profileShell.notSet}</p>
                     )}
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500 uppercase font-semibold mb-1.5">Care Plan</p>
+                    <p className="text-xs text-gray-500 uppercase font-semibold mb-1.5">{t.profileShell.carePlan}</p>
                     {identity.company.carePlanStatus ? (
                       <Badge className={({
                         active: "bg-emerald-100 text-emerald-700",
@@ -2338,17 +2505,17 @@ function ProfileShellInner({
                         {identity.company.carePlanStatus.charAt(0).toUpperCase() + identity.company.carePlanStatus.slice(1)}
                       </Badge>
                     ) : (
-                      <p className="text-sm text-gray-400">Not set</p>
+                      <p className="text-sm text-gray-400">{t.profileShell.notSet}</p>
                     )}
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500 uppercase font-semibold mb-1.5">Launch Date</p>
+                    <p className="text-xs text-gray-500 uppercase font-semibold mb-1.5">{t.profileShell.launchDate}</p>
                     <p className="text-sm" data-testid="text-launch-date-billing">
                       {identity.company.launchDate ? format(new Date(identity.company.launchDate), "MMM d, yyyy") : "—"}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500 uppercase font-semibold mb-1.5">Renewal Date</p>
+                    <p className="text-xs text-gray-500 uppercase font-semibold mb-1.5">{t.profileShell.renewalDate}</p>
                     <p className={`text-sm ${identity.company.renewalDate && isPast(new Date(identity.company.renewalDate)) ? "text-red-600 font-semibold" : ""}`} data-testid="text-renewal-date-billing">
                       {identity.company.renewalDate ? format(new Date(identity.company.renewalDate), "MMM d, yyyy") : "—"}
                     </p>
@@ -2360,7 +2527,7 @@ function ProfileShellInner({
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Update Service Details</CardTitle>
+              <CardTitle className="text-lg">{t.profileShell.updateServiceDetails}</CardTitle>
             </CardHeader>
             <CardContent>
               <AccountHealthForm
@@ -2377,9 +2544,42 @@ function ProfileShellInner({
           <Card className="p-5">
             <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
               <Activity className="w-4 h-4 text-gray-400" />
-              Activity History
+              {t.profileShell.activityHistory}
             </h3>
-            <TimelineSection entry={entry} />
+            {activityLoading ? (
+              <div className="space-y-3 animate-pulse">
+                {[1, 2, 3].map((i) => <div key={i} className="h-12 bg-gray-50 rounded-lg" />)}
+              </div>
+            ) : activityHistory.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-6">{t.timeline.noHistory}</p>
+            ) : (
+              <div className="space-y-3">
+                {activityHistory.map((evt) => {
+                  const meta = evt.metadata as Record<string, string>;
+                  const label = t.timeline.events[evt.event as keyof typeof t.timeline.events] || evt.event.replace(/_/g, " ");
+                  return (
+                    <div key={evt.id} className="flex items-start gap-3 py-2 border-b border-gray-50 last:border-0" data-testid={`activity-event-${evt.id}`}>
+                      <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center shrink-0 mt-0.5">
+                        <History className="w-3.5 h-3.5 text-gray-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-gray-700">
+                          <span className="font-medium">{label}</span>
+                          {meta?.field && <span className="text-gray-400"> — {meta.field}</span>}
+                          {meta?.oldValue && meta?.newValue && (
+                            <span className="text-gray-400 text-xs"> ({meta.oldValue} → {meta.newValue})</span>
+                          )}
+                        </p>
+                        <p className="text-[11px] text-gray-400 mt-0.5">
+                          {evt.user?.name && <>{evt.user.name} · </>}
+                          {fmt(evt.createdAt, "MMM d, yyyy h:mm a")}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </Card>
         </TabsContent>
       </Tabs>
