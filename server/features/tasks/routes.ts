@@ -47,6 +47,17 @@ router.get("/due-today", requireRole("admin", "sales_rep", "developer"), async (
   }
 });
 
+router.get("/completed-history", requireRole("admin", "sales_rep", "developer"), async (req, res) => {
+  try {
+    const limit = Math.min(Number(req.query.limit) || 50, 200);
+    const tasks = await taskStorage.getCompletedTaskHistory(limit);
+    res.json(tasks);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    res.status(500).json({ message });
+  }
+});
+
 router.get("/for-opportunity/:id", requireRole("admin", "sales_rep", "developer"), async (req, res) => {
   try {
     const tasks = await taskStorage.getTasksForOpportunity(req.params.id as string);

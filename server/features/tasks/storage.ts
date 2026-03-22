@@ -112,6 +112,14 @@ export async function deleteTask(id: string): Promise<void> {
   await db.delete(followupTasks).where(eq(followupTasks.id, id));
 }
 
+export async function getCompletedTaskHistory(limit = 50): Promise<TaskWithContact[]> {
+  const tasks = await db.select().from(followupTasks)
+    .where(eq(followupTasks.completed, true))
+    .orderBy(desc(followupTasks.completedAt))
+    .limit(limit);
+  return enrichTasks(tasks);
+}
+
 async function enrichTasks(tasks: FollowupTask[]): Promise<TaskWithContact[]> {
   if (tasks.length === 0) return [];
 

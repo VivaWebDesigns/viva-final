@@ -565,6 +565,12 @@ export const es: AdminTranslations = {
       appointmentSet: "Demo programada",
       duplicateLead: "Prospecto duplicado",
     },
+    completedHistory: "Historial Completado",
+    completedHistoryDesc: "Tareas cerradas recientemente",
+    noCompletedTasks: "Sin tareas completadas",
+    noCompletedTasksDesc: "Las tareas completadas aparecerán aquí.",
+    completedOn: "Completada",
+    viewProfile: "Ver Perfil",
   },
   notifications: {
     title: "Notificaciones",

@@ -5,7 +5,7 @@ import { STALE } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Clock, Phone, Building2, AlertTriangle, CalendarClock, ExternalLink, Plus, Zap } from "lucide-react";
+import { CheckCircle2, Clock, Phone, Building2, AlertTriangle, CalendarClock, ExternalLink, Plus, Zap, History, FileText } from "lucide-react";
 import QuickTaskModal, { formatTaskTimeDisplay } from "@/components/QuickTaskModal";
 import CompleteTaskModal from "@/components/CompleteTaskModal";
 import type { FollowupTask } from "@shared/schema";
@@ -145,6 +145,109 @@ function TaskRow({
   );
 }
 
+function getProfileLink(task: TaskWithContact): string | null {
+  if (task.opportunityId) return `/admin/pipeline/opportunities/${task.opportunityId}?tab=tasks`;
+  if (task.leadId) return `/admin/crm/leads/${task.leadId}?tab=tasks`;
+  return null;
+}
+
+function CompletedTaskCard({
+  task,
+  tTasks,
+  outcomeLabels,
+  renderTitle,
+}: {
+  task: TaskWithContact;
+  tTasks: { completedOn: string; outcome: string; viewProfile: string };
+  outcomeLabels: Record<string, string>;
+  renderTitle: (task: { title: string }) => string;
+}) {
+  const contactName = task.contact
+    ? `${task.contact.firstName}${task.contact.lastName ? " " + task.contact.lastName : ""}`
+    : null;
+
+  const profileLink = getProfileLink(task);
+  const completedDate = task.completedAt
+    ? new Date(task.completedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    : null;
+  const completedTime = task.completedAt
+    ? new Date(task.completedAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+    : null;
+
+  const outcomeKey = task.outcome as keyof typeof outcomeLabels | null;
+  const outcomeLabel = outcomeKey ? (outcomeLabels[outcomeKey] || task.outcome) : null;
+
+  const cardContent = (
+    <Card
+      className={`p-3 transition-all ${profileLink ? "hover:border-[#0D9488]/40 hover:shadow-sm cursor-pointer" : ""}`}
+      data-testid={`completed-task-card-${task.id}`}
+    >
+      <div className="flex items-start gap-2">
+        <CheckCircle2 className="w-4 h-4 text-[#0D9488] mt-0.5 flex-shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-gray-700 leading-tight line-clamp-2">
+            {renderTitle(task)}
+          </p>
+
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1.5">
+            {contactName && (
+              <span className="text-xs font-medium text-gray-600" data-testid={`completed-contact-${task.id}`}>
+                {contactName}
+              </span>
+            )}
+            {task.company && (
+              <span className="flex items-center gap-1 text-xs text-gray-500">
+                <Building2 className="w-3 h-3" />
+                {task.company.name}
+              </span>
+            )}
+          </div>
+
+          {outcomeLabel && (
+            <div className="mt-1.5">
+              <Badge variant="secondary" className="text-xs py-0 px-1.5" data-testid={`completed-outcome-${task.id}`}>
+                {outcomeLabel}
+              </Badge>
+            </div>
+          )}
+
+          {task.completionNote && (
+            <div className="flex items-start gap-1 mt-1.5">
+              <FileText className="w-3 h-3 text-gray-400 mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-gray-400 line-clamp-2">{task.completionNote}</p>
+            </div>
+          )}
+
+          <div className="flex items-center gap-2 mt-2">
+            {completedDate && (
+              <span className="text-xs text-gray-400" data-testid={`completed-date-${task.id}`}>
+                {tTasks.completedOn}: {completedDate} {completedTime && `· ${completedTime}`}
+              </span>
+            )}
+          </div>
+
+          {profileLink && (
+            <span className="flex items-center gap-1 text-xs text-[#0D9488] mt-1.5">
+              <ExternalLink className="w-3 h-3" />
+              {tTasks.viewProfile}
+            </span>
+          )}
+        </div>
+      </div>
+    </Card>
+  );
+
+  if (profileLink) {
+    return (
+      <Link href={profileLink} data-testid={`link-completed-task-${task.id}`}>
+        {cardContent}
+      </Link>
+    );
+  }
+
+  return cardContent;
+}
+
 export default function TasksDueTodayPage() {
   const { t } = useAdminLang();
   const [completingTask, setCompletingTask] = useState<TaskWithContact | null>(null);
@@ -157,9 +260,16 @@ export default function TasksDueTodayPage() {
     refetchOnWindowFocus: true,
   });
 
+  const { data: completedTasks, isLoading: isLoadingHistory } = useQuery<TaskWithContact[]>({
+    queryKey: ["/api/tasks/completed-history"],
+    staleTime: STALE.FAST,
+    refetchOnWindowFocus: true,
+  });
+
   const dueToday = data?.dueToday ?? [];
   const overdue = data?.overdue ?? [];
   const totalCount = dueToday.length + overdue.length;
+  const history = completedTasks ?? [];
 
   const tTasks = {
     markComplete: t.tasks.markComplete,
@@ -170,98 +280,153 @@ export default function TasksDueTodayPage() {
     automationStageLabel: t.tasks.automationStageLabel,
   };
 
+  const tCompleted = {
+    completedOn: t.tasks.completedOn,
+    outcome: t.tasks.outcome,
+    viewProfile: t.tasks.viewProfile,
+  };
+
+  const outcomeLabels: Record<string, string> = {
+    noAnswer: t.tasks.outcomes.noAnswer,
+    leftVoicemail: t.tasks.outcomes.leftVoicemail,
+    spokeWithLead: t.tasks.outcomes.spokeWithLead,
+    interested: t.tasks.outcomes.interested,
+    notInterested: t.tasks.outcomes.notInterested,
+    badNumber: t.tasks.outcomes.badNumber,
+    appointmentSet: t.tasks.outcomes.appointmentSet,
+    duplicateLead: t.tasks.outcomes.duplicateLead,
+  };
+
   return (
-    <div className="space-y-4 sm:space-y-6 max-w-3xl" data-testid="page-tasks-due-today">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900" data-testid="text-tasks-title">
-            {t.tasks.title}
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            {t.tasks.dueToday}
-          </p>
+    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6" data-testid="page-tasks-due-today">
+      <div className="lg:col-span-3 space-y-4 sm:space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900" data-testid="text-tasks-title">
+              {t.tasks.title}
+            </h1>
+            <p className="text-sm text-gray-500 mt-1">
+              {t.tasks.dueToday}
+            </p>
+          </div>
+          <Button
+            size="sm"
+            onClick={() => setShowNewTask(true)}
+            data-testid="button-new-task"
+          >
+            <Plus className="w-4 h-4 mr-1.5" />
+            {t.tasks.scheduleFollowUp}
+          </Button>
         </div>
-        <Button
-          size="sm"
-          onClick={() => setShowNewTask(true)}
-          data-testid="button-new-task"
-        >
-          <Plus className="w-4 h-4 mr-1.5" />
-          {t.tasks.scheduleFollowUp}
-        </Button>
+
+        {isLoading ? (
+          <div className="flex items-center justify-center h-40">
+            <div className="w-8 h-8 border-4 border-[#0D9488] border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : totalCount === 0 ? (
+          <Card>
+            <CardContent className="py-16 text-center">
+              <CheckCircle2 className="w-12 h-12 text-[#0D9488] mx-auto mb-3 opacity-50" />
+              <p className="text-gray-500 font-medium">{t.tasks.allCaughtUp}</p>
+              <p className="text-sm text-gray-400 mt-1">{t.tasks.allCaughtUpDesc}</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            {overdue.length > 0 && (
+              <Card className="border-red-200">
+                <CardHeader className="pb-2 pt-4 px-4">
+                  <CardTitle className="text-sm font-semibold text-red-600 flex items-center gap-2" data-testid="section-overdue">
+                    <AlertTriangle className="w-4 h-4" />
+                    {t.tasks.overdue}
+                    <Badge variant="destructive" className="text-xs">{overdue.length}</Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-4 pb-3">
+                  {overdue.map((task) => (
+                    <TaskRow
+                      key={task.id}
+                      task={task}
+                      onComplete={(id) => {
+                        const found = overdue.find(t2 => t2.id === id);
+                        if (found) setCompletingTask(found);
+                      }}
+                      onReschedule={(tsk) => setRescheduleTask(tsk)}
+                      isCompleting={false}
+                      tTasks={tTasks}
+                      renderTitle={(task) => renderTaskTitle(task, t)}
+                    />
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+
+            {dueToday.length > 0 && (
+              <Card>
+                <CardHeader className="pb-2 pt-4 px-4">
+                  <CardTitle className="text-sm font-semibold text-gray-700 flex items-center gap-2" data-testid="section-due-today">
+                    <Clock className="w-4 h-4 text-[#0D9488]" />
+                    {t.tasks.dueToday}
+                    <Badge variant="secondary" className="text-xs">{dueToday.length}</Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-4 pb-3">
+                  {dueToday.map((task) => (
+                    <TaskRow
+                      key={task.id}
+                      task={task}
+                      onComplete={(id) => {
+                        const found = dueToday.find(t2 => t2.id === id);
+                        if (found) setCompletingTask(found);
+                      }}
+                      onReschedule={(tsk) => setRescheduleTask(tsk)}
+                      isCompleting={false}
+                      tTasks={tTasks}
+                      renderTitle={(task) => renderTaskTitle(task, t)}
+                    />
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
       </div>
 
-      {isLoading ? (
-        <div className="flex items-center justify-center h-40">
-          <div className="w-8 h-8 border-4 border-[#0D9488] border-t-transparent rounded-full animate-spin" />
+      <div className="lg:col-span-2 space-y-4" data-testid="section-completed-history">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2" data-testid="text-completed-history-title">
+            <History className="w-5 h-5 text-[#0D9488]" />
+            {t.tasks.completedHistory}
+          </h2>
+          <p className="text-sm text-gray-500 mt-0.5">{t.tasks.completedHistoryDesc}</p>
         </div>
-      ) : totalCount === 0 ? (
-        <Card>
-          <CardContent className="py-16 text-center">
-            <CheckCircle2 className="w-12 h-12 text-[#0D9488] mx-auto mb-3 opacity-50" />
-            <p className="text-gray-500 font-medium">{t.tasks.allCaughtUp}</p>
-            <p className="text-sm text-gray-400 mt-1">{t.tasks.allCaughtUpDesc}</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-4">
-          {overdue.length > 0 && (
-            <Card className="border-red-200">
-              <CardHeader className="pb-2 pt-4 px-4">
-                <CardTitle className="text-sm font-semibold text-red-600 flex items-center gap-2" data-testid="section-overdue">
-                  <AlertTriangle className="w-4 h-4" />
-                  {t.tasks.overdue}
-                  <Badge variant="destructive" className="text-xs">{overdue.length}</Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="px-4 pb-3">
-                {overdue.map((task) => (
-                  <TaskRow
-                    key={task.id}
-                    task={task}
-                    onComplete={(id) => {
-                      const found = overdue.find(t2 => t2.id === id);
-                      if (found) setCompletingTask(found);
-                    }}
-                    onReschedule={(tsk) => setRescheduleTask(tsk)}
-                    isCompleting={false}
-                    tTasks={tTasks}
-                    renderTitle={(task) => renderTaskTitle(task, t)}
-                  />
-                ))}
-              </CardContent>
-            </Card>
-          )}
 
-          {dueToday.length > 0 && (
-            <Card>
-              <CardHeader className="pb-2 pt-4 px-4">
-                <CardTitle className="text-sm font-semibold text-gray-700 flex items-center gap-2" data-testid="section-due-today">
-                  <Clock className="w-4 h-4 text-[#0D9488]" />
-                  {t.tasks.dueToday}
-                  <Badge variant="secondary" className="text-xs">{dueToday.length}</Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="px-4 pb-3">
-                {dueToday.map((task) => (
-                  <TaskRow
-                    key={task.id}
-                    task={task}
-                    onComplete={(id) => {
-                      const found = dueToday.find(t2 => t2.id === id);
-                      if (found) setCompletingTask(found);
-                    }}
-                    onReschedule={(tsk) => setRescheduleTask(tsk)}
-                    isCompleting={false}
-                    tTasks={tTasks}
-                    renderTitle={(task) => renderTaskTitle(task, t)}
-                  />
-                ))}
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      )}
+        {isLoadingHistory ? (
+          <div className="flex items-center justify-center h-40">
+            <div className="w-8 h-8 border-4 border-[#0D9488] border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : history.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <CheckCircle2 className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+              <p className="text-gray-500 font-medium text-sm">{t.tasks.noCompletedTasks}</p>
+              <p className="text-xs text-gray-400 mt-1">{t.tasks.noCompletedTasksDesc}</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-2 max-h-[calc(100vh-12rem)] overflow-y-auto pr-1">
+            {history.map((task) => (
+              <CompletedTaskCard
+                key={task.id}
+                task={task}
+                tTasks={tCompleted}
+                outcomeLabels={outcomeLabels}
+                renderTitle={(task) => renderTaskTitle(task, t)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
 
       <QuickTaskModal
         open={!!rescheduleTask}

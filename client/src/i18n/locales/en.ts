@@ -563,6 +563,12 @@ export const en = {
       appointmentSet: "Demo scheduled",
       duplicateLead: "Duplicate lead",
     },
+    completedHistory: "Completed History",
+    completedHistoryDesc: "Recently closed tasks",
+    noCompletedTasks: "No completed tasks yet",
+    noCompletedTasksDesc: "Completed tasks will appear here.",
+    completedOn: "Completed",
+    viewProfile: "View Profile",
   },
   notifications: {
     title: "Notifications",
