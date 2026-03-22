@@ -12,24 +12,50 @@
  * All sections have safe fallbacks for null / partial data.
  */
 
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   Building2, User, Phone, Mail, MapPin, Globe,
   AlertCircle, CheckSquare2, Square, Clock, Paperclip,
   MessageSquare, RefreshCw, ArrowRight, Info, CreditCard,
   Rocket, TrendingUp, FileText, Download, Activity,
-  CheckCircle2, Circle, Pencil, Zap,
+  CheckCircle2, Circle, Pencil, Zap, Plus, Pin,
+  Trash2, Users, CalendarDays, Upload, ExternalLink,
+  BarChart3, CheckSquare, History, Star, Edit2,
+  ClipboardList, CheckCircle,
 } from "lucide-react";
-import { format, formatDistanceToNow } from "date-fns";
+import { format, formatDistanceToNow, isPast, isToday } from "date-fns";
 import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useUnifiedProfile, useProfileTimeline } from "./hooks";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter
+} from "@/components/ui/dialog";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
+} from "@/components/ui/select";
+import {
+  Form, FormControl, FormField, FormItem, FormLabel, FormMessage
+} from "@/components/ui/form";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import RichTextEditorField from "@/features/chat/RichTextEditorField";
+import { sanitizeHtml } from "@/features/chat/RichTextEditor";
+import { apiRequest, queryClient, STALE } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { useAdminLang } from "@/i18n/LanguageContext";
+import { useUnifiedProfile, useProfileTimeline, PROFILE_KEYS } from "./hooks";
 import { EditCompanyDialog } from "./edit/EditCompanyDialog";
 import { EditContactDialog } from "./edit/EditContactDialog";
 import { EditLeadDialog } from "./edit/EditLeadDialog";
 import { EditOpportunityDialog } from "./edit/EditOpportunityDialog";
+import CompleteTaskModal from "@/components/CompleteTaskModal";
+import PaymentSentModal from "@/components/PaymentSentModal";
 import type {
   ProfileEntry,
   ProfileHealth,
@@ -46,6 +72,93 @@ import type {
   UnifiedTimelineEvent,
   UnifiedProfileDto,
 } from "./types";
+import type {
+  PipelineStage, ClientNote, User as DbUser, FollowupTask,
+} from "@shared/schema";
+import { useLocation } from "wouter";
+
+// ── Types ──────────────────────────────────────────────────────────────────────
+
+interface ClientTask extends FollowupTask {
+  creatorName: string | null;
+  status: "open" | "overdue" | "completed";
+}
+
+interface ClientFile {
+  id: string;
+  originalName: string;
+  mimeType: string;
+  sizeBytes: number;
+  url: string;
+  key: string;
+  createdAt: string;
+  uploaderName: string | null;
+  uploaderUserId: string | null;
+}
+
+interface BillingSnapshot {
+  billingNotes: string | null;
+  serviceTier: string | null;
+  carePlanStatus: string | null;
+  stripeCustomer: { id: string; stripeCustomerId: string; email: string | null; metadata: any } | null;
+  recentEvents: any[];
+}
+
+// ── Schemas ────────────────────────────────────────────────────────────────────
+
+const createNoteSchema = z.object({
+  type: z.enum(["general", "call", "meeting", "internal"]),
+  content: z.string().min(1, "Content is required"),
+  isPinned: z.boolean().default(false),
+});
+
+const contactSchema = z.object({
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().nullable(),
+  email: z.string().email("Invalid email").nullable().or(z.literal("")),
+  phone: z.string().nullable(),
+  title: z.string().nullable(),
+  preferredLanguage: z.string().default("es"),
+  isPrimary: z.boolean().default(false),
+});
+
+const taskSchema = z.object({
+  title: z.string().min(1, "Title is required"),
+  notes: z.string().nullable().optional(),
+  taskType: z.enum(["follow_up", "onboarding", "billing", "general", "review"]),
+  dueDate: z.string().min(1, "Due date is required"),
+});
+
+const nullableEnum = <T extends string>(values: [T, ...T[]]) =>
+  z.preprocess(v => (v === "" ? null : v), z.enum(values).nullable());
+
+const accountHealthSchema = z.object({
+  launchDate: z.string().nullable(),
+  renewalDate: z.string().nullable(),
+  websiteStatus: nullableEnum(["live", "maintenance", "down", "building"]),
+  carePlanStatus: nullableEnum(["active", "inactive", "none"]),
+  serviceTier: nullableEnum(["basic", "standard", "premium"]),
+  billingNotes: z.string().nullable(),
+});
+
+const updateAccountSchema = z.object({
+  clientStatus: z.string().nullable(),
+  accountOwnerId: z.string().nullable(),
+  nextFollowUpDate: z.string().nullable().or(z.date()),
+  preferredContactMethod: z.string().nullable(),
+  preferredLanguage: z.string().nullable(),
+  name: z.string().min(1, "Name is required"),
+  dba: z.string().nullable(),
+  phone: z.string().nullable(),
+  email: z.string().nullable(),
+  website: z.string().nullable(),
+  industry: z.string().nullable(),
+  address: z.string().nullable(),
+  city: z.string().nullable(),
+  state: z.string().nullable(),
+  zip: z.string().nullable(),
+  notes: z.string().nullable(),
+});
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -94,6 +207,28 @@ const CONTEXT_LABEL: Record<ProfileEntry["type"], string> = {
   company:     "Company",
   lead:        "Lead",
   opportunity: "Opportunity",
+};
+
+const NOTE_TYPE_ICONS: Record<string, typeof MessageSquare> = {
+  general: MessageSquare,
+  call: Phone,
+  meeting: Users,
+  internal: Info,
+};
+
+const NOTE_TYPE_COLORS: Record<string, string> = {
+  general: "bg-gray-100 text-gray-700",
+  call: "bg-blue-100 text-blue-700",
+  meeting: "bg-purple-100 text-purple-700",
+  internal: "bg-amber-100 text-amber-700",
+};
+
+const TASK_TYPE_COLORS: Record<string, string> = {
+  follow_up: "bg-blue-100 text-blue-700",
+  onboarding: "bg-emerald-100 text-emerald-700",
+  billing: "bg-purple-100 text-purple-700",
+  general: "bg-gray-100 text-gray-700",
+  review: "bg-amber-100 text-amber-700",
 };
 
 // ── Loading skeleton ──────────────────────────────────────────────────────────
@@ -227,6 +362,93 @@ export function ProfileHeader({ entry, company, derived }: ProfileHeaderProps) {
         )}
       </div>
     </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Section: QuickStats
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface QuickStatsProps {
+  contacts: number;
+  leads: number;
+  deals: number;
+  dealValue: number;
+  openTasks: number;
+}
+
+function QuickStats({ contacts, leads, deals, dealValue, openTasks }: QuickStatsProps) {
+  const stats = [
+    { label: "Contacts", value: contacts, icon: Users, color: "text-blue-600 bg-blue-50" },
+    { label: "Leads", value: leads, icon: TrendingUp, color: "text-emerald-600 bg-emerald-50" },
+    { label: "Deals", value: deals, icon: FileText, color: "text-violet-600 bg-violet-50" },
+    { label: "Deal Value", value: `$${dealValue.toLocaleString()}`, icon: CreditCard, color: "text-amber-600 bg-amber-50" },
+    { label: "Open Tasks", value: openTasks, icon: CheckSquare2, color: "text-rose-600 bg-rose-50" },
+  ];
+
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3" data-testid="quick-stats">
+      {stats.map((s) => (
+        <Card key={s.label} className="p-3 flex items-center gap-3" data-testid={`stat-${s.label.toLowerCase().replace(/\s+/g, "-")}`}>
+          <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${s.color}`}>
+            <s.icon className="w-4.5 h-4.5" />
+          </div>
+          <div>
+            <p className="text-lg font-bold text-gray-900 leading-tight">{s.value}</p>
+            <p className="text-[11px] text-gray-500 uppercase tracking-wide font-medium">{s.label}</p>
+          </div>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Section: MoveToStageBar
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface MoveToStageBarProps {
+  opportunityId: string;
+  currentStageId: string;
+  stages: PipelineStage[];
+  onContactedPending: (stageId: string) => void;
+  onPaymentSentPending: (stageId: string) => void;
+  stageMutation: ReturnType<typeof useMutation<any, Error, string>>;
+  t: any;
+}
+
+function MoveToStageBar({
+  opportunityId, currentStageId, stages, onContactedPending, onPaymentSentPending, stageMutation, t,
+}: MoveToStageBarProps) {
+  return (
+    <Card className="p-4" data-testid="move-to-stage-bar">
+      <p className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wide">{t.pipeline.moveToStage}</p>
+      <div className="flex flex-wrap gap-1.5">
+        {stages.map(stage => (
+          <Button
+            key={stage.id}
+            size="sm"
+            variant={stage.id === currentStageId ? "default" : "outline"}
+            className="text-xs h-7"
+            style={stage.id === currentStageId ? { backgroundColor: stage.color } : { borderColor: stage.color, color: stage.color }}
+            onClick={() => {
+              if (stage.id === currentStageId) return;
+              if (stage.slug === "contacted") {
+                onContactedPending(stage.id);
+              } else if (stage.slug === "payment-sent") {
+                onPaymentSentPending(stage.id);
+              } else {
+                stageMutation.mutate(stage.id);
+              }
+            }}
+            disabled={stageMutation.isPending}
+            data-testid={`button-stage-${stage.slug}`}
+          >
+            {(t.pipeline.stageNames as Record<string, string>)[stage.slug] || stage.name}
+          </Button>
+        ))}
+      </div>
+    </Card>
   );
 }
 
@@ -417,7 +639,6 @@ export function SalesSnapshotCard({ entry, sales }: SalesSnapshotCardProps) {
         <EmptySection label="sales activity" />
       ) : (
         <div className="space-y-4">
-          {/* Active opportunity */}
           {activeOpportunity && (
             <div className="rounded-lg bg-violet-50 border border-violet-100 p-3" data-testid="card-active-opportunity">
               <div className="flex items-center justify-between gap-2">
@@ -456,7 +677,6 @@ export function SalesSnapshotCard({ entry, sales }: SalesSnapshotCardProps) {
             </div>
           )}
 
-          {/* Source lead */}
           {sourceLead && entry.type !== "lead" && (
             <div className="space-y-1" data-testid="div-source-lead">
               <div className="flex items-center justify-between">
@@ -479,7 +699,6 @@ export function SalesSnapshotCard({ entry, sales }: SalesSnapshotCardProps) {
             </div>
           )}
 
-          {/* Lead view: show current lead edit button */}
           {entry.type === "lead" && sourceLead && (
             <div className="flex justify-end">
               <button
@@ -493,7 +712,6 @@ export function SalesSnapshotCard({ entry, sales }: SalesSnapshotCardProps) {
             </div>
           )}
 
-          {/* Counts */}
           <div className="flex gap-4 text-xs text-gray-500 border-t pt-3">
             <span data-testid="text-opportunities-count">
               {opportunities.length} opportunit{opportunities.length !== 1 ? "ies" : "y"}
@@ -529,14 +747,14 @@ export function SalesSnapshotCard({ entry, sales }: SalesSnapshotCardProps) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Section: TasksCard
+// Section: TasksCard (read-only from profile data)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface TasksCardProps {
   work: UnifiedProfileDto["work"];
 }
 
-function TaskRow({ task }: { task: MappedTask }) {
+function ProfileTaskRow({ task }: { task: MappedTask }) {
   const isOverdue = !task.completed && new Date(task.dueDate) < new Date();
 
   return (
@@ -608,7 +826,7 @@ export function TasksCard({ work }: TasksCardProps) {
         {tasks.length === 0 ? (
           <EmptySection label="tasks" />
         ) : (
-          <div>{tasks.map((t) => <TaskRow key={t.id} task={t} />)}</div>
+          <div>{tasks.map((t) => <ProfileTaskRow key={t.id} task={t} />)}</div>
         )}
       </Card>
     </div>
@@ -676,7 +894,7 @@ export function FilesCard({ files }: FilesCardProps) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Section: BillingOnboardingCard
+// Section: BillingOnboardingCard (legacy)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface BillingOnboardingCardProps {
@@ -718,7 +936,6 @@ export function BillingOnboardingCard({ service }: BillingOnboardingCardProps) {
 
   return (
     <div className="space-y-4" data-testid="section-service">
-      {/* Billing */}
       <Card className="p-5" data-testid="card-billing">
         <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
           <CreditCard className="w-4 h-4 text-gray-400" />
@@ -744,7 +961,6 @@ export function BillingOnboardingCard({ service }: BillingOnboardingCardProps) {
         )}
       </Card>
 
-      {/* Onboarding */}
       <Card className="p-5" data-testid="card-onboarding">
         <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
           <Rocket className="w-4 h-4 text-gray-400" />
@@ -832,14 +1048,545 @@ function TimelineEventRow({ event }: { event: UnifiedTimelineEvent }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Sub-form: NoteForm
+// ─────────────────────────────────────────────────────────────────────────────
+
+function NoteForm({ onSubmit, isPending }: { onSubmit: (data: any) => void; isPending: boolean }) {
+  const form = useForm({
+    resolver: zodResolver(createNoteSchema),
+    defaultValues: { type: "general", content: "", isPinned: false },
+  });
+
+  const handleSubmit = (data: any) => {
+    onSubmit(data);
+    form.reset({ type: "general", content: "", isPinned: false });
+  };
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 bg-gray-50/50 p-4 rounded-xl border">
+        <div className="flex gap-4 items-start">
+          <div className="w-1/4">
+            <FormField
+              control={form.control}
+              name="type"
+              render={({ field }) => (
+                <FormItem>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger data-testid="select-note-type">
+                        <SelectValue placeholder="Type" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="general">General</SelectItem>
+                      <SelectItem value="call">Call Log</SelectItem>
+                      <SelectItem value="meeting">Meeting</SelectItem>
+                      <SelectItem value="internal">Internal</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FormItem>
+              )}
+            />
+          </div>
+          <div className="flex-1">
+            <FormField
+              control={form.control}
+              name="content"
+              render={({ field }) => (
+                <FormItem>
+                  <FormControl>
+                    <RichTextEditorField
+                      value={field.value || ""}
+                      onChange={(html) => field.onChange(html)}
+                      onBlur={field.onBlur}
+                      placeholder="Type a note..."
+                      minHeight="80px"
+                      data-testid="input-note-content"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </div>
+        <div className="flex items-center justify-between">
+          <FormField
+            control={form.control}
+            name="isPinned"
+            render={({ field }) => (
+              <FormItem className="flex items-center space-x-2 space-y-0">
+                <FormControl>
+                  <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                </FormControl>
+                <FormLabel className="text-sm font-normal">Pin this note</FormLabel>
+              </FormItem>
+            )}
+          />
+          <Button
+            type="submit"
+            disabled={isPending || !form.watch("content") || form.watch("content") === "<p></p>"}
+            data-testid="button-submit-note"
+          >
+            Add Note
+          </Button>
+        </div>
+      </form>
+    </Form>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Sub-form: TaskForm
+// ─────────────────────────────────────────────────────────────────────────────
+
+function TaskForm({ onSubmit, isPending }: { onSubmit: (data: any) => void; isPending: boolean }) {
+  const form = useForm({
+    resolver: zodResolver(taskSchema),
+    defaultValues: {
+      title: "",
+      notes: "",
+      taskType: "follow_up" as const,
+      dueDate: new Date().toISOString().split("T")[0],
+    },
+  });
+
+  const handleSubmit = (data: any) => {
+    onSubmit(data);
+    form.reset();
+  };
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+        <FormField
+          control={form.control}
+          name="title"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Task Title</FormLabel>
+              <FormControl>
+                <Input {...field} placeholder="e.g. Follow up on proposal" data-testid="input-task-title" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="taskType"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Type</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger data-testid="select-task-type">
+                      <SelectValue />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="follow_up">Follow-Up</SelectItem>
+                    <SelectItem value="onboarding">Onboarding</SelectItem>
+                    <SelectItem value="billing">Billing</SelectItem>
+                    <SelectItem value="review">Review</SelectItem>
+                    <SelectItem value="general">General</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="dueDate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Due Date</FormLabel>
+                <FormControl>
+                  <Input type="date" {...field} data-testid="input-task-due-date" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+        <FormField
+          control={form.control}
+          name="notes"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Notes (optional)</FormLabel>
+              <FormControl>
+                <RichTextEditorField
+                  value={field.value || ""}
+                  onChange={(html) => field.onChange(html)}
+                  onBlur={field.onBlur}
+                  placeholder="Additional details..."
+                  minHeight="80px"
+                  data-testid="input-task-notes"
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <DialogFooter>
+          <Button type="submit" disabled={isPending} data-testid="button-submit-task">
+            {isPending ? "Creating..." : "Create Task"}
+          </Button>
+        </DialogFooter>
+      </form>
+    </Form>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Sub-form: ContactForm
+// ─────────────────────────────────────────────────────────────────────────────
+
+function ContactForm({ initialData, onSubmit, isPending }: {
+  initialData: any;
+  onSubmit: (data: any) => void;
+  isPending: boolean;
+}) {
+  const form = useForm({
+    resolver: zodResolver(contactSchema),
+    defaultValues: {
+      firstName: initialData?.firstName || "",
+      lastName: initialData?.lastName || "",
+      email: initialData?.email || "",
+      phone: initialData?.phone || "",
+      title: initialData?.title || "",
+      preferredLanguage: initialData?.preferredLanguage || "es",
+      isPrimary: initialData?.isPrimary || false,
+    },
+  });
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="firstName"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>First Name</FormLabel>
+                <FormControl><Input {...field} data-testid="input-contact-first-name" /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="lastName"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Last Name</FormLabel>
+                <FormControl><Input {...field} value={field.value || ""} data-testid="input-contact-last-name" /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+        <FormField
+          control={form.control}
+          name="email"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Email</FormLabel>
+              <FormControl><Input {...field} value={field.value || ""} data-testid="input-contact-email" /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="phone"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Phone</FormLabel>
+              <FormControl><Input {...field} value={field.value || ""} data-testid="input-contact-phone" /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="title"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Title / Position</FormLabel>
+              <FormControl><Input {...field} value={field.value || ""} data-testid="input-contact-title" /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <div className="flex justify-between items-center gap-4">
+          <FormField
+            control={form.control}
+            name="preferredLanguage"
+            render={({ field }) => (
+              <FormItem className="flex-1">
+                <FormLabel>Language</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger data-testid="select-contact-language">
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="en">English</SelectItem>
+                    <SelectItem value="es">Spanish</SelectItem>
+                  </SelectContent>
+                </Select>
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="isPrimary"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-center space-x-2 space-y-0 pt-6">
+                <FormControl>
+                  <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                </FormControl>
+                <FormLabel>Primary Contact</FormLabel>
+              </FormItem>
+            )}
+          />
+        </div>
+        <DialogFooter>
+          <Button type="submit" disabled={isPending} data-testid="button-submit-contact">
+            {isPending ? "Saving..." : (initialData ? "Update Contact" : "Add Contact")}
+          </Button>
+        </DialogFooter>
+      </form>
+    </Form>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Sub-form: AccountHealthForm
+// ─────────────────────────────────────────────────────────────────────────────
+
+function AccountHealthForm({ company, onSubmit, isPending }: {
+  company: MappedCompany;
+  onSubmit: (data: any) => void;
+  isPending: boolean;
+}) {
+  const form = useForm({
+    resolver: zodResolver(accountHealthSchema),
+    defaultValues: {
+      launchDate: company.launchDate ? new Date(company.launchDate).toISOString().split("T")[0] : "",
+      renewalDate: company.renewalDate ? new Date(company.renewalDate).toISOString().split("T")[0] : "",
+      websiteStatus: company.websiteStatus || "",
+      carePlanStatus: company.carePlanStatus || "",
+      serviceTier: company.serviceTier || "",
+      billingNotes: company.billingNotes || "",
+    },
+  });
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <FormField
+            control={form.control}
+            name="serviceTier"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Service Tier</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
+                  <FormControl>
+                    <SelectTrigger data-testid="select-service-tier">
+                      <SelectValue placeholder="Select tier" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="basic">Basic</SelectItem>
+                    <SelectItem value="standard">Standard</SelectItem>
+                    <SelectItem value="premium">Premium</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="carePlanStatus"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Care Plan Status</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
+                  <FormControl>
+                    <SelectTrigger data-testid="select-care-plan-status">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="websiteStatus"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Website Status</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
+                  <FormControl>
+                    <SelectTrigger data-testid="select-website-status">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="live">Live</SelectItem>
+                    <SelectItem value="building">Building</SelectItem>
+                    <SelectItem value="maintenance">Maintenance</SelectItem>
+                    <SelectItem value="down">Down</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="launchDate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Launch Date</FormLabel>
+                <FormControl>
+                  <Input type="date" {...field} value={field.value || ""} data-testid="input-launch-date" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="renewalDate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Renewal Date</FormLabel>
+                <FormControl>
+                  <Input type="date" {...field} value={field.value || ""} data-testid="input-renewal-date" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+        <FormField
+          control={form.control}
+          name="billingNotes"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Billing Notes</FormLabel>
+              <FormControl>
+                <RichTextEditorField
+                  value={field.value || ""}
+                  onChange={(html) => field.onChange(html)}
+                  onBlur={field.onBlur}
+                  placeholder="Payment terms, invoicing notes..."
+                  minHeight="80px"
+                  data-testid="input-billing-notes"
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <div className="flex justify-end">
+          <Button type="submit" disabled={isPending} data-testid="button-save-account-health">
+            {isPending ? "Saving..." : "Save Account Health"}
+          </Button>
+        </div>
+      </form>
+    </Form>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Section: ClientTaskRow (full CRUD version)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function ClientTaskRow({ task, onToggle, onDelete, isToggling }: {
+  task: ClientTask;
+  onToggle: () => void;
+  onDelete: () => void;
+  isToggling: boolean;
+}) {
+  const isOverdue = task.status === "overdue";
+  const isDone = task.status === "completed";
+
+  return (
+    <Card className={`p-3 flex items-start gap-3 group transition-opacity ${isDone ? "opacity-60" : ""}`} data-testid={`task-row-${task.id}`}>
+      <button
+        className="mt-0.5 shrink-0"
+        onClick={onToggle}
+        disabled={isToggling}
+        data-testid={`button-toggle-task-${task.id}`}
+      >
+        {isDone
+          ? <CheckSquare className="w-5 h-5 text-emerald-500" />
+          : <Square className={`w-5 h-5 ${isOverdue ? "text-red-400" : "text-gray-300"}`} />
+        }
+      </button>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <p className={`text-sm font-medium ${isDone ? "line-through text-gray-400" : "text-gray-900"}`} data-testid={`task-title-${task.id}`}>
+            {task.title}
+          </p>
+          {task.taskType && (
+            <Badge className={`text-[10px] px-1.5 ${TASK_TYPE_COLORS[task.taskType] || "bg-gray-100 text-gray-700"}`}>
+              {task.taskType.replace("_", " ")}
+            </Badge>
+          )}
+        </div>
+        {task.notes && (
+          <div className="text-xs text-gray-500 mt-0.5 line-clamp-2 chat-message-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(task.notes) }} />
+        )}
+        <div className="flex items-center gap-3 mt-1.5">
+          <span className={`text-xs flex items-center gap-1 ${isOverdue ? "text-red-500 font-medium" : "text-gray-400"}`}>
+            <CalendarDays className="w-3 h-3" />
+            {task.dueDate ? (isToday(new Date(task.dueDate)) ? "Today" : format(new Date(task.dueDate), "MMM d, yyyy")) : "No due date"}
+          </span>
+          {task.creatorName && (
+            <span className="text-xs text-gray-400">by {task.creatorName}</span>
+          )}
+        </div>
+      </div>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+        onClick={onDelete}
+        data-testid={`button-delete-task-${task.id}`}
+      >
+        <Trash2 className="w-3.5 h-3.5 text-red-400" />
+      </Button>
+    </Card>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // ProfileShell — main orchestrator
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface ProfileShellProps {
   entry: ProfileEntry;
-  /** Default tab to open. Defaults to "overview". */
-  defaultTab?: "overview" | "timeline" | "tasks" | "files" | "service";
-  /** Optional CSS class applied to the outermost container. */
+  defaultTab?: "overview" | "notes" | "contacts" | "tasks" | "files" | "billing" | "activity";
   className?: string;
 }
 
@@ -850,6 +1597,18 @@ export default function ProfileShell({
 }: ProfileShellProps) {
   const { data: profile, isLoading, error } = useUnifiedProfile(entry);
   const [activeTab, setActiveTab] = useState<string>(defaultTab);
+  const { toast } = useToast();
+  const { t } = useAdminLang();
+  const [, navigate] = useLocation();
+
+  const [contactedPendingStageId, setContactedPendingStageId] = useState<string | null>(null);
+  const [paymentSentPendingStageId, setPaymentSentPendingStageId] = useState<string | null>(null);
+  const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
+  const [editingContact, setEditingContact] = useState<any>(null);
+  const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
+  const [togglingTaskId, setTogglingTaskId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
 
   if (isLoading) return <ProfileSkeleton />;
 
@@ -858,21 +1617,328 @@ export default function ProfileShell({
   }
 
   const { identity, sales, work, service, derived } = profile;
+  const companyId = identity.company.id;
+  const activeOpp = sales.activeOpportunity;
+  const hasOpenOpp = activeOpp && activeOpp.status === "open";
+
+  return (
+    <ProfileShellInner
+      entry={entry}
+      profile={profile}
+      companyId={companyId}
+      activeOpp={activeOpp}
+      hasOpenOpp={!!hasOpenOpp}
+      activeTab={activeTab}
+      setActiveTab={setActiveTab}
+      toast={toast}
+      t={t}
+      navigate={navigate}
+      contactedPendingStageId={contactedPendingStageId}
+      setContactedPendingStageId={setContactedPendingStageId}
+      paymentSentPendingStageId={paymentSentPendingStageId}
+      setPaymentSentPendingStageId={setPaymentSentPendingStageId}
+      isContactDialogOpen={isContactDialogOpen}
+      setIsContactDialogOpen={setIsContactDialogOpen}
+      editingContact={editingContact}
+      setEditingContact={setEditingContact}
+      isTaskDialogOpen={isTaskDialogOpen}
+      setIsTaskDialogOpen={setIsTaskDialogOpen}
+      togglingTaskId={togglingTaskId}
+      setTogglingTaskId={setTogglingTaskId}
+      fileInputRef={fileInputRef}
+      uploadingFile={uploadingFile}
+      setUploadingFile={setUploadingFile}
+      className={className}
+    />
+  );
+}
+
+interface ProfileShellInnerProps {
+  entry: ProfileEntry;
+  profile: UnifiedProfileDto;
+  companyId: string;
+  activeOpp: MappedOpportunity | null;
+  hasOpenOpp: boolean;
+  activeTab: string;
+  setActiveTab: (t: string) => void;
+  toast: ReturnType<typeof useToast>["toast"];
+  t: any;
+  navigate: (to: string) => void;
+  contactedPendingStageId: string | null;
+  setContactedPendingStageId: (v: string | null) => void;
+  paymentSentPendingStageId: string | null;
+  setPaymentSentPendingStageId: (v: string | null) => void;
+  isContactDialogOpen: boolean;
+  setIsContactDialogOpen: (v: boolean) => void;
+  editingContact: any;
+  setEditingContact: (v: any) => void;
+  isTaskDialogOpen: boolean;
+  setIsTaskDialogOpen: (v: boolean) => void;
+  togglingTaskId: string | null;
+  setTogglingTaskId: (v: string | null) => void;
+  fileInputRef: React.RefObject<HTMLInputElement>;
+  uploadingFile: boolean;
+  setUploadingFile: (v: boolean) => void;
+  className: string;
+}
+
+function ProfileShellInner({
+  entry, profile, companyId, activeOpp, hasOpenOpp,
+  activeTab, setActiveTab, toast, t, navigate,
+  contactedPendingStageId, setContactedPendingStageId,
+  paymentSentPendingStageId, setPaymentSentPendingStageId,
+  isContactDialogOpen, setIsContactDialogOpen,
+  editingContact, setEditingContact,
+  isTaskDialogOpen, setIsTaskDialogOpen,
+  togglingTaskId, setTogglingTaskId,
+  fileInputRef, uploadingFile, setUploadingFile,
+  className,
+}: ProfileShellInnerProps) {
+  const { identity, sales, work, service, derived } = profile;
+
+  const { data: stages } = useQuery<PipelineStage[]>({
+    queryKey: ["/api/pipeline/stages"],
+    staleTime: STALE.MEDIUM,
+    enabled: hasOpenOpp,
+  });
+
+  const { data: users = [] } = useQuery<Pick<DbUser, "id" | "name">[]>({
+    queryKey: ["/api/admin/users"],
+    staleTime: STALE.MEDIUM,
+  });
+
+  const { data: notes = [], isLoading: notesLoading } = useQuery<(ClientNote & { user?: Pick<DbUser, "id" | "name"> })[]>({
+    queryKey: ["/api/clients", companyId, "notes"],
+    enabled: activeTab === "notes",
+  });
+
+  const { data: clientTasks = [], isLoading: tasksLoading } = useQuery<ClientTask[]>({
+    queryKey: ["/api/clients", companyId, "tasks"],
+    enabled: activeTab === "tasks",
+  });
+
+  const { data: clientFiles = [], isLoading: filesLoading } = useQuery<ClientFile[]>({
+    queryKey: ["/api/clients", companyId, "files"],
+    enabled: activeTab === "files",
+  });
+
+  const { data: billing, isLoading: billingLoading } = useQuery<BillingSnapshot>({
+    queryKey: ["/api/clients", companyId, "billing"],
+    enabled: activeTab === "billing",
+  });
+
+  const { data: activityHistory = [], isLoading: activityLoading } = useQuery<{
+    id: string; event: string; entityType: string; entityId: string;
+    userId: string | null; metadata: any; createdAt: string;
+    user?: { name: string };
+  }[]>({
+    queryKey: ["/api/history/client", companyId],
+    enabled: activeTab === "activity",
+  });
+
+  const stageMutation = useMutation({
+    mutationFn: async (stageId: string) => {
+      if (!activeOpp) throw new Error("No active opportunity");
+      const res = await apiRequest("PUT", `/api/pipeline/opportunities/${activeOpp.id}/stage`, { stageId });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
+      queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities", activeOpp?.id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities/board"] });
+      if (data?.opportunity?.status === "won") {
+        queryClient.invalidateQueries({ predicate: (q) => typeof q.queryKey[0] === "string" && q.queryKey[0].startsWith("/api/clients") });
+      }
+      toast({ title: t.pipeline.stageUpdated });
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const addNoteMutation = useMutation({
+    mutationFn: async (data: any) => {
+      await apiRequest("POST", `/api/clients/${companyId}/notes`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/clients", companyId, "notes"] });
+      queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
+      toast({ title: "Note added" });
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const deleteNoteMutation = useMutation({
+    mutationFn: async (noteId: string) => {
+      await apiRequest("DELETE", `/api/clients/${companyId}/notes/${noteId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/clients", companyId, "notes"] });
+      queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
+      toast({ title: "Note deleted" });
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const addContactMutation = useMutation({
+    mutationFn: async (data: any) => {
+      await apiRequest("POST", `/api/clients/${companyId}/contacts`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
+      setIsContactDialogOpen(false);
+      toast({ title: "Contact added" });
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const updateContactMutation = useMutation({
+    mutationFn: async ({ contactId, data }: { contactId: string; data: any }) => {
+      await apiRequest("PATCH", `/api/clients/${companyId}/contacts/${contactId}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
+      setEditingContact(null);
+      toast({ title: "Contact updated" });
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const addTaskMutation = useMutation({
+    mutationFn: async (data: any) => {
+      await apiRequest("POST", `/api/clients/${companyId}/tasks`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/clients", companyId, "tasks"] });
+      queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
+      setIsTaskDialogOpen(false);
+      toast({ title: "Task created" });
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const toggleTaskMutation = useMutation({
+    mutationFn: async (taskId: string) => {
+      setTogglingTaskId(taskId);
+      await apiRequest("PUT", `/api/clients/${companyId}/tasks/${taskId}/complete`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/clients", companyId, "tasks"] });
+      queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
+      setTogglingTaskId(null);
+    },
+    onError: (err: Error) => {
+      setTogglingTaskId(null);
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const deleteTaskMutation = useMutation({
+    mutationFn: async (taskId: string) => {
+      await apiRequest("DELETE", `/api/clients/${companyId}/tasks/${taskId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/clients", companyId, "tasks"] });
+      queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
+      toast({ title: "Task deleted" });
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const updateHealthMutation = useMutation({
+    mutationFn: async (data: any) => {
+      await apiRequest("PATCH", `/api/clients/${companyId}/account`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/clients", companyId, "billing"] });
+      queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
+      toast({ title: "Account health updated" });
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const updateAccountMutation = useMutation({
+    mutationFn: async (data: any) => {
+      await apiRequest("PATCH", `/api/clients/${companyId}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
+      toast({ title: "Account updated" });
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingFile(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("companyId", companyId);
+      const res = await fetch("/api/attachments/upload", { method: "POST", body: formData });
+      if (!res.ok) throw new Error("Upload failed");
+      queryClient.invalidateQueries({ queryKey: ["/api/clients", companyId, "files"] });
+      queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
+      toast({ title: "File uploaded" });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setUploadingFile(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  const quickStats: QuickStatsProps = {
+    contacts: identity.contacts.length,
+    leads: sales.leadHistory.length,
+    deals: sales.opportunities.length,
+    dealValue: sales.opportunities.reduce((sum, o) => sum + (Number(o.value) || 0), 0),
+    openTasks: work.tasks.filter((t) => !t.completed).length,
+  };
+
+  const pinnedNotes = notes.filter((n) => n.isPinned);
+  const unpinnedNotes = notes.filter((n) => !n.isPinned);
+  const sortedNotes = [...pinnedNotes, ...unpinnedNotes];
+
+  const openTasks = clientTasks.filter((t) => t.status !== "completed");
+  const completedTasks = clientTasks.filter((t) => t.status === "completed");
+
+  const primaryContact = identity.primaryContact;
+  const contact = primaryContact;
 
   return (
     <div
       className={`flex flex-col gap-6 ${className}`}
       data-testid={`profile-shell-${entry.type}-${entry.id}`}
     >
-      {/* ── Header (always visible) ─────────────────────────────────────── */}
       <ProfileHeader entry={entry} company={identity.company} derived={derived} />
 
-      {/* ── Tabbed sections ─────────────────────────────────────────────── */}
+      <QuickStats {...quickStats} />
+
+      {hasOpenOpp && stages && stages.length > 0 && activeOpp && (
+        <MoveToStageBar
+          opportunityId={activeOpp.id}
+          currentStageId={activeOpp.stageId ?? ""}
+          stages={stages}
+          onContactedPending={setContactedPendingStageId}
+          onPaymentSentPending={setPaymentSentPendingStageId}
+          stageMutation={stageMutation}
+          t={t}
+        />
+      )}
+
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="w-full justify-start overflow-x-auto" data-testid="tabs-profile">
-          <TabsTrigger value="overview"  data-testid="tab-overview">Overview</TabsTrigger>
-          <TabsTrigger value="timeline" data-testid="tab-timeline">Timeline</TabsTrigger>
-          <TabsTrigger value="tasks"    data-testid="tab-tasks">
+          <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
+          <TabsTrigger value="notes" data-testid="tab-notes">Notes</TabsTrigger>
+          <TabsTrigger value="contacts" data-testid="tab-contacts">
+            Contacts
+            {identity.contacts.length > 0 && (
+              <span className="ml-1.5 bg-blue-100 text-blue-700 rounded-full text-xs px-1.5 py-0 font-medium">
+                {identity.contacts.length}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="tasks" data-testid="tab-tasks">
             Tasks
             {work.tasks.length > 0 && (
               <span className="ml-1.5 bg-amber-100 text-amber-700 rounded-full text-xs px-1.5 py-0 font-medium">
@@ -880,11 +1946,12 @@ export default function ProfileShell({
               </span>
             )}
           </TabsTrigger>
-          <TabsTrigger value="files"   data-testid="tab-files">Files</TabsTrigger>
-          <TabsTrigger value="service" data-testid="tab-service">Service</TabsTrigger>
+          <TabsTrigger value="files" data-testid="tab-files">Files</TabsTrigger>
+          <TabsTrigger value="billing" data-testid="tab-billing">Billing</TabsTrigger>
+          <TabsTrigger value="activity" data-testid="tab-activity">Activity</TabsTrigger>
         </TabsList>
 
-        {/* Overview: company/contact + sales side-by-side */}
+        {/* ── Overview Tab ─────────────────────────────────────────────────── */}
         <TabsContent value="overview" className="mt-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <CompanyContactCard
@@ -897,32 +1964,449 @@ export default function ProfileShell({
           </div>
         </TabsContent>
 
-        {/* Timeline */}
-        <TabsContent value="timeline" className="mt-4">
+        {/* ── Notes Tab ────────────────────────────────────────────────────── */}
+        <TabsContent value="notes" className="mt-4 space-y-4">
+          <NoteForm onSubmit={(data) => addNoteMutation.mutate(data)} isPending={addNoteMutation.isPending} />
+
+          {notesLoading ? (
+            <div className="space-y-3 animate-pulse">
+              {[1, 2, 3].map((i) => <div key={i} className="h-20 bg-gray-50 rounded-lg" />)}
+            </div>
+          ) : sortedNotes.length === 0 ? (
+            <Card className="p-8 text-center">
+              <MessageSquare className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+              <p className="text-sm text-gray-500">No notes yet. Add one above.</p>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {sortedNotes.map((note) => {
+                const NoteIcon = NOTE_TYPE_ICONS[note.type] || MessageSquare;
+                return (
+                  <Card key={note.id} className={`p-4 ${note.isPinned ? "border-amber-200 bg-amber-50/30" : ""}`} data-testid={`note-${note.id}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3 flex-1 min-w-0">
+                        <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center shrink-0 mt-0.5">
+                          <NoteIcon className="w-4 h-4 text-gray-500" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <Badge className={`text-[10px] ${NOTE_TYPE_COLORS[note.type] || "bg-gray-100 text-gray-700"}`}>
+                              {note.type}
+                            </Badge>
+                            {note.isPinned && (
+                              <Badge className="text-[10px] bg-amber-100 text-amber-700 border-amber-200">
+                                <Pin className="w-2.5 h-2.5 mr-0.5" /> Pinned
+                              </Badge>
+                            )}
+                            <span className="text-[10px] text-gray-400">
+                              {note.user?.name || "System"} · {fmt(typeof note.createdAt === "string" ? note.createdAt : note.createdAt?.toISOString?.() ?? null, "MMM d, yyyy h:mm a")}
+                            </span>
+                          </div>
+                          <div className="text-sm text-gray-700 chat-message-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(note.content) }} />
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity shrink-0"
+                        onClick={() => deleteNoteMutation.mutate(note.id)}
+                        data-testid={`button-delete-note-${note.id}`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                      </Button>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* ── Contacts Tab ─────────────────────────────────────────────────── */}
+        <TabsContent value="contacts" className="mt-4 space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-semibold text-gray-900">Contacts ({identity.contacts.length})</h3>
+            <Dialog open={isContactDialogOpen} onOpenChange={setIsContactDialogOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" data-testid="button-add-contact">
+                  <Plus className="w-4 h-4 mr-1.5" /> Add Contact
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md max-h-[90dvh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Add Contact</DialogTitle>
+                </DialogHeader>
+                <ContactForm
+                  initialData={null}
+                  onSubmit={(data) => addContactMutation.mutate(data)}
+                  isPending={addContactMutation.isPending}
+                />
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          {identity.contacts.length === 0 ? (
+            <Card className="p-8 text-center">
+              <Users className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+              <p className="text-sm text-gray-500">No contacts yet.</p>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {identity.contacts.map((c) => (
+                <Card key={c.id} className="p-4" data-testid={`contact-card-${c.id}`}>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-gray-900">
+                          {[c.firstName, c.lastName].filter(Boolean).join(" ")}
+                        </p>
+                        {c.isPrimary && (
+                          <Badge className="text-[10px] bg-teal-100 text-teal-700 border-teal-200">Primary</Badge>
+                        )}
+                      </div>
+                      {c.title && <p className="text-xs text-gray-500 mt-0.5">{c.title}</p>}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={() => setEditingContact(c)}
+                      data-testid={`button-edit-contact-${c.id}`}
+                    >
+                      <Edit2 className="w-3.5 h-3.5 text-gray-400" />
+                    </Button>
+                  </div>
+                  <div className="mt-3 space-y-1.5 text-sm">
+                    {c.email && (
+                      <div className="flex items-center gap-2">
+                        <Mail className="w-3.5 h-3.5 text-gray-400" />
+                        <a href={`mailto:${c.email}`} className="text-blue-600 hover:underline text-xs">{c.email}</a>
+                      </div>
+                    )}
+                    {c.phone && (
+                      <div className="flex items-center gap-2">
+                        <Phone className="w-3.5 h-3.5 text-gray-400" />
+                        <span className="text-xs text-gray-700">{c.phone}</span>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          <Dialog open={!!editingContact} onOpenChange={(open) => { if (!open) setEditingContact(null); }}>
+            <DialogContent className="max-w-md max-h-[90dvh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Edit Contact</DialogTitle>
+              </DialogHeader>
+              {editingContact && (
+                <ContactForm
+                  initialData={editingContact}
+                  onSubmit={(data) => updateContactMutation.mutate({ contactId: editingContact.id, data })}
+                  isPending={updateContactMutation.isPending}
+                />
+              )}
+            </DialogContent>
+          </Dialog>
+        </TabsContent>
+
+        {/* ── Tasks Tab (full CRUD) ────────────────────────────────────────── */}
+        <TabsContent value="tasks" className="mt-4 space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-semibold text-gray-900">Tasks</h3>
+            <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" data-testid="button-add-task">
+                  <Plus className="w-4 h-4 mr-1.5" /> New Task
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md max-h-[90dvh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Create Task</DialogTitle>
+                </DialogHeader>
+                <TaskForm
+                  onSubmit={(data) => addTaskMutation.mutate(data)}
+                  isPending={addTaskMutation.isPending}
+                />
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          {tasksLoading ? (
+            <div className="space-y-3 animate-pulse">
+              {[1, 2, 3].map((i) => <div key={i} className="h-16 bg-gray-50 rounded-lg" />)}
+            </div>
+          ) : clientTasks.length === 0 ? (
+            <Card className="p-8 text-center">
+              <CheckSquare2 className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+              <p className="text-sm text-gray-500">No tasks yet.</p>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {openTasks.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                    Open ({openTasks.length})
+                  </p>
+                  {openTasks.map((task) => (
+                    <ClientTaskRow
+                      key={task.id}
+                      task={task}
+                      onToggle={() => toggleTaskMutation.mutate(task.id)}
+                      onDelete={() => deleteTaskMutation.mutate(task.id)}
+                      isToggling={togglingTaskId === task.id}
+                    />
+                  ))}
+                </div>
+              )}
+              {completedTasks.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                    Completed ({completedTasks.length})
+                  </p>
+                  {completedTasks.map((task) => (
+                    <ClientTaskRow
+                      key={task.id}
+                      task={task}
+                      onToggle={() => toggleTaskMutation.mutate(task.id)}
+                      onDelete={() => deleteTaskMutation.mutate(task.id)}
+                      isToggling={togglingTaskId === task.id}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* ── Files Tab ────────────────────────────────────────────────────── */}
+        <TabsContent value="files" className="mt-4 space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-semibold text-gray-900">Files</h3>
+            <div>
+              <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                onChange={handleFileUpload}
+              />
+              <Button
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingFile}
+                data-testid="button-upload-file"
+              >
+                <Upload className="w-4 h-4 mr-1.5" />
+                {uploadingFile ? "Uploading..." : "Upload File"}
+              </Button>
+            </div>
+          </div>
+
+          {filesLoading ? (
+            <div className="space-y-3 animate-pulse">
+              {[1, 2, 3].map((i) => <div key={i} className="h-14 bg-gray-50 rounded-lg" />)}
+            </div>
+          ) : clientFiles.length === 0 && service.files.length === 0 ? (
+            <Card className="p-8 text-center">
+              <Paperclip className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+              <p className="text-sm text-gray-500">No files yet.</p>
+            </Card>
+          ) : (
+            <Card className="p-5">
+              <div className="space-y-2">
+                {(clientFiles.length > 0 ? clientFiles : service.files).map((f: any) => (
+                  <div
+                    key={f.id}
+                    className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors"
+                    data-testid={`row-file-${f.id}`}
+                  >
+                    <span className="text-base shrink-0">{fileIcon(f.mimeType)}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-gray-800 font-medium truncate">{f.originalName}</p>
+                      <p className="text-xs text-gray-400">
+                        {formatBytes(f.sizeBytes)} · {fmt(f.createdAt)}
+                        {f.uploaderName && ` · ${f.uploaderName}`}
+                      </p>
+                    </div>
+                    <a
+                      href={f.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="shrink-0 text-blue-500 hover:text-blue-700"
+                      aria-label={`Download ${f.originalName}`}
+                      data-testid={`link-download-file-${f.id}`}
+                    >
+                      <Download className="w-4 h-4" />
+                    </a>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* ── Billing Tab ──────────────────────────────────────────────────── */}
+        <TabsContent value="billing" className="mt-4 space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <CreditCard className="w-5 h-5 text-indigo-400" />
+                  Stripe Account
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {billingLoading ? (
+                  <div className="space-y-3 animate-pulse">
+                    <div className="h-4 bg-gray-100 rounded w-1/2" />
+                    <div className="h-4 bg-gray-100 rounded w-3/4" />
+                  </div>
+                ) : billing?.stripeCustomer ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">Connected</Badge>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Stripe Customer ID</p>
+                      <p className="text-sm font-mono bg-gray-50 px-2 py-1 rounded border" data-testid="text-stripe-customer-id-billing">
+                        {billing.stripeCustomer.stripeCustomerId}
+                      </p>
+                    </div>
+                    {billing.stripeCustomer.email && (
+                      <div>
+                        <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Billing Email</p>
+                        <p className="text-sm">{billing.stripeCustomer.email}</p>
+                      </div>
+                    )}
+                    <Button variant="outline" size="sm" asChild>
+                      <a href={`https://dashboard.stripe.com/customers/${billing.stripeCustomer.stripeCustomerId}`} target="_blank" rel="noreferrer">
+                        <ExternalLink className="w-3.5 h-3.5 mr-1.5" />
+                        Open in Stripe
+                      </a>
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="py-6 text-center">
+                    <CreditCard className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+                    <p className="text-sm text-gray-500">No Stripe customer linked</p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-3"
+                      onClick={() => navigate("/admin/payments")}
+                      data-testid="button-go-to-payments"
+                    >
+                      Go to Payments
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <BarChart3 className="w-5 h-5 text-purple-400" />
+                  Service Overview
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase font-semibold mb-1.5">Service Tier</p>
+                    {identity.company.serviceTier ? (
+                      <Badge className={{
+                        basic: "bg-gray-100 text-gray-700",
+                        standard: "bg-blue-100 text-blue-700",
+                        premium: "bg-purple-100 text-purple-700",
+                      }[identity.company.serviceTier] || "bg-gray-100 text-gray-700"} data-testid="text-service-tier-billing">
+                        {identity.company.serviceTier.charAt(0).toUpperCase() + identity.company.serviceTier.slice(1)}
+                      </Badge>
+                    ) : (
+                      <p className="text-sm text-gray-400">Not set</p>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase font-semibold mb-1.5">Care Plan</p>
+                    {identity.company.carePlanStatus ? (
+                      <Badge className={({
+                        active: "bg-emerald-100 text-emerald-700",
+                        inactive: "bg-gray-100 text-gray-700",
+                        none: "bg-red-100 text-red-700",
+                      } as Record<string, string>)[identity.company.carePlanStatus] || "bg-gray-100 text-gray-700"} data-testid="text-care-plan-billing">
+                        {identity.company.carePlanStatus.charAt(0).toUpperCase() + identity.company.carePlanStatus.slice(1)}
+                      </Badge>
+                    ) : (
+                      <p className="text-sm text-gray-400">Not set</p>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase font-semibold mb-1.5">Launch Date</p>
+                    <p className="text-sm" data-testid="text-launch-date-billing">
+                      {identity.company.launchDate ? format(new Date(identity.company.launchDate), "MMM d, yyyy") : "—"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase font-semibold mb-1.5">Renewal Date</p>
+                    <p className={`text-sm ${identity.company.renewalDate && isPast(new Date(identity.company.renewalDate)) ? "text-red-600 font-semibold" : ""}`} data-testid="text-renewal-date-billing">
+                      {identity.company.renewalDate ? format(new Date(identity.company.renewalDate), "MMM d, yyyy") : "—"}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Update Service Details</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <AccountHealthForm
+                company={identity.company}
+                onSubmit={(data) => updateHealthMutation.mutate(data)}
+                isPending={updateHealthMutation.isPending}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ── Activity Tab ─────────────────────────────────────────────────── */}
+        <TabsContent value="activity" className="mt-4">
           <Card className="p-5">
             <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
-              <FileText className="w-4 h-4 text-gray-400" />
-              Activity Timeline
+              <Activity className="w-4 h-4 text-gray-400" />
+              Activity History
             </h3>
             <TimelineSection entry={entry} />
           </Card>
         </TabsContent>
-
-        {/* Tasks */}
-        <TabsContent value="tasks" className="mt-4">
-          <TasksCard work={work} />
-        </TabsContent>
-
-        {/* Files */}
-        <TabsContent value="files" className="mt-4">
-          <FilesCard files={service.files} />
-        </TabsContent>
-
-        {/* Service: billing + onboarding */}
-        <TabsContent value="service" className="mt-4">
-          <BillingOnboardingCard service={service} />
-        </TabsContent>
       </Tabs>
+
+      {hasOpenOpp && activeOpp && (
+        <>
+          <CompleteTaskModal
+            open={contactedPendingStageId !== null}
+            onClose={() => setContactedPendingStageId(null)}
+            task={null}
+            opportunityId={activeOpp.id}
+            contactId={primaryContact?.id ?? null}
+            defaultTaskTitle={`Follow up with ${contact?.firstName ?? ""} ${contact?.lastName ?? ""}`.trim()}
+            onSuccess={() => {
+              if (contactedPendingStageId) stageMutation.mutate(contactedPendingStageId);
+            }}
+          />
+          <PaymentSentModal
+            open={paymentSentPendingStageId !== null}
+            onClose={() => setPaymentSentPendingStageId(null)}
+            opportunityId={activeOpp.id}
+            onSuccess={() => {
+              if (paymentSentPendingStageId) stageMutation.mutate(paymentSentPendingStageId);
+            }}
+          />
+        </>
+      )}
     </div>
   );
 }

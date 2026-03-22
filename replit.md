@@ -41,7 +41,7 @@ The admin UI is fully bilingual (EN/ES) and uses React with Vite, Tailwind CSS, 
 - **Team Chat**: Socket.io-based chat supporting `general`, `sales`, `onboarding`, `dev` channels and direct messages, with rich text editing via Tiptap.
 - **Unified Profile Architecture**: A cross-domain service layer (`server/features/profiles/`) aggregates a canonical view of client accounts from all related entities. It provides REST endpoints for company, lead, and opportunity profiles, with role-based access control and UUID validation.
     - **Frontend Hooks**: `useUnifiedProfile` and `useProfileTimeline` fetch and display profile data with optimized caching (`PROFILE_KEYS`) and invalidation.
-    - **`ProfileShell`**: A reusable tabbed UI component for displaying unified client profiles, offering sections for Overview, Timeline, Tasks, Files, and Service (billing + onboarding), each with dedicated edit dialogs.
+    - **`ProfileShell`**: A fully-featured tabbed profile viewer for Lead/Opportunity entries. Includes Quick Stats row (Contacts, Leads, Deals, Deal Value, Open Tasks), Move to Stage buttons (only for open pipeline opportunities, with CompleteTaskModal and PaymentSentModal integration), and seven tabs: Overview (Company/Contact + Sales Snapshot), Notes (rich text with categories and pinning), Contacts (add/edit dialog), Tasks (full CRUD with open/completed grouping), Files (upload + download), Billing (Stripe account + Service Overview + AccountHealthForm), and Activity (unified timeline). Stage buttons are hidden for closed-won/client profiles.
     - **ClientProfilePage**: Adapts the `UnifiedProfileDto` to the legacy `ClientProfile` type for existing client account pages.
 
 ### Stage-Based Task Automations
