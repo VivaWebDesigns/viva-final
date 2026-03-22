@@ -89,7 +89,7 @@ function CardDisplay({
                 className="text-sm font-semibold text-gray-900 hover:text-[#0D9488] transition-colors line-clamp-1 block"
                 data-testid={`text-opp-title-${opp.id}`}
               >
-                {contactName || opp.title}
+                {company && contactName ? `${company.name} – ${contactName}` : company ? company.name : contactName || opp.title}
               </span>
             </Link>
 

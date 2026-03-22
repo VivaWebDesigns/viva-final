@@ -223,6 +223,17 @@ export default function LeadListPage() {
     return [lead.contact.firstName, lead.contact.lastName].filter(Boolean).join(" ");
   };
 
+  const getLeadDisplayTitle = (lead: LeadWithRelations) => {
+    const contactName = lead.contact
+      ? [lead.contact.firstName, lead.contact.lastName].filter(Boolean).join(" ")
+      : null;
+    const companyName = lead.company?.name;
+    if (companyName && contactName) return `${companyName} – ${contactName}`;
+    if (companyName) return companyName;
+    if (contactName) return contactName;
+    return lead.title;
+  };
+
   const toggleTagId = (id: string) =>
     setBulkTagIds(prev => prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]);
 
@@ -449,7 +460,7 @@ export default function LeadListPage() {
                               className="font-medium text-gray-900 dark:text-gray-100 text-sm truncate"
                               data-testid={`text-lead-title-${lead.id}`}
                             >
-                              {lead.title}
+                              {getLeadDisplayTitle(lead)}
                             </h3>
                             {getStatusBadge(lead)}
                             {lead.fromWebsiteForm && (

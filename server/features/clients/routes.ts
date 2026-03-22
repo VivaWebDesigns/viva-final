@@ -263,13 +263,21 @@ router.patch("/:id", requireRole("admin", "developer", "sales_rep"), async (req,
     const [updated] = await db.update(crmCompanies).set(validated).where(eq(crmCompanies.id, id)).returning();
 
     if (validated.name && validated.name !== existing.name) {
-      const companyLeads = await db.select({ id: crmLeads.id, title: crmLeads.title })
-        .from(crmLeads)
-        .where(eq(crmLeads.companyId, id));
-      for (const lead of companyLeads) {
+      const leads = await db.select({ id: crmLeads.id, title: crmLeads.title })
+        .from(crmLeads).where(eq(crmLeads.companyId, id));
+      for (const lead of leads) {
         if (lead.title && lead.title.includes(existing.name)) {
-          const newTitle = lead.title.replace(existing.name, validated.name);
-          await db.update(crmLeads).set({ title: newTitle }).where(eq(crmLeads.id, lead.id));
+          await db.update(crmLeads).set({ title: lead.title.replace(existing.name, validated.name) }).where(eq(crmLeads.id, lead.id));
+        }
+      }
+      const opps = await db.select({ id: pipelineOpportunities.id, title: pipelineOpportunities.title, sourceLeadTitle: pipelineOpportunities.sourceLeadTitle })
+        .from(pipelineOpportunities).where(eq(pipelineOpportunities.companyId, id));
+      for (const opp of opps) {
+        const u: Record<string, string> = {};
+        if (opp.title.includes(existing.name)) u.title = opp.title.replace(existing.name, validated.name);
+        if (opp.sourceLeadTitle?.includes(existing.name)) u.sourceLeadTitle = opp.sourceLeadTitle.replace(existing.name, validated.name);
+        if (Object.keys(u).length > 0) {
+          await db.update(pipelineOpportunities).set(u).where(eq(pipelineOpportunities.id, opp.id));
         }
       }
     }

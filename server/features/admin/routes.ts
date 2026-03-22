@@ -6,6 +6,7 @@ import { sql, desc, eq } from "drizzle-orm";
 import { auth } from "../auth/auth";
 import { logAudit } from "../audit/service";
 import * as pipelineStorage from "../pipeline/storage";
+import * as crmStorage from "../crm/storage";
 import { z } from "zod";
 
 const router = Router();
@@ -22,7 +23,8 @@ router.get("/stats", requireRole("admin", "developer", "sales_rep"), async (_req
   const [opportunityCount] = await db.select({ count: sql<number>`count(*)::int` }).from(pipelineOpportunities);
   const pipelineStats = await pipelineStorage.getPipelineStats();
 
-  const recentLeads = await db.select().from(crmLeads).orderBy(desc(crmLeads.createdAt)).limit(5);
+  const rawRecentLeads = await db.select().from(crmLeads).orderBy(desc(crmLeads.createdAt)).limit(5);
+  const recentLeads = await crmStorage.enrichLeads(rawRecentLeads);
 
   res.json({
     users: userCount.count,

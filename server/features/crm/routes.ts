@@ -13,9 +13,50 @@ import {
 } from "./csvImportExport";
 import {
   insertCrmCompanySchema, insertCrmContactSchema, insertCrmLeadSchema,
-  insertCrmLeadNoteSchema, insertCrmTagSchema, crmLeads,
+  insertCrmLeadNoteSchema, insertCrmTagSchema, crmLeads, pipelineOpportunities,
 } from "@shared/schema";
 import { db } from "../../db";
+
+async function cascadeCompanyNameToTitles(companyId: string, oldName: string, newName: string) {
+  const leads = await db.select({ id: crmLeads.id, title: crmLeads.title })
+    .from(crmLeads).where(eq(crmLeads.companyId, companyId));
+  for (const lead of leads) {
+    if (lead.title && lead.title.includes(oldName)) {
+      await db.update(crmLeads).set({ title: lead.title.replace(oldName, newName) }).where(eq(crmLeads.id, lead.id));
+    }
+  }
+  const opps = await db.select({ id: pipelineOpportunities.id, title: pipelineOpportunities.title, sourceLeadTitle: pipelineOpportunities.sourceLeadTitle })
+    .from(pipelineOpportunities).where(eq(pipelineOpportunities.companyId, companyId));
+  for (const opp of opps) {
+    const updates: Record<string, string> = {};
+    if (opp.title.includes(oldName)) updates.title = opp.title.replace(oldName, newName);
+    if (opp.sourceLeadTitle?.includes(oldName)) updates.sourceLeadTitle = opp.sourceLeadTitle.replace(oldName, newName);
+    if (Object.keys(updates).length > 0) {
+      await db.update(pipelineOpportunities).set(updates).where(eq(pipelineOpportunities.id, opp.id));
+    }
+  }
+}
+
+async function cascadeContactNameToTitles(contactId: string, oldFullName: string, newFullName: string) {
+  if (oldFullName === newFullName) return;
+  const leads = await db.select({ id: crmLeads.id, title: crmLeads.title })
+    .from(crmLeads).where(eq(crmLeads.contactId, contactId));
+  for (const lead of leads) {
+    if (lead.title && lead.title.includes(oldFullName)) {
+      await db.update(crmLeads).set({ title: lead.title.replace(oldFullName, newFullName) }).where(eq(crmLeads.id, lead.id));
+    }
+  }
+  const opps = await db.select({ id: pipelineOpportunities.id, title: pipelineOpportunities.title, sourceLeadTitle: pipelineOpportunities.sourceLeadTitle })
+    .from(pipelineOpportunities).where(eq(pipelineOpportunities.contactId, contactId));
+  for (const opp of opps) {
+    const updates: Record<string, string> = {};
+    if (opp.title.includes(oldFullName)) updates.title = opp.title.replace(oldFullName, newFullName);
+    if (opp.sourceLeadTitle?.includes(oldFullName)) updates.sourceLeadTitle = opp.sourceLeadTitle.replace(oldFullName, newFullName);
+    if (Object.keys(updates).length > 0) {
+      await db.update(pipelineOpportunities).set(updates).where(eq(pipelineOpportunities.id, opp.id));
+    }
+  }
+}
 
 const updateCrmLeadSchema = z.object({
   title: z.string().min(1).optional(),
@@ -604,15 +645,7 @@ router.put("/companies/:id", requireRole("admin", "developer", "sales_rep"), asy
     const company = await crmStorage.updateCompany(id, validated);
 
     if (validated.name && validated.name !== existing.name) {
-      const companyLeads = await db.select({ id: crmLeads.id, title: crmLeads.title })
-        .from(crmLeads)
-        .where(eq(crmLeads.companyId, id));
-      for (const lead of companyLeads) {
-        if (lead.title && lead.title.includes(existing.name)) {
-          const newTitle = lead.title.replace(existing.name, validated.name);
-          await db.update(crmLeads).set({ title: newTitle }).where(eq(crmLeads.id, lead.id));
-        }
-      }
+      await cascadeCompanyNameToTitles(id, existing.name, validated.name);
     }
 
     await logAudit({
@@ -724,13 +757,18 @@ router.put("/contacts/:id", requireRole("admin", "developer", "sales_rep"), asyn
     const existing = await crmStorage.getContactById(id);
     if (!existing) return res.status(404).json({ message: "Contact not found" });
     const validated = updateCrmContactSchema.parse(req.body);
+    const oldFullName = `${existing.firstName}${existing.lastName ? " " + existing.lastName : ""}`;
     const contact = await crmStorage.updateContact(id, validated);
+    const newFullName = `${contact.firstName}${contact.lastName ? " " + contact.lastName : ""}`;
+    if (oldFullName !== newFullName) {
+      await cascadeContactNameToTitles(id, oldFullName, newFullName);
+    }
     await logAudit({
       userId: req.authUser?.id,
       action: "update",
       entity: "crm_contact",
       entityId: contact.id,
-      metadata: { name: `${contact.firstName} ${contact.lastName || ""}`.trim() },
+      metadata: { name: newFullName },
       ipAddress: req.ip,
     });
     res.json(contact);

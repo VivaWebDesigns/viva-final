@@ -195,7 +195,15 @@ export default function DashboardPage() {
                   className="w-full text-left p-3 rounded-lg hover:bg-gray-50 border border-gray-100 transition-colors"
                   data-testid={`link-recent-lead-${lead.id}`}
                 >
-                  <p className="text-sm font-medium text-gray-900 truncate">{lead.title}</p>
+                  <p className="text-sm font-medium text-gray-900 truncate">{(() => {
+                    const c = (lead as any).contact;
+                    const co = (lead as any).company;
+                    const cn = c ? [c.firstName, c.lastName].filter(Boolean).join(" ") : null;
+                    if (co?.name && cn) return `${co.name} – ${cn}`;
+                    if (co?.name) return co.name;
+                    if (cn) return cn;
+                    return lead.title;
+                  })()}</p>
                   <div className="flex items-center gap-3 mt-1">
                     {lead.sourceLabel && <span className="text-xs text-gray-500">{lead.sourceLabel}</span>}
                     <span className="text-xs text-gray-400">{new Date(lead.createdAt).toLocaleDateString()}</span>
