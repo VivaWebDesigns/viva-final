@@ -46,7 +46,7 @@ const ReportsPage = lazy(() => import("@features/reports/ReportsPage"));
 const TeamChatPage = lazy(() => import("@features/chat/TeamChatPage"));
 const AdminSettingsPage = lazy(() => import("@features/admin/pages/AdminSettingsPage"));
 const ClientsPage = lazy(() => import("@features/clients/ClientsPage"));
-const ClientProfilePage = lazy(() => import("@features/clients/ClientProfilePage"));
+const ClientProfilePage = lazy(() => import("@features/profiles/ClientProfilePage"));
 const TasksDueTodayPage = lazy(() => import("@features/tasks/TasksDueTodayPage"));
 
 function PageFallback() {

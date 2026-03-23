@@ -1,0 +1,36 @@
+We need to complete the migration of the client profile experience onto the unified profile architecture.
+
+Context:
+- We already have a unified profile backend in server/features/profiles with service.ts, relationships.ts, and routes.ts.
+- Lead and opportunity detail routes now point to thin wrappers around the shared profile shell.
+- The client profile page is still a compatibility layer that adapts UnifiedProfileDto into the old ClientProfile shape and still performs separate legacy fetches for notes, tasks, files, billing, and users.
+- This partial migration is now our biggest consistency risk.
+
+Your objectives:
+1. Refactor the client profile route/page so it becomes a first-class consumer of the shared ProfileShell / unified profile UI architecture.
+2. Remove the lossy adapter layer that maps UnifiedProfileDto into the old ClientProfile shape.
+3. Ensure the client entry point consumes UnifiedProfileDto directly.
+4. Align lead, opportunity, and client detail screens so all three are thin wrappers over the same top-level shell.
+5. Preserve existing UX and functionality wherever possible, but eliminate duplicated composition logic.
+
+Implementation rules:
+- NONDESTRUCTIVE: do not break working lead/opportunity profile routes while migrating the client route.
+- Prefer shared reusable profile sections/components over client-specific UI logic.
+- Keep feature boundaries clean:
+  - Cross-domain profile reads belong under server/features/profiles and shared profile client hooks/components.
+  - Domain-specific CRUD stays in its own feature module.
+- Eliminate placeholder values like status: null or stage: null when the canonical DTO already models the real state elsewhere.
+- Do not keep parallel view models unless absolutely unavoidable; the UI should use UnifiedProfileDto directly.
+- If some tabs still need data not currently in the DTO, document that gap and prepare the UI to consume profile-owned subresources instead of legacy client endpoints.
+- Update React Query usage/cache keys so the client route uses the same cache contract as other profile views.
+- Maintain type safety throughout; no any.
+
+Deliverables:
+1. Refactored client profile route/page using the shared profile shell.
+2. Removal or sharp reduction of the old client-profile adapter layer.
+3. Shared tab/component alignment across lead/client/opportunity detail screens.
+4. Type updates so UnifiedProfileDto is the canonical frontend detail model.
+5. App Docs update describing:
+   - The unified profile UI architecture
+   - Which entry points use the shared shell
+   - Any temporary gaps that still require follow-up
