@@ -1,0 +1,162 @@
+Use Replit Plan mode first, then Code mode after the audit is confirmed.
+
+Analyze and then implement a complete, tightly-scoped CRM workflow for
+New Lead contact attempts and Contacted-stage follow-up handling.
+
+Goal:
+Make the sales rep workflow extremely simple and consistent.
+
+Core principle:
+- New Lead = trying to make first contact
+- Contacted = real contact has been made, now capture interest level
+Do not mix these two systems.
+
+Required end-state workflow:
+
+1. When a new lead is created and assigned
+- If the lead/opportunity is in the "New Lead" stage
+- And it is assigned to a sales rep
+- Automatically create exactly ONE open task for that rep:
+  - title: Contact lead
+  - taskType: follow_up (or the correct existing contact/follow-up type)
+  - due: today
+- Do not create duplicates if one relevant open task already exists
+
+2. New Lead contact task completion
+When the rep completes that New Lead contact task, require one outcome:
+- No answer
+- Left voicemail
+- Spoke with lead
+
+3. Outcome behavior for the New Lead contact task
+- If outcome = No answer:
+  - keep the lead/opportunity in New Lead
+  - automatically create exactly ONE new follow-up task for the next day
+- If outcome = Left voicemail:
+  - keep the lead/opportunity in New Lead
+  - automatically create exactly ONE new follow-up task for the next day
+- If outcome = Spoke with lead:
+  - complete the current New Lead contact task
+  - automatically move the lead/opportunity to Contacted
+  - immediately continue into the existing Contacted outcome flow/modal
+  - do NOT create the next-day New Lead follow-up task
+  - do NOT require the rep to manually click Contacted after selecting
+    Spoke with lead
+
+4. Existing Contacted outcome flow
+Once the system enters the Contacted flow, preserve and reuse the
+existing Contacted outcome modal/logic rather than duplicating it.
+
+The Contacted outcome options should be:
+- Interested
+- Not interested
+- Uncertain
+
+5. Contacted outcome behavior
+- If Interested:
+  - require next-step handling using the existing Contacted logic
+  - if your current system requires a follow-up task here, keep that behavior
+- If Uncertain:
+  - require next-step handling using the existing Contacted logic
+  - if your current system requires a follow-up task here, keep that behavior
+- If Not interested:
+  - use the existing correct stage/status outcome behavior
+  - do not require a new follow-up task unless existing logic explicitly needs it
+
+6. Prior open task handling when entering Contacted
+If the rep reaches the Contacted flow from an already-open follow-up task,
+the system must complete the correct existing open task rather than leave
+stale tasks open.
+
+Specifically:
+- find the relevant existing open follow-up/contact task for the current
+  opportunity/lead
+- complete only that correct task
+- do NOT complete unrelated tasks
+- do NOT leave the previous follow-up task open if the workflow has
+  clearly advanced
+
+7. Duplicate prevention (critical)
+Prevent all of the following:
+- duplicate open New Lead contact/follow-up tasks
+- stale prior follow-up tasks remaining open after real contact is made
+- duplicate manual + automatic next-step tasks where avoidable
+- duplicate task completions
+- duplicate stage transitions
+
+Audit and explicitly verify whether the always-enabled Contacted-stage
+automation is also creating tasks that would overlap with the manual
+follow-up created by the Contacted modal.
+Do not guess.
+Inspect the real code path and explain the result.
+
+If duplication is currently possible because the Contacted automation
+always runs, implement the smallest clean safeguard that preserves the
+intended automation behavior while preventing obviously redundant open
+tasks for reps.
+
+8. Loop stop conditions
+The New Lead contact-task loop must stop when:
+- real contact is made and the lead moves to Contacted
+- the lead/opportunity is moved to Closed
+- the lead/opportunity is no longer in New Lead
+Do not continue creating next-day New Lead follow-up tasks after that.
+
+9. History / activity logging
+Make sure the activity/history clearly reflects the workflow.
+
+The timeline should clearly show, where applicable:
+- initial contact task created
+- task completed
+- task outcome selected
+- stage moved from New Lead to Contacted
+- Contacted outcome selected
+- new follow-up scheduled if applicable
+
+Do not dump raw metadata.
+Use the existing human-readable activity/history style.
+
+10. Scope rules
+- First audit the current behavior before changing code
+- Then implement the smallest clean solution
+- Reuse existing modal and stage logic wherever possible
+- Do not refactor unrelated components
+- Do not redesign the entire task system
+- Stay tightly focused on this workflow only
+
+Files to inspect
+Audit the actual frontend and backend code involved in:
+- new lead creation
+- automatic task creation
+- task completion
+- task outcome handling
+- stage transition to Contacted
+- Contacted outcome modal flow
+- follow-up creation
+- automation templates / stage automations
+- activity/history logging
+
+Output format:
+Phase 1: Audit
+- Give a short verdict:
+  - Works correctly
+  - Partially works
+  - Does not work correctly
+- Then explain the current behavior step by step
+- Then list exact gaps
+- Then propose the minimal implementation plan
+
+Phase 2: Implementation
+After implementing, report back:
+1. which files changed
+2. the exact final workflow step by step
+3. how the correct prior task is selected and completed
+4. how duplicate open tasks are prevented
+5. where the next-day New Lead follow-up is created
+6. how the New Lead loop stops after contact is made
+7. how the always-enabled Contacted automation interacts with this flow
+8. how cancel/close behavior is handled in the chained Contacted modal flow
+
+Do not stop after the audit.
+Complete the implementation unless you hit a real code-level blocker.
+If there is a blocker, explain it precisely and propose the smallest fix.
