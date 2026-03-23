@@ -80,7 +80,7 @@ function AdminRouter() {
         <Suspense fallback={<PageFallback />}>
           <Switch>
             <Route path="/admin">
-              <ProtectedRoute roles={["admin", "developer", "sales_rep"]} redirectTo="/admin/crm">
+              <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/tasks">
                 <DashboardPage />
               </ProtectedRoute>
             </Route>
@@ -165,7 +165,7 @@ function AdminRouter() {
               </ProtectedRoute>
             </Route>
             <Route path="/admin/notifications">
-              <ProtectedRoute roles={["admin", "developer", "sales_rep"]}>
+              <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/tasks">
                 <NotificationCenterPage />
               </ProtectedRoute>
             </Route>

@@ -32,7 +32,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }, [location]);
 
   const NAV_ITEMS = [
-    { label: t.nav.dashboard,     path: "/admin",               icon: LayoutDashboard, color: "text-blue-500",    roles: ["admin", "developer", "sales_rep"] as string[] },
+    { label: t.nav.dashboard,     path: "/admin",               icon: LayoutDashboard, color: "text-blue-500",    roles: ["admin", "developer"] as string[] },
     { label: t.nav.clients,       path: "/admin/clients",        icon: Building2,       color: "text-indigo-500",  roles: ["admin", "developer", "sales_rep"] as string[] },
     { label: t.nav.crm,           path: "/admin/crm",            icon: Users,           color: "text-emerald-500" },
     { label: t.nav.pipeline,      path: "/admin/pipeline",       icon: TrendingUp,      color: "text-orange-500",  roles: ["admin", "developer", "sales_rep"] as string[] },
@@ -40,7 +40,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { label: t.nav.onboarding,    path: "/admin/onboarding",     icon: UserPlus,        color: "text-purple-500",  roles: ["admin", "developer"] as string[] },
     { label: t.nav.chat,          path: "/admin/chat",           icon: MessageSquare,   color: "text-pink-500",    roles: ["admin", "developer", "sales_rep"] as string[] },
     { label: t.nav.payments,      path: "/admin/payments",       icon: CreditCard,      color: "text-yellow-600",  roles: ["admin"] as string[] },
-    { label: t.nav.notifications, path: "/admin/notifications",  icon: Bell,            color: "text-red-500",     roles: ["admin", "developer", "sales_rep"] as string[] },
+    { label: t.nav.notifications, path: "/admin/notifications",  icon: Bell,            color: "text-red-500",     roles: ["admin", "developer"] as string[] },
     { label: t.nav.reports,       path: "/admin/reports",        icon: BarChart3,       color: "text-cyan-500",    roles: ["admin", "developer"] as string[] },
     { label: t.nav.demoBuilder,   path: "/admin/demo-builder",   icon: Zap,             color: "text-amber-500",   roles: ["admin", "developer"] as string[] },
     { label: t.nav.admin,         path: "/admin/settings",       icon: Settings,        color: "text-gray-500",    roles: ["admin"] as string[] },
@@ -272,21 +272,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               </button>
             </div>
 
-            <div className="relative">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate("/admin/notifications")}
-                data-testid="button-notification-bell"
-              >
-                <Bell className="w-5 h-5" />
-              </Button>
-              {unreadCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center pointer-events-none" data-testid="badge-unread-count">
-                  {unreadCount > 99 ? "99+" : unreadCount}
-                </span>
-              )}
-            </div>
+            {role !== "sales_rep" && (
+              <div className="relative">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => navigate("/admin/notifications")}
+                  data-testid="button-notification-bell"
+                >
+                  <Bell className="w-5 h-5" />
+                </Button>
+                {unreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center pointer-events-none" data-testid="badge-unread-count">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                )}
+              </div>
+            )}
             {user && (
               <span className="text-sm text-gray-500 hidden sm:block">
                 {user.name}
