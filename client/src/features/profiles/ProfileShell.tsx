@@ -24,7 +24,7 @@ import {
   BarChart3, CheckSquare, History, Star, Edit2,
   ClipboardList, CheckCircle, ChevronDown, ChevronRight, CalendarClock,
 } from "lucide-react";
-import { format, formatDistanceToNow, isPast, isToday } from "date-fns";
+import { format, formatDistanceToNow, isPast } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -1839,7 +1839,7 @@ function ClientTaskRow({ task, onComplete, onToggle, onReschedule, onDelete, can
         <div className="flex items-center gap-3 mt-1.5">
           <span className={`text-xs flex items-center gap-1 ${isOverdue ? "text-red-500 font-medium" : "text-gray-400"}`}>
             <CalendarDays className="w-3 h-3" />
-            {task.dueDate ? (isToday(new Date(task.dueDate)) ? t.profileShell.today : format(new Date(task.dueDate), "MMM d, yyyy")) : t.profileShell.noDueDate}
+            {task.dueDate ? (task.dueDate.slice(0, 10) === new Date().toISOString().slice(0, 10) ? t.profileShell.today : new Date(task.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })) : t.profileShell.noDueDate}
           </span>
           {task.creatorName && (
             <span className="text-xs text-gray-400">by {task.creatorName}</span>
