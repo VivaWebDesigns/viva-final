@@ -51,6 +51,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAdminLang } from "@/i18n/LanguageContext";
 import type { AdminTranslations } from "@/i18n/locales/en";
 import { useUnifiedProfile, useInfiniteTimeline, PROFILE_KEYS } from "./hooks";
+import { useAuth } from "@features/auth/useAuth";
 import { EditCompanyDialog } from "./edit/EditCompanyDialog";
 import { EditContactDialog } from "./edit/EditContactDialog";
 import { EditLeadDialog } from "./edit/EditLeadDialog";
@@ -1979,6 +1980,8 @@ function ProfileShellInner({
   className,
 }: ProfileShellInnerProps) {
   const { identity, sales, work, service, derived } = profile;
+  const { role } = useAuth();
+  const hideSalesRepOppSections = entry.type === "opportunity" && role === "sales_rep";
 
   const { data: stages } = useQuery<PipelineStage[]>({
     queryKey: ["/api/pipeline/stages"],
@@ -2209,7 +2212,7 @@ function ProfileShellInner({
     >
       <ProfileHeader entry={entry} company={identity.company} derived={derived} />
 
-      <QuickStats {...quickStats} />
+      {!hideSalesRepOppSections && <QuickStats {...quickStats} />}
 
       {hasOpenOpp && stages && stages.length > 0 && activeOpp && (
         <MoveToStageBar
@@ -2265,13 +2268,15 @@ function ProfileShellInner({
               contacts={identity.contacts}
             />
           </div>
-          <AccountManagementForm
-            company={identity.company}
-            users={users}
-            onSubmit={(data) => updateAccountMutation.mutate(data)}
-            isPending={updateAccountMutation.isPending}
-            t={t}
-          />
+          {!hideSalesRepOppSections && (
+            <AccountManagementForm
+              company={identity.company}
+              users={users}
+              onSubmit={(data) => updateAccountMutation.mutate(data)}
+              isPending={updateAccountMutation.isPending}
+              t={t}
+            />
+          )}
         </TabsContent>
 
         {/* ── Notes Tab ────────────────────────────────────────────────────── */}
