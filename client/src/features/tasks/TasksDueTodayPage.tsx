@@ -1,18 +1,20 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { STALE } from "@/lib/queryClient";
+import { STALE, apiRequest, queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CheckCircle2, Clock, Phone, Building2, AlertTriangle, CalendarClock, ExternalLink, Plus, Zap, History, FileText } from "lucide-react";
+import { CheckCircle2, Clock, Phone, Building2, AlertTriangle, CalendarClock, ExternalLink, Plus, Zap, History, FileText, Trash2 } from "lucide-react";
 import { sanitizeHtml } from "@/features/chat/RichTextEditor";
 import QuickTaskModal, { formatTaskTimeDisplay } from "@/components/QuickTaskModal";
 import CompleteTaskModal from "@/components/CompleteTaskModal";
 import type { FollowupTask } from "@shared/schema";
 import { useAdminLang } from "@/i18n/LanguageContext";
 import { renderTaskTitle } from "@/lib/activityI18n";
+import { useAuth } from "@features/auth/useAuth";
+import { useToast } from "@/hooks/use-toast";
 
 interface AutomationMeta {
   triggerStageSlug: string;
@@ -36,6 +38,7 @@ function TaskRow({
   task,
   onComplete,
   onReschedule,
+  onDelete,
   isCompleting,
   tTasks,
   renderTitle,
@@ -43,6 +46,7 @@ function TaskRow({
   task: TaskWithContact;
   onComplete: (id: string) => void;
   onReschedule: (task: TaskWithContact) => void;
+  onDelete?: () => void;
   isCompleting: boolean;
   tTasks: { markComplete: string; reschedule: string; viewOpportunity: string; viewLead: string; automationBadge: string; automationStageLabel: string };
   renderTitle: (task: { title: string }) => string;
@@ -133,16 +137,29 @@ function TaskRow({
         <span className="text-xs text-gray-400 whitespace-nowrap" data-testid={`text-due-date-${task.id}`}>
           {new Date(task.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}{task.followUpTime ? ` at ${formatTaskTimeDisplay(task.dueDate, task.followUpTime, task.followUpTimezone)}` : ""}
         </span>
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-6 text-xs px-2"
-          onClick={() => onReschedule(task)}
-          data-testid={`button-reschedule-task-${task.id}`}
-        >
-          <CalendarClock className="w-3 h-3 mr-1" />
-          {tTasks.reschedule}
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-6 text-xs px-2"
+            onClick={() => onReschedule(task)}
+            data-testid={`button-reschedule-task-${task.id}`}
+          >
+            <CalendarClock className="w-3 h-3 mr-1" />
+            {tTasks.reschedule}
+          </Button>
+          {onDelete && (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-6 w-6 text-gray-300 hover:text-red-500 hover:bg-red-50"
+              onClick={onDelete}
+              data-testid={`button-delete-task-${task.id}`}
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -160,11 +177,13 @@ function CompletedTaskCard({
   tTasks,
   outcomeLabels,
   renderTitle,
+  onDelete,
 }: {
   task: TaskWithContact;
   tTasks: { completedOn: string; outcome: string; viewProfile: string };
   outcomeLabels: Record<string, string>;
   renderTitle: (task: { title: string }) => string;
+  onDelete?: () => void;
 }) {
   const contactName = task.contact
     ? `${task.contact.firstName}${task.contact.lastName ? " " + task.contact.lastName : ""}`
@@ -183,7 +202,7 @@ function CompletedTaskCard({
 
   const cardContent = (
     <Card
-      className={`p-3 mb-2.5 transition-all ${profileLink ? "hover:border-[#0D9488]/40 hover:shadow-sm cursor-pointer" : ""}`}
+      className={`p-3 mb-2.5 transition-all group ${profileLink ? "hover:border-[#0D9488]/40 hover:shadow-sm cursor-pointer" : ""}`}
       data-testid={`completed-task-card-${task.id}`}
     >
       <div className="flex items-start gap-2">
@@ -237,6 +256,17 @@ function CompletedTaskCard({
             </span>
           )}
         </div>
+        {onDelete && (
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-6 w-6 flex-shrink-0 self-start text-gray-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(); }}
+            data-testid={`button-delete-completed-task-${task.id}`}
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </Button>
+        )}
       </div>
     </Card>
   );
@@ -254,9 +284,26 @@ function CompletedTaskCard({
 
 export default function TasksDueTodayPage() {
   const { t } = useAdminLang();
+  const { toast } = useToast();
+  const { role } = useAuth();
+  const isAdmin = role === "admin";
   const [completingTask, setCompletingTask] = useState<TaskWithContact | null>(null);
   const [rescheduleTask, setRescheduleTask] = useState<TaskWithContact | null>(null);
   const [showNewTask, setShowNewTask] = useState(false);
+
+  const deleteMutation = useMutation({
+    mutationFn: async (taskId: string) => {
+      await apiRequest("DELETE", `/api/tasks/${taskId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks/due-today"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks/completed-history"] });
+      toast({ title: t.tasks.taskDeleted ?? "Task deleted" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
 
   const { data, isLoading } = useQuery<DueTodayData>({
     queryKey: ["/api/tasks/due-today"],
@@ -373,6 +420,7 @@ export default function TasksDueTodayPage() {
                           if (found) setCompletingTask(found);
                         }}
                         onReschedule={(tsk) => setRescheduleTask(tsk)}
+                        onDelete={isAdmin ? () => deleteMutation.mutate(task.id) : undefined}
                         isCompleting={false}
                         tTasks={tTasks}
                         renderTitle={(task) => renderTaskTitle(task, t)}
@@ -401,6 +449,7 @@ export default function TasksDueTodayPage() {
                           if (found) setCompletingTask(found);
                         }}
                         onReschedule={(tsk) => setRescheduleTask(tsk)}
+                        onDelete={isAdmin ? () => deleteMutation.mutate(task.id) : undefined}
                         isCompleting={false}
                         tTasks={tTasks}
                         renderTitle={(task) => renderTaskTitle(task, t)}
@@ -429,6 +478,7 @@ export default function TasksDueTodayPage() {
                           if (found) setCompletingTask(found);
                         }}
                         onReschedule={(tsk) => setRescheduleTask(tsk)}
+                        onDelete={isAdmin ? () => deleteMutation.mutate(task.id) : undefined}
                         isCompleting={false}
                         tTasks={tTasks}
                         renderTitle={(task) => renderTaskTitle(task, t)}
@@ -463,6 +513,7 @@ export default function TasksDueTodayPage() {
                   tTasks={tCompleted}
                   outcomeLabels={outcomeLabels}
                   renderTitle={(task) => renderTaskTitle(task, t)}
+                  onDelete={isAdmin ? () => deleteMutation.mutate(task.id) : undefined}
                 />
               ))}
             </div>
