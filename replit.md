@@ -188,6 +188,61 @@ tests/
     assetStub.ts
 ```
 
+## Profile Feature — assembleProfile() Read Performance
+
+### Query audit (pre-optimisation baseline)
+
+`getProfileByCompanyId(companyId)` made a maximum of **18 DB queries across 6 sequential dependency waves**:
+
+| Wave | Queries | Description |
+|------|---------|-------------|
+| 0 | 2–3 | `resolveByCompanyId()` — company check + lead probe + optional opp probe |
+| 1 | 1 | `assembleProfile()` — company SELECT * (duplicate of wave 0 company check) |
+| 2 | 8 parallel | All company-scoped relations |
+| 3 | 4 parallel | `crmLeadNotes`, `pipelineActivities`, `followupTasks` ×2 (leadId + oppId — two separate queries for the same table) |
+| 4 | 1 sequential | `user` actor resolution |
+| 5 | 1 sequential | `automationExecutionLogs` provenance |
+
+### Optimisations applied (Prompt 8)
+
+| ID | Saving | Description |
+|----|--------|-------------|
+| **O1** | −2–3 queries, −1 wave | Removed `resolveByCompanyId()` pre-flight call from `getProfileByCompanyId()`. The check added 2-3 round-trips purely to confirm existence — `assembleProfile()` already throws `ProfileNotFoundError` when the company row is absent. |
+| **O2** | −1 query | Consolidated the two separate `followupTasks` queries (leadId scope + oppId scope) in wave 3 into a single OR query: `WHERE leadId IN [...] OR opportunityId IN [...]`. This eliminates 1 round-trip when both leadIds and oppIds are non-empty. JS-level deduplication against the companyId-scoped task set is preserved. |
+| **O3** | −1 wave | User actor resolution and automation-log provenance queries are now fetched in a single `Promise.all` (wave 4) rather than sequentially, removing one serial round-trip. |
+| **O4** | Guard | Note and activity queries (`crmLeadNotes`, `pipelineActivities`) capped at 500 rows with `orderBy(desc(createdAt))` to prevent pathological loads for long-running accounts. The in-memory timeline sort remains in place. |
+
+### Optimised query structure
+
+`getProfileByCompanyId(companyId)` — worst-case **13 queries across 4 sequential waves**:
+
+| Wave | Queries | Description |
+|------|---------|-------------|
+| 1 | 1 | `crmCompanies` — full SELECT * (throws `ProfileNotFoundError` if absent) |
+| 2 | 8 parallel | contacts, leads, opportunities, onboarding, tasks(companyId), stripe, attachments, clientNotes |
+| 3 | ≤3 parallel | extra tasks (OR query), leadNotes (≤500), pipelineActivities (≤500) — each short-circuits to `Promise.resolve([])` when the relevant IDs are empty |
+| 4 | ≤2 parallel | actor resolution (`user` table) + automation provenance (`automationExecutionLogs`) |
+
+The `getProfileByLeadId` and `getProfileByOpportunityId` entry points add 1–2 pre-flight queries for `resolveByLeadId`/`resolveByOpportunityId` before calling `assembleProfile`, but benefit from all wave 2–4 optimisations.
+
+### Instrumentation
+
+All four waves emit `console.debug` timing lines prefixed `[profile:w1]` … `[profile:w4]` and `[profile:total]`. These are visible in the development console and suppressed by default in production log shipping. Example output:
+
+```
+[profile:w1] 3ms company=c1
+[profile:w2] 8ms 8 parallel queries
+[profile:w3] 5ms leads=2 opps=1
+[profile:w4] 2ms actors=3 tasks=4
+[profile:total] 18ms company=c1
+```
+
+### What was deliberately NOT changed
+
+- **Wave 2 still includes `followupTasks WHERE companyId=?`** — keeping it here (rather than moving it to wave 3) allows the minimal case (no leads, no opps) to avoid an extra sequential round-trip.
+- **No mega-query / single-SQL view** — the four-wave structure is readable and maintainable. A denormalised view would couple schema evolution to profile read semantics and would not reduce sequential round-trips below 2–3.
+- **No Redis / application-level cache** — profile data changes frequently (tasks, notes, activities) so TTL caching would require invalidation wiring. Left for a future decision.
+
 ## Profile Feature — Typed Error Semantics
 
 ### Error class hierarchy

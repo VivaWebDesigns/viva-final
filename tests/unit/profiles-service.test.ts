@@ -138,72 +138,79 @@ function setupDbResponses(...responses: unknown[][]) {
 
 // Standard call sequence for a minimal company (no leads, opps, or tasks).
 //
-// Call sequence:
-//   [0]  resolveByCompanyId:  crmCompanies where id=c1          → [companyIdRow]
-//   [1]  resolveByCompanyId:  crmLeads where companyId=c1       → [] (no leads → no Q3)
-//   [2]  assembleProfile:     crmCompanies where id=c1          → [companyRow]
-//   [3]  assembleProfile:     crmContacts                       → []
-//   [4]  assembleProfile:     crmLeads (orderBy desc)           → []
-//   [5]  assembleProfile:     pipelineOpportunities             → []
-//   [6]  assembleProfile:     onboardingRecords                 → []
-//   [7]  assembleProfile:     followupTasks                     → []
-//   [8]  assembleProfile:     stripeCustomers                   → []
-//   [9]  assembleProfile:     attachments                       → []
-//   [10] assembleProfile:     clientNotes                       → clientNoteOverride
+// O1: resolveByCompanyId() is no longer called from getProfileByCompanyId().
+//     assembleProfile() already throws ProfileNotFoundError when the company
+//     is absent, so the pre-flight existence check was purely redundant.
+//     This removes 2 round-trips (company check + lead check) from the path.
 //
-// If clientNoteOverride is omitted it defaults to [] (no notes, no user lookup).
-// No further queries fire because leadIds=[], oppIds=[], allUserIds=[], taskIds=[].
+// Call sequence:
+//   WAVE 1 (1 query):
+//   [0]  assembleProfile: crmCompanies where id=c1   → [companyRow]
+//   WAVE 2 (8 parallel queries):
+//   [1]  crmContacts                                 → []
+//   [2]  crmLeads (orderBy desc)                     → []
+//   [3]  pipelineOpportunities                       → []
+//   [4]  onboardingRecords                           → []
+//   [5]  followupTasks (companyId scope)             → []
+//   [6]  stripeCustomers                             → []
+//   [7]  attachments                                 → []
+//   [8]  clientNotes                                 → clientNoteOverride
+//   WAVE 3: leadIds=[], oppIds=[] → all Promise.resolve([]) — no DB calls
+//   WAVE 4: allUserIds=[], taskIds=[] → all Promise.resolve([]) — no DB calls
 function minimalCompanyResponses(clientNoteOverride: unknown[] = []) {
   return setupDbResponses(
-    [companyIdRow],  // [0] resolveByCompanyId — company check
-    [],              // [1] resolveByCompanyId — lead check (none)
-    [companyRow],    // [2] assembleProfile — company row
-    [],              // [3] contacts
-    [],              // [4] leads
-    [],              // [5] opportunities
-    [],              // [6] onboarding
-    [],              // [7] tasks
-    [],              // [8] stripe
-    [],              // [9] files/attachments
-    clientNoteOverride, // [10] clientNotes
+    [companyRow],       // [0] wave 1 — company row (assembleProfile)
+    [],                 // [1] contacts
+    [],                 // [2] leads
+    [],                 // [3] opportunities
+    [],                 // [4] onboarding
+    [],                 // [5] tasks (companyId scope)
+    [],                 // [6] stripe
+    [],                 // [7] attachments
+    clientNoteOverride, // [8] clientNotes
   );
 }
 
 // Call sequence for a company that has one open opportunity (value "12000")
-// and two tasks (one pending, one completed). No leads to keep it simple.
+// and a list of companyId-scoped tasks. No leads to keep it simple.
 //
-//   [0]  resolveByCompanyId: company check     → [companyIdRow]
-//   [1]  resolveByCompanyId: lead check        → [] (no leads)
-//   [2]  assembleProfile:    company row       → [companyRow]
-//   [3]  contacts                              → []
-//   [4]  leads (orderBy)                       → []
-//   [5]  opportunities                         → [oppRow]
-//   [6]  onboarding                            → []
-//   [7]  tasks (companyId)                     → taskList
-//   [8]  stripe                                → []
-//   [9]  attachments                           → []
-//   [10] clientNotes                           → []
-//   —— leadIds=[] → no lead-note/lead-task queries ——
-//   [11] pipelineActivities IN [oppId]        → []    (second Promise.all — opp tasks)
-//   [12] followupTasks IN [oppId]             → []    (opp tasks)
-//   — allUserIds=[] (no notes with userId) → no user query
-//   [13] automationExecutionLogs IN taskIds   → []
+// O1: resolveByCompanyId() removed — saves 2 slots at the start.
+// O2: Extra-tasks query — consolidates the previous two separate
+//     followupTasks queries (leadId + oppId) into ONE OR query.
+//     leadIds=[] so no leadNotes or extraLeadTasks; hasOpps=true.
+//
+//   WAVE 1 (1 query):
+//   [0]  assembleProfile: company              → [companyRow]
+//   WAVE 2 (8 parallel):
+//   [1]  contacts                              → []
+//   [2]  leads                                 → []
+//   [3]  opportunities                         → [oppRow]
+//   [4]  onboarding                            → []
+//   [5]  tasks (companyId scope)               → taskList
+//   [6]  stripe                                → []
+//   [7]  attachments                           → []
+//   [8]  clientNotes                           → []
+//   WAVE 3 (parallel, leadIds=[], oppIds=["o1"]):
+//   [9]  extra tasks (WHERE oppId IN ["o1"])   → []  ← O2: was 2 queries, now 1
+//   [10] pipelineActivities IN ["o1"]          → []
+//   —— leadNotes: Promise.resolve([]) — no DB call (leadIds=[])
+//   WAVE 4 (parallel):
+//   —— users: Promise.resolve([]) — no DB call (allUserIds=[])
+//   [11] automationExecutionLogs IN taskIds    → []
 function companyWithOppAndTasksResponses(taskList: unknown[]) {
   return setupDbResponses(
-    [companyIdRow],  // [0]
-    [],              // [1] no leads
-    [companyRow],    // [2]
-    [],              // [3] contacts
-    [],              // [4] leads
-    [oppRow],        // [5] opps
-    [],              // [6] onboarding
-    taskList,        // [7] tasks (companyId scope)
-    [],              // [8] stripe
-    [],              // [9] attachments
-    [],              // [10] clientNotes
-    [],              // [11] pipelineActivities IN [oppId]
-    [],              // [12] followupTasks IN [oppId]
-    [],              // [13] automationExecutionLogs
+    [companyRow],    // [0]  wave 1 — company row
+    [],              // [1]  contacts
+    [],              // [2]  leads
+    [oppRow],        // [3]  opportunities
+    [],              // [4]  onboarding
+    taskList,        // [5]  tasks (companyId scope)
+    [],              // [6]  stripe
+    [],              // [7]  attachments
+    [],              // [8]  clientNotes
+    [],              // [9]  wave 3 — extra tasks (oppId scope, O2 consolidated)
+    [],              // [10] wave 3 — pipelineActivities IN [oppId]
+    [],              // [11] wave 4 — automationExecutionLogs
   );
 }
 
@@ -219,7 +226,7 @@ describe("not-found errors", () => {
   const MISSING = "00000000-0000-0000-0000-000000000000";
 
   it("getProfileByCompanyId throws ProfileNotFoundError (404) for unknown id", async () => {
-    setupDbResponses([]); // resolveByCompanyId → company check returns nothing
+    setupDbResponses([]); // assembleProfile wave-1 company query returns nothing
     const err = await catchErr(getProfileByCompanyId(MISSING));
     expect(err).toBeInstanceOf(ProfileNotFoundError);
     expect((err as ProfileNotFoundError).statusCode).toBe(404);
