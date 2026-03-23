@@ -20,7 +20,7 @@
  */
 
 import { useQuery, useMutation, useInfiniteQuery } from "@tanstack/react-query";
-import { queryClient, apiRequest, STALE } from "@/lib/queryClient";
+import { queryClient, apiRequest, STALE, getQueryFn } from "@/lib/queryClient";
 import type {
   ProfileEntry,
   ProfileEntryType,
@@ -107,7 +107,7 @@ export function useUnifiedProfile(
 
             return res.json() as Promise<UnifiedProfileDto>;
           }
-        : undefined,
+        : getQueryFn({ on401: "throw" }),
   });
 }
 
