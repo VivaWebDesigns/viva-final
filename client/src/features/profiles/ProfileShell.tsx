@@ -22,7 +22,7 @@ import {
   CheckCircle2, Circle, Pencil, Zap, Plus, Pin,
   Trash2, Users, CalendarDays, Upload, ExternalLink,
   BarChart3, CheckSquare, History, Star, Edit2,
-  ClipboardList, CheckCircle,
+  ClipboardList, CheckCircle, ChevronDown, ChevronRight,
 } from "lucide-react";
 import { format, formatDistanceToNow, isPast, isToday } from "date-fns";
 import { Badge } from "@/components/ui/badge";
@@ -1887,6 +1887,7 @@ export default function ProfileShell({
   const [togglingTaskId, setTogglingTaskId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [expandedActivityId, setExpandedActivityId] = useState<string | null>(null);
 
   if (isLoading) return <ProfileSkeleton />;
 
@@ -1933,6 +1934,8 @@ export default function ProfileShell({
       fileInputRef={fileInputRef}
       uploadingFile={uploadingFile}
       setUploadingFile={setUploadingFile}
+      expandedActivityId={expandedActivityId}
+      setExpandedActivityId={setExpandedActivityId}
       className={className}
     />
   );
@@ -1964,6 +1967,8 @@ interface ProfileShellInnerProps {
   fileInputRef: React.RefObject<HTMLInputElement>;
   uploadingFile: boolean;
   setUploadingFile: (v: boolean) => void;
+  expandedActivityId: string | null;
+  setExpandedActivityId: (v: string | null) => void;
   className: string;
 }
 
@@ -1977,6 +1982,7 @@ function ProfileShellInner({
   isTaskDialogOpen, setIsTaskDialogOpen,
   togglingTaskId, setTogglingTaskId,
   fileInputRef, uploadingFile, setUploadingFile,
+  expandedActivityId, setExpandedActivityId,
   className,
 }: ProfileShellInnerProps) {
   const { identity, sales, work, service, derived } = profile;
@@ -2016,8 +2022,9 @@ function ProfileShellInner({
 
   const { data: activityHistory = [], isLoading: activityLoading } = useQuery<{
     id: string; event: string; entityType: string; entityId: string;
-    userId: string | null; metadata: Record<string, unknown>; createdAt: string;
-    user?: { name: string };
+    fieldName: string | null; fromValue: string | null; toValue: string | null;
+    actorId: string | null; actorName: string | null; note: string | null;
+    createdAt: string;
   }[]>({
     queryKey: ["/api/profiles/company", companyId, "activity"],
     enabled: activeTab === "activity",
@@ -2725,28 +2732,113 @@ function ProfileShellInner({
             ) : activityHistory.length === 0 ? (
               <p className="text-sm text-gray-400 text-center py-6">{t.timeline.noHistory}</p>
             ) : (
-              <div className="space-y-3">
+              <div className="divide-y divide-gray-50">
                 {activityHistory.map((evt) => {
-                  const meta = evt.metadata as Record<string, string>;
                   const label = t.timeline.events[evt.event as keyof typeof t.timeline.events] || evt.event.replace(/_/g, " ");
+                  const isExpanded = expandedActivityId === evt.id;
+
+                  const prettyField = (f: string | null) => {
+                    if (!f) return null;
+                    return f.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase()).trim();
+                  };
+
+                  const getDetailRows = (): Array<{ label: string; value: string }> => {
+                    const { event, fieldName, fromValue, toValue, actorName, note } = evt;
+                    const rows: Array<{ label: string; value: string }> = [];
+                    const add = (l: string, v: string | null | undefined) => { if (v) rows.push({ label: l, value: v }); };
+
+                    switch (event) {
+                      case "status_changed":
+                      case "stage_changed":
+                      case "field_updated":
+                      case "owner_changed":
+                      case "service_tier_changed":
+                        add("Field", prettyField(fieldName));
+                        add("From", fromValue);
+                        add("To", toValue);
+                        add("Changed by", actorName);
+                        break;
+                      case "assigned":
+                        add("Assigned to", toValue);
+                        add("By", actorName);
+                        break;
+                      case "task_created":
+                      case "task_completed":
+                      case "task_reopened":
+                      case "task_deleted":
+                        add("Task", note);
+                        add("By", actorName);
+                        break;
+                      case "note_added":
+                      case "note_deleted":
+                        add("Note", note);
+                        add("By", actorName);
+                        break;
+                      case "contact_added":
+                      case "contact_updated":
+                        add("Contact", note);
+                        add("By", actorName);
+                        break;
+                      case "checklist_completed":
+                      case "checklist_uncompleted":
+                        add("Item", note);
+                        add("By", actorName);
+                        break;
+                      case "billing_event":
+                        add("Detail", note);
+                        add("By", actorName);
+                        break;
+                      default:
+                        add("Field", prettyField(fieldName));
+                        add("From", fromValue);
+                        add("To", toValue);
+                        add("Detail", note);
+                        add("By", actorName);
+                    }
+                    return rows;
+                  };
+
+                  const detailRows = getDetailRows();
+                  const isExpandable = detailRows.length > 0;
+
                   return (
-                    <div key={evt.id} className="flex items-start gap-3 py-2 border-b border-gray-50 last:border-0" data-testid={`activity-event-${evt.id}`}>
-                      <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center shrink-0 mt-0.5">
-                        <History className="w-3.5 h-3.5 text-gray-400" />
+                    <div
+                      key={evt.id}
+                      className={`py-2.5 first:pt-0 last:pb-0 ${isExpandable ? "cursor-pointer" : ""}`}
+                      onClick={isExpandable ? () => setExpandedActivityId(isExpanded ? null : evt.id) : undefined}
+                      data-testid={`activity-event-${evt.id}`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center shrink-0 mt-0.5">
+                          <History className="w-3 h-3 text-gray-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-700 leading-tight">{label}</p>
+                          <p className="text-[11px] text-gray-400 mt-0.5">
+                            {evt.actorName && <>{evt.actorName} · </>}
+                            {fmt(evt.createdAt, "MMM d, yyyy h:mm a")}
+                          </p>
+                        </div>
+                        {isExpandable && (
+                          <div className="shrink-0 mt-0.5 text-gray-300">
+                            {isExpanded
+                              ? <ChevronDown className="w-3.5 h-3.5" />
+                              : <ChevronRight className="w-3.5 h-3.5" />
+                            }
+                          </div>
+                        )}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-gray-700">
-                          <span className="font-medium">{label}</span>
-                          {meta?.field && <span className="text-gray-400"> — {meta.field}</span>}
-                          {meta?.oldValue && meta?.newValue && (
-                            <span className="text-gray-400 text-xs"> ({meta.oldValue} → {meta.newValue})</span>
-                          )}
-                        </p>
-                        <p className="text-[11px] text-gray-400 mt-0.5">
-                          {evt.user?.name && <>{evt.user.name} · </>}
-                          {fmt(evt.createdAt, "MMM d, yyyy h:mm a")}
-                        </p>
-                      </div>
+
+                      {isExpanded && (
+                        <div className="ml-9 mt-2 pt-2 border-t border-gray-100 space-y-1">
+                          {detailRows.map(({ label: dl, value: dv }) => (
+                            <div key={dl} className="flex items-start gap-2">
+                              <span className="text-[11px] text-gray-400 shrink-0 w-20">{dl}</span>
+                              <span className="text-[11px] text-gray-600 break-words min-w-0 flex-1">{dv}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
