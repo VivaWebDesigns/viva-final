@@ -31,20 +31,17 @@ import {
 } from "@/components/ui/select";
 
 export const OUTCOME_LABELS: Record<string, string> = {
-  noAnswer: "No answer",
-  leftVoicemail: "Left voicemail",
-  spokeWithLead: "Spoke with lead",
   interested: "Interested",
+  uncertain: "Uncertain",
   notInterested: "Not interested",
   badNumber: "Bad number",
   appointmentSet: "Appointment set",
-  duplicateLead: "Duplicate lead",
 };
 
 export const OUTCOME_KEYS = Object.keys(OUTCOME_LABELS) as readonly string[];
 
 const REQUIRES_FOLLOW_UP = new Set([
-  "No answer", "Left voicemail", "Spoke with lead", "Interested",
+  "Interested", "Uncertain",
 ]);
 
 type FollowUpOption = "none" | "1d" | "3d" | "1w" | "custom";

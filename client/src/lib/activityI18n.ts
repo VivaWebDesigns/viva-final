@@ -37,6 +37,7 @@ export const OUTCOME_VALUE_TO_KEY: Record<string, string> = {
   "Left voicemail": "leftVoicemail",
   "Spoke with lead":"spokeWithLead",
   "Interested":     "interested",
+  "Uncertain":      "uncertain",
   "Not interested": "notInterested",
   "Bad number":     "badNumber",
   "Appointment set":"appointmentSet",

@@ -169,26 +169,22 @@ router.post("/", requireRole("admin", "developer", "sales_rep"), async (req, res
 });
 
 const ALLOWED_OUTCOMES = [
-  "No answer", "Left voicemail", "Spoke with lead", "Interested",
-  "Not interested", "Bad number", "Appointment set", "Duplicate lead",
+  "Interested", "Uncertain", "Not interested",
+  "Bad number", "Appointment set",
 ] as const;
 
 const OUTCOME_VALUE_TO_KEY: Record<string, string> = {
-  "No answer":       "noAnswer",
-  "Left voicemail":  "leftVoicemail",
-  "Spoke with lead": "spokeWithLead",
   "Interested":      "interested",
+  "Uncertain":       "uncertain",
   "Not interested":  "notInterested",
   "Bad number":      "badNumber",
   "Appointment set": "appointmentSet",
-  "Duplicate lead":  "duplicateLead",
 };
 
 const OUTCOME_STAGE_SLUG: Partial<Record<typeof ALLOWED_OUTCOMES[number], string>> = {
   "Not interested": "closed-lost",
   "Bad number":     "closed-lost",
   "Appointment set":"demo-scheduled",
-  "Duplicate lead": "closed-lost",
 };
 
 const completeTaskSchema = z.object({
