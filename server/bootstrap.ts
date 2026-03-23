@@ -25,6 +25,7 @@ import { seedPipelineStages } from "./features/pipeline/seed";
 import { seedOnboardingTemplates } from "./features/onboarding/seed";
 import { seedIntegrations } from "./features/integrations/seed";
 import { seedDocs } from "./features/docs/seed";
+import { seedAutomationTemplates } from "./features/automations/seed";
 import { startWorker } from "./features/workflow/worker";
 import { backfillTaskCompanyIds } from "./features/tasks/backfill";
 
@@ -90,6 +91,7 @@ export async function runFeatureSeeds(): Promise<SeedResult[]> {
   const seeds: Array<{ domain: string; fn: () => Promise<Record<string, unknown>> }> = [
     { domain: "crm-statuses",          fn: () => seedCrmStatuses() as Promise<Record<string, unknown>> },
     { domain: "pipeline-stages",       fn: () => seedPipelineStages() as Promise<Record<string, unknown>> },
+    { domain: "automation-templates",  fn: () => seedAutomationTemplates() as Promise<Record<string, unknown>> },
     { domain: "onboarding-templates",  fn: () => seedOnboardingTemplates() as Promise<Record<string, unknown>> },
     { domain: "integrations",          fn: () => seedIntegrations() as Promise<Record<string, unknown>> },
     { domain: "docs",                  fn: () => seedDocs() as Promise<Record<string, unknown>> },
