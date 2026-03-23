@@ -2246,27 +2246,29 @@ function ProfileShellInner({
               </span>
             )}
           </TabsTrigger>
-          <TabsTrigger value="files" data-testid="tab-files">{t.profileShell.files}</TabsTrigger>
-          <TabsTrigger value="billing" data-testid="tab-billing">{t.profileShell.billing}</TabsTrigger>
+          {!hideSalesRepOppSections && <TabsTrigger value="files" data-testid="tab-files">{t.profileShell.files}</TabsTrigger>}
+          {!hideSalesRepOppSections && <TabsTrigger value="billing" data-testid="tab-billing">{t.profileShell.billing}</TabsTrigger>}
           <TabsTrigger value="activity" data-testid="tab-activity">{t.profileShell.activity}</TabsTrigger>
         </TabsList>
 
         {/* ── Overview Tab ─────────────────────────────────────────────────── */}
         <TabsContent value="overview" className="mt-4 space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className={`grid grid-cols-1 gap-4 ${!hideSalesRepOppSections ? "lg:grid-cols-2" : ""}`}>
             <CompanyContactCard
               entry={entry}
               company={identity.company}
               primaryContact={identity.primaryContact}
               contacts={identity.contacts}
             />
-            <SalesSnapshotCard
-              entry={entry}
-              sales={sales}
-              companyName={identity.company?.name}
-              contactName={identity.primaryContact ? [identity.primaryContact.firstName, identity.primaryContact.lastName].filter(Boolean).join(" ") : null}
-              contacts={identity.contacts}
-            />
+            {!hideSalesRepOppSections && (
+              <SalesSnapshotCard
+                entry={entry}
+                sales={sales}
+                companyName={identity.company?.name}
+                contactName={identity.primaryContact ? [identity.primaryContact.firstName, identity.primaryContact.lastName].filter(Boolean).join(" ") : null}
+                contacts={identity.contacts}
+              />
+            )}
           </div>
           {!hideSalesRepOppSections && (
             <AccountManagementForm
