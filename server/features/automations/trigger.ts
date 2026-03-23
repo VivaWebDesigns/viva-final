@@ -76,7 +76,7 @@ export async function executeStageAutomations(ctx: TriggerContext): Promise<Trig
         continue;
       }
 
-      const existingOpenTask = await getActiveTaskForContext(ctx.leadId, ctx.opportunityId);
+      const existingOpenTask = await getActiveTaskForContext(ctx.leadId, ctx.opportunityId, tpl.taskType);
       if (existingOpenTask) {
         result.tasksSkipped++;
         await logExecution({

@@ -78,17 +78,21 @@ export async function getUpcomingTasks(): Promise<TaskWithContact[]> {
   return enrichTasks(tasks);
 }
 
-export async function getActiveTaskForContext(leadId?: string | null, opportunityId?: string | null): Promise<FollowupTask | null> {
+export async function getActiveTaskForContext(leadId?: string | null, opportunityId?: string | null, taskType?: string | null): Promise<FollowupTask | null> {
   if (leadId) {
+    const conditions = [eq(followupTasks.leadId, leadId), eq(followupTasks.completed, false)];
+    if (taskType) conditions.push(eq(followupTasks.taskType, taskType));
     const [task] = await db.select().from(followupTasks)
-      .where(and(eq(followupTasks.leadId, leadId), eq(followupTasks.completed, false)))
+      .where(and(...conditions))
       .orderBy(asc(followupTasks.dueDate))
       .limit(1);
     return task ?? null;
   }
   if (opportunityId) {
+    const conditions = [eq(followupTasks.opportunityId, opportunityId), eq(followupTasks.completed, false)];
+    if (taskType) conditions.push(eq(followupTasks.taskType, taskType));
     const [task] = await db.select().from(followupTasks)
-      .where(and(eq(followupTasks.opportunityId, opportunityId), eq(followupTasks.completed, false)))
+      .where(and(...conditions))
       .orderBy(asc(followupTasks.dueDate))
       .limit(1);
     return task ?? null;
