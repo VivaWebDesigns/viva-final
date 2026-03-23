@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CheckCircle2, Clock, Phone, Building2, AlertTriangle, CalendarClock, ExternalLink, Plus, Zap, History, FileText } from "lucide-react";
+import { sanitizeHtml } from "@/features/chat/RichTextEditor";
 import QuickTaskModal, { formatTaskTimeDisplay } from "@/components/QuickTaskModal";
 import CompleteTaskModal from "@/components/CompleteTaskModal";
 import type { FollowupTask } from "@shared/schema";
@@ -71,7 +72,7 @@ function TaskRow({
         </p>
 
         {task.notes && (
-          <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{task.notes}</p>
+          <div className="text-xs text-gray-400 mt-0.5 line-clamp-1 chat-message-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(task.notes) }} />
         )}
 
         {task.automationMeta && (
@@ -217,7 +218,7 @@ function CompletedTaskCard({
           {task.completionNote && (
             <div className="flex items-start gap-1 mt-1.5">
               <FileText className="w-3 h-3 text-gray-400 mt-0.5 flex-shrink-0" />
-              <p className="text-xs text-gray-400 line-clamp-2">{task.completionNote}</p>
+              <div className="text-xs text-gray-400 line-clamp-2 chat-message-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(task.completionNote) }} />
             </div>
           )}
 
