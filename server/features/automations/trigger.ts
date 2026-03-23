@@ -8,6 +8,7 @@ import {
 } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 import * as automationStorage from "./storage";
+import { getActiveTaskForContext } from "../tasks/storage";
 
 interface TriggerContext {
   opportunityId: string;
@@ -69,6 +70,21 @@ export async function executeStageAutomations(ctx: TriggerContext): Promise<Trig
           generatedTaskId: null,
           status: "skipped",
           details: "Duplicate: open automation task already exists for this opportunity, template, and stage.",
+        });
+        continue;
+      }
+
+      const existingOpenTask = await getActiveTaskForContext(ctx.leadId, ctx.opportunityId);
+      if (existingOpenTask) {
+        result.tasksSkipped++;
+        await logExecution({
+          opportunityId: ctx.opportunityId,
+          leadId: ctx.leadId ?? null,
+          triggerStageSlug: ctx.stageSlug,
+          templateId: tpl.id,
+          generatedTaskId: null,
+          status: "skipped",
+          details: `Skipped: open task "${existingOpenTask.title}" already exists for this opportunity.`,
         });
         continue;
       }
