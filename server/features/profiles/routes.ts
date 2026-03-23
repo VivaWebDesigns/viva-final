@@ -70,7 +70,10 @@ const createTaskSchema = z.object({
   taskType: z.enum(["follow_up", "onboarding", "billing", "general", "review"]).default("follow_up"),
   dueDate: z.string().min(1, "Valid due date required"),
   assignedTo: z.string().nullable().optional(),
-}).strict();
+  opportunityId: z.string().nullable().optional(),
+  leadId: z.string().nullable().optional(),
+  contactId: z.string().nullable().optional(),
+});
 
 const updateClientSchema = z.object({
   name: z.string().min(1).optional(),
@@ -805,6 +808,9 @@ router.post(
           ? new Date(validated.dueDate + "T00:00:00Z")
           : new Date(validated.dueDate),
         companyId,
+        opportunityId: validated.opportunityId ?? null,
+        leadId: validated.leadId ?? null,
+        contactId: validated.contactId ?? null,
         assignedTo: validated.assignedTo ?? null,
         createdBy: req.authUser?.id,
         completed: false,

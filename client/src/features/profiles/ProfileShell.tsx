@@ -2141,7 +2141,12 @@ function ProfileShellInner({
 
   const addTaskMutation = useMutation({
     mutationFn: async (data: Record<string, unknown>) => {
-      await apiRequest("POST", `/api/profiles/company/${companyId}/tasks`, data);
+      await apiRequest("POST", `/api/profiles/company/${companyId}/tasks`, {
+        ...data,
+        opportunityId: activeOpp?.id ?? null,
+        leadId: sales.sourceLead?.id ?? null,
+        contactId: primaryContact?.id ?? null,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/profiles/company", companyId, "tasks"] });
