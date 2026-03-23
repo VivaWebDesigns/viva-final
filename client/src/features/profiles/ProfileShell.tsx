@@ -2118,10 +2118,12 @@ function ProfileShellInner({
         setContactedPendingStageId(contactedStage.id);
       } else {
         spokeWithLeadTaskIdRef.current = null;
+        setCompletingTask(task);
         toast({ title: t.common.error, description: "Could not find Contacted stage — please refresh and try again.", variant: "destructive" });
       }
     } catch (err: any) {
       spokeWithLeadTaskIdRef.current = null;
+      setCompletingTask(task);
       toast({ title: t.common.error, description: err.message, variant: "destructive" });
     }
   };
