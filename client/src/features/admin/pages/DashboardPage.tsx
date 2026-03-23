@@ -60,7 +60,7 @@ export default function DashboardPage() {
     { key: "users" as const,          label: t.dashboard.teamMembers,    icon: Users,      color: "bg-blue-500",    href: "/admin/settings" },
     { key: "contacts" as const,       label: t.dashboard.formSubmissions,icon: Phone,      color: "bg-amber-500",   href: "/admin/crm" },
     { key: "articles" as const,       label: t.dashboard.docArticles,    icon: FileText,   color: "bg-purple-500",  href: "/admin/docs" },
-    { key: "integrations" as const,   label: t.dashboard.integrations,   icon: Puzzle,     color: "bg-rose-500",    href: "/admin/integrations" },
+    { key: "integrations" as const,   label: t.dashboard.integrations,   icon: Puzzle,     color: "bg-rose-500",    href: "/admin/settings" },
   ];
 
   const onboardingRows = [
@@ -267,7 +267,7 @@ export default function DashboardPage() {
               </div>
             </button>
             <button
-              onClick={() => setLocation("/admin/integrations")}
+              onClick={() => setLocation("/admin/settings")}
               className="w-full text-left p-3 rounded-lg hover:bg-gray-50 border border-gray-100 transition-colors flex items-center gap-3"
               data-testid="link-quick-integrations"
             >

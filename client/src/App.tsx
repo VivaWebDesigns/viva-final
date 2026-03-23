@@ -1,4 +1,4 @@
-import { Switch, Route, useLocation } from "wouter";
+import { Switch, Route, Redirect, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -30,7 +30,6 @@ const NotFound = lazy(() => import("@/pages/not-found"));
 const LoginPage = lazy(() => import("@features/auth/LoginPage"));
 const DashboardPage = lazy(() => import("@features/admin/pages/DashboardPage"));
 const DocsPage = lazy(() => import("@features/docs/DocsPage"));
-const IntegrationsPage = lazy(() => import("@features/integrations/IntegrationsPage"));
 const LeadListPage = lazy(() => import("@features/crm/LeadListPage"));
 const LeadProfilePage = lazy(() => import("@features/profiles/LeadProfilePage"));
 const CompanyDetailPage = lazy(() => import("@features/crm/CompanyDetailPage"));
@@ -171,9 +170,7 @@ function AdminRouter() {
               </ProtectedRoute>
             </Route>
             <Route path="/admin/integrations">
-              <ProtectedRoute roles={["admin", "developer"]}>
-                <IntegrationsPage />
-              </ProtectedRoute>
+              <Redirect to="/admin/settings" />
             </Route>
             <Route path="/admin/reports">
               <ProtectedRoute roles={["admin", "developer"]}>

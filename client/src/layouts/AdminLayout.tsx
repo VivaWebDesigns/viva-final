@@ -6,7 +6,7 @@ import { STALE } from "@/lib/queryClient";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, Users, TrendingUp, UserPlus, MessageSquare,
-  CreditCard, Bell, Puzzle, BarChart3, Settings, BookOpen,
+  CreditCard, Bell, BarChart3, Settings, BookOpen,
   LogOut, ChevronLeft, ChevronRight, Menu, Building2, Zap,
   ClipboardList, AlertTriangle,
 } from "lucide-react";
@@ -42,7 +42,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { label: t.nav.payments,      path: "/admin/payments",       icon: CreditCard,      color: "text-yellow-600",  roles: ["admin"] as string[] },
     { label: t.nav.notifications, path: "/admin/notifications",  icon: Bell,            color: "text-red-500",     roles: ["admin", "developer", "sales_rep"] as string[] },
     { label: t.nav.reports,       path: "/admin/reports",        icon: BarChart3,       color: "text-cyan-500",    roles: ["admin", "developer"] as string[] },
-    { label: t.nav.integrations,  path: "/admin/integrations",   icon: Puzzle,          color: "text-violet-500",  roles: ["admin", "developer"] as string[] },
     { label: t.nav.demoBuilder,   path: "/admin/demo-builder",   icon: Zap,             color: "text-amber-500",   roles: ["admin", "developer"] as string[] },
     { label: t.nav.admin,         path: "/admin/settings",       icon: Settings,        color: "text-gray-500",    roles: ["admin"] as string[] },
     { label: t.nav.docs,          path: "/admin/docs",           icon: BookOpen,        color: "text-sky-500",     roles: ["admin", "developer"] as string[] },

@@ -12,7 +12,7 @@ export const en = {
     reports: "Reports",
     integrations: "Integrations",
     demoBuilder: "Demo Builder",
-    admin: "Admin",
+    admin: "System Settings",
     docs: "App Docs",
     internalPlatform: "Internal Platform",
     signOut: "Sign Out",
@@ -771,7 +771,7 @@ export const en = {
     contact: "Contact",
   },
   settings: {
-    title: "Admin Settings",
+    title: "System Settings",
     teamMembers: "Team Members",
     auditLogs: "Audit Logs",
     createMember: "Create Member",

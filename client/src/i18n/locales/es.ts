@@ -14,7 +14,7 @@ export const es: AdminTranslations = {
     reports: "Reportes",
     integrations: "Integraciones",
     demoBuilder: "Constructor de Demo",
-    admin: "Administración",
+    admin: "Configuración del Sistema",
     docs: "Documentación",
     internalPlatform: "Plataforma Interna",
     signOut: "Cerrar Sesión",
@@ -773,7 +773,7 @@ export const es: AdminTranslations = {
     contact: "Contacto",
   },
   settings: {
-    title: "Administración",
+    title: "Configuración del Sistema",
     teamMembers: "Miembros del Equipo",
     auditLogs: "Registros de Auditoría",
     createMember: "Crear Miembro",
