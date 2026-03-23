@@ -298,4 +298,4 @@ export function useProfileMutations(entry: ProfileEntry) {
 // ── Re-exports ────────────────────────────────────────────────────────────────
 // Consumers only need to import from this file.
 
-export type { ProfileEntry, ProfileEntryType, UnifiedProfileDto, UnifiedTimelineEvent, PaginatedTimelineResponse };
+export type { ProfileEntry, ProfileEntryType, UnifiedProfileDto, UnifiedTimelineEvent };

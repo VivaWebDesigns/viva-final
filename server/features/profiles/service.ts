@@ -238,7 +238,7 @@ async function assembleProfile(companyId: string, opts?: AssembleOpts): Promise<
       : Promise.resolve(
           [] as {
             generatedTaskId: string | null;
-            triggerStageSlug: string | null;
+            triggerStageSlug: string;
             templateId: string | null;
             createdAt: Date;
           }[],

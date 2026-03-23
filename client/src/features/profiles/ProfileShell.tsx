@@ -50,7 +50,7 @@ import { apiRequest, queryClient, STALE } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAdminLang } from "@/i18n/LanguageContext";
 import type { AdminTranslations } from "@/i18n/locales/en";
-import { useUnifiedProfile, useProfileTimeline, useInfiniteTimeline, PROFILE_KEYS } from "./hooks";
+import { useUnifiedProfile, useInfiniteTimeline, PROFILE_KEYS } from "./hooks";
 import { EditCompanyDialog } from "./edit/EditCompanyDialog";
 import { EditContactDialog } from "./edit/EditContactDialog";
 import { EditLeadDialog } from "./edit/EditLeadDialog";

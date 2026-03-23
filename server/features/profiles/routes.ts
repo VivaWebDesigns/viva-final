@@ -261,7 +261,8 @@ router.get(
   requireRole("admin", "developer", "sales_rep", "lead_gen"),
   async (req: Request, res: Response) => {
     try {
-      const { type, id } = req.params;
+      const type = req.params.type as string;
+      const id   = req.params.id   as string;
       if (!["company", "lead", "opportunity"].includes(type)) {
         return res.status(400).json({ message: "type must be company, lead, or opportunity" });
       }
@@ -404,7 +405,7 @@ router.get(
   requireRole("admin", "developer", "sales_rep"),
   async (req: Request, res: Response) => {
     try {
-      const companyId = req.params.id;
+      const companyId  = req.params.id as string;
       const notes = await db
         .select({
           id: clientNotes.id,
@@ -432,7 +433,7 @@ router.get(
   requireRole("admin", "developer", "sales_rep"),
   async (req: Request, res: Response) => {
     try {
-      const companyId = req.params.id;
+      const companyId  = req.params.id as string;
       const status = req.query.status as string | undefined;
 
       const leadRows = await db.select({ id: crmLeads.id }).from(crmLeads).where(eq(crmLeads.companyId, companyId));
@@ -485,7 +486,7 @@ router.get(
   requireRole("admin", "developer", "sales_rep"),
   async (req: Request, res: Response) => {
     try {
-      const companyId = req.params.id;
+      const companyId  = req.params.id as string;
       const files = await db
         .select({
           id: attachments.id,
@@ -516,7 +517,7 @@ router.get(
   requireRole("admin", "developer", "sales_rep"),
   async (req: Request, res: Response) => {
     try {
-      const companyId = req.params.id;
+      const companyId  = req.params.id as string;
       const [company] = await db
         .select({ billingNotes: crmCompanies.billingNotes, serviceTier: crmCompanies.serviceTier, carePlanStatus: crmCompanies.carePlanStatus })
         .from(crmCompanies)
@@ -560,7 +561,7 @@ router.get(
   requireRole("admin", "developer", "sales_rep"),
   async (req: Request, res: Response) => {
     try {
-      const companyId = req.params.id;
+      const companyId  = req.params.id as string;
       const limit = req.query.limit ? Math.min(parseInt(req.query.limit as string, 10), 200) : 50;
       const events = await getHistory("client", companyId, limit);
       return res.json(events);
@@ -581,7 +582,7 @@ router.post(
   requireRole("admin", "developer", "sales_rep"),
   async (req: Request, res: Response) => {
     try {
-      const companyId = req.params.id;
+      const companyId  = req.params.id as string;
       const validated = createNoteSchema.parse(req.body);
 
       const [note] = await db.insert(clientNotes).values({
@@ -625,8 +626,8 @@ router.delete(
   requireRole("admin", "developer"),
   async (req: Request, res: Response) => {
     try {
-      const companyId = req.params.id;
-      const noteId = req.params.noteId;
+      const companyId  = req.params.id as string;
+      const noteId  = req.params.noteId as string;
 
       const [existing] = await db
         .select()
@@ -660,7 +661,7 @@ router.post(
   requireRole("admin", "developer", "sales_rep"),
   async (req: Request, res: Response) => {
     try {
-      const companyId = req.params.id;
+      const companyId  = req.params.id as string;
       const validated = contactSchema.parse(req.body);
 
       if (validated.isPrimary) {
@@ -711,8 +712,8 @@ router.patch(
   requireRole("admin", "developer", "sales_rep"),
   async (req: Request, res: Response) => {
     try {
-      const companyId = req.params.id;
-      const contactId = req.params.contactId;
+      const companyId  = req.params.id as string;
+      const contactId = req.params.contactId as string;
       const validated = contactSchema.partial().parse(req.body);
 
       const [existingContact] = await db.select().from(crmContacts).where(eq(crmContacts.id, contactId)).limit(1);
@@ -786,7 +787,7 @@ router.post(
   requireRole("admin", "developer", "sales_rep"),
   async (req: Request, res: Response) => {
     try {
-      const companyId = req.params.id;
+      const companyId  = req.params.id as string;
       const [company] = await db.select({ id: crmCompanies.id }).from(crmCompanies).where(eq(crmCompanies.id, companyId)).limit(1);
       if (!company) return res.status(404).json({ message: "Company not found" });
 
@@ -837,8 +838,8 @@ router.put(
   requireRole("admin", "developer", "sales_rep"),
   async (req: Request, res: Response) => {
     try {
-      const companyId = req.params.id;
-      const taskId = req.params.taskId;
+      const companyId  = req.params.id as string;
+      const taskId  = req.params.taskId as string;
 
       const [existing] = await db
         .select()
@@ -900,8 +901,8 @@ router.delete(
   requireRole("admin", "developer"),
   async (req: Request, res: Response) => {
     try {
-      const companyId = req.params.id;
-      const taskId = req.params.taskId;
+      const companyId  = req.params.id as string;
+      const taskId  = req.params.taskId as string;
 
       const [existingTask] = await db
         .select()
@@ -944,7 +945,7 @@ router.patch(
   requireRole("admin", "developer", "sales_rep"),
   async (req: Request, res: Response) => {
     try {
-      const companyId = req.params.id;
+      const companyId  = req.params.id as string;
       const [existing] = await db.select().from(crmCompanies).where(eq(crmCompanies.id, companyId)).limit(1);
       if (!existing) return res.status(404).json({ message: "Company not found" });
 
@@ -1000,7 +1001,7 @@ router.patch(
   requireRole("admin", "developer", "sales_rep"),
   async (req: Request, res: Response) => {
     try {
-      const companyId = req.params.id;
+      const companyId  = req.params.id as string;
       const [existing] = await db.select().from(crmCompanies).where(eq(crmCompanies.id, companyId)).limit(1);
       if (!existing) return res.status(404).json({ message: "Company not found" });
 
@@ -1094,7 +1095,7 @@ router.post(
   requireRole("admin", "developer", "sales_rep"),
   async (req: Request, res: Response) => {
     try {
-      const leadId = req.params.id;
+      const leadId  = req.params.id as string;
       const [lead] = await db.select({ id: crmLeads.id }).from(crmLeads).where(eq(crmLeads.id, leadId)).limit(1);
       if (!lead) return res.status(404).json({ message: "Lead not found" });
 
@@ -1134,7 +1135,7 @@ router.post(
   requireRole("admin", "developer", "sales_rep"),
   async (req: Request, res: Response) => {
     try {
-      const opportunityId = req.params.id;
+      const opportunityId  = req.params.id as string;
       const [opp] = await db.select({ id: pipelineOpportunities.id }).from(pipelineOpportunities).where(eq(pipelineOpportunities.id, opportunityId)).limit(1);
       if (!opp) return res.status(404).json({ message: "Opportunity not found" });
 
@@ -1174,7 +1175,7 @@ router.patch(
   requireRole("admin", "developer", "sales_rep"),
   async (req: Request, res: Response) => {
     try {
-      const companyId = req.params.id;
+      const companyId  = req.params.id as string;
       const { userId: newOwnerId } = assignOwnerSchema.parse(req.body);
 
       const [existing] = await db.select({ accountOwnerId: crmCompanies.accountOwnerId }).from(crmCompanies).where(eq(crmCompanies.id, companyId)).limit(1);
@@ -1200,7 +1201,7 @@ router.patch(
   requireRole("admin", "developer", "sales_rep"),
   async (req: Request, res: Response) => {
     try {
-      const leadId = req.params.id;
+      const leadId  = req.params.id as string;
       const { userId: newOwnerId } = assignOwnerSchema.parse(req.body);
 
       const [existing] = await db.select({ assignedTo: crmLeads.assignedTo }).from(crmLeads).where(eq(crmLeads.id, leadId)).limit(1);
@@ -1225,7 +1226,7 @@ router.patch(
   requireRole("admin", "developer", "sales_rep"),
   async (req: Request, res: Response) => {
     try {
-      const opportunityId = req.params.id;
+      const opportunityId  = req.params.id as string;
       const { userId: newOwnerId } = assignOwnerSchema.parse(req.body);
 
       const [existing] = await db.select({ assignedTo: pipelineOpportunities.assignedTo }).from(pipelineOpportunities).where(eq(pipelineOpportunities.id, opportunityId)).limit(1);
@@ -1250,7 +1251,7 @@ router.patch(
   requireRole("admin", "developer", "sales_rep"),
   async (req: Request, res: Response) => {
     try {
-      const companyId = req.params.id;
+      const companyId  = req.params.id as string;
       const { statusId } = updateStatusSchema.parse(req.body);
 
       const allowedStatuses = ["active", "inactive", "at_risk", "churned", "prospect"];
@@ -1281,7 +1282,7 @@ router.patch(
   requireRole("admin", "developer", "sales_rep"),
   async (req: Request, res: Response) => {
     try {
-      const leadId = req.params.id;
+      const leadId  = req.params.id as string;
       const { statusId } = updateStatusSchema.parse(req.body);
 
       const [existing] = await db.select({ statusId: crmLeads.statusId }).from(crmLeads).where(eq(crmLeads.id, leadId)).limit(1);
@@ -1306,7 +1307,7 @@ router.patch(
   requireRole("admin", "developer", "sales_rep"),
   async (req: Request, res: Response) => {
     try {
-      const opportunityId = req.params.id;
+      const opportunityId  = req.params.id as string;
       const { statusId } = updateStatusSchema.parse(req.body);
 
       const [existing] = await db.select({ stageId: pipelineOpportunities.stageId }).from(pipelineOpportunities).where(eq(pipelineOpportunities.id, opportunityId)).limit(1);
