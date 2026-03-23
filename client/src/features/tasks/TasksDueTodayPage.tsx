@@ -72,9 +72,15 @@ function TaskRow({
       </button>
 
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-gray-900 leading-tight" data-testid={`text-task-title-${task.id}`}>
-          {renderTitle(task)}
-        </p>
+        <div className="flex items-center gap-2 flex-wrap">
+          <p className="text-sm font-medium text-gray-900 leading-tight" data-testid={`text-task-title-${task.id}`}>
+            {renderTitle(task)}
+          </p>
+          <span className="flex items-center gap-1 text-xs font-medium text-amber-500 whitespace-nowrap" data-testid={`text-due-date-${task.id}`}>
+            <CalendarClock className="w-3 h-3" />
+            {new Date(task.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}{task.followUpTime ? ` at ${formatTaskTimeDisplay(task.dueDate, task.followUpTime, task.followUpTimezone)}` : ""}
+          </span>
+        </div>
 
         {task.notes && (
           <div className="text-xs text-gray-400 mt-0.5 line-clamp-1 chat-message-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(task.notes) }} />
@@ -135,9 +141,6 @@ function TaskRow({
       </div>
 
       <div className="flex flex-col items-end gap-2 flex-shrink-0">
-        <span className="text-xs text-gray-400 whitespace-nowrap" data-testid={`text-due-date-${task.id}`}>
-          {new Date(task.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}{task.followUpTime ? ` at ${formatTaskTimeDisplay(task.dueDate, task.followUpTime, task.followUpTimezone)}` : ""}
-        </span>
         <div className="flex items-center gap-1">
           <Button
             size="sm"
