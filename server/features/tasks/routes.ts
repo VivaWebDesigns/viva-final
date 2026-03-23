@@ -7,7 +7,7 @@ import * as taskStorage from "./storage";
 import { addLeadNote } from "../crm/storage";
 import { addActivity, getStages, moveOpportunity } from "../pipeline/storage";
 import { db } from "../../db";
-import { crmLeads, pipelineOpportunities, followupTasks } from "@shared/schema";
+import { crmLeads, pipelineOpportunities } from "@shared/schema";
 
 const router = Router();
 
@@ -259,7 +259,9 @@ router.put("/:id/complete", requireRole("admin", "developer", "sales_rep"), asyn
           const scheduleMeta = { event: "follow_up_scheduled", taskTitle: newTask.title };
           if (newTask.leadId) addLeadNote({ leadId: newTask.leadId, userId: actorId, type: "task", content: scheduleContent, metadata: scheduleMeta }).catch(() => {});
           else if (newTask.opportunityId) addActivity({ opportunityId: newTask.opportunityId, userId: actorId, type: "task", content: scheduleContent, metadata: scheduleMeta }).catch(() => {});
-        } catch (_) {}
+        } catch (err: unknown) {
+          console.error("[tasks/complete] auto-follow-up creation failed:", err);
+        }
       }
     }
 

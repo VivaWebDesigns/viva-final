@@ -2113,6 +2113,9 @@ function ProfileShellInner({
       const contactedStage = stages?.find(s => s.slug === "contacted");
       if (contactedStage) {
         setContactedPendingStageId(contactedStage.id);
+      } else {
+        spokeWithLeadTaskIdRef.current = null;
+        toast({ title: t.common.error, description: "Could not find Contacted stage — please refresh and try again.", variant: "destructive" });
       }
     } catch (err: any) {
       spokeWithLeadTaskIdRef.current = null;
