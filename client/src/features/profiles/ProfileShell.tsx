@@ -2271,11 +2271,6 @@ function ProfileShellInner({
           <TabsTrigger value="notes" data-testid="tab-notes">{t.profileShell.notes}</TabsTrigger>
           <TabsTrigger value="contacts" data-testid="tab-contacts">
             {t.profileShell.contacts}
-            {identity.contacts.length > 0 && (
-              <span className="ml-1.5 bg-blue-100 text-blue-700 rounded-full text-xs px-1.5 py-0 font-medium">
-                {identity.contacts.length}
-              </span>
-            )}
           </TabsTrigger>
           <TabsTrigger value="tasks" data-testid="tab-tasks">
             {t.profileShell.tasks}
