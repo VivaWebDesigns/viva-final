@@ -2094,7 +2094,11 @@ function ProfileShellInner({
   });
 
   const activeStageSlug = stages?.find(s => s.id === activeOpp?.stageId)?.slug ?? null;
-  const isNewLeadContext = activeStageSlug === "new-lead" && !!hasOpenOpp;
+  const isNewLeadContext =
+    activeStageSlug === "new-lead" &&
+    !!hasOpenOpp &&
+    !!completingTask?.opportunityId &&
+    completingTask.opportunityId === activeOpp?.id;
 
   const handleSpokeWithLead = async () => {
     if (!completingTask) return;
@@ -2907,12 +2911,12 @@ function ProfileShellInner({
       </Tabs>
 
       {hasOpenOpp && activeOpp && (() => {
-        const existingOpenTask = contactedPendingStageId
+        const isFromSpokeWithLead = spokeWithLeadTaskIdRef.current !== null;
+        const existingOpenTask = contactedPendingStageId && !isFromSpokeWithLead
           ? work.tasks
               .filter(
                 (t) =>
                   !t.completed &&
-                  t.id !== spokeWithLeadTaskIdRef.current &&
                   (t.taskType === "follow_up" || !t.taskType)
               )
               .sort((a, b) => {
