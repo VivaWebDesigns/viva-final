@@ -1,0 +1,40 @@
+We now need to complete the second half of the architecture: unified writes.
+
+Context:
+- Codex noted that unified reads exist, but unified writes do not.
+- Profile hooks currently include stub mutations for note/status/owner updates pointing to /api/profiles/... endpoints that do not yet exist.
+- Until unified write paths exist, consistency depends on many legacy mutation flows remaining in sync.
+
+Your objectives:
+1. Implement real profile-aware write routes under /api/profiles/... for the core cross-domain mutations currently stubbed in the client hooks.
+2. Build a useProfileMutations implementation backed by real server routes/services.
+3. Centralize cross-domain write behavior so lead/client/opportunity detail screens all mutate through the same profile-aware layer where appropriate.
+4. Preserve domain ownership:
+   - Domain-specific data rules stay inside their own feature services/modules.
+   - The profile layer should orchestrate cross-domain write entry points and identity resolution, not duplicate underlying business logic.
+
+Target write categories:
+- Notes create/update/delete
+- Owner assignment/update
+- Status/stage-related cross-domain updates where appropriate
+- Task creation/update when initiated from profile context
+- Any other existing stubbed mutation already implied in the current profile hooks
+
+Implementation rules:
+- NONDESTRUCTIVE: keep working legacy mutations functional until the new profile mutations are proven and adopted.
+- Do not fork business logic; call into existing domain services where possible.
+- Add strong validation and auth/role checks at the route boundary.
+- Return normalized response payloads suitable for React Query cache updates/invalidation.
+- Make sure mutation success updates the correct profile cache keys and any related lists/boards.
+- Avoid circular dependencies; the profile feature should orchestrate, not become a god-service.
+- Maintain auditability in timeline/activity logging where applicable.
+
+Deliverables:
+1. Real /api/profiles/... write routes for the defined cross-domain mutation set.
+2. Shared client-side useProfileMutations hook wired to live endpoints.
+3. Refactored profile UI actions using the new shared mutation layer.
+4. Safe fallback/backward compatibility where needed during transition.
+5. App Docs update covering:
+   - Profile mutation architecture
+   - Which writes are profile-owned entry points
+   - Cache invalidation/update strategy

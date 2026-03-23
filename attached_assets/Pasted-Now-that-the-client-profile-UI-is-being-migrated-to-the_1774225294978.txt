@@ -1,0 +1,37 @@
+Now that the client profile UI is being migrated to the shared shell, we need to finish the read-model consolidation.
+
+Context:
+- The client page still augments the unified DTO with separate note/task/file/billing queries.
+- Codex identified this as weakening both consistency and performance.
+- We want cross-domain detail reads to come from the profile domain, not from legacy /api/clients/... aggregate patterns.
+
+Your objectives:
+1. Audit all remaining tab-level fetches used by the client profile page.
+2. For anything still coming from legacy client-specific endpoints, move that data into one of these patterns:
+   - Included in UnifiedProfileDto if it belongs in the core aggregate, or
+   - Exposed as clearly scoped profile subresources under /api/profiles/... if it is tab-specific/heavier data.
+3. Replace client-page tab fetches so they use profile-owned endpoints/contracts only.
+4. Ensure the frontend tabs are powered by the unified profile query or profile subresource hooks, not legacy client routes.
+
+Implementation rules:
+- Keep the core aggregate lean enough for normal detail view performance.
+- Do not overstuff the top-level DTO with very heavy payloads if lazy tab subresources are more appropriate.
+- Favor clean profile-owned route naming like:
+  - /api/profiles/company/:id/notes
+  - /api/profiles/company/:id/tasks
+  - /api/profiles/company/:id/files
+  - /api/profiles/company/:id/billing
+  Adjust naming to fit the existing route conventions.
+- Reuse identity resolution and permissions patterns from server/features/profiles.
+- Preserve authorization and tenant scoping rigorously.
+- Do not create new duplicated client aggregate assembly paths.
+
+Deliverables:
+1. Audit summary in code comments/docs of what was moved into DTO vs subresources.
+2. Profile-owned endpoints/services/hooks for remaining tab data.
+3. Client profile tabs refactored to use only unified/profile-owned reads.
+4. Removal of remaining legacy client-specific read dependencies where safe.
+5. App Docs update covering:
+   - Unified profile read contract
+   - Profile tab subresources
+   - Why this split was chosen
