@@ -2902,10 +2902,14 @@ function ProfileShellInner({
               .filter(
                 (t) =>
                   !t.completed &&
-                  t.opportunityId === activeOpp.id &&
                   (t.taskType === "follow_up" || !t.taskType)
               )
-              .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())[0] ?? null
+              .sort((a, b) => {
+                const aMatchesOpp = a.opportunityId === activeOpp.id ? 0 : 1;
+                const bMatchesOpp = b.opportunityId === activeOpp.id ? 0 : 1;
+                if (aMatchesOpp !== bMatchesOpp) return aMatchesOpp - bMatchesOpp;
+                return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+              })[0] ?? null
           : null;
         return (
         <>
