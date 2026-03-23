@@ -16,6 +16,7 @@ import {
   insertCrmLeadNoteSchema, insertCrmTagSchema, crmLeads, pipelineOpportunities,
 } from "@shared/schema";
 import { db } from "../../db";
+import { executeStageAutomations } from "../automations/trigger";
 
 async function cascadeCompanyNameToTitles(companyId: string, oldName: string, newName: string) {
   const leads = await db.select({ id: crmLeads.id, title: crmLeads.title })
@@ -452,7 +453,7 @@ router.post("/leads/manual", requireRole("admin", "developer", "sales_rep", "lea
     // 6. Create pipeline opportunity in the "new-lead" stage — inherit owner from lead
     const newLeadStage = await pipelineStorage.getStageBySlug("new-lead");
     if (newLeadStage) {
-      await pipelineStorage.createOpportunity({
+      const opp = await pipelineStorage.createOpportunity({
         title: leadTitle,
         leadId: lead.id,
         companyId,
@@ -463,6 +464,15 @@ router.post("/leads/manual", requireRole("admin", "developer", "sales_rep", "lea
         notes: data.notes || null,
         assignedTo: creatorId,
       });
+      executeStageAutomations({
+        opportunityId: opp.id,
+        leadId: lead.id,
+        contactId: contact.id,
+        companyId,
+        assignedTo: creatorId,
+        stageSlug: "new-lead",
+        actorId: creatorId,
+      }).catch(() => {});
     }
 
     await logAudit({

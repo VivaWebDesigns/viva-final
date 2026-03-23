@@ -40,6 +40,13 @@ export const OUTCOME_LABELS: Record<string, string> = {
 
 export const OUTCOME_KEYS = Object.keys(OUTCOME_LABELS) as readonly string[];
 
+const NEW_LEAD_OUTCOME_LABELS: Record<string, string> = {
+  noAnswer:      "No answer",
+  leftVoicemail: "Left voicemail",
+  spokeWithLead: "Spoke with lead",
+};
+const NEW_LEAD_OUTCOME_KEYS = Object.keys(NEW_LEAD_OUTCOME_LABELS) as readonly string[];
+
 const REQUIRES_FOLLOW_UP = new Set([
   "Interested", "Uncertain",
 ]);
@@ -61,6 +68,8 @@ interface CompleteTaskModalProps {
   leadId?: string | null;
   contactId?: string | null;
   defaultTaskTitle?: string;
+  outcomeMode?: "new-lead" | "general";
+  onSpokeWithLead?: () => void;
   onSuccess?: () => void;
 }
 
@@ -73,6 +82,8 @@ export default function CompleteTaskModal({
   leadId,
   contactId,
   defaultTaskTitle,
+  outcomeMode = "general",
+  onSpokeWithLead,
   onSuccess,
 }: CompleteTaskModalProps) {
   const { toast } = useToast();
@@ -168,12 +179,25 @@ export default function CompleteTaskModal({
     },
   });
 
+  const isNewLead = outcomeMode === "new-lead";
+  const activeOutcomeKeys = isNewLead ? NEW_LEAD_OUTCOME_KEYS : OUTCOME_KEYS;
+  const activeOutcomeLabels = isNewLead ? NEW_LEAD_OUTCOME_LABELS : OUTCOME_LABELS;
+  const isSpokeWithLead = isNewLead && outcome === "Spoke with lead";
+
   const customDateValid = followUp !== "custom" || customDate !== "";
-  const followUpRequired = REQUIRES_FOLLOW_UP.has(outcome);
+  const followUpRequired = !isNewLead && REQUIRES_FOLLOW_UP.has(outcome);
   const followUpMissing = followUpRequired && followUp === "none";
   const canSubmit = outcome !== "" && customDateValid && !followUpMissing && !submitMutation.isPending;
 
   const displayTitle = task?.title ?? defaultTaskTitle ?? null;
+
+  const handleSubmitClick = () => {
+    if (isSpokeWithLead) {
+      onSpokeWithLead?.();
+    } else {
+      submitMutation.mutate();
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
@@ -197,9 +221,9 @@ export default function CompleteTaskModal({
                 <SelectValue placeholder={t.tasks.selectOutcome} />
               </SelectTrigger>
               <SelectContent>
-                {OUTCOME_KEYS.map((key) => (
-                  <SelectItem key={key} value={OUTCOME_LABELS[key]} data-testid={`option-outcome-${key}`}>
-                    {(t.tasks.outcomes as Record<string, string>)[key] ?? OUTCOME_LABELS[key]}
+                {activeOutcomeKeys.map((key) => (
+                  <SelectItem key={key} value={activeOutcomeLabels[key]} data-testid={`option-outcome-${key}`}>
+                    {(t.tasks.outcomes as Record<string, string>)[key] ?? activeOutcomeLabels[key]}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -217,71 +241,79 @@ export default function CompleteTaskModal({
             />
           </div>
 
-          <div className="space-y-2">
-            <Label>{t.tasks.nextFollowUp}</Label>
-            <RadioGroup value={followUp} onValueChange={(v) => setFollowUp(v as FollowUpOption)}>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="none" id="fu-none" data-testid="radio-followup-none" />
-                <Label htmlFor="fu-none" className="font-normal cursor-pointer">{t.tasks.noNextFollowUp}</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="1d" id="fu-1d" data-testid="radio-followup-1d" />
-                <Label htmlFor="fu-1d" className="font-normal cursor-pointer">{t.tasks.tomorrow}</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="3d" id="fu-3d" data-testid="radio-followup-3d" />
-                <Label htmlFor="fu-3d" className="font-normal cursor-pointer">{t.tasks.in3Days}</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="1w" id="fu-1w" data-testid="radio-followup-1w" />
-                <Label htmlFor="fu-1w" className="font-normal cursor-pointer">{t.tasks.in1Week}</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="custom" id="fu-custom" data-testid="radio-followup-custom" />
-                <Label htmlFor="fu-custom" className="font-normal cursor-pointer">{t.tasks.customDateTime}</Label>
-              </div>
-            </RadioGroup>
-
-            {followUpMissing && (
-              <p className="text-xs text-red-500 mt-1" data-testid="msg-followup-required">
-                {t.tasks.requireFollowUpMessage}
-              </p>
-            )}
-
-            {followUp === "custom" && (
-              <div className="ml-6 mt-2 space-y-3 p-3 bg-gray-50 rounded-md border border-gray-100">
-                <div className="space-y-1">
-                  <Label htmlFor="custom-date" className="text-xs">{t.tasks.dueDate}</Label>
-                  <Input
-                    id="custom-date"
-                    type="date"
-                    value={customDate}
-                    onChange={(e) => setCustomDate(e.target.value)}
-                    min={todayLocalString()}
-                    data-testid="input-custom-date"
-                  />
+          {!isNewLead && (
+            <div className="space-y-2">
+              <Label>{t.tasks.nextFollowUp}</Label>
+              <RadioGroup value={followUp} onValueChange={(v) => setFollowUp(v as FollowUpOption)}>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="none" id="fu-none" data-testid="radio-followup-none" />
+                  <Label htmlFor="fu-none" className="font-normal cursor-pointer">{t.tasks.noNextFollowUp}</Label>
                 </div>
-                <div className="space-y-1">
-                  <Label htmlFor="custom-time" className="text-xs">Time</Label>
-                  <Select value={followUpTime} onValueChange={setFollowUpTime}>
-                    <SelectTrigger data-testid="select-custom-time">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {TIME_SLOTS.map((slot) => (
-                        <SelectItem key={slot} value={slot}>
-                          {formatTimeSlot(slot)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="1d" id="fu-1d" data-testid="radio-followup-1d" />
+                  <Label htmlFor="fu-1d" className="font-normal cursor-pointer">{t.tasks.tomorrow}</Label>
                 </div>
-                <p className="text-xs text-gray-400" data-testid="text-timezone-label">
-                  {effectiveTimezone.replace(/_/g, " ")}
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="3d" id="fu-3d" data-testid="radio-followup-3d" />
+                  <Label htmlFor="fu-3d" className="font-normal cursor-pointer">{t.tasks.in3Days}</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="1w" id="fu-1w" data-testid="radio-followup-1w" />
+                  <Label htmlFor="fu-1w" className="font-normal cursor-pointer">{t.tasks.in1Week}</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="custom" id="fu-custom" data-testid="radio-followup-custom" />
+                  <Label htmlFor="fu-custom" className="font-normal cursor-pointer">{t.tasks.customDateTime}</Label>
+                </div>
+              </RadioGroup>
+
+              {followUpMissing && (
+                <p className="text-xs text-red-500 mt-1" data-testid="msg-followup-required">
+                  {t.tasks.requireFollowUpMessage}
                 </p>
-              </div>
-            )}
-          </div>
+              )}
+
+              {followUp === "custom" && (
+                <div className="ml-6 mt-2 space-y-3 p-3 bg-gray-50 rounded-md border border-gray-100">
+                  <div className="space-y-1">
+                    <Label htmlFor="custom-date" className="text-xs">{t.tasks.dueDate}</Label>
+                    <Input
+                      id="custom-date"
+                      type="date"
+                      value={customDate}
+                      onChange={(e) => setCustomDate(e.target.value)}
+                      min={todayLocalString()}
+                      data-testid="input-custom-date"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="custom-time" className="text-xs">Time</Label>
+                    <Select value={followUpTime} onValueChange={setFollowUpTime}>
+                      <SelectTrigger data-testid="select-custom-time">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {TIME_SLOTS.map((slot) => (
+                          <SelectItem key={slot} value={slot}>
+                            {formatTimeSlot(slot)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <p className="text-xs text-gray-400" data-testid="text-timezone-label">
+                    {effectiveTimezone.replace(/_/g, " ")}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {isNewLead && outcome !== "" && !isSpokeWithLead && (
+            <p className="text-xs text-gray-500" data-testid="text-auto-followup-info">
+              A follow-up task will be automatically scheduled for tomorrow.
+            </p>
+          )}
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
@@ -294,7 +326,7 @@ export default function CompleteTaskModal({
             {t.tasks.cancel}
           </Button>
           <Button
-            onClick={() => submitMutation.mutate()}
+            onClick={handleSubmitClick}
             disabled={!canSubmit}
             data-testid="button-submit-complete"
           >

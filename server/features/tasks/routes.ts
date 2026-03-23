@@ -7,7 +7,7 @@ import * as taskStorage from "./storage";
 import { addLeadNote } from "../crm/storage";
 import { addActivity, getStages, moveOpportunity } from "../pipeline/storage";
 import { db } from "../../db";
-import { crmLeads, pipelineOpportunities } from "@shared/schema";
+import { crmLeads, pipelineOpportunities, followupTasks } from "@shared/schema";
 
 const router = Router();
 
@@ -169,11 +169,15 @@ router.post("/", requireRole("admin", "developer", "sales_rep"), async (req, res
 });
 
 const ALLOWED_OUTCOMES = [
+  "No answer", "Left voicemail", "Spoke with lead",
   "Interested", "Uncertain", "Not interested",
   "Bad number", "Appointment set",
 ] as const;
 
 const OUTCOME_VALUE_TO_KEY: Record<string, string> = {
+  "No answer":       "noAnswer",
+  "Left voicemail":  "leftVoicemail",
+  "Spoke with lead": "spokeWithLead",
   "Interested":      "interested",
   "Uncertain":       "uncertain",
   "Not interested":  "notInterested",
@@ -181,11 +185,13 @@ const OUTCOME_VALUE_TO_KEY: Record<string, string> = {
   "Appointment set": "appointmentSet",
 };
 
-const OUTCOME_STAGE_SLUG: Partial<Record<typeof ALLOWED_OUTCOMES[number], string>> = {
+const OUTCOME_STAGE_SLUG: Partial<Record<string, string>> = {
   "Not interested": "closed-lost",
   "Bad number":     "closed-lost",
   "Appointment set":"demo-scheduled",
 };
+
+const AUTO_FOLLOWUP_OUTCOMES = new Set(["No answer", "Left voicemail"]);
 
 const completeTaskSchema = z.object({
   outcome: z.enum(ALLOWED_OUTCOMES).optional(),
@@ -226,6 +232,34 @@ router.put("/:id/complete", requireRole("admin", "developer", "sales_rep"), asyn
         const stages = await getStages();
         const stage = stages.find(s => s.slug === targetSlug);
         if (stage) await moveOpportunity(task.opportunityId!, stage.id, actorId ?? undefined).catch(() => {});
+      }
+    }
+
+    if (body?.outcome && AUTO_FOLLOWUP_OUTCOMES.has(body.outcome)) {
+      const hasExisting = await taskStorage.getActiveTaskForContext(task.leadId, task.opportunityId);
+      if (!hasExisting) {
+        const tomorrow = new Date();
+        tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+        tomorrow.setUTCHours(0, 0, 0, 0);
+        const followupTitle = task.title;
+        try {
+          const newTask = await taskStorage.createTask({
+            title: followupTitle,
+            taskType: task.taskType,
+            dueDate: tomorrow,
+            completed: false,
+            assignedTo: task.assignedTo,
+            opportunityId: task.opportunityId,
+            leadId: task.leadId,
+            contactId: task.contactId,
+            companyId: task.companyId,
+            createdBy: actorId,
+          });
+          const scheduleContent = `Follow-up scheduled: ${newTask.title}`;
+          const scheduleMeta = { event: "follow_up_scheduled", taskTitle: newTask.title };
+          if (newTask.leadId) addLeadNote({ leadId: newTask.leadId, userId: actorId, type: "task", content: scheduleContent, metadata: scheduleMeta }).catch(() => {});
+          else if (newTask.opportunityId) addActivity({ opportunityId: newTask.opportunityId, userId: actorId, type: "task", content: scheduleContent, metadata: scheduleMeta }).catch(() => {});
+        } catch (_) {}
       }
     }
 

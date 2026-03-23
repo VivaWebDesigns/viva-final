@@ -558,6 +558,9 @@ export const en = {
     taskCompletedNext: "Task completed — next follow-up scheduled",
     requireFollowUpMessage: "Please schedule the next follow-up for this outcome.",
     outcomes: {
+      noAnswer: "No answer",
+      leftVoicemail: "Left voicemail",
+      spokeWithLead: "Spoke with lead",
       interested: "Interested",
       uncertain: "Uncertain",
       notInterested: "Not interested",

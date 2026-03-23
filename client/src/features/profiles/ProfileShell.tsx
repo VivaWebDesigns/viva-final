@@ -2032,6 +2032,8 @@ function ProfileShellInner({
   const isSalesRep = role === "sales_rep";
   const hideSalesRepOppSections = entry.type === "opportunity" && isSalesRep;
 
+  const spokeWithLeadTaskIdRef = useRef<string | null>(null);
+
   const { data: stages } = useQuery<PipelineStage[]>({
     queryKey: ["/api/pipeline/stages"],
     staleTime: STALE.MEDIUM,
@@ -2090,6 +2092,28 @@ function ProfileShellInner({
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
+
+  const activeStageSlug = stages?.find(s => s.id === activeOpp?.stageId)?.slug ?? null;
+  const isNewLeadContext = activeStageSlug === "new-lead" && !!hasOpenOpp;
+
+  const handleSpokeWithLead = async () => {
+    if (!completingTask) return;
+    const task = completingTask;
+    spokeWithLeadTaskIdRef.current = task.id;
+    setCompletingTask(null);
+    try {
+      await apiRequest("PUT", `/api/tasks/${task.id}/complete`, { outcome: "Spoke with lead" });
+      queryClient.invalidateQueries({ queryKey: ["/api/profiles/company", companyId, "tasks"] });
+      queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
+      const contactedStage = stages?.find(s => s.slug === "contacted");
+      if (contactedStage) {
+        setContactedPendingStageId(contactedStage.id);
+      }
+    } catch (err: any) {
+      spokeWithLeadTaskIdRef.current = null;
+      toast({ title: t.common.error, description: err.message, variant: "destructive" });
+    }
+  };
 
   const addNoteMutation = useMutation({
     mutationFn: async (data: Record<string, unknown>) => {
@@ -2888,6 +2912,7 @@ function ProfileShellInner({
               .filter(
                 (t) =>
                   !t.completed &&
+                  t.id !== spokeWithLeadTaskIdRef.current &&
                   (t.taskType === "follow_up" || !t.taskType)
               )
               .sort((a, b) => {
@@ -2901,12 +2926,16 @@ function ProfileShellInner({
         <>
           <CompleteTaskModal
             open={contactedPendingStageId !== null}
-            onClose={() => setContactedPendingStageId(null)}
+            onClose={() => {
+              spokeWithLeadTaskIdRef.current = null;
+              setContactedPendingStageId(null);
+            }}
             task={existingOpenTask}
             opportunityId={activeOpp.id}
             contactId={primaryContact?.id ?? null}
             defaultTaskTitle={`Follow up with ${contact?.firstName ?? ""} ${contact?.lastName ?? ""}`.trim()}
             onSuccess={() => {
+              spokeWithLeadTaskIdRef.current = null;
               if (contactedPendingStageId) stageMutation.mutate(contactedPendingStageId);
             }}
           />
@@ -2926,6 +2955,8 @@ function ProfileShellInner({
         open={!!completingTask}
         onClose={() => setCompletingTask(null)}
         task={completingTask}
+        outcomeMode={isNewLeadContext ? "new-lead" : "general"}
+        onSpokeWithLead={isNewLeadContext ? handleSpokeWithLead : undefined}
         onSuccess={() => {
           queryClient.invalidateQueries({ queryKey: ["/api/profiles/company", companyId, "tasks"] });
           queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });

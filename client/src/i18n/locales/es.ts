@@ -560,6 +560,9 @@ export const es: AdminTranslations = {
     taskCompletedNext: "Tarea completada — próximo seguimiento programado",
     requireFollowUpMessage: "Por favor programa el próximo seguimiento para este resultado.",
     outcomes: {
+      noAnswer: "Sin respuesta",
+      leftVoicemail: "Dejó buzón de voz",
+      spokeWithLead: "Habló con el prospecto",
       interested: "Interesado",
       uncertain: "Indeciso",
       notInterested: "No interesado",
