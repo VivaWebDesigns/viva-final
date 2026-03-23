@@ -25,7 +25,7 @@ import {
   getProfileByLeadId,
   getProfileByOpportunityId,
 } from "./service";
-import { sendProfileError } from "./errors";
+import { sendProfileError, ProfileLinkageError } from "./errors";
 
 const router = Router();
 
@@ -206,6 +206,35 @@ router.get(
       const profile = await getProfileByOpportunityId(opportunityId);
       return res.json(profile);
     } catch (err: unknown) {
+      if (err instanceof ProfileLinkageError) {
+        // Opportunity exists but has no resolvable company.  Return a
+        // structured 422 that includes the opportunity's own data so the
+        // client can render a meaningful fallback instead of a blank error.
+        try {
+          const [opp] = await db
+            .select({
+              id: pipelineOpportunities.id,
+              title: pipelineOpportunities.title,
+              value: pipelineOpportunities.value,
+              status: pipelineOpportunities.status,
+              stageId: pipelineOpportunities.stageId,
+              assignedTo: pipelineOpportunities.assignedTo,
+              companyId: pipelineOpportunities.companyId,
+              leadId: pipelineOpportunities.leadId,
+            })
+            .from(pipelineOpportunities)
+            .where(eq(pipelineOpportunities.id, opportunityId))
+            .limit(1);
+          return res.status(422).json({
+            code: "PROFILE_LINKAGE_ERROR",
+            message: err.message,
+            opportunityId,
+            opportunity: opp ?? null,
+          });
+        } catch {
+          // Secondary fetch failed — fall through to generic error handler.
+        }
+      }
       return sendProfileError(res, err);
     }
   },

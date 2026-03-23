@@ -278,6 +278,47 @@ Rules applied in order:
 | `service.ts` | `ProfileLinkageError` | lead or opp resolved but `companyId` is null |
 | `routes.ts` | `ProfileValidationError` | (ready for use; Zod validation handled inline) |
 
+### Orphaned opportunity resolution (Prompt 5)
+
+An "orphaned" opportunity is one where:
+- `pipelineOpportunities.companyId` is null, AND
+- Either `leadId` is null OR the lead's own `companyId` is also null
+
+`resolveByOpportunityId()` returns `{ companyId: null }` for this case. `getProfileByOpportunityId()` then throws `ProfileLinkageError`.
+
+**Backend response** — `GET /api/profiles/opportunity/:id` catches `ProfileLinkageError` and attempts a secondary lightweight DB fetch to get the opportunity's own row. It returns a structured 422:
+
+```json
+{
+  "code": "PROFILE_LINKAGE_ERROR",
+  "message": "Opportunity X has no linked company — cannot build profile",
+  "opportunityId": "...",
+  "opportunity": {
+    "id": "...", "title": "...", "value": "15000", "status": "open",
+    "stageId": null, "assignedTo": null, "companyId": null, "leadId": null
+  }
+}
+```
+
+If the secondary fetch fails, the handler falls through to `sendProfileError`, which returns a plain 422 `{ message: "..." }`.
+
+**Frontend handling** — `useUnifiedProfile` uses a custom `queryFn` for opportunity entries (only). When the server returns a structured 422 with `code === "PROFILE_LINKAGE_ERROR"`, it throws a `ProfileLinkageApiError` (defined in `client/src/features/profiles/types.ts`) that carries the opportunity payload. `ProfileShell` detects `error instanceof ProfileLinkageApiError` and renders `<OrphanedOpportunityFallback>` instead of the generic error screen.
+
+**`OrphanedOpportunityFallback`** (in `ProfileShell.tsx`):
+- Amber icon — warning, not error (the data is incomplete, not broken)
+- Shows opportunity title, value, and status from the payload (no extra network round-trip)
+- Explains: "This opportunity isn't linked to a company — a full profile can't be loaded"
+- Provides: "Go to Pipeline" button → `/admin/pipeline`
+- `data-testid="profile-linkage-error"`, `data-testid="button-go-to-pipeline"`
+
+**Error discrimination matrix** in `ProfileShell`:
+
+| `error` type | Rendered component |
+|---|---|
+| `ProfileLinkageApiError` | `<OrphanedOpportunityFallback>` (amber, with opp data) |
+| Other `Error` | `<ProfileError>` (red, generic message) |
+| `null` + no `profile` | `<ProfileError message="Profile unavailable.">` |
+
 ### Test coverage for error paths
 
 | Test file | Assertions |
@@ -285,7 +326,9 @@ Rules applied in order:
 | `tests/unit/profiles-service.test.ts` | `instanceof ProfileNotFoundError`, `statusCode === 404`, `.entity`, `.entityId` |
 | `tests/unit/profiles-service.test.ts` | `instanceof ProfileLinkageError`, `statusCode === 422` |
 | `tests/integration/profiles-routes.test.ts` | HTTP 404 body contains entity name |
-| `tests/integration/profiles-routes.test.ts` | HTTP 422 body contains linkage message |
+| `tests/integration/profiles-routes.test.ts` | HTTP 422 (plain) body contains linkage message when secondary fetch fails |
+| `tests/integration/profiles-routes.test.ts` | HTTP 422 (structured) body has `code`, `opportunityId`, `opportunity` when secondary fetch succeeds |
+| `tests/integration/profiles-routes.test.ts` | HTTP 422 `opportunity: null` when secondary fetch returns no row |
 | `tests/integration/profiles-routes.test.ts` | HTTP 500 body is generic (no DB detail leaked) |
 
 ## External Dependencies

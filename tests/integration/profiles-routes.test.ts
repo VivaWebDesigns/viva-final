@@ -71,7 +71,16 @@ vi.mock("../../shared/schema", async (importOriginal) => {
   return {
     ...actual,
     crmLeads: { id: "crmLeads.id", assignedTo: "crmLeads.assignedTo", companyId: "crmLeads.companyId" },
-    pipelineOpportunities: { id: "pipelineOpportunities.id", assignedTo: "pipelineOpportunities.assignedTo" },
+    pipelineOpportunities: {
+      id: "pipelineOpportunities.id",
+      assignedTo: "pipelineOpportunities.assignedTo",
+      title: "pipelineOpportunities.title",
+      value: "pipelineOpportunities.value",
+      status: "pipelineOpportunities.status",
+      stageId: "pipelineOpportunities.stageId",
+      companyId: "pipelineOpportunities.companyId",
+      leadId: "pipelineOpportunities.leadId",
+    },
   };
 });
 
@@ -365,15 +374,61 @@ describe("GET /profiles/opportunity/:id", () => {
     expect((res.body as { message: string }).message).toMatch(/Opportunity not found/);
   });
 
-  it("returns 422 when service throws ProfileLinkageError (opp has no company)", async () => {
+  it("returns 422 when service throws ProfileLinkageError and secondary DB fetch fails (falls back to plain 422)", async () => {
     mockGetSession.mockResolvedValue(makeSession("admin"));
     mockGetProfileByOpportunityId.mockRejectedValue(
       new ProfileLinkageError(`Opportunity ${VALID_UUID} has no linked company — cannot build profile`),
     );
+    // mockDbSelect not set up → secondary fetch throws → falls through to sendProfileError
     const app = buildApp();
     const res = await request(app, "GET", `/profiles/opportunity/${VALID_UUID}`);
     expect(res.status).toBe(422);
     expect((res.body as { message: string }).message).toMatch(/no linked company/);
+  });
+
+  it("returns structured 422 with code and opportunity data when secondary DB fetch succeeds", async () => {
+    const STUB_OPP = {
+      id: VALID_UUID,
+      title: "Orphaned Deal",
+      value: "15000",
+      status: "open",
+      stageId: null,
+      assignedTo: null,
+      companyId: null,
+      leadId: null,
+    };
+    mockGetSession.mockResolvedValue(makeSession("admin"));
+    mockGetProfileByOpportunityId.mockRejectedValue(
+      new ProfileLinkageError(`Opportunity ${VALID_UUID} has no linked company — cannot build profile`),
+    );
+    // Set up secondary DB fetch to return the opportunity row
+    mockDbSelect.mockReturnValue({
+      from: () => ({ where: () => ({ limit: () => Promise.resolve([STUB_OPP]) }) }),
+    });
+    const app = buildApp();
+    const res = await request(app, "GET", `/profiles/opportunity/${VALID_UUID}`);
+    expect(res.status).toBe(422);
+    const body = res.body as { code: string; message: string; opportunityId: string; opportunity: typeof STUB_OPP };
+    expect(body.code).toBe("PROFILE_LINKAGE_ERROR");
+    expect(body.message).toMatch(/no linked company/);
+    expect(body.opportunityId).toBe(VALID_UUID);
+    expect(body.opportunity).toMatchObject({ id: VALID_UUID, title: "Orphaned Deal", companyId: null });
+  });
+
+  it("returns 422 with opportunity: null when secondary DB fetch returns no row", async () => {
+    mockGetSession.mockResolvedValue(makeSession("admin"));
+    mockGetProfileByOpportunityId.mockRejectedValue(
+      new ProfileLinkageError(`Opportunity ${VALID_UUID} has no linked company — cannot build profile`),
+    );
+    mockDbSelect.mockReturnValue({
+      from: () => ({ where: () => ({ limit: () => Promise.resolve([]) }) }),
+    });
+    const app = buildApp();
+    const res = await request(app, "GET", `/profiles/opportunity/${VALID_UUID}`);
+    expect(res.status).toBe(422);
+    const body = res.body as { code: string; opportunity: null };
+    expect(body.code).toBe("PROFILE_LINKAGE_ERROR");
+    expect(body.opportunity).toBeNull();
   });
 
   it("returns consistent DTO shape across all three entry points", async () => {

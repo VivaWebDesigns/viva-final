@@ -26,7 +26,9 @@ import type {
   ProfileEntryType,
   UnifiedProfileDto,
   UnifiedTimelineEvent,
+  OrphanedOpportunityPayload,
 } from "./types";
+import { ProfileLinkageApiError } from "./types";
 
 // ── Cache key factory ─────────────────────────────────────────────────────────
 
@@ -68,6 +70,44 @@ export function useUnifiedProfile(
     staleTime: STALE.REALTIME,
     refetchOnWindowFocus: true,
     enabled: enabled !== undefined ? enabled : Boolean(entry.id),
+    // For opportunity entries: intercept the structured 422 PROFILE_LINKAGE_ERROR
+    // response and re-throw it as a typed ProfileLinkageApiError that carries the
+    // opportunity's own data.  All other status codes fall through to the standard
+    // error path so global error-handling behaviour is unchanged.
+    queryFn:
+      entry.type === "opportunity"
+        ? async () => {
+            const url = PROFILE_KEYS.detail(entry).join("/");
+            const res = await fetch(url, { credentials: "include" });
+
+            if (res.status === 422) {
+              let body: Record<string, unknown> = {};
+              try {
+                body = await res.json();
+              } catch {
+                // ignore parse failure — fall through to generic error below
+              }
+              if (body.code === "PROFILE_LINKAGE_ERROR") {
+                throw new ProfileLinkageApiError(
+                  typeof body.message === "string"
+                    ? body.message
+                    : "This opportunity has no linked company.",
+                  typeof body.opportunityId === "string"
+                    ? body.opportunityId
+                    : entry.id,
+                  (body.opportunity as OrphanedOpportunityPayload) ?? null,
+                );
+              }
+            }
+
+            if (!res.ok) {
+              const text = (await res.text()) || res.statusText;
+              throw new Error(`${res.status}: ${text}`);
+            }
+
+            return res.json() as Promise<UnifiedProfileDto>;
+          }
+        : undefined,
   });
 }
 

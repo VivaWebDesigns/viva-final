@@ -73,6 +73,7 @@ import type {
   UnifiedTimelineEvent,
   UnifiedProfileDto,
 } from "./types";
+import { ProfileLinkageApiError } from "./types";
 import type {
   PipelineStage, ClientNote, User as DbUser, FollowupTask,
 } from "@shared/schema";
@@ -257,6 +258,70 @@ function ProfileError({ message }: { message: string }) {
       <AlertCircle className="w-10 h-10 text-red-400 mb-3" />
       <p className="text-sm font-medium text-gray-700">Failed to load profile</p>
       <p className="text-xs text-gray-400 mt-1 max-w-xs">{message}</p>
+    </div>
+  );
+}
+
+// ── Orphaned opportunity fallback ─────────────────────────────────────────────
+// Shown when a 422 PROFILE_LINKAGE_ERROR is returned for an opportunity entry.
+// The opportunity has no linked company so a full profile cannot be assembled,
+// but we can still surface the opportunity's own data and guide the user.
+
+function OrphanedOpportunityFallback({
+  error,
+}: {
+  error: ProfileLinkageApiError;
+}) {
+  const [, navigate] = useLocation();
+  const opp = error.opportunity;
+
+  return (
+    <div
+      className="flex flex-col items-center justify-center py-16 text-center px-6 gap-4"
+      data-testid="profile-linkage-error"
+    >
+      <div className="rounded-full bg-amber-50 p-4 border border-amber-100">
+        <AlertCircle className="w-10 h-10 text-amber-400" />
+      </div>
+
+      {opp && (
+        <div className="max-w-md">
+          <p className="text-lg font-semibold text-gray-900" data-testid="linkage-error-opp-title">
+            {opp.title}
+          </p>
+          {opp.value && (
+            <p className="text-sm text-gray-500 mt-0.5" data-testid="linkage-error-opp-value">
+              Value: ${Number(opp.value).toLocaleString()}
+            </p>
+          )}
+          {opp.status && (
+            <p className="text-xs text-gray-400 mt-0.5 capitalize" data-testid="linkage-error-opp-status">
+              Status: {opp.status}
+            </p>
+          )}
+        </div>
+      )}
+
+      <div className="max-w-sm space-y-1.5">
+        <p className="text-sm font-medium text-gray-700">
+          This opportunity isn&apos;t linked to a company
+        </p>
+        <p className="text-xs text-gray-400 leading-relaxed">
+          A full profile can&apos;t be loaded because this opportunity has no associated
+          client. Open the Pipeline to assign it to an existing client.
+        </p>
+      </div>
+
+      <Button
+        variant="outline"
+        size="sm"
+        className="mt-2 gap-1.5"
+        onClick={() => navigate("/admin/pipeline")}
+        data-testid="button-go-to-pipeline"
+      >
+        <ArrowRight className="w-4 h-4" />
+        Go to Pipeline
+      </Button>
     </div>
   );
 }
@@ -1803,8 +1868,15 @@ export default function ProfileShell({
 
   if (isLoading) return <ProfileSkeleton />;
 
-  if (error || !profile) {
-    return <ProfileError message={error ? (error as Error).message : "Profile unavailable."} />;
+  if (error) {
+    if (error instanceof ProfileLinkageApiError) {
+      return <OrphanedOpportunityFallback error={error} />;
+    }
+    return <ProfileError message={(error as Error).message} />;
+  }
+
+  if (!profile) {
+    return <ProfileError message="Profile unavailable." />;
   }
 
   const { identity, sales, work, service, derived } = profile;

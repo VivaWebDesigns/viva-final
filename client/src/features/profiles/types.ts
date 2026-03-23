@@ -1,3 +1,41 @@
+// ── Linkage error payload ─────────────────────────────────────────────────────
+// Returned when an opportunity exists but cannot be resolved to a company.
+
+export interface OrphanedOpportunityPayload {
+  id: string;
+  title: string;
+  value: string | null;
+  status: string;
+  stageId: string | null;
+  assignedTo: string | null;
+  companyId: string | null;
+  leadId: string | null;
+}
+
+/**
+ * Thrown by useUnifiedProfile when the server returns a structured 422
+ * PROFILE_LINKAGE_ERROR for an opportunity entry.
+ *
+ * Carries the opportunity's own data so the fallback UI can display it
+ * without an additional network round-trip.
+ */
+export class ProfileLinkageApiError extends Error {
+  readonly code = "PROFILE_LINKAGE_ERROR" as const;
+  readonly opportunityId: string;
+  readonly opportunity: OrphanedOpportunityPayload | null;
+
+  constructor(
+    message: string,
+    opportunityId: string,
+    opportunity: OrphanedOpportunityPayload | null,
+  ) {
+    super(message);
+    this.name = "ProfileLinkageApiError";
+    this.opportunityId = opportunityId;
+    this.opportunity = opportunity;
+  }
+}
+
 // ── Profile entry point ───────────────────────────────────────────────────────
 // Discriminated union that identifies which entity to use as the profile anchor.
 
