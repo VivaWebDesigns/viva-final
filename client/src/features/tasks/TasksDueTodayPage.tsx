@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { STALE, apiRequest, queryClient } from "@/lib/queryClient";
@@ -26,6 +26,7 @@ interface TaskWithContact extends FollowupTask {
   contact: { firstName: string; lastName: string | null; phone: string | null } | null;
   company: { name: string } | null;
   automationMeta: AutomationMeta | null;
+  opportunityStageSlug: string | null;
 }
 
 interface DueTodayData {
@@ -290,6 +291,43 @@ export default function TasksDueTodayPage() {
   const [completingTask, setCompletingTask] = useState<TaskWithContact | null>(null);
   const [rescheduleTask, setRescheduleTask] = useState<TaskWithContact | null>(null);
   const [showNewTask, setShowNewTask] = useState(false);
+  const [contactedPendingOppId, setContactedPendingOppId] = useState<string | null>(null);
+  const spokeWithLeadTaskRef = useRef<string | null>(null);
+
+  const { data: stages } = useQuery<Array<{ id: string; slug: string }>>({
+    queryKey: ["/api/pipeline/stages"],
+    staleTime: STALE.SLOW,
+  });
+  const contactedStageId = stages?.find(s => s.slug === "contacted")?.id ?? null;
+
+  const stageMutation = useMutation({
+    mutationFn: async ({ oppId, stageId }: { oppId: string; stageId: string }) => {
+      await apiRequest("PUT", `/api/pipeline/opportunities/${oppId}/stage`, { stageId });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks/due-today"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks/completed-history"] });
+    },
+  });
+
+  const handleSpokeWithLead = useCallback(async (completionNote?: string) => {
+    const task = completingTask;
+    if (!task) return;
+    spokeWithLeadTaskRef.current = task.id;
+    try {
+      await apiRequest("PUT", `/api/tasks/${task.id}/complete`, {
+        outcome: "Spoke with lead",
+        completionNote: completionNote || undefined,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks/due-today"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks/completed-history"] });
+      setCompletingTask(null);
+      if (task.opportunityId) setContactedPendingOppId(task.opportunityId);
+    } catch {
+      toast({ title: "Error", description: "Could not complete task", variant: "destructive" });
+      spokeWithLeadTaskRef.current = null;
+    }
+  }, [completingTask, toast]);
 
   const deleteMutation = useMutation({
     mutationFn: async (taskId: string) => {
@@ -544,6 +582,27 @@ export default function TasksDueTodayPage() {
         onClose={() => setCompletingTask(null)}
         task={completingTask}
         leadTimezone={null}
+        outcomeMode={completingTask?.opportunityStageSlug === "new-lead" ? "new-lead" : "general"}
+        onSpokeWithLead={completingTask?.opportunityStageSlug === "new-lead" ? handleSpokeWithLead : undefined}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ["/api/tasks/due-today"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/tasks/completed-history"] });
+          setCompletingTask(null);
+        }}
+      />
+      <CompleteTaskModal
+        open={contactedPendingOppId !== null}
+        onClose={() => { spokeWithLeadTaskRef.current = null; setContactedPendingOppId(null); }}
+        task={null}
+        opportunityId={contactedPendingOppId ?? undefined}
+        hideFollowUp={true}
+        onSuccess={() => {
+          spokeWithLeadTaskRef.current = null;
+          if (contactedPendingOppId && contactedStageId) {
+            stageMutation.mutate({ oppId: contactedPendingOppId, stageId: contactedStageId });
+          }
+          setContactedPendingOppId(null);
+        }}
       />
     </div>
   );

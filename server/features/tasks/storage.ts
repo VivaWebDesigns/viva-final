@@ -1,6 +1,7 @@
 import { db } from "../../db";
 import {
   followupTasks, crmContacts, crmCompanies, automationExecutionLogs,
+  pipelineOpportunities, pipelineStages,
   type InsertFollowupTask, type FollowupTask,
 } from "@shared/schema";
 import { eq, and, gte, lte, lt, desc, asc, inArray } from "drizzle-orm";
@@ -15,6 +16,7 @@ export type TaskWithContact = FollowupTask & {
   contact: { firstName: string; lastName: string | null; phone: string | null } | null;
   company: { name: string } | null;
   automationMeta: TaskAutomationMeta | null;
+  opportunityStageSlug: string | null;
 };
 
 function todayRange() {
@@ -140,8 +142,9 @@ async function enrichTasks(tasks: FollowupTask[]): Promise<TaskWithContact[]> {
 
   const taskIds = tasks.map(t => t.id);
   const contactIds = [...new Set(tasks.map(t => t.contactId).filter(Boolean) as string[])];
+  const opportunityIds = [...new Set(tasks.map(t => t.opportunityId).filter(Boolean) as string[])];
 
-  const [contacts, automationLogRows] = await Promise.all([
+  const [contacts, automationLogRows, oppStageRows] = await Promise.all([
     contactIds.length
       ? db.select({ id: crmContacts.id, firstName: crmContacts.firstName, lastName: crmContacts.lastName, phone: crmContacts.phone, companyId: crmContacts.companyId })
           .from(crmContacts)
@@ -160,9 +163,16 @@ async function enrichTasks(tasks: FollowupTask[]): Promise<TaskWithContact[]> {
           eq(automationExecutionLogs.status, "success"),
         ),
       ),
+    opportunityIds.length
+      ? db.select({ opportunityId: pipelineOpportunities.id, slug: pipelineStages.slug })
+          .from(pipelineOpportunities)
+          .innerJoin(pipelineStages, eq(pipelineOpportunities.stageId, pipelineStages.id))
+          .where(inArray(pipelineOpportunities.id, opportunityIds))
+      : Promise.resolve([]),
   ]);
 
   const contactMap = Object.fromEntries(contacts.map(c => [c.id, c]));
+  const oppStageMap = Object.fromEntries(oppStageRows.map(r => [r.opportunityId, r.slug]));
 
   const companyIds = [...new Set([
     ...contacts.map(c => c.companyId).filter(Boolean) as string[],
@@ -190,6 +200,7 @@ async function enrichTasks(tasks: FollowupTask[]): Promise<TaskWithContact[]> {
       ?? (contact?.companyId ? companyMap[contact.companyId] : null)
       ?? null;
     const automationMeta = automationMetaMap.get(task.id) ?? null;
-    return { ...task, contact, company, automationMeta };
+    const opportunityStageSlug = task.opportunityId ? oppStageMap[task.opportunityId] ?? null : null;
+    return { ...task, contact, company, automationMeta, opportunityStageSlug };
   });
 }
