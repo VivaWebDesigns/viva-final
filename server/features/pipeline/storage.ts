@@ -91,15 +91,42 @@ export async function getOpportunities(filters: OpportunityFilters = {}) {
   return { items, total: totalResult[0]?.total ?? 0, page, limit };
 }
 
-export async function getOpportunitiesByStage(userId?: string) {
+// Board card projection — only columns needed for display and DnD.
+// Excluded: notes, expectedCloseDate, stageEnteredAt, sourceLeadTitle, leadId, updatedAt,
+//           nextActionDate, followUpDate — none are rendered on the kanban card.
+const BOARD_CARD_COLUMNS = {
+  id:             pipelineOpportunities.id,
+  title:          pipelineOpportunities.title,
+  value:          pipelineOpportunities.value,
+  stageId:        pipelineOpportunities.stageId,
+  contactId:      pipelineOpportunities.contactId,
+  companyId:      pipelineOpportunities.companyId,
+  status:         pipelineOpportunities.status,
+  websitePackage: pipelineOpportunities.websitePackage,
+  assignedTo:     pipelineOpportunities.assignedTo,
+  createdAt:      pipelineOpportunities.createdAt,
+} as const;
+
+export async function getOpportunitiesByStage(
+  userId?: string,
+  options: { includeArchived?: boolean } = {},
+) {
+  const { includeArchived = true } = options;
   const stages = await getStages();
-  // If userId provided, filter to only opportunities assigned to that user (before building board).
-  const query = db.select().from(pipelineOpportunities).orderBy(asc(pipelineOpportunities.createdAt));
-  const allOpps = userId
-    ? await db.select().from(pipelineOpportunities)
-        .where(eq(pipelineOpportunities.assignedTo, userId))
-        .orderBy(asc(pipelineOpportunities.createdAt))
-    : await query;
+
+  // Build WHERE clause from userId + optional status filter.
+  const userCond    = userId ? eq(pipelineOpportunities.assignedTo, userId) : undefined;
+  const statusCond  = includeArchived ? undefined : eq(pipelineOpportunities.status, "open");
+  const where       = userCond && statusCond ? and(userCond, statusCond)
+                    : statusCond ?? userCond;
+
+  const allOpps = (
+    where
+      ? await db.select(BOARD_CARD_COLUMNS).from(pipelineOpportunities)
+          .where(where).orderBy(asc(pipelineOpportunities.createdAt))
+      : await db.select(BOARD_CARD_COLUMNS).from(pipelineOpportunities)
+          .orderBy(asc(pipelineOpportunities.createdAt))
+  ) as unknown as PipelineOpportunity[];
 
   const buckets = new Map<string, PipelineOpportunity[]>(stages.map(s => [s.id, []]));
   for (const opp of allOpps) {

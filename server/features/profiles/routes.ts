@@ -16,7 +16,7 @@ import {
   user,
   type Role,
 } from "@shared/schema";
-import { eq, and, or, desc, asc, inArray, type SQL } from "drizzle-orm";
+import { eq, and, or, desc, asc, inArray, lt, type SQL } from "drizzle-orm";
 import { requireRole } from "../auth/middleware";
 import { logAudit } from "../audit/service";
 import { appendHistorySafe, getHistory } from "../history/service";
@@ -25,7 +25,12 @@ import {
   getProfileByLeadId,
   getProfileByOpportunityId,
 } from "./service";
-import { sendProfileError, ProfileLinkageError } from "./errors";
+import { sendProfileError, ProfileLinkageError, ProfileNotFoundError } from "./errors";
+import {
+  mapLeadNoteToTimelineEvent,
+  mapClientNoteToTimelineEvent,
+  mapPipelineActivityToTimelineEvent,
+} from "./mappers";
 
 const router = Router();
 
@@ -235,6 +240,154 @@ router.get(
           // Secondary fetch failed — fall through to generic error handler.
         }
       }
+      return sendProfileError(res, err);
+    }
+  },
+);
+
+// ── GET /api/profiles/:type/:id/timeline ─────────────────────────────────────
+// Cursor-paginated timeline across clientNotes + crmLeadNotes + pipelineActivities.
+//
+// Query params:
+//   ?limit=50        max events per page (1–100, default 50)
+//   ?before=<ISO>    return events with createdAt strictly before this timestamp
+//                    (pass the nextCursor from the previous page)
+//
+// Response:
+//   { events: UnifiedTimelineEvent[], nextCursor: string | null, hasMore: boolean }
+
+router.get(
+  "/:type/:id/timeline",
+  requireRole("admin", "developer", "sales_rep", "lead_gen"),
+  async (req: Request, res: Response) => {
+    try {
+      const { type, id } = req.params;
+      if (!["company", "lead", "opportunity"].includes(type)) {
+        return res.status(400).json({ message: "type must be company, lead, or opportunity" });
+      }
+      const parsed = idSchema.safeParse(id);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0].message });
+      }
+      const entityId = parsed.data;
+
+      const rawLimit = Number(req.query.limit) || 50;
+      const limit = Math.max(1, Math.min(rawLimit, 100));
+      const before = req.query.before as string | undefined;
+      const cursorDate = before ? new Date(before) : undefined;
+      if (before && (!cursorDate || isNaN(cursorDate.getTime()))) {
+        return res.status(400).json({ message: "before must be a valid ISO timestamp" });
+      }
+
+      // ── Resolve companyId ────────────────────────────────────────────────────
+      let companyId: string;
+      if (type === "company") {
+        companyId = entityId;
+      } else if (type === "lead") {
+        const [lead] = await db
+          .select({ companyId: crmLeads.companyId })
+          .from(crmLeads)
+          .where(eq(crmLeads.id, entityId))
+          .limit(1);
+        if (!lead) return sendProfileError(res, new ProfileNotFoundError("Lead", entityId));
+        if (!lead.companyId) {
+          return sendProfileError(res, new ProfileLinkageError(`Lead ${entityId} has no linked company`));
+        }
+        companyId = lead.companyId;
+      } else {
+        const [opp] = await db
+          .select({ companyId: pipelineOpportunities.companyId, leadId: pipelineOpportunities.leadId })
+          .from(pipelineOpportunities)
+          .where(eq(pipelineOpportunities.id, entityId))
+          .limit(1);
+        if (!opp) return sendProfileError(res, new ProfileNotFoundError("Opportunity", entityId));
+        let resolvedCompanyId = opp.companyId;
+        if (!resolvedCompanyId && opp.leadId) {
+          const [lead] = await db
+            .select({ companyId: crmLeads.companyId })
+            .from(crmLeads)
+            .where(eq(crmLeads.id, opp.leadId))
+            .limit(1);
+          resolvedCompanyId = lead?.companyId ?? null;
+        }
+        if (!resolvedCompanyId) {
+          return sendProfileError(res, new ProfileLinkageError(`Opportunity ${entityId} has no linked company`));
+        }
+        companyId = resolvedCompanyId;
+      }
+
+      // ── Collect all lead/opp IDs for this company ────────────────────────────
+      const [leadRows, oppRows] = await Promise.all([
+        db.select({ id: crmLeads.id }).from(crmLeads).where(eq(crmLeads.companyId, companyId)),
+        db.select({ id: pipelineOpportunities.id }).from(pipelineOpportunities).where(eq(pipelineOpportunities.companyId, companyId)),
+      ]);
+      const leadIds = leadRows.map((l) => l.id);
+      const oppIds  = oppRows.map((o) => o.id);
+
+      // Fetch limit+1 from each source table so we can detect whether more pages exist.
+      const fetchLimit = limit + 1;
+
+      const [clientNoteRows, leadNoteRows, activityRows] = await Promise.all([
+        db.select().from(clientNotes)
+          .where(
+            cursorDate
+              ? and(eq(clientNotes.companyId, companyId), lt(clientNotes.createdAt, cursorDate))
+              : eq(clientNotes.companyId, companyId),
+          )
+          .orderBy(desc(clientNotes.createdAt))
+          .limit(fetchLimit),
+
+        leadIds.length
+          ? db.select().from(crmLeadNotes)
+              .where(
+                cursorDate
+                  ? and(inArray(crmLeadNotes.leadId, leadIds), lt(crmLeadNotes.createdAt, cursorDate))
+                  : inArray(crmLeadNotes.leadId, leadIds),
+              )
+              .orderBy(desc(crmLeadNotes.createdAt))
+              .limit(fetchLimit)
+          : Promise.resolve([] as (typeof crmLeadNotes.$inferSelect)[]),
+
+        oppIds.length
+          ? db.select().from(pipelineActivities)
+              .where(
+                cursorDate
+                  ? and(inArray(pipelineActivities.opportunityId, oppIds), lt(pipelineActivities.createdAt, cursorDate))
+                  : inArray(pipelineActivities.opportunityId, oppIds),
+              )
+              .orderBy(desc(pipelineActivities.createdAt))
+              .limit(fetchLimit)
+          : Promise.resolve([] as (typeof pipelineActivities.$inferSelect)[]),
+      ]);
+
+      // ── Resolve actor display names ───────────────────────────────────────────
+      const actorIdSet = new Set<string>();
+      for (const n of clientNoteRows) { if (n.userId) actorIdSet.add(n.userId); }
+      for (const n of leadNoteRows)   { if (n.userId) actorIdSet.add(n.userId); }
+      for (const a of activityRows)   { if (a.userId) actorIdSet.add(a.userId); }
+
+      const actorMap = new Map<string, string>();
+      if (actorIdSet.size > 0) {
+        const actors = await db
+          .select({ id: user.id, name: user.name })
+          .from(user)
+          .where(inArray(user.id, [...actorIdSet]));
+        for (const a of actors) actorMap.set(a.id, a.name ?? a.id);
+      }
+
+      // ── Merge, sort descending, paginate ─────────────────────────────────────
+      const allEvents = [
+        ...clientNoteRows.map((n) => mapClientNoteToTimelineEvent(n, actorMap)),
+        ...leadNoteRows.map((n) => mapLeadNoteToTimelineEvent(n, actorMap)),
+        ...activityRows.map((a) => mapPipelineActivityToTimelineEvent(a, actorMap)),
+      ].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+
+      const hasMore    = allEvents.length > limit;
+      const events     = allEvents.slice(0, limit);
+      const nextCursor = hasMore ? events[events.length - 1].timestamp.toISOString() : null;
+
+      return res.json({ events, nextCursor, hasMore });
+    } catch (err: unknown) {
       return sendProfileError(res, err);
     }
   },

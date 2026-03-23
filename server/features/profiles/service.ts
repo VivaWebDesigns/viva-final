@@ -130,7 +130,9 @@ async function assembleProfile(companyId: string, opts?: AssembleOpts): Promise<
       )),
 
     db.select().from(clientNotes)
-      .where(eq(clientNotes.companyId, companyId)),
+      .where(eq(clientNotes.companyId, companyId))
+      .orderBy(desc(clientNotes.createdAt))
+      .limit(500),
   ]);
 
   console.debug(`[profile:w2] ${Date.now() - t1}ms 8 parallel queries`);

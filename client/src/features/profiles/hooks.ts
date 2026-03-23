@@ -19,7 +19,7 @@
  * because profile pages aggregate cross-domain data that changes frequently.
  */
 
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useInfiniteQuery } from "@tanstack/react-query";
 import { queryClient, apiRequest, STALE } from "@/lib/queryClient";
 import type {
   ProfileEntry,
@@ -136,6 +136,56 @@ export function useProfileTimeline(
   });
 }
 
+// ── useInfiniteTimeline ───────────────────────────────────────────────────────
+
+/**
+ * Paginated timeline using cursor-based pagination against
+ * GET /api/profiles/:type/:id/timeline?limit=&before=
+ *
+ * Returns a flat `events` array of all loaded events and TanStack Query
+ * pagination helpers.  The TimelineSection renders these events and calls
+ * `fetchNextPage()` when the user taps "Load more".
+ *
+ * This hook is separate from useProfileTimeline — it makes its own HTTP
+ * requests rather than deriving from the profile DTO, giving it independent
+ * control over pagination state.
+ *
+ * @param entry     The entity used as the profile anchor.
+ * @param pageSize  Events per page (default 50, max 100 enforced by the server).
+ */
+export interface PaginatedTimelineResponse {
+  events: UnifiedTimelineEvent[];
+  nextCursor: string | null;
+  hasMore: boolean;
+}
+
+export function useInfiniteTimeline(
+  entry: ProfileEntry,
+  { pageSize = 50, enabled }: { pageSize?: number; enabled?: boolean } = {},
+) {
+  const isEnabled = enabled !== undefined ? enabled : Boolean(entry.id);
+
+  return useInfiniteQuery<PaginatedTimelineResponse, Error>({
+    queryKey: ["/api/profiles", entry.type, entry.id, "timeline", pageSize],
+    initialPageParam: undefined as string | undefined,
+    queryFn: async ({ pageParam }) => {
+      const params = new URLSearchParams({ limit: String(pageSize) });
+      if (pageParam) params.set("before", pageParam as string);
+      const url = `/api/profiles/${entry.type}/${entry.id}/timeline?${params}`;
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) {
+        const text = (await res.text()) || res.statusText;
+        throw new Error(`${res.status}: ${text}`);
+      }
+      return res.json() as Promise<PaginatedTimelineResponse>;
+    },
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    enabled: isEnabled,
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
+  });
+}
+
 // ── useProfileMutations ───────────────────────────────────────────────────────
 
 /**
@@ -248,4 +298,4 @@ export function useProfileMutations(entry: ProfileEntry) {
 // ── Re-exports ────────────────────────────────────────────────────────────────
 // Consumers only need to import from this file.
 
-export type { ProfileEntry, ProfileEntryType, UnifiedProfileDto, UnifiedTimelineEvent };
+export type { ProfileEntry, ProfileEntryType, UnifiedProfileDto, UnifiedTimelineEvent, PaginatedTimelineResponse };

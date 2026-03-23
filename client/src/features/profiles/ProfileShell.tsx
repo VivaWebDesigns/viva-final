@@ -50,7 +50,7 @@ import { apiRequest, queryClient, STALE } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAdminLang } from "@/i18n/LanguageContext";
 import type { AdminTranslations } from "@/i18n/locales/en";
-import { useUnifiedProfile, useProfileTimeline, PROFILE_KEYS } from "./hooks";
+import { useUnifiedProfile, useProfileTimeline, useInfiniteTimeline, PROFILE_KEYS } from "./hooks";
 import { EditCompanyDialog } from "./edit/EditCompanyDialog";
 import { EditContactDialog } from "./edit/EditContactDialog";
 import { EditLeadDialog } from "./edit/EditLeadDialog";
@@ -1079,7 +1079,16 @@ export interface TimelineSectionProps {
 }
 
 export function TimelineSection({ entry }: TimelineSectionProps) {
-  const { data: events = [], isLoading, error } = useProfileTimeline(entry);
+  const {
+    data,
+    isLoading,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+    error,
+  } = useInfiniteTimeline(entry);
+
+  const events = data?.pages.flatMap((p) => p.events) ?? [];
 
   if (isLoading) {
     return (
@@ -1100,6 +1109,18 @@ export function TimelineSection({ entry }: TimelineSectionProps) {
   return (
     <div className="space-y-1" data-testid="section-timeline">
       {events.map((event) => <TimelineEventRow key={event.id} event={event} />)}
+      {hasNextPage && (
+        <div className="pt-2 flex justify-center">
+          <button
+            className="text-sm text-[#0D9488] hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => fetchNextPage()}
+            disabled={isFetchingNextPage}
+            data-testid="button-timeline-load-more"
+          >
+            {isFetchingNextPage ? "Loading…" : "Load more"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,0 +1,42 @@
+Perform a comprehensive end-of-sprint convergence pass on the CRM/profile architecture improvements completed in this series.
+
+Scope:
+- Unified client/lead/opportunity profile shell migration
+- Profile-owned reads and subresources
+- Unified profile write routes/hooks
+- /api/clients/:id duplication reduction
+- Typed profile errors
+- Hermetic unit test conversion
+- Profile read-path performance improvements
+- Large-volume readiness for boards/timelines
+
+Your objectives:
+1. Review the entire implementation for architectural drift, incomplete migrations, dead code, stale adapters, placeholder hooks, and temporary compatibility shims that can now be removed or documented.
+2. Run a full typecheck and fix all issues introduced by this series.
+3. Run and debug all relevant tests:
+   - unit
+   - integration
+   - smoke
+   - any profile/client/pipeline-specific suites
+4. Improve reliability, performance, and code clarity where safe.
+5. Ensure App Docs in the admin area are fully updated with all new architecture, routes, hooks, testing conventions, and migration notes.
+
+Implementation rules:
+- NONDESTRUCTIVE: preserve working behavior while cleaning up.
+- Remove obsolete compatibility code only when confirmed unused/safe.
+- Prefer maintainability and clarity over cleverness.
+- Verify route, service, hook, and cache contracts are consistent across lead/client/opportunity flows.
+- Confirm no remaining profile hook mutations point at nonexistent endpoints.
+- Confirm no remaining client profile reads depend on duplicated aggregate assembly where avoidable.
+- Confirm test suites no longer label DB-dependent tests as “unit.”
+- Document everything thoroughly in App Docs.
+
+Deliverables:
+1. Full cleanup/refinement pass across the implemented work.
+2. Debugged and passing typecheck/tests where feasible.
+3. Removal or documentation of remaining temporary shims.
+4. Final App Docs updates with a highly organized technical overview of the unified profile architecture and testing model.
+5. Final summary of:
+   - what was completed
+   - what remains intentionally deferred
+   - any risks to monitor next

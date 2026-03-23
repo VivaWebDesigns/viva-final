@@ -211,6 +211,35 @@ tests/
 | **O2** | −1 query | Consolidated the two separate `followupTasks` queries (leadId scope + oppId scope) in wave 3 into a single OR query: `WHERE leadId IN [...] OR opportunityId IN [...]`. This eliminates 1 round-trip when both leadIds and oppIds are non-empty. JS-level deduplication against the companyId-scoped task set is preserved. |
 | **O3** | −1 wave | User actor resolution and automation-log provenance queries are now fetched in a single `Promise.all` (wave 4) rather than sequentially, removing one serial round-trip. |
 | **O4** | Guard | Note and activity queries (`crmLeadNotes`, `pipelineActivities`) capped at 500 rows with `orderBy(desc(createdAt))` to prevent pathological loads for long-running accounts. The in-memory timeline sort remains in place. |
+| **O5** | Guard | `clientNotes` in wave 2 capped at 500 rows with `orderBy(desc(createdAt))` (was unbounded). Now consistent with the wave-3 note/activity guards. |
+
+### Scale-readiness improvements (Prompt 9)
+
+#### Pipeline board — column projection
+
+`getOpportunitiesByStage()` now uses a named projection `BOARD_CARD_COLUMNS` instead of `SELECT *`, returning only the 10 fields rendered on kanban cards:
+`id, title, value, stageId, contactId, companyId, status, websitePackage, assignedTo, createdAt`.
+
+Excluded: `notes, expectedCloseDate, stageEnteredAt, sourceLeadTitle, leadId, updatedAt, nextActionDate, followUpDate`. This reduces board response payload significantly for accounts with many opportunities.
+
+`getOpportunitiesByStage` also accepts `options.includeArchived` (default `true` for backward compatibility). Pass `?includeArchived=false` to the board API route to restrict the board to `status = 'open'` opportunities only.
+
+#### Paginated timeline endpoint
+
+New route: `GET /api/profiles/:type/:id/timeline?limit=50&before=<ISO>`
+
+- Supports all three profile entry types (company / lead / opportunity).
+- Uses ISO-timestamp cursor pagination: `before` param is a timestamp returned as `nextCursor` from the previous page.
+- Fetches up to `limit+1` rows from each of the three source tables (clientNotes, crmLeadNotes, pipelineActivities), merges in memory, sorts descending by timestamp, and returns the first `limit` events.
+- Returns `{ events: UnifiedTimelineEvent[], nextCursor: string | null, hasMore: boolean }`.
+- Actor names are resolved in a single batched `user` table query.
+- Max `limit` enforced at 100 on the server.
+
+#### Frontend timeline infinite scroll
+
+`useInfiniteTimeline(entry, { pageSize? })` — TanStack Query `useInfiniteQuery` hook backed by the paginated endpoint. Lives in `client/src/features/profiles/hooks.ts`.
+
+`TimelineSection` in `ProfileShell.tsx` now uses `useInfiniteTimeline` instead of `useProfileTimeline`. Events from all loaded pages are displayed, and a "Load more" button is shown when `hasNextPage` is true.
 
 ### Optimised query structure
 
