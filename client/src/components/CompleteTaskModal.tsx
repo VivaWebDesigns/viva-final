@@ -69,7 +69,7 @@ interface CompleteTaskModalProps {
   contactId?: string | null;
   defaultTaskTitle?: string;
   outcomeMode?: "new-lead" | "general";
-  onSpokeWithLead?: () => void;
+  onSpokeWithLead?: (completionNote?: string) => void;
   onSuccess?: () => void;
 }
 
@@ -208,7 +208,7 @@ export default function CompleteTaskModal({
 
   const handleSubmitClick = () => {
     if (isSpokeWithLead) {
-      onSpokeWithLead?.();
+      onSpokeWithLead?.(completionNote.trim() || undefined);
     } else {
       submitMutation.mutate();
     }

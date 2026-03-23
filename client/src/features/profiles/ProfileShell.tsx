@@ -2100,14 +2100,17 @@ function ProfileShellInner({
     !!completingTask?.opportunityId &&
     completingTask.opportunityId === activeOpp?.id;
 
-  const handleSpokeWithLead = async () => {
+  const handleSpokeWithLead = async (completionNote?: string) => {
     if (!completingTask) return;
     if (spokeWithLeadTaskIdRef.current === completingTask.id) return;
     const task = completingTask;
     spokeWithLeadTaskIdRef.current = task.id;
     setCompletingTask(null);
     try {
-      await apiRequest("PUT", `/api/tasks/${task.id}/complete`, { outcome: "Spoke with lead" });
+      await apiRequest("PUT", `/api/tasks/${task.id}/complete`, {
+        outcome: "Spoke with lead",
+        ...(completionNote ? { completionNote } : {}),
+      });
       queryClient.invalidateQueries({ queryKey: ["/api/profiles/company", companyId, "tasks"] });
       queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
       const contactedStage = stages?.find(s => s.slug === "contacted");
