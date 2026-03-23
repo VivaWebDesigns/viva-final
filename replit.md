@@ -69,6 +69,14 @@ The admin UI is fully bilingual (EN/ES) and uses React with Vite, Tailwind CSS, 
       - `notes/tasks/files/billing/activity(companyId)` — `["/api/profiles/company", companyId, "<resource>"]` — tab-level reads
       - Legacy keys (`/api/clients/:id/...`) are no longer used by the profile layer but remain active for any remaining direct consumers
     - **Legacy routes remain active** (`server/features/clients/routes.ts`) — nondestructive; profile-layer endpoints delegate to the same DB/business logic but live under `/api/profiles/...`
+    - **`GET /api/clients/:id` — Deprecated compatibility façade**:
+      - Now a thin wrapper over `getProfileByCompanyId()` from the profile service. The prior bespoke aggregate assembly (6 parallel DB queries + joins for status name/stage name) has been eliminated.
+      - Returns `X-Deprecated: Use GET /api/profiles/company/:id instead` response header.
+      - Active consumers: **NONE**. The only historical consumer (`features/clients/ClientProfilePage.tsx`) is preserved in the codebase but not referenced by any active route.
+      - Shape differences vs. original: `leads[].status` and `opportunities[].stage` are `null` (IDs available via the profile endpoint); `recentNotes` sourced from the unified timeline.
+      - **Removal path**: Delete `features/clients/ClientProfilePage.tsx` → narrow all `/api/clients` cache-invalidation predicates to target only the list endpoint → remove this route from `server/features/clients/routes.ts`.
+    - **`GET /api/clients` (list)** — still active, not deprecated. Used by `ClientsPage` for the client directory.
+    - **`GET /api/clients/:id/notes|tasks|files|billing`** — superseded by profile-owned endpoints but routes remain active for backward compatibility. No active UI consumers following the ProfileShell migration.
 
 ### Stage-Based Task Automations
 Admin-configurable task templates that auto-generate tasks when opportunities enter specific pipeline stages.

@@ -9,6 +9,7 @@ import {
   attachments,
 } from "@shared/schema";
 import { sql, desc, asc, ilike, or, SQL, eq, and, isNotNull, inArray } from "drizzle-orm";
+import { getProfileByCompanyId } from "../profiles/service";
 import { z } from "zod";
 import { logAudit } from "../audit/service";
 import { appendHistorySafe } from "../history/service";
@@ -159,92 +160,97 @@ router.get("/", requireRole("admin", "developer", "sales_rep"), async (req, res)
 
 // ─── Client Profile ────────────────────────────────────────────────────
 
+// @deprecated GET /api/clients/:id
+// ─────────────────────────────────────────────────────────────────────────────
+// This endpoint previously assembled a bespoke client aggregate from multiple
+// independent DB queries.  It is now a thin compatibility façade over the
+// canonical profile service (GET /api/profiles/company/:id).
+//
+// Active UI consumers: NONE — the route that rendered this data now uses the
+// unified profile shell which reads from /api/profiles/company/:id directly.
+// The only historical consumer (features/clients/ClientProfilePage.tsx) is
+// preserved in the codebase but is no longer referenced by any active route.
+//
+// TODO: Remove this endpoint once the legacy ClientProfilePage.tsx file is
+// deleted and all cache-invalidation predicate references to "/api/clients" are
+// narrowed to only target the list endpoint GET /api/clients (no sub-path).
+// ─────────────────────────────────────────────────────────────────────────────
 router.get("/:id", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
+  // Signal deprecation to any automated client that inspects response headers.
+  res.setHeader("X-Deprecated", "Use GET /api/profiles/company/:id instead");
+  res.setHeader("X-Deprecated-Removal", "Pending deletion of features/clients/ClientProfilePage.tsx");
+
   try {
     const id = req.params.id;
 
-    const [company] = await db
-      .select({
-        company: crmCompanies,
-        accountOwner: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-        },
-      })
-      .from(crmCompanies)
-      .leftJoin(user, eq(crmCompanies.accountOwnerId, user.id))
-      .where(eq(crmCompanies.id, id))
-      .limit(1);
+    // ── Canonical aggregate (single source of truth) ────────────────────────
+    const profile = await getProfileByCompanyId(id);
+    const { identity, sales, work, service, timeline } = profile;
 
-    if (!company) {
-      return res.status(404).json({ message: "Client not found" });
+    // ── Supplementary: account owner name + email (not in DTO) ─────────────
+    // One focused query for the owner's display fields, kept intentionally
+    // minimal. If accountOwnerId is null the query is skipped entirely.
+    let accountOwner: { id: string; name: string; email: string } | null = null;
+    if (identity.company.accountOwnerId) {
+      const [ownerRow] = await db
+        .select({ id: user.id, name: user.name, email: user.email })
+        .from(user)
+        .where(eq(user.id, identity.company.accountOwnerId))
+        .limit(1);
+      accountOwner = ownerRow ?? null;
     }
 
-    const [contacts, leads, opportunities, onboardings, recentNotes, taskCount] = await Promise.all([
-      db.select().from(crmContacts).where(eq(crmContacts.companyId, id)).orderBy(desc(crmContacts.isPrimary), desc(crmContacts.createdAt)),
-      db.select({
-        id: crmLeads.id,
-        title: crmLeads.title,
-        status: {
-          name: crmLeadStatuses.name,
-          color: crmLeadStatuses.color,
-        },
-        createdAt: crmLeads.createdAt,
-      })
-      .from(crmLeads)
-      .leftJoin(crmLeadStatuses, eq(crmLeads.statusId, crmLeadStatuses.id))
-      .where(eq(crmLeads.companyId, id))
-      .orderBy(desc(crmLeads.createdAt))
-      .limit(10),
-      db.select({
-        id: pipelineOpportunities.id,
-        title: pipelineOpportunities.title,
-        stage: pipelineStages.name,
-        value: pipelineOpportunities.value,
-        createdAt: pipelineOpportunities.createdAt,
-      })
-      .from(pipelineOpportunities)
-      .leftJoin(pipelineStages, eq(pipelineOpportunities.stageId, pipelineStages.id))
-      .where(eq(pipelineOpportunities.companyId, id))
-      .orderBy(desc(pipelineOpportunities.createdAt))
-      .limit(10),
-      db.select().from(onboardingRecords).where(eq(onboardingRecords.companyId, id)).orderBy(desc(onboardingRecords.createdAt)),
-      db.select({
-        id: clientNotes.id,
-        type: clientNotes.type,
-        content: clientNotes.content,
-        isPinned: clientNotes.isPinned,
-        createdAt: clientNotes.createdAt,
-        user: {
-          id: user.id,
-          name: user.name,
-        }
-      })
-      .from(clientNotes)
-      .leftJoin(user, eq(clientNotes.userId, user.id))
-      .where(eq(clientNotes.companyId, id))
-      .orderBy(desc(clientNotes.isPinned), desc(clientNotes.createdAt))
-      .limit(20),
-      db.select({ count: sql<number>`count(*)::int` }).from(followupTasks)
-        .where(and(eq(followupTasks.companyId, id), eq(followupTasks.completed, false))),
-    ]);
+    // ── Shape transformation — legacy response contract ─────────────────────
+    // Fields that required additional joins (lead status name/color, pipeline
+    // stage name) are intentionally omitted — the profile DTO holds the IDs.
+    // Consumers that need those display labels should migrate to the profile
+    // endpoint which exposes them through the mapped DTO structure.
 
-    const openTaskCount = taskCount[0]?.count ?? 0;
+    const openTaskCount = work.tasks.filter((t) => !t.completed).length;
 
-    res.json({
-      ...company.company,
-      accountOwner: company.accountOwner,
-      contacts,
-      leads,
-      opportunities,
-      onboardings,
+    // Derive recentNotes from the unified timeline (client_notes source only).
+    const recentNotes = timeline.events
+      .filter((e) => e.source === "client_notes")
+      .slice(0, 20)
+      .map((e) => ({
+        id: e.id,
+        type: e.type,
+        content: e.content,
+        isPinned: null, // isPinned is not surfaced in timeline events
+        createdAt: e.timestamp,
+        user: e.actor ? { id: null, name: e.actor } : null,
+      }));
+
+    return res.json({
+      // Company scalar fields (id, name, clientStatus, etc.)
+      ...identity.company,
+      accountOwner,
+      contacts: identity.contacts,
+      // Lead summary — status name/color omitted; use stageId for lookups.
+      leads: sales.leadHistory.slice(0, 10).map((l) => ({
+        id: l.id,
+        title: l.title,
+        status: null, // TODO: join crmLeadStatuses if a consumer needs name/color
+        createdAt: l.createdAt,
+      })),
+      // Opportunity summary — stage name omitted; use stageId for lookups.
+      opportunities: sales.opportunities.slice(0, 10).map((o) => ({
+        id: o.id,
+        title: o.title,
+        stage: null, // TODO: join pipelineStages if a consumer needs stage name
+        value: o.value,
+        createdAt: o.createdAt,
+      })),
+      onboardings: service.onboarding,
       recentNotes,
       openTaskCount,
     });
   } catch (err: any) {
-    console.error("Client profile error:", err);
-    res.status(500).json({ message: err.message });
+    if (err.message?.includes("not found") || err.message?.includes("Not found")) {
+      return res.status(404).json({ message: "Client not found" });
+    }
+    console.error("[deprecated] GET /api/clients/:id façade error:", err);
+    return res.status(500).json({ message: "Internal server error" });
   }
 });
 
