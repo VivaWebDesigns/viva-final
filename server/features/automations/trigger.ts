@@ -55,6 +55,8 @@ export async function executeStageAutomations(ctx: TriggerContext): Promise<Trig
   result.templatesFound = templates.length;
   if (templates.length === 0) return result;
 
+  await automationStorage.clearExecutionLogsForStage(ctx.opportunityId, ctx.stageSlug);
+
   const entryDate = ctx.stageEnteredAt ?? new Date();
 
   for (const tpl of templates) {

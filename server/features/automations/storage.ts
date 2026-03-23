@@ -109,6 +109,17 @@ export async function getMaxSortOrder(stageSlug: string): Promise<number> {
   return templates.length > 0 ? templates[0].sortOrder : -1;
 }
 
+export async function clearExecutionLogsForStage(opportunityId: string, stageSlug: string): Promise<void> {
+  await db
+    .delete(automationExecutionLogs)
+    .where(
+      and(
+        eq(automationExecutionLogs.opportunityId, opportunityId),
+        eq(automationExecutionLogs.triggerStageSlug, stageSlug),
+      )
+    );
+}
+
 export async function createExecutionLog(data: InsertAutomationExecutionLog): Promise<AutomationExecutionLog> {
   const [result] = await db.insert(automationExecutionLogs).values(data).returning();
   return result;
