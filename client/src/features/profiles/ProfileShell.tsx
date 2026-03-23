@@ -1899,22 +1899,22 @@ function ProfileShellInner({
   });
 
   const { data: notes = [], isLoading: notesLoading } = useQuery<(ClientNote & { user?: Pick<DbUser, "id" | "name"> })[]>({
-    queryKey: ["/api/clients", companyId, "notes"],
+    queryKey: ["/api/profiles/company", companyId, "notes"],
     enabled: activeTab === "notes",
   });
 
   const { data: clientTasks = [], isLoading: tasksLoading } = useQuery<ClientTask[]>({
-    queryKey: ["/api/clients", companyId, "tasks"],
+    queryKey: ["/api/profiles/company", companyId, "tasks"],
     enabled: activeTab === "tasks",
   });
 
   const { data: clientFiles = [], isLoading: filesLoading } = useQuery<ClientFile[]>({
-    queryKey: ["/api/clients", companyId, "files"],
+    queryKey: ["/api/profiles/company", companyId, "files"],
     enabled: activeTab === "files",
   });
 
   const { data: billing, isLoading: billingLoading } = useQuery<BillingSnapshot>({
-    queryKey: ["/api/clients", companyId, "billing"],
+    queryKey: ["/api/profiles/company", companyId, "billing"],
     enabled: activeTab === "billing",
   });
 
@@ -1923,7 +1923,7 @@ function ProfileShellInner({
     userId: string | null; metadata: Record<string, unknown>; createdAt: string;
     user?: { name: string };
   }[]>({
-    queryKey: ["/api/history/client", companyId],
+    queryKey: ["/api/profiles/company", companyId, "activity"],
     enabled: activeTab === "activity",
   });
 
@@ -1947,10 +1947,10 @@ function ProfileShellInner({
 
   const addNoteMutation = useMutation({
     mutationFn: async (data: Record<string, unknown>) => {
-      await apiRequest("POST", `/api/clients/${companyId}/notes`, data);
+      await apiRequest("POST", `/api/profiles/company/${companyId}/notes`, data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/clients", companyId, "notes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/profiles/company", companyId, "notes"] });
       queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
       toast({ title: t.profileShell.noteAdded });
     },
@@ -1959,10 +1959,10 @@ function ProfileShellInner({
 
   const deleteNoteMutation = useMutation({
     mutationFn: async (noteId: string) => {
-      await apiRequest("DELETE", `/api/clients/${companyId}/notes/${noteId}`);
+      await apiRequest("DELETE", `/api/profiles/company/${companyId}/notes/${noteId}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/clients", companyId, "notes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/profiles/company", companyId, "notes"] });
       queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
       toast({ title: t.profileShell.noteDeleted });
     },
@@ -1971,7 +1971,7 @@ function ProfileShellInner({
 
   const addContactMutation = useMutation({
     mutationFn: async (data: Record<string, unknown>) => {
-      await apiRequest("POST", `/api/clients/${companyId}/contacts`, data);
+      await apiRequest("POST", `/api/profiles/company/${companyId}/contacts`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
@@ -1983,7 +1983,7 @@ function ProfileShellInner({
 
   const updateContactMutation = useMutation({
     mutationFn: async ({ contactId, data }: { contactId: string; data: Record<string, unknown> }) => {
-      await apiRequest("PATCH", `/api/clients/${companyId}/contacts/${contactId}`, data);
+      await apiRequest("PATCH", `/api/profiles/company/${companyId}/contacts/${contactId}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
@@ -1995,10 +1995,10 @@ function ProfileShellInner({
 
   const addTaskMutation = useMutation({
     mutationFn: async (data: Record<string, unknown>) => {
-      await apiRequest("POST", `/api/clients/${companyId}/tasks`, data);
+      await apiRequest("POST", `/api/profiles/company/${companyId}/tasks`, data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/clients", companyId, "tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/profiles/company", companyId, "tasks"] });
       queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
       setIsTaskDialogOpen(false);
       toast({ title: t.profileShell.taskCreated });
@@ -2009,10 +2009,10 @@ function ProfileShellInner({
   const toggleTaskMutation = useMutation({
     mutationFn: async (taskId: string) => {
       setTogglingTaskId(taskId);
-      await apiRequest("PUT", `/api/clients/${companyId}/tasks/${taskId}/complete`);
+      await apiRequest("PUT", `/api/profiles/company/${companyId}/tasks/${taskId}/complete`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/clients", companyId, "tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/profiles/company", companyId, "tasks"] });
       queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
       setTogglingTaskId(null);
     },
@@ -2024,10 +2024,10 @@ function ProfileShellInner({
 
   const deleteTaskMutation = useMutation({
     mutationFn: async (taskId: string) => {
-      await apiRequest("DELETE", `/api/clients/${companyId}/tasks/${taskId}`);
+      await apiRequest("DELETE", `/api/profiles/company/${companyId}/tasks/${taskId}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/clients", companyId, "tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/profiles/company", companyId, "tasks"] });
       queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
       toast({ title: t.profileShell.taskDeleted });
     },
@@ -2036,10 +2036,10 @@ function ProfileShellInner({
 
   const updateHealthMutation = useMutation({
     mutationFn: async (data: Record<string, unknown>) => {
-      await apiRequest("PATCH", `/api/clients/${companyId}/account`, data);
+      await apiRequest("PATCH", `/api/profiles/company/${companyId}/account`, data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/clients", companyId, "billing"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/profiles/company", companyId, "billing"] });
       queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
       toast({ title: t.profileShell.accountHealthUpdated });
     },
@@ -2054,7 +2054,7 @@ function ProfileShellInner({
       if (payload.website && typeof payload.website === "string" && !/^https?:\/\//i.test(payload.website)) {
         payload.website = `https://${payload.website}`;
       }
-      await apiRequest("PATCH", `/api/clients/${companyId}`, payload);
+      await apiRequest("PATCH", `/api/profiles/company/${companyId}`, payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
@@ -2078,7 +2078,7 @@ function ProfileShellInner({
       formData.append("companyId", companyId);
       const res = await fetch("/api/attachments/upload", { method: "POST", body: formData });
       if (!res.ok) throw new Error("Upload failed");
-      queryClient.invalidateQueries({ queryKey: ["/api/clients", companyId, "files"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/profiles/company", companyId, "files"] });
       queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
       toast({ title: t.profileShell.fileUploaded });
     } catch (err: unknown) {

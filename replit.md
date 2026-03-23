@@ -47,7 +47,28 @@ The admin UI is fully bilingual (EN/ES) and uses React with Vite, Tailwind CSS, 
       - `client/src/features/profiles/OpportunityProfilePage.tsx` → `<ProfileShell entry={{ type: "opportunity", id }} />` — route `/admin/pipeline/opportunities/:id`
       - `client/src/features/profiles/ClientProfilePage.tsx` → `<ProfileShell entry={{ type: "company", id }} />` — route `/admin/clients/:id`
     - **Legacy pages preserved (nondestructive)**: `features/clients/ClientProfilePage.tsx` (old adapter-based page), `features/crm/LeadDetailPage.tsx`, `features/pipeline/OpportunityDetailPage.tsx`. These files are intact but no longer referenced by active routes.
-    - **Temporary gaps**: Notes for leads still use a separate legacy endpoint (`/api/crm/leads/:id/notes`) rather than the unified profile notes endpoint. This is a known gap for future follow-up.
+    - **Profile Sub-resource Reads** — all tab fetches now owned by the profile layer (`/api/profiles/company/:id/...`):
+      - `GET /api/profiles/company/:id/notes` — client notes with user name (replaces `/api/clients/:id/notes`)
+      - `GET /api/profiles/company/:id/tasks` — all tasks for the company (company + lead + opportunity FK union) (replaces `/api/clients/:id/tasks`)
+      - `GET /api/profiles/company/:id/files` — attachments (replaces `/api/clients/:id/files`)
+      - `GET /api/profiles/company/:id/billing` — billing snapshot incl. Stripe data (replaces `/api/clients/:id/billing`)
+      - `GET /api/profiles/company/:id/activity` — history log (replaces `/api/history/client/:id`)
+    - **Profile Write Endpoints** — all cross-domain mutations owned by the profile layer (`server/features/profiles/routes.ts`):
+      - Company-scoped: `POST/DELETE /company/:id/notes`, `POST/PATCH /company/:id/contacts/:contactId?`, `POST/PUT/DELETE /company/:id/tasks/:taskId?`, `PATCH /company/:id/account`, `PATCH /company/:id`
+      - Lead-scoped: `POST /lead/:id/notes` (writes to `crmLeadNotes`)
+      - Opportunity-scoped: `POST /opportunity/:id/notes` (writes to `pipelineActivities`)
+      - Cross-type owner assignment: `PATCH /company|lead|opportunity/:id/owner`
+      - Cross-type status update: `PATCH /company|lead|opportunity/:id/status`
+    - **Profile Mutation Architecture** — `useProfileMutations(entry)` hook in `client/src/features/profiles/hooks.ts`:
+      - `addNote` — routes by entry type to the correct domain table
+      - `updateStatus` — routes by type: company→clientStatus, lead→statusId, opportunity→stageId
+      - `assignOwner` — routes by type: company→accountOwnerId, lead/opportunity→assignedTo
+      - All mutations call `invalidate()` on success, which clears the profile DTO cache and all relevant sub-resource caches
+    - **Cache Key Conventions** — `PROFILE_KEYS` in `hooks.ts`:
+      - `detail(entry)` — `["/api/profiles", type, id]` — the full profile DTO
+      - `notes/tasks/files/billing/activity(companyId)` — `["/api/profiles/company", companyId, "<resource>"]` — tab-level reads
+      - Legacy keys (`/api/clients/:id/...`) are no longer used by the profile layer but remain active for any remaining direct consumers
+    - **Legacy routes remain active** (`server/features/clients/routes.ts`) — nondestructive; profile-layer endpoints delegate to the same DB/business logic but live under `/api/profiles/...`
 
 ### Stage-Based Task Automations
 Admin-configurable task templates that auto-generate tasks when opportunities enter specific pipeline stages.

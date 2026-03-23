@@ -39,6 +39,13 @@ export const PROFILE_KEYS = {
 
   /** Exact key for one profile. Shared by useUnifiedProfile and useProfileTimeline. */
   detail: (entry: ProfileEntry) => ["/api/profiles", entry.type, entry.id] as const,
+
+  /** Sub-resource reads owned by the profile layer. */
+  notes: (companyId: string) => ["/api/profiles/company", companyId, "notes"] as const,
+  tasks: (companyId: string) => ["/api/profiles/company", companyId, "tasks"] as const,
+  files: (companyId: string) => ["/api/profiles/company", companyId, "files"] as const,
+  billing: (companyId: string) => ["/api/profiles/company", companyId, "billing"] as const,
+  activity: (companyId: string) => ["/api/profiles/company", companyId, "activity"] as const,
 } as const;
 
 // ── useUnifiedProfile ─────────────────────────────────────────────────────────
@@ -92,31 +99,37 @@ export function useProfileTimeline(
 // ── useProfileMutations ───────────────────────────────────────────────────────
 
 /**
- * Scaffold for profile-level mutations with centralized cache invalidation.
+ * Profile-level mutations with centralized cache invalidation.
+ *
+ * All three mutations are backed by real /api/profiles/... endpoints and
+ * behave correctly for each entry type (company / lead / opportunity).
  *
  * invalidate()
  * ─────────────
  * Clears the profile cache for this entry AND the underlying entity caches
- * that feed into the profile (CRM leads, pipeline opportunities, etc.).
- * Call this from any mutation that changes data surfaced in the profile.
+ * that feed into the profile. Call this from any mutation that changes data
+ * surfaced in the profile.
  *
- * Stub mutations
- * ──────────────
- * Each stub is wired to `invalidate` on success.  Replace the placeholder
- * mutationFn bodies as the corresponding API routes are built.
+ * addNote     → POST /api/profiles/:type/:id/notes
+ *               company → clientNotes, lead → crmLeadNotes, opportunity → pipelineActivities
+ *
+ * updateStatus → PATCH /api/profiles/:type/:id/status
+ *               company → clientStatus field, lead → statusId, opportunity → stageId
+ *
+ * assignOwner → PATCH /api/profiles/:type/:id/owner
+ *               company → accountOwnerId, lead/opportunity → assignedTo
  */
 export function useProfileMutations(entry: ProfileEntry) {
   // ── Centralized invalidation ────────────────────────────────────────────────
 
   function invalidate(): void {
-    // Always clear this specific profile.
     queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
 
-    // Clear related raw-entity caches so detail pages stay in sync.
     switch (entry.type) {
       case "company":
         queryClient.invalidateQueries({ queryKey: ["/api/crm/companies", entry.id] });
         queryClient.invalidateQueries({ queryKey: ["/api/crm/leads"] });
+        queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.notes(entry.id) });
         break;
 
       case "lead":
@@ -136,39 +149,45 @@ export function useProfileMutations(entry: ProfileEntry) {
     }
   }
 
-  // ── Stub: add note ──────────────────────────────────────────────────────────
-  // Will be wired to POST /api/crm/leads/:id/notes or POST /api/pipeline/activities
-  // depending on entry type once the unified-write route is built.
+  // ── addNote ─────────────────────────────────────────────────────────────────
+  // company  → POST /api/profiles/company/:id/notes  (clientNotes table)
+  // lead     → POST /api/profiles/lead/:id/notes     (crmLeadNotes table)
+  // opp      → POST /api/profiles/opportunity/:id/notes (pipelineActivities table)
 
-  const addNote = useMutation<void, Error, { content: string }>({
-    mutationFn: async (_payload) => {
-      await apiRequest("POST", `/api/profiles/${entry.type}/${entry.id}/notes`, _payload);
+  const addNote = useMutation<void, Error, { content: string; type?: string }>({
+    mutationFn: async (payload) => {
+      await apiRequest("POST", `/api/profiles/${entry.type}/${entry.id}/notes`, payload);
     },
     onSuccess: invalidate,
   });
 
-  // ── Stub: update status ─────────────────────────────────────────────────────
-  // Will be wired to PATCH /api/crm/leads/:id (statusId) or pipeline stage changes.
+  // ── updateStatus ────────────────────────────────────────────────────────────
+  // company  → clientStatus (active/inactive/at_risk/churned/prospect)
+  // lead     → statusId (lead status FK)
+  // opp      → stageId (pipeline stage FK)
 
   const updateStatus = useMutation<void, Error, { statusId: string }>({
-    mutationFn: async (_payload) => {
+    mutationFn: async (payload) => {
       await apiRequest(
         "PATCH",
         `/api/profiles/${entry.type}/${entry.id}/status`,
-        _payload,
+        payload,
       );
     },
     onSuccess: invalidate,
   });
 
-  // ── Stub: assign owner ──────────────────────────────────────────────────────
+  // ── assignOwner ─────────────────────────────────────────────────────────────
+  // company  → accountOwnerId
+  // lead     → assignedTo
+  // opp      → assignedTo
 
   const assignOwner = useMutation<void, Error, { userId: string }>({
-    mutationFn: async (_payload) => {
+    mutationFn: async (payload) => {
       await apiRequest(
         "PATCH",
         `/api/profiles/${entry.type}/${entry.id}/owner`,
-        _payload,
+        payload,
       );
     },
     onSuccess: invalidate,
@@ -177,11 +196,11 @@ export function useProfileMutations(entry: ProfileEntry) {
   return {
     /** Invalidates this profile and all related entity caches. */
     invalidate,
-    /** Add a note to this profile (stub — requires unified write route). */
+    /** Add a note to this profile. Routes to the correct domain table by entry type. */
     addNote,
-    /** Update the status/stage (stub — requires unified write route). */
+    /** Update the status or stage for this profile. Routes by entry type. */
     updateStatus,
-    /** Reassign the owning user (stub — requires unified write route). */
+    /** Reassign the owning user for this profile. Routes by entry type. */
     assignOwner,
   } as const;
 }
