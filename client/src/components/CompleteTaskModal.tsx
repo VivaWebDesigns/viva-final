@@ -69,6 +69,7 @@ interface CompleteTaskModalProps {
   contactId?: string | null;
   defaultTaskTitle?: string;
   outcomeMode?: "new-lead" | "general";
+  hideFollowUp?: boolean;
   onSpokeWithLead?: (completionNote?: string) => void;
   onSuccess?: () => void;
 }
@@ -83,6 +84,7 @@ export default function CompleteTaskModal({
   contactId,
   defaultTaskTitle,
   outcomeMode = "general",
+  hideFollowUp = false,
   onSpokeWithLead,
   onSuccess,
 }: CompleteTaskModalProps) {
@@ -153,7 +155,7 @@ export default function CompleteTaskModal({
         });
       }
 
-      if (followUp !== "none") {
+      if (!hideFollowUp && followUp !== "none") {
         const dateStr = followUp === "custom"
           ? customDate
           : calcDueDateString(followUp);
@@ -200,7 +202,7 @@ export default function CompleteTaskModal({
   const isSpokeWithLead = isNewLead && outcome === "Spoke with lead";
 
   const customDateValid = followUp !== "custom" || customDate !== "";
-  const followUpRequired = !isNewLead && REQUIRES_FOLLOW_UP.has(outcome);
+  const followUpRequired = !isNewLead && !hideFollowUp && REQUIRES_FOLLOW_UP.has(outcome);
   const followUpMissing = followUpRequired && followUp === "none";
   const canSubmit = outcome !== "" && customDateValid && !followUpMissing && !submitMutation.isPending;
 
@@ -256,7 +258,7 @@ export default function CompleteTaskModal({
             />
           </div>
 
-          {!isNewLead && (
+          {!isNewLead && !hideFollowUp && (
             <div className="space-y-2">
               <Label>{t.tasks.nextFollowUp}</Label>
               <RadioGroup value={followUp} onValueChange={(v) => setFollowUp(v as FollowUpOption)}>

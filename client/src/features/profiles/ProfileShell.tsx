@@ -2947,6 +2947,7 @@ function ProfileShellInner({
             opportunityId={activeOpp.id}
             contactId={primaryContact?.id ?? null}
             defaultTaskTitle={`Follow up with ${contact?.firstName ?? ""} ${contact?.lastName ?? ""}`.trim()}
+            hideFollowUp={isFromSpokeWithLead}
             onSuccess={() => {
               spokeWithLeadTaskIdRef.current = null;
               if (contactedPendingStageId) stageMutation.mutate(contactedPendingStageId);
