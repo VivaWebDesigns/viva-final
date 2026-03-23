@@ -207,8 +207,8 @@ export default function CompleteTaskModal({
   const displayTitle = task?.title ?? defaultTaskTitle ?? null;
 
   const handleSubmitClick = () => {
-    if (isSpokeWithLead) {
-      onSpokeWithLead?.(completionNote.trim() || undefined);
+    if (isSpokeWithLead && onSpokeWithLead) {
+      onSpokeWithLead(completionNote.trim() || undefined);
     } else {
       submitMutation.mutate();
     }
