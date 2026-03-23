@@ -6,6 +6,7 @@ import {
 } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import type { ResolvedIdentity } from "./types";
+import { ProfileNotFoundError } from "./errors";
 
 export async function resolveByCompanyId(
   companyId: string,
@@ -15,7 +16,7 @@ export async function resolveByCompanyId(
     .from(crmCompanies)
     .where(eq(crmCompanies.id, companyId));
 
-  if (!company) throw new Error(`Company not found: ${companyId}`);
+  if (!company) throw new ProfileNotFoundError("Company", companyId);
 
   const [lead] = await db
     .select({ id: crmLeads.id })
@@ -47,7 +48,7 @@ export async function resolveByLeadId(
     .from(crmLeads)
     .where(eq(crmLeads.id, leadId));
 
-  if (!lead) throw new Error(`Lead not found: ${leadId}`);
+  if (!lead) throw new ProfileNotFoundError("Lead", leadId);
 
   const [opportunity] = await db
     .select({ id: pipelineOpportunities.id })
@@ -75,7 +76,7 @@ export async function resolveByOpportunityId(
     .from(pipelineOpportunities)
     .where(eq(pipelineOpportunities.id, opportunityId));
 
-  if (!opp) throw new Error(`Opportunity not found: ${opportunityId}`);
+  if (!opp) throw new ProfileNotFoundError("Opportunity", opportunityId);
 
   let resolvedCompanyId = opp.companyId ?? null;
 

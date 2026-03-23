@@ -38,6 +38,26 @@ import {
   getProfileByLeadId,
   getProfileByOpportunityId,
 } from "../../server/features/profiles/service";
+import {
+  ProfileNotFoundError,
+  ProfileLinkageError,
+} from "../../server/features/profiles/errors";
+
+// ── Error capture helper ──────────────────────────────────────────────────────
+// Awaits a promise that is expected to reject and returns the thrown value.
+// Fails the test if the promise unexpectedly resolves.
+
+async function catchErr(fn: Promise<unknown>): Promise<unknown> {
+  try {
+    await fn;
+    throw new Error("Expected promise to reject but it resolved");
+  } catch (e) {
+    if (e instanceof Error && e.message.startsWith("Expected promise to reject")) {
+      throw e;
+    }
+    return e;
+  }
+}
 
 // ── Mock chain builder ────────────────────────────────────────────────────────
 // Creates a Drizzle-compatible fluent chain that resolves to `data`.
@@ -196,25 +216,34 @@ beforeEach(() => {
 // ── Not-found errors ──────────────────────────────────────────────────────────
 
 describe("not-found errors", () => {
-  it("getProfileByCompanyId throws 'Company not found' for unknown id", async () => {
+  const MISSING = "00000000-0000-0000-0000-000000000000";
+
+  it("getProfileByCompanyId throws ProfileNotFoundError (404) for unknown id", async () => {
     setupDbResponses([]); // resolveByCompanyId → company check returns nothing
-    await expect(
-      getProfileByCompanyId("00000000-0000-0000-0000-000000000000"),
-    ).rejects.toThrow("Company not found");
+    const err = await catchErr(getProfileByCompanyId(MISSING));
+    expect(err).toBeInstanceOf(ProfileNotFoundError);
+    expect((err as ProfileNotFoundError).statusCode).toBe(404);
+    expect((err as ProfileNotFoundError).message).toMatch(/Company not found/);
+    expect((err as ProfileNotFoundError).entity).toBe("Company");
+    expect((err as ProfileNotFoundError).entityId).toBe(MISSING);
   });
 
-  it("getProfileByLeadId throws 'Lead not found' for unknown id", async () => {
+  it("getProfileByLeadId throws ProfileNotFoundError (404) for unknown id", async () => {
     setupDbResponses([]); // resolveByLeadId → lead row returns nothing
-    await expect(
-      getProfileByLeadId("00000000-0000-0000-0000-000000000000"),
-    ).rejects.toThrow("Lead not found");
+    const err = await catchErr(getProfileByLeadId(MISSING));
+    expect(err).toBeInstanceOf(ProfileNotFoundError);
+    expect((err as ProfileNotFoundError).statusCode).toBe(404);
+    expect((err as ProfileNotFoundError).message).toMatch(/Lead not found/);
+    expect((err as ProfileNotFoundError).entity).toBe("Lead");
   });
 
-  it("getProfileByOpportunityId throws 'Opportunity not found' for unknown id", async () => {
+  it("getProfileByOpportunityId throws ProfileNotFoundError (404) for unknown id", async () => {
     setupDbResponses([]); // resolveByOpportunityId → opp row returns nothing
-    await expect(
-      getProfileByOpportunityId("00000000-0000-0000-0000-000000000000"),
-    ).rejects.toThrow("Opportunity not found");
+    const err = await catchErr(getProfileByOpportunityId(MISSING));
+    expect(err).toBeInstanceOf(ProfileNotFoundError);
+    expect((err as ProfileNotFoundError).statusCode).toBe(404);
+    expect((err as ProfileNotFoundError).message).toMatch(/Opportunity not found/);
+    expect((err as ProfileNotFoundError).entity).toBe("Opportunity");
   });
 });
 
@@ -430,26 +459,28 @@ describe("entry-point routing", () => {
     expect(profile.identity.company.name).toBe("Acme Corp");
   });
 
-  it("getProfileByLeadId throws when lead has no companyId", async () => {
+  it("getProfileByLeadId throws ProfileLinkageError (422) when lead has no companyId", async () => {
     // resolveByLeadId returns a lead row with companyId=null
     setupDbResponses(
       [{ id: "l-orphan", companyId: null }],  // lead has no company
       [],                                      // pipelineOpportunities
     );
 
-    await expect(
-      getProfileByLeadId("l-orphan"),
-    ).rejects.toThrow(/no linked company/);
+    const err = await catchErr(getProfileByLeadId("l-orphan"));
+    expect(err).toBeInstanceOf(ProfileLinkageError);
+    expect((err as ProfileLinkageError).statusCode).toBe(422);
+    expect((err as ProfileLinkageError).message).toMatch(/no linked company/);
   });
 
-  it("getProfileByOpportunityId throws when opp has no companyId", async () => {
+  it("getProfileByOpportunityId throws ProfileLinkageError (422) when opp has no companyId", async () => {
     // resolveByOpportunityId returns opp with companyId=null, leadId=null
     setupDbResponses(
       [{ id: "o-orphan", leadId: null, companyId: null }],  // opp has no company or lead
     );
 
-    await expect(
-      getProfileByOpportunityId("o-orphan"),
-    ).rejects.toThrow(/no linked company/);
+    const err = await catchErr(getProfileByOpportunityId("o-orphan"));
+    expect(err).toBeInstanceOf(ProfileLinkageError);
+    expect((err as ProfileLinkageError).statusCode).toBe(422);
+    expect((err as ProfileLinkageError).message).toMatch(/no linked company/);
   });
 });

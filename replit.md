@@ -188,6 +188,51 @@ tests/
     assetStub.ts
 ```
 
+## Profile Feature — Typed Error Semantics
+
+### Error class hierarchy
+
+All errors thrown inside `server/features/profiles/` extend `ProfileError`, which lives in `server/features/profiles/errors.ts`.  Each subclass carries a canonical HTTP status code.
+
+```
+ProfileError (base, 500)
+├── ProfileValidationError   400  Caller supplied invalid / out-of-range input
+├── ProfileForbiddenError    403  Caller lacks permission to access this profile
+├── ProfileNotFoundError     404  Requested entity does not exist in the DB
+├── ProfileLinkageError      422  Entity exists but a required relationship can't
+│                                 be resolved (e.g. lead has no companyId)
+└── ProfileDependencyError   503  Upstream DB / service failure — caller may retry
+```
+
+### Route error handler
+
+`sendProfileError(res, err)` in `errors.ts` is the single dispatch point for all route `catch` blocks.
+
+Rules applied in order:
+1. **ProfileError subclass** → use `err.statusCode`.
+2. **status < 500** → expose `err.message` verbatim (safe to show callers).
+3. **status ≥ 500** → generic `"Internal server error"` to client; full message + stack logged to `stderr`.
+4. **Non-ProfileError** → always 500 + generic message + `stderr` log.
+
+### Where errors are thrown
+
+| Layer | Throws | On |
+|---|---|---|
+| `relationships.ts` | `ProfileNotFoundError` | company / lead / opportunity row missing |
+| `service.ts` | `ProfileNotFoundError` | company row missing in `assembleProfile` |
+| `service.ts` | `ProfileLinkageError` | lead or opp resolved but `companyId` is null |
+| `routes.ts` | `ProfileValidationError` | (ready for use; Zod validation handled inline) |
+
+### Test coverage for error paths
+
+| Test file | Assertions |
+|---|---|
+| `tests/unit/profiles-service.test.ts` | `instanceof ProfileNotFoundError`, `statusCode === 404`, `.entity`, `.entityId` |
+| `tests/unit/profiles-service.test.ts` | `instanceof ProfileLinkageError`, `statusCode === 422` |
+| `tests/integration/profiles-routes.test.ts` | HTTP 404 body contains entity name |
+| `tests/integration/profiles-routes.test.ts` | HTTP 422 body contains linkage message |
+| `tests/integration/profiles-routes.test.ts` | HTTP 500 body is generic (no DB detail leaked) |
+
 ## External Dependencies
 - **PostgreSQL**: Primary database for all application data.
 - **Cloudflare R2**: Object storage for file uploads.

@@ -6,7 +6,8 @@
  * 2. Input validation (UUID format on :id params)
  * 3. Auth enforcement — unauthenticated requests are rejected
  * 4. Role-based access control (admin/developer = unrestricted; sales_rep/lead_gen = scoped)
- * 5. 404 propagation from service layer
+ * 5. Typed error propagation: 404 (ProfileNotFoundError), 422 (ProfileLinkageError),
+ *    500 (unexpected errors — message hidden from client)
  * 6. DTO shape when service returns successfully
  *
  * The profile service and DB are mocked so tests focus on route behavior only.
@@ -15,6 +16,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import express, { type Request, type Response, type NextFunction } from "express";
 import http from "node:http";
+import {
+  ProfileNotFoundError,
+  ProfileLinkageError,
+} from "../../server/features/profiles/errors";
 
 // ── Hoist mock identifiers ────────────────────────────────────────────────────
 
@@ -186,12 +191,24 @@ describe("GET /profiles/company/:id", () => {
     expect(res.status).toBe(200);
   });
 
-  it("returns 404 when service throws not-found error", async () => {
+  it("returns 404 when service throws ProfileNotFoundError", async () => {
     mockGetSession.mockResolvedValue(makeSession("admin"));
-    mockGetProfileByCompanyId.mockRejectedValue(new Error(`Company not found: ${VALID_UUID}`));
+    mockGetProfileByCompanyId.mockRejectedValue(
+      new ProfileNotFoundError("Company", VALID_UUID),
+    );
     const app = buildApp();
     const res = await request(app, "GET", `/profiles/company/${VALID_UUID}`);
     expect(res.status).toBe(404);
+    expect((res.body as { message: string }).message).toMatch(/Company not found/);
+  });
+
+  it("returns 500 and hides details for unexpected errors", async () => {
+    mockGetSession.mockResolvedValue(makeSession("admin"));
+    mockGetProfileByCompanyId.mockRejectedValue(new Error("database connection lost"));
+    const app = buildApp();
+    const res = await request(app, "GET", `/profiles/company/${VALID_UUID}`);
+    expect(res.status).toBe(500);
+    expect((res.body as { message: string }).message).toBe("Internal server error");
   });
 
   it("returns DTO with all required top-level sections", async () => {
@@ -268,12 +285,24 @@ describe("GET /profiles/lead/:id", () => {
     expect(res.status).toBe(200);
   });
 
-  it("returns 404 when service throws not-found", async () => {
+  it("returns 404 when service throws ProfileNotFoundError", async () => {
     mockGetSession.mockResolvedValue(makeSession("admin"));
-    mockGetProfileByLeadId.mockRejectedValue(new Error("Lead not found: " + VALID_UUID));
+    mockGetProfileByLeadId.mockRejectedValue(new ProfileNotFoundError("Lead", VALID_UUID));
     const app = buildApp();
     const res = await request(app, "GET", `/profiles/lead/${VALID_UUID}`);
     expect(res.status).toBe(404);
+    expect((res.body as { message: string }).message).toMatch(/Lead not found/);
+  });
+
+  it("returns 422 when service throws ProfileLinkageError (lead has no company)", async () => {
+    mockGetSession.mockResolvedValue(makeSession("admin"));
+    mockGetProfileByLeadId.mockRejectedValue(
+      new ProfileLinkageError(`Lead ${VALID_UUID} has no linked company — cannot build profile`),
+    );
+    const app = buildApp();
+    const res = await request(app, "GET", `/profiles/lead/${VALID_UUID}`);
+    expect(res.status).toBe(422);
+    expect((res.body as { message: string }).message).toMatch(/no linked company/);
   });
 });
 
@@ -325,12 +354,26 @@ describe("GET /profiles/opportunity/:id", () => {
     expect(res.status).toBe(200);
   });
 
-  it("returns 404 when service throws not-found", async () => {
+  it("returns 404 when service throws ProfileNotFoundError", async () => {
     mockGetSession.mockResolvedValue(makeSession("admin"));
-    mockGetProfileByOpportunityId.mockRejectedValue(new Error("Opportunity not found: " + VALID_UUID));
+    mockGetProfileByOpportunityId.mockRejectedValue(
+      new ProfileNotFoundError("Opportunity", VALID_UUID),
+    );
     const app = buildApp();
     const res = await request(app, "GET", `/profiles/opportunity/${VALID_UUID}`);
     expect(res.status).toBe(404);
+    expect((res.body as { message: string }).message).toMatch(/Opportunity not found/);
+  });
+
+  it("returns 422 when service throws ProfileLinkageError (opp has no company)", async () => {
+    mockGetSession.mockResolvedValue(makeSession("admin"));
+    mockGetProfileByOpportunityId.mockRejectedValue(
+      new ProfileLinkageError(`Opportunity ${VALID_UUID} has no linked company — cannot build profile`),
+    );
+    const app = buildApp();
+    const res = await request(app, "GET", `/profiles/opportunity/${VALID_UUID}`);
+    expect(res.status).toBe(422);
+    expect((res.body as { message: string }).message).toMatch(/no linked company/);
   });
 
   it("returns consistent DTO shape across all three entry points", async () => {

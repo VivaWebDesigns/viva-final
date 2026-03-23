@@ -25,6 +25,7 @@ import {
   getProfileByLeadId,
   getProfileByOpportunityId,
 } from "./service";
+import { sendProfileError } from "./errors";
 
 const router = Router();
 
@@ -113,17 +114,6 @@ function actorId(req: Request): string {
   return req.authUser!.id;
 }
 
-function sendError(res: Response, err: unknown): Response {
-  if (err instanceof Error) {
-    if (err.message.includes("not found") || err.message.includes("Not found")) {
-      return res.status(404).json({ message: err.message });
-    }
-    if (err.message.includes("Access denied")) {
-      return res.status(403).json({ message: err.message });
-    }
-  }
-  return res.status(500).json({ message: "Internal server error" });
-}
 
 // ── GET /api/profiles/company/:id ─────────────────────────────────────────────
 
@@ -152,7 +142,7 @@ router.get(
       const profile = await getProfileByCompanyId(companyId);
       return res.json(profile);
     } catch (err: unknown) {
-      return sendError(res, err);
+      return sendProfileError(res, err);
     }
   },
 );
@@ -184,7 +174,7 @@ router.get(
       const profile = await getProfileByLeadId(leadId);
       return res.json(profile);
     } catch (err: unknown) {
-      return sendError(res, err);
+      return sendProfileError(res, err);
     }
   },
 );
@@ -216,7 +206,7 @@ router.get(
       const profile = await getProfileByOpportunityId(opportunityId);
       return res.json(profile);
     } catch (err: unknown) {
-      return sendError(res, err);
+      return sendProfileError(res, err);
     }
   },
 );
@@ -248,7 +238,7 @@ router.get(
         .orderBy(desc(clientNotes.isPinned), desc(clientNotes.createdAt));
       return res.json(notes);
     } catch (err: unknown) {
-      return sendError(res, err);
+      return sendProfileError(res, err);
     }
   },
 );
@@ -301,7 +291,7 @@ router.get(
       const filtered = status ? enriched.filter((t) => t.status === status) : enriched;
       return res.json(filtered);
     } catch (err: unknown) {
-      return sendError(res, err);
+      return sendProfileError(res, err);
     }
   },
 );
@@ -332,7 +322,7 @@ router.get(
         .orderBy(desc(attachments.createdAt));
       return res.json(files);
     } catch (err: unknown) {
-      return sendError(res, err);
+      return sendProfileError(res, err);
     }
   },
 );
@@ -376,7 +366,7 @@ router.get(
         recentEvents,
       });
     } catch (err: unknown) {
-      return sendError(res, err);
+      return sendProfileError(res, err);
     }
   },
 );
@@ -393,7 +383,7 @@ router.get(
       const events = await getHistory("client", companyId, limit);
       return res.json(events);
     } catch (err: unknown) {
-      return sendError(res, err);
+      return sendProfileError(res, err);
     }
   },
 );
@@ -441,7 +431,7 @@ router.post(
       return res.status(201).json(note);
     } catch (err: unknown) {
       if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
-      return sendError(res, err);
+      return sendProfileError(res, err);
     }
   },
 );
@@ -476,7 +466,7 @@ router.delete(
 
       return res.status(204).end();
     } catch (err: unknown) {
-      return sendError(res, err);
+      return sendProfileError(res, err);
     }
   },
 );
@@ -527,7 +517,7 @@ router.post(
       return res.status(201).json(contact);
     } catch (err: unknown) {
       if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
-      return sendError(res, err);
+      return sendProfileError(res, err);
     }
   },
 );
@@ -602,7 +592,7 @@ router.patch(
       return res.json(contact);
     } catch (err: unknown) {
       if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
-      return sendError(res, err);
+      return sendProfileError(res, err);
     }
   },
 );
@@ -653,7 +643,7 @@ router.post(
       return res.status(201).json(task);
     } catch (err: unknown) {
       if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
-      return sendError(res, err);
+      return sendProfileError(res, err);
     }
   },
 );
@@ -716,7 +706,7 @@ router.put(
 
       return res.json(task);
     } catch (err: unknown) {
-      return sendError(res, err);
+      return sendProfileError(res, err);
     }
   },
 );
@@ -760,7 +750,7 @@ router.delete(
 
       return res.status(204).end();
     } catch (err: unknown) {
-      return sendError(res, err);
+      return sendProfileError(res, err);
     }
   },
 );
@@ -816,7 +806,7 @@ router.patch(
       return res.json(updated);
     } catch (err: unknown) {
       if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
-      return sendError(res, err);
+      return sendProfileError(res, err);
     }
   },
 );
@@ -906,7 +896,7 @@ router.patch(
       return res.json(updated);
     } catch (err: unknown) {
       if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
-      return sendError(res, err);
+      return sendProfileError(res, err);
     }
   },
 );
@@ -946,7 +936,7 @@ router.post(
       return res.status(201).json(note);
     } catch (err: unknown) {
       if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
-      return sendError(res, err);
+      return sendProfileError(res, err);
     }
   },
 );
@@ -986,7 +976,7 @@ router.post(
       return res.status(201).json(activity);
     } catch (err: unknown) {
       if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
-      return sendError(res, err);
+      return sendProfileError(res, err);
     }
   },
 );
@@ -1016,7 +1006,7 @@ router.patch(
       return res.json(updated);
     } catch (err: unknown) {
       if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
-      return sendError(res, err);
+      return sendProfileError(res, err);
     }
   },
 );
@@ -1041,7 +1031,7 @@ router.patch(
       return res.json(updated);
     } catch (err: unknown) {
       if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
-      return sendError(res, err);
+      return sendProfileError(res, err);
     }
   },
 );
@@ -1066,7 +1056,7 @@ router.patch(
       return res.json(updated);
     } catch (err: unknown) {
       if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
-      return sendError(res, err);
+      return sendProfileError(res, err);
     }
   },
 );
@@ -1097,7 +1087,7 @@ router.patch(
       return res.json(updated);
     } catch (err: unknown) {
       if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
-      return sendError(res, err);
+      return sendProfileError(res, err);
     }
   },
 );
@@ -1122,7 +1112,7 @@ router.patch(
       return res.json(updated);
     } catch (err: unknown) {
       if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
-      return sendError(res, err);
+      return sendProfileError(res, err);
     }
   },
 );
@@ -1147,7 +1137,7 @@ router.patch(
       return res.json(updated);
     } catch (err: unknown) {
       if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
-      return sendError(res, err);
+      return sendProfileError(res, err);
     }
   },
 );

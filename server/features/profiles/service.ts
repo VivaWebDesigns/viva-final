@@ -1,4 +1,5 @@
 import { db } from "../../db";
+import { ProfileNotFoundError, ProfileLinkageError } from "./errors";
 import {
   crmCompanies,
   crmContacts,
@@ -51,7 +52,7 @@ async function assembleProfile(companyId: string, opts?: AssembleOpts): Promise<
     .from(crmCompanies)
     .where(eq(crmCompanies.id, companyId));
 
-  if (!companyRow) throw new Error(`Company not found: ${companyId}`);
+  if (!companyRow) throw new ProfileNotFoundError("Company", companyId);
 
   const [
     contactRows,
@@ -253,7 +254,9 @@ export async function getProfileByLeadId(
 ): Promise<UnifiedProfileDto> {
   const identity = await resolveByLeadId(leadId);
   if (!identity.companyId) {
-    throw new Error(`Lead ${leadId} has no linked company — cannot build profile`);
+    throw new ProfileLinkageError(
+      `Lead ${leadId} has no linked company — cannot build profile`,
+    );
   }
   return assembleProfile(identity.companyId, { primaryLeadId: leadId });
 }
@@ -263,7 +266,7 @@ export async function getProfileByOpportunityId(
 ): Promise<UnifiedProfileDto> {
   const identity = await resolveByOpportunityId(opportunityId);
   if (!identity.companyId) {
-    throw new Error(
+    throw new ProfileLinkageError(
       `Opportunity ${opportunityId} has no linked company — cannot build profile`,
     );
   }
