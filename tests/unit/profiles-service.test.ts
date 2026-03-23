@@ -1,127 +1,230 @@
 /**
- * Unified Profile Service Tests
+ * Profile Service — Hermetic Unit Tests
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Layer:       UNIT — no live database required.
+ * Run with:    npm run test:unit
+ * ─────────────────────────────────────────────────────────────────────────────
  *
- * Validates:
- * 1. All three entry paths produce an identical, stable UnifiedProfileDto shape
- * 2. Missing entity errors are thrown with clear messages
- * 3. DTO sections are always present, even when underlying data is absent
+ * Validates the business logic of the profile service in isolation:
+ *   1. Not-found errors for all three entry points
+ *   2. DTO always returns arrays (never null/undefined) even with empty data
+ *   3. Derived field invariants: health, value, nextAction, timeline sort
+ *   4. Entry-point routing: lead/opportunity paths resolve to the correct company
  *
- * Positive-path tests run against the live seeded database.
- * If the DB has no data for a given test, the test is skipped gracefully.
+ * The `server/db` module is mocked.  Each test sets up a deterministic call
+ * sequence of DB responses using `setupDbResponses()`.  Tests are hermetic —
+ * they do not depend on DB state and never open a network connection.
+ *
+ * For SQL correctness tests against a live database see:
+ *   tests/integration/profiles-service.test.ts
+ *
+ * ── Mock call-sequence conventions ───────────────────────────────────────────
+ * `setupDbResponses(r0, r1, …, rN)` enqueues responses for successive
+ * `db.select()` calls.  The service makes queries in a fixed sequence
+ * determined by the code path under test.  Each test's fixture comment
+ * documents the expected call sequence.
  */
 
-import { describe, it, expect } from "vitest";
-import { db } from "../../server/db";
-import {
-  crmCompanies,
-  crmLeads,
-  pipelineOpportunities,
-} from "../../shared/schema";
-import { isNotNull } from "drizzle-orm";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+// ── Mock db BEFORE importing service (vi.mock is hoisted by vitest) ───────────
+
+const { mockSelect } = vi.hoisted(() => ({ mockSelect: vi.fn() }));
+
+vi.mock("../../server/db", () => ({ db: { select: mockSelect } }));
+
 import {
   getProfileByCompanyId,
   getProfileByLeadId,
   getProfileByOpportunityId,
 } from "../../server/features/profiles/service";
 
-// ── DTO shape validator ───────────────────────────────────────────────────────
+// ── Mock chain builder ────────────────────────────────────────────────────────
+// Creates a Drizzle-compatible fluent chain that resolves to `data`.
+// Every chainable method returns `this` so the full ORM chain compiles.
 
-function assertProfileShape(profile: Awaited<ReturnType<typeof getProfileByCompanyId>>) {
-  // identity
-  expect(profile.identity).toBeDefined();
-  expect(profile.identity.company).toBeDefined();
-  expect(typeof profile.identity.company.id).toBe("string");
-  expect(typeof profile.identity.company.name).toBe("string");
-  expect(Array.isArray(profile.identity.contacts)).toBe(true);
-
-  // sales
-  expect(profile.sales).toBeDefined();
-  expect(Array.isArray(profile.sales.leadHistory)).toBe(true);
-  expect(Array.isArray(profile.sales.opportunities)).toBe(true);
-
-  // work
-  expect(profile.work).toBeDefined();
-  expect(Array.isArray(profile.work.tasks)).toBe(true);
-
-  // timeline
-  expect(profile.timeline).toBeDefined();
-  expect(Array.isArray(profile.timeline.events)).toBe(true);
-
-  // service
-  expect(profile.service).toBeDefined();
-  expect(Array.isArray(profile.service.onboarding)).toBe(true);
-  expect(Array.isArray(profile.service.files)).toBe(true);
-  expect(profile.service.billingSummary).toBeDefined();
-  expect(typeof profile.service.billingSummary!.hasStripe).toBe("boolean");
-
-  // derived
-  expect(profile.derived).toBeDefined();
-  expect(["healthy", "at_risk", "stale", "unknown"]).toContain(profile.derived.health);
+function makeChain(data: unknown[]): any {
+  const chain: Record<string, any> = {};
+  for (const m of [
+    "from", "where", "limit", "orderBy", "leftJoin",
+    "rightJoin", "innerJoin", "groupBy", "returning",
+  ]) {
+    chain[m] = () => chain;
+  }
+  chain.then = (resolve: (v: any) => any, reject: (e: any) => any) =>
+    Promise.resolve(data).then(resolve, reject);
+  chain.catch = (reject: (e: any) => any) => Promise.resolve(data).catch(reject);
+  chain.finally = (cb: () => void) => Promise.resolve(data).finally(cb);
+  return chain;
 }
 
-// ── Missing entity errors ─────────────────────────────────────────────────────
+// ── Fixtures ──────────────────────────────────────────────────────────────────
 
-describe("missing entity errors", () => {
-  it("getProfileByCompanyId throws for non-existent company", async () => {
+const NOW = new Date("2026-01-15T12:00:00Z");
+
+const companyIdRow = { id: "c1" } as const;
+
+const companyRow = {
+  id: "c1", name: "Acme Corp", dba: null, website: null, phone: null,
+  email: null, address: null, city: null, state: null, zip: null,
+  country: "US", industry: null, preferredLanguage: "en", notes: null,
+  clientStatus: "active", accountOwnerId: null, nextFollowUpDate: null,
+  preferredContactMethod: null, launchDate: null, renewalDate: null,
+  websiteStatus: null, carePlanStatus: null, serviceTier: null,
+  billingNotes: null, createdAt: NOW, updatedAt: NOW,
+};
+
+const leadIdRow = { id: "l1", companyId: "c1" } as const;
+const leadRow = {
+  id: "l1", title: "Lead A", companyId: "c1", contactId: null,
+  statusId: null, value: "5000", source: "website", sourceLabel: null,
+  utmSource: null, utmMedium: null, utmCampaign: null, utmTerm: null,
+  utmContent: null, referrer: null, landingPage: null, formPageUrl: null,
+  fromWebsiteForm: false, assignedTo: null, notes: null,
+  city: null, state: null, timezone: null,
+  createdAt: NOW, updatedAt: NOW,
+};
+
+const oppIdRow = { id: "o1", leadId: "l1", companyId: "c1" } as const;
+const oppRow = {
+  id: "o1", title: "Opp A", value: "12000", websitePackage: null,
+  stageId: "s1", leadId: "l1", companyId: "c1", contactId: null,
+  assignedTo: null, status: "open", expectedCloseDate: null, probability: 0,
+  nextActionDate: null, followUpDate: null, stageEnteredAt: null,
+  sourceLeadTitle: null, notes: null,
+  createdAt: NOW, updatedAt: NOW,
+};
+
+const makeClientNote = (id: string, ts: Date) => ({
+  id, companyId: "c1", type: "general", content: `note ${id}`,
+  userId: null, isPinned: false, createdAt: ts,
+});
+
+const makeTask = (id: string, completed: boolean, dueDate: Date) => ({
+  id, title: `Task ${id}`, notes: null, taskType: "follow_up",
+  dueDate, completed, completedAt: completed ? NOW : null,
+  assignedTo: null, opportunityId: null, leadId: null,
+  contactId: null, companyId: "c1", createdBy: null,
+  createdAt: NOW, followUpTime: null, followUpTimezone: null,
+  outcome: null, completionNote: null,
+});
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function setupDbResponses(...responses: unknown[][]) {
+  let i = 0;
+  mockSelect.mockImplementation(() => makeChain(responses[i++] ?? []));
+}
+
+// Standard call sequence for a minimal company (no leads, opps, or tasks).
+//
+// Call sequence:
+//   [0]  resolveByCompanyId:  crmCompanies where id=c1          → [companyIdRow]
+//   [1]  resolveByCompanyId:  crmLeads where companyId=c1       → [] (no leads → no Q3)
+//   [2]  assembleProfile:     crmCompanies where id=c1          → [companyRow]
+//   [3]  assembleProfile:     crmContacts                       → []
+//   [4]  assembleProfile:     crmLeads (orderBy desc)           → []
+//   [5]  assembleProfile:     pipelineOpportunities             → []
+//   [6]  assembleProfile:     onboardingRecords                 → []
+//   [7]  assembleProfile:     followupTasks                     → []
+//   [8]  assembleProfile:     stripeCustomers                   → []
+//   [9]  assembleProfile:     attachments                       → []
+//   [10] assembleProfile:     clientNotes                       → clientNoteOverride
+//
+// If clientNoteOverride is omitted it defaults to [] (no notes, no user lookup).
+// No further queries fire because leadIds=[], oppIds=[], allUserIds=[], taskIds=[].
+function minimalCompanyResponses(clientNoteOverride: unknown[] = []) {
+  return setupDbResponses(
+    [companyIdRow],  // [0] resolveByCompanyId — company check
+    [],              // [1] resolveByCompanyId — lead check (none)
+    [companyRow],    // [2] assembleProfile — company row
+    [],              // [3] contacts
+    [],              // [4] leads
+    [],              // [5] opportunities
+    [],              // [6] onboarding
+    [],              // [7] tasks
+    [],              // [8] stripe
+    [],              // [9] files/attachments
+    clientNoteOverride, // [10] clientNotes
+  );
+}
+
+// Call sequence for a company that has one open opportunity (value "12000")
+// and two tasks (one pending, one completed). No leads to keep it simple.
+//
+//   [0]  resolveByCompanyId: company check     → [companyIdRow]
+//   [1]  resolveByCompanyId: lead check        → [] (no leads)
+//   [2]  assembleProfile:    company row       → [companyRow]
+//   [3]  contacts                              → []
+//   [4]  leads (orderBy)                       → []
+//   [5]  opportunities                         → [oppRow]
+//   [6]  onboarding                            → []
+//   [7]  tasks (companyId)                     → taskList
+//   [8]  stripe                                → []
+//   [9]  attachments                           → []
+//   [10] clientNotes                           → []
+//   —— leadIds=[] → no lead-note/lead-task queries ——
+//   [11] pipelineActivities IN [oppId]        → []    (second Promise.all — opp tasks)
+//   [12] followupTasks IN [oppId]             → []    (opp tasks)
+//   — allUserIds=[] (no notes with userId) → no user query
+//   [13] automationExecutionLogs IN taskIds   → []
+function companyWithOppAndTasksResponses(taskList: unknown[]) {
+  return setupDbResponses(
+    [companyIdRow],  // [0]
+    [],              // [1] no leads
+    [companyRow],    // [2]
+    [],              // [3] contacts
+    [],              // [4] leads
+    [oppRow],        // [5] opps
+    [],              // [6] onboarding
+    taskList,        // [7] tasks (companyId scope)
+    [],              // [8] stripe
+    [],              // [9] attachments
+    [],              // [10] clientNotes
+    [],              // [11] pipelineActivities IN [oppId]
+    [],              // [12] followupTasks IN [oppId]
+    [],              // [13] automationExecutionLogs
+  );
+}
+
+// ── beforeEach ────────────────────────────────────────────────────────────────
+
+beforeEach(() => {
+  mockSelect.mockReset();
+});
+
+// ── Not-found errors ──────────────────────────────────────────────────────────
+
+describe("not-found errors", () => {
+  it("getProfileByCompanyId throws 'Company not found' for unknown id", async () => {
+    setupDbResponses([]); // resolveByCompanyId → company check returns nothing
     await expect(
       getProfileByCompanyId("00000000-0000-0000-0000-000000000000"),
     ).rejects.toThrow("Company not found");
   });
 
-  it("getProfileByLeadId throws for non-existent lead", async () => {
+  it("getProfileByLeadId throws 'Lead not found' for unknown id", async () => {
+    setupDbResponses([]); // resolveByLeadId → lead row returns nothing
     await expect(
       getProfileByLeadId("00000000-0000-0000-0000-000000000000"),
     ).rejects.toThrow("Lead not found");
   });
 
-  it("getProfileByOpportunityId throws for non-existent opportunity", async () => {
+  it("getProfileByOpportunityId throws 'Opportunity not found' for unknown id", async () => {
+    setupDbResponses([]); // resolveByOpportunityId → opp row returns nothing
     await expect(
       getProfileByOpportunityId("00000000-0000-0000-0000-000000000000"),
     ).rejects.toThrow("Opportunity not found");
   });
 });
 
-// ── Company profile path ──────────────────────────────────────────────────────
+// ── Always-arrays guarantee ───────────────────────────────────────────────────
 
-describe("getProfileByCompanyId", () => {
-  it("returns a valid UnifiedProfileDto shape for any existing company", async () => {
-    const [row] = await db
-      .select({ id: crmCompanies.id })
-      .from(crmCompanies)
-      .limit(1);
+describe("always-arrays guarantee", () => {
+  it("all DTO array fields are [] not null or undefined when company has no related data", async () => {
+    minimalCompanyResponses();
+    const profile = await getProfileByCompanyId("c1");
 
-    if (!row) return; // skip if DB is empty
-
-    const profile = await getProfileByCompanyId(row.id);
-    assertProfileShape(profile);
-    expect(profile.identity.company.id).toBe(row.id);
-  });
-
-  it("always returns an identity section with a company object", async () => {
-    const [row] = await db
-      .select({ id: crmCompanies.id })
-      .from(crmCompanies)
-      .limit(1);
-
-    if (!row) return;
-
-    const profile = await getProfileByCompanyId(row.id);
-    expect(profile.identity.company).toHaveProperty("id");
-    expect(profile.identity.company).toHaveProperty("name");
-    expect(profile.identity.company).toHaveProperty("createdAt");
-    expect(profile.identity.company).toHaveProperty("updatedAt");
-  });
-
-  it("always returns array sections even when data is absent", async () => {
-    const [row] = await db
-      .select({ id: crmCompanies.id })
-      .from(crmCompanies)
-      .limit(1);
-
-    if (!row) return;
-
-    const profile = await getProfileByCompanyId(row.id);
-    // These must always be arrays, never null/undefined
     expect(Array.isArray(profile.identity.contacts)).toBe(true);
     expect(Array.isArray(profile.sales.leadHistory)).toBe(true);
     expect(Array.isArray(profile.sales.opportunities)).toBe(true);
@@ -130,124 +233,85 @@ describe("getProfileByCompanyId", () => {
     expect(Array.isArray(profile.service.onboarding)).toBe(true);
     expect(Array.isArray(profile.service.files)).toBe(true);
   });
-});
 
-// ── Lead profile path ─────────────────────────────────────────────────────────
+  it("all DTO sections are present", async () => {
+    minimalCompanyResponses();
+    const profile = await getProfileByCompanyId("c1");
 
-describe("getProfileByLeadId", () => {
-  it("throws when lead has no linked company", async () => {
-    // Leads without companyId cannot produce a profile
-    const [lead] = await db
-      .select({ id: crmLeads.id })
-      .from(crmLeads)
-      .where(isNotNull(crmLeads.companyId))
-      .limit(1);
-
-    // If all leads have companies, verify the shape instead
-    if (lead) {
-      const profile = await getProfileByLeadId(lead.id);
-      assertProfileShape(profile);
-    }
+    expect(profile.identity).toBeDefined();
+    expect(profile.sales).toBeDefined();
+    expect(profile.work).toBeDefined();
+    expect(profile.timeline).toBeDefined();
+    expect(profile.service).toBeDefined();
+    expect(profile.derived).toBeDefined();
   });
 
-  it("returns an identical DTO shape as getProfileByCompanyId", async () => {
-    const [lead] = await db
-      .select({ id: crmLeads.id, companyId: crmLeads.companyId })
-      .from(crmLeads)
-      .where(isNotNull(crmLeads.companyId))
-      .limit(1);
+  it("identity.company has all required scalar fields", async () => {
+    minimalCompanyResponses();
+    const profile = await getProfileByCompanyId("c1");
 
-    if (!lead?.companyId) return;
-
-    const [profileByLead, profileByCompany] = await Promise.all([
-      getProfileByLeadId(lead.id),
-      getProfileByCompanyId(lead.companyId),
-    ]);
-
-    // Both resolve to the same company — shape must be identical
-    expect(profileByLead.identity.company.id).toBe(profileByCompany.identity.company.id);
-    expect(profileByLead.identity.contacts.length).toBe(profileByCompany.identity.contacts.length);
-    expect(profileByLead.sales.opportunities.length).toBe(profileByCompany.sales.opportunities.length);
-    expect(profileByLead.derived.health).toBe(profileByCompany.derived.health);
-  });
-});
-
-// ── Opportunity profile path ──────────────────────────────────────────────────
-
-describe("getProfileByOpportunityId", () => {
-  it("returns an identical DTO shape as getProfileByCompanyId", async () => {
-    const [opp] = await db
-      .select({ id: pipelineOpportunities.id, companyId: pipelineOpportunities.companyId })
-      .from(pipelineOpportunities)
-      .where(isNotNull(pipelineOpportunities.companyId))
-      .limit(1);
-
-    if (!opp?.companyId) return;
-
-    const [profileByOpp, profileByCompany] = await Promise.all([
-      getProfileByOpportunityId(opp.id),
-      getProfileByCompanyId(opp.companyId),
-    ]);
-
-    expect(profileByOpp.identity.company.id).toBe(profileByCompany.identity.company.id);
-    expect(profileByOpp.sales.opportunities.length).toBe(profileByCompany.sales.opportunities.length);
-    expect(profileByOpp.derived.health).toBe(profileByCompany.derived.health);
+    expect(profile.identity.company).toHaveProperty("id", "c1");
+    expect(profile.identity.company).toHaveProperty("name", "Acme Corp");
+    expect(profile.identity.company).toHaveProperty("createdAt");
+    expect(profile.identity.company).toHaveProperty("updatedAt");
   });
 
-  it("returns a valid DTO shape for any linked opportunity", async () => {
-    const [opp] = await db
-      .select({ id: pipelineOpportunities.id })
-      .from(pipelineOpportunities)
-      .where(isNotNull(pipelineOpportunities.companyId))
-      .limit(1);
+  it("service.billingSummary is always present with hasStripe boolean", async () => {
+    minimalCompanyResponses();
+    const profile = await getProfileByCompanyId("c1");
 
-    if (!opp) return;
-
-    const profile = await getProfileByOpportunityId(opp.id);
-    assertProfileShape(profile);
+    expect(profile.service.billingSummary).toBeDefined();
+    expect(typeof profile.service.billingSummary!.hasStripe).toBe("boolean");
+    expect(profile.service.billingSummary!.hasStripe).toBe(false);
   });
 });
 
 // ── Derived field invariants ──────────────────────────────────────────────────
 
 describe("derived field invariants", () => {
-  it("health is always one of the valid enum values", async () => {
-    const [row] = await db
-      .select({ id: crmCompanies.id })
-      .from(crmCompanies)
-      .limit(1);
+  it("health is 'unknown' when there is no activity at all", async () => {
+    minimalCompanyResponses();
+    const profile = await getProfileByCompanyId("c1");
 
-    if (!row) return;
+    expect(profile.derived.health).toBe("unknown");
+  });
 
-    const profile = await getProfileByCompanyId(row.id);
+  it("value is null when there are no open opportunities", async () => {
+    minimalCompanyResponses();
+    const profile = await getProfileByCompanyId("c1");
+
+    expect(profile.derived.value).toBeNull();
+  });
+
+  it("work.nextAction is null when there are no tasks", async () => {
+    minimalCompanyResponses();
+    const profile = await getProfileByCompanyId("c1");
+
+    expect(profile.work.nextAction).toBeNull();
+  });
+
+  it("health is a valid enum value", async () => {
+    minimalCompanyResponses();
+    const profile = await getProfileByCompanyId("c1");
+
     expect(["healthy", "at_risk", "stale", "unknown"]).toContain(profile.derived.health);
   });
 
-  it("value is null or a positive number", async () => {
-    const [row] = await db
-      .select({ id: crmCompanies.id })
-      .from(crmCompanies)
-      .limit(1);
-
-    if (!row) return;
-
-    const profile = await getProfileByCompanyId(row.id);
-    if (profile.derived.value !== null) {
-      expect(typeof profile.derived.value).toBe("number");
-      expect(profile.derived.value).toBeGreaterThan(0);
-    }
-  });
-
   it("timeline events are sorted newest-first", async () => {
-    const [row] = await db
-      .select({ id: crmCompanies.id })
-      .from(crmCompanies)
-      .limit(1);
+    const older = new Date("2026-01-10T08:00:00Z");
+    const newer = new Date("2026-01-14T18:00:00Z");
+    const oldest = new Date("2026-01-05T00:00:00Z");
 
-    if (!row) return;
+    minimalCompanyResponses([
+      makeClientNote("cn-a", newer),
+      makeClientNote("cn-b", oldest),
+      makeClientNote("cn-c", older),
+    ]);
 
-    const profile = await getProfileByCompanyId(row.id);
+    const profile = await getProfileByCompanyId("c1");
     const events = profile.timeline.events;
+
+    expect(events).toHaveLength(3);
     for (let i = 1; i < events.length; i++) {
       expect(events[i - 1].timestamp.getTime()).toBeGreaterThanOrEqual(
         events[i].timestamp.getTime(),
@@ -255,22 +319,137 @@ describe("derived field invariants", () => {
     }
   });
 
-  it("nextAction is null or the earliest non-completed task", async () => {
-    const [row] = await db
-      .select({ id: crmCompanies.id })
-      .from(crmCompanies)
-      .limit(1);
+  it("timeline events have a source field", async () => {
+    minimalCompanyResponses([makeClientNote("cn1", NOW)]);
+    const profile = await getProfileByCompanyId("c1");
 
-    if (!row) return;
+    expect(profile.timeline.events[0]).toHaveProperty("source");
+    expect(profile.timeline.events[0].source).toBe("client_notes");
+  });
 
-    const profile = await getProfileByCompanyId(row.id);
-    const { nextAction, tasks } = profile.work;
-    if (nextAction !== null) {
-      expect(nextAction.completed).toBe(false);
-      const pendingDates = tasks
-        .filter((t) => !t.completed)
-        .map((t) => t.dueDate.getTime());
-      expect(nextAction.dueDate.getTime()).toBe(Math.min(...pendingDates));
-    }
+  it("work.nextAction is the earliest pending task", async () => {
+    const tomorrow = new Date(NOW.getTime() + 86400_000);
+    const dayAfter = new Date(NOW.getTime() + 2 * 86400_000);
+    const yesterday = new Date(NOW.getTime() - 86400_000);
+
+    companyWithOppAndTasksResponses([
+      makeTask("t-soon", false, tomorrow),
+      makeTask("t-later", false, dayAfter),
+      makeTask("t-done", true, yesterday),
+    ]);
+
+    const profile = await getProfileByCompanyId("c1");
+
+    expect(profile.work.nextAction).not.toBeNull();
+    expect(profile.work.nextAction!.id).toBe("t-soon");
+    expect(profile.work.nextAction!.completed).toBe(false);
+  });
+
+  it("work.nextAction is null when all tasks are completed", async () => {
+    const yesterday = new Date(NOW.getTime() - 86400_000);
+
+    companyWithOppAndTasksResponses([
+      makeTask("t-done", true, yesterday),
+    ]);
+
+    const profile = await getProfileByCompanyId("c1");
+
+    expect(profile.work.nextAction).toBeNull();
+  });
+
+  it("derived.value sums only open opportunity values", async () => {
+    // oppRow has value="12000" and status="open"
+    companyWithOppAndTasksResponses([]);
+    const profile = await getProfileByCompanyId("c1");
+
+    expect(profile.derived.value).toBe(12000);
+  });
+});
+
+// ── Entry-point routing ───────────────────────────────────────────────────────
+
+describe("entry-point routing", () => {
+  it("getProfileByLeadId resolves to the same company as getProfileByCompanyId", async () => {
+    // ── getProfileByLeadId("l1") call sequence ──────────────────────────────
+    // getProfileByLeadId calls resolveByLeadId then assembleProfile directly.
+    // It does NOT call resolveByCompanyId.
+    //
+    //  resolveByLeadId:
+    //   [0] crmLeads where id=l1              → [leadIdRow]  (lead found, companyId="c1")
+    //   [1] pipelineOpportunities leadId=l1   → []           (no opp by this leadId)
+    //  assembleProfile("c1", { primaryLeadId: "l1" }):
+    //   [2] crmCompanies where id=c1          → [companyRow]  (FULL row, not just id)
+    //   [3]  contacts                         → []
+    //   [4]  leads (orderBy)                  → []
+    //   [5]  opportunities                    → []
+    //   [6]  onboarding                       → []
+    //   [7]  tasks                            → []
+    //   [8]  stripe                           → []
+    //   [9]  attachments                      → []
+    //   [10] clientNotes                      → []
+    setupDbResponses(
+      [leadIdRow],  // [0] resolveByLeadId — lead row
+      [],           // [1] resolveByLeadId — opp by leadId
+      [companyRow], // [2] assembleProfile — full company row
+      [], [], [], [], [], [], [], [], // [3-10] empty sections
+    );
+
+    const profile = await getProfileByLeadId("l1");
+
+    expect(profile.identity.company.id).toBe("c1");
+    expect(profile.identity.company.name).toBe("Acme Corp");
+  });
+
+  it("getProfileByOpportunityId resolves to the same company as getProfileByCompanyId", async () => {
+    // ── getProfileByOpportunityId("o1") call sequence ──────────────────────
+    // getProfileByOpportunityId calls resolveByOpportunityId then assembleProfile
+    // directly. It does NOT call resolveByCompanyId.
+    //
+    //  resolveByOpportunityId:
+    //   [0] pipelineOpportunities where id=o1 → [oppIdRow]  (companyId="c1" set)
+    //   (no secondary lead lookup — companyId is present on the opp row)
+    //  assembleProfile("c1", { primaryOpportunityId: "o1" }):
+    //   [1] crmCompanies where id=c1          → [companyRow]  (FULL row)
+    //   [2]  contacts                         → []
+    //   [3]  leads                            → []
+    //   [4]  opportunities                    → []
+    //   [5]  onboarding                       → []
+    //   [6]  tasks                            → []
+    //   [7]  stripe                           → []
+    //   [8]  attachments                      → []
+    //   [9]  clientNotes                      → []
+    setupDbResponses(
+      [oppIdRow],   // [0] resolveByOpportunityId — opp row
+      [companyRow], // [1] assembleProfile — full company row
+      [], [], [], [], [], [], [], [], // [2-9] empty sections
+    );
+
+    const profile = await getProfileByOpportunityId("o1");
+
+    expect(profile.identity.company.id).toBe("c1");
+    expect(profile.identity.company.name).toBe("Acme Corp");
+  });
+
+  it("getProfileByLeadId throws when lead has no companyId", async () => {
+    // resolveByLeadId returns a lead row with companyId=null
+    setupDbResponses(
+      [{ id: "l-orphan", companyId: null }],  // lead has no company
+      [],                                      // pipelineOpportunities
+    );
+
+    await expect(
+      getProfileByLeadId("l-orphan"),
+    ).rejects.toThrow(/no linked company/);
+  });
+
+  it("getProfileByOpportunityId throws when opp has no companyId", async () => {
+    // resolveByOpportunityId returns opp with companyId=null, leadId=null
+    setupDbResponses(
+      [{ id: "o-orphan", leadId: null, companyId: null }],  // opp has no company or lead
+    );
+
+    await expect(
+      getProfileByOpportunityId("o-orphan"),
+    ).rejects.toThrow(/no linked company/);
   });
 });

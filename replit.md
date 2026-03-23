@@ -99,6 +99,95 @@ Admin-configurable task templates that auto-generate tasks when opportunities en
 - **Data-testid Attributes**: Every interactive and meaningful display element includes a descriptive `data-testid` for robust testing.
 - **File Structure**: Organized into `client/src/features`, `client/src/components`, `client/src/hooks`, `client/src/i18n`, `client/src/pages` for the frontend, and `server/features`, `shared` for the backend and shared schemas. The `profiles` feature is a core cross-domain module.
 
+## Testing Architecture
+
+### Layer Separation
+
+Tests are organized into three clearly separated layers. The `npm run test:unit` command is designed to pass **without any database or network access** — unit tests are the authoritative fast-feedback signal for CI and local development.
+
+| Layer | Command | DB needed? | Location |
+|---|---|---|---|
+| **Unit** | `npm run test:unit` | No | `tests/unit/` |
+| **Integration** | `npm run test:integration` | Yes (live Postgres) | `tests/integration/` |
+| **Smoke / E2E** | `npm run test:smoke` | Yes | `tests/smoke/` |
+| **All** | `npm test` | Yes | `tests/**` |
+
+### Unit Test Conventions
+
+Unit tests are **hermetic** — they mock `server/db` and test business logic in isolation.
+
+**Pattern: call-sequence mock for Drizzle ORM**
+
+Drizzle ORM uses a fluent chain (`db.select().from().where()…`).  Each `db.select()` call in the service is intercepted by a vitest mock that returns the next item in a deterministic response queue.
+
+```typescript
+const { mockSelect } = vi.hoisted(() => ({ mockSelect: vi.fn() }));
+vi.mock("../../server/db", () => ({ db: { select: mockSelect } }));
+
+function makeChain(data: unknown[]): any {
+  const chain: Record<string, any> = {};
+  for (const m of ["from","where","limit","orderBy","leftJoin","groupBy","returning"]) {
+    chain[m] = () => chain;
+  }
+  chain.then = (resolve, reject) => Promise.resolve(data).then(resolve, reject);
+  return chain;
+}
+
+function setupDbResponses(...responses: unknown[][]) {
+  let i = 0;
+  mockSelect.mockImplementation(() => makeChain(responses[i++] ?? []));
+}
+```
+
+Each service function makes DB calls in a fixed sequence.  The test fixture comment documents the exact call-sequence so future contributors can update response arrays when the service code changes.
+
+**Writing a new unit test:**
+1. Trace the DB call sequence for the code path under test (see service file comments).
+2. Call `setupDbResponses(response0, response1, …)` in the test body.
+3. Assert on the JS-layer output — shapes, derived fields, computations, error messages.
+
+### What belongs in each layer
+
+| What to test | Layer |
+|---|---|
+| Service not-found errors | Unit |
+| DTO always-array guarantees | Unit |
+| Derived field computations (health, value, nextAction, rates) | Unit |
+| Rate rounding / zero-denominator guards | Unit |
+| JS reduce totals (totalOpen = Σ openCounts) | Unit |
+| Pure mapper functions (mapCompany, mapLead, etc.) | Unit |
+| SQL query correctness (real aggregate results) | Integration |
+| DTO shape consistency across entry points (lead vs company vs opp) | Integration |
+| Route auth enforcement and HTTP contract | Integration |
+
+### File inventory
+
+```
+tests/
+  unit/
+    profiles-service.test.ts       ← hermetic: not-found, arrays, derived fields
+    profiles-mappers.test.ts       ← pure functions: mappers, deriveHealth, etc.
+    report-aggregations.test.ts    ← hermetic: rate math, reduce totals, shapes
+    bootstrap.test.ts
+    channel-normalization.test.ts
+    provider-resilience.test.ts
+    static-cache-headers.test.ts
+    workflow-queue.test.ts
+  integration/
+    profiles-service.test.ts       ← live DB: DTO consistency across entry points
+    report-aggregations.test.ts    ← live DB: SQL aggregation correctness
+    profiles-routes.test.ts        ← mocked service, real route layer
+    auth-middleware.test.ts
+    public-contact-form.test.ts
+  helpers/
+    renderWithProviders.tsx
+    handlers.ts
+    server.ts
+    session.ts
+  __mocks__/
+    assetStub.ts
+```
+
 ## External Dependencies
 - **PostgreSQL**: Primary database for all application data.
 - **Cloudflare R2**: Object storage for file uploads.
