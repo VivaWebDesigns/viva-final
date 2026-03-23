@@ -136,6 +136,21 @@ export default function CompleteTaskModal({
           outcome,
           completionNote: completionNote.trim() || undefined,
         });
+      } else if (outcome) {
+        const rawTitle = defaultTaskTitle ?? "Follow up";
+        const res = await apiRequest("POST", "/api/tasks", {
+          title: rawTitle,
+          dueDate: todayLocalString(),
+          opportunityId: effOppId,
+          leadId: effLeadId,
+          contactId: effContactId,
+          taskType: "follow_up",
+        });
+        const created: { id: string } = await res.json();
+        await apiRequest("PUT", `/api/tasks/${created.id}/complete`, {
+          outcome,
+          completionNote: completionNote.trim() || undefined,
+        });
       }
 
       if (followUp !== "none") {
