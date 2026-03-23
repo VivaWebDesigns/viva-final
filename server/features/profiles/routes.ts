@@ -10,6 +10,7 @@ import {
   pipelineActivities,
   clientNotes,
   followupTasks,
+  automationExecutionLogs,
   stripeCustomers,
   stripeWebhookEvents,
   attachments,
@@ -923,6 +924,10 @@ router.delete(
         .where(and(eq(followupTasks.id, taskId), eq(followupTasks.companyId, companyId)))
         .limit(1);
       if (!existingTask) return res.status(404).json({ message: "Task not found" });
+
+      await db.update(automationExecutionLogs)
+        .set({ generatedTaskId: null })
+        .where(eq(automationExecutionLogs.generatedTaskId, taskId));
 
       await db.delete(followupTasks).where(and(eq(followupTasks.id, taskId), eq(followupTasks.companyId, companyId)));
 
