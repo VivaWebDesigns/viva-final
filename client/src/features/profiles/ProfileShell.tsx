@@ -2896,12 +2896,23 @@ function ProfileShellInner({
         </TabsContent>
       </Tabs>
 
-      {hasOpenOpp && activeOpp && (
+      {hasOpenOpp && activeOpp && (() => {
+        const existingOpenTask = contactedPendingStageId
+          ? work.tasks
+              .filter(
+                (t) =>
+                  !t.completed &&
+                  t.opportunityId === activeOpp.id &&
+                  (t.taskType === "follow_up" || !t.taskType)
+              )
+              .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())[0] ?? null
+          : null;
+        return (
         <>
           <CompleteTaskModal
             open={contactedPendingStageId !== null}
             onClose={() => setContactedPendingStageId(null)}
-            task={null}
+            task={existingOpenTask}
             opportunityId={activeOpp.id}
             contactId={primaryContact?.id ?? null}
             defaultTaskTitle={`Follow up with ${contact?.firstName ?? ""} ${contact?.lastName ?? ""}`.trim()}
@@ -2918,7 +2929,8 @@ function ProfileShellInner({
             }}
           />
         </>
-      )}
+        );
+      })()}
 
       <CompleteTaskModal
         open={!!completingTask}

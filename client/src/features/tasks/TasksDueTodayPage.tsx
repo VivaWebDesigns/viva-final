@@ -298,7 +298,7 @@ export default function TasksDueTodayPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks/due-today"] });
       queryClient.invalidateQueries({ queryKey: ["/api/tasks/completed-history"] });
-      toast({ title: t.tasks.taskDeleted ?? "Task deleted" });
+      toast({ title: (t.tasks as Record<string, unknown>).taskDeleted as string ?? "Task deleted" });
     },
     onError: (err: Error) => {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -339,14 +339,11 @@ export default function TasksDueTodayPage() {
   };
 
   const outcomeLabels: Record<string, string> = {
-    noAnswer: t.tasks.outcomes.noAnswer,
-    leftVoicemail: t.tasks.outcomes.leftVoicemail,
-    spokeWithLead: t.tasks.outcomes.spokeWithLead,
     interested: t.tasks.outcomes.interested,
+    uncertain: t.tasks.outcomes.uncertain,
     notInterested: t.tasks.outcomes.notInterested,
     badNumber: t.tasks.outcomes.badNumber,
     appointmentSet: t.tasks.outcomes.appointmentSet,
-    duplicateLead: t.tasks.outcomes.duplicateLead,
   };
 
   return (
