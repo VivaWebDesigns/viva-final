@@ -12,7 +12,7 @@
  * All sections have safe fallbacks for null / partial data.
  */
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   Building2, User, Phone, Mail, MapPin, Globe,
@@ -1891,10 +1891,20 @@ export default function ProfileShell({
   className = "",
 }: ProfileShellProps) {
   const { data: profile, isLoading, error } = useUnifiedProfile(entry);
+  const { role } = useAuth();
   const urlTab = new URLSearchParams(window.location.search).get("tab");
-  const validTabs = ["overview", "notes", "contacts", "tasks", "files", "billing", "activity"];
-  const resolvedTab = urlTab && validTabs.includes(urlTab) ? urlTab : defaultTab;
+  const validTabs = ["overview", "notes", "contacts", "tasks", "files", "billing", "activity"].filter(
+    (tab) => !(tab === "notes" && role === "sales_rep")
+  );
+  const safeDefaultTab = validTabs.includes(defaultTab) ? defaultTab : "overview";
+  const resolvedTab = urlTab && validTabs.includes(urlTab) ? urlTab : safeDefaultTab;
   const [activeTab, setActiveTab] = useState<string>(resolvedTab);
+
+  useEffect(() => {
+    if (!validTabs.includes(activeTab)) {
+      setActiveTab(safeDefaultTab);
+    }
+  }, [role]);
   const { toast } = useToast();
   const { t } = useAdminLang();
   const [, navigate] = useLocation();
@@ -2019,7 +2029,8 @@ function ProfileShellInner({
 }: ProfileShellInnerProps) {
   const { identity, sales, work, service, derived } = profile;
   const { role } = useAuth();
-  const hideSalesRepOppSections = entry.type === "opportunity" && role === "sales_rep";
+  const isSalesRep = role === "sales_rep";
+  const hideSalesRepOppSections = entry.type === "opportunity" && isSalesRep;
 
   const { data: stages } = useQuery<PipelineStage[]>({
     queryKey: ["/api/pipeline/stages"],
@@ -2034,7 +2045,7 @@ function ProfileShellInner({
 
   const { data: notes = [], isLoading: notesLoading } = useQuery<(ClientNote & { user?: Pick<DbUser, "id" | "name"> })[]>({
     queryKey: ["/api/profiles/company", companyId, "notes"],
-    enabled: activeTab === "notes",
+    enabled: activeTab === "notes" && !isSalesRep,
   });
 
   const { data: clientTasks = [], isLoading: tasksLoading } = useQuery<ClientTask[]>({
@@ -2268,7 +2279,7 @@ function ProfileShellInner({
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="w-full justify-start overflow-x-auto" data-testid="tabs-profile">
           <TabsTrigger value="overview" data-testid="tab-overview">{t.profileShell.overview}</TabsTrigger>
-          <TabsTrigger value="notes" data-testid="tab-notes">{t.profileShell.notes}</TabsTrigger>
+          {!isSalesRep && <TabsTrigger value="notes" data-testid="tab-notes">{t.profileShell.notes}</TabsTrigger>}
           <TabsTrigger value="contacts" data-testid="tab-contacts">
             {t.profileShell.contacts}
           </TabsTrigger>
@@ -2316,7 +2327,7 @@ function ProfileShellInner({
         </TabsContent>
 
         {/* ── Notes Tab ────────────────────────────────────────────────────── */}
-        <TabsContent value="notes" className="mt-4 space-y-4">
+        {!isSalesRep && <TabsContent value="notes" className="mt-4 space-y-4">
           <NoteForm onSubmit={(data) => addNoteMutation.mutate(data)} isPending={addNoteMutation.isPending} />
 
           {notesLoading ? (
@@ -2371,7 +2382,7 @@ function ProfileShellInner({
               })}
             </div>
           )}
-        </TabsContent>
+        </TabsContent>}
 
         {/* ── Contacts Tab ─────────────────────────────────────────────────── */}
         <TabsContent value="contacts" className="mt-4 space-y-4">
