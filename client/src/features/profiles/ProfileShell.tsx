@@ -2267,7 +2267,6 @@ function ProfileShellInner({
     >
       <ProfileHeader entry={entry} company={identity.company} derived={derived} />
 
-      {!hideSalesRepOppSections && <QuickStats {...quickStats} />}
 
       {hasOpenOpp && stages && stages.length > 0 && activeOpp && (
         <MoveToStageBar
@@ -2310,25 +2309,7 @@ function ProfileShellInner({
               primaryContact={identity.primaryContact}
               contacts={identity.contacts}
             />
-            {!hideSalesRepOppSections && (
-              <SalesSnapshotCard
-                entry={entry}
-                sales={sales}
-                companyName={identity.company?.name}
-                contactName={identity.primaryContact ? [identity.primaryContact.firstName, identity.primaryContact.lastName].filter(Boolean).join(" ") : null}
-                contacts={identity.contacts}
-              />
-            )}
           </div>
-          {!hideSalesRepOppSections && (
-            <AccountManagementForm
-              company={identity.company}
-              users={users}
-              onSubmit={(data) => updateAccountMutation.mutate(data)}
-              isPending={updateAccountMutation.isPending}
-              t={t}
-            />
-          )}
         </TabsContent>
 
         {/* ── Notes Tab ────────────────────────────────────────────────────── */}
