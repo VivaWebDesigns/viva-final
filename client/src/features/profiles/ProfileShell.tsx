@@ -22,7 +22,7 @@ import {
   CheckCircle2, Circle, Pencil, Zap, Plus, Pin,
   Trash2, Users, CalendarDays, Upload, ExternalLink,
   BarChart3, CheckSquare, History, Star, Edit2,
-  ClipboardList, CheckCircle, ChevronDown, ChevronRight,
+  ClipboardList, CheckCircle, ChevronDown, ChevronRight, CalendarClock,
 } from "lucide-react";
 import { format, formatDistanceToNow, isPast, isToday } from "date-fns";
 import { Badge } from "@/components/ui/badge";
@@ -57,6 +57,7 @@ import { EditContactDialog } from "./edit/EditContactDialog";
 import { EditLeadDialog } from "./edit/EditLeadDialog";
 import { EditOpportunityDialog } from "./edit/EditOpportunityDialog";
 import CompleteTaskModal from "@/components/CompleteTaskModal";
+import QuickTaskModal from "@/components/QuickTaskModal";
 import PaymentSentModal from "@/components/PaymentSentModal";
 import type {
   ProfileEntry,
@@ -1795,10 +1796,13 @@ function AccountManagementForm({ company, users, onSubmit, isPending, t }: {
 // Section: ClientTaskRow (full CRUD version)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function ClientTaskRow({ task, onToggle, onDelete, isToggling, t }: {
+function ClientTaskRow({ task, onComplete, onToggle, onReschedule, onDelete, canDelete, isToggling, t }: {
   task: ClientTask;
+  onComplete: () => void;
   onToggle: () => void;
+  onReschedule: () => void;
   onDelete: () => void;
+  canDelete: boolean;
   isToggling: boolean;
   t: AdminTranslations;
 }) {
@@ -1809,7 +1813,7 @@ function ClientTaskRow({ task, onToggle, onDelete, isToggling, t }: {
     <Card className={`p-3 flex items-start gap-3 group transition-opacity ${isDone ? "opacity-60" : ""}`} data-testid={`task-row-${task.id}`}>
       <button
         className="mt-0.5 shrink-0"
-        onClick={onToggle}
+        onClick={isDone ? onToggle : onComplete}
         disabled={isToggling}
         data-testid={`button-toggle-task-${task.id}`}
       >
@@ -1842,15 +1846,31 @@ function ClientTaskRow({ task, onToggle, onDelete, isToggling, t }: {
           )}
         </div>
       </div>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-        onClick={onDelete}
-        data-testid={`button-delete-task-${task.id}`}
-      >
-        <Trash2 className="w-3.5 h-3.5 text-red-400" />
-      </Button>
+      <div className="flex items-center gap-1 shrink-0">
+        {!isDone && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-6 text-xs px-2 opacity-0 group-hover:opacity-100 transition-opacity"
+            onClick={onReschedule}
+            data-testid={`button-reschedule-task-${task.id}`}
+          >
+            <CalendarClock className="w-3 h-3 mr-1" />
+            {t.tasks.reschedule}
+          </Button>
+        )}
+        {canDelete && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+            onClick={onDelete}
+            data-testid={`button-delete-task-${task.id}`}
+          >
+            <Trash2 className="w-3.5 h-3.5 text-red-400" />
+          </Button>
+        )}
+      </div>
     </Card>
   );
 }
@@ -1888,6 +1908,8 @@ export default function ProfileShell({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [expandedActivityId, setExpandedActivityId] = useState<string | null>(null);
+  const [completingTask, setCompletingTask] = useState<ClientTask | null>(null);
+  const [rescheduleTask, setRescheduleTask] = useState<ClientTask | null>(null);
 
   if (isLoading) return <ProfileSkeleton />;
 
@@ -1936,6 +1958,10 @@ export default function ProfileShell({
       setUploadingFile={setUploadingFile}
       expandedActivityId={expandedActivityId}
       setExpandedActivityId={setExpandedActivityId}
+      completingTask={completingTask}
+      setCompletingTask={setCompletingTask}
+      rescheduleTask={rescheduleTask}
+      setRescheduleTask={setRescheduleTask}
       className={className}
     />
   );
@@ -1969,6 +1995,10 @@ interface ProfileShellInnerProps {
   setUploadingFile: (v: boolean) => void;
   expandedActivityId: string | null;
   setExpandedActivityId: (v: string | null) => void;
+  completingTask: ClientTask | null;
+  setCompletingTask: (v: ClientTask | null) => void;
+  rescheduleTask: ClientTask | null;
+  setRescheduleTask: (v: ClientTask | null) => void;
   className: string;
 }
 
@@ -1983,6 +2013,8 @@ function ProfileShellInner({
   togglingTaskId, setTogglingTaskId,
   fileInputRef, uploadingFile, setUploadingFile,
   expandedActivityId, setExpandedActivityId,
+  completingTask, setCompletingTask,
+  rescheduleTask, setRescheduleTask,
   className,
 }: ProfileShellInnerProps) {
   const { identity, sales, work, service, derived } = profile;
@@ -2480,8 +2512,11 @@ function ProfileShellInner({
                     <ClientTaskRow
                       key={task.id}
                       task={task}
+                      onComplete={() => setCompletingTask(task)}
                       onToggle={() => toggleTaskMutation.mutate(task.id)}
+                      onReschedule={() => setRescheduleTask(task)}
                       onDelete={() => deleteTaskMutation.mutate(task.id)}
+                      canDelete={role !== "sales_rep"}
                       isToggling={togglingTaskId === task.id}
                       t={t}
                     />
@@ -2497,8 +2532,11 @@ function ProfileShellInner({
                     <ClientTaskRow
                       key={task.id}
                       task={task}
+                      onComplete={() => setCompletingTask(task)}
                       onToggle={() => toggleTaskMutation.mutate(task.id)}
+                      onReschedule={() => setRescheduleTask(task)}
                       onDelete={() => deleteTaskMutation.mutate(task.id)}
+                      canDelete={role !== "sales_rep"}
                       isToggling={togglingTaskId === task.id}
                       t={t}
                     />
@@ -2514,8 +2552,11 @@ function ProfileShellInner({
                     <ClientTaskRow
                       key={task.id}
                       task={task}
+                      onComplete={() => setCompletingTask(task)}
                       onToggle={() => toggleTaskMutation.mutate(task.id)}
+                      onReschedule={() => setRescheduleTask(task)}
                       onDelete={() => deleteTaskMutation.mutate(task.id)}
+                      canDelete={role !== "sales_rep"}
                       isToggling={togglingTaskId === task.id}
                       t={t}
                     />
@@ -2871,6 +2912,35 @@ function ProfileShellInner({
           />
         </>
       )}
+
+      <CompleteTaskModal
+        open={!!completingTask}
+        onClose={() => setCompletingTask(null)}
+        task={completingTask}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ["/api/profiles/company", companyId, "tasks"] });
+          queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
+        }}
+      />
+
+      <QuickTaskModal
+        open={!!rescheduleTask}
+        onClose={() => setRescheduleTask(null)}
+        editTask={rescheduleTask ? {
+          id: rescheduleTask.id,
+          title: rescheduleTask.title,
+          notes: rescheduleTask.notes ?? null,
+          dueDate: typeof rescheduleTask.dueDate === "string"
+            ? rescheduleTask.dueDate
+            : (rescheduleTask.dueDate as unknown as Date).toISOString(),
+          followUpTime: rescheduleTask.followUpTime ?? null,
+          followUpTimezone: rescheduleTask.followUpTimezone ?? null,
+        } : null}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ["/api/profiles/company", companyId, "tasks"] });
+          queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
+        }}
+      />
     </div>
   );
 }
