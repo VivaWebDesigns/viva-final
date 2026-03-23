@@ -2803,6 +2803,7 @@ function ProfileShellInner({
                       case "task_reopened":
                       case "task_deleted":
                         add("Task", note);
+                        add("Notes", toValue);
                         add("By", actorName);
                         break;
                       case "note_added":

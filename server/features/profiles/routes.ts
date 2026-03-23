@@ -824,6 +824,7 @@ router.post(
         entityId: companyId,
         event: "task_created",
         note: `${task.title} [${task.taskType}]`,
+        toValue: task.notes ?? null,
         actorId: req.authUser?.id,
         actorName: req.authUser?.name,
       });
@@ -888,6 +889,7 @@ router.put(
         entityId: companyId,
         event: nowCompleted ? "task_completed" : "task_reopened",
         note: noteParts.join(" · "),
+        toValue: task.notes ?? null,
         actorId: req.authUser?.id,
         actorName: req.authUser?.name,
       });
@@ -932,6 +934,7 @@ router.delete(
         entityId: companyId,
         event: "task_deleted",
         note: existingTask.title,
+        toValue: existingTask.notes ?? null,
         actorId: req.authUser?.id,
         actorName: req.authUser?.name,
       });
