@@ -16,7 +16,7 @@ import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   Building2, User, Phone, Mail, MapPin, Globe,
-  AlertCircle, CheckSquare2, Square, Clock, Paperclip,
+  AlertCircle, CheckSquare2, Clock, Paperclip,
   MessageSquare, RefreshCw, ArrowRight, Info, CreditCard,
   Rocket, TrendingUp, FileText, Download, Activity,
   CheckCircle2, Circle, Pencil, Zap, Plus, Pin,
@@ -1818,8 +1818,8 @@ function ClientTaskRow({ task, onComplete, onToggle, onReschedule, onDelete, can
         data-testid={`button-toggle-task-${task.id}`}
       >
         {isDone
-          ? <CheckSquare className="w-5 h-5 text-emerald-500" />
-          : <Square className={`w-5 h-5 ${isOverdue ? "text-red-400" : "text-gray-300"}`} />
+          ? <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+          : <CheckCircle2 className={`w-5 h-5 ${isOverdue ? "text-red-400 hover:text-emerald-500" : "text-gray-300 hover:text-emerald-500"} transition-colors`} />
         }
       </button>
       <div className="flex-1 min-w-0">
