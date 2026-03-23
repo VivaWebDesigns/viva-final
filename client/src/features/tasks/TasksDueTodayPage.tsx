@@ -183,7 +183,7 @@ function CompletedTaskCard({
 
   const cardContent = (
     <Card
-      className={`p-3 transition-all ${profileLink ? "hover:border-[#0D9488]/40 hover:shadow-sm cursor-pointer" : ""}`}
+      className={`p-3 mb-2.5 transition-all ${profileLink ? "hover:border-[#0D9488]/40 hover:shadow-sm cursor-pointer" : ""}`}
       data-testid={`completed-task-card-${task.id}`}
     >
       <div className="flex items-start gap-2">
