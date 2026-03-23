@@ -563,6 +563,7 @@ export const es: AdminTranslations = {
       noAnswer: "Sin respuesta",
       leftVoicemail: "Dejó buzón de voz",
       spokeWithLead: "Habló con el prospecto",
+      autoFollowUpInfo: "Se programará automáticamente una tarea de seguimiento para mañana.",
       interested: "Interesado",
       uncertain: "Indeciso",
       notInterested: "No interesado",

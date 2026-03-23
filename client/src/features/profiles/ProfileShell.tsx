@@ -2102,6 +2102,7 @@ function ProfileShellInner({
 
   const handleSpokeWithLead = async () => {
     if (!completingTask) return;
+    if (spokeWithLeadTaskIdRef.current === completingTask.id) return;
     const task = completingTask;
     spokeWithLeadTaskIdRef.current = task.id;
     setCompletingTask(null);

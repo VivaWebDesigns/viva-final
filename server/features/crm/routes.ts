@@ -472,7 +472,9 @@ router.post("/leads/manual", requireRole("admin", "developer", "sales_rep", "lea
         assignedTo: creatorId,
         stageSlug: "new-lead",
         actorId: creatorId,
-      }).catch(() => {});
+      }).catch((err: unknown) => {
+        console.error("[crm/manual-lead] executeStageAutomations failed:", err);
+      });
     }
 
     await logAudit({

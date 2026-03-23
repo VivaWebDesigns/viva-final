@@ -326,7 +326,7 @@ export default function CompleteTaskModal({
 
           {isNewLead && outcome !== "" && !isSpokeWithLead && (
             <p className="text-xs text-gray-500" data-testid="text-auto-followup-info">
-              A follow-up task will be automatically scheduled for tomorrow.
+              {(t.tasks.outcomes as Record<string, string>).autoFollowUpInfo}
             </p>
           )}
         </div>

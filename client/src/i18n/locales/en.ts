@@ -561,6 +561,7 @@ export const en = {
       noAnswer: "No answer",
       leftVoicemail: "Left voicemail",
       spokeWithLead: "Spoke with lead",
+      autoFollowUpInfo: "A follow-up task will be automatically scheduled for tomorrow.",
       interested: "Interested",
       uncertain: "Uncertain",
       notInterested: "Not interested",
