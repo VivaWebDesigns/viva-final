@@ -167,8 +167,8 @@ export default function PaymentSentModal({
 
         <div className="space-y-4 py-2">
           <div className="space-y-2">
-            <Label htmlFor="ps-time-sent">
-              {ps.timeSent} <span className="text-red-500">*</span>
+            <Label htmlFor="ps-time-sent" className="text-sm font-semibold text-blue-600">
+              🕐 Rep's Time Sent <span className="text-red-500">*</span>
             </Label>
             <Input
               id="ps-time-sent"
