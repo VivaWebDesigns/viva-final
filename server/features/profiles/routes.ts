@@ -17,7 +17,7 @@ import {
   user,
   type Role,
 } from "@shared/schema";
-import { eq, and, or, desc, asc, inArray, lt, type SQL } from "drizzle-orm";
+import { eq, and, or, desc, asc, inArray, lt, sql, type SQL } from "drizzle-orm";
 import { requireRole } from "../auth/middleware";
 import { logAudit } from "../audit/service";
 import { appendHistorySafe, getHistory } from "../history/service";
@@ -473,7 +473,7 @@ router.get(
         .from(followupTasks)
         .leftJoin(user, eq(followupTasks.createdBy, user.id))
         .where(or(...conditions))
-        .orderBy(asc(followupTasks.dueDate));
+        .orderBy(sql`${followupTasks.completedAt} DESC NULLS LAST`, asc(followupTasks.dueDate));
 
       const enriched = tasks.map((task) => ({
         ...task,
