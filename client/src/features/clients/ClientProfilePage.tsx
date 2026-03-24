@@ -1272,16 +1272,7 @@ function TaskRow({ task, onToggle, onDelete, isToggling, renderTitle }: {
           )}
           {isDone && task.outcome && (
             <Badge variant="secondary" className="text-[10px] px-1.5">
-              {({
-                interested: "Interested",
-                uncertain: "Uncertain",
-                notInterested: "Not Interested",
-                badNumber: "Bad Number",
-                appointmentSet: "Appointment Set",
-                noAnswer: "No Answer",
-                leftVoicemail: "Left Voicemail",
-                spokeWithLead: "Spoke With Lead",
-              } as Record<string, string>)[task.outcome] ?? task.outcome}
+              {task.outcome}
             </Badge>
           )}
         </div>
