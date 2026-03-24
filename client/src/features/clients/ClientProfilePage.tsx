@@ -1277,7 +1277,7 @@ function TaskRow({ task, onToggle, onDelete, isToggling, renderTitle }: {
         <div className="flex items-center gap-3 mt-1.5">
           <span className={`text-xs flex items-center gap-1 ${isOverdue ? "text-red-500 font-medium" : "text-gray-400"}`}>
             <CalendarDays className="w-3 h-3" />
-            {task.dueDate ? (task.dueDate.slice(0, 10) === new Date().toISOString().slice(0, 10) ? "Today" : new Date(task.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })) : "No due date"}
+            {task.dueDate ? new Date(task.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }) : "No due date"}
           </span>
           {task.creatorName && (
             <span className="text-xs text-gray-400">by {task.creatorName}</span>
