@@ -975,7 +975,7 @@ export default function ClientProfilePage({ id }: { id: string }) {
               {tasks.filter(t => t.status === "completed").length > 0 && (
                 <div className="space-y-2">
                   <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wide px-1">Completed</p>
-                  {tasks.filter(t => t.status === "completed").map(task => (
+                  {tasks.filter(t => t.status === "completed").sort((a, b) => new Date(b.completedAt ?? b.dueDate).getTime() - new Date(a.completedAt ?? a.dueDate).getTime()).map(task => (
                     <TaskRow
                       key={task.id}
                       task={task}
