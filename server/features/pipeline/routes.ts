@@ -317,14 +317,15 @@ router.put("/opportunities/:id/stage", requireRole("admin", "developer", "sales_
       } catch (_) {}
     }
     // Auto-complete any open automation tasks that belonged to the FROM stage
-    if (existing.stageId && existing.stageId !== stageId) {
+    const fromStageSlug = (meta?.fromStageSlug as string) ?? null;
+    if (fromStageSlug && existing.stageId !== stageId) {
       try {
         const fromStageLogs = await db
           .select({ generatedTaskId: automationExecutionLogs.generatedTaskId })
           .from(automationExecutionLogs)
           .where(and(
             eq(automationExecutionLogs.opportunityId, id),
-            eq(automationExecutionLogs.stageId, existing.stageId),
+            eq(automationExecutionLogs.triggerStageSlug, fromStageSlug),
             isNotNull(automationExecutionLogs.generatedTaskId),
           ));
         const taskIds = fromStageLogs.map(r => r.generatedTaskId!).filter(Boolean);
