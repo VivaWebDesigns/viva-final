@@ -1275,7 +1275,7 @@ function TaskRow({ task, onToggle, onDelete, isToggling, renderTitle }: {
           <div className="text-xs text-gray-500 mt-0.5 line-clamp-2 chat-message-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(task.notes) }} />
         )}
         <div className="flex items-center gap-3 mt-1.5">
-          <span className={`text-xs flex items-center gap-1 ${isOverdue ? "text-red-500 font-medium" : "text-gray-400"}`}>
+          <span className={`text-xs flex items-center gap-1 ${isOverdue ? "text-red-500 font-medium" : isDone ? "text-gray-400" : "text-amber-500 font-medium"}`}>
             <CalendarDays className="w-3 h-3" />
             {task.dueDate ? new Date(task.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }) : "No due date"}
           </span>
