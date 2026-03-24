@@ -51,6 +51,13 @@ const REQUIRES_FOLLOW_UP = new Set([
   "Interested", "Uncertain",
 ]);
 
+const US_TIMEZONES = [
+  { value: "EST", label: "Eastern (EST)" },
+  { value: "CST", label: "Central (CST)" },
+  { value: "MST", label: "Mountain (MST)" },
+  { value: "PST", label: "Pacific (PST)" },
+];
+
 type FollowUpOption = "none" | "1d" | "3d" | "1w" | "custom";
 
 interface CompleteTaskModalProps {
@@ -97,11 +104,19 @@ export default function CompleteTaskModal({
   const [customDate, setCustomDate] = useState(todayLocalString());
   const [followUpTime, setFollowUpTime] = useState("09:00");
 
+  // Demo scheduling fields (Appointment set)
+  const [demoDate, setDemoDate] = useState("");
+  const [demoTime, setDemoTime] = useState("");
+  const [demoTimezone, setDemoTimezone] = useState("");
+  const [demoRep, setDemoRep] = useState("");
+
   const effectiveTimezone = leadTimezone ?? resolveRepTimezone();
 
   const effOppId = task?.opportunityId ?? opportunityId ?? null;
   const effLeadId = task?.leadId ?? leadId ?? null;
   const effContactId = task?.contactId ?? contactId ?? null;
+
+  const isAppointmentSet = outcome === "Appointment set";
 
   useEffect(() => {
     if (open) {
@@ -110,8 +125,24 @@ export default function CompleteTaskModal({
       setFollowUp("none");
       setCustomDate(todayLocalString());
       setFollowUpTime("09:00");
+      setDemoDate("");
+      setDemoTime("");
+      setDemoTimezone("");
+      setDemoRep("");
     }
   }, [open]);
+
+  const buildDemoNote = (): string => {
+    const datePart = demoDate
+      ? new Date(demoDate + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })
+      : "";
+    const timePart = demoTime ? formatTimeSlot(demoTime) : "";
+    return [
+      datePart && `Date: ${datePart}`,
+      timePart && demoTimezone && `Time: ${timePart} ${demoTimezone}`,
+      demoRep && `Rep: ${demoRep}`,
+    ].filter(Boolean).join(" · ");
+  };
 
   const invalidateTaskQueries = () => {
     queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
@@ -133,10 +164,12 @@ export default function CompleteTaskModal({
 
   const submitMutation = useMutation({
     mutationFn: async () => {
+      const note = isAppointmentSet ? buildDemoNote() : (completionNote.trim() || undefined);
+
       if (task) {
         await apiRequest("PUT", `/api/tasks/${task.id}/complete`, {
           outcome,
-          completionNote: completionNote.trim() || undefined,
+          completionNote: note,
         });
       } else if (outcome) {
         const rawTitle = defaultTaskTitle ?? "Follow up";
@@ -151,7 +184,7 @@ export default function CompleteTaskModal({
         const created: { id: string } = await res.json();
         await apiRequest("PUT", `/api/tasks/${created.id}/complete`, {
           outcome,
-          completionNote: completionNote.trim() || undefined,
+          completionNote: note,
         });
       }
 
@@ -204,7 +237,12 @@ export default function CompleteTaskModal({
   const customDateValid = followUp !== "custom" || customDate !== "";
   const followUpRequired = !isNewLead && !hideFollowUp && REQUIRES_FOLLOW_UP.has(outcome);
   const followUpMissing = followUpRequired && followUp === "none";
-  const canSubmit = outcome !== "" && customDateValid && !followUpMissing && !submitMutation.isPending;
+
+  const demoFieldsValid = !isAppointmentSet || (
+    demoDate !== "" && demoTime !== "" && demoTimezone !== "" && demoRep.trim() !== ""
+  );
+
+  const canSubmit = outcome !== "" && customDateValid && !followUpMissing && demoFieldsValid && !submitMutation.isPending;
 
   const displayTitle = task?.title ?? defaultTaskTitle ?? null;
 
@@ -247,16 +285,87 @@ export default function CompleteTaskModal({
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label>{t.tasks.completionNotes}</Label>
-            <Textarea
-              value={completionNote}
-              onChange={(e) => setCompletionNote(e.target.value)}
-              placeholder={t.tasks.completionNotesPlaceholder}
-              rows={2}
-              data-testid="textarea-completion-note"
-            />
-          </div>
+          {isAppointmentSet ? (
+            <div className="space-y-3 p-3 bg-teal-50 border border-teal-100 rounded-lg">
+              <p className="text-xs font-semibold text-teal-700 uppercase tracking-wide">Demo Details (required)</p>
+
+              <div className="space-y-1">
+                <Label className="text-sm" htmlFor="demo-date">Date</Label>
+                <Input
+                  id="demo-date"
+                  type="date"
+                  value={demoDate}
+                  onChange={(e) => setDemoDate(e.target.value)}
+                  min={todayLocalString()}
+                  data-testid="input-demo-date"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-sm" htmlFor="demo-time">Time</Label>
+                  <Select value={demoTime} onValueChange={setDemoTime}>
+                    <SelectTrigger id="demo-time" data-testid="select-demo-time">
+                      <SelectValue placeholder="Select time" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TIME_SLOTS.map((slot) => (
+                        <SelectItem key={slot} value={slot}>
+                          {formatTimeSlot(slot)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-sm" htmlFor="demo-tz">Time Zone</Label>
+                  <Select value={demoTimezone} onValueChange={setDemoTimezone}>
+                    <SelectTrigger id="demo-tz" data-testid="select-demo-timezone">
+                      <SelectValue placeholder="Select TZ" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {US_TIMEZONES.map((tz) => (
+                        <SelectItem key={tz.value} value={tz.value}>
+                          {tz.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-sm" htmlFor="demo-rep">Sales Rep</Label>
+                <Input
+                  id="demo-rep"
+                  type="text"
+                  value={demoRep}
+                  onChange={(e) => setDemoRep(e.target.value)}
+                  placeholder="Rep's full name"
+                  data-testid="input-demo-rep"
+                />
+              </div>
+
+              {demoDate && demoTime && demoTimezone && demoRep.trim() && (
+                <div className="mt-1 text-xs text-teal-600 bg-white border border-teal-100 rounded px-2 py-1.5">
+                  <span className="font-medium">Preview: </span>
+                  {buildDemoNote()}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Label>{t.tasks.completionNotes}</Label>
+              <Textarea
+                value={completionNote}
+                onChange={(e) => setCompletionNote(e.target.value)}
+                placeholder={t.tasks.completionNotesPlaceholder}
+                rows={2}
+                data-testid="textarea-completion-note"
+              />
+            </div>
+          )}
 
           {!isNewLead && !hideFollowUp && (
             <div className="space-y-2">
