@@ -1813,8 +1813,8 @@ function ClientTaskRow({ task, onComplete, onToggle, onReschedule, onDelete, can
     <Card className={`p-3 flex items-start gap-3 group transition-opacity ${isDone ? "opacity-60" : ""}`} data-testid={`task-row-${task.id}`}>
       <button
         className="mt-0.5 shrink-0"
-        onClick={isDone ? onToggle : onComplete}
-        disabled={isToggling}
+        onClick={isDone ? undefined : onComplete}
+        disabled={isDone || isToggling}
         data-testid={`button-toggle-task-${task.id}`}
       >
         {isDone

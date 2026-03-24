@@ -1251,8 +1251,8 @@ function TaskRow({ task, onToggle, onDelete, isToggling, renderTitle }: {
     <Card className={`p-3 flex items-start gap-3 group transition-opacity ${isDone ? "opacity-60" : ""}`} data-testid={`task-row-${task.id}`}>
       <button
         className="mt-0.5 shrink-0"
-        onClick={onToggle}
-        disabled={isToggling}
+        onClick={isDone ? undefined : onToggle}
+        disabled={isDone || isToggling}
         data-testid={`button-toggle-task-${task.id}`}
       >
         {isDone
