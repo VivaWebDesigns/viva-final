@@ -973,7 +973,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
         opportunityId={id}
         contactName={`${contact?.firstName ?? ""} ${contact?.lastName ?? ""}`.trim() || "there"}
         contactPhone={contact?.phone ?? null}
-        hasOpenFollowUpTask={(tasks ?? []).some((t) => !t.completed)}
+        hasOpenFollowUpTask={(tasks ?? []).some((t) => !t.completed && (t.taskType === "follow_up" || !t.taskType))}
         onReadyForPayment={() => {
           const paymentSentStage = stages?.find((s) => s.slug === "payment-sent");
           if (paymentSentStage) {
