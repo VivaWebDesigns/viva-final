@@ -2064,7 +2064,7 @@ function ProfileShellInner({
     actorId: string | null; actorName: string | null; note: string | null;
     createdAt: string;
   }[]>({
-    queryKey: ["/api/profiles/company", companyId, "activity"],
+    queryKey: ["/api/history/client", companyId],
     enabled: activeTab === "activity",
   });
 
