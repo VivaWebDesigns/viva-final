@@ -3,9 +3,9 @@ import { requireRole } from "../auth/middleware";
 import { logAudit } from "../audit/service";
 import { notifyStageChange, notifyOpportunityAssignment, notifyLeadConverted } from "../notifications/triggers";
 import * as pipelineStorage from "./storage";
-import { insertPipelineStageSchema, insertPipelineOpportunitySchema, insertPipelineActivitySchema, OPPORTUNITY_STATUSES, WEBSITE_PACKAGES, type InsertPipelineOpportunity, crmCompanies, crmContacts, pipelineActivities, pipelineOpportunities } from "@shared/schema";
+import { insertPipelineStageSchema, insertPipelineOpportunitySchema, insertPipelineActivitySchema, OPPORTUNITY_STATUSES, WEBSITE_PACKAGES, type InsertPipelineOpportunity, crmCompanies, crmContacts, pipelineActivities, pipelineOpportunities, automationExecutionLogs, followupTasks } from "@shared/schema";
 import { db } from "../../db";
-import { eq, isNull, and, inArray } from "drizzle-orm";
+import { eq, isNull, and, inArray, isNotNull } from "drizzle-orm";
 import { appendHistorySafe } from "../history/service";
 import { upsertLeadStatus, updateLead } from "../crm/storage";
 import { z } from "zod";
@@ -316,6 +316,32 @@ router.put("/opportunities/:id/stage", requireRole("admin", "developer", "sales_
         await updateLead(result.opportunity.leadId, { statusId: lostStatus.id });
       } catch (_) {}
     }
+    // Auto-complete any open automation tasks that belonged to the FROM stage
+    if (existing.stageId && existing.stageId !== stageId) {
+      try {
+        const fromStageLogs = await db
+          .select({ generatedTaskId: automationExecutionLogs.generatedTaskId })
+          .from(automationExecutionLogs)
+          .where(and(
+            eq(automationExecutionLogs.opportunityId, id),
+            eq(automationExecutionLogs.stageId, existing.stageId),
+            isNotNull(automationExecutionLogs.generatedTaskId),
+          ));
+        const taskIds = fromStageLogs.map(r => r.generatedTaskId!).filter(Boolean);
+        if (taskIds.length > 0) {
+          await db.update(followupTasks)
+            .set({ completed: true, completedAt: new Date() })
+            .where(and(
+              inArray(followupTasks.id, taskIds),
+              eq(followupTasks.completed, false),
+            ));
+          console.log(`[stage-change] Auto-completed ${taskIds.length} open task(s) from previous stage for opportunity ${id}`);
+        }
+      } catch (err) {
+        console.error("[stage-change] Failed to auto-complete stage tasks:", err);
+      }
+    }
+
     const toStageSlug = (meta?.toStageSlug as string) ?? null;
     if (toStageSlug && existing.stageId !== stageId) {
       executeStageAutomations({
