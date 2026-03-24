@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { DollarSign, List, GripVertical, Phone, Building2, MapPin, CheckCircle2 } from "lucide-react";
+import { DollarSign, List, GripVertical, Phone, Building2, MapPin } from "lucide-react";
 import type { PipelineStage, PipelineOpportunity } from "@shared/schema";
 import QuickTaskModal from "@/components/QuickTaskModal";
 import { useAdminLang } from "@/i18n/LanguageContext";
@@ -147,17 +147,6 @@ function CardDisplay({
               )}
             </div>
 
-            {!isDragging && onTaskClick && (
-              <button
-                className="flex items-center gap-0.5 text-[10px] text-gray-400 hover:text-[#0D9488] transition-colors opacity-0 group-hover:opacity-100"
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); onTaskClick(opp); }}
-                data-testid={`button-add-task-${opp.id}`}
-                title={t.pipeline.addFollowUpTask}
-              >
-                <CheckCircle2 className="w-3 h-3" />
-                {t.pipeline.noteTypes.task}
-              </button>
-            )}
           </div>
         </div>
 
