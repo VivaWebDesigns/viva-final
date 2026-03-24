@@ -22,15 +22,6 @@ const DEFAULT_TEMPLATES = [
     sortOrder: 0,
   },
   {
-    triggerStageSlug: "demo-scheduled",
-    title: "Prepare demo materials",
-    description: "Prepare talking points and materials for the upcoming demo.",
-    dueOffsetDays: 0,
-    priority: "medium" as const,
-    taskType: "follow_up",
-    sortOrder: 0,
-  },
-  {
     triggerStageSlug: "demo-completed",
     title: "Send proposal",
     description: "Send a customized proposal to the prospect following the completed demo.",
