@@ -303,7 +303,7 @@ export default function CompleteTaskModal({
 
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <Label className="text-sm" htmlFor="demo-time">Time</Label>
+                  <Label className="text-sm font-semibold text-amber-600" htmlFor="demo-time">⚠ Lead's Time</Label>
                   <Select value={demoTime} onValueChange={setDemoTime}>
                     <SelectTrigger id="demo-time" data-testid="select-demo-time">
                       <SelectValue placeholder="Select time" />
