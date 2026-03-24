@@ -3,7 +3,7 @@ import { requireRole } from "../auth/middleware";
 import { getHistory } from "./service";
 import { db } from "../../db";
 import { clientNotes, crmLeadNotes, pipelineActivities, crmLeads, pipelineOpportunities, recordHistory, user } from "@shared/schema";
-import { eq, inArray, desc } from "drizzle-orm";
+import { eq, inArray, desc, and } from "drizzle-orm";
 
 const router = Router();
 
