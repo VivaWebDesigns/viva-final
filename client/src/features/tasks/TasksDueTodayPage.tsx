@@ -297,6 +297,17 @@ export default function TasksDueTodayPage() {
   const [contactedPendingOppId, setContactedPendingOppId] = useState<string | null>(null);
   const spokeWithLeadTaskRef = useRef<string | null>(null);
 
+  const invalidateTaskCaches = useCallback((task?: TaskWithContact | null) => {
+    queryClient.invalidateQueries({ queryKey: ["/api/tasks/due-today"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/tasks/completed-history"] });
+    if (task?.opportunityId) {
+      queryClient.invalidateQueries({ queryKey: ["/api/profiles", "opportunity", task.opportunityId] });
+    }
+    if (task?.companyId) {
+      queryClient.invalidateQueries({ queryKey: ["/api/profiles/company", task.companyId, "tasks"] });
+    }
+  }, []);
+
   const { data: stages } = useQuery<Array<{ id: string; slug: string }>>({
     queryKey: ["/api/pipeline/stages"],
     staleTime: STALE.SLOW,
@@ -307,9 +318,10 @@ export default function TasksDueTodayPage() {
     mutationFn: async ({ oppId, stageId }: { oppId: string; stageId: string }) => {
       await apiRequest("PUT", `/api/pipeline/opportunities/${oppId}/stage`, { stageId });
     },
-    onSuccess: () => {
+    onSuccess: (_data, { oppId }) => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks/due-today"] });
       queryClient.invalidateQueries({ queryKey: ["/api/tasks/completed-history"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/profiles", "opportunity", oppId] });
     },
   });
 
@@ -322,23 +334,21 @@ export default function TasksDueTodayPage() {
         outcome: "Spoke with lead",
         completionNote: completionNote || undefined,
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks/due-today"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks/completed-history"] });
+      invalidateTaskCaches(task);
       setCompletingTask(null);
       if (task.opportunityId) setContactedPendingOppId(task.opportunityId);
     } catch {
       toast({ title: "Error", description: "Could not complete task", variant: "destructive" });
       spokeWithLeadTaskRef.current = null;
     }
-  }, [completingTask, toast]);
+  }, [completingTask, invalidateTaskCaches, toast]);
 
   const deleteMutation = useMutation({
-    mutationFn: async (taskId: string) => {
+    mutationFn: async ({ taskId }: { taskId: string; opportunityId?: string | null; companyId?: string | null }) => {
       await apiRequest("DELETE", `/api/tasks/${taskId}`);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks/due-today"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks/completed-history"] });
+    onSuccess: (_data, vars) => {
+      invalidateTaskCaches(vars as unknown as TaskWithContact);
       toast({ title: (t.tasks as Record<string, unknown>).taskDeleted as string ?? "Task deleted" });
     },
     onError: (err: Error) => {
@@ -458,7 +468,7 @@ export default function TasksDueTodayPage() {
                           if (found) setCompletingTask(found);
                         }}
                         onReschedule={(tsk) => setRescheduleTask(tsk)}
-                        onDelete={isAdmin ? () => deleteMutation.mutate(task.id) : undefined}
+                        onDelete={isAdmin ? () => deleteMutation.mutate({ taskId: task.id, opportunityId: task.opportunityId, companyId: task.companyId }) : undefined}
                         isCompleting={false}
                         tTasks={tTasks}
                         renderTitle={(task) => renderTaskTitle(task, t)}
@@ -487,7 +497,7 @@ export default function TasksDueTodayPage() {
                           if (found) setCompletingTask(found);
                         }}
                         onReschedule={(tsk) => setRescheduleTask(tsk)}
-                        onDelete={isAdmin ? () => deleteMutation.mutate(task.id) : undefined}
+                        onDelete={isAdmin ? () => deleteMutation.mutate({ taskId: task.id, opportunityId: task.opportunityId, companyId: task.companyId }) : undefined}
                         isCompleting={false}
                         tTasks={tTasks}
                         renderTitle={(task) => renderTaskTitle(task, t)}
@@ -516,7 +526,7 @@ export default function TasksDueTodayPage() {
                           if (found) setCompletingTask(found);
                         }}
                         onReschedule={(tsk) => setRescheduleTask(tsk)}
-                        onDelete={isAdmin ? () => deleteMutation.mutate(task.id) : undefined}
+                        onDelete={isAdmin ? () => deleteMutation.mutate({ taskId: task.id, opportunityId: task.opportunityId, companyId: task.companyId }) : undefined}
                         isCompleting={false}
                         tTasks={tTasks}
                         renderTitle={(task) => renderTaskTitle(task, t)}
@@ -551,7 +561,7 @@ export default function TasksDueTodayPage() {
                   tTasks={tCompleted}
                   outcomeLabels={outcomeLabels}
                   renderTitle={(task) => renderTaskTitle(task, t)}
-                  onDelete={isAdmin ? () => deleteMutation.mutate(task.id) : undefined}
+                  onDelete={isAdmin ? () => deleteMutation.mutate({ taskId: task.id, opportunityId: task.opportunityId, companyId: task.companyId }) : undefined}
                 />
               ))}
             </div>
@@ -588,8 +598,7 @@ export default function TasksDueTodayPage() {
         outcomeMode={completingTask?.opportunityStageSlug === "new-lead" ? "new-lead" : "general"}
         onSpokeWithLead={completingTask?.opportunityStageSlug === "new-lead" ? handleSpokeWithLead : undefined}
         onSuccess={() => {
-          queryClient.invalidateQueries({ queryKey: ["/api/tasks/due-today"] });
-          queryClient.invalidateQueries({ queryKey: ["/api/tasks/completed-history"] });
+          invalidateTaskCaches(completingTask);
           setCompletingTask(null);
         }}
       />
