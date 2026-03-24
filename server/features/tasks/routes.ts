@@ -7,7 +7,7 @@ import * as taskStorage from "./storage";
 import { addLeadNote } from "../crm/storage";
 import { addActivity, getStages, moveOpportunity } from "../pipeline/storage";
 import { db } from "../../db";
-import { crmLeads, pipelineOpportunities, followupTasks } from "@shared/schema";
+import { crmLeads, pipelineOpportunities, followupTasks, automationExecutionLogs } from "@shared/schema";
 
 const router = Router();
 
@@ -312,12 +312,17 @@ router.put("/:id", requireRole("admin", "developer", "sales_rep"), async (req, r
 
 router.delete("/:id", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
-    await taskStorage.deleteTask(req.params.id as string);
+    const taskId = req.params.id as string;
+    // Clear any automation execution log references before deleting (FK constraint)
+    await db.update(automationExecutionLogs)
+      .set({ generatedTaskId: null })
+      .where(eq(automationExecutionLogs.generatedTaskId, taskId));
+    await taskStorage.deleteTask(taskId);
     await logAudit({
       userId: req.authUser?.id,
       action: "delete",
       entity: "followup_task",
-      entityId: req.params.id as string,
+      entityId: taskId,
       ipAddress: req.ip,
     });
     res.json({ message: "Task deleted" });
