@@ -459,6 +459,8 @@ router.get(
           dueDate: followupTasks.dueDate,
           completed: followupTasks.completed,
           completedAt: followupTasks.completedAt,
+          outcome: followupTasks.outcome,
+          completionNote: followupTasks.completionNote,
           companyId: followupTasks.companyId,
           opportunityId: followupTasks.opportunityId,
           leadId: followupTasks.leadId,

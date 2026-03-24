@@ -1270,6 +1270,20 @@ function TaskRow({ task, onToggle, onDelete, isToggling, renderTitle }: {
               {task.taskType.replace("_", " ")}
             </Badge>
           )}
+          {isDone && task.outcome && (
+            <Badge variant="secondary" className="text-[10px] px-1.5">
+              {({
+                interested: "Interested",
+                uncertain: "Uncertain",
+                notInterested: "Not Interested",
+                badNumber: "Bad Number",
+                appointmentSet: "Appointment Set",
+                noAnswer: "No Answer",
+                leftVoicemail: "Left Voicemail",
+                spokeWithLead: "Spoke With Lead",
+              } as Record<string, string>)[task.outcome] ?? task.outcome}
+            </Badge>
+          )}
         </div>
         {task.notes && (
           <div className="text-xs text-gray-500 mt-0.5 line-clamp-2 chat-message-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(task.notes) }} />
