@@ -319,7 +319,7 @@ export default function CompleteTaskModal({
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-sm" htmlFor="demo-tz">Time Zone</Label>
+                  <Label className="text-sm" htmlFor="demo-tz">Lead's Time Zone</Label>
                   <Select value={demoTimezone} onValueChange={setDemoTimezone}>
                     <SelectTrigger id="demo-tz" data-testid="select-demo-timezone">
                       <SelectValue placeholder="Select TZ" />
@@ -334,6 +334,9 @@ export default function CompleteTaskModal({
                   </Select>
                 </div>
               </div>
+              <p className="text-xs text-teal-600 bg-teal-50 border border-teal-100 rounded px-2 py-1">
+                Enter the time as it is for the <strong>lead</strong>, not your own time zone.
+              </p>
 
               <div className="space-y-1">
                 <Label className="text-sm" htmlFor="demo-rep">Sales Rep</Label>
