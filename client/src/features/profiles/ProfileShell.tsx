@@ -1852,18 +1852,6 @@ function ClientTaskRow({ task, onComplete, onToggle, onReschedule, onDelete, can
         </div>
       </div>
       <div className="flex items-center gap-1 shrink-0">
-        {!isDone && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-6 text-xs px-2 opacity-0 group-hover:opacity-100 transition-opacity"
-            onClick={onReschedule}
-            data-testid={`button-reschedule-task-${task.id}`}
-          >
-            <CalendarClock className="w-3 h-3 mr-1" />
-            {t.tasks.reschedule}
-          </Button>
-        )}
         {canDelete && (
           <Button
             variant="ghost"

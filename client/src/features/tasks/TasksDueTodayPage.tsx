@@ -142,16 +142,6 @@ function TaskRow({
 
       <div className="flex flex-col items-end gap-2 flex-shrink-0">
         <div className="flex items-center gap-1">
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-6 text-xs px-2"
-            onClick={() => onReschedule(task)}
-            data-testid={`button-reschedule-task-${task.id}`}
-          >
-            <CalendarClock className="w-3 h-3 mr-1" />
-            {tTasks.reschedule}
-          </Button>
           {onDelete && (
             <Button
               size="icon"
