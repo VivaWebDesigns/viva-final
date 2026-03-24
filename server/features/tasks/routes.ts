@@ -1,13 +1,13 @@
 import { Router } from "express";
 import { z } from "zod";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { requireAuth, requireRole } from "../auth/middleware";
 import { logAudit } from "../audit/service";
 import * as taskStorage from "./storage";
 import { addLeadNote } from "../crm/storage";
 import { addActivity, getStages, moveOpportunity } from "../pipeline/storage";
 import { db } from "../../db";
-import { crmLeads, pipelineOpportunities } from "@shared/schema";
+import { crmLeads, pipelineOpportunities, followupTasks } from "@shared/schema";
 
 const router = Router();
 
@@ -114,6 +114,24 @@ router.post("/", requireRole("admin", "developer", "sales_rep"), async (req, res
     const validated = createTaskSchema.parse(req.body);
     const parsedDueDate = parseDueDate(validated.dueDate);
     const actorId = req.authUser?.id ?? null;
+
+    // Before creating / rescheduling, auto-complete all currently-open tasks for this opportunity
+    if (validated.opportunityId) {
+      try {
+        const closed = await db.update(followupTasks)
+          .set({ completed: true, completedAt: new Date() })
+          .where(and(
+            eq(followupTasks.opportunityId, validated.opportunityId),
+            eq(followupTasks.completed, false),
+          ))
+          .returning({ id: followupTasks.id });
+        if (closed.length > 0) {
+          console.log(`[tasks] Auto-completed ${closed.length} open task(s) before creating new task for opportunity ${validated.opportunityId}`);
+        }
+      } catch (err) {
+        console.error("[tasks] Failed to auto-complete existing tasks:", err);
+      }
+    }
 
     const existing = await taskStorage.getActiveTaskForContext(validated.leadId, validated.opportunityId);
 

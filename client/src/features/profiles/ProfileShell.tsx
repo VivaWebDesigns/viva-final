@@ -2977,9 +2977,6 @@ function ProfileShellInner({
             opportunityId={activeOpp.id}
             contactName={`${contact?.firstName ?? ""} ${contact?.lastName ?? ""}`.trim() || "there"}
             contactPhone={primaryContact?.phone ?? null}
-            hasOpenFollowUpTask={work.tasks.some(
-              (t) => !t.completed && t.opportunityId === activeOpp.id && (t.taskType === "follow_up" || !t.taskType)
-            )}
             onReadyForPayment={() => {
               const paymentSentStage = stages?.find((s) => s.slug === "payment-sent");
               if (paymentSentStage) {

@@ -30,7 +30,6 @@ interface DemoCompletedModalProps {
   opportunityId: string;
   contactName: string;
   contactPhone: string | null;
-  hasOpenFollowUpTask: boolean;
   onReadyForPayment: () => void;
   onDemoCompleted: () => void;
   onClosedLost: () => void;
@@ -45,7 +44,6 @@ export default function DemoCompletedModal({
   opportunityId,
   contactName,
   contactPhone,
-  hasOpenFollowUpTask,
   onReadyForPayment,
   onDemoCompleted,
   onClosedLost,
@@ -87,16 +85,14 @@ export default function DemoCompletedModal({
 
   const taskMutation = useMutation({
     mutationFn: async () => {
-      if (!hasOpenFollowUpTask) {
-        const firstName = contactName.split(" ")[0] || contactName;
-        await apiRequest("POST", "/api/tasks", {
-          title: `Follow up with ${firstName}`,
-          notes: followUpNotes.trim() || undefined,
-          dueDate: followUpDate,
-          followUpTime: followUpTime || undefined,
-          opportunityId,
-        });
-      }
+      const firstName = contactName.split(" ")[0] || contactName;
+      await apiRequest("POST", "/api/tasks", {
+        title: `Follow up with ${firstName}`,
+        notes: followUpNotes.trim() || undefined,
+        dueDate: followUpDate,
+        followUpTime: followUpTime || undefined,
+        opportunityId,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
@@ -120,7 +116,7 @@ export default function DemoCompletedModal({
   };
 
   const handleStillThinkingSubmit = () => {
-    if (!hasOpenFollowUpTask && !followUpDate) return;
+    if (!followUpDate) return;
     taskMutation.mutate();
   };
 
@@ -189,56 +185,48 @@ export default function DemoCompletedModal({
         {outcome === "still-thinking" && (
           <>
             <div className="space-y-4 py-2">
-              {hasOpenFollowUpTask ? (
-                <p className="text-sm text-amber-700 bg-amber-50 border border-amber-100 rounded px-3 py-2">
-                  An open follow-up task already exists for this lead. No new task will be created.
-                </p>
-              ) : (
-                <>
-                  <div className="space-y-1">
-                    <Label htmlFor="fu-date">Follow-up Date <span className="text-red-500">*</span></Label>
-                    <Input
-                      id="fu-date"
-                      type="date"
-                      value={followUpDate}
-                      onChange={(e) => setFollowUpDate(e.target.value)}
-                      data-testid="input-followup-date"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="fu-time">
-                      Follow-up Time{" "}
-                      <span className="text-gray-400 text-xs font-normal">(optional)</span>
-                    </Label>
-                    <Select value={followUpTime} onValueChange={setFollowUpTime}>
-                      <SelectTrigger id="fu-time" data-testid="select-followup-time">
-                        <SelectValue placeholder="Select time" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {TIME_SLOTS.map((slot) => (
-                          <SelectItem key={slot} value={slot}>
-                            {formatTimeSlot(slot)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="fu-notes">
-                      Notes{" "}
-                      <span className="text-gray-400 text-xs font-normal">(optional)</span>
-                    </Label>
-                    <Textarea
-                      id="fu-notes"
-                      value={followUpNotes}
-                      onChange={(e) => setFollowUpNotes(e.target.value)}
-                      placeholder="What to discuss on the follow-up call..."
-                      rows={2}
-                      data-testid="textarea-followup-notes"
-                    />
-                  </div>
-                </>
-              )}
+              <div className="space-y-1">
+                <Label htmlFor="fu-date">Follow-up Date <span className="text-red-500">*</span></Label>
+                <Input
+                  id="fu-date"
+                  type="date"
+                  value={followUpDate}
+                  onChange={(e) => setFollowUpDate(e.target.value)}
+                  data-testid="input-followup-date"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="fu-time">
+                  Follow-up Time{" "}
+                  <span className="text-gray-400 text-xs font-normal">(optional)</span>
+                </Label>
+                <Select value={followUpTime} onValueChange={setFollowUpTime}>
+                  <SelectTrigger id="fu-time" data-testid="select-followup-time">
+                    <SelectValue placeholder="Select time" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TIME_SLOTS.map((slot) => (
+                      <SelectItem key={slot} value={slot}>
+                        {formatTimeSlot(slot)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="fu-notes">
+                  Notes{" "}
+                  <span className="text-gray-400 text-xs font-normal">(optional)</span>
+                </Label>
+                <Textarea
+                  id="fu-notes"
+                  value={followUpNotes}
+                  onChange={(e) => setFollowUpNotes(e.target.value)}
+                  placeholder="What to discuss on the follow-up call..."
+                  rows={2}
+                  data-testid="textarea-followup-notes"
+                />
+              </div>
             </div>
             <DialogFooter className="gap-2 sm:gap-0">
               <Button variant="outline" onClick={() => setOutcome(null)} disabled={taskMutation.isPending}>
@@ -246,14 +234,10 @@ export default function DemoCompletedModal({
               </Button>
               <Button
                 onClick={handleStillThinkingSubmit}
-                disabled={taskMutation.isPending || (!hasOpenFollowUpTask && !followUpDate)}
+                disabled={taskMutation.isPending || !followUpDate}
                 data-testid="button-save-followup"
               >
-                {taskMutation.isPending
-                  ? "Saving…"
-                  : hasOpenFollowUpTask
-                  ? "Move to Demo Completed"
-                  : "Save & Move"}
+                {taskMutation.isPending ? "Saving…" : "Save & Move"}
               </Button>
             </DialogFooter>
           </>

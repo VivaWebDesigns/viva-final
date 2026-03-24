@@ -343,24 +343,6 @@ router.put("/opportunities/:id/stage", requireRole("admin", "developer", "sales_
       }
     }
 
-    // Auto-complete ALL remaining open follow-up tasks for this opportunity on any stage move
-    if (existing.stageId !== stageId) {
-      try {
-        const closed = await db.update(followupTasks)
-          .set({ completed: true, completedAt: new Date() })
-          .where(and(
-            eq(followupTasks.opportunityId, id),
-            eq(followupTasks.completed, false),
-          ))
-          .returning({ id: followupTasks.id });
-        if (closed.length > 0) {
-          console.log(`[stage-change] Auto-completed ${closed.length} open follow-up task(s) for opportunity ${id}`);
-        }
-      } catch (err) {
-        console.error("[stage-change] Failed to auto-complete follow-up tasks:", err);
-      }
-    }
-
     const toStageSlug = (meta?.toStageSlug as string) ?? null;
     if (toStageSlug && existing.stageId !== stageId) {
       executeStageAutomations({
