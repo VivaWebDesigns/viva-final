@@ -59,6 +59,7 @@ import { EditOpportunityDialog } from "./edit/EditOpportunityDialog";
 import CompleteTaskModal from "@/components/CompleteTaskModal";
 import QuickTaskModal from "@/components/QuickTaskModal";
 import PaymentSentModal from "@/components/PaymentSentModal";
+import DemoCompletedModal from "@/components/DemoCompletedModal";
 import type {
   ProfileEntry,
   ProfileHealth,
@@ -482,12 +483,13 @@ interface MoveToStageBarProps {
   stages: PipelineStage[];
   onContactedPending: (stageId: string) => void;
   onPaymentSentPending: (stageId: string) => void;
+  onDemoCompletedPending: (stageId: string) => void;
   stageMutation: ReturnType<typeof useMutation<unknown, Error, string>>;
   t: AdminTranslations;
 }
 
 function MoveToStageBar({
-  opportunityId, currentStageId, stages, onContactedPending, onPaymentSentPending, stageMutation, t,
+  opportunityId, currentStageId, stages, onContactedPending, onPaymentSentPending, onDemoCompletedPending, stageMutation, t,
 }: MoveToStageBarProps) {
   return (
     <Card className="p-4" data-testid="move-to-stage-bar">
@@ -506,6 +508,8 @@ function MoveToStageBar({
                 onContactedPending(stage.id);
               } else if (stage.slug === "payment-sent") {
                 onPaymentSentPending(stage.id);
+              } else if (stage.slug === "demo-completed") {
+                onDemoCompletedPending(stage.id);
               } else {
                 stageMutation.mutate(stage.id);
               }
@@ -1904,6 +1908,7 @@ export default function ProfileShell({
 
   const [contactedPendingStageId, setContactedPendingStageId] = useState<string | null>(null);
   const [paymentSentPendingStageId, setPaymentSentPendingStageId] = useState<string | null>(null);
+  const [demoCompletedPendingStageId, setDemoCompletedPendingStageId] = useState<string | null>(null);
   const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<MappedContact | null>(null);
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
@@ -1948,6 +1953,8 @@ export default function ProfileShell({
       setContactedPendingStageId={setContactedPendingStageId}
       paymentSentPendingStageId={paymentSentPendingStageId}
       setPaymentSentPendingStageId={setPaymentSentPendingStageId}
+      demoCompletedPendingStageId={demoCompletedPendingStageId}
+      setDemoCompletedPendingStageId={setDemoCompletedPendingStageId}
       isContactDialogOpen={isContactDialogOpen}
       setIsContactDialogOpen={setIsContactDialogOpen}
       editingContact={editingContact}
@@ -1985,6 +1992,8 @@ interface ProfileShellInnerProps {
   setContactedPendingStageId: (v: string | null) => void;
   paymentSentPendingStageId: string | null;
   setPaymentSentPendingStageId: (v: string | null) => void;
+  demoCompletedPendingStageId: string | null;
+  setDemoCompletedPendingStageId: (v: string | null) => void;
   isContactDialogOpen: boolean;
   setIsContactDialogOpen: (v: boolean) => void;
   editingContact: MappedContact | null;
@@ -2010,6 +2019,7 @@ function ProfileShellInner({
   activeTab, setActiveTab, toast, t, navigate,
   contactedPendingStageId, setContactedPendingStageId,
   paymentSentPendingStageId, setPaymentSentPendingStageId,
+  demoCompletedPendingStageId, setDemoCompletedPendingStageId,
   isContactDialogOpen, setIsContactDialogOpen,
   editingContact, setEditingContact,
   isTaskDialogOpen, setIsTaskDialogOpen,
@@ -2026,6 +2036,7 @@ function ProfileShellInner({
   const hideSalesRepOppSections = entry.type === "opportunity" && isSalesRep;
 
   const spokeWithLeadTaskIdRef = useRef<string | null>(null);
+  const afterDemoCompletedCallbackRef = useRef<(() => void) | null>(null);
 
   const { data: stages } = useQuery<PipelineStage[]>({
     queryKey: ["/api/pipeline/stages"],
@@ -2082,6 +2093,11 @@ function ProfileShellInner({
         queryClient.invalidateQueries({ predicate: (q) => typeof q.queryKey[0] === "string" && q.queryKey[0].startsWith("/api/clients") });
       }
       toast({ title: t.pipeline.stageUpdated });
+      if (afterDemoCompletedCallbackRef.current) {
+        const cb = afterDemoCompletedCallbackRef.current;
+        afterDemoCompletedCallbackRef.current = null;
+        cb();
+      }
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
@@ -2305,6 +2321,7 @@ function ProfileShellInner({
           stages={stages}
           onContactedPending={setContactedPendingStageId}
           onPaymentSentPending={setPaymentSentPendingStageId}
+          onDemoCompletedPending={setDemoCompletedPendingStageId}
           stageMutation={stageMutation}
           t={t}
         />
@@ -2952,6 +2969,34 @@ function ProfileShellInner({
             opportunityId={activeOpp.id}
             onSuccess={() => {
               if (paymentSentPendingStageId) stageMutation.mutate(paymentSentPendingStageId);
+            }}
+          />
+          <DemoCompletedModal
+            open={demoCompletedPendingStageId !== null}
+            onClose={() => setDemoCompletedPendingStageId(null)}
+            opportunityId={activeOpp.id}
+            contactName={`${contact?.firstName ?? ""} ${contact?.lastName ?? ""}`.trim() || "there"}
+            contactPhone={primaryContact?.phone ?? null}
+            hasOpenFollowUpTask={work.tasks.some(
+              (t) => !t.completed && t.opportunityId === activeOpp.id
+            )}
+            onReadyForPayment={() => {
+              const paymentSentStage = stages?.find((s) => s.slug === "payment-sent");
+              if (paymentSentStage) {
+                afterDemoCompletedCallbackRef.current = () =>
+                  setPaymentSentPendingStageId(paymentSentStage.id);
+              }
+              if (demoCompletedPendingStageId) stageMutation.mutate(demoCompletedPendingStageId);
+              setDemoCompletedPendingStageId(null);
+            }}
+            onDemoCompleted={() => {
+              if (demoCompletedPendingStageId) stageMutation.mutate(demoCompletedPendingStageId);
+              setDemoCompletedPendingStageId(null);
+            }}
+            onClosedLost={() => {
+              const closedLostStage = stages?.find((s) => s.slug === "closed-lost");
+              if (closedLostStage) stageMutation.mutate(closedLostStage.id);
+              setDemoCompletedPendingStageId(null);
             }}
           />
         </>

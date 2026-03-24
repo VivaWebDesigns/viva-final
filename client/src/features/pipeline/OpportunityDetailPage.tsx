@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { motion } from "framer-motion";
@@ -29,6 +29,7 @@ import { renderActivityContent, getActivityTypeLabel, renderTaskTitle } from "@/
 import QuickTaskModal, { formatTaskTimeDisplay } from "@/components/QuickTaskModal";
 import CompleteTaskModal from "@/components/CompleteTaskModal";
 import PaymentSentModal from "@/components/PaymentSentModal";
+import DemoCompletedModal from "@/components/DemoCompletedModal";
 import { RecordTimeline } from "@/components/RecordTimeline";
 
 const PKG_COLORS: Record<string, string> = {
@@ -70,6 +71,8 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
   const [rescheduleTask, setRescheduleTask] = useState<TaskWithContact | null>(null);
   const [contactedPendingStageId, setContactedPendingStageId] = useState<string | null>(null);
   const [paymentSentPendingStageId, setPaymentSentPendingStageId] = useState<string | null>(null);
+  const [demoCompletedPendingStageId, setDemoCompletedPendingStageId] = useState<string | null>(null);
+  const afterDemoCompletedCallbackRef = useRef<(() => void) | null>(null);
 
   const { data: opp, isLoading } = useQuery<PipelineOpportunity>({
     queryKey: ["/api/pipeline/opportunities", id],
@@ -124,6 +127,11 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
         queryClient.invalidateQueries({ predicate: (q) => typeof q.queryKey[0] === "string" && q.queryKey[0].startsWith("/api/clients") });
       }
       toast({ title: t.pipeline.stageUpdated });
+      if (afterDemoCompletedCallbackRef.current) {
+        const cb = afterDemoCompletedCallbackRef.current;
+        afterDemoCompletedCallbackRef.current = null;
+        cb();
+      }
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
@@ -586,6 +594,8 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                             setContactedPendingStageId(stage.id);
                           } else if (stage.slug === "payment-sent") {
                             setPaymentSentPendingStageId(stage.id);
+                          } else if (stage.slug === "demo-completed") {
+                            setDemoCompletedPendingStageId(stage.id);
                           } else {
                             stageMutation.mutate(stage.id);
                           }
@@ -955,6 +965,32 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
         opportunityId={id}
         onSuccess={() => {
           if (paymentSentPendingStageId) stageMutation.mutate(paymentSentPendingStageId);
+        }}
+      />
+      <DemoCompletedModal
+        open={demoCompletedPendingStageId !== null}
+        onClose={() => setDemoCompletedPendingStageId(null)}
+        opportunityId={id}
+        contactName={`${contact?.firstName ?? ""} ${contact?.lastName ?? ""}`.trim() || "there"}
+        contactPhone={contact?.phone ?? null}
+        hasOpenFollowUpTask={(tasks ?? []).some((t) => !t.completed)}
+        onReadyForPayment={() => {
+          const paymentSentStage = stages?.find((s) => s.slug === "payment-sent");
+          if (paymentSentStage) {
+            afterDemoCompletedCallbackRef.current = () =>
+              setPaymentSentPendingStageId(paymentSentStage.id);
+          }
+          if (demoCompletedPendingStageId) stageMutation.mutate(demoCompletedPendingStageId);
+          setDemoCompletedPendingStageId(null);
+        }}
+        onDemoCompleted={() => {
+          if (demoCompletedPendingStageId) stageMutation.mutate(demoCompletedPendingStageId);
+          setDemoCompletedPendingStageId(null);
+        }}
+        onClosedLost={() => {
+          const closedLostStage = stages?.find((s) => s.slug === "closed-lost");
+          if (closedLostStage) stageMutation.mutate(closedLostStage.id);
+          setDemoCompletedPendingStageId(null);
         }}
       />
       <CompleteTaskModal
