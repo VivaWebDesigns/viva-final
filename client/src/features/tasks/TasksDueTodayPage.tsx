@@ -287,6 +287,7 @@ export default function TasksDueTodayPage() {
   const [showNewTask, setShowNewTask] = useState(false);
   const [contactedPendingOppId, setContactedPendingOppId] = useState<string | null>(null);
   const spokeWithLeadTaskRef = useRef<string | null>(null);
+  const spokeWithLeadNoteRef = useRef<string | undefined>(undefined);
   const [demoOutcomeTask, setDemoOutcomeTask] = useState<TaskWithContact | null>(null);
   const [demoCompletedPendingStageId, setDemoCompletedPendingStageId] = useState<string | null>(null);
 
@@ -318,23 +319,14 @@ export default function TasksDueTodayPage() {
     },
   });
 
-  const handleSpokeWithLead = useCallback(async (completionNote?: string) => {
+  const handleSpokeWithLead = useCallback((completionNote?: string) => {
     const task = completingTask;
     if (!task) return;
     spokeWithLeadTaskRef.current = task.id;
-    try {
-      await apiRequest("PUT", `/api/tasks/${task.id}/complete`, {
-        outcome: "Spoke with lead",
-        completionNote: completionNote || undefined,
-      });
-      invalidateTaskCaches(task);
-      setCompletingTask(null);
-      if (task.opportunityId) setContactedPendingOppId(task.opportunityId);
-    } catch {
-      toast({ title: "Error", description: "Could not complete task", variant: "destructive" });
-      spokeWithLeadTaskRef.current = null;
-    }
-  }, [completingTask, invalidateTaskCaches, toast]);
+    spokeWithLeadNoteRef.current = completionNote;
+    setCompletingTask(null);
+    if (task.opportunityId) setContactedPendingOppId(task.opportunityId);
+  }, [completingTask]);
 
   const deleteMutation = useMutation({
     mutationFn: async ({ taskId }: { taskId: string; opportunityId?: string | null; companyId?: string | null }) => {
@@ -618,12 +610,28 @@ export default function TasksDueTodayPage() {
       />
       <CompleteTaskModal
         open={contactedPendingOppId !== null}
-        onClose={() => { spokeWithLeadTaskRef.current = null; setContactedPendingOppId(null); }}
+        onClose={() => {
+          spokeWithLeadTaskRef.current = null;
+          spokeWithLeadNoteRef.current = undefined;
+          setContactedPendingOppId(null);
+        }}
         task={null}
         opportunityId={contactedPendingOppId ?? undefined}
         hideFollowUp={true}
         onSuccess={() => {
+          const taskId = spokeWithLeadTaskRef.current;
+          const note = spokeWithLeadNoteRef.current;
           spokeWithLeadTaskRef.current = null;
+          spokeWithLeadNoteRef.current = undefined;
+          if (taskId) {
+            apiRequest("PUT", `/api/tasks/${taskId}/complete`, {
+              outcome: "Spoke with lead",
+              ...(note ? { completionNote: note } : {}),
+            }).then(() => {
+              queryClient.invalidateQueries({ queryKey: ["/api/tasks/due-today"] });
+              queryClient.invalidateQueries({ queryKey: ["/api/tasks/completed-history"] });
+            }).catch(() => {});
+          }
           if (contactedPendingOppId && contactedStageId) {
             stageMutation.mutate({ oppId: contactedPendingOppId, stageId: contactedStageId });
           }

@@ -2023,6 +2023,7 @@ function ProfileShellInner({
   const hideSalesRepOppSections = entry.type === "opportunity" && isSalesRep;
 
   const spokeWithLeadTaskIdRef = useRef<string | null>(null);
+  const spokeWithLeadNoteRef = useRef<string | undefined>(undefined);
   const afterDemoCompletedCallbackRef = useRef<(() => void) | null>(null);
   const [demoOutcomeTask, setDemoOutcomeTask] = useState<ClientTask | null>(null);
 
@@ -2097,32 +2098,19 @@ function ProfileShellInner({
     !!completingTask?.opportunityId &&
     completingTask.opportunityId === activeOpp?.id;
 
-  const handleSpokeWithLead = async (completionNote?: string) => {
+  const handleSpokeWithLead = (completionNote?: string) => {
     if (!completingTask) return;
     if (spokeWithLeadTaskIdRef.current === completingTask.id) return;
     const task = completingTask;
-    spokeWithLeadTaskIdRef.current = task.id;
-    setCompletingTask(null);
-    try {
-      await apiRequest("PUT", `/api/tasks/${task.id}/complete`, {
-        outcome: "Spoke with lead",
-        ...(completionNote ? { completionNote } : {}),
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/profiles/company", companyId, "tasks"] });
-      queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
-      const contactedStage = stages?.find(s => s.slug === "contacted");
-      if (contactedStage) {
-        setContactedPendingStageId(contactedStage.id);
-      } else {
-        spokeWithLeadTaskIdRef.current = null;
-        setCompletingTask(task);
-        toast({ title: t.common.error, description: "Could not find Contacted stage — please refresh and try again.", variant: "destructive" });
-      }
-    } catch (err: any) {
-      spokeWithLeadTaskIdRef.current = null;
-      setCompletingTask(task);
-      toast({ title: t.common.error, description: err.message, variant: "destructive" });
+    const contactedStage = stages?.find(s => s.slug === "contacted");
+    if (!contactedStage) {
+      toast({ title: t.common.error, description: "Could not find Contacted stage — please refresh and try again.", variant: "destructive" });
+      return;
     }
+    spokeWithLeadTaskIdRef.current = task.id;
+    spokeWithLeadNoteRef.current = completionNote;
+    setCompletingTask(null);
+    setContactedPendingStageId(contactedStage.id);
   };
 
   const addNoteMutation = useMutation({
@@ -2958,6 +2946,7 @@ function ProfileShellInner({
             open={contactedPendingStageId !== null}
             onClose={() => {
               spokeWithLeadTaskIdRef.current = null;
+              spokeWithLeadNoteRef.current = undefined;
               setContactedPendingStageId(null);
             }}
             task={existingOpenTask}
@@ -2967,7 +2956,19 @@ function ProfileShellInner({
             excludeOutcomes={["badNumber"]}
             hideFollowUp={isFromSpokeWithLead}
             onSuccess={() => {
+              const taskId = spokeWithLeadTaskIdRef.current;
+              const note = spokeWithLeadNoteRef.current;
               spokeWithLeadTaskIdRef.current = null;
+              spokeWithLeadNoteRef.current = undefined;
+              if (taskId) {
+                apiRequest("PUT", `/api/tasks/${taskId}/complete`, {
+                  outcome: "Spoke with lead",
+                  ...(note ? { completionNote: note } : {}),
+                }).then(() => {
+                  queryClient.invalidateQueries({ queryKey: ["/api/profiles/company", companyId, "tasks"] });
+                  queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
+                }).catch(() => {});
+              }
               if (contactedPendingStageId) stageMutation.mutate(contactedPendingStageId);
             }}
             preventClose={true}
