@@ -30,7 +30,6 @@ import QuickTaskModal, { formatTaskTimeDisplay } from "@/components/QuickTaskMod
 import CompleteTaskModal from "@/components/CompleteTaskModal";
 import PaymentSentModal from "@/components/PaymentSentModal";
 import DemoCompletedModal from "@/components/DemoCompletedModal";
-import PaymentFollowUpModal from "@/components/PaymentFollowUpModal";
 import { RecordTimeline } from "@/components/RecordTimeline";
 
 const PKG_COLORS: Record<string, string> = {
@@ -115,7 +114,6 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
 
   const [completingTask, setCompletingTask] = useState<FollowupTask | null>(null);
   const [demoOutcomeTask, setDemoOutcomeTask] = useState<FollowupTask | null>(null);
-  const [paymentFollowUpTask, setPaymentFollowUpTask] = useState<FollowupTask | null>(null);
 
   const stageMutation = useMutation({
     mutationFn: async (stageId: string) => {
@@ -797,8 +795,6 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                             setDemoOutcomeTask(task);
                             const demoCompletedStage = stages?.find(s => s.slug === "demo-completed");
                             if (demoCompletedStage) setDemoCompletedPendingStageId(demoCompletedStage.id);
-                          } else if (currentStage?.slug === "payment-sent") {
-                            setPaymentFollowUpTask(task);
                           } else {
                             setCompletingTask(task);
                           }
@@ -984,7 +980,6 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
         opportunityId={id}
         contactName={`${contact?.firstName ?? ""} ${contact?.lastName ?? ""}`.trim() || "there"}
         contactPhone={contact?.phone ?? null}
-        contactLanguage={resolvedLang}
         onReadyForPayment={() => {
           const paymentSentStage = stages?.find((s) => s.slug === "payment-sent");
           if (paymentSentStage) {
@@ -1022,54 +1017,11 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
           setDemoCompletedPendingStageId(null);
         }}
       />
-      <PaymentFollowUpModal
-        open={paymentFollowUpTask !== null}
-        onClose={() => setPaymentFollowUpTask(null)}
-        opportunityId={id}
-        contactName={`${contact?.firstName ?? ""} ${contact?.lastName ?? ""}`.trim() || "there"}
-        contactPhone={resolvedPhone}
-        contactLanguage={resolvedLang}
-        onPaymentReceived={() => {
-          if (paymentFollowUpTask) {
-            apiRequest("PUT", `/api/tasks/${paymentFollowUpTask.id}/complete`, {}).then(() => {
-              queryClient.invalidateQueries({ queryKey: ["/api/tasks/for-opportunity", id] });
-            }).catch(() => {});
-            setPaymentFollowUpTask(null);
-          }
-          const closedWonStage = stages?.find(s => s.slug === "closed-won");
-          if (closedWonStage) stageMutation.mutate(closedWonStage.id);
-        }}
-        onStillWaiting={() => {
-          if (paymentFollowUpTask) {
-            apiRequest("PUT", `/api/tasks/${paymentFollowUpTask.id}/complete`, {}).then(() => {
-              queryClient.invalidateQueries({ queryKey: ["/api/tasks/for-opportunity", id] });
-            }).catch(() => {});
-            setPaymentFollowUpTask(null);
-          }
-        }}
-        onBackedOut={() => {
-          if (paymentFollowUpTask) {
-            apiRequest("PUT", `/api/tasks/${paymentFollowUpTask.id}/complete`, {}).then(() => {
-              queryClient.invalidateQueries({ queryKey: ["/api/tasks/for-opportunity", id] });
-            }).catch(() => {});
-            setPaymentFollowUpTask(null);
-          }
-          const closedLostStage = stages?.find(s => s.slug === "closed-lost");
-          if (closedLostStage) stageMutation.mutate(closedLostStage.id);
-        }}
-      />
       <CompleteTaskModal
         open={!!completingTask}
         onClose={() => setCompletingTask(null)}
         task={completingTask}
         leadTimezone={sourceLead?.timezone ?? null}
-        contactPhone={resolvedPhone}
-        contactLanguage={resolvedLang}
-        contactName={contact?.firstName ?? null}
-        onNotInterested={() => {
-          const closedLostStage = stages?.find(s => s.slug === "closed-lost");
-          if (closedLostStage) stageMutation.mutate(closedLostStage.id);
-        }}
       />
 
       <Dialog open={editSection !== null} onOpenChange={(open) => { if (!open) setEditSection(null); }}>

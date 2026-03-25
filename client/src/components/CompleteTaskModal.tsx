@@ -4,7 +4,6 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAdminLang } from "@/i18n/LanguageContext";
 import { resolveRepTimezone } from "@/lib/timezone";
-import { getClosingSms } from "@/lib/closingMessage";
 import {
   TIME_SLOTS,
   formatTimeSlot,
@@ -78,11 +77,7 @@ interface CompleteTaskModalProps {
   outcomeMode?: "new-lead" | "general";
   excludeOutcomes?: string[];
   hideFollowUp?: boolean;
-  contactPhone?: string | null;
-  contactLanguage?: string | null;
-  contactName?: string | null;
   onSpokeWithLead?: (completionNote?: string) => void;
-  onNotInterested?: () => void;
   onSuccess?: () => void;
   preventClose?: boolean;
 }
@@ -99,11 +94,7 @@ export default function CompleteTaskModal({
   outcomeMode = "general",
   excludeOutcomes = [] as string[],
   hideFollowUp = false,
-  contactPhone,
-  contactLanguage,
-  contactName,
   onSpokeWithLead,
-  onNotInterested,
   onSuccess,
   preventClose = false,
 }: CompleteTaskModalProps) {
@@ -115,10 +106,6 @@ export default function CompleteTaskModal({
   const [followUp, setFollowUp] = useState<FollowUpOption>("none");
   const [customDate, setCustomDate] = useState(todayLocalString());
   const [followUpTime, setFollowUpTime] = useState("09:00");
-
-  const [showSmsScreen, setShowSmsScreen] = useState(false);
-  const [smsCountdown, setSmsCountdown] = useState(5);
-  const [smsCountdownStarted, setSmsCountdownStarted] = useState(false);
 
   // Demo scheduling fields (Appointment set)
   const [demoDate, setDemoDate] = useState("");
@@ -145,23 +132,8 @@ export default function CompleteTaskModal({
       setDemoTime("");
       setDemoTimezone("");
       setDemoRep("");
-      setShowSmsScreen(false);
-      setSmsCountdown(5);
-      setSmsCountdownStarted(false);
     }
   }, [open]);
-
-  useEffect(() => {
-    if (showSmsScreen && !smsCountdownStarted) {
-      setSmsCountdownStarted(true);
-    }
-  }, [showSmsScreen, smsCountdownStarted]);
-
-  useEffect(() => {
-    if (!smsCountdownStarted || smsCountdown <= 0) return;
-    const t = setTimeout(() => setSmsCountdown((c) => c - 1), 1000);
-    return () => clearTimeout(t);
-  }, [smsCountdownStarted, smsCountdown]);
 
   const buildDemoNote = (): string => {
     const datePart = demoDate
@@ -220,7 +192,7 @@ export default function CompleteTaskModal({
         });
       }
 
-      if (!hideFollowUp && followUp !== "none" && outcome !== "Not interested") {
+      if (!hideFollowUp && followUp !== "none") {
         const dateStr = followUp === "custom"
           ? customDate
           : calcDueDateString(followUp);
@@ -249,10 +221,7 @@ export default function CompleteTaskModal({
     },
     onSuccess: () => {
       invalidateTaskQueries();
-      if (outcome === "Not interested") {
-        onNotInterested?.();
-      }
-      const msg = followUp !== "none" && outcome !== "Not interested"
+      const msg = followUp !== "none"
         ? t.tasks.taskCompletedNext
         : t.tasks.taskCompleted;
       toast({ title: msg });
@@ -287,18 +256,9 @@ export default function CompleteTaskModal({
 
   const displayTitle = task?.title ?? defaultTaskTitle ?? null;
 
-  const smsFirstName = contactName
-    || displayTitle?.replace(/^Follow up[\s\-:]+with\s+/i, "").split(" ")[0]
-    || "";
-  const smsText = getClosingSms(smsFirstName, contactLanguage);
-
   const handleSubmitClick = () => {
     if (isSpokeWithLead && onSpokeWithLead) {
       onSpokeWithLead(completionNote.trim() || undefined);
-    } else if (outcome === "Not interested") {
-      setSmsCountdownStarted(false);
-      setSmsCountdown(5);
-      setShowSmsScreen(true);
     } else {
       submitMutation.mutate();
     }
@@ -316,261 +276,209 @@ export default function CompleteTaskModal({
       >
         <DialogHeader>
           <DialogTitle data-testid="text-complete-task-title">
-            {showSmsScreen ? "Send Closing Message" : t.tasks.completeTask}
+            {t.tasks.completeTask}
           </DialogTitle>
-          {!showSmsScreen && displayTitle && (
+          {displayTitle && (
             <p className="text-sm text-gray-500 truncate mt-1" data-testid="text-completing-task-name">
               {displayTitle}
             </p>
           )}
         </DialogHeader>
 
-        {showSmsScreen ? (
-          <>
-            <div className="space-y-4 py-2">
-              {contactPhone && (
-                <div className="space-y-1">
-                  <Label className="text-xs text-gray-500 uppercase tracking-wide">Lead's Phone</Label>
-                  <p className="text-sm font-medium" data-testid="text-sms-lead-phone">{contactPhone}</p>
-                </div>
-              )}
+        <div className="space-y-4 py-2 overflow-y-auto flex-1 min-h-0">
+          <div className="space-y-2">
+            <Label>{t.tasks.outcome}</Label>
+            <Select value={outcome} onValueChange={setOutcome}>
+              <SelectTrigger data-testid="select-outcome">
+                <SelectValue placeholder={t.tasks.selectOutcome} />
+              </SelectTrigger>
+              <SelectContent>
+                {activeOutcomeKeys.map((key) => (
+                  <SelectItem key={key} value={activeOutcomeLabels[key]} data-testid={`option-outcome-${key}`}>
+                    {(t.tasks.outcomes as Record<string, string>)[key] ?? activeOutcomeLabels[key]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {isAppointmentSet ? (
+            <div className="space-y-3 p-3 bg-teal-50 border border-teal-100 rounded-lg">
+              <p className="text-xs font-semibold text-teal-700 uppercase tracking-wide">Demo Details (required)</p>
+
               <div className="space-y-1">
-                <Label className="text-xs text-gray-500 uppercase tracking-wide">Closing Message</Label>
-                <div
-                  className="text-sm bg-gray-50 border border-gray-200 rounded px-3 py-2 leading-relaxed"
-                  data-testid="text-sms-closing-message"
-                >
-                  {smsText}
+                <Label className="text-sm" htmlFor="demo-date">Date</Label>
+                <Input
+                  id="demo-date"
+                  type="date"
+                  value={demoDate}
+                  onChange={(e) => setDemoDate(e.target.value)}
+                  min={todayLocalString()}
+                  data-testid="input-demo-date"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-sm font-semibold text-amber-600" htmlFor="demo-time">⚠ Lead's Time</Label>
+                  <Select value={demoTime} onValueChange={setDemoTime}>
+                    <SelectTrigger id="demo-time" data-testid="select-demo-time">
+                      <SelectValue placeholder="Select time" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TIME_SLOTS.map((slot) => (
+                        <SelectItem key={slot} value={slot}>
+                          {formatTimeSlot(slot)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-                <p className="text-xs text-gray-400">
-                  Send this message manually from your phone before confirming.
-                </p>
+
+                <div className="space-y-1">
+                  <Label className="text-sm font-semibold text-amber-600" htmlFor="demo-tz">⚠ Lead's Time Zone</Label>
+                  <Select value={demoTimezone} onValueChange={setDemoTimezone}>
+                    <SelectTrigger id="demo-tz" data-testid="select-demo-timezone">
+                      <SelectValue placeholder="Select TZ" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {US_TIMEZONES.map((tz) => (
+                        <SelectItem key={tz.value} value={tz.value}>
+                          {tz.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
+              <p className="text-xs text-teal-600 bg-teal-50 border border-teal-100 rounded px-2 py-1">
+                Enter the time as it is for the <strong>lead</strong>, not your own time zone.
+              </p>
+
+              <div className="space-y-1">
+                <Label className="text-sm" htmlFor="demo-rep">Sales Rep</Label>
+                <Input
+                  id="demo-rep"
+                  type="text"
+                  value={demoRep}
+                  onChange={(e) => setDemoRep(e.target.value)}
+                  placeholder="Rep's full name"
+                  data-testid="input-demo-rep"
+                />
+              </div>
+
+              {demoDate && demoTime && demoTimezone && demoRep.trim() && (
+                <div className="mt-1 text-xs text-teal-600 bg-white border border-teal-100 rounded px-2 py-1.5">
+                  <span className="font-medium">Preview: </span>
+                  {buildDemoNote()}
+                </div>
+              )}
             </div>
-            <DialogFooter className="gap-2 sm:gap-0">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowSmsScreen(false);
-                  setSmsCountdown(5);
-                  setSmsCountdownStarted(false);
-                }}
-                data-testid="button-sms-back"
-              >
-                Back
-              </Button>
-              <Button
-                variant="destructive"
-                disabled={smsCountdown > 0 || submitMutation.isPending}
-                onClick={() => submitMutation.mutate()}
-                data-testid="button-sms-confirm"
-              >
-                {smsCountdown > 0
-                  ? `Message sent (${smsCountdown}s)`
-                  : submitMutation.isPending
-                  ? "Completing…"
-                  : "Message sent — Complete"}
-              </Button>
-            </DialogFooter>
-          </>
-        ) : (
-          <>
-            <div className="space-y-4 py-2 overflow-y-auto flex-1 min-h-0">
-              <div className="space-y-2">
-                <Label>{t.tasks.outcome}</Label>
-                <Select value={outcome} onValueChange={setOutcome}>
-                  <SelectTrigger data-testid="select-outcome">
-                    <SelectValue placeholder={t.tasks.selectOutcome} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {activeOutcomeKeys.map((key) => (
-                      <SelectItem key={key} value={activeOutcomeLabels[key]} data-testid={`option-outcome-${key}`}>
-                        {(t.tasks.outcomes as Record<string, string>)[key] ?? activeOutcomeLabels[key]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+          ) : (
+            <div className="space-y-2">
+              <Label>{t.tasks.completionNotes}</Label>
+              <Textarea
+                value={completionNote}
+                onChange={(e) => setCompletionNote(e.target.value)}
+                placeholder={t.tasks.completionNotesPlaceholder}
+                rows={2}
+                data-testid="textarea-completion-note"
+              />
+            </div>
+          )}
 
-              {isAppointmentSet ? (
-                <div className="space-y-3 p-3 bg-teal-50 border border-teal-100 rounded-lg">
-                  <p className="text-xs font-semibold text-teal-700 uppercase tracking-wide">Demo Details (required)</p>
+          {!isNewLead && !hideFollowUp && !isAppointmentSet && (
+            <div className="space-y-2">
+              <Label>{t.tasks.nextFollowUp}</Label>
+              <RadioGroup value={followUp} onValueChange={(v) => setFollowUp(v as FollowUpOption)}>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="none" id="fu-none" data-testid="radio-followup-none" />
+                  <Label htmlFor="fu-none" className="font-normal cursor-pointer">{t.tasks.noNextFollowUp}</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="1d" id="fu-1d" data-testid="radio-followup-1d" />
+                  <Label htmlFor="fu-1d" className="font-normal cursor-pointer">{t.tasks.tomorrow}</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="3d" id="fu-3d" data-testid="radio-followup-3d" />
+                  <Label htmlFor="fu-3d" className="font-normal cursor-pointer">{t.tasks.in3Days}</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="1w" id="fu-1w" data-testid="radio-followup-1w" />
+                  <Label htmlFor="fu-1w" className="font-normal cursor-pointer">{t.tasks.in1Week}</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="custom" id="fu-custom" data-testid="radio-followup-custom" />
+                  <Label htmlFor="fu-custom" className="font-normal cursor-pointer">{t.tasks.customDateTime}</Label>
+                </div>
+              </RadioGroup>
 
+              {followUpMissing && (
+                <p className="text-xs text-red-500 mt-1" data-testid="msg-followup-required">
+                  {t.tasks.requireFollowUpMessage}
+                </p>
+              )}
+
+              {followUp === "custom" && (
+                <div className="ml-6 mt-2 space-y-3 p-3 bg-gray-50 rounded-md border border-gray-100">
                   <div className="space-y-1">
-                    <Label className="text-sm" htmlFor="demo-date">Date</Label>
+                    <Label htmlFor="custom-date" className="text-xs">{t.tasks.dueDate}</Label>
                     <Input
-                      id="demo-date"
+                      id="custom-date"
                       type="date"
-                      value={demoDate}
-                      onChange={(e) => setDemoDate(e.target.value)}
+                      value={customDate}
+                      onChange={(e) => setCustomDate(e.target.value)}
                       min={todayLocalString()}
-                      data-testid="input-demo-date"
+                      data-testid="input-custom-date"
                     />
                   </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <Label className="text-sm font-semibold text-amber-600" htmlFor="demo-time">⚠ Lead's Time</Label>
-                      <Select value={demoTime} onValueChange={setDemoTime}>
-                        <SelectTrigger id="demo-time" data-testid="select-demo-time">
-                          <SelectValue placeholder="Select time" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {TIME_SLOTS.map((slot) => (
-                            <SelectItem key={slot} value={slot}>
-                              {formatTimeSlot(slot)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-1">
-                      <Label className="text-sm font-semibold text-amber-600" htmlFor="demo-tz">⚠ Lead's Time Zone</Label>
-                      <Select value={demoTimezone} onValueChange={setDemoTimezone}>
-                        <SelectTrigger id="demo-tz" data-testid="select-demo-timezone">
-                          <SelectValue placeholder="Select TZ" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {US_TIMEZONES.map((tz) => (
-                            <SelectItem key={tz.value} value={tz.value}>
-                              {tz.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <p className="text-xs text-teal-600 bg-teal-50 border border-teal-100 rounded px-2 py-1">
-                    Enter the time as it is for the <strong>lead</strong>, not your own time zone.
-                  </p>
-
                   <div className="space-y-1">
-                    <Label className="text-sm" htmlFor="demo-rep">Sales Rep</Label>
-                    <Input
-                      id="demo-rep"
-                      type="text"
-                      value={demoRep}
-                      onChange={(e) => setDemoRep(e.target.value)}
-                      placeholder="Rep's full name"
-                      data-testid="input-demo-rep"
-                    />
+                    <Label htmlFor="custom-time" className="text-xs">Time</Label>
+                    <Select value={followUpTime} onValueChange={setFollowUpTime}>
+                      <SelectTrigger data-testid="select-custom-time">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {TIME_SLOTS.map((slot) => (
+                          <SelectItem key={slot} value={slot}>
+                            {formatTimeSlot(slot)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-
-                  {demoDate && demoTime && demoTimezone && demoRep.trim() && (
-                    <div className="mt-1 text-xs text-teal-600 bg-white border border-teal-100 rounded px-2 py-1.5">
-                      <span className="font-medium">Preview: </span>
-                      {buildDemoNote()}
-                    </div>
-                  )}
+                  <p className="text-xs text-gray-400" data-testid="text-timezone-label">
+                    {effectiveTimezone.replace(/_/g, " ")}
+                  </p>
                 </div>
-              ) : (
-                <div className="space-y-2">
-                  <Label>{t.tasks.completionNotes}</Label>
-                  <Textarea
-                    value={completionNote}
-                    onChange={(e) => setCompletionNote(e.target.value)}
-                    placeholder={t.tasks.completionNotesPlaceholder}
-                    rows={2}
-                    data-testid="textarea-completion-note"
-                  />
-                </div>
-              )}
-
-              {!isNewLead && !hideFollowUp && !isAppointmentSet && (
-                <div className="space-y-2">
-                  <Label>{t.tasks.nextFollowUp}</Label>
-                  <RadioGroup value={followUp} onValueChange={(v) => setFollowUp(v as FollowUpOption)}>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="none" id="fu-none" data-testid="radio-followup-none" />
-                      <Label htmlFor="fu-none" className="font-normal cursor-pointer">{t.tasks.noNextFollowUp}</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="1d" id="fu-1d" data-testid="radio-followup-1d" />
-                      <Label htmlFor="fu-1d" className="font-normal cursor-pointer">{t.tasks.tomorrow}</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="3d" id="fu-3d" data-testid="radio-followup-3d" />
-                      <Label htmlFor="fu-3d" className="font-normal cursor-pointer">{t.tasks.in3Days}</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="1w" id="fu-1w" data-testid="radio-followup-1w" />
-                      <Label htmlFor="fu-1w" className="font-normal cursor-pointer">{t.tasks.in1Week}</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="custom" id="fu-custom" data-testid="radio-followup-custom" />
-                      <Label htmlFor="fu-custom" className="font-normal cursor-pointer">{t.tasks.customDateTime}</Label>
-                    </div>
-                  </RadioGroup>
-
-                  {followUpMissing && (
-                    <p className="text-xs text-red-500 mt-1" data-testid="msg-followup-required">
-                      {t.tasks.requireFollowUpMessage}
-                    </p>
-                  )}
-
-                  {followUp === "custom" && (
-                    <div className="ml-6 mt-2 space-y-3 p-3 bg-gray-50 rounded-md border border-gray-100">
-                      <div className="space-y-1">
-                        <Label htmlFor="custom-date" className="text-xs">{t.tasks.dueDate}</Label>
-                        <Input
-                          id="custom-date"
-                          type="date"
-                          value={customDate}
-                          onChange={(e) => setCustomDate(e.target.value)}
-                          min={todayLocalString()}
-                          data-testid="input-custom-date"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label htmlFor="custom-time" className="text-xs">Time</Label>
-                        <Select value={followUpTime} onValueChange={setFollowUpTime}>
-                          <SelectTrigger data-testid="select-custom-time">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {TIME_SLOTS.map((slot) => (
-                              <SelectItem key={slot} value={slot}>
-                                {formatTimeSlot(slot)}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <p className="text-xs text-gray-400" data-testid="text-timezone-label">
-                        {effectiveTimezone.replace(/_/g, " ")}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {isNewLead && outcome !== "" && !isSpokeWithLead && (
-                <p className="text-xs text-gray-500" data-testid="text-auto-followup-info">
-                  {(t.tasks.outcomes as Record<string, string>).autoFollowUpInfo}
-                </p>
               )}
             </div>
+          )}
 
-            <DialogFooter className="gap-2 sm:gap-0">
-              <Button
-                variant="outline"
-                onClick={onClose}
-                disabled={submitMutation.isPending}
-                data-testid="button-cancel-complete"
-              >
-                {t.tasks.cancel}
-              </Button>
-              <Button
-                onClick={handleSubmitClick}
-                disabled={!canSubmit}
-                data-testid="button-submit-complete"
-              >
-                {submitMutation.isPending ? t.tasks.completing : t.tasks.completeTask}
-              </Button>
-            </DialogFooter>
-          </>
-        )}
+          {isNewLead && outcome !== "" && !isSpokeWithLead && (
+            <p className="text-xs text-gray-500" data-testid="text-auto-followup-info">
+              {(t.tasks.outcomes as Record<string, string>).autoFollowUpInfo}
+            </p>
+          )}
+        </div>
+
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button
+            variant="outline"
+            onClick={onClose}
+            disabled={submitMutation.isPending}
+            data-testid="button-cancel-complete"
+          >
+            {t.tasks.cancel}
+          </Button>
+          <Button
+            onClick={handleSubmitClick}
+            disabled={!canSubmit}
+            data-testid="button-submit-complete"
+          >
+            {submitMutation.isPending ? t.tasks.completing : t.tasks.completeTask}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

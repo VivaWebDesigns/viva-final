@@ -60,7 +60,6 @@ import CompleteTaskModal from "@/components/CompleteTaskModal";
 import QuickTaskModal from "@/components/QuickTaskModal";
 import PaymentSentModal from "@/components/PaymentSentModal";
 import DemoCompletedModal from "@/components/DemoCompletedModal";
-import PaymentFollowUpModal from "@/components/PaymentFollowUpModal";
 import type {
   ProfileEntry,
   ProfileHealth,
@@ -2027,7 +2026,6 @@ function ProfileShellInner({
   const spokeWithLeadNoteRef = useRef<string | undefined>(undefined);
   const afterDemoCompletedCallbackRef = useRef<(() => void) | null>(null);
   const [demoOutcomeTask, setDemoOutcomeTask] = useState<ClientTask | null>(null);
-  const [paymentFollowUpTask, setPaymentFollowUpTask] = useState<ClientTask | null>(null);
 
   const { data: stages } = useQuery<PipelineStage[]>({
     queryKey: ["/api/pipeline/stages"],
@@ -2529,8 +2527,6 @@ function ProfileShellInner({
                           setDemoOutcomeTask(task);
                           const demoCompletedStage = stages?.find(s => s.slug === "demo-completed");
                           if (demoCompletedStage) setDemoCompletedPendingStageId(demoCompletedStage.id);
-                        } else if (activeStageSlug === "payment-sent") {
-                          setPaymentFollowUpTask(task);
                         } else {
                           setCompletingTask(task);
                         }
@@ -2559,8 +2555,6 @@ function ProfileShellInner({
                           setDemoOutcomeTask(task);
                           const demoCompletedStage = stages?.find(s => s.slug === "demo-completed");
                           if (demoCompletedStage) setDemoCompletedPendingStageId(demoCompletedStage.id);
-                        } else if (activeStageSlug === "payment-sent") {
-                          setPaymentFollowUpTask(task);
                         } else {
                           setCompletingTask(task);
                         }
@@ -2589,8 +2583,6 @@ function ProfileShellInner({
                           setDemoOutcomeTask(task);
                           const demoCompletedStage = stages?.find(s => s.slug === "demo-completed");
                           if (demoCompletedStage) setDemoCompletedPendingStageId(demoCompletedStage.id);
-                        } else if (activeStageSlug === "payment-sent") {
-                          setPaymentFollowUpTask(task);
                         } else {
                           setCompletingTask(task);
                         }
@@ -2998,7 +2990,6 @@ function ProfileShellInner({
             opportunityId={activeOpp.id}
             contactName={`${contact?.firstName ?? ""} ${contact?.lastName ?? ""}`.trim() || "there"}
             contactPhone={primaryContact?.phone ?? null}
-            contactLanguage={primaryContact?.preferredLanguage ?? null}
             onReadyForPayment={() => {
               const paymentSentStage = stages?.find((s) => s.slug === "payment-sent");
               if (paymentSentStage) {
@@ -3039,45 +3030,6 @@ function ProfileShellInner({
               setDemoCompletedPendingStageId(null);
             }}
           />
-          <PaymentFollowUpModal
-            open={paymentFollowUpTask !== null}
-            onClose={() => setPaymentFollowUpTask(null)}
-            opportunityId={activeOpp.id}
-            contactName={`${contact?.firstName ?? ""} ${contact?.lastName ?? ""}`.trim() || "there"}
-            contactPhone={primaryContact?.phone ?? null}
-            contactLanguage={primaryContact?.preferredLanguage ?? null}
-            onPaymentReceived={() => {
-              if (paymentFollowUpTask) {
-                apiRequest("PUT", `/api/tasks/${paymentFollowUpTask.id}/complete`, {}).then(() => {
-                  queryClient.invalidateQueries({ queryKey: ["/api/profiles/company", companyId, "tasks"] });
-                  queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
-                }).catch(() => {});
-                setPaymentFollowUpTask(null);
-              }
-              const closedWonStage = stages?.find(s => s.slug === "closed-won");
-              if (closedWonStage) stageMutation.mutate(closedWonStage.id);
-            }}
-            onStillWaiting={() => {
-              if (paymentFollowUpTask) {
-                apiRequest("PUT", `/api/tasks/${paymentFollowUpTask.id}/complete`, {}).then(() => {
-                  queryClient.invalidateQueries({ queryKey: ["/api/profiles/company", companyId, "tasks"] });
-                  queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
-                }).catch(() => {});
-                setPaymentFollowUpTask(null);
-              }
-            }}
-            onBackedOut={() => {
-              if (paymentFollowUpTask) {
-                apiRequest("PUT", `/api/tasks/${paymentFollowUpTask.id}/complete`, {}).then(() => {
-                  queryClient.invalidateQueries({ queryKey: ["/api/profiles/company", companyId, "tasks"] });
-                  queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
-                }).catch(() => {});
-                setPaymentFollowUpTask(null);
-              }
-              const closedLostStage = stages?.find(s => s.slug === "closed-lost");
-              if (closedLostStage) stageMutation.mutate(closedLostStage.id);
-            }}
-          />
         </>
         );
       })()}
@@ -3088,15 +3040,6 @@ function ProfileShellInner({
         task={completingTask}
         outcomeMode={isNewLeadContext ? "new-lead" : "general"}
         onSpokeWithLead={isNewLeadContext ? handleSpokeWithLead : undefined}
-        contactPhone={primaryContact?.phone ?? null}
-        contactLanguage={primaryContact?.preferredLanguage ?? null}
-        contactName={primaryContact?.firstName ?? null}
-        onNotInterested={() => {
-          if (completingTask?.opportunityId) {
-            const closedLostStage = stages?.find(s => s.slug === "closed-lost");
-            if (closedLostStage) stageMutation.mutate(closedLostStage.id);
-          }
-        }}
         onSuccess={() => {
           queryClient.invalidateQueries({ queryKey: ["/api/profiles/company", companyId, "tasks"] });
           queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });

@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { getClosingSms } from "@/lib/closingMessage";
 import { formatTimeSlot, TIME_SLOTS } from "@/components/QuickTaskModal";
 
 function tomorrowLocalString(): string {
@@ -41,11 +40,13 @@ interface DemoCompletedModalProps {
   opportunityId: string;
   contactName: string;
   contactPhone: string | null;
-  contactLanguage?: string | null;
   onReadyForPayment: () => void;
   onDemoCompleted: () => void;
   onClosedLost: () => void;
 }
+
+const CLOSING_SMS = (name: string) =>
+  `Hi ${name || "there"}, thank you for your time speaking with us. We appreciate the opportunity and hope we can work together in the future. Don't hesitate to reach out anytime. — Viva Web Designs (980) 949-0548`;
 
 export default function DemoCompletedModal({
   open,
@@ -53,7 +54,6 @@ export default function DemoCompletedModal({
   opportunityId,
   contactName,
   contactPhone,
-  contactLanguage,
   onReadyForPayment,
   onDemoCompleted,
   onClosedLost,
@@ -136,8 +136,7 @@ export default function DemoCompletedModal({
     onClose();
   };
 
-  const firstName = contactName.split(" ")[0] || contactName;
-  const smsText = getClosingSms(firstName, contactLanguage);
+  const smsText = CLOSING_SMS(contactName.split(" ")[0] || contactName);
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
