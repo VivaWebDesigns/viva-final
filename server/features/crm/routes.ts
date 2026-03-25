@@ -373,6 +373,7 @@ const manualLeadSchema = z.object({
   notes:             z.string().optional(),
   city:              z.string().min(1, "City is required"),
   state:             z.string().length(2, "State is required"),
+  assignedTo:        z.string().optional(),
 });
 
 router.post("/leads/manual", requireRole("admin", "developer", "lead_gen"), async (req, res) => {
@@ -433,8 +434,9 @@ router.post("/leads/manual", requireRole("admin", "developer", "lead_gen"), asyn
       ? `${data.businessName.trim()} – ${fullName}`
       : fullName;
 
-    // 5. Create CRM lead — auto-assign to the creating user
+    // 5. Create CRM lead — assign to chosen user or fall back to creator
     const creatorId = req.authUser!.id;
+    const resolvedAssignee = data.assignedTo ?? creatorId;
     const lead = await crmStorage.createLead({
       title: leadTitle,
       companyId,
@@ -447,7 +449,7 @@ router.post("/leads/manual", requireRole("admin", "developer", "lead_gen"), asyn
       city: data.city,
       state: data.state,
       timezone: US_STATE_TIMEZONES[data.state] ?? null,
-      assignedTo: creatorId,
+      assignedTo: resolvedAssignee,
     });
 
     // 6. Create pipeline opportunity in the "new-lead" stage — inherit owner from lead
@@ -462,14 +464,14 @@ router.post("/leads/manual", requireRole("admin", "developer", "lead_gen"), asyn
         status: "open",
         sourceLeadTitle: leadTitle,
         notes: data.notes || null,
-        assignedTo: creatorId,
+        assignedTo: resolvedAssignee,
       });
       executeStageAutomations({
         opportunityId: opp.id,
         leadId: lead.id,
         contactId: contact.id,
         companyId,
-        assignedTo: creatorId,
+        assignedTo: resolvedAssignee,
         stageSlug: "new-lead",
         actorId: creatorId,
       }).catch((err: unknown) => {

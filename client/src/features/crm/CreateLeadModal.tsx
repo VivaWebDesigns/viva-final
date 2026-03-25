@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAdminLang } from "@/i18n/LanguageContext";
@@ -54,6 +54,7 @@ const baseSchema = z.object({
   notes:             z.string().optional(),
   city:              z.string().min(1),
   state:             z.enum(US_STATES),
+  assignedTo:        z.string().optional(),
 });
 
 type FormValues = z.infer<typeof baseSchema>;
@@ -87,8 +88,17 @@ export default function CreateLeadModal({ open, onClose }: Props) {
       notes: "",
       city: "",
       state: undefined,
+      assignedTo: "",
     },
   });
+
+  const { data: assignableUsers = [] } = useQuery<{ id: string; name: string; role: string }[]>({
+    queryKey: ["/api/crm/leads/assignable-users"],
+  });
+
+  const salesAndAdminUsers = assignableUsers.filter(u =>
+    u.role === "sales_rep" || u.role === "admin"
+  );
 
   const mutation = useMutation({
     mutationFn: (values: FormValues) =>
@@ -318,6 +328,36 @@ export default function CreateLeadModal({ open, onClose }: Props) {
                 </FormItem>
               )}
             />
+
+            {salesAndAdminUsers.length > 0 && (
+              <FormField
+                control={form.control}
+                name="assignedTo"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Assign To <span className="text-gray-400 text-xs font-normal">(optional)</span></FormLabel>
+                    <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-assigned-to">
+                          <SelectValue placeholder="Select a rep..." />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {salesAndAdminUsers.map((u) => (
+                          <SelectItem key={u.id} value={u.id} data-testid={`option-assignee-${u.id}`}>
+                            {u.name}
+                            <span className="ml-2 text-xs text-gray-400 capitalize">
+                              {u.role === "sales_rep" ? "Sales" : "Admin"}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <FormField
               control={form.control}
