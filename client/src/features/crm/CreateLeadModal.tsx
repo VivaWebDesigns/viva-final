@@ -54,7 +54,7 @@ const baseSchema = z.object({
   notes:             z.string().optional(),
   city:              z.string().min(1),
   state:             z.enum(US_STATES),
-  assignedTo:        z.string().optional(),
+  assignedTo:        z.string().min(1, "Please assign this lead to a rep"),
 });
 
 type FormValues = z.infer<typeof baseSchema>;
@@ -329,35 +329,33 @@ export default function CreateLeadModal({ open, onClose }: Props) {
               )}
             />
 
-            {salesAndAdminUsers.length > 0 && (
-              <FormField
-                control={form.control}
-                name="assignedTo"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Assign To <span className="text-gray-400 text-xs font-normal">(optional)</span></FormLabel>
-                    <Select value={field.value ?? ""} onValueChange={field.onChange}>
-                      <FormControl>
-                        <SelectTrigger data-testid="select-assigned-to">
-                          <SelectValue placeholder="Select a rep..." />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {salesAndAdminUsers.map((u) => (
-                          <SelectItem key={u.id} value={u.id} data-testid={`option-assignee-${u.id}`}>
-                            {u.name}
-                            <span className="ml-2 text-xs text-gray-400 capitalize">
-                              {u.role === "sales_rep" ? "Sales" : "Admin"}
-                            </span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
+            <FormField
+              control={form.control}
+              name="assignedTo"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Assign To</FormLabel>
+                  <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger data-testid="select-assigned-to">
+                        <SelectValue placeholder="Select a rep..." />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {salesAndAdminUsers.map((u) => (
+                        <SelectItem key={u.id} value={u.id} data-testid={`option-assignee-${u.id}`}>
+                          {u.name}
+                          <span className="ml-2 text-xs text-gray-400 capitalize">
+                            {u.role === "sales_rep" ? "Sales" : "Admin"}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}
