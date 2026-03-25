@@ -580,12 +580,28 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
               {stages && opp.status === "open" && (() => {
                 const currentSlug = stages.find(s => s.id === opp.stageId)?.slug ?? "";
                 const demoCompletedStage = stages.find(s => s.slug === "demo-completed");
+                const isAdminUser = authRole === "admin";
                 return (
                   <div className="pt-3 border-t">
                     <p className="text-xs text-gray-400 mb-2">{t.pipeline.moveToStage}</p>
                     <div className="flex flex-wrap gap-1.5">
                       {stages.map(stage => {
                         const isCurrent = stage.id === opp.stageId;
+                        if (isAdminUser && !isCurrent) {
+                          return (
+                            <button
+                              key={stage.id}
+                              type="button"
+                              onClick={() => stageMutation.mutate(stage.id)}
+                              disabled={stageMutation.isPending}
+                              className="inline-flex items-center px-2.5 h-7 rounded-md text-xs font-medium border transition-opacity hover:opacity-70 disabled:opacity-50"
+                              style={{ borderColor: stage.color, color: stage.color }}
+                              data-testid={`button-stage-${stage.slug}`}
+                            >
+                              {(t.pipeline.stageNames as Record<string, string>)[stage.slug] || stage.name}
+                            </button>
+                          );
+                        }
                         return (
                           <span
                             key={stage.id}
