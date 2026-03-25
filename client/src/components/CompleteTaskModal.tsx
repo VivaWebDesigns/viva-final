@@ -386,7 +386,7 @@ export default function CompleteTaskModal({
             </div>
           )}
 
-          {!isNewLead && !hideFollowUp && (
+          {!isNewLead && !hideFollowUp && !isAppointmentSet && (
             <div className="space-y-2">
               <Label>{t.tasks.nextFollowUp}</Label>
               <RadioGroup value={followUp} onValueChange={(v) => setFollowUp(v as FollowUpOption)}>
