@@ -265,7 +265,7 @@ export default function CompleteTaskModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={preventClose ? () => {} : (v) => { if (!v) onClose(); }}>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent
         className="max-w-md flex flex-col max-h-[90vh]"
         data-testid="dialog-complete-task"
