@@ -283,7 +283,7 @@ export const en = {
     contact: "Contact",
     company: "Company",
     sourceLeadLabel: "Source Lead",
-    moveToStage: "Move to stage",
+    moveToStage: "Current stage",
     backToPipeline: "Back to Pipeline",
     details: "Details",
     activityTimeline: "Activity Timeline",

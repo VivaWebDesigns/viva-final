@@ -285,7 +285,7 @@ export const es: AdminTranslations = {
     contact: "Contacto",
     company: "Empresa",
     sourceLeadLabel: "Prospecto de Origen",
-    moveToStage: "Mover a etapa",
+    moveToStage: "Etapa actual",
     backToPipeline: "Volver al Embudo",
     details: "Detalles",
     activityTimeline: "Cronología de Actividades",
