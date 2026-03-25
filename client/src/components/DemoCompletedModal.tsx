@@ -107,12 +107,12 @@ export default function DemoCompletedModal({
   });
 
   const handleOutcomeSelect = (o: Outcome) => {
-    if (o === "ready-for-payment") {
-      onReadyForPayment();
-      onClose();
-      return;
-    }
     setOutcome(o);
+  };
+
+  const handleReadyForPaymentConfirm = () => {
+    onReadyForPayment();
+    onClose();
   };
 
   const handleStillThinkingSubmit = () => {
@@ -182,6 +182,28 @@ export default function DemoCompletedModal({
             <DialogFooter>
               <Button variant="ghost" onClick={onClose} data-testid="button-demo-cancel">
                 Cancel
+              </Button>
+            </DialogFooter>
+          </>
+        )}
+
+        {outcome === "ready-for-payment" && (
+          <>
+            <div className="py-2 space-y-3">
+              <div className="rounded-md bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-800">
+                Great news! This lead is ready to move forward with payment. Confirm below to proceed to the next step.
+              </div>
+            </div>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button variant="outline" onClick={() => setOutcome(null)} data-testid="button-payment-back">
+                Back
+              </Button>
+              <Button
+                className="bg-green-600 hover:bg-green-700 text-white"
+                onClick={handleReadyForPaymentConfirm}
+                data-testid="button-payment-confirm"
+              >
+                Confirm &amp; Proceed
               </Button>
             </DialogFooter>
           </>
