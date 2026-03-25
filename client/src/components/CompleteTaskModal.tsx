@@ -34,7 +34,6 @@ export const OUTCOME_LABELS: Record<string, string> = {
   interested: "Interested",
   uncertain: "Uncertain",
   notInterested: "Not interested",
-  badNumber: "Bad number",
   appointmentSet: "Appointment set",
 };
 
