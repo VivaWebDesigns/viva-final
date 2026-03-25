@@ -2,7 +2,7 @@ import { db } from "../../db";
 import {
   crmCompanies, crmContacts, crmLeadStatuses, crmLeads, crmLeadNotes,
   crmTags, crmLeadTags, pipelineOpportunities, pipelineActivities, followupTasks, user,
-  onboardingRecords, clientNotes,
+  onboardingRecords, clientNotes, automationExecutionLogs,
   type InsertCrmCompany, type InsertCrmContact, type InsertCrmLeadStatus,
   type InsertCrmLead, type InsertCrmLeadNote, type InsertCrmTag,
   type CrmCompany, type CrmContact, type CrmLeadStatus,
@@ -362,6 +362,18 @@ export async function bulkDeleteLeads(ids: string[]): Promise<number> {
 
     await tx.delete(crmLeadTags).where(inArray(crmLeadTags.leadId, ids));
     await tx.delete(crmLeadNotes).where(inArray(crmLeadNotes.leadId, ids));
+
+    const tasksToDelete = await tx
+      .select({ id: followupTasks.id })
+      .from(followupTasks)
+      .where(inArray(followupTasks.leadId, ids));
+    const taskIdsToDelete = tasksToDelete.map(t => t.id);
+    if (taskIdsToDelete.length > 0) {
+      await tx
+        .update(automationExecutionLogs)
+        .set({ generatedTaskId: null })
+        .where(inArray(automationExecutionLogs.generatedTaskId, taskIdsToDelete));
+    }
     await tx.delete(followupTasks).where(inArray(followupTasks.leadId, ids));
 
     const oppsToDelete = await tx
