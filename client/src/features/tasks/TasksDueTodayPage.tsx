@@ -605,6 +605,7 @@ export default function TasksDueTodayPage() {
           }
           setContactedPendingOppId(null);
         }}
+        preventClose={true}
       />
     </div>
   );

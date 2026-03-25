@@ -2962,6 +2962,7 @@ function ProfileShellInner({
               spokeWithLeadTaskIdRef.current = null;
               if (contactedPendingStageId) stageMutation.mutate(contactedPendingStageId);
             }}
+            preventClose={true}
           />
           <PaymentSentModal
             open={paymentSentPendingStageId !== null}

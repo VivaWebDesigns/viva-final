@@ -154,8 +154,13 @@ export default function PaymentSentModal({
   const canSubmit = timeSent !== "" && method !== "" && !submitMutation.isPending;
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-md" data-testid="dialog-payment-sent">
+    <Dialog open={open} onOpenChange={() => {}}>
+      <DialogContent
+        className="max-w-md"
+        data-testid="dialog-payment-sent"
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle data-testid="text-payment-sent-title">
             {ps.title}

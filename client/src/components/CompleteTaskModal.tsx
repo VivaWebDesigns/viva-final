@@ -79,6 +79,7 @@ interface CompleteTaskModalProps {
   hideFollowUp?: boolean;
   onSpokeWithLead?: (completionNote?: string) => void;
   onSuccess?: () => void;
+  preventClose?: boolean;
 }
 
 export default function CompleteTaskModal({
@@ -94,6 +95,7 @@ export default function CompleteTaskModal({
   hideFollowUp = false,
   onSpokeWithLead,
   onSuccess,
+  preventClose = false,
 }: CompleteTaskModalProps) {
   const { toast } = useToast();
   const { t } = useAdminLang();
@@ -255,8 +257,15 @@ export default function CompleteTaskModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-md flex flex-col max-h-[90vh]" data-testid="dialog-complete-task">
+    <Dialog open={open} onOpenChange={preventClose ? () => {} : (v) => { if (!v) onClose(); }}>
+      <DialogContent
+        className="max-w-md flex flex-col max-h-[90vh]"
+        data-testid="dialog-complete-task"
+        {...(preventClose ? {
+          onInteractOutside: (e: Event) => e.preventDefault(),
+          onEscapeKeyDown: (e: KeyboardEvent) => e.preventDefault(),
+        } : {})}
+      >
         <DialogHeader>
           <DialogTitle data-testid="text-complete-task-title">
             {t.tasks.completeTask}

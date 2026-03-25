@@ -958,6 +958,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
         onSuccess={() => {
           if (contactedPendingStageId) stageMutation.mutate(contactedPendingStageId);
         }}
+        preventClose={true}
       />
       <PaymentSentModal
         open={paymentSentPendingStageId !== null}
