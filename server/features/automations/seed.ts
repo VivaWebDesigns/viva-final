@@ -22,15 +22,6 @@ const DEFAULT_TEMPLATES = [
     sortOrder: 0,
   },
   {
-    triggerStageSlug: "demo-completed",
-    title: "Send proposal",
-    description: "Send a customized proposal to the prospect following the completed demo.",
-    dueOffsetDays: 1,
-    priority: "high" as const,
-    taskType: "follow_up",
-    sortOrder: 0,
-  },
-  {
     triggerStageSlug: "payment-sent",
     title: "Confirm payment receipt",
     description: "Follow up to confirm the client received and can access the payment invoice.",
