@@ -2523,7 +2523,7 @@ function ProfileShellInner({
                       key={task.id}
                       task={task}
                       onComplete={() => {
-                        if (task.taskType === "demo_outcome") {
+                        if (task.taskType === "demo_outcome" || task.taskType === "demo_followup") {
                           setDemoOutcomeTask(task);
                           const demoCompletedStage = stages?.find(s => s.slug === "demo-completed");
                           if (demoCompletedStage) setDemoCompletedPendingStageId(demoCompletedStage.id);
@@ -2551,7 +2551,7 @@ function ProfileShellInner({
                       key={task.id}
                       task={task}
                       onComplete={() => {
-                        if (task.taskType === "demo_outcome") {
+                        if (task.taskType === "demo_outcome" || task.taskType === "demo_followup") {
                           setDemoOutcomeTask(task);
                           const demoCompletedStage = stages?.find(s => s.slug === "demo-completed");
                           if (demoCompletedStage) setDemoCompletedPendingStageId(demoCompletedStage.id);
@@ -2579,7 +2579,7 @@ function ProfileShellInner({
                       key={task.id}
                       task={task}
                       onComplete={() => {
-                        if (task.taskType === "demo_outcome") {
+                        if (task.taskType === "demo_outcome" || task.taskType === "demo_followup") {
                           setDemoOutcomeTask(task);
                           const demoCompletedStage = stages?.find(s => s.slug === "demo-completed");
                           if (demoCompletedStage) setDemoCompletedPendingStageId(demoCompletedStage.id);

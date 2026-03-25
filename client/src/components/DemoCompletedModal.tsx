@@ -92,6 +92,7 @@ export default function DemoCompletedModal({
         dueDate: followUpDate,
         followUpTime: followUpTime || undefined,
         opportunityId,
+        taskType: "demo_followup",
       });
     },
     onSuccess: () => {
