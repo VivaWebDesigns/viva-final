@@ -7,6 +7,7 @@ import {
   crmLeadNotes,
   clientNotes,
   pipelineOpportunities,
+  pipelineStages,
   pipelineActivities,
   followupTasks,
   onboardingRecords,
@@ -201,18 +202,34 @@ async function assembleProfile(companyId: string, opts?: AssembleOpts): Promise<
   //     of each other — run them in one Promise.all rather than sequentially.
   const t3 = Date.now();
 
+  // Include owner-candidate IDs so they are resolved to names in actorMap
+  const ownerCandidateIds = [
+    ...opportunityRows.map((o) => o.assignedTo),
+    ...leadRows.map((l) => l.assignedTo),
+    companyRow.accountOwnerId,
+  ].filter((id): id is string => id !== null && id !== undefined);
+
   const allUserIds = [
     ...new Set(
       [
         ...leadNoteRows.map((n) => n.userId),
         ...clientNoteRows.map((n) => n.userId),
         ...pipelineActivityRows.map((a) => a.userId),
+        ...ownerCandidateIds,
       ].filter((id): id is string => id !== null && id !== undefined),
     ),
   ];
   const taskIds = taskRows.map((t) => t.id);
 
-  const [userRows, automationLogRows] = await Promise.all([
+  const allStageIds = [
+    ...new Set(
+      opportunityRows
+        .map((o) => o.stageId)
+        .filter((id): id is string => id !== null && id !== undefined),
+    ),
+  ];
+
+  const [userRows, automationLogRows, stageRows] = await Promise.all([
     allUserIds.length > 0
       ? db
           .select({ id: user.id, name: user.name })
@@ -243,6 +260,13 @@ async function assembleProfile(companyId: string, opts?: AssembleOpts): Promise<
             createdAt: Date;
           }[],
         ),
+
+    allStageIds.length > 0
+      ? db
+          .select({ id: pipelineStages.id, name: pipelineStages.name })
+          .from(pipelineStages)
+          .where(inArray(pipelineStages.id, allStageIds))
+      : Promise.resolve([] as { id: string; name: string }[]),
   ]);
 
   console.debug(
@@ -252,6 +276,9 @@ async function assembleProfile(companyId: string, opts?: AssembleOpts): Promise<
   // ── Build lookup maps ─────────────────────────────────────────────────────
   const actorMap = new Map<string, string>();
   for (const u of userRows) actorMap.set(u.id, u.name);
+
+  const stageMap = new Map<string, string>();
+  for (const s of stageRows) stageMap.set(s.id, s.name);
 
   const automationMetaMap = new Map(
     automationLogRows
@@ -301,11 +328,12 @@ async function assembleProfile(companyId: string, opts?: AssembleOpts): Promise<
     ? { stripeCustomerId: stripeRow.stripeCustomerId, hasStripe: true }
     : { stripeCustomerId: null, hasStripe: false };
 
-  const owner =
+  const ownerRawId =
     activeOpportunity?.assignedTo ??
     sourceLead?.assignedTo ??
     company.accountOwnerId ??
     null;
+  const owner = ownerRawId ? (actorMap.get(ownerRawId) ?? null) : null;
 
   console.debug(`[profile:total] ${Date.now() - t0}ms company=${companyId}`);
 
@@ -337,7 +365,9 @@ async function assembleProfile(companyId: string, opts?: AssembleOpts): Promise<
       owner,
       status: activeOpportunity?.status ?? null,
       health: deriveHealth(lastActivityAt),
-      stage: activeOpportunity?.stageId ?? null,
+      stage: activeOpportunity?.stageId
+        ? (stageMap.get(activeOpportunity.stageId) ?? null)
+        : null,
       value: resolveValue(opportunities),
       lastActivityAt,
     },
