@@ -170,7 +170,7 @@ router.get("/leads", requireRole("admin", "developer", "sales_rep", "lead_gen"),
   }
 });
 
-router.post("/leads", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
+router.post("/leads", requireRole("admin", "developer", "lead_gen"), async (req, res) => {
   try {
     const data = insertCrmLeadSchema.parse(req.body);
     const lead = await crmStorage.createLead(data);
@@ -375,7 +375,7 @@ const manualLeadSchema = z.object({
   state:             z.string().length(2, "State is required"),
 });
 
-router.post("/leads/manual", requireRole("admin", "developer", "sales_rep", "lead_gen"), async (req, res) => {
+router.post("/leads/manual", requireRole("admin", "developer", "lead_gen"), async (req, res) => {
   try {
     const data = manualLeadSchema.parse(req.body);
 

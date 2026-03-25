@@ -260,14 +260,16 @@ export default function LeadListPage() {
               <Upload className="w-4 h-4 mr-1.5" />
               {t.crm.import}
             </Button>
-            <Button
-              size="sm"
-              onClick={() => setShowCreateModal(true)}
-              data-testid="button-add-lead"
-            >
-              <UserPlus className="w-4 h-4 mr-1.5" />
-              {t.crm.addLead}
-            </Button>
+            {role !== "sales_rep" && (
+              <Button
+                size="sm"
+                onClick={() => setShowCreateModal(true)}
+                data-testid="button-add-lead"
+              >
+                <UserPlus className="w-4 h-4 mr-1.5" />
+                {t.crm.addLead}
+              </Button>
+            )}
           </div>
         )}
       </div>
