@@ -496,10 +496,7 @@ export default function LeadListPage() {
                                 {(() => {
                                   const u = assignableUsers.find(u => u.id === lead.assignedTo);
                                   if (u) {
-                                    const parts = u.name.trim().split(" ");
-                                    return parts.length >= 2
-                                      ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
-                                      : u.name.substring(0, 2).toUpperCase();
+                                    return u.name.trim().split(" ")[0];
                                   }
                                   return isRestricted ? "You" : "—";
                                 })()}
