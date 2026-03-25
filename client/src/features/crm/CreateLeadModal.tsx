@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -54,7 +54,6 @@ const baseSchema = z.object({
   notes:             z.string().optional(),
   city:              z.string().min(1),
   state:             z.enum(US_STATES),
-  assignedTo:        z.string().min(1, "Please assign this lead to a rep"),
 });
 
 type FormValues = z.infer<typeof baseSchema>;
@@ -88,9 +87,11 @@ export default function CreateLeadModal({ open, onClose }: Props) {
       notes: "",
       city: "",
       state: undefined,
-      assignedTo: "",
     },
   });
+
+  const [assignedToId, setAssignedToId] = useState("");
+  const [assignedToError, setAssignedToError] = useState(false);
 
   const { data: assignableUsers = [] } = useQuery<{ id: string; name: string; role: string }[]>({
     queryKey: ["/api/crm/leads/assignable-users"],
@@ -102,13 +103,15 @@ export default function CreateLeadModal({ open, onClose }: Props) {
 
   const mutation = useMutation({
     mutationFn: (values: FormValues) =>
-      apiRequest("POST", "/api/crm/leads/manual", values),
+      apiRequest("POST", "/api/crm/leads/manual", { ...values, assignedTo: assignedToId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/crm/leads"] });
       queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities/board"] });
       queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities"] });
       toast({ title: t.crm.leadCreated });
       form.reset();
+      setAssignedToId("");
+      setAssignedToError(false);
       onClose();
     },
     onError: (err: any) => {
@@ -116,9 +119,20 @@ export default function CreateLeadModal({ open, onClose }: Props) {
     },
   });
 
+  function handleSubmit(values: FormValues) {
+    if (!assignedToId) {
+      setAssignedToError(true);
+      return;
+    }
+    setAssignedToError(false);
+    mutation.mutate(values);
+  }
+
   function handleClose() {
     if (mutation.isPending) return;
     form.reset();
+    setAssignedToId("");
+    setAssignedToError(false);
     onClose();
   }
 
@@ -134,7 +148,7 @@ export default function CreateLeadModal({ open, onClose }: Props) {
 
         <Form {...form}>
           <form
-            onSubmit={form.handleSubmit((v) => mutation.mutate(v))}
+            onSubmit={form.handleSubmit(handleSubmit)}
             className="space-y-4 pt-1"
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -329,33 +343,29 @@ export default function CreateLeadModal({ open, onClose }: Props) {
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="assignedTo"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Assign To</FormLabel>
-                  <Select value={field.value ?? ""} onValueChange={field.onChange}>
-                    <FormControl>
-                      <SelectTrigger data-testid="select-assigned-to">
-                        <SelectValue placeholder="Select a rep..." />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {salesAndAdminUsers.map((u) => (
-                        <SelectItem key={u.id} value={u.id} data-testid={`option-assignee-${u.id}`}>
-                          {u.name}
-                          <span className="ml-2 text-xs text-gray-400 capitalize">
-                            {u.role === "sales_rep" ? "Sales" : "Admin"}
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
+            <div className="space-y-2">
+              <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                Assign To <span className="text-red-500">*</span>
+              </label>
+              <Select value={assignedToId} onValueChange={(v) => { setAssignedToId(v); setAssignedToError(false); }}>
+                <SelectTrigger data-testid="select-assigned-to">
+                  <SelectValue placeholder="Select a rep..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {salesAndAdminUsers.map((u) => (
+                    <SelectItem key={u.id} value={u.id} data-testid={`option-assignee-${u.id}`}>
+                      {u.name}
+                      <span className="ml-2 text-xs text-gray-400 capitalize">
+                        {u.role === "sales_rep" ? "Sales" : "Admin"}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {assignedToError && (
+                <p className="text-sm font-medium text-destructive">Please assign this lead to a rep</p>
               )}
-            />
+            </div>
 
             <FormField
               control={form.control}
