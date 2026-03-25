@@ -791,7 +791,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                       <button
                         onClick={() => {
                           if (task.completed) return;
-                          if (task.taskType === "demo_outcome" || task.taskType === "demo_followup") {
+                          if (task.taskType === "demo_outcome" || task.taskType === "demo_followup" || currentStage?.slug === "demo-completed") {
                             setDemoOutcomeTask(task);
                             const demoCompletedStage = stages?.find(s => s.slug === "demo-completed");
                             if (demoCompletedStage) setDemoCompletedPendingStageId(demoCompletedStage.id);

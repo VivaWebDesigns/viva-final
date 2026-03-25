@@ -451,7 +451,7 @@ export default function TasksDueTodayPage() {
                         onComplete={(id) => {
                           const found = overdue.find(t2 => t2.id === id);
                           if (!found) return;
-                          if (found.taskType === "demo_outcome" || found.taskType === "demo_followup") {
+                          if (found.taskType === "demo_outcome" || found.taskType === "demo_followup" || found.opportunityStageSlug === "demo-completed") {
                             setDemoOutcomeTask(found);
                             const demoCompletedStage = stages?.find(s => s.slug === "demo-completed");
                             if (demoCompletedStage) setDemoCompletedPendingStageId(demoCompletedStage.id);
@@ -487,7 +487,7 @@ export default function TasksDueTodayPage() {
                         onComplete={(id) => {
                           const found = dueToday.find(t2 => t2.id === id);
                           if (!found) return;
-                          if (found.taskType === "demo_outcome" || found.taskType === "demo_followup") {
+                          if (found.taskType === "demo_outcome" || found.taskType === "demo_followup" || found.opportunityStageSlug === "demo-completed") {
                             setDemoOutcomeTask(found);
                             const demoCompletedStage = stages?.find(s => s.slug === "demo-completed");
                             if (demoCompletedStage) setDemoCompletedPendingStageId(demoCompletedStage.id);
@@ -523,7 +523,7 @@ export default function TasksDueTodayPage() {
                         onComplete={(id) => {
                           const found = upcoming.find(t2 => t2.id === id);
                           if (!found) return;
-                          if (found.taskType === "demo_outcome" || found.taskType === "demo_followup") {
+                          if (found.taskType === "demo_outcome" || found.taskType === "demo_followup" || found.opportunityStageSlug === "demo-completed") {
                             setDemoOutcomeTask(found);
                             const demoCompletedStage = stages?.find(s => s.slug === "demo-completed");
                             if (demoCompletedStage) setDemoCompletedPendingStageId(demoCompletedStage.id);
