@@ -2,7 +2,17 @@ import { useState, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { todayLocalString, formatTimeSlot, TIME_SLOTS } from "@/components/QuickTaskModal";
+import { formatTimeSlot, TIME_SLOTS } from "@/components/QuickTaskModal";
+
+function tomorrowLocalString(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 import {
   Dialog,
   DialogContent,
@@ -52,7 +62,7 @@ export default function DemoCompletedModal({
 
   const [outcome, setOutcome] = useState<Outcome | null>(null);
 
-  const [followUpDate, setFollowUpDate] = useState(todayLocalString());
+  const [followUpDate, setFollowUpDate] = useState(tomorrowLocalString());
   const [followUpTime, setFollowUpTime] = useState("");
   const [followUpNotes, setFollowUpNotes] = useState("");
 
@@ -62,7 +72,7 @@ export default function DemoCompletedModal({
   useEffect(() => {
     if (!open) {
       setOutcome(null);
-      setFollowUpDate(todayLocalString());
+      setFollowUpDate(tomorrowLocalString());
       setFollowUpTime("");
       setFollowUpNotes("");
       setCountdown(5);
