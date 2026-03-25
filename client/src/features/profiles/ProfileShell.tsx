@@ -488,39 +488,77 @@ interface MoveToStageBarProps {
   t: AdminTranslations;
 }
 
+const AUTOMATION_ONLY_STAGE_SLUGS = new Set(["demo-scheduled", "demo-completed", "payment-sent"]);
+
 function MoveToStageBar({
   opportunityId, currentStageId, stages, onContactedPending, onPaymentSentPending, onDemoCompletedPending, stageMutation, t,
 }: MoveToStageBarProps) {
+  const currentSlug = stages.find(s => s.id === currentStageId)?.slug ?? "";
+  const demoCompletedStage = stages.find(s => s.slug === "demo-completed");
+
   return (
     <Card className="p-4" data-testid="move-to-stage-bar">
       <p className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wide">{t.pipeline.moveToStage}</p>
       <div className="flex flex-wrap gap-1.5">
-        {stages.map(stage => (
-          <Button
-            key={stage.id}
-            size="sm"
-            variant={stage.id === currentStageId ? "default" : "outline"}
-            className="text-xs h-7"
-            style={stage.id === currentStageId ? { backgroundColor: stage.color } : { borderColor: stage.color, color: stage.color }}
-            onClick={() => {
-              if (stage.id === currentStageId) return;
-              if (stage.slug === "contacted") {
-                onContactedPending(stage.id);
-              } else if (stage.slug === "payment-sent") {
-                onPaymentSentPending(stage.id);
-              } else if (stage.slug === "demo-completed") {
-                onDemoCompletedPending(stage.id);
-              } else {
-                stageMutation.mutate(stage.id);
-              }
-            }}
-            disabled={stageMutation.isPending}
-            data-testid={`button-stage-${stage.slug}`}
-          >
-            {(t.pipeline.stageNames as Record<string, string>)[stage.slug] || stage.name}
-          </Button>
-        ))}
+        {stages.map(stage => {
+          const isCurrent = stage.id === currentStageId;
+          const isAutomationOnly = AUTOMATION_ONLY_STAGE_SLUGS.has(stage.slug);
+
+          if (isAutomationOnly) {
+            return (
+              <span
+                key={stage.id}
+                className={`inline-flex items-center px-2.5 h-7 rounded-md text-xs font-medium border select-none ${
+                  isCurrent ? "text-white border-transparent" : "opacity-40 border-dashed"
+                }`}
+                style={isCurrent
+                  ? { backgroundColor: stage.color, borderColor: stage.color }
+                  : { borderColor: stage.color, color: stage.color }}
+                title="This stage is reached automatically via pipeline automation"
+                data-testid={`indicator-stage-${stage.slug}`}
+              >
+                {(t.pipeline.stageNames as Record<string, string>)[stage.slug] || stage.name}
+              </span>
+            );
+          }
+
+          return (
+            <Button
+              key={stage.id}
+              size="sm"
+              variant={isCurrent ? "default" : "outline"}
+              className="text-xs h-7"
+              style={isCurrent ? { backgroundColor: stage.color } : { borderColor: stage.color, color: stage.color }}
+              onClick={() => {
+                if (isCurrent) return;
+                if (stage.slug === "contacted") {
+                  onContactedPending(stage.id);
+                } else {
+                  stageMutation.mutate(stage.id);
+                }
+              }}
+              disabled={stageMutation.isPending}
+              data-testid={`button-stage-${stage.slug}`}
+            >
+              {(t.pipeline.stageNames as Record<string, string>)[stage.slug] || stage.name}
+            </Button>
+          );
+        })}
       </div>
+      {currentSlug === "demo-scheduled" && demoCompletedStage && (
+        <div className="mt-3 pt-3 border-t">
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-xs h-7"
+            onClick={() => onDemoCompletedPending(demoCompletedStage.id)}
+            disabled={stageMutation.isPending}
+            data-testid="button-record-demo-outcome"
+          >
+            Record Demo Outcome →
+          </Button>
+        </div>
+      )}
     </Card>
   );
 }

@@ -577,38 +577,73 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                 </div>
               </div>
 
-              {stages && opp.status === "open" && (
-                <div className="pt-3 border-t">
-                  <p className="text-xs text-gray-400 mb-2">{t.pipeline.moveToStage}</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {stages.map(stage => (
-                      <Button
-                        key={stage.id}
-                        size="sm"
-                        variant={stage.id === opp.stageId ? "default" : "outline"}
-                        className="text-xs h-7"
-                        style={stage.id === opp.stageId ? { backgroundColor: stage.color } : { borderColor: stage.color, color: stage.color }}
-                        onClick={() => {
-                          if (stage.id === opp.stageId) return;
-                          if (stage.slug === "contacted") {
-                            setContactedPendingStageId(stage.id);
-                          } else if (stage.slug === "payment-sent") {
-                            setPaymentSentPendingStageId(stage.id);
-                          } else if (stage.slug === "demo-completed") {
-                            setDemoCompletedPendingStageId(stage.id);
-                          } else {
-                            stageMutation.mutate(stage.id);
-                          }
-                        }}
-                        disabled={stageMutation.isPending}
-                        data-testid={`button-stage-${stage.slug}`}
-                      >
-                        {(t.pipeline.stageNames as Record<string, string>)[stage.slug] || stage.name}
-                      </Button>
-                    ))}
+              {stages && opp.status === "open" && (() => {
+                const AUTOMATION_ONLY = new Set(["demo-scheduled", "demo-completed", "payment-sent"]);
+                const currentSlug = stages.find(s => s.id === opp.stageId)?.slug ?? "";
+                const demoCompletedStage = stages.find(s => s.slug === "demo-completed");
+                return (
+                  <div className="pt-3 border-t">
+                    <p className="text-xs text-gray-400 mb-2">{t.pipeline.moveToStage}</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {stages.map(stage => {
+                        const isCurrent = stage.id === opp.stageId;
+                        if (AUTOMATION_ONLY.has(stage.slug)) {
+                          return (
+                            <span
+                              key={stage.id}
+                              className={`inline-flex items-center px-2.5 h-7 rounded-md text-xs font-medium border select-none ${
+                                isCurrent ? "text-white border-transparent" : "opacity-40 border-dashed"
+                              }`}
+                              style={isCurrent
+                                ? { backgroundColor: stage.color, borderColor: stage.color }
+                                : { borderColor: stage.color, color: stage.color }}
+                              title="This stage is reached automatically via pipeline automation"
+                              data-testid={`indicator-stage-${stage.slug}`}
+                            >
+                              {(t.pipeline.stageNames as Record<string, string>)[stage.slug] || stage.name}
+                            </span>
+                          );
+                        }
+                        return (
+                          <Button
+                            key={stage.id}
+                            size="sm"
+                            variant={isCurrent ? "default" : "outline"}
+                            className="text-xs h-7"
+                            style={isCurrent ? { backgroundColor: stage.color } : { borderColor: stage.color, color: stage.color }}
+                            onClick={() => {
+                              if (isCurrent) return;
+                              if (stage.slug === "contacted") {
+                                setContactedPendingStageId(stage.id);
+                              } else {
+                                stageMutation.mutate(stage.id);
+                              }
+                            }}
+                            disabled={stageMutation.isPending}
+                            data-testid={`button-stage-${stage.slug}`}
+                          >
+                            {(t.pipeline.stageNames as Record<string, string>)[stage.slug] || stage.name}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                    {currentSlug === "demo-scheduled" && demoCompletedStage && (
+                      <div className="mt-3 pt-3 border-t">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-xs h-7"
+                          onClick={() => setDemoCompletedPendingStageId(demoCompletedStage.id)}
+                          disabled={stageMutation.isPending}
+                          data-testid="button-record-demo-outcome"
+                        >
+                          Record Demo Outcome →
+                        </Button>
+                      </div>
+                    )}
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {opp.notes && (
                 <div className="pt-3 border-t">
