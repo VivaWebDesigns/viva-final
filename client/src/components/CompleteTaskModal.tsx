@@ -76,6 +76,7 @@ interface CompleteTaskModalProps {
   contactId?: string | null;
   defaultTaskTitle?: string;
   outcomeMode?: "new-lead" | "general";
+  excludeOutcomes?: string[];
   hideFollowUp?: boolean;
   onSpokeWithLead?: (completionNote?: string) => void;
   onSuccess?: () => void;
@@ -92,6 +93,7 @@ export default function CompleteTaskModal({
   contactId,
   defaultTaskTitle,
   outcomeMode = "general",
+  excludeOutcomes = [] as string[],
   hideFollowUp = false,
   onSpokeWithLead,
   onSuccess,
@@ -232,8 +234,14 @@ export default function CompleteTaskModal({
   });
 
   const isNewLead = outcomeMode === "new-lead";
-  const activeOutcomeKeys = isNewLead ? NEW_LEAD_OUTCOME_KEYS : OUTCOME_KEYS;
-  const activeOutcomeLabels = isNewLead ? NEW_LEAD_OUTCOME_LABELS : OUTCOME_LABELS;
+  const baseOutcomeKeys = isNewLead ? NEW_LEAD_OUTCOME_KEYS : OUTCOME_KEYS;
+  const baseOutcomeLabels = isNewLead ? NEW_LEAD_OUTCOME_LABELS : OUTCOME_LABELS;
+  const activeOutcomeKeys = excludeOutcomes.length
+    ? baseOutcomeKeys.filter((k) => !excludeOutcomes.includes(k))
+    : baseOutcomeKeys;
+  const activeOutcomeLabels = excludeOutcomes.length
+    ? Object.fromEntries(Object.entries(baseOutcomeLabels).filter(([k]) => !excludeOutcomes.includes(k)))
+    : baseOutcomeLabels;
   const isSpokeWithLead = isNewLead && outcome === "Spoke with lead";
 
   const customDateValid = followUp !== "custom" || customDate !== "";

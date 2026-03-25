@@ -965,6 +965,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
         contactId={opp.contactId ?? null}
         leadTimezone={sourceLead?.timezone ?? null}
         defaultTaskTitle={`Follow up with ${contact?.firstName ?? ""} ${contact?.lastName ?? ""}`.trim()}
+        excludeOutcomes={["badNumber"]}
         onSuccess={() => {
           if (contactedPendingStageId) stageMutation.mutate(contactedPendingStageId);
         }}
