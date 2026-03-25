@@ -436,6 +436,7 @@ router.post("/leads/manual", requireRole("admin", "developer", "lead_gen"), asyn
 
     // 5. Create CRM lead — assign to chosen user or fall back to creator
     const creatorId = req.authUser!.id;
+    console.log("[manual-lead] assignedTo from body:", data.assignedTo, "| creatorId:", creatorId);
     const resolvedAssignee = data.assignedTo || creatorId;
     const lead = await crmStorage.createLead({
       title: leadTitle,

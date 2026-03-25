@@ -102,8 +102,8 @@ export default function CreateLeadModal({ open, onClose }: Props) {
   );
 
   const mutation = useMutation({
-    mutationFn: (values: FormValues) =>
-      apiRequest("POST", "/api/crm/leads/manual", { ...values, assignedTo: assignedToId }),
+    mutationFn: (payload: FormValues & { assignedTo: string }) =>
+      apiRequest("POST", "/api/crm/leads/manual", payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/crm/leads"] });
       queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities/board"] });
@@ -125,7 +125,7 @@ export default function CreateLeadModal({ open, onClose }: Props) {
       return;
     }
     setAssignedToError(false);
-    mutation.mutate(values);
+    mutation.mutate({ ...values, assignedTo: assignedToId });
   }
 
   function handleClose() {
