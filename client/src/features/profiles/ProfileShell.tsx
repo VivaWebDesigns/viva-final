@@ -486,11 +486,10 @@ interface MoveToStageBarProps {
   onDemoCompletedPending: (stageId: string) => void;
   stageMutation: ReturnType<typeof useMutation<unknown, Error, string>>;
   t: AdminTranslations;
-  isAdmin?: boolean;
 }
 
 function MoveToStageBar({
-  opportunityId, currentStageId, stages, onContactedPending, onPaymentSentPending, onDemoCompletedPending, stageMutation, t, isAdmin,
+  opportunityId, currentStageId, stages, onContactedPending, onPaymentSentPending, onDemoCompletedPending, stageMutation, t,
 }: MoveToStageBarProps) {
   const currentSlug = stages.find(s => s.id === currentStageId)?.slug ?? "";
   const demoCompletedStage = stages.find(s => s.slug === "demo-completed");
@@ -501,21 +500,6 @@ function MoveToStageBar({
       <div className="flex flex-wrap gap-1.5">
         {stages.map(stage => {
           const isCurrent = stage.id === currentStageId;
-          if (isAdmin && !isCurrent) {
-            return (
-              <button
-                key={stage.id}
-                type="button"
-                onClick={() => stageMutation.mutate(stage.id)}
-                disabled={stageMutation.isPending}
-                className="inline-flex items-center px-2.5 h-7 rounded-md text-xs font-medium border transition-opacity hover:opacity-70 disabled:opacity-50"
-                style={{ borderColor: stage.color, color: stage.color }}
-                data-testid={`button-stage-${stage.slug}`}
-              >
-                {(t.pipeline.stageNames as Record<string, string>)[stage.slug] || stage.name}
-              </button>
-            );
-          }
           return (
             <span
               key={stage.id}
@@ -2349,7 +2333,6 @@ function ProfileShellInner({
           onDemoCompletedPending={setDemoCompletedPendingStageId}
           stageMutation={stageMutation}
           t={t}
-          isAdmin={role === "admin"}
         />
       )}
 
