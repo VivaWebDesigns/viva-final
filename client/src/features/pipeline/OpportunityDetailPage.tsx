@@ -578,7 +578,6 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
               </div>
 
               {stages && opp.status === "open" && (() => {
-                const AUTOMATION_ONLY = new Set(["demo-scheduled", "demo-completed", "payment-sent"]);
                 const currentSlug = stages.find(s => s.id === opp.stageId)?.slug ?? "";
                 const demoCompletedStage = stages.find(s => s.slug === "demo-completed");
                 return (
@@ -587,43 +586,19 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                     <div className="flex flex-wrap gap-1.5">
                       {stages.map(stage => {
                         const isCurrent = stage.id === opp.stageId;
-                        if (AUTOMATION_ONLY.has(stage.slug)) {
-                          return (
-                            <span
-                              key={stage.id}
-                              className={`inline-flex items-center px-2.5 h-7 rounded-md text-xs font-medium border select-none ${
-                                isCurrent ? "text-white border-transparent" : "opacity-40 border-dashed"
-                              }`}
-                              style={isCurrent
-                                ? { backgroundColor: stage.color, borderColor: stage.color }
-                                : { borderColor: stage.color, color: stage.color }}
-                              title="This stage is reached automatically via pipeline automation"
-                              data-testid={`indicator-stage-${stage.slug}`}
-                            >
-                              {(t.pipeline.stageNames as Record<string, string>)[stage.slug] || stage.name}
-                            </span>
-                          );
-                        }
                         return (
-                          <Button
+                          <span
                             key={stage.id}
-                            size="sm"
-                            variant={isCurrent ? "default" : "outline"}
-                            className="text-xs h-7"
-                            style={isCurrent ? { backgroundColor: stage.color } : { borderColor: stage.color, color: stage.color }}
-                            onClick={() => {
-                              if (isCurrent) return;
-                              if (stage.slug === "contacted") {
-                                setContactedPendingStageId(stage.id);
-                              } else {
-                                stageMutation.mutate(stage.id);
-                              }
-                            }}
-                            disabled={stageMutation.isPending}
-                            data-testid={`button-stage-${stage.slug}`}
+                            className={`inline-flex items-center px-2.5 h-7 rounded-md text-xs font-medium border select-none cursor-default ${
+                              isCurrent ? "text-white border-transparent" : ""
+                            }`}
+                            style={isCurrent
+                              ? { backgroundColor: stage.color, borderColor: stage.color }
+                              : { borderColor: stage.color, color: stage.color }}
+                            data-testid={`indicator-stage-${stage.slug}`}
                           >
                             {(t.pipeline.stageNames as Record<string, string>)[stage.slug] || stage.name}
-                          </Button>
+                          </span>
                         );
                       })}
                     </div>
