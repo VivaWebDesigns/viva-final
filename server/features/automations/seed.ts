@@ -21,20 +21,27 @@ const DEFAULT_TEMPLATES = [
     taskType: "follow_up",
     sortOrder: 0,
   },
-  {
-    triggerStageSlug: "payment-sent",
-    title: "Confirm payment receipt",
-    description: "Follow up to confirm the client received and can access the payment invoice.",
-    dueOffsetDays: 1,
-    priority: "medium" as const,
-    taskType: "follow_up",
-    sortOrder: 0,
-  },
+];
+
+const DEPRECATED_TEMPLATES = [
+  { triggerStageSlug: "payment-sent", title: "Confirm payment receipt" },
 ];
 
 export async function seedAutomationTemplates(): Promise<Record<string, unknown>> {
   let created = 0;
   let skipped = 0;
+
+  for (const tpl of DEPRECATED_TEMPLATES) {
+    await db
+      .update(stageAutomationTemplates)
+      .set({ isActive: false })
+      .where(
+        and(
+          eq(stageAutomationTemplates.triggerStageSlug, tpl.triggerStageSlug),
+          eq(stageAutomationTemplates.title, tpl.title),
+        )
+      );
+  }
 
   for (const tpl of DEFAULT_TEMPLATES) {
     const [existing] = await db

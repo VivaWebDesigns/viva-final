@@ -11,6 +11,7 @@ import { sanitizeHtml } from "@/features/chat/RichTextEditor";
 import QuickTaskModal, { formatTaskTimeDisplay } from "@/components/QuickTaskModal";
 import CompleteTaskModal from "@/components/CompleteTaskModal";
 import DemoCompletedModal from "@/components/DemoCompletedModal";
+import PaymentFollowUpModal from "@/components/PaymentFollowUpModal";
 import type { FollowupTask } from "@shared/schema";
 import { useAdminLang } from "@/i18n/LanguageContext";
 import { renderTaskTitle } from "@/lib/activityI18n";
@@ -289,6 +290,7 @@ export default function TasksDueTodayPage() {
   const spokeWithLeadTaskRef = useRef<string | null>(null);
   const spokeWithLeadNoteRef = useRef<string | undefined>(undefined);
   const [demoOutcomeTask, setDemoOutcomeTask] = useState<TaskWithContact | null>(null);
+  const [paymentFollowUpTask, setPaymentFollowUpTask] = useState<TaskWithContact | null>(null);
   const [demoCompletedPendingStageId, setDemoCompletedPendingStageId] = useState<string | null>(null);
 
   const invalidateTaskCaches = useCallback((task?: TaskWithContact | null) => {
@@ -455,6 +457,8 @@ export default function TasksDueTodayPage() {
                             setDemoOutcomeTask(found);
                             const demoCompletedStage = stages?.find(s => s.slug === "demo-completed");
                             if (demoCompletedStage) setDemoCompletedPendingStageId(demoCompletedStage.id);
+                          } else if (found.opportunityStageSlug === "payment-sent") {
+                            setPaymentFollowUpTask(found);
                           } else {
                             setCompletingTask(found);
                           }
@@ -491,6 +495,8 @@ export default function TasksDueTodayPage() {
                             setDemoOutcomeTask(found);
                             const demoCompletedStage = stages?.find(s => s.slug === "demo-completed");
                             if (demoCompletedStage) setDemoCompletedPendingStageId(demoCompletedStage.id);
+                          } else if (found.opportunityStageSlug === "payment-sent") {
+                            setPaymentFollowUpTask(found);
                           } else {
                             setCompletingTask(found);
                           }
@@ -527,6 +533,8 @@ export default function TasksDueTodayPage() {
                             setDemoOutcomeTask(found);
                             const demoCompletedStage = stages?.find(s => s.slug === "demo-completed");
                             if (demoCompletedStage) setDemoCompletedPendingStageId(demoCompletedStage.id);
+                          } else if (found.opportunityStageSlug === "payment-sent") {
+                            setPaymentFollowUpTask(found);
                           } else {
                             setCompletingTask(found);
                           }
@@ -603,6 +611,9 @@ export default function TasksDueTodayPage() {
         leadTimezone={null}
         outcomeMode={completingTask?.opportunityStageSlug === "new-lead" ? "new-lead" : "general"}
         onSpokeWithLead={completingTask?.opportunityStageSlug === "new-lead" ? handleSpokeWithLead : undefined}
+        contactPhone={completingTask?.contact?.phone ?? null}
+        contactLanguage={completingTask?.contact?.preferredLanguage ?? null}
+        contactName={completingTask?.contact?.firstName ?? null}
         onSuccess={() => {
           invalidateTaskCaches(completingTask);
           setCompletingTask(null);
@@ -653,6 +664,7 @@ export default function TasksDueTodayPage() {
               : "there"
           }
           contactPhone={demoOutcomeTask.contact?.phone ?? null}
+          contactLanguage={demoOutcomeTask.contact?.preferredLanguage ?? null}
           onReadyForPayment={() => {
             const paymentSentStage = stages?.find(s => s.slug === "payment-sent");
             const task = demoOutcomeTask;
@@ -692,6 +704,49 @@ export default function TasksDueTodayPage() {
               stageMutation.mutate({ oppId: task.opportunityId, stageId: closedLostStage.id });
             }
             setDemoCompletedPendingStageId(null);
+          }}
+        />
+      )}
+      {paymentFollowUpTask?.opportunityId && (
+        <PaymentFollowUpModal
+          open={paymentFollowUpTask !== null}
+          onClose={() => setPaymentFollowUpTask(null)}
+          opportunityId={paymentFollowUpTask.opportunityId}
+          contactName={
+            paymentFollowUpTask.contact
+              ? `${paymentFollowUpTask.contact.firstName} ${paymentFollowUpTask.contact.lastName ?? ""}`.trim()
+              : "there"
+          }
+          contactPhone={paymentFollowUpTask.contact?.phone ?? null}
+          contactLanguage={paymentFollowUpTask.contact?.preferredLanguage ?? null}
+          onPaymentReceived={() => {
+            const task = paymentFollowUpTask;
+            apiRequest("PUT", `/api/tasks/${task.id}/complete`, {}).then(() => {
+              invalidateTaskCaches(task);
+            }).catch(() => {});
+            setPaymentFollowUpTask(null);
+            const closedWonStage = stages?.find(s => s.slug === "closed-won");
+            if (closedWonStage && task.opportunityId) {
+              stageMutation.mutate({ oppId: task.opportunityId, stageId: closedWonStage.id });
+            }
+          }}
+          onStillWaiting={() => {
+            const task = paymentFollowUpTask;
+            apiRequest("PUT", `/api/tasks/${task.id}/complete`, {}).then(() => {
+              invalidateTaskCaches(task);
+            }).catch(() => {});
+            setPaymentFollowUpTask(null);
+          }}
+          onBackedOut={() => {
+            const task = paymentFollowUpTask;
+            apiRequest("PUT", `/api/tasks/${task.id}/complete`, {}).then(() => {
+              invalidateTaskCaches(task);
+            }).catch(() => {});
+            setPaymentFollowUpTask(null);
+            const closedLostStage = stages?.find(s => s.slug === "closed-lost");
+            if (closedLostStage && task.opportunityId) {
+              stageMutation.mutate({ oppId: task.opportunityId, stageId: closedLostStage.id });
+            }
           }}
         />
       )}

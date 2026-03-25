@@ -13,7 +13,7 @@ export interface TaskAutomationMeta {
 }
 
 export type TaskWithContact = FollowupTask & {
-  contact: { firstName: string; lastName: string | null; phone: string | null } | null;
+  contact: { firstName: string; lastName: string | null; phone: string | null; preferredLanguage: string | null } | null;
   company: { name: string } | null;
   automationMeta: TaskAutomationMeta | null;
   opportunityStageSlug: string | null;
@@ -146,7 +146,7 @@ async function enrichTasks(tasks: FollowupTask[]): Promise<TaskWithContact[]> {
 
   const [contacts, automationLogRows, oppStageRows] = await Promise.all([
     contactIds.length
-      ? db.select({ id: crmContacts.id, firstName: crmContacts.firstName, lastName: crmContacts.lastName, phone: crmContacts.phone, companyId: crmContacts.companyId })
+      ? db.select({ id: crmContacts.id, firstName: crmContacts.firstName, lastName: crmContacts.lastName, phone: crmContacts.phone, preferredLanguage: crmContacts.preferredLanguage, companyId: crmContacts.companyId })
           .from(crmContacts)
           .where(inArray(crmContacts.id, contactIds))
       : Promise.resolve([]),

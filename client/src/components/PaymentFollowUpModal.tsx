@@ -33,31 +33,31 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-type Outcome = "ready-for-payment" | "still-thinking" | "not-interested";
+type Outcome = "payment-received" | "still-waiting" | "backed-out";
 
-interface DemoCompletedModalProps {
+interface PaymentFollowUpModalProps {
   open: boolean;
   onClose: () => void;
   opportunityId: string;
   contactName: string;
   contactPhone: string | null;
-  contactLanguage?: string | null;
-  onReadyForPayment: () => void;
-  onDemoCompleted: () => void;
-  onClosedLost: () => void;
+  contactLanguage: string | null;
+  onPaymentReceived: () => void;
+  onStillWaiting: () => void;
+  onBackedOut: () => void;
 }
 
-export default function DemoCompletedModal({
+export default function PaymentFollowUpModal({
   open,
   onClose,
   opportunityId,
   contactName,
   contactPhone,
   contactLanguage,
-  onReadyForPayment,
-  onDemoCompleted,
-  onClosedLost,
-}: DemoCompletedModalProps) {
+  onPaymentReceived,
+  onStillWaiting,
+  onBackedOut,
+}: PaymentFollowUpModalProps) {
   const { toast } = useToast();
 
   const [outcome, setOutcome] = useState<Outcome | null>(null);
@@ -81,7 +81,7 @@ export default function DemoCompletedModal({
   }, [open]);
 
   useEffect(() => {
-    if (outcome === "not-interested" && !countdownStarted) {
+    if (outcome === "backed-out" && !countdownStarted) {
       setCountdownStarted(true);
       setCountdown(5);
     }
@@ -97,44 +97,25 @@ export default function DemoCompletedModal({
     mutationFn: async () => {
       const firstName = contactName.split(" ")[0] || contactName;
       await apiRequest("POST", "/api/tasks", {
-        title: `Follow up with ${firstName}`,
+        title: `Follow up on payment — ${firstName}`,
         notes: followUpNotes.trim() || undefined,
         dueDate: followUpDate,
         followUpTime: followUpTime || undefined,
         opportunityId,
-        taskType: "demo_followup",
+        taskType: "payment_followup",
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/tasks/due-today"] });
       queryClient.invalidateQueries({ queryKey: ["/api/tasks/for-opportunity", opportunityId] });
-      onDemoCompleted();
+      onStillWaiting();
       onClose();
     },
     onError: (err: Error) => {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     },
   });
-
-  const handleOutcomeSelect = (o: Outcome) => {
-    setOutcome(o);
-  };
-
-  const handleReadyForPaymentConfirm = () => {
-    onReadyForPayment();
-    onClose();
-  };
-
-  const handleStillThinkingSubmit = () => {
-    if (!followUpDate) return;
-    taskMutation.mutate();
-  };
-
-  const handleNotInterestedConfirm = () => {
-    onClosedLost();
-    onClose();
-  };
 
   const firstName = contactName.split(" ")[0] || contactName;
   const smsText = getClosingSms(firstName, contactLanguage);
@@ -143,14 +124,14 @@ export default function DemoCompletedModal({
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent
         className="max-w-md"
-        data-testid="dialog-demo-completed"
+        data-testid="dialog-payment-followup"
         onInteractOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
         <DialogHeader>
-          <DialogTitle data-testid="text-demo-completed-title">Demo Completed</DialogTitle>
+          <DialogTitle data-testid="text-payment-followup-title">Payment Follow-Up</DialogTitle>
           <p className="text-sm text-gray-500 mt-1">
-            How did the demo go?
+            What happened with the payment?
           </p>
         </DialogHeader>
 
@@ -160,87 +141,87 @@ export default function DemoCompletedModal({
               <Button
                 className="w-full justify-start h-auto py-3 px-4"
                 variant="outline"
-                onClick={() => handleOutcomeSelect("ready-for-payment")}
-                data-testid="button-demo-outcome-payment"
+                onClick={() => setOutcome("payment-received")}
+                data-testid="button-payment-received"
               >
                 <div className="text-left">
-                  <div className="font-medium text-green-700">Ready for payment</div>
-                  <div className="text-xs text-gray-500 mt-0.5">Continue to send the payment link</div>
+                  <div className="font-medium text-green-700">Payment received</div>
+                  <div className="text-xs text-gray-500 mt-0.5">Close this lead as Won</div>
                 </div>
               </Button>
               <Button
                 className="w-full justify-start h-auto py-3 px-4"
                 variant="outline"
-                onClick={() => handleOutcomeSelect("still-thinking")}
-                data-testid="button-demo-outcome-thinking"
+                onClick={() => setOutcome("still-waiting")}
+                data-testid="button-still-waiting"
               >
                 <div className="text-left">
-                  <div className="font-medium text-amber-700">Still thinking</div>
-                  <div className="text-xs text-gray-500 mt-0.5">Schedule a follow-up call</div>
+                  <div className="font-medium text-amber-700">Still waiting</div>
+                  <div className="text-xs text-gray-500 mt-0.5">Schedule another follow-up</div>
                 </div>
               </Button>
               <Button
                 className="w-full justify-start h-auto py-3 px-4"
                 variant="outline"
-                onClick={() => handleOutcomeSelect("not-interested")}
-                data-testid="button-demo-outcome-lost"
+                onClick={() => setOutcome("backed-out")}
+                data-testid="button-backed-out"
               >
                 <div className="text-left">
-                  <div className="font-medium text-red-700">Not interested</div>
+                  <div className="font-medium text-red-700">Backed out</div>
                   <div className="text-xs text-gray-500 mt-0.5">Send a closing message and close the lead</div>
                 </div>
               </Button>
             </div>
             <DialogFooter>
-              <Button variant="ghost" onClick={onClose} data-testid="button-demo-cancel">
+              <Button variant="ghost" onClick={onClose} data-testid="button-payment-followup-cancel">
                 Cancel
               </Button>
             </DialogFooter>
           </>
         )}
 
-        {outcome === "ready-for-payment" && (
+        {outcome === "payment-received" && (
           <>
             <div className="py-2 space-y-3">
               <div className="rounded-md bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-800">
-                Great news! This lead is ready to move forward with payment. Confirm below to proceed to the next step.
+                Great work! Confirm below to close this lead as Won.
               </div>
             </div>
             <DialogFooter className="gap-2 sm:gap-0">
-              <Button variant="outline" onClick={() => setOutcome(null)} data-testid="button-payment-back">
+              <Button variant="outline" onClick={() => setOutcome(null)} data-testid="button-payment-received-back">
                 Back
               </Button>
               <Button
                 className="bg-green-600 hover:bg-green-700 text-white"
-                onClick={handleReadyForPaymentConfirm}
-                data-testid="button-payment-confirm"
+                onClick={() => { onPaymentReceived(); onClose(); }}
+                data-testid="button-payment-received-confirm"
               >
-                Confirm &amp; Proceed
+                Confirm — Close as Won
               </Button>
             </DialogFooter>
           </>
         )}
 
-        {outcome === "still-thinking" && (
+        {outcome === "still-waiting" && (
           <>
             <div className="space-y-4 py-2">
               <div className="space-y-1">
-                <Label htmlFor="fu-date">Follow-up Date <span className="text-red-500">*</span></Label>
+                <Label htmlFor="pf-date">Follow-up Date <span className="text-red-500">*</span></Label>
                 <Input
-                  id="fu-date"
+                  id="pf-date"
                   type="date"
                   value={followUpDate}
                   onChange={(e) => setFollowUpDate(e.target.value)}
-                  data-testid="input-followup-date"
+                  data-testid="input-payment-followup-date"
                 />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="fu-time">
+                <Label htmlFor="pf-time">
                   Follow-up Time{" "}
                   <span className="text-gray-400 text-xs font-normal">(optional)</span>
                 </Label>
                 <Select value={followUpTime} onValueChange={setFollowUpTime}>
-                  <SelectTrigger id="fu-time" data-testid="select-followup-time">
+                  <SelectTrigger id="pf-time" data-testid="select-payment-followup-time">
                     <SelectValue placeholder="Select time" />
                   </SelectTrigger>
                   <SelectContent>
@@ -253,17 +234,17 @@ export default function DemoCompletedModal({
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label htmlFor="fu-notes">
+                <Label htmlFor="pf-notes">
                   Notes{" "}
                   <span className="text-gray-400 text-xs font-normal">(optional)</span>
                 </Label>
                 <Textarea
-                  id="fu-notes"
+                  id="pf-notes"
                   value={followUpNotes}
                   onChange={(e) => setFollowUpNotes(e.target.value)}
-                  placeholder="What to discuss on the follow-up call..."
+                  placeholder="Notes for the next follow-up..."
                   rows={2}
-                  data-testid="textarea-followup-notes"
+                  data-testid="textarea-payment-followup-notes"
                 />
               </div>
             </div>
@@ -272,30 +253,30 @@ export default function DemoCompletedModal({
                 Back
               </Button>
               <Button
-                onClick={handleStillThinkingSubmit}
+                onClick={() => { if (followUpDate) taskMutation.mutate(); }}
                 disabled={taskMutation.isPending || !followUpDate}
-                data-testid="button-save-followup"
+                data-testid="button-save-payment-followup"
               >
-                {taskMutation.isPending ? "Saving…" : "Save & Move"}
+                {taskMutation.isPending ? "Saving…" : "Save & Follow Up"}
               </Button>
             </DialogFooter>
           </>
         )}
 
-        {outcome === "not-interested" && (
+        {outcome === "backed-out" && (
           <>
             <div className="space-y-4 py-2">
               {contactPhone && (
                 <div className="space-y-1">
                   <Label className="text-xs text-gray-500 uppercase tracking-wide">Lead's Phone</Label>
-                  <p className="text-sm font-medium" data-testid="text-lead-phone">{contactPhone}</p>
+                  <p className="text-sm font-medium" data-testid="text-payment-lead-phone">{contactPhone}</p>
                 </div>
               )}
               <div className="space-y-1">
                 <Label className="text-xs text-gray-500 uppercase tracking-wide">Closing Message</Label>
                 <div
                   className="text-sm bg-gray-50 border border-gray-200 rounded px-3 py-2 leading-relaxed"
-                  data-testid="text-closing-sms"
+                  data-testid="text-payment-closing-sms"
                 >
                   {smsText}
                 </div>
@@ -311,8 +292,8 @@ export default function DemoCompletedModal({
               <Button
                 variant="destructive"
                 disabled={countdown > 0}
-                onClick={handleNotInterestedConfirm}
-                data-testid="button-message-sent"
+                onClick={() => { onBackedOut(); onClose(); }}
+                data-testid="button-backed-out-confirm"
               >
                 {countdown > 0 ? `Message sent (${countdown}s)` : "Message sent — Close Lead"}
               </Button>
