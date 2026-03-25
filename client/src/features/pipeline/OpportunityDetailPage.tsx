@@ -1066,6 +1066,10 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
         contactPhone={resolvedPhone}
         contactLanguage={resolvedLang}
         contactName={contact?.firstName ?? null}
+        onNotInterested={() => {
+          const closedLostStage = stages?.find(s => s.slug === "closed-lost");
+          if (closedLostStage) stageMutation.mutate(closedLostStage.id);
+        }}
       />
 
       <Dialog open={editSection !== null} onOpenChange={(open) => { if (!open) setEditSection(null); }}>

@@ -82,6 +82,7 @@ interface CompleteTaskModalProps {
   contactLanguage?: string | null;
   contactName?: string | null;
   onSpokeWithLead?: (completionNote?: string) => void;
+  onNotInterested?: () => void;
   onSuccess?: () => void;
   preventClose?: boolean;
 }
@@ -102,6 +103,7 @@ export default function CompleteTaskModal({
   contactLanguage,
   contactName,
   onSpokeWithLead,
+  onNotInterested,
   onSuccess,
   preventClose = false,
 }: CompleteTaskModalProps) {
@@ -218,7 +220,7 @@ export default function CompleteTaskModal({
         });
       }
 
-      if (!hideFollowUp && followUp !== "none") {
+      if (!hideFollowUp && followUp !== "none" && outcome !== "Not interested") {
         const dateStr = followUp === "custom"
           ? customDate
           : calcDueDateString(followUp);
@@ -247,7 +249,10 @@ export default function CompleteTaskModal({
     },
     onSuccess: () => {
       invalidateTaskQueries();
-      const msg = followUp !== "none"
+      if (outcome === "Not interested") {
+        onNotInterested?.();
+      }
+      const msg = followUp !== "none" && outcome !== "Not interested"
         ? t.tasks.taskCompletedNext
         : t.tasks.taskCompleted;
       toast({ title: msg });

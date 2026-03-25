@@ -614,6 +614,12 @@ export default function TasksDueTodayPage() {
         contactPhone={completingTask?.contact?.phone ?? null}
         contactLanguage={completingTask?.contact?.preferredLanguage ?? null}
         contactName={completingTask?.contact?.firstName ?? null}
+        onNotInterested={() => {
+          if (completingTask?.opportunityId) {
+            const closedLostStage = stages?.find(s => s.slug === "closed-lost");
+            if (closedLostStage) stageMutation.mutate({ oppId: completingTask.opportunityId!, stageId: closedLostStage.id });
+          }
+        }}
         onSuccess={() => {
           invalidateTaskCaches(completingTask);
           setCompletingTask(null);

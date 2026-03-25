@@ -3091,6 +3091,12 @@ function ProfileShellInner({
         contactPhone={primaryContact?.phone ?? null}
         contactLanguage={primaryContact?.preferredLanguage ?? null}
         contactName={primaryContact?.firstName ?? null}
+        onNotInterested={() => {
+          if (completingTask?.opportunityId) {
+            const closedLostStage = stages?.find(s => s.slug === "closed-lost");
+            if (closedLostStage) stageMutation.mutate(closedLostStage.id);
+          }
+        }}
         onSuccess={() => {
           queryClient.invalidateQueries({ queryKey: ["/api/profiles/company", companyId, "tasks"] });
           queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
