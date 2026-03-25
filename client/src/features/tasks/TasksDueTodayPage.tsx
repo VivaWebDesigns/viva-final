@@ -10,6 +10,7 @@ import { CheckCircle2, Clock, Phone, Building2, AlertTriangle, CalendarClock, Ex
 import { sanitizeHtml } from "@/features/chat/RichTextEditor";
 import QuickTaskModal, { formatTaskTimeDisplay } from "@/components/QuickTaskModal";
 import CompleteTaskModal from "@/components/CompleteTaskModal";
+import DemoCompletedModal from "@/components/DemoCompletedModal";
 import type { FollowupTask } from "@shared/schema";
 import { useAdminLang } from "@/i18n/LanguageContext";
 import { renderTaskTitle } from "@/lib/activityI18n";
@@ -286,6 +287,8 @@ export default function TasksDueTodayPage() {
   const [showNewTask, setShowNewTask] = useState(false);
   const [contactedPendingOppId, setContactedPendingOppId] = useState<string | null>(null);
   const spokeWithLeadTaskRef = useRef<string | null>(null);
+  const [demoOutcomeTask, setDemoOutcomeTask] = useState<TaskWithContact | null>(null);
+  const [demoCompletedPendingStageId, setDemoCompletedPendingStageId] = useState<string | null>(null);
 
   const invalidateTaskCaches = useCallback((task?: TaskWithContact | null) => {
     queryClient.invalidateQueries({ queryKey: ["/api/tasks/due-today"] });
@@ -455,7 +458,14 @@ export default function TasksDueTodayPage() {
                         task={task}
                         onComplete={(id) => {
                           const found = overdue.find(t2 => t2.id === id);
-                          if (found) setCompletingTask(found);
+                          if (!found) return;
+                          if (found.taskType === "demo_outcome") {
+                            setDemoOutcomeTask(found);
+                            const demoCompletedStage = stages?.find(s => s.slug === "demo-completed");
+                            if (demoCompletedStage) setDemoCompletedPendingStageId(demoCompletedStage.id);
+                          } else {
+                            setCompletingTask(found);
+                          }
                         }}
                         onReschedule={(tsk) => setRescheduleTask(tsk)}
                         onDelete={isAdmin ? () => deleteMutation.mutate({ taskId: task.id, opportunityId: task.opportunityId, companyId: task.companyId }) : undefined}
@@ -484,7 +494,14 @@ export default function TasksDueTodayPage() {
                         task={task}
                         onComplete={(id) => {
                           const found = dueToday.find(t2 => t2.id === id);
-                          if (found) setCompletingTask(found);
+                          if (!found) return;
+                          if (found.taskType === "demo_outcome") {
+                            setDemoOutcomeTask(found);
+                            const demoCompletedStage = stages?.find(s => s.slug === "demo-completed");
+                            if (demoCompletedStage) setDemoCompletedPendingStageId(demoCompletedStage.id);
+                          } else {
+                            setCompletingTask(found);
+                          }
                         }}
                         onReschedule={(tsk) => setRescheduleTask(tsk)}
                         onDelete={isAdmin ? () => deleteMutation.mutate({ taskId: task.id, opportunityId: task.opportunityId, companyId: task.companyId }) : undefined}
@@ -513,7 +530,14 @@ export default function TasksDueTodayPage() {
                         task={task}
                         onComplete={(id) => {
                           const found = upcoming.find(t2 => t2.id === id);
-                          if (found) setCompletingTask(found);
+                          if (!found) return;
+                          if (found.taskType === "demo_outcome") {
+                            setDemoOutcomeTask(found);
+                            const demoCompletedStage = stages?.find(s => s.slug === "demo-completed");
+                            if (demoCompletedStage) setDemoCompletedPendingStageId(demoCompletedStage.id);
+                          } else {
+                            setCompletingTask(found);
+                          }
                         }}
                         onReschedule={(tsk) => setRescheduleTask(tsk)}
                         onDelete={isAdmin ? () => deleteMutation.mutate({ taskId: task.id, opportunityId: task.opportunityId, companyId: task.companyId }) : undefined}
@@ -607,6 +631,62 @@ export default function TasksDueTodayPage() {
         }}
         preventClose={true}
       />
+      {demoOutcomeTask?.opportunityId && (
+        <DemoCompletedModal
+          open={demoCompletedPendingStageId !== null}
+          onClose={() => {
+            setDemoCompletedPendingStageId(null);
+            setDemoOutcomeTask(null);
+          }}
+          opportunityId={demoOutcomeTask.opportunityId}
+          contactName={
+            demoOutcomeTask.contact
+              ? `${demoOutcomeTask.contact.firstName} ${demoOutcomeTask.contact.lastName ?? ""}`.trim()
+              : "there"
+          }
+          contactPhone={demoOutcomeTask.contact?.phone ?? null}
+          onReadyForPayment={() => {
+            const paymentSentStage = stages?.find(s => s.slug === "payment-sent");
+            const task = demoOutcomeTask;
+            apiRequest("PUT", `/api/tasks/${task.id}/complete`, {}).then(() => {
+              invalidateTaskCaches(task);
+            }).catch(() => {});
+            setDemoOutcomeTask(null);
+            if (demoCompletedPendingStageId && task.opportunityId) {
+              stageMutation.mutate({ oppId: task.opportunityId, stageId: demoCompletedPendingStageId });
+            }
+            setDemoCompletedPendingStageId(null);
+            if (paymentSentStage && task.opportunityId) {
+              setTimeout(() => {
+                stageMutation.mutate({ oppId: task.opportunityId!, stageId: paymentSentStage.id });
+              }, 600);
+            }
+          }}
+          onDemoCompleted={() => {
+            const task = demoOutcomeTask;
+            apiRequest("PUT", `/api/tasks/${task.id}/complete`, {}).then(() => {
+              invalidateTaskCaches(task);
+            }).catch(() => {});
+            setDemoOutcomeTask(null);
+            if (demoCompletedPendingStageId && task.opportunityId) {
+              stageMutation.mutate({ oppId: task.opportunityId, stageId: demoCompletedPendingStageId });
+            }
+            setDemoCompletedPendingStageId(null);
+          }}
+          onClosedLost={() => {
+            const task = demoOutcomeTask;
+            const closedLostStage = stages?.find(s => s.slug === "closed-lost");
+            apiRequest("PUT", `/api/tasks/${task.id}/complete`, {}).then(() => {
+              invalidateTaskCaches(task);
+            }).catch(() => {});
+            setDemoOutcomeTask(null);
+            if (closedLostStage && task.opportunityId) {
+              stageMutation.mutate({ oppId: task.opportunityId, stageId: closedLostStage.id });
+            }
+            setDemoCompletedPendingStageId(null);
+          }}
+        />
+      )}
     </div>
   );
 }

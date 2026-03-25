@@ -113,6 +113,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
   });
 
   const [completingTask, setCompletingTask] = useState<FollowupTask | null>(null);
+  const [demoOutcomeTask, setDemoOutcomeTask] = useState<FollowupTask | null>(null);
 
   const stageMutation = useMutation({
     mutationFn: async (stageId: string) => {
@@ -577,48 +578,30 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                 </div>
               </div>
 
-              {stages && opp.status === "open" && (() => {
-                const currentSlug = stages.find(s => s.id === opp.stageId)?.slug ?? "";
-                const demoCompletedStage = stages.find(s => s.slug === "demo-completed");
-                return (
-                  <div className="pt-3 border-t">
-                    <p className="text-xs text-gray-400 mb-2">{t.pipeline.moveToStage}</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {stages.map(stage => {
-                        const isCurrent = stage.id === opp.stageId;
-                        return (
-                          <span
-                            key={stage.id}
-                            className={`inline-flex items-center px-2.5 h-7 rounded-md text-xs font-medium border select-none cursor-default ${
-                              isCurrent ? "text-white border-transparent" : ""
-                            }`}
-                            style={isCurrent
-                              ? { backgroundColor: stage.color, borderColor: stage.color }
-                              : { borderColor: stage.color, color: stage.color }}
-                            data-testid={`indicator-stage-${stage.slug}`}
-                          >
-                            {(t.pipeline.stageNames as Record<string, string>)[stage.slug] || stage.name}
-                          </span>
-                        );
-                      })}
-                    </div>
-                    {currentSlug === "demo-scheduled" && demoCompletedStage && (
-                      <div className="mt-3 pt-3 border-t">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-xs h-7"
-                          onClick={() => setDemoCompletedPendingStageId(demoCompletedStage.id)}
-                          disabled={stageMutation.isPending}
-                          data-testid="button-record-demo-outcome"
+              {stages && opp.status === "open" && (
+                <div className="pt-3 border-t">
+                  <p className="text-xs text-gray-400 mb-2">{t.pipeline.moveToStage}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {stages.map(stage => {
+                      const isCurrent = stage.id === opp.stageId;
+                      return (
+                        <span
+                          key={stage.id}
+                          className={`inline-flex items-center px-2.5 h-7 rounded-md text-xs font-medium border select-none cursor-default ${
+                            isCurrent ? "text-white border-transparent" : ""
+                          }`}
+                          style={isCurrent
+                            ? { backgroundColor: stage.color, borderColor: stage.color }
+                            : { borderColor: stage.color, color: stage.color }}
+                          data-testid={`indicator-stage-${stage.slug}`}
                         >
-                          Record Demo Outcome →
-                        </Button>
-                      </div>
-                    )}
+                          {(t.pipeline.stageNames as Record<string, string>)[stage.slug] || stage.name}
+                        </span>
+                      );
+                    })}
                   </div>
-                );
-              })()}
+                </div>
+              )}
 
               {opp.notes && (
                 <div className="pt-3 border-t">
@@ -806,7 +789,16 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                       data-testid={`task-row-${task.id}`}
                     >
                       <button
-                        onClick={() => !task.completed && setCompletingTask(task)}
+                        onClick={() => {
+                          if (task.completed) return;
+                          if (task.taskType === "demo_outcome") {
+                            setDemoOutcomeTask(task);
+                            const demoCompletedStage = stages?.find(s => s.slug === "demo-completed");
+                            if (demoCompletedStage) setDemoCompletedPendingStageId(demoCompletedStage.id);
+                          } else {
+                            setCompletingTask(task);
+                          }
+                        }}
                         disabled={task.completed}
                         className="flex-shrink-0 mt-0.5"
                         data-testid={`button-complete-task-${task.id}`}
@@ -981,7 +973,10 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
       />
       <DemoCompletedModal
         open={demoCompletedPendingStageId !== null}
-        onClose={() => setDemoCompletedPendingStageId(null)}
+        onClose={() => {
+          setDemoCompletedPendingStageId(null);
+          setDemoOutcomeTask(null);
+        }}
         opportunityId={id}
         contactName={`${contact?.firstName ?? ""} ${contact?.lastName ?? ""}`.trim() || "there"}
         contactPhone={contact?.phone ?? null}
@@ -991,14 +986,32 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
             afterDemoCompletedCallbackRef.current = () =>
               setPaymentSentPendingStageId(paymentSentStage.id);
           }
+          if (demoOutcomeTask) {
+            apiRequest("PUT", `/api/tasks/${demoOutcomeTask.id}/complete`, {}).then(() => {
+              queryClient.invalidateQueries({ queryKey: ["/api/tasks/for-opportunity", id] });
+            }).catch(() => {});
+            setDemoOutcomeTask(null);
+          }
           if (demoCompletedPendingStageId) stageMutation.mutate(demoCompletedPendingStageId);
           setDemoCompletedPendingStageId(null);
         }}
         onDemoCompleted={() => {
+          if (demoOutcomeTask) {
+            apiRequest("PUT", `/api/tasks/${demoOutcomeTask.id}/complete`, {}).then(() => {
+              queryClient.invalidateQueries({ queryKey: ["/api/tasks/for-opportunity", id] });
+            }).catch(() => {});
+            setDemoOutcomeTask(null);
+          }
           if (demoCompletedPendingStageId) stageMutation.mutate(demoCompletedPendingStageId);
           setDemoCompletedPendingStageId(null);
         }}
         onClosedLost={() => {
+          if (demoOutcomeTask) {
+            apiRequest("PUT", `/api/tasks/${demoOutcomeTask.id}/complete`, {}).then(() => {
+              queryClient.invalidateQueries({ queryKey: ["/api/tasks/for-opportunity", id] });
+            }).catch(() => {});
+            setDemoOutcomeTask(null);
+          }
           const closedLostStage = stages?.find((s) => s.slug === "closed-lost");
           if (closedLostStage) stageMutation.mutate(closedLostStage.id);
           setDemoCompletedPendingStageId(null);

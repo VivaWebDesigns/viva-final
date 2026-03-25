@@ -214,6 +214,7 @@ const AUTO_FOLLOWUP_OUTCOMES = new Set(["No answer", "Left voicemail"]);
 const completeTaskSchema = z.object({
   outcome: z.enum(ALLOWED_OUTCOMES).optional(),
   completionNote: z.string().optional(),
+  demoDate: z.string().optional(),
 }).optional();
 
 router.put("/:id/complete", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
@@ -250,6 +251,37 @@ router.put("/:id/complete", requireRole("admin", "developer", "sales_rep"), asyn
         const stages = await getStages();
         const stage = stages.find(s => s.slug === targetSlug);
         if (stage) await moveOpportunity(task.opportunityId!, stage.id, actorId ?? undefined).catch(() => {});
+      }
+
+      if (body.outcome === "Appointment set") {
+        let demoTaskDue: Date;
+        if (body.demoDate && /^\d{4}-\d{2}-\d{2}$/.test(body.demoDate)) {
+          demoTaskDue = new Date(body.demoDate + "T00:00:00Z");
+        } else {
+          demoTaskDue = new Date();
+          demoTaskDue.setUTCDate(demoTaskDue.getUTCDate() + 1);
+          demoTaskDue.setUTCHours(0, 0, 0, 0);
+        }
+        try {
+          const demoTask = await taskStorage.createTask({
+            title: "Record demo outcome",
+            taskType: "demo_outcome",
+            dueDate: demoTaskDue,
+            completed: false,
+            assignedTo: task.assignedTo,
+            opportunityId: task.opportunityId,
+            leadId: task.leadId,
+            contactId: task.contactId,
+            companyId: task.companyId,
+            createdBy: actorId,
+          });
+          const demoTaskContent = `Demo outcome task created: ${demoTask.title}`;
+          const demoTaskMeta = { event: "demo_outcome_task_created", taskTitle: demoTask.title };
+          if (demoTask.leadId) addLeadNote({ leadId: demoTask.leadId, userId: actorId, type: "task", content: demoTaskContent, metadata: demoTaskMeta }).catch(() => {});
+          else if (demoTask.opportunityId) addActivity({ opportunityId: demoTask.opportunityId, userId: actorId, type: "task", content: demoTaskContent, metadata: demoTaskMeta }).catch(() => {});
+        } catch (err: unknown) {
+          console.error("[tasks/complete] demo_outcome task creation failed:", err);
+        }
       }
     }
 

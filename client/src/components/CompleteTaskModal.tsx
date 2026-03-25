@@ -173,6 +173,7 @@ export default function CompleteTaskModal({
         await apiRequest("PUT", `/api/tasks/${task.id}/complete`, {
           outcome,
           completionNote: note,
+          ...(isAppointmentSet && demoDate ? { demoDate } : {}),
         });
       } else if (outcome) {
         const rawTitle = defaultTaskTitle ?? "Follow up";

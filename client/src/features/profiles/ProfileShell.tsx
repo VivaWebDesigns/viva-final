@@ -478,22 +478,14 @@ function QuickStats({ contacts, leads, deals, dealValue, openTasks, t }: QuickSt
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface MoveToStageBarProps {
-  opportunityId: string;
   currentStageId: string;
   stages: PipelineStage[];
-  onContactedPending: (stageId: string) => void;
-  onPaymentSentPending: (stageId: string) => void;
-  onDemoCompletedPending: (stageId: string) => void;
-  stageMutation: ReturnType<typeof useMutation<unknown, Error, string>>;
   t: AdminTranslations;
 }
 
 function MoveToStageBar({
-  opportunityId, currentStageId, stages, onContactedPending, onPaymentSentPending, onDemoCompletedPending, stageMutation, t,
+  currentStageId, stages, t,
 }: MoveToStageBarProps) {
-  const currentSlug = stages.find(s => s.id === currentStageId)?.slug ?? "";
-  const demoCompletedStage = stages.find(s => s.slug === "demo-completed");
-
   return (
     <Card className="p-4" data-testid="move-to-stage-bar">
       <p className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wide">{t.pipeline.moveToStage}</p>
@@ -516,20 +508,6 @@ function MoveToStageBar({
           );
         })}
       </div>
-      {currentSlug === "demo-scheduled" && demoCompletedStage && (
-        <div className="mt-3 pt-3 border-t">
-          <Button
-            size="sm"
-            variant="outline"
-            className="text-xs h-7"
-            onClick={() => onDemoCompletedPending(demoCompletedStage.id)}
-            disabled={stageMutation.isPending}
-            data-testid="button-record-demo-outcome"
-          >
-            Record Demo Outcome →
-          </Button>
-        </div>
-      )}
     </Card>
   );
 }
@@ -2046,6 +2024,7 @@ function ProfileShellInner({
 
   const spokeWithLeadTaskIdRef = useRef<string | null>(null);
   const afterDemoCompletedCallbackRef = useRef<(() => void) | null>(null);
+  const [demoOutcomeTask, setDemoOutcomeTask] = useState<ClientTask | null>(null);
 
   const { data: stages } = useQuery<PipelineStage[]>({
     queryKey: ["/api/pipeline/stages"],
@@ -2325,13 +2304,8 @@ function ProfileShellInner({
 
       {hasOpenOpp && stages && stages.length > 0 && activeOpp && (
         <MoveToStageBar
-          opportunityId={activeOpp.id}
           currentStageId={activeOpp.stageId ?? ""}
           stages={stages}
-          onContactedPending={setContactedPendingStageId}
-          onPaymentSentPending={setPaymentSentPendingStageId}
-          onDemoCompletedPending={setDemoCompletedPendingStageId}
-          stageMutation={stageMutation}
           t={t}
         />
       )}
@@ -2560,7 +2534,15 @@ function ProfileShellInner({
                     <ClientTaskRow
                       key={task.id}
                       task={task}
-                      onComplete={() => setCompletingTask(task)}
+                      onComplete={() => {
+                        if (task.taskType === "demo_outcome") {
+                          setDemoOutcomeTask(task);
+                          const demoCompletedStage = stages?.find(s => s.slug === "demo-completed");
+                          if (demoCompletedStage) setDemoCompletedPendingStageId(demoCompletedStage.id);
+                        } else {
+                          setCompletingTask(task);
+                        }
+                      }}
                       onToggle={() => toggleTaskMutation.mutate(task.id)}
                       onReschedule={() => setRescheduleTask(task)}
                       onDelete={() => deleteTaskMutation.mutate(task.id)}
@@ -2580,7 +2562,15 @@ function ProfileShellInner({
                     <ClientTaskRow
                       key={task.id}
                       task={task}
-                      onComplete={() => setCompletingTask(task)}
+                      onComplete={() => {
+                        if (task.taskType === "demo_outcome") {
+                          setDemoOutcomeTask(task);
+                          const demoCompletedStage = stages?.find(s => s.slug === "demo-completed");
+                          if (demoCompletedStage) setDemoCompletedPendingStageId(demoCompletedStage.id);
+                        } else {
+                          setCompletingTask(task);
+                        }
+                      }}
                       onToggle={() => toggleTaskMutation.mutate(task.id)}
                       onReschedule={() => setRescheduleTask(task)}
                       onDelete={() => deleteTaskMutation.mutate(task.id)}
@@ -2600,7 +2590,15 @@ function ProfileShellInner({
                     <ClientTaskRow
                       key={task.id}
                       task={task}
-                      onComplete={() => setCompletingTask(task)}
+                      onComplete={() => {
+                        if (task.taskType === "demo_outcome") {
+                          setDemoOutcomeTask(task);
+                          const demoCompletedStage = stages?.find(s => s.slug === "demo-completed");
+                          if (demoCompletedStage) setDemoCompletedPendingStageId(demoCompletedStage.id);
+                        } else {
+                          setCompletingTask(task);
+                        }
+                      }}
                       onToggle={() => toggleTaskMutation.mutate(task.id)}
                       onReschedule={() => setRescheduleTask(task)}
                       onDelete={() => deleteTaskMutation.mutate(task.id)}
@@ -2984,7 +2982,10 @@ function ProfileShellInner({
           />
           <DemoCompletedModal
             open={demoCompletedPendingStageId !== null}
-            onClose={() => setDemoCompletedPendingStageId(null)}
+            onClose={() => {
+              setDemoCompletedPendingStageId(null);
+              setDemoOutcomeTask(null);
+            }}
             opportunityId={activeOpp.id}
             contactName={`${contact?.firstName ?? ""} ${contact?.lastName ?? ""}`.trim() || "there"}
             contactPhone={primaryContact?.phone ?? null}
@@ -2994,14 +2995,35 @@ function ProfileShellInner({
                 afterDemoCompletedCallbackRef.current = () =>
                   setPaymentSentPendingStageId(paymentSentStage.id);
               }
+              if (demoOutcomeTask) {
+                apiRequest("PUT", `/api/tasks/${demoOutcomeTask.id}/complete`, {}).then(() => {
+                  queryClient.invalidateQueries({ queryKey: ["/api/profiles/company", companyId, "tasks"] });
+                  queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
+                }).catch(() => {});
+                setDemoOutcomeTask(null);
+              }
               if (demoCompletedPendingStageId) stageMutation.mutate(demoCompletedPendingStageId);
               setDemoCompletedPendingStageId(null);
             }}
             onDemoCompleted={() => {
+              if (demoOutcomeTask) {
+                apiRequest("PUT", `/api/tasks/${demoOutcomeTask.id}/complete`, {}).then(() => {
+                  queryClient.invalidateQueries({ queryKey: ["/api/profiles/company", companyId, "tasks"] });
+                  queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
+                }).catch(() => {});
+                setDemoOutcomeTask(null);
+              }
               if (demoCompletedPendingStageId) stageMutation.mutate(demoCompletedPendingStageId);
               setDemoCompletedPendingStageId(null);
             }}
             onClosedLost={() => {
+              if (demoOutcomeTask) {
+                apiRequest("PUT", `/api/tasks/${demoOutcomeTask.id}/complete`, {}).then(() => {
+                  queryClient.invalidateQueries({ queryKey: ["/api/profiles/company", companyId, "tasks"] });
+                  queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
+                }).catch(() => {});
+                setDemoOutcomeTask(null);
+              }
               const closedLostStage = stages?.find((s) => s.slug === "closed-lost");
               if (closedLostStage) stageMutation.mutate(closedLostStage.id);
               setDemoCompletedPendingStageId(null);
