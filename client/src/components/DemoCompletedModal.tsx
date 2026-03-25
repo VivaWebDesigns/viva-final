@@ -128,7 +128,7 @@ export default function DemoCompletedModal({
   const smsText = CLOSING_SMS(contactName.split(" ")[0] || contactName);
 
   return (
-    <Dialog open={open} onOpenChange={() => {}}>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent
         className="max-w-md"
         data-testid="dialog-demo-completed"
