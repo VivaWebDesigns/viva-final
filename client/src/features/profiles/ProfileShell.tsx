@@ -2955,7 +2955,7 @@ function ProfileShellInner({
             defaultTaskTitle={`Follow up with ${contact?.firstName ?? ""} ${contact?.lastName ?? ""}`.trim()}
             excludeOutcomes={["badNumber"]}
             hideFollowUp={isFromSpokeWithLead}
-            onSuccess={(selectedOutcome) => {
+            onSuccess={() => {
               const taskId = spokeWithLeadTaskIdRef.current;
               const note = spokeWithLeadNoteRef.current;
               spokeWithLeadTaskIdRef.current = null;
@@ -2969,9 +2969,7 @@ function ProfileShellInner({
                   queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
                 }).catch(() => {});
               }
-              if (contactedPendingStageId && selectedOutcome !== "Appointment set") {
-                stageMutation.mutate(contactedPendingStageId);
-              }
+              if (contactedPendingStageId) stageMutation.mutate(contactedPendingStageId);
             }}
             preventClose={true}
           />
