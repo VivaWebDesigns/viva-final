@@ -166,18 +166,16 @@ export default function CompleteTaskModal({
   };
 
   const submitMutation = useMutation({
-    mutationFn: async (vars: { capturedOutcome: string }) => {
-      const { capturedOutcome } = vars;
-      const isApptSet = capturedOutcome === "Appointment set";
-      const note = isApptSet ? buildDemoNote() : (completionNote.trim() || undefined);
+    mutationFn: async () => {
+      const note = isAppointmentSet ? buildDemoNote() : (completionNote.trim() || undefined);
 
       if (task) {
         await apiRequest("PUT", `/api/tasks/${task.id}/complete`, {
-          outcome: capturedOutcome,
+          outcome,
           completionNote: note,
-          ...(isApptSet && demoDate ? { demoDate } : {}),
+          ...(isAppointmentSet && demoDate ? { demoDate } : {}),
         });
-      } else if (capturedOutcome) {
+      } else if (outcome) {
         const rawTitle = defaultTaskTitle ?? "Follow up";
         const res = await apiRequest("POST", "/api/tasks", {
           title: rawTitle,
@@ -189,9 +187,8 @@ export default function CompleteTaskModal({
         });
         const created: { id: string } = await res.json();
         await apiRequest("PUT", `/api/tasks/${created.id}/complete`, {
-          outcome: capturedOutcome,
+          outcome,
           completionNote: note,
-          ...(isApptSet && demoDate ? { demoDate } : {}),
         });
       }
 
@@ -222,13 +219,13 @@ export default function CompleteTaskModal({
         await apiRequest("POST", "/api/tasks", payload);
       }
     },
-    onSuccess: (_data, vars) => {
+    onSuccess: () => {
       invalidateTaskQueries();
       const msg = followUp !== "none"
         ? t.tasks.taskCompletedNext
         : t.tasks.taskCompleted;
       toast({ title: msg });
-      onSuccess?.(vars.capturedOutcome);
+      onSuccess?.(outcome);
       onClose();
     },
     onError: (err: Error) => {
@@ -263,7 +260,7 @@ export default function CompleteTaskModal({
     if (isSpokeWithLead && onSpokeWithLead) {
       onSpokeWithLead(completionNote.trim() || undefined);
     } else {
-      submitMutation.mutate({ capturedOutcome: outcome });
+      submitMutation.mutate();
     }
   };
 
