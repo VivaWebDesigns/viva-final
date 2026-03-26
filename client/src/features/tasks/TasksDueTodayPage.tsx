@@ -15,7 +15,7 @@ import PaymentSentModal from "@/components/PaymentSentModal";
 import PaymentFollowupModal from "@/components/PaymentFollowupModal";
 import type { FollowupTask } from "@shared/schema";
 import { useAdminLang } from "@/i18n/LanguageContext";
-import { renderTaskTitle, getStageLabel } from "@/lib/activityI18n";
+import { renderTaskTitle, renderTaskNotes, getStageLabel } from "@/lib/activityI18n";
 import { useAuth } from "@features/auth/useAuth";
 import { useToast } from "@/hooks/use-toast";
 
@@ -55,6 +55,7 @@ function TaskRow({
   tTasks: { markComplete: string; reschedule: string; viewOpportunity: string; viewLead: string; automationBadge: string; automationStageLabel: string; getStageLabel: (slug: string) => string };
   renderTitle: (task: { title: string }) => string;
 }) {
+  const { t } = useAdminLang();
   const contactName = task.contact
     ? `${task.contact.firstName}${task.contact.lastName ? " " + task.contact.lastName : ""}`
     : null;
@@ -86,7 +87,7 @@ function TaskRow({
         </div>
 
         {task.notes && (
-          <div className="text-xs text-gray-400 mt-0.5 line-clamp-1 chat-message-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(task.notes) }} />
+          <div className="text-xs text-gray-400 mt-0.5 line-clamp-1 chat-message-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(renderTaskNotes(task.notes, t)) }} />
         )}
 
         {task.automationMeta && (

@@ -50,7 +50,7 @@ import { apiRequest, queryClient, STALE } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAdminLang } from "@/i18n/LanguageContext";
 import type { AdminTranslations } from "@/i18n/locales/en";
-import { getStageLabel, getOutcomeLabel, renderTaskTitle, renderActivityContent } from "@/lib/activityI18n";
+import { getStageLabel, getOutcomeLabel, renderTaskTitle, renderTaskNotes, renderActivityContent } from "@/lib/activityI18n";
 import { useUnifiedProfile, useInfiniteTimeline, PROFILE_KEYS } from "./hooks";
 import { useAuth } from "@features/auth/useAuth";
 import { EditCompanyDialog } from "./edit/EditCompanyDialog";
@@ -1840,7 +1840,7 @@ function ClientTaskRow({ task, onComplete, onToggle, onReschedule, onDelete, can
           )}
         </div>
         {task.notes && (
-          <div className="text-xs text-gray-500 mt-0.5 line-clamp-2 chat-message-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(task.notes) }} />
+          <div className="text-xs text-gray-500 mt-0.5 line-clamp-2 chat-message-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(renderTaskNotes(task.notes, t)) }} />
         )}
         <div className="flex items-center gap-3 mt-1.5">
           <span className={`text-xs flex items-center gap-1 ${isOverdue ? "text-red-500 font-medium" : isDone ? "text-gray-400" : "text-amber-500 font-medium"}`}>

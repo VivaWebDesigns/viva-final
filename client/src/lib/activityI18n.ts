@@ -93,6 +93,32 @@ export function renderTaskTitle(task: { title: string }, t: AdminTranslations): 
   return task.title;
 }
 
+const TASK_NOTES_MAP: Array<[string, (t: AdminTranslations) => string]> = [
+  [
+    "Reach out to the lead for the first time to introduce Viva Web Designs and qualify their interest.",
+    (t) => t.tasks.contactLeadNotes,
+  ],
+  [
+    "Follow up with contacted lead to schedule a demo of Viva Web Designs services.",
+    (t) => t.tasks.scheduleDemoNotes,
+  ],
+];
+
+/**
+ * Translates a task's notes/description at render time.
+ * Matches against known automation template descriptions; falls back to the
+ * raw stored value (which may be user-edited HTML) if no match is found.
+ * To add a new seeded template description, append one entry to TASK_NOTES_MAP.
+ */
+export function renderTaskNotes(notes: string | null | undefined, t: AdminTranslations): string {
+  if (!notes) return "";
+  const trimmed = notes.trim();
+  for (const [canonical, fn] of TASK_NOTES_MAP) {
+    if (trimmed === canonical) return fn(t);
+  }
+  return notes;
+}
+
 export function getPaymentMethodLabel(method: string | undefined | null, t: AdminTranslations): string {
   if (!method) return "";
   const ps = t.pipeline.paymentSent as Record<string, string>;
