@@ -109,6 +109,7 @@ export default function LeadListPage() {
   const total = leadsData?.total ?? 0;
   const totalPages = Math.ceil(total / pageSize);
   const allOnPageSelected = leads.length > 0 && leads.every(l => selectedIds.has(l.id));
+  const someOnPageSelected = leads.some(l => selectedIds.has(l.id)) && !allOnPageSelected;
 
   const toggleSelect = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -425,6 +426,25 @@ export default function LeadListPage() {
         </Card>
       ) : (
         <div className="space-y-2">
+          <div className="flex items-center gap-2.5 px-4 py-2">
+            <Checkbox
+              checked={allOnPageSelected ? true : someOnPageSelected ? "indeterminate" : false}
+              onCheckedChange={toggleSelectAll}
+              data-testid="checkbox-select-all"
+              aria-label="Select all leads on this page"
+            />
+            <button
+              onClick={toggleSelectAll}
+              className="text-sm text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 transition-colors select-none"
+              data-testid="button-select-all-label"
+            >
+              {allOnPageSelected
+                ? `${leads.length} selected`
+                : someOnPageSelected
+                ? `${selectedIds.size} selected — select all ${leads.length}`
+                : `Select all ${leads.length}`}
+            </button>
+          </div>
           {leads.map((lead) => {
             const isSelected = selectedIds.has(lead.id);
             return (
