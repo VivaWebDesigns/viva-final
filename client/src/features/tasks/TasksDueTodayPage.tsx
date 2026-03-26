@@ -404,14 +404,6 @@ export default function TasksDueTodayPage() {
             {t.tasks.allActiveTasks}
           </p>
         </div>
-        <Button
-          size="sm"
-          onClick={() => setShowNewTask(true)}
-          data-testid="button-new-task"
-        >
-          <Plus className="w-4 h-4 mr-1.5" />
-          {t.tasks.scheduleFollowUp}
-        </Button>
       </div>
 
       <Tabs defaultValue="open" className="w-full">
