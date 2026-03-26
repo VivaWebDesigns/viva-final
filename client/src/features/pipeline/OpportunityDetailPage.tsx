@@ -793,7 +793,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                       <button
                         onClick={() => {
                           if (task.completed) return;
-                          if (task.taskType === "payment_followup") {
+                          if (task.taskType === "payment_followup" || task.title === "Follow up on payment") {
                             setPaymentFollowupTask(task);
                           } else if (task.taskType === "demo_outcome" || task.taskType === "demo_followup" || currentStage?.slug === "demo-completed") {
                             setDemoOutcomeTask(task);

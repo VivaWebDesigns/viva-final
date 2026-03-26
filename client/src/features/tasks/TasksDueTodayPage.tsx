@@ -462,7 +462,7 @@ export default function TasksDueTodayPage() {
                         onComplete={(id) => {
                           const found = overdue.find(t2 => t2.id === id);
                           if (!found) return;
-                          if (found.taskType === "payment_followup") {
+                          if (found.taskType === "payment_followup" || found.title === "Follow up on payment") {
                             setPaymentFollowupTask(found);
                           } else if (found.taskType === "demo_outcome" || found.taskType === "demo_followup" || found.opportunityStageSlug === "demo-completed") {
                             setDemoOutcomeTask(found);
@@ -500,7 +500,7 @@ export default function TasksDueTodayPage() {
                         onComplete={(id) => {
                           const found = dueToday.find(t2 => t2.id === id);
                           if (!found) return;
-                          if (found.taskType === "payment_followup") {
+                          if (found.taskType === "payment_followup" || found.title === "Follow up on payment") {
                             setPaymentFollowupTask(found);
                           } else if (found.taskType === "demo_outcome" || found.taskType === "demo_followup" || found.opportunityStageSlug === "demo-completed") {
                             setDemoOutcomeTask(found);
@@ -538,7 +538,7 @@ export default function TasksDueTodayPage() {
                         onComplete={(id) => {
                           const found = upcoming.find(t2 => t2.id === id);
                           if (!found) return;
-                          if (found.taskType === "payment_followup") {
+                          if (found.taskType === "payment_followup" || found.title === "Follow up on payment") {
                             setPaymentFollowupTask(found);
                           } else if (found.taskType === "demo_outcome" || found.taskType === "demo_followup" || found.opportunityStageSlug === "demo-completed") {
                             setDemoOutcomeTask(found);

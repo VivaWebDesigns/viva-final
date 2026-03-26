@@ -28,6 +28,7 @@ const createTaskSchema = z.object({
   leadId: z.string().nullable().optional(),
   contactId: z.string().nullable().optional(),
   companyId: z.string().nullable().optional(),
+  taskType: z.string().optional().nullable(),
 });
 
 async function resolveCompanyId(
