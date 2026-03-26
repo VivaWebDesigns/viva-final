@@ -59,6 +59,7 @@ import { EditOpportunityDialog } from "./edit/EditOpportunityDialog";
 import CompleteTaskModal from "@/components/CompleteTaskModal";
 import QuickTaskModal from "@/components/QuickTaskModal";
 import PaymentSentModal from "@/components/PaymentSentModal";
+import PaymentFollowupModal from "@/components/PaymentFollowupModal";
 import DemoCompletedModal from "@/components/DemoCompletedModal";
 import type {
   ProfileEntry,
@@ -2026,6 +2027,7 @@ function ProfileShellInner({
   const spokeWithLeadNoteRef = useRef<string | undefined>(undefined);
   const afterDemoCompletedCallbackRef = useRef<(() => void) | null>(null);
   const [demoOutcomeTask, setDemoOutcomeTask] = useState<ClientTask | null>(null);
+  const [paymentFollowupTask, setPaymentFollowupTask] = useState<ClientTask | null>(null);
 
   const { data: stages } = useQuery<PipelineStage[]>({
     queryKey: ["/api/pipeline/stages"],
@@ -2523,7 +2525,9 @@ function ProfileShellInner({
                       key={task.id}
                       task={task}
                       onComplete={() => {
-                        if (task.taskType === "demo_outcome" || task.taskType === "demo_followup" || activeStageSlug === "demo-completed") {
+                        if (task.taskType === "payment_followup") {
+                          setPaymentFollowupTask(task);
+                        } else if (task.taskType === "demo_outcome" || task.taskType === "demo_followup" || activeStageSlug === "demo-completed") {
                           setDemoOutcomeTask(task);
                           const demoCompletedStage = stages?.find(s => s.slug === "demo-completed");
                           if (demoCompletedStage) setDemoCompletedPendingStageId(demoCompletedStage.id);
@@ -2551,7 +2555,9 @@ function ProfileShellInner({
                       key={task.id}
                       task={task}
                       onComplete={() => {
-                        if (task.taskType === "demo_outcome" || task.taskType === "demo_followup" || activeStageSlug === "demo-completed") {
+                        if (task.taskType === "payment_followup") {
+                          setPaymentFollowupTask(task);
+                        } else if (task.taskType === "demo_outcome" || task.taskType === "demo_followup" || activeStageSlug === "demo-completed") {
                           setDemoOutcomeTask(task);
                           const demoCompletedStage = stages?.find(s => s.slug === "demo-completed");
                           if (demoCompletedStage) setDemoCompletedPendingStageId(demoCompletedStage.id);
@@ -2579,7 +2585,9 @@ function ProfileShellInner({
                       key={task.id}
                       task={task}
                       onComplete={() => {
-                        if (task.taskType === "demo_outcome" || task.taskType === "demo_followup" || activeStageSlug === "demo-completed") {
+                        if (task.taskType === "payment_followup") {
+                          setPaymentFollowupTask(task);
+                        } else if (task.taskType === "demo_outcome" || task.taskType === "demo_followup" || activeStageSlug === "demo-completed") {
                           setDemoOutcomeTask(task);
                           const demoCompletedStage = stages?.find(s => s.slug === "demo-completed");
                           if (demoCompletedStage) setDemoCompletedPendingStageId(demoCompletedStage.id);
@@ -3046,6 +3054,29 @@ function ProfileShellInner({
           queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
         }}
       />
+
+      {paymentFollowupTask && activeOpp && (
+        <PaymentFollowupModal
+          open={true}
+          onClose={() => setPaymentFollowupTask(null)}
+          opportunityId={activeOpp.id}
+          taskId={paymentFollowupTask.id}
+          onPaymentReceived={() => {
+            const closedWonStage = stages?.find(s => s.slug === "closed-won");
+            if (closedWonStage) stageMutation.mutate(closedWonStage.id);
+            queryClient.invalidateQueries({ queryKey: ["/api/profiles/company", companyId, "tasks"] });
+            queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
+            setPaymentFollowupTask(null);
+          }}
+          onWontPay={() => {
+            const closedLostStage = stages?.find(s => s.slug === "closed-lost");
+            if (closedLostStage) stageMutation.mutate(closedLostStage.id);
+            queryClient.invalidateQueries({ queryKey: ["/api/profiles/company", companyId, "tasks"] });
+            queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
+            setPaymentFollowupTask(null);
+          }}
+        />
+      )}
 
       <QuickTaskModal
         open={!!rescheduleTask}

@@ -12,6 +12,7 @@ import QuickTaskModal, { formatTaskTimeDisplay } from "@/components/QuickTaskMod
 import CompleteTaskModal from "@/components/CompleteTaskModal";
 import DemoCompletedModal from "@/components/DemoCompletedModal";
 import PaymentSentModal from "@/components/PaymentSentModal";
+import PaymentFollowupModal from "@/components/PaymentFollowupModal";
 import type { FollowupTask } from "@shared/schema";
 import { useAdminLang } from "@/i18n/LanguageContext";
 import { renderTaskTitle } from "@/lib/activityI18n";
@@ -294,6 +295,7 @@ export default function TasksDueTodayPage() {
   const [paymentSentPendingOppId, setPaymentSentPendingOppId] = useState<string | null>(null);
   const [paymentSentPendingStageId, setPaymentSentPendingStageId] = useState<string | null>(null);
   const afterDemoCompletedCallbackRef = useRef<(() => void) | null>(null);
+  const [paymentFollowupTask, setPaymentFollowupTask] = useState<TaskWithContact | null>(null);
 
   const invalidateTaskCaches = useCallback((task?: TaskWithContact | null) => {
     queryClient.invalidateQueries({ queryKey: ["/api/tasks/due-today"] });
@@ -460,7 +462,9 @@ export default function TasksDueTodayPage() {
                         onComplete={(id) => {
                           const found = overdue.find(t2 => t2.id === id);
                           if (!found) return;
-                          if (found.taskType === "demo_outcome" || found.taskType === "demo_followup" || found.opportunityStageSlug === "demo-completed") {
+                          if (found.taskType === "payment_followup") {
+                            setPaymentFollowupTask(found);
+                          } else if (found.taskType === "demo_outcome" || found.taskType === "demo_followup" || found.opportunityStageSlug === "demo-completed") {
                             setDemoOutcomeTask(found);
                             const demoCompletedStage = stages?.find(s => s.slug === "demo-completed");
                             if (demoCompletedStage) setDemoCompletedPendingStageId(demoCompletedStage.id);
@@ -496,7 +500,9 @@ export default function TasksDueTodayPage() {
                         onComplete={(id) => {
                           const found = dueToday.find(t2 => t2.id === id);
                           if (!found) return;
-                          if (found.taskType === "demo_outcome" || found.taskType === "demo_followup" || found.opportunityStageSlug === "demo-completed") {
+                          if (found.taskType === "payment_followup") {
+                            setPaymentFollowupTask(found);
+                          } else if (found.taskType === "demo_outcome" || found.taskType === "demo_followup" || found.opportunityStageSlug === "demo-completed") {
                             setDemoOutcomeTask(found);
                             const demoCompletedStage = stages?.find(s => s.slug === "demo-completed");
                             if (demoCompletedStage) setDemoCompletedPendingStageId(demoCompletedStage.id);
@@ -532,7 +538,9 @@ export default function TasksDueTodayPage() {
                         onComplete={(id) => {
                           const found = upcoming.find(t2 => t2.id === id);
                           if (!found) return;
-                          if (found.taskType === "demo_outcome" || found.taskType === "demo_followup" || found.opportunityStageSlug === "demo-completed") {
+                          if (found.taskType === "payment_followup") {
+                            setPaymentFollowupTask(found);
+                          } else if (found.taskType === "demo_outcome" || found.taskType === "demo_followup" || found.opportunityStageSlug === "demo-completed") {
                             setDemoOutcomeTask(found);
                             const demoCompletedStage = stages?.find(s => s.slug === "demo-completed");
                             if (demoCompletedStage) setDemoCompletedPendingStageId(demoCompletedStage.id);
@@ -719,6 +727,29 @@ export default function TasksDueTodayPage() {
             if (paymentSentPendingOppId && paymentSentPendingStageId) {
               stageMutation.mutate({ oppId: paymentSentPendingOppId, stageId: paymentSentPendingStageId });
             }
+          }}
+        />
+      )}
+
+      {paymentFollowupTask && paymentFollowupTask.opportunityId && (
+        <PaymentFollowupModal
+          open={true}
+          onClose={() => setPaymentFollowupTask(null)}
+          opportunityId={paymentFollowupTask.opportunityId}
+          taskId={paymentFollowupTask.id}
+          onPaymentReceived={() => {
+            const closedWonStage = stages?.find(s => s.slug === "closed-won");
+            if (closedWonStage && paymentFollowupTask.opportunityId) {
+              stageMutation.mutate({ oppId: paymentFollowupTask.opportunityId!, stageId: closedWonStage.id });
+            }
+            setPaymentFollowupTask(null);
+          }}
+          onWontPay={() => {
+            const closedLostStage = stages?.find(s => s.slug === "closed-lost");
+            if (closedLostStage && paymentFollowupTask.opportunityId) {
+              stageMutation.mutate({ oppId: paymentFollowupTask.opportunityId!, stageId: closedLostStage.id });
+            }
+            setPaymentFollowupTask(null);
           }}
         />
       )}

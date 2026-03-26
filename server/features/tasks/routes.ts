@@ -190,17 +190,21 @@ const ALLOWED_OUTCOMES = [
   "No answer", "Left voicemail", "Spoke with lead",
   "Interested", "Uncertain", "Not interested",
   "Bad number", "Appointment set",
+  "Payment received", "Still waiting", "Won't pay",
 ] as const;
 
 const OUTCOME_VALUE_TO_KEY: Record<string, string> = {
-  "No answer":       "noAnswer",
-  "Left voicemail":  "leftVoicemail",
-  "Spoke with lead": "spokeWithLead",
-  "Interested":      "interested",
-  "Uncertain":       "uncertain",
-  "Not interested":  "notInterested",
-  "Bad number":      "badNumber",
-  "Appointment set": "appointmentSet",
+  "No answer":        "noAnswer",
+  "Left voicemail":   "leftVoicemail",
+  "Spoke with lead":  "spokeWithLead",
+  "Interested":       "interested",
+  "Uncertain":        "uncertain",
+  "Not interested":   "notInterested",
+  "Bad number":       "badNumber",
+  "Appointment set":  "appointmentSet",
+  "Payment received": "paymentReceived",
+  "Still waiting":    "stillWaiting",
+  "Won't pay":        "wontPay",
 };
 
 const OUTCOME_STAGE_SLUG: Partial<Record<string, string>> = {

@@ -113,6 +113,7 @@ export default function PaymentSentModal({
       await apiRequest("POST", "/api/tasks", {
         title: TASK_TITLE,
         notes: TASK_NOTES,
+        taskType: "payment_followup",
         dueDate,
         followUpTime,
         followUpTimezone: repTimezone,

@@ -30,6 +30,7 @@ import QuickTaskModal, { formatTaskTimeDisplay } from "@/components/QuickTaskMod
 import CompleteTaskModal from "@/components/CompleteTaskModal";
 import PaymentSentModal from "@/components/PaymentSentModal";
 import DemoCompletedModal from "@/components/DemoCompletedModal";
+import PaymentFollowupModal from "@/components/PaymentFollowupModal";
 import { RecordTimeline } from "@/components/RecordTimeline";
 
 const PKG_COLORS: Record<string, string> = {
@@ -114,6 +115,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
 
   const [completingTask, setCompletingTask] = useState<FollowupTask | null>(null);
   const [demoOutcomeTask, setDemoOutcomeTask] = useState<FollowupTask | null>(null);
+  const [paymentFollowupTask, setPaymentFollowupTask] = useState<FollowupTask | null>(null);
 
   const stageMutation = useMutation({
     mutationFn: async (stageId: string) => {
@@ -791,7 +793,9 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                       <button
                         onClick={() => {
                           if (task.completed) return;
-                          if (task.taskType === "demo_outcome" || task.taskType === "demo_followup" || currentStage?.slug === "demo-completed") {
+                          if (task.taskType === "payment_followup") {
+                            setPaymentFollowupTask(task);
+                          } else if (task.taskType === "demo_outcome" || task.taskType === "demo_followup" || currentStage?.slug === "demo-completed") {
                             setDemoOutcomeTask(task);
                             const demoCompletedStage = stages?.find(s => s.slug === "demo-completed");
                             if (demoCompletedStage) setDemoCompletedPendingStageId(demoCompletedStage.id);
@@ -1024,6 +1028,25 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
         task={completingTask}
         leadTimezone={sourceLead?.timezone ?? null}
       />
+
+      {paymentFollowupTask && (
+        <PaymentFollowupModal
+          open={true}
+          onClose={() => setPaymentFollowupTask(null)}
+          opportunityId={id}
+          taskId={paymentFollowupTask.id}
+          onPaymentReceived={() => {
+            const closedWonStage = stages?.find(s => s.slug === "closed-won");
+            if (closedWonStage) stageMutation.mutate(closedWonStage.id);
+            setPaymentFollowupTask(null);
+          }}
+          onWontPay={() => {
+            const closedLostStage = stages?.find(s => s.slug === "closed-lost");
+            if (closedLostStage) stageMutation.mutate(closedLostStage.id);
+            setPaymentFollowupTask(null);
+          }}
+        />
+      )}
 
       <Dialog open={editSection !== null} onOpenChange={(open) => { if (!open) setEditSection(null); }}>
         <DialogContent className="max-w-md max-h-[90dvh] overflow-y-auto">
