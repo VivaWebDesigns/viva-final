@@ -78,7 +78,7 @@ interface CompleteTaskModalProps {
   excludeOutcomes?: string[];
   hideFollowUp?: boolean;
   onSpokeWithLead?: (completionNote?: string) => void;
-  onSuccess?: () => void;
+  onSuccess?: (outcome?: string) => void;
   preventClose?: boolean;
 }
 
@@ -225,7 +225,7 @@ export default function CompleteTaskModal({
         ? t.tasks.taskCompletedNext
         : t.tasks.taskCompleted;
       toast({ title: msg });
-      onSuccess?.();
+      onSuccess?.(outcome);
       onClose();
     },
     onError: (err: Error) => {

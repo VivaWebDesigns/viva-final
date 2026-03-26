@@ -958,8 +958,9 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
         leadTimezone={sourceLead?.timezone ?? null}
         defaultTaskTitle={`Follow up with ${contact?.firstName ?? ""} ${contact?.lastName ?? ""}`.trim()}
         excludeOutcomes={["badNumber"]}
-        onSuccess={() => {
-          if (contactedPendingStageId) stageMutation.mutate(contactedPendingStageId);
+        onSuccess={(outcome) => {
+          const hasOwnStageMove = outcome === "Appointment set" || outcome === "Not interested";
+          if (contactedPendingStageId && !hasOwnStageMove) stageMutation.mutate(contactedPendingStageId);
         }}
         preventClose={true}
       />

@@ -618,7 +618,7 @@ export default function TasksDueTodayPage() {
         task={null}
         opportunityId={contactedPendingOppId ?? undefined}
         hideFollowUp={true}
-        onSuccess={() => {
+        onSuccess={(outcome) => {
           const taskId = spokeWithLeadTaskRef.current;
           const note = spokeWithLeadNoteRef.current;
           spokeWithLeadTaskRef.current = null;
@@ -632,7 +632,8 @@ export default function TasksDueTodayPage() {
               queryClient.invalidateQueries({ queryKey: ["/api/tasks/completed-history"] });
             }).catch(() => {});
           }
-          if (contactedPendingOppId && contactedStageId) {
+          const hasOwnStageMove = outcome === "Appointment set" || outcome === "Not interested";
+          if (contactedPendingOppId && contactedStageId && !hasOwnStageMove) {
             stageMutation.mutate({ oppId: contactedPendingOppId, stageId: contactedStageId });
           }
           setContactedPendingOppId(null);
