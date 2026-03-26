@@ -57,7 +57,7 @@ import { EditContactDialog } from "./edit/EditContactDialog";
 import { EditLeadDialog } from "./edit/EditLeadDialog";
 import { EditOpportunityDialog } from "./edit/EditOpportunityDialog";
 import CompleteTaskModal from "@/components/CompleteTaskModal";
-import QuickTaskModal from "@/components/QuickTaskModal";
+import QuickTaskModal, { formatTaskTimeDisplay } from "@/components/QuickTaskModal";
 import PaymentSentModal from "@/components/PaymentSentModal";
 import PaymentFollowupModal from "@/components/PaymentFollowupModal";
 import DemoCompletedModal from "@/components/DemoCompletedModal";
@@ -1836,7 +1836,12 @@ function ClientTaskRow({ task, onComplete, onToggle, onReschedule, onDelete, can
         <div className="flex items-center gap-3 mt-1.5">
           <span className={`text-xs flex items-center gap-1 ${isOverdue ? "text-red-500 font-medium" : isDone ? "text-gray-400" : "text-amber-500 font-medium"}`}>
             <CalendarDays className="w-3 h-3" />
-            {task.dueDate ? new Date(task.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }) : t.profileShell.noDueDate}
+            {task.dueDate ? (
+              <>
+                {new Date(task.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}
+                {task.followUpTime ? ` at ${formatTaskTimeDisplay(task.dueDate, task.followUpTime, task.followUpTimezone)}` : ""}
+              </>
+            ) : t.profileShell.noDueDate}
           </span>
           {task.creatorName && (
             <span className="text-xs text-gray-400">by {task.creatorName}</span>
