@@ -383,7 +383,20 @@ export async function bulkDeleteLeads(ids: string[]): Promise<number> {
     const oppIds = oppsToDelete.map(o => o.id);
     if (oppIds.length > 0) {
       await tx.delete(pipelineActivities).where(inArray(pipelineActivities.opportunityId, oppIds));
-      await tx.update(followupTasks).set({ opportunityId: null }).where(inArray(followupTasks.opportunityId, oppIds));
+
+      const oppTasksToDelete = await tx
+        .select({ id: followupTasks.id })
+        .from(followupTasks)
+        .where(inArray(followupTasks.opportunityId, oppIds));
+      const oppTaskIds = oppTasksToDelete.map(t => t.id);
+      if (oppTaskIds.length > 0) {
+        await tx
+          .update(automationExecutionLogs)
+          .set({ generatedTaskId: null })
+          .where(inArray(automationExecutionLogs.generatedTaskId, oppTaskIds));
+        await tx.delete(followupTasks).where(inArray(followupTasks.id, oppTaskIds));
+      }
+
       await tx.update(onboardingRecords).set({ opportunityId: null }).where(inArray(onboardingRecords.opportunityId, oppIds));
       await tx.update(automationExecutionLogs).set({ opportunityId: null }).where(inArray(automationExecutionLogs.opportunityId, oppIds));
     }
