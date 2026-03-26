@@ -78,6 +78,7 @@ interface CompleteTaskModalProps {
   excludeOutcomes?: string[];
   hideFollowUp?: boolean;
   onSpokeWithLead?: (completionNote?: string) => void;
+  onAppointmentSet?: () => void;
   onSuccess?: (outcome: string) => void;
   preventClose?: boolean;
 }
@@ -95,6 +96,7 @@ export default function CompleteTaskModal({
   excludeOutcomes = [] as string[],
   hideFollowUp = false,
   onSpokeWithLead,
+  onAppointmentSet,
   onSuccess,
   preventClose = false,
 }: CompleteTaskModalProps) {
@@ -225,6 +227,7 @@ export default function CompleteTaskModal({
         ? t.tasks.taskCompletedNext
         : t.tasks.taskCompleted;
       toast({ title: msg });
+      if (isAppointmentSet) onAppointmentSet?.();
       onSuccess?.(outcome);
       onClose();
     },

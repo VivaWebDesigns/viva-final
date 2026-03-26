@@ -2025,6 +2025,7 @@ function ProfileShellInner({
   const spokeWithLeadTaskIdRef = useRef<string | null>(null);
   const spokeWithLeadNoteRef = useRef<string | undefined>(undefined);
   const afterDemoCompletedCallbackRef = useRef<(() => void) | null>(null);
+  const skipContactedMoveRef = useRef(false);
   const [demoOutcomeTask, setDemoOutcomeTask] = useState<ClientTask | null>(null);
 
   const { data: stages } = useQuery<PipelineStage[]>({
@@ -2947,6 +2948,7 @@ function ProfileShellInner({
             onClose={() => {
               spokeWithLeadTaskIdRef.current = null;
               spokeWithLeadNoteRef.current = undefined;
+              skipContactedMoveRef.current = false;
               setContactedPendingStageId(null);
             }}
             task={existingOpenTask}
@@ -2955,11 +2957,14 @@ function ProfileShellInner({
             defaultTaskTitle={`Follow up with ${contact?.firstName ?? ""} ${contact?.lastName ?? ""}`.trim()}
             excludeOutcomes={["badNumber"]}
             hideFollowUp={isFromSpokeWithLead}
-            onSuccess={(selectedOutcome) => {
+            onAppointmentSet={() => { skipContactedMoveRef.current = true; }}
+            onSuccess={() => {
               const taskId = spokeWithLeadTaskIdRef.current;
               const note = spokeWithLeadNoteRef.current;
+              const shouldSkipContactedMove = skipContactedMoveRef.current;
               spokeWithLeadTaskIdRef.current = null;
               spokeWithLeadNoteRef.current = undefined;
+              skipContactedMoveRef.current = false;
               if (taskId) {
                 apiRequest("PUT", `/api/tasks/${taskId}/complete`, {
                   outcome: "Spoke with lead",
@@ -2969,7 +2974,7 @@ function ProfileShellInner({
                   queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
                 }).catch(() => {});
               }
-              if (contactedPendingStageId && selectedOutcome !== "Appointment set") {
+              if (contactedPendingStageId && !shouldSkipContactedMove) {
                 stageMutation.mutate(contactedPendingStageId);
               }
             }}
