@@ -322,8 +322,8 @@ export default function PaymentFollowupModal({
         {path === "wont-pay" && (() => {
           const name = contactName?.trim() || (lang === "es" ? "cliente" : "there");
           const smsText = lang === "es"
-            ? `Hola ${name}, gracias nuevamente por tu tiempo. Si algo cambia o decides avanzar, no dudes en comunicarte con nosotros en info@vivawebdesigns.com. Realmente creo que podemos ayudarte a hacer crecer tu negocio.`
-            : `Hey ${name}, thanks again for your time. If anything changes or you decide to move forward, feel free to reach out at info@vivawebdesigns.com. I truly believe we can help you grow your business.`;
+            ? `Hola ${name}, gracias nuevamente por tu tiempo. Si algo cambia o decides avanzar, no dudes en comunicarte con nosotros en info@vivawebdesigns.com. Creo que podemos ayudarte a hacer crecer tu negocio.`
+            : `Hey ${name}, thanks again for your time. If anything changes or you decide to move forward, feel free to reach out at info@vivawebdesigns.com. I believe we can help you grow your business.`;
 
           return (
             <>
