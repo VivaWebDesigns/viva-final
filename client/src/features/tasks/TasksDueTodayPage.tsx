@@ -15,7 +15,7 @@ import PaymentSentModal from "@/components/PaymentSentModal";
 import PaymentFollowupModal from "@/components/PaymentFollowupModal";
 import type { FollowupTask } from "@shared/schema";
 import { useAdminLang } from "@/i18n/LanguageContext";
-import { renderTaskTitle } from "@/lib/activityI18n";
+import { renderTaskTitle, getStageLabel } from "@/lib/activityI18n";
 import { useAuth } from "@features/auth/useAuth";
 import { useToast } from "@/hooks/use-toast";
 
@@ -52,7 +52,7 @@ function TaskRow({
   onReschedule: (task: TaskWithContact) => void;
   onDelete?: () => void;
   isCompleting: boolean;
-  tTasks: { markComplete: string; reschedule: string; viewOpportunity: string; viewLead: string; automationBadge: string; automationStageLabel: string };
+  tTasks: { markComplete: string; reschedule: string; viewOpportunity: string; viewLead: string; automationBadge: string; automationStageLabel: string; getStageLabel: (slug: string) => string };
   renderTitle: (task: { title: string }) => string;
 }) {
   const contactName = task.contact
@@ -96,7 +96,7 @@ function TaskRow({
               {tTasks.automationBadge}
             </Badge>
             <span className="text-xs text-gray-400">
-              {tTasks.automationStageLabel.replace("{stage}", task.automationMeta.triggerStageSlug.replace(/-/g, " "))}
+              {tTasks.automationStageLabel.replace("{stage}", tTasks.getStageLabel(task.automationMeta.triggerStageSlug))}
             </span>
           </div>
         )}
@@ -377,6 +377,7 @@ export default function TasksDueTodayPage() {
     viewLead: t.tasks.viewLead,
     automationBadge: t.tasks.automationBadge,
     automationStageLabel: t.tasks.automationStageLabel,
+    getStageLabel: (slug: string) => getStageLabel(slug, t),
   };
 
   const tCompleted = {

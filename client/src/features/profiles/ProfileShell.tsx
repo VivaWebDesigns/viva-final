@@ -2843,6 +2843,7 @@ function ProfileShellInner({
                     const { event, fieldName, fromValue, toValue, actorName, note } = evt;
                     const rows: Array<{ label: string; value: string }> = [];
                     const add = (l: string, v: string | null | undefined) => { if (v) rows.push({ label: l, value: v }); };
+                    const act = t.pipeline.activity as Record<string, string>;
 
                     switch (event) {
                       case "status_changed":
@@ -2850,48 +2851,48 @@ function ProfileShellInner({
                       case "field_updated":
                       case "owner_changed":
                       case "service_tier_changed":
-                        add("Field", prettyField(fieldName));
-                        add("From", fromValue);
-                        add("To", toValue);
-                        add("Changed by", actorName);
+                        add(act.field ?? "Field", prettyField(fieldName));
+                        add(act.from ?? "From", fromValue);
+                        add(act.to ?? "To", toValue);
+                        add(act.changedBy ?? "Changed by", actorName);
                         break;
                       case "assigned":
-                        add("Assigned to", toValue);
-                        add("By", actorName);
+                        add(act.assignedTo ?? "Assigned to", toValue);
+                        add(act.by ?? "By", actorName);
                         break;
                       case "task_created":
                       case "task_completed":
                       case "task_reopened":
                       case "task_deleted":
-                        add("Task", note);
-                        add("Notes", toValue);
-                        add("By", actorName);
+                        add(act.task ?? "Task", note);
+                        add(act.notes ?? "Notes", toValue);
+                        add(act.by ?? "By", actorName);
                         break;
                       case "note_added":
                       case "note_deleted":
-                        add("Note", note);
-                        add("By", actorName);
+                        add(act.note ?? "Note", note);
+                        add(act.by ?? "By", actorName);
                         break;
                       case "contact_added":
                       case "contact_updated":
-                        add("Contact", note);
-                        add("By", actorName);
+                        add(act.contact ?? "Contact", note);
+                        add(act.by ?? "By", actorName);
                         break;
                       case "checklist_completed":
                       case "checklist_uncompleted":
-                        add("Item", note);
-                        add("By", actorName);
+                        add(act.item ?? "Item", note);
+                        add(act.by ?? "By", actorName);
                         break;
                       case "billing_event":
-                        add("Detail", note);
-                        add("By", actorName);
+                        add(act.detail ?? "Detail", note);
+                        add(act.by ?? "By", actorName);
                         break;
                       default:
-                        add("Field", prettyField(fieldName));
-                        add("From", fromValue);
-                        add("To", toValue);
-                        add("Detail", note);
-                        add("By", actorName);
+                        add(act.field ?? "Field", prettyField(fieldName));
+                        add(act.from ?? "From", fromValue);
+                        add(act.to ?? "To", toValue);
+                        add(act.detail ?? "Detail", note);
+                        add(act.by ?? "By", actorName);
                     }
                     return rows;
                   };
