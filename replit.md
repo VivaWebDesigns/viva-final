@@ -25,6 +25,12 @@ The admin UI is fully bilingual (EN/ES), built with React, Vite, Tailwind CSS, s
 - **Role-Based Access**: `isRestricted()` function limits `sales_rep` and `lead_gen` to their owned entities.
 - **Performance Optimizations**: Aggregations use grouped `LEFT JOIN`s, pipeline board grouping uses a single-pass `Map`, `refetchOnWindowFocus` for profile hooks, and timeline deduping shares query keys.
 
+### Pipeline Workflow Rules (DO NOT CHANGE WITHOUT EXPLICIT INSTRUCTION)
+- **New Lead stage — "No answer" and "Left voicemail" outcomes**: These are **NOT dead ends**. The server's `AUTO_FOLLOWUP_OUTCOMES` set automatically creates a new "Contact lead" follow-up task due the next day when either of these outcomes is selected. The lead stays at New Lead with a fresh task queued. This behavior is correct and intentional — do not add extra follow-up logic here.
+- **New Lead stage — "Spoke with lead" outcome**: Opens a second non-dismissible modal (general mode). Selecting "Appointment set" in that second modal moves the stage to Demo Scheduled (server-side) and creates a "Record demo outcome" task. The client must NOT also fire the Contacted stage move when "Appointment set" was chosen.
+- **Demo Completed / demo_followup tasks**: Completing any task with `taskType: "demo_outcome"` or `taskType: "demo_followup"`, or any task at the "demo-completed" stage, routes through DemoCompletedModal (not CompleteTaskModal).
+- **Payment Sent stage**: The "Confirm payment receipt" automation template is intentionally **disabled** (`is_active = false`). Only PaymentSentModal creates a follow-up task at this stage. Do not re-enable the automation template.
+
 ### Feature Specifications
 - **Admin CRM/Pipeline**: Manages leads and clients through a 7-stage sales pipeline. Includes manual lead creation, polymorphic follow-up task system with presets, and admin-configurable stage-based task automations.
 - **Demo Builder**: Generates bilingual (EN/ES) preview sites across three tiers and 17 trade categories.
