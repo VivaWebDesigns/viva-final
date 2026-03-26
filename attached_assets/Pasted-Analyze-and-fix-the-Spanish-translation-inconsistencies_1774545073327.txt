@@ -1,0 +1,90 @@
+Analyze and fix the Spanish translation inconsistencies in the CRM task and pipeline UI.
+
+Do not make broad UI changes.
+Do not refactor unrelated code.
+Do not change business logic, stage logic, or task behavior unless required for translation rendering.
+Keep this surgical and non-destructive.
+
+Problem:
+Some CRM areas are still showing English while the app is in Spanish.
+I need you to find the exact source of each untranslated string and fix it properly through the existing i18n system.
+
+Examples visible right now:
+- "Follow up on payment"
+- "payment followup"
+- "Schedule demo"
+- "follow up"
+- "Spoke with lead"
+- "Interested"
+- "No answer"
+- "Healthy"
+- "open"
+- "Contacted"
+- "Sales Rep"
+- "Active less than a minute ago"
+- "Demo Completed"
+- "How did the demo go?"
+- "Ready for payment"
+- "Continue to send the payment link"
+- "Still thinking"
+- "Schedule a follow-up call"
+- "Not interested"
+- "Send a closing message and close the lead"
+- "Cancel"
+
+Important context:
+Some history/activity entries are already in Spanish, so translation is partially working.
+This means the issue is likely a mix of:
+- hardcoded English labels in components
+- status/stage/outcome values being rendered directly instead of mapped through i18n
+- task type badges / pipeline labels not going through translation helpers
+- shared constants using English display strings as stored values
+
+What I want you to do:
+1. Audit every UI surface involved in these screenshots:
+   - lead detail header
+   - task lists
+   - completed task cards
+   - activity/history feed
+   - demo completed modal
+   - badges, chips, outcome labels, stage labels, health/status labels
+2. Identify exactly which strings are hardcoded and which are coming from stored enum/value labels.
+3. Trace how language selection is currently applied.
+4. Fix all untranslated strings by routing them through the existing i18n locale files and translation helpers.
+5. Where stored values are English canonical values, preserve the stored values if needed, but map them to translated display labels in the UI.
+6. Reuse existing translation patterns already present elsewhere in the app.
+7. Add any missing Spanish locale keys cleanly and consistently.
+8. Verify there are no regressions in English mode.
+
+Requirements:
+- Stored DB values must remain stable unless absolutely necessary.
+- UI display in Spanish must be translated.
+- Do not break task completion, stage transitions, modal flows, or history logging.
+- Do not duplicate translation logic in multiple places if a shared helper should be used.
+- Prefer centralized mapping for:
+  - task types
+  - outcomes
+  - pipeline stages
+  - lead status/health labels
+  - role labels
+  - relative activity text
+  - modal option titles/subtitles
+- If badges use slug/enum values, map them to translated display labels.
+- If some values are intentionally canonical in DB, keep them canonical and only translate at render time.
+
+Deliverables:
+1. First give me a short root-cause report:
+   - which components/files were responsible
+   - whether each issue was hardcoded text vs direct enum rendering vs missing locale key
+2. Then make the fixes.
+3. Then give me a concise file-by-file summary of what changed.
+4. Then list any remaining strings that still need product decisions instead of direct translation.
+
+Before changing code:
+Read all relevant files first and understand the full translation flow.
+
+After changes:
+- run typecheck
+- run build if appropriate
+- verify Spanish and English rendering for the affected surfaces
+- confirm no business logic was altered beyond translation plumbing
