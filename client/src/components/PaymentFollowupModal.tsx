@@ -4,6 +4,8 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { resolveRepTimezone } from "@/lib/timezone";
 import { TIME_SLOTS, formatTimeSlot, todayLocalString } from "@/components/QuickTaskModal";
+import { useAdminLang } from "@/i18n/LanguageContext";
+import { Copy, Check } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -36,6 +38,7 @@ interface PaymentFollowupModalProps {
   taskId: string;
   onPaymentReceived: () => void;
   onWontPay: () => void;
+  contactName?: string | null;
 }
 
 export default function PaymentFollowupModal({
@@ -45,8 +48,10 @@ export default function PaymentFollowupModal({
   taskId,
   onPaymentReceived,
   onWontPay,
+  contactName,
 }: PaymentFollowupModalProps) {
   const { toast } = useToast();
+  const { lang } = useAdminLang();
   const repTimezone = resolveRepTimezone();
 
   const [path, setPath] = useState<Path>(null);
@@ -57,6 +62,7 @@ export default function PaymentFollowupModal({
 
   const [countdown, setCountdown] = useState(5);
   const [countdownStarted, setCountdownStarted] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!open) {
@@ -66,6 +72,7 @@ export default function PaymentFollowupModal({
       setFollowUpNotes("");
       setCountdown(5);
       setCountdownStarted(false);
+      setCopied(false);
     }
   }, [open]);
 
@@ -312,37 +319,61 @@ export default function PaymentFollowupModal({
           </>
         )}
 
-        {path === "wont-pay" && (
-          <>
-            <div className="py-2">
-              <div className="rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-800">
-                This will mark the opportunity as Closed Lost. This action cannot be undone without
-                manually moving the stage back.
+        {path === "wont-pay" && (() => {
+          const name = contactName?.trim() || (lang === "es" ? "cliente" : "there");
+          const smsText = lang === "es"
+            ? `Hola ${name}, gracias nuevamente por tu tiempo. Si algo cambia o decides avanzar, no dudes en comunicarte con nosotros en info@vivawebdesigns.com. Nos encantaría tener la oportunidad de trabajar contigo.`
+            : `Hey ${name}, thanks again for your time. If anything changes or you decide to move forward, feel free to reach out at info@vivawebdesigns.com. We'd love the opportunity to work with you.`;
+
+          return (
+            <>
+              <div className="py-2 space-y-3">
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                  {lang === "es" ? "Mensaje de cierre para enviar" : "Closing message to send"}
+                </p>
+                <div className="relative rounded-xl bg-gray-100 dark:bg-gray-800 px-4 py-3 text-sm text-gray-800 dark:text-gray-200 leading-relaxed">
+                  {smsText}
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(smsText).then(() => {
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 2000);
+                      });
+                    }}
+                    className="absolute top-2 right-2 p-1.5 rounded-md text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                    title={lang === "es" ? "Copiar mensaje" : "Copy message"}
+                    data-testid="button-copy-wont-pay-sms"
+                  >
+                    {copied
+                      ? <Check className="w-3.5 h-3.5 text-green-600" />
+                      : <Copy className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
               </div>
-            </div>
-            <DialogFooter className="gap-2 sm:gap-0">
-              <Button
-                variant="outline"
-                onClick={() => { setPath(null); setCountdownStarted(false); setCountdown(5); }}
-                disabled={isPending}
-              >
-                Back
-              </Button>
-              <Button
-                variant="destructive"
-                disabled={countdown > 0 || isPending}
-                onClick={() => wontPayMutation.mutate()}
-                data-testid="button-wont-pay-confirm"
-              >
-                {wontPayMutation.isPending
-                  ? "Closing…"
-                  : countdown > 0
-                  ? `Close Lead (${countdown}s)`
-                  : "Close Lead"}
-              </Button>
-            </DialogFooter>
-          </>
-        )}
+              <DialogFooter className="gap-2 sm:gap-0">
+                <Button
+                  variant="outline"
+                  onClick={() => { setPath(null); setCountdownStarted(false); setCountdown(5); setCopied(false); }}
+                  disabled={isPending}
+                >
+                  {lang === "es" ? "Atrás" : "Back"}
+                </Button>
+                <Button
+                  variant="destructive"
+                  disabled={countdown > 0 || isPending}
+                  onClick={() => wontPayMutation.mutate()}
+                  data-testid="button-wont-pay-confirm"
+                >
+                  {wontPayMutation.isPending
+                    ? (lang === "es" ? "Cerrando…" : "Closing…")
+                    : countdown > 0
+                    ? (lang === "es" ? `Cerrar lead (${countdown}s)` : `Close Lead (${countdown}s)`)
+                    : (lang === "es" ? "Cerrar lead" : "Close Lead")}
+                </Button>
+              </DialogFooter>
+            </>
+          );
+        })()}
       </DialogContent>
     </Dialog>
   );

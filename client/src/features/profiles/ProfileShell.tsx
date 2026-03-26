@@ -3061,6 +3061,7 @@ function ProfileShellInner({
           onClose={() => setPaymentFollowupTask(null)}
           opportunityId={activeOpp.id}
           taskId={paymentFollowupTask.id}
+          contactName={contact?.firstName ?? null}
           onPaymentReceived={() => {
             const closedWonStage = stages?.find(s => s.slug === "closed-won");
             if (closedWonStage) stageMutation.mutate(closedWonStage.id);

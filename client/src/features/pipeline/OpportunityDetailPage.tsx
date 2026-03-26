@@ -1035,6 +1035,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
           onClose={() => setPaymentFollowupTask(null)}
           opportunityId={id}
           taskId={paymentFollowupTask.id}
+          contactName={contact?.firstName ?? null}
           onPaymentReceived={() => {
             const closedWonStage = stages?.find(s => s.slug === "closed-won");
             if (closedWonStage) stageMutation.mutate(closedWonStage.id);

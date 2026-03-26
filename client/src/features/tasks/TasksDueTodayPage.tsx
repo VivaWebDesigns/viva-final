@@ -729,6 +729,7 @@ export default function TasksDueTodayPage() {
           onClose={() => setPaymentFollowupTask(null)}
           opportunityId={paymentFollowupTask.opportunityId}
           taskId={paymentFollowupTask.id}
+          contactName={paymentFollowupTask.contact?.firstName ?? null}
           onPaymentReceived={() => {
             const closedWonStage = stages?.find(s => s.slug === "closed-won");
             if (closedWonStage && paymentFollowupTask.opportunityId) {
