@@ -11,6 +11,7 @@ import { sanitizeHtml } from "@/features/chat/RichTextEditor";
 import QuickTaskModal, { formatTaskTimeDisplay } from "@/components/QuickTaskModal";
 import CompleteTaskModal from "@/components/CompleteTaskModal";
 import DemoCompletedModal from "@/components/DemoCompletedModal";
+import PaymentSentModal from "@/components/PaymentSentModal";
 import type { FollowupTask } from "@shared/schema";
 import { useAdminLang } from "@/i18n/LanguageContext";
 import { renderTaskTitle } from "@/lib/activityI18n";
@@ -290,6 +291,9 @@ export default function TasksDueTodayPage() {
   const spokeWithLeadNoteRef = useRef<string | undefined>(undefined);
   const [demoOutcomeTask, setDemoOutcomeTask] = useState<TaskWithContact | null>(null);
   const [demoCompletedPendingStageId, setDemoCompletedPendingStageId] = useState<string | null>(null);
+  const [paymentSentPendingOppId, setPaymentSentPendingOppId] = useState<string | null>(null);
+  const [paymentSentPendingStageId, setPaymentSentPendingStageId] = useState<string | null>(null);
+  const afterDemoCompletedCallbackRef = useRef<(() => void) | null>(null);
 
   const invalidateTaskCaches = useCallback((task?: TaskWithContact | null) => {
     queryClient.invalidateQueries({ queryKey: ["/api/tasks/due-today"] });
@@ -316,6 +320,11 @@ export default function TasksDueTodayPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks/due-today"] });
       queryClient.invalidateQueries({ queryKey: ["/api/tasks/completed-history"] });
       queryClient.invalidateQueries({ queryKey: ["/api/profiles", "opportunity", oppId] });
+      if (afterDemoCompletedCallbackRef.current) {
+        const cb = afterDemoCompletedCallbackRef.current;
+        afterDemoCompletedCallbackRef.current = null;
+        cb();
+      }
     },
   });
 
@@ -657,6 +666,12 @@ export default function TasksDueTodayPage() {
           onReadyForPayment={() => {
             const paymentSentStage = stages?.find(s => s.slug === "payment-sent");
             const task = demoOutcomeTask;
+            if (paymentSentStage && task.opportunityId) {
+              afterDemoCompletedCallbackRef.current = () => {
+                setPaymentSentPendingOppId(task.opportunityId!);
+                setPaymentSentPendingStageId(paymentSentStage.id);
+              };
+            }
             apiRequest("PUT", `/api/tasks/${task.id}/complete`, {}).then(() => {
               invalidateTaskCaches(task);
             }).catch(() => {});
@@ -665,11 +680,6 @@ export default function TasksDueTodayPage() {
               stageMutation.mutate({ oppId: task.opportunityId, stageId: demoCompletedPendingStageId });
             }
             setDemoCompletedPendingStageId(null);
-            if (paymentSentStage && task.opportunityId) {
-              setTimeout(() => {
-                stageMutation.mutate({ oppId: task.opportunityId!, stageId: paymentSentStage.id });
-              }, 600);
-            }
           }}
           onDemoCompleted={() => {
             const task = demoOutcomeTask;
@@ -693,6 +703,22 @@ export default function TasksDueTodayPage() {
               stageMutation.mutate({ oppId: task.opportunityId, stageId: closedLostStage.id });
             }
             setDemoCompletedPendingStageId(null);
+          }}
+        />
+      )}
+
+      {paymentSentPendingOppId && paymentSentPendingStageId && (
+        <PaymentSentModal
+          open={true}
+          onClose={() => {
+            setPaymentSentPendingOppId(null);
+            setPaymentSentPendingStageId(null);
+          }}
+          opportunityId={paymentSentPendingOppId}
+          onSuccess={() => {
+            if (paymentSentPendingOppId && paymentSentPendingStageId) {
+              stageMutation.mutate({ oppId: paymentSentPendingOppId, stageId: paymentSentPendingStageId });
+            }
           }}
         />
       )}
