@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAdminLang } from "@/i18n/LanguageContext";
 import { formatTimeSlot, TIME_SLOTS } from "@/components/QuickTaskModal";
 
 function tomorrowLocalString(): string {
@@ -45,9 +46,6 @@ interface DemoCompletedModalProps {
   onClosedLost: () => void;
 }
 
-const CLOSING_SMS = (name: string) =>
-  `Hi ${name || "there"}, thank you for your time speaking with us. We appreciate the opportunity and hope we can work together in the future. Don't hesitate to reach out anytime. — Viva Web Designs (980) 949-0548`;
-
 export default function DemoCompletedModal({
   open,
   onClose,
@@ -59,6 +57,8 @@ export default function DemoCompletedModal({
   onClosedLost,
 }: DemoCompletedModalProps) {
   const { toast } = useToast();
+  const { t } = useAdminLang();
+  const dc = t.demoCompleted;
 
   const [outcome, setOutcome] = useState<Outcome | null>(null);
 
@@ -89,8 +89,8 @@ export default function DemoCompletedModal({
 
   useEffect(() => {
     if (!countdownStarted || countdown <= 0) return;
-    const t = setTimeout(() => setCountdown((c) => c - 1), 1000);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setCountdown((c) => c - 1), 1000);
+    return () => clearTimeout(timer);
   }, [countdownStarted, countdown]);
 
   const taskMutation = useMutation({
@@ -113,7 +113,7 @@ export default function DemoCompletedModal({
       onClose();
     },
     onError: (err: Error) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: t.common.error, description: err.message, variant: "destructive" });
     },
   });
 
@@ -136,7 +136,8 @@ export default function DemoCompletedModal({
     onClose();
   };
 
-  const smsText = CLOSING_SMS(contactName.split(" ")[0] || contactName);
+  const firstName = contactName.split(" ")[0] || contactName;
+  const smsText = dc.closingSms.replace("{{name}}", firstName);
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
@@ -147,9 +148,9 @@ export default function DemoCompletedModal({
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
         <DialogHeader>
-          <DialogTitle data-testid="text-demo-completed-title">Demo Completed</DialogTitle>
+          <DialogTitle data-testid="text-demo-completed-title">{dc.title}</DialogTitle>
           <p className="text-sm text-gray-500 mt-1">
-            How did the demo go?
+            {dc.subtitle}
           </p>
         </DialogHeader>
 
@@ -163,8 +164,8 @@ export default function DemoCompletedModal({
                 data-testid="button-demo-outcome-payment"
               >
                 <div className="text-left">
-                  <div className="font-medium text-green-700">Ready for payment</div>
-                  <div className="text-xs text-gray-500 mt-0.5">Continue to send the payment link</div>
+                  <div className="font-medium text-green-700">{dc.outcomePayment}</div>
+                  <div className="text-xs text-gray-500 mt-0.5">{dc.outcomePaymentSub}</div>
                 </div>
               </Button>
               <Button
@@ -174,8 +175,8 @@ export default function DemoCompletedModal({
                 data-testid="button-demo-outcome-thinking"
               >
                 <div className="text-left">
-                  <div className="font-medium text-amber-700">Still thinking</div>
-                  <div className="text-xs text-gray-500 mt-0.5">Schedule a follow-up call</div>
+                  <div className="font-medium text-amber-700">{dc.outcomeThinking}</div>
+                  <div className="text-xs text-gray-500 mt-0.5">{dc.outcomeThinkingSub}</div>
                 </div>
               </Button>
               <Button
@@ -185,14 +186,14 @@ export default function DemoCompletedModal({
                 data-testid="button-demo-outcome-lost"
               >
                 <div className="text-left">
-                  <div className="font-medium text-red-700">Not interested</div>
-                  <div className="text-xs text-gray-500 mt-0.5">Send a closing message and close the lead</div>
+                  <div className="font-medium text-red-700">{dc.outcomeNotInterested}</div>
+                  <div className="text-xs text-gray-500 mt-0.5">{dc.outcomeNotInterestedSub}</div>
                 </div>
               </Button>
             </div>
             <DialogFooter>
               <Button variant="ghost" onClick={onClose} data-testid="button-demo-cancel">
-                Cancel
+                {t.common.cancel}
               </Button>
             </DialogFooter>
           </>
@@ -202,19 +203,19 @@ export default function DemoCompletedModal({
           <>
             <div className="py-2 space-y-3">
               <div className="rounded-md bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-800">
-                Great news! This lead is ready to move forward with payment. Confirm below to proceed to the next step.
+                {dc.readyForPaymentMsg}
               </div>
             </div>
             <DialogFooter className="gap-2 sm:gap-0">
               <Button variant="outline" onClick={() => setOutcome(null)} data-testid="button-payment-back">
-                Back
+                {t.common.back}
               </Button>
               <Button
                 className="bg-green-600 hover:bg-green-700 text-white"
                 onClick={handleReadyForPaymentConfirm}
                 data-testid="button-payment-confirm"
               >
-                Confirm &amp; Proceed
+                {dc.confirmProceed}
               </Button>
             </DialogFooter>
           </>
@@ -224,7 +225,7 @@ export default function DemoCompletedModal({
           <>
             <div className="space-y-4 py-2">
               <div className="space-y-1">
-                <Label htmlFor="fu-date">Follow-up Date <span className="text-red-500">*</span></Label>
+                <Label htmlFor="fu-date">{dc.followUpDate} <span className="text-red-500">*</span></Label>
                 <Input
                   id="fu-date"
                   type="date"
@@ -235,12 +236,12 @@ export default function DemoCompletedModal({
               </div>
               <div className="space-y-1">
                 <Label htmlFor="fu-time">
-                  Follow-up Time{" "}
-                  <span className="text-gray-400 text-xs font-normal">(optional)</span>
+                  {dc.followUpTime}{" "}
+                  <span className="text-gray-400 text-xs font-normal">({t.common.optional.toLowerCase()})</span>
                 </Label>
                 <Select value={followUpTime} onValueChange={setFollowUpTime}>
                   <SelectTrigger id="fu-time" data-testid="select-followup-time">
-                    <SelectValue placeholder="Select time" />
+                    <SelectValue placeholder={dc.selectTime} />
                   </SelectTrigger>
                   <SelectContent>
                     {TIME_SLOTS.map((slot) => (
@@ -253,14 +254,14 @@ export default function DemoCompletedModal({
               </div>
               <div className="space-y-1">
                 <Label htmlFor="fu-notes">
-                  Notes{" "}
-                  <span className="text-gray-400 text-xs font-normal">(optional)</span>
+                  {dc.notes}{" "}
+                  <span className="text-gray-400 text-xs font-normal">({t.common.optional.toLowerCase()})</span>
                 </Label>
                 <Textarea
                   id="fu-notes"
                   value={followUpNotes}
                   onChange={(e) => setFollowUpNotes(e.target.value)}
-                  placeholder="What to discuss on the follow-up call..."
+                  placeholder={dc.notesPlaceholder}
                   rows={2}
                   data-testid="textarea-followup-notes"
                 />
@@ -268,14 +269,14 @@ export default function DemoCompletedModal({
             </div>
             <DialogFooter className="gap-2 sm:gap-0">
               <Button variant="outline" onClick={() => setOutcome(null)} disabled={taskMutation.isPending}>
-                Back
+                {t.common.back}
               </Button>
               <Button
                 onClick={handleStillThinkingSubmit}
                 disabled={taskMutation.isPending || !followUpDate}
                 data-testid="button-save-followup"
               >
-                {taskMutation.isPending ? "Saving…" : "Save & Move"}
+                {taskMutation.isPending ? t.common.saving : dc.saveAndMove}
               </Button>
             </DialogFooter>
           </>
@@ -286,12 +287,12 @@ export default function DemoCompletedModal({
             <div className="space-y-4 py-2">
               {contactPhone && (
                 <div className="space-y-1">
-                  <Label className="text-xs text-gray-500 uppercase tracking-wide">Lead's Phone</Label>
+                  <Label className="text-xs text-gray-500 uppercase tracking-wide">{dc.leadsPhone}</Label>
                   <p className="text-sm font-medium" data-testid="text-lead-phone">{contactPhone}</p>
                 </div>
               )}
               <div className="space-y-1">
-                <Label className="text-xs text-gray-500 uppercase tracking-wide">Closing Message</Label>
+                <Label className="text-xs text-gray-500 uppercase tracking-wide">{dc.closingMessage}</Label>
                 <div
                   className="text-sm bg-gray-50 border border-gray-200 rounded px-3 py-2 leading-relaxed"
                   data-testid="text-closing-sms"
@@ -299,13 +300,13 @@ export default function DemoCompletedModal({
                   {smsText}
                 </div>
                 <p className="text-xs text-gray-400">
-                  Send this message manually from your phone before confirming.
+                  {dc.sendManuallyHint}
                 </p>
               </div>
             </div>
             <DialogFooter className="gap-2 sm:gap-0">
               <Button variant="outline" onClick={() => { setOutcome(null); setCountdownStarted(false); setCountdown(5); }}>
-                Back
+                {t.common.back}
               </Button>
               <Button
                 variant="destructive"
@@ -313,7 +314,9 @@ export default function DemoCompletedModal({
                 onClick={handleNotInterestedConfirm}
                 data-testid="button-message-sent"
               >
-                {countdown > 0 ? `Message sent (${countdown}s)` : "Message sent — Close Lead"}
+                {countdown > 0
+                  ? dc.messageSentCountdown.replace("{{n}}", String(countdown))
+                  : dc.messageSentCloseLead}
               </Button>
             </DialogFooter>
           </>

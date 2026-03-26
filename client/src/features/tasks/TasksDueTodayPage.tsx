@@ -386,6 +386,9 @@ export default function TasksDueTodayPage() {
   };
 
   const outcomeLabels: Record<string, string> = {
+    noAnswer: t.tasks.outcomes.noAnswer,
+    leftVoicemail: t.tasks.outcomes.leftVoicemail,
+    spokeWithLead: t.tasks.outcomes.spokeWithLead,
     interested: t.tasks.outcomes.interested,
     uncertain: t.tasks.outcomes.uncertain,
     notInterested: t.tasks.outcomes.notInterested,

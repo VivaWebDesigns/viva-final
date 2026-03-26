@@ -50,6 +50,7 @@ import { apiRequest, queryClient, STALE } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAdminLang } from "@/i18n/LanguageContext";
 import type { AdminTranslations } from "@/i18n/locales/en";
+import { getStageLabel, getOutcomeLabel } from "@/lib/activityI18n";
 import { useUnifiedProfile, useInfiniteTimeline, PROFILE_KEYS } from "./hooks";
 import { useAuth } from "@features/auth/useAuth";
 import { EditCompanyDialog } from "./edit/EditCompanyDialog";
@@ -186,11 +187,11 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-const HEALTH_STYLE: Record<ProfileHealth, { label: string; className: string }> = {
-  healthy:  { label: "Healthy",  className: "bg-emerald-100 text-emerald-700 border-emerald-200" },
-  at_risk:  { label: "At Risk",  className: "bg-amber-100 text-amber-700 border-amber-200" },
-  stale:    { label: "Stale",    className: "bg-red-100 text-red-700 border-red-200" },
-  unknown:  { label: "Unknown",  className: "bg-gray-100 text-gray-600 border-gray-200" },
+const HEALTH_CLASS: Record<ProfileHealth, string> = {
+  healthy: "bg-emerald-100 text-emerald-700 border-emerald-200",
+  at_risk: "bg-amber-100 text-amber-700 border-amber-200",
+  stale:   "bg-red-100 text-red-700 border-red-200",
+  unknown: "bg-gray-100 text-gray-600 border-gray-200",
 };
 
 const TIMELINE_ICON: Record<TimelineEventType, typeof MessageSquare> = {
@@ -351,8 +352,15 @@ export interface ProfileHeaderProps {
 }
 
 export function ProfileHeader({ entry, company, derived }: ProfileHeaderProps) {
-  const health = HEALTH_STYLE[derived.health] ?? HEALTH_STYLE.unknown;
+  const { t } = useAdminLang();
+  const healthClass = HEALTH_CLASS[derived.health] ?? HEALTH_CLASS.unknown;
+  const healthLabel = (t.clients.healthOptions as Record<string, string>)[derived.health] ?? derived.health;
   const contextLabel = CONTEXT_LABEL[entry.type];
+
+  const statusLabel = derived.status
+    ? ((t.crm.statusNames as Record<string, string>)[derived.status]
+      ?? (derived.status === "open" ? t.pipeline.statusOpen : derived.status.replace(/_/g, " ")))
+    : null;
 
   return (
     <div className="flex flex-col gap-1" data-testid="profile-header">
@@ -376,19 +384,19 @@ export function ProfileHeader({ entry, company, derived }: ProfileHeaderProps) {
       </div>
 
       <div className="flex items-center gap-2 flex-wrap mt-1">
-        <Badge className={health.className} data-testid={`badge-health-${derived.health}`}>
-          {health.label}
+        <Badge className={healthClass} data-testid={`badge-health-${derived.health}`}>
+          {healthLabel}
         </Badge>
 
-        {derived.status && (
+        {statusLabel && (
           <Badge variant="outline" data-testid="badge-derived-status">
-            {derived.status.replace(/_/g, " ")}
+            {statusLabel}
           </Badge>
         )}
 
         {derived.stage && (
           <Badge className="bg-violet-100 text-violet-700 border-violet-200" data-testid="badge-derived-stage">
-            {derived.stage}
+            {getStageLabel(derived.stage, t)}
           </Badge>
         )}
 
@@ -841,6 +849,7 @@ export interface TasksCardProps {
 }
 
 function ProfileTaskRow({ task }: { task: MappedTask }) {
+  const { t } = useAdminLang();
   const isOverdue = !task.completed && new Date(task.dueDate) < new Date();
 
   return (
@@ -872,7 +881,7 @@ function ProfileTaskRow({ task }: { task: MappedTask }) {
           </span>
           {task.taskType && (
             <Badge variant="outline" className="text-xs py-0">
-              {task.taskType.replace(/_/g, " ")}
+              {(t.profileShell.taskTypes as Record<string, string>)[task.taskType] ?? task.taskType.replace(/_/g, " ")}
             </Badge>
           )}
           {task.automationMeta && (
@@ -1821,12 +1830,12 @@ function ClientTaskRow({ task, onComplete, onToggle, onReschedule, onDelete, can
           </p>
           {task.taskType && (
             <Badge className={`text-[10px] px-1.5 ${TASK_TYPE_COLORS[task.taskType] || "bg-gray-100 text-gray-700"}`}>
-              {task.taskType.replace("_", " ")}
+              {(t.profileShell.taskTypes as Record<string, string>)[task.taskType] ?? task.taskType.replace(/_/g, " ")}
             </Badge>
           )}
           {isDone && task.outcome && (
             <Badge variant="secondary" className="text-[10px] px-1.5">
-              {task.outcome}
+              {getOutcomeLabel(task.outcome, t)}
             </Badge>
           )}
         </div>

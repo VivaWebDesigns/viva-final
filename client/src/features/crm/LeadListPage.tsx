@@ -206,7 +206,7 @@ export default function LeadListPage() {
       apiRequest("POST", "/api/crm/leads/bulk/delete", { ids: [id] }),
     onSuccess: async () => {
       await invalidateLeads();
-      toast({ title: t.crm.deleted ?? "Lead deleted" });
+      toast({ title: t.crm.deleted });
       setDeleteConfirmLeadId(null);
     },
     onError: (e: any) => toast({ title: t.common.error, description: e.message, variant: "destructive" }),
