@@ -551,6 +551,8 @@ export const en = {
     saving: "Saving...",
     cancel: "Cancel",
     followUpOnPayment: "Follow up on payment",
+    contactLead: "Contact lead",
+    scheduleDemo: "Schedule demo",
     taskCreated: "Task scheduled",
     taskUpdated: "Task updated",
     taskCompleted: "Task completed",

@@ -1,0 +1,98 @@
+Analyze and fix the remaining Spanish translation issues across the CRM task system and any directly related pipeline/task activity surfaces.
+
+Do not refactor unrelated areas.
+Do not make UI design changes.
+Do not change task behavior, workflow logic, automation logic, stage logic, or DB schema unless absolutely required for translation display.
+Keep this tight, surgical, and non-destructive.
+
+Problem:
+Spanish mode is still showing English in multiple CRM task-related surfaces.
+The examples I showed are only samples. Assume the issue is likely broader and audit the full task-domain rendering path rather than only patching the exact examples.
+
+Observed examples:
+- task titles like "Contact lead"
+- task type badges like "call"
+- task descriptions like "Reach out to the lead for the first time..."
+- activity/detail labels and task summary content like:
+  - "Task"
+  - "Outcome"
+  - "Note"
+  - "Contact lead · Outcome: No answer · Note: ..."
+- any other task-template, task-metadata, or task-history strings still rendering in English in Spanish mode
+
+What I need:
+Audit the entire task-related translation flow and fix the root pattern, not just isolated labels.
+
+Your job:
+1. Read all files related to:
+   - task cards / task list rendering
+   - completed task rendering
+   - task badges / task type labels
+   - task title + description generation
+   - task automation/template generation
+   - activity/history feed rendering for tasks
+   - follow-up/task creation flows
+   - shared task label helpers / mappings / constants
+   - any CRM lead detail surfaces that render task-derived text
+2. Search for all direct renders of task-domain strings, including:
+   - task.title
+   - task.description
+   - task.type
+   - task.category
+   - task template labels
+   - activity.details / summary fields
+   - any hardcoded English task strings
+   - any direct rendering of canonical enum/slug values
+3. Identify which strings come from:
+   - raw stored DB values
+   - task template constants
+   - hardcoded strings
+   - activity log formatting code
+   - direct rendering of canonical enum/slug values
+4. Explain the exact common root cause before changing code.
+
+Implementation requirements:
+- Preserve stable canonical stored values in the DB if used for logic.
+- Translate at render time where appropriate.
+- If task templates currently store English display text, do not blindly rewrite business data; instead create proper display mapping where possible.
+- Centralize translation for task-domain labels so the same task key/type/template renders correctly everywhere.
+- Reuse the existing i18n system and locale files.
+- Avoid duplicating mapping logic in multiple components.
+- If activity history is currently saving prebuilt English strings, check whether it can safely render from structured fields instead.
+- If not, make the minimum safe fix and clearly note any limitations.
+
+Specific things to verify and fix:
+- task title display
+- task description display
+- task type badge display
+- activity row field labels such as Task / Outcome / Note / By
+- composed task history summaries
+- any auto-generated task text from CRM follow-up/task creation flows
+- any task-derived labels shown on lead detail screens
+- any remaining English task strings visible anywhere in Spanish mode
+
+Important:
+The translated parts already working, like outcome badges such as "Sin respuesta", suggest that some mappings already exist.
+Find where those working mappings live and extend that same pattern to the remaining task-domain content.
+
+Deliverables:
+1. First give me a short root-cause report:
+   - exactly what all remaining untranslated strings have in common
+   - which files/components/helpers are responsible
+   - whether the issue is raw stored values, template constants, history formatting, or missing locale usage
+2. Then implement the fix.
+3. Then give me a concise file-by-file summary.
+4. Then list any remaining strings that cannot be fully translated without a product/data-model decision.
+
+Guardrails:
+- no broad cleanup
+- no styling changes
+- no new abstractions unless clearly justified
+- no breaking existing task creation/completion/history flows
+- no fake translation by overwriting canonical values used for logic
+
+After changes:
+- run typecheck
+- run build if appropriate
+- verify Spanish mode on the affected surfaces
+- verify English mode still renders correctly

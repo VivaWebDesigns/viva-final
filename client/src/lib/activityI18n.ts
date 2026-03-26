@@ -73,10 +73,18 @@ export function getActivityTypeLabel(type: string, t: AdminTranslations): string
 
 const FOLLOW_UP_WITH_PREFIX = "Follow up with ";
 const FOLLOW_UP_ON_PAYMENT = "Follow up on payment";
+const CONTACT_LEAD = "Contact lead";
+const SCHEDULE_DEMO = "Schedule demo";
+
+const TASK_TITLE_MAP: Array<[string, (t: AdminTranslations) => string]> = [
+  [FOLLOW_UP_ON_PAYMENT, (t) => t.tasks.followUpOnPayment ?? FOLLOW_UP_ON_PAYMENT],
+  [CONTACT_LEAD,         (t) => t.tasks.contactLead ?? CONTACT_LEAD],
+  [SCHEDULE_DEMO,        (t) => t.tasks.scheduleDemo ?? SCHEDULE_DEMO],
+];
 
 export function renderTaskTitle(task: { title: string }, t: AdminTranslations): string {
-  if (task.title === FOLLOW_UP_ON_PAYMENT) {
-    return t.tasks.followUpOnPayment ?? FOLLOW_UP_ON_PAYMENT;
+  for (const [canonical, fn] of TASK_TITLE_MAP) {
+    if (task.title === canonical) return fn(t);
   }
   if (task.title.startsWith(FOLLOW_UP_WITH_PREFIX)) {
     const name = task.title.slice(FOLLOW_UP_WITH_PREFIX.length);
@@ -145,7 +153,8 @@ export function renderActivityContent(act: ActivityRecord, t: AdminTranslations)
       const parts: string[] = [];
       const taskCompletedLabel = activity.taskCompleted ?? "Task completed";
       if (meta.taskTitle) {
-        parts.push(`${taskCompletedLabel}: ${meta.taskTitle}`);
+        const translatedTitle = renderTaskTitle({ title: meta.taskTitle }, t);
+        parts.push(`${taskCompletedLabel}: ${translatedTitle}`);
       } else {
         parts.push(taskCompletedLabel);
       }

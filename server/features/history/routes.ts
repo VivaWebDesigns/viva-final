@@ -64,6 +64,7 @@ router.get("/client/:entityId", requireRole("admin", "developer", "sales_rep"), 
       fromValue?: string | null;
       toValue?: string | null;
       note?: string | null;
+      metadata?: Record<string, unknown> | null;
       createdAt: string;
     };
 
@@ -128,6 +129,7 @@ router.get("/client/:entityId", requireRole("admin", "developer", "sales_rep"), 
         fromValue: null,
         toValue: null,
         note,
+        metadata: (metaEvent === "task_completed" || metaEvent === "follow_up_scheduled") ? (n.metadata as Record<string, unknown>) : null,
         createdAt: n.createdAt.toISOString(),
       });
     }
@@ -166,6 +168,7 @@ router.get("/client/:entityId", requireRole("admin", "developer", "sales_rep"), 
         fromValue,
         toValue,
         note,
+        metadata: (metaEvent === "task_completed" || metaEvent === "follow_up_scheduled") ? (a.metadata as Record<string, unknown>) : null,
         createdAt: a.createdAt.toISOString(),
       });
     }

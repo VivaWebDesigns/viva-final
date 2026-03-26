@@ -553,6 +553,8 @@ export const es: AdminTranslations = {
     saving: "Guardando...",
     cancel: "Cancelar",
     followUpOnPayment: "Seguimiento de pago",
+    contactLead: "Contactar prospecto",
+    scheduleDemo: "Programar demo",
     taskCreated: "Tarea programada",
     taskUpdated: "Tarea actualizada",
     taskCompleted: "Tarea completada",

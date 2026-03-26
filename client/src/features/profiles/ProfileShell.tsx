@@ -50,7 +50,7 @@ import { apiRequest, queryClient, STALE } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAdminLang } from "@/i18n/LanguageContext";
 import type { AdminTranslations } from "@/i18n/locales/en";
-import { getStageLabel, getOutcomeLabel } from "@/lib/activityI18n";
+import { getStageLabel, getOutcomeLabel, renderTaskTitle, renderActivityContent } from "@/lib/activityI18n";
 import { useUnifiedProfile, useInfiniteTimeline, PROFILE_KEYS } from "./hooks";
 import { useAuth } from "@features/auth/useAuth";
 import { EditCompanyDialog } from "./edit/EditCompanyDialog";
@@ -869,7 +869,7 @@ function ProfileTaskRow({ task }: { task: MappedTask }) {
           className={`text-sm font-medium truncate ${task.completed ? "line-through text-gray-400" : "text-gray-800"}`}
           data-testid={`text-task-title-${task.id}`}
         >
-          {task.title}
+          {renderTaskTitle(task, t)}
         </p>
         <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-400">
           <Clock className="w-3 h-3" />
@@ -1826,7 +1826,7 @@ function ClientTaskRow({ task, onComplete, onToggle, onReschedule, onDelete, can
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <p className={`text-sm font-medium ${isDone ? "line-through text-gray-400" : "text-gray-900"}`} data-testid={`task-title-${task.id}`}>
-            {task.title}
+            {renderTaskTitle(task, t)}
           </p>
           {task.taskType && (
             <Badge className={`text-[10px] px-1.5 ${TASK_TYPE_COLORS[task.taskType] || "bg-gray-100 text-gray-700"}`}>
@@ -2078,6 +2078,7 @@ function ProfileShellInner({
     id: string; event: string; entityType: string; entityId: string;
     fieldName: string | null; fromValue: string | null; toValue: string | null;
     actorId: string | null; actorName: string | null; note: string | null;
+    metadata?: Record<string, unknown> | null;
     createdAt: string;
   }[]>({
     queryKey: ["/api/history/client", companyId],
@@ -2860,11 +2861,25 @@ function ProfileShellInner({
                         add(act.assignedTo ?? "Assigned to", toValue);
                         add(act.by ?? "By", actorName);
                         break;
+                      case "task_completed": {
+                        const taskMeta = evt.metadata;
+                        if (taskMeta?.event === "task_completed") {
+                          const rendered = renderActivityContent({ type: "task", content: note ?? "", metadata: taskMeta }, t);
+                          add(act.task ?? "Task", rendered);
+                        } else {
+                          add(act.task ?? "Task", note ? renderTaskTitle({ title: note }, t) : note);
+                        }
+                        add(act.by ?? "By", actorName);
+                        break;
+                      }
                       case "task_created":
-                      case "task_completed":
+                        add(act.task ?? "Task", note ? renderTaskTitle({ title: note }, t) : note);
+                        add(act.notes ?? "Notes", toValue);
+                        add(act.by ?? "By", actorName);
+                        break;
                       case "task_reopened":
                       case "task_deleted":
-                        add(act.task ?? "Task", note);
+                        add(act.task ?? "Task", note ? renderTaskTitle({ title: note }, t) : note);
                         add(act.notes ?? "Notes", toValue);
                         add(act.by ?? "By", actorName);
                         break;
