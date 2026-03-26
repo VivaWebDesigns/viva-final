@@ -72,6 +72,7 @@ export default function LeadListPage() {
   const [bulkTagIds, setBulkTagIds] = useState<string[]>([]);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [deleteConfirmLeadId, setDeleteConfirmLeadId] = useState<string | null>(null);
 
   const { data: statuses = [] } = useQuery<CrmLeadStatus[]>({
     queryKey: ["/api/crm/statuses"],
@@ -196,6 +197,17 @@ export default function LeadListPage() {
       await invalidateLeads();
       toast({ title: selectedLabel });
       clearSelection(); closeBulkDialog();
+    },
+    onError: (e: any) => toast({ title: t.common.error, description: e.message, variant: "destructive" }),
+  });
+
+  const singleDeleteMutation = useMutation({
+    mutationFn: (id: string) =>
+      apiRequest("POST", "/api/crm/leads/bulk/delete", { ids: [id] }),
+    onSuccess: async () => {
+      await invalidateLeads();
+      toast({ title: t.crm.deleted ?? "Lead deleted" });
+      setDeleteConfirmLeadId(null);
     },
     onError: (e: any) => toast({ title: t.common.error, description: e.message, variant: "destructive" }),
   });
@@ -536,6 +548,15 @@ export default function LeadListPage() {
                           <span className="text-xs text-gray-400 hidden sm:inline">
                             {new Date(lead.createdAt).toLocaleDateString()}
                           </span>
+                          {isAdmin && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setDeleteConfirmLeadId(lead.id); }}
+                              className="p-1 rounded text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                              data-testid={`button-delete-lead-${lead.id}`}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                           <ChevronRight className="w-4 h-4 text-gray-300" />
                         </div>
                       </div>
@@ -724,6 +745,38 @@ export default function LeadListPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {deleteConfirmLeadId && (() => {
+        const lead = leads.find(l => l.id === deleteConfirmLeadId);
+        const displayName = lead ? getLeadDisplayTitle(lead) : "this lead";
+        return (
+          <Dialog open={true} onOpenChange={(v) => { if (!v) setDeleteConfirmLeadId(null); }}>
+            <DialogContent className="max-w-sm">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-red-600">
+                  <AlertTriangle className="w-5 h-5" />
+                  Delete Lead
+                </DialogTitle>
+              </DialogHeader>
+              <div className="py-2 text-sm text-gray-600 dark:text-gray-400 space-y-2">
+                <p>Are you sure you want to delete <span className="font-medium text-gray-900 dark:text-gray-100">{displayName}</span>?</p>
+                <p className="text-red-600 font-medium">{t.crm.deleteIrreversible}</p>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setDeleteConfirmLeadId(null)}>{t.common.cancel}</Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => singleDeleteMutation.mutate(deleteConfirmLeadId)}
+                  disabled={singleDeleteMutation.isPending}
+                  data-testid="button-confirm-single-delete"
+                >
+                  {singleDeleteMutation.isPending ? t.crm.deleting : "Delete Lead"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        );
+      })()}
     </div>
   );
 }
