@@ -21,15 +21,6 @@ const DEFAULT_TEMPLATES = [
     taskType: "follow_up",
     sortOrder: 0,
   },
-  {
-    triggerStageSlug: "payment-sent",
-    title: "Confirm payment receipt",
-    description: "Follow up to confirm the client received and can access the payment invoice.",
-    dueOffsetDays: 1,
-    priority: "medium" as const,
-    taskType: "follow_up",
-    sortOrder: 0,
-  },
 ];
 
 export async function seedAutomationTemplates(): Promise<Record<string, unknown>> {
