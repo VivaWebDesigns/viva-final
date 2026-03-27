@@ -13,9 +13,11 @@ import { useLocation } from "wouter";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ProfileShell from "./ProfileShell";
+import { useAdminLang } from "@/i18n/LanguageContext";
 
 export default function OpportunityProfilePage({ id }: { id: string }) {
   const [, navigate] = useLocation();
+  const { t } = useAdminLang();
 
   return (
     <div className="h-full flex flex-col overflow-hidden" data-testid={`page-opportunity-profile-${id}`}>
@@ -29,7 +31,7 @@ export default function OpportunityProfilePage({ id }: { id: string }) {
           data-testid="button-back-to-pipeline"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to Pipeline
+          {t.pipeline.backToPipeline}
         </Button>
       </div>
 

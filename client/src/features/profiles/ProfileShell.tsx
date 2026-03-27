@@ -25,6 +25,7 @@ import {
   ClipboardList, CheckCircle, ChevronDown, ChevronRight, CalendarClock,
 } from "lucide-react";
 import { format, formatDistanceToNow, isPast } from "date-fns";
+import { es as dateFnsEs } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -50,7 +51,7 @@ import { apiRequest, queryClient, STALE } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAdminLang } from "@/i18n/LanguageContext";
 import type { AdminTranslations } from "@/i18n/locales/en";
-import { getStageLabel, getOutcomeLabel, renderTaskTitle, renderTaskNotes, renderActivityContent } from "@/lib/activityI18n";
+import { getStageLabel, getOutcomeLabel, renderTaskTitle, renderTaskNotes, renderActivityContent, renderTradeName } from "@/lib/activityI18n";
 import { useUnifiedProfile, useInfiniteTimeline, PROFILE_KEYS } from "./hooks";
 import { useAuth } from "@features/auth/useAuth";
 import { EditCompanyDialog } from "./edit/EditCompanyDialog";
@@ -175,9 +176,9 @@ function fmt(date: string | null | undefined, pattern = "MMM d, yyyy"): string {
   catch { return "—"; }
 }
 
-function fmtRelative(date: string | null | undefined): string {
+function fmtRelative(date: string | null | undefined, lang?: string): string {
   if (!date) return "—";
-  try { return formatDistanceToNow(new Date(date), { addSuffix: true }); }
+  try { return formatDistanceToNow(new Date(date), { addSuffix: true, locale: lang === "es" ? dateFnsEs : undefined }); }
   catch { return "—"; }
 }
 
@@ -352,10 +353,10 @@ export interface ProfileHeaderProps {
 }
 
 export function ProfileHeader({ entry, company, derived }: ProfileHeaderProps) {
-  const { t } = useAdminLang();
+  const { t, lang } = useAdminLang();
   const healthClass = HEALTH_CLASS[derived.health] ?? HEALTH_CLASS.unknown;
   const healthLabel = (t.clients.healthOptions as Record<string, string>)[derived.health] ?? derived.health;
-  const contextLabel = CONTEXT_LABEL[entry.type];
+  const contextLabel = (t.profileShell.contextLabels as Record<string, string>)[entry.type] ?? entry.type;
 
   const statusLabel = derived.status
     ? ((t.crm.statusNames as Record<string, string>)[derived.status]
@@ -366,7 +367,7 @@ export function ProfileHeader({ entry, company, derived }: ProfileHeaderProps) {
     <div className="flex flex-col gap-1" data-testid="profile-header">
       <div className="flex items-center gap-2 text-xs text-gray-400 font-medium uppercase tracking-wide">
         <Building2 className="w-3.5 h-3.5" />
-        <span data-testid="text-profile-context-label">{contextLabel} Profile</span>
+        <span data-testid="text-profile-context-label">{contextLabel} {t.profileShell.profile}</span>
       </div>
 
       <div className="flex items-start gap-3 flex-wrap">
@@ -402,7 +403,7 @@ export function ProfileHeader({ entry, company, derived }: ProfileHeaderProps) {
 
         {company.industry && (
           <Badge variant="outline" data-testid="badge-company-industry">
-            {company.industry}
+            {renderTradeName(company.industry, t)}
           </Badge>
         )}
 
@@ -435,7 +436,7 @@ export function ProfileHeader({ entry, company, derived }: ProfileHeaderProps) {
         {derived.lastActivityAt && (
           <span className="flex items-center gap-1" data-testid="text-profile-last-activity">
             <Activity className="w-3 h-3" />
-            Active {fmtRelative(derived.lastActivityAt)}
+            {t.profileShell.activePrefix} {fmtRelative(derived.lastActivityAt, lang)}
           </span>
         )}
       </div>

@@ -119,6 +119,19 @@ export function renderTaskNotes(notes: string | null | undefined, t: AdminTransl
   return notes;
 }
 
+/**
+ * Translates a company's industry/trade value at render time.
+ * Matches against the canonical BUSINESS_TRADES slugs. Falls back to the
+ * raw stored value if no match is found.
+ * To support a new trade, add one key to both locale files' `trades` section.
+ */
+export function renderTradeName(industry: string | null | undefined, t: AdminTranslations): string {
+  if (!industry) return "";
+  const key = industry.trim().toLowerCase().replace(/\s+/g, "_");
+  const map = t.trades as Record<string, string>;
+  return map[key] ?? industry;
+}
+
 export function getPaymentMethodLabel(method: string | undefined | null, t: AdminTranslations): string {
   if (!method) return "";
   const ps = t.pipeline.paymentSent as Record<string, string>;

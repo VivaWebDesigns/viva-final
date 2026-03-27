@@ -99,7 +99,7 @@ export default function StageManagementPage() {
       <Link href="/admin/pipeline">
         <button className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4" data-testid="button-back-pipeline">
           <ArrowLeft className="w-4 h-4" />
-          Back to Pipeline
+          {t.pipeline.backToPipeline}
         </button>
       </Link>
 
