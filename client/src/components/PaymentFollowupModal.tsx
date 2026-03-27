@@ -51,7 +51,8 @@ export default function PaymentFollowupModal({
   contactName,
 }: PaymentFollowupModalProps) {
   const { toast } = useToast();
-  const { lang } = useAdminLang();
+  const { t, lang } = useAdminLang();
+  const pf = t.pipeline.paymentFollowup;
   const repTimezone = resolveRepTimezone();
 
   const [path, setPath] = useState<Path>(null);
@@ -133,7 +134,7 @@ export default function PaymentFollowupModal({
     },
     onSuccess: () => {
       invalidateCaches();
-      toast({ title: "Follow-up scheduled" });
+      toast({ title: pf.followUpScheduled });
       onClose();
     },
     onError: (err: Error) => {
@@ -172,10 +173,10 @@ export default function PaymentFollowupModal({
       >
         <DialogHeader>
           <DialogTitle data-testid="text-payment-followup-title">
-            Follow Up on Payment
+            {pf.title}
           </DialogTitle>
           <p className="text-sm text-gray-500 mt-1">
-            What is the status of the payment?
+            {pf.subtitle}
           </p>
         </DialogHeader>
 
@@ -189,8 +190,8 @@ export default function PaymentFollowupModal({
                 data-testid="button-payment-received"
               >
                 <div className="text-left">
-                  <div className="font-medium text-green-700">Payment received</div>
-                  <div className="text-xs text-gray-500 mt-0.5">Client has paid — mark as won</div>
+                  <div className="font-medium text-green-700">{pf.paymentReceived}</div>
+                  <div className="text-xs text-gray-500 mt-0.5">{pf.paymentReceivedDesc}</div>
                 </div>
               </Button>
               <Button
@@ -200,8 +201,8 @@ export default function PaymentFollowupModal({
                 data-testid="button-still-waiting"
               >
                 <div className="text-left">
-                  <div className="font-medium text-amber-700">Still waiting</div>
-                  <div className="text-xs text-gray-500 mt-0.5">Schedule another follow-up call</div>
+                  <div className="font-medium text-amber-700">{pf.stillWaiting}</div>
+                  <div className="text-xs text-gray-500 mt-0.5">{pf.stillWaitingDesc}</div>
                 </div>
               </Button>
               <Button
@@ -211,14 +212,14 @@ export default function PaymentFollowupModal({
                 data-testid="button-wont-pay"
               >
                 <div className="text-left">
-                  <div className="font-medium text-red-700">Won't pay</div>
-                  <div className="text-xs text-gray-500 mt-0.5">Client declined — close this lead</div>
+                  <div className="font-medium text-red-700">{pf.wontPay}</div>
+                  <div className="text-xs text-gray-500 mt-0.5">{pf.wontPayDesc}</div>
                 </div>
               </Button>
             </div>
             <DialogFooter>
               <Button variant="ghost" onClick={onClose} data-testid="button-payment-followup-cancel">
-                Cancel
+                {pf.cancel}
               </Button>
             </DialogFooter>
           </>
@@ -228,7 +229,7 @@ export default function PaymentFollowupModal({
           <>
             <div className="py-2">
               <div className="rounded-md bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-800">
-                Great work! Confirming will mark this opportunity as won and close it out.
+                {pf.paymentReceivedConfirm}
               </div>
             </div>
             <DialogFooter className="gap-2 sm:gap-0">
@@ -238,7 +239,7 @@ export default function PaymentFollowupModal({
                 disabled={isPending}
                 data-testid="button-payment-received-back"
               >
-                Back
+                {pf.back}
               </Button>
               <Button
                 className="bg-green-600 hover:bg-green-700 text-white"
@@ -246,7 +247,7 @@ export default function PaymentFollowupModal({
                 disabled={isPending}
                 data-testid="button-payment-received-confirm"
               >
-                {paymentReceivedMutation.isPending ? "Saving…" : "Confirm — Mark as Won"}
+                {paymentReceivedMutation.isPending ? t.profileShell.saving : pf.confirmMarkAsWon}
               </Button>
             </DialogFooter>
           </>
@@ -257,7 +258,7 @@ export default function PaymentFollowupModal({
             <div className="space-y-4 py-2">
               <div className="space-y-1">
                 <Label htmlFor="pf-date">
-                  Follow-up Date <span className="text-red-500">*</span>
+                  {pf.followUpDate} <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   id="pf-date"
@@ -269,12 +270,12 @@ export default function PaymentFollowupModal({
               </div>
               <div className="space-y-1">
                 <Label htmlFor="pf-time">
-                  Follow-up Time{" "}
-                  <span className="text-gray-400 text-xs font-normal">(optional)</span>
+                  {pf.followUpTime}{" "}
+                  <span className="text-gray-400 text-xs font-normal">({t.optional})</span>
                 </Label>
                 <Select value={followUpTime} onValueChange={setFollowUpTime}>
                   <SelectTrigger id="pf-time" data-testid="select-payment-followup-time">
-                    <SelectValue placeholder="Select time" />
+                    <SelectValue placeholder={pf.selectTime} />
                   </SelectTrigger>
                   <SelectContent>
                     {TIME_SLOTS.map((slot) => (
@@ -287,14 +288,14 @@ export default function PaymentFollowupModal({
               </div>
               <div className="space-y-1">
                 <Label htmlFor="pf-notes">
-                  Notes{" "}
-                  <span className="text-gray-400 text-xs font-normal">(optional)</span>
+                  {t.profileShell.notes}{" "}
+                  <span className="text-gray-400 text-xs font-normal">({t.optional})</span>
                 </Label>
                 <Textarea
                   id="pf-notes"
                   value={followUpNotes}
                   onChange={(e) => setFollowUpNotes(e.target.value)}
-                  placeholder="Any context for the next follow-up call…"
+                  placeholder={pf.notesPlaceholder}
                   rows={2}
                   data-testid="textarea-payment-followup-notes"
                 />
@@ -306,14 +307,14 @@ export default function PaymentFollowupModal({
                 onClick={() => setPath(null)}
                 disabled={isPending}
               >
-                Back
+                {pf.back}
               </Button>
               <Button
                 onClick={() => stillWaitingMutation.mutate()}
                 disabled={isPending || !followUpDate}
                 data-testid="button-save-payment-followup"
               >
-                {stillWaitingMutation.isPending ? "Saving…" : "Schedule Follow-up"}
+                {stillWaitingMutation.isPending ? t.profileShell.saving : pf.scheduleFollowUp}
               </Button>
             </DialogFooter>
           </>
@@ -356,7 +357,7 @@ export default function PaymentFollowupModal({
                   onClick={() => { setPath(null); setCountdownStarted(false); setCountdown(5); setCopied(false); }}
                   disabled={isPending}
                 >
-                  {lang === "es" ? "Atrás" : "Back"}
+                  {pf.back}
                 </Button>
                 <Button
                   variant="destructive"

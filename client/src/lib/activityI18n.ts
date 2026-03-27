@@ -105,6 +105,10 @@ const TASK_NOTES_MAP: Array<[string, (t: AdminTranslations) => string]> = [
     "Follow up with contacted lead to schedule a demo of Viva Web Designs services.",
     (t) => t.tasks.scheduleDemoNotes,
   ],
+  [
+    "Follow up on payment link. Check if they had any issues and resend the link if needed.",
+    (t) => t.tasks.followUpOnPaymentNotes,
+  ],
 ];
 
 /**
