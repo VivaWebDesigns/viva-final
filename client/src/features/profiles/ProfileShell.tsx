@@ -51,7 +51,7 @@ import { apiRequest, queryClient, STALE } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAdminLang } from "@/i18n/LanguageContext";
 import type { AdminTranslations } from "@/i18n/locales/en";
-import { getStageLabel, getOutcomeLabel, renderTaskTitle, renderTaskNotes, renderActivityContent, renderTradeName } from "@/lib/activityI18n";
+import { getStageLabel, getOutcomeLabel, getActivityTypeLabel, renderTaskTitle, renderTaskNotes, renderActivityContent, renderTradeName } from "@/lib/activityI18n";
 import { useUnifiedProfile, useInfiniteTimeline, PROFILE_KEYS } from "./hooks";
 import { useAuth } from "@features/auth/useAuth";
 import { EditCompanyDialog } from "./edit/EditCompanyDialog";
@@ -1157,7 +1157,7 @@ function TimelineEventRow({ event }: { event: UnifiedTimelineEvent }) {
             {sourceLabel}
           </Badge>
           <Badge variant="outline" className="text-xs py-0 capitalize" data-testid={`badge-timeline-type-${event.id}`}>
-            {event.type.replace(/_/g, " ")}
+            {getActivityTypeLabel(event.type, t)}
           </Badge>
         </div>
       </div>

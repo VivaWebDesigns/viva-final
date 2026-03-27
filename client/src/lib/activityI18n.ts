@@ -33,15 +33,18 @@ export function getStageLabel(slugOrName: string | undefined | null, t: AdminTra
 }
 
 export const OUTCOME_VALUE_TO_KEY: Record<string, string> = {
-  "No answer":      "noAnswer",
-  "Left voicemail": "leftVoicemail",
-  "Spoke with lead":"spokeWithLead",
-  "Interested":     "interested",
-  "Uncertain":      "uncertain",
-  "Not interested": "notInterested",
-  "Bad number":     "badNumber",
-  "Appointment set":"appointmentSet",
-  "Duplicate lead": "duplicateLead",
+  "No answer":       "noAnswer",
+  "Left voicemail":  "leftVoicemail",
+  "Spoke with lead": "spokeWithLead",
+  "Interested":      "interested",
+  "Uncertain":       "uncertain",
+  "Not interested":  "notInterested",
+  "Bad number":      "badNumber",
+  "Appointment set": "appointmentSet",
+  "Duplicate lead":  "duplicateLead",
+  "Payment received":"paymentReceived",
+  "Still waiting":   "stillWaiting",
+  "Won't pay":       "wontPay",
 };
 
 export function normalizeOutcomeKey(outcomeValue: string | undefined | null): string | undefined {
@@ -59,12 +62,13 @@ export function getOutcomeLabel(outcomeValue: string | undefined | null, t: Admi
 export function getActivityTypeLabel(type: string, t: AdminTranslations): string {
   const activity = t.pipeline.activity as Record<string, string>;
   const keyMap: Record<string, string> = {
-    stage_change: "stageChange",
-    note:         "note",
-    call:         "call",
-    email:        "email",
-    task:         "task",
-    system:       "system",
+    stage_change:  "stageChange",
+    note:          "note",
+    call:          "call",
+    email:         "email",
+    task:          "task",
+    system:        "system",
+    payment_sent:  "paymentSent",
   };
   const key = keyMap[type];
   if (key && activity[key]) return activity[key];
