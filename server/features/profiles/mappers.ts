@@ -238,6 +238,7 @@ export function mapLeadNoteToTimelineEvent(
     timestamp: note.createdAt,
     actor: resolveActor(note.userId, actorMap),
     content: note.content,
+    metadata: (note.metadata as Record<string, unknown> | null) ?? null,
   };
 }
 
@@ -252,6 +253,7 @@ export function mapClientNoteToTimelineEvent(
     timestamp: note.createdAt,
     actor: resolveActor(note.userId, actorMap),
     content: note.content,
+    metadata: null,
   };
 }
 
@@ -266,5 +268,6 @@ export function mapPipelineActivityToTimelineEvent(
     timestamp: activity.createdAt,
     actor: resolveActor(activity.userId, actorMap),
     content: activity.content,
+    metadata: (activity.metadata as Record<string, unknown> | null) ?? null,
   };
 }

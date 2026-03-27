@@ -12,10 +12,12 @@
 import { useLocation } from "wouter";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAdminLang } from "@/i18n/LanguageContext";
 import ProfileShell from "./ProfileShell";
 
 export default function LeadProfilePage({ id }: { id: string }) {
   const [, navigate] = useLocation();
+  const { t } = useAdminLang();
 
   return (
     <div className="h-full flex flex-col overflow-hidden" data-testid={`page-lead-profile-${id}`}>
@@ -29,7 +31,7 @@ export default function LeadProfilePage({ id }: { id: string }) {
           data-testid="button-back-to-leads"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to Leads
+          {t.pipeline.backToLeads}
         </Button>
       </div>
 

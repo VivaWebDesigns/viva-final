@@ -1084,6 +1084,7 @@ export interface TimelineSectionProps {
 }
 
 export function TimelineSection({ entry }: TimelineSectionProps) {
+  const { t } = useAdminLang();
   const {
     data,
     isLoading,
@@ -1113,7 +1114,7 @@ export function TimelineSection({ entry }: TimelineSectionProps) {
 
   return (
     <div className="space-y-1" data-testid="section-timeline">
-      {events.map((event) => <TimelineEventRow key={event.id} event={event} />)}
+      {events.map((event) => <TimelineEventRow key={event.id} event={event} t={t} />)}
       {hasNextPage && (
         <div className="pt-2 flex justify-center">
           <button
@@ -1130,7 +1131,7 @@ export function TimelineSection({ entry }: TimelineSectionProps) {
   );
 }
 
-function TimelineEventRow({ event }: { event: UnifiedTimelineEvent }) {
+function TimelineEventRow({ event, t }: { event: UnifiedTimelineEvent; t: AdminTranslations }) {
   const IconComponent = TIMELINE_ICON[event.type] ?? Info;
   const sourceLabel = SOURCE_LABEL[event.source] ?? event.source;
 
@@ -1144,7 +1145,7 @@ function TimelineEventRow({ event }: { event: UnifiedTimelineEvent }) {
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm text-gray-800" data-testid={`text-timeline-content-${event.id}`}>
-          {event.content}
+          {renderActivityContent(event, t)}
         </p>
         <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-400 flex-wrap">
           <span data-testid={`text-timeline-date-${event.id}`}>{fmtRelative(event.timestamp)}</span>

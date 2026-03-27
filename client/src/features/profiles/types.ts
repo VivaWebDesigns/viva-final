@@ -219,6 +219,7 @@ export interface UnifiedTimelineEvent {
   timestamp: string;
   actor: string | null;
   content: string;
+  metadata?: Record<string, unknown> | null;
 }
 
 // ── Canonical profile DTO ──────────────────────────────────────────────────────

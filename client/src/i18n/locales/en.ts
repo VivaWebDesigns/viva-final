@@ -286,6 +286,7 @@ export const en = {
     sourceLeadLabel: "Source Lead",
     moveToStage: "Current stage",
     backToPipeline: "Back to Pipeline",
+    backToLeads: "Back to Leads",
     details: "Details",
     activityTimeline: "Activity Timeline",
     phone: "Phone",

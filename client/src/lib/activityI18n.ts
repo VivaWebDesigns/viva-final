@@ -177,7 +177,13 @@ interface ActivityRecord {
 
 export function renderActivityContent(act: ActivityRecord, t: AdminTranslations): string {
   const meta = act.metadata as ActivityMetadata | null | undefined;
-  if (!meta?.event) return act.content;
+  if (!meta?.event) {
+    const rawTypeText = act.type.replace(/_/g, " ").toLowerCase();
+    if (act.content.trim().toLowerCase() === rawTypeText) {
+      return getActivityTypeLabel(act.type, t);
+    }
+    return act.content;
+  }
 
   const activity = t.pipeline.activity as Record<string, string>;
 
