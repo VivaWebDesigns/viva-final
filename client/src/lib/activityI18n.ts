@@ -76,10 +76,13 @@ const FOLLOW_UP_ON_PAYMENT = "Follow up on payment";
 const CONTACT_LEAD = "Contact lead";
 const SCHEDULE_DEMO = "Schedule demo";
 
+const RECORD_DEMO_OUTCOME = "Record demo outcome";
+
 const TASK_TITLE_MAP: Array<[string, (t: AdminTranslations) => string]> = [
   [FOLLOW_UP_ON_PAYMENT, (t) => t.tasks.followUpOnPayment ?? FOLLOW_UP_ON_PAYMENT],
   [CONTACT_LEAD,         (t) => t.tasks.contactLead ?? CONTACT_LEAD],
   [SCHEDULE_DEMO,        (t) => t.tasks.scheduleDemo ?? SCHEDULE_DEMO],
+  [RECORD_DEMO_OUTCOME,  (t) => t.tasks.recordDemoOutcome ?? RECORD_DEMO_OUTCOME],
 ];
 
 export function renderTaskTitle(task: { title: string }, t: AdminTranslations): string {
