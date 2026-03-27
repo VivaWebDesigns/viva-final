@@ -3,6 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAdminLang } from "@/i18n/LanguageContext";
+import { renderTaskTitle } from "@/lib/activityI18n";
 import { resolveRepTimezone } from "@/lib/timezone";
 import {
   TIME_SLOTS,
@@ -280,7 +281,7 @@ export default function CompleteTaskModal({
           </DialogTitle>
           {displayTitle && (
             <p className="text-sm text-gray-500 truncate mt-1" data-testid="text-completing-task-name">
-              {displayTitle}
+              {renderTaskTitle({ title: displayTitle }, t)}
             </p>
           )}
         </DialogHeader>
@@ -304,10 +305,10 @@ export default function CompleteTaskModal({
 
           {isAppointmentSet ? (
             <div className="space-y-3 p-3 bg-teal-50 border border-teal-100 rounded-lg">
-              <p className="text-xs font-semibold text-teal-700 uppercase tracking-wide">Demo Details (required)</p>
+              <p className="text-xs font-semibold text-teal-700 uppercase tracking-wide">{t.tasks.demoDetailsRequired}</p>
 
               <div className="space-y-1">
-                <Label className="text-sm" htmlFor="demo-date">Date</Label>
+                <Label className="text-sm" htmlFor="demo-date">{t.tasks.date}</Label>
                 <Input
                   id="demo-date"
                   type="date"
@@ -320,7 +321,7 @@ export default function CompleteTaskModal({
 
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <Label className="text-sm font-semibold text-amber-600" htmlFor="demo-time">⚠ Lead's Time</Label>
+                  <Label className="text-sm font-semibold text-amber-600" htmlFor="demo-time">⚠ {t.tasks.leadsTime}</Label>
                   <Select value={demoTime} onValueChange={setDemoTime}>
                     <SelectTrigger id="demo-time" data-testid="select-demo-time">
                       <SelectValue placeholder="Select time" />
@@ -336,7 +337,7 @@ export default function CompleteTaskModal({
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-sm font-semibold text-amber-600" htmlFor="demo-tz">⚠ Lead's Time Zone</Label>
+                  <Label className="text-sm font-semibold text-amber-600" htmlFor="demo-tz">⚠ {t.tasks.leadsTimeZone}</Label>
                   <Select value={demoTimezone} onValueChange={setDemoTimezone}>
                     <SelectTrigger id="demo-tz" data-testid="select-demo-timezone">
                       <SelectValue placeholder="Select TZ" />
@@ -352,11 +353,11 @@ export default function CompleteTaskModal({
                 </div>
               </div>
               <p className="text-xs text-teal-600 bg-teal-50 border border-teal-100 rounded px-2 py-1">
-                Enter the time as it is for the <strong>lead</strong>, not your own time zone.
+                {t.tasks.leadsTimeHint}
               </p>
 
               <div className="space-y-1">
-                <Label className="text-sm" htmlFor="demo-rep">Sales Rep</Label>
+                <Label className="text-sm" htmlFor="demo-rep">{t.tasks.salesRep}</Label>
                 <Input
                   id="demo-rep"
                   type="text"
@@ -369,7 +370,7 @@ export default function CompleteTaskModal({
 
               {demoDate && demoTime && demoTimezone && demoRep.trim() && (
                 <div className="mt-1 text-xs text-teal-600 bg-white border border-teal-100 rounded px-2 py-1.5">
-                  <span className="font-medium">Preview: </span>
+                  <span className="font-medium">{t.tasks.preview}: </span>
                   {buildDemoNote()}
                 </div>
               )}
@@ -433,7 +434,7 @@ export default function CompleteTaskModal({
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label htmlFor="custom-time" className="text-xs">Time</Label>
+                    <Label htmlFor="custom-time" className="text-xs">{t.tasks.time}</Label>
                     <Select value={followUpTime} onValueChange={setFollowUpTime}>
                       <SelectTrigger data-testid="select-custom-time">
                         <SelectValue />

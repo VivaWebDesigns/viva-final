@@ -322,7 +322,7 @@ export default function QuickTaskModal({
 
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <Label htmlFor="task-time">Follow-Up Time <span className="text-red-500">*</span></Label>
+              <Label htmlFor="task-time">{t.tasks.followUpTime} <span className="text-red-500">*</span></Label>
               <span className="text-[10px] text-gray-400 flex items-center gap-1">
                 <Clock className="w-3 h-3" />
                 {effectiveTimezone}
@@ -345,7 +345,7 @@ export default function QuickTaskModal({
           <div className="flex items-center gap-1.5 text-xs text-gray-500 bg-gray-50 rounded-md px-3 py-2">
             <CalendarIcon className="w-3.5 h-3.5 flex-shrink-0" />
             <span data-testid="text-due-date-preview">
-              {t.tasks.dueDate}: <strong>{dueDatePreview} at {formatTimeSlot(followUpTime)}</strong>
+              {t.tasks.dueDate}: <strong>{dueDatePreview} {t.tasks.at} {formatTimeSlot(followUpTime)}</strong>
             </span>
           </div>
 
