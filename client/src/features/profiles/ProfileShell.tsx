@@ -534,6 +534,7 @@ export interface CompanyContactCardProps {
 }
 
 export function CompanyContactCard({ entry, company, primaryContact, contacts }: CompanyContactCardProps) {
+  const { t } = useAdminLang();
   const [editCompanyOpen, setEditCompanyOpen] = useState(false);
   const [editContactOpen, setEditContactOpen] = useState(false);
 
@@ -543,7 +544,7 @@ export function CompanyContactCard({ entry, company, primaryContact, contacts }:
       <div>
         <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
           <Building2 className="w-4 h-4 text-gray-400" />
-          Company
+          {t.profileShell.company}
           <button
             onClick={() => setEditCompanyOpen(true)}
             className="ml-auto text-gray-400 hover:text-gray-600 transition-colors"
@@ -600,7 +601,7 @@ export function CompanyContactCard({ entry, company, primaryContact, contacts }:
             <div className="flex items-center gap-2">
               <span className="text-gray-400 text-xs w-3.5 text-center shrink-0">🌐</span>
               <span className="text-gray-700" data-testid="text-company-language">
-                {company.preferredLanguage === "es" ? "Spanish" : "English"}
+                {company.preferredLanguage === "es" ? t.profileShell.languageSpanish : t.profileShell.languageEnglish}
               </span>
             </div>
           )}
@@ -611,7 +612,7 @@ export function CompanyContactCard({ entry, company, primaryContact, contacts }:
         <div className="border-t pt-4">
           <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
             <User className="w-4 h-4 text-gray-400" />
-            Primary Contact
+            {t.profileShell.primaryContact}
             <button
               onClick={() => setEditContactOpen(true)}
               className="ml-auto text-gray-400 hover:text-gray-600 transition-colors"
