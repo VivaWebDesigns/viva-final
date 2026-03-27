@@ -15,9 +15,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useEditContact } from "./useEntityMutations";
+import { useAdminLang } from "@/i18n/LanguageContext";
 import type { MappedContact, ProfileEntry } from "../types";
-
-// ── Validation schema ─────────────────────────────────────────────────────────
 
 const schema = z.object({
   firstName:         z.string().min(1, "First name is required"),
@@ -32,8 +31,6 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-// ── Props ─────────────────────────────────────────────────────────────────────
-
 export interface EditContactDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -41,11 +38,11 @@ export interface EditContactDialogProps {
   entry: ProfileEntry;
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
-
 export function EditContactDialog({
   open, onOpenChange, contact, entry,
 }: EditContactDialogProps) {
+  const { t } = useAdminLang();
+  const ps = t.profileShell;
   const { toast } = useToast();
   const mutation = useEditContact(contact.id, entry);
 
@@ -91,11 +88,11 @@ export function EditContactDialog({
     };
     mutation.mutate(payload, {
       onSuccess: () => {
-        toast({ title: "Contact updated" });
+        toast({ title: ps.contactUpdated });
         onOpenChange(false);
       },
       onError: (err) => {
-        toast({ title: "Update failed", description: err.message, variant: "destructive" });
+        toast({ title: ps.updateFailed, description: err.message, variant: "destructive" });
       },
     });
   }
@@ -104,7 +101,7 @@ export function EditContactDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md max-h-[90dvh] overflow-y-auto" data-testid="dialog-edit-contact">
         <DialogHeader>
-          <DialogTitle>Edit Contact</DialogTitle>
+          <DialogTitle>{ps.editContact}</DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
@@ -112,7 +109,7 @@ export function EditContactDialog({
             <div className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="firstName" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>First Name *</FormLabel>
+                  <FormLabel>{ps.firstName} *</FormLabel>
                   <FormControl>
                     <Input {...field} value={field.value ?? ""} placeholder="Jane" data-testid="input-contact-firstname" />
                   </FormControl>
@@ -122,7 +119,7 @@ export function EditContactDialog({
 
               <FormField control={form.control} name="lastName" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Last Name</FormLabel>
+                  <FormLabel>{ps.lastName}</FormLabel>
                   <FormControl>
                     <Input {...field} value={field.value ?? ""} placeholder="Doe" data-testid="input-contact-lastname" />
                   </FormControl>
@@ -132,7 +129,7 @@ export function EditContactDialog({
 
               <FormField control={form.control} name="title" render={({ field }) => (
                 <FormItem className="col-span-2">
-                  <FormLabel>Title / Role</FormLabel>
+                  <FormLabel>{ps.titleRole}</FormLabel>
                   <FormControl>
                     <Input {...field} value={field.value ?? ""} placeholder="Owner" data-testid="input-contact-title" />
                   </FormControl>
@@ -142,7 +139,7 @@ export function EditContactDialog({
 
               <FormField control={form.control} name="email" render={({ field }) => (
                 <FormItem className="col-span-2">
-                  <FormLabel>Email</FormLabel>
+                  <FormLabel>{ps.email}</FormLabel>
                   <FormControl>
                     <Input {...field} value={field.value ?? ""} type="email" placeholder="jane@company.com" data-testid="input-contact-email" />
                   </FormControl>
@@ -152,7 +149,7 @@ export function EditContactDialog({
 
               <FormField control={form.control} name="phone" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Phone</FormLabel>
+                  <FormLabel>{ps.phone}</FormLabel>
                   <FormControl>
                     <Input {...field} value={field.value ?? ""} type="tel" placeholder="(555) 555-5555" data-testid="input-contact-phone" />
                   </FormControl>
@@ -162,7 +159,7 @@ export function EditContactDialog({
 
               <FormField control={form.control} name="altPhone" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Alt. Phone</FormLabel>
+                  <FormLabel>{ps.altPhone}</FormLabel>
                   <FormControl>
                     <Input {...field} value={field.value ?? ""} type="tel" placeholder="(555) 555-5556" data-testid="input-contact-alt-phone" />
                   </FormControl>
@@ -172,19 +169,19 @@ export function EditContactDialog({
 
               <FormField control={form.control} name="preferredLanguage" render={({ field }) => (
                 <FormItem className="col-span-2">
-                  <FormLabel>Preferred Language</FormLabel>
+                  <FormLabel>{ps.preferredLanguage}</FormLabel>
                   <Select
                     value={field.value ?? "es"}
                     onValueChange={field.onChange}
                   >
                     <FormControl>
                       <SelectTrigger data-testid="select-contact-language">
-                        <SelectValue placeholder="Select language" />
+                        <SelectValue placeholder={ps.selectLanguage} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="es">Spanish</SelectItem>
-                      <SelectItem value="en">English</SelectItem>
+                      <SelectItem value="es">{ps.languageSpanish}</SelectItem>
+                      <SelectItem value="en">{ps.languageEnglish}</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -199,14 +196,14 @@ export function EditContactDialog({
                 onClick={() => onOpenChange(false)}
                 data-testid="button-cancel-edit-contact"
               >
-                Cancel
+                {ps.cancel}
               </Button>
               <Button
                 type="submit"
                 disabled={mutation.isPending}
                 data-testid="button-save-edit-contact"
               >
-                {mutation.isPending ? "Saving…" : "Save Changes"}
+                {mutation.isPending ? ps.saving : ps.saveChanges}
               </Button>
             </DialogFooter>
           </form>

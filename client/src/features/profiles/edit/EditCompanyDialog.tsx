@@ -16,10 +16,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useEditCompany } from "./useEntityMutations";
+import { useAdminLang } from "@/i18n/LanguageContext";
 import type { MappedCompany } from "../types";
 import type { ProfileEntry } from "../types";
-
-// ── Validation schema ─────────────────────────────────────────────────────────
 
 const schema = z.object({
   name:              z.string().min(1, "Name is required"),
@@ -38,8 +37,6 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-// ── Props ─────────────────────────────────────────────────────────────────────
-
 export interface EditCompanyDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -47,11 +44,11 @@ export interface EditCompanyDialogProps {
   entry: ProfileEntry;
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
-
 export function EditCompanyDialog({
   open, onOpenChange, company, entry,
 }: EditCompanyDialogProps) {
+  const { t } = useAdminLang();
+  const ps = t.profileShell;
   const { toast } = useToast();
   const mutation = useEditCompany(company.id, entry);
 
@@ -73,7 +70,6 @@ export function EditCompanyDialog({
     },
   });
 
-  // Reset form when dialog opens with fresh data
   useEffect(() => {
     if (open) {
       form.reset({
@@ -114,11 +110,11 @@ export function EditCompanyDialog({
     };
     mutation.mutate(payload, {
       onSuccess: () => {
-        toast({ title: "Company updated" });
+        toast({ title: ps.companyUpdated });
         onOpenChange(false);
       },
       onError: (err) => {
-        toast({ title: "Update failed", description: err.message, variant: "destructive" });
+        toast({ title: ps.updateFailed, description: err.message, variant: "destructive" });
       },
     });
   }
@@ -127,7 +123,7 @@ export function EditCompanyDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90dvh] overflow-y-auto" data-testid="dialog-edit-company">
         <DialogHeader>
-          <DialogTitle>Edit Company</DialogTitle>
+          <DialogTitle>{ps.editCompany}</DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
@@ -135,7 +131,7 @@ export function EditCompanyDialog({
             <div className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="name" render={({ field }) => (
                 <FormItem className="col-span-2">
-                  <FormLabel>Company Name *</FormLabel>
+                  <FormLabel>{ps.companyName} *</FormLabel>
                   <FormControl>
                     <Input {...field} value={field.value ?? ""} placeholder="ACME Corp" data-testid="input-company-name" />
                   </FormControl>
@@ -145,9 +141,9 @@ export function EditCompanyDialog({
 
               <FormField control={form.control} name="dba" render={({ field }) => (
                 <FormItem className="col-span-2">
-                  <FormLabel>DBA</FormLabel>
+                  <FormLabel>{ps.dba}</FormLabel>
                   <FormControl>
-                    <Input {...field} value={field.value ?? ""} placeholder="Doing business as…" data-testid="input-company-dba" />
+                    <Input {...field} value={field.value ?? ""} placeholder={ps.doingBusinessAsPlaceholder} data-testid="input-company-dba" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -155,7 +151,7 @@ export function EditCompanyDialog({
 
               <FormField control={form.control} name="phone" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Phone</FormLabel>
+                  <FormLabel>{ps.phone}</FormLabel>
                   <FormControl>
                     <Input {...field} value={field.value ?? ""} type="tel" placeholder="(555) 555-5555" data-testid="input-company-phone" />
                   </FormControl>
@@ -165,7 +161,7 @@ export function EditCompanyDialog({
 
               <FormField control={form.control} name="email" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Email</FormLabel>
+                  <FormLabel>{ps.email}</FormLabel>
                   <FormControl>
                     <Input {...field} value={field.value ?? ""} type="email" placeholder="hello@company.com" data-testid="input-company-email" />
                   </FormControl>
@@ -175,7 +171,7 @@ export function EditCompanyDialog({
 
               <FormField control={form.control} name="website" render={({ field }) => (
                 <FormItem className="col-span-2">
-                  <FormLabel>Website</FormLabel>
+                  <FormLabel>{ps.website}</FormLabel>
                   <FormControl>
                     <Input {...field} value={field.value ?? ""} placeholder="https://company.com" data-testid="input-company-website" />
                   </FormControl>
@@ -185,7 +181,7 @@ export function EditCompanyDialog({
 
               <FormField control={form.control} name="address" render={({ field }) => (
                 <FormItem className="col-span-2">
-                  <FormLabel>Street Address</FormLabel>
+                  <FormLabel>{ps.streetAddress}</FormLabel>
                   <FormControl>
                     <Input {...field} value={field.value ?? ""} placeholder="123 Main St" data-testid="input-company-address" />
                   </FormControl>
@@ -195,7 +191,7 @@ export function EditCompanyDialog({
 
               <FormField control={form.control} name="city" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>City</FormLabel>
+                  <FormLabel>{ps.city}</FormLabel>
                   <FormControl>
                     <Input {...field} value={field.value ?? ""} placeholder="Charlotte" data-testid="input-company-city" />
                   </FormControl>
@@ -205,7 +201,7 @@ export function EditCompanyDialog({
 
               <FormField control={form.control} name="state" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>State</FormLabel>
+                  <FormLabel>{ps.stateLabel}</FormLabel>
                   <FormControl>
                     <Input {...field} value={field.value ?? ""} placeholder="NC" maxLength={2} data-testid="input-company-state" />
                   </FormControl>
@@ -215,7 +211,7 @@ export function EditCompanyDialog({
 
               <FormField control={form.control} name="zip" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>ZIP</FormLabel>
+                  <FormLabel>{ps.zip}</FormLabel>
                   <FormControl>
                     <Input {...field} value={field.value ?? ""} placeholder="28201" data-testid="input-company-zip" />
                   </FormControl>
@@ -225,7 +221,7 @@ export function EditCompanyDialog({
 
               <FormField control={form.control} name="industry" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Industry</FormLabel>
+                  <FormLabel>{ps.industry}</FormLabel>
                   <FormControl>
                     <Input {...field} value={field.value ?? ""} placeholder="Painting" data-testid="input-company-industry" />
                   </FormControl>
@@ -235,19 +231,19 @@ export function EditCompanyDialog({
 
               <FormField control={form.control} name="preferredLanguage" render={({ field }) => (
                 <FormItem className="col-span-2">
-                  <FormLabel>Preferred Language</FormLabel>
+                  <FormLabel>{ps.preferredLanguage}</FormLabel>
                   <Select
                     value={field.value ?? "es"}
                     onValueChange={field.onChange}
                   >
                     <FormControl>
                       <SelectTrigger data-testid="select-company-language">
-                        <SelectValue placeholder="Select language" />
+                        <SelectValue placeholder={ps.selectLanguage} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="es">Spanish</SelectItem>
-                      <SelectItem value="en">English</SelectItem>
+                      <SelectItem value="es">{ps.languageSpanish}</SelectItem>
+                      <SelectItem value="en">{ps.languageEnglish}</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -256,12 +252,12 @@ export function EditCompanyDialog({
 
               <FormField control={form.control} name="notes" render={({ field }) => (
                 <FormItem className="col-span-2">
-                  <FormLabel>Notes</FormLabel>
+                  <FormLabel>{ps.notes}</FormLabel>
                   <FormControl>
                     <Textarea
                       {...field}
                       value={field.value ?? ""}
-                      placeholder="Internal notes…"
+                      placeholder={ps.internalNotesPlaceholder}
                       rows={3}
                       data-testid="textarea-company-notes"
                     />
@@ -278,14 +274,14 @@ export function EditCompanyDialog({
                 onClick={() => onOpenChange(false)}
                 data-testid="button-cancel-edit-company"
               >
-                Cancel
+                {ps.cancel}
               </Button>
               <Button
                 type="submit"
                 disabled={mutation.isPending}
                 data-testid="button-save-edit-company"
               >
-                {mutation.isPending ? "Saving…" : "Save Changes"}
+                {mutation.isPending ? ps.saving : ps.saveChanges}
               </Button>
             </DialogFooter>
           </form>
