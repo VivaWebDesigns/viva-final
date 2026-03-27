@@ -581,6 +581,12 @@ export const en = {
     leadsTimeZone: "Lead's Time Zone",
     leadsTimeHint: "Enter the time as it is for the lead, not your own time zone.",
     salesRep: "Sales Rep",
+    salesRepPlaceholder: "Rep's full name",
+    selectTimezone: "Select TZ",
+    timezoneEastern: "Eastern (EST)",
+    timezoneCentral: "Central (CST)",
+    timezoneMountain: "Mountain (MST)",
+    timezonePacific: "Pacific (PST)",
     preview: "Preview",
     outcomes: {
       noAnswer: "No answer",

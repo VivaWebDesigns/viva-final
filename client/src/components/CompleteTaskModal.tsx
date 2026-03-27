@@ -52,10 +52,10 @@ const REQUIRES_FOLLOW_UP = new Set([
 ]);
 
 const US_TIMEZONES = [
-  { value: "EST", label: "Eastern (EST)" },
-  { value: "CST", label: "Central (CST)" },
-  { value: "MST", label: "Mountain (MST)" },
-  { value: "PST", label: "Pacific (PST)" },
+  { value: "EST", labelKey: "timezoneEastern" },
+  { value: "CST", labelKey: "timezoneCentral" },
+  { value: "MST", labelKey: "timezoneMountain" },
+  { value: "PST", labelKey: "timezonePacific" },
 ];
 
 type FollowUpOption = "none" | "1d" | "3d" | "1w" | "custom";
@@ -340,12 +340,12 @@ export default function CompleteTaskModal({
                   <Label className="text-sm font-semibold text-amber-600" htmlFor="demo-tz">⚠ {t.tasks.leadsTimeZone}</Label>
                   <Select value={demoTimezone} onValueChange={setDemoTimezone}>
                     <SelectTrigger id="demo-tz" data-testid="select-demo-timezone">
-                      <SelectValue placeholder="Select TZ" />
+                      <SelectValue placeholder={t.tasks.selectTimezone} />
                     </SelectTrigger>
                     <SelectContent>
                       {US_TIMEZONES.map((tz) => (
                         <SelectItem key={tz.value} value={tz.value}>
-                          {tz.label}
+                          {(t.tasks as unknown as Record<string, string>)[tz.labelKey]}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -363,7 +363,7 @@ export default function CompleteTaskModal({
                   type="text"
                   value={demoRep}
                   onChange={(e) => setDemoRep(e.target.value)}
-                  placeholder="Rep's full name"
+                  placeholder={t.tasks.salesRepPlaceholder}
                   data-testid="input-demo-rep"
                 />
               </div>

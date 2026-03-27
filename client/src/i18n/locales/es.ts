@@ -583,6 +583,12 @@ export const es: AdminTranslations = {
     leadsTimeZone: "Zona Horaria del Prospecto",
     leadsTimeHint: "Ingresa la hora según el huso horario del prospecto, no el tuyo.",
     salesRep: "Representante de Ventas",
+    salesRepPlaceholder: "Nombre completo del rep",
+    selectTimezone: "Seleccionar zona",
+    timezoneEastern: "Este (EST)",
+    timezoneCentral: "Centro (CST)",
+    timezoneMountain: "Montaña (MST)",
+    timezonePacific: "Pacífico (PST)",
     preview: "Vista previa",
     outcomes: {
       noAnswer: "Sin respuesta",
