@@ -56,11 +56,25 @@ export default function LoginPage() {
   const { isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
 
+  const [checkingSetup, setCheckingSetup] = useState(true);
+
   useEffect(() => {
-    if (isAuthenticated) setLocation("/admin");
+    if (isAuthenticated) {
+      setLocation("/admin");
+      return;
+    }
+    fetch("/api/users/setup-status")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.needsSetup) {
+          setLocation("/admin/setup");
+        }
+        setCheckingSetup(false);
+      })
+      .catch(() => setCheckingSetup(false));
   }, [isAuthenticated]);
 
-  if (isAuthenticated) return null;
+  if (isAuthenticated || checkingSetup) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

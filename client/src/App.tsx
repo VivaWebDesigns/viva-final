@@ -28,6 +28,7 @@ const Demo = lazy(() => import("@/pages/Demo"));
 const AdminDemoBuilder = lazy(() => import("@/pages/AdminDemoBuilder"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 const LoginPage = lazy(() => import("@features/auth/LoginPage"));
+const SetupPage = lazy(() => import("@features/auth/SetupPage"));
 const DashboardPage = lazy(() => import("@features/admin/pages/DashboardPage"));
 const DocsPage = lazy(() => import("@features/docs/DocsPage"));
 const LeadListPage = lazy(() => import("@features/crm/LeadListPage"));
@@ -203,6 +204,22 @@ function App() {
   const [location] = useLocation();
   const isAdmin = location.startsWith("/admin");
   const isLogin = location === "/login";
+  const isSetup = location === "/admin/setup";
+
+  if (isSetup) {
+    return (
+      <HelmetProvider>
+        <QueryClientProvider client={queryClient}>
+          <TooltipProvider>
+            <Suspense fallback={<PageFallback />}>
+              <SetupPage />
+            </Suspense>
+            <Toaster />
+          </TooltipProvider>
+        </QueryClientProvider>
+      </HelmetProvider>
+    );
+  }
 
   if (isLogin) {
     return (

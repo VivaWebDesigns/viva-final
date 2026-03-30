@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { useAuth } from "./useAuth";
 import { Redirect } from "wouter";
 import type { Role } from "@shared/schema";
@@ -10,8 +11,18 @@ interface ProtectedRouteProps {
 
 export default function ProtectedRoute({ children, roles, redirectTo }: ProtectedRouteProps) {
   const { isAuthenticated, isLoading, role } = useAuth();
+  const [setupNeeded, setSetupNeeded] = useState<boolean | null>(null);
 
-  if (isLoading) {
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      fetch("/api/users/setup-status")
+        .then((r) => r.json())
+        .then((data) => setSetupNeeded(data.needsSetup === true))
+        .catch(() => setSetupNeeded(false));
+    }
+  }, [isLoading, isAuthenticated]);
+
+  if (isLoading || (!isAuthenticated && setupNeeded === null)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50" data-testid="loading-auth">
         <div className="w-8 h-8 border-4 border-[#0D9488] border-t-transparent rounded-full animate-spin" />
@@ -20,6 +31,9 @@ export default function ProtectedRoute({ children, roles, redirectTo }: Protecte
   }
 
   if (!isAuthenticated) {
+    if (setupNeeded) {
+      return <Redirect to="/admin/setup" />;
+    }
     return <Redirect to="/login" />;
   }
 

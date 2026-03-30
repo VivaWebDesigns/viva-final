@@ -37,6 +37,7 @@ The admin UI is fully bilingual (EN/ES), built with React, Vite, Tailwind CSS, s
 - **Typed Error Semantics**: Features a hierarchical error class structure (`ProfileError` and subclasses) with specific HTTP status codes and a centralized error handler for consistent and informative API responses, including handling for "orphaned" opportunities.
 
 ### System Design Choices
+- **First-Run Admin Setup**: When no admin user exists in the database, visiting `/admin` or `/login` redirects to `/admin/setup` — a one-time setup page where the first admin creates their account. The setup endpoint (`POST /api/users/setup`) uses a DB transaction to prevent race conditions and is automatically disabled once an admin exists. This eliminates the need for `SEED_ADMIN_*` environment variables in production.
 - **Database Seed Strategy**: Idempotent seeding on startup for core data, with separate dev-only fake data.
 - **Data-testid Attributes**: Comprehensive `data-testid` attributes for robust testing.
 - **File Structure**: Organized `client/src/features`, `client/src/components`, `client/src/hooks`, `client/src/i18n`, `client/src/pages` for frontend, and `server/features`, `shared` for backend and shared schemas. The `profiles` feature is a core cross-domain module.
