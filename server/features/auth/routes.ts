@@ -22,7 +22,7 @@ router.get("/setup-status", async (_req, res) => {
     res.json({ needsSetup: !adminUser });
   } catch (err: any) {
     console.error("[setup-status] error:", err.message);
-    res.status(500).json({ message: "Failed to check setup status" });
+    res.json({ needsSetup: true, dbError: true });
   }
 });
 

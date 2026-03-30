@@ -18,7 +18,7 @@ export default function ProtectedRoute({ children, roles, redirectTo }: Protecte
       fetch("/api/users/setup-status")
         .then((r) => r.json())
         .then((data) => setSetupNeeded(data.needsSetup === true))
-        .catch(() => setSetupNeeded(false));
+        .catch(() => setSetupNeeded(true));
     }
   }, [isLoading, isAuthenticated]);
 

@@ -68,10 +68,13 @@ export default function LoginPage() {
       .then((data) => {
         if (data.needsSetup) {
           setLocation("/admin/setup");
+          return;
         }
         setCheckingSetup(false);
       })
-      .catch(() => setCheckingSetup(false));
+      .catch(() => {
+        setLocation("/admin/setup");
+      });
   }, [isAuthenticated]);
 
   if (isAuthenticated || checkingSetup) return null;

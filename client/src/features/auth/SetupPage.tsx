@@ -17,6 +17,7 @@ export default function SetupPage() {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
+  const [dbError, setDbError] = useState(false);
 
   useEffect(() => {
     fetch("/api/users/setup-status")
@@ -24,6 +25,9 @@ export default function SetupPage() {
       .then((data) => {
         if (!data.needsSetup) {
           setLocation("/login");
+        }
+        if (data.dbError) {
+          setDbError(true);
         }
         setIsChecking(false);
       })
@@ -105,6 +109,15 @@ export default function SetupPage() {
             </h1>
             <p className="text-gray-500 mt-1">Create your admin account to get started</p>
           </div>
+
+          {dbError && (
+            <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg px-4 py-3 mb-4">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span className="text-sm">
+                Database connection issue detected. Please verify your DATABASE_URL environment variable is correct, then redeploy.
+              </span>
+            </div>
+          )}
 
           <div className="flex items-center gap-2 bg-teal-50 border border-teal-200 text-teal-700 rounded-lg px-4 py-3 mb-6">
             <Shield className="w-4 h-4 flex-shrink-0" />
