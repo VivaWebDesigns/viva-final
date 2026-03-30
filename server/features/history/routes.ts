@@ -138,7 +138,7 @@ router.get("/client/:entityId", requireRole("admin", "developer", "sales_rep"), 
       const meta = (a.metadata ?? {}) as Record<string, unknown>;
       const metaEvent = (meta.event as string) ?? null;
       let event = metaEvent ?? a.type ?? "activity";
-      let note = a.content;
+      let note: string | null = a.content;
       let fromValue: string | null = null;
       let toValue: string | null = null;
       if (metaEvent === "task_completed") {

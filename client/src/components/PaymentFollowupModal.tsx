@@ -271,7 +271,7 @@ export default function PaymentFollowupModal({
               <div className="space-y-1">
                 <Label htmlFor="pf-time">
                   {pf.followUpTime}{" "}
-                  <span className="text-gray-400 text-xs font-normal">({t.optional})</span>
+                  <span className="text-gray-400 text-xs font-normal">({t.common.optional})</span>
                 </Label>
                 <Select value={followUpTime} onValueChange={setFollowUpTime}>
                   <SelectTrigger id="pf-time" data-testid="select-payment-followup-time">
@@ -289,7 +289,7 @@ export default function PaymentFollowupModal({
               <div className="space-y-1">
                 <Label htmlFor="pf-notes">
                   {t.profileShell.notes}{" "}
-                  <span className="text-gray-400 text-xs font-normal">({t.optional})</span>
+                  <span className="text-gray-400 text-xs font-normal">({t.common.optional})</span>
                 </Label>
                 <Textarea
                   id="pf-notes"
