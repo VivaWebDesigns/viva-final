@@ -1,4 +1,6 @@
 import * as crmStorage from "./storage";
+import * as pipelineStorage from "../pipeline/storage";
+import { executeStageAutomations } from "../automations/trigger";
 import { logAudit } from "../audit/service";
 import { notifyNewLead } from "../notifications/triggers";
 import type { UtmAttribution } from "@shared/schema";
@@ -66,21 +68,24 @@ export async function ingestWebsiteFormSubmission(
 
   let companyId: string | null = null;
   const businessName = formData.business?.trim();
-  if (businessName) {
-    let company = await crmStorage.findCompanyByName(businessName);
-    if (!company) {
-      company = await crmStorage.createCompany({
-        name: businessName,
-        industry: formData.trade || null,
-        city: formData.city || formData.zipCode || null,
-        preferredLanguage: "es",
-      });
-    }
-    companyId = company.id;
+  const companyLabel = businessName || `${firstName}${lastName ? " " + lastName : ""} (Personal)`;
 
-    if (!contact.companyId) {
-      await crmStorage.updateContact(contact.id, { companyId: company.id });
-    }
+  let company = businessName
+    ? await crmStorage.findCompanyByName(businessName)
+    : null;
+
+  if (!company) {
+    company = await crmStorage.createCompany({
+      name: companyLabel,
+      industry: formData.trade || null,
+      city: formData.city || formData.zipCode || null,
+      preferredLanguage: "es",
+    });
+  }
+  companyId = company.id;
+
+  if (!contact.companyId) {
+    await crmStorage.updateContact(contact.id, { companyId: company.id });
   }
 
   let defaultStatus = await crmStorage.getDefaultLeadStatus();
@@ -127,6 +132,33 @@ export async function ingestWebsiteFormSubmission(
     type: "system",
     content: `Lead created from ${sourceLabel.toLowerCase()}.\n${noteDetails}`,
   });
+
+  const newLeadStage = await pipelineStorage.getStageBySlug("new-lead");
+  if (newLeadStage) {
+    try {
+      const opp = await pipelineStorage.createOpportunity({
+        title: leadTitle,
+        leadId: lead.id,
+        companyId,
+        contactId: contact.id,
+        stageId: newLeadStage.id,
+        status: "open",
+        sourceLeadTitle: leadTitle,
+        notes: formData.message || null,
+      });
+      executeStageAutomations({
+        opportunityId: opp.id,
+        leadId: lead.id,
+        contactId: contact.id,
+        companyId,
+        stageSlug: "new-lead",
+      }).catch((err: unknown) => {
+        console.error("[crm/ingest] executeStageAutomations failed:", err);
+      });
+    } catch (oppErr) {
+      console.error("[crm/ingest] opportunity creation failed:", oppErr);
+    }
+  }
 
   await logAudit({
     action: "crm_lead_created",
