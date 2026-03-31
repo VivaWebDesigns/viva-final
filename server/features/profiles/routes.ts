@@ -450,6 +450,7 @@ router.get(
       if (oppIds.length > 0) conditions.push(inArray(followupTasks.opportunityId, oppIds));
 
       const now = new Date();
+      now.setHours(0, 0, 0, 0);
       const tasks = await db
         .select({
           id: followupTasks.id,

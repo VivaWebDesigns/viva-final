@@ -852,7 +852,8 @@ export interface TasksCardProps {
 
 function ProfileTaskRow({ task }: { task: MappedTask }) {
   const { t } = useAdminLang();
-  const isOverdue = !task.completed && new Date(task.dueDate) < new Date();
+  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+  const isOverdue = !task.completed && new Date(task.dueDate) < todayStart;
 
   return (
     <div

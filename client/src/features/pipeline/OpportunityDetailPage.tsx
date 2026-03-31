@@ -780,7 +780,8 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                 <p className="text-xs text-gray-400 text-center py-2">{t.pipeline.noTasksYet}</p>
               ) : (
                 sortedTasks.map(task => {
-                  const isOverdue = !task.completed && new Date(task.dueDate) < new Date();
+                  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+                  const isOverdue = !task.completed && new Date(task.dueDate) < todayStart;
                   return (
                     <div
                       key={task.id}
