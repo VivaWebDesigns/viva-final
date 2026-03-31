@@ -106,7 +106,34 @@ function PrivacyPolicyContent() {
         </p>
       </PolicySection>
 
-      <PolicySection title="10. Contact Us">
+      <PolicySection title="10. SMS Terms &amp; Privacy Policy">
+        <p>
+          By opting in to SMS messages from {company}, you agree to receive text messages for customer support, service updates, and other communications related to your account.
+        </p>
+        <p>
+          You can cancel the SMS service at any time. Just text <strong>STOP</strong>. After you send the SMS message "STOP" to us, we will send you an SMS message to confirm that you have been unsubscribed. After this, you will no longer receive SMS messages from us. If you want to join again, just sign up as you did the first time and we will start sending SMS messages to you again.
+        </p>
+        <p>
+          If you are experiencing issues with the messaging program, you can reply with the keyword <strong>HELP</strong> for more assistance.
+        </p>
+        <p>
+          Carriers are not liable for delayed or undelivered messages.
+        </p>
+        <p>
+          As always, message and data rates may apply for any messages sent to you from us and to us from you. Message frequency varies. If you have any questions about your text plan or data plan, it is best to contact your wireless provider.
+        </p>
+        <p>
+          {company} does not share mobile numbers, text messaging originator opt-in data, or consent with any third parties or affiliates for marketing or promotional purposes.
+        </p>
+        <p>
+          Mobile information may be shared only with subcontractors and service providers that support the delivery of SMS services, such as messaging platforms, telecommunications providers, or customer support vendors. This information is used solely to provide and operate the messaging service.
+        </p>
+        <p>
+          All other use case categories exclude text messaging originator opt-in data and consent. This information will not be shared with any third parties.
+        </p>
+      </PolicySection>
+
+      <PolicySection title="11. Contact Us">
         <p>If you have questions or concerns about this Privacy Policy, please contact us:</p>
         <div className="mt-2 ml-2 space-y-1">
           <p><strong>{company}</strong></p>
@@ -114,40 +141,6 @@ function PrivacyPolicyContent() {
           <p>Email: {email}</p>
         </div>
       </PolicySection>
-
-      <div className="mt-10 p-5 bg-blue-50 rounded-lg border border-blue-200">
-        <h2 className="text-base font-bold text-gray-900 mb-4">SMS Terms &amp; Privacy Policy</h2>
-        <div className="text-sm text-gray-700 leading-relaxed space-y-4">
-          <p>
-            By opting in to SMS messages from {company}, you agree to receive text messages for customer support, service updates, and other communications related to your account.
-          </p>
-          <p>
-            You can cancel the SMS service at any time. Just text <strong>STOP</strong>. After you send the SMS message "STOP" to us, we will send you an SMS message to confirm that you have been unsubscribed. After this, you will no longer receive SMS messages from us. If you want to join again, just sign up as you did the first time and we will start sending SMS messages to you again.
-          </p>
-          <p>
-            If you are experiencing issues with the messaging program, you can reply with the keyword <strong>HELP</strong> for more assistance.
-          </p>
-          <p>
-            Carriers are not liable for delayed or undelivered messages.
-          </p>
-          <p>
-            As always, message and data rates may apply for any messages sent to you from us and to us from you. Message frequency varies. If you have any questions about your text plan or data plan, it is best to contact your wireless provider.
-          </p>
-
-          <div className="pt-3 border-t border-blue-200">
-            <h3 className="font-semibold text-gray-900 mb-2">Privacy Policy</h3>
-            <p>
-              {company} does not share mobile numbers, text messaging originator opt-in data, or consent with any third parties or affiliates for marketing or promotional purposes.
-            </p>
-            <p className="mt-2">
-              Mobile information may be shared only with subcontractors and service providers that support the delivery of SMS services, such as messaging platforms, telecommunications providers, or customer support vendors. This information is used solely to provide and operate the messaging service.
-            </p>
-            <p className="mt-2">
-              All other use case categories exclude text messaging originator opt-in data and consent. This information will not be shared with any third parties.
-            </p>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
