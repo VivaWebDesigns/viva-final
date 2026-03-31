@@ -21,6 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { US_STATES } from "@/lib/usStates";
 import { normalizePhoneDigits, formatPhoneDisplay, isValidUSPhone } from "@shared/phone";
+import { CityCombobox } from "@/components/CityCombobox";
 
 const ACRONYMS = new Set(["LLC", "INC", "HVAC", "USA", "NC", "SC", "LP", "LLP", "PLLC", "DBA"]);
 
@@ -107,6 +108,8 @@ export default function CreateLeadModal({ open, onClose }: Props) {
       state: undefined,
     },
   });
+
+  const selectedState = form.watch("state");
 
   const [assignedToId, setAssignedToId] = useState("");
   const [assignedToError, setAssignedToError] = useState(false);
@@ -327,14 +330,12 @@ export default function CreateLeadModal({ open, onClose }: Props) {
                   <FormItem>
                     <FormLabel>{t.common.city} <span className="text-red-500">*</span></FormLabel>
                     <FormControl>
-                      <Input
+                      <CityCombobox
                         data-testid="input-city"
-                        placeholder={t.common.city}
-                        {...field}
-                        onBlur={() => {
-                          if (field.value) field.onChange(titleCase(field.value));
-                          field.onBlur();
-                        }}
+                        value={field.value}
+                        onChange={field.onChange}
+                        stateCode={selectedState ?? ""}
+                        disabled={!selectedState}
                       />
                     </FormControl>
                     <FormMessage />
@@ -347,7 +348,13 @@ export default function CreateLeadModal({ open, onClose }: Props) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>{t.common.state} <span className="text-red-500">*</span></FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
+                    <Select
+                      value={field.value}
+                      onValueChange={(v) => {
+                        field.onChange(v);
+                        form.setValue("city", "", { shouldValidate: false });
+                      }}
+                    >
                       <FormControl>
                         <SelectTrigger data-testid="select-state">
                           <SelectValue placeholder={t.crm.selectState} />
