@@ -13,6 +13,8 @@ import CompleteTaskModal from "@/components/CompleteTaskModal";
 import DemoCompletedModal from "@/components/DemoCompletedModal";
 import PaymentSentModal from "@/components/PaymentSentModal";
 import PaymentFollowupModal from "@/components/PaymentFollowupModal";
+import CallButton from "@/components/CallButton";
+import SMSButton from "@/components/SMSButton";
 import type { FollowupTask } from "@shared/schema";
 import { useAdminLang } from "@/i18n/LanguageContext";
 import { renderTaskTitle, renderTaskNotes, getStageLabel } from "@/lib/activityI18n";
@@ -115,14 +117,26 @@ function TaskRow({
             </span>
           )}
           {task.contact?.phone && (
-            <a
-              href={`tel:${task.contact.phone}`}
-              className="flex items-center gap-1 text-xs text-[#0D9488] hover:underline"
-              data-testid={`link-phone-${task.id}`}
-            >
-              <Phone className="w-3 h-3 flex-shrink-0" />
-              {task.contact.phone}
-            </a>
+            <span className="flex items-center gap-1.5">
+              <a
+                href={`tel:${task.contact.phone}`}
+                className="flex items-center gap-1 text-xs text-[#0D9488] hover:underline"
+                data-testid={`link-phone-${task.id}`}
+              >
+                <Phone className="w-3 h-3 flex-shrink-0" />
+                {task.contact.phone}
+              </a>
+              <CallButton
+                phone={task.contact.phone}
+                leadId={task.leadId}
+                clientId={task.companyId}
+              />
+              <SMSButton
+                phone={task.contact.phone}
+                leadId={task.leadId}
+                clientId={task.companyId}
+              />
+            </span>
           )}
         </div>
 

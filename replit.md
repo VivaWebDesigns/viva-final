@@ -48,3 +48,4 @@ The admin UI is fully bilingual (EN/ES), built with React, Vite, Tailwind CSS, s
 - **Cloudflare R2**: Object storage for file uploads.
 - **Stripe**: Payment processing.
 - **Socket.io**: Real-time communication.
+- **QUO (OpenPhone)**: Business SMS platform. `QUO_API_KEY` secret required. Backend proxy at `POST /api/quo/sms` sends real SMS messages via the OpenPhone v1 API (`https://api.openphone.com/v1/messages`). Phone number IDs are fetched dynamically from `GET /v1/phone-numbers` (cached 1 hour). Calling uses the `tel:` protocol to open the Quo/system dialer — the QUO API does not support outbound call initiation via REST.

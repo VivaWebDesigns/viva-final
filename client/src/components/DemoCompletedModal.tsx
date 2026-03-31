@@ -32,6 +32,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import CallButton from "@/components/CallButton";
+import SMSButton from "@/components/SMSButton";
 
 type Outcome = "ready-for-payment" | "still-thinking" | "not-interested";
 
@@ -288,7 +290,11 @@ export default function DemoCompletedModal({
               {contactPhone && (
                 <div className="space-y-1">
                   <Label className="text-xs text-gray-500 uppercase tracking-wide">{dc.leadsPhone}</Label>
-                  <p className="text-sm font-medium" data-testid="text-lead-phone">{contactPhone}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium" data-testid="text-lead-phone">{contactPhone}</p>
+                    <CallButton phone={contactPhone} />
+                    <SMSButton phone={contactPhone} />
+                  </div>
                 </div>
               )}
               <div className="space-y-1">

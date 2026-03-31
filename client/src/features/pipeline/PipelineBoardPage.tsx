@@ -10,6 +10,8 @@ import { DollarSign, List, GripVertical, Phone, Building2, MapPin } from "lucide
 import type { PipelineStage, PipelineOpportunity } from "@shared/schema";
 import QuickTaskModal from "@/components/QuickTaskModal";
 import { useAdminLang } from "@/i18n/LanguageContext";
+import CallButton from "@/components/CallButton";
+import SMSButton from "@/components/SMSButton";
 
 import {
   DndContext,
@@ -104,14 +106,26 @@ function CardDisplay({
 
         <div className="ml-6 space-y-1">
           {contact?.phone && (
-            <a
-              href={`tel:${contact.phone}`}
-              className="flex items-center gap-1 text-xs text-[#0D9488] hover:underline"
-              data-testid={`link-phone-${opp.id}`}
-            >
-              <Phone className="w-3 h-3 flex-shrink-0" />
-              {contact.phone}
-            </a>
+            <div className="flex items-center gap-1.5">
+              <a
+                href={`tel:${contact.phone}`}
+                className="flex items-center gap-1 text-xs text-[#0D9488] hover:underline"
+                data-testid={`link-phone-${opp.id}`}
+              >
+                <Phone className="w-3 h-3 flex-shrink-0" />
+                {contact.phone}
+              </a>
+              <CallButton
+                phone={contact.phone}
+                contactId={contact.id}
+                leadId={opp.leadId}
+              />
+              <SMSButton
+                phone={contact.phone}
+                contactId={contact.id}
+                leadId={opp.leadId}
+              />
+            </div>
           )}
 
           <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-gray-400">

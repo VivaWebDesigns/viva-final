@@ -162,20 +162,30 @@ router.post("/seed-all", requireRole("admin"), async (req, res) => {
 
 // ── User Management ──────────────────────────────────────────────────
 
-router.get("/users", requireRole("admin", "developer"), async (_req, res) => {
+router.get("/users", requireRole("admin", "developer"), async (req, res) => {
   try {
-    const users = await db
-      .select({
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        banned: user.banned,
-        createdAt: user.createdAt,
-      })
-      .from(user)
-      .orderBy(desc(user.createdAt));
-    res.json(users);
+    const roleFilter = req.query.role as string | undefined;
+
+    const baseQuery = roleFilter
+      ? db
+          .select({ id: user.id, name: user.name })
+          .from(user)
+          .where(eq(user.role, roleFilter))
+          .orderBy(desc(user.createdAt))
+      : db
+          .select({
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            banned: user.banned,
+            createdAt: user.createdAt,
+          })
+          .from(user)
+          .orderBy(desc(user.createdAt));
+
+    const rows = await baseQuery;
+    res.json(rows);
   } catch (err: any) {
     res.status(500).json({ message: err.message });
   }
