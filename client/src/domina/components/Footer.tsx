@@ -3,6 +3,7 @@ import { SiTiktok } from "react-icons/si";
 import { Link } from "wouter";
 import { useLanguage } from "@domina/i18n/LanguageContext";
 import logoPng from "@assets/image_1_(5)_1772575534808_1773059817248.png";
+import { PrivacyPolicyModal } from "@/components/PrivacyPolicyModal";
 
 const SOCIAL_LINKS = [
   { icon: Facebook, label: "Facebook", href: "#", color: "text-[#1877F2]" },
@@ -73,9 +74,12 @@ export function Footer() {
         </div>
 
         <div className="border-t border-border pt-6 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-muted-foreground text-sm">
-            &copy; {new Date().getFullYear()} {t.footer.copyright}
-          </p>
+          <div className="flex flex-col sm:flex-row items-center gap-3">
+            <p className="text-muted-foreground text-sm">
+              &copy; {new Date().getFullYear()} {t.footer.copyright}
+            </p>
+            <PrivacyPolicyModal className="text-muted-foreground text-sm hover:text-foreground transition-colors" />
+          </div>
           
           <div className="hidden md:flex items-center gap-4">
             {SOCIAL_LINKS.map((social) => (

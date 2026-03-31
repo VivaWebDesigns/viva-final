@@ -2,6 +2,7 @@ import { Link } from "wouter";
 import { useLanguage } from "@crece/hooks/use-language";
 import { SiFacebook, SiInstagram, SiYoutube, SiTiktok } from "react-icons/si";
 import logoImg from "@assets/image_1_(5)_1772575534808_1773059817248.png";
+import { PrivacyPolicyModal } from "@/components/PrivacyPolicyModal";
 
 export function Footer() {
   const { t } = useLanguage();
@@ -43,9 +44,12 @@ export function Footer() {
           </a>
         </div>
 
-        <p className="text-muted-foreground text-sm">
-          &copy; {new Date().getFullYear()} {(window.__PREVIEW__?.payload?.businessName) || "Charlotte Painting Pro"}. {t("footer.rights")}
-        </p>
+        <div className="flex flex-col sm:flex-row items-center gap-3">
+          <p className="text-muted-foreground text-sm">
+            &copy; {new Date().getFullYear()} {(window.__PREVIEW__?.payload?.businessName) || "Charlotte Painting Pro"}. {t("footer.rights")}
+          </p>
+          <PrivacyPolicyModal className="text-muted-foreground text-sm hover:text-foreground transition-colors" />
+        </div>
       </div>
     </footer>
   );
