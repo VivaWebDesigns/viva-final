@@ -73,6 +73,7 @@ const updateCrmLeadSchema = z.object({
   city: z.string().nullable().optional(),
   state: z.string().regex(/^[A-Z]{2}$/).nullable().optional(),
   timezone: z.string().nullable().optional(),
+  sellerProfileUrl: z.string().nullable().optional(),
 }).strict();
 
 const updateCrmCompanySchema = z.object({
@@ -132,6 +133,14 @@ function isRestricted(req: express.Request): boolean {
   return role === "sales_rep" || role === "lead_gen";
 }
 
+// Strip sellerProfileUrl from lead objects for sales_rep viewers.
+function stripSellerUrl<T extends { sellerProfileUrl?: string | null }>(lead: T, req: express.Request): T {
+  if (req.authUser?.role === "sales_rep") {
+    return { ...lead, sellerProfileUrl: null };
+  }
+  return lead;
+}
+
 // Returns true if access is allowed, false (+ sends 403) if not.
 async function assertLeadAccess(
   req: express.Request,
@@ -164,7 +173,7 @@ router.get("/leads", requireRole("admin", "developer", "sales_rep", "lead_gen"),
       page: page ? parseInt(page as string, 10) : undefined,
       limit: limit ? parseInt(limit as string, 10) : undefined,
     });
-    const leads = await crmStorage.enrichLeads(result.items);
+    const leads = (await crmStorage.enrichLeads(result.items)).map(l => stripSellerUrl(l, req));
     res.json({ leads, total: result.total, page: result.page, pageSize: result.limit });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
@@ -291,7 +300,7 @@ router.post("/leads/bulk/delete", requireRole("admin"), async (req, res) => {
 
 router.get("/leads/export-csv", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
-    const csv = await exportLeadsToCSV();
+    const csv = await exportLeadsToCSV(req.authUser?.role === "sales_rep");
     const date = new Date().toISOString().split("T")[0];
     await logAudit({
       userId: req.authUser?.id,
@@ -370,6 +379,7 @@ const manualLeadSchema = z.object({
   email:             z.string().email("Invalid email").optional().or(z.literal("")),
   website:           z.string().optional(),
   source:            z.enum(["website", "outreach"]),
+  sellerProfileUrl:  z.string().optional(),
   preferredLanguage: z.enum(["es", "en"]).default("es"),
   notes:             z.string().optional(),
   city:              z.string().min(1, "City is required"),
@@ -388,6 +398,11 @@ router.post("/leads/manual", requireRole("admin", "developer", "lead_gen"), asyn
       return res.status(400).json({ message: "Invalid phone number. Please enter a 10-digit US number." });
     }
 
+    // Outreach leads require a Seller Profile URL
+    if (data.source === "outreach" && !data.sellerProfileUrl?.trim()) {
+      return res.status(400).json({ message: "Seller Profile URL is required for Outreach leads." });
+    }
+
     // Duplicate check — must run before any record is created
     const dupCheck = await crmStorage.checkManualLeadDuplicate({
       normalizedPhone,
@@ -395,6 +410,8 @@ router.post("/leads/manual", requireRole("admin", "developer", "lead_gen"), asyn
       lastName:  data.lastName,
       businessName: data.businessName,
       state: data.state,
+      source: data.source,
+      sellerProfileUrl: data.sellerProfileUrl,
     });
     if (dupCheck.isDuplicate) {
       return res.status(409).json({ code: "DUPLICATE_LEAD", match: dupCheck.match });
@@ -469,6 +486,7 @@ router.post("/leads/manual", requireRole("admin", "developer", "lead_gen"), asyn
       state: data.state,
       timezone: US_STATE_TIMEZONES[data.state] ?? null,
       assignedTo: resolvedAssignee,
+      sellerProfileUrl: data.source === "outreach" ? (data.sellerProfileUrl?.trim() || null) : null,
     });
 
     // 6. Create pipeline opportunity in the "new-lead" stage — inherit owner from lead
@@ -520,7 +538,7 @@ router.get("/leads/:id", requireRole("admin", "developer", "sales_rep", "lead_ge
   if (isRestricted(req) && lead.assignedTo !== req.authUser!.id) {
     return res.status(403).json({ message: "Access denied" });
   }
-  res.json(lead);
+  res.json(stripSellerUrl(lead, req));
 });
 
 router.put("/leads/:id", requireRole("admin", "developer", "sales_rep", "lead_gen"), async (req, res) => {
@@ -563,7 +581,7 @@ router.put("/leads/:id", requireRole("admin", "developer", "sales_rep", "lead_ge
         }
       } catch (_) {}
     }
-    res.json(lead);
+    res.json(stripSellerUrl(lead, req));
   } catch (error: any) {
     res.status(400).json({ message: error.message });
   }

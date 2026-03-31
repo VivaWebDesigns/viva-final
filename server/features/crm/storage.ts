@@ -329,8 +329,10 @@ export async function checkManualLeadDuplicate(params: {
   lastName: string;
   businessName?: string;
   state: string;
+  source?: string;
+  sellerProfileUrl?: string;
 }): Promise<DuplicateCheckResult> {
-  const { normalizedPhone, firstName, lastName, businessName, state } = params;
+  const { normalizedPhone, firstName, lastName, businessName, state, source, sellerProfileUrl } = params;
 
   // Rule 1: Exact normalized phone match
   const [phoneHit] = await db
@@ -344,6 +346,27 @@ export async function checkManualLeadDuplicate(params: {
     .where(sql`regexp_replace(${crmContacts.phone}, '[^0-9]', '', 'g') = ${normalizedPhone}`)
     .limit(1);
   if (phoneHit) return { isDuplicate: true, match: rowToMatchSummary(phoneHit) };
+
+  // Rule 1.5: Same seller profile URL (outreach only, non-empty)
+  const trimmedUrl = sellerProfileUrl?.trim().toLowerCase();
+  if (source === "outreach" && trimmedUrl) {
+    const [urlHit] = await db
+      .select(dupSelectShape)
+      .from(crmLeads)
+      .innerJoin(crmContacts,          eq(crmLeads.contactId,             crmContacts.id))
+      .leftJoin(crmCompanies,          eq(crmLeads.companyId,             crmCompanies.id))
+      .leftJoin(user,                  eq(crmLeads.assignedTo,            user.id))
+      .leftJoin(pipelineOpportunities, eq(pipelineOpportunities.leadId,   crmLeads.id))
+      .leftJoin(pipelineStages,        eq(pipelineOpportunities.stageId,  pipelineStages.id))
+      .where(
+        and(
+          sql`lower(trim(${crmLeads.sellerProfileUrl})) = ${trimmedUrl}`,
+          eq(crmLeads.source, "outreach")
+        )
+      )
+      .limit(1);
+    if (urlHit) return { isDuplicate: true, match: rowToMatchSummary(urlHit) };
+  }
 
   // Rule 2: Same first name + last name + state (case-insensitive, whitespace-collapsed)
   const nFirst = firstName.trim().replace(/\s+/g, " ").toLowerCase();

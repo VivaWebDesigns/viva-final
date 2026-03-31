@@ -15,6 +15,12 @@ import { asc, inArray } from "drizzle-orm";
 import type { CrmContact, CrmCompany } from "@shared/schema";
 
 const LEAD_EXPORT_HEADERS = [
+  "id", "title", "source", "seller_profile_url", "value", "notes", "status",
+  "contact_first_name", "contact_last_name", "contact_email", "contact_phone",
+  "company_name", "company_website", "assigned_to", "created_at",
+];
+
+const LEAD_EXPORT_HEADERS_NO_SELLER = [
   "id", "title", "source", "value", "notes", "status",
   "contact_first_name", "contact_last_name", "contact_email", "contact_phone",
   "company_name", "company_website", "assigned_to", "created_at",
@@ -25,14 +31,35 @@ const CONTACT_EXPORT_HEADERS = [
   "title", "company_name", "preferred_language", "notes", "created_at",
 ];
 
-export async function exportLeadsToCSV(): Promise<string> {
+export async function exportLeadsToCSV(hideSensitive = false): Promise<string> {
   const result = await getLeads({ limit: 10000, page: 1 });
   const enriched = await enrichLeads(result.items);
+
+  if (hideSensitive) {
+    const rows = enriched.map((lead) => [
+      lead.id,
+      lead.title,
+      lead.source ?? "",
+      lead.value ?? "",
+      lead.notes ?? "",
+      lead.status?.name ?? "",
+      lead.contact?.firstName ?? "",
+      lead.contact?.lastName ?? "",
+      lead.contact?.email ?? "",
+      lead.contact?.phone ?? "",
+      lead.company?.name ?? "",
+      lead.company?.website ?? "",
+      lead.assignedTo ?? "",
+      lead.createdAt ? new Date(lead.createdAt).toISOString().split("T")[0] : "",
+    ]);
+    return generateCSV(LEAD_EXPORT_HEADERS_NO_SELLER, rows);
+  }
 
   const rows = enriched.map((lead) => [
     lead.id,
     lead.title,
     lead.source ?? "",
+    lead.sellerProfileUrl ?? "",
     lead.value ?? "",
     lead.notes ?? "",
     lead.status?.name ?? "",

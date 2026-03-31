@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -72,6 +72,7 @@ const baseSchema = z.object({
   email:             z.string().email().optional().or(z.literal("")),
   website:           z.string().optional(),
   source:            z.enum(["website", "outreach"]),
+  sellerProfileUrl:  z.string().optional(),
   preferredLanguage: z.enum(["es", "en"]),
   notes:             z.string().optional(),
   city:              z.string().min(1),
@@ -92,6 +93,14 @@ export default function CreateLeadModal({ open, onClose }: Props) {
   const validatedSchema = useMemo(() => baseSchema.extend({
     city:  z.string().min(1, t.crm.cityRequired),
     state: z.enum(US_STATES, { required_error: t.crm.stateRequired }),
+  }).superRefine((data, ctx) => {
+    if (data.source === "outreach" && !data.sellerProfileUrl?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Seller Profile URL is required for Outreach leads",
+        path: ["sellerProfileUrl"],
+      });
+    }
   }), [t]);
 
   const form = useForm<FormValues>({
@@ -105,6 +114,7 @@ export default function CreateLeadModal({ open, onClose }: Props) {
       email: "",
       website: "",
       source: "website",
+      sellerProfileUrl: "",
       preferredLanguage: "es",
       notes: "",
       city: "",
@@ -113,6 +123,13 @@ export default function CreateLeadModal({ open, onClose }: Props) {
   });
 
   const selectedState = form.watch("state");
+  const watchedSource = form.watch("source");
+
+  useEffect(() => {
+    if (watchedSource === "website") {
+      form.setValue("sellerProfileUrl", "", { shouldValidate: false });
+    }
+  }, [watchedSource, form]);
 
   const [assignedToId, setAssignedToId] = useState("");
   const [assignedToError, setAssignedToError] = useState(false);
@@ -175,6 +192,7 @@ export default function CreateLeadModal({ open, onClose }: Props) {
     mutation.mutate({
       ...values,
       phone: normalizePhoneDigits(values.phone),
+      sellerProfileUrl: values.sellerProfileUrl || "",
       assignedTo: assignedToId,
     });
   }
@@ -214,6 +232,52 @@ export default function CreateLeadModal({ open, onClose }: Props) {
             onSubmit={form.handleSubmit(handleSubmit)}
             className="space-y-4 pt-1"
           >
+            {/* Top row: Lead Source (left) + Seller Profile URL (right, outreach only) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="source"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t.crm.source} <span className="text-red-500">*</span></FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-source">
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="website">{t.crm.sourceWebsite}</SelectItem>
+                        <SelectItem value="outreach">{t.crm.sourceOutreach}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              {watchedSource === "outreach" ? (
+                <FormField
+                  control={form.control}
+                  name="sellerProfileUrl"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Seller Profile URL <span className="text-red-500">*</span></FormLabel>
+                      <FormControl>
+                        <Input
+                          data-testid="input-seller-profile-url"
+                          placeholder="https://facebook.com/jrtattooz/"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              ) : (
+                <div />
+              )}
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -409,28 +473,6 @@ export default function CreateLeadModal({ open, onClose }: Props) {
                 )}
               />
             </div>
-
-            <FormField
-              control={form.control}
-              name="source"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t.crm.source} <span className="text-red-500">*</span></FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <FormControl>
-                      <SelectTrigger data-testid="select-source">
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="website">{t.crm.sourceWebsite}</SelectItem>
-                      <SelectItem value="outreach">{t.crm.sourceOutreach}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
 
             <FormField
               control={form.control}
