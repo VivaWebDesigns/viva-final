@@ -1,6 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 
 export interface QUOSMSPayload {
   phone: string;
@@ -19,6 +19,8 @@ export function useQUOSMS() {
       return apiRequest("POST", "/api/quo/sms", {
         to: payload.phone,
         content: payload.content,
+        leadId: payload.leadId ?? undefined,
+        contactId: payload.contactId ?? undefined,
       });
     },
     onSuccess: (_data, variables) => {
@@ -26,6 +28,9 @@ export function useQUOSMS() {
         title: "SMS enviado",
         description: `Mensaje enviado a ${variables.phone} a través de Quo.`,
       });
+      if (variables.leadId) {
+        queryClient.invalidateQueries({ queryKey: ["/api/profiles", "lead", variables.leadId] });
+      }
     },
     onError: (err: any) => {
       toast({

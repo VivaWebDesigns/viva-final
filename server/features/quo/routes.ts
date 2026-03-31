@@ -3,6 +3,7 @@ import { requireRole } from "../auth/middleware";
 import { getPhoneNumbers, sendSMS } from "./client";
 import { z } from "zod";
 import { normalizePhoneDigits, toE164Phone } from "@shared/phone";
+import * as crmStorage from "../crm/storage";
 
 const router = Router();
 
@@ -18,6 +19,8 @@ const sendSMSSchema = z.object({
   to: z.string().min(7, "Phone number is required"),
   content: z.string().min(1, "Message cannot be empty").max(1600, "Message is too long"),
   phoneNumberId: z.string().optional(),
+  leadId: z.string().optional(),
+  contactId: z.string().optional(),
 });
 
 router.get(
@@ -43,7 +46,7 @@ router.post(
       return res.status(400).json({ message: parsed.error.errors[0].message });
     }
 
-    const { to: rawTo, content, phoneNumberId: providedId } = parsed.data;
+    const { to: rawTo, content, phoneNumberId: providedId, leadId, contactId } = parsed.data;
 
     const to = toE164(rawTo);
     if (!to) {
@@ -61,6 +64,21 @@ router.post(
       }
 
       const result = await sendSMS({ to, content, phoneNumberId: fromId });
+
+      if (leadId) {
+        try {
+          await crmStorage.addLeadNote({
+            leadId,
+            userId: req.authUser!.id,
+            type: "sms",
+            content,
+            metadata: { to: rawTo, contactId: contactId ?? null, via: "quo" },
+          });
+        } catch (noteErr: any) {
+          console.error("[QUO] failed to log SMS activity note:", noteErr.message);
+        }
+      }
+
       return res.status(202).json(result);
     } catch (err: any) {
       console.error("[QUO] send-sms error:", err.message);

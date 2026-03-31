@@ -69,6 +69,7 @@ export function getActivityTypeLabel(type: string, t: AdminTranslations): string
     task:          "task",
     system:        "system",
     payment_sent:  "paymentSent",
+    sms:           "sms",
   };
   const key = keyMap[type];
   if (key && activity[key]) return activity[key];

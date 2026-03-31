@@ -376,6 +376,7 @@ export const en = {
       call: "Call",
       email: "Email",
       task: "Task",
+      sms: "SMS",
       stageChange: "Stage moved",
       paymentSent: "Payment sent",
       system: "System",

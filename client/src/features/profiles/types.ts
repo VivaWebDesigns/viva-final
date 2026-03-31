@@ -57,7 +57,8 @@ export type TimelineEventType =
   | "task"
   | "status_change"
   | "stage_change"
-  | "system";
+  | "system"
+  | "sms";
 
 export type TimelineEventSource =
   | "crm_lead_notes"

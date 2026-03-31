@@ -295,7 +295,7 @@ export const crmLeads = pgTable("crm_leads", {
   index("crm_leads_web_form_idx").on(t.fromWebsiteForm),
 ]);
 
-export const LEAD_NOTE_TYPES = ["note", "call", "email", "task", "status_change", "system"] as const;
+export const LEAD_NOTE_TYPES = ["note", "call", "email", "task", "status_change", "system", "sms"] as const;
 export type LeadNoteType = typeof LEAD_NOTE_TYPES[number];
 
 export const crmLeadNotes = pgTable("crm_lead_notes", {

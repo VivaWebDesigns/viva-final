@@ -205,6 +205,7 @@ const TIMELINE_ICON: Record<TimelineEventType, typeof MessageSquare> = {
   status_change:  RefreshCw,
   stage_change:   ArrowRight,
   system:         Info,
+  sms:            MessageSquare,
 };
 
 const SOURCE_LABEL: Record<TimelineEventSource, string> = {
