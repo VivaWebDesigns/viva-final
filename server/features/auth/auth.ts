@@ -4,6 +4,22 @@ import { admin } from "better-auth/plugins";
 import { db } from "../../db";
 import * as schema from "@shared/schema";
 
+const getBaseURL = () => {
+  if (process.env.BETTER_AUTH_URL) return process.env.BETTER_AUTH_URL;
+  if (process.env.RAILWAY_PUBLIC_DOMAIN) return `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`;
+  if (process.env.REPLIT_DOMAINS) return `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`;
+  return `http://localhost:${process.env.PORT || 5000}`;
+};
+
+const baseURL = getBaseURL();
+
+const trustedOrigins = [
+  baseURL,
+  ...(process.env.RAILWAY_PUBLIC_DOMAIN ? [`https://${process.env.RAILWAY_PUBLIC_DOMAIN}`] : []),
+  ...(process.env.REPLIT_DOMAINS ? process.env.REPLIT_DOMAINS.split(",").map(d => `https://${d}`) : []),
+  ...(process.env.REPLIT_DEV_DOMAIN ? [`https://${process.env.REPLIT_DEV_DOMAIN}`] : []),
+];
+
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "pg",
@@ -24,11 +40,7 @@ export const auth = betterAuth({
     }),
   ],
   secret: process.env.BETTER_AUTH_SECRET,
-  baseURL: process.env.BETTER_AUTH_URL || `http://localhost:${process.env.PORT || 5000}`,
+  baseURL,
   basePath: "/api/auth",
-  trustedOrigins: [
-    process.env.BETTER_AUTH_URL || `http://localhost:${process.env.PORT || 5000}`,
-    ...(process.env.REPLIT_DOMAINS ? process.env.REPLIT_DOMAINS.split(",").map(d => `https://${d}`) : []),
-    ...(process.env.REPLIT_DEV_DOMAIN ? [`https://${process.env.REPLIT_DEV_DOMAIN}`] : []),
-  ],
+  trustedOrigins,
 });
