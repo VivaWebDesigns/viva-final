@@ -709,6 +709,7 @@ function resolveContactName(
 export function SalesSnapshotCard({ entry, sales, companyName, contactName, contacts }: SalesSnapshotCardProps) {
   const { sourceLead, leadHistory, activeOpportunity, opportunities } = sales;
   const hasAnything = sourceLead || activeOpportunity || leadHistory.length > 0;
+  const { role } = useAuth();
 
   const [editOppOpen,  setEditOppOpen]  = useState(false);
   const [editLeadOpen, setEditLeadOpen] = useState(false);
@@ -792,6 +793,21 @@ export function SalesSnapshotCard({ entry, sales, companyName, contactName, cont
                   {sourceLead.sourceLabel}
                 </Badge>
               )}
+            </div>
+          )}
+
+          {sourceLead?.sellerProfileUrl && role !== "sales_rep" && (
+            <div className="space-y-0.5" data-testid="div-seller-profile-url">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Seller Profile</p>
+              <a
+                href={sourceLead.sellerProfileUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-indigo-600 hover:underline break-all"
+                data-testid="link-seller-profile-url"
+              >
+                {sourceLead.sellerProfileUrl}
+              </a>
             </div>
           )}
 

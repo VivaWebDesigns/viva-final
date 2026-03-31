@@ -27,6 +27,7 @@ import {
   getProfileByOpportunityId,
 } from "./service";
 import { sendProfileError, ProfileLinkageError, ProfileNotFoundError } from "./errors";
+import type { MappedLead, UnifiedProfileDto } from "./dto";
 import {
   mapLeadNoteToTimelineEvent,
   mapClientNoteToTimelineEvent,
@@ -119,6 +120,19 @@ function isRestricted(req: Request): boolean {
   return role === "sales_rep" || role === "lead_gen";
 }
 
+function stripProfileSellerUrl(profile: UnifiedProfileDto, req: Request): UnifiedProfileDto {
+  if (req.authUser?.role !== "sales_rep") return profile;
+  const stripLead = (lead: MappedLead): MappedLead => ({ ...lead, sellerProfileUrl: null });
+  return {
+    ...profile,
+    sales: {
+      ...profile.sales,
+      sourceLead: profile.sales.sourceLead ? stripLead(profile.sales.sourceLead) : null,
+      leadHistory: profile.sales.leadHistory.map(stripLead),
+    },
+  };
+}
+
 function actorId(req: Request): string {
   return req.authUser!.id;
 }
@@ -149,7 +163,7 @@ router.get(
       }
 
       const profile = await getProfileByCompanyId(companyId);
-      return res.json(profile);
+      return res.json(stripProfileSellerUrl(profile, req));
     } catch (err: unknown) {
       return sendProfileError(res, err);
     }
@@ -181,7 +195,7 @@ router.get(
       }
 
       const profile = await getProfileByLeadId(leadId);
-      return res.json(profile);
+      return res.json(stripProfileSellerUrl(profile, req));
     } catch (err: unknown) {
       return sendProfileError(res, err);
     }
@@ -213,7 +227,7 @@ router.get(
       }
 
       const profile = await getProfileByOpportunityId(opportunityId);
-      return res.json(profile);
+      return res.json(stripProfileSellerUrl(profile, req));
     } catch (err: unknown) {
       if (err instanceof ProfileLinkageError) {
         // Opportunity exists but has no resolvable company.  Return a

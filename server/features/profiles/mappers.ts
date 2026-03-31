@@ -101,6 +101,7 @@ export function mapLead(row: CrmLead): MappedLead {
     state: row.state ?? null,
     timezone: row.timezone ?? null,
     fromWebsiteForm: row.fromWebsiteForm,
+    sellerProfileUrl: row.sellerProfileUrl ?? null,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };

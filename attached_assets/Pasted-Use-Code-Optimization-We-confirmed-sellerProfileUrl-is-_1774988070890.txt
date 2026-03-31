@@ -1,0 +1,77 @@
+Use Code Optimization.
+
+We confirmed sellerProfileUrl is being saved
+correctly because exact duplicate blocking
+works against an existing lead with the same
+URL.
+
+Current bug:
+
+- As admin, Seller Profile URL is not visible
+  in CRM lead detail or edit view for a newly
+  created outreach lead
+- Therefore this is now a display / response
+  bug, not a persistence bug
+
+Please audit the full read/edit path for
+sellerProfileUrl and fix only the bug causing
+admin visibility to fail.
+
+Check these specifically:
+
+1. API response stripping
+
+- Verify stripSellerUrl only nulls
+  sellerProfileUrl for
+  req.authUser?.role === "sales_rep"
+- Confirm admin, developer, and lead_gen
+  responses keep the real value
+- Audit all lead-returning endpoints used by:
+  - lead detail page
+  - edit lead modal/form
+- Confirm sellerProfileUrl is present in the
+  JSON response for admin users
+
+2. Frontend field mapping
+
+- Verify the detail page reads the correct
+  property name: sellerProfileUrl
+- Verify the edit form default values are
+  populated from sellerProfileUrl
+- Verify there is no mismatch like
+  seller_profile_url vs sellerProfileUrl
+
+3. Lead detail rendering
+
+- Confirm the Seller Profile URL row is
+  rendered for admin when:
+  - lead.source === "outreach"
+  - sellerProfileUrl is non-empty
+- Make sure the role guard hides only for
+  sales_rep
+
+4. Edit flow
+
+- Confirm the existing edit-lead fetch
+  includes sellerProfileUrl
+- Confirm the edit form displays the saved
+  value for admin/lead_gen/developer
+
+Important:
+
+- Do not change duplicate logic
+- Do not change save/create behavior
+- Do not change sales_rep hiding behavior
+- This is a targeted fix for admin visibility
+  only
+
+Done looks like:
+
+- admin can see Seller Profile URL in lead
+  detail when present
+- admin can see the saved Seller Profile URL
+  in edit mode
+- sales_rep still never receives or sees the
+  field
+- duplicate blocking continues working
+  unchanged

@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useAuth } from "@features/auth/useAuth";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
@@ -48,6 +49,7 @@ export function EditLeadDialog({
   open, onOpenChange, lead, entry,
 }: EditLeadDialogProps) {
   const { toast } = useToast();
+  const { role } = useAuth();
   const mutation = useEditLead(lead.id, entry);
 
   const form = useForm<FormValues>({
@@ -189,6 +191,21 @@ export function EditLeadDialog({
                 </FormItem>
               )} />
             </div>
+
+            {lead.sellerProfileUrl && role !== "sales_rep" && (
+              <div className="pt-1">
+                <p className="text-xs font-medium text-gray-500 mb-1">Seller Profile URL</p>
+                <a
+                  href={lead.sellerProfileUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-indigo-600 hover:underline break-all"
+                  data-testid="link-edit-seller-profile-url"
+                >
+                  {lead.sellerProfileUrl}
+                </a>
+              </div>
+            )}
 
             <DialogFooter>
               <Button
