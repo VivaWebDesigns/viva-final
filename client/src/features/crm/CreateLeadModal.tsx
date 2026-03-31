@@ -3,10 +3,11 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAdminLang } from "@/i18n/LanguageContext";
 import { Loader2, UserPlus } from "lucide-react";
+import { DuplicateLeadBlockModal, type DuplicateMatchSummary } from "./DuplicateLeadBlockModal";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
@@ -113,6 +114,7 @@ export default function CreateLeadModal({ open, onClose }: Props) {
 
   const [assignedToId, setAssignedToId] = useState("");
   const [assignedToError, setAssignedToError] = useState(false);
+  const [duplicateMatch, setDuplicateMatch] = useState<DuplicateMatchSummary | null>(null);
 
   const { data: assignableUsers = [] } = useQuery<{ id: string; name: string; role: string }[]>({
     queryKey: ["/api/crm/leads/assignable-users"],
@@ -123,8 +125,22 @@ export default function CreateLeadModal({ open, onClose }: Props) {
   );
 
   const mutation = useMutation({
-    mutationFn: (payload: FormValues & { assignedTo: string }) =>
-      apiRequest("POST", "/api/crm/leads/manual", payload),
+    mutationFn: async (payload: FormValues & { assignedTo: string }) => {
+      const res = await fetch("/api/crm/leads/manual", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        const err: any = new Error(body.message ?? "Request failed");
+        err.code  = body.code;
+        err.match = body.match;
+        throw err;
+      }
+      return res.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/crm/leads"] });
       queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities/board"] });
@@ -133,9 +149,14 @@ export default function CreateLeadModal({ open, onClose }: Props) {
       form.reset();
       setAssignedToId("");
       setAssignedToError(false);
+      setDuplicateMatch(null);
       onClose();
     },
     onError: (err: any) => {
+      if (err.code === "DUPLICATE_LEAD") {
+        setDuplicateMatch(err.match ?? null);
+        return;
+      }
       toast({ title: err.message ?? t.common.error, variant: "destructive" });
     },
   });
@@ -162,6 +183,12 @@ export default function CreateLeadModal({ open, onClose }: Props) {
   }
 
   return (
+    <>
+    <DuplicateLeadBlockModal
+      open={duplicateMatch !== null}
+      match={duplicateMatch}
+      onClose={() => setDuplicateMatch(null)}
+    />
     <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
       <DialogContent className="sm:max-w-lg max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
@@ -484,5 +511,6 @@ export default function CreateLeadModal({ open, onClose }: Props) {
         </Form>
       </DialogContent>
     </Dialog>
+    </>
   );
 }

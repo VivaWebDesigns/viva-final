@@ -2,7 +2,7 @@ import { db } from "../../db";
 import { normalizePhoneDigits } from "@shared/phone";
 import {
   crmCompanies, crmContacts, crmLeadStatuses, crmLeads, crmLeadNotes,
-  crmTags, crmLeadTags, pipelineOpportunities, pipelineActivities, followupTasks, user,
+  crmTags, crmLeadTags, pipelineOpportunities, pipelineStages, pipelineActivities, followupTasks, user,
   onboardingRecords, clientNotes, automationExecutionLogs,
   type InsertCrmCompany, type InsertCrmContact, type InsertCrmLeadStatus,
   type InsertCrmLead, type InsertCrmLeadNote, type InsertCrmTag,
@@ -274,6 +274,122 @@ export async function findCompanyByName(name: string): Promise<CrmCompany | unde
 export async function getLeadStatusBySlug(slug: string): Promise<CrmLeadStatus | undefined> {
   const [result] = await db.select().from(crmLeadStatuses).where(eq(crmLeadStatuses.slug, slug));
   return result;
+}
+
+export interface DuplicateMatchSummary {
+  name: string;
+  businessName: string | null;
+  phone: string | null;
+  city: string | null;
+  state: string | null;
+  assignedRepName: string | null;
+  stageName: string | null;
+}
+
+export type DuplicateCheckResult =
+  | { isDuplicate: false }
+  | { isDuplicate: true; match: DuplicateMatchSummary };
+
+function rowToMatchSummary(row: {
+  contactFirstName: string;
+  contactLastName: string | null;
+  contactPhone: string | null;
+  companyName: string | null;
+  leadCity: string | null;
+  leadState: string | null;
+  repName: string | null;
+  stageName: string | null;
+}): DuplicateMatchSummary {
+  return {
+    name: `${row.contactFirstName}${row.contactLastName ? " " + row.contactLastName : ""}`,
+    businessName: row.companyName,
+    phone: row.contactPhone,
+    city: row.leadCity,
+    state: row.leadState,
+    assignedRepName: row.repName,
+    stageName: row.stageName,
+  };
+}
+
+// Shared select shape used by all three duplicate-check queries
+const dupSelectShape = {
+  contactFirstName: crmContacts.firstName,
+  contactLastName:  crmContacts.lastName,
+  contactPhone:     crmContacts.phone,
+  companyName:      crmCompanies.name,
+  leadCity:         crmLeads.city,
+  leadState:        crmLeads.state,
+  repName:          user.name,
+  stageName:        pipelineStages.name,
+};
+
+export async function checkManualLeadDuplicate(params: {
+  normalizedPhone: string;
+  firstName: string;
+  lastName: string;
+  businessName?: string;
+  state: string;
+}): Promise<DuplicateCheckResult> {
+  const { normalizedPhone, firstName, lastName, businessName, state } = params;
+
+  // Rule 1: Exact normalized phone match
+  const [phoneHit] = await db
+    .select(dupSelectShape)
+    .from(crmLeads)
+    .innerJoin(crmContacts,          eq(crmLeads.contactId,             crmContacts.id))
+    .leftJoin(crmCompanies,          eq(crmLeads.companyId,             crmCompanies.id))
+    .leftJoin(user,                  eq(crmLeads.assignedTo,            user.id))
+    .leftJoin(pipelineOpportunities, eq(pipelineOpportunities.leadId,   crmLeads.id))
+    .leftJoin(pipelineStages,        eq(pipelineOpportunities.stageId,  pipelineStages.id))
+    .where(sql`regexp_replace(${crmContacts.phone}, '[^0-9]', '', 'g') = ${normalizedPhone}`)
+    .limit(1);
+  if (phoneHit) return { isDuplicate: true, match: rowToMatchSummary(phoneHit) };
+
+  // Rule 2: Same first name + last name + state (case-insensitive, whitespace-collapsed)
+  const nFirst = firstName.trim().replace(/\s+/g, " ").toLowerCase();
+  const nLast  = lastName.trim().replace(/\s+/g,  " ").toLowerCase();
+  const nState = state.trim().toLowerCase();
+
+  const [nameHit] = await db
+    .select(dupSelectShape)
+    .from(crmLeads)
+    .innerJoin(crmContacts,          eq(crmLeads.contactId,             crmContacts.id))
+    .leftJoin(crmCompanies,          eq(crmLeads.companyId,             crmCompanies.id))
+    .leftJoin(user,                  eq(crmLeads.assignedTo,            user.id))
+    .leftJoin(pipelineOpportunities, eq(pipelineOpportunities.leadId,   crmLeads.id))
+    .leftJoin(pipelineStages,        eq(pipelineOpportunities.stageId,  pipelineStages.id))
+    .where(
+      and(
+        sql`lower(trim(${crmContacts.firstName})) = ${nFirst}`,
+        sql`lower(trim(${crmContacts.lastName}))  = ${nLast}`,
+        sql`lower(trim(${crmLeads.state}))         = ${nState}`
+      )
+    )
+    .limit(1);
+  if (nameHit) return { isDuplicate: true, match: rowToMatchSummary(nameHit) };
+
+  // Rule 3: Same business name + state (only when a business name is provided)
+  const trimmedBiz = businessName?.trim().replace(/\s+/g, " ").toLowerCase();
+  if (trimmedBiz) {
+    const [bizHit] = await db
+      .select(dupSelectShape)
+      .from(crmLeads)
+      .innerJoin(crmContacts,          eq(crmLeads.contactId,             crmContacts.id))
+      .innerJoin(crmCompanies,          eq(crmLeads.companyId,             crmCompanies.id))
+      .leftJoin(user,                   eq(crmLeads.assignedTo,            user.id))
+      .leftJoin(pipelineOpportunities,  eq(pipelineOpportunities.leadId,   crmLeads.id))
+      .leftJoin(pipelineStages,         eq(pipelineOpportunities.stageId,  pipelineStages.id))
+      .where(
+        and(
+          sql`lower(trim(regexp_replace(${crmCompanies.name}, '\\s+', ' ', 'g'))) = ${trimmedBiz}`,
+          sql`lower(trim(${crmLeads.state})) = ${nState}`
+        )
+      )
+      .limit(1);
+    if (bizHit) return { isDuplicate: true, match: rowToMatchSummary(bizHit) };
+  }
+
+  return { isDuplicate: false };
 }
 
 export async function getDefaultLeadStatus(): Promise<CrmLeadStatus | undefined> {

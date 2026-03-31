@@ -387,6 +387,19 @@ router.post("/leads/manual", requireRole("admin", "developer", "lead_gen"), asyn
     if (!isValidUSPhone(normalizedPhone)) {
       return res.status(400).json({ message: "Invalid phone number. Please enter a 10-digit US number." });
     }
+
+    // Duplicate check — must run before any record is created
+    const dupCheck = await crmStorage.checkManualLeadDuplicate({
+      normalizedPhone,
+      firstName: data.firstName,
+      lastName:  data.lastName,
+      businessName: data.businessName,
+      state: data.state,
+    });
+    if (dupCheck.isDuplicate) {
+      return res.status(409).json({ code: "DUPLICATE_LEAD", match: dupCheck.match });
+    }
+
     let contact = null;
     let contactWasCreated = false;
     if (data.email) contact = await crmStorage.findContactByEmail(data.email);
