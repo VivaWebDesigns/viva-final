@@ -935,6 +935,30 @@ export const insertWorkflowJobSchema = createInsertSchema(workflowJobs).omit({ i
 export type InsertWorkflowJob = z.infer<typeof insertWorkflowJobSchema>;
 export type WorkflowJob = typeof workflowJobs.$inferSelect;
 
+// ─── SMS Messages ─────────────────────────────────────────────────────
+
+export const smsMessages = pgTable("sms_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  leadId: varchar("lead_id").notNull().references(() => crmLeads.id),
+  direction: text("direction").notNull(), // "inbound" | "outbound"
+  fromNumber: text("from_number").notNull(),
+  toNumber: text("to_number").notNull(),
+  content: text("content").notNull(),
+  senderName: text("sender_name"),
+  openPhoneMessageId: text("openphone_message_id").unique(),
+  sentAt: timestamp("sent_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("sms_messages_lead_idx").on(t.leadId),
+  index("sms_messages_sent_at_idx").on(t.sentAt),
+  index("sms_messages_openphone_id_idx").on(t.openPhoneMessageId),
+]);
+
+export const insertSmsMessageSchema = createInsertSchema(smsMessages).omit({ id: true, createdAt: true });
+// @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
+export type InsertSmsMessage = z.infer<typeof insertSmsMessageSchema>;
+export type SmsMessage = typeof smsMessages.$inferSelect;
+
 // ─── Demo Configs (Demo Builder → CRM link) ───────────────────────────
 
 export const demoConfigs = pgTable("demo_configs", {

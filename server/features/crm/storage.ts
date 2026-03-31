@@ -3,11 +3,12 @@ import { normalizePhoneDigits } from "@shared/phone";
 import {
   crmCompanies, crmContacts, crmLeadStatuses, crmLeads, crmLeadNotes,
   crmTags, crmLeadTags, pipelineOpportunities, pipelineStages, pipelineActivities, followupTasks, user,
-  onboardingRecords, clientNotes, automationExecutionLogs,
+  onboardingRecords, clientNotes, automationExecutionLogs, smsMessages,
   type InsertCrmCompany, type InsertCrmContact, type InsertCrmLeadStatus,
   type InsertCrmLead, type InsertCrmLeadNote, type InsertCrmTag,
   type CrmCompany, type CrmContact, type CrmLeadStatus,
   type CrmLead, type CrmLeadNote, type CrmTag,
+  type InsertSmsMessage, type SmsMessage,
 } from "@shared/schema";
 import { eq, ilike, or, desc, asc, sql, and, count, inArray } from "drizzle-orm";
 
@@ -611,4 +612,33 @@ export async function bulkDeleteLeads(ids: string[]): Promise<number> {
     }
   });
   return ids.length;
+}
+
+// ─── SMS Messages Storage ─────────────────────────────────────────────
+
+export async function getSmsMessages(leadId: string): Promise<SmsMessage[]> {
+  return db
+    .select()
+    .from(smsMessages)
+    .where(eq(smsMessages.leadId, leadId))
+    .orderBy(asc(smsMessages.sentAt));
+}
+
+export async function upsertSmsMessage(data: InsertSmsMessage): Promise<SmsMessage> {
+  if (data.openPhoneMessageId) {
+    const [existing] = await db
+      .select()
+      .from(smsMessages)
+      .where(eq(smsMessages.openPhoneMessageId, data.openPhoneMessageId))
+      .limit(1);
+    if (existing) return existing;
+  }
+
+  const [created] = await db.insert(smsMessages).values(data).returning();
+  return created;
+}
+
+export async function createSmsMessage(data: InsertSmsMessage): Promise<SmsMessage> {
+  const [created] = await db.insert(smsMessages).values(data).returning();
+  return created;
 }

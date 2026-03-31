@@ -65,6 +65,7 @@ import PaymentFollowupModal from "@/components/PaymentFollowupModal";
 import DemoCompletedModal from "@/components/DemoCompletedModal";
 import CallButton from "@/components/CallButton";
 import SMSButton from "@/components/SMSButton";
+import SMSConversationsTab from "./SMSConversationsTab";
 import type {
   ProfileEntry,
   ProfileHealth,
@@ -1919,7 +1920,10 @@ export default function ProfileShell({
   const { data: profile, isLoading, error } = useUnifiedProfile(entry);
   const { role } = useAuth();
   const urlTab = new URLSearchParams(window.location.search).get("tab");
-  const validTabs = ["overview", "notes", "contacts", "tasks", "files", "billing", "activity"].filter(
+  const validTabs = [
+    "overview", "notes", "contacts", "tasks", "files", "billing", "activity",
+    ...(entry.type === "lead" ? ["sms"] : []),
+  ].filter(
     (tab) => !(tab === "notes" && role === "sales_rep")
   );
   const safeDefaultTab = validTabs.includes(defaultTab) ? defaultTab : "overview";
@@ -2360,6 +2364,9 @@ function ProfileShellInner({
           {!hideSalesRepOppSections && <TabsTrigger value="files" data-testid="tab-files">{t.profileShell.files}</TabsTrigger>}
           {!hideSalesRepOppSections && <TabsTrigger value="billing" data-testid="tab-billing">{t.profileShell.billing}</TabsTrigger>}
           <TabsTrigger value="activity" data-testid="tab-activity">{t.profileShell.activity}</TabsTrigger>
+          {entry.type === "lead" && (
+            <TabsTrigger value="sms" data-testid="tab-sms">SMS</TabsTrigger>
+          )}
         </TabsList>
 
         {/* ── Overview Tab ─────────────────────────────────────────────────── */}
@@ -2989,6 +2996,23 @@ function ProfileShellInner({
             )}
           </Card>
         </TabsContent>
+
+        {/* ── SMS Conversations Tab ──────────────────────────────────────────── */}
+        {entry.type === "lead" && (
+          <TabsContent value="sms" className="mt-4">
+            <Card className="p-4">
+              <SMSConversationsTab
+                leadId={entry.id}
+                leadPhone={identity.primaryContact?.phone ?? null}
+                leadName={
+                  identity.primaryContact
+                    ? [identity.primaryContact.firstName, identity.primaryContact.lastName].filter(Boolean).join(" ")
+                    : null
+                }
+              />
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
 
       {hasOpenOpp && activeOpp && (() => {

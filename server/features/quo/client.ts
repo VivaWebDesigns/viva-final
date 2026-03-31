@@ -40,6 +40,43 @@ export interface SendSMSOptions {
   phoneNumberId: string;
 }
 
+export interface QuoMessage {
+  id: string;
+  object: string;
+  createdAt: string;
+  direction: "inbound" | "outbound";
+  from: string;
+  to: string[];
+  content: string;
+  status: string;
+  userId: string | null;
+}
+
+export interface GetMessagesOptions {
+  phoneNumberId: string;
+  participants?: string[];
+  maxResults?: number;
+}
+
+export async function getMessages(opts: GetMessagesOptions): Promise<QuoMessage[]> {
+  const params = new URLSearchParams();
+  params.set("phoneNumberId", opts.phoneNumberId);
+  if (opts.participants && opts.participants.length > 0) {
+    opts.participants.forEach((p) => params.append("participants[]", p));
+  }
+  if (opts.maxResults) {
+    params.set("maxResults", String(opts.maxResults));
+  }
+  const url = `${QUO_BASE}/messages?${params.toString()}`;
+  const res = await fetch(url, { headers: quoHeaders() });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`QUO getMessages failed (${res.status}): ${body}`);
+  }
+  const json = await res.json() as { data: QuoMessage[] };
+  return json.data ?? [];
+}
+
 export async function sendSMS(opts: SendSMSOptions) {
   const payload = {
     content: opts.content,
