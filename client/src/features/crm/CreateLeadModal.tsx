@@ -117,6 +117,7 @@ export default function CreateLeadModal({ open, onClose }: Props) {
   const [assignedToId, setAssignedToId] = useState("");
   const [assignedToError, setAssignedToError] = useState(false);
   const [duplicateMatch, setDuplicateMatch] = useState<DuplicateMatchSummary | null>(null);
+  const [formResetKey, setFormResetKey] = useState(0);
 
   const { data: assignableUsers = [] } = useQuery<{ id: string; name: string; role: string }[]>({
     queryKey: ["/api/crm/leads/assignable-users"],
@@ -196,6 +197,7 @@ export default function CreateLeadModal({ open, onClose }: Props) {
         form.reset();
         setAssignedToId("");
         setAssignedToError(false);
+        setFormResetKey(k => k + 1);
       }}
     />
     <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
@@ -207,7 +209,7 @@ export default function CreateLeadModal({ open, onClose }: Props) {
           </DialogTitle>
         </DialogHeader>
 
-        <Form {...form}>
+        <Form key={formResetKey} {...form}>
           <form
             onSubmit={form.handleSubmit(handleSubmit)}
             className="space-y-4 pt-1"
