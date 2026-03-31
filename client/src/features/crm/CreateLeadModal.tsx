@@ -24,6 +24,8 @@ import { US_STATES } from "@/lib/usStates";
 import { normalizePhoneDigits, formatPhoneDisplay, isValidUSPhone } from "@shared/phone";
 import { CityCombobox } from "@/components/CityCombobox";
 
+type DuplicateLeadError = Error & { code?: string; match?: DuplicateMatchSummary };
+
 const ACRONYMS = new Set(["LLC", "INC", "HVAC", "USA", "NC", "SC", "LP", "LLP", "PLLC", "DBA"]);
 
 function titleCase(value: string): string {
@@ -133,10 +135,11 @@ export default function CreateLeadModal({ open, onClose }: Props) {
         body: JSON.stringify(payload),
       });
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        const err: any = new Error(body.message ?? "Request failed");
-        err.code  = body.code;
-        err.match = body.match;
+        const body = await res.json().catch(() => ({})) as { message?: string; code?: string; match?: DuplicateMatchSummary };
+        const err = Object.assign(
+          new Error(body.message ?? "Request failed"),
+          { code: body.code, match: body.match },
+        ) as DuplicateLeadError;
         throw err;
       }
       return res.json();
@@ -152,9 +155,10 @@ export default function CreateLeadModal({ open, onClose }: Props) {
       setDuplicateMatch(null);
       onClose();
     },
-    onError: (err: any) => {
-      if (err.code === "DUPLICATE_LEAD") {
-        setDuplicateMatch(err.match ?? null);
+    onError: (err: Error) => {
+      const dupErr = err as DuplicateLeadError;
+      if (dupErr.code === "DUPLICATE_LEAD") {
+        setDuplicateMatch(dupErr.match ?? null);
         return;
       }
       toast({ title: err.message ?? t.common.error, variant: "destructive" });
