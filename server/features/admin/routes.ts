@@ -11,7 +11,7 @@ import { z } from "zod";
 
 const router = Router();
 
-router.get("/stats", requireRole("admin", "developer", "sales_rep"), async (_req, res) => {
+router.get("/stats", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   const [userCount] = await db.select({ count: sql<number>`count(*)::int` }).from(user);
   const [contactCount] = await db.select({ count: sql<number>`count(*)::int` }).from(contacts);
   const [articleCount] = await db.select({ count: sql<number>`count(*)::int` }).from(docArticles);
@@ -24,7 +24,10 @@ router.get("/stats", requireRole("admin", "developer", "sales_rep"), async (_req
   const pipelineStats = await pipelineStorage.getPipelineStats();
 
   const rawRecentLeads = await db.select().from(crmLeads).orderBy(desc(crmLeads.createdAt)).limit(5);
-  const recentLeads = await crmStorage.enrichLeads(rawRecentLeads);
+  const enrichedLeads = await crmStorage.enrichLeads(rawRecentLeads);
+  const recentLeads = req.authUser?.role === "sales_rep"
+    ? enrichedLeads.map(l => ({ ...l, sellerProfileUrl: null }))
+    : enrichedLeads;
 
   res.json({
     users: userCount.count,
