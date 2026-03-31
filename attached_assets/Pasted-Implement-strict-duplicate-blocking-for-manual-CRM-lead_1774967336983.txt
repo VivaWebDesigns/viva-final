@@ -1,0 +1,100 @@
+Implement strict duplicate blocking for manual CRM lead creation.
+
+Goal:
+Prevent duplicate leads from ever being created through the manual
+lead-entry flow. This should be fully enforced on the backend so it
+cannot be bypassed by lead gen users, bots, API callers, or frontend
+changes.
+
+This task is only for manual CRM lead creation right now.
+Do not apply it to website forms yet.
+
+Duplicate result states:
+- approved_create
+- blocked_duplicate
+
+Do not implement warning-only states, soft matches, pending review,
+override options, or force-create behavior.
+
+Hard block rules:
+1. Exact normalized phone match
+- always block
+- use the normalized phone value already implemented in the phone task
+- different formatting should still count as the same phone number
+- examples:
+  - (704) 555-1234
+  - 7045551234
+  - +1 704 555 1234
+  should all be treated as the same value
+
+2. Same first name + last name + same state
+- always block
+- compare trimmed, lowercase values
+- collapse repeated whitespace
+- same name in different states is allowed
+- examples:
+  - John Smith in NC + John Smith in NC = blocked
+  - John Smith in NC + John Smith in GA = allowed
+
+3. Same business name + same state
+- always block
+- compare trimmed, lowercase values
+- collapse repeated whitespace
+- examples:
+  - Elite Painting in NC + Elite Painting in NC = blocked
+  - Elite Painting in NC + Elite Painting in SC = allowed
+
+Normalization rules for duplicate checks:
+- phone should use normalized digits-only comparison
+- first name, last name, and business name should:
+  - trim leading/trailing spaces
+  - collapse repeated spaces
+  - compare case-insensitively
+- state should compare against the canonical selected state value
+
+Backend behavior:
+- duplicate checks must happen before any contact, company, lead,
+  opportunity, task, or automation records are created
+- backend is the source of truth
+- frontend checks alone are not enough
+- do not allow bypassing by changing one field slightly in the UI
+
+Frontend behavior:
+If the backend returns blocked_duplicate:
+- do not create the lead
+- show a blocking modal
+- show read-only summary info from the matching lead:
+  - name
+  - business name
+  - phone
+  - city/state
+  - assigned rep
+  - current stage
+- only show one button:
+  - Close
+
+Do not allow:
+- Continue anyway
+- Force create
+- Override duplicate
+- Open existing lead
+- Edit existing lead
+- Request review
+- Flag for admin
+
+Implementation notes:
+- keep this non-destructive
+- do not rewrite unrelated CRM logic
+- do not touch website forms yet
+- do not add fuzzy matching yet
+- do not add pending review yet
+- do not add merge functionality yet
+- use the existing normalized phone utilities already built
+
+After implementation, report:
+- files changed
+- exact duplicate rules implemented
+- where the backend duplicate check now runs
+- what frontend modal behavior was added
+- confirmation that duplicate leads can no longer be bypassed through
+  the normal manual lead-entry flow
