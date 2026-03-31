@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { normalizePhoneDigits, formatPhoneDisplay } from "@shared/phone";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -97,7 +98,7 @@ export function EditCompanyDialog({
     const payload = {
       ...values,
       email:  values.email  || null,
-      phone:  values.phone  || null,
+      phone:  values.phone ? normalizePhoneDigits(values.phone) || null : null,
       website,
       dba:    values.dba    || null,
       address: values.address || null,
@@ -153,7 +154,20 @@ export function EditCompanyDialog({
                 <FormItem>
                   <FormLabel>{ps.phone}</FormLabel>
                   <FormControl>
-                    <Input {...field} value={field.value ?? ""} type="tel" placeholder="(555) 555-5555" data-testid="input-company-phone" />
+                    <Input
+                      {...field}
+                      value={field.value ?? ""}
+                      type="tel"
+                      placeholder="(704) 555-1234"
+                      data-testid="input-company-phone"
+                      onBlur={() => {
+                        if (field.value) {
+                          const normalized = normalizePhoneDigits(field.value);
+                          if (normalized.length === 10) field.onChange(formatPhoneDisplay(normalized));
+                        }
+                        field.onBlur();
+                      }}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

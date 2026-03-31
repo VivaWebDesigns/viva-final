@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { normalizePhoneDigits, formatPhoneDisplay } from "@shared/phone";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -80,8 +81,8 @@ export function EditContactDialog({
       ...values,
       lastName:  values.lastName  || null,
       email:     values.email     || null,
-      phone:     values.phone     || null,
-      altPhone:  values.altPhone  || null,
+      phone:     values.phone ? normalizePhoneDigits(values.phone) || null : null,
+      altPhone:  values.altPhone ? normalizePhoneDigits(values.altPhone) || null : null,
       title:     values.title     || null,
       preferredLanguage: values.preferredLanguage || null,
       notes:     values.notes     || null,
@@ -151,7 +152,20 @@ export function EditContactDialog({
                 <FormItem>
                   <FormLabel>{ps.phone}</FormLabel>
                   <FormControl>
-                    <Input {...field} value={field.value ?? ""} type="tel" placeholder="(555) 555-5555" data-testid="input-contact-phone" />
+                    <Input
+                      {...field}
+                      value={field.value ?? ""}
+                      type="tel"
+                      placeholder="(704) 555-1234"
+                      data-testid="input-contact-phone"
+                      onBlur={() => {
+                        if (field.value) {
+                          const normalized = normalizePhoneDigits(field.value);
+                          if (normalized.length === 10) field.onChange(formatPhoneDisplay(normalized));
+                        }
+                        field.onBlur();
+                      }}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -161,7 +175,20 @@ export function EditContactDialog({
                 <FormItem>
                   <FormLabel>{ps.altPhone}</FormLabel>
                   <FormControl>
-                    <Input {...field} value={field.value ?? ""} type="tel" placeholder="(555) 555-5556" data-testid="input-contact-alt-phone" />
+                    <Input
+                      {...field}
+                      value={field.value ?? ""}
+                      type="tel"
+                      placeholder="(704) 555-5678"
+                      data-testid="input-contact-alt-phone"
+                      onBlur={() => {
+                        if (field.value) {
+                          const normalized = normalizePhoneDigits(field.value);
+                          if (normalized.length === 10) field.onChange(formatPhoneDisplay(normalized));
+                        }
+                        field.onBlur();
+                      }}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

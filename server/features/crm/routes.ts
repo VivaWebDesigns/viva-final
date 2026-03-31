@@ -7,6 +7,7 @@ import { notifyLeadAssignment } from "../notifications/triggers";
 import { appendHistorySafe } from "../history/service";
 import * as crmStorage from "./storage";
 import * as pipelineStorage from "../pipeline/storage";
+import { normalizePhoneDigits } from "@shared/phone";
 import {
   exportLeadsToCSV, exportContactsToCSV,
   importLeadsFromCSV, importContactsFromCSV,
@@ -381,15 +382,16 @@ router.post("/leads/manual", requireRole("admin", "developer", "lead_gen"), asyn
     const data = manualLeadSchema.parse(req.body);
 
     // 1. Find or create contact
+    const normalizedPhone = data.phone ? normalizePhoneDigits(data.phone) : data.phone;
     let contact = null;
     let contactWasCreated = false;
     if (data.email) contact = await crmStorage.findContactByEmail(data.email);
-    if (!contact && data.phone) contact = await crmStorage.findContactByPhone(data.phone);
+    if (!contact && normalizedPhone) contact = await crmStorage.findContactByPhone(normalizedPhone);
     if (!contact) {
       contact = await crmStorage.createContact({
         firstName: data.firstName,
         lastName: data.lastName,
-        phone: data.phone,
+        phone: normalizedPhone,
         email: data.email || null,
         notes: null,
         isPrimary: true,
@@ -656,6 +658,9 @@ router.put("/companies/:id", requireRole("admin", "developer", "sales_rep"), asy
     if (validated.website && !/^https?:\/\//i.test(validated.website)) {
       validated.website = `https://${validated.website}`;
     }
+    if (validated.phone) {
+      validated.phone = normalizePhoneDigits(validated.phone);
+    }
     const company = await crmStorage.updateCompany(id, validated);
 
     if (validated.name && validated.name !== existing.name) {
@@ -771,6 +776,12 @@ router.put("/contacts/:id", requireRole("admin", "developer", "sales_rep"), asyn
     const existing = await crmStorage.getContactById(id);
     if (!existing) return res.status(404).json({ message: "Contact not found" });
     const validated = updateCrmContactSchema.parse(req.body);
+    if (validated.phone) {
+      validated.phone = normalizePhoneDigits(validated.phone);
+    }
+    if (validated.altPhone) {
+      validated.altPhone = normalizePhoneDigits(validated.altPhone);
+    }
     const oldFullName = `${existing.firstName}${existing.lastName ? " " + existing.lastName : ""}`;
     const contact = await crmStorage.updateContact(id, validated);
     const newFullName = `${contact.firstName}${contact.lastName ? " " + contact.lastName : ""}`;

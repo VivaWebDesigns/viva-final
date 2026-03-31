@@ -3,6 +3,7 @@ import * as pipelineStorage from "../pipeline/storage";
 import { executeStageAutomations } from "../automations/trigger";
 import { logAudit } from "../audit/service";
 import { notifyNewLead } from "../notifications/triggers";
+import { normalizePhoneDigits } from "@shared/phone";
 import type { UtmAttribution } from "@shared/schema";
 
 interface WebsiteFormData {
@@ -33,6 +34,8 @@ export async function ingestWebsiteFormSubmission(
     throw new Error("SPAM_DETECTED");
   }
 
+  const normalizedPhone = formData.phone ? normalizePhoneDigits(formData.phone) : formData.phone;
+
   const nameParts = formData.name.trim().split(/\s+/);
   const firstName = nameParts[0] || formData.name;
   const lastName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : undefined;
@@ -43,8 +46,8 @@ export async function ingestWebsiteFormSubmission(
   if (formData.email) {
     existingContact = await crmStorage.findContactByEmail(formData.email);
   }
-  if (!existingContact && formData.phone) {
-    existingContact = await crmStorage.findContactByPhone(formData.phone);
+  if (!existingContact && normalizedPhone) {
+    existingContact = await crmStorage.findContactByPhone(normalizedPhone);
   }
 
   let contact;
@@ -52,7 +55,7 @@ export async function ingestWebsiteFormSubmission(
     isDuplicateContact = true;
     contact = existingContact;
     await crmStorage.updateContact(contact.id, {
-      ...(formData.phone && !contact.phone ? { phone: formData.phone } : {}),
+      ...(normalizedPhone && !contact.phone ? { phone: normalizedPhone } : {}),
       ...(formData.email && !contact.email ? { email: formData.email } : {}),
     });
   } else {
@@ -60,7 +63,7 @@ export async function ingestWebsiteFormSubmission(
       firstName,
       lastName,
       email: formData.email || null,
-      phone: formData.phone,
+      phone: normalizedPhone,
       preferredLanguage: "es",
       notes: formData.message || null,
     });

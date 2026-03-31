@@ -15,6 +15,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { t, tArr } from "@/content";
 import { useMemo } from "react";
+import { normalizePhoneDigits, formatPhoneDisplay } from "@shared/phone";
 
 function useUtmParams() {
   return useMemo(() => {
@@ -86,7 +87,10 @@ export default function Contacto() {
   });
 
   const onSubmit = (data: InsertContact) => {
-    mutation.mutate(data);
+    mutation.mutate({
+      ...data,
+      phone: data.phone ? normalizePhoneDigits(data.phone) : data.phone,
+    });
   };
 
   return (
@@ -158,7 +162,19 @@ export default function Contacto() {
                           <FormItem>
                             <FormLabel className="text-gray-700 dark:text-gray-300 font-semibold">{t("contacto.form.phoneLabel")}</FormLabel>
                             <FormControl>
-                              <Input placeholder={t("contacto.form.phonePlaceholder")} className="h-12 bg-[#f5f5f5] dark:bg-[#111] border-gray-200 dark:border-gray-700" data-testid="input-phone" {...field} />
+                              <Input
+                                placeholder="(704) 555-1234"
+                                className="h-12 bg-[#f5f5f5] dark:bg-[#111] border-gray-200 dark:border-gray-700"
+                                data-testid="input-phone"
+                                {...field}
+                                onBlur={() => {
+                                  if (field.value) {
+                                    const normalized = normalizePhoneDigits(field.value);
+                                    if (normalized.length === 10) field.onChange(formatPhoneDisplay(normalized));
+                                  }
+                                  field.onBlur();
+                                }}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>

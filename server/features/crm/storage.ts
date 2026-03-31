@@ -1,4 +1,5 @@
 import { db } from "../../db";
+import { normalizePhoneDigits } from "@shared/phone";
 import {
   crmCompanies, crmContacts, crmLeadStatuses, crmLeads, crmLeadNotes,
   crmTags, crmLeadTags, pipelineOpportunities, pipelineActivities, followupTasks, user,
@@ -250,7 +251,8 @@ export async function findContactByEmail(email: string): Promise<CrmContact | un
 }
 
 export async function findContactByPhone(phone: string): Promise<CrmContact | undefined> {
-  const [result] = await db.select().from(crmContacts).where(eq(crmContacts.phone, phone));
+  const normalized = normalizePhoneDigits(phone);
+  const [result] = await db.select().from(crmContacts).where(eq(crmContacts.phone, normalized));
   return result;
 }
 

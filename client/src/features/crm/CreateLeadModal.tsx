@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { US_STATES } from "@/lib/usStates";
+import { normalizePhoneDigits, formatPhoneDisplay } from "@shared/phone";
 
 export const BUSINESS_TRADES = [
   "painting",
@@ -125,7 +126,11 @@ export default function CreateLeadModal({ open, onClose }: Props) {
       return;
     }
     setAssignedToError(false);
-    mutation.mutate({ ...values, assignedTo: assignedToId });
+    mutation.mutate({
+      ...values,
+      phone: normalizePhoneDigits(values.phone),
+      assignedTo: assignedToId,
+    });
   }
 
   function handleClose() {
@@ -226,7 +231,19 @@ export default function CreateLeadModal({ open, onClose }: Props) {
                 <FormItem>
                   <FormLabel>{t.common.phone} <span className="text-red-500">*</span></FormLabel>
                   <FormControl>
-                    <Input data-testid="input-phone" type="tel" placeholder={t.common.phone} {...field} />
+                    <Input
+                      data-testid="input-phone"
+                      type="tel"
+                      placeholder="(704) 555-1234"
+                      {...field}
+                      onBlur={() => {
+                        if (field.value) {
+                          const normalized = normalizePhoneDigits(field.value);
+                          if (normalized.length === 10) field.onChange(formatPhoneDisplay(normalized));
+                        }
+                        field.onBlur();
+                      }}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

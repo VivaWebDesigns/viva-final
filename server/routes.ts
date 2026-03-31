@@ -6,6 +6,7 @@ import { ZodError } from "zod";
 import featureRoutes from "./features";
 import { enqueueJob } from "./features/workflow/queue";
 import { initSocket } from "./features/chat/socket";
+import { normalizePhoneDigits } from "@shared/phone";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -23,6 +24,7 @@ export async function registerRoutes(
   app.post("/api/contacts", async (req, res) => {
     try {
       const data = insertContactSchema.parse(req.body);
+      if (data.phone) data.phone = normalizePhoneDigits(data.phone);
       const attribution = utmAttributionSchema.parse(req.body);
 
       if (attribution.honeypot) {
@@ -94,6 +96,7 @@ export async function registerRoutes(
   app.post("/api/inquiries", async (req, res) => {
     try {
       const data = insertInquirySchema.parse(req.body);
+      if (data.phone) data.phone = normalizePhoneDigits(data.phone);
       const attribution = utmAttributionSchema.parse(req.body);
 
       if (attribution.honeypot) {

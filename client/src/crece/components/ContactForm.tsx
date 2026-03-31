@@ -1,6 +1,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@/lib/zodResolver";
 import { insertInquirySchema, type InsertInquiry } from "@shared/schema";
+import { normalizePhoneDigits, formatPhoneDisplay } from "@shared/phone";
 import { useCreateInquiry } from "@crece/hooks/use-inquiries";
 import { Button } from "@crece/components/ui/button";
 import { Input } from "@crece/components/ui/input";
@@ -41,7 +42,10 @@ export function ContactForm() {
   });
 
   const onSubmit = (data: InsertInquiry) => {
-    mutation.mutate(data, {
+    mutation.mutate({
+      ...data,
+      phone: data.phone ? normalizePhoneDigits(data.phone) : data.phone,
+    }, {
       onSuccess: () => {
         toast({
           title: t("toast.estimateTitle"),
@@ -121,7 +125,19 @@ export function ContactForm() {
                 <FormItem>
                   <FormLabel className="text-foreground/70 text-sm">{t("form.phone")}</FormLabel>
                   <FormControl>
-                    <Input data-testid="input-phone" placeholder={t("form.placeholder.phone")} {...field} className="bg-background border-border text-foreground placeholder:text-muted-foreground/50" />
+                    <Input
+                      data-testid="input-phone"
+                      placeholder="(704) 555-1234"
+                      {...field}
+                      className="bg-background border-border text-foreground placeholder:text-muted-foreground/50"
+                      onBlur={() => {
+                        if (field.value) {
+                          const normalized = normalizePhoneDigits(field.value);
+                          if (normalized.length === 10) field.onChange(formatPhoneDisplay(normalized));
+                        }
+                        field.onBlur();
+                      }}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

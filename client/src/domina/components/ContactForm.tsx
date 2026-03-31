@@ -1,6 +1,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@/lib/zodResolver";
 import { insertInquirySchema, type InsertInquiry } from "@shared/schema";
+import { normalizePhoneDigits, formatPhoneDisplay } from "@shared/phone";
 import { useCreateInquiry } from "@domina/hooks/use-inquiries";
 import { useLanguage } from "@domina/i18n/LanguageContext";
 import { Button } from "@domina/components/ui/button";
@@ -39,7 +40,10 @@ export function ContactForm() {
   });
 
   const onSubmit = (data: InsertInquiry) => {
-    mutation.mutate(data, {
+    mutation.mutate({
+      ...data,
+      phone: data.phone ? normalizePhoneDigits(data.phone) : data.phone,
+    }, {
       onSuccess: () => {
         form.reset();
       },
@@ -92,7 +96,19 @@ export function ContactForm() {
                 <FormItem>
                   <FormLabel className="text-foreground/70 text-sm">{t.contactForm.phone}</FormLabel>
                   <FormControl>
-                    <Input data-testid="input-phone" placeholder={t.contactForm.phonePlaceholder} {...field} className="bg-background border-border text-foreground placeholder:text-muted-foreground/50" />
+                    <Input
+                      data-testid="input-phone"
+                      placeholder="(704) 555-1234"
+                      {...field}
+                      className="bg-background border-border text-foreground placeholder:text-muted-foreground/50"
+                      onBlur={() => {
+                        if (field.value) {
+                          const normalized = normalizePhoneDigits(field.value);
+                          if (normalized.length === 10) field.onChange(formatPhoneDisplay(normalized));
+                        }
+                        field.onBlur();
+                      }}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
