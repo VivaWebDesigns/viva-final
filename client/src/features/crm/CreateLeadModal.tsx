@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { US_STATES } from "@/lib/usStates";
-import { normalizePhoneDigits, formatPhoneDisplay } from "@shared/phone";
+import { normalizePhoneDigits, formatPhoneDisplay, isValidUSPhone } from "@shared/phone";
 
 export const BUSINESS_TRADES = [
   "painting",
@@ -47,7 +47,10 @@ const baseSchema = z.object({
   lastName:          z.string().min(1),
   businessName:      z.string().optional(),
   businessTrade:     z.string().min(1),
-  phone:             z.string().min(1),
+  phone:             z.string().min(1, "Phone is required").refine(
+    (v) => isValidUSPhone(v),
+    { message: "Enter a valid 10-digit US phone number" }
+  ),
   email:             z.string().email().optional().or(z.literal("")),
   website:           z.string().optional(),
   source:            z.enum(["website", "outreach"]),
