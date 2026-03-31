@@ -378,6 +378,7 @@ export const es: AdminTranslations = {
       call: "Llamada",
       email: "Correo",
       task: "Tarea",
+      sms: "SMS",
       stageChange: "Cambio de etapa",
       paymentSent: "Pago enviado",
       system: "Sistema",
