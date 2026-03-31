@@ -22,6 +22,20 @@ import { Button } from "@/components/ui/button";
 import { US_STATES } from "@/lib/usStates";
 import { normalizePhoneDigits, formatPhoneDisplay, isValidUSPhone } from "@shared/phone";
 
+const ACRONYMS = new Set(["LLC", "INC", "HVAC", "USA", "NC", "SC", "LP", "LLP", "PLLC", "DBA"]);
+
+function titleCase(value: string): string {
+  return value
+    .trim()
+    .split(/\s+/)
+    .map((word) => {
+      const upper = word.toUpperCase();
+      if (ACRONYMS.has(upper)) return upper;
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    })
+    .join(" ");
+}
+
 export const BUSINESS_TRADES = [
   "painting",
   "plumbing",
@@ -167,7 +181,15 @@ export default function CreateLeadModal({ open, onClose }: Props) {
                   <FormItem>
                     <FormLabel>{t.crm.firstName} <span className="text-red-500">*</span></FormLabel>
                     <FormControl>
-                      <Input data-testid="input-first-name" placeholder={t.crm.firstName} {...field} />
+                      <Input
+                        data-testid="input-first-name"
+                        placeholder={t.crm.firstName}
+                        {...field}
+                        onBlur={() => {
+                          if (field.value) field.onChange(titleCase(field.value));
+                          field.onBlur();
+                        }}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -180,7 +202,15 @@ export default function CreateLeadModal({ open, onClose }: Props) {
                   <FormItem>
                     <FormLabel>{t.crm.lastName} <span className="text-red-500">*</span></FormLabel>
                     <FormControl>
-                      <Input data-testid="input-last-name" placeholder={t.crm.lastName} {...field} />
+                      <Input
+                        data-testid="input-last-name"
+                        placeholder={t.crm.lastName}
+                        {...field}
+                        onBlur={() => {
+                          if (field.value) field.onChange(titleCase(field.value));
+                          field.onBlur();
+                        }}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -195,7 +225,15 @@ export default function CreateLeadModal({ open, onClose }: Props) {
                 <FormItem>
                   <FormLabel>{t.crm.businessName}</FormLabel>
                   <FormControl>
-                    <Input data-testid="input-business-name" placeholder={t.crm.businessName} {...field} />
+                    <Input
+                      data-testid="input-business-name"
+                      placeholder={t.crm.businessName}
+                      {...field}
+                      onBlur={() => {
+                        if (field.value) field.onChange(titleCase(field.value));
+                        field.onBlur();
+                      }}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -289,7 +327,15 @@ export default function CreateLeadModal({ open, onClose }: Props) {
                   <FormItem>
                     <FormLabel>{t.common.city} <span className="text-red-500">*</span></FormLabel>
                     <FormControl>
-                      <Input data-testid="input-city" placeholder={t.common.city} {...field} />
+                      <Input
+                        data-testid="input-city"
+                        placeholder={t.common.city}
+                        {...field}
+                        onBlur={() => {
+                          if (field.value) field.onChange(titleCase(field.value));
+                          field.onBlur();
+                        }}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
