@@ -5,7 +5,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 function PolicySection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -178,14 +177,14 @@ export function PrivacyPolicyModal({ trigger, className }: PrivacyPolicyModalPro
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-0" data-testid="dialog-privacy-policy">
+        <DialogContent className="max-w-2xl p-0 flex flex-col" style={{ maxHeight: "85vh" }} data-testid="dialog-privacy-policy">
           <DialogHeader className="px-6 pt-6 pb-4 border-b shrink-0">
             <DialogTitle className="text-lg font-bold">Privacy Policy</DialogTitle>
             <p className="text-xs text-gray-500 mt-0.5">Viva Web Designs LLC</p>
           </DialogHeader>
-          <ScrollArea className="flex-1 px-6 py-4">
+          <div className="overflow-y-auto px-6 py-4" style={{ flex: "1 1 0", minHeight: 0 }}>
             <PrivacyPolicyContent />
-          </ScrollArea>
+          </div>
         </DialogContent>
       </Dialog>
     </>
