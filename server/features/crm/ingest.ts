@@ -3,7 +3,7 @@ import * as pipelineStorage from "../pipeline/storage";
 import { executeStageAutomations } from "../automations/trigger";
 import { logAudit } from "../audit/service";
 import { notifyNewLead } from "../notifications/triggers";
-import { normalizePhoneDigits } from "@shared/phone";
+import { normalizePhoneDigits, safeNormalizePhone, isValidUSPhone } from "@shared/phone";
 import type { UtmAttribution } from "@shared/schema";
 
 interface WebsiteFormData {
@@ -34,7 +34,10 @@ export async function ingestWebsiteFormSubmission(
     throw new Error("SPAM_DETECTED");
   }
 
-  const normalizedPhone = formData.phone ? normalizePhoneDigits(formData.phone) : formData.phone;
+  const normalizedPhone = formData.phone ? normalizePhoneDigits(formData.phone) : "";
+  if (normalizedPhone && normalizedPhone.length !== 10) {
+    throw new Error(`INVALID_PHONE: ${formData.phone}`);
+  }
 
   const nameParts = formData.name.trim().split(/\s+/);
   const firstName = nameParts[0] || formData.name;
@@ -55,7 +58,7 @@ export async function ingestWebsiteFormSubmission(
     isDuplicateContact = true;
     contact = existingContact;
     await crmStorage.updateContact(contact.id, {
-      ...(normalizedPhone && !contact.phone ? { phone: normalizedPhone } : {}),
+      ...(normalizedPhone && normalizedPhone.length === 10 && !contact.phone ? { phone: normalizedPhone } : {}),
       ...(formData.email && !contact.email ? { email: formData.email } : {}),
     });
   } else {

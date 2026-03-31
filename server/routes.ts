@@ -6,7 +6,7 @@ import { ZodError } from "zod";
 import featureRoutes from "./features";
 import { enqueueJob } from "./features/workflow/queue";
 import { initSocket } from "./features/chat/socket";
-import { normalizePhoneDigits } from "@shared/phone";
+import { normalizePhoneDigits, isValidUSPhone } from "@shared/phone";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -24,7 +24,13 @@ export async function registerRoutes(
   app.post("/api/contacts", async (req, res) => {
     try {
       const data = insertContactSchema.parse(req.body);
-      if (data.phone) data.phone = normalizePhoneDigits(data.phone);
+      if (data.phone) {
+        const normalized = normalizePhoneDigits(data.phone);
+        if (!isValidUSPhone(normalized)) {
+          return res.status(400).json({ message: "Invalid phone number. Please enter a 10-digit US number." });
+        }
+        data.phone = normalized;
+      }
       const attribution = utmAttributionSchema.parse(req.body);
 
       if (attribution.honeypot) {
@@ -96,7 +102,13 @@ export async function registerRoutes(
   app.post("/api/inquiries", async (req, res) => {
     try {
       const data = insertInquirySchema.parse(req.body);
-      if (data.phone) data.phone = normalizePhoneDigits(data.phone);
+      if (data.phone) {
+        const normalized = normalizePhoneDigits(data.phone);
+        if (!isValidUSPhone(normalized)) {
+          return res.status(400).json({ message: "Invalid phone number. Please enter a 10-digit US number." });
+        }
+        data.phone = normalized;
+      }
       const attribution = utmAttributionSchema.parse(req.body);
 
       if (attribution.honeypot) {

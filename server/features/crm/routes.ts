@@ -7,7 +7,7 @@ import { notifyLeadAssignment } from "../notifications/triggers";
 import { appendHistorySafe } from "../history/service";
 import * as crmStorage from "./storage";
 import * as pipelineStorage from "../pipeline/storage";
-import { normalizePhoneDigits } from "@shared/phone";
+import { normalizePhoneDigits, safeNormalizePhone, isValidUSPhone } from "@shared/phone";
 import {
   exportLeadsToCSV, exportContactsToCSV,
   importLeadsFromCSV, importContactsFromCSV,
@@ -382,11 +382,15 @@ router.post("/leads/manual", requireRole("admin", "developer", "lead_gen"), asyn
     const data = manualLeadSchema.parse(req.body);
 
     // 1. Find or create contact
-    const normalizedPhone = data.phone ? normalizePhoneDigits(data.phone) : data.phone;
+    // Normalize phone — required field, so reject if not a valid US number
+    const normalizedPhone = data.phone ? normalizePhoneDigits(data.phone) : "";
+    if (!isValidUSPhone(normalizedPhone)) {
+      return res.status(400).json({ message: "Invalid phone number. Please enter a 10-digit US number." });
+    }
     let contact = null;
     let contactWasCreated = false;
     if (data.email) contact = await crmStorage.findContactByEmail(data.email);
-    if (!contact && normalizedPhone) contact = await crmStorage.findContactByPhone(normalizedPhone);
+    if (!contact) contact = await crmStorage.findContactByPhone(normalizedPhone);
     if (!contact) {
       contact = await crmStorage.createContact({
         firstName: data.firstName,
@@ -411,7 +415,7 @@ router.post("/leads/manual", requireRole("admin", "developer", "lead_gen"), asyn
           name: companyName,
           industry: data.businessTrade,
           website: data.website || null,
-          phone: data.phone,
+          phone: normalizedPhone,
           email: data.email || null,
         });
       }
@@ -658,8 +662,8 @@ router.put("/companies/:id", requireRole("admin", "developer", "sales_rep"), asy
     if (validated.website && !/^https?:\/\//i.test(validated.website)) {
       validated.website = `https://${validated.website}`;
     }
-    if (validated.phone) {
-      validated.phone = normalizePhoneDigits(validated.phone);
+    if (validated.phone !== undefined) {
+      validated.phone = safeNormalizePhone(validated.phone);
     }
     const company = await crmStorage.updateCompany(id, validated);
 
@@ -776,11 +780,11 @@ router.put("/contacts/:id", requireRole("admin", "developer", "sales_rep"), asyn
     const existing = await crmStorage.getContactById(id);
     if (!existing) return res.status(404).json({ message: "Contact not found" });
     const validated = updateCrmContactSchema.parse(req.body);
-    if (validated.phone) {
-      validated.phone = normalizePhoneDigits(validated.phone);
+    if (validated.phone !== undefined) {
+      validated.phone = safeNormalizePhone(validated.phone);
     }
-    if (validated.altPhone) {
-      validated.altPhone = normalizePhoneDigits(validated.altPhone);
+    if (validated.altPhone !== undefined) {
+      validated.altPhone = safeNormalizePhone(validated.altPhone);
     }
     const oldFullName = `${existing.firstName}${existing.lastName ? " " + existing.lastName : ""}`;
     const contact = await crmStorage.updateContact(id, validated);
