@@ -125,12 +125,15 @@ export async function ingestWebsiteFormSubmission(
 
   const noteDetails = [
     `Source: ${sourceLabel}`,
+    formData.business?.trim() ? `Business: ${formData.business.trim()}` : null,
     formData.email ? `Email: ${formData.email}` : null,
     formData.phone ? `Phone: ${formData.phone}` : null,
     formData.city ? `City: ${formData.city}` : null,
+    formData.zipCode ? `Zip: ${formData.zipCode}` : null,
     formData.trade ? `Trade: ${formData.trade}` : null,
     formData.service ? `Service: ${formData.service}` : null,
     isDuplicateContact ? "Note: Contact already existed in CRM (duplicate detected)" : null,
+    formData.message?.trim() ? `\nMessage:\n${formData.message.trim()}` : null,
   ].filter(Boolean).join("\n");
 
   await crmStorage.addLeadNote({
