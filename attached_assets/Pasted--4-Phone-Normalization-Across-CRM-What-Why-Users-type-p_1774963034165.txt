@@ -1,0 +1,78 @@
+#4 - Phone Normalization Across CRM
+
+What & Why
+Users type phone numbers in many formats — dashes, dots,
+parentheses, and country code prefix. The system currently stores
+whatever the user typed, which makes future dialer/SMS integrations
+and later duplicate detection unreliable. This task adds one shared
+US phone normalization layer so phone values are handled consistently
+across CRM entry and edit flows.
+
+Done looks like
+- A shared utility file exposes:
+  normalizePhoneDigits()
+  toE164Phone()
+  formatPhoneDisplay()
+  isValidUSPhone()
+- Backend phone handling is consistent across manual lead creation,
+  website form ingest, and CRM contact/company edits.
+- The backend always saves a normalized 10-digit US phone value in
+  the existing phone field.
+- findContactByPhone normalizes the incoming search key before lookup.
+- Existing raw-formatted phone values already in the database remain
+  readable/editable without requiring a DB migration.
+- No new database columns are added.
+- Frontend phone inputs allow natural typing and display formatted
+  values cleanly without breaking submission.
+
+Out of scope
+- Duplicate lead detection
+- International phone numbers
+- Retroactive DB cleanup/migration of old phone records
+- CSV import path
+
+Tasks
+1. Create shared phone utilities
+Add shared/lib/phone.ts with:
+- normalizePhoneDigits(raw)
+  strips non-digits, removes leading 1 if 11 digits,
+  returns 10-digit string
+- toE164Phone(normalized)
+  returns +1 plus the normalized 10 digits
+- formatPhoneDisplay(normalized)
+  returns (NXX) NXX-XXXX
+- isValidUSPhone(raw)
+  validates after normalization
+
+Export these from the shared package.
+
+2. Apply normalization in backend entry points
+In the CRM ingest, manual lead route, and public contact route,
+normalize any phone value before passing it to storage.
+Also normalize the incoming key inside findContactByPhone.
+
+Do not add duplicate logic in this task.
+
+3. Apply normalization in CRM edit routes
+Normalize phone values before saving in:
+- contact update route
+- company update route
+only if company phone is already a real supported field in the app
+
+4. Frontend phone input behavior
+For all existing phone input components used by:
+- manual CRM lead entry
+- website contact forms
+- CRM contact edit dialogs
+- CRM company edit dialogs if applicable
+
+allow users to type naturally, but submit normalized phone values.
+Display formatted values cleanly in the UI.
+Avoid brittle masking/cursor-jump behavior.
+
+Guardrails
+- No database migration
+- No new phone columns
+- No duplicate detection
+- No unrelated CRM flow changes
+- Keep the change focused and non-destructive
