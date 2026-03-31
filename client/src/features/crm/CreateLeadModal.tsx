@@ -191,7 +191,12 @@ export default function CreateLeadModal({ open, onClose }: Props) {
     <DuplicateLeadBlockModal
       open={duplicateMatch !== null}
       match={duplicateMatch}
-      onClose={() => setDuplicateMatch(null)}
+      onClose={() => {
+        setDuplicateMatch(null);
+        form.reset();
+        setAssignedToId("");
+        setAssignedToError(false);
+      }}
     />
     <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
       <DialogContent className="sm:max-w-lg max-h-[90dvh] overflow-y-auto">
