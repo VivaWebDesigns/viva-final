@@ -98,7 +98,7 @@ export function EditCompanyDialog({
     const payload = {
       ...values,
       email:  values.email  || null,
-      phone:  values.phone ? normalizePhoneDigits(values.phone) || null : null,
+      phone:  values.phone || null,
       website,
       dba:    values.dba    || null,
       address: values.address || null,
