@@ -252,15 +252,14 @@ export async function findContactByEmail(email: string): Promise<CrmContact | un
 
 export async function findContactByPhone(phone: string): Promise<CrmContact | undefined> {
   const normalized = normalizePhoneDigits(phone);
-  // Try normalized first (matches records written by new code)
-  const [byNormalized] = await db.select().from(crmContacts).where(eq(crmContacts.phone, normalized));
-  if (byNormalized) return byNormalized;
-  // Fallback: match legacy records stored with raw formatting (e.g. "(704) 555-1234")
-  if (phone !== normalized) {
-    const [byRaw] = await db.select().from(crmContacts).where(eq(crmContacts.phone, phone));
-    return byRaw;
-  }
-  return undefined;
+  // Strip non-digits from the stored column value and compare to normalized input.
+  // This matches both new records (stored as "7045551234") and legacy records
+  // stored with formatting (e.g. "(704) 555-1234") without requiring a migration.
+  const [result] = await db
+    .select()
+    .from(crmContacts)
+    .where(sql`regexp_replace(${crmContacts.phone}, '[^0-9]', '', 'g') = ${normalized}`);
+  return result;
 }
 
 export async function findCompanyByName(name: string): Promise<CrmCompany | undefined> {

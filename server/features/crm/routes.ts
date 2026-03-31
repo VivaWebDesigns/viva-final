@@ -7,7 +7,7 @@ import { notifyLeadAssignment } from "../notifications/triggers";
 import { appendHistorySafe } from "../history/service";
 import * as crmStorage from "./storage";
 import * as pipelineStorage from "../pipeline/storage";
-import { normalizePhoneDigits, safeNormalizePhone, isValidUSPhone } from "@shared/phone";
+import { normalizePhoneDigits, isValidUSPhone } from "@shared/phone";
 import {
   exportLeadsToCSV, exportContactsToCSV,
   importLeadsFromCSV, importContactsFromCSV,
@@ -663,7 +663,8 @@ router.put("/companies/:id", requireRole("admin", "developer", "sales_rep"), asy
       validated.website = `https://${validated.website}`;
     }
     if (validated.phone !== undefined) {
-      validated.phone = safeNormalizePhone(validated.phone);
+      const digits = normalizePhoneDigits(validated.phone ?? "");
+      validated.phone = isValidUSPhone(digits) ? digits : null;
     }
     const company = await crmStorage.updateCompany(id, validated);
 
@@ -781,10 +782,12 @@ router.put("/contacts/:id", requireRole("admin", "developer", "sales_rep"), asyn
     if (!existing) return res.status(404).json({ message: "Contact not found" });
     const validated = updateCrmContactSchema.parse(req.body);
     if (validated.phone !== undefined) {
-      validated.phone = safeNormalizePhone(validated.phone);
+      const digits = normalizePhoneDigits(validated.phone ?? "");
+      validated.phone = isValidUSPhone(digits) ? digits : null;
     }
     if (validated.altPhone !== undefined) {
-      validated.altPhone = safeNormalizePhone(validated.altPhone);
+      const digits = normalizePhoneDigits(validated.altPhone ?? "");
+      validated.altPhone = isValidUSPhone(digits) ? digits : null;
     }
     const oldFullName = `${existing.firstName}${existing.lastName ? " " + existing.lastName : ""}`;
     const contact = await crmStorage.updateContact(id, validated);
