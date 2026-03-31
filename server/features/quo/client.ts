@@ -41,18 +41,25 @@ export interface SendSMSOptions {
 }
 
 export async function sendSMS(opts: SendSMSOptions) {
+  const payload = {
+    content: opts.content,
+    from: opts.phoneNumberId,
+    to: [opts.to],
+  };
+  console.log("[QUO] sendSMS →", JSON.stringify({ to: opts.to, from: opts.phoneNumberId }));
   const res = await fetch(`${QUO_BASE}/messages`, {
     method: "POST",
     headers: quoHeaders(),
-    body: JSON.stringify({
-      content: opts.content,
-      from: opts.phoneNumberId,
-      to: [opts.to],
-    }),
+    body: JSON.stringify(payload),
   });
+  const body = await res.text();
+  console.log("[QUO] sendSMS ←", res.status, body.substring(0, 500));
   if (!res.ok) {
-    const body = await res.text();
     throw new Error(`QUO send SMS failed (${res.status}): ${body}`);
   }
-  return res.json();
+  try {
+    return JSON.parse(body);
+  } catch {
+    return { raw: body };
+  }
 }
