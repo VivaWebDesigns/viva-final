@@ -1,0 +1,101 @@
+#18 - Fix Marketplace Lead Field Mapping
+
+Use Plan Mode first.
+
+We tested POST /api/marketplace/create-outreach-lead and confirmed that some fields are only mapping partially.
+
+Confirmed issues:
+1. companyName is not mapping correctly
+   - Request included:
+     companyName: "Ramirez Fence & Deck"
+   - Created company name became:
+     "Luis Ramirez"
+   - The route is still using sellerName for the company record instead of companyName
+
+2. company-level phone is blank
+   - Phone shows in the call/action area, so the phone is making it onto at least one contact-facing surface
+   - But the Edit Company modal shows the company phone field blank
+
+3. company-level email is blank
+   - Request included email
+   - Edit Company modal shows email blank
+
+4. contact/company field mapping is inconsistent
+   - Data is not being written cleanly to the correct entities
+   - We need the marketplace route to map all supplied fields to the intended CRM records in a consistent way
+
+Requirements
+- Keep the existing bot-first architecture
+- Keep:
+  - POST /api/marketplace/precheck
+  - POST /api/marketplace/create-outreach-lead
+- Do not add queue logic
+- Do not change manual Add Lead flow
+- Do not change sellerProfileUrl duplicate blocking
+- No schema changes unless absolutely necessary
+
+Fix the input schema for create-outreach-lead
+Add these fields to the request schema if not already present:
+- companyName required
+- email required valid email
+- phone required valid phone
+- trade required
+- city required
+- state required
+
+Mapping rules
+When create-outreach-lead runs:
+
+Contact record:
+- firstName = parsed seller first name
+- lastName = parsed seller last name
+- phone = provided phone
+- email = provided email if the contact model supports it
+- preferredLanguage = existing intended value
+- If an existing contact is matched and phone/email are blank, update them from the request
+
+Company record:
+- name = companyName
+- phone = provided phone if the company model supports it
+- email = provided email if the company model supports it
+- industry = trade
+- city = city
+- state = state
+- Do not use sellerName as the company name when companyName is provided
+- If an existing company is matched and phone/email/industry/city/state are blank, update them from the request where appropriate
+
+Lead record:
+- keep existing lead creation behavior
+- sellerProfileUrl = normalized seller URL
+- adUrl = normalized ad URL
+- source = outreach
+- city/state preserved
+- scoring fields preserved
+- firstOutreachSentAt preserved
+
+Audit needed before coding
+Before making changes, inspect the actual schema for:
+- crmContacts fields
+- crmCompanies fields
+- crmLeads fields
+
+Only map fields to entities that truly support those columns.
+Do not invent fields that do not exist.
+If a field does not exist on an entity, do not force it there.
+
+Primary goal
+The supplied marketplace payload should map cleanly and predictably:
+- sellerName → contact/person
+- companyName → company/business
+- phone/email → wherever supported in the actual schema
+- trade → company industry
+- city/state → company and lead where appropriate
+
+Deliverable
+- Fix the field mapping bugs
+- TypeScript clean
+- No duplicate task regression
+- Return a short summary of:
+  - root cause
+  - exact mapping changes made
+  - which fields now map to contact, company, and lead
