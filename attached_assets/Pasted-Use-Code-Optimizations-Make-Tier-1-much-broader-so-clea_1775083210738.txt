@@ -1,0 +1,114 @@
+Use Code Optimizations.
+
+Make Tier 1 much broader so clearly Hispanic surnames pass on
+their own, while leaving only truly ambiguous surnames in Tier 2.
+
+Context:
+The current Marketplace precheck uses:
+- Tier 1 surname = 70 points
+- Tier 2 surname = 50 points
+- Hispanic first name = 25 points
+- Pass threshold = 70
+
+I do NOT want to lower the threshold to 50 because that would let
+all Tier 2 names pass by themselves.
+
+Instead, I want Tier 1 expanded so most legitimate Hispanic
+surnames are strong enough to pass alone, while Tier 2 becomes a
+small list reserved only for ambiguous/shared surnames.
+
+Files:
+- server/features/marketplace/hispanicNames.ts
+- tests/unit/nameScore.test.ts
+
+Requirements:
+
+1. Keep the existing scoring logic and threshold exactly the same.
+   Do not change:
+   - Tier 1 = 70
+   - Tier 2 = 50
+   - First name = 25
+   - Pass threshold = 70
+   - API response shapes
+   - Frontend code
+
+2. Move these surnames from Tier 2 into Tier 1 because they are
+   common, clearly Hispanic, and should pass on surname alone:
+
+   aguirre
+   cardenas
+   carrillo
+   cervantes
+   cisneros
+   cordova
+   dominguez
+   escobar
+   estrada
+   galvan
+   lozano
+   macias
+   montoya
+   orozco
+   ortega
+   pacheco
+   palacios
+   portillo
+   rivas
+   salcedo
+   santiago
+   serrano
+   solis
+   suarez
+   tejeda
+   valdez
+   villalobos
+   zamora
+   zarate
+   zelaya
+
+3. Leave only more ambiguous/shared surnames in Tier 2, such as:
+
+   blanco
+   franco
+   roman
+   silva
+   vera
+   villa
+   ayala
+   arroyo
+   pena
+   tapia
+
+4. Keep all lists lowercase, alphabetized, and free of duplicates.
+
+5. Update or expand unit tests so they verify that surname-only
+   matching now passes for examples like:
+   - Santiago
+   - Escobar
+   - Dominguez
+   - Valdez
+   - Villalobos
+
+6. Add explicit tests verifying that ambiguous Tier 2-only names
+   still do NOT pass without a Hispanic first name:
+   - Bob Franco
+   - Mike Roman
+   - Chris Silva
+   - John Blanco
+
+7. Verify that these still pass:
+   - Jose Henriquez
+   - Jose Enriquez
+   - Maria Gutierrez
+   - Juan Martinez
+   - Luis Rodriguez
+   - Ana Navarro
+   - Carlos Santiago
+
+8. Show:
+   - exact files changed
+   - which names were moved from Tier 2 to Tier 1
+   - final remaining Tier 2 list
+   - unit test results
+
+Do not make unrelated refactors.
