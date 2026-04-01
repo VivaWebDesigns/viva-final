@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -7,7 +7,7 @@ import type { MarketplaceQueueItem } from "@shared/schema";
 import { Link } from "wouter";
 import {
   ShoppingBag, Plus, ExternalLink, Copy, CheckCheck, UserPlus,
-  SkipForward, Eye, Loader2, Trash2, AlertCircle,
+  SkipForward, Eye, Loader2, Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -71,21 +71,9 @@ const EMPTY_FORM: AddToQueueFormState = {
   state: "",
 };
 
-interface AddQueueResponse {
-  item?: MarketplaceQueueItem;
-  autoSkipped?: boolean;
-  alreadyInCrm?: boolean;
-  existingLeadId?: string;
-  existingLeadName?: string;
-  reason?: string;
-}
-
 function AddToQueueModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { toast } = useToast();
   const [form, setForm] = useState<AddToQueueFormState>(EMPTY_FORM);
-  const [result, setResult] = useState<AddQueueResponse | null>(null);
-
-  const { t } = useAdminLang();
 
   const mutation = useMutation({
     mutationFn: (payload: AddToQueueFormState) =>
@@ -96,11 +84,19 @@ function AddToQueueModal({ open, onClose }: { open: boolean; onClose: () => void
         trade: payload.trade || undefined,
         city: payload.city || undefined,
         state: payload.state || undefined,
-      }).then((r) => r.json() as Promise<AddQueueResponse>),
-    onSuccess: (data) => {
+      }).then((r) => r.json()),
+    onSuccess: (data: { item?: MarketplaceQueueItem; autoSkipped?: boolean; alreadyInCrm?: boolean; existingLeadName?: string }) => {
       queryClient.invalidateQueries({ queryKey: ["/api/marketplace/queue"] });
       queryClient.invalidateQueries({ queryKey: ["/api/marketplace/queue/counts"] });
-      setResult(data);
+      if (data.alreadyInCrm) {
+        toast({ title: "Seller already exists in CRM", description: data.existingLeadName ? `Linked to: ${data.existingLeadName}` : undefined });
+      } else if (data.autoSkipped) {
+        toast({ title: "Seller auto-skipped", description: `Score ${data.item?.hispanicNameScore ?? 0} — below threshold` });
+      } else {
+        toast({ title: "Seller added to queue", description: data.item?.sellerName });
+      }
+      setForm(EMPTY_FORM);
+      onClose();
     },
     onError: (err: Error) => {
       toast({ title: err.message ?? "Failed to add seller", variant: "destructive" });
@@ -110,13 +106,7 @@ function AddToQueueModal({ open, onClose }: { open: boolean; onClose: () => void
   function handleClose() {
     if (mutation.isPending) return;
     setForm(EMPTY_FORM);
-    setResult(null);
     onClose();
-  }
-
-  function handleAddAnother() {
-    setForm(EMPTY_FORM);
-    setResult(null);
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -139,155 +129,97 @@ function AddToQueueModal({ open, onClose }: { open: boolean; onClose: () => void
           </DialogTitle>
         </DialogHeader>
 
-        {result ? (
-          <div className="space-y-4 py-2">
-            {result.alreadyInCrm ? (
-              <div className="flex flex-col gap-3 p-4 rounded-lg bg-blue-50 border border-blue-200">
-                <div className="flex items-start gap-2">
-                  <AlertCircle className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-semibold text-blue-800">Already in CRM</p>
-                    <p className="text-sm text-blue-700 mt-1">
-                      This seller is linked to an existing lead:&nbsp;
-                      <Link href={`/admin/crm/leads/${result.existingLeadId}`} className="underline font-medium">
-                        {result.existingLeadName ?? "View Lead"}
-                      </Link>
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ) : result.autoSkipped ? (
-              <div className="flex flex-col gap-3 p-4 rounded-lg bg-gray-50 border border-gray-200">
-                <div className="flex items-start gap-2">
-                  <SkipForward className="w-5 h-5 text-gray-500 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-semibold text-gray-700">Auto-skipped</p>
-                    <p className="text-sm text-gray-600 mt-1">
-                      Score: <span className={`inline-block px-1.5 py-0.5 rounded text-xs font-bold ${scoreBadgeClass(result.item?.hispanicNameScore ?? 0)}`}>
-                        {result.item?.hispanicNameScore ?? 0}
-                      </span>. {result.reason}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-3 p-4 rounded-lg bg-green-50 border border-green-200">
-                <div className="flex items-start gap-2">
-                  <CheckCheck className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-semibold text-green-800">Added to queue</p>
-                    <p className="text-sm text-green-700 mt-1">
-                      <span className="font-medium">{result.item?.sellerName}</span> — Score:&nbsp;
-                      <span className={`inline-block px-1.5 py-0.5 rounded text-xs font-bold ${scoreBadgeClass(result.item?.hispanicNameScore ?? 0)}`}>
-                        {result.item?.hispanicNameScore ?? 0}
-                      </span>
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-            <div className="flex gap-2 pt-1">
-              <Button variant="outline" className="flex-1" onClick={handleAddAnother} data-testid="button-add-another">
-                Add Another
-              </Button>
-              <Button className="flex-1" onClick={handleClose} data-testid="button-done-adding">
-                Done
-              </Button>
+        <form onSubmit={handleSubmit} className="space-y-4 py-1">
+          <div className="space-y-2">
+            <Label htmlFor="mq-seller-name">
+              Seller Name <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="mq-seller-name"
+              data-testid="input-mq-seller-name"
+              placeholder="e.g. Juan Garcia"
+              value={form.sellerName}
+              onChange={(e) => set("sellerName", e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="mq-profile-url">
+              Seller Profile URL <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="mq-profile-url"
+              data-testid="input-mq-seller-profile-url"
+              placeholder="https://facebook.com/marketplace/seller/..."
+              value={form.sellerProfileUrl}
+              onChange={(e) => set("sellerProfileUrl", e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="mq-ad-url">Ad URL</Label>
+            <Input
+              id="mq-ad-url"
+              data-testid="input-mq-ad-url"
+              placeholder="https://facebook.com/marketplace/item/..."
+              value={form.adUrl}
+              onChange={(e) => set("adUrl", e.target.value)}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="mq-trade">Trade</Label>
+              <Select value={form.trade} onValueChange={(v) => set("trade", v)}>
+                <SelectTrigger id="mq-trade" data-testid="select-mq-trade">
+                  <SelectValue placeholder="Select trade" />
+                </SelectTrigger>
+                <SelectContent>
+                  {BUSINESS_TRADES.map((trade) => (
+                    <SelectItem key={trade} value={trade}>
+                      {trade.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="mq-state">State</Label>
+              <Select value={form.state} onValueChange={(v) => { set("state", v); set("city", ""); }}>
+                <SelectTrigger id="mq-state" data-testid="select-mq-state">
+                  <SelectValue placeholder="State" />
+                </SelectTrigger>
+                <SelectContent>
+                  {US_STATES.map((s) => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-4 py-1">
-            <div className="space-y-2">
-              <Label htmlFor="mq-seller-name">
-                Seller Name <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="mq-seller-name"
-                data-testid="input-mq-seller-name"
-                placeholder="e.g. Juan Garcia"
-                value={form.sellerName}
-                onChange={(e) => set("sellerName", e.target.value)}
-                required
-              />
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="mq-profile-url">
-                Seller Profile URL <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="mq-profile-url"
-                data-testid="input-mq-seller-profile-url"
-                placeholder="https://facebook.com/marketplace/seller/..."
-                value={form.sellerProfileUrl}
-                onChange={(e) => set("sellerProfileUrl", e.target.value)}
-                required
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="mq-city">City</Label>
+            <Input
+              id="mq-city"
+              data-testid="input-mq-city"
+              placeholder="e.g. Charlotte"
+              value={form.city}
+              onChange={(e) => set("city", e.target.value)}
+            />
+          </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="mq-ad-url">Ad URL</Label>
-              <Input
-                id="mq-ad-url"
-                data-testid="input-mq-ad-url"
-                placeholder="https://facebook.com/marketplace/item/..."
-                value={form.adUrl}
-                onChange={(e) => set("adUrl", e.target.value)}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="mq-trade">Trade</Label>
-                <Select value={form.trade} onValueChange={(v) => set("trade", v)}>
-                  <SelectTrigger id="mq-trade" data-testid="select-mq-trade">
-                    <SelectValue placeholder="Select trade" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {BUSINESS_TRADES.map((trade) => (
-                      <SelectItem key={trade} value={trade}>
-                        {trade.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="mq-state">State</Label>
-                <Select value={form.state} onValueChange={(v) => { set("state", v); set("city", ""); }}>
-                  <SelectTrigger id="mq-state" data-testid="select-mq-state">
-                    <SelectValue placeholder="State" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {US_STATES.map((s) => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="mq-city">City</Label>
-              <Input
-                id="mq-city"
-                data-testid="input-mq-city"
-                placeholder="e.g. Charlotte"
-                value={form.city}
-                onChange={(e) => set("city", e.target.value)}
-              />
-            </div>
-
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={handleClose} disabled={mutation.isPending} data-testid="button-cancel-add-seller">
-                Cancel
-              </Button>
-              <Button type="submit" disabled={mutation.isPending || !form.sellerName.trim() || !form.sellerProfileUrl.trim()} data-testid="button-submit-add-seller">
-                {mutation.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Adding…</> : "Add Seller"}
-              </Button>
-            </DialogFooter>
-          </form>
-        )}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={handleClose} disabled={mutation.isPending} data-testid="button-cancel-add-seller">
+              Cancel
+            </Button>
+            <Button type="submit" disabled={mutation.isPending || !form.sellerName.trim() || !form.sellerProfileUrl.trim()} data-testid="button-submit-add-seller">
+              {mutation.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Adding…</> : "Add Seller"}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );
@@ -295,21 +227,25 @@ function AddToQueueModal({ open, onClose }: { open: boolean; onClose: () => void
 
 interface QueueCardProps {
   item: MarketplaceQueueItem;
-  onStatusChange: (id: string, status: string, createdLeadId?: string) => void;
-  onDelete?: (id: string) => void;
+  onStatusChange: (id: string, status: "reviewed" | "skipped" | "converted", createdLeadId?: string) => void;
+  onDelete: (id: string) => void;
   isAdmin: boolean;
 }
 
 function QueueCard({ item, onStatusChange, onDelete, isAdmin }: QueueCardProps) {
   const { toast } = useToast();
-  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const copiedIdRef = useRef<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const [createLeadOpen, setCreateLeadOpen] = useState(false);
 
-  const copyMessage = async (id: string) => {
+  const isConverted = item.status === "converted";
+
+  const copyMessage = async () => {
     await navigator.clipboard.writeText("What's a good contact number?");
-    setCopiedId(id);
+    setCopied(true);
     toast({ title: "Message copied to clipboard" });
-    setTimeout(() => setCopiedId(null), 2000);
+    copiedIdRef.current = item.id;
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const tradeLabel = item.trade
@@ -317,6 +253,18 @@ function QueueCard({ item, onStatusChange, onDelete, isAdmin }: QueueCardProps) 
     : null;
 
   const location = [item.city, item.state].filter(Boolean).join(", ");
+
+  const initialValues = {
+    firstName: item.firstName ?? undefined,
+    lastName: item.lastName ?? undefined,
+    businessTrade: item.trade ?? undefined,
+    city: item.city ?? undefined,
+    state: (item.state && US_STATES.includes(item.state as typeof US_STATES[number]))
+      ? item.state as typeof US_STATES[number]
+      : undefined,
+    sellerProfileUrl: item.sellerProfileUrl,
+    adUrl: item.adUrl ?? undefined,
+  };
 
   return (
     <>
@@ -333,7 +281,10 @@ function QueueCard({ item, onStatusChange, onDelete, isAdmin }: QueueCardProps) 
               <p className="text-xs text-gray-400 mt-0.5">{item.normalizedName}</p>
             )}
           </div>
-          <span className={`text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${scoreBadgeClass(item.hispanicNameScore)}`} data-testid={`badge-score-${item.id}`}>
+          <span
+            className={`text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${scoreBadgeClass(item.hispanicNameScore)}`}
+            data-testid={`badge-score-${item.id}`}
+          >
             {item.hispanicNameScore}
           </span>
         </div>
@@ -377,7 +328,7 @@ function QueueCard({ item, onStatusChange, onDelete, isAdmin }: QueueCardProps) 
           )}
         </div>
 
-        {item.status === "converted" && item.createdLeadId && (
+        {isConverted && item.createdLeadId && (
           <Link href={`/admin/crm/leads/${item.createdLeadId}`}>
             <span className="text-xs text-emerald-700 font-medium underline cursor-pointer" data-testid={`link-converted-lead-${item.id}`}>
               View Lead →
@@ -386,54 +337,52 @@ function QueueCard({ item, onStatusChange, onDelete, isAdmin }: QueueCardProps) 
         )}
 
         <div className="flex flex-wrap gap-2 pt-1 border-t border-gray-100">
-          {item.status === "pending" && (
-            <>
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-7 text-xs"
-                onClick={() => onStatusChange(item.id, "skipped")}
-                data-testid={`button-skip-${item.id}`}
-              >
-                <SkipForward className="w-3 h-3 mr-1" />
-                Skip
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-7 text-xs"
-                onClick={() => onStatusChange(item.id, "reviewed")}
-                data-testid={`button-mark-reviewed-${item.id}`}
-              >
-                <Eye className="w-3 h-3 mr-1" />
-                Reviewed
-              </Button>
-              <Button
-                size="sm"
-                className="h-7 text-xs bg-indigo-600 hover:bg-indigo-700 text-white"
-                onClick={() => setCreateLeadOpen(true)}
-                data-testid={`button-create-lead-${item.id}`}
-              >
-                <UserPlus className="w-3 h-3 mr-1" />
-                Create Lead
-              </Button>
-            </>
-          )}
-          {(item.status === "pending" || item.status === "reviewed") && (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-7 text-xs text-gray-500"
-              onClick={() => copyMessage(item.id)}
-              data-testid={`button-copy-message-${item.id}`}
-            >
-              {copiedId === item.id
-                ? <><CheckCheck className="w-3 h-3 mr-1 text-green-600" />Copied</>
-                : <><Copy className="w-3 h-3 mr-1" />Copy Message</>
-              }
-            </Button>
-          )}
-          {isAdmin && item.status !== "converted" && onDelete && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 text-xs"
+            disabled={isConverted || item.status === "skipped"}
+            onClick={() => onStatusChange(item.id, "skipped")}
+            data-testid={`button-skip-${item.id}`}
+          >
+            <SkipForward className="w-3 h-3 mr-1" />
+            Skip
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 text-xs"
+            disabled={isConverted || item.status === "reviewed"}
+            onClick={() => onStatusChange(item.id, "reviewed")}
+            data-testid={`button-mark-reviewed-${item.id}`}
+          >
+            <Eye className="w-3 h-3 mr-1" />
+            Reviewed
+          </Button>
+          <Button
+            size="sm"
+            className="h-7 text-xs bg-indigo-600 hover:bg-indigo-700 text-white"
+            disabled={isConverted}
+            onClick={() => setCreateLeadOpen(true)}
+            data-testid={`button-create-lead-${item.id}`}
+          >
+            <UserPlus className="w-3 h-3 mr-1" />
+            Create Lead
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 text-xs text-gray-500"
+            disabled={isConverted}
+            onClick={copyMessage}
+            data-testid={`button-copy-message-${item.id}`}
+          >
+            {copied
+              ? <><CheckCheck className="w-3 h-3 mr-1 text-green-600" />Copied</>
+              : <><Copy className="w-3 h-3 mr-1" />Copy Message</>
+            }
+          </Button>
+          {isAdmin && (
             <Button
               size="sm"
               variant="ghost"
@@ -450,15 +399,7 @@ function QueueCard({ item, onStatusChange, onDelete, isAdmin }: QueueCardProps) 
       <CreateLeadModal
         open={createLeadOpen}
         onClose={() => setCreateLeadOpen(false)}
-        initialValues={{
-          firstName: item.firstName ?? undefined,
-          lastName: item.lastName ?? undefined,
-          businessTrade: item.trade ?? undefined,
-          city: item.city ?? undefined,
-          state: item.state ?? undefined,
-          sellerProfileUrl: item.sellerProfileUrl,
-          adUrl: item.adUrl ?? undefined,
-        }}
+        initialValues={initialValues}
         onLeadCreated={(leadId) => {
           onStatusChange(item.id, "converted", leadId);
         }}
@@ -487,7 +428,7 @@ export default function MarketplaceQueuePage() {
   });
 
   const patchMutation = useMutation({
-    mutationFn: ({ id, status, createdLeadId }: { id: string; status: string; createdLeadId?: string }) =>
+    mutationFn: ({ id, status, createdLeadId }: { id: string; status: "reviewed" | "skipped" | "converted"; createdLeadId?: string }) =>
       apiRequest("PATCH", `/api/marketplace/queue/${id}`, { status, createdLeadId }).then((r) => r.json()),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/marketplace/queue"] });
@@ -512,11 +453,9 @@ export default function MarketplaceQueuePage() {
     },
   });
 
-  function handleStatusChange(id: string, status: string, createdLeadId?: string) {
+  function handleStatusChange(id: string, status: "reviewed" | "skipped" | "converted", createdLeadId?: string) {
     patchMutation.mutate({ id, status, createdLeadId });
   }
-
-  const isAdmin = true;
 
   return (
     <div className="space-y-6">
@@ -589,7 +528,7 @@ export default function MarketplaceQueuePage() {
               item={item}
               onStatusChange={handleStatusChange}
               onDelete={(id) => setDeleteId(id)}
-              isAdmin={isAdmin}
+              isAdmin
             />
           ))}
         </div>

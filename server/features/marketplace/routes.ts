@@ -114,7 +114,7 @@ const addToQueueSchema = z.object({
 
 router.post(
   "/queue",
-  requireRole("admin", "developer", "lead_gen"),
+  requireRole("admin", "lead_gen"),
   async (req, res) => {
     const parsed = addToQueueSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -123,6 +123,7 @@ router.post(
 
     const { sellerName, sellerProfileUrl, adUrl, trade, city, state } = parsed.data;
     const normalizedUrl = normalizeSellerUrl(sellerProfileUrl);
+    const normalizedAdUrl = adUrl ? normalizeSellerUrl(adUrl) : null;
 
     const scoreResult = scoreHispanicName(sellerName);
 
@@ -130,12 +131,12 @@ router.post(
       const [item] = await db
         .insert(marketplaceQueueItems)
         .values({
-          sellerName,
+          sellerName: sellerName.trim(),
           sellerProfileUrl: normalizedUrl,
-          adUrl: adUrl || null,
-          trade: trade || null,
-          city: city || null,
-          state: state || null,
+          adUrl: normalizedAdUrl,
+          trade: trade?.trim() || null,
+          city: city?.trim() || null,
+          state: state?.trim() || null,
           normalizedName: scoreResult.normalizedName,
           firstName: scoreResult.firstName,
           lastName: scoreResult.lastName,
@@ -166,12 +167,12 @@ router.post(
     const [item] = await db
       .insert(marketplaceQueueItems)
       .values({
-        sellerName,
+        sellerName: sellerName.trim(),
         sellerProfileUrl: normalizedUrl,
-        adUrl: adUrl || null,
-        trade: trade || null,
-        city: city || null,
-        state: state || null,
+        adUrl: normalizedAdUrl,
+        trade: trade?.trim() || null,
+        city: city?.trim() || null,
+        state: state?.trim() || null,
         normalizedName: scoreResult.normalizedName,
         firstName: scoreResult.firstName,
         lastName: scoreResult.lastName,
@@ -188,7 +189,7 @@ router.post(
 
 router.get(
   "/queue",
-  requireRole("admin", "developer", "lead_gen"),
+  requireRole("admin", "lead_gen"),
   async (req, res) => {
     const statusParam = req.query.status as string | undefined;
 
@@ -208,7 +209,7 @@ router.get(
 
 router.get(
   "/queue/counts",
-  requireRole("admin", "developer", "lead_gen"),
+  requireRole("admin", "lead_gen"),
   async (req, res) => {
     const rows = await db
       .select({
@@ -227,13 +228,13 @@ router.get(
 );
 
 const patchQueueSchema = z.object({
-  status: z.enum(["pending", "reviewed", "skipped", "converted", "auto_skipped"]),
+  status: z.enum(["reviewed", "skipped", "converted"]),
   createdLeadId: z.string().optional(),
 });
 
 router.patch(
   "/queue/:id",
-  requireRole("admin", "developer", "lead_gen"),
+  requireRole("admin", "lead_gen"),
   async (req, res) => {
     const { id } = req.params;
     const parsed = patchQueueSchema.safeParse(req.body);
@@ -252,20 +253,16 @@ router.patch(
     }
 
     if (existing.status === "converted") {
-      return res.status(409).json({ message: "Item has already been converted to a lead" });
-    }
-
-    const updateData: Record<string, any> = {
-      status: parsed.data.status,
-      updatedAt: new Date(),
-    };
-    if (parsed.data.createdLeadId) {
-      updateData.createdLeadId = parsed.data.createdLeadId;
+      return res.status(409).json({ message: "Cannot change status of a converted item" });
     }
 
     const [updated] = await db
       .update(marketplaceQueueItems)
-      .set(updateData)
+      .set({
+        status: parsed.data.status,
+        createdLeadId: parsed.data.createdLeadId ?? undefined,
+        updatedAt: new Date(),
+      })
       .where(sql`${marketplaceQueueItems.id} = ${id}`)
       .returning();
 
@@ -288,7 +285,7 @@ router.delete(
       return res.status(404).json({ message: "Queue item not found" });
     }
 
-    return res.json({ deleted: true });
+    return res.json({ success: true });
   }
 );
 

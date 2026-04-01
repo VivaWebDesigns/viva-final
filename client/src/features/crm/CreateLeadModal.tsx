@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -86,7 +86,7 @@ interface InitialValues {
   firstName?: string;
   lastName?: string;
   businessTrade?: string;
-  state?: string;
+  state?: typeof US_STATES[number];
   city?: string;
   sellerProfileUrl?: string;
   adUrl?: string;
@@ -143,27 +143,33 @@ export default function CreateLeadModal({ open, onClose, initialValues, onLeadCr
     },
   });
 
+  const initialValuesRef = useRef(initialValues);
+  initialValuesRef.current = initialValues;
+  const formResetFn = form.reset;
+
   useEffect(() => {
-    if (open && initialValues) {
-      form.reset({
-        firstName: initialValues.firstName ?? "",
-        lastName: initialValues.lastName ?? "",
-        businessName: "",
-        businessTrade: initialValues.businessTrade ?? "",
-        phone: "",
-        email: "",
-        website: "",
-        source: initialValues.sellerProfileUrl ? "outreach" : "website",
-        sellerProfileUrl: initialValues.sellerProfileUrl ?? "",
-        adUrl: initialValues.adUrl ?? "",
-        preferredLanguage: "es",
-        notes: "",
-        city: initialValues.city ?? "",
-        state: (initialValues.state as any) ?? undefined,
-      });
+    if (open) {
+      const iv = initialValuesRef.current;
+      if (iv) {
+        formResetFn({
+          firstName: iv.firstName ?? "",
+          lastName: iv.lastName ?? "",
+          businessName: "",
+          businessTrade: iv.businessTrade ?? "",
+          phone: "",
+          email: "",
+          website: "",
+          source: iv.sellerProfileUrl ? "outreach" : "website",
+          sellerProfileUrl: iv.sellerProfileUrl ?? "",
+          adUrl: iv.adUrl ?? "",
+          preferredLanguage: "es",
+          notes: "",
+          city: iv.city ?? "",
+          state: iv.state,
+        });
+      }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, formResetFn]);
 
   const selectedState = form.watch("state");
   const watchedSource = form.watch("source");
@@ -206,7 +212,7 @@ export default function CreateLeadModal({ open, onClose, initialValues, onLeadCr
       }
       return res.json();
     },
-    onSuccess: (data: any) => {
+    onSuccess: (data: { id: string }) => {
       queryClient.invalidateQueries({ queryKey: ["/api/crm/leads"] });
       queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities/board"] });
       queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities"] });
