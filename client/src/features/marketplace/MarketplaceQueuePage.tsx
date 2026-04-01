@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -55,7 +55,6 @@ interface QueueCardProps {
 
 function QueueCard({ item, onStatusChange, onDelete, canDelete }: QueueCardProps) {
   const { toast } = useToast();
-  const copiedIdRef = useRef<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [createLeadOpen, setCreateLeadOpen] = useState(false);
 
@@ -65,7 +64,6 @@ function QueueCard({ item, onStatusChange, onDelete, canDelete }: QueueCardProps
     await navigator.clipboard.writeText("What's a good contact number?");
     setCopied(true);
     toast({ title: "Message copied to clipboard" });
-    copiedIdRef.current = item.id;
     setTimeout(() => setCopied(false), 2000);
   };
 
