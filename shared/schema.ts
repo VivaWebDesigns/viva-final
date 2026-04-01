@@ -1054,3 +1054,37 @@ export const insertAutomationExecutionLogSchema = createInsertSchema(automationE
 // @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
 export type InsertAutomationExecutionLog = z.infer<typeof insertAutomationExecutionLogSchema>;
 export type AutomationExecutionLog = typeof automationExecutionLogs.$inferSelect;
+
+// ─── Marketplace Queue ─────────────────────────────────────────
+
+export const MARKETPLACE_QUEUE_STATUSES = ["pending", "reviewed", "skipped", "converted", "auto_skipped"] as const;
+export type MarketplaceQueueStatus = typeof MARKETPLACE_QUEUE_STATUSES[number];
+
+export const marketplaceQueueItems = pgTable("marketplace_queue_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sellerName: text("seller_name").notNull(),
+  trade: text("trade"),
+  city: text("city"),
+  state: text("state"),
+  sellerProfileUrl: text("seller_profile_url").notNull(),
+  adUrl: text("ad_url"),
+  normalizedName: text("normalized_name"),
+  firstName: text("first_name"),
+  lastName: text("last_name"),
+  hispanicNameScore: integer("hispanic_name_score").notNull().default(0),
+  spanishOutreachRecommended: boolean("spanish_outreach_recommended").notNull().default(false),
+  createdLeadId: varchar("created_lead_id").references(() => crmLeads.id),
+  status: text("status").notNull().default("pending"),
+  addedBy: text("added_by").references(() => user.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (t) => [
+  index("mktq_status_idx").on(t.status),
+  index("mktq_seller_url_idx").on(t.sellerProfileUrl),
+  index("mktq_created_idx").on(t.createdAt),
+]);
+
+export const insertMarketplaceQueueItemSchema = createInsertSchema(marketplaceQueueItems).omit({ id: true, createdAt: true, updatedAt: true });
+// @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
+export type InsertMarketplaceQueueItem = z.infer<typeof insertMarketplaceQueueItemSchema>;
+export type MarketplaceQueueItem = typeof marketplaceQueueItems.$inferSelect;

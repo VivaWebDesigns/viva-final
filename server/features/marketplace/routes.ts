@@ -9,14 +9,43 @@ import {
   pipelineOpportunities,
   pipelineStages,
   user,
+  marketplaceQueueItems,
 } from "@shared/schema";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, ne } from "drizzle-orm";
 import { scoreHispanicName } from "./nameScore";
 
 const router = Router();
 
 function normalizeSellerUrl(url: string): string {
   return url.trim().toLowerCase().replace(/\/+$/, "");
+}
+
+async function findExistingCrmLead(normalizedUrl: string) {
+  const [row] = await db
+    .select({
+      leadId: crmLeads.id,
+      leadFirstName: crmContacts.firstName,
+      leadLastName: crmContacts.lastName,
+      assignedToUserId: user.id,
+      assignedToName: user.name,
+      stageName: pipelineStages.name,
+      statusName: crmLeadStatuses.name,
+    })
+    .from(crmLeads)
+    .innerJoin(crmContacts, eq(crmLeads.contactId, crmContacts.id))
+    .leftJoin(user, eq(crmLeads.assignedTo, user.id))
+    .leftJoin(pipelineOpportunities, eq(pipelineOpportunities.leadId, crmLeads.id))
+    .leftJoin(pipelineStages, eq(pipelineOpportunities.stageId, pipelineStages.id))
+    .leftJoin(crmLeadStatuses, eq(crmLeads.statusId, crmLeadStatuses.id))
+    .where(
+      and(
+        sql`lower(regexp_replace(trim(${crmLeads.sellerProfileUrl}), '/+$', '')) = ${normalizedUrl}`,
+        eq(crmLeads.source, "outreach")
+      )
+    )
+    .orderBy(desc(crmLeads.createdAt))
+    .limit(1);
+  return row ?? null;
 }
 
 router.post(
@@ -30,31 +59,7 @@ router.post(
     }
 
     const normalizedUrl = normalizeSellerUrl(parsed.data.sellerProfileUrl);
-
-    const [row] = await db
-      .select({
-        leadId: crmLeads.id,
-        leadFirstName: crmContacts.firstName,
-        leadLastName: crmContacts.lastName,
-        assignedToUserId: user.id,
-        assignedToName: user.name,
-        stageName: pipelineStages.name,
-        statusName: crmLeadStatuses.name,
-      })
-      .from(crmLeads)
-      .innerJoin(crmContacts, eq(crmLeads.contactId, crmContacts.id))
-      .leftJoin(user, eq(crmLeads.assignedTo, user.id))
-      .leftJoin(pipelineOpportunities, eq(pipelineOpportunities.leadId, crmLeads.id))
-      .leftJoin(pipelineStages, eq(pipelineOpportunities.stageId, pipelineStages.id))
-      .leftJoin(crmLeadStatuses, eq(crmLeads.statusId, crmLeadStatuses.id))
-      .where(
-        and(
-          sql`lower(regexp_replace(trim(${crmLeads.sellerProfileUrl}), '/+$', '')) = ${normalizedUrl}`,
-          eq(crmLeads.source, "outreach")
-        )
-      )
-      .orderBy(desc(crmLeads.createdAt))
-      .limit(1);
+    const row = await findExistingCrmLead(normalizedUrl);
 
     if (!row) {
       return res.json({
@@ -93,6 +98,197 @@ router.post(
 
     const result = scoreHispanicName(parsed.data.sellerName);
     return res.json(result);
+  }
+);
+
+// ─── Queue Endpoints ───────────────────────────────────────────
+
+const addToQueueSchema = z.object({
+  sellerName: z.string().min(1),
+  sellerProfileUrl: z.string().url(),
+  adUrl: z.string().url().optional().or(z.literal("")),
+  trade: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+});
+
+router.post(
+  "/queue",
+  requireRole("admin", "developer", "lead_gen"),
+  async (req, res) => {
+    const parsed = addToQueueSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Invalid input", errors: parsed.error.flatten() });
+    }
+
+    const { sellerName, sellerProfileUrl, adUrl, trade, city, state } = parsed.data;
+    const normalizedUrl = normalizeSellerUrl(sellerProfileUrl);
+
+    const scoreResult = scoreHispanicName(sellerName);
+
+    if (scoreResult.hispanicNameScore < 70) {
+      const [item] = await db
+        .insert(marketplaceQueueItems)
+        .values({
+          sellerName,
+          sellerProfileUrl: normalizedUrl,
+          adUrl: adUrl || null,
+          trade: trade || null,
+          city: city || null,
+          state: state || null,
+          normalizedName: scoreResult.normalizedName,
+          firstName: scoreResult.firstName,
+          lastName: scoreResult.lastName,
+          hispanicNameScore: scoreResult.hispanicNameScore,
+          spanishOutreachRecommended: scoreResult.spanishOutreachRecommended,
+          status: "auto_skipped",
+          addedBy: (req as any).user?.id ?? null,
+        })
+        .returning();
+      return res.status(201).json({
+        item,
+        autoSkipped: true,
+        reason: "Hispanic name score below threshold (< 70)",
+      });
+    }
+
+    const existingLead = await findExistingCrmLead(normalizedUrl);
+    if (existingLead) {
+      const leadName =
+        [existingLead.leadFirstName, existingLead.leadLastName].filter(Boolean).join(" ") || null;
+      return res.status(200).json({
+        alreadyInCrm: true,
+        existingLeadId: existingLead.leadId,
+        existingLeadName: leadName,
+      });
+    }
+
+    const [item] = await db
+      .insert(marketplaceQueueItems)
+      .values({
+        sellerName,
+        sellerProfileUrl: normalizedUrl,
+        adUrl: adUrl || null,
+        trade: trade || null,
+        city: city || null,
+        state: state || null,
+        normalizedName: scoreResult.normalizedName,
+        firstName: scoreResult.firstName,
+        lastName: scoreResult.lastName,
+        hispanicNameScore: scoreResult.hispanicNameScore,
+        spanishOutreachRecommended: scoreResult.spanishOutreachRecommended,
+        status: "pending",
+        addedBy: (req as any).user?.id ?? null,
+      })
+      .returning();
+
+    return res.status(201).json({ item, autoSkipped: false, alreadyInCrm: false });
+  }
+);
+
+router.get(
+  "/queue",
+  requireRole("admin", "developer", "lead_gen"),
+  async (req, res) => {
+    const statusParam = req.query.status as string | undefined;
+
+    const rows = await db
+      .select()
+      .from(marketplaceQueueItems)
+      .where(
+        statusParam
+          ? eq(marketplaceQueueItems.status, statusParam)
+          : ne(marketplaceQueueItems.status, "auto_skipped")
+      )
+      .orderBy(desc(marketplaceQueueItems.createdAt));
+
+    return res.json(rows);
+  }
+);
+
+router.get(
+  "/queue/counts",
+  requireRole("admin", "developer", "lead_gen"),
+  async (req, res) => {
+    const rows = await db
+      .select({
+        status: marketplaceQueueItems.status,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(marketplaceQueueItems)
+      .groupBy(marketplaceQueueItems.status);
+
+    const counts: Record<string, number> = {};
+    for (const row of rows) {
+      counts[row.status] = row.count;
+    }
+    return res.json(counts);
+  }
+);
+
+const patchQueueSchema = z.object({
+  status: z.enum(["pending", "reviewed", "skipped", "converted", "auto_skipped"]),
+  createdLeadId: z.string().optional(),
+});
+
+router.patch(
+  "/queue/:id",
+  requireRole("admin", "developer", "lead_gen"),
+  async (req, res) => {
+    const { id } = req.params;
+    const parsed = patchQueueSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Invalid input", errors: parsed.error.flatten() });
+    }
+
+    const [existing] = await db
+      .select({ status: marketplaceQueueItems.status })
+      .from(marketplaceQueueItems)
+      .where(sql`${marketplaceQueueItems.id} = ${id}`)
+      .limit(1);
+
+    if (!existing) {
+      return res.status(404).json({ message: "Queue item not found" });
+    }
+
+    if (existing.status === "converted") {
+      return res.status(409).json({ message: "Item has already been converted to a lead" });
+    }
+
+    const updateData: Record<string, any> = {
+      status: parsed.data.status,
+      updatedAt: new Date(),
+    };
+    if (parsed.data.createdLeadId) {
+      updateData.createdLeadId = parsed.data.createdLeadId;
+    }
+
+    const [updated] = await db
+      .update(marketplaceQueueItems)
+      .set(updateData)
+      .where(sql`${marketplaceQueueItems.id} = ${id}`)
+      .returning();
+
+    return res.json(updated);
+  }
+);
+
+router.delete(
+  "/queue/:id",
+  requireRole("admin", "developer"),
+  async (req, res) => {
+    const { id } = req.params;
+
+    const [deleted] = await db
+      .delete(marketplaceQueueItems)
+      .where(sql`${marketplaceQueueItems.id} = ${id}`)
+      .returning();
+
+    if (!deleted) {
+      return res.status(404).json({ message: "Queue item not found" });
+    }
+
+    return res.json({ deleted: true });
   }
 );
 

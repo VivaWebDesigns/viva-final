@@ -82,12 +82,24 @@ const baseSchema = z.object({
 
 type FormValues = z.infer<typeof baseSchema>;
 
+interface InitialValues {
+  firstName?: string;
+  lastName?: string;
+  businessTrade?: string;
+  state?: string;
+  city?: string;
+  sellerProfileUrl?: string;
+  adUrl?: string;
+}
+
 interface Props {
   open: boolean;
   onClose: () => void;
+  initialValues?: InitialValues;
+  onLeadCreated?: (leadId: string) => void;
 }
 
-export default function CreateLeadModal({ open, onClose }: Props) {
+export default function CreateLeadModal({ open, onClose, initialValues, onLeadCreated }: Props) {
   const { t } = useAdminLang();
   const { toast } = useToast();
 
@@ -131,6 +143,28 @@ export default function CreateLeadModal({ open, onClose }: Props) {
     },
   });
 
+  useEffect(() => {
+    if (open && initialValues) {
+      form.reset({
+        firstName: initialValues.firstName ?? "",
+        lastName: initialValues.lastName ?? "",
+        businessName: "",
+        businessTrade: initialValues.businessTrade ?? "",
+        phone: "",
+        email: "",
+        website: "",
+        source: initialValues.sellerProfileUrl ? "outreach" : "website",
+        sellerProfileUrl: initialValues.sellerProfileUrl ?? "",
+        adUrl: initialValues.adUrl ?? "",
+        preferredLanguage: "es",
+        notes: "",
+        city: initialValues.city ?? "",
+        state: (initialValues.state as any) ?? undefined,
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   const selectedState = form.watch("state");
   const watchedSource = form.watch("source");
 
@@ -172,7 +206,7 @@ export default function CreateLeadModal({ open, onClose }: Props) {
       }
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/crm/leads"] });
       queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities/board"] });
       queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities"] });
@@ -181,6 +215,9 @@ export default function CreateLeadModal({ open, onClose }: Props) {
       setAssignedToId("");
       setAssignedToError(false);
       setDuplicateMatch(null);
+      if (onLeadCreated && data?.id) {
+        onLeadCreated(data.id);
+      }
       onClose();
     },
     onError: (err: Error) => {

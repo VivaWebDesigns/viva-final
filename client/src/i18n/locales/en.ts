@@ -14,6 +14,7 @@ export const en = {
     demoBuilder: "Demo Builder",
     admin: "System Settings",
     docs: "App Docs",
+    marketplace: "Marketplace Queue",
     internalPlatform: "Internal Platform",
     signOut: "Sign Out",
     overdueItem: "overdue item",

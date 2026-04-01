@@ -48,6 +48,7 @@ const AdminSettingsPage = lazy(() => import("@features/admin/pages/AdminSettings
 const ClientsPage = lazy(() => import("@features/clients/ClientsPage"));
 const ClientProfilePage = lazy(() => import("@features/profiles/ClientProfilePage"));
 const TasksDueTodayPage = lazy(() => import("@features/tasks/TasksDueTodayPage"));
+const MarketplaceQueuePage = lazy(() => import("@features/marketplace/MarketplaceQueuePage"));
 
 function PageFallback() {
   return (
@@ -186,6 +187,11 @@ function AdminRouter() {
             <Route path="/admin/docs">
               <ProtectedRoute roles={["admin", "developer"]}>
                 <DocsPage />
+              </ProtectedRoute>
+            </Route>
+            <Route path="/admin/marketplace">
+              <ProtectedRoute roles={["admin", "lead_gen"]}>
+                <MarketplaceQueuePage />
               </ProtectedRoute>
             </Route>
             <Route path="/admin/demo-builder">
