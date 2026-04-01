@@ -239,6 +239,7 @@ router.post(
     const { firstName, lastName: rawLastName } = scoreHispanicName(parsed.data.sellerName);
     const lastName = rawLastName || null;
     const sellerNameNormalized = parsed.data.sellerName.trim();
+    const stateCode = parsed.data.state.trim().toUpperCase();
 
     const defaultStatus = await crmStorage.getDefaultLeadStatus();
 
@@ -277,7 +278,7 @@ router.post(
         .where(
           and(
             ilike(crmCompanies.name, sellerNameNormalized),
-            eq(crmCompanies.state, parsed.data.state)
+            eq(crmCompanies.state, stateCode)
           )
         )
         .limit(1);
@@ -289,7 +290,7 @@ router.post(
             name: sellerNameNormalized,
             industry: parsed.data.trade,
             city: parsed.data.city,
-            state: parsed.data.state,
+            state: stateCode,
           })
           .returning();
       }
@@ -312,8 +313,8 @@ router.post(
           source:                     "outreach",
           sourceLabel:                "Outreach",
           city:                       parsed.data.city,
-          state:                      parsed.data.state,
-          timezone:                   US_STATE_TIMEZONES[parsed.data.state] ?? null,
+          state:                      stateCode,
+          timezone:                   US_STATE_TIMEZONES[stateCode] ?? null,
           sellerProfileUrl:           normalizedSellerUrl,
           adUrl:                      normalizedAdUrl,
           hispanicNameScore:          parsed.data.hispanicNameScore,
