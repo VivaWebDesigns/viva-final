@@ -1,0 +1,76 @@
+#14 - Marketplace Bot Precheck Endpoint
+
+Use Plan Mode first.
+
+Build a single lightweight bot-facing endpoint that performs the two checks in the exact order we decided:
+
+1. run Hispanic name scoring first
+2. only if the score passes, run sellerProfileUrl duplicate check second
+
+Create:
+
+POST /api/marketplace/precheck
+
+Access:
+- requireRole("admin", "developer", "lead_gen")
+- sales_rep must not be allowed
+
+Input:
+- sellerName
+- sellerProfileUrl
+
+Validation:
+- sellerName = required string, min 2
+- sellerProfileUrl = required valid URL
+- normalize sellerProfileUrl before checking:
+  - trim whitespace
+  - lowercase
+  - remove trailing slash
+
+Logic:
+- call the existing scoreHispanicName logic
+- if hispanicNameScore < 70:
+  - return:
+    - shouldContinue: false
+    - reason: "name_score_below_threshold"
+    - normalizedName
+    - firstName
+    - lastName
+    - hispanicNameScore
+    - spanishOutreachRecommended: false
+    - sellerExistsInCrm: false
+- if hispanicNameScore >= 70:
+  - run the existing sellerProfileUrl duplicate lookup against CRM
+  - if seller already exists:
+    - return:
+      - shouldContinue: false
+      - reason: "seller_already_in_crm"
+      - normalizedName
+      - firstName
+      - lastName
+      - hispanicNameScore
+      - spanishOutreachRecommended: true
+      - sellerExistsInCrm: true
+      - existingLeadId
+      - existingLeadName
+  - if seller does not exist:
+    - return:
+      - shouldContinue: true
+      - reason: "passed"
+      - normalizedName
+      - firstName
+      - lastName
+      - hispanicNameScore
+      - spanishOutreachRecommended: true
+      - sellerExistsInCrm: false
+
+Important:
+- reuse the existing name-score logic
+- reuse the existing sellerProfileUrl duplicate lookup logic
+- do not create any CRM lead
+- do not send any message
+- do not modify manual Add Lead behavior
+- this endpoint is only the bot's decision gate
+
+Goal:
+This becomes the exact endpoint the bot calls immediately after opening a listing.
