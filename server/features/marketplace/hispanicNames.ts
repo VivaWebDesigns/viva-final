@@ -104,6 +104,7 @@ export const HISPANIC_LAST_NAMES_TIER1: string[] = [
   "vasquez",
   "vega",
   "velasquez",
+  "zapata",
   "zuniga",
 ];
 
