@@ -120,9 +120,9 @@ function isRestricted(req: Request): boolean {
   return role === "sales_rep" || role === "lead_gen";
 }
 
-function stripProfileSellerUrl(profile: UnifiedProfileDto, req: Request): UnifiedProfileDto {
+function stripProfileSensitiveLeadFields(profile: UnifiedProfileDto, req: Request): UnifiedProfileDto {
   if (req.authUser?.role !== "sales_rep") return profile;
-  const stripLead = (lead: MappedLead): MappedLead => ({ ...lead, sellerProfileUrl: null });
+  const stripLead = (lead: MappedLead): MappedLead => ({ ...lead, sellerProfileUrl: null, adUrl: null });
   return {
     ...profile,
     sales: {
@@ -163,7 +163,7 @@ router.get(
       }
 
       const profile = await getProfileByCompanyId(companyId);
-      return res.json(stripProfileSellerUrl(profile, req));
+      return res.json(stripProfileSensitiveLeadFields(profile, req));
     } catch (err: unknown) {
       return sendProfileError(res, err);
     }
@@ -195,7 +195,7 @@ router.get(
       }
 
       const profile = await getProfileByLeadId(leadId);
-      return res.json(stripProfileSellerUrl(profile, req));
+      return res.json(stripProfileSensitiveLeadFields(profile, req));
     } catch (err: unknown) {
       return sendProfileError(res, err);
     }
@@ -227,7 +227,7 @@ router.get(
       }
 
       const profile = await getProfileByOpportunityId(opportunityId);
-      return res.json(stripProfileSellerUrl(profile, req));
+      return res.json(stripProfileSensitiveLeadFields(profile, req));
     } catch (err: unknown) {
       if (err instanceof ProfileLinkageError) {
         // Opportunity exists but has no resolvable company.  Return a

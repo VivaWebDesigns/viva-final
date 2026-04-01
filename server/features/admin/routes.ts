@@ -26,7 +26,7 @@ router.get("/stats", requireRole("admin", "developer", "sales_rep"), async (req,
   const rawRecentLeads = await db.select().from(crmLeads).orderBy(desc(crmLeads.createdAt)).limit(5);
   const enrichedLeads = await crmStorage.enrichLeads(rawRecentLeads);
   const recentLeads = req.authUser?.role === "sales_rep"
-    ? enrichedLeads.map(l => ({ ...l, sellerProfileUrl: null }))
+    ? enrichedLeads.map(l => ({ ...l, sellerProfileUrl: null, adUrl: null }))
     : enrichedLeads;
 
   res.json({

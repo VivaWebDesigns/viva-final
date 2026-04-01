@@ -129,6 +129,7 @@ export interface MappedLead {
   timezone: string | null;
   fromWebsiteForm: boolean;
   sellerProfileUrl: string | null;
+  adUrl: string | null;
   createdAt: string;
   updatedAt: string;
 }

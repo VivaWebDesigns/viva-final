@@ -72,7 +72,8 @@ const baseSchema = z.object({
   email:             z.string().email().optional().or(z.literal("")),
   website:           z.string().optional(),
   source:            z.enum(["website", "outreach"]),
-  sellerProfileUrl:  z.string().optional(),
+  sellerProfileUrl:  z.string().url().optional().or(z.literal("")),
+  adUrl:             z.string().url().optional().or(z.literal("")),
   preferredLanguage: z.enum(["es", "en"]),
   notes:             z.string().optional(),
   city:              z.string().min(1),
@@ -101,6 +102,13 @@ export default function CreateLeadModal({ open, onClose }: Props) {
         path: ["sellerProfileUrl"],
       });
     }
+    if (data.source === "outreach" && !data.adUrl?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Ad URL is required for Outreach leads",
+        path: ["adUrl"],
+      });
+    }
   }), [t]);
 
   const form = useForm<FormValues>({
@@ -115,6 +123,7 @@ export default function CreateLeadModal({ open, onClose }: Props) {
       website: "",
       source: "website",
       sellerProfileUrl: "",
+      adUrl: "",
       preferredLanguage: "es",
       notes: "",
       city: "",
@@ -126,8 +135,9 @@ export default function CreateLeadModal({ open, onClose }: Props) {
   const watchedSource = form.watch("source");
 
   useEffect(() => {
-    if (watchedSource === "website") {
+    if (watchedSource !== "outreach") {
       form.setValue("sellerProfileUrl", "", { shouldValidate: false });
+      form.setValue("adUrl", "", { shouldValidate: false });
     }
   }, [watchedSource, form]);
 
@@ -193,6 +203,7 @@ export default function CreateLeadModal({ open, onClose }: Props) {
       ...values,
       phone: normalizePhoneDigits(values.phone),
       sellerProfileUrl: values.sellerProfileUrl || "",
+      adUrl: values.adUrl || "",
       assignedTo: assignedToId,
     });
   }
@@ -232,30 +243,32 @@ export default function CreateLeadModal({ open, onClose }: Props) {
             onSubmit={form.handleSubmit(handleSubmit)}
             className="space-y-4 pt-1"
           >
-            {/* Top row: Lead Source (left) + Seller Profile URL (right, outreach only) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="source"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t.crm.source} <span className="text-red-500">*</span></FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <FormControl>
-                        <SelectTrigger data-testid="select-source">
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="website">{t.crm.sourceWebsite}</SelectItem>
-                        <SelectItem value="outreach">{t.crm.sourceOutreach}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              {watchedSource === "outreach" ? (
+            {/* Lead Source */}
+            <FormField
+              control={form.control}
+              name="source"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t.crm.source} <span className="text-red-500">*</span></FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger data-testid="select-source">
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="website">{t.crm.sourceWebsite}</SelectItem>
+                      <SelectItem value="outreach">{t.crm.sourceOutreach}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Outreach-only: Seller Profile URL + Ad URL side by side */}
+            {watchedSource === "outreach" && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="sellerProfileUrl"
@@ -273,10 +286,25 @@ export default function CreateLeadModal({ open, onClose }: Props) {
                     </FormItem>
                   )}
                 />
-              ) : (
-                <div />
-              )}
-            </div>
+                <FormField
+                  control={form.control}
+                  name="adUrl"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Ad URL <span className="text-red-500">*</span></FormLabel>
+                      <FormControl>
+                        <Input
+                          data-testid="input-ad-url"
+                          placeholder="https://facebook.com/ads/..."
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField

@@ -181,11 +181,16 @@ router.get("/client/:entityId", requireRole("admin", "developer", "sales_rep"), 
   }
 });
 
+const SENSITIVE_LEAD_FIELDS = new Set(["adUrl"]);
+
 router.get("/:entityType/:entityId", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
     const { entityType, entityId } = req.params as Record<string, string>;
     const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 50;
-    const events = await getHistory(entityType, entityId, Math.min(limit, 200));
+    let events = await getHistory(entityType, entityId, Math.min(limit, 200));
+    if (req.authUser?.role === "sales_rep") {
+      events = events.filter(e => !SENSITIVE_LEAD_FIELDS.has(e.fieldName ?? ""));
+    }
     res.json(events);
   } catch (error: any) {
     res.status(500).json({ message: error.message });

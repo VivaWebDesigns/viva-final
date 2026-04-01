@@ -207,6 +207,21 @@ export function EditLeadDialog({
               </div>
             )}
 
+            {lead.adUrl && role !== "sales_rep" && (
+              <div className="pt-1">
+                <p className="text-xs font-medium text-gray-500 mb-1">Ad URL</p>
+                <a
+                  href={lead.adUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-indigo-600 hover:underline break-all"
+                  data-testid="link-edit-ad-url"
+                >
+                  {lead.adUrl}
+                </a>
+              </div>
+            )}
+
             <DialogFooter>
               <Button
                 type="button"

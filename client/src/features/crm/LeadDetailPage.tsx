@@ -452,6 +452,21 @@ export default function LeadDetailPage({ id }: { id: string }) {
                 </div>
               )}
 
+              {lead.adUrl && authRole !== "sales_rep" && (
+                <div>
+                  <p className="text-gray-500 mb-1">Ad URL</p>
+                  <a
+                    href={lead.adUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-indigo-600 hover:underline break-all text-sm"
+                    data-testid="link-ad-url"
+                  >
+                    {lead.adUrl}
+                  </a>
+                </div>
+              )}
+
               {/* Industry */}
               <div>
                 <div className="flex items-center gap-1.5 mb-1">

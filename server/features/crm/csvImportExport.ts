@@ -15,7 +15,7 @@ import { asc, inArray } from "drizzle-orm";
 import type { CrmContact, CrmCompany } from "@shared/schema";
 
 const LEAD_EXPORT_HEADERS = [
-  "id", "title", "source", "seller_profile_url", "value", "notes", "status",
+  "id", "title", "source", "seller_profile_url", "ad_url", "value", "notes", "status",
   "contact_first_name", "contact_last_name", "contact_email", "contact_phone",
   "company_name", "company_website", "assigned_to", "created_at",
 ];
@@ -60,6 +60,7 @@ export async function exportLeadsToCSV(hideSensitive = false): Promise<string> {
     lead.title,
     lead.source ?? "",
     lead.sellerProfileUrl ?? "",
+    lead.adUrl ?? "",
     lead.value ?? "",
     lead.notes ?? "",
     lead.status?.name ?? "",
