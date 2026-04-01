@@ -42,10 +42,7 @@ async function findExistingCrmLead(normalizedUrl: string) {
     .leftJoin(pipelineStages, eq(pipelineOpportunities.stageId, pipelineStages.id))
     .leftJoin(crmLeadStatuses, eq(crmLeads.statusId, crmLeadStatuses.id))
     .where(
-      and(
-        sql`lower(regexp_replace(trim(${crmLeads.sellerProfileUrl}), '/+$', '')) = ${normalizedUrl}`,
-        eq(crmLeads.source, "outreach")
-      )
+      sql`lower(regexp_replace(trim(${crmLeads.sellerProfileUrl}), '/+$', '')) = ${normalizedUrl}`
     )
     .orderBy(desc(crmLeads.createdAt))
     .limit(1);
@@ -393,12 +390,13 @@ router.post(
         contact = newContact;
       }
 
+      const sellerNameNormalized = queueItem.sellerName.trim();
       let company = await tx
         .select()
         .from(crmCompanies)
         .where(
           and(
-            ilike(crmCompanies.name, fullName.trim()),
+            ilike(crmCompanies.name, sellerNameNormalized),
             queueItem.state
               ? eq(crmCompanies.state, queueItem.state)
               : sql`${crmCompanies.state} IS NULL`,
@@ -411,7 +409,7 @@ router.post(
         const [newCompany] = await tx
           .insert(crmCompanies)
           .values({
-            name: fullName.trim(),
+            name: sellerNameNormalized,
             industry: queueItem.trade ?? null,
             city: queueItem.city ?? null,
             state: queueItem.state ?? null,

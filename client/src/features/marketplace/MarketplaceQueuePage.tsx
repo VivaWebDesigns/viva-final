@@ -72,19 +72,22 @@ function QueueCard({ item, onStatusChange, onDelete, canDelete }: QueueCardProps
   const viewLeadId = createdLeadId ?? item.createdLeadId;
 
   const convertMutation = useMutation({
-    mutationFn: () =>
-      apiRequest("POST", `/api/marketplace/queue/${item.id}/convert`).then(async (r) => {
-        if (!r.ok) {
-          const body = await r.json().catch(() => ({ message: "Conversion failed" }));
-          const err = new Error(body.message ?? "Conversion failed") as Error & ConvertError;
-          err.alreadyConverted = body.alreadyConverted;
-          err.leadId = body.leadId;
-          err.existingLeadId = body.existingLeadId;
-          err.existingLeadName = body.existingLeadName;
-          throw err;
-        }
-        return r.json() as Promise<ConvertResult>;
-      }),
+    mutationFn: async () => {
+      const r = await fetch(`/api/marketplace/queue/${item.id}/convert`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const body = await r.json().catch(() => ({ message: "Conversion failed" }));
+      if (!r.ok) {
+        const err = new Error(body.message ?? "Conversion failed") as Error & ConvertError;
+        err.alreadyConverted = body.alreadyConverted;
+        err.leadId = body.leadId;
+        err.existingLeadId = body.existingLeadId;
+        err.existingLeadName = body.existingLeadName;
+        throw err;
+      }
+      return body as ConvertResult;
+    },
     onSuccess: (data) => {
       setCreatedLeadId(data.leadId);
       queryClient.invalidateQueries({ queryKey: ["/api/marketplace/queue"] });
