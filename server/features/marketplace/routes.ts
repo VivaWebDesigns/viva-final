@@ -124,7 +124,18 @@ router.post(
 
 router.post(
   "/precheck",
-  requireRole("admin", "developer", "lead_gen"),
+  // DEV: Temporary bypass for Marketplace Assistant Chrome extension.
+  // If MARKETPLACE_BOT_SECRET is set and the request carries
+  // "Authorization: Bearer <secret>", skip normal session auth.
+  // Remove this bypass once the extension uses full token-based login.
+  (req, res, next) => {
+    const botSecret = process.env.MARKETPLACE_BOT_SECRET;
+    if (botSecret) {
+      const authHeader = req.headers.authorization ?? "";
+      if (authHeader === `Bearer ${botSecret}`) return next();
+    }
+    return requireRole("admin", "developer", "lead_gen")(req, res, next);
+  },
   async (req, res) => {
     const schema = z.object({
       sellerName: z.string().min(2),
