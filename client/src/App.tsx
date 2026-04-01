@@ -190,7 +190,7 @@ function AdminRouter() {
               </ProtectedRoute>
             </Route>
             <Route path="/admin/marketplace">
-              <ProtectedRoute roles={["admin", "lead_gen"]}>
+              <ProtectedRoute roles={["admin", "lead_gen"]} redirectTo="/admin">
                 <MarketplaceQueuePage />
               </ProtectedRoute>
             </Route>
