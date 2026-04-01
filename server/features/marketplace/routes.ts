@@ -143,7 +143,7 @@ router.post(
           hispanicNameScore: scoreResult.hispanicNameScore,
           spanishOutreachRecommended: scoreResult.spanishOutreachRecommended,
           status: "auto_skipped",
-          addedBy: (req as any).user?.id ?? null,
+          addedBy: req.authUser?.id ?? null,
         })
         .returning();
       return res.status(201).json({
@@ -179,7 +179,7 @@ router.post(
         hispanicNameScore: scoreResult.hispanicNameScore,
         spanishOutreachRecommended: scoreResult.spanishOutreachRecommended,
         status: "pending",
-        addedBy: (req as any).user?.id ?? null,
+        addedBy: req.authUser?.id ?? null,
       })
       .returning();
 
