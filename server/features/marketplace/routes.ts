@@ -187,17 +187,28 @@ router.post(
   }
 );
 
+const queueStatusSchema = z.enum(["pending", "reviewed", "skipped", "converted", "auto_skipped"]);
+
 router.get(
   "/queue",
   requireRole("admin", "lead_gen"),
   async (req, res) => {
-    const statusParam = req.query.status as string | undefined;
+    const statusRaw = req.query.status as string | undefined;
+    let statusParam: z.infer<typeof queueStatusSchema> | undefined;
+
+    if (statusRaw !== undefined) {
+      const parsed = queueStatusSchema.safeParse(statusRaw);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid status value" });
+      }
+      statusParam = parsed.data;
+    }
 
     const rows = await db
       .select()
       .from(marketplaceQueueItems)
       .where(
-        statusParam
+        statusParam !== undefined
           ? eq(marketplaceQueueItems.status, statusParam)
           : ne(marketplaceQueueItems.status, "auto_skipped")
       )
