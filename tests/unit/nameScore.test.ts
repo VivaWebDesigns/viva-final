@@ -7,13 +7,14 @@ const FIRST_NAME_SCORE = 25;
 
 describe("scoreHispanicName — required pass list", () => {
   const shouldPass: Array<[string, string]> = [
-    ["Jose Henriquez",  "henriquez in surnames (+70) + jose in first names (+25) = 95"],
-    ["Jose Enriquez",   "enriquez in surnames (+70) + jose in first names (+25) = 95"],
-    ["Maria Gutierrez", "gutierrez in surnames (+70) + maria in first names (+25) = 95"],
-    ["Juan Martinez",   "martinez in surnames (+70) + juan in first names (+25) = 95"],
-    ["Luis Rodriguez",  "rodriguez in surnames (+70) + luis in first names (+25) = 95"],
-    ["Ana Navarro",     "navarro in surnames (+70) + ana not in first names (+0) = 70"],
-    ["Carlos Santiago", "santiago in surnames (+70) + carlos in first names (+25) = 95"],
+    ["Jose Henriquez",    "henriquez (+70) + jose (+25) = 95"],
+    ["Jose Enriquez",     "enriquez (+70) + jose (+25) = 95"],
+    ["Maria Gutierrez",   "gutierrez (+70) + maria (+25) = 95"],
+    ["Juan Martinez",     "martinez (+70) + juan (+25) = 95"],
+    ["Luis Rodriguez",    "rodriguez (+70) + luis (+25) = 95"],
+    ["Ana Navarro",       "navarro (+70) + ana (+25) = 95"],
+    ["Carlos Santiago",   "santiago (+70) + carlos (+25) = 95"],
+    ["Armando Valverde",  "valverde (+70) + armando (+25) = 95"],
   ];
 
   for (const [name, reason] of shouldPass) {
@@ -26,7 +27,7 @@ describe("scoreHispanicName — required pass list", () => {
 });
 
 describe("scoreHispanicName — recognized Hispanic surname alone passes", () => {
-  // Non-Hispanic first name + Hispanic surname: last name carries the score on its own.
+  // Non-Hispanic first name + Hispanic surname: last name alone carries the score.
   const surnameOnly: Array<[string, string]> = [
     ["Bob Santiago",   "santiago (+70) + bob (+0) = 70"],
     ["Bob Escobar",    "escobar (+70) + bob (+0) = 70"],
@@ -74,7 +75,8 @@ describe("scoreHispanicName — non-Hispanic names score 0", () => {
 
 describe("scoreHispanicName — threshold alignment", () => {
   it("score exactly at threshold (70) sets spanishOutreachRecommended true", () => {
-    const result = scoreHispanicName("Ana Navarro");
+    // Bob = not in first names (+0); Navarro = in surnames (+70) → exactly 70
+    const result = scoreHispanicName("Bob Navarro");
     expect(result.hispanicNameScore).toBe(PASS_THRESHOLD);
     expect(result.spanishOutreachRecommended).toBe(true);
   });

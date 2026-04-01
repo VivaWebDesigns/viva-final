@@ -1,0 +1,94 @@
+Use Code Optimizations.
+
+Make a large, non-destructive data expansion to the Marketplace
+Hispanic-name precheck using the new unified surname model that is
+already in place.
+
+Goal:
+Replace the current smaller first-name and surname datasets with the
+much larger master lists I have prepared, while preserving the
+existing simplified scoring model:
+
+- HISPANIC_LAST_NAMES match = 70
+- HISPANIC_FIRST_NAMES match = 25
+- pass threshold = 70
+- score cap = 100
+- spanishOutreachRecommended = score >= 70
+
+Important:
+The structural refactor has already been completed.
+Do NOT reintroduce Tier 1 / Tier 2.
+Do NOT change scoring logic, thresholds, API response shape, or
+frontend behavior.
+This task is only about safely loading the expanded datasets into the
+existing normalized list structure.
+
+Files:
+- server/features/marketplace/hispanicNames.ts
+- tests/unit/nameScore.test.ts
+
+What to do:
+
+1. Keep the existing export pattern that normalizes raw arrays:
+   - trim whitespace
+   - lowercase
+   - dedupe with Set
+   - alphabetize automatically
+
+   Preserve that exact behavior so large pasted lists with duplicates,
+   inconsistent capitalization, or extra spaces are handled safely.
+
+2. Replace the current smaller raw arrays with the larger master data
+   that I will paste in for:
+   - HISPANIC_FIRST_NAMES
+   - HISPANIC_LAST_NAMES
+
+3. Do not try to “optimize away” legitimate names just because they
+   appear uncommon.
+   The priority is broader real-world Hispanic coverage and fewer
+   false negatives.
+
+4. Safely allow duplicate entries in the raw pasted lists.
+   The normalization layer should handle cleanup automatically.
+
+5. Keep the source file readable and maintainable.
+   - use raw arrays for first names and last names
+   - keep clear section comments
+   - keep no duplicate manual cleanup required
+   - do not split back into tiers
+
+6. Update tests in tests/unit/nameScore.test.ts so they remain aligned
+   with the unified model and the expanded datasets.
+
+7. Preserve or add focused regression tests for real-world names that
+   should absolutely pass now, including:
+   - Jose Henriquez
+   - Jose Enriquez
+   - Maria Gutierrez
+   - Juan Martinez
+   - Luis Rodriguez
+   - Ana Navarro
+   - Carlos Santiago
+   - Armando Valverde
+
+8. Add coverage showing the intended scoring behavior still holds:
+   - recognized surname alone passes
+   - recognized first name alone does not pass
+   - recognized surname + first name passes
+   - clearly non-Hispanic name scores 0
+   - score still caps at 100
+   - spanishOutreachRecommended is true only when score >= 70
+
+9. After updating the data, report:
+   - exact files changed
+   - total final count of unique first names
+   - total final count of unique last names
+   - confirmation that normalization/deduping is still automatic
+   - unit test results
+
+10. Do not make unrelated refactors.
+
+Implementation note:
+I will paste the new master first-name and last-name lists directly
+into the raw arrays. Your job is to integrate them cleanly into the
+existing normalized export structure, not to redesign the system.
