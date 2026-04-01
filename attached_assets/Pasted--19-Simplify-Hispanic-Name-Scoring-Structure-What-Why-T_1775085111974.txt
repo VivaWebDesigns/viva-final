@@ -1,0 +1,75 @@
+#19 - Simplify Hispanic Name Scoring Structure
+
+What & Why
+
+The current Hispanic surname scoring system uses Tier 1 and Tier 2 surname buckets. This adds unnecessary complexity and increases the risk of blocking legitimate Hispanic sellers because a real surname may land in Tier 2 and still fail the 70-point threshold.
+
+We are simplifying the structure to use:
+
+- One unified Hispanic surname list
+- One Hispanic first-name list
+- Same scoring logic as before:
+  - Hispanic surname = +70
+  - Hispanic first name = +25
+  - Pass threshold = 70
+  - spanishOutreachRecommended = score >= 70
+
+This keeps the behavior simple:
+- A recognized Hispanic surname passes by itself
+- A Hispanic first name alone does not pass
+- We eliminate the need to decide whether a surname belongs in Tier 1 or Tier 2
+
+Done looks like
+
+- Remove HISPANIC_LAST_NAMES_TIER1
+- Remove HISPANIC_LAST_NAMES_TIER2
+- Create a single HISPANIC_LAST_NAMES export
+- Preserve HISPANIC_FIRST_NAMES
+- Update all imports/usages to use the new single surname list
+- Keep scoring behavior exactly:
+  - surname match = +70
+  - first-name match = +25
+  - cap score at 100
+  - pass threshold remains 70
+- Keep API response shape unchanged
+- Keep spanishOutreachRecommended behavior unchanged
+- No frontend changes
+
+Normalization requirements
+
+The first-name and last-name lists should automatically normalize themselves by:
+
+- trimming whitespace
+- converting all names to lowercase
+- removing duplicates with Set
+- alphabetically sorting the final arrays
+
+Implement the exports like:
+
+Array.from(
+  new Set(
+    RAW_NAMES.map(name => name.trim().toLowerCase())
+  )
+).sort()
+
+This allows future pasted lists to contain duplicates, inconsistent capitalization, or extra spaces without breaking the data.
+
+Files likely involved
+
+- server/features/marketplace/hispanicNames.ts
+- server/features/marketplace/nameScore.ts
+- tests/unit/nameScore.test.ts
+
+Test updates
+
+Update the unit tests so they no longer reference Tier 1 or Tier 2 concepts.
+
+Tests should verify:
+
+- Hispanic surname alone passes
+- Hispanic first name alone does not pass
+- Hispanic surname + first name passes
+- Clearly non-Hispanic name scores 0
+- spanishOutreachRecommended is true only when score >= 70
+
+Do not change any frontend code, API contracts, thresholds, or unrelated logic.

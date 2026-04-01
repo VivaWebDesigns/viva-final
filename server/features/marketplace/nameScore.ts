@@ -1,7 +1,6 @@
 import {
   HISPANIC_FIRST_NAMES,
-  HISPANIC_LAST_NAMES_TIER1,
-  HISPANIC_LAST_NAMES_TIER2,
+  HISPANIC_LAST_NAMES,
 } from "./hispanicNames";
 
 export interface NameScoreResult {
@@ -32,17 +31,8 @@ export function scoreHispanicName(sellerName: string): NameScoreResult {
     lastName = tokens[1];
   }
 
-  let lastNameScore = 0;
-  if (lastName) {
-    if (HISPANIC_LAST_NAMES_TIER1.includes(lastName)) {
-      lastNameScore = 70;
-    } else if (HISPANIC_LAST_NAMES_TIER2.includes(lastName)) {
-      lastNameScore = 50;
-    }
-  }
-
-  const firstNameScore =
-    firstName && HISPANIC_FIRST_NAMES.includes(firstName) ? 25 : 0;
+  const lastNameScore = lastName && HISPANIC_LAST_NAMES.includes(lastName) ? 70 : 0;
+  const firstNameScore = firstName && HISPANIC_FIRST_NAMES.includes(firstName) ? 25 : 0;
 
   const hispanicNameScore = Math.min(100, lastNameScore + firstNameScore);
   const spanishOutreachRecommended = hispanicNameScore >= 70;

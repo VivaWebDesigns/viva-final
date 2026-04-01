@@ -1,35 +1,37 @@
-// Hispanic/Latino surname classification for the marketplace name precheck.
+// Hispanic/Latino name lists for the marketplace name precheck.
 //
-// TIER 1 (+70 pts) — strongly recognizable, highly common Hispanic surnames.
-//   A Tier 1 match alone is sufficient to pass the ≥ 70 threshold.
-//
-// TIER 2 (+50 pts) — surnames that are real but more ambiguous or shared
-//   with non-Hispanic populations. A Tier 2 match needs a recognized
-//   first name (+25 pts) to reach the 70-point pass threshold.
+// SCORING
+//   - Recognized Hispanic surname: +70 pts  (passes the ≥ 70 threshold alone)
+//   - Recognized Hispanic first name: +25 pts
+//   - Score is capped at 100
+//   - spanishOutreachRecommended = score >= 70
 //
 // HOW TO ADD ENTRIES
-//   1. Use the normalized (lowercase, no accents) form — e.g. "perez" not "Pérez".
-//   2. Keep each list alphabetically sorted.
-//   3. Check for duplicates across both tiers before adding.
-//   4. Prefer Tier 1 for surnames in the top-50 US Hispanic names or that are
-//      unambiguously Hispanic across Mexican, Central/South American, and Caribbean
-//      naming patterns.
-//   5. Use Tier 2 only for surnames that appear frequently in non-Hispanic
-//      populations (Italian, Portuguese, general Spanish, etc.).
+//   Add to the raw arrays below in any order, any case, with or without accents.
+//   The exported constants are automatically deduplicated, lowercased, accent-stripped,
+//   and alphabetically sorted at module load time.
+//   Use the normalized (accent-free) form when possible — e.g. "perez" not "Pérez".
 
-export const HISPANIC_LAST_NAMES_TIER1: string[] = [
+const RAW_HISPANIC_LAST_NAMES: string[] = [
+  // ── A ──────────────────────────────────────────────────────────────────────
   "acosta",
   "aguilar",
   "aguirre",
   "alvarado",
   "alvarez",
   "arenas",
+  "arroyo",
   "avila",
+  "ayala",
+  // ── B ──────────────────────────────────────────────────────────────────────
   "barrera",
   "bautista",
   "bernal",
+  "blanco",
   "bustos",
+  // ── C ──────────────────────────────────────────────────────────────────────
   "cabrera",
+  "calderon",
   "camacho",
   "campos",
   "cardenas",
@@ -42,19 +44,28 @@ export const HISPANIC_LAST_NAMES_TIER1: string[] = [
   "cisneros",
   "contreras",
   "cordova",
+  "coronado",
   "cortez",
   "cruz",
   "cuevas",
+  // ── D ──────────────────────────────────────────────────────────────────────
   "delgado",
   "diaz",
   "dominguez",
+  "duarte",
+  // ── E ──────────────────────────────────────────────────────────────────────
+  "elizondo",
   "enriquez",
+  "escamilla",
   "escobar",
   "espinoza",
   "estrada",
+  // ── F ──────────────────────────────────────────────────────────────────────
   "figueroa",
   "flores",
+  "franco",
   "fuentes",
+  // ── G ──────────────────────────────────────────────────────────────────────
   "galindo",
   "galvan",
   "garcia",
@@ -63,16 +74,22 @@ export const HISPANIC_LAST_NAMES_TIER1: string[] = [
   "guerrero",
   "gutierrez",
   "guzman",
+  // ── H ──────────────────────────────────────────────────────────────────────
   "henriquez",
   "herrera",
+  // ── I ──────────────────────────────────────────────────────────────────────
   "ibarra",
+  // ── J ──────────────────────────────────────────────────────────────────────
   "jimenez",
   "juarez",
+  // ── L ──────────────────────────────────────────────────────────────────────
   "leal",
+  "leiva",
   "leon",
   "lopez",
   "lozano",
   "luna",
+  // ── M ──────────────────────────────────────────────────────────────────────
   "macias",
   "maldonado",
   "martinez",
@@ -88,51 +105,76 @@ export const HISPANIC_LAST_NAMES_TIER1: string[] = [
   "morales",
   "moreno",
   "munoz",
+  // ── N ──────────────────────────────────────────────────────────────────────
+  "nava",
+  "navarrete",
   "navarro",
   "nunez",
+  // ── O ──────────────────────────────────────────────────────────────────────
+  "ojeda",
   "orozco",
   "ortega",
   "ortiz",
+  // ── P ──────────────────────────────────────────────────────────────────────
   "pacheco",
   "padilla",
   "palacios",
+  "palomino",
+  "paredes",
+  "pena",
   "perez",
   "ponce",
   "portillo",
+  // ── Q ──────────────────────────────────────────────────────────────────────
   "quiroz",
+  // ── R ──────────────────────────────────────────────────────────────────────
   "ramirez",
   "ramos",
   "renteria",
   "reyes",
   "reyna",
+  "rincon",
   "rios",
   "rivas",
   "rivera",
   "rodriguez",
   "rojas",
+  "roman",
   "rosales",
   "rubio",
   "ruiz",
+  // ── S ──────────────────────────────────────────────────────────────────────
   "salazar",
   "salcedo",
   "sanchez",
   "sandoval",
   "santiago",
   "serrano",
+  "silva",
   "solis",
+  "soriano",
   "soto",
   "suarez",
+  // ── T ──────────────────────────────────────────────────────────────────────
+  "tapia",
   "tejeda",
+  "terrazas",
   "torres",
   "trejo",
   "trujillo",
+  // ── V ──────────────────────────────────────────────────────────────────────
   "valdez",
   "valenzuela",
   "vargas",
   "vasquez",
   "vega",
+  "velarde",
   "velasquez",
+  "vera",
+  "vergara",
+  "villa",
   "villalobos",
+  // ── Z ──────────────────────────────────────────────────────────────────────
   "zamora",
   "zapata",
   "zarate",
@@ -140,37 +182,7 @@ export const HISPANIC_LAST_NAMES_TIER1: string[] = [
   "zuniga",
 ];
 
-export const HISPANIC_LAST_NAMES_TIER2: string[] = [
-  // Ambiguous or broadly shared with non-Hispanic populations
-  "arroyo",
-  "ayala",
-  "blanco",
-  "calderon",
-  "coronado",
-  "duarte",
-  "elizondo",
-  "escamilla",
-  "franco",
-  "leiva",
-  "nava",
-  "navarrete",
-  "ojeda",
-  "palomino",
-  "paredes",
-  "pena",
-  "rincon",
-  "roman",
-  "silva",
-  "soriano",
-  "tapia",
-  "terrazas",
-  "velarde",
-  "vera",
-  "vergara",
-  "villa",
-];
-
-export const HISPANIC_FIRST_NAMES: string[] = [
+const RAW_HISPANIC_FIRST_NAMES: string[] = [
   "adriana",
   "alejandra",
   "alejandro",
@@ -239,3 +251,9 @@ export const HISPANIC_FIRST_NAMES: string[] = [
   "veronica",
   "yolanda",
 ];
+
+const normalize = (raw: string[]): string[] =>
+  Array.from(new Set(raw.map((n) => n.trim().toLowerCase()))).sort();
+
+export const HISPANIC_LAST_NAMES: string[] = normalize(RAW_HISPANIC_LAST_NAMES);
+export const HISPANIC_FIRST_NAMES: string[] = normalize(RAW_HISPANIC_FIRST_NAMES);

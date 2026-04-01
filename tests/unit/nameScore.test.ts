@@ -2,16 +2,18 @@ import { describe, it, expect } from "vitest";
 import { scoreHispanicName } from "../../server/features/marketplace/nameScore";
 
 const PASS_THRESHOLD = 70;
+const SURNAME_SCORE = 70;
+const FIRST_NAME_SCORE = 25;
 
 describe("scoreHispanicName — required pass list", () => {
   const shouldPass: Array<[string, string]> = [
-    ["Jose Henriquez",  "henriquez in Tier 1 (+70) + jose in first names (+25) = 95"],
-    ["Jose Enriquez",   "enriquez in Tier 1 (+70) + jose in first names (+25) = 95"],
-    ["Maria Gutierrez", "gutierrez in Tier 1 (+70) + maria in first names (+25) = 95"],
-    ["Juan Martinez",   "martinez in Tier 1 (+70) + juan in first names (+25) = 95"],
-    ["Luis Rodriguez",  "rodriguez in Tier 1 (+70) + luis in first names (+25) = 95"],
-    ["Ana Navarro",     "navarro in Tier 1 (+70) + ana not in first names (+0) = 70"],
-    ["Carlos Santiago", "santiago in Tier 1 (+70) + carlos in first names (+25) = 95"],
+    ["Jose Henriquez",  "henriquez in surnames (+70) + jose in first names (+25) = 95"],
+    ["Jose Enriquez",   "enriquez in surnames (+70) + jose in first names (+25) = 95"],
+    ["Maria Gutierrez", "gutierrez in surnames (+70) + maria in first names (+25) = 95"],
+    ["Juan Martinez",   "martinez in surnames (+70) + juan in first names (+25) = 95"],
+    ["Luis Rodriguez",  "rodriguez in surnames (+70) + luis in first names (+25) = 95"],
+    ["Ana Navarro",     "navarro in surnames (+70) + ana not in first names (+0) = 70"],
+    ["Carlos Santiago", "santiago in surnames (+70) + carlos in first names (+25) = 95"],
   ];
 
   for (const [name, reason] of shouldPass) {
@@ -23,51 +25,47 @@ describe("scoreHispanicName — required pass list", () => {
   }
 });
 
-describe("scoreHispanicName — Tier 1 surname-only pass (no Hispanic first name needed)", () => {
-  // These use non-Hispanic first names to prove the last name alone carries the score.
-  const surnamePasses: Array<[string, string]> = [
-    ["Bob Santiago",   "santiago Tier 1 (+70) + bob (+0) = 70"],
-    ["Bob Escobar",    "escobar Tier 1 (+70) + bob (+0) = 70"],
-    ["Bob Dominguez",  "dominguez Tier 1 (+70) + bob (+0) = 70"],
-    ["Bob Valdez",     "valdez Tier 1 (+70) + bob (+0) = 70"],
-    ["Bob Villalobos", "villalobos Tier 1 (+70) + bob (+0) = 70"],
+describe("scoreHispanicName — recognized Hispanic surname alone passes", () => {
+  // Non-Hispanic first name + Hispanic surname: last name carries the score on its own.
+  const surnameOnly: Array<[string, string]> = [
+    ["Bob Santiago",   "santiago (+70) + bob (+0) = 70"],
+    ["Bob Escobar",    "escobar (+70) + bob (+0) = 70"],
+    ["Bob Dominguez",  "dominguez (+70) + bob (+0) = 70"],
+    ["Bob Valdez",     "valdez (+70) + bob (+0) = 70"],
+    ["Bob Villalobos", "villalobos (+70) + bob (+0) = 70"],
   ];
 
-  for (const [name, reason] of surnamePasses) {
-    it(`passes on surname alone: ${name} — ${reason}`, () => {
+  for (const [name, reason] of surnameOnly) {
+    it(`surname alone passes: ${name} — ${reason}`, () => {
       const result = scoreHispanicName(name);
-      expect(result.hispanicNameScore).toBeGreaterThanOrEqual(PASS_THRESHOLD);
+      expect(result.hispanicNameScore).toBe(SURNAME_SCORE);
       expect(result.spanishOutreachRecommended).toBe(true);
     });
   }
 });
 
-describe("scoreHispanicName — Tier 2 surname-only does NOT pass (ambiguous surnames)", () => {
-  // Tier 2 scores +50; without a Hispanic first name (+25) total stays below 70.
-  const tier2Rejects: Array<[string, string]> = [
-    ["Bob Franco",   "franco Tier 2 (+50) + bob (+0) = 50 < 70"],
-    ["Mike Roman",   "roman Tier 2 (+50) + mike (+0) = 50 < 70"],
-    ["Chris Silva",  "silva Tier 2 (+50) + chris (+0) = 50 < 70"],
-    ["John Blanco",  "blanco Tier 2 (+50) + john (+0) = 50 < 70"],
-  ];
+describe("scoreHispanicName — Hispanic first name alone does NOT pass", () => {
+  it("Jose (single token, no last name) scores first-name only and is blocked", () => {
+    const result = scoreHispanicName("Jose");
+    expect(result.hispanicNameScore).toBe(FIRST_NAME_SCORE);
+    expect(result.spanishOutreachRecommended).toBe(false);
+  });
 
-  for (const [name, reason] of tier2Rejects) {
-    it(`blocked (Tier 2 only): ${name} — ${reason}`, () => {
-      const result = scoreHispanicName(name);
-      expect(result.hispanicNameScore).toBeLessThan(PASS_THRESHOLD);
-      expect(result.spanishOutreachRecommended).toBe(false);
-    });
-  }
+  it("Maria (single token) scores first-name only and is blocked", () => {
+    const result = scoreHispanicName("Maria");
+    expect(result.hispanicNameScore).toBe(FIRST_NAME_SCORE);
+    expect(result.spanishOutreachRecommended).toBe(false);
+  });
 });
 
-describe("scoreHispanicName — reject cases", () => {
-  it("scores 0 for a clearly non-Hispanic name (Bob Johnson)", () => {
+describe("scoreHispanicName — non-Hispanic names score 0", () => {
+  it("Bob Johnson scores 0 (neither name recognized)", () => {
     const result = scoreHispanicName("Bob Johnson");
     expect(result.hispanicNameScore).toBe(0);
     expect(result.spanishOutreachRecommended).toBe(false);
   });
 
-  it("scores 0 for a single-token input (no last name to evaluate)", () => {
+  it("single unrecognized token scores 0", () => {
     const result = scoreHispanicName("Smith");
     expect(result.hispanicNameScore).toBe(0);
     expect(result.spanishOutreachRecommended).toBe(false);
@@ -75,27 +73,26 @@ describe("scoreHispanicName — reject cases", () => {
 });
 
 describe("scoreHispanicName — threshold alignment", () => {
-  it("spanishOutreachRecommended is true when score equals threshold exactly", () => {
+  it("score exactly at threshold (70) sets spanishOutreachRecommended true", () => {
     const result = scoreHispanicName("Ana Navarro");
     expect(result.hispanicNameScore).toBe(PASS_THRESHOLD);
     expect(result.spanishOutreachRecommended).toBe(true);
   });
 
-  it("Tier 2 surname alone scores exactly 50 (below threshold)", () => {
-    const result = scoreHispanicName("Bob Franco");
-    expect(result.hispanicNameScore).toBe(50);
-    expect(result.spanishOutreachRecommended).toBe(false);
-  });
-
-  it("spanishOutreachRecommended is false when score is below threshold", () => {
+  it("score below threshold (0) sets spanishOutreachRecommended false", () => {
     const result = scoreHispanicName("Bob Johnson");
     expect(result.hispanicNameScore).toBeLessThan(PASS_THRESHOLD);
     expect(result.spanishOutreachRecommended).toBe(false);
   });
+
+  it("surname + first name score is capped at 100", () => {
+    const result = scoreHispanicName("Jose Rodriguez");
+    expect(result.hispanicNameScore).toBe(Math.min(100, SURNAME_SCORE + FIRST_NAME_SCORE));
+  });
 });
 
 describe("scoreHispanicName — normalization", () => {
-  it("handles accented characters correctly (José Rodríguez)", () => {
+  it("strips accented characters (José Rodríguez)", () => {
     const result = scoreHispanicName("José Rodríguez");
     expect(result.hispanicNameScore).toBeGreaterThanOrEqual(PASS_THRESHOLD);
     expect(result.firstName).toBe("jose");
@@ -112,7 +109,7 @@ describe("scoreHispanicName — normalization", () => {
     expect(result.hispanicNameScore).toBeGreaterThanOrEqual(PASS_THRESHOLD);
   });
 
-  it("handles compound names — uses first token as firstName, last token as lastName", () => {
+  it("compound names use first token as firstName, last token as lastName", () => {
     const result = scoreHispanicName("Juan Carlos Martinez Lopez");
     expect(result.firstName).toBe("juan");
     expect(result.lastName).toBe("lopez");
