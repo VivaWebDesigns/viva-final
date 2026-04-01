@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Users, TrendingUp, UserPlus, MessageSquare,
   CreditCard, Bell, BarChart3, Settings, BookOpen,
   LogOut, ChevronLeft, ChevronRight, Menu, Building2, Zap,
-  ClipboardList, AlertTriangle, ShoppingBag,
+  ClipboardList, AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,7 +35,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { label: t.nav.dashboard,     path: "/admin",               icon: LayoutDashboard, color: "text-blue-500",    roles: ["admin", "developer"] as string[] },
     { label: t.nav.clients,       path: "/admin/clients",        icon: Building2,       color: "text-indigo-500",  roles: ["admin", "developer", "sales_rep"] as string[] },
     { label: t.nav.crm,           path: "/admin/crm",            icon: Users,           color: "text-emerald-500" },
-    { label: t.nav.marketplace,   path: "/admin/marketplace",    icon: ShoppingBag,     color: "text-violet-500",  roles: ["admin", "lead_gen"] as string[] },
     { label: t.nav.pipeline,      path: "/admin/pipeline",       icon: TrendingUp,      color: "text-orange-500",  roles: ["admin", "developer", "sales_rep"] as string[] },
     { label: t.nav.tasks,         path: "/admin/tasks",          icon: ClipboardList,   color: "text-teal-500",    roles: ["admin", "developer", "sales_rep"] as string[] },
     { label: t.nav.onboarding,    path: "/admin/onboarding",     icon: UserPlus,        color: "text-purple-500",  roles: ["admin", "developer"] as string[] },

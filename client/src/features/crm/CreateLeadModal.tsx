@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useRef } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -82,24 +82,12 @@ const baseSchema = z.object({
 
 type FormValues = z.infer<typeof baseSchema>;
 
-interface InitialValues {
-  firstName?: string;
-  lastName?: string;
-  businessTrade?: string;
-  state?: typeof US_STATES[number];
-  city?: string;
-  sellerProfileUrl?: string;
-  adUrl?: string;
-}
-
 interface Props {
   open: boolean;
   onClose: () => void;
-  initialValues?: InitialValues;
-  onLeadCreated?: (leadId: string) => void;
 }
 
-export default function CreateLeadModal({ open, onClose, initialValues, onLeadCreated }: Props) {
+export default function CreateLeadModal({ open, onClose }: Props) {
   const { t } = useAdminLang();
   const { toast } = useToast();
 
@@ -143,34 +131,6 @@ export default function CreateLeadModal({ open, onClose, initialValues, onLeadCr
     },
   });
 
-  const initialValuesRef = useRef(initialValues);
-  initialValuesRef.current = initialValues;
-  const formResetFn = form.reset;
-
-  useEffect(() => {
-    if (open) {
-      const iv = initialValuesRef.current;
-      if (iv) {
-        formResetFn({
-          firstName: iv.firstName ?? "",
-          lastName: iv.lastName ?? "",
-          businessName: "",
-          businessTrade: iv.businessTrade ?? "",
-          phone: "",
-          email: "",
-          website: "",
-          source: iv.sellerProfileUrl ? "outreach" : "website",
-          sellerProfileUrl: iv.sellerProfileUrl ?? "",
-          adUrl: iv.adUrl ?? "",
-          preferredLanguage: "es",
-          notes: "",
-          city: iv.city ?? "",
-          state: iv.state,
-        });
-      }
-    }
-  }, [open, formResetFn]);
-
   const selectedState = form.watch("state");
   const watchedSource = form.watch("source");
 
@@ -212,7 +172,7 @@ export default function CreateLeadModal({ open, onClose, initialValues, onLeadCr
       }
       return res.json();
     },
-    onSuccess: (data: { id: string }) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/crm/leads"] });
       queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities/board"] });
       queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities"] });
@@ -221,9 +181,6 @@ export default function CreateLeadModal({ open, onClose, initialValues, onLeadCr
       setAssignedToId("");
       setAssignedToError(false);
       setDuplicateMatch(null);
-      if (onLeadCreated && data?.id) {
-        onLeadCreated(data.id);
-      }
       onClose();
     },
     onError: (err: Error) => {

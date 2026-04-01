@@ -16,7 +16,6 @@ export const es: AdminTranslations = {
     demoBuilder: "Constructor de Demo",
     admin: "Configuración del Sistema",
     docs: "Documentación",
-    marketplace: "Cola de Marketplace",
     internalPlatform: "Plataforma Interna",
     signOut: "Cerrar Sesión",
     overdueItem: "elemento vencido",
