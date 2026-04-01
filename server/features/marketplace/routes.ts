@@ -246,6 +246,14 @@ router.post(
 
     const defaultStatus = await crmStorage.getDefaultLeadStatus();
 
+    const [defaultRep] = await db
+      .select({ id: user.id })
+      .from(user)
+      .where(and(eq(user.role, "sales_rep"), eq(user.banned, false)))
+      .orderBy(user.createdAt)
+      .limit(1);
+    const defaultAssignedRepId = defaultRep?.id ?? req.authUser!.id;
+
     const { lead, contact, company } = await db.transaction(async (tx) => {
       let [contact] = await tx
         .select()
@@ -330,7 +338,7 @@ router.post(
           spanishOutreachRecommended: parsed.data.spanishOutreachRecommended,
           firstOutreachSentAt:        new Date(parsed.data.firstOutreachSentAt),
           fromWebsiteForm:            false,
-          assignedTo:                 req.authUser!.id,
+          assignedTo:                 defaultAssignedRepId,
         })
         .returning();
 
@@ -355,7 +363,7 @@ router.post(
         stageId:         newLeadStage.id,
         status:          "open",
         sourceLeadTitle: lead.title,
-        assignedTo:      req.authUser!.id,
+        assignedTo:      defaultAssignedRepId,
       });
       try {
         await executeStageAutomations({
@@ -363,7 +371,7 @@ router.post(
           leadId:        lead.id,
           contactId:     contact.id,
           companyId:     company.id,
-          assignedTo:    req.authUser!.id,
+          assignedTo:    defaultAssignedRepId,
           stageSlug:     "new-lead",
           actorId:       req.authUser!.id,
         });
