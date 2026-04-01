@@ -12,20 +12,25 @@
 //   alphabetically sorted at module load time — no manual cleanup required.
 
 const RAW_HISPANIC_LAST_NAMES: string[] = [
-  // ── A ──────────────────────────────────────────────────────────────────────
+  // ── A ──────────────────────────────────────────────────────────────────
   "abreu",
   "acevedo",
   "acosta",
+  "acuna",
+  "aguayo",
   "aguilar",
   "aguilera",
   "aguirre",
+  "alarcon",
   "alba",
   "alcala",
   "alcaraz",
   "alfaro",
+  "alfonzo",
   "alicea",
   "almanza",
   "almazan",
+  "almiron",
   "almodovar",
   "alonso",
   "altamirano",
@@ -35,11 +40,21 @@ const RAW_HISPANIC_LAST_NAMES: string[] = [
   "andrade",
   "angulo",
   "aparicio",
+  "apaza",
   "aponte",
+  "apushaina",
+  "aquino",
   "aragon",
+  "arancibia",
+  "arango",
+  "araque",
+  "araujo",
+  "araya",
   "arce",
   "arceo",
+  "arevalo",
   "arias",
+  "aristizabal",
   "armas",
   "armenta",
   "arredondo",
@@ -48,78 +63,114 @@ const RAW_HISPANIC_LAST_NAMES: string[] = [
   "arroyo",
   "arteaga",
   "arzola",
+  "atencio",
   "avalos",
   "avila",
   "ayala",
+  "aymar",
   "ayon",
-  // ── B ──────────────────────────────────────────────────────────────────────
+  "azuaje",
+  // ── B ──────────────────────────────────────────────────────────────────
   "baez",
   "barajas",
   "barragan",
   "barraza",
   "barrera",
   "barreto",
+  "barrios",
+  "batista",
   "bautista",
   "becerra",
+  "beltran",
   "benavides",
   "benitez",
   "bermudez",
   "bernal",
   "berrios",
   "blanco",
+  "bogado",
+  "bonilla",
   "borrego",
   "bravo",
   "briones",
   "brito",
   "bueno",
+  "bustamante",
   "bustos",
-  // ── C ──────────────────────────────────────────────────────────────────────
+  // ── C ──────────────────────────────────────────────────────────────────
   "caballero",
   "cabral",
   "cabrera",
+  "caceres",
   "cadena",
+  "cahuana",
   "caicedo",
   "caldera",
   "calderon",
+  "callisaya",
   "camacho",
   "camargo",
   "campos",
-  "cantu",
+  "canales",
+  "canaviri",
+  "canizares",
   "cano",
+  "cantero",
+  "cantu",
   "caraballo",
   "carbajal",
   "cardenas",
   "cardona",
+  "cardozo",
   "caro",
   "carrasco",
   "carrillo",
+  "carvajal",
   "casas",
   "casillas",
   "castellanos",
   "castillo",
   "castro",
+  "catacora",
+  "catalan",
+  "ccopa",
   "ceballos",
+  "cedeno",
   "ceja",
   "centeno",
   "cervantes",
   "chairez",
   "chaparro",
   "chavez",
+  "choque",
+  "chura",
   "cienfuegos",
+  "cifuentes",
   "cisneros",
+  "colman",
+  "colon",
+  "colque",
+  "condori",
   "contreras",
+  "cordero",
   "cordova",
+  "cornejo",
   "coronado",
+  "coronel",
   "correa",
+  "cortes",
   "cortez",
   "cossio",
   "cruz",
   "cuadra",
   "cuevas",
-  // ── D ──────────────────────────────────────────────────────────────────────
+  "cusicanqui",
+  // ── D ──────────────────────────────────────────────────────────────────
   "damian",
   "de la cruz",
   "de la fuente",
+  "de leon",
+  "de los santos",
   "delagarza",
   "delara",
   "deleon",
@@ -129,29 +180,40 @@ const RAW_HISPANIC_LAST_NAMES: string[] = [
   "diaz",
   "dominguez",
   "duarte",
+  "dubon",
   "duenas",
-  // ── E ──────────────────────────────────────────────────────────────────────
+  // ── E ──────────────────────────────────────────────────────────────────
   "echevarria",
   "elizalde",
   "elizondo",
+  "encarnacion",
   "enriquez",
+  "epieyu",
   "escamilla",
-  "escobedo",
   "escobar",
+  "escobedo",
   "espinoza",
   "esquivel",
   "estrada",
-  // ── F ──────────────────────────────────────────────────────────────────────
+  "estrella",
+  // ── F ──────────────────────────────────────────────────────────────────
   "felix",
+  "feliz",
   "feria",
+  "fernandez",
+  "ferreira",
   "fierro",
   "figueroa",
+  "fleitas",
   "flores",
+  "florez",
+  "forero",
   "franco",
   "fuentes",
-  // ── G ──────────────────────────────────────────────────────────────────────
-  "galaz",
+  // ── G ──────────────────────────────────────────────────────────────────
   "galaviz",
+  "galaz",
+  "galeano",
   "galindo",
   "gallardo",
   "galvan",
@@ -161,50 +223,76 @@ const RAW_HISPANIC_LAST_NAMES: string[] = [
   "garza",
   "gatica",
   "gaytan",
+  "gimenez",
   "giron",
+  "godoy",
   "gomez",
   "gonzalez",
+  "guaman",
+  "guarachi",
   "guardado",
   "guerrero",
+  "guevara",
   "guillen",
   "gutierrez",
   "guzman",
-  // ── H ──────────────────────────────────────────────────────────────────────
+  // ── H ──────────────────────────────────────────────────────────────────
   "henriquez",
   "hermosillo",
+  "hernandez",
   "herrera",
   "hidalgo",
+  "hinojosa",
   "holguin",
+  "huaman",
   "huerta",
-  // ── I ──────────────────────────────────────────────────────────────────────
+  "hurtado",
+  // ── I ──────────────────────────────────────────────────────────────────
   "ibarra",
   "infante",
-  // ── J ──────────────────────────────────────────────────────────────────────
+  "insfran",
+  // ── J ──────────────────────────────────────────────────────────────────
+  "jara",
+  "jayariyu",
   "jimenez",
   "juarez",
-  // ── L ──────────────────────────────────────────────────────────────────────
+  "justiniano",
+  // ── L ──────────────────────────────────────────────────────────────────
   "landa",
   "landeros",
+  "lara",
   "lazo",
   "leal",
   "leiva",
+  "lema",
+  "lemus",
   "leon",
   "lerma",
   "leyva",
+  "lezcano",
+  "llanque",
   "lopez",
+  "lora",
   "lozano",
   "luna",
-  // ── M ──────────────────────────────────────────────────────────────────────
+  // ── M ──────────────────────────────────────────────────────────────────
   "macias",
+  "maidana",
   "malagon",
   "maldonado",
+  "mamani",
   "mancera",
+  "maradiaga",
+  "mardones",
   "marin",
   "marquez",
+  "marrero",
   "marroquin",
   "martinez",
+  "matos",
   "matus",
   "mayorga",
+  "mayta",
   "medina",
   "mejia",
   "melendez",
@@ -213,14 +301,21 @@ const RAW_HISPANIC_LAST_NAMES: string[] = [
   "mendivil",
   "mendoza",
   "meza",
+  "mirabal",
   "miranda",
   "molina",
+  "monroy",
+  "montanez",
+  "montero",
+  "montiel",
   "montoya",
   "mora",
   "morales",
+  "morel",
   "moreno",
+  "morinigo",
   "munoz",
-  // ── N ──────────────────────────────────────────────────────────────────────
+  // ── N ──────────────────────────────────────────────────────────────────
   "naranjo",
   "nava",
   "navarrete",
@@ -228,43 +323,66 @@ const RAW_HISPANIC_LAST_NAMES: string[] = [
   "negrete",
   "negron",
   "nunez",
-  // ── O ──────────────────────────────────────────────────────────────────────
+  "nuñez",
+  // ── O ──────────────────────────────────────────────────────────────────
   "ocampo",
   "oceguera",
   "ochoa",
   "ojeda",
+  "olaya",
+  "olazabal",
   "olivares",
   "olivas",
   "oliveros",
   "olmedo",
+  "orellana",
   "ornelas",
   "orozco",
   "ortega",
+  "ortigoza",
   "ortiz",
-  // ── P ──────────────────────────────────────────────────────────────────────
+  // ── P ──────────────────────────────────────────────────────────────────
+  "pacco",
   "pacheco",
   "padilla",
-  "palencia",
   "palacios",
+  "palencia",
+  "palma",
   "palomino",
   "paredes",
+  "parra",
+  "patzi",
+  "paz",
   "pena",
   "peralta",
+  "perdomo",
+  "pereira",
   "perez",
+  "peña",
+  "pichardo",
+  "pino",
   "pizarro",
+  "poblete",
   "polanco",
   "ponce",
   "portillo",
-  // ── Q ──────────────────────────────────────────────────────────────────────
+  "preciado",
+  // ── Q ──────────────────────────────────────────────────────────────────
   "quesada",
+  "quevedo",
+  "quinones",
   "quintana",
   "quintanilla",
   "quintero",
+  "quinteros",
+  "quiroga",
   "quiroz",
-  // ── R ──────────────────────────────────────────────────────────────────────
+  "quispe",
+  // ── R ──────────────────────────────────────────────────────────────────
   "ramirez",
   "ramos",
   "rangel",
+  "recinos",
   "rendon",
   "renteria",
   "resendez",
@@ -272,1952 +390,543 @@ const RAW_HISPANIC_LAST_NAMES: string[] = [
   "reyna",
   "rincon",
   "rios",
+  "riquelme",
   "rivas",
   "rivera",
   "robledo",
   "robles",
   "rodriguez",
   "rojas",
+  "roldan",
   "roman",
   "romero",
+  "rosado",
   "rosales",
+  "rosario",
   "rubio",
   "ruiz",
-  // ── S ──────────────────────────────────────────────────────────────────────
+  // ── S ──────────────────────────────────────────────────────────────────
+  "saavedra",
   "saenz",
   "salas",
   "salazar",
   "salcedo",
   "salinas",
+  "samaniego",
   "sanchez",
   "sandoval",
+  "santana",
   "santiago",
+  "santos",
   "segura",
+  "sepulveda",
   "serna",
   "serrano",
-  "silva",
+  "severino",
   "sigala",
+  "silva",
   "solis",
-  "sosa",
   "soriano",
+  "sorto",
+  "sosa",
   "soto",
   "suarez",
-  // ── T ──────────────────────────────────────────────────────────────────────
+  // ── T ──────────────────────────────────────────────────────────────────
   "talamantes",
   "tamayo",
   "tapia",
+  "taveras",
   "tejada",
   "tejeda",
   "telles",
   "tenorio",
   "teran",
   "terrazas",
+  "ticona",
   "tirado",
+  "tola",
+  "toledo",
   "torres",
   "trejo",
+  "troncoso",
   "trujillo",
-  // ── U ──────────────────────────────────────────────────────────────────────
+  // ── U ──────────────────────────────────────────────────────────────────
+  "uriana",
   "uribe",
   "urrutia",
-  // ── V ──────────────────────────────────────────────────────────────────────
-  "valdivia",
+  // ── V ──────────────────────────────────────────────────────────────────
+  "vaca",
+  "valdes",
   "valdez",
+  "valdivia",
   "valencia",
   "valenzuela",
   "valle",
   "valverde",
   "vargas",
   "vasquez",
+  "vazquez",
   "vega",
   "velarde",
   "velasquez",
+  "velazquez",
+  "venegas",
   "vera",
   "vergara",
   "villa",
+  "villacorta",
+  "villalba",
   "villalobos",
   "villanueva",
   "villarreal",
-  // ── Z ──────────────────────────────────────────────────────────────────────
+  "villarroel",
+  // ── Y ──────────────────────────────────────────────────────────────────
+  "yanez",
+  "yucra",
+  "yupanqui",
+  // ── Z ──────────────────────────────────────────────────────────────────
   "zambrano",
   "zamora",
+  "zamorano",
   "zapata",
   "zarate",
-  "zelaya",Hernandez
-  Garcia
-  Martinez
-  Lopez
-  Gonzalez
-  Perez
-  Rodriguez
-  Sanchez
-  Ramirez
-  Cruz
-  Flores
-  Gomez
-  Morales
-  Vasquez
-  Reyes
-  Jimenez
-  Torres
-  Diaz
-  Gutierrez
-  Ruiz
-  Mendoza
-  Aguilar
-  Moreno
-  Ortiz
-  Castillo
-  Romero
-  Alvarez
-  Chavez
-  Rivera
-  Juarez
-  Herrera
-  Medina
-  Castro
-  Vargas
-  Rojas
-  Guerrero
-  Contreras
-  Estrada
-  Delgado
-  Navarro
-  Vega
-  Salazar
-  Luna
-  Carrillo
-  Cervantes
-  Leon
-  Molina
-  Cabrera
-  Campos
-  Camacho
-  Valdez
-  Escobar
-  Dominguez
-  Orozco
-  Pacheco
-  Montoya
-  Lozano
-  Solis
-  Santiago
-  Macias
-  Barrera
-  Valenzuela
-  Rosales
-  Trujillo
-  Galindo
-  Cuevas
-  Mejia
-  Quiroz
-  Rubio
-  Bernal
-  Mora
-  Ibarra
-  Trejo
-  Cisneros
-  Cardenas
-  Aguirre
-  Ortega
-  Palacios
-  Portillo
-  Salcedo
-  Villalobos
-  Zamora
-  Zarate
-  Zelaya
-  Henriquez
-  Enriquez
-  Valverde
-  Galvan
-  Renteria
-  Ponce
-  Meza
-  Miranda
-  Bustos
-  Leal
-  Reyna
-  Sandoval
-  Soto
-  Velasquez
-  Padilla
-  Nunez
-  Maldonado
-  Bautista
-  Espinoza
-  Figueroa
-  Fuentes
-  Alvarado
-  Acosta
-  Munoz
-  Cordova
-  Serrano
-  Suarez
-  Tejeda
-  Tejada
-  Duarte
-  Rincon
-  Vera
-  Silva
-  Franco
-  Roman
-  Blanco
-  Villa
-  Lopez
-  Garcia
-  Morales
-  Hernandez
-  Perez
-  Gonzalez
-  Rodriguez
-  Ramirez
-  Martinez
-  Castillo
-  Estrada
-  Marroquin
-  Gomez
-  Vasquez
-  Mendez
-  Reyes
-  Diaz
-  Aguilar
-  Velasquez
-  Rivera
-  Cruz
-  Flores
-  Ruiz
-  Moreno
-  Alvarado
-  Castro
-  Contreras
-  Delgado
-  Herrera
-  Juarez
-  Leon
-  Luna
-  Maldonado
-  Medina
-  Mendoza
-  Ortiz
-  Padilla
-  Ramos
-  Salazar
-  Sanchez
-  Torres
-  Vega
-  Zuniga
-  De Leon
-  Rosales
-  Barrera
-  Valenzuela
-  Trejo
-  Galindo
-  Cuevas
-  Bernal
-  Mora
-  Ibarra
-  Cisneros
-  Cardenas
-  Aguirre
-  Ortega
-  Palacios
-  Portillo
-  Villalobos
-  Zamora
-  Zarate
-  Zelaya
-  Henriquez
-  Enriquez
-  Valverde
-  Galvan
-  Renteria
-  Meza
-  Miranda
-  Reyna
-  Sandoval
-  Soto
-  Bautista
-  Espinoza
-  Figueroa
-  Fuentes
-  Cordova
-  Serrano
-  Suarez
-  Tejeda
-  Tejada
-  Duarte
-  Rincon
-  Vera
-  Silva
-  Franco
-  Roman
-  Blanco
-  Villa
-  Carrillo
-  Cervantes
-  Dominguez
-  Escobar
-  Orozco
-  Lozano
-  Solis
-  Santiago
-  Macias
-  Trujillo
-  Pacheco
-  Montoya
-  Salcedo
-  Navarro
-  Pena
-  Ayala
-  Arroyo
-  Nava
-  Navarrete
-  Palomino
-  Paredes
-  Vergara
-  Coronado
-  Escamilla
-  Maradiaga
-  Villacorta
-  Canales
-  Sorto
-  Amaya
-  Arias
-  Bonilla
-  Chavez
-  Recinos
-  Dubon
-  Lemus
-  Mejia
-  Quinteros
-  Rodriguez
-  Perez
-  Garcia
-  Martinez
-  Hernandez
-  Lopez
-  Gonzalez
-  Diaz
-  Sanchez
-  Ramirez
-  Torres
-  Rivera
-  Gomez
-  Cruz
-  Reyes
-  Morales
-  Flores
-  Vasquez
-  Ruiz
-  Castillo
-  Jimenez
-  Alvarez
-  Medina
-  Herrera
-  Ortiz
-  Guerrero
-  Delgado
-  Castro
-  Ramos
-  Vega
-  Mendez
-  Moreno
-  Santos
-  Cabrera
-  Rosario
-  Valdez
-  Acosta
-  Peralta
-  De La Cruz
-  De Los Santos
-  Matos
-  Taveras
-  Polanco
-  Pena
-  Tejada
-  Montero
-  Molina
-  Santana
-  Pichardo
-  Bautista
-  Encarnacion
-  Abreu
-  Severino
-  Cedeno
-  Lora
-  Mejia
-  Valenzuela
-  Feliz
-  Aquino
-  Rosado
-  Marrero
-  Soto
-  Arias
-  Navarro
-  Montanez
-  Quinones
-  Figueroa
-  Santiago
-  Colon
-  Acevedo
-  Cordero
-  Maldonado
-  Bonilla
-  Zamora
-  Henriquez
-  Enriquez
-  Valverde
-  Rosales
-  Cuevas
-  Trejo
-  Ibarra
-  Palacios
-  Villalobos
-  Zelaya
-  Escobar
-  Dominguez
-  Orozco
-  Lozano
-  Solis
-  Salcedo
-  Carrillo
-  Cervantes
-  Macias
-  Montoya
-  Pacheco
-  Portillo
-  Suarez
-  Tejeda
-  Rincon
-  Vera
-  Silva
-  Franco
-  Roman
-  Blanco
-  Villa
-  Batista
-  Cano
-  Correa
-  Estrella
-  Mirabal
-  Rodriguez
-  Martinez
-  Garcia
-  Gomez
-  Lopez
-  Gonzalez
-  Hernandez
-  Sanchez
-  Perez
-  Ramirez
-  Diaz
-  Torres
-  Rojas
-  Moreno
-  Jimenez
-  Gutierrez
-  Alvarez
-  Ruiz
-  Herrera
-  Castro
-  Vargas
-  Ortiz
-  Suarez
-  Romero
-  Quintero
-  Valencia
-  Munoz
-  Cardona
-  Mejia
-  Correa
-  Cortes
-  Cortez
-  Estrada
-  Galindo
-  Lozano
-  Marin
-  Pena
-  Perdomo
-  Reyes
-  Montoya
-  Arango
-  Cano
-  Arias
-  Mendoza
-  Morales
-  Chavez
-  Camacho
-  Salazar
-  Navarro
-  Delgado
-  Medina
-  Leon
-  Rincon
-  Pacheco
-  Maldonado
-  Figueroa
-  Valdez
-  Escobar
-  Dominguez
-  Orozco
-  Carrillo
-  Cervantes
-  Santiago
-  Macias
-  Rosales
-  Cuevas
-  Bernal
-  Ibarra
-  Cisneros
-  Cardenas
-  Aguirre
-  Ortega
-  Palacios
-  Portillo
-  Villalobos
-  Zamora
-  Zarate
-  Henriquez
-  Enriquez
-  Valverde
-  Galvan
-  Reyna
-  Sandoval
-  Soto
-  Velasquez
-  Padilla
-  Nunez
-  Bautista
-  Espinoza
-  Fuentes
-  Acosta
-  Cordova
-  Serrano
-  Tejeda
-  Tejada
-  Duarte
-  Vera
-  Silva
-  Franco
-  Roman
-  Blanco
-  Villa
-  Abreu
-  Aponte
-  Araujo
-  Arteaga
-  Atencio
-  Azuaje
-  Aguilera
-  Araque
-  Alfonzo
-  Arevalo
-  Acevedo
-  Aristizabal
-  Beltran
-  Calderon
-  Canizares
-  Fernandez
-  Florez
-  Guevara
-  Hurtado
-  Lara
-  Marquez
-  Olaya
-  Preciado
-  Forero
-  Monroy
-  Quevedo
-  Olazabal
-  Uriana
-  Apushaina
-  Epieyu
-  Jayariyu
-  Quispe
-  Choque
-  Justiniano
-  Vaca
-  Villarroel
-  Quispe
-  Mamani
-  Condori
-  Flores
-  Huaman
-  Rojas
-  Garcia
-  Perez
-  Rodriguez
-  Lopez
-  Martinez
-  Sanchez
-  Diaz
-  Torres
-  Ramirez
-  Gonzalez
-  Vargas
-  Gutierrez
-  Romero
-  Cruz
-  Chavez
-  Herrera
-  Morales
-  Castillo
-  Ortiz
-  Mendoza
-  Ruiz
-  Alvarez
-  Aguilar
-  Rivera
-  Castro
-  Reyes
-  Jimenez
-  Moreno
-  Ramos
-  Vega
-  Vasquez
-  Navarro
-  Medina
-  Leon
-  Salazar
-  Luna
-  Carrillo
-  Cervantes
-  Molina
-  Campos
-  Camacho
-  Valdez
-  Escobar
-  Dominguez
-  Orozco
-  Pacheco
-  Montoya
-  Lozano
-  Solis
-  Santiago
-  Macias
-  Barrera
-  Valenzuela
-  Rosales
-  Trujillo
-  Galindo
-  Cuevas
-  Mejia
-  Quiroz
-  Rubio
-  Bernal
-  Mora
-  Ibarra
-  Trejo
-  Cisneros
-  Cardenas
-  Aguirre
-  Ortega
-  Palacios
-  Portillo
-  Villalobos
-  Zamora
-  Zarate
-  Henriquez
-  Enriquez
-  Valverde
-  Galvan
-  Renteria
-  Meza
-  Miranda
-  Reyna
-  Sandoval
-  Soto
-  Velasquez
-  Padilla
-  Nunez
-  Maldonado
-  Bautista
-  Espinoza
-  Figueroa
-  Fuentes
-  Alvarado
-  Acosta
-  Munoz
-  Cordova
-  Serrano
-  Suarez
-  Tejeda
-  Tejada
-  Duarte
-  Rincon
-  Vera
-  Silva
-  Franco
-  Roman
-  Blanco
-  Villa
-  Choque
-  Apaza
-  Callisaya
-  Ticona
-  Canaviri
-  Cahuana
-  Ccopa
-  Chura
-  Llanque
-  Yucra
-  Aymar
-  Pacco
-  Mayta
-  Cusicanqui
-  Catacora
-  Guarachi
-  Hinojosa
-  Lema
-  Patzi
-  Colque
-  Tola
-  Villarroel
-  Justiniano
-  Vaca
-  Arias
-  Aguayo
-  Teran
-  Guerrero
-  Aguirre
-  Cornejo
-  Guaman
-  Yupanqui
-  Gonzalez
-  Rodriguez
-  Gomez
-  Fernandez
-  Lopez
-  Martinez
-  Diaz
-  Perez
-  Garcia
-  Sanchez
-  Romero
-  Sosa
-  Torres
-  Alvarez
-  Ruiz
-  Ramirez
-  Flores
-  Acosta
-  Benitez
-  Medina
-  Herrera
-  Castro
-  Ortiz
-  Rojas
-  Silva
-  Mendoza
-  Morales
-  Pereira
-  Cabrera
-  Suarez
-  Vera
-  Gimenez
-  Dominguez
-  Vazquez
-  Aguirre
-  Rivera
-  Maidana
-  Martinez
-  Benitez
-  Cardozo
-  Bogado
-  Villalba
-  Ferreira
-  Insfran
-  Coronel
-  Escobar
-  Ayala
-  Franco
-  Riquelme
-  Galeano
-  Lezcano
-  Caceres
-  Baez
-  Cantero
-  Arce
-  Velazquez
-  Samaniego
-  Barrios
-  Mendoza
-  Acuna
-  Duarte
-  Fleitas
-  Morel
-  Morinigo
-  Ortigoza
-  Caballero
-  Colman
-  Zarate
-  Villalba
-  Almiron
-  Godoy
-  Peralta
-  Benitez
-  Quiroga
-  Montiel
-  Paz
-  Roldan
-  Molina
-  Navarro
-  Maldonado
-  Salazar
-  Serrano
-  Pacheco
-  Valdez
-  Montoya
-  Palacios
-  Villalobos
-  Zamora
-  Henriquez
-  Enriquez
-  Valverde
-  Cuevas
-  Bernal
-  Mora
-  Ibarra
-  Trejo
-  Cardenas
-  Ortega
-  Portillo
-  Rosales
-  Mejia
-  Galindo
-  Rincon
-  Roman
-  Blanco
-  Villa
-  Gonzalez
-  Munoz
-  Rojas
-  Diaz
-  Perez
-  Soto
-  Contreras
-  Silva
-  Martinez
-  Sepulveda
-  Morales
-  Rodriguez
-  Lopez
-  Fuentes
-  Hernandez
-  Torres
-  Araya
-  Flores
-  Espinoza
-  Valenzuela
-  Castillo
-  Ramirez
-  Nuñez
-  Vargas
-  Tapia
-  Castro
-  Pizarro
-  Vasquez
-  Sanchez
-  Carrasco
-  Fernandez
-  Jara
-  Vera
-  Maldonado
-  Herrera
-  Cortes
-  Guzman
-  Alarcon
-  Figueroa
-  Navarro
-  Reyes
-  Molina
-  Henriquez
-  Enriquez
-  Moreno
-  Medina
-  Salazar
-  Saavedra
-  Alvarez
-  Bravo
-  Gallardo
-  Parra
-  Godoy
-  Bustamante
-  Campos
-  Caceres
-  Villanueva
-  Olivares
-  Paredes
-  Valdes
-  Leiva
-  Orellana
-  Palma
-  Toledo
-  Poblete
-  Venegas
-  Escobar
-  Miranda
-  Sandoval
-  Aguilera
-  Mardones
-  Villarroel
-  Peña
-  Cifuentes
-  Aguirre
-  Zuniga
-  Yanez
-  Cornejo
-  Cuevas
-  Arancibia
-  Carvajal
-  Riquelme
-  Catalan
-  Barrera
-  Pino
-  Troncoso
-  Zamorano
-  Canales
-  Mora
-  Meza
-  Gallardo
+  "zelaya",
   "zepeda",
   "zuniga",
 ];
 
 const RAW_HISPANIC_FIRST_NAMES: string[] = [
-  // ── Male ───────────────────────────────────────────────────────────────────
+  // ── A ──────────────────────────────────────────────────────────────────
   "abdiel",
   "abel",
+  "abigail",
+  "abner",
+  "abril",
   "adan",
+  "adrian",
+  "adriana",
   "agustin",
+  "agustina",
+  "aida",
+  "ailen",
+  "aitana",
+  "alan",
   "alberto",
   "aldo",
+  "alejandra",
   "alejandro",
+  "alexandra",
   "alexis",
   "alfredo",
+  "alicia",
+  "allan",
+  "alma",
   "alonso",
   "amado",
-  "andres",
-  "angel",
-  "antonio",
-  "armando",
-  "arnulfo",
-  "arturo",
-  "augustin",
-  "benito",
-  "calixto",
-  "camilo",
-  "carlos",
-  "celestino",
-  "cesar",
-  "ciro",
-  "cristian",
-  "dagoberto",
-  "damian",
-  "dario",
-  "edgar",
-  "edmundo",
-  "edvin",
-  "eduardo",
-  "elias",
-  "eliseo",
-  "emiliano",
-  "emilio",
-  "enrique",
-  "erick",
-  "ernesto",
-  "esteban",
-  "fabian",
-  "fausto",
-  "feliciano",
-  "felipe",
-  "fermin",
-  "fidel",
-  "florencio",
-  "florentino",
-  "francisco",
-  "gabriel",
-  "genaro",
-  "german",
-  "gilberto",
-  "gonzalo",
-  "guillermo",
-  "gustavo",
-  "hector",
-  "heladio",
-  "hernan",
-  "ignacio",
-  "isaias",
-  "isidro",
-  "ismael",
-  "israel",
-  "ivan",
-  "jacinto",
-  "javier",
-  "jeremias",
-  "jesus",
-  "joel",
-  "jorge",
-  "jose",
-  "josue",
-  "juan",
-  "julian",
-  "lazaro",
-  "leandro",
-  "leonel",
-  "lorenzo",
-  "luis",
-  "manuel",
-  "marcelo",
-  "marcos",
-  "margarito",
-  "mario",
-  "mauro",
-  "maximino",
-  "miguel",
-  "moises",
-  "nicolas",
-  "noel",
-  "octavio",
-  "omar",
-  "orlando",
-  "oswaldo",
-  "pablo",
-  "pedro",
-  "porfirio",
-  "rafael",
-  "ramiro",
-  "raul",
-  "raymundo",
-  "reinaldo",
-  "renato",
-  "ricardo",
-  "rigoberto",
-  "roberto",
-  "rodolfo",
-  "rolando",
-  "rosendo",
-  "ruben",
-  "salvador",
-  "samuel",
-  "sebastian",
-  "sergio",
-  "simon",
-  "tomas",
-  "ulises",
-  "valentin",
-  "vidal",
-  "wilfredo",
-  // ── Female ─────────────────────────────────────────────────────────────────
-  "adriana",
-  "aida",
-  "alejandra",
-  "alicia",
   "amalia",
+  "amanda",
+  "amaury",
   "amelia",
   "amparo",
   "ana",
+  "anderson",
   "andrea",
+  "andres",
+  "angel",
   "anita",
+  "antonela",
+  "antonella",
   "antonia",
+  "antonio",
+  "araceli",
+  "aracelis",
+  "aracely",
   "arcelia",
+  "armando",
+  "arnulfo",
+  "arturo",
+  "ashley",
+  "augustin",
+  // ── B ──────────────────────────────────────────────────────────────────
+  "bautista",
   "beatriz",
+  "belen",
+  "belkis",
+  "benito",
+  "benjamin",
   "berenice",
+  "bianca",
   "blanca",
+  "brayan",
+  "brenda",
+  "brian",
+  "bruno",
+  "bryan",
+  "bryant",
+  "byron",
+  // ── C ──────────────────────────────────────────────────────────────────
+  "calixto",
+  "camila",
+  "camilo",
+  "candelaria",
   "caridad",
+  "carlos",
+  "carlos alberto",
   "carmen",
   "carolina",
+  "catalina",
+  "cecilia",
+  "celestino",
   "celia",
   "celina",
+  "cesar",
+  "christian",
+  "ciro",
+  "citlali",
   "claudia",
+  "constanza",
   "consuelo",
+  "cristian",
+  "cristina",
+  "cristobal",
+  // ── D ──────────────────────────────────────────────────────────────────
+  "dagoberto",
+  "daiana",
   "dalila",
+  "damian",
+  "daniel",
   "daniela",
+  "dario",
+  "darwin",
+  "david",
+  "dayron",
+  "deisy",
   "delia",
   "diana",
+  "diego",
   "dolores",
+  "duvan",
+  // ── E ──────────────────────────────────────────────────────────────────
+  "edgar",
+  "edmundo",
+  "eduardo",
+  "edvin",
+  "edwin",
   "elena",
+  "elias",
   "elisa",
+  "eliseo",
+  "elizabeth",
+  "elmer",
+  "elsa",
   "elvira",
+  "elvis",
+  "emiliano",
+  "emilio",
+  "emily",
+  "emma",
+  "emmanuel",
   "encarnacion",
+  "enrique",
+  "erick",
+  "ernesto",
   "esperanza",
+  "esteban",
   "ester",
   "evangelina",
+  "evelyn",
+  // ── F ──────────────────────────────────────────────────────────────────
+  "fabian",
   "fabiola",
+  "facundo",
   "fatima",
+  "fausto",
+  "federico",
   "felicia",
+  "feliciano",
+  "felipe",
+  "felix",
+  "fermin",
   "fernanda",
+  "fernando",
+  "ferney",
+  "fidel",
+  "fiorella",
+  "florencia",
+  "florencio",
+  "florentino",
   "florinda",
   "francisca",
+  "francisco",
+  "franco",
+  // ── G ──────────────────────────────────────────────────────────────────
+  "gabriel",
   "gabriela",
+  "gael",
+  "genaro",
+  "genesis",
+  "gerardo",
+  "german",
+  "gilberto",
   "gloria",
+  "gonzalo",
   "graciela",
   "guadalupe",
+  "guillermo",
+  "gustavo",
+  // ── H ──────────────────────────────────────────────────────────────────
+  "hector",
+  "heladio",
+  "hernan",
   "hilda",
+  "hugo",
+  // ── I ──────────────────────────────────────────────────────────────────
+  "ignacio",
   "ines",
   "irma",
-  "isela",
   "isabel",
+  "isabella",
+  "isaias",
+  "isela",
+  "isidro",
+  "ismael",
+  "israel",
+  "itzel",
+  "ivan",
+  // ── J ──────────────────────────────────────────────────────────────────
+  "jacinto",
+  "javier",
+  "javiera",
+  "jeison",
+  "jennifer",
+  "jeremias",
+  "jeronimo",
+  "jessica",
+  "jesus",
   "jesusa",
+  "jhon",
+  "joaquin",
+  "joel",
+  "johan",
+  "john",
+  "jonathan",
+  "jorge",
+  "jose",
+  "jose luis",
+  "josefa",
+  "josefina",
+  "josue",
+  "juan",
+  "juan carlos",
+  "juan cruz",
+  "juan david",
+  "juan jose",
+  "juan pablo",
+  "juan sebastian",
   "juana",
   "juanita",
   "julia",
+  "julian",
+  "julieta",
+  "julio",
+  // ── K ──────────────────────────────────────────────────────────────────
+  "karla",
+  "katherin",
+  "kelvin",
+  "kevin",
+  // ── L ──────────────────────────────────────────────────────────────────
   "laura",
+  "lautaro",
+  "lazaro",
+  "leandro",
+  "leonardo",
+  "leonel",
   "leonor",
   "leticia",
   "liliana",
+  "lisandra",
+  "lisbeth",
   "lorena",
+  "lorenzo",
   "lourdes",
+  "lucas",
   "lucia",
+  "luis",
+  "luis alberto",
   "luisa",
+  "lupita",
   "luz",
+  // ── M ──────────────────────────────────────────────────────────────────
+  "macarena",
   "magdalena",
+  "malena",
+  "manuel",
   "manuela",
   "marcela",
+  "marcelo",
+  "marco",
+  "marcos",
   "margarita",
+  "margarito",
   "maria",
+  "maria alejandra",
+  "maria fernanda",
+  "maria jose",
+  "marian",
+  "mariana",
+  "maribel",
+  "mariela",
+  "mario",
+  "marisela",
+  "marisol",
+  "maritza",
+  "marleny",
+  "marta",
   "martha",
+  "martin",
+  "martina",
+  "massiel",
+  "mateo",
+  "matias",
+  "mauricio",
+  "mauro",
+  "maximiliano",
+  "maximino",
+  "mayra",
+  "melissa",
   "mercedes",
+  "micaela",
+  "michelle",
+  "miguel",
+  "miguel angel",
+  "milagros",
   "miriam",
+  "moises",
   "monica",
+  // ── N ──────────────────────────────────────────────────────────────────
+  "nahomy",
   "natalia",
+  "nathaly",
+  "nicolas",
+  "nicole",
+  "noe",
+  "noel",
+  "noely",
+  "noemi",
   "norma",
+  // ── O ──────────────────────────────────────────────────────────────────
+  "octavio",
   "olivia",
+  "omar",
   "oralia",
+  "orlando",
+  "oscar",
+  "osmany",
+  "oswaldo",
+  // ── P ──────────────────────────────────────────────────────────────────
+  "pablo",
+  "paola",
   "patricia",
+  "paula",
+  "pedro",
   "pilar",
+  "porfirio",
+  // ── R ──────────────────────────────────────────────────────────────────
+  "rafael",
+  "ramiro",
+  "ramon",
+  "raul",
+  "raymundo",
   "rebeca",
+  "regina",
+  "reinaldo",
   "remedios",
+  "renata",
+  "renato",
+  "rene",
+  "reynaldo",
+  "ricardo",
+  "rigoberto",
+  "roberto",
   "rocio",
-  "rosa",Jose
-  Juan
-  Luis
-  Miguel
-  Francisco
-  Jorge
-  Carlos
-  Alejandro
-  Daniel
-  Antonio
-  Manuel
-  Pedro
-  Rafael
-  Ricardo
-  Roberto
-  Javier
-  Fernando
-  Sergio
-  Raul
-  Eduardo
-  Arturo
-  Mario
-  Andres
-  Alberto
-  Enrique
-  Ramon
-  Salvador
-  Armando
-  Ernesto
-  Gerardo
-  Gilberto
-  Vicente
-  Joaquin
-  Cesar
-  Julio
-  Oscar
-  Hector
-  Angel
-  Adrian
-  Cristian
-  Diego
-  Emiliano
-  Gael
-  Leonardo
-  Mateo
-  Matias
-  Sebastian
-  Santiago
-  Jesus
-  Pablo
-  Ignacio
-  Tomas
-  Rodrigo
-  Ruben
-  Martin
-  Ivan
-  Edgar
-  Edwin
-  Esteban
-  Reynaldo
-  Fabian
-  Damian
-  Noe
-  Israel
-  Moises
-  Valentin
-  Hugo
-  Samuel
-  Nicolas
-  Marco
-  Marcos
-  Bruno
-  Elias
-  Victor
-  Alan
-  Alexis
-  Omar
-  Uriel
-  Guadalupe
-  Maria
-  Ana
-  Mariana
-  Maria Fernanda
-  Fernanda
-  Andrea
-  Alejandra
-  Sofia
-  Valentina
-  Camila
-  Ximena
-  Regina
-  Victoria
-  Renata
-  Daniela
-  Gabriela
-  Carolina
-  Laura
-  Patricia
-  Rosa
-  Claudia
-  Veronica
-  Monica
-  Leticia
-  Adriana
-  Beatriz
-  Yolanda
-  Liliana
-  Natalia
-  Lucia
-  Elena
-  Margarita
-  Esperanza
-  Isabel
-  Alicia
-  Julia
-  Silvia
-  Diana
-  Lorena
-  Irma
-  Maribel
-  Carmen
-  Teresa
-  Antonia
-  Cecilia
-  Rosario
-  Lupita
-  Alma
-  Luz
-  Itzel
-  Yaretzi
-  Citlali
-  Araceli
-  Sonia
-  Karla
-  Brenda
-  Vanessa
-  Paola
-  Valeria
-  Maria Jose
-  Jose
-  Juan
-  Luis
-  Miguel
-  Carlos
-  Jorge
-  Mario
-  Francisco
-  Antonio
-  Pedro
-  Manuel
-  Ricardo
-  Roberto
-  Eduardo
-  Rafael
-  Fernando
-  Sergio
-  Oscar
-  Julio
-  Ruben
-  Armando
-  Hector
-  Rene
-  Edgar
-  Erick
-  Mauricio
-  Javier
-  Rodrigo
-  Victor
-  Marco
-  Marcos
-  Samuel
-  Josue
-  Jonathan
-  Daniel
-  David
-  Alexis
-  Kevin
-  Christian
-  Cristian
-  Brayan
-  Bryan
-  Bryant
-  Walter
-  Byron
-  Allan
-  Edwin
-  Ronald
-  Wilmer
-  Josue
-  Abner
-  Elmer
-  Saul
-  Noe
-  Moises
-  Israel
-  Jose Luis
-  Juan Carlos
-  Carlos Alberto
-  Ana
-  Maria
-  Juana
-  Marta
-  Rosa
-  Patricia
-  Sandra
-  Diana
-  Jessica
-  Jennifer
-  Michelle
-  Andrea
-  Daniela
-  Melissa
-  Claudia
-  Sonia
-  Veronica
-  Karla
-  Brenda
-  Paola
-  Vanessa
-  Monica
-  Gabriela
-  Alejandra
-  Carolina
-  Cristina
-  Lucia
-  Natalia
-  Lorena
-  Liliana
-  Adriana
-  Marisol
-  Mariela
-  Marleny
-  Margarita
-  Evelyn
-  Abigail
-  Nahomy
-  Fiorella
-  Aracely
-  Araceli
-  Yessenia
-  Yadira
-  Mayra
-  Cecilia
-  Teresa
-  Julia
-  Roxana
-  Yesenia
-  Elsa
-  Miriam
-  Sofia
-  Valentina
-  Camila
-  Isabella
-  Emma
-  Antonella
-  Aitana
-  Emily
-  Elizabeth
-  Jose
-  Juan
-  Luis
-  Carlos
-  Miguel
-  Jorge
-  Pedro
-  Rafael
-  Francisco
-  Manuel
-  Antonio
-  Ricardo
-  Roberto
-  Fernando
-  Eduardo
-  Ramon
-  Angel
-  Victor
-  Javier
-  Julio
-  Mario
-  Orlando
-  Wilfredo
-  Rene
-  Raul
-  Ruben
-  Ernesto
-  Enrique
-  Hector
-  Gilberto
-  Armando
-  Edgar
-  Felix
-  Alexis
-  Cristian
-  Christian
-  Bryan
-  Brayan
-  Kelvin
-  Darwin
-  Yandel
-  Yoel
-  Yoan
-  Yoelvis
-  Yunior
-  Yadier
-  Yordan
-  Yuniesky
-  Osmany
-  Lazaro
-  Reynaldo
-  Noel
-  Joel
-  Israel
-  Moises
-  Elvis
-  Amaury
-  Juan Carlos
-  Jose Luis
-  Luis Alberto
-  Carlos Alberto
-  Maria
-  Ana
-  Juana
-  Carmen
-  Rosa
-  Patricia
-  Margarita
-  Sandra
-  Diana
-  Jessica
-  Jennifer
-  Michelle
-  Daniela
-  Andrea
-  Gabriela
-  Alejandra
-  Vanessa
-  Paola
-  Karla
-  Brenda
-  Monica
-  Veronica
-  Yolanda
-  Liliana
-  Natalia
-  Lucia
-  Lorena
-  Maribel
-  Marisela
-  Maritza
-  Yadira
-  Yessenia
-  Yesenia
-  Mayra
-  Aracelis
-  Aracely
-  Yaritza
-  Yanelis
-  Yamilet
-  Yamileth
-  Yadira
-  Yuliana
-  Yunaisy
-  Lisandra
-  Lisbeth
-  Massiel
-  Rosanna
-  Rosmery
-  Sofia
-  Camila
-  Valentina
-  Isabella
-  Emma
-  Antonella
-  Aitana
-  Emily
-  Ashley
-  Nicole
-  Jose
-  Juan
-  Luis
-  Carlos
-  Miguel
-  Jorge
-  Andres
-  Santiago
-  Sebastian
-  Daniel
-  David
-  Alejandro
-  Juan David
-  Juan Sebastian
-  Juan Jose
-  Miguel Angel
-  Mateo
-  Matias
-  Samuel
-  Emiliano
-  Maximiliano
-  Jeronimo
-  Emmanuel
-  Cristian
-  Christian
-  Camilo
-  Felipe
-  Kevin
-  Bryan
-  Brayan
-  Jhon
-  John
-  Johan
-  Stiven
-  Yeison
-  Anderson
-  Edwin
-  Edgar
-  Wilmer
-  Ferney
-  Mauricio
-  Mario
-  Oscar
-  Rafael
-  Fernando
-  Ricardo
-  Roberto
-  Victor
-  Ruben
-  Fabian
-  Duvan
-  Dayron
-  Jeison
-  Leonardo
-  Nicolas
-  Martin
-  Diego
-  Jesus
-  Pablo
-  Ivan
-  Julio
-  Hector
-  Ernesto
-  Armando
-  Ramon
-  Raul
-  Ana
-  Maria
-  Andrea
-  Daniela
-  Natalia
-  Carolina
-  Paola
-  Alejandra
-  Gabriela
-  Valentina
-  Camila
-  Sofia
-  Isabella
-  Emma
-  Antonella
-  Aitana
-  Emily
-  Ashley
-  Nicole
-  Lucia
-  Liliana
-  Lorena
-  Patricia
-  Sandra
-  Diana
-  Jessica
-  Jennifer
-  Vanessa
-  Monica
-  Veronica
-  Yolanda
-  Maribel
-  Maritza
-  Yadira
-  Yessenia
-  Yesenia
-  Mayra
-  Aracely
-  Araceli
-  Yaritza
-  Genesis
-  Genesis
-  Nathaly
-  Adriana
-  Virginia
-  Alexandra
-  Patricia
-  Katherin
-  Marian
-  Genesis
-  Noely
-  Belkis
-  Deisy
-  Maria Alejandra
-  Jose
-  Juan
-  Luis
-  Carlos
-  Jorge
-  Miguel
-  Pedro
-  Manuel
-  Antonio
-  Francisco
-  Ricardo
-  Roberto
-  Fernando
-  Eduardo
-  Rafael
-  Mario
-  Victor
-  Ruben
-  Raul
-  Hector
-  Ernesto
-  Armando
-  Edgar
-  Edwin
-  Christian
-  Cristian
-  Bryan
-  Brayan
-  Kevin
-  Anderson
-  Jhon
-  Johan
-  Juan Carlos
-  Jose Luis
-  Luis Alberto
-  Carlos Alberto
-  Marco
-  Marcos
-  Samuel
-  Daniel
-  David
-  Alejandro
-  Andres
-  Santiago
-  Sebastian
-  Mateo
-  Matias
-  Diego
-  Fabian
-  Mauricio
-  Oscar
-  Julio
-  Ivan
-  Pablo
-  Jesus
-  Martin
-  Nicolas
-  Emilio
-  Cesar
-  Ramon
-  Ana
-  Maria
-  Juana
-  Rosa
-  Carmen
-  Patricia
-  Sandra
-  Diana
-  Jessica
-  Jennifer
-  Michelle
-  Andrea
-  Daniela
-  Natalia
-  Carolina
-  Paola
-  Alejandra
-  Gabriela
-  Valentina
-  Camila
-  Sofia
-  Isabella
-  Emma
-  Emily
-  Nicole
-  Lucia
-  Liliana
-  Lorena
-  Patricia
-  Vanessa
-  Monica
-  Veronica
-  Yolanda
-  Maribel
-  Maritza
-  Yadira
-  Yesenia
-  Mayra
-  Aracely
-  Araceli
-  Genesis
-  Nathaly
-  Adriana
-  Virginia
-  Alexandra
-  Katherin
-  Margarita
-  Fiorella
-  Milagros
-  Rocio
-  Luz
-  Noemi
-  Yessenia
-  Rosmery
-  Jose
-  Juan
-  Luis
-  Carlos
-  Jorge
-  Miguel
-  Alejandro
-  Fernando
-  Ricardo
-  Roberto
-  Daniel
-  Diego
-  Martin
-  Nicolas
-  Matias
-  Mateo
-  Santiago
-  Sebastian
-  Franco
-  Facundo
-  Lautaro
-  Bautista
-  Thiago
-  Tomas
-  Emiliano
-  Benjamin
-  Valentino
-  Julian
-  Lucas
-  Agustin
-  Bruno
-  Valentin
-  Federico
-  Ignacio
-  Joaquin
-  Ramiro
-  Gonzalo
-  Maximiliano
-  Cristian
-  Christian
-  Kevin
-  Brian
-  Franco
-  Leonardo
-  Oscar
-  Mario
-  Pablo
-  Hector
-  Raul
-  Ruben
-  Fabian
-  Mauricio
-  Ivan
-  Andres
-  Juan Pablo
-  Juan Cruz
-  Maria
-  Ana
-  Carolina
-  Patricia
-  Andrea
-  Daniela
-  Natalia
-  Valentina
-  Camila
-  Sofia
-  Isabella
-  Emma
-  Antonella
-  Aitana
-  Emily
-  Nicole
-  Lucia
-  Liliana
-  Lorena
-  Vanesa
-  Monica
-  Veronica
-  Yolanda
-  Maribel
-  Yesenia
-  Adriana
-  Virginia
-  Alexandra
-  Margarita
-  Fiorella
-  Rocio
-  Luz
-  Milagros
-  Julieta
-  Martina
-  Catalina
-  Josefina
-  Renata
-  Florencia
-  Micaela
-  Agustina
-  Guadalupe
-  Antonela
-  Malena
-  Bianca
-  Candelaria
-  Pilar
-  Victoria
-  Constanza
-  Abril
-  Ailen
-  Daiana
-  Jose
-  Juan
-  Luis
-  Carlos
-  Jorge
-  Miguel
-  Alejandro
-  Fernando
-  Ricardo
-  Roberto
-  Daniel
-  Diego
-  Martin
-  Nicolas
-  Matias
-  Mateo
-  Santiago
-  Sebastian
-  Franco
-  Benjamin
-  Vicente
-  Agustin
-  Tomas
-  Joaquin
-  Lucas
-  Maximiliano
-  Felipe
-  Cristobal
-  Ignacio
-  Andres
-  Cristian
-  Christian
-  Kevin
-  Bryan
-  Brian
-  Leonardo
-  Oscar
-  Mario
-  Pablo
-  Hector
-  Raul
-  Ruben
-  Fabian
-  Mauricio
-  Ivan
-  Juan Pablo
-  Juan Carlos
-  Maria
-  Ana
-  Carolina
-  Patricia
-  Andrea
-  Daniela
-  Natalia
-  Valentina
-  Camila
-  Sofia
-  Isabella
-  Emma
-  Emily
-  Nicole
-  Lucia
-  Liliana
-  Lorena
-  Vanesa
-  Monica
-  Veronica
-  Yolanda
-  Maribel
-  Adriana
-  Virginia
-  Alexandra
-  Margarita
-  Fiorella
-  Rocio
-  Luz
-  Julieta
-  Martina
-  Catalina
-  Josefa
-  Renata
-  Florencia
-  Micaela
-  Agustina
-  Antonia
-  Constanza
-  Fernanda
-  Javiera
-  Francisca
-  Macarena
-  Paula
-  Tamara
-  Belen
-  Camila
-  Trinidad
-  Amanda
+  "rodolfo",
+  "rodrigo",
+  "rolando",
+  "ronald",
+  "rosa",
   "rosalia",
+  "rosanna",
   "rosario",
+  "rosendo",
+  "rosmery",
+  "roxana",
+  "ruben",
   "ruth",
+  // ── S ──────────────────────────────────────────────────────────────────
+  "salvador",
+  "samuel",
+  "sandra",
+  "santiago",
+  "saul",
+  "sebastian",
+  "sergio",
   "silvia",
+  "simon",
   "socorro",
   "sofia",
   "soledad",
   "sonia",
+  "stiven",
+  // ── T ──────────────────────────────────────────────────────────────────
+  "tamara",
   "teresa",
+  "thiago",
+  "tomas",
+  "trinidad",
+  // ── U ──────────────────────────────────────────────────────────────────
+  "ulises",
+  "uriel",
+  // ── V ──────────────────────────────────────────────────────────────────
+  "valentin",
   "valentina",
+  "valentino",
+  "valeria",
+  "vanesa",
+  "vanessa",
   "veronica",
+  "vicente",
+  "victor",
+  "victoria",
+  "vidal",
+  "virginia",
+  // ── W ──────────────────────────────────────────────────────────────────
+  "walter",
+  "wilfredo",
+  "wilmer",
+  // ── X ──────────────────────────────────────────────────────────────────
+  "ximena",
   "xochitl",
+  // ── Y ──────────────────────────────────────────────────────────────────
+  "yadier",
+  "yadira",
+  "yamilet",
+  "yamileth",
+  "yandel",
+  "yanelis",
+  "yaretzi",
+  "yaritza",
+  "yeison",
   "yesenia",
+  "yessenia",
+  "yoan",
+  "yoel",
+  "yoelvis",
   "yolanda",
+  "yordan",
+  "yuliana",
+  "yunaisy",
+  "yuniesky",
+  "yunior",
 ];
 
 const normalize = (raw: string[]): string[] =>
