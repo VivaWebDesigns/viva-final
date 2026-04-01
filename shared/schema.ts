@@ -284,6 +284,9 @@ export const crmLeads = pgTable("crm_leads", {
   timezone: text("timezone"),
   sellerProfileUrl: text("seller_profile_url"),
   adUrl: text("ad_url"),
+  hispanicNameScore: integer("hispanic_name_score"),
+  spanishOutreachRecommended: boolean("spanish_outreach_recommended"),
+  firstOutreachSentAt: timestamp("first_outreach_sent_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (t) => [

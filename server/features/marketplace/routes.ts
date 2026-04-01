@@ -5,14 +5,18 @@ import { db } from "../../db";
 import {
   crmLeads,
   crmContacts,
+  crmCompanies,
+  crmLeadNotes,
   crmLeadStatuses,
   pipelineOpportunities,
   pipelineStages,
   user,
   marketplaceQueueItems,
 } from "@shared/schema";
-import { eq, and, desc, sql, ne } from "drizzle-orm";
+import { eq, and, desc, sql, ne, ilike } from "drizzle-orm";
 import { scoreHispanicName } from "./nameScore";
+import { executeStageAutomations } from "../automations/trigger";
+import { logAudit } from "../audit/service";
 
 const router = Router();
 
@@ -278,6 +282,239 @@ router.patch(
       .returning();
 
     return res.json(updated);
+  }
+);
+
+const US_STATE_TIMEZONES: Record<string, string> = {
+  AL: "America/Chicago",    AK: "America/Anchorage",  AZ: "America/Phoenix",
+  AR: "America/Chicago",    CA: "America/Los_Angeles", CO: "America/Denver",
+  CT: "America/New_York",   DE: "America/New_York",   FL: "America/New_York",
+  GA: "America/New_York",   HI: "Pacific/Honolulu",   ID: "America/Denver",
+  IL: "America/Chicago",    IN: "America/Indiana/Indianapolis", IA: "America/Chicago",
+  KS: "America/Chicago",    KY: "America/New_York",   LA: "America/Chicago",
+  ME: "America/New_York",   MD: "America/New_York",   MA: "America/New_York",
+  MI: "America/New_York",   MN: "America/Chicago",    MS: "America/Chicago",
+  MO: "America/Chicago",    MT: "America/Denver",     NE: "America/Chicago",
+  NV: "America/Los_Angeles",NH: "America/New_York",   NJ: "America/New_York",
+  NM: "America/Denver",     NY: "America/New_York",   NC: "America/New_York",
+  ND: "America/Chicago",    OH: "America/New_York",   OK: "America/Chicago",
+  OR: "America/Los_Angeles",PA: "America/New_York",   RI: "America/New_York",
+  SC: "America/New_York",   SD: "America/Chicago",    TN: "America/Chicago",
+  TX: "America/Chicago",    UT: "America/Denver",     VT: "America/New_York",
+  VA: "America/New_York",   WA: "America/Los_Angeles",WV: "America/New_York",
+  WI: "America/Chicago",    WY: "America/Denver",
+};
+
+router.post(
+  "/queue/:id/convert",
+  requireRole("admin", "lead_gen"),
+  async (req, res) => {
+    const { id } = req.params;
+    const actorId = req.authUser!.id;
+
+    const [queueItem] = await db
+      .select()
+      .from(marketplaceQueueItems)
+      .where(sql`${marketplaceQueueItems.id} = ${id}`)
+      .limit(1);
+
+    if (!queueItem) {
+      return res.status(404).json({ message: "Queue item not found" });
+    }
+
+    if (queueItem.createdLeadId) {
+      return res.status(409).json({
+        message: "Queue item already converted",
+        alreadyConverted: true,
+        leadId: queueItem.createdLeadId,
+      });
+    }
+
+    const normalizedUrl = normalizeSellerUrl(queueItem.sellerProfileUrl);
+
+    const existingCrmLead = await findExistingCrmLead(normalizedUrl);
+    if (existingCrmLead) {
+      const leadName =
+        [existingCrmLead.leadFirstName, existingCrmLead.leadLastName].filter(Boolean).join(" ") || null;
+      return res.status(409).json({
+        message: "A lead with this seller profile URL already exists in the CRM",
+        existingLeadId: existingCrmLead.leadId,
+        existingLeadName: leadName,
+      });
+    }
+
+    const defaultStatus = await db
+      .select()
+      .from(crmLeadStatuses)
+      .where(eq(crmLeadStatuses.isDefault, true))
+      .limit(1)
+      .then((rows) => rows[0] ?? null);
+
+    const newLeadStage = await db
+      .select()
+      .from(pipelineStages)
+      .where(eq(pipelineStages.slug, "new-lead"))
+      .limit(1)
+      .then((rows) => rows[0] ?? null);
+
+    const firstName = queueItem.firstName ?? queueItem.sellerName.split(" ")[0] ?? queueItem.sellerName;
+    const lastName = queueItem.lastName ?? (queueItem.sellerName.split(" ").length > 1
+      ? queueItem.sellerName.split(" ").slice(1).join(" ")
+      : null);
+    const fullName = [firstName, lastName].filter(Boolean).join(" ");
+    const leadTitle = fullName;
+    const nowTs = new Date();
+
+    const { lead, contact, company, opportunity } = await db.transaction(async (tx) => {
+      let contact = await tx
+        .select()
+        .from(crmContacts)
+        .where(
+          and(
+            ilike(crmContacts.firstName, firstName),
+            lastName ? ilike(crmContacts.lastName, lastName) : sql`${crmContacts.lastName} IS NULL`,
+          )
+        )
+        .limit(1)
+        .then((rows) => rows[0] ?? null);
+
+      if (!contact) {
+        const [newContact] = await tx
+          .insert(crmContacts)
+          .values({
+            firstName,
+            lastName: lastName ?? null,
+            phone: null,
+            email: null,
+            isPrimary: true,
+            preferredLanguage: "es",
+          })
+          .returning();
+        contact = newContact;
+      }
+
+      let company = await tx
+        .select()
+        .from(crmCompanies)
+        .where(
+          and(
+            ilike(crmCompanies.name, fullName.trim()),
+            queueItem.state
+              ? eq(crmCompanies.state, queueItem.state)
+              : sql`${crmCompanies.state} IS NULL`,
+          )
+        )
+        .limit(1)
+        .then((rows) => rows[0] ?? null);
+
+      if (!company) {
+        const [newCompany] = await tx
+          .insert(crmCompanies)
+          .values({
+            name: fullName.trim(),
+            industry: queueItem.trade ?? null,
+            city: queueItem.city ?? null,
+            state: queueItem.state ?? null,
+          })
+          .returning();
+        company = newCompany;
+      }
+
+      if (!contact.companyId) {
+        await tx
+          .update(crmContacts)
+          .set({ companyId: company.id, updatedAt: nowTs })
+          .where(eq(crmContacts.id, contact.id));
+      }
+
+      const [lead] = await tx
+        .insert(crmLeads)
+        .values({
+          title: leadTitle,
+          companyId: company.id,
+          contactId: contact.id,
+          statusId: defaultStatus?.id ?? null,
+          source: "outreach",
+          sourceLabel: "Marketplace Outreach",
+          fromWebsiteForm: false,
+          city: queueItem.city ?? null,
+          state: queueItem.state ?? null,
+          timezone: queueItem.state ? (US_STATE_TIMEZONES[queueItem.state] ?? null) : null,
+          assignedTo: actorId,
+          sellerProfileUrl: normalizedUrl,
+          adUrl: queueItem.adUrl ? normalizeSellerUrl(queueItem.adUrl) : null,
+          hispanicNameScore: queueItem.hispanicNameScore,
+          spanishOutreachRecommended: queueItem.spanishOutreachRecommended,
+          firstOutreachSentAt: nowTs,
+        })
+        .returning();
+
+      await tx.insert(crmLeadNotes).values({
+        leadId: lead.id,
+        userId: actorId,
+        type: "system",
+        content: "What's a good contact number?",
+        metadata: {
+          noteType: "system",
+          source: "marketplace",
+          createdBy: actorId,
+        },
+      });
+
+      await tx
+        .update(marketplaceQueueItems)
+        .set({
+          status: "converted",
+          createdLeadId: lead.id,
+          updatedAt: nowTs,
+        })
+        .where(sql`${marketplaceQueueItems.id} = ${id}`);
+
+      let opportunity = null;
+      if (newLeadStage) {
+        const [opp] = await tx
+          .insert(pipelineOpportunities)
+          .values({
+            title: leadTitle,
+            leadId: lead.id,
+            companyId: company.id,
+            contactId: contact.id,
+            stageId: newLeadStage.id,
+            status: "open",
+            sourceLeadTitle: leadTitle,
+            assignedTo: actorId,
+          })
+          .returning();
+        opportunity = opp;
+      }
+
+      return { lead, contact, company, opportunity };
+    });
+
+    if (newLeadStage && opportunity) {
+      executeStageAutomations({
+        opportunityId: opportunity.id,
+        leadId: lead.id,
+        contactId: contact.id,
+        companyId: company.id,
+        assignedTo: actorId,
+        stageSlug: "new-lead",
+        actorId,
+      }).catch((err: unknown) => {
+        console.error("[marketplace/convert] executeStageAutomations failed:", err);
+      });
+    }
+
+    await logAudit({
+      userId: actorId,
+      action: "create",
+      entity: "crm_lead",
+      entityId: lead.id,
+      metadata: { title: lead.title, source: "marketplace", queueItemId: id },
+      ipAddress: req.ip,
+    });
+
+    return res.status(201).json({ leadId: lead.id, lead });
   }
 );
 

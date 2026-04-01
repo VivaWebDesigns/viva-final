@@ -7,13 +7,11 @@ import { useAuth } from "@/features/auth/useAuth";
 import type { MarketplaceQueueItem } from "@shared/schema";
 import { Link } from "wouter";
 import {
-  ShoppingBag, Plus, ExternalLink, Copy, CheckCheck, UserPlus,
-  SkipForward, Eye, Loader2, Trash2,
+  ShoppingBag, Plus, ExternalLink, Copy, CheckCheck,
+  UserPlus, SkipForward, Eye, Loader2, Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { US_STATES } from "@/lib/usStates";
-import CreateLeadModal from "@/features/crm/CreateLeadModal";
 import AddToQueueModal from "./AddToQueueModal";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
@@ -46,6 +44,18 @@ function shortUrl(url: string) {
   }
 }
 
+interface ConvertResult {
+  leadId: string;
+}
+
+interface ConvertError {
+  message: string;
+  alreadyConverted?: boolean;
+  leadId?: string;
+  existingLeadId?: string;
+  existingLeadName?: string;
+}
+
 interface QueueCardProps {
   item: MarketplaceQueueItem;
   onStatusChange: (id: string, status: "reviewed" | "skipped" | "converted", createdLeadId?: string) => void;
@@ -56,9 +66,47 @@ interface QueueCardProps {
 function QueueCard({ item, onStatusChange, onDelete, canDelete }: QueueCardProps) {
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
-  const [createLeadOpen, setCreateLeadOpen] = useState(false);
+  const [createdLeadId, setCreatedLeadId] = useState<string | null>(item.createdLeadId ?? null);
 
-  const isConverted = item.status === "converted";
+  const isConverted = item.status === "converted" || createdLeadId !== null;
+  const viewLeadId = createdLeadId ?? item.createdLeadId;
+
+  const convertMutation = useMutation({
+    mutationFn: () =>
+      apiRequest("POST", `/api/marketplace/queue/${item.id}/convert`).then(async (r) => {
+        if (!r.ok) {
+          const body = await r.json().catch(() => ({ message: "Conversion failed" }));
+          const err = new Error(body.message ?? "Conversion failed") as Error & ConvertError;
+          err.alreadyConverted = body.alreadyConverted;
+          err.leadId = body.leadId;
+          err.existingLeadId = body.existingLeadId;
+          err.existingLeadName = body.existingLeadName;
+          throw err;
+        }
+        return r.json() as Promise<ConvertResult>;
+      }),
+    onSuccess: (data) => {
+      setCreatedLeadId(data.leadId);
+      queryClient.invalidateQueries({ queryKey: ["/api/marketplace/queue"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/marketplace/queue/counts"] });
+      toast({ title: "Lead created", description: "Contact Lead task has been created." });
+    },
+    onError: (err: Error & ConvertError) => {
+      if (err.alreadyConverted && err.leadId) {
+        setCreatedLeadId(err.leadId);
+        toast({ title: "Already converted", description: "This seller was already converted to a lead." });
+        return;
+      }
+      if (err.existingLeadId) {
+        const desc = err.existingLeadName
+          ? `Linked to: ${err.existingLeadName}`
+          : "A lead already exists for this seller profile URL.";
+        toast({ title: "Seller already in CRM", description: desc, variant: "destructive" });
+        return;
+      }
+      toast({ title: err.message ?? "Conversion failed", variant: "destructive" });
+    },
+  });
 
   const copyMessage = async () => {
     await navigator.clipboard.writeText("What's a good contact number?");
@@ -73,94 +121,85 @@ function QueueCard({ item, onStatusChange, onDelete, canDelete }: QueueCardProps
 
   const location = [item.city, item.state].filter(Boolean).join(", ");
 
-  const initialValues = {
-    firstName: item.firstName ?? undefined,
-    lastName: item.lastName ?? undefined,
-    businessTrade: item.trade ?? undefined,
-    city: item.city ?? undefined,
-    state: (item.state && US_STATES.includes(item.state as typeof US_STATES[number]))
-      ? item.state as typeof US_STATES[number]
-      : undefined,
-    sellerProfileUrl: item.sellerProfileUrl,
-    adUrl: item.adUrl ?? undefined,
-  };
-
   return (
-    <>
-      <div
-        className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow"
-        data-testid={`card-queue-item-${item.id}`}
-      >
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <p className="font-semibold text-gray-900 leading-tight" data-testid={`text-seller-name-${item.id}`}>
-              {item.sellerName}
-            </p>
-            {item.normalizedName && item.normalizedName !== item.sellerName.toLowerCase() && (
-              <p className="text-xs text-gray-400 mt-0.5">{item.normalizedName}</p>
-            )}
-          </div>
-          <span
-            className={`text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${scoreBadgeClass(item.hispanicNameScore)}`}
-            data-testid={`badge-score-${item.id}`}
-          >
-            {item.hispanicNameScore}
-          </span>
-        </div>
-
-        <div className="flex flex-wrap gap-2 text-xs">
-          {tradeLabel && (
-            <Badge variant="outline" className="text-xs">{tradeLabel}</Badge>
-          )}
-          {location && (
-            <Badge variant="outline" className="text-xs text-gray-600">{location}</Badge>
-          )}
-          {item.spanishOutreachRecommended && (
-            <Badge className="text-xs bg-green-100 text-green-800 border border-green-300 hover:bg-green-100">
-              Spanish outreach ✓
-            </Badge>
+    <div
+      className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow"
+      data-testid={`card-queue-item-${item.id}`}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="font-semibold text-gray-900 leading-tight" data-testid={`text-seller-name-${item.id}`}>
+            {item.sellerName}
+          </p>
+          {item.normalizedName && item.normalizedName !== item.sellerName.toLowerCase() && (
+            <p className="text-xs text-gray-400 mt-0.5">{item.normalizedName}</p>
           )}
         </div>
+        <span
+          className={`text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${scoreBadgeClass(item.hispanicNameScore)}`}
+          data-testid={`badge-score-${item.id}`}
+        >
+          {item.hispanicNameScore}
+        </span>
+      </div>
 
-        <div className="space-y-1">
+      <div className="flex flex-wrap gap-2 text-xs">
+        {tradeLabel && (
+          <Badge variant="outline" className="text-xs">{tradeLabel}</Badge>
+        )}
+        {location && (
+          <Badge variant="outline" className="text-xs text-gray-600">{location}</Badge>
+        )}
+        {item.spanishOutreachRecommended && (
+          <Badge className="text-xs bg-green-100 text-green-800 border border-green-300 hover:bg-green-100">
+            Spanish outreach ✓
+          </Badge>
+        )}
+      </div>
+
+      <div className="space-y-1">
+        <a
+          href={item.sellerProfileUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1 text-xs text-blue-600 hover:underline truncate"
+          data-testid={`link-seller-profile-${item.id}`}
+        >
+          <ExternalLink className="w-3 h-3 flex-shrink-0" />
+          <span className="truncate">{shortUrl(item.sellerProfileUrl)}</span>
+        </a>
+        {item.adUrl && (
           <a
-            href={item.sellerProfileUrl}
+            href={item.adUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1 text-xs text-blue-600 hover:underline truncate"
-            data-testid={`link-seller-profile-${item.id}`}
+            data-testid={`link-ad-url-${item.id}`}
           >
             <ExternalLink className="w-3 h-3 flex-shrink-0" />
-            <span className="truncate">{shortUrl(item.sellerProfileUrl)}</span>
+            <span className="truncate">{shortUrl(item.adUrl)}</span>
           </a>
-          {item.adUrl && (
-            <a
-              href={item.adUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 text-xs text-blue-600 hover:underline truncate"
-              data-testid={`link-ad-url-${item.id}`}
-            >
-              <ExternalLink className="w-3 h-3 flex-shrink-0" />
-              <span className="truncate">{shortUrl(item.adUrl)}</span>
-            </a>
-          )}
-        </div>
+        )}
+      </div>
 
-        {isConverted && item.createdLeadId && (
-          <Link href={`/admin/crm/leads/${item.createdLeadId}`}>
-            <span className="text-xs text-emerald-700 font-medium underline cursor-pointer" data-testid={`link-converted-lead-${item.id}`}>
+      {isConverted && viewLeadId ? (
+        <div className="pt-1 border-t border-gray-100">
+          <Link href={`/admin/crm/leads/${viewLeadId}`}>
+            <span
+              className="text-sm font-medium text-emerald-700 underline cursor-pointer"
+              data-testid={`link-converted-lead-${item.id}`}
+            >
               View Lead →
             </span>
           </Link>
-        )}
-
+        </div>
+      ) : (
         <div className="flex flex-wrap gap-2 pt-1 border-t border-gray-100">
           <Button
             size="sm"
             variant="outline"
             className="h-7 text-xs"
-            disabled={isConverted || item.status === "skipped"}
+            disabled={item.status === "skipped"}
             onClick={() => onStatusChange(item.id, "skipped")}
             data-testid={`button-skip-${item.id}`}
           >
@@ -171,7 +210,7 @@ function QueueCard({ item, onStatusChange, onDelete, canDelete }: QueueCardProps
             size="sm"
             variant="outline"
             className="h-7 text-xs"
-            disabled={isConverted || item.status === "reviewed"}
+            disabled={item.status === "reviewed"}
             onClick={() => onStatusChange(item.id, "reviewed")}
             data-testid={`button-mark-reviewed-${item.id}`}
           >
@@ -181,18 +220,19 @@ function QueueCard({ item, onStatusChange, onDelete, canDelete }: QueueCardProps
           <Button
             size="sm"
             className="h-7 text-xs bg-indigo-600 hover:bg-indigo-700 text-white"
-            disabled={isConverted}
-            onClick={() => setCreateLeadOpen(true)}
+            disabled={convertMutation.isPending}
+            onClick={() => convertMutation.mutate()}
             data-testid={`button-create-lead-${item.id}`}
           >
-            <UserPlus className="w-3 h-3 mr-1" />
-            Create Lead
+            {convertMutation.isPending
+              ? <><Loader2 className="w-3 h-3 mr-1 animate-spin" />Creating…</>
+              : <><UserPlus className="w-3 h-3 mr-1" />Create Lead</>
+            }
           </Button>
           <Button
             size="sm"
             variant="ghost"
             className="h-7 text-xs text-gray-500"
-            disabled={isConverted}
             onClick={copyMessage}
             data-testid={`button-copy-message-${item.id}`}
           >
@@ -213,17 +253,8 @@ function QueueCard({ item, onStatusChange, onDelete, canDelete }: QueueCardProps
             </Button>
           )}
         </div>
-      </div>
-
-      <CreateLeadModal
-        open={createLeadOpen}
-        onClose={() => setCreateLeadOpen(false)}
-        initialValues={initialValues}
-        onLeadCreated={(leadId) => {
-          onStatusChange(item.id, "converted", leadId);
-        }}
-      />
-    </>
+      )}
+    </div>
   );
 }
 
