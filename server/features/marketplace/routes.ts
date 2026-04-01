@@ -390,7 +390,7 @@ router.post(
         contact = newContact;
       }
 
-      const sellerNameNormalized = queueItem.sellerName.trim();
+      const sellerNameNormalized = (queueItem.normalizedName || queueItem.sellerName).trim();
       let company = await tx
         .select()
         .from(crmCompanies)

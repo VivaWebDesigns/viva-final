@@ -185,16 +185,20 @@ function QueueCard({ item, onStatusChange, onDelete, canDelete }: QueueCardProps
         )}
       </div>
 
-      {isConverted && viewLeadId ? (
+      {isConverted ? (
         <div className="pt-1 border-t border-gray-100">
-          <Link href={`/admin/crm/leads/${viewLeadId}`}>
-            <span
-              className="text-sm font-medium text-emerald-700 underline cursor-pointer"
-              data-testid={`link-converted-lead-${item.id}`}
-            >
-              View Lead →
-            </span>
-          </Link>
+          {viewLeadId ? (
+            <Link href={`/admin/crm/leads/${viewLeadId}`}>
+              <span
+                className="text-sm font-medium text-emerald-700 underline cursor-pointer"
+                data-testid={`link-converted-lead-${item.id}`}
+              >
+                View Lead →
+              </span>
+            </Link>
+          ) : (
+            <span className="text-xs text-gray-400 italic">Converted</span>
+          )}
         </div>
       ) : (
         <div className="flex flex-wrap gap-2 pt-1 border-t border-gray-100">
