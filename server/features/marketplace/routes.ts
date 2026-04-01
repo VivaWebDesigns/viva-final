@@ -121,7 +121,7 @@ router.post(
         firstName,
         lastName,
         hispanicNameScore,
-        spanishOutreachRecommended: false,
+        spanishOutreachRecommended,
         sellerExistsInCrm: false,
       });
     }
@@ -150,7 +150,7 @@ router.post(
         firstName,
         lastName,
         hispanicNameScore,
-        spanishOutreachRecommended: true,
+        spanishOutreachRecommended,
         sellerExistsInCrm: true,
         existingLeadId: row.leadId,
         existingLeadName,
@@ -164,7 +164,7 @@ router.post(
       firstName,
       lastName,
       hispanicNameScore,
-      spanishOutreachRecommended: true,
+      spanishOutreachRecommended,
       sellerExistsInCrm: false,
     });
   }
