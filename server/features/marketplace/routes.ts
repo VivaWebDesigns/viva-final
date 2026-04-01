@@ -201,10 +201,10 @@ router.post(
   requireRole("admin", "developer", "lead_gen"),
   async (req, res) => {
     const schema = z.object({
-      sellerName:                 z.string().min(1),
-      companyName:                z.string().min(1),
-      email:                      z.string().email(),
-      phone:                      z.string().min(1),
+      sellerName:                 z.string().trim().min(1),
+      companyName:                z.string().trim().min(1),
+      email:                      z.string().trim().email(),
+      phone:                      z.string().trim().min(1),
       sellerProfileUrl:           z.string().url(),
       adUrl:                      z.string().url(),
       trade:                      z.string().min(1),
