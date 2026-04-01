@@ -211,6 +211,7 @@ router.post(
       spanishOutreachRecommended: z.boolean(),
       firstOutreachMessage:       z.string().min(1),
       firstOutreachSentAt:        z.string().datetime(),
+      phone:                      z.string().optional().nullable(),
     });
 
     const parsed = schema.safeParse(req.body);
@@ -236,8 +237,10 @@ router.post(
       });
     }
 
-    const { firstName, lastName: rawLastName } = scoreHispanicName(parsed.data.sellerName);
-    const lastName = rawLastName || null;
+    const { firstName: rawFirstName, lastName: rawLastName } = scoreHispanicName(parsed.data.sellerName);
+    const toTitleCase = (s: string) => s.replace(/\b\w/g, c => c.toUpperCase());
+    const firstName = toTitleCase(rawFirstName);
+    const lastName = rawLastName ? toTitleCase(rawLastName) : null;
     const sellerNameNormalized = parsed.data.sellerName.trim();
     const stateCode = parsed.data.state.trim().toUpperCase();
 
@@ -266,10 +269,16 @@ router.post(
           .values({
             firstName,
             lastName,
-            phone: null,
+            phone: parsed.data.phone || null,
             preferredLanguage: "es",
           })
           .returning();
+      } else if (!contact.phone && parsed.data.phone) {
+        await tx
+          .update(crmContacts)
+          .set({ phone: parsed.data.phone })
+          .where(eq(crmContacts.id, contact.id));
+        contact = { ...contact, phone: parsed.data.phone };
       }
 
       let [company] = await tx
@@ -348,17 +357,19 @@ router.post(
         sourceLeadTitle: lead.title,
         assignedTo:      req.authUser!.id,
       });
-      executeStageAutomations({
-        opportunityId: opp.id,
-        leadId:        lead.id,
-        contactId:     contact.id,
-        companyId:     company.id,
-        assignedTo:    req.authUser!.id,
-        stageSlug:     "new-lead",
-        actorId:       req.authUser!.id,
-      }).catch((err: unknown) => {
+      try {
+        await executeStageAutomations({
+          opportunityId: opp.id,
+          leadId:        lead.id,
+          contactId:     contact.id,
+          companyId:     company.id,
+          assignedTo:    req.authUser!.id,
+          stageSlug:     "new-lead",
+          actorId:       req.authUser!.id,
+        });
+      } catch (err: unknown) {
         console.error("[marketplace/create-outreach-lead] executeStageAutomations failed:", err);
-      });
+      }
     }
 
     await logAudit({

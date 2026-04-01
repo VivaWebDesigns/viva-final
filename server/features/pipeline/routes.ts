@@ -260,6 +260,7 @@ router.put("/opportunities/:id", requireRole("admin", "developer", "sales_rep", 
           stageSlug: newStage.slug,
           stageEnteredAt: opp.stageEnteredAt ?? new Date(),
           actorId: req.authUser?.id ?? null,
+          rerunOnEntry: true,
         }).catch((err) => console.error("[automations] trigger error:", err));
       }
     }
@@ -354,6 +355,7 @@ router.put("/opportunities/:id/stage", requireRole("admin", "developer", "sales_
         stageSlug: toStageSlug,
         stageEnteredAt: result.opportunity.stageEnteredAt ?? new Date(),
         actorId: req.authUser?.id ?? null,
+        rerunOnEntry: true,
       }).catch((err) => console.error("[automations] trigger error:", err));
     }
     res.json(result);
@@ -512,6 +514,7 @@ router.post("/convert-lead/:leadId", requireRole("admin", "developer", "sales_re
         stageSlug: targetStage.slug,
         stageEnteredAt: opportunity.stageEnteredAt ?? new Date(),
         actorId: req.authUser?.id ?? null,
+        rerunOnEntry: true,
       }).catch((err) => console.error("[automations] trigger error on convert:", err));
     }
 

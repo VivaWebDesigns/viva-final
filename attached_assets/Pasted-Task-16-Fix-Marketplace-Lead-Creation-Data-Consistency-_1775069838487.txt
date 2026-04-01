@@ -1,0 +1,65 @@
+Task #16 — Fix Marketplace Lead Creation Data Consistency
+
+Use Plan Mode first.
+
+We tested POST /api/marketplace/create-outreach-lead and found 3 real issues that must be fixed without changing the overall bot-first architecture.
+
+Problems observed:
+1. Inconsistent capitalization:
+   - lead cards show values like:
+     "Michael Garcia – michael garcia"
+   - This means raw sellerName and normalizedName are being mixed in UI-facing lead fields.
+   - normalizedName should only be used for scoring/comparison, not for displayed title/name fields.
+
+2. Phone is missing on the created lead:
+   - A test lead was created with phone included in the request, but the resulting lead/contact does not show the phone number.
+   - Most likely the route is reusing an existing contact match and not updating phone, or not persisting phone at all.
+
+3. Duplicate Contact Lead task:
+   - A newly created marketplace lead ended up with two identical "Contact lead" tasks.
+   - Fix the task duplication at the source.
+   - The marketplace create flow must not create duplicate initial tasks.
+
+Requirements:
+- Keep the existing endpoints:
+  - POST /api/marketplace/precheck
+  - POST /api/marketplace/create-outreach-lead
+- Do not add queue logic
+- Do not change the manual Add Lead workflow
+- Do not change the intended bot flow
+
+Fix 1 — capitalization / display fields
+- Audit exactly which lead/contact/company fields are being populated from:
+  - sellerName
+  - normalizedName
+  - firstName
+  - lastName
+- UI-facing record names/titles must use properly cased sellerName / parsed first+last values, not lowercased normalizedName
+- normalizedName should remain comparison/scoring-only
+- Ensure the created lead card shows standard capitalization consistent with the rest of the CRM
+
+Fix 2 — phone persistence
+- Add phone to the create-outreach-lead input schema if it is not already there
+- Persist phone onto the CRM contact
+- If the route finds an existing contact match by firstName/lastName, then:
+  - if that contact has no phone and the request provides one, update the contact with the provided phone
+  - do not leave phone blank when valid phone input was supplied
+- Confirm the created lead detail page shows the phone after creation
+
+Fix 3 — duplicate initial task
+- Audit the exact path that creates the initial "Contact lead" task
+- Ensure marketplace lead creation results in exactly one initial Contact Lead task
+- Do not allow both opportunity creation + stage automations + any other path to produce duplicates
+- Reuse existing task-deduping patterns already used elsewhere in the CRM if available
+
+Deliverable:
+- Fix all 3 issues
+- TypeScript clean
+- No schema changes unless absolutely necessary
+- Preserve existing precheck behavior
+- Preserve duplicate sellerProfileUrl blocking
+- Return a short summary of:
+  - root cause of capitalization issue
+  - root cause of missing phone
+  - root cause of duplicate task
+  - exact files changed
