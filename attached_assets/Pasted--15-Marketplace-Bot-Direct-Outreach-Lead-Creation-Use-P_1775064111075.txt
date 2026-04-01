@@ -1,0 +1,73 @@
+#15 - Marketplace Bot Direct Outreach Lead Creation
+
+Use Plan Mode first.
+
+Build a separate bot-facing endpoint that creates a CRM lead only after outreach has already happened.
+
+Create:
+
+POST /api/marketplace/create-outreach-lead
+
+Access:
+- requireRole("admin", "developer", "lead_gen")
+- sales_rep must not be allowed
+
+Input:
+- sellerName
+- sellerProfileUrl
+- adUrl
+- trade
+- city
+- state
+- hispanicNameScore
+- spanishOutreachRecommended
+- firstOutreachMessage
+- firstOutreachSentAt
+
+Validation:
+- sellerName required
+- sellerProfileUrl required valid URL
+- adUrl required valid URL
+- trade required
+- city required
+- state required
+- hispanicNameScore required number
+- spanishOutreachRecommended required boolean
+- firstOutreachMessage required
+- firstOutreachSentAt required timestamp/date-time
+- normalize sellerProfileUrl and adUrl before processing
+
+Required behavior:
+- before creating anything, re-check sellerProfileUrl against CRM
+- if sellerProfileUrl already exists in CRM:
+  - return 409
+  - do not create lead
+- if not found:
+  - create the CRM lead directly with:
+    - source = outreach
+    - sellerProfileUrl
+    - adUrl
+    - seller name split into first/last using the same existing parsing logic
+    - trade
+    - city
+    - state
+    - hispanicNameScore
+    - spanishOutreachRecommended
+    - firstOutreachSentAt
+  - persist every provided field onto the lead
+  - create a system note with the content from firstOutreachMessage
+  - trigger the normal new-lead stage automation so Contact Lead task is created
+  - return:
+    - leadId
+    - lead
+
+Implementation requirements:
+- use a DB transaction for lead creation and note creation
+- keep existing manual Add Lead flow untouched
+- keep existing sellerProfileUrl duplicate blocking for manual outreach leads untouched
+- do not use any queue logic
+- do not open CreateLeadModal
+- this is the direct post-outreach creation path for the bot
+
+Goal:
+The bot uses precheck first, sends outreach if allowed, then uses this endpoint to create the lead directly in CRM.
