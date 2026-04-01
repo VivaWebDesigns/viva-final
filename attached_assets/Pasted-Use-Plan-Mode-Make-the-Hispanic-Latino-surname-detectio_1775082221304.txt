@@ -1,0 +1,100 @@
+Use Plan Mode.
+
+Make the Hispanic/Latino surname detection meaningfully broader
+without making it sloppy.
+
+Goal:
+Expand the last-name coverage used by the Marketplace name
+precheck so obvious Hispanic/Latino surnames are far less likely
+to be falsely blocked.
+
+Context:
+Right now the scoring logic lives in:
+server/features/marketplace/nameScore.ts
+
+The name lists live in:
+server/features/marketplace/hispanicNames.ts
+
+Current issue:
+The system is missing legitimate Hispanic surnames such as
+Henriquez and Enriquez. I do NOT want a one-off fix every time
+a valid name fails. I want the surname lists expanded in a
+thoughtful, maintainable way.
+
+What to do:
+1. Keep the existing scoring architecture intact unless there is
+   a very small, clearly justified improvement that does NOT make
+   the filter looser in a reckless way.
+   - Keep the current threshold unless absolutely necessary
+   - Prefer better surname coverage over lowering the bar
+
+2. Expand the Hispanic last-name datasets substantially.
+   - Add a much broader set of common and clearly Hispanic/Latino
+     surnames across Mexican, Central American, South American,
+     Caribbean, and Spanish-origin naming patterns
+   - Include obvious common variants where appropriate
+     (example: Enriquez / Henriquez)
+   - Prioritize surnames that are strongly indicative and common
+   - Do not pad the list with weak or ambiguous names just to make
+     it bigger
+
+3. Review the existing Tier 1 and Tier 2 structure and use it
+   intelligently.
+   - Tier 1 should contain strongly recognizable, common Hispanic
+     surnames that should usually carry the score
+   - Tier 2 can hold real Hispanic surnames that are somewhat less
+     common or slightly less decisive
+   - Be conservative about names that are heavily shared across
+     many non-Hispanic populations
+
+4. Improve normalization only if needed and only in a minimal,
+   safe way.
+   - Make sure matching is case-insensitive
+   - Preserve existing behavior for trimming/basic normalization
+   - If accents or punctuation would cause valid misses, add a
+     small safe normalization step only if it does not create
+     regressions
+   - Do not rewrite the whole scorer
+
+5. Add a maintainable comment or structure in the surname file so
+   future additions are easier to manage.
+   - Keep formatting clean
+   - Avoid duplicate entries
+   - Keep alphabetic organization if that matches the current file
+   - Do not introduce a database or admin UI for this task
+
+6. Add lightweight verification coverage.
+   - Add or update tests if this area already has tests
+   - If there are no tests, add a small focused test file for the
+     scorer or list behavior
+   - Verify at minimum that these should pass:
+     Jose Henriquez
+     Jose Enriquez
+     Maria Gutierrez
+     Juan Martinez
+     Luis Rodriguez
+     Ana Navarro
+     Carlos Santiago
+   - Verify that the threshold itself is unchanged unless you
+     explicitly justify otherwise
+
+7. Be careful not to over-broaden.
+   - Do not lower the threshold just to hide missing data
+   - Do not make Hispanic first name alone enough to pass unless
+     that is already the existing behavior
+   - Do not add vague surnames that would create lots of false
+     positives
+
+Deliverables:
+- Show the exact files changed
+- Summarize how the surname coverage was expanded
+- List a sample of the new surnames added
+- Show test/verification results
+- Call out any names you deliberately did NOT elevate because
+  they seemed too ambiguous
+
+Important:
+This must be non-destructive.
+Do not change API response shapes.
+Do not touch frontend code unless a test harness requires it.
+Do not make unrelated refactors.
