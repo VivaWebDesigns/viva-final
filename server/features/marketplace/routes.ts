@@ -219,6 +219,7 @@ router.post(
     }
 
     const normalizedSellerUrl = normalizeSellerUrl(parsed.data.sellerProfileUrl);
+    const normalizedAdUrl = normalizeSellerUrl(parsed.data.adUrl);
 
     const [existing] = await db
       .select({ id: crmLeads.id })
@@ -259,6 +260,7 @@ router.post(
             firstName,
             lastName: lastName || null,
             phone: null,
+            trade: parsed.data.trade,
             preferredLanguage: "es",
           })
           .returning();
@@ -307,8 +309,8 @@ router.post(
           city:                       parsed.data.city,
           state:                      parsed.data.state,
           timezone:                   US_STATE_TIMEZONES[parsed.data.state] ?? null,
-          sellerProfileUrl:           parsed.data.sellerProfileUrl.trim(),
-          adUrl:                      parsed.data.adUrl.trim(),
+          sellerProfileUrl:           normalizedSellerUrl,
+          adUrl:                      normalizedAdUrl,
           hispanicNameScore:          parsed.data.hispanicNameScore,
           spanishOutreachRecommended: parsed.data.spanishOutreachRecommended,
           firstOutreachSentAt:        new Date(parsed.data.firstOutreachSentAt),
