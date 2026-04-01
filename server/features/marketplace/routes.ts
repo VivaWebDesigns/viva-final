@@ -236,7 +236,8 @@ router.post(
       });
     }
 
-    const { firstName, lastName } = scoreHispanicName(parsed.data.sellerName);
+    const { firstName, lastName: rawLastName } = scoreHispanicName(parsed.data.sellerName);
+    const lastName = rawLastName || null;
     const sellerNameNormalized = parsed.data.sellerName.trim();
 
     const defaultStatus = await crmStorage.getDefaultLeadStatus();
@@ -246,10 +247,15 @@ router.post(
         .select()
         .from(crmContacts)
         .where(
-          and(
-            ilike(crmContacts.firstName, firstName),
-            ilike(crmContacts.lastName, lastName)
-          )
+          lastName
+            ? and(
+                ilike(crmContacts.firstName, firstName),
+                ilike(crmContacts.lastName, lastName)
+              )
+            : and(
+                ilike(crmContacts.firstName, firstName),
+                sql`${crmContacts.lastName} is null`
+              )
         )
         .limit(1);
 
@@ -258,7 +264,7 @@ router.post(
           .insert(crmContacts)
           .values({
             firstName,
-            lastName: lastName || null,
+            lastName,
             phone: null,
             trade: parsed.data.trade,
             preferredLanguage: "es",
