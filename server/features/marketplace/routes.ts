@@ -96,4 +96,78 @@ router.post(
   }
 );
 
+router.post(
+  "/precheck",
+  requireRole("admin", "developer", "lead_gen"),
+  async (req, res) => {
+    const schema = z.object({
+      sellerName: z.string().min(2),
+      sellerProfileUrl: z.string().url(),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Invalid input", errors: parsed.error.flatten() });
+    }
+
+    const normalizedUrl = normalizeSellerUrl(parsed.data.sellerProfileUrl);
+    const score = scoreHispanicName(parsed.data.sellerName);
+    const { normalizedName, firstName, lastName, hispanicNameScore, spanishOutreachRecommended } = score;
+
+    if (hispanicNameScore < 70) {
+      return res.json({
+        shouldContinue: false,
+        reason: "name_score_below_threshold",
+        normalizedName,
+        firstName,
+        lastName,
+        hispanicNameScore,
+        spanishOutreachRecommended: false,
+        sellerExistsInCrm: false,
+      });
+    }
+
+    const [row] = await db
+      .select({
+        leadId: crmLeads.id,
+        leadFirstName: crmContacts.firstName,
+        leadLastName: crmContacts.lastName,
+      })
+      .from(crmLeads)
+      .innerJoin(crmContacts, eq(crmLeads.contactId, crmContacts.id))
+      .where(
+        sql`lower(regexp_replace(trim(${crmLeads.sellerProfileUrl}), '/+$', '')) = ${normalizedUrl}`
+      )
+      .orderBy(desc(crmLeads.createdAt))
+      .limit(1);
+
+    if (row) {
+      const existingLeadName =
+        [row.leadFirstName, row.leadLastName].filter(Boolean).join(" ") || null;
+      return res.json({
+        shouldContinue: false,
+        reason: "seller_already_in_crm",
+        normalizedName,
+        firstName,
+        lastName,
+        hispanicNameScore,
+        spanishOutreachRecommended: true,
+        sellerExistsInCrm: true,
+        existingLeadId: row.leadId,
+        existingLeadName,
+      });
+    }
+
+    return res.json({
+      shouldContinue: true,
+      reason: "passed",
+      normalizedName,
+      firstName,
+      lastName,
+      hispanicNameScore,
+      spanishOutreachRecommended: true,
+      sellerExistsInCrm: false,
+    });
+  }
+);
+
 export default router;
