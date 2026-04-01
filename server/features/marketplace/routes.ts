@@ -202,6 +202,9 @@ router.post(
   async (req, res) => {
     const schema = z.object({
       sellerName:                 z.string().min(1),
+      companyName:                z.string().min(1),
+      email:                      z.string().email(),
+      phone:                      z.string().min(1),
       sellerProfileUrl:           z.string().url(),
       adUrl:                      z.string().url(),
       trade:                      z.string().min(1),
@@ -211,7 +214,6 @@ router.post(
       spanishOutreachRecommended: z.boolean(),
       firstOutreachMessage:       z.string().min(1),
       firstOutreachSentAt:        z.string().datetime(),
-      phone:                      z.string().optional().nullable(),
     });
 
     const parsed = schema.safeParse(req.body);
@@ -241,7 +243,7 @@ router.post(
     const toTitleCase = (s: string) => s.replace(/\b\w/g, c => c.toUpperCase());
     const firstName = toTitleCase(rawFirstName);
     const lastName = rawLastName ? toTitleCase(rawLastName) : null;
-    const sellerNameNormalized = parsed.data.sellerName.trim();
+    const companyNameNormalized = parsed.data.companyName.trim();
     const stateCode = parsed.data.state.trim().toUpperCase();
 
     const defaultStatus = await crmStorage.getDefaultLeadStatus();
@@ -277,16 +279,19 @@ router.post(
           .values({
             firstName,
             lastName,
-            phone: parsed.data.phone || null,
+            phone: parsed.data.phone,
+            email: parsed.data.email,
             preferredLanguage: "es",
           })
           .returning();
-      } else if (!contact.phone && parsed.data.phone) {
-        await tx
-          .update(crmContacts)
-          .set({ phone: parsed.data.phone })
-          .where(eq(crmContacts.id, contact.id));
-        contact = { ...contact, phone: parsed.data.phone };
+      } else {
+        const contactUpdates: Record<string, string> = {};
+        if (!contact.phone) contactUpdates.phone = parsed.data.phone;
+        if (!contact.email) contactUpdates.email = parsed.data.email;
+        if (Object.keys(contactUpdates).length > 0) {
+          await tx.update(crmContacts).set(contactUpdates).where(eq(crmContacts.id, contact.id));
+          contact = { ...contact, ...contactUpdates };
+        }
       }
 
       let [company] = await tx
@@ -294,7 +299,7 @@ router.post(
         .from(crmCompanies)
         .where(
           and(
-            ilike(crmCompanies.name, sellerNameNormalized),
+            ilike(crmCompanies.name, companyNameNormalized),
             eq(crmCompanies.state, stateCode)
           )
         )
@@ -304,12 +309,24 @@ router.post(
         [company] = await tx
           .insert(crmCompanies)
           .values({
-            name: sellerNameNormalized,
+            name:     companyNameNormalized,
+            phone:    parsed.data.phone,
+            email:    parsed.data.email,
             industry: parsed.data.trade,
-            city: parsed.data.city,
-            state: stateCode,
+            city:     parsed.data.city,
+            state:    stateCode,
           })
           .returning();
+      } else {
+        const companyUpdates: Record<string, string> = {};
+        if (!company.phone)    companyUpdates.phone    = parsed.data.phone;
+        if (!company.email)    companyUpdates.email    = parsed.data.email;
+        if (!company.industry) companyUpdates.industry = parsed.data.trade;
+        if (!company.city)     companyUpdates.city     = parsed.data.city;
+        if (Object.keys(companyUpdates).length > 0) {
+          await tx.update(crmCompanies).set(companyUpdates).where(eq(crmCompanies.id, company.id));
+          company = { ...company, ...companyUpdates };
+        }
       }
 
       if (!contact.companyId) {
@@ -323,7 +340,7 @@ router.post(
       const [lead] = await tx
         .insert(crmLeads)
         .values({
-          title:                      sellerNameNormalized,
+          title:                      companyNameNormalized,
           companyId:                  company.id,
           contactId:                  contact.id,
           statusId:                   defaultStatus?.id ?? null,
