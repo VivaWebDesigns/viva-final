@@ -20,6 +20,7 @@ import demoConfigRoutes from "./demo/routes";
 import profileRoutes from "./profiles/routes";
 import { automationRoutes } from "./automations";
 import quoRoutes from "./quo/routes";
+import marketplaceRoutes from "./marketplace/routes";
 import { seedDocs } from "./docs/seed";
 import { seedIntegrations } from "./integrations/seed";
 import { seedCrmStatuses } from "./crm/seed";
@@ -48,6 +49,7 @@ router.use("/demo-configs", demoConfigRoutes);
 router.use("/profiles", profileRoutes);
 router.use("/automations", automationRoutes);
 router.use("/quo", quoRoutes);
+router.use("/marketplace", marketplaceRoutes);
 
 router.post("/admin/seed", requireRole("admin"), async (_req, res) => {
   try {
