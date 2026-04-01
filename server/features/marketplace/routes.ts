@@ -266,7 +266,6 @@ router.post(
             firstName,
             lastName,
             phone: null,
-            trade: parsed.data.trade,
             preferredLanguage: "es",
           })
           .returning();

@@ -233,7 +233,6 @@ export const crmContacts = pgTable("crm_contacts", {
   companyId: varchar("company_id").references(() => crmCompanies.id),
   firstName: text("first_name").notNull(),
   lastName: text("last_name"),
-  trade: text("trade"),
   email: text("email"),
   phone: text("phone"),
   altPhone: text("alt_phone"),
