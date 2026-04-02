@@ -515,7 +515,8 @@ router.get(
   "/pending-outreach/:id",
   botOrRole,
   async (req, res) => {
-    const record = await marketplaceStorage.getPendingOutreachById(req.params.id);
+    const id = req.params.id as string;
+    const record = await marketplaceStorage.getPendingOutreachById(id);
     if (!record) {
       return res.status(404).json({ message: "Not found" });
     }
@@ -527,6 +528,7 @@ router.patch(
   "/pending-outreach/:id",
   botOrRole,
   async (req, res) => {
+    const id = req.params.id as string;
     const parsed = patchPendingOutreachSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ message: "Invalid input", errors: parsed.error.flatten() });
@@ -544,7 +546,7 @@ router.patch(
       ...(d.convertedAt      !== undefined && { convertedAt:      new Date(d.convertedAt) }),
     };
 
-    const updated = await marketplaceStorage.updatePendingOutreach(req.params.id, updateData);
+    const updated = await marketplaceStorage.updatePendingOutreach(id, updateData);
     if (!updated) {
       return res.status(404).json({ message: "Not found" });
     }
