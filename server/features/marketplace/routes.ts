@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Request, type Response, type NextFunction } from "express";
 import { z } from "zod";
 import { requireAuth, requireRole } from "../auth/middleware";
 import { db } from "../../db";
@@ -427,7 +427,7 @@ router.post(
 // All three routes share the same auth middleware: MARKETPLACE_BOT_SECRET
 // bearer bypass, then fall back to requireRole("admin","developer","lead_gen").
 
-function botOrRole(req: any, res: any, next: any) {
+function botOrRole(req: Request, res: Response, next: NextFunction) {
   const botSecret = process.env.MARKETPLACE_BOT_SECRET;
   if (botSecret) {
     const authHeader = req.headers.authorization ?? "";
