@@ -460,7 +460,7 @@ const patchPendingOutreachSchema = z.object({
   threadIdentifier: z.string().optional(),
   crmLeadId:        z.string().optional(),
   convertedAt:      z.string().datetime().optional(),
-});
+}).strict();
 
 router.post(
   "/pending-outreach",

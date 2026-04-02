@@ -2,20 +2,18 @@ import { db } from "../../db";
 import {
   marketplacePendingOutreach,
   MARKETPLACE_PENDING_OUTREACH_NON_TERMINAL_STATUSES,
-  type InsertMarketplacePendingOutreach,
   type MarketplacePendingOutreach,
 } from "@shared/schema";
 import { and, eq, inArray } from "drizzle-orm";
 
+type InsertMarketplacePendingOutreachFull = typeof marketplacePendingOutreach.$inferInsert;
+
 export async function createPendingOutreach(
-  data: Omit<InsertMarketplacePendingOutreach, "sellerFirstName" | "listingTitleNormalized"> & {
-    sellerFirstName?: string | null;
-    listingTitleNormalized?: string | null;
-  }
+  data: InsertMarketplacePendingOutreachFull
 ): Promise<MarketplacePendingOutreach> {
   const [result] = await db
     .insert(marketplacePendingOutreach)
-    .values(data as any)
+    .values(data)
     .returning();
   return result;
 }
