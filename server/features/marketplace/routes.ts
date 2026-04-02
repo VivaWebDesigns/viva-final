@@ -519,6 +519,46 @@ router.post(
   }
 );
 
+// ─── Admin list routes (admin/developer only) ──────────────────────────────
+// IMPORTANT: /summary and the list GET must be registered BEFORE /:id to
+// prevent the wildcard from swallowing the literal path segment "summary".
+
+router.get(
+  "/pending-outreach/summary",
+  requireRole("admin", "developer"),
+  async (_req, res) => {
+    const summary = await marketplaceStorage.getPendingOutreachSummary();
+    return res.json(summary);
+  }
+);
+
+router.get(
+  "/pending-outreach",
+  requireRole("admin", "developer"),
+  async (req, res) => {
+    const pageRaw  = Number(req.query.page)  || 1;
+    const limitRaw = Number(req.query.limit) || 25;
+    const page  = Math.max(1, pageRaw);
+    const limit = Math.min(100, Math.max(1, limitRaw));
+
+    const status    = typeof req.query.status   === "string" && req.query.status   ? req.query.status   : undefined;
+    const search    = typeof req.query.search   === "string" && req.query.search   ? req.query.search   : undefined;
+    const hasPhone  = req.query.hasPhone   === "true" ? true  : req.query.hasPhone   === "false" ? false  : undefined;
+    const hasCrmLead = req.query.hasCrmLead === "true" ? true  : req.query.hasCrmLead === "false" ? false : undefined;
+
+    const result = await marketplaceStorage.listPendingOutreach({
+      page,
+      limit,
+      status,
+      search,
+      hasPhone,
+      hasCrmLead,
+    });
+
+    return res.json(result);
+  }
+);
+
 router.get(
   "/pending-outreach/:id",
   botOrRole,

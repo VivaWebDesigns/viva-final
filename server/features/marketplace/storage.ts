@@ -4,7 +4,7 @@ import {
   MARKETPLACE_PENDING_OUTREACH_NON_TERMINAL_STATUSES,
   type MarketplacePendingOutreach,
 } from "@shared/schema";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull, or, sql, ilike, desc, count } from "drizzle-orm";
 
 type InsertMarketplacePendingOutreachFull = typeof marketplacePendingOutreach.$inferInsert;
 
@@ -119,5 +119,106 @@ export async function findActivePendingOutreachBySellerUrl(
       )
     )
     .limit(1);
+  return result;
+}
+
+export interface ListPendingOutreachFilters {
+  page:       number;
+  limit:      number;
+  status?:    string;
+  search?:    string;
+  hasPhone?:  boolean;
+  hasCrmLead?: boolean;
+}
+
+export interface ListPendingOutreachResult {
+  items: MarketplacePendingOutreach[];
+  total: number;
+  page:  number;
+  limit: number;
+}
+
+export async function listPendingOutreach(
+  filters: ListPendingOutreachFilters
+): Promise<ListPendingOutreachResult> {
+  const { page, limit, status, search, hasPhone, hasCrmLead } = filters;
+  const offset = (page - 1) * limit;
+
+  const conditions = [];
+
+  if (status) {
+    conditions.push(eq(marketplacePendingOutreach.messageStatus, status));
+  }
+
+  if (search) {
+    const term = `%${search}%`;
+    conditions.push(
+      or(
+        ilike(marketplacePendingOutreach.sellerFullName,       term),
+        ilike(marketplacePendingOutreach.listingTitleRaw,      term),
+        ilike(marketplacePendingOutreach.replyPhoneNormalized, term),
+        ilike(marketplacePendingOutreach.extractedPhone,       term)
+      )
+    );
+  }
+
+  if (hasPhone === true) {
+    conditions.push(
+      or(
+        isNotNull(marketplacePendingOutreach.replyPhoneNormalized),
+        isNotNull(marketplacePendingOutreach.extractedPhone)
+      )
+    );
+  } else if (hasPhone === false) {
+    conditions.push(
+      and(
+        isNull(marketplacePendingOutreach.replyPhoneNormalized),
+        isNull(marketplacePendingOutreach.extractedPhone)
+      )
+    );
+  }
+
+  if (hasCrmLead === true) {
+    conditions.push(isNotNull(marketplacePendingOutreach.crmLeadId));
+  } else if (hasCrmLead === false) {
+    conditions.push(isNull(marketplacePendingOutreach.crmLeadId));
+  }
+
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const [totalRow] = await db
+    .select({ count: count() })
+    .from(marketplacePendingOutreach)
+    .where(where);
+
+  const items = await db
+    .select()
+    .from(marketplacePendingOutreach)
+    .where(where)
+    .orderBy(desc(marketplacePendingOutreach.createdAt))
+    .limit(limit)
+    .offset(offset);
+
+  return {
+    items,
+    total: Number(totalRow?.count ?? 0),
+    page,
+    limit,
+  };
+}
+
+export async function getPendingOutreachSummary(): Promise<Record<string, number>> {
+  const rows = await db
+    .select({
+      status: marketplacePendingOutreach.messageStatus,
+      count:  count(),
+    })
+    .from(marketplacePendingOutreach)
+    .groupBy(marketplacePendingOutreach.messageStatus);
+
+  const result: Record<string, number> = {};
+  for (const row of rows) {
+    result[row.status] = Number(row.count);
+  }
   return result;
 }

@@ -18,6 +18,7 @@ export const es: AdminTranslations = {
     docs: "Documentación",
     internalPlatform: "Plataforma Interna",
     signOut: "Cerrar Sesión",
+    marketplace: "Marketplace",
     overdueItem: "elemento vencido",
     overdueItems: "elementos vencidos",
   },

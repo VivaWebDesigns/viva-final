@@ -16,6 +16,7 @@ export const en = {
     docs: "App Docs",
     internalPlatform: "Internal Platform",
     signOut: "Sign Out",
+    marketplace: "Marketplace",
     overdueItem: "overdue item",
     overdueItems: "overdue items",
   },
