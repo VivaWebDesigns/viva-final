@@ -1,0 +1,118 @@
+MODE: Build App Testing
+BUILD LOCATION: Viva
+
+Task:
+Run a full verification pass on the new manual-review
+workflow for Marketplace pending outreach records on
+/admin/marketplace.
+
+Goal:
+Confirm that manual_review_required records now behave as
+a true review gate before CRM conversion.
+
+Important:
+This is a testing/verification pass only.
+Do NOT add new features.
+Do NOT redesign the page.
+Do NOT change extension code.
+Only make small direct fixes if testing exposes a real
+problem.
+
+What to verify:
+
+1. Manual review actions visibility
+Verify that for manual_review_required records:
+- Approve Match is visible
+- Reject Match is visible
+- Convert to CRM is NOT visible
+- Skip is NOT visible unless intentionally kept
+- the review context fields are visible:
+  - seller name
+  - listing title
+  - reply text
+  - extracted phone
+  - replyPhoneNormalized
+  - replyMatchConfidence
+  - replyMatchMethod
+  - manualReviewReason
+  - seller profile URL
+  - listing URL
+  - threadIdentifier if present
+
+2. Approve Match behavior
+Verify:
+- POST approve route succeeds only from
+  manual_review_required
+- status becomes reply_received
+- manualReviewReason is cleared if that is the intended
+  behavior
+- drawer refreshes immediately
+- table row refreshes immediately
+- summary counts refresh immediately
+- Convert to CRM appears after approval
+
+3. Reject Match behavior
+Verify:
+- POST reject route succeeds only from
+  manual_review_required
+- status becomes skipped
+- rejection reason is stored clearly
+- drawer refreshes immediately
+- table row refreshes immediately
+- summary counts refresh immediately
+- no invalid actions remain visible afterward
+
+4. Convert gating change
+Verify:
+- manual_review_required can no longer convert directly
+- API returns 400 with the intended message
+- UI surfaces the blocked state clearly if triggered
+- reply_received still converts successfully
+
+5. Status safety
+Verify approve/reject are blocked for:
+- ready_to_message
+- awaiting_reply
+- reply_received
+- converted
+- skipped
+
+Confirm blocked cases do not modify the record.
+
+6. Regression checks
+Confirm:
+- existing Skip flow still works where allowed
+- existing Convert flow still works for reply_received
+- View CRM Lead still works for converted
+- summary cards and filters still work
+- no stale action buttons remain after state changes
+
+7. Isolation
+Confirm:
+- no extension behavior changed
+- no CRM page regression
+- no new schema issues
+- no auth regression
+
+If anything fails:
+- make only the smallest direct fix needed
+- do not drift into new features
+
+Deliverables:
+1. pass/fail result for each verification item
+2. any bugs found
+3. exact fixes made, if any
+4. exact files changed during testing/fixes
+5. one example approve response
+6. one example reject response
+7. one example blocked convert response
+8. short manual testing checklist
+
+Manual testing checklist should include:
+- manual_review_required shows Approve + Reject only
+- Approve -> reply_received
+- Reject -> skipped
+- summary counts refresh
+- manual_review_required direct convert blocked
+- reply_received convert still works
+- stale actions disappear after each transition
