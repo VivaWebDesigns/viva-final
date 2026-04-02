@@ -1,0 +1,142 @@
+MODE: Build App Testing
+BUILD LOCATION: Viva
+
+Task:
+Run a full verification pass on the new
+/admin/marketplace Pending Outreach admin page.
+
+Goal:
+Confirm the page works correctly end to end for
+admin/developer users before adding more features like
+assignment or manual-review workflow improvements.
+
+Important:
+This is a testing/verification pass only.
+Do NOT add new features.
+Do NOT redesign the page.
+Do NOT change extension code.
+Do NOT add bulk actions.
+Only make small direct fixes if testing exposes a real
+problem.
+
+What to verify:
+
+1. Route protection / visibility
+Verify:
+- /admin/marketplace loads for admin
+- /admin/marketplace loads for developer
+- route is blocked/hidden for sales_rep
+- route is blocked/hidden for lead_gen
+- sidebar link appears only for admin/developer
+
+2. Summary endpoint + cards
+Verify:
+- summary cards load correctly
+- counts match the database
+- clicking a status card filters the table
+- clearing/changing the status filter works cleanly
+- summary cards refresh after Skip and Convert actions
+
+3. List endpoint + table
+Verify:
+- page loads records with default pagination
+- default sort is createdAt DESC
+- table columns render expected values
+- status badges show correct colors/labels
+- pagination works
+- no route collision between:
+  - /api/marketplace/pending-outreach/summary
+  - /api/marketplace/pending-outreach
+  - /api/marketplace/pending-outreach/:id
+
+4. Filters
+Verify the implemented filters actually work and match
+backend semantics:
+- status
+- search
+- hasPhone
+- hasCrmLead
+- city if implemented
+- state if implemented
+- trade if implemented
+
+Confirm:
+- search matches sellerFullName
+- search matches listingTitleRaw
+- search matches replyPhoneNormalized
+- search matches extractedPhone
+
+5. Detail panel / drawer
+Verify:
+- clicking a row loads fresh detail from
+  GET /api/marketplace/pending-outreach/:id
+- selected detail is query-backed, not stale row data
+- no-record-selected empty state is visible and sensible
+- detail fields show expected values
+- CRM Lead ID link works when present
+
+6. Skip action
+Verify:
+- allowed statuses can be skipped as designed
+- Skip updates:
+  - table row
+  - summary counts
+  - detail panel
+- inline/detail state stays in sync after skip
+- no stale status remains visible
+
+7. Convert to CRM action
+Verify:
+- reply_received converts successfully
+- manual_review_required converts successfully
+- converted record shows crmLeadId in detail immediately
+- convertedAt appears immediately
+- View CRM Lead works after success
+- second convert attempt is blocked correctly
+
+8. Error handling
+Verify:
+- 409 duplicate is shown inline in the detail area with
+  duplicate summary details
+- 400 blocked status shows clearly
+- not-found or fetch failures are handled cleanly
+- no silent failures
+
+9. Empty states
+Verify:
+- no records at all
+- no results for current filters
+- no record selected
+
+10. Isolation / regression
+Confirm:
+- existing marketplace backend routes still work
+- existing CRM pages are unaffected
+- no extension behavior changed
+- no auth regression on existing routes
+
+If anything fails:
+- make only the smallest direct fix needed
+- do not drift into new features
+
+Deliverables:
+1. pass/fail result for each verification item
+2. any bugs found
+3. exact fixes made, if any
+4. exact files changed during testing/fixes
+5. one example successful convert flow from the page
+6. one example duplicate 409 inline error
+7. one example blocked 400 error
+8. short manual testing checklist
+
+Manual testing checklist should include:
+- admin/developer access works
+- sales_rep/lead_gen blocked
+- summary cards correct
+- filters work
+- row click loads fresh detail
+- skip refreshes list + summary + detail
+- convert refreshes list + summary + detail
+- duplicate 409 inline works
+- blocked 400 works
+- empty states work
