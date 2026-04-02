@@ -1064,6 +1064,7 @@ export const MARKETPLACE_PENDING_OUTREACH_STATUSES = [
   "ready_to_message",
   "message_sent",
   "awaiting_reply",
+  "reply_received",
   "converted",
   "skipped",
   "manual_review_required",
@@ -1074,6 +1075,7 @@ const NON_TERMINAL_STATUSES: MarketplacePendingOutreachStatus[] = [
   "ready_to_message",
   "message_sent",
   "awaiting_reply",
+  "reply_received",
   "manual_review_required",
 ];
 export { NON_TERMINAL_STATUSES as MARKETPLACE_PENDING_OUTREACH_NON_TERMINAL_STATUSES };
@@ -1099,6 +1101,11 @@ export const marketplacePendingOutreach = pgTable("marketplace_pending_outreach"
   replyReceivedAt:        timestamp("reply_received_at"),
   extractedPhone:         text("extracted_phone"),
   threadIdentifier:       text("thread_identifier"),
+  lastReplyText:          text("last_reply_text"),
+  replyPhoneNormalized:   text("reply_phone_normalized"),
+  replyMatchConfidence:   text("reply_match_confidence"),
+  replyMatchMethod:       text("reply_match_method"),
+  manualReviewReason:     text("manual_review_reason"),
   crmLeadId:              varchar("crm_lead_id").references(() => crmLeads.id),
   convertedAt:            timestamp("converted_at"),
   createdBy:              text("created_by").references(() => user.id),

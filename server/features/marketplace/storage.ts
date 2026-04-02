@@ -70,6 +70,39 @@ export async function markPendingOutreachMessageSent(
   return result;
 }
 
+export async function captureReplyOnPendingOutreach(
+  id: string,
+  data: {
+    lastReplyText:        string;
+    extractedPhone:       string;
+    replyPhoneNormalized: string | null;
+    replyMatchConfidence: string;
+    replyMatchMethod:     string;
+    replyReceivedAt:      Date;
+    manualReviewReason?:  string | null;
+    messageStatus:        string;
+    threadIdentifier?:    string | null;
+  }
+): Promise<MarketplacePendingOutreach | undefined> {
+  const [result] = await db
+    .update(marketplacePendingOutreach)
+    .set({
+      lastReplyText:        data.lastReplyText,
+      extractedPhone:       data.extractedPhone,
+      replyPhoneNormalized: data.replyPhoneNormalized,
+      replyMatchConfidence: data.replyMatchConfidence,
+      replyMatchMethod:     data.replyMatchMethod,
+      replyReceivedAt:      data.replyReceivedAt,
+      messageStatus:        data.messageStatus,
+      ...(data.manualReviewReason !== undefined && { manualReviewReason: data.manualReviewReason }),
+      ...(data.threadIdentifier   !== undefined && { threadIdentifier:   data.threadIdentifier }),
+      updatedAt: new Date(),
+    })
+    .where(eq(marketplacePendingOutreach.id, id))
+    .returning();
+  return result;
+}
+
 export async function findActivePendingOutreachBySellerUrl(
   normalizedSellerProfileUrl: string
 ): Promise<MarketplacePendingOutreach | undefined> {

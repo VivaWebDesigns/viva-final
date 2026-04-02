@@ -15,6 +15,11 @@ import {
 } from "@shared/schema";
 import { eq, and, desc, sql, ilike } from "drizzle-orm";
 import { scoreHispanicName } from "./nameScore";
+import {
+  scoreCaptureMatch,
+  extractPhoneFromText,
+  normalizePhone,
+} from "./captureReplyHelpers";
 import * as crmStorage from "../crm/storage";
 import * as pipelineStorage from "../pipeline/storage";
 import * as marketplaceStorage from "./storage";
@@ -588,6 +593,99 @@ router.post(
     const updated = await marketplaceStorage.markPendingOutreachMessageSent(id, {
       outreachSentAt:  d.outreachSentAt ? new Date(d.outreachSentAt) : new Date(),
       outreachMessage: d.outreachMessage,
+    });
+
+    return res.json(updated);
+  }
+);
+
+const captureReplySchema = z.object({
+  replyText:            z.string().min(1),
+  sellerFirstNameSeen:  z.string().optional(),
+  listingTitleSeen:     z.string().optional(),
+  threadIdentifier:     z.string().optional(),
+  replyReceivedAt:      z.string().datetime().optional(),
+}).strict();
+
+const BLOCKED_FOR_CAPTURE_REPLY: string[] = ["skipped", "converted"];
+const NOT_YET_SENT: string[] = ["ready_to_message"];
+
+router.post(
+  "/pending-outreach/:id/capture-reply",
+  botOrRole,
+  async (req, res) => {
+    const id = req.params.id as string;
+
+    const parsed = captureReplySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Invalid input", errors: parsed.error.flatten() });
+    }
+
+    const record = await marketplaceStorage.getPendingOutreachById(id);
+    if (!record) {
+      return res.status(404).json({ message: "Not found" });
+    }
+
+    if (NOT_YET_SENT.includes(record.messageStatus)) {
+      return res.status(400).json({
+        message: "Cannot capture reply: outreach has not been marked as sent yet.",
+        currentStatus: record.messageStatus,
+      });
+    }
+
+    if (BLOCKED_FOR_CAPTURE_REPLY.includes(record.messageStatus)) {
+      return res.status(400).json({
+        message: `Cannot capture reply: record is already ${record.messageStatus}`,
+        currentStatus: record.messageStatus,
+      });
+    }
+
+    const d = parsed.data;
+
+    const rawPhone = extractPhoneFromText(d.replyText);
+    if (!rawPhone) {
+      return res.status(400).json({
+        message: "No valid phone number could be extracted from the reply.",
+      });
+    }
+
+    const listingTitleSeenNormalized = d.listingTitleSeen
+      ? d.listingTitleSeen.trim().toLowerCase()
+      : null;
+
+    const matchResult = scoreCaptureMatch(record, {
+      sellerFirstNameNormalized: d.sellerFirstNameSeen
+        ? d.sellerFirstNameSeen.trim().toLowerCase()
+        : null,
+      listingTitleNormalized:    listingTitleSeenNormalized,
+      threadIdentifier:          d.threadIdentifier ?? null,
+    });
+
+    if (matchResult.confidence === "low") {
+      return res.status(400).json({
+        message: "Match confidence too low to attach phone. Provide a listing title or thread identifier.",
+        confidence: matchResult.confidence,
+        method:     matchResult.method,
+      });
+    }
+
+    const normalizedPhone = normalizePhone(rawPhone);
+
+    const newStatus     = matchResult.confidence === "high" ? "reply_received" : "manual_review_required";
+    const reviewReason  = matchResult.confidence === "medium"
+      ? `Fuzzy match via ${matchResult.method} — requires human review`
+      : null;
+
+    const updated = await marketplaceStorage.captureReplyOnPendingOutreach(id, {
+      lastReplyText:        d.replyText,
+      extractedPhone:       rawPhone,
+      replyPhoneNormalized: normalizedPhone,
+      replyMatchConfidence: matchResult.confidence,
+      replyMatchMethod:     matchResult.method,
+      replyReceivedAt:      d.replyReceivedAt ? new Date(d.replyReceivedAt) : new Date(),
+      manualReviewReason:   reviewReason,
+      messageStatus:        newStatus,
+      ...(d.threadIdentifier !== undefined && { threadIdentifier: d.threadIdentifier }),
     });
 
     return res.json(updated);
