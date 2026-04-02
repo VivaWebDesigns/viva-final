@@ -1,0 +1,113 @@
+MODE: Build App Testing
+BUILD LOCATION: Viva
+
+Task:
+Run a full verification pass on the new
+mark-message-sent backend route for Marketplace pending
+outreach records.
+
+Goal:
+Confirm the new route works correctly and safely before
+we add the Marketplace Assistant button that will call
+it.
+
+Important:
+This is a testing/verification pass only.
+Do NOT add new features.
+Do NOT add extension changes in this step.
+Do NOT add Messenger scraping.
+Do NOT add reply parsing.
+Do NOT add CRM conversion.
+Only make small direct fixes if testing reveals a real
+bug.
+
+What to verify:
+
+1. Route behavior
+Route:
+POST /api/marketplace/pending-outreach/:id/mark-message-sent
+
+Verify:
+- valid ready_to_message record returns 200
+- messageStatus becomes awaiting_reply
+- full updated record is returned
+- no CRM lead is created
+
+2. Datetime behavior
+Verify:
+- explicit outreachSentAt is stored correctly
+- omitted outreachSentAt uses current server time
+- stored value follows the project’s normal timestamp
+  pattern
+
+3. Message behavior
+Verify:
+- outreachMessage is stored when provided
+- empty body still succeeds
+- calling route again on an awaiting_reply record works
+  cleanly and stays awaiting_reply
+
+4. Status transition rules
+Verify each case explicitly:
+
+Allowed:
+- ready_to_message -> awaiting_reply
+- message_sent -> awaiting_reply
+- manual_review_required -> awaiting_reply
+- awaiting_reply -> awaiting_reply
+
+Blocked:
+- skipped -> 400 with clear message
+- converted -> 400 with clear message
+
+Also confirm the blocked cases do not modify the record.
+
+5. Not found behavior
+Verify:
+- missing id returns 404
+- response shape is correct
+
+6. Auth behavior
+Verify both paths:
+- valid MARKETPLACE_BOT_SECRET bearer auth
+- valid logged-in allowed roles:
+  admin, developer, lead_gen
+
+Also verify:
+- no auth is rejected
+- invalid bot secret is rejected
+
+7. Isolation
+Confirm:
+- no other pending-outreach routes changed behavior
+- no CRM lead creation occurs
+- no precheck behavior changed
+- no frontend/UI files changed
+
+If anything fails:
+- make only the smallest direct fix needed
+- do not drift into the next phase
+
+Deliverables:
+At the end provide:
+1. pass/fail result for each verification item
+2. any bugs found
+3. exact fixes made, if any
+4. exact files changed during testing/fixes
+5. one example successful 200 response
+6. one example blocked 400 response
+7. one example 404 response
+8. one example auth failure response
+9. short manual testing checklist
+
+Manual testing checklist should include:
+- ready_to_message -> awaiting_reply works
+- explicit outreachSentAt works
+- omitted outreachSentAt defaults correctly
+- outreachMessage stores correctly
+- awaiting_reply re-send stays valid
+- skipped blocks
+- converted blocks
+- missing id returns 404
+- invalid auth returns 401
+- no CRM lead is created
