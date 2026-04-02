@@ -1,0 +1,139 @@
+MODE: Build App Testing
+BUILD LOCATION: Viva
+
+Task:
+Test and verify the completed Phase 1 Marketplace
+pending outreach staging layer inside Viva.
+
+Goal:
+Confirm that the new backend staging table, storage,
+and routes work correctly before we touch the Chrome
+extension Marketplace Assistant.
+
+Important:
+This is a testing/verification pass only.
+Do not expand scope.
+Do not refactor unrelated code.
+Do not build frontend UI.
+Do not add Messenger automation.
+Do not add CRM lead conversion.
+Only make small fixes that are directly required to get
+Phase 1 working correctly.
+
+What to verify:
+
+1. Database
+- marketplacePendingOutreach table exists
+- schema applied cleanly
+- npm run db:push completed successfully
+- all expected fields exist
+- default messageStatus behavior works
+
+2. POST route
+Route:
+POST /api/marketplace/pending-outreach
+
+Verify:
+- authenticated allowed roles can create a record
+- MARKETPLACE_BOT_SECRET bearer auth can create a record
+- sellerFirstName is derived correctly from sellerFullName
+- sellerProfileUrl is normalized correctly
+- listingUrl is normalized correctly if present
+- listingTitleNormalized is derived correctly from
+  listingTitleRaw
+- required field validation works
+- invalid state values are rejected
+- invalid nameScore values are rejected
+- response returns full created record
+- status defaults to ready_to_message when omitted
+- no CRM lead is created
+
+Use a realistic sample payload like:
+{
+  "sellerFullName": "Armando Valverde",
+  "sellerProfileUrl": "https://www.facebook.com/armando.valverde/",
+  "listingUrl": "https://www.facebook.com/marketplace/item/1234567890/",
+  "listingTitleRaw": "  2017 Ford Transit Van Shelving Setup  ",
+  "city": "Charlotte",
+  "state": "NC",
+  "tradeGuess": "contractor",
+  "facebookJoinYear": 2012,
+  "nameScore": 95,
+  "precheckPassed": true,
+  "precheckReason": "passed",
+  "outreachMessage": "What's a good contact number?"
+}
+
+3. GET route
+Route:
+GET /api/marketplace/pending-outreach/:id
+
+Verify:
+- returns 200 with full record for valid id
+- returns 404 with:
+  { "message": "Not found" }
+  for missing id
+- auth rules work correctly
+
+4. PATCH route
+Route:
+PATCH /api/marketplace/pending-outreach/:id
+
+Verify:
+- can update allowed fields only:
+  - messageStatus
+  - outreachMessage
+  - outreachSentAt
+  - replyReceivedAt
+  - extractedPhone
+  - threadIdentifier
+  - crmLeadId
+  - convertedAt
+- disallowed fields are rejected or ignored according to
+  current project validation pattern
+- updated record is returned
+- missing id returns 404
+- auth rules work correctly
+
+Use a realistic PATCH payload like:
+{
+  "messageStatus": "awaiting_reply",
+  "outreachSentAt": "2026-04-02T15:30:00.000Z",
+  "threadIdentifier": "thread_abc123"
+}
+
+5. Auth behavior
+Verify both paths:
+- logged-in allowed roles:
+  admin, developer, lead_gen
+- MARKETPLACE_BOT_SECRET bearer bypass
+
+Also verify unauthorized access is blocked.
+
+6. Isolation
+Confirm:
+- no frontend/UI was added
+- no CRM lead is created
+- no existing precheck logic changed
+- no existing CRM lead logic changed
+- no Messenger logic was added
+
+If anything fails:
+- make only the smallest direct fix needed
+- do not drift into Phase 2 work
+- do not do broad cleanup
+
+Deliverables:
+At the end provide:
+1. pass/fail result for each verification item
+2. any bugs found
+3. exact fixes made, if any
+4. exact files changed during testing/fixes
+5. example successful POST response
+6. example successful PATCH response
+7. final short manual test checklist I can run myself
+
+Very important:
+Keep responses tightly focused on Phase 1 verification.
+Do not introduce new features.
+Do not suggest unrelated refactors.
