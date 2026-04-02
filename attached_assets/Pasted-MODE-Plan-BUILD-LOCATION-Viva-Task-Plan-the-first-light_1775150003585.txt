@@ -1,0 +1,146 @@
+MODE: Plan
+BUILD LOCATION: Viva
+
+Task:
+Plan the first lightweight Pending Outreach admin page
+inside Viva.
+
+Goal:
+Create a simple internal page where admins can view and
+manage Marketplace pending outreach records without
+needing to rely entirely on pasted UUIDs from the
+extension.
+
+Important:
+This is a planning phase only.
+Do NOT build anything yet.
+Do NOT redesign the CRM.
+Do NOT build a complex queue system yet.
+Do NOT add Messenger scraping.
+Do NOT add automatic conversion.
+Do NOT add bulk actions.
+Keep the first version simple and safe.
+
+Core purpose of the page:
+Allow admins to:
+- see pending outreach records
+- filter by status
+- view key Marketplace context
+- manually convert records
+- manually skip records
+- quickly see which records need attention
+
+Recommended route/page:
+- /admin/marketplace
+- admin-only visibility
+
+Recommended statuses to support:
+- ready_to_message
+- awaiting_reply
+- reply_received
+- manual_review_required
+- converted
+- skipped
+
+Suggested page layout:
+Top summary cards:
+- Ready to Message
+- Awaiting Reply
+- Reply Received
+- Manual Review Required
+- Converted
+- Skipped
+
+Main table columns:
+- Seller Name
+- Listing Title
+- City / State
+- Trade
+- Status
+- Reply Phone
+- Reply Confidence
+- Assigned To
+- Created At
+- Last Updated
+
+Expandable detail drawer or modal:
+- Seller Profile URL
+- Listing URL
+- Reply Text
+- Extracted Phone
+- Reply Match Method
+- Facebook Join Year
+- CRM Lead ID if converted
+- Converted At
+- Notes / Manual Review Reason
+
+Suggested quick actions:
+ready_to_message:
+- View
+- Skip
+
+awaiting_reply:
+- View
+- Skip
+
+reply_received:
+- View
+- Convert to CRM
+- Skip
+
+manual_review_required:
+- View
+- Convert to CRM
+- Skip
+
+converted:
+- View CRM Lead
+
+skipped:
+- View
+
+Suggested filters:
+- Status
+- Assigned To
+- City
+- State
+- Trade
+- Has Phone
+- Has CRM Lead
+- Search by seller name / listing title / phone
+
+Suggested backend support:
+- list route with filters + pagination
+- single-record route
+- skip route
+- convert route reuse
+- optional assignment update route later
+
+Suggested UX priorities:
+- easy to scan
+- clear status colors
+- no giant modal chains
+- no hidden state
+- no automatic actions
+- preserve human review
+
+Questions to answer in the planning output:
+1. recommended backend routes
+2. recommended frontend page structure
+3. recommended table columns
+4. recommended filters
+5. recommended detail drawer fields
+6. recommended action buttons by status
+7. recommended pagination/sorting
+8. recommended role visibility
+9. recommended first-build scope vs later scope
+10. any schema changes needed or not needed
+
+Deliverables:
+1. recommended route structure
+2. recommended frontend component structure
+3. recommended backend API structure
+4. recommended status/action matrix
+5. recommended MVP scope
+6. recommended later-phase enhancements
+7. exact files likely to be touched when build phase starts

@@ -1,0 +1,153 @@
+Recommended revisions for Task #21
+
+1. Restrict auth on the new list routes to admin/developer
+The task says botOrRole "same as existing routes", but this
+page is explicitly admin/developer only.
+
+For the page-facing list routes, prefer:
+- requireRole("admin", "developer")
+
+Do not allow lead_gen on these page routes unless you
+intentionally want them seeing all pending outreach
+records.
+
+Recommended:
+- GET /api/marketplace/pending-outreach
+- GET /api/marketplace/pending-outreach/summary
+both restricted to admin/developer only.
+
+2. Be explicit that "Skip" reuses the existing PATCH route
+Good as written, but call out the exact behavior:
+
+PATCH /api/marketplace/pending-outreach/:id
+{
+  "messageStatus": "skipped"
+}
+
+No new skip route needed.
+
+3. Add one more useful table column: Updated At
+Even if sorting by updatedAt comes later, showing updated
+time now is useful for manual review and recent activity.
+
+Recommended visible columns:
+- Seller Name
+- Listing Title
+- City / State
+- Trade
+- Status
+- Reply Phone
+- Reply Confidence
+- Created At
+- Updated At
+
+If the table feels too wide, Updated At can be lower
+priority than Created At, but I would still consider it.
+
+4. Tighten "Has Phone" filter semantics
+Define it clearly now so implementation does not drift.
+
+Recommended:
+Has Phone = true when either:
+- replyPhoneNormalized is not null
+- OR extractedPhone is not null
+
+5. Tighten "Has CRM Lead" filter semantics
+Recommended:
+Has CRM Lead = true when crmLeadId is not null
+
+6. Search should include listingTitleNormalized only if it
+already exists and is indexed enough to be useful
+Current task says search:
+- sellerFullName
+- listingTitleRaw
+- replyPhoneNormalized
+- extractedPhone
+
+That is good for MVP.
+No need to expand search further unless already easy.
+
+7. Drawer action rules should hard-disable invalid actions,
+not just hide them
+For clarity and consistency:
+
+- converted: show View CRM Lead
+- skipped: no actions
+- reply_received/manual_review_required: Convert + Skip
+- ready_to_message/awaiting_reply: Skip only
+
+If an action is not allowed, do not render it as clickable.
+
+8. After Convert or Skip, refresh both:
+- the row/detail record
+- the table query
+- the summary counts query
+
+This matters because the page is status-driven and counts
+must stay in sync after actions.
+
+9. Duplicate 409 rendering
+Good call to show it inline.
+I would explicitly say:
+
+Show duplicate summary in the drawer action area under the
+Convert button, not only as a toast.
+
+Reason:
+the user may need to compare the current record to the
+duplicate summary before deciding what to do next.
+
+10. Keep filters MVP-light
+City/state/trade selects are fine only if the values are
+easy to source.
+
+If those filters require building distinct-value endpoints
+or heavy extra work, it is okay for MVP to start with:
+- status
+- search
+- hasPhone
+- hasCrmLead
+
+and leave city/state/trade as plain text inputs or defer
+them one phase.
+
+11. Add empty states explicitly
+Recommend explicit empty states for:
+- no records at all
+- no results for current filters
+- no detail selected
+
+12. Confirm drawer detail fields
+"Notes" may not exist on marketplace_pending_outreach
+itself unless you mean notes from the created CRM lead.
+
+For the drawer, keep it to fields that are definitely on
+the pending outreach record:
+- Seller Profile URL
+- Listing URL
+- Reply Text
+- Extracted Phone
+- Reply Match Method
+- Facebook Join Year
+- Manual Review Reason
+- CRM Lead ID
+- Converted At
+
+If you want CRM lead notes later, fetch them from the CRM
+lead page, not here.
+
+13. Default filter behavior
+Recommended default:
+- all statuses
+- page size 25
+- sort createdAt DESC
+
+Summary cards should filter to one status when clicked,
+and clicking the active card again can clear the filter if
+that matches the existing UX style elsewhere.
+
+14. Route naming safety
+Because GET /api/marketplace/pending-outreach/:id already
+exists, make sure:
+- /summary is registered before /:id
+or otherwise routed safely so it is not treated as an id.
