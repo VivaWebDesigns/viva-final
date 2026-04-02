@@ -1,0 +1,52 @@
+A few small adjustments would make it even safer:
+
+1. Derive sellerFirstName on create
+You listed it in the earlier table design, but it is missing from the POST shape.
+I would still store it in Phase 1 and derive it from sellerFullName server-side.
+
+Reason:
+you will almost certainly want it later for Messenger matching, and deriving it now is easy.
+
+2. Be careful with lowercasing full URLs
+For sellerProfileUrl and listingUrl, I would normalize by:
+
+trim
+strip trailing slash
+maybe lowercase hostname
+maybe preserve path casing unless your current Marketplace logic already lowercases everything
+
+Reason:
+full URL lowercasing can sometimes be too aggressive depending on path/query behavior.
+If your existing seller URL normalization already lowercases the full value safely, then keep it consistent with that.
+
+3. Make PATCH explicitly whitelist-only
+Your wording implies this already, but I would make it crystal clear:
+
+PATCH may only update the listed mutable fields
+identity/source fields like sellerFullName, sellerProfileUrl,
+listingUrl, listingTitleRaw, listingTitleNormalized,
+nameScore, and precheckPassed are not patchable in Phase 1
+
+That prevents this table from turning into a messy catch-all edit surface.
+
+4. Add a uniqueness decision now for sellerProfileUrl
+Even if you do not enforce a DB unique constraint yet, I would make the builder inspect whether one should exist for pending records.
+
+Question to settle in code:
+can the same seller have multiple simultaneous pending outreach rows for different listings, or do you want one active pending record per seller?
+
+That affects whether uniqueness should be:
+
+none
+sellerProfileUrl only
+sellerProfileUrl + listingUrl
+partial unique on active statuses only
+
+You do not need to fully solve it in Phase 1, but the code should at least not accidentally make the future harder.
+
+5. Default messageStatus on create
+I would define the create behavior explicitly:
+
+default to ready_to_message if omitted
+
+That avoids inconsistent extension behavior later.

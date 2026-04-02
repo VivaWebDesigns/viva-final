@@ -1,0 +1,135 @@
+MODE: Plan Mode
+BUILD LOCATION: Viva
+
+Task:
+Design and implement Phase 1 foundation for the
+Marketplace AI assistant inside Viva only.
+
+Goal:
+Create a clean staging layer for Marketplace leads
+before they become real CRM leads.
+
+Important:
+Do NOT build Messenger reply scraping yet.
+Do NOT build auto-conversion yet.
+Do NOT build a queue UI yet unless absolutely needed
+for minimal testing.
+Do NOT modify existing CRM lead behavior unless
+required for this phase.
+Keep this phase narrow and non-destructive.
+
+What to build:
+Create a new staging model/table for pending
+Marketplace outreach records.
+
+Suggested table name:
+marketplace_pending_outreach
+
+Purpose:
+This table stores Marketplace seller/listing data
+after a PASS precheck and before a real CRM lead is
+created.
+
+Core fields to include:
+- id
+- sellerFullName
+- sellerFirstName
+- sellerProfileUrl
+- listingUrl
+- listingTitleRaw
+- listingTitleNormalized
+- city
+- state
+- tradeGuess
+- facebookJoinYear
+- nameScore
+- precheckPassed
+- precheckReason
+- messageStatus
+- outreachMessage
+- outreachSentAt
+- replyReceivedAt
+- extractedPhone
+- threadIdentifier
+- crmLeadId
+- convertedAt
+- createdBy
+- createdAt
+- updatedAt
+
+Keep fields nullable where appropriate.
+Use naming and schema conventions that match the
+existing Viva codebase.
+
+Statuses for Phase 1:
+Only include the minimum statuses needed now:
+- ready_to_message
+- message_sent
+- awaiting_reply
+- converted
+- skipped
+- manual_review_required
+
+Backend work to complete:
+1. Add the database schema for
+   marketplace_pending_outreach.
+2. Add shared types/schemas as needed.
+3. Add storage methods for:
+   - create pending outreach record
+   - update pending outreach record
+   - fetch pending outreach record by id
+4. Add backend routes for:
+   - POST /api/marketplace/pending-outreach
+   - PATCH /api/marketplace/pending-outreach/:id
+   - GET /api/marketplace/pending-outreach/:id
+5. Require auth and follow existing Viva role rules.
+6. Keep this phase admin/developer safe and simple.
+7. Do not add any frontend CRM page unless needed for
+   basic testing.
+
+Behavior rules:
+- This record is created only after Marketplace
+  precheck has already passed.
+- This record is NOT yet a CRM lead.
+- No CRM lead should be created in this phase.
+- Do not run full CRM duplicate conversion logic yet.
+- Preserve existing precheck behavior.
+- Preserve existing CRM logic.
+- Keep this isolated.
+
+Implementation guidance:
+- Reuse existing marketplace feature structure where
+  possible.
+- Put logic in Viva backend, not in the extension.
+- Normalize listingTitleNormalized consistently.
+- Keep sellerProfileUrl and listingUrl stored in a
+  normalized, reliable way if that matches current
+  marketplace logic.
+
+Deliverables:
+- schema changes
+- storage methods
+- route handlers
+- validation schemas
+- brief note of any migration/db push needed
+- exact API request/response shapes
+- a short manual testing checklist
+
+Very important:
+Before writing code, first inspect the current Viva
+codebase and identify the best existing files and
+patterns to follow for:
+- database schema
+- marketplace routes
+- storage methods
+- shared validation schemas
+- auth/role handling
+
+Then implement using the existing architecture
+instead of inventing a parallel pattern.
+
+At the end, give:
+1. a concise summary of what was built
+2. any files changed
+3. any db push or migration command needed
+4. a simple test flow for me to run
