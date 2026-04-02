@@ -237,6 +237,40 @@ export async function rejectManualReview(
   return result;
 }
 
+export async function getManyPendingOutreachByIds(
+  ids: string[]
+): Promise<MarketplacePendingOutreach[]> {
+  if (ids.length === 0) return [];
+  return db
+    .select()
+    .from(marketplacePendingOutreach)
+    .where(inArray(marketplacePendingOutreach.id, ids));
+}
+
+export async function bulkSkipPendingOutreach(
+  ids: string[]
+): Promise<{ updatedIds: string[]; count: number; newStatus: string }> {
+  const results = await db
+    .update(marketplacePendingOutreach)
+    .set({ messageStatus: "skipped", updatedAt: new Date() })
+    .where(inArray(marketplacePendingOutreach.id, ids))
+    .returning({ id: marketplacePendingOutreach.id });
+  const updatedIds = results.map(r => r.id);
+  return { updatedIds, count: updatedIds.length, newStatus: "skipped" };
+}
+
+export async function bulkApprovePendingOutreach(
+  ids: string[]
+): Promise<{ updatedIds: string[]; count: number; newStatus: string }> {
+  const results = await db
+    .update(marketplacePendingOutreach)
+    .set({ messageStatus: "reply_received", manualReviewReason: null, updatedAt: new Date() })
+    .where(inArray(marketplacePendingOutreach.id, ids))
+    .returning({ id: marketplacePendingOutreach.id });
+  const updatedIds = results.map(r => r.id);
+  return { updatedIds, count: updatedIds.length, newStatus: "reply_received" };
+}
+
 export async function getPendingOutreachSummary(): Promise<Record<string, number>> {
   const rows = await db
     .select({

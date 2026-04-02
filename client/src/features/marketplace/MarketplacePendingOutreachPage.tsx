@@ -6,8 +6,9 @@ import { useLocation } from "wouter";
 import {
   Search, Phone, ExternalLink, ChevronLeft, ChevronRight,
   ShoppingBag, AlertCircle, CheckCircle2, Clock, Eye, SkipForward,
-  ThumbsUp, ThumbsDown,
+  ThumbsUp, ThumbsDown, X,
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -242,7 +243,12 @@ export default function MarketplacePendingOutreachPage() {
   const [duplicateMatch, setDuplicateMatch]       = useState<DuplicateMatch | null>(null);
   const [convertedLeadId, setConvertedLeadId]     = useState<string | null>(null);
 
+  // Multi-select state (page-local only)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
   useEffect(() => { setPage(1); }, [search, statusFilter, hasPhone, hasCrmLead]);
+  // Clear selection whenever filters or page changes (page-local selection contract)
+  useEffect(() => { setSelectedIds(new Set()); }, [search, statusFilter, hasPhone, hasCrmLead, page]);
 
   const summaryQueryKey = ["/api/marketplace/pending-outreach/summary"] as const;
 
@@ -412,6 +418,114 @@ export default function MarketplacePendingOutreachPage() {
     },
   });
 
+  // ── Bulk Skip mutation ────────────────────────────────────────────────────
+  const bulkSkipMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const res = await apiFetch("POST", "/api/marketplace/pending-outreach/bulk-skip", { ids });
+      return res.json() as Promise<{ count: number; updatedIds: string[] }>;
+    },
+    onSuccess: (data) => {
+      setSelectedIds(new Set());
+      invalidateAll();
+      toast({ title: `${data.count} record${data.count !== 1 ? "s" : ""} skipped` });
+    },
+    onError: (e: unknown) => {
+      const msg = e instanceof ApiError
+        ? ((e.body.message as string | undefined) ?? `Error ${e.status}`)
+        : e instanceof Error ? e.message : "Unknown error";
+      toast({ title: "Bulk skip failed", description: msg, variant: "destructive" });
+    },
+  });
+
+  // ── Bulk Approve mutation ─────────────────────────────────────────────────
+  const bulkApproveMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const res = await apiFetch("POST", "/api/marketplace/pending-outreach/bulk-approve-match", { ids });
+      return res.json() as Promise<{ count: number; updatedIds: string[] }>;
+    },
+    onSuccess: (data) => {
+      setSelectedIds(new Set());
+      invalidateAll();
+      toast({ title: `${data.count} record${data.count !== 1 ? "s" : ""} approved` });
+    },
+    onError: (e: unknown) => {
+      const msg = e instanceof ApiError
+        ? ((e.body.message as string | undefined) ?? `Error ${e.status}`)
+        : e instanceof Error ? e.message : "Unknown error";
+      toast({ title: "Bulk approve failed", description: msg, variant: "destructive" });
+    },
+  });
+
+  // ── Bulk action selection helpers ─────────────────────────────────────────
+  const BULK_SKIP_ELIGIBLE_STATUSES = [
+    "ready_to_message", "awaiting_reply", "reply_received", "manual_review_required",
+  ];
+
+  const allCurrentPageSelected =
+    items.length > 0 && items.every((item) => selectedIds.has(item.id));
+  const someCurrentPageSelected =
+    items.some((item) => selectedIds.has(item.id)) && !allCurrentPageSelected;
+
+  const toggleSelectAll = () => {
+    if (allCurrentPageSelected) {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        items.forEach((item) => next.delete(item.id));
+        return next;
+      });
+    } else {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        items.forEach((item) => next.add(item.id));
+        return next;
+      });
+    }
+  };
+
+  const toggleSelectRow = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const handleBulkSkip = () => {
+    const selectedRecords = items.filter((item) => selectedIds.has(item.id));
+    const ineligible = selectedRecords.filter(
+      (r) => !BULK_SKIP_ELIGIBLE_STATUSES.includes(r.messageStatus)
+    );
+    if (ineligible.length > 0) {
+      toast({
+        title: "Cannot bulk skip",
+        description: `${ineligible.length} record(s) are not eligible for skipping (${[...new Set(ineligible.map((r) => r.messageStatus))].join(", ")}).`,
+        variant: "destructive",
+      });
+      return;
+    }
+    bulkSkipMutation.mutate([...selectedIds]);
+  };
+
+  const handleBulkApprove = () => {
+    const selectedRecords = items.filter((item) => selectedIds.has(item.id));
+    const ineligible = selectedRecords.filter(
+      (r) => r.messageStatus !== "manual_review_required"
+    );
+    if (ineligible.length > 0) {
+      toast({
+        title: "Cannot bulk approve",
+        description: `${ineligible.length} record(s) are not in "Manual Review" status (${[...new Set(ineligible.map((r) => r.messageStatus))].join(", ")}).`,
+        variant: "destructive",
+      });
+      return;
+    }
+    bulkApproveMutation.mutate([...selectedIds]);
+  };
+
   const handleCardClick = (status: OutreachStatus) => {
     setStatusFilter(statusFilter === status ? "" : status);
   };
@@ -537,6 +651,52 @@ export default function MarketplacePendingOutreachPage() {
         </p>
       )}
 
+      {/* Bulk action bar — visible when 1+ rows selected */}
+      {selectedIds.size > 0 && (
+        <div
+          className="flex flex-wrap items-center gap-3 px-4 py-2.5 rounded-lg border border-violet-200 bg-violet-50 dark:border-violet-800/50 dark:bg-violet-950/20"
+          data-testid="bulk-action-bar"
+        >
+          <span
+            className="text-sm font-medium text-violet-700 dark:text-violet-300"
+            data-testid="text-bulk-selected-count"
+          >
+            {selectedIds.size} record{selectedIds.size !== 1 ? "s" : ""} selected
+          </span>
+          <div className="flex items-center gap-2 ml-auto">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleBulkSkip}
+              disabled={bulkSkipMutation.isPending || bulkApproveMutation.isPending}
+              data-testid="button-bulk-skip"
+            >
+              <SkipForward className="w-3.5 h-3.5 mr-1.5" />
+              Skip ({selectedIds.size})
+            </Button>
+            <Button
+              size="sm"
+              className="bg-green-600 hover:bg-green-700 text-white"
+              onClick={handleBulkApprove}
+              disabled={bulkSkipMutation.isPending || bulkApproveMutation.isPending}
+              data-testid="button-bulk-approve"
+            >
+              <ThumbsUp className="w-3.5 h-3.5 mr-1.5" />
+              Approve Match ({selectedIds.size})
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setSelectedIds(new Set())}
+              data-testid="button-clear-selection"
+            >
+              <X className="w-3.5 h-3.5 mr-1" />
+              Clear
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Table */}
       {isLoading ? (
         <div className="space-y-2">
@@ -575,6 +735,16 @@ export default function MarketplacePendingOutreachPage() {
             <table className="w-full text-sm" data-testid="table-outreach">
               <thead>
                 <tr className="border-b border-border bg-gray-50 dark:bg-gray-800/60">
+                  <th className="px-3 py-2.5 w-8" onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={allCurrentPageSelected}
+                      data-state={someCurrentPageSelected ? "indeterminate" : allCurrentPageSelected ? "checked" : "unchecked"}
+                      onCheckedChange={toggleSelectAll}
+                      aria-label="Select all on this page"
+                      data-testid="checkbox-select-all"
+                      className={someCurrentPageSelected ? "data-[state=unchecked]:bg-violet-200/60" : ""}
+                    />
+                  </th>
                   <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Seller Name</th>
                   <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Listing Title</th>
                   <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">City / State</th>
@@ -589,6 +759,7 @@ export default function MarketplacePendingOutreachPage() {
               <tbody>
                 {items.map((record) => {
                   const isSelected = selectedId === record.id;
+                  const isChecked  = selectedIds.has(record.id);
                   const phone = getDisplayPhone(record);
                   return (
                     <tr
@@ -602,6 +773,18 @@ export default function MarketplacePendingOutreachPage() {
                           : "hover:bg-gray-50 dark:hover:bg-gray-800/40"
                       )}
                     >
+                      <td
+                        className="px-3 py-2 w-8"
+                        onClick={(e) => { e.stopPropagation(); toggleSelectRow(record.id); }}
+                      >
+                        <Checkbox
+                          checked={isChecked}
+                          aria-label={`Select ${record.sellerFullName}`}
+                          data-testid={`checkbox-row-${record.id}`}
+                          onCheckedChange={() => toggleSelectRow(record.id)}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </td>
                       <td className="px-3 py-2 font-medium whitespace-nowrap max-w-[140px] truncate">
                         {record.sellerFullName}
                       </td>

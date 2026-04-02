@@ -1,0 +1,193 @@
+MODE: Build Code Optimization
+BUILD LOCATION: Viva
+
+Task:
+Add the first bulk actions workflow to
+/admin/marketplace for Marketplace pending outreach
+records.
+
+Goal:
+Speed up admin review by allowing multi-select and safe
+bulk actions on the Marketplace admin page.
+
+Important:
+Keep this phase narrow and safe.
+Do NOT add bulk convert yet.
+Do NOT add bulk assignment.
+Do NOT change extension code.
+Do NOT redesign the page.
+Start with only the lowest-risk bulk actions.
+
+Bulk actions to build in this phase:
+- row checkboxes
+- select all on current page
+- clear selection
+- bulk skip
+- bulk approve match
+
+Do NOT build:
+- bulk convert to CRM
+- bulk reject
+- cross-page select-all
+- saved selections
+- background jobs
+
+Why this scope:
+- bulk skip is safe and useful
+- bulk approve is useful for obvious manual-review cases
+- bulk convert is higher risk and should wait
+
+Required behavior:
+
+1. Selection UI
+On /admin/marketplace add:
+- checkbox column on each table row
+- header checkbox for select all on current page
+- selected count indicator
+- clear selection action
+
+Selection rules:
+- selection is page-local only
+- changing filters or pagination clears selection
+- refresh after mutations clears selection
+- no hidden cross-page selection state
+
+2. Bulk action bar
+Show a bulk action bar only when 1+ rows are selected.
+
+Show:
+- selected count
+- Bulk Skip button
+- Bulk Approve Match button
+- Clear Selection button
+
+Keep this bar simple and obvious.
+
+3. Eligibility rules
+Bulk Skip:
+Allowed only for records currently in:
+- ready_to_message
+- awaiting_reply
+- reply_received
+- manual_review_required
+
+Blocked for:
+- converted
+- skipped
+
+Bulk Approve Match:
+Allowed only for:
+- manual_review_required
+
+Blocked for:
+- ready_to_message
+- awaiting_reply
+- reply_received
+- converted
+- skipped
+
+Important:
+The UI should either:
+- automatically operate only on eligible selected rows and
+  report skipped ineligible rows
+or
+- block mixed-status selections with a clear message
+
+Preferred for MVP:
+block mixed/ineligible selections with a clear message,
+because it is safer and easier to reason about.
+
+4. Backend support
+Add the minimum backend support needed.
+
+Preferred:
+dedicated bulk routes, admin/developer only:
+
+POST /api/marketplace/pending-outreach/bulk-skip
+POST /api/marketplace/pending-outreach/bulk-approve-match
+
+Request body:
+{
+  "ids": ["id1", "id2", "id3"]
+}
+
+Behavior:
+- validate ids as non-empty array of strings
+- fetch all records
+- verify all requested ids exist
+- verify all selected records are eligible for the action
+- if any selected record is ineligible, return 400 with a
+  clear explanation and do not partially mutate
+- otherwise apply the action to all selected ids
+- return summary response
+
+Suggested response shape:
+{
+  "updatedIds": [...],
+  "count": 3,
+  "newStatus": "skipped"
+}
+
+For bulk approve:
+- use the same core logic as single approve-match
+- resulting status = reply_received
+- clear manualReviewReason as the single-record action does
+
+5. Auth rules
+Bulk routes must be restricted to:
+- admin
+- developer
+
+Do NOT expose bulk routes to lead_gen or sales_rep.
+
+6. UI refresh behavior
+After successful bulk action:
+- clear selection
+- refresh table query
+- refresh summary counts
+- if a selected record was open in the detail drawer,
+  refresh or close it cleanly so no stale action state
+  remains
+
+7. Error handling
+Handle clearly:
+- 400 ineligible selection
+- 404 missing record(s)
+- auth failure
+- backend/network failure
+
+Show a clear toast or inline error.
+Do not fail silently.
+
+8. Guardrails
+- no bulk convert
+- no bulk reject
+- no assignment work
+- no schema changes unless absolutely necessary
+- no extension changes
+- no page redesign
+
+Implementation notes:
+Reuse existing single-record skip and approve behavior as
+the source of truth.
+Do not duplicate business rules in a different way for
+bulk actions.
+
+Deliverables:
+1. exact files changed
+2. exact new backend routes
+3. exact status eligibility rules
+4. exact UI added to the admin page
+5. exact success/error behavior
+6. short manual testing checklist
+
+Manual testing checklist should include:
+- select one row
+- select all on current page
+- clear selection
+- bulk skip on eligible rows
+- bulk approve on manual_review_required rows
+- mixed/ineligible selection blocked clearly
+- selection clears after success
+- summary counts refresh
+- no regression in single-row skip/approve/convert flows

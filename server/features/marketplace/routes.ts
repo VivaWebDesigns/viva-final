@@ -559,6 +559,86 @@ router.get(
   }
 );
 
+// ─── Bulk action schemas ────────────────────────────────────────────────────
+
+const bulkIdsSchema = z.object({
+  ids: z.array(z.string().uuid()).min(1).max(100),
+}).strict();
+
+const BULK_SKIP_ELIGIBLE = [
+  "ready_to_message", "awaiting_reply", "reply_received", "manual_review_required",
+] as const;
+
+// ─── Bulk Skip ──────────────────────────────────────────────────────────────
+
+router.post(
+  "/pending-outreach/bulk-skip",
+  requireRole("admin", "developer"),
+  async (req, res) => {
+    const parsed = bulkIdsSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Invalid input", errors: parsed.error.flatten() });
+    }
+    const { ids } = parsed.data;
+
+    const records = await marketplaceStorage.getManyPendingOutreachByIds(ids);
+
+    if (records.length !== ids.length) {
+      const foundIds = new Set(records.map(r => r.id));
+      const missing  = ids.filter(id => !foundIds.has(id));
+      return res.status(404).json({ message: `Records not found: ${missing.join(", ")}` });
+    }
+
+    const ineligible = records.filter(
+      r => !(BULK_SKIP_ELIGIBLE as readonly string[]).includes(r.messageStatus)
+    );
+    if (ineligible.length > 0) {
+      return res.status(400).json({
+        message: `${ineligible.length} selected record(s) cannot be skipped. Only ready_to_message, awaiting_reply, reply_received, and manual_review_required records may be skipped. Ineligible: ${ineligible.map(r => r.sellerFullName).join(", ")}.`,
+        ineligibleIds:      ineligible.map(r => r.id),
+        ineligibleStatuses: [...new Set(ineligible.map(r => r.messageStatus))],
+      });
+    }
+
+    const result = await marketplaceStorage.bulkSkipPendingOutreach(ids);
+    return res.json(result);
+  }
+);
+
+// ─── Bulk Approve Match ─────────────────────────────────────────────────────
+
+router.post(
+  "/pending-outreach/bulk-approve-match",
+  requireRole("admin", "developer"),
+  async (req, res) => {
+    const parsed = bulkIdsSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Invalid input", errors: parsed.error.flatten() });
+    }
+    const { ids } = parsed.data;
+
+    const records = await marketplaceStorage.getManyPendingOutreachByIds(ids);
+
+    if (records.length !== ids.length) {
+      const foundIds = new Set(records.map(r => r.id));
+      const missing  = ids.filter(id => !foundIds.has(id));
+      return res.status(404).json({ message: `Records not found: ${missing.join(", ")}` });
+    }
+
+    const ineligible = records.filter(r => r.messageStatus !== "manual_review_required");
+    if (ineligible.length > 0) {
+      return res.status(400).json({
+        message: `${ineligible.length} selected record(s) cannot be approved. Only manual_review_required records may be approved. Ineligible: ${ineligible.map(r => r.sellerFullName).join(", ")}.`,
+        ineligibleIds:      ineligible.map(r => r.id),
+        ineligibleStatuses: [...new Set(ineligible.map(r => r.messageStatus))],
+      });
+    }
+
+    const result = await marketplaceStorage.bulkApprovePendingOutreach(ids);
+    return res.json(result);
+  }
+);
+
 router.get(
   "/pending-outreach/:id",
   botOrRole,
