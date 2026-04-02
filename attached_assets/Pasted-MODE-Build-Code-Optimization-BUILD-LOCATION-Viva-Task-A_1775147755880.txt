@@ -1,0 +1,178 @@
+MODE: Build Code Optimization
+BUILD LOCATION: Viva
+
+Task:
+Add the first manual CRM conversion route for Marketplace
+pending outreach records that already reached either
+reply_received or manual_review_required.
+
+Goal:
+Allow a human operator to convert a qualified pending
+outreach record into a normal CRM lead manually.
+
+Important:
+This is still a human-controlled workflow.
+Do NOT add automatic CRM conversion.
+Do NOT add queue pages yet.
+Do NOT add Messenger scraping.
+Do NOT add extension-side conversion logic.
+Do NOT auto-convert on reply capture.
+Only create a backend route and storage logic.
+
+Required behavior:
+
+1. Eligible statuses
+Only allow conversion when marketplacePendingOutreach
+messageStatus is one of:
+- reply_received
+- manual_review_required
+
+Block conversion for:
+- ready_to_message
+- awaiting_reply
+- skipped
+- converted
+
+Return 400 with a clear message if status is not eligible.
+
+2. New route
+Add:
+
+POST /api/marketplace/pending-outreach/:id/convert-to-crm
+
+Use existing botOrRole auth.
+
+Request body should support:
+
+{
+  "assignedTo": "<optional user id>",
+  "overrideFirstName": "<optional>",
+  "overrideLastName": "<optional>",
+  "overrideBusinessName": "<optional>",
+  "overrideTrade": "<optional>",
+  "overrideCity": "<optional>",
+  "overrideState": "<optional>"
+}
+
+All override fields are optional.
+
+3. Conversion source values
+Lead source should always be:
+- source = "outreach"
+
+sellerProfileUrl should come from the pending outreach
+record.
+
+adUrl should come from the pending outreach record.
+
+Phone number should come from:
+- replyPhoneNormalized if present
+- otherwise extractedPhone if parseable
+- otherwise blank/null
+
+4. Name mapping
+Default behavior:
+- split sellerFullName into first/last name
+- if only one word exists, store first name only
+- override fields win if supplied
+
+Examples:
+"Carlos Rivera" -> Carlos / Rivera
+"Maria Del Carmen Lopez" -> Maria / Del Carmen Lopez
+"Rosa" -> Rosa / null
+
+5. Duplicate protection
+Before creating the CRM lead, run the same existing
+manual lead duplicate checks already used elsewhere.
+
+Use:
+- phone
+- first name + last name + state
+- business name + state
+- sellerProfileUrl if source = outreach
+
+If a duplicate is found:
+- return 409
+- do not create CRM lead
+- do not mark record converted
+- return duplicate summary exactly like manual lead flow
+
+6. CRM lead creation
+Create a normal crm_leads record using existing lead
+creation helpers/patterns.
+
+Populate when available:
+- firstName
+- lastName
+- businessName
+- city
+- state
+- trade
+- phone
+- source = outreach
+- sellerProfileUrl
+- adUrl
+- assignedTo
+- notes field containing a Marketplace snapshot
+
+Notes snapshot format:
+
+Marketplace Outreach Snapshot
+
+Seller Name: [sellerFullName]
+Listing Title: [listingTitleRaw]
+Seller Profile URL: [sellerProfileUrl]
+Listing URL: [listingUrl]
+Reply Text: [lastReplyText]
+Extracted Phone: [replyPhoneNormalized or extractedPhone]
+Facebook Join Year: [facebookJoinYear]
+
+Only include lines with values.
+
+7. Pending outreach update after success
+After CRM lead creation succeeds:
+- crmLeadId populated on marketplacePendingOutreach
+- messageStatus changed to converted
+- convertedAt timestamp set if field already exists
+- do not allow future conversion attempts
+
+8. Response shape
+Return HTTP 201 with:
+
+{
+  "pendingOutreachId": "...",
+  "crmLeadId": "...",
+  "messageStatus": "converted",
+  "lead": { ... }
+}
+
+9. Safety requirements
+Do not modify existing reply capture logic
+Do not modify extension behavior
+Do not add automatic assignment logic
+Do not add queue pages
+Do not add notifications
+Do not add task automation changes unless they already
+naturally happen through existing lead creation flow
+
+Deliverables:
+1. exact files changed
+2. exact new route added
+3. exact duplicate logic used
+4. exact CRM fields populated
+5. exact pending outreach fields updated
+6. example success response
+7. example duplicate 409 response
+8. manual testing checklist
+
+Manual testing checklist should include:
+- reply_received converts successfully
+- manual_review_required converts successfully
+- awaiting_reply blocked
+- converted blocked
+- duplicate phone blocked
+- duplicate sellerProfileUrl blocked
+- override fields replace default values
+- crmLeadId written back
+- messageStatus changes to converted
+- second conversion attempt blocked

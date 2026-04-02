@@ -20,11 +20,14 @@ import {
   extractPhoneFromText,
   normalizePhone,
 } from "./captureReplyHelpers";
+import { normalizePhoneDigits } from "@shared/phone";
 import * as crmStorage from "../crm/storage";
 import * as pipelineStorage from "../pipeline/storage";
 import * as marketplaceStorage from "./storage";
 import { logAudit } from "../audit/service";
 import { executeStageAutomations } from "../automations/trigger";
+
+const DEFAULT_SALES_REP_ID = "o3UuGD02vDKCBSusAGK6O9A2RzfI3uhE";
 
 const router = Router();
 
@@ -685,6 +688,231 @@ router.post(
     });
 
     return res.json(updated);
+  }
+);
+
+// ─── Helper: split "First Rest Of Name" → { firstName, lastName } ─────────
+function splitSellerName(fullName: string): { firstName: string; lastName: string | null } {
+  const parts = fullName.trim().split(/\s+/);
+  const firstName = parts[0] ?? "";
+  const lastName  = parts.length > 1 ? parts.slice(1).join(" ") : null;
+  return { firstName, lastName };
+}
+
+// ─── Helper: build Marketplace snapshot note ─────────────────────────────
+function buildOutreachSnapshot(record: {
+  sellerFullName: string;
+  listingTitleRaw: string | null;
+  sellerProfileUrl: string;
+  listingUrl: string | null;
+  lastReplyText: string | null;
+  replyPhoneNormalized: string | null;
+  extractedPhone: string | null;
+  facebookJoinYear: number | null;
+}): string {
+  const lines: string[] = ["Marketplace Outreach Snapshot", ""];
+  const add = (label: string, val: string | number | null | undefined) => {
+    if (val !== null && val !== undefined && String(val).trim() !== "") {
+      lines.push(`${label}: ${val}`);
+    }
+  };
+  add("Seller Name",        record.sellerFullName);
+  add("Listing Title",      record.listingTitleRaw);
+  add("Seller Profile URL", record.sellerProfileUrl);
+  add("Listing URL",        record.listingUrl);
+  add("Reply Text",         record.lastReplyText);
+  add("Extracted Phone",    record.replyPhoneNormalized ?? record.extractedPhone);
+  add("Facebook Join Year", record.facebookJoinYear);
+  return lines.join("\n");
+}
+
+const convertToCrmSchema = z.object({
+  assignedTo:            z.string().optional(),
+  overrideFirstName:     z.string().optional(),
+  overrideLastName:      z.string().optional(),
+  overrideBusinessName:  z.string().optional(),
+  overrideTrade:         z.string().optional(),
+  overrideCity:          z.string().optional(),
+  overrideState:         z.string().optional(),
+}).strict();
+
+const ELIGIBLE_FOR_CONVERSION = ["reply_received", "manual_review_required"] as const;
+
+router.post(
+  "/pending-outreach/:id/convert-to-crm",
+  botOrRole,
+  async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+
+    const record = await marketplaceStorage.getPendingOutreachById(id);
+    if (!record) {
+      return res.status(404).json({ message: "Pending outreach record not found." });
+    }
+
+    if (record.messageStatus === "converted") {
+      return res.status(400).json({
+        message: "This record has already been converted to a CRM lead.",
+        currentStatus: record.messageStatus,
+        crmLeadId: record.crmLeadId,
+      });
+    }
+
+    if (!(ELIGIBLE_FOR_CONVERSION as readonly string[]).includes(record.messageStatus)) {
+      return res.status(400).json({
+        message: `Cannot convert: record status is "${record.messageStatus}". Only reply_received or manual_review_required records may be converted.`,
+        currentStatus: record.messageStatus,
+      });
+    }
+
+    const parsed = convertToCrmSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Invalid input", errors: parsed.error.flatten() });
+    }
+    const opts = parsed.data;
+
+    // ── Name resolution ───────────────────────────────────────────────────
+    const { firstName: defaultFirst, lastName: defaultLast } = splitSellerName(record.sellerFullName);
+    const firstName    = opts.overrideFirstName   ?? defaultFirst;
+    const lastName     = opts.overrideLastName    ?? defaultLast;
+    const businessName = opts.overrideBusinessName ?? null;
+    const trade        = opts.overrideTrade        ?? record.tradeGuess ?? null;
+    const city         = opts.overrideCity         ?? record.city       ?? null;
+    const state        = opts.overrideState        ?? record.state      ?? null;
+
+    // ── Phone resolution ──────────────────────────────────────────────────
+    const rawPhone        = record.replyPhoneNormalized ?? record.extractedPhone ?? null;
+    const normalizedPhone = rawPhone ? normalizePhoneDigits(rawPhone) : "";
+
+    // ── Assignee ──────────────────────────────────────────────────────────
+    const resolvedAssignee = opts.assignedTo ?? req.authUser?.id ?? DEFAULT_SALES_REP_ID;
+
+    // ── Duplicate check ───────────────────────────────────────────────────
+    const dupCheck = await crmStorage.checkManualLeadDuplicate({
+      normalizedPhone,
+      firstName,
+      lastName:         lastName ?? "",
+      businessName:     businessName ?? undefined,
+      state:            state ?? "",
+      source:           "outreach",
+      sellerProfileUrl: record.sellerProfileUrl,
+    });
+    if (dupCheck.isDuplicate) {
+      return res.status(409).json({ code: "DUPLICATE_LEAD", match: dupCheck.match });
+    }
+
+    // ── Contact: find or create ───────────────────────────────────────────
+    let contact = normalizedPhone
+      ? await crmStorage.findContactByPhone(normalizedPhone)
+      : null;
+    if (!contact) {
+      contact = await crmStorage.createContact({
+        firstName,
+        lastName: lastName ?? null,
+        phone:    normalizedPhone || null,
+        email:    null,
+        notes:    null,
+        isPrimary: true,
+        preferredLanguage: null,
+      });
+    }
+
+    // ── Company: find or create ───────────────────────────────────────────
+    const fullDisplayName = lastName ? `${firstName} ${lastName}`.trim() : firstName;
+    const companyName     = businessName?.trim() || fullDisplayName;
+    let company = await crmStorage.findCompanyByName(companyName);
+    if (!company) {
+      company = await crmStorage.createCompany({
+        name:     companyName,
+        industry: trade ?? undefined,
+        website:  null,
+        phone:    normalizedPhone || null,
+        email:    null,
+      });
+    }
+    const companyId = company.id;
+    if (!contact.companyId) {
+      await crmStorage.updateContact(contact.id, { companyId });
+    }
+
+    // ── Default CRM status ────────────────────────────────────────────────
+    const defaultStatus =
+      (await crmStorage.getDefaultLeadStatus()) ??
+      (await crmStorage.getLeadStatusBySlug("new"));
+
+    // ── Lead title & notes ────────────────────────────────────────────────
+    const leadTitle = businessName?.trim()
+      ? `${businessName.trim()} – ${fullDisplayName}`
+      : fullDisplayName;
+
+    const notes = buildOutreachSnapshot(record);
+
+    // ── Create CRM lead ───────────────────────────────────────────────────
+    const lead = await crmStorage.createLead({
+      title:            leadTitle,
+      companyId,
+      contactId:        contact.id,
+      statusId:         defaultStatus?.id ?? null,
+      source:           "outreach",
+      sourceLabel:      "Outreach",
+      notes,
+      fromWebsiteForm:  false,
+      city:             city ?? null,
+      state:            state ?? null,
+      timezone:         null,
+      assignedTo:       resolvedAssignee,
+      sellerProfileUrl: record.sellerProfileUrl,
+      adUrl:            record.listingUrl ?? null,
+    });
+
+    // ── Pipeline opportunity ──────────────────────────────────────────────
+    const newLeadStage = await pipelineStorage.getStageBySlug("new-lead");
+    if (newLeadStage) {
+      const opp = await pipelineStorage.createOpportunity({
+        title:           leadTitle,
+        leadId:          lead.id,
+        companyId,
+        contactId:       contact.id,
+        stageId:         newLeadStage.id,
+        status:          "open",
+        sourceLeadTitle: leadTitle,
+        notes,
+        assignedTo:      resolvedAssignee,
+      });
+      executeStageAutomations({
+        opportunityId: opp.id,
+        leadId:        lead.id,
+        contactId:     contact.id,
+        companyId,
+        assignedTo:    resolvedAssignee,
+        stageSlug:     "new-lead",
+        actorId:       resolvedAssignee,
+      }).catch((err: unknown) => {
+        console.error("[marketplace/convert-to-crm] executeStageAutomations failed:", err);
+      });
+    }
+
+    // ── Mark pending outreach as converted ────────────────────────────────
+    const convertedRecord = await marketplaceStorage.updatePendingOutreach(id, {
+      crmLeadId:     lead.id,
+      messageStatus: "converted",
+      convertedAt:   new Date(),
+    });
+
+    await logAudit({
+      userId:    req.authUser?.id,
+      action:    "create",
+      entity:    "crm_lead",
+      entityId:  lead.id,
+      metadata:  { title: lead.title, source: "marketplace_outreach", pendingOutreachId: id },
+      ipAddress: req.ip,
+    });
+
+    return res.status(201).json({
+      pendingOutreachId: id,
+      crmLeadId:         lead.id,
+      messageStatus:     "converted",
+      lead,
+    });
   }
 );
 
