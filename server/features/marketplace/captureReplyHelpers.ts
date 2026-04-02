@@ -32,6 +32,14 @@ export function scoreCaptureMatch(
   if (
     incoming.threadIdentifier &&
     stored.threadIdentifier &&
+    incoming.threadIdentifier !== stored.threadIdentifier
+  ) {
+    return LOW;
+  }
+
+  if (
+    incoming.threadIdentifier &&
+    stored.threadIdentifier &&
     incoming.threadIdentifier === stored.threadIdentifier
   ) {
     return { confidence: "high", method: "thread_id" };

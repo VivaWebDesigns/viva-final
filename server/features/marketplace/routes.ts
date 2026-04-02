@@ -607,8 +607,11 @@ const captureReplySchema = z.object({
   replyReceivedAt:      z.string().datetime().optional(),
 }).strict();
 
-const BLOCKED_FOR_CAPTURE_REPLY: string[] = ["skipped", "converted"];
-const NOT_YET_SENT: string[] = ["ready_to_message"];
+const ALLOWED_FOR_CAPTURE_REPLY: string[] = [
+  "awaiting_reply",
+  "manual_review_required",
+  "reply_received",
+];
 
 router.post(
   "/pending-outreach/:id/capture-reply",
@@ -626,18 +629,11 @@ router.post(
       return res.status(404).json({ message: "Not found" });
     }
 
-    if (NOT_YET_SENT.includes(record.messageStatus)) {
-      return res.status(400).json({
-        message: "Cannot capture reply: outreach has not been marked as sent yet.",
-        currentStatus: record.messageStatus,
-      });
-    }
-
-    if (BLOCKED_FOR_CAPTURE_REPLY.includes(record.messageStatus)) {
-      return res.status(400).json({
-        message: `Cannot capture reply: record is already ${record.messageStatus}`,
-        currentStatus: record.messageStatus,
-      });
+    if (!ALLOWED_FOR_CAPTURE_REPLY.includes(record.messageStatus)) {
+      const message = record.messageStatus === "ready_to_message"
+        ? "Cannot capture reply: outreach has not been marked as sent yet."
+        : `Cannot capture reply: record is already ${record.messageStatus}`;
+      return res.status(400).json({ message, currentStatus: record.messageStatus });
     }
 
     const d = parsed.data;
