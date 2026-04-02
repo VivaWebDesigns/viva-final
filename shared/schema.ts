@@ -1057,3 +1057,67 @@ export const insertAutomationExecutionLogSchema = createInsertSchema(automationE
 // @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
 export type InsertAutomationExecutionLog = z.infer<typeof insertAutomationExecutionLogSchema>;
 export type AutomationExecutionLog = typeof automationExecutionLogs.$inferSelect;
+
+// ─── Marketplace Pending Outreach ─────────────────────────────────────
+
+export const MARKETPLACE_PENDING_OUTREACH_STATUSES = [
+  "ready_to_message",
+  "message_sent",
+  "awaiting_reply",
+  "converted",
+  "skipped",
+  "manual_review_required",
+] as const;
+export type MarketplacePendingOutreachStatus = typeof MARKETPLACE_PENDING_OUTREACH_STATUSES[number];
+
+const NON_TERMINAL_STATUSES: MarketplacePendingOutreachStatus[] = [
+  "ready_to_message",
+  "message_sent",
+  "awaiting_reply",
+  "manual_review_required",
+];
+export { NON_TERMINAL_STATUSES as MARKETPLACE_PENDING_OUTREACH_NON_TERMINAL_STATUSES };
+
+export const marketplacePendingOutreach = pgTable("marketplace_pending_outreach", {
+  id:                     varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sellerFullName:         text("seller_full_name").notNull(),
+  sellerFirstName:        text("seller_first_name"),
+  sellerProfileUrl:       text("seller_profile_url").notNull(),
+  listingUrl:             text("listing_url"),
+  listingTitleRaw:        text("listing_title_raw"),
+  listingTitleNormalized: text("listing_title_normalized"),
+  city:                   text("city"),
+  state:                  text("state"),
+  tradeGuess:             text("trade_guess"),
+  facebookJoinYear:       integer("facebook_join_year"),
+  nameScore:              integer("name_score").notNull(),
+  precheckPassed:         boolean("precheck_passed").notNull(),
+  precheckReason:         text("precheck_reason"),
+  messageStatus:          text("message_status").notNull().default("ready_to_message"),
+  outreachMessage:        text("outreach_message"),
+  outreachSentAt:         timestamp("outreach_sent_at"),
+  replyReceivedAt:        timestamp("reply_received_at"),
+  extractedPhone:         text("extracted_phone"),
+  threadIdentifier:       text("thread_identifier"),
+  crmLeadId:              varchar("crm_lead_id").references(() => crmLeads.id),
+  convertedAt:            timestamp("converted_at"),
+  createdBy:              text("created_by").references(() => user.id),
+  createdAt:              timestamp("created_at").defaultNow().notNull(),
+  updatedAt:              timestamp("updated_at").defaultNow().notNull(),
+}, (t) => [
+  index("mpo_seller_profile_url_idx").on(t.sellerProfileUrl),
+  index("mpo_message_status_idx").on(t.messageStatus),
+  index("mpo_created_at_idx").on(t.createdAt),
+  index("mpo_crm_lead_id_idx").on(t.crmLeadId),
+]);
+
+export const insertMarketplacePendingOutreachSchema = createInsertSchema(marketplacePendingOutreach).omit({
+  id: true,
+  sellerFirstName: true,
+  listingTitleNormalized: true,
+  createdAt: true,
+  updatedAt: true,
+});
+// @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
+export type InsertMarketplacePendingOutreach = z.infer<typeof insertMarketplacePendingOutreachSchema>;
+export type MarketplacePendingOutreach = typeof marketplacePendingOutreach.$inferSelect;

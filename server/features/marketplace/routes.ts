@@ -11,11 +11,13 @@ import {
   pipelineOpportunities,
   pipelineStages,
   user,
+  MARKETPLACE_PENDING_OUTREACH_STATUSES,
 } from "@shared/schema";
 import { eq, and, desc, sql, ilike } from "drizzle-orm";
 import { scoreHispanicName } from "./nameScore";
 import * as crmStorage from "../crm/storage";
 import * as pipelineStorage from "../pipeline/storage";
+import * as marketplaceStorage from "./storage";
 import { logAudit } from "../audit/service";
 import { executeStageAutomations } from "../automations/trigger";
 
@@ -418,6 +420,135 @@ router.post(
     });
 
     return res.status(201).json({ leadId: lead.id, lead });
+  }
+);
+
+// ─── Pending Outreach routes ───────────────────────────────────────────────
+// All three routes share the same auth middleware: MARKETPLACE_BOT_SECRET
+// bearer bypass, then fall back to requireRole("admin","developer","lead_gen").
+
+function botOrRole(req: any, res: any, next: any) {
+  const botSecret = process.env.MARKETPLACE_BOT_SECRET;
+  if (botSecret) {
+    const authHeader = req.headers.authorization ?? "";
+    if (authHeader === `Bearer ${botSecret}`) return next();
+  }
+  return requireRole("admin", "developer", "lead_gen")(req, res, next);
+}
+
+const createPendingOutreachSchema = z.object({
+  sellerFullName:   z.string().trim().min(1),
+  sellerProfileUrl: z.string().url(),
+  listingUrl:       z.string().url().optional(),
+  listingTitleRaw:  z.string().optional(),
+  city:             z.string().optional(),
+  state:            z.string().length(2).optional(),
+  tradeGuess:       z.string().optional(),
+  facebookJoinYear: z.number().int().optional(),
+  nameScore:        z.number().int().min(0).max(100),
+  precheckPassed:   z.boolean(),
+  precheckReason:   z.string().optional(),
+  outreachMessage:  z.string().optional(),
+});
+
+const patchPendingOutreachSchema = z.object({
+  messageStatus:    z.enum(MARKETPLACE_PENDING_OUTREACH_STATUSES).optional(),
+  outreachMessage:  z.string().optional(),
+  outreachSentAt:   z.string().datetime().optional(),
+  replyReceivedAt:  z.string().datetime().optional(),
+  extractedPhone:   z.string().optional(),
+  threadIdentifier: z.string().optional(),
+  crmLeadId:        z.string().optional(),
+  convertedAt:      z.string().datetime().optional(),
+});
+
+router.post(
+  "/pending-outreach",
+  botOrRole,
+  async (req, res) => {
+    const parsed = createPendingOutreachSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Invalid input", errors: parsed.error.flatten() });
+    }
+
+    const d = parsed.data;
+    const normalizedSellerUrl = normalizeSellerUrl(d.sellerProfileUrl);
+    const normalizedListingUrl = d.listingUrl ? normalizeSellerUrl(d.listingUrl) : undefined;
+    const listingTitleNormalized = d.listingTitleRaw ? d.listingTitleRaw.trim().toLowerCase() : undefined;
+
+    const { firstName: derivedFirstName } = scoreHispanicName(d.sellerFullName);
+
+    const existing = await marketplaceStorage.findActivePendingOutreachBySellerUrl(normalizedSellerUrl);
+    if (existing) {
+      return res.status(409).json({
+        message: "Active pending record already exists",
+        existingId: existing.id,
+      });
+    }
+
+    const createdBy = req.authUser?.id ?? null;
+
+    const record = await marketplaceStorage.createPendingOutreach({
+      sellerFullName:         d.sellerFullName,
+      sellerFirstName:        derivedFirstName || null,
+      sellerProfileUrl:       normalizedSellerUrl,
+      listingUrl:             normalizedListingUrl ?? null,
+      listingTitleRaw:        d.listingTitleRaw ?? null,
+      listingTitleNormalized: listingTitleNormalized ?? null,
+      city:                   d.city ?? null,
+      state:                  d.state ?? null,
+      tradeGuess:             d.tradeGuess ?? null,
+      facebookJoinYear:       d.facebookJoinYear ?? null,
+      nameScore:              d.nameScore,
+      precheckPassed:         d.precheckPassed,
+      precheckReason:         d.precheckReason ?? null,
+      messageStatus:          "ready_to_message",
+      outreachMessage:        d.outreachMessage ?? null,
+      createdBy:              createdBy,
+    });
+
+    return res.status(201).json(record);
+  }
+);
+
+router.get(
+  "/pending-outreach/:id",
+  botOrRole,
+  async (req, res) => {
+    const record = await marketplaceStorage.getPendingOutreachById(req.params.id);
+    if (!record) {
+      return res.status(404).json({ message: "Not found" });
+    }
+    return res.json(record);
+  }
+);
+
+router.patch(
+  "/pending-outreach/:id",
+  botOrRole,
+  async (req, res) => {
+    const parsed = patchPendingOutreachSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Invalid input", errors: parsed.error.flatten() });
+    }
+
+    const d = parsed.data;
+    const updateData: Parameters<typeof marketplaceStorage.updatePendingOutreach>[1] = {
+      ...(d.messageStatus    !== undefined && { messageStatus:    d.messageStatus }),
+      ...(d.outreachMessage  !== undefined && { outreachMessage:  d.outreachMessage }),
+      ...(d.outreachSentAt   !== undefined && { outreachSentAt:   new Date(d.outreachSentAt) }),
+      ...(d.replyReceivedAt  !== undefined && { replyReceivedAt:  new Date(d.replyReceivedAt) }),
+      ...(d.extractedPhone   !== undefined && { extractedPhone:   d.extractedPhone }),
+      ...(d.threadIdentifier !== undefined && { threadIdentifier: d.threadIdentifier }),
+      ...(d.crmLeadId        !== undefined && { crmLeadId:        d.crmLeadId }),
+      ...(d.convertedAt      !== undefined && { convertedAt:      new Date(d.convertedAt) }),
+    };
+
+    const updated = await marketplaceStorage.updatePendingOutreach(req.params.id, updateData);
+    if (!updated) {
+      return res.status(404).json({ message: "Not found" });
+    }
+    return res.json(updated);
   }
 );
 
