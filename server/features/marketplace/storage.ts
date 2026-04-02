@@ -4,7 +4,7 @@ import {
   MARKETPLACE_PENDING_OUTREACH_NON_TERMINAL_STATUSES,
   type MarketplacePendingOutreach,
 } from "@shared/schema";
-import { and, eq, inArray, isNotNull, isNull, or, sql, ilike, desc, count } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull, or, ilike, desc, count } from "drizzle-orm";
 
 type InsertMarketplacePendingOutreachFull = typeof marketplacePendingOutreach.$inferInsert;
 
