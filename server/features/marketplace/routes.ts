@@ -449,7 +449,7 @@ const createPendingOutreachSchema = z.object({
   precheckPassed:   z.boolean(),
   precheckReason:   z.string().optional(),
   outreachMessage:  z.string().optional(),
-});
+}).strict();
 
 const patchPendingOutreachSchema = z.object({
   messageStatus:    z.enum(MARKETPLACE_PENDING_OUTREACH_STATUSES).optional(),
