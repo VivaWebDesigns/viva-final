@@ -1,0 +1,259 @@
+MODE: Build Code Optimization
+BUILD LOCATION: Viva
+
+Task:
+Implement Phase 1 of the Marketplace pending outreach
+staging layer inside Viva only.
+
+Goal:
+Create the database table, storage methods, and three
+backend routes for pending Marketplace outreach
+records.
+
+Scope:
+This phase is backend only.
+Do not build any frontend UI.
+Do not build Messenger scraping.
+Do not build auto-conversion to CRM.
+Do not modify existing CRM lead creation behavior.
+Do not change existing precheck or name-score logic
+except to reuse shared normalization helpers if needed.
+
+Important:
+Keep this phase narrow, non-destructive, and aligned
+with existing Viva architecture and patterns.
+
+What to build:
+
+1. Database table
+Add a new table in shared/schema.ts named:
+marketplacePendingOutreach
+
+Follow existing project conventions for:
+- varchar/UUID primary key
+- createdAt / updatedAt timestamps
+- nullable fields
+- exported insert/select types
+- zod insert schema if that is how the current schema
+  layer is structured
+
+Add a status constant:
+MARKETPLACE_PENDING_OUTREACH_STATUSES
+
+Allowed statuses:
+- ready_to_message
+- message_sent
+- awaiting_reply
+- converted
+- skipped
+- manual_review_required
+
+Table fields:
+- id
+- sellerFullName
+- sellerFirstName
+- sellerProfileUrl
+- listingUrl
+- listingTitleRaw
+- listingTitleNormalized
+- city
+- state
+- tradeGuess
+- facebookJoinYear
+- nameScore
+- precheckPassed
+- precheckReason
+- messageStatus
+- outreachMessage
+- outreachSentAt
+- replyReceivedAt
+- extractedPhone
+- threadIdentifier
+- crmLeadId
+- convertedAt
+- createdBy
+- createdAt
+- updatedAt
+
+Field rules:
+- sellerFullName is required
+- sellerFirstName should be stored and derived server-side
+  from sellerFullName on create
+- sellerProfileUrl is required
+- listingUrl is optional
+- listingTitleRaw is optional
+- listingTitleNormalized should be derived server-side from
+  listingTitleRaw
+- state is optional but if present must be 2 characters
+- facebookJoinYear is optional integer
+- nameScore is required integer 0-100
+- precheckPassed is required boolean
+- precheckReason is optional
+- messageStatus should default to ready_to_message if not
+  provided
+- crmLeadId is nullable and only for later conversion phases
+
+Normalization rules:
+- Normalize sellerProfileUrl and listingUrl using the same
+  style as existing Marketplace duplicate logic wherever
+  possible
+- Prefer consistency with current Marketplace URL
+  normalization already used in Viva
+- At minimum: trim and strip trailing slash
+- Only lowercase the full URL if that matches the current
+  existing Marketplace logic
+- listingTitleNormalized should be:
+  lowercase + trimmed version of listingTitleRaw
+- sellerFirstName should be the first token of the trimmed
+  sellerFullName
+
+2. Exported schema/types
+Export everything needed for backend use:
+- insert schema for marketplacePendingOutreach
+- select type
+- insert type
+- status constant
+
+3. Storage module
+Create:
+server/features/marketplace/storage.ts
+
+Export these async functions:
+- createPendingOutreach
+- getPendingOutreachById
+- updatePendingOutreach
+
+Requirements:
+- Follow the same database call style and structure used in
+  server/features/crm/storage.ts
+- Return the full inserted/updated row
+- Return null when a record is not found
+- Keep this module focused only on pending outreach storage
+
+4. Routes
+Extend:
+server/features/marketplace/routes.ts
+
+Add these routes under the Marketplace router:
+
+POST /pending-outreach
+GET /pending-outreach/:id
+PATCH /pending-outreach/:id
+
+Auth rules:
+These routes must use the same auth pattern as /precheck:
+- allow MARKETPLACE_BOT_SECRET bearer token bypass
+- otherwise requireRole("admin", "developer", "lead_gen")
+
+POST /pending-outreach behavior:
+- validate request body with Zod
+- derive sellerFirstName from sellerFullName
+- normalize sellerProfileUrl
+- normalize listingUrl if present
+- derive listingTitleNormalized from listingTitleRaw
+- default messageStatus to ready_to_message if omitted
+- create record
+- return 201 with full record
+
+POST request body:
+- sellerFullName        required string
+- sellerProfileUrl      required string url
+- listingUrl            optional string url
+- listingTitleRaw       optional string
+- city                  optional string
+- state                 optional 2-char string
+- tradeGuess            optional string
+- facebookJoinYear      optional integer
+- nameScore             required integer 0-100
+- precheckPassed        required boolean
+- precheckReason        optional string
+- outreachMessage       optional string
+
+GET /pending-outreach/:id behavior:
+- fetch by id
+- return 200 with full record
+- return 404 with:
+  { "message": "Not found" }
+
+PATCH /pending-outreach/:id behavior:
+- validate partial update body with a PATCH-specific Zod
+  schema
+- only allow these fields to be updated:
+  - messageStatus
+  - outreachMessage
+  - outreachSentAt
+  - replyReceivedAt
+  - extractedPhone
+  - threadIdentifier
+  - crmLeadId
+  - convertedAt
+- do not allow patching identity/source fields such as:
+  sellerFullName, sellerFirstName, sellerProfileUrl,
+  listingUrl, listingTitleRaw, listingTitleNormalized,
+  city, state, tradeGuess, facebookJoinYear, nameScore,
+  precheckPassed, precheckReason, createdBy
+- update record
+- return 200 with full updated record
+- return 404 with:
+  { "message": "Not found" }
+
+PATCH request body:
+all fields optional, any subset of:
+- messageStatus
+- outreachMessage
+- outreachSentAt
+- replyReceivedAt
+- extractedPhone
+- threadIdentifier
+- crmLeadId
+- convertedAt
+
+Datetime handling:
+Accept ISO datetime strings at the API layer and convert
+them to the project’s normal DB timestamp format/pattern.
+
+5. Database push
+Run:
+npm run db:push
+
+Requirement:
+Schema change must apply without errors.
+
+6. Guardrails
+- No frontend changes
+- No admin queue page
+- No CRM lead creation
+- No Messenger automation
+- No changes to existing duplicate logic behavior
+- No changes to existing lead assignment logic
+- Keep this phase isolated
+
+Implementation instructions:
+Before coding, inspect the current Viva codebase and follow
+existing patterns for:
+- schema definitions
+- route organization
+- auth helpers
+- Marketplace route structure
+- storage/db access style
+- insert/update validation
+
+Do not invent a parallel architecture.
+
+At the end, provide:
+1. concise summary of what was built
+2. exact files changed
+3. db push result
+4. any assumptions made
+5. exact API request/response shapes
+6. short manual testing checklist
+
+Manual testing checklist should include:
+- POST creates a pending outreach record
+- GET returns that record by id
+- PATCH updates allowed fields only
+- 404 works for missing ids
+- auth works for both logged-in role users and
+  MARKETPLACE_BOT_SECRET bearer access
+- URL/title normalization is stored correctly
+- no CRM lead is created anywhere in this phase
