@@ -1,0 +1,128 @@
+MODE: Build App Testing
+BUILD LOCATION: Viva
+
+Task:
+Run a focused verification pass on the new
+capture-reply backend route, with special attention to
+medium-confidence behavior.
+
+Goal:
+Confirm exactly what Viva writes to the pending outreach
+record for:
+- high confidence
+- medium confidence
+- low confidence
+
+before we build the Messenger-thread capture step in the
+Marketplace Assistant.
+
+Important:
+This is a verification pass only.
+Do NOT add new features.
+Do NOT change extension code.
+Do NOT add CRM conversion.
+Do NOT add manual review UI.
+Only make a small direct fix if testing reveals that
+medium-confidence behavior is too permissive.
+
+What to verify:
+
+1. High-confidence behavior
+Verify that a high-confidence capture-reply request:
+- returns 200
+- sets messageStatus = reply_received
+- stores lastReplyText
+- stores extractedPhone
+- stores replyPhoneNormalized
+- stores replyMatchConfidence = high
+- stores replyMatchMethod
+- stores replyReceivedAt
+- does not create a CRM lead
+
+Test both high-confidence paths if possible:
+- exact threadIdentifier match
+- exact firstName + exact listingTitle match
+
+2. Medium-confidence behavior
+Verify exactly what happens for a medium-confidence
+request:
+- returns 200
+- sets messageStatus = manual_review_required
+- stores replyMatchConfidence = medium
+- stores replyMatchMethod
+- stores manualReviewReason
+
+Most important:
+explicitly confirm whether these fields are written or
+left null on medium confidence:
+- extractedPhone
+- replyPhoneNormalized
+- lastReplyText
+
+This is the key audit item.
+
+3. Low-confidence behavior
+Verify that low confidence:
+- returns 400
+- does NOT write phone data
+- does NOT update the record
+- does NOT change messageStatus
+
+Examples:
+- first name only
+- conflicting threadIdentifier
+- unclear/ambiguous title signal
+
+4. No-phone behavior
+Verify:
+- replyText with no parseable phone returns 400
+- record remains unmodified
+
+5. Status gating
+Verify:
+Allowed:
+- awaiting_reply
+- manual_review_required
+- reply_received
+
+Blocked:
+- ready_to_message
+- message_sent
+- skipped
+- converted
+
+Confirm blocked cases do not modify the record.
+
+6. Isolation
+Confirm:
+- no CRM lead is created
+- no other marketplace routes changed behavior
+- no extension/UI files changed
+
+If testing shows medium confidence currently writes
+phone fields and you judge that unsafe for the intended
+workflow, make the smallest direct fix needed so that
+medium confidence stores only safe reply context plus
+review metadata, and does not permanently attach phone
+data yet.
+
+Deliverables:
+At the end provide:
+1. pass/fail result for each verification item
+2. exact behavior for medium confidence
+3. any bugs found
+4. exact fixes made, if any
+5. exact files changed during testing/fixes
+6. one example high-confidence 200 response
+7. one example medium-confidence 200 response
+8. one example low-confidence 400 response
+9. short manual testing checklist
+
+Manual testing checklist should include:
+- exact-thread high confidence
+- exact name+title high confidence
+- fuzzy-title medium confidence
+- first-name-only low confidence
+- no-phone 400
+- blocked statuses remain blocked
+- no CRM lead created
