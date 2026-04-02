@@ -1,0 +1,105 @@
+MODE: Build Code Optimization
+BUILD LOCATION: Viva + Marketplace Assistant
+
+Task:
+Add a UUID-free handoff between the Marketplace Assistant
+extension and the Viva /admin/marketplace page.
+
+Goal:
+Allow the operator to jump directly from the extension
+into the exact pending outreach record in Viva without
+copying/pasting outreach IDs manually.
+
+Important:
+Keep this phase narrow.
+Do NOT redesign the extension.
+Do NOT redesign the admin page.
+Do NOT add assignment, bulk actions, or queue changes.
+Only add a clean deep-link handoff.
+
+Desired UX:
+
+After these successful actions in the extension:
+- Create Pending Outreach
+- Capture Reply
+- Convert to CRM
+
+show an "Open in Viva" action/button.
+
+When clicked, it should open Viva directly to the matching
+Marketplace pending outreach record.
+
+Preferred deep-link format:
+- /admin/marketplace?recordId=<pendingOutreachId>
+
+Admin page behavior:
+- if recordId query param exists
+- auto-load that record
+- auto-open the detail drawer/panel for that record
+- scroll/highlight the matching row if practical
+- if record does not exist, show a clean fallback message
+  and keep the normal page visible
+
+Backend:
+No new backend endpoints unless absolutely necessary.
+Prefer using the existing GET /api/marketplace/pending-outreach/:id route.
+
+Frontend — Viva:
+On MarketplacePendingOutreachPage:
+- read recordId from query params
+- when present:
+  - fetch that record
+  - set selectedId automatically
+  - open the drawer automatically
+  - optionally set search to that seller name if useful
+- handle invalid/missing recordId safely
+- do not break normal page behavior when no query param
+  exists
+
+Frontend — Extension:
+After successful:
+- Create Pending Outreach
+- Capture Reply
+- Convert to CRM
+
+show:
+- outreach ID
+- Open in Viva button/link
+
+The button should open:
+<BACKEND_BASE_URL>/admin/marketplace?recordId=<id>
+
+If the record has already converted to CRM and no longer
+belongs on the pending-outreach page, it is still okay to
+open the marketplace page with that recordId so the user
+can see the converted state and CRM lead link.
+
+UI guidance:
+- keep Open in Viva visually secondary
+- do not remove existing status messages
+- do not hide the outreach ID
+- do not require the user to copy/paste manually anymore
+
+Guardrails:
+- no extension manifest changes unless needed
+- no schema changes
+- no new routing structure
+- no bulk actions
+- no redesign of Marketplace page
+- no CRM page changes
+
+Deliverables:
+1. exact files changed
+2. exact query param format used
+3. exact extension UI additions
+4. exact Marketplace page auto-open behavior
+5. fallback behavior for invalid recordId
+6. short manual testing checklist
+
+Manual testing checklist should include:
+- Create Pending Outreach success -> Open in Viva works
+- Capture Reply success -> Open in Viva works
+- Convert success -> Open in Viva works
+- /admin/marketplace?recordId=<id> auto-opens drawer
+- invalid recordId handled gracefully
+- no regression in normal page behavior

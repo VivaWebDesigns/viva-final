@@ -284,18 +284,30 @@ export default function MarketplacePendingOutreachPage() {
   // ── Drawer detail (query-backed, keyed by selectedId) ─────────────────────
   const detailQueryKey = ["/api/marketplace/pending-outreach", selectedId] as const;
 
-  const { data: detailRecord, isLoading: detailLoading } = useQuery<MarketplacePendingOutreach>({
+  const { data: detailRecord, isLoading: detailLoading, isError: detailError } = useQuery<MarketplacePendingOutreach>({
     queryKey: detailQueryKey,
     enabled: !!selectedId,
     staleTime: STALE.FAST,
+    retry: false,
     queryFn: async () => {
       const res = await fetch(`/api/marketplace/pending-outreach/${selectedId}`, {
         credentials: "include",
       });
-      if (!res.ok) throw new Error("Failed to fetch record detail");
+      if (!res.ok) throw new Error(res.status === 404 ? "not_found" : "fetch_error");
       return res.json();
     },
   });
+
+  // ── Deep-link: auto-open record from ?recordId= query param ──────────────
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const recordId = params.get("recordId");
+    if (recordId) {
+      setSelectedId(recordId);
+      // Clean the param from URL so closing doesn't re-trigger on back-nav
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
 
   const items      = listData?.items ?? [];
   const total      = listData?.total ?? 0;
