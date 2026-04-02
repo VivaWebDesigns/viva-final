@@ -1,0 +1,115 @@
+MODE: Build App Testing
+BUILD LOCATION: Viva + Marketplace Assistant
+
+Task:
+Run a full end-to-end integration test across the
+Marketplace Assistant extension and the Viva
+/admin/marketplace workflow.
+
+Goal:
+Verify that the complete Marketplace flow works from
+listing → outreach → reply → review → convert → CRM lead,
+including the new Open in Viva deep-link handoff.
+
+Important:
+Act like a QA tester, not a coder.
+Do NOT implement new features.
+Do NOT redesign anything.
+Do NOT change code unless a real bug is found.
+If a bug is found, make only the smallest direct fix
+needed and document it clearly.
+
+Core flow to test:
+
+1. Marketplace listing page
+- Open a supported Marketplace listing page
+- Run precheck
+- Verify PASS/SKIP behavior
+- Verify seller name, seller profile URL, ad URL, and
+  reason mapping still work correctly
+
+2. Create Pending Outreach
+- Create a pending outreach record
+- Verify outreach ID displays
+- Verify Open in Viva appears
+- Click Open in Viva
+- Verify /admin/marketplace opens with the correct
+  record auto-opened in the drawer
+
+3. Mark Message Sent
+- Verify Mark Message Sent still works
+- Verify no stale Open in Viva links persist incorrectly
+
+4. Messenger thread page
+- Open a Messenger thread
+- Verify Messenger view appears
+- Verify extracted thread data still works:
+  - threadIdentifier
+  - seller name
+  - listing title
+  - latest reply text
+
+5. Capture Reply
+- Test a high-confidence reply path
+- Verify Capture Reply succeeds
+- Verify Open in Viva appears
+- Click Open in Viva
+- Verify the correct record opens in Viva
+
+6. Manual review path
+- Test a medium-confidence reply path that becomes
+  manual_review_required
+- Verify Open in Viva lands on the correct record
+- Verify Approve Match works
+- Verify Reject Match works
+- Verify stale buttons disappear after each action
+- Verify summary counts update
+
+7. Convert to CRM
+- Test reply_received → Convert to CRM
+- Verify Open in Viva still works afterward
+- Verify converted record opens correctly
+- Verify CRM Lead link works
+
+8. Error handling
+Verify:
+- invalid recordId deep link
+- stale state reset between Marketplace and Messenger
+- duplicate 409 convert flow
+- blocked 400 flow
+- invalid outreach ID
+- invalid auth token
+- backend unavailable
+
+9. Drawer behavior
+Verify:
+- drawer auto-opens from recordId query param
+- closing drawer does not reopen it
+- recordId query param is removed from URL after load
+- invalid record shows clean fallback state
+- normal /admin/marketplace behavior still works without
+  query params
+
+10. Regression checks
+Confirm:
+- existing CRM pages still work
+- existing extension flows still work
+- no new auth regressions
+- no sidebar regression
+- no pagination/filter regression on Marketplace page
+
+Deliverables:
+1. paths tested
+2. paths passed
+3. paths failed
+4. any bugs found
+5. exact fixes made if any
+6. exact files changed if any
+7. one successful happy-path flow
+8. one successful manual-review flow
+9. one duplicate/blocked flow
+10. short manual testing checklist
+
+Be exhaustive.
+Test branch-by-branch.
+Do not stop after one happy path.
