@@ -5,18 +5,14 @@ import { STALE, queryClient, apiRequest } from "@/lib/queryClient";
 import { useLocation } from "wouter";
 import {
   Search, Phone, ExternalLink, ChevronLeft, ChevronRight,
-  ShoppingBag, AlertCircle, CheckCircle2, Clock, Eye, SkipForward,
+  ShoppingBag, AlertCircle, CheckCircle2, Clock, Eye, SkipForward, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import {
-  Sheet, SheetContent, SheetHeader, SheetTitle,
-} from "@/components/ui/sheet";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
@@ -88,15 +84,6 @@ const STATUS_BADGE_CLASSES: Record<OutreachStatus, string> = {
   skipped:                "bg-gray-100 text-gray-600 dark:bg-gray-800/50 dark:text-gray-400",
 };
 
-const SUMMARY_CARD_COLORS: Record<OutreachStatus, string> = {
-  ready_to_message:       "border-blue-200 hover:border-blue-400",
-  awaiting_reply:         "border-amber-200 hover:border-amber-400",
-  reply_received:         "border-green-200 hover:border-green-400",
-  manual_review_required: "border-orange-200 hover:border-orange-400",
-  converted:              "border-teal-200 hover:border-teal-400",
-  skipped:                "border-gray-200 hover:border-gray-400",
-};
-
 const SUMMARY_COUNT_COLORS: Record<OutreachStatus, string> = {
   ready_to_message:       "text-blue-600",
   awaiting_reply:         "text-amber-600",
@@ -116,7 +103,7 @@ function formatDateTime(val: string | Date | null | undefined): string {
   });
 }
 
-function formatDate(val: string | Date | null | undefined): string {
+function formatDateShort(val: string | Date | null | undefined): string {
   if (!val) return "—";
   return new Date(val).toLocaleDateString("en-US", {
     month: "short", day: "numeric", year: "numeric",
@@ -157,7 +144,7 @@ function DuplicateInlineBlock({
   return (
     <div className="rounded-md border border-destructive/50 bg-destructive/5 p-3 text-sm space-y-1">
       <p className="font-semibold text-destructive flex items-center gap-1.5">
-        <AlertCircle className="w-4 h-4" /> Duplicate lead already exists
+        <AlertCircle className="w-4 h-4" /> Duplicate already exists
       </p>
       {match.name          && <p><span className="text-muted-foreground">Name:</span> {match.name}</p>}
       {match.businessName  && <p><span className="text-muted-foreground">Business:</span> {match.businessName}</p>}
@@ -168,7 +155,7 @@ function DuplicateInlineBlock({
           {[match.city, match.state].filter(Boolean).join(", ")}
         </p>
       )}
-      {match.assignedRepName && <p><span className="text-muted-foreground">Assigned Rep:</span> {match.assignedRepName}</p>}
+      {match.assignedRepName && <p><span className="text-muted-foreground">Rep:</span> {match.assignedRepName}</p>}
       {match.stageName       && <p><span className="text-muted-foreground">Stage:</span> {match.stageName}</p>}
       {match.leadId && onViewLead && (
         <Button variant="outline" size="sm" className="mt-2" onClick={onViewLead} data-testid="button-view-dup-lead">
@@ -179,25 +166,25 @@ function DuplicateInlineBlock({
   );
 }
 
-// ─── Detail drawer field ──────────────────────────────────────────────────────
+// ─── Detail field row ─────────────────────────────────────────────────────────
 
-function DrawerField({ label, children }: { label: string; children: React.ReactNode }) {
+function DetailField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-[140px_1fr] gap-2 py-1.5 border-b border-border/50 last:border-0">
-      <span className="text-sm text-muted-foreground shrink-0">{label}</span>
-      <span className="text-sm font-medium break-words">{children}</span>
+    <div className="grid grid-cols-[130px_1fr] gap-2 py-1.5 border-b border-border/50 last:border-0">
+      <span className="text-xs text-muted-foreground shrink-0 leading-5">{label}</span>
+      <span className="text-xs font-medium break-words leading-5">{children}</span>
     </div>
   );
 }
 
-function DrawerLink({ href, label }: { href: string | null | undefined; label?: string }) {
-  if (!href) return <span className="text-sm text-muted-foreground">—</span>;
+function DetailLink({ href, label }: { href: string | null | undefined; label?: string }) {
+  if (!href) return <span className="text-muted-foreground">—</span>;
   return (
     <a
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="text-sm text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1"
+      className="text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1"
     >
       {label || href}
       <ExternalLink className="w-3 h-3 flex-shrink-0" />
@@ -219,20 +206,17 @@ export default function MarketplacePendingOutreachPage() {
   const [page, setPage]                 = useState(1);
   const limit                            = 25;
 
-  const [selectedRecord, setSelectedRecord]     = useState<MarketplacePendingOutreach | null>(null);
+  // Selected record ID — drawer uses its own query keyed by this ID
+  const [selectedId, setSelectedId]         = useState<string | null>(null);
   const [showConvertDialog, setShowConvertDialog] = useState(false);
   const [duplicateMatch, setDuplicateMatch]       = useState<DuplicateMatch | null>(null);
   const [convertedLeadId, setConvertedLeadId]     = useState<string | null>(null);
 
   useEffect(() => { setPage(1); }, [search, statusFilter, hasPhone, hasCrmLead]);
 
-  const listQueryKey = [
-    "/api/marketplace/pending-outreach",
-    search, statusFilter, hasPhone, hasCrmLead, page,
-  ] as const;
-
   const summaryQueryKey = ["/api/marketplace/pending-outreach/summary"] as const;
 
+  // ── Summary counts ────────────────────────────────────────────────────────
   const { data: summary = {} } = useQuery<SummaryResponse>({
     queryKey: summaryQueryKey,
     staleTime: STALE.FAST,
@@ -242,6 +226,12 @@ export default function MarketplacePendingOutreachPage() {
       return res.json();
     },
   });
+
+  // ── List ──────────────────────────────────────────────────────────────────
+  const listQueryKey = [
+    "/api/marketplace/pending-outreach",
+    "list", search, statusFilter, hasPhone, hasCrmLead, page,
+  ] as const;
 
   const { data: listData, isLoading } = useQuery<ListResponse>({
     queryKey: listQueryKey,
@@ -261,29 +251,44 @@ export default function MarketplacePendingOutreachPage() {
     },
   });
 
+  // ── Detail (query-backed, keyed by selectedId) ────────────────────────────
+  const detailQueryKey = ["/api/marketplace/pending-outreach", selectedId] as const;
+
+  const { data: detailRecord, isLoading: detailLoading } = useQuery<MarketplacePendingOutreach>({
+    queryKey: detailQueryKey,
+    enabled: !!selectedId,
+    staleTime: STALE.FAST,
+    queryFn: async () => {
+      const res = await fetch(`/api/marketplace/pending-outreach/${selectedId}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch record detail");
+      return res.json();
+    },
+  });
+
   const items      = listData?.items ?? [];
   const total      = listData?.total ?? 0;
   const totalPages = Math.ceil(total / limit);
   const hasFilters = !!(search || statusFilter || hasPhone !== undefined || hasCrmLead !== undefined);
 
+  // Invalidate list + summary + detail in sync
   const invalidateAll = () => {
-    queryClient.invalidateQueries({ queryKey: ["/api/marketplace/pending-outreach"] });
-    queryClient.invalidateQueries({ queryKey: summaryQueryKey });
-    if (selectedRecord) {
-      queryClient.invalidateQueries({ queryKey: ["/api/marketplace/pending-outreach", selectedRecord.id] });
+    queryClient.invalidateQueries({ queryKey: ["/api/marketplace/pending-outreach/summary"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/marketplace/pending-outreach", "list"] });
+    if (selectedId) {
+      queryClient.invalidateQueries({ queryKey: ["/api/marketplace/pending-outreach", selectedId] });
     }
   };
 
+  // ── Skip mutation ─────────────────────────────────────────────────────────
   const skipMutation = useMutation({
     mutationFn: async (id: string) => {
-      const res = await apiRequest("PATCH", `/api/marketplace/pending-outreach/${id}`, { messageStatus: "skipped" });
+      const res = await apiRequest("PATCH", `/api/marketplace/pending-outreach/${id}`, {
+        messageStatus: "skipped",
+      });
       return res.json() as Promise<MarketplacePendingOutreach>;
     },
-    onSuccess: async (updated, id) => {
+    onSuccess: () => {
       invalidateAll();
-      if (selectedRecord?.id === id) {
-        setSelectedRecord(updated);
-      }
       toast({ title: "Record skipped" });
     },
     onError: (e: unknown) => {
@@ -292,23 +297,19 @@ export default function MarketplacePendingOutreachPage() {
     },
   });
 
+  // ── Convert mutation ──────────────────────────────────────────────────────
   const convertMutation = useMutation({
     mutationFn: async (id: string) => {
       const res = await apiRequest("POST", `/api/marketplace/pending-outreach/${id}/convert-to-crm`, {});
       return res.json() as Promise<{ crmLeadId: string; messageStatus: string }>;
     },
-    onSuccess: async (data, id) => {
+    onSuccess: (data) => {
       invalidateAll();
       setShowConvertDialog(false);
       setDuplicateMatch(null);
       const newLeadId = data?.crmLeadId ?? null;
       setConvertedLeadId(newLeadId);
-      if (selectedRecord?.id === id) {
-        setSelectedRecord((prev) =>
-          prev ? { ...prev, messageStatus: "converted", crmLeadId: newLeadId } : null
-        );
-      }
-      toast({ title: "Converted to CRM lead", description: newLeadId ? `Lead ID: ${newLeadId}` : undefined });
+      toast({ title: "Converted to CRM lead" });
     },
     onError: (e: unknown) => {
       setShowConvertDialog(false);
@@ -325,6 +326,7 @@ export default function MarketplacePendingOutreachPage() {
           toast({ title: "Conversion failed", description: parsed.message ?? errMsg, variant: "destructive" });
           return;
         } catch {
+          // JSON parse failed — fall through to generic toast
         }
       }
       toast({ title: "Conversion failed", description: errMsg, variant: "destructive" });
@@ -332,37 +334,30 @@ export default function MarketplacePendingOutreachPage() {
   });
 
   const handleCardClick = (status: OutreachStatus) => {
-    if (statusFilter === status) {
-      setStatusFilter("");
-    } else {
-      setStatusFilter(status);
-    }
+    setStatusFilter(statusFilter === status ? "" : status);
   };
 
   const handleRowClick = (record: MarketplacePendingOutreach) => {
-    setSelectedRecord(record);
+    if (selectedId === record.id) return;
+    setSelectedId(record.id);
     setDuplicateMatch(null);
     setConvertedLeadId(null);
   };
 
-  const handleSkip = (id: string) => {
-    skipMutation.mutate(id);
-  };
-
-  const handleConvertConfirm = () => {
-    if (!selectedRecord) return;
-    convertMutation.mutate(selectedRecord.id);
-  };
-
-  const canSkip    = (s: string) => ["ready_to_message", "awaiting_reply", "reply_received", "manual_review_required"].includes(s);
+  const canSkip    = (s: string) =>
+    ["ready_to_message", "awaiting_reply", "reply_received", "manual_review_required"].includes(s);
   const canConvert = (s: string) => ["reply_received", "manual_review_required"].includes(s);
   const isConverted = (s: string) => s === "converted";
 
   return (
-    <div className="flex flex-col h-full" data-testid="page-marketplace-pending-outreach">
-      <div className="flex items-center justify-between mb-6">
+    <div className="flex flex-col gap-6" data-testid="page-marketplace-pending-outreach">
+      {/* Header */}
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2" data-testid="text-marketplace-title">
+          <h1
+            className="text-2xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2"
+            data-testid="text-marketplace-title"
+          >
             <ShoppingBag className="w-6 h-6 text-violet-500" />
             Marketplace Pending Outreach
           </h1>
@@ -371,7 +366,7 @@ export default function MarketplacePendingOutreachPage() {
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {ALL_STATUSES.map((status) => {
           const cnt = summary[status] ?? 0;
           const active = statusFilter === status;
@@ -381,9 +376,10 @@ export default function MarketplacePendingOutreachPage() {
               onClick={() => handleCardClick(status)}
               data-testid={`card-summary-${status}`}
               className={cn(
-                "rounded-lg border bg-white dark:bg-gray-900 p-3 text-left transition-all cursor-pointer",
-                SUMMARY_CARD_COLORS[status],
-                active && "ring-2 ring-offset-1 ring-violet-400 shadow-sm"
+                "rounded-lg border bg-white dark:bg-gray-900 p-3 text-left transition-all cursor-pointer hover:shadow-sm",
+                active
+                  ? "ring-2 ring-violet-400 border-violet-300 shadow-sm"
+                  : "border-gray-200 hover:border-gray-300"
               )}
             >
               <p className={cn("text-2xl font-bold", SUMMARY_COUNT_COLORS[status])}>{cnt}</p>
@@ -394,7 +390,7 @@ export default function MarketplacePendingOutreachPage() {
       </div>
 
       {/* Filter bar */}
-      <Card className="mb-4">
+      <Card>
         <CardContent className="p-4 flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -408,7 +404,7 @@ export default function MarketplacePendingOutreachPage() {
           </div>
           <Select
             value={statusFilter || "all"}
-            onValueChange={(v) => setStatusFilter(v === "all" ? "" : v)}
+            onValueChange={(v) => { setStatusFilter(v === "all" ? "" : v); setPage(1); }}
           >
             <SelectTrigger className="w-full sm:w-52" data-testid="select-status-filter">
               <SelectValue placeholder="All statuses" />
@@ -424,7 +420,7 @@ export default function MarketplacePendingOutreachPage() {
             <Switch
               id="has-phone-toggle"
               checked={hasPhone === true}
-              onCheckedChange={(v) => setHasPhone(v ? true : undefined)}
+              onCheckedChange={(v) => { setHasPhone(v ? true : undefined); setPage(1); }}
               data-testid="toggle-has-phone"
             />
             <Label htmlFor="has-phone-toggle" className="text-sm whitespace-nowrap cursor-pointer">
@@ -435,7 +431,7 @@ export default function MarketplacePendingOutreachPage() {
             <Switch
               id="has-crm-lead-toggle"
               checked={hasCrmLead === true}
-              onCheckedChange={(v) => setHasCrmLead(v ? true : undefined)}
+              onCheckedChange={(v) => { setHasCrmLead(v ? true : undefined); setPage(1); }}
               data-testid="toggle-has-crm-lead"
             />
             <Label htmlFor="has-crm-lead-toggle" className="text-sm whitespace-nowrap cursor-pointer">
@@ -445,13 +441,15 @@ export default function MarketplacePendingOutreachPage() {
         </CardContent>
       </Card>
 
-      {/* Table area */}
-      <div className="flex gap-4 flex-1 min-h-0">
+      {/* Main content: table + detail panel */}
+      <div className="flex gap-4 items-start">
+
+        {/* ── Table ── */}
         <div className="flex-1 min-w-0">
           {isLoading ? (
             <div className="space-y-2">
               {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="h-16 bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse" />
+                <div key={i} className="h-12 bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse" />
               ))}
             </div>
           ) : items.length === 0 ? (
@@ -460,13 +458,21 @@ export default function MarketplacePendingOutreachPage() {
                 <ShoppingBag className="w-10 h-10 mx-auto mb-3 text-gray-300" />
                 {hasFilters ? (
                   <>
-                    <p className="text-gray-500 font-medium" data-testid="text-no-results">No records match the current filters.</p>
-                    <p className="text-gray-400 text-sm mt-1">Try adjusting your search or filter options.</p>
+                    <p className="text-gray-500 font-medium" data-testid="text-no-results">
+                      No records match the current filters.
+                    </p>
+                    <p className="text-gray-400 text-sm mt-1">
+                      Try adjusting your search or filter options.
+                    </p>
                   </>
                 ) : (
                   <>
-                    <p className="text-gray-500 font-medium" data-testid="text-no-records">No pending outreach records yet.</p>
-                    <p className="text-gray-400 text-sm mt-1">Records appear here when the Marketplace bot creates them.</p>
+                    <p className="text-gray-500 font-medium" data-testid="text-no-records">
+                      No pending outreach records yet.
+                    </p>
+                    <p className="text-gray-400 text-sm mt-1">
+                      Records appear here when the Marketplace bot creates them.
+                    </p>
                   </>
                 )}
               </CardContent>
@@ -477,20 +483,20 @@ export default function MarketplacePendingOutreachPage() {
                 <table className="w-full text-sm" data-testid="table-outreach">
                   <thead>
                     <tr className="border-b border-border bg-gray-50 dark:bg-gray-800/60">
-                      <th className="text-left px-4 py-2.5 font-medium text-muted-foreground whitespace-nowrap">Seller Name</th>
-                      <th className="text-left px-4 py-2.5 font-medium text-muted-foreground whitespace-nowrap">Listing Title</th>
-                      <th className="text-left px-4 py-2.5 font-medium text-muted-foreground whitespace-nowrap">City / State</th>
-                      <th className="text-left px-4 py-2.5 font-medium text-muted-foreground whitespace-nowrap">Trade</th>
-                      <th className="text-left px-4 py-2.5 font-medium text-muted-foreground whitespace-nowrap">Status</th>
-                      <th className="text-left px-4 py-2.5 font-medium text-muted-foreground whitespace-nowrap">Reply Phone</th>
-                      <th className="text-left px-4 py-2.5 font-medium text-muted-foreground whitespace-nowrap">Confidence</th>
-                      <th className="text-left px-4 py-2.5 font-medium text-muted-foreground whitespace-nowrap">Created</th>
-                      <th className="text-left px-4 py-2.5 font-medium text-muted-foreground whitespace-nowrap">Updated</th>
+                      <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Seller Name</th>
+                      <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Listing Title</th>
+                      <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">City / State</th>
+                      <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Trade</th>
+                      <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Status</th>
+                      <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Reply Phone</th>
+                      <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Confidence</th>
+                      <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Created</th>
+                      <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Updated</th>
                     </tr>
                   </thead>
                   <tbody>
                     {items.map((record) => {
-                      const isSelected = selectedRecord?.id === record.id;
+                      const isSelected = selectedId === record.id;
                       const phone = getDisplayPhone(record);
                       return (
                         <tr
@@ -504,32 +510,32 @@ export default function MarketplacePendingOutreachPage() {
                               : "hover:bg-gray-50 dark:hover:bg-gray-800/40"
                           )}
                         >
-                          <td className="px-4 py-2.5 font-medium whitespace-nowrap max-w-[160px] truncate">
+                          <td className="px-3 py-2 font-medium whitespace-nowrap max-w-[140px] truncate">
                             {record.sellerFullName}
                           </td>
-                          <td className="px-4 py-2.5 text-muted-foreground max-w-[180px] truncate">
+                          <td className="px-3 py-2 text-muted-foreground max-w-[160px] truncate text-xs">
                             {record.listingTitleRaw ?? "—"}
                           </td>
-                          <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">
+                          <td className="px-3 py-2 text-muted-foreground whitespace-nowrap text-xs">
                             {[record.city, record.state].filter(Boolean).join(", ") || "—"}
                           </td>
-                          <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">
+                          <td className="px-3 py-2 text-muted-foreground whitespace-nowrap text-xs">
                             {record.tradeGuess ?? "—"}
                           </td>
-                          <td className="px-4 py-2.5 whitespace-nowrap">
+                          <td className="px-3 py-2 whitespace-nowrap">
                             <StatusBadge status={record.messageStatus} />
                           </td>
-                          <td className="px-4 py-2.5 whitespace-nowrap text-muted-foreground">
+                          <td className="px-3 py-2 whitespace-nowrap text-muted-foreground text-xs">
                             {phone ? (
                               <span className="inline-flex items-center gap-1">
                                 <Phone className="w-3 h-3" /> {phone}
                               </span>
                             ) : "—"}
                           </td>
-                          <td className="px-4 py-2.5 whitespace-nowrap">
+                          <td className="px-3 py-2 whitespace-nowrap text-xs">
                             {record.replyMatchConfidence ? (
                               <span className={cn(
-                                "text-xs font-medium",
+                                "font-medium",
                                 record.replyMatchConfidence === "high"   && "text-green-600",
                                 record.replyMatchConfidence === "medium" && "text-amber-600",
                                 record.replyMatchConfidence === "low"    && "text-red-500",
@@ -538,11 +544,11 @@ export default function MarketplacePendingOutreachPage() {
                               </span>
                             ) : "—"}
                           </td>
-                          <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap text-xs">
-                            {formatDate(record.createdAt)}
+                          <td className="px-3 py-2 text-muted-foreground whitespace-nowrap text-xs">
+                            {formatDateShort(record.createdAt)}
                           </td>
-                          <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap text-xs">
-                            {formatDate(record.updatedAt)}
+                          <td className="px-3 py-2 text-muted-foreground whitespace-nowrap text-xs">
+                            {formatDateShort(record.updatedAt)}
                           </td>
                         </tr>
                       );
@@ -582,82 +588,112 @@ export default function MarketplacePendingOutreachPage() {
             </>
           )}
         </div>
-      </div>
 
-      {/* Detail drawer */}
-      <Sheet open={!!selectedRecord} onOpenChange={(open) => { if (!open) setSelectedRecord(null); }}>
-        <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto" data-testid="drawer-outreach-detail">
-          {selectedRecord ? (
-            <>
-              <SheetHeader className="mb-4">
-                <SheetTitle className="text-base">{selectedRecord.sellerFullName}</SheetTitle>
-                <StatusBadge status={selectedRecord.messageStatus} />
-              </SheetHeader>
+        {/* ── Right detail panel (always visible) ── */}
+        <div
+          className="w-80 shrink-0 rounded-lg border border-border bg-white dark:bg-gray-900 min-h-[400px] sticky top-0"
+          data-testid="panel-outreach-detail"
+        >
+          {!selectedId ? (
+            /* Empty state: no record selected */
+            <div
+              className="flex flex-col items-center justify-center h-full min-h-[400px] text-center text-muted-foreground px-6"
+              data-testid="text-no-record-selected"
+            >
+              <Clock className="w-10 h-10 mb-3 opacity-30" />
+              <p className="text-sm">Select a record from the table to view details.</p>
+            </div>
+          ) : detailLoading ? (
+            <div className="p-4 space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="h-5 bg-gray-100 dark:bg-gray-800 rounded animate-pulse" />
+              ))}
+            </div>
+          ) : detailRecord ? (
+            <div className="flex flex-col h-full">
+              {/* Panel header */}
+              <div className="flex items-start justify-between gap-2 p-4 border-b border-border">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold truncate">{detailRecord.sellerFullName}</p>
+                  <div className="mt-1">
+                    <StatusBadge status={detailRecord.messageStatus} />
+                  </div>
+                </div>
+                <button
+                  onClick={() => { setSelectedId(null); setDuplicateMatch(null); setConvertedLeadId(null); }}
+                  className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 mt-0.5"
+                  data-testid="button-close-detail"
+                  aria-label="Close detail panel"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
 
-              {/* Actions */}
-              <div className="mb-4 space-y-3">
-                {canConvert(selectedRecord.messageStatus) && (
+              {/* Action buttons */}
+              <div className="p-4 border-b border-border space-y-2">
+                {canConvert(detailRecord.messageStatus) && (
                   <Button
-                    className="w-full"
-                    onClick={() => { setDuplicateMatch(null); setShowConvertDialog(true); }}
+                    className="w-full h-8 text-sm"
+                    onClick={() => { setDuplicateMatch(null); setConvertedLeadId(null); setShowConvertDialog(true); }}
                     disabled={convertMutation.isPending || skipMutation.isPending}
                     data-testid="button-convert-to-crm"
                   >
-                    <CheckCircle2 className="w-4 h-4 mr-2" />
+                    <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
                     Convert to CRM Lead
                   </Button>
                 )}
 
-                {canSkip(selectedRecord.messageStatus) && (
+                {canSkip(detailRecord.messageStatus) && (
                   <Button
                     variant="outline"
-                    className="w-full"
-                    onClick={() => handleSkip(selectedRecord.id)}
+                    className="w-full h-8 text-sm"
+                    onClick={() => skipMutation.mutate(detailRecord.id)}
                     disabled={skipMutation.isPending || convertMutation.isPending}
                     data-testid="button-skip"
                   >
-                    <SkipForward className="w-4 h-4 mr-2" />
+                    <SkipForward className="w-3.5 h-3.5 mr-1.5" />
                     {skipMutation.isPending ? "Skipping…" : "Skip"}
                   </Button>
                 )}
 
-                {isConverted(selectedRecord.messageStatus) && (
+                {isConverted(detailRecord.messageStatus) && detailRecord.crmLeadId && (
                   <Button
                     variant="outline"
-                    className="w-full"
-                    onClick={() => navigate(`/admin/crm/leads/${selectedRecord.crmLeadId}`)}
+                    className="w-full h-8 text-sm"
+                    onClick={() => navigate(`/admin/crm/leads/${detailRecord.crmLeadId}`)}
                     data-testid="button-view-crm-lead"
                   >
-                    <Eye className="w-4 h-4 mr-2" />
+                    <Eye className="w-3.5 h-3.5 mr-1.5" />
                     View CRM Lead
                   </Button>
                 )}
 
-                {selectedRecord.messageStatus === "skipped" && (
-                  <p className="text-sm text-muted-foreground text-center py-2" data-testid="text-no-actions">
+                {detailRecord.messageStatus === "skipped" && (
+                  <p className="text-xs text-muted-foreground text-center py-1" data-testid="text-no-actions">
                     No actions available for skipped records.
                   </p>
                 )}
 
-                {/* Inline duplicate block */}
+                {/* Duplicate inline block */}
                 {duplicateMatch && (
                   <DuplicateInlineBlock
                     match={duplicateMatch}
-                    onViewLead={duplicateMatch.leadId ? () => navigate(`/admin/crm/leads/${duplicateMatch.leadId}`) : undefined}
+                    onViewLead={
+                      duplicateMatch.leadId
+                        ? () => navigate(`/admin/crm/leads/${duplicateMatch.leadId}`)
+                        : undefined
+                    }
                   />
                 )}
 
-                {/* Converted lead ID inline */}
+                {/* Converted inline confirmation */}
                 {convertedLeadId && (
-                  <div className="rounded-md border border-teal-200 bg-teal-50 dark:bg-teal-950/20 p-3 text-sm">
-                    <p className="font-medium text-teal-700 dark:text-teal-300 flex items-center gap-1.5">
-                      <CheckCircle2 className="w-4 h-4" /> Converted
-                    </p>
-                    <p className="text-teal-600 dark:text-teal-400 mt-0.5 text-xs font-mono break-all">
-                      Lead ID: {convertedLeadId}
+                  <div className="rounded-md border border-teal-200 bg-teal-50 dark:bg-teal-950/20 p-2.5 text-xs">
+                    <p className="font-medium text-teal-700 dark:text-teal-300 flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Converted successfully
                     </p>
                     <button
-                      className="text-sm text-teal-600 dark:text-teal-400 hover:underline mt-1 block"
+                      className="text-teal-600 dark:text-teal-400 hover:underline mt-1 block font-mono break-all"
                       onClick={() => navigate(`/admin/crm/leads/${convertedLeadId}`)}
                       data-testid="button-view-new-crm-lead"
                     >
@@ -668,75 +704,78 @@ export default function MarketplacePendingOutreachPage() {
               </div>
 
               {/* Detail fields */}
-              <div className="space-y-0">
-                <DrawerField label="Seller Profile URL">
-                  <DrawerLink href={selectedRecord.sellerProfileUrl} label="Open profile" />
-                </DrawerField>
-                <DrawerField label="Listing URL">
-                  <DrawerLink href={selectedRecord.listingUrl} label="Open listing" />
-                </DrawerField>
-                <DrawerField label="Reply Text">
-                  {selectedRecord.lastReplyText ? (
-                    <span className="whitespace-pre-wrap">{selectedRecord.lastReplyText}</span>
+              <div className="p-4 overflow-y-auto flex-1">
+                <DetailField label="Seller Profile URL">
+                  <DetailLink href={detailRecord.sellerProfileUrl} label="Open profile" />
+                </DetailField>
+                <DetailField label="Listing URL">
+                  <DetailLink href={detailRecord.listingUrl} label="Open listing" />
+                </DetailField>
+                <DetailField label="Reply Text">
+                  {detailRecord.lastReplyText ? (
+                    <span className="whitespace-pre-wrap">{detailRecord.lastReplyText}</span>
                   ) : "—"}
-                </DrawerField>
-                <DrawerField label="Extracted Phone">
-                  {selectedRecord.extractedPhone ?? "—"}
-                </DrawerField>
-                <DrawerField label="Reply Confidence">
-                  {selectedRecord.replyMatchConfidence
-                    ? selectedRecord.replyMatchConfidence.toUpperCase()
+                </DetailField>
+                <DetailField label="Extracted Phone">
+                  {detailRecord.extractedPhone ?? "—"}
+                </DetailField>
+                <DetailField label="Confidence">
+                  {detailRecord.replyMatchConfidence
+                    ? detailRecord.replyMatchConfidence.toUpperCase()
                     : "—"}
-                </DrawerField>
-                <DrawerField label="Reply Method">
-                  {selectedRecord.replyMatchMethod ?? "—"}
-                </DrawerField>
-                <DrawerField label="Facebook Join Year">
-                  {selectedRecord.facebookJoinYear ?? "—"}
-                </DrawerField>
-                <DrawerField label="Manual Review Reason">
-                  {selectedRecord.manualReviewReason ?? "—"}
-                </DrawerField>
-                <DrawerField label="CRM Lead ID">
-                  {selectedRecord.crmLeadId ? (
+                </DetailField>
+                <DetailField label="Match Method">
+                  {detailRecord.replyMatchMethod ?? "—"}
+                </DetailField>
+                <DetailField label="FB Join Year">
+                  {detailRecord.facebookJoinYear ?? "—"}
+                </DetailField>
+                <DetailField label="Review Reason">
+                  {detailRecord.manualReviewReason ?? "—"}
+                </DetailField>
+                <DetailField label="CRM Lead ID">
+                  {detailRecord.crmLeadId ? (
                     <button
-                      className="text-blue-600 dark:text-blue-400 hover:underline font-mono text-xs"
-                      onClick={() => navigate(`/admin/crm/leads/${selectedRecord.crmLeadId}`)}
+                      className="text-blue-600 dark:text-blue-400 hover:underline font-mono text-xs break-all"
+                      onClick={() => navigate(`/admin/crm/leads/${detailRecord.crmLeadId}`)}
                       data-testid="button-linked-crm-lead"
                     >
-                      {selectedRecord.crmLeadId}
+                      {detailRecord.crmLeadId}
                     </button>
                   ) : "—"}
-                </DrawerField>
-                <DrawerField label="Converted At">
-                  {formatDateTime(selectedRecord.convertedAt)}
-                </DrawerField>
-                <DrawerField label="Created At">
-                  {formatDateTime(selectedRecord.createdAt)}
-                </DrawerField>
-                <DrawerField label="Updated At">
-                  {formatDateTime(selectedRecord.updatedAt)}
-                </DrawerField>
+                </DetailField>
+                <DetailField label="Converted At">
+                  {formatDateTime(detailRecord.convertedAt)}
+                </DetailField>
+                <DetailField label="Created At">
+                  {formatDateTime(detailRecord.createdAt)}
+                </DetailField>
+                <DetailField label="Updated At">
+                  {formatDateTime(detailRecord.updatedAt)}
+                </DetailField>
               </div>
-            </>
+            </div>
           ) : (
-            <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground" data-testid="text-no-record-selected">
-              <Clock className="w-10 h-10 mb-3 opacity-30" />
-              <p>Select a record from the table to view details.</p>
+            <div className="flex flex-col items-center justify-center min-h-[400px] text-muted-foreground text-sm px-4">
+              Record not found.
             </div>
           )}
-        </SheetContent>
-      </Sheet>
+        </div>
+
+      </div>
 
       {/* Convert confirm dialog */}
-      <Dialog open={showConvertDialog} onOpenChange={(open) => { if (!open) setShowConvertDialog(false); }}>
+      <Dialog
+        open={showConvertDialog}
+        onOpenChange={(open) => { if (!open) setShowConvertDialog(false); }}
+      >
         <DialogContent className="sm:max-w-sm" data-testid="dialog-confirm-convert">
           <DialogHeader>
             <DialogTitle>Convert to CRM Lead?</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
             This will create a new CRM lead, contact, and pipeline opportunity for{" "}
-            <strong>{selectedRecord?.sellerFullName}</strong>.
+            <strong>{detailRecord?.sellerFullName}</strong>.
           </p>
           <DialogFooter className="mt-4">
             <Button
@@ -748,7 +787,7 @@ export default function MarketplacePendingOutreachPage() {
               Cancel
             </Button>
             <Button
-              onClick={handleConvertConfirm}
+              onClick={() => { if (selectedId) convertMutation.mutate(selectedId); }}
               disabled={convertMutation.isPending}
               data-testid="button-confirm-convert"
             >
