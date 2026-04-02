@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { STALE, queryClient, apiRequest } from "@/lib/queryClient";
+import { STALE, queryClient } from "@/lib/queryClient";
 import { useLocation } from "wouter";
 import {
   Search, Phone, ExternalLink, ChevronLeft, ChevronRight,
@@ -25,6 +25,32 @@ import { useToast } from "@/hooks/use-toast";
 import { formatPhoneDisplay } from "@shared/phone";
 import { cn } from "@/lib/utils";
 import type { MarketplacePendingOutreach } from "@shared/schema";
+
+// ─── ApiError — carries parsed JSON body from non-2xx responses ───────────────
+
+class ApiError extends Error {
+  constructor(public status: number, public body: Record<string, unknown>) {
+    super(`${status}`);
+  }
+}
+
+async function apiFetch(
+  method: string,
+  url: string,
+  payload?: unknown,
+): Promise<Response> {
+  const res = await fetch(url, {
+    method,
+    credentials: "include",
+    headers: payload !== undefined ? { "Content-Type": "application/json" } : undefined,
+    body: payload !== undefined ? JSON.stringify(payload) : undefined,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({})) as Record<string, unknown>;
+    throw new ApiError(res.status, body);
+  }
+  return res;
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -287,7 +313,7 @@ export default function MarketplacePendingOutreachPage() {
   // ── Skip mutation ─────────────────────────────────────────────────────────
   const skipMutation = useMutation({
     mutationFn: async (id: string) => {
-      const res = await apiRequest("PATCH", `/api/marketplace/pending-outreach/${id}`, {
+      const res = await apiFetch("PATCH", `/api/marketplace/pending-outreach/${id}`, {
         messageStatus: "skipped",
       });
       return res.json() as Promise<MarketplacePendingOutreach>;
@@ -297,7 +323,9 @@ export default function MarketplacePendingOutreachPage() {
       toast({ title: "Record skipped" });
     },
     onError: (e: unknown) => {
-      const msg = e instanceof Error ? e.message : "Unknown error";
+      const msg = e instanceof ApiError
+        ? ((e.body.message as string | undefined) ?? `Error ${e.status}`)
+        : e instanceof Error ? e.message : "Unknown error";
       toast({ title: "Failed to skip", description: msg, variant: "destructive" });
     },
   });
@@ -305,44 +333,33 @@ export default function MarketplacePendingOutreachPage() {
   // ── Convert mutation ──────────────────────────────────────────────────────
   const convertMutation = useMutation({
     mutationFn: async (id: string) => {
-      const res = await apiRequest("POST", `/api/marketplace/pending-outreach/${id}/convert-to-crm`, {});
+      const res = await apiFetch("POST", `/api/marketplace/pending-outreach/${id}/convert-to-crm`, {});
       return res.json() as Promise<{ crmLeadId: string; messageStatus: string }>;
     },
     onSuccess: (data) => {
       invalidateAll();
       setShowConvertDialog(false);
       setDuplicateMatch(null);
-      const newLeadId = data?.crmLeadId ?? null;
-      setConvertedLeadId(newLeadId);
+      setConvertedLeadId(data?.crmLeadId ?? null);
       toast({ title: "Converted to CRM lead" });
     },
     onError: (e: unknown) => {
       setShowConvertDialog(false);
-      const errMsg = e instanceof Error ? e.message : "Unknown error";
-      const colonIdx = errMsg.indexOf(": ");
-      if (colonIdx !== -1) {
-        const jsonStr = errMsg.slice(colonIdx + 2);
-        try {
-          const parsed = JSON.parse(jsonStr) as {
-            code?: string;
-            match?: DuplicateMatch;
-            message?: string;
-          };
-          if (parsed.code === "DUPLICATE_LEAD" && parsed.match) {
-            setDuplicateMatch(parsed.match);
-            return;
-          }
-          toast({
-            title: "Conversion failed",
-            description: parsed.message ?? errMsg,
-            variant: "destructive",
-          });
+      if (e instanceof ApiError) {
+        const body = e.body as { code?: string; match?: DuplicateMatch; message?: string };
+        if (e.status === 409 && body.code === "DUPLICATE_LEAD" && body.match) {
+          setDuplicateMatch(body.match);
           return;
-        } catch {
-          // JSON parse failed — fall through
         }
+        toast({
+          title: "Conversion failed",
+          description: body.message ?? `Error ${e.status}`,
+          variant: "destructive",
+        });
+        return;
       }
-      toast({ title: "Conversion failed", description: errMsg, variant: "destructive" });
+      const msg = e instanceof Error ? e.message : "Unknown error";
+      toast({ title: "Conversion failed", description: msg, variant: "destructive" });
     },
   });
 

@@ -1,0 +1,110 @@
+MODE: Build Code Optimization
+BUILD LOCATION: Viva
+
+Task:
+Apply the final two cleanup/fix items for the new
+Marketplace Pending Outreach admin page.
+
+Goal:
+Make the detail view truly query-backed and make all
+mutations parse apiRequest JSON responses correctly so
+success/error handling is reliable.
+
+Important:
+This is a narrow fix pass only.
+Do NOT redesign the page.
+Do NOT add new features.
+Do NOT change the overall UX structure unless required to
+make these fixes work.
+Do NOT touch extension code.
+Do NOT add schema changes.
+Only fix the two issues below cleanly.
+
+Fix 1 — Query-backed detail view
+Problem:
+The detail panel/drawer is currently driven by the local
+row snapshot from the table. After Skip or Convert, the
+detail view can become stale until the user reopens it.
+
+Required fix:
+- track selected record by ID, not by full row object
+- fetch the selected record from:
+  GET /api/marketplace/pending-outreach/:id
+- use a dedicated TanStack Query keyed by selectedId
+- render detail from that query result, not from the
+  original row snapshot
+- after Skip or Convert, invalidate:
+  - list query
+  - summary query
+  - selected detail query (if selectedId exists)
+
+Recommended query key pattern:
+- ["/api/marketplace/pending-outreach", filters...]
+- ["/api/marketplace/pending-outreach/summary"]
+- ["/api/marketplace/pending-outreach", selectedId]
+
+The selected detail view must always reflect the current
+server truth after actions.
+
+Fix 2 — Parse apiRequest responses correctly
+Problem:
+apiRequest returns a raw Response object, not parsed JSON.
+Mutation handlers must not assume onSuccess receives the
+parsed body.
+
+Required fix:
+- every mutationFn that uses apiRequest must:
+  - await apiRequest(...)
+  - await res.json()
+  - return the parsed JSON object
+- success handlers must use the parsed body, not Response
+- duplicate 409 and blocked 400 handling must parse the
+  backend JSON payload reliably
+- do not rely on brittle string assumptions if parsed JSON
+  is available
+
+This applies especially to:
+- Convert to CRM mutation
+- Skip mutation if it uses apiRequest
+- any other admin-page mutations added in this task
+
+Error handling requirements:
+- 409 duplicate should still surface the duplicate summary
+  inline
+- 400 blocked should still show the backend message
+- success should still show CRM lead ID inline
+
+Scope guardrails:
+- keep current route structure
+- keep current filters/table/page structure
+- keep current sidebar entry
+- keep current admin/developer role restrictions
+- do not add sorting or bulk actions
+- do not add new endpoints
+
+Implementation notes:
+- if the current detail UI is a Sheet, keep it if possible
+- if the current detail UI is a persistent side panel, keep
+  it if possible
+- only change the minimum needed to make the detail query-
+  backed and accurate
+
+Deliverables:
+1. exact files changed
+2. exact query key structure used
+3. exact mutations updated to parse JSON correctly
+4. exact invalidateQueries calls used after Skip/Convert
+5. example success path after Convert showing fresh detail
+6. example duplicate 409 handling still working
+7. short manual testing checklist
+
+Manual testing checklist should include:
+- click a row → detail fetches from GET /:id
+- Skip updates list, summary, and detail immediately
+- Convert updates list, summary, and detail immediately
+- crmLeadId and convertedAt appear in detail without
+  reopening the record
+- Convert success still shows CRM lead ID inline
+- 409 duplicate still shows duplicate summary inline
+- 400 blocked still shows backend message
+- no regression in filters, pagination, or sidebar route
