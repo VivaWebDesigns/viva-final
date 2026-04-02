@@ -1,0 +1,137 @@
+MODE: Build App Testing
+BUILD LOCATION: Viva
+
+Task:
+Run a focused verification pass on the new
+convert-to-crm route for Marketplace pending outreach
+records.
+
+Goal:
+Confirm the route creates a normal CRM outreach lead
+that matches the existing manual lead structure,
+especially around business name mapping.
+
+Important:
+This is a verification pass only.
+Do NOT add new features.
+Do NOT change extension code.
+Do NOT add queue pages.
+Do NOT add automatic conversion.
+Only make the smallest direct fix if testing reveals a
+real field-mapping problem.
+
+What to verify:
+
+1. Successful conversion shape
+Verify that converting an eligible pending outreach
+record:
+- returns 201
+- creates a real CRM lead
+- writes crmLeadId back to the pending outreach record
+- sets messageStatus = converted
+- sets convertedAt
+- blocks a second conversion attempt
+
+2. Business name mapping
+This is the key audit item.
+
+Manual leads use business name.
+
+Verify that:
+- overrideBusinessName maps into the same canonical CRM
+  field used by normal manual lead creation
+- if no overrideBusinessName is supplied, the fallback
+  business/company naming logic writes into that same
+  canonical field
+- the created lead displays/stores business name exactly
+  where a normal manual outreach lead would
+
+If there is a mismatch between this new route and the
+existing manual lead path, make the smallest direct fix
+needed so both use the same canonical business-name
+field.
+
+3. General CRM field mapping
+Verify the created CRM lead stores the intended values
+in the correct existing CRM fields:
+- firstName
+- lastName
+- businessName
+- city
+- state
+- phone
+- source = outreach
+- sellerProfileUrl
+- adUrl
+- assignedTo
+- notes snapshot
+
+4. Duplicate handling
+Verify:
+- duplicate phone blocks with 409
+- duplicate sellerProfileUrl blocks with 409
+- duplicate firstName + lastName + state blocks with 409
+- duplicate businessName + state blocks with 409
+
+Confirm blocked cases:
+- do not create CRM leads
+- do not mark pending outreach converted
+- do not write crmLeadId
+
+5. Eligible vs blocked statuses
+Verify:
+Allowed:
+- reply_received
+- manual_review_required
+
+Blocked:
+- ready_to_message
+- awaiting_reply
+- skipped
+- converted
+
+Confirm blocked cases do not modify the record.
+
+6. Overrides
+Verify overrides actually win over defaults:
+- overrideFirstName
+- overrideLastName
+- overrideBusinessName
+- overrideTrade
+- overrideCity
+- overrideState
+
+7. Isolation
+Confirm:
+- no other marketplace routes changed behavior
+- no extension files changed
+- no automatic conversion behavior was added
+- existing manual lead creation flow remains unchanged
+
+If anything fails:
+- make only the smallest direct fix needed
+- do not drift into new features
+
+Deliverables:
+At the end provide:
+1. pass/fail result for each verification item
+2. exact result of the business-name audit
+3. any bugs found
+4. exact fixes made, if any
+5. exact files changed during testing/fixes
+6. one example successful 201 response
+7. one example duplicate 409 response
+8. one example blocked 400 response
+9. short manual testing checklist
+
+Manual testing checklist should include:
+- reply_received converts
+- manual_review_required converts
+- business name stored in canonical CRM field
+- overrideBusinessName wins
+- duplicate phone blocked
+- duplicate sellerProfileUrl blocked
+- awaiting_reply blocked
+- second conversion blocked
+- crmLeadId written back
+- convertedAt written back
