@@ -1,0 +1,78 @@
+Revisions for Task #20
+
+1. Remove sellerProfileUrl exact-match from the scorer
+The current route input does not include
+sellerProfileUrlSeen, so sellerProfileUrl cannot be used
+for scoring in this phase.
+
+Remove:
+- sellerProfileUrl exact match = high confidence
+
+Unless sellerProfileUrlSeen is later added to the route
+payload, do not include it in scoreCaptureMatch().
+
+2. Promote first name + listing title exact match to high
+confidence
+Update confidence rules:
+
+High confidence:
+- exact threadIdentifier match
+- OR normalized sellerFirstNameSeen + normalized
+  listingTitleSeen exact match
+
+Medium confidence:
+- sellerFirstNameSeen + fuzzy / partial listing title
+  match
+- OR sellerFirstNameSeen + listing title + join year
+  where title is imperfect
+
+Low confidence:
+- first name only
+- listing title only
+- facebook join year only
+- conflicting signals
+- unclear match
+
+3. Require a parseable phone number
+Explicitly define:
+
+- if no phone can be extracted from replyText:
+  return 400 with a clear message
+- do not move the record to manual_review_required just
+  because no phone was found
+- this route should only be used for replies that contain
+  a phone number or parseable phone-like text
+
+Suggested 400 message:
+"No valid phone number could be extracted from the
+reply."
+
+4. Add workflow-state guard for ready_to_message
+Only allow capture-reply from these statuses:
+- awaiting_reply
+- manual_review_required
+- reply_received (idempotent overwrite allowed if needed)
+
+Block:
+- ready_to_message
+- skipped
+- converted
+
+Suggested 400 message:
+"Cannot capture reply: outreach has not been marked as
+sent yet."
+
+5. Keep replyMatchConfidence as an enum string
+Use:
+- high
+- medium
+- low
+
+Do not use numeric scores in this phase.
+
+6. Normalize listingTitleSeen server-side
+If listingTitleSeen is sent from the extension raw, Viva
+should normalize it server-side before matching.
+
+Do not trust extension normalization as the source of
+truth.

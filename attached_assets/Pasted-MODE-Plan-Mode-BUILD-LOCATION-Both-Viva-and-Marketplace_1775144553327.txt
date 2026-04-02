@@ -1,0 +1,164 @@
+MODE: Plan Mode
+BUILD LOCATION: Both Viva and Marketplace Assistant
+
+Task:
+Design the safest next phase for handling seller replies
+to Marketplace outreach without letting Messenger UI
+fragility create bad lead matches.
+
+Goal:
+Produce a narrow, implementation-ready plan for how the
+system should handle seller replies that contain a phone
+number, while keeping humans in control and avoiding bad
+matches when multiple sellers share the same first name.
+
+Important:
+This is a planning step only.
+Do NOT implement code yet.
+Do NOT add Messenger scraping yet.
+Do NOT add CRM lead conversion yet.
+Do NOT add frontend CRM pages yet.
+Do NOT redesign the extension UI.
+This step is only to define the safest architecture and
+the next build sequence.
+
+Current confirmed foundation:
+- Viva has marketplace_pending_outreach staging records
+- extension can create pending outreach after PASS
+- extension can mark message sent -> awaiting_reply
+- sellerProfileUrl is stored at listing time
+- listingUrl and listing title may be stored
+- Messenger may later show only first name
+- Messenger also shows listing title
+- Messenger may also show Facebook join year
+- first name alone is NOT safe enough for matching
+
+What needs to be planned:
+Define exactly how seller replies should be captured,
+validated, matched to an existing pending outreach
+record, and only then prepared for later CRM conversion.
+
+The plan must treat:
+- listing-time capture as the identity phase
+- Messenger reply as a trigger / phone source
+- pending outreach record as the bridge
+
+Questions the plan must answer:
+
+1. Matching strategy
+Define the safest matching hierarchy for replies.
+
+The plan should evaluate and rank:
+- thread identifier if obtainable
+- sellerProfileUrl if obtainable
+- first name + listing title
+- first name + listing title + facebook join year
+- message timing proximity
+- other visible context clues
+
+The plan must clearly state:
+- what counts as high confidence
+- what counts as medium confidence
+- what counts as low confidence
+- which confidence levels can proceed automatically
+- which confidence levels must require human review
+
+Important:
+The plan must explicitly forbid attaching a phone number
+to a pending record based on first name alone.
+
+2. Data model additions
+Review the current marketplace_pending_outreach model
+and specify the minimum additional fields needed for the
+reply-handling phase.
+
+Possible examples to evaluate:
+- facebookJoinYear
+- threadIdentifier
+- lastReplyText
+- replyReceivedAt
+- replyPhoneRaw
+- replyPhoneNormalized
+- replyMatchConfidence
+- replyMatchMethod
+- manualReviewReason
+- replyCapturedBy
+- conversionReadyAt
+
+Do not overbuild.
+Recommend only the minimum safe additions.
+
+3. Extension responsibilities vs Viva responsibilities
+Define exactly what should happen in each system.
+
+Marketplace Assistant should likely handle only UI-side
+capture from Marketplace / Messenger pages.
+
+Viva should likely handle:
+- normalization
+- matching logic
+- confidence scoring
+- duplicate checks
+- final conversion readiness
+
+The plan should clearly separate:
+- what the extension scrapes/captures
+- what it sends
+- what Viva decides
+
+4. Human-in-the-loop points
+Define where the human must stay in control.
+
+Examples to evaluate:
+- human sends opener manually
+- human triggers reply capture manually
+- human reviews uncertain matches
+- human confirms conversion when confidence is not high
+
+The plan should prefer manual checkpoints where they
+meaningfully reduce bad lead creation.
+
+5. Safe next build sequence
+Produce the recommended next implementation order.
+
+It should be broken into very small phases, for example:
+- capture Messenger-side visible reply context only
+- send reply context to Viva for match scoring
+- add exception / manual review path for uncertain match
+- only later add CRM conversion route
+- only later add phone parsing + duplicate conversion
+
+Do not jump ahead.
+Keep each phase small and testable.
+
+6. Failure / exception handling
+Define how the system should behave when:
+- multiple pending outreach records could match
+- no pending record matches confidently
+- phone parsing fails
+- record was skipped or already converted
+- duplicate conflict exists at conversion time
+- Messenger UI does not expose enough context
+
+The plan should recommend a lightweight exception bucket
+rather than forcing bad automatic matches.
+
+7. Deliverable format
+At the end, produce:
+- recommended architecture
+- recommended confidence rules
+- minimum schema additions
+- minimum extension additions
+- minimum Viva additions
+- phased implementation sequence
+- explicit "do not do yet" list
+- short reasoning for why this plan is safest
+
+Very important guardrails:
+- do not propose full autonomous Messenger behavior
+- do not rely on first name alone
+- do not create CRM leads directly from ambiguous replies
+- do not let extension-side logic become the source of
+  truth for matching
+- keep matching intelligence in Viva
+- keep the human in control at meaningful checkpoints
