@@ -5,7 +5,7 @@ import { STALE, queryClient, apiRequest } from "@/lib/queryClient";
 import { useLocation } from "wouter";
 import {
   Search, Phone, ExternalLink, ChevronLeft, ChevronRight,
-  ShoppingBag, AlertCircle, CheckCircle2, Clock, Eye, SkipForward, X,
+  ShoppingBag, AlertCircle, CheckCircle2, Clock, Eye, SkipForward,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import {
+  Sheet, SheetContent, SheetHeader, SheetTitle,
+} from "@/components/ui/sheet";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
@@ -170,9 +173,9 @@ function DuplicateInlineBlock({
 
 function DetailField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-[130px_1fr] gap-2 py-1.5 border-b border-border/50 last:border-0">
-      <span className="text-xs text-muted-foreground shrink-0 leading-5">{label}</span>
-      <span className="text-xs font-medium break-words leading-5">{children}</span>
+    <div className="grid grid-cols-[140px_1fr] gap-2 py-1.5 border-b border-border/50 last:border-0">
+      <span className="text-sm text-muted-foreground shrink-0">{label}</span>
+      <span className="text-sm font-medium break-words">{children}</span>
     </div>
   );
 }
@@ -184,7 +187,7 @@ function DetailLink({ href, label }: { href: string | null | undefined; label?: 
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1"
+      className="text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1 text-sm"
     >
       {label || href}
       <ExternalLink className="w-3 h-3 flex-shrink-0" />
@@ -206,8 +209,8 @@ export default function MarketplacePendingOutreachPage() {
   const [page, setPage]                 = useState(1);
   const limit                            = 25;
 
-  // Selected record ID — drawer uses its own query keyed by this ID
-  const [selectedId, setSelectedId]         = useState<string | null>(null);
+  // selectedId drives the Sheet drawer; null = closed
+  const [selectedId, setSelectedId]           = useState<string | null>(null);
   const [showConvertDialog, setShowConvertDialog] = useState(false);
   const [duplicateMatch, setDuplicateMatch]       = useState<DuplicateMatch | null>(null);
   const [convertedLeadId, setConvertedLeadId]     = useState<string | null>(null);
@@ -251,7 +254,7 @@ export default function MarketplacePendingOutreachPage() {
     },
   });
 
-  // ── Detail (query-backed, keyed by selectedId) ────────────────────────────
+  // ── Drawer detail (query-backed, keyed by selectedId) ─────────────────────
   const detailQueryKey = ["/api/marketplace/pending-outreach", selectedId] as const;
 
   const { data: detailRecord, isLoading: detailLoading } = useQuery<MarketplacePendingOutreach>({
@@ -259,7 +262,9 @@ export default function MarketplacePendingOutreachPage() {
     enabled: !!selectedId,
     staleTime: STALE.FAST,
     queryFn: async () => {
-      const res = await fetch(`/api/marketplace/pending-outreach/${selectedId}`, { credentials: "include" });
+      const res = await fetch(`/api/marketplace/pending-outreach/${selectedId}`, {
+        credentials: "include",
+      });
       if (!res.ok) throw new Error("Failed to fetch record detail");
       return res.json();
     },
@@ -270,7 +275,7 @@ export default function MarketplacePendingOutreachPage() {
   const totalPages = Math.ceil(total / limit);
   const hasFilters = !!(search || statusFilter || hasPhone !== undefined || hasCrmLead !== undefined);
 
-  // Invalidate list + summary + detail in sync
+  // Invalidate list + summary + detail in sync after any action
   const invalidateAll = () => {
     queryClient.invalidateQueries({ queryKey: ["/api/marketplace/pending-outreach/summary"] });
     queryClient.invalidateQueries({ queryKey: ["/api/marketplace/pending-outreach", "list"] });
@@ -318,15 +323,23 @@ export default function MarketplacePendingOutreachPage() {
       if (colonIdx !== -1) {
         const jsonStr = errMsg.slice(colonIdx + 2);
         try {
-          const parsed = JSON.parse(jsonStr) as { code?: string; match?: DuplicateMatch; message?: string };
+          const parsed = JSON.parse(jsonStr) as {
+            code?: string;
+            match?: DuplicateMatch;
+            message?: string;
+          };
           if (parsed.code === "DUPLICATE_LEAD" && parsed.match) {
             setDuplicateMatch(parsed.match);
             return;
           }
-          toast({ title: "Conversion failed", description: parsed.message ?? errMsg, variant: "destructive" });
+          toast({
+            title: "Conversion failed",
+            description: parsed.message ?? errMsg,
+            variant: "destructive",
+          });
           return;
         } catch {
-          // JSON parse failed — fall through to generic toast
+          // JSON parse failed — fall through
         }
       }
       toast({ title: "Conversion failed", description: errMsg, variant: "destructive" });
@@ -344,6 +357,12 @@ export default function MarketplacePendingOutreachPage() {
     setConvertedLeadId(null);
   };
 
+  const closeDrawer = () => {
+    setSelectedId(null);
+    setDuplicateMatch(null);
+    setConvertedLeadId(null);
+  };
+
   const canSkip    = (s: string) =>
     ["ready_to_message", "awaiting_reply", "reply_received", "manual_review_required"].includes(s);
   const canConvert = (s: string) => ["reply_received", "manual_review_required"].includes(s);
@@ -351,18 +370,17 @@ export default function MarketplacePendingOutreachPage() {
 
   return (
     <div className="flex flex-col gap-6" data-testid="page-marketplace-pending-outreach">
+
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1
-            className="text-2xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2"
-            data-testid="text-marketplace-title"
-          >
-            <ShoppingBag className="w-6 h-6 text-violet-500" />
-            Marketplace Pending Outreach
-          </h1>
-          <p className="text-gray-500 text-sm mt-1">{total} record{total !== 1 ? "s" : ""}</p>
-        </div>
+      <div>
+        <h1
+          className="text-2xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2"
+          data-testid="text-marketplace-title"
+        >
+          <ShoppingBag className="w-6 h-6 text-violet-500" />
+          Marketplace Pending Outreach
+        </h1>
+        <p className="text-gray-500 text-sm mt-1">{total} record{total !== 1 ? "s" : ""}</p>
       </div>
 
       {/* Summary cards */}
@@ -441,204 +459,198 @@ export default function MarketplacePendingOutreachPage() {
         </CardContent>
       </Card>
 
-      {/* Main content: table + detail panel */}
-      <div className="flex gap-4 items-start">
-
-        {/* ── Table ── */}
-        <div className="flex-1 min-w-0">
-          {isLoading ? (
-            <div className="space-y-2">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="h-12 bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse" />
-              ))}
-            </div>
-          ) : items.length === 0 ? (
-            <Card>
-              <CardContent className="p-12 text-center">
-                <ShoppingBag className="w-10 h-10 mx-auto mb-3 text-gray-300" />
-                {hasFilters ? (
-                  <>
-                    <p className="text-gray-500 font-medium" data-testid="text-no-results">
-                      No records match the current filters.
-                    </p>
-                    <p className="text-gray-400 text-sm mt-1">
-                      Try adjusting your search or filter options.
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-gray-500 font-medium" data-testid="text-no-records">
-                      No pending outreach records yet.
-                    </p>
-                    <p className="text-gray-400 text-sm mt-1">
-                      Records appear here when the Marketplace bot creates them.
-                    </p>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          ) : (
-            <>
-              <div className="overflow-x-auto rounded-lg border border-border bg-white dark:bg-gray-900">
-                <table className="w-full text-sm" data-testid="table-outreach">
-                  <thead>
-                    <tr className="border-b border-border bg-gray-50 dark:bg-gray-800/60">
-                      <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Seller Name</th>
-                      <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Listing Title</th>
-                      <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">City / State</th>
-                      <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Trade</th>
-                      <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Status</th>
-                      <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Reply Phone</th>
-                      <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Confidence</th>
-                      <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Created</th>
-                      <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Updated</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {items.map((record) => {
-                      const isSelected = selectedId === record.id;
-                      const phone = getDisplayPhone(record);
-                      return (
-                        <tr
-                          key={record.id}
-                          onClick={() => handleRowClick(record)}
-                          data-testid={`row-outreach-${record.id}`}
-                          className={cn(
-                            "border-b border-border/50 last:border-0 cursor-pointer transition-colors",
-                            isSelected
-                              ? "bg-violet-50 dark:bg-violet-950/20"
-                              : "hover:bg-gray-50 dark:hover:bg-gray-800/40"
-                          )}
-                        >
-                          <td className="px-3 py-2 font-medium whitespace-nowrap max-w-[140px] truncate">
-                            {record.sellerFullName}
-                          </td>
-                          <td className="px-3 py-2 text-muted-foreground max-w-[160px] truncate text-xs">
-                            {record.listingTitleRaw ?? "—"}
-                          </td>
-                          <td className="px-3 py-2 text-muted-foreground whitespace-nowrap text-xs">
-                            {[record.city, record.state].filter(Boolean).join(", ") || "—"}
-                          </td>
-                          <td className="px-3 py-2 text-muted-foreground whitespace-nowrap text-xs">
-                            {record.tradeGuess ?? "—"}
-                          </td>
-                          <td className="px-3 py-2 whitespace-nowrap">
-                            <StatusBadge status={record.messageStatus} />
-                          </td>
-                          <td className="px-3 py-2 whitespace-nowrap text-muted-foreground text-xs">
-                            {phone ? (
-                              <span className="inline-flex items-center gap-1">
-                                <Phone className="w-3 h-3" /> {phone}
-                              </span>
-                            ) : "—"}
-                          </td>
-                          <td className="px-3 py-2 whitespace-nowrap text-xs">
-                            {record.replyMatchConfidence ? (
-                              <span className={cn(
-                                "font-medium",
-                                record.replyMatchConfidence === "high"   && "text-green-600",
-                                record.replyMatchConfidence === "medium" && "text-amber-600",
-                                record.replyMatchConfidence === "low"    && "text-red-500",
-                              )}>
-                                {record.replyMatchConfidence.toUpperCase()}
-                              </span>
-                            ) : "—"}
-                          </td>
-                          <td className="px-3 py-2 text-muted-foreground whitespace-nowrap text-xs">
-                            {formatDateShort(record.createdAt)}
-                          </td>
-                          <td className="px-3 py-2 text-muted-foreground whitespace-nowrap text-xs">
-                            {formatDateShort(record.updatedAt)}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="flex items-center justify-between mt-4">
-                  <p className="text-sm text-muted-foreground">
-                    Page {page} of {totalPages} · {total} total
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPage((p) => Math.max(1, p - 1))}
-                      disabled={page <= 1}
-                      data-testid="button-prev-page"
-                    >
-                      <ChevronLeft className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                      disabled={page >= totalPages}
-                      data-testid="button-next-page"
-                    >
-                      <ChevronRight className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-
-        {/* ── Right detail panel (always visible) ── */}
-        <div
-          className="w-80 shrink-0 rounded-lg border border-border bg-white dark:bg-gray-900 min-h-[400px] sticky top-0"
-          data-testid="panel-outreach-detail"
+      {/* "No drawer selected" hint (shown when no record is selected and table is populated) */}
+      {!selectedId && !isLoading && items.length > 0 && (
+        <p
+          className="text-sm text-muted-foreground text-center"
+          data-testid="text-no-record-selected"
         >
-          {!selectedId ? (
-            /* Empty state: no record selected */
-            <div
-              className="flex flex-col items-center justify-center h-full min-h-[400px] text-center text-muted-foreground px-6"
-              data-testid="text-no-record-selected"
-            >
-              <Clock className="w-10 h-10 mb-3 opacity-30" />
-              <p className="text-sm">Select a record from the table to view details.</p>
+          <Clock className="inline w-3.5 h-3.5 mr-1 -mt-0.5" />
+          Click any row to view its details.
+        </p>
+      )}
+
+      {/* Table */}
+      {isLoading ? (
+        <div className="space-y-2">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="h-12 bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse" />
+          ))}
+        </div>
+      ) : items.length === 0 ? (
+        <Card>
+          <CardContent className="p-12 text-center">
+            <ShoppingBag className="w-10 h-10 mx-auto mb-3 text-gray-300" />
+            {hasFilters ? (
+              <>
+                <p className="text-gray-500 font-medium" data-testid="text-no-results">
+                  No records match the current filters.
+                </p>
+                <p className="text-gray-400 text-sm mt-1">
+                  Try adjusting your search or filter options.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-gray-500 font-medium" data-testid="text-no-records">
+                  No pending outreach records yet.
+                </p>
+                <p className="text-gray-400 text-sm mt-1">
+                  Records appear here when the Marketplace bot creates them.
+                </p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          <div className="overflow-x-auto rounded-lg border border-border bg-white dark:bg-gray-900">
+            <table className="w-full text-sm" data-testid="table-outreach">
+              <thead>
+                <tr className="border-b border-border bg-gray-50 dark:bg-gray-800/60">
+                  <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Seller Name</th>
+                  <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Listing Title</th>
+                  <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">City / State</th>
+                  <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Trade</th>
+                  <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Status</th>
+                  <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Reply Phone</th>
+                  <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Confidence</th>
+                  <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Created</th>
+                  <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Updated</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((record) => {
+                  const isSelected = selectedId === record.id;
+                  const phone = getDisplayPhone(record);
+                  return (
+                    <tr
+                      key={record.id}
+                      onClick={() => handleRowClick(record)}
+                      data-testid={`row-outreach-${record.id}`}
+                      className={cn(
+                        "border-b border-border/50 last:border-0 cursor-pointer transition-colors",
+                        isSelected
+                          ? "bg-violet-50 dark:bg-violet-950/20"
+                          : "hover:bg-gray-50 dark:hover:bg-gray-800/40"
+                      )}
+                    >
+                      <td className="px-3 py-2 font-medium whitespace-nowrap max-w-[140px] truncate">
+                        {record.sellerFullName}
+                      </td>
+                      <td className="px-3 py-2 text-muted-foreground max-w-[160px] truncate text-xs">
+                        {record.listingTitleRaw ?? "—"}
+                      </td>
+                      <td className="px-3 py-2 text-muted-foreground whitespace-nowrap text-xs">
+                        {[record.city, record.state].filter(Boolean).join(", ") || "—"}
+                      </td>
+                      <td className="px-3 py-2 text-muted-foreground whitespace-nowrap text-xs">
+                        {record.tradeGuess ?? "—"}
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap">
+                        <StatusBadge status={record.messageStatus} />
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap text-muted-foreground text-xs">
+                        {phone ? (
+                          <span className="inline-flex items-center gap-1">
+                            <Phone className="w-3 h-3" /> {phone}
+                          </span>
+                        ) : "—"}
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap text-xs">
+                        {record.replyMatchConfidence ? (
+                          <span
+                            className={cn(
+                              "font-medium",
+                              record.replyMatchConfidence === "high"   && "text-green-600",
+                              record.replyMatchConfidence === "medium" && "text-amber-600",
+                              record.replyMatchConfidence === "low"    && "text-red-500",
+                            )}
+                          >
+                            {record.replyMatchConfidence.toUpperCase()}
+                          </span>
+                        ) : "—"}
+                      </td>
+                      <td className="px-3 py-2 text-muted-foreground whitespace-nowrap text-xs">
+                        {formatDateShort(record.createdAt)}
+                      </td>
+                      <td className="px-3 py-2 text-muted-foreground whitespace-nowrap text-xs">
+                        {formatDateShort(record.updatedAt)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                Page {page} of {totalPages} · {total} total
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page <= 1}
+                  data-testid="button-prev-page"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages}
+                  data-testid="button-next-page"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
-          ) : detailLoading ? (
-            <div className="p-4 space-y-3">
-              {Array.from({ length: 5 }).map((_, i) => (
+          )}
+        </>
+      )}
+
+      {/* ── Right-side Sheet drawer ─────────────────────────────────────────── */}
+      <Sheet open={!!selectedId} onOpenChange={(open) => { if (!open) closeDrawer(); }}>
+        <SheetContent
+          side="right"
+          className="w-full sm:max-w-lg overflow-y-auto"
+          data-testid="drawer-outreach-detail"
+        >
+          {detailLoading ? (
+            <div className="space-y-3 pt-6">
+              {Array.from({ length: 6 }).map((_, i) => (
                 <div key={i} className="h-5 bg-gray-100 dark:bg-gray-800 rounded animate-pulse" />
               ))}
             </div>
           ) : detailRecord ? (
-            <div className="flex flex-col h-full">
-              {/* Panel header */}
-              <div className="flex items-start justify-between gap-2 p-4 border-b border-border">
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold truncate">{detailRecord.sellerFullName}</p>
-                  <div className="mt-1">
-                    <StatusBadge status={detailRecord.messageStatus} />
-                  </div>
+            <>
+              <SheetHeader className="mb-4">
+                <SheetTitle className="text-base leading-snug">{detailRecord.sellerFullName}</SheetTitle>
+                <div className="mt-1">
+                  <StatusBadge status={detailRecord.messageStatus} />
                 </div>
-                <button
-                  onClick={() => { setSelectedId(null); setDuplicateMatch(null); setConvertedLeadId(null); }}
-                  className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 mt-0.5"
-                  data-testid="button-close-detail"
-                  aria-label="Close detail panel"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
+              </SheetHeader>
 
-              {/* Action buttons */}
-              <div className="p-4 border-b border-border space-y-2">
+              {/* ── Action buttons ── */}
+              <div className="space-y-2 mb-6">
                 {canConvert(detailRecord.messageStatus) && (
                   <Button
-                    className="w-full h-8 text-sm"
-                    onClick={() => { setDuplicateMatch(null); setConvertedLeadId(null); setShowConvertDialog(true); }}
+                    className="w-full"
+                    onClick={() => {
+                      setDuplicateMatch(null);
+                      setConvertedLeadId(null);
+                      setShowConvertDialog(true);
+                    }}
                     disabled={convertMutation.isPending || skipMutation.isPending}
                     data-testid="button-convert-to-crm"
                   >
-                    <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
+                    <CheckCircle2 className="w-4 h-4 mr-2" />
                     Convert to CRM Lead
                   </Button>
                 )}
@@ -646,12 +658,12 @@ export default function MarketplacePendingOutreachPage() {
                 {canSkip(detailRecord.messageStatus) && (
                   <Button
                     variant="outline"
-                    className="w-full h-8 text-sm"
+                    className="w-full"
                     onClick={() => skipMutation.mutate(detailRecord.id)}
                     disabled={skipMutation.isPending || convertMutation.isPending}
                     data-testid="button-skip"
                   >
-                    <SkipForward className="w-3.5 h-3.5 mr-1.5" />
+                    <SkipForward className="w-4 h-4 mr-2" />
                     {skipMutation.isPending ? "Skipping…" : "Skip"}
                   </Button>
                 )}
@@ -659,22 +671,25 @@ export default function MarketplacePendingOutreachPage() {
                 {isConverted(detailRecord.messageStatus) && detailRecord.crmLeadId && (
                   <Button
                     variant="outline"
-                    className="w-full h-8 text-sm"
+                    className="w-full"
                     onClick={() => navigate(`/admin/crm/leads/${detailRecord.crmLeadId}`)}
                     data-testid="button-view-crm-lead"
                   >
-                    <Eye className="w-3.5 h-3.5 mr-1.5" />
+                    <Eye className="w-4 h-4 mr-2" />
                     View CRM Lead
                   </Button>
                 )}
 
                 {detailRecord.messageStatus === "skipped" && (
-                  <p className="text-xs text-muted-foreground text-center py-1" data-testid="text-no-actions">
+                  <p
+                    className="text-sm text-muted-foreground text-center py-2"
+                    data-testid="text-no-actions"
+                  >
                     No actions available for skipped records.
                   </p>
                 )}
 
-                {/* Duplicate inline block */}
+                {/* Duplicate 409: inline under action buttons */}
                 {duplicateMatch && (
                   <DuplicateInlineBlock
                     match={duplicateMatch}
@@ -686,14 +701,24 @@ export default function MarketplacePendingOutreachPage() {
                   />
                 )}
 
-                {/* Converted inline confirmation */}
+                {/* Convert success: show CRM lead ID inline */}
                 {convertedLeadId && (
-                  <div className="rounded-md border border-teal-200 bg-teal-50 dark:bg-teal-950/20 p-2.5 text-xs">
-                    <p className="font-medium text-teal-700 dark:text-teal-300 flex items-center gap-1">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> Converted successfully
+                  <div
+                    className="rounded-md border border-teal-200 bg-teal-50 dark:bg-teal-950/20 p-3 text-sm"
+                    data-testid="block-converted-success"
+                  >
+                    <p className="font-semibold text-teal-700 dark:text-teal-300 flex items-center gap-1.5">
+                      <CheckCircle2 className="w-4 h-4" /> Converted to CRM lead
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">CRM Lead ID:</p>
+                    <p
+                      className="font-mono text-xs break-all text-teal-700 dark:text-teal-300 mt-0.5"
+                      data-testid="text-converted-lead-id"
+                    >
+                      {convertedLeadId}
                     </p>
                     <button
-                      className="text-teal-600 dark:text-teal-400 hover:underline mt-1 block font-mono break-all"
+                      className="mt-2 text-sm text-teal-600 dark:text-teal-400 hover:underline"
                       onClick={() => navigate(`/admin/crm/leads/${convertedLeadId}`)}
                       data-testid="button-view-new-crm-lead"
                     >
@@ -703,8 +728,8 @@ export default function MarketplacePendingOutreachPage() {
                 )}
               </div>
 
-              {/* Detail fields */}
-              <div className="p-4 overflow-y-auto flex-1">
+              {/* ── Detail fields ── */}
+              <div className="space-y-0">
                 <DetailField label="Seller Profile URL">
                   <DetailLink href={detailRecord.sellerProfileUrl} label="Open profile" />
                 </DetailField>
@@ -728,7 +753,7 @@ export default function MarketplacePendingOutreachPage() {
                   {detailRecord.replyMatchMethod ?? "—"}
                 </DetailField>
                 <DetailField label="FB Join Year">
-                  {detailRecord.facebookJoinYear ?? "—"}
+                  {String(detailRecord.facebookJoinYear ?? "—")}
                 </DetailField>
                 <DetailField label="Review Reason">
                   {detailRecord.manualReviewReason ?? "—"}
@@ -754,17 +779,20 @@ export default function MarketplacePendingOutreachPage() {
                   {formatDateTime(detailRecord.updatedAt)}
                 </DetailField>
               </div>
-            </div>
+            </>
           ) : (
-            <div className="flex flex-col items-center justify-center min-h-[400px] text-muted-foreground text-sm px-4">
-              Record not found.
+            <div
+              className="flex flex-col items-center justify-center h-full min-h-[300px] text-center text-muted-foreground"
+              data-testid="text-drawer-record-not-found"
+            >
+              <ShoppingBag className="w-8 h-8 mb-3 opacity-30" />
+              <p className="text-sm">Record not found.</p>
             </div>
           )}
-        </div>
+        </SheetContent>
+      </Sheet>
 
-      </div>
-
-      {/* Convert confirm dialog */}
+      {/* ── Convert confirm dialog ── */}
       <Dialog
         open={showConvertDialog}
         onOpenChange={(open) => { if (!open) setShowConvertDialog(false); }}
