@@ -1,0 +1,184 @@
+MODE: Build Code Optimization
+BUILD LOCATION: Viva
+
+Task:
+Add the first dedicated manual-review workflow for
+Marketplace pending outreach records in
+manual_review_required status on /admin/marketplace.
+
+Goal:
+Give admin/developer users a clean way to resolve
+medium-confidence reply captures before conversion,
+without relying on ad hoc judgment or hidden backend
+state.
+
+Important:
+Keep this phase narrow.
+Do NOT redesign the whole admin page.
+Do NOT add extension changes.
+Do NOT add auto-conversion.
+Do NOT add bulk actions.
+Do NOT add assignment features.
+Only add the minimum manual-review actions needed.
+
+Current reality:
+- manual_review_required records already exist
+- they already store reply text, extracted phone,
+  normalized phone, match confidence, and review reason
+- admins can currently still convert them
+- but there is no dedicated review action that says:
+  "yes, this match is valid" or
+  "no, this was wrong / should be skipped"
+
+That is the gap this phase should close.
+
+Required behavior:
+
+1. Add explicit manual-review actions
+For records in manual_review_required, add two explicit
+actions in the admin detail drawer/panel:
+
+- Approve Match
+- Reject Match
+
+Do not show these actions for other statuses.
+
+2. Approve Match behavior
+Add a backend route or the smallest safe backend support
+needed so that approving a manual-review record:
+
+- requires current status = manual_review_required
+- updates messageStatus to reply_received
+- clears manualReviewReason if appropriate
+- preserves the already stored reply fields
+- returns the updated full record
+
+This means:
+admin has reviewed the fuzzy/medium-confidence match and
+is explicitly accepting it as valid.
+
+3. Reject Match behavior
+Add a backend route or the smallest safe backend support
+needed so that rejecting a manual-review record:
+
+- requires current status = manual_review_required
+- updates messageStatus to skipped
+- preserves audit-worthy reply fields if that matches
+  current data-retention approach
+- sets manualReviewReason to something explicit like:
+  "Manual review rejected by admin"
+  or appends a clear rejection reason
+- returns the updated full record
+
+Do not delete the record.
+Do not create a CRM lead.
+
+4. Convert-to-CRM gating change
+Tighten convert-to-crm behavior so that conversion is
+allowed only for:
+
+- reply_received
+
+and no longer directly from:
+- manual_review_required
+
+Reason:
+manual_review_required should now be a true review gate,
+not just a warning state that can still be converted
+without an explicit review action.
+
+Blocked conversion from manual_review_required should
+return 400 with a clear message.
+
+5. Admin page UI
+Update /admin/marketplace detail drawer/panel so that:
+
+For manual_review_required:
+- show Approve Match button
+- show Reject Match button
+- do NOT show Convert to CRM yet
+
+For reply_received:
+- show Convert to CRM
+- show Skip if that still matches current rules
+
+For other statuses:
+- preserve current action rules unless this phase
+  requires a minimal adjustment
+
+6. Review context visibility
+For manual_review_required records, make sure the detail
+panel clearly shows the review context needed to decide:
+
+- seller name
+- listing title
+- reply text
+- extracted phone
+- replyPhoneNormalized
+- replyMatchConfidence
+- replyMatchMethod
+- manualReviewReason
+- seller profile URL
+- listing URL
+- threadIdentifier if present
+
+Do not make the reviewer hunt for these fields.
+
+7. Backend auth
+Keep all new review actions restricted to:
+- admin
+- developer
+
+Use the same admin/developer route protection style as
+the rest of /admin/marketplace page support.
+
+8. UI refresh behavior
+After Approve Match or Reject Match:
+- refresh detail record
+- refresh table row
+- refresh summary counts
+- no stale action buttons should remain visible
+
+9. Error handling
+Handle clearly:
+- 400 wrong status
+- 404 not found
+- auth errors
+- backend/network failure
+
+10. Guardrails
+- no extension changes
+- no bulk review
+- no new schema unless absolutely required
+- no queue redesign
+- no assignment work
+- no automatic approval rules
+- no auto-conversion after approval in this phase
+
+Implementation notes:
+Prefer the smallest backend change that matches the
+existing marketplace route/style patterns.
+If the existing PATCH route can safely support one of
+these transitions, that is acceptable.
+If dedicated routes are cleaner, use dedicated routes.
+
+Deliverables:
+1. exact files changed
+2. exact new backend route(s) or route changes
+3. exact new status/action matrix
+4. exact convert-to-crm gating change
+5. exact UI changes in /admin/marketplace
+6. example approve response
+7. example reject response
+8. example blocked convert response
+9. manual testing checklist
+
+Manual testing checklist should include:
+- manual_review_required shows Approve + Reject
+- Approve changes status to reply_received
+- Reject changes status to skipped
+- summary counts refresh after each action
+- manual_review_required can no longer convert directly
+- reply_received can still convert
+- stale actions disappear after approval/rejection
+- no regression in skip/view/convert flows

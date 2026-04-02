@@ -776,7 +776,57 @@ const convertToCrmSchema = z.object({
   overrideState:         z.string().optional(),
 }).strict();
 
-const ELIGIBLE_FOR_CONVERSION = ["reply_received", "manual_review_required"] as const;
+// ─── Approve manual review ─────────────────────────────────────────────────
+
+router.post(
+  "/pending-outreach/:id/approve-match",
+  requireRole("admin", "developer"),
+  async (req, res) => {
+    const id = req.params.id as string;
+
+    const record = await marketplaceStorage.getPendingOutreachById(id);
+    if (!record) {
+      return res.status(404).json({ message: "Not found" });
+    }
+    if (record.messageStatus !== "manual_review_required") {
+      return res.status(400).json({
+        message: `Cannot approve: record status is "${record.messageStatus}". Only manual_review_required records may be approved.`,
+        currentStatus: record.messageStatus,
+      });
+    }
+
+    const updated = await marketplaceStorage.approveManualReview(id);
+    return res.json(updated);
+  }
+);
+
+// ─── Reject manual review ──────────────────────────────────────────────────
+
+router.post(
+  "/pending-outreach/:id/reject-match",
+  requireRole("admin", "developer"),
+  async (req, res) => {
+    const id = req.params.id as string;
+
+    const record = await marketplaceStorage.getPendingOutreachById(id);
+    if (!record) {
+      return res.status(404).json({ message: "Not found" });
+    }
+    if (record.messageStatus !== "manual_review_required") {
+      return res.status(400).json({
+        message: `Cannot reject: record status is "${record.messageStatus}". Only manual_review_required records may be rejected.`,
+        currentStatus: record.messageStatus,
+      });
+    }
+
+    const updated = await marketplaceStorage.rejectManualReview(id);
+    return res.json(updated);
+  }
+);
+
+// ─── Convert to CRM ────────────────────────────────────────────────────────
+
+const ELIGIBLE_FOR_CONVERSION = ["reply_received"] as const;
 
 router.post(
   "/pending-outreach/:id/convert-to-crm",
@@ -798,8 +848,11 @@ router.post(
     }
 
     if (!(ELIGIBLE_FOR_CONVERSION as readonly string[]).includes(record.messageStatus)) {
+      const hint = record.messageStatus === "manual_review_required"
+        ? " Use Approve Match first to accept the reply, then convert."
+        : "";
       return res.status(400).json({
-        message: `Cannot convert: record status is "${record.messageStatus}". Only reply_received or manual_review_required records may be converted.`,
+        message: `Cannot convert: record status is "${record.messageStatus}". Only reply_received records may be converted.${hint}`,
         currentStatus: record.messageStatus,
       });
     }

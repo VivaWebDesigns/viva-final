@@ -207,6 +207,36 @@ export async function listPendingOutreach(
   };
 }
 
+export async function approveManualReview(
+  id: string
+): Promise<MarketplacePendingOutreach | undefined> {
+  const [result] = await db
+    .update(marketplacePendingOutreach)
+    .set({
+      messageStatus:      "reply_received",
+      manualReviewReason: null,
+      updatedAt:          new Date(),
+    })
+    .where(eq(marketplacePendingOutreach.id, id))
+    .returning();
+  return result;
+}
+
+export async function rejectManualReview(
+  id: string
+): Promise<MarketplacePendingOutreach | undefined> {
+  const [result] = await db
+    .update(marketplacePendingOutreach)
+    .set({
+      messageStatus:      "skipped",
+      manualReviewReason: "Manual review rejected by admin",
+      updatedAt:          new Date(),
+    })
+    .where(eq(marketplacePendingOutreach.id, id))
+    .returning();
+  return result;
+}
+
 export async function getPendingOutreachSummary(): Promise<Record<string, number>> {
   const rows = await db
     .select({

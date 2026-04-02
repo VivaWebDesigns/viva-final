@@ -6,6 +6,7 @@ import { useLocation } from "wouter";
 import {
   Search, Phone, ExternalLink, ChevronLeft, ChevronRight,
   ShoppingBag, AlertCircle, CheckCircle2, Clock, Eye, SkipForward,
+  ThumbsUp, ThumbsDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -363,6 +364,42 @@ export default function MarketplacePendingOutreachPage() {
     },
   });
 
+  // ── Approve manual review ─────────────────────────────────────────────────
+  const approveMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiFetch("POST", `/api/marketplace/pending-outreach/${id}/approve-match`);
+      return res.json() as Promise<MarketplacePendingOutreach>;
+    },
+    onSuccess: () => {
+      invalidateAll();
+      toast({ title: "Match approved — status changed to Reply Received" });
+    },
+    onError: (e: unknown) => {
+      const msg = e instanceof ApiError
+        ? ((e.body.message as string | undefined) ?? `Error ${e.status}`)
+        : e instanceof Error ? e.message : "Unknown error";
+      toast({ title: "Approve failed", description: msg, variant: "destructive" });
+    },
+  });
+
+  // ── Reject manual review ──────────────────────────────────────────────────
+  const rejectMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiFetch("POST", `/api/marketplace/pending-outreach/${id}/reject-match`);
+      return res.json() as Promise<MarketplacePendingOutreach>;
+    },
+    onSuccess: () => {
+      invalidateAll();
+      toast({ title: "Match rejected — record skipped" });
+    },
+    onError: (e: unknown) => {
+      const msg = e instanceof ApiError
+        ? ((e.body.message as string | undefined) ?? `Error ${e.status}`)
+        : e instanceof Error ? e.message : "Unknown error";
+      toast({ title: "Reject failed", description: msg, variant: "destructive" });
+    },
+  });
+
   const handleCardClick = (status: OutreachStatus) => {
     setStatusFilter(statusFilter === status ? "" : status);
   };
@@ -380,10 +417,11 @@ export default function MarketplacePendingOutreachPage() {
     setConvertedLeadId(null);
   };
 
-  const canSkip    = (s: string) =>
-    ["ready_to_message", "awaiting_reply", "reply_received", "manual_review_required"].includes(s);
-  const canConvert = (s: string) => ["reply_received", "manual_review_required"].includes(s);
-  const isConverted = (s: string) => s === "converted";
+  const canSkip      = (s: string) => ["ready_to_message", "awaiting_reply", "reply_received"].includes(s);
+  const canConvert   = (s: string) => s === "reply_received";
+  const canApprove   = (s: string) => s === "manual_review_required";
+  const canReject    = (s: string) => s === "manual_review_required";
+  const isConverted  = (s: string) => s === "converted";
 
   return (
     <div className="flex flex-col gap-6" data-testid="page-marketplace-pending-outreach">
@@ -656,6 +694,39 @@ export default function MarketplacePendingOutreachPage() {
 
               {/* ── Action buttons ── */}
               <div className="space-y-2 mb-6">
+                {/* Manual review gate: Approve or Reject */}
+                {canApprove(detailRecord.messageStatus) && (
+                  <div className="rounded-md border border-orange-200 bg-orange-50 dark:bg-orange-950/20 p-3 space-y-2">
+                    <p className="text-xs font-semibold text-orange-700 dark:text-orange-300 uppercase tracking-wide">
+                      Manual Review Required
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Review the reply details below, then approve or reject this match.
+                    </p>
+                    <div className="flex gap-2 pt-1">
+                      <Button
+                        className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                        onClick={() => approveMutation.mutate(detailRecord.id)}
+                        disabled={approveMutation.isPending || rejectMutation.isPending}
+                        data-testid="button-approve-match"
+                      >
+                        <ThumbsUp className="w-4 h-4 mr-2" />
+                        {approveMutation.isPending ? "Approving…" : "Approve Match"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="flex-1 border-red-300 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
+                        onClick={() => rejectMutation.mutate(detailRecord.id)}
+                        disabled={rejectMutation.isPending || approveMutation.isPending}
+                        data-testid="button-reject-match"
+                      >
+                        <ThumbsDown className="w-4 h-4 mr-2" />
+                        {rejectMutation.isPending ? "Rejecting…" : "Reject Match"}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
                 {canConvert(detailRecord.messageStatus) && (
                   <Button
                     className="w-full"
@@ -747,7 +818,10 @@ export default function MarketplacePendingOutreachPage() {
 
               {/* ── Detail fields ── */}
               <div className="space-y-0">
-                <DetailField label="Seller Profile URL">
+                <DetailField label="Listing Title">
+                  {detailRecord.listingTitleRaw ?? "—"}
+                </DetailField>
+                <DetailField label="Seller Profile">
                   <DetailLink href={detailRecord.sellerProfileUrl} label="Open profile" />
                 </DetailField>
                 <DetailField label="Listing URL">
@@ -758,8 +832,11 @@ export default function MarketplacePendingOutreachPage() {
                     <span className="whitespace-pre-wrap">{detailRecord.lastReplyText}</span>
                   ) : "—"}
                 </DetailField>
-                <DetailField label="Extracted Phone">
+                <DetailField label="Phone (Raw)">
                   {detailRecord.extractedPhone ?? "—"}
+                </DetailField>
+                <DetailField label="Phone (Normalized)">
+                  {detailRecord.replyPhoneNormalized ?? "—"}
                 </DetailField>
                 <DetailField label="Confidence">
                   {detailRecord.replyMatchConfidence
@@ -769,11 +846,14 @@ export default function MarketplacePendingOutreachPage() {
                 <DetailField label="Match Method">
                   {detailRecord.replyMatchMethod ?? "—"}
                 </DetailField>
-                <DetailField label="FB Join Year">
-                  {String(detailRecord.facebookJoinYear ?? "—")}
+                <DetailField label="Thread ID">
+                  {detailRecord.threadIdentifier ?? "—"}
                 </DetailField>
                 <DetailField label="Review Reason">
                   {detailRecord.manualReviewReason ?? "—"}
+                </DetailField>
+                <DetailField label="FB Join Year">
+                  {String(detailRecord.facebookJoinYear ?? "—")}
                 </DetailField>
                 <DetailField label="CRM Lead ID">
                   {detailRecord.crmLeadId ? (
