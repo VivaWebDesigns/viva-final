@@ -554,4 +554,44 @@ router.patch(
   }
 );
 
+const markMessageSentSchema = z.object({
+  outreachMessage: z.string().optional(),
+  outreachSentAt:  z.string().datetime().optional(),
+}).strict();
+
+const BLOCKED_FOR_MARK_SENT: string[] = ["skipped", "converted"];
+
+router.post(
+  "/pending-outreach/:id/mark-message-sent",
+  botOrRole,
+  async (req, res) => {
+    const id = req.params.id as string;
+
+    const parsed = markMessageSentSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Invalid input", errors: parsed.error.flatten() });
+    }
+
+    const record = await marketplaceStorage.getPendingOutreachById(id);
+    if (!record) {
+      return res.status(404).json({ message: "Not found" });
+    }
+
+    if (BLOCKED_FOR_MARK_SENT.includes(record.messageStatus)) {
+      return res.status(400).json({
+        message: `Cannot mark message sent: record is already ${record.messageStatus}`,
+        currentStatus: record.messageStatus,
+      });
+    }
+
+    const d = parsed.data;
+    const updated = await marketplaceStorage.markPendingOutreachMessageSent(id, {
+      outreachSentAt:  d.outreachSentAt ? new Date(d.outreachSentAt) : new Date(),
+      outreachMessage: d.outreachMessage,
+    });
+
+    return res.json(updated);
+  }
+);
+
 export default router;

@@ -50,6 +50,26 @@ export async function updatePendingOutreach(
   return result;
 }
 
+export async function markPendingOutreachMessageSent(
+  id: string,
+  updates: {
+    outreachSentAt: Date;
+    outreachMessage?: string | null;
+  }
+): Promise<MarketplacePendingOutreach | undefined> {
+  const [result] = await db
+    .update(marketplacePendingOutreach)
+    .set({
+      messageStatus:  "awaiting_reply",
+      outreachSentAt: updates.outreachSentAt,
+      ...(updates.outreachMessage !== undefined && { outreachMessage: updates.outreachMessage }),
+      updatedAt: new Date(),
+    })
+    .where(eq(marketplacePendingOutreach.id, id))
+    .returning();
+  return result;
+}
+
 export async function findActivePendingOutreachBySellerUrl(
   normalizedSellerProfileUrl: string
 ): Promise<MarketplacePendingOutreach | undefined> {

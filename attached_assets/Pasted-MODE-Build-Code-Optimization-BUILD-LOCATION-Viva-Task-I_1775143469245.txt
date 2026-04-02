@@ -1,0 +1,159 @@
+MODE: Build Code Optimization
+BUILD LOCATION: Viva
+
+Task:
+Implement the next small Phase 2 backend step for
+Marketplace pending outreach records inside Viva.
+
+Goal:
+Add a minimal backend action that marks a pending
+outreach record as message_sent / awaiting_reply after a
+human actually sends the Messenger opener.
+
+Important:
+Keep this phase extremely narrow.
+Do NOT add Messenger scraping.
+Do NOT add reply parsing.
+Do NOT add auto-conversion to CRM.
+Do NOT add frontend CRM UI.
+Do NOT change existing precheck logic.
+Do NOT change existing pending-outreach create/get
+behavior except where required for this phase.
+
+Why this phase exists:
+Right now the extension can create a pending outreach
+record after a true PASS.
+The next clean step is to let the system record:
+"the human has now actually sent the opener."
+
+This creates the proper bridge between:
+- ready_to_message
+and
+- awaiting_reply
+
+What to build:
+
+1. Add a dedicated backend route
+Add a route under the existing Marketplace routes:
+
+POST /api/marketplace/pending-outreach/:id/mark-message-sent
+
+Purpose:
+Mark an existing pending outreach record as having had
+the outreach message actually sent by the human.
+
+2. Route behavior
+This route should:
+- find the pending outreach record by id
+- return 404 if not found
+- update messageStatus
+- set outreachSentAt
+- optionally update outreachMessage if provided
+- return the updated full record
+
+Default status behavior:
+When this route succeeds, messageStatus should become:
+awaiting_reply
+
+Reason:
+Once the opener is sent, the useful state is no longer
+ready_to_message. It is awaiting_reply.
+
+3. Request body
+Keep the request body minimal:
+
+{
+  "outreachMessage": "optional string",
+  "outreachSentAt": "optional ISO datetime string"
+}
+
+Rules:
+- outreachMessage is optional
+- outreachSentAt is optional
+- if outreachSentAt is omitted, use current server time
+- messageStatus should not be user-provided in this route
+  to avoid misuse
+- this route is specifically for the "human sent the
+  message" action, so it should enforce the correct
+  status transition itself
+
+4. Allowed state transitions
+Keep state rules simple but safe.
+
+Allowed:
+- ready_to_message -> awaiting_reply
+- message_sent -> awaiting_reply (if message_sent exists
+  in old/test data)
+- manual_review_required -> awaiting_reply only if you
+  think current architecture allows it safely
+- skipped and converted should NOT be markable as sent
+
+At minimum:
+- block skipped
+- block converted
+
+If blocked, return 400 with a clear message.
+
+5. Auth rules
+Use the same auth pattern as the other Marketplace
+routes:
+- allow MARKETPLACE_BOT_SECRET bearer token bypass
+- otherwise requireRole("admin", "developer", "lead_gen")
+
+6. Storage layer
+Add the smallest clean storage helper needed, following
+existing Viva Marketplace storage patterns.
+
+Suggested helper:
+markPendingOutreachMessageSent(id, updates)
+
+Behavior:
+- updates outreachSentAt
+- updates outreachMessage if provided
+- sets messageStatus = awaiting_reply
+- returns updated row or null
+
+Do not overbuild this.
+
+7. Validation
+Add a Zod schema for this route only.
+
+Validate:
+- outreachMessage optional string
+- outreachSentAt optional ISO datetime string
+
+Convert datetime into the normal DB timestamp pattern
+used by the project.
+
+8. Guardrails
+- no frontend changes
+- no extension changes in this phase
+- no CRM lead creation
+- no reply parsing
+- no thread matching
+- no admin queue page
+- no broad refactors
+
+Implementation instructions:
+Before coding, inspect the current Viva Marketplace
+routes and storage module and follow existing patterns.
+Keep this consistent with the pending-outreach routes
+already built.
+
+At the end provide:
+1. concise summary of what was built
+2. exact files changed
+3. exact request/response shape
+4. allowed vs blocked status transitions
+5. short manual testing checklist
+
+Manual testing checklist should include:
+- valid id in ready_to_message -> 200 and status becomes
+  awaiting_reply
+- omitted outreachSentAt uses current server time
+- outreachMessage is stored if provided
+- missing id -> 404
+- skipped record -> 400
+- converted record -> 400
+- auth works for allowed roles and bot secret
+- no CRM lead is created
