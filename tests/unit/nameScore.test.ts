@@ -7,14 +7,22 @@ const FIRST_NAME_SCORE = 25;
 
 describe("scoreHispanicName — required pass list", () => {
   const shouldPass: Array<[string, string]> = [
-    ["Jose Henriquez",    "henriquez (+70) + jose (+25) = 95"],
-    ["Jose Enriquez",     "enriquez (+70) + jose (+25) = 95"],
-    ["Maria Gutierrez",   "gutierrez (+70) + maria (+25) = 95"],
-    ["Juan Martinez",     "martinez (+70) + juan (+25) = 95"],
-    ["Luis Rodriguez",    "rodriguez (+70) + luis (+25) = 95"],
-    ["Ana Navarro",       "navarro (+70) + ana (+25) = 95"],
-    ["Carlos Santiago",   "santiago (+70) + carlos (+25) = 95"],
-    ["Armando Valverde",  "valverde (+70) + armando (+25) = 95"],
+    ["Jose Henriquez",    "exact: henriquez (+70) + jose (+25) = 95"],
+    ["Jose Enriquez",     "exact: enriquez (+70) + jose (+25) = 95"],
+    ["Maria Gutierrez",   "exact: gutierrez (+70) + maria (+25) = 95"],
+    ["Juan Martinez",     "exact: martinez (+70) + juan (+25) = 95"],
+    ["Luis Rodriguez",    "exact: rodriguez (+70) + luis (+25) = 95"],
+    ["Ana Navarro",       "exact: navarro (+70) + ana (+25) = 95"],
+    ["Carlos Santiago",   "exact: santiago (+70) + carlos (+25) = 95"],
+    ["Armando Valverde",  "exact: valverde (+70) + armando (+25) = 95"],
+    // Previously failing — now covered by data expansion + new strategies
+    ["Marie Nail",             "data: nail in surnames (+70) + marie in first names (+25) = 95"],
+    ["Carlos Camilo",          "data: camilo in surnames (+70) + carlos (+25) = 95"],
+    ["Edward Ramirez Jr.",     "suffix strip: jr removed → ramirez (+70) + edward via bridge (+25) = 95"],
+    ["Leonel Quintanilla Turcios", "data: turcios in surnames (+70) + leonel (+25) = 95"],
+    ["Sergio Vidal",           "data: vidal in surnames (+70) + sergio (+25) = 95"],
+    ["Edwin Cal",              "data: cal in surnames (+70) + edwin (+25) = 95"],
+    ["Nelson Henrriquez",      "fuzzy: henrriquez ≈ henriquez (+70) + nelson (+25) = 95"],
   ];
 
   for (const [name, reason] of shouldPass) {
@@ -26,14 +34,83 @@ describe("scoreHispanicName — required pass list", () => {
   }
 });
 
+describe("scoreHispanicName — suffix stripping", () => {
+  it("strips Jr. so it does not become the last name", () => {
+    const result = scoreHispanicName("Edward Ramirez Jr.");
+    expect(result.lastName).toBe("ramirez");
+    expect(result.hispanicNameScore).toBeGreaterThanOrEqual(PASS_THRESHOLD);
+  });
+
+  it("strips Sr. correctly", () => {
+    const result = scoreHispanicName("Jose Martinez Sr.");
+    expect(result.lastName).toBe("martinez");
+    expect(result.hispanicNameScore).toBeGreaterThanOrEqual(PASS_THRESHOLD);
+  });
+
+  it("strips II correctly", () => {
+    const result = scoreHispanicName("Carlos Reyes II");
+    expect(result.lastName).toBe("reyes");
+    expect(result.hispanicNameScore).toBeGreaterThanOrEqual(PASS_THRESHOLD);
+  });
+});
+
+describe("scoreHispanicName — anglicized first-name bridge", () => {
+  it("Bob → Roberto (bridge) + Ramirez (+70) passes and generates note", () => {
+    // "bob" is not in HISPANIC_FIRST_NAMES directly so it goes through the bridge
+    const result = scoreHispanicName("Bob Ramirez");
+    expect(result.hispanicNameScore).toBeGreaterThanOrEqual(PASS_THRESHOLD);
+    expect(result.spanishOutreachRecommended).toBe(true);
+    expect(result.matchNotes.some((n) => n.includes("anglicized"))).toBe(true);
+  });
+
+  it("Henry → Enrique (bridge) + Lopez (+70) passes", () => {
+    const result = scoreHispanicName("Henry Lopez");
+    expect(result.hispanicNameScore).toBeGreaterThanOrEqual(PASS_THRESHOLD);
+  });
+
+  it("William → Guillermo (bridge) + Garcia (+70) passes", () => {
+    const result = scoreHispanicName("William Garcia");
+    expect(result.hispanicNameScore).toBeGreaterThanOrEqual(PASS_THRESHOLD);
+  });
+
+  it("anglicized first name alone (no recognized surname) does NOT pass", () => {
+    // bob→roberto (+25 bridge), Johnson = no match (+0) → 25 < 70
+    const result = scoreHispanicName("Bob Johnson");
+    expect(result.spanishOutreachRecommended).toBe(false);
+  });
+});
+
+describe("scoreHispanicName — fuzzy surname matching", () => {
+  it("Henrriquez (double r) passes — now an exact match in the dataset", () => {
+    // henrriquez was explicitly added to the surnames list as a known spelling variant
+    const result = scoreHispanicName("Nelson Henrriquez");
+    expect(result.hispanicNameScore).toBeGreaterThanOrEqual(PASS_THRESHOLD);
+    expect(result.spanishOutreachRecommended).toBe(true);
+  });
+
+  it("Martinezz (one extra letter) fuzzy-matches Martinez and generates a note", () => {
+    // martinezz is NOT in the list → goes through fuzzy path → note generated
+    const result = scoreHispanicName("Juan Martinezz");
+    expect(result.hispanicNameScore).toBeGreaterThanOrEqual(PASS_THRESHOLD);
+    expect(result.matchNotes.some((n) => n.includes("fuzzy"))).toBe(true);
+  });
+
+  it("completely unrelated surname does not fuzzy-match", () => {
+    // Neither "todd" nor "johnson" are in any list or bridge
+    const result = scoreHispanicName("Todd Johnson");
+    expect(result.hispanicNameScore).toBe(0);
+    expect(result.spanishOutreachRecommended).toBe(false);
+  });
+});
+
 describe("scoreHispanicName — recognized Hispanic surname alone passes", () => {
-  // Non-Hispanic first name + Hispanic surname: last name alone carries the score.
+  // "Todd" is not in any list or bridge table — surname score only
   const surnameOnly: Array<[string, string]> = [
-    ["Bob Santiago",   "santiago (+70) + bob (+0) = 70"],
-    ["Bob Escobar",    "escobar (+70) + bob (+0) = 70"],
-    ["Bob Dominguez",  "dominguez (+70) + bob (+0) = 70"],
-    ["Bob Valdez",     "valdez (+70) + bob (+0) = 70"],
-    ["Bob Villalobos", "villalobos (+70) + bob (+0) = 70"],
+    ["Todd Santiago",   "santiago (+70) + todd (+0) = 70"],
+    ["Todd Escobar",    "escobar (+70) + todd (+0) = 70"],
+    ["Todd Dominguez",  "dominguez (+70) + todd (+0) = 70"],
+    ["Todd Valdez",     "valdez (+70) + todd (+0) = 70"],
+    ["Todd Villalobos", "villalobos (+70) + todd (+0) = 70"],
   ];
 
   for (const [name, reason] of surnameOnly) {
@@ -60,8 +137,8 @@ describe("scoreHispanicName — Hispanic first name alone does NOT pass", () => 
 });
 
 describe("scoreHispanicName — non-Hispanic names score 0", () => {
-  it("Bob Johnson scores 0 (neither name recognized)", () => {
-    const result = scoreHispanicName("Bob Johnson");
+  it("Todd Johnson scores 0 (neither name in any list or bridge)", () => {
+    const result = scoreHispanicName("Todd Johnson");
     expect(result.hispanicNameScore).toBe(0);
     expect(result.spanishOutreachRecommended).toBe(false);
   });
@@ -75,14 +152,14 @@ describe("scoreHispanicName — non-Hispanic names score 0", () => {
 
 describe("scoreHispanicName — threshold alignment", () => {
   it("score exactly at threshold (70) sets spanishOutreachRecommended true", () => {
-    // Bob = not in first names (+0); Navarro = in surnames (+70) → exactly 70
-    const result = scoreHispanicName("Bob Navarro");
+    // "Todd" is not in any list or bridge → 0; Navarro in surnames → +70 = exactly 70
+    const result = scoreHispanicName("Todd Navarro");
     expect(result.hispanicNameScore).toBe(PASS_THRESHOLD);
     expect(result.spanishOutreachRecommended).toBe(true);
   });
 
-  it("score below threshold (0) sets spanishOutreachRecommended false", () => {
-    const result = scoreHispanicName("Bob Johnson");
+  it("score below threshold sets spanishOutreachRecommended false", () => {
+    const result = scoreHispanicName("Todd Johnson");
     expect(result.hispanicNameScore).toBeLessThan(PASS_THRESHOLD);
     expect(result.spanishOutreachRecommended).toBe(false);
   });
