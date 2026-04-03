@@ -1,0 +1,75 @@
+Task:
+Add an explicit SMS consent checkbox to the contact form on the
+contact page. Keep this change tight and non-destructive. Do not
+change any unrelated layout, styling, spacing, validation, submit
+logic, translations, or business copy outside this form.
+
+Goals:
+1. Add an UNCHECKED required checkbox directly above the
+   "Enviar Mensaje" submit button.
+2. The form must not submit unless the checkbox is checked.
+3. Keep the checkbox label in Spanish.
+4. Preserve the existing design style as closely as possible.
+5. Make the change accessible and mobile-friendly.
+6. Do not break the current form submission flow.
+
+Checkbox label text:
+Al marcar esta casilla, aceptas recibir mensajes de texto de Viva
+Web Designs relacionados con tu consulta, información solicitada,
+citas, recordatorios y actualizaciones del servicio. La frecuencia
+de los mensajes puede variar. Pueden aplicarse tarifas de mensajes
+y datos. Responde STOP para dejar de recibir mensajes y HELP para
+obtener ayuda. El consentimiento no es una condición de compra.
+Consulta nuestra Política de Privacidad y Términos y Condiciones.
+
+Implementation requirements:
+- Add a single checkbox field above the submit button.
+- Default state must be unchecked.
+- Make it required in the real validation flow, not just visually.
+- If the form already uses controlled state, wire the checkbox into
+  that same state pattern.
+- If the form already has validation errors, use the existing error
+  display pattern for this field.
+- If there is no existing error UI pattern, add a small inline error
+  message in Spanish only when the user tries to submit without
+  checking the box.
+
+Required error message in Spanish:
+Debes aceptar el consentimiento de mensajes de texto para continuar.
+
+Links:
+- "Política de Privacidad" should link to the existing privacy policy
+  route/page already used in the site.
+- "Términos y Condiciones" should link to the existing terms route/page
+  if one already exists.
+- If a terms page does not exist, do NOT invent a fake route and do NOT
+  add broken links. In that case, link only the privacy policy and keep
+  the rest of the sentence readable and clean.
+
+Styling:
+- Match the current form typography, colors, spacing, and radius.
+- Keep the checkbox row clean and easy to read on mobile.
+- The legal text should be smaller than normal field labels but still
+  readable.
+- Do not make the block visually heavy or ugly.
+- Use inline links styled consistently with the site.
+
+Accessibility:
+- Properly associate the checkbox input and label.
+- Ensure keyboard accessibility and visible focus state.
+- Keep tap targets usable on mobile.
+
+Important:
+- Do not rewrite the rest of the contact form.
+- Do not change the submit button text.
+- Do not alter CRM/email integrations or payload structure unless the
+  form currently sends all field values as a single object and the new
+  checkbox must be included to satisfy validation.
+- If the backend does not need this field, keep enforcement on the
+  frontend only.
+- Reuse existing components/utilities if they already exist.
+
+Deliverables:
+1. Make the code changes.
+2. Briefly list which file(s) were changed.
+3. Briefly explain how the checkbox validation works.
