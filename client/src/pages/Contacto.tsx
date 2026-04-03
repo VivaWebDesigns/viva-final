@@ -274,21 +274,7 @@ export default function Contacto() {
                       name="smsConsent"
                       render={({ field }) => (
                         <FormItem>
-                          {/*
-                            Radix Checkbox renders a <button role="checkbox">, not an <input>,
-                            so htmlFor doesn't work. Instead we make the entire row a click target
-                            and guard against double-toggling (checkbox click) and privacy link
-                            clicks via closest() checks.
-                          */}
-                          <div
-                            className="flex items-start gap-3 cursor-pointer py-1"
-                            onClick={(e) => {
-                              const target = e.target as HTMLElement;
-                              if (target.closest('[role="checkbox"]')) return;
-                              if (target.closest('[data-privacy-trigger]')) return;
-                              field.onChange(!field.value);
-                            }}
-                          >
+                          <div className="flex items-start gap-3 py-1">
                             <FormControl>
                               <Checkbox
                                 checked={field.value}
