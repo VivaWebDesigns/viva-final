@@ -12,6 +12,7 @@ import { insertContactSchema, type InsertContact } from "@shared/schema";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Checkbox } from "@/components/ui/checkbox";
 import { PrivacyPolicyModal } from "@/components/PrivacyPolicyModal";
+import { TermsAndConditionsModal } from "@/components/TermsAndConditionsModal";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -296,7 +297,15 @@ export default function Contacto() {
                                     </span>
                                   }
                                 />{" "}
-                                y Términos y Condiciones.
+                                y{" "}
+                                <TermsAndConditionsModal
+                                  trigger={
+                                    <span className="text-[#0D9488] hover:text-[#0F766E] underline underline-offset-2 transition-colors font-medium">
+                                      Términos y Condiciones
+                                    </span>
+                                  }
+                                />
+                                .
                               </p>
                               <p className="text-xs leading-relaxed text-gray-500 dark:text-gray-500 select-none">
                                 By checking this box, you agree to receive SMS text messages from Viva Web Designs related to your inquiry, requested information, appointments, reminders, and service updates. Message frequency may vary. Message and data rates may apply. Reply STOP to opt out and HELP for help. Consent is not a condition of purchase. See our{" "}
@@ -310,7 +319,15 @@ export default function Contacto() {
                                     </span>
                                   }
                                 />{" "}
-                                and Terms &amp; Conditions.
+                                and{" "}
+                                <TermsAndConditionsModal
+                                  trigger={
+                                    <span className="text-[#0D9488] hover:text-[#0F766E] underline underline-offset-2 transition-colors font-medium">
+                                      Terms &amp; Conditions
+                                    </span>
+                                  }
+                                />
+                                .
                               </p>
                             </div>
                           </div>
