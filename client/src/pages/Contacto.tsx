@@ -274,7 +274,21 @@ export default function Contacto() {
                       name="smsConsent"
                       render={({ field }) => (
                         <FormItem>
-                          <div className="flex items-start gap-3">
+                          {/*
+                            Radix Checkbox renders a <button role="checkbox">, not an <input>,
+                            so htmlFor doesn't work. Instead we make the entire row a click target
+                            and guard against double-toggling (checkbox click) and privacy link
+                            clicks via closest() checks.
+                          */}
+                          <div
+                            className="flex items-start gap-3 cursor-pointer py-1"
+                            onClick={(e) => {
+                              const target = e.target as HTMLElement;
+                              if (target.closest('[role="checkbox"]')) return;
+                              if (target.closest('[data-privacy-trigger]')) return;
+                              field.onChange(!field.value);
+                            }}
+                          >
                             <FormControl>
                               <Checkbox
                                 checked={field.value}
@@ -285,11 +299,17 @@ export default function Contacto() {
                                 className="mt-0.5 shrink-0"
                               />
                             </FormControl>
-                            <p className="text-xs leading-relaxed text-gray-600 dark:text-gray-400">
+                            <p className="text-xs leading-relaxed text-gray-600 dark:text-gray-400 select-none">
                               Al marcar esta casilla, aceptas recibir mensajes de texto de Viva Web Designs relacionados con tu consulta, información solicitada, citas, recordatorios y actualizaciones del servicio. La frecuencia de los mensajes puede variar. Pueden aplicarse tarifas de mensajes y datos. Responde STOP para dejar de recibir mensajes y HELP para obtener ayuda. El consentimiento no es una condición de compra. Consulta nuestra{" "}
                               <PrivacyPolicyModal
-                                trigger="Política de Privacidad"
-                                className="text-[#0D9488] hover:text-[#0F766E] underline underline-offset-2 transition-colors cursor-pointer font-medium"
+                                trigger={
+                                  <span
+                                    data-privacy-trigger="true"
+                                    className="text-[#0D9488] hover:text-[#0F766E] underline underline-offset-2 transition-colors font-medium"
+                                  >
+                                    Política de Privacidad
+                                  </span>
+                                }
                               />{" "}
                               y Términos y Condiciones.
                             </p>
