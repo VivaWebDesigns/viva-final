@@ -129,7 +129,7 @@ function PrivacyPolicyContent() {
           Mobile information may be shared only with subcontractors and service providers that support the delivery of SMS services, such as messaging platforms, telecommunications providers, or customer support vendors. This information is used solely to provide and operate the messaging service.
         </p>
         <p>
-          All other use case categories exclude text messaging originator opt-in data and consent. This information will not be shared with any third parties.
+          All the above categories exclude text messaging originator opt-in data and consent; this information will not be shared with any third parties.
         </p>
       </PolicySection>
 
