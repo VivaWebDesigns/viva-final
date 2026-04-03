@@ -286,7 +286,7 @@ export default function Contacto() {
                               />
                             </FormControl>
                             <p className="text-xs leading-relaxed text-gray-600 dark:text-gray-400 select-none">
-                              Al marcar esta casilla, aceptas recibir mensajes de texto de Viva Web Designs relacionados con tu consulta, información solicitada, citas, recordatorios y actualizaciones del servicio. La frecuencia de los mensajes puede variar. Pueden aplicarse tarifas de mensajes y datos. Responde STOP para dejar de recibir mensajes y HELP para obtener ayuda. El consentimiento no es una condición de compra. Consulta nuestra{" "}
+                              Al marcar esta casilla, aceptas recibir mensajes de texto SMS de Viva Web Designs relacionados con tu consulta, información solicitada, citas, recordatorios y actualizaciones del servicio. La frecuencia de los mensajes puede variar. Pueden aplicarse tarifas de mensajes y datos. Responde STOP para dejar de recibir mensajes y HELP para obtener ayuda. El consentimiento no es una condición de compra. Consulta nuestra{" "}
                               <PrivacyPolicyModal
                                 trigger={
                                   <span
