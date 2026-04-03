@@ -283,20 +283,36 @@ export default function Contacto() {
                                 className="mt-0.5 shrink-0"
                               />
                             </FormControl>
-                            <p className="text-xs leading-relaxed text-gray-600 dark:text-gray-400 select-none">
-                              Al marcar esta casilla, aceptas recibir mensajes de texto SMS de Viva Web Designs relacionados con tu consulta, información solicitada, citas, recordatorios y actualizaciones del servicio. La frecuencia de los mensajes puede variar. Pueden aplicarse tarifas de mensajes y datos. Responde STOP para dejar de recibir mensajes y HELP para obtener ayuda. El consentimiento no es una condición de compra. Consulta nuestra{" "}
-                              <PrivacyPolicyModal
-                                trigger={
-                                  <span
-                                    data-privacy-trigger="true"
-                                    className="text-[#0D9488] hover:text-[#0F766E] underline underline-offset-2 transition-colors font-medium"
-                                  >
-                                    Política de Privacidad
-                                  </span>
-                                }
-                              />{" "}
-                              y Términos y Condiciones.
-                            </p>
+                            <div className="space-y-1.5">
+                              <p className="text-xs leading-relaxed text-gray-600 dark:text-gray-400 select-none">
+                                Al marcar esta casilla, aceptas recibir mensajes de texto SMS de Viva Web Designs relacionados con tu consulta, información solicitada, citas, recordatorios y actualizaciones del servicio. La frecuencia de los mensajes puede variar. Pueden aplicarse tarifas de mensajes y datos. Responde STOP para dejar de recibir mensajes y HELP para obtener ayuda. El consentimiento no es una condición de compra. Consulta nuestra{" "}
+                                <PrivacyPolicyModal
+                                  trigger={
+                                    <span
+                                      data-privacy-trigger="true"
+                                      className="text-[#0D9488] hover:text-[#0F766E] underline underline-offset-2 transition-colors font-medium"
+                                    >
+                                      Política de Privacidad
+                                    </span>
+                                  }
+                                />{" "}
+                                y Términos y Condiciones.
+                              </p>
+                              <p className="text-xs leading-relaxed text-gray-500 dark:text-gray-500 select-none">
+                                By checking this box, you agree to receive SMS text messages from Viva Web Designs related to your inquiry, requested information, appointments, reminders, and service updates. Message frequency may vary. Message and data rates may apply. Reply STOP to opt out and HELP for help. Consent is not a condition of purchase. See our{" "}
+                                <PrivacyPolicyModal
+                                  trigger={
+                                    <span
+                                      data-privacy-trigger="true"
+                                      className="text-[#0D9488] hover:text-[#0F766E] underline underline-offset-2 transition-colors font-medium"
+                                    >
+                                      Privacy Policy
+                                    </span>
+                                  }
+                                />{" "}
+                                and Terms &amp; Conditions.
+                              </p>
+                            </div>
                           </div>
                           <FormMessage />
                         </FormItem>
