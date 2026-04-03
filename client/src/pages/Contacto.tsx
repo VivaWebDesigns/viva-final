@@ -10,12 +10,15 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@/lib/zodResolver";
 import { insertContactSchema, type InsertContact } from "@shared/schema";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Checkbox } from "@/components/ui/checkbox";
+import { PrivacyPolicyModal } from "@/components/PrivacyPolicyModal";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { t, tArr } from "@/content";
 import { useMemo } from "react";
 import { normalizePhoneDigits, formatPhoneDisplay } from "@shared/phone";
+import { z } from "zod";
 
 function useUtmParams() {
   return useMemo(() => {
@@ -32,6 +35,13 @@ function useUtmParams() {
     };
   }, []);
 }
+
+const contactFormSchema = insertContactSchema.extend({
+  smsConsent: z.boolean().refine((v) => v === true, {
+    message: "Debes aceptar el consentimiento de mensajes de texto para continuar.",
+  }),
+});
+type ContactFormValues = z.infer<typeof contactFormSchema>;
 
 const fadeUp = {
   hidden: { opacity: 0, y: 30 },
@@ -50,8 +60,8 @@ export default function Contacto() {
   const whatsappUrl = t("global.whatsappUrl");
   const utm = useUtmParams();
 
-  const form = useForm<InsertContact>({
-    resolver: zodResolver(insertContactSchema),
+  const form = useForm<ContactFormValues>({
+    resolver: zodResolver(contactFormSchema),
     mode: "onSubmit",
     reValidateMode: "onChange",
     defaultValues: {
@@ -62,6 +72,7 @@ export default function Contacto() {
       city: "",
       trade: "",
       message: "",
+      smsConsent: false,
     },
   });
 
@@ -86,7 +97,7 @@ export default function Contacto() {
     },
   });
 
-  const onSubmit = (data: InsertContact) => {
+  const onSubmit = ({ smsConsent: _consent, ...data }: ContactFormValues) => {
     mutation.mutate({
       ...data,
       phone: data.phone ? normalizePhoneDigits(data.phone) : data.phone,
@@ -252,6 +263,37 @@ export default function Contacto() {
                               value={field.value ?? ""}
                             />
                           </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {/* SMS Consent */}
+                    <FormField
+                      control={form.control}
+                      name="smsConsent"
+                      render={({ field }) => (
+                        <FormItem>
+                          <div className="flex items-start gap-3">
+                            <FormControl>
+                              <Checkbox
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                                data-testid="checkbox-sms-consent"
+                                aria-label="Consentimiento de mensajes de texto SMS"
+                                aria-required="true"
+                                className="mt-0.5 shrink-0"
+                              />
+                            </FormControl>
+                            <p className="text-xs leading-relaxed text-gray-600 dark:text-gray-400">
+                              Al marcar esta casilla, aceptas recibir mensajes de texto de Viva Web Designs relacionados con tu consulta, información solicitada, citas, recordatorios y actualizaciones del servicio. La frecuencia de los mensajes puede variar. Pueden aplicarse tarifas de mensajes y datos. Responde STOP para dejar de recibir mensajes y HELP para obtener ayuda. El consentimiento no es una condición de compra. Consulta nuestra{" "}
+                              <PrivacyPolicyModal
+                                trigger="Política de Privacidad"
+                                className="text-[#0D9488] hover:text-[#0F766E] underline underline-offset-2 transition-colors cursor-pointer font-medium"
+                              />{" "}
+                              y Términos y Condiciones.
+                            </p>
+                          </div>
                           <FormMessage />
                         </FormItem>
                       )}
