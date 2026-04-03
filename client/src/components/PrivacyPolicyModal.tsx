@@ -19,8 +19,8 @@ function PrivacyPolicyContent() {
   const company = "Viva Web Designs LLC";
   const email = "info@vivawebdesigns.com";
   const phone = "(980) 949-0548";
-  const effective = "January 1, 2025";
-  const effectiveEs = "1 de enero de 2025";
+  const effective = "April 3, 2026";
+  const effectiveEs = "3 de abril de 2026";
 
   return (
     <div className="text-sm">
