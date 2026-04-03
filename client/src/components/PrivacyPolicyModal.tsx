@@ -180,16 +180,16 @@ function PrivacyPolicyContent() {
 
       <PolicySection title="3. Sharing of Your Information">
         <p>
-          We do not sell, trade, or rent your personal information to third parties for marketing or promotional purposes. We may share your information with trusted service providers who assist us in operating our website and delivering our services, subject to confidentiality obligations. These include:
+          We do not sell, share, rent, or disclose your mobile information to third parties or affiliates for marketing or promotional purposes.
         </p>
-        <ul className="list-disc list-inside space-y-1 mt-2 ml-2">
-          <li>Web hosting and technology providers</li>
-          <li>Customer relationship management (CRM) platforms</li>
-          <li>Email and SMS delivery platforms</li>
-          <li>Analytics providers</li>
-        </ul>
-        <p className="mt-3">
-          We may also disclose your information when required by law, to protect our rights, or in connection with a business transfer such as a merger or acquisition.
+        <p>
+          SMS opt-in data, consent records, and mobile numbers collected for SMS communications are used only for messaging with Viva Web Designs.
+        </p>
+        <p>
+          SMS opt-in data and consent will not be shared with any third party except the SMS texting service provider.
+        </p>
+        <p>
+          We may share personal information with service providers that help operate our website and business, but SMS opt-in data, consent records, and mobile numbers will not be shared for marketing or promotional purposes under any circumstances.
         </p>
       </PolicySection>
 
