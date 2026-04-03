@@ -37,9 +37,7 @@ function useUtmParams() {
 }
 
 const contactFormSchema = insertContactSchema.extend({
-  smsConsent: z.boolean().refine((v) => v === true, {
-    message: "Debes aceptar el consentimiento de mensajes de texto para continuar.",
-  }),
+  smsConsent: z.boolean().optional(),
 });
 type ContactFormValues = z.infer<typeof contactFormSchema>;
 
