@@ -20,9 +20,137 @@ function PrivacyPolicyContent() {
   const email = "info@vivawebdesigns.com";
   const phone = "(980) 949-0548";
   const effective = "January 1, 2025";
+  const effectiveEs = "1 de enero de 2025";
 
   return (
     <div className="text-sm">
+
+      {/* ── Spanish ── */}
+      <h2 className="text-base font-bold text-gray-900 mb-1">Política de Privacidad</h2>
+      <p className="text-xs text-gray-500 mb-6">Fecha de vigencia: {effectiveEs}</p>
+
+      <p className="text-sm text-gray-700 leading-relaxed mb-8">
+        {company} ("nosotros", "nuestro" o "nos") se compromete a proteger tu privacidad. Esta Política de Privacidad explica cómo recopilamos, usamos, divulgamos y protegemos tu información cuando visitas nuestro sitio web o interactúas con nuestros servicios. Lee esta política detenidamente.
+      </p>
+
+      <PolicySection title="1. Información que recopilamos">
+        <p>Podemos recopilar las siguientes categorías de información personal:</p>
+        <ul className="list-disc list-inside space-y-1 mt-2 ml-2">
+          <li><strong>Información de contacto:</strong> Nombre, correo electrónico, número de teléfono y nombre del negocio cuando completas un formulario de contacto o solicitas una cotización.</li>
+          <li><strong>Datos de uso:</strong> Dirección IP, tipo de navegador, páginas visitadas y tiempo en nuestro sitio, recopilados automáticamente mediante cookies y herramientas de análisis.</li>
+          <li><strong>Comunicaciones:</strong> Mensajes que nos envías a través de formularios de contacto, correo electrónico o SMS.</li>
+          <li><strong>Información comercial:</strong> Rubro, ciudad e intereses de servicio que compartes al consultar sobre nuestros servicios.</li>
+        </ul>
+      </PolicySection>
+
+      <PolicySection title="2. Cómo usamos tu información">
+        <p>Usamos la información que recopilamos para:</p>
+        <ul className="list-disc list-inside space-y-1 mt-2 ml-2">
+          <li>Responder tus consultas y brindar atención al cliente</li>
+          <li>Enviar actualizaciones de servicio, propuestas y comunicaciones relacionadas con tu cuenta</li>
+          <li>Mejorar nuestro sitio web, servicios y materiales de marketing</li>
+          <li>Cumplir con obligaciones legales</li>
+          <li>Enviar comunicaciones por SMS y correo electrónico a las que te hayas suscrito</li>
+        </ul>
+      </PolicySection>
+
+      <PolicySection title="3. Compartir tu información">
+        <p>
+          No vendemos, intercambiamos ni alquilamos tu información personal a terceros con fines de marketing o promoción. Podemos compartir tu información con proveedores de servicios de confianza que nos ayudan a operar nuestro sitio web y brindar nuestros servicios, sujeto a obligaciones de confidencialidad. Estos incluyen:
+        </p>
+        <ul className="list-disc list-inside space-y-1 mt-2 ml-2">
+          <li>Proveedores de alojamiento web y tecnología</li>
+          <li>Plataformas de gestión de relaciones con clientes (CRM)</li>
+          <li>Plataformas de envío de correo electrónico y SMS</li>
+          <li>Proveedores de análisis</li>
+        </ul>
+        <p className="mt-3">
+          También podemos divulgar tu información cuando lo exija la ley, para proteger nuestros derechos, o en conexión con una transferencia comercial como una fusión o adquisición.
+        </p>
+      </PolicySection>
+
+      <PolicySection title="4. Cookies y tecnologías de seguimiento">
+        <p>
+          Nuestro sitio web utiliza cookies y tecnologías de seguimiento similares para mejorar tu experiencia de navegación, analizar el tráfico del sitio y entender cómo los visitantes interactúan con nuestro contenido. Puedes configurar tu navegador para rechazar todas las cookies o para indicar cuándo se envía una cookie. Sin embargo, algunas funciones de nuestro sitio pueden no funcionar correctamente sin cookies.
+        </p>
+      </PolicySection>
+
+      <PolicySection title="5. Seguridad de los datos">
+        <p>
+          Implementamos medidas técnicas y organizativas apropiadas para proteger tu información personal contra el acceso no autorizado, la alteración, divulgación o destrucción. Sin embargo, ningún método de transmisión por internet o almacenamiento electrónico es 100% seguro, y no podemos garantizar una seguridad absoluta.
+        </p>
+      </PolicySection>
+
+      <PolicySection title="6. Enlaces a terceros">
+        <p>
+          Nuestro sitio web puede contener enlaces a sitios web de terceros. No somos responsables de las prácticas de privacidad de esos sitios y te recomendamos revisar sus políticas de privacidad antes de proporcionar cualquier información personal.
+        </p>
+      </PolicySection>
+
+      <PolicySection title="7. Privacidad de menores">
+        <p>
+          Nuestros servicios no están dirigidos a personas menores de 18 años. No recopilamos conscientemente información personal de menores. Si crees que un menor nos ha proporcionado información personal, contáctanos y tomaremos medidas para eliminarla.
+        </p>
+      </PolicySection>
+
+      <PolicySection title="8. Tus derechos">
+        <p>Según tu ubicación, es posible que tengas derecho a:</p>
+        <ul className="list-disc list-inside space-y-1 mt-2 ml-2">
+          <li>Acceder a la información personal que tenemos sobre ti</li>
+          <li>Solicitar la corrección de datos inexactos</li>
+          <li>Solicitar la eliminación de tu información personal</li>
+          <li>Cancelar la suscripción a comunicaciones de marketing en cualquier momento</li>
+        </ul>
+        <p className="mt-3">Para ejercer cualquiera de estos derechos, contáctanos en {email}.</p>
+      </PolicySection>
+
+      <PolicySection title="9. Cambios en esta política">
+        <p>
+          Podemos actualizar esta Política de Privacidad de vez en cuando. Te notificaremos de cualquier cambio significativo actualizando la fecha de vigencia en la parte superior de esta página. El uso continuo de nuestro sitio web después de que se publiquen los cambios constituye tu aceptación de la política actualizada.
+        </p>
+      </PolicySection>
+
+      <PolicySection title="10. Términos de SMS y Política de Privacidad">
+        <p>
+          Al suscribirte a los mensajes SMS de {company}, aceptas recibir mensajes de texto para atención al cliente, actualizaciones del servicio y otras comunicaciones relacionadas con tu cuenta.
+        </p>
+        <p>
+          Puedes cancelar el servicio SMS en cualquier momento. Solo responde <strong>STOP</strong>. Después de enviar el mensaje "STOP", recibirás un mensaje de confirmación de cancelación y ya no recibirás más mensajes SMS. Si deseas volver a suscribirte, regístrate como lo hiciste la primera vez.
+        </p>
+        <p>
+          Si tienes problemas con el programa de mensajes, puedes responder <strong>HELP</strong> para obtener más ayuda.
+        </p>
+        <p>
+          Los operadores no son responsables por mensajes retrasados o no entregados.
+        </p>
+        <p>
+          Pueden aplicarse tarifas de mensajes y datos. La frecuencia de los mensajes puede variar. Si tienes preguntas sobre tu plan de mensajes o datos, lo mejor es contactar a tu proveedor de servicios inalámbricos.
+        </p>
+        <p>
+          {company} no comparte números de teléfono móvil, datos de opt-in de mensajes de texto ni consentimiento con terceros o afiliados con fines de marketing o promoción.
+        </p>
+        <p>
+          La información móvil solo puede compartirse con subcontratistas y proveedores de servicios que apoyan la prestación de servicios de SMS, como plataformas de mensajería, proveedores de telecomunicaciones o proveedores de atención al cliente. Esta información se utiliza únicamente para proporcionar y operar el servicio de mensajería.
+        </p>
+        <p>
+          Todas las categorías anteriores excluyen los datos de opt-in de mensajes de texto y el consentimiento; esta información no se compartirá con terceros.
+        </p>
+      </PolicySection>
+
+      <PolicySection title="11. Contáctanos">
+        <p>Si tienes preguntas o inquietudes sobre esta Política de Privacidad, contáctanos:</p>
+        <div className="mt-2 ml-2 space-y-1">
+          <p><strong>{company}</strong></p>
+          <p>Teléfono: {phone}</p>
+          <p>Correo: {email}</p>
+        </div>
+      </PolicySection>
+
+      {/* ── Divider ── */}
+      <div className="border-t-2 border-gray-200 my-8" />
+
+      {/* ── English ── */}
+      <h2 className="text-base font-bold text-gray-900 mb-1">Privacy Policy</h2>
       <p className="text-xs text-gray-500 mb-6">Effective Date: {effective}</p>
 
       <p className="text-sm text-gray-700 leading-relaxed mb-8">
