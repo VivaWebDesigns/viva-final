@@ -56,16 +56,16 @@ function PrivacyPolicyContent() {
 
       <PolicySection title="3. Compartir tu información">
         <p>
-          No vendemos, intercambiamos ni alquilamos tu información personal a terceros con fines de marketing o promoción. Podemos compartir tu información con proveedores de servicios de confianza que nos ayudan a operar nuestro sitio web y brindar nuestros servicios, sujeto a obligaciones de confidencialidad. Estos incluyen:
+          No vendemos, compartimos, alquilamos ni divulgamos tu información móvil a terceros o afiliados con fines de marketing o promoción.
         </p>
-        <ul className="list-disc list-inside space-y-1 mt-2 ml-2">
-          <li>Proveedores de alojamiento web y tecnología</li>
-          <li>Plataformas de gestión de relaciones con clientes (CRM)</li>
-          <li>Plataformas de envío de correo electrónico y SMS</li>
-          <li>Proveedores de análisis</li>
-        </ul>
-        <p className="mt-3">
-          También podemos divulgar tu información cuando lo exija la ley, para proteger nuestros derechos, o en conexión con una transferencia comercial como una fusión o adquisición.
+        <p>
+          Los datos de opt-in de SMS, los registros de consentimiento y los números de teléfono móvil recopilados para comunicaciones SMS se utilizan únicamente para mensajería con Viva Web Designs.
+        </p>
+        <p>
+          Los datos de opt-in de SMS y el consentimiento no serán compartidos con ningún tercero, excepto con el proveedor del servicio de mensajes de texto SMS.
+        </p>
+        <p>
+          Podemos compartir información personal con proveedores de servicios que ayudan a operar nuestro sitio web y negocio, pero los datos de opt-in de SMS, los registros de consentimiento y los números de teléfono móvil no se compartirán con fines de marketing o promoción bajo ninguna circunstancia.
         </p>
       </PolicySection>
 
