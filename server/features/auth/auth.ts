@@ -15,6 +15,8 @@ const baseURL = getBaseURL();
 
 const trustedOrigins = [
   baseURL,
+  "https://vivawebdesigns.com",
+  "https://www.vivawebdesigns.com",
   ...(process.env.RAILWAY_PUBLIC_DOMAIN ? [`https://${process.env.RAILWAY_PUBLIC_DOMAIN}`] : []),
   ...(process.env.REPLIT_DOMAINS ? process.env.REPLIT_DOMAINS.split(",").map(d => `https://${d}`) : []),
   ...(process.env.REPLIT_DEV_DOMAIN ? [`https://${process.env.REPLIT_DEV_DOMAIN}`] : []),
