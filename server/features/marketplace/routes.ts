@@ -1380,4 +1380,50 @@ router.post(
   }
 );
 
+// ─── Delete single record (admin / developer only) ─────────────────────────
+
+router.delete(
+  "/:id",
+  requireAuth,
+  requireRole("admin", "developer"),
+  async (req: Request, res: Response) => {
+    const { id } = req.params;
+
+    const record = await marketplaceStorage.getPendingOutreachById(id);
+    if (!record) return res.status(404).json({ message: "Record not found" });
+
+    const deleted = await marketplaceStorage.deletePendingOutreach(id);
+    if (!deleted) return res.status(404).json({ message: "Record not found" });
+
+    await logAudit({
+      userId:    req.authUser?.id,
+      action:    "delete",
+      entity:    "marketplace_pending_outreach",
+      entityId:  id,
+      metadata:  { sellerFullName: record.sellerFullName, messageStatus: record.messageStatus },
+      ipAddress: req.ip,
+    });
+
+    return res.status(200).json({ deleted: true, id });
+  }
+);
+
+// ─── Bulk delete (admin / developer only) ──────────────────────────────────
+
+const bulkDeleteSchema = z.object({ ids: z.array(z.string().min(1)).min(1) }).strict();
+
+router.post(
+  "/bulk-delete",
+  requireAuth,
+  requireRole("admin", "developer"),
+  async (req: Request, res: Response) => {
+    const parsed = bulkDeleteSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: "Invalid request body", errors: parsed.error.flatten() });
+
+    const { ids } = parsed.data;
+    const result = await marketplaceStorage.bulkDeletePendingOutreach(ids);
+    return res.json(result);
+  }
+);
+
 export default router;

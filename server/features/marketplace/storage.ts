@@ -327,6 +327,28 @@ export async function bulkApprovePendingOutreach(
   return { updatedIds, count: updatedIds.length, newStatus: "reply_received" };
 }
 
+export async function deletePendingOutreach(
+  id: string
+): Promise<boolean> {
+  const result = await db
+    .delete(marketplacePendingOutreach)
+    .where(eq(marketplacePendingOutreach.id, id))
+    .returning({ id: marketplacePendingOutreach.id });
+  return result.length > 0;
+}
+
+export async function bulkDeletePendingOutreach(
+  ids: string[]
+): Promise<{ deletedIds: string[]; count: number }> {
+  if (ids.length === 0) return { deletedIds: [], count: 0 };
+  const results = await db
+    .delete(marketplacePendingOutreach)
+    .where(inArray(marketplacePendingOutreach.id, ids))
+    .returning({ id: marketplacePendingOutreach.id });
+  const deletedIds = results.map(r => r.id);
+  return { deletedIds, count: deletedIds.length };
+}
+
 export async function getPendingOutreachSummary(): Promise<Record<string, number>> {
   const rows = await db
     .select({

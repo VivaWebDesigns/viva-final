@@ -6,7 +6,7 @@ import { useLocation } from "wouter";
 import {
   Search, Phone, ExternalLink, ChevronLeft, ChevronRight,
   ShoppingBag, AlertCircle, CheckCircle2, Clock, Eye, SkipForward,
-  ThumbsUp, ThumbsDown, X,
+  ThumbsUp, ThumbsDown, X, Trash2,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
@@ -246,6 +246,10 @@ export default function MarketplacePendingOutreachPage() {
   // Multi-select state (page-local only)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
+  // Delete confirmation dialogs
+  const [showDeleteConfirm, setShowDeleteConfirm]           = useState(false);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm]   = useState(false);
+
   useEffect(() => { setPage(1); }, [search, statusFilter, hasPhone, hasCrmLead]);
   // Clear selection whenever filters or page changes (page-local selection contract)
   useEffect(() => { setSelectedIds(new Set()); }, [search, statusFilter, hasPhone, hasCrmLead, page]);
@@ -453,6 +457,44 @@ export default function MarketplacePendingOutreachPage() {
         ? ((e.body.message as string | undefined) ?? `Error ${e.status}`)
         : e instanceof Error ? e.message : "Unknown error";
       toast({ title: "Bulk approve failed", description: msg, variant: "destructive" });
+    },
+  });
+
+  // ── Delete single record ──────────────────────────────────────────────────
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiFetch("DELETE", `/api/marketplace/pending-outreach/${id}`);
+      return res.json() as Promise<{ deleted: boolean; id: string }>;
+    },
+    onSuccess: () => {
+      closeDrawer();
+      invalidateAll();
+      toast({ title: "Record deleted" });
+    },
+    onError: (e: unknown) => {
+      const msg = e instanceof ApiError
+        ? ((e.body.message as string | undefined) ?? `Error ${e.status}`)
+        : e instanceof Error ? e.message : "Unknown error";
+      toast({ title: "Delete failed", description: msg, variant: "destructive" });
+    },
+  });
+
+  // ── Bulk Delete mutation ───────────────────────────────────────────────────
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const res = await apiFetch("POST", "/api/marketplace/pending-outreach/bulk-delete", { ids });
+      return res.json() as Promise<{ count: number; deletedIds: string[] }>;
+    },
+    onSuccess: (data) => {
+      setSelectedIds(new Set());
+      invalidateAll();
+      toast({ title: `${data.count} record${data.count !== 1 ? "s" : ""} deleted` });
+    },
+    onError: (e: unknown) => {
+      const msg = e instanceof ApiError
+        ? ((e.body.message as string | undefined) ?? `Error ${e.status}`)
+        : e instanceof Error ? e.message : "Unknown error";
+      toast({ title: "Bulk delete failed", description: msg, variant: "destructive" });
     },
   });
 
@@ -683,6 +725,17 @@ export default function MarketplacePendingOutreachPage() {
             >
               <ThumbsUp className="w-3.5 h-3.5 mr-1.5" />
               Approve Match ({selectedIds.size})
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-950/20"
+              onClick={() => setShowBulkDeleteConfirm(true)}
+              disabled={bulkDeleteMutation.isPending || bulkSkipMutation.isPending || bulkApproveMutation.isPending}
+              data-testid="button-bulk-delete"
+            >
+              <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+              Delete ({selectedIds.size})
             </Button>
             <Button
               size="sm"
@@ -972,6 +1025,18 @@ export default function MarketplacePendingOutreachPage() {
                   </p>
                 )}
 
+                {/* Delete — always available, requires confirmation */}
+                <Button
+                  variant="outline"
+                  className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 dark:border-red-800 dark:hover:bg-red-950/20"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  disabled={deleteMutation.isPending}
+                  data-testid="button-delete-record"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  {deleteMutation.isPending ? "Deleting…" : "Delete Record"}
+                </Button>
+
                 {/* Duplicate 409: inline under action buttons */}
                 {duplicateMatch && (
                   <DuplicateInlineBlock
@@ -1112,6 +1177,75 @@ export default function MarketplacePendingOutreachPage() {
               data-testid="button-confirm-convert"
             >
               {convertMutation.isPending ? "Converting…" : "Convert"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Delete single record confirmation ───────────────────────────────── */}
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent data-testid="dialog-delete-confirm">
+          <DialogHeader>
+            <DialogTitle>Delete this record?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            This will permanently delete the record for{" "}
+            <strong>{detailRecord?.sellerFullName}</strong>. This action cannot be undone.
+          </p>
+          <DialogFooter className="mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteConfirm(false)}
+              disabled={deleteMutation.isPending}
+              data-testid="button-cancel-delete"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (selectedId) {
+                  setShowDeleteConfirm(false);
+                  deleteMutation.mutate(selectedId);
+                }
+              }}
+              disabled={deleteMutation.isPending}
+              data-testid="button-confirm-delete"
+            >
+              {deleteMutation.isPending ? "Deleting…" : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Bulk delete confirmation ────────────────────────────────────────── */}
+      <Dialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>
+        <DialogContent data-testid="dialog-bulk-delete-confirm">
+          <DialogHeader>
+            <DialogTitle>Delete {selectedIds.size} record{selectedIds.size !== 1 ? "s" : ""}?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            This will permanently delete {selectedIds.size} selected record{selectedIds.size !== 1 ? "s" : ""}. This action cannot be undone.
+          </p>
+          <DialogFooter className="mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setShowBulkDeleteConfirm(false)}
+              disabled={bulkDeleteMutation.isPending}
+              data-testid="button-cancel-bulk-delete"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setShowBulkDeleteConfirm(false);
+                bulkDeleteMutation.mutate([...selectedIds]);
+              }}
+              disabled={bulkDeleteMutation.isPending}
+              data-testid="button-confirm-bulk-delete"
+            >
+              {bulkDeleteMutation.isPending ? "Deleting…" : `Delete ${selectedIds.size}`}
             </Button>
           </DialogFooter>
         </DialogContent>
