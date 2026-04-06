@@ -7,6 +7,49 @@ import {
 // Suffixes stripped before scoring so they don't become the "last name"
 const NAME_SUFFIXES = new Set(["jr", "sr", "ii", "iii", "iv", "v"]);
 
+// Runtime sets — initialized from file constants, extended by admin additions at startup.
+// Using Sets allows O(1) lookup and immediate effect without server restart.
+let _lastNames: Set<string> = new Set(HISPANIC_LAST_NAMES);
+let _firstNames: Set<string> = new Set(HISPANIC_FIRST_NAMES);
+
+/**
+ * Called once at server startup (after DB is ready) to merge admin-added names
+ * into the runtime sets so they survive server restart.
+ */
+export async function loadAdminNameAdditions(): Promise<void> {
+  try {
+    const { db } = await import("../../db");
+    const { hispanicNameAdditions } = await import("@shared/schema");
+    const rows = await db.select().from(hispanicNameAdditions);
+    for (const row of rows) {
+      if (row.type === "surname") _lastNames.add(row.name);
+      else if (row.type === "first_name") _firstNames.add(row.name);
+    }
+    console.log(`[nameScore] loaded ${rows.length} admin name addition(s) from DB`);
+  } catch (err: any) {
+    console.error("[nameScore] failed to load admin name additions:", err.message);
+  }
+}
+
+/**
+ * Called immediately after a successful DB insert so the new name scores
+ * without requiring a server restart.
+ */
+export function addNameToRuntime(type: "first_name" | "surname", name: string): void {
+  if (type === "surname") _lastNames.add(name);
+  else _firstNames.add(name);
+}
+
+/** Returns true if the normalized name is already in the runtime surname set. */
+export function hasSurname(name: string): boolean {
+  return _lastNames.has(name);
+}
+
+/** Returns true if the normalized name is already in the runtime first name set. */
+export function hasFirstName(name: string): boolean {
+  return _firstNames.has(name);
+}
+
 export interface NameScoreResult {
   normalizedName: string;
   firstName: string;
@@ -44,7 +87,7 @@ function fuzzyMatchSurname(name: string): { match: string; distance: number } | 
   // Allow 1 edit for any name; 2 edits only for names ≥ 8 chars
   const threshold = name.length >= 8 ? 2 : 1;
   let best: { match: string; distance: number } | null = null;
-  for (const known of HISPANIC_LAST_NAMES) {
+  for (const known of _lastNames) {
     const d = editDistance(name, known);
     if (d <= threshold && (best === null || d < best.distance)) {
       best = { match: known, distance: d };
@@ -75,7 +118,7 @@ export function scoreHispanicName(sellerName: string): NameScoreResult {
   // ── Surname scoring ──────────────────────────────────────────────────────
   let lastNameScore = 0;
   if (lastName) {
-    if (HISPANIC_LAST_NAMES.includes(lastName)) {
+    if (_lastNames.has(lastName)) {
       lastNameScore = 70;
     } else {
       const fuzzy = fuzzyMatchSurname(lastName);
@@ -92,12 +135,12 @@ export function scoreHispanicName(sellerName: string): NameScoreResult {
   // ── First name scoring ───────────────────────────────────────────────────
   let firstNameScore = 0;
   if (firstName) {
-    if (HISPANIC_FIRST_NAMES.includes(firstName)) {
+    if (_firstNames.has(firstName)) {
       firstNameScore = 25;
     } else {
       // Check anglicized bridge table
       const bridgeMapped = ANGLICIZED_FIRST_NAME_MAP[firstName];
-      if (bridgeMapped && HISPANIC_FIRST_NAMES.includes(bridgeMapped)) {
+      if (bridgeMapped && _firstNames.has(bridgeMapped)) {
         firstNameScore = 25;
         notes.push(
           `first name "${firstName}" recognized as anglicized form of "${bridgeMapped}"`,

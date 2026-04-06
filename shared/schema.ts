@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { normalizePhoneDigits } from "./phone";
-import { pgTable, text, varchar, timestamp, boolean, integer, jsonb, primaryKey, index, numeric } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, boolean, integer, jsonb, primaryKey, index, numeric, serial } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -1128,3 +1128,15 @@ export const insertMarketplacePendingOutreachSchema = createInsertSchema(marketp
 // @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
 export type InsertMarketplacePendingOutreach = z.infer<typeof insertMarketplacePendingOutreachSchema>;
 export type MarketplacePendingOutreach = typeof marketplacePendingOutreach.$inferSelect;
+
+// ── Hispanic name additions (admin-managed, persisted) ─────────────────────
+export const hispanicNameAdditions = pgTable("hispanic_name_additions", {
+  id:   serial("id").primaryKey(),
+  type: text("type").notNull(),  // 'first_name' | 'surname'
+  name: text("name").notNull(),  // stored normalized: trimmed + lowercase
+});
+
+export const insertHispanicNameAdditionSchema = createInsertSchema(hispanicNameAdditions).omit({ id: true });
+// @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
+export type InsertHispanicNameAddition = z.infer<typeof insertHispanicNameAdditionSchema>;
+export type HispanicNameAddition = typeof hispanicNameAdditions.$inferSelect;

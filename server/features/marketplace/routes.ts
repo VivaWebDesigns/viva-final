@@ -12,9 +12,10 @@ import {
   pipelineStages,
   user,
   MARKETPLACE_PENDING_OUTREACH_STATUSES,
+  hispanicNameAdditions,
 } from "@shared/schema";
 import { eq, and, desc, sql, ilike } from "drizzle-orm";
-import { scoreHispanicName } from "./nameScore";
+import { scoreHispanicName, addNameToRuntime, hasFirstName, hasSurname } from "./nameScore";
 import {
   scoreCaptureMatch,
   extractPhoneFromText,
@@ -136,14 +137,18 @@ router.post(
   "/precheck",
   // DEV: Temporary bypass for Marketplace Assistant Chrome extension.
   // If MARKETPLACE_BOT_SECRET is set and the request carries
-  // "Authorization: Bearer <secret>", skip normal session auth.
+  // "Authorization: Bearer <secret>", skip normal session auth and mark as admin bot call.
   // Remove this bypass once the extension uses full token-based login.
   (req, res, next) => {
     const botSecret = process.env.MARKETPLACE_BOT_SECRET;
     if (botSecret) {
       const authHeader = req.headers.authorization ?? "";
-      if (authHeader === `Bearer ${botSecret}`) return next();
+      if (authHeader === `Bearer ${botSecret}`) {
+        res.locals.isAdminBotCall = true;
+        return next();
+      }
     }
+    res.locals.isAdminBotCall = false;
     return requireRole("admin", "developer", "lead_gen")(req, res, next);
   },
   async (req, res) => {
@@ -155,6 +160,11 @@ router.post(
     if (!parsed.success) {
       return res.status(400).json({ message: "Invalid input", errors: parsed.error.flatten() });
     }
+
+    // adminActionsAllowed: true only when authenticated via bot secret (admin-level credential).
+    // Session-authenticated callers (any role) do not get admin override UI in the extension.
+    // TODO: derive this from req.user.role once the extension migrates to token-based auth.
+    const adminActionsAllowed: boolean = res.locals.isAdminBotCall === true;
 
     const normalizedUrl = normalizeSellerUrl(parsed.data.sellerProfileUrl);
     const score = scoreHispanicName(parsed.data.sellerName);
@@ -170,6 +180,7 @@ router.post(
         hispanicNameScore,
         spanishOutreachRecommended,
         sellerExistsInCrm: false,
+        adminActionsAllowed,
       });
     }
 
@@ -201,6 +212,7 @@ router.post(
         sellerExistsInCrm: true,
         existingLeadId: row.leadId,
         existingLeadName,
+        adminActionsAllowed,
       });
     }
 
@@ -213,6 +225,7 @@ router.post(
       hispanicNameScore,
       spanishOutreachRecommended,
       sellerExistsInCrm: false,
+      adminActionsAllowed,
     });
   }
 );
@@ -442,6 +455,18 @@ function botOrRole(req: Request, res: Response, next: NextFunction) {
     if (authHeader === `Bearer ${botSecret}`) return next();
   }
   return requireRole("admin", "developer", "lead_gen")(req, res, next);
+}
+
+// Admin-only variant: bot secret OR session with admin role ONLY.
+// No other role (developer, lead_gen, sales_rep, etc.) may access admin actions via session.
+// Backend is the authoritative enforcer — a non-admin session caller receives 403.
+function botOrAdminRole(req: Request, res: Response, next: NextFunction) {
+  const botSecret = process.env.MARKETPLACE_BOT_SECRET;
+  if (botSecret) {
+    const authHeader = req.headers.authorization ?? "";
+    if (authHeader === `Bearer ${botSecret}`) return next();
+  }
+  return requireRole("admin")(req, res, next);
 }
 
 const createPendingOutreachSchema = z.object({
@@ -1086,6 +1111,143 @@ router.post(
       messageStatus:     "converted",
       lead,
     });
+  }
+);
+
+// ─── Admin: Precheck override ──────────────────────────────────────────────
+// Skips name score check but still enforces CRM duplicate detection.
+// Intended for use when precheck failed with reason: "name_score_below_threshold".
+// The extension is responsible for calling this only for that reason code;
+// the backend does not re-validate the original failure reason.
+
+router.post(
+  "/precheck-override",
+  botOrAdminRole,
+  async (req, res) => {
+    const schema = z.object({
+      sellerName: z.string().min(2),
+      sellerProfileUrl: z.string().url(),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Invalid input", errors: parsed.error.flatten() });
+    }
+
+    const normalizedUrl = normalizeSellerUrl(parsed.data.sellerProfileUrl);
+    const score = scoreHispanicName(parsed.data.sellerName);
+    const { normalizedName, firstName, lastName, hispanicNameScore, spanishOutreachRecommended } = score;
+
+    const [row] = await db
+      .select({
+        leadId: crmLeads.id,
+        leadFirstName: crmContacts.firstName,
+        leadLastName: crmContacts.lastName,
+      })
+      .from(crmLeads)
+      .innerJoin(crmContacts, eq(crmLeads.contactId, crmContacts.id))
+      .where(
+        sql`lower(regexp_replace(trim(${crmLeads.sellerProfileUrl}), '/+$', '')) = ${normalizedUrl}`
+      )
+      .orderBy(desc(crmLeads.createdAt))
+      .limit(1);
+
+    if (row) {
+      const existingLeadName =
+        [row.leadFirstName, row.leadLastName].filter(Boolean).join(" ") || null;
+      return res.json({
+        shouldContinue: false,
+        reason: "seller_already_in_crm",
+        normalizedName,
+        firstName,
+        lastName,
+        hispanicNameScore,
+        spanishOutreachRecommended,
+        sellerExistsInCrm: true,
+        existingLeadId: row.leadId,
+        existingLeadName,
+        adminActionsAllowed: true,
+        overridden: true,
+      });
+    }
+
+    return res.json({
+      shouldContinue: true,
+      reason: "passed",
+      normalizedName,
+      firstName,
+      lastName,
+      hispanicNameScore,
+      spanishOutreachRecommended,
+      sellerExistsInCrm: false,
+      adminActionsAllowed: true,
+      overridden: true,
+    });
+  }
+);
+
+// ─── Admin: Add names to scoring lists ────────────────────────────────────
+// Persists new first names or surnames to the DB and updates the runtime sets
+// immediately so the change takes effect without a server restart.
+
+router.post(
+  "/admin/add-names",
+  botOrAdminRole,
+  async (req, res) => {
+    const schema = z
+      .object({
+        firstName: z.string().optional(),
+        lastName:  z.string().optional(),
+      })
+      .refine((d) => d.firstName || d.lastName, {
+        message: "At least one of firstName or lastName is required",
+      });
+
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Invalid input", errors: parsed.error.flatten() });
+    }
+
+    function normalizeNameToken(raw: string): string {
+      return raw
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z]/g, "");
+    }
+
+    const added:         { firstNames: string[]; surnames: string[] } = { firstNames: [], surnames: [] };
+    const alreadyExisted: { firstNames: string[]; surnames: string[] } = { firstNames: [], surnames: [] };
+
+    if (parsed.data.firstName) {
+      const norm = normalizeNameToken(parsed.data.firstName);
+      if (norm) {
+        if (hasFirstName(norm)) {
+          // Already in runtime set (file constants or previous DB addition)
+          alreadyExisted.firstNames.push(norm);
+        } else {
+          await db.insert(hispanicNameAdditions).values({ type: "first_name", name: norm });
+          addNameToRuntime("first_name", norm);
+          added.firstNames.push(norm);
+        }
+      }
+    }
+
+    if (parsed.data.lastName) {
+      const norm = normalizeNameToken(parsed.data.lastName);
+      if (norm) {
+        if (hasSurname(norm)) {
+          // Already in runtime set (file constants or previous DB addition)
+          alreadyExisted.surnames.push(norm);
+        } else {
+          await db.insert(hispanicNameAdditions).values({ type: "surname", name: norm });
+          addNameToRuntime("surname", norm);
+          added.surnames.push(norm);
+        }
+      }
+    }
+
+    return res.json({ added, alreadyExisted });
   }
 );
 
