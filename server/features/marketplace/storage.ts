@@ -4,7 +4,7 @@ import {
   MARKETPLACE_PENDING_OUTREACH_NON_TERMINAL_STATUSES,
   type MarketplacePendingOutreach,
 } from "@shared/schema";
-import { and, eq, inArray, isNotNull, isNull, or, ilike, desc, count } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull, or, ilike, sql, desc, count } from "drizzle-orm";
 
 type InsertMarketplacePendingOutreachFull = typeof marketplacePendingOutreach.$inferInsert;
 
@@ -155,13 +155,19 @@ export async function findPendingOutreachByMessengerClues(
   sellerFirstNameNormalized: string,
   listingTitleNormalized: string
 ): Promise<MarketplacePendingOutreach | "ambiguous" | undefined> {
+  // Title overlap is bidirectional to handle truncation on either side:
+  //   • stored ILIKE '%incoming%' — incoming was truncated by Messenger (most common)
+  //   • incoming ILIKE '%stored%' — stored title is shorter/abbreviated
   const results = await db
     .select()
     .from(marketplacePendingOutreach)
     .where(
       and(
         ilike(marketplacePendingOutreach.sellerFirstName, sellerFirstNameNormalized),
-        ilike(marketplacePendingOutreach.listingTitleNormalized, `%${listingTitleNormalized}%`)
+        or(
+          ilike(marketplacePendingOutreach.listingTitleNormalized, `%${listingTitleNormalized}%`),
+          sql`${listingTitleNormalized} ilike '%' || ${marketplacePendingOutreach.listingTitleNormalized} || '%'`
+        )
       )
     )
     .orderBy(desc(marketplacePendingOutreach.createdAt));
