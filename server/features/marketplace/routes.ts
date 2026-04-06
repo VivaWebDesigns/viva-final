@@ -457,16 +457,16 @@ function botOrRole(req: Request, res: Response, next: NextFunction) {
   return requireRole("admin", "developer", "lead_gen")(req, res, next);
 }
 
-// Admin-only variant: bot secret OR session with admin role ONLY.
-// No other role (developer, lead_gen, sales_rep, etc.) may access admin actions via session.
-// Backend is the authoritative enforcer — a non-admin session caller receives 403.
+// Admin/developer variant: bot secret OR session with admin or developer role.
+// lead_gen, sales_rep, and all other roles are denied (403) on session-auth.
+// Backend is the authoritative enforcer — a non-admin/developer session caller receives 403.
 function botOrAdminRole(req: Request, res: Response, next: NextFunction) {
   const botSecret = process.env.MARKETPLACE_BOT_SECRET;
   if (botSecret) {
     const authHeader = req.headers.authorization ?? "";
     if (authHeader === `Bearer ${botSecret}`) return next();
   }
-  return requireRole("admin")(req, res, next);
+  return requireRole("admin", "developer")(req, res, next);
 }
 
 const createPendingOutreachSchema = z.object({
@@ -1166,13 +1166,12 @@ router.post(
         existingLeadId: row.leadId,
         existingLeadName,
         adminActionsAllowed: true,
-        overridden: true,
       });
     }
 
     return res.json({
       shouldContinue: true,
-      reason: "passed",
+      reason: "override_name_score",
       normalizedName,
       firstName,
       lastName,
@@ -1180,7 +1179,6 @@ router.post(
       spanishOutreachRecommended,
       sellerExistsInCrm: false,
       adminActionsAllowed: true,
-      overridden: true,
     });
   }
 );
