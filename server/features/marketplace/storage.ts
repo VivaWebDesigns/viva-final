@@ -4,7 +4,7 @@ import {
   MARKETPLACE_PENDING_OUTREACH_NON_TERMINAL_STATUSES,
   type MarketplacePendingOutreach,
 } from "@shared/schema";
-import { and, eq, inArray, isNotNull, isNull, or, ilike, sql, desc, count } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull, not, or, ilike, sql, desc, count } from "drizzle-orm";
 
 type InsertMarketplacePendingOutreachFull = typeof marketplacePendingOutreach.$inferInsert;
 
@@ -175,6 +175,36 @@ export async function findPendingOutreachByMessengerClues(
   if (results.length === 0) return undefined;
   if (results.length > 1) return "ambiguous";
   return results[0];
+}
+
+/**
+ * Precheck duplicate guard: returns the most recent pending outreach record for
+ * the given seller URL whose status is NOT "skipped".
+ *
+ * If this function returns a record, precheck should block the seller.
+ * If it returns undefined (no record, or all records are "skipped"), precheck
+ * may continue — skipped is the only status that allows re-engagement.
+ *
+ * Status policy enforced here:
+ *   BLOCK  — ready_to_message, message_sent, awaiting_reply, reply_received,
+ *             manual_review_required, converted
+ *   ALLOW  — skipped (re-engagement permitted)
+ */
+export async function findBlockingPendingOutreachBySellerUrl(
+  normalizedSellerProfileUrl: string
+): Promise<MarketplacePendingOutreach | undefined> {
+  const [result] = await db
+    .select()
+    .from(marketplacePendingOutreach)
+    .where(
+      and(
+        eq(marketplacePendingOutreach.sellerProfileUrl, normalizedSellerProfileUrl),
+        not(eq(marketplacePendingOutreach.messageStatus, "skipped"))
+      )
+    )
+    .orderBy(desc(marketplacePendingOutreach.createdAt))
+    .limit(1);
+  return result;
 }
 
 export interface ListPendingOutreachFilters {

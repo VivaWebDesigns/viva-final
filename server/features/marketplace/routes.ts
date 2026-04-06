@@ -184,6 +184,28 @@ router.post(
       });
     }
 
+    // ── Pending outreach duplicate check ─────────────────────────────────────
+    // Block if a non-skipped pending outreach record already exists for this seller.
+    // Skipped is the only status that allows re-engagement.
+    // Fires before the CRM check so the more informative "already in pipeline"
+    // reason takes priority when both would apply (e.g. after a CRM lead is deleted).
+    const existingOutreach = await marketplaceStorage.findBlockingPendingOutreachBySellerUrl(normalizedUrl);
+    if (existingOutreach) {
+      return res.json({
+        shouldContinue: false,
+        reason: "seller_already_in_pending_outreach",
+        normalizedName,
+        firstName,
+        lastName,
+        hispanicNameScore,
+        spanishOutreachRecommended,
+        sellerExistsInCrm: false,
+        existingOutreachId:     existingOutreach.id,
+        existingOutreachStatus: existingOutreach.messageStatus,
+        adminActionsAllowed,
+      });
+    }
+
     const [row] = await db
       .select({
         leadId: crmLeads.id,
