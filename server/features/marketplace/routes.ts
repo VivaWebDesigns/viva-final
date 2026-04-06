@@ -702,34 +702,65 @@ router.get(
   "/pending-outreach/lookup",
   botOrRole,
   async (req, res) => {
-    const schema = z.object({ sellerProfileUrl: z.string().url() });
-    const parsed = schema.safeParse({ sellerProfileUrl: req.query.sellerProfileUrl });
-    if (!parsed.success) {
-      return res.status(400).json({ message: "sellerProfileUrl query param is required and must be a valid URL" });
+    // ── Helper: build the shared record shape ──────────────────────────────
+    function buildRecord(r: Awaited<ReturnType<typeof marketplaceStorage.findLatestPendingOutreachBySellerUrl>>) {
+      if (!r) return null;
+      return {
+        id:              r.id,
+        messageStatus:   r.messageStatus,
+        sellerFullName:  r.sellerFullName,
+        nameScore:       r.nameScore,
+        city:            r.city,
+        state:           r.state,
+        listingUrl:      r.listingUrl,
+        outreachSentAt:  r.outreachSentAt,
+        replyReceivedAt: r.replyReceivedAt,
+        convertedAt:     r.convertedAt,
+        crmLeadId:       r.crmLeadId,
+      };
     }
 
-    const normalizedUrl = normalizeSellerUrl(parsed.data.sellerProfileUrl);
-    const record = await marketplaceStorage.findLatestPendingOutreachBySellerUrl(normalizedUrl);
-
-    if (!record) {
-      return res.json({ found: false });
+    // ── Method 1: sellerProfileUrl (listing-page lookup) ──────────────────
+    if (req.query.sellerProfileUrl !== undefined) {
+      const schema = z.object({ sellerProfileUrl: z.string().url() });
+      const parsed = schema.safeParse({ sellerProfileUrl: req.query.sellerProfileUrl });
+      if (!parsed.success) {
+        return res.status(400).json({ message: "sellerProfileUrl must be a valid URL" });
+      }
+      const normalizedUrl = normalizeSellerUrl(parsed.data.sellerProfileUrl);
+      const record = await marketplaceStorage.findLatestPendingOutreachBySellerUrl(normalizedUrl);
+      if (!record) return res.json({ found: false });
+      return res.json({ found: true, matchedBy: "sellerProfileUrl", record: buildRecord(record) });
     }
 
-    return res.json({
-      found: true,
-      record: {
-        id:              record.id,
-        messageStatus:   record.messageStatus,
-        sellerFullName:  record.sellerFullName,
-        nameScore:       record.nameScore,
-        city:            record.city,
-        state:           record.state,
-        listingUrl:      record.listingUrl,
-        outreachSentAt:  record.outreachSentAt,
-        replyReceivedAt: record.replyReceivedAt,
-        convertedAt:     record.convertedAt,
-        crmLeadId:       record.crmLeadId,
-      },
+    // ── Method 2: sellerFirstName + listingTitle (Messenger-context lookup) ─
+    if (req.query.sellerFirstName !== undefined || req.query.listingTitle !== undefined) {
+      const schema = z.object({
+        sellerFirstName: z.string().trim().min(1),
+        listingTitle:    z.string().trim().min(1),
+      });
+      const parsed = schema.safeParse({
+        sellerFirstName: req.query.sellerFirstName,
+        listingTitle:    req.query.listingTitle,
+      });
+      if (!parsed.success) {
+        return res.status(400).json({
+          message: "Both sellerFirstName and listingTitle are required for Messenger-context lookup",
+        });
+      }
+      const firstNameNorm   = parsed.data.sellerFirstName.toLowerCase();
+      const listingTitleNorm = parsed.data.listingTitle.toLowerCase();
+      const result = await marketplaceStorage.findPendingOutreachByMessengerClues(
+        firstNameNorm,
+        listingTitleNorm
+      );
+      if (!result || result === "ambiguous") return res.json({ found: false });
+      return res.json({ found: true, matchedBy: "messengerClues", record: buildRecord(result) });
+    }
+
+    // ── No usable params ──────────────────────────────────────────────────
+    return res.status(400).json({
+      message: "Provide either sellerProfileUrl (listing-page lookup) or both sellerFirstName and listingTitle (Messenger lookup)",
     });
   }
 );

@@ -139,6 +139,38 @@ export async function findLatestPendingOutreachBySellerUrl(
   return result;
 }
 
+/**
+ * Messenger-context lookup: finds a pending outreach record by seller first name
+ * (case-insensitive exact match) and listing title (case-insensitive substring —
+ * the stored title must contain the incoming title, handling Messenger truncation).
+ *
+ * Returns:
+ *   - the record    if exactly one match is found
+ *   - "ambiguous"   if two or more records match (conservative — do not guess)
+ *   - undefined     if no records match
+ *
+ * Both params must be normalized (trimmed, lowercased) by the caller before passing in.
+ */
+export async function findPendingOutreachByMessengerClues(
+  sellerFirstNameNormalized: string,
+  listingTitleNormalized: string
+): Promise<MarketplacePendingOutreach | "ambiguous" | undefined> {
+  const results = await db
+    .select()
+    .from(marketplacePendingOutreach)
+    .where(
+      and(
+        ilike(marketplacePendingOutreach.sellerFirstName, sellerFirstNameNormalized),
+        ilike(marketplacePendingOutreach.listingTitleNormalized, `%${listingTitleNormalized}%`)
+      )
+    )
+    .orderBy(desc(marketplacePendingOutreach.createdAt));
+
+  if (results.length === 0) return undefined;
+  if (results.length > 1) return "ambiguous";
+  return results[0];
+}
+
 export interface ListPendingOutreachFilters {
   page:       number;
   limit:      number;
