@@ -33,7 +33,16 @@ const DEFAULT_SALES_REP_ID = "o3UuGD02vDKCBSusAGK6O9A2RzfI3uhE";
 const router = Router();
 
 function normalizeSellerUrl(url: string): string {
-  return url.trim().toLowerCase().replace(/\/+$/, "");
+  try {
+    const u = new URL(url.trim().toLowerCase());
+    u.searchParams.delete("product_id");
+    const pathname = u.pathname.replace(/\/+$/, "");
+    const search = u.searchParams.size > 0 ? u.search : "";
+    return u.origin + pathname + search;
+  } catch {
+    // Malformed URL fallback: strip ?product_id= from raw string
+    return url.trim().toLowerCase().split("?product_id=")[0].replace(/\/+$/, "");
+  }
 }
 
 const US_STATE_TIMEZONES: Record<string, string> = {
