@@ -1,0 +1,115 @@
+Use Plan mode.
+
+Inspect both the Marketplace Assistant extension code and the Viva
+backend Marketplace routes/storage it calls.
+
+Implement a resume-state fix for Marketplace Assistant so I do NOT lose
+my place when the Chrome popup closes.
+
+Problem:
+Today, after I click Create Pending Outreach, I have to click back into
+Facebook to message the seller. The moment I click outside the popup,
+Chrome closes it. When I reopen the extension later, it does not
+reliably come back in the correct stage for that seller/listing.
+
+What I want:
+Do NOT try to make the normal Chrome popup stay open while I click
+around. Instead, make the popup reopen in the correct stage by loading
+the saved backend state for the current seller/listing every time the
+popup opens.
+
+Goal:
+When I open the extension on a Marketplace listing, it should determine
+whether this exact seller/listing already has a saved pending outreach
+record and, if so, show the correct current stage.
+
+Required behavior:
+- If no pending outreach record exists for the current seller/listing:
+  show the normal fresh-state actions such as Create Pending Outreach
+- If a pending outreach record already exists:
+  show the correct resumed state for that record instead of behaving
+  like a fresh session
+- This must work even if:
+  - the popup was closed
+  - I moved around Facebook
+  - I checked other sellers
+  - I came back later to the same listing
+
+Correct stage examples:
+- no record yet:
+  - Create Pending Outreach
+- record exists but message not marked sent:
+  - Open in Viva
+  - Mark Message Sent
+- message sent / awaiting reply:
+  - show that waiting state clearly
+- reply received and conversion is allowed:
+  - Convert to CRM
+- already converted:
+  - show converted state and do NOT offer duplicate actions
+
+Important:
+State must come from the backend using the current listing/seller
+identity, not from fragile temporary popup memory only.
+
+Matching / identity:
+Please inspect the current code and use the safest existing identifiers
+already in the Marketplace flow to find the correct record, preferably:
+- seller profile URL
+- ad URL
+Use the current normalized forms already used by the backend wherever
+possible.
+
+Implementation guidance:
+- Read the current extension popup logic first
+- Read the current Viva backend Marketplace routes/storage first
+- Reuse existing backend routes if a suitable lookup already exists
+- If no suitable lookup exists, add a small backend route that, given
+  the current seller/listing identifiers, returns whether a matching
+  pending outreach record exists and what stage/status it is in
+- Keep the implementation minimal and non-destructive
+- Do NOT create duplicate pending outreach records just because the
+  popup was reopened
+
+Popup behavior:
+- On popup open, after extracting seller/listing info, perform the
+  necessary backend lookup
+- Render the popup from the lookup result
+- Do not require me to keep the popup open
+- The popup should behave like a resume-able control panel for each
+  listing
+
+UI:
+Keep the UI simple and obvious.
+If a record already exists, make it clear that it was found and resumed.
+Example copy is fine along these lines:
+- Existing pending outreach found
+- Message already marked sent
+- Waiting for reply
+- Ready to convert
+- Already converted
+
+Non-goals:
+- Do NOT build a floating on-page panel or sidebar
+- Do NOT try to hack Chrome popup behavior to stay open
+- Do NOT redesign the whole extension UI
+- Do NOT weaken any duplicate protections
+- Do NOT break current Marketplace flow
+
+Deliverables:
+After implementation, give me:
+1. concise summary of files changed
+2. exact explanation of how popup reopen/resume now works
+3. what identifiers are used to find the existing record
+4. a simple test checklist for:
+   - new seller with no record
+   - seller with pending outreach created
+   - seller with message marked sent
+   - seller ready to convert
+   - seller already converted
+   - reopening after checking other sellers
+5. any edge cases or limitations still remaining
+
+Please make the smallest clean implementation that restores the correct
+stage on popup reopen for the current listing.
+Read the current related files before changing anything.

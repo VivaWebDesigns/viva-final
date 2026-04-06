@@ -1,0 +1,124 @@
+Use Plan mode.
+
+Inspect both the Marketplace Assistant extension code and the Viva
+backend routes/storage it calls.
+
+I want you to map exactly what each of these buttons/actions does in
+the current system:
+
+- Add first name
+- Add surname
+- Add both
+- Create Pending Outreach
+- Mark Message Sent
+- Convert to CRM
+
+Goal:
+I do NOT want code changes yet.
+I want a precise behavior map so I understand which action triggers
+which stage, which records get created or updated, and in what order.
+
+Please read the actual current code and tell me, for each button:
+
+1. What frontend action it triggers
+- popup handler / function name
+- request sent, if any
+- route called
+- payload sent
+
+2. What backend route does with it
+- validation
+- duplicate checks
+- whether it creates a record, updates a record, or only returns a
+  status
+- what table/entity is touched
+
+3. What state change happens in practice
+Examples:
+- only updates the Hispanic name list additions
+- reruns precheck only
+- creates a pending outreach record
+- marks a pending outreach record as message sent
+- converts pending outreach into a CRM lead
+- updates CRM lead stage
+- does more than one of the above
+
+4. Whether the action is persistent
+I want to know whether it survives popup close/reopen and where that
+state is stored
+
+5. What success response comes back
+- response shape
+- key fields
+- how the popup uses that response
+
+6. Whether the action is independent or chained
+Examples:
+- Add both only saves names, then reruns precheck, but does NOT create
+  pending outreach
+- Create Pending Outreach is a separate button and separate step
+- Mark Message Sent only applies after pending outreach exists
+- Convert to CRM only happens after a certain prior step, etc.
+
+Very important:
+Please explicitly answer these questions based on code, not guesses:
+
+A) Does Add both only save names and rerun precheck, or does it also
+create a pending outreach record automatically?
+
+B) Is Create Pending Outreach required before a record exists in the
+Marketplace queue/staging layer?
+
+C) What exactly does Mark Message Sent update?
+
+D) What exactly does Convert to CRM create/update?
+
+E) When I reopen the extension on the same listing, what logic decides
+whether I see:
+- Create Pending Outreach
+or instead:
+- Created / Mark Message Sent / Convert to CRM
+
+Please also inspect whether reopening the popup on the same listing
+performs any backend lookup for an existing pending outreach record, or
+whether it always behaves like a fresh session unless a local popup
+state variable is still present.
+
+Deliverable format:
+Give me a clean button-by-button breakdown in this exact style:
+
+BUTTON NAME
+- Frontend trigger:
+- Backend route:
+- Backend effect:
+- Persistent state written:
+- Response returned:
+- What the popup does next:
+- Depends on prior step? yes/no
+- Notes:
+
+Then give me a final short section called:
+
+ACTUAL CURRENT FLOW ORDER
+
+This should explain the real current sequence from:
+failed name check ->
+add names ->
+pass ->
+pending outreach ->
+message sent ->
+CRM conversion
+
+Then add one more final section called:
+
+POPUP REOPEN / RESUME BEHAVIOR
+
+This should answer:
+- What happens today when the popup is closed and reopened on the same
+  listing?
+- Is existing pending outreach state reloaded from backend, restored
+  from extension storage, or not restored at all?
+- If it is not restored, exactly what code path proves that?
+
+Please read the actual relevant files first and map the real behavior.
+No implementation yet, just precise analysis.
