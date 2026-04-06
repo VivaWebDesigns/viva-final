@@ -1,0 +1,65 @@
+Use Plan mode.
+
+The new pending-outreach duplicate block appears to have failed in a
+real test.
+
+I just tested a seller who already has a pending outreach record in a
+non-skipped status, and precheck still returned a pass.
+
+I want a code-based investigation path for this exact failure, not a
+general explanation.
+
+Please inspect the real current Marketplace precheck implementation and
+tell me the most likely reasons this could still pass.
+
+Focus on these possibilities:
+
+1. The running backend may not actually include the latest Task #27
+   logic
+2. The extension may be sending a sellerProfileUrl that does not match
+   the stored pending outreach sellerProfileUrl after normalization
+3. The "most recent" pending outreach record for that seller may be a
+   skipped record
+4. The stored record may not have the status we think it has
+5. The lookup may be using a different field/value than precheck
+
+Please answer these exact questions:
+
+1. In the current live precheck code, what exact function is called to
+   check pending outreach duplicates?
+
+2. What exact sellerProfileUrl value is normalized and checked during
+   precheck?
+
+3. What exact query/logic determines the "most recent" pending outreach
+   record and whether it blocks?
+
+4. Under what exact conditions would precheck still return passed even
+   though I believe the seller is already in pending outreach?
+
+5. What is the fastest concrete way for me to verify which of these is
+   happening in my failed test?
+Examples:
+- inspect stored sellerProfileUrl for that outreach record
+- inspect latest messageStatus for that seller
+- confirm live backend build contains Task #27
+- compare normalized URL sent by extension vs stored URL
+
+Deliverable format:
+
+MOST LIKELY CAUSES
+- cause 1:
+- cause 2:
+- cause 3:
+
+CODE PROOF
+- file(s):
+- function(s):
+- exact blocking logic:
+
+FASTEST DEBUG CHECK
+Give me the shortest practical path to verify why this seller passed
+when it should have been blocked.
+
+No implementation yet. Just inspect the real current code and tell me
+what to check first.
