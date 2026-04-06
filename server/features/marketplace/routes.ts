@@ -1383,7 +1383,7 @@ router.post(
 // ─── Delete single record (admin / developer only) ─────────────────────────
 
 router.delete(
-  "/:id",
+  "/pending-outreach/:id",
   requireAuth,
   requireRole("admin", "developer"),
   async (req: Request, res: Response) => {
@@ -1413,7 +1413,7 @@ router.delete(
 const bulkDeleteSchema = z.object({ ids: z.array(z.string().min(1)).min(1) }).strict();
 
 router.post(
-  "/bulk-delete",
+  "/pending-outreach/bulk-delete",
   requireAuth,
   requireRole("admin", "developer"),
   async (req: Request, res: Response) => {
