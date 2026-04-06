@@ -1,0 +1,90 @@
+Use Plan mode.
+
+Inspect the current Marketplace reply-capture / Convert to CRM flow and
+plan a manual phone-entry fallback.
+
+Goal:
+I want a human-assisted backup path in case automatic reply capture /
+phone extraction is unreliable.
+
+Desired behavior:
+When I am in the Marketplace message/reply flow and the seller has sent
+a phone number (or I can clearly see it), I want the option to manually
+paste the phone number into the extension and then continue to Convert
+to CRM.
+
+This should be a fallback, not a replacement for normal automatic
+capture.
+
+Required behavior:
+1. Add a manual phone input field in the extension reply workflow
+- visible in the message/reply context where I would normally capture a
+  seller reply / prepare for conversion
+- intended for me to paste a phone number manually
+
+2. Validation / normalization
+- Reuse the same phone validation and normalization rules already used
+  in the CRM / manual lead flow if possible
+- normalize to the canonical stored format already used by the app
+- reject clearly invalid phone input with a helpful error
+- do NOT allow garbage input to create bad CRM leads
+
+3. Conversion behavior
+- If a valid manual phone number is entered, allow Convert to CRM to use
+  that manual phone value as the source of truth for the phone field
+- If no manual phone number is entered, preserve existing automatic
+  capture / extraction behavior
+- Keep the seller reply text / normal capture path intact if it already
+  exists
+
+4. Scope / architecture
+Please inspect the current real code first and recommend the smallest
+clean implementation.
+
+I want you to determine:
+- whether this should be handled by extending capture-reply
+- or by extending convert-to-crm
+- or by adding a small separate manual-phone step
+- whichever is cleanest and safest in the current architecture
+
+5. Safety
+- Do NOT weaken existing duplicate protections
+- Do NOT bypass normal required validation except for allowing manual
+  phone entry as the phone source
+- Do NOT redesign the whole Marketplace flow
+- Keep this as a fallback tool for admin/human-assisted usage
+
+6. Deliverables
+After planning, tell me:
+- what files would need changes
+- the cleanest place in the flow to inject manual phone entry
+- whether the phone should be stored on the pending outreach record
+  before conversion or passed only at conversion time
+- how validation/normalization will work
+- a simple test checklist for:
+  - valid manual phone entry
+  - invalid manual phone entry
+  - manual phone used during conversion
+  - no manual phone entered, existing flow still works
+  - duplicate protections still intact
+
+Deliverable format:
+
+CURRENT ARCHITECTURE
+- how phone currently gets into the system:
+- where manual phone fallback fits best:
+
+RECOMMENDED DESIGN
+- UI location:
+- backend route to extend:
+- validation/normalization approach:
+- whether manual phone should persist on pending outreach before
+  conversion:
+
+BOTTOM LINE
+One short plain-English answer:
+What is the smallest clean way to let me manually paste a phone number
+into the extension as a backup before Convert to CRM?
+
+No implementation yet. Just inspect the real current code and plan it
+precisely.
