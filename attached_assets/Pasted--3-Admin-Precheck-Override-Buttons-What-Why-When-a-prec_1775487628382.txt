@@ -1,0 +1,26 @@
+#3 - Admin Precheck Override Buttons
+What & Why
+When a precheck returns SKIP due to a low name score, authenticated bot users (adminActionsAllowed === true) need to act immediately without leaving the extension. Two new backend endpoints let an admin either force-pass the seller or add the name to the approved list, triggering a fresh precheck automatically.
+
+Done looks like
+After a SKIP result with reason name_score_below_threshold, four admin buttons appear below the result badge — but ONLY when the precheck response includes adminActionsAllowed: true. When that flag is false the extension looks and behaves exactly as it does today.
+Override button: always enabled. Calls /api/marketplace/precheck-override. On success (shouldContinue: true, reason: "override_name_score") the extension transitions to a PASS state and shows the outreach section exactly as a normal passing precheck would. On duplicate found (shouldContinue: false) the existing "already in CRM" UI is shown.
+Add first name button: disabled (with a brief note) when firstName is missing from the precheck response; otherwise calls /api/marketplace/admin/add-names with { firstName }.
+Add surname button: same gating on lastName.
+Add both button: disabled when either name part is missing; calls add-names with both fields.
+After any successful add-names call, the extension shows "Added." briefly and then automatically re-runs the precheck. If the re-run now passes, the full PASS flow continues normally. If it still fails (unexpected), the SKIP state is shown with the updated score and the Override button remains available.
+All four admin buttons show inline status feedback for loading, success, and HTTP errors (400 / 401 / 500). No page-level error box is used for admin-action errors.
+The admin button section is hidden whenever hideResult() is called (page refresh, new Run Check, page switch).
+No changes to any existing flow when adminActionsAllowed is absent or false.
+Out of scope
+Removing the TEMP DEBUG RESPONSE box (separate cleanup task)
+Any changes to the Messenger view
+Any new config files or storage mechanisms — CONFIG.AUTH_TOKEN and CONFIG.BACKEND_BASE_URL are already present in config.js and must be reused
+Tasks
+Add admin-actions HTML section — Inside main-content, after result-box, add a hidden container div with four buttons (Override, Add first name, Add surname, Add both) and an inline status element. No changes to the outreach section or Messenger view.
+
+Wire admin state into popup.js — Add element refs for all new admin elements. Extend hideResult() to hide the admin section. After the showResult("skip", ...) call in runCheck(), check the three conditions (shouldContinue === false, reason === "name_score_below_threshold", adminActionsAllowed === true) and show/configure the admin buttons accordingly, enabling or disabling them based on firstName/lastName availability in lastPrecheckData.
+
+Implement admin API functions — Add runAdminOverride() and runAddNames(firstName, lastName) async functions in popup.js. Override: POST to /api/marketplace/precheck-override with the same sellerName + sellerProfileUrl already available in currentData. On shouldContinue: true update lastPrecheckData and call showResult("pass", ...). Add-names: POST to /api/marketplace/admin/add-names with the appropriate name fields, show "Added." on success, then call runCheck() to re-run the precheck. Map HTTP 400/401/500 to user-friendly inline messages.
+
+Style the admin section — Add CSS for the admin section container, the four buttons, and the inline status messages. The admin section should be visually distinct but unobtrusive (e.g. subtle border, slightly muted label). Loading, success, and error states each need a distinct color treatment to match the existing status box pattern used elsewhere in the popup.
