@@ -185,12 +185,14 @@ router.post(
     }
 
     // ── Pending outreach duplicate check ─────────────────────────────────────
-    // Block if a non-skipped pending outreach record already exists for this seller.
-    // Skipped is the only status that allows re-engagement.
+    // Fetch the single most recent pending outreach record for this seller (all
+    // statuses). Block unless that record's status is "skipped" — skipped is the
+    // only status that permits re-engagement. This ordering is intentional: if a
+    // seller was previously converted and then skipped, the skip takes precedence.
     // Fires before the CRM check so the more informative "already in pipeline"
-    // reason takes priority when both would apply (e.g. after a CRM lead is deleted).
-    const existingOutreach = await marketplaceStorage.findBlockingPendingOutreachBySellerUrl(normalizedUrl);
-    if (existingOutreach) {
+    // reason takes priority when both apply (e.g. after a CRM lead is deleted).
+    const existingOutreach = await marketplaceStorage.findLatestPendingOutreachForPrecheck(normalizedUrl);
+    if (existingOutreach && existingOutreach.messageStatus !== "skipped") {
       return res.json({
         shouldContinue: false,
         reason: "seller_already_in_pending_outreach",

@@ -4,7 +4,7 @@ import {
   MARKETPLACE_PENDING_OUTREACH_NON_TERMINAL_STATUSES,
   type MarketplacePendingOutreach,
 } from "@shared/schema";
-import { and, eq, inArray, isNotNull, isNull, not, or, ilike, sql, desc, count } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull, or, ilike, sql, desc, count } from "drizzle-orm";
 
 type InsertMarketplacePendingOutreachFull = typeof marketplacePendingOutreach.$inferInsert;
 
@@ -178,30 +178,25 @@ export async function findPendingOutreachByMessengerClues(
 }
 
 /**
- * Precheck duplicate guard: returns the most recent pending outreach record for
- * the given seller URL whose status is NOT "skipped".
+ * Precheck duplicate guard: returns the single most recent pending outreach record
+ * for the given seller URL, across ALL statuses (no status filter).
  *
- * If this function returns a record, precheck should block the seller.
- * If it returns undefined (no record, or all records are "skipped"), precheck
- * may continue — skipped is the only status that allows re-engagement.
+ * The caller is responsible for the blocking decision:
+ *   BLOCK  — if returned record's status is anything other than "skipped"
+ *   ALLOW  — if returned record's status is "skipped" (re-engagement permitted)
+ *   ALLOW  — if undefined is returned (no record exists for this seller)
  *
- * Status policy enforced here:
- *   BLOCK  — ready_to_message, message_sent, awaiting_reply, reply_received,
- *             manual_review_required, converted
- *   ALLOW  — skipped (re-engagement permitted)
+ * Fetching the latest record without filtering preserves the correct semantics:
+ * a seller whose most recent record is "skipped" is allowed through even if an
+ * older "converted" or "awaiting_reply" record exists for the same URL.
  */
-export async function findBlockingPendingOutreachBySellerUrl(
+export async function findLatestPendingOutreachForPrecheck(
   normalizedSellerProfileUrl: string
 ): Promise<MarketplacePendingOutreach | undefined> {
   const [result] = await db
     .select()
     .from(marketplacePendingOutreach)
-    .where(
-      and(
-        eq(marketplacePendingOutreach.sellerProfileUrl, normalizedSellerProfileUrl),
-        not(eq(marketplacePendingOutreach.messageStatus, "skipped"))
-      )
-    )
+    .where(eq(marketplacePendingOutreach.sellerProfileUrl, normalizedSellerProfileUrl))
     .orderBy(desc(marketplacePendingOutreach.createdAt))
     .limit(1);
   return result;
