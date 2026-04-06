@@ -1,0 +1,79 @@
+Use Plan mode.
+
+Inspect the current Marketplace precheck and pending-outreach duplicate
+logic and explain why the same seller can pass again on a different ad
+even though that seller is already in pending outreach.
+
+Concrete evidence:
+These two seller profile URLs were collected on two different ads from
+the same seller:
+
+First ad:
+https://www.facebook.com/marketplace/profile/100023577289217/
+
+Second ad:
+https://www.facebook.com/marketplace/profile/100023577289217
+
+These should normalize to the same seller. The only difference is the
+trailing slash.
+
+But the seller still passed verification again instead of being blocked.
+
+I want a code-based answer, not guesses.
+
+Please answer these exact questions:
+
+1. During Marketplace precheck, what duplicate checks currently run?
+Separate clearly:
+- existing CRM lead duplicate checks
+- existing pending outreach duplicate checks
+- any sellerProfileUrl-based checks
+- any ad/listing URL-based checks
+
+2. Does precheck currently block if the same seller already exists in
+pending outreach?
+- yes/no
+- if yes, show the exact code path
+- if no, say that clearly
+
+3. Is sellerProfileUrl normalized with the same function everywhere
+before comparison?
+- yes/no
+- show the exact normalization function
+- confirm whether the two URLs above normalize to the same value
+
+4. If those two URLs normalize to the same value, why would the seller
+still be allowed to pass again?
+Please identify the real logic gap.
+
+5. Is the current precheck only checking CRM duplicates, but not
+pending-outreach duplicates?
+- yes/no
+
+6. If there is a gap, what is the smallest clean fix?
+Please be specific:
+- add pending-outreach duplicate block during precheck
+- improve normalization usage consistency
+- check both pending outreach and CRM
+- or something else
+
+Deliverable format:
+
+CURRENT REALITY
+- Do the two URLs normalize to the same seller: yes/no
+- Does precheck block same seller already in pending outreach: yes/no
+- Most likely reason this seller passed twice:
+
+CODE PROOF
+- File(s):
+- Function(s):
+- Exact duplicate checks:
+- Exact normalization logic:
+
+BOTTOM LINE
+One short plain-English answer:
+Why is the same seller able to pass again on another ad even though the
+sellerProfileUrl is effectively the same?
+
+No implementation yet. Just inspect the real current code and answer
+precisely.

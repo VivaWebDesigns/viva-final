@@ -1,0 +1,93 @@
+Use Code mode.
+
+Inspect the current Marketplace precheck flow and implement duplicate
+blocking against pending outreach records.
+
+Problem:
+Right now Marketplace precheck only checks CRM leads.
+It does NOT check the pending outreach table.
+Because of that, the same seller can pass again on another ad even
+though that seller is already in pending outreach.
+
+We confirmed this with the same sellerProfileUrl appearing on two ads,
+with only a trailing-slash difference. So this is not just a URL-format
+issue — it is a precheck blind spot.
+
+Goal:
+Update precheck so a seller is blocked not only when already in CRM, but
+also when already present in pending outreach.
+
+Required behavior:
+1. Keep existing CRM duplicate blocking intact
+- Do NOT remove or weaken current CRM duplicate checks
+- Existing seller-in-CRM behavior should keep working
+
+2. Add pending outreach duplicate blocking
+- During precheck, after normalizing sellerProfileUrl, check whether a
+  pending outreach record already exists for that seller
+- Reuse existing normalization / storage helpers where appropriate
+- Do NOT create duplicate outreach records for the same seller just
+  because they are not yet in CRM
+
+3. Status policy
+Please implement this exact policy:
+
+Block precheck if a matching pending outreach record exists in any
+NON-TERMINAL status.
+
+For now, also block if the seller already has a CONVERTED record.
+
+For now, allow re-engagement only if the most recent matching pending
+outreach record is SKIPPED.
+
+So in practical terms:
+- block active/non-terminal pending outreach statuses
+- block converted
+- allow skipped
+- keep existing CRM duplicate block as well
+
+If the current status enum uses exact status names, inspect and use the
+real status values in the codebase rather than inventing new names.
+
+4. Matching key
+- Use sellerProfileUrl as the duplicate key
+- Normalize it exactly the same way precheck already does
+- Make sure trailing-slash differences do not matter
+
+5. Precheck response
+When blocked because of pending outreach, return a clear structured
+response that fits the existing precheck response style.
+
+Please use a distinct reason code for this case, consistent with the
+existing reason-code style.
+Examples of the intent:
+- seller_already_in_pending_outreach
+or whatever naming best matches the current codebase conventions
+
+The response should clearly communicate that the seller is already in
+the outreach pipeline and should not continue.
+
+6. Scope / safety
+- Do NOT change the Hispanic name scoring behavior
+- Do NOT change the create-pending-outreach route in this task unless
+  absolutely necessary
+- Do NOT change schema unless it is truly required
+- Do NOT weaken existing duplicate protections
+- Do NOT redesign the whole Marketplace flow
+
+7. Deliverables
+After implementation, give me:
+- concise summary of files changed
+- exact status rule used for blocking vs allowing
+- the new reason code returned by precheck
+- confirmation that skipped is allowed but converted is blocked
+- a simple test checklist for:
+  - seller not in CRM and not in pending outreach → pass
+  - seller in CRM → blocked
+  - seller in active/non-terminal pending outreach → blocked
+  - seller in converted pending outreach → blocked
+  - seller in skipped pending outreach → allowed
+  - trailing-slash URL variants normalize to the same seller
+
+Please inspect the current real code first and implement the smallest
+clean backend fix.
