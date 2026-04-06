@@ -230,6 +230,141 @@ router.post(
   }
 );
 
+// ─── Admin: Precheck override ──────────────────────────────────────────────
+// Registered immediately after /precheck to avoid any route-ordering conflicts.
+// Skips the name score fail gate but still enforces CRM duplicate detection.
+// Intended for name_score_below_threshold failures only; backend does not
+// re-validate the original failure reason — the extension is responsible.
+
+router.post(
+  "/precheck-override",
+  botOrAdminRole,
+  async (req, res) => {
+    const schema = z.object({
+      sellerName: z.string().min(2),
+      sellerProfileUrl: z.string().url(),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Invalid input", errors: parsed.error.flatten() });
+    }
+
+    const normalizedUrl = normalizeSellerUrl(parsed.data.sellerProfileUrl);
+    const score = scoreHispanicName(parsed.data.sellerName);
+    const { normalizedName, firstName, lastName, hispanicNameScore, spanishOutreachRecommended } = score;
+
+    const [row] = await db
+      .select({
+        leadId: crmLeads.id,
+        leadFirstName: crmContacts.firstName,
+        leadLastName: crmContacts.lastName,
+      })
+      .from(crmLeads)
+      .innerJoin(crmContacts, eq(crmLeads.contactId, crmContacts.id))
+      .where(
+        sql`lower(regexp_replace(trim(${crmLeads.sellerProfileUrl}), '/+$', '')) = ${normalizedUrl}`
+      )
+      .orderBy(desc(crmLeads.createdAt))
+      .limit(1);
+
+    if (row) {
+      const existingLeadName =
+        [row.leadFirstName, row.leadLastName].filter(Boolean).join(" ") || null;
+      return res.json({
+        shouldContinue: false,
+        reason: "seller_already_in_crm",
+        normalizedName,
+        firstName,
+        lastName,
+        hispanicNameScore,
+        spanishOutreachRecommended,
+        sellerExistsInCrm: true,
+        existingLeadId: row.leadId,
+        existingLeadName,
+        adminActionsAllowed: true,
+      });
+    }
+
+    return res.json({
+      shouldContinue: true,
+      reason: "override_name_score",
+      normalizedName,
+      firstName,
+      lastName,
+      hispanicNameScore,
+      spanishOutreachRecommended,
+      sellerExistsInCrm: false,
+      adminActionsAllowed: true,
+    });
+  }
+);
+
+// ─── Admin: Add names to scoring lists ────────────────────────────────────
+// Persists new first names or surnames to the DB and updates runtime sets
+// immediately so the change takes effect without a server restart.
+
+router.post(
+  "/admin/add-names",
+  botOrAdminRole,
+  async (req, res) => {
+    const schema = z
+      .object({
+        firstName: z.string().optional(),
+        lastName:  z.string().optional(),
+      })
+      .refine((d) => d.firstName || d.lastName, {
+        message: "At least one of firstName or lastName is required",
+      });
+
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Invalid input", errors: parsed.error.flatten() });
+    }
+
+    function normalizeNameToken(raw: string): string {
+      return raw
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z]/g, "");
+    }
+
+    const added:         { firstNames: string[]; surnames: string[] } = { firstNames: [], surnames: [] };
+    const alreadyExisted: { firstNames: string[]; surnames: string[] } = { firstNames: [], surnames: [] };
+
+    if (parsed.data.firstName) {
+      const norm = normalizeNameToken(parsed.data.firstName);
+      if (norm) {
+        if (hasFirstName(norm)) {
+          // Already in runtime set (file constants or previous DB addition)
+          alreadyExisted.firstNames.push(norm);
+        } else {
+          await db.insert(hispanicNameAdditions).values({ type: "first_name", name: norm });
+          addNameToRuntime("first_name", norm);
+          added.firstNames.push(norm);
+        }
+      }
+    }
+
+    if (parsed.data.lastName) {
+      const norm = normalizeNameToken(parsed.data.lastName);
+      if (norm) {
+        if (hasSurname(norm)) {
+          // Already in runtime set (file constants or previous DB addition)
+          alreadyExisted.surnames.push(norm);
+        } else {
+          await db.insert(hispanicNameAdditions).values({ type: "surname", name: norm });
+          addNameToRuntime("surname", norm);
+          added.surnames.push(norm);
+        }
+      }
+    }
+
+    return res.json({ added, alreadyExisted });
+  }
+);
+
 router.post(
   "/create-outreach-lead",
   requireRole("admin", "developer", "lead_gen"),
@@ -1111,141 +1246,6 @@ router.post(
       messageStatus:     "converted",
       lead,
     });
-  }
-);
-
-// ─── Admin: Precheck override ──────────────────────────────────────────────
-// Skips name score check but still enforces CRM duplicate detection.
-// Intended for use when precheck failed with reason: "name_score_below_threshold".
-// The extension is responsible for calling this only for that reason code;
-// the backend does not re-validate the original failure reason.
-
-router.post(
-  "/precheck-override",
-  botOrAdminRole,
-  async (req, res) => {
-    const schema = z.object({
-      sellerName: z.string().min(2),
-      sellerProfileUrl: z.string().url(),
-    });
-    const parsed = schema.safeParse(req.body);
-    if (!parsed.success) {
-      return res.status(400).json({ message: "Invalid input", errors: parsed.error.flatten() });
-    }
-
-    const normalizedUrl = normalizeSellerUrl(parsed.data.sellerProfileUrl);
-    const score = scoreHispanicName(parsed.data.sellerName);
-    const { normalizedName, firstName, lastName, hispanicNameScore, spanishOutreachRecommended } = score;
-
-    const [row] = await db
-      .select({
-        leadId: crmLeads.id,
-        leadFirstName: crmContacts.firstName,
-        leadLastName: crmContacts.lastName,
-      })
-      .from(crmLeads)
-      .innerJoin(crmContacts, eq(crmLeads.contactId, crmContacts.id))
-      .where(
-        sql`lower(regexp_replace(trim(${crmLeads.sellerProfileUrl}), '/+$', '')) = ${normalizedUrl}`
-      )
-      .orderBy(desc(crmLeads.createdAt))
-      .limit(1);
-
-    if (row) {
-      const existingLeadName =
-        [row.leadFirstName, row.leadLastName].filter(Boolean).join(" ") || null;
-      return res.json({
-        shouldContinue: false,
-        reason: "seller_already_in_crm",
-        normalizedName,
-        firstName,
-        lastName,
-        hispanicNameScore,
-        spanishOutreachRecommended,
-        sellerExistsInCrm: true,
-        existingLeadId: row.leadId,
-        existingLeadName,
-        adminActionsAllowed: true,
-      });
-    }
-
-    return res.json({
-      shouldContinue: true,
-      reason: "override_name_score",
-      normalizedName,
-      firstName,
-      lastName,
-      hispanicNameScore,
-      spanishOutreachRecommended,
-      sellerExistsInCrm: false,
-      adminActionsAllowed: true,
-    });
-  }
-);
-
-// ─── Admin: Add names to scoring lists ────────────────────────────────────
-// Persists new first names or surnames to the DB and updates the runtime sets
-// immediately so the change takes effect without a server restart.
-
-router.post(
-  "/admin/add-names",
-  botOrAdminRole,
-  async (req, res) => {
-    const schema = z
-      .object({
-        firstName: z.string().optional(),
-        lastName:  z.string().optional(),
-      })
-      .refine((d) => d.firstName || d.lastName, {
-        message: "At least one of firstName or lastName is required",
-      });
-
-    const parsed = schema.safeParse(req.body);
-    if (!parsed.success) {
-      return res.status(400).json({ message: "Invalid input", errors: parsed.error.flatten() });
-    }
-
-    function normalizeNameToken(raw: string): string {
-      return raw
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .trim()
-        .toLowerCase()
-        .replace(/[^a-z]/g, "");
-    }
-
-    const added:         { firstNames: string[]; surnames: string[] } = { firstNames: [], surnames: [] };
-    const alreadyExisted: { firstNames: string[]; surnames: string[] } = { firstNames: [], surnames: [] };
-
-    if (parsed.data.firstName) {
-      const norm = normalizeNameToken(parsed.data.firstName);
-      if (norm) {
-        if (hasFirstName(norm)) {
-          // Already in runtime set (file constants or previous DB addition)
-          alreadyExisted.firstNames.push(norm);
-        } else {
-          await db.insert(hispanicNameAdditions).values({ type: "first_name", name: norm });
-          addNameToRuntime("first_name", norm);
-          added.firstNames.push(norm);
-        }
-      }
-    }
-
-    if (parsed.data.lastName) {
-      const norm = normalizeNameToken(parsed.data.lastName);
-      if (norm) {
-        if (hasSurname(norm)) {
-          // Already in runtime set (file constants or previous DB addition)
-          alreadyExisted.surnames.push(norm);
-        } else {
-          await db.insert(hispanicNameAdditions).values({ type: "surname", name: norm });
-          addNameToRuntime("surname", norm);
-          added.surnames.push(norm);
-        }
-      }
-    }
-
-    return res.json({ added, alreadyExisted });
   }
 );
 
