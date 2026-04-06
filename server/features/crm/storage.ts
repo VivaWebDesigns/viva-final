@@ -3,7 +3,7 @@ import { normalizePhoneDigits } from "@shared/phone";
 import {
   crmCompanies, crmContacts, crmLeadStatuses, crmLeads, crmLeadNotes,
   crmTags, crmLeadTags, pipelineOpportunities, pipelineStages, pipelineActivities, followupTasks, user,
-  onboardingRecords, clientNotes, automationExecutionLogs, smsMessages,
+  onboardingRecords, clientNotes, automationExecutionLogs, smsMessages, marketplacePendingOutreach,
   type InsertCrmCompany, type InsertCrmContact, type InsertCrmLeadStatus,
   type InsertCrmLead, type InsertCrmLeadNote, type InsertCrmTag,
   type CrmCompany, type CrmContact, type CrmLeadStatus,
@@ -551,6 +551,12 @@ export async function bulkDeleteLeads(ids: string[]): Promise<number> {
 
     await tx.update(automationExecutionLogs).set({ leadId: null }).where(inArray(automationExecutionLogs.leadId, ids));
     await tx.delete(pipelineOpportunities).where(inArray(pipelineOpportunities.leadId, ids));
+
+    // Unlink marketplace pending outreach records (nullable FK, keep the records for history)
+    await tx.update(marketplacePendingOutreach).set({ crmLeadId: null }).where(inArray(marketplacePendingOutreach.crmLeadId, ids));
+    // Delete SMS message history (non-null FK, no cascade — must delete before lead)
+    await tx.delete(smsMessages).where(inArray(smsMessages.leadId, ids));
+
     await tx.delete(crmLeads).where(inArray(crmLeads.id, ids));
 
     for (const companyId of companyIds) {
