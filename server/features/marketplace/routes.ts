@@ -692,6 +692,48 @@ router.get(
   }
 );
 
+// ─── Extension lookup: find most recent record by seller URL ───────────────
+// Called on every popup open so the extension can resume from the correct stage.
+// Returns the most recent record for the seller URL across ALL statuses.
+// Auth: bot secret OR session with admin/developer/lead_gen role.
+// Registered before /:id to avoid the wildcard swallowing "lookup".
+
+router.get(
+  "/pending-outreach/lookup",
+  botOrRole,
+  async (req, res) => {
+    const schema = z.object({ sellerProfileUrl: z.string().url() });
+    const parsed = schema.safeParse({ sellerProfileUrl: req.query.sellerProfileUrl });
+    if (!parsed.success) {
+      return res.status(400).json({ message: "sellerProfileUrl query param is required and must be a valid URL" });
+    }
+
+    const normalizedUrl = normalizeSellerUrl(parsed.data.sellerProfileUrl);
+    const record = await marketplaceStorage.findLatestPendingOutreachBySellerUrl(normalizedUrl);
+
+    if (!record) {
+      return res.json({ found: false });
+    }
+
+    return res.json({
+      found: true,
+      record: {
+        id:              record.id,
+        messageStatus:   record.messageStatus,
+        sellerFullName:  record.sellerFullName,
+        nameScore:       record.nameScore,
+        city:            record.city,
+        state:           record.state,
+        listingUrl:      record.listingUrl,
+        outreachSentAt:  record.outreachSentAt,
+        replyReceivedAt: record.replyReceivedAt,
+        convertedAt:     record.convertedAt,
+        crmLeadId:       record.crmLeadId,
+      },
+    });
+  }
+);
+
 router.get(
   "/pending-outreach",
   requireRole("admin", "developer"),

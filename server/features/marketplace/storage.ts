@@ -122,6 +122,23 @@ export async function findActivePendingOutreachBySellerUrl(
   return result;
 }
 
+/**
+ * Returns the most recent pending outreach record for the given seller URL,
+ * across ALL statuses (including terminal: converted, skipped).
+ * Used by the extension lookup route so the popup can resume from the correct stage.
+ */
+export async function findLatestPendingOutreachBySellerUrl(
+  normalizedSellerProfileUrl: string
+): Promise<MarketplacePendingOutreach | undefined> {
+  const [result] = await db
+    .select()
+    .from(marketplacePendingOutreach)
+    .where(eq(marketplacePendingOutreach.sellerProfileUrl, normalizedSellerProfileUrl))
+    .orderBy(desc(marketplacePendingOutreach.createdAt))
+    .limit(1);
+  return result;
+}
+
 export interface ListPendingOutreachFilters {
   page:       number;
   limit:      number;
