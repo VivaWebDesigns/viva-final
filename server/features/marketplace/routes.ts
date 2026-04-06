@@ -191,7 +191,7 @@ router.post(
     // seller was previously converted and then skipped, the skip takes precedence.
     // Fires before the CRM check so the more informative "already in pipeline"
     // reason takes priority when both apply (e.g. after a CRM lead is deleted).
-    const existingOutreach = await marketplaceStorage.findLatestPendingOutreachForPrecheck(normalizedUrl);
+    const existingOutreach = await marketplaceStorage.findLatestPendingOutreachBySellerUrl(normalizedUrl);
     if (existingOutreach && existingOutreach.messageStatus !== "skipped") {
       return res.json({
         shouldContinue: false,

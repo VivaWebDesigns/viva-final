@@ -177,30 +177,6 @@ export async function findPendingOutreachByMessengerClues(
   return results[0];
 }
 
-/**
- * Precheck duplicate guard: returns the single most recent pending outreach record
- * for the given seller URL, across ALL statuses (no status filter).
- *
- * The caller is responsible for the blocking decision:
- *   BLOCK  — if returned record's status is anything other than "skipped"
- *   ALLOW  — if returned record's status is "skipped" (re-engagement permitted)
- *   ALLOW  — if undefined is returned (no record exists for this seller)
- *
- * Fetching the latest record without filtering preserves the correct semantics:
- * a seller whose most recent record is "skipped" is allowed through even if an
- * older "converted" or "awaiting_reply" record exists for the same URL.
- */
-export async function findLatestPendingOutreachForPrecheck(
-  normalizedSellerProfileUrl: string
-): Promise<MarketplacePendingOutreach | undefined> {
-  const [result] = await db
-    .select()
-    .from(marketplacePendingOutreach)
-    .where(eq(marketplacePendingOutreach.sellerProfileUrl, normalizedSellerProfileUrl))
-    .orderBy(desc(marketplacePendingOutreach.createdAt))
-    .limit(1);
-  return result;
-}
 
 export interface ListPendingOutreachFilters {
   page:       number;
