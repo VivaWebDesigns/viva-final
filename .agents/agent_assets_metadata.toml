@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "SFhByTKEoVHAi3Nlg26RJ"
+uri = "file://docs/extension-admin-ui-spec.md"
+type = "text"
+title = "Extension Admin UI Spec — Name Override & Add Names"
