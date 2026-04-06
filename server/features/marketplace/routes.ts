@@ -994,6 +994,7 @@ const captureReplySchema = z.object({
   listingTitleSeen:     z.string().optional(),
   threadIdentifier:     z.string().optional(),
   replyReceivedAt:      z.string().datetime().optional(),
+  manualPhone:          z.string().optional(),
 }).strict();
 
 const ALLOWED_FOR_CAPTURE_REPLY: string[] = [
@@ -1027,10 +1028,21 @@ router.post(
 
     const d = parsed.data;
 
-    const rawPhone = extractPhoneFromText(d.replyText);
+    // ── Phone source resolution ───────────────────────────────────────────
+    // Auto-extraction is tried first. If it fails and the caller supplied a
+    // manualPhone (admin-assisted fallback), use that instead.
+    const rawPhone = extractPhoneFromText(d.replyText) ?? d.manualPhone?.trim() ?? null;
     if (!rawPhone) {
       return res.status(400).json({
-        message: "No valid phone number could be extracted from the reply.",
+        message: "No phone number found in the reply. Paste the phone number manually.",
+      });
+    }
+
+    // Validate the phone regardless of source (auto or manual).
+    const normalizedPhone = normalizePhone(rawPhone);
+    if (!normalizedPhone) {
+      return res.status(400).json({
+        message: "Invalid phone number — must be a 10-digit US number.",
       });
     }
 
@@ -1053,8 +1065,6 @@ router.post(
         method:     matchResult.method,
       });
     }
-
-    const normalizedPhone = normalizePhone(rawPhone);
 
     const newStatus     = matchResult.confidence === "high" ? "reply_received" : "manual_review_required";
     const reviewReason  = matchResult.confidence === "medium"
@@ -1120,6 +1130,7 @@ const convertToCrmSchema = z.object({
   overrideTrade:         z.string().optional(),
   overrideCity:          z.string().optional(),
   overrideState:         z.string().optional(),
+  overridePhone:         z.string().optional(),
 }).strict();
 
 // ─── Approve manual review ─────────────────────────────────────────────────
@@ -1219,8 +1230,22 @@ router.post(
     const state        = opts.overrideState        ?? record.state      ?? null;
 
     // ── Phone resolution ──────────────────────────────────────────────────
-    const rawPhone        = record.replyPhoneNormalized ?? record.extractedPhone ?? null;
-    const normalizedPhone = rawPhone ? normalizePhoneDigits(rawPhone) : "";
+    // overridePhone (from the extension's manual-phone field) takes precedence
+    // over whatever was captured/stored during capture-reply. Validated with the
+    // same normalizePhone() used by capture-reply before being passed downstream.
+    let normalizedPhone: string;
+    if (opts.overridePhone) {
+      const validated = normalizePhone(opts.overridePhone.trim());
+      if (!validated) {
+        return res.status(400).json({
+          message: "Invalid overridePhone — must be a 10-digit US number.",
+        });
+      }
+      normalizedPhone = normalizePhoneDigits(validated);
+    } else {
+      const rawPhone = record.replyPhoneNormalized ?? record.extractedPhone ?? null;
+      normalizedPhone = rawPhone ? normalizePhoneDigits(rawPhone) : "";
+    }
 
     // ── Assignee ──────────────────────────────────────────────────────────
     const resolvedAssignee = opts.assignedTo ?? req.authUser?.id ?? DEFAULT_SALES_REP_ID;
