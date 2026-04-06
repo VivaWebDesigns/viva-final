@@ -1,0 +1,108 @@
+Use Plan mode.
+
+Inspect the current Viva backend Marketplace pending-outreach lookup
+route and extend it to support the new Messenger-based extension flow.
+
+Context:
+The Marketplace Assistant extension already has a Messenger-side UI
+that can extract:
+- sellerFirstName
+- listingTitle
+and it can use those clues to try to auto-resolve the correct pending
+outreach record before Capture Reply / Convert to CRM.
+
+Right now, the backend lookup route only supports:
+- sellerProfileUrl
+
+That works on listing pages, but not in Messenger, because Messenger
+does not expose sellerProfileUrl in the DOM.
+
+Goal:
+Extend the existing backend lookup so the extension can also resolve a
+pending outreach record from Messenger context using the clues it
+already extracts, while keeping the current sellerProfileUrl lookup
+fully intact.
+
+Required behavior:
+1. Preserve existing behavior
+- Keep the current sellerProfileUrl lookup behavior exactly working for
+  Marketplace listing-page resume flow
+- Do not break current extension resume-state logic
+
+2. Add Messenger fallback lookup support
+- Extend the same lookup route, or add the smallest clean enhancement,
+  so it can also accept:
+  - sellerFirstName
+  - listingTitle
+- These should be used only when sellerProfileUrl is not provided or
+  cannot be used
+
+3. Matching logic
+Please inspect the schema/storage first and design the safest minimal
+matching approach based on actual stored fields.
+
+Desired intent:
+- match a Messenger thread to the correct pending outreach record
+- only when there is a strong enough match
+- do NOT return a risky ambiguous match
+
+Please prefer conservative behavior:
+- if no good match exists, return found: false
+- if multiple plausible matches exist and the backend cannot determine
+  the right one safely, return found: false or an explicit ambiguous
+  result rather than guessing
+
+4. Matching inputs
+Use the Messenger clues already available to the extension:
+- sellerFirstName
+- listingTitle
+
+If the current schema/storage already has better companion fields for
+safe matching, use them too if appropriate.
+But do not expand scope unnecessarily.
+
+5. Response contract
+Keep the lookup response shape as compatible as possible with the
+existing extension-side flow.
+
+At minimum, preserve:
+- { found: false }
+- or
+- { found: true, record: { id, messageStatus, crmLeadId, convertedAt,
+    outreachSentAt, replyReceivedAt, sellerFullName, nameScore, city,
+    state, listingUrl } }
+
+If you need to add a small field such as:
+- matchedBy: "sellerProfileUrl" | "messengerClues"
+that is fine if it helps the extension/UI, but keep it minimal.
+
+6. Validation / normalization
+- Validate the new query params cleanly
+- Normalize inputs sensibly
+- trim whitespace
+- use case-insensitive matching where appropriate
+- keep behavior predictable and easy to reason about
+
+7. Safety
+- Do NOT weaken listing-page lookup
+- Do NOT create any new records in this task
+- Do NOT update any outreach status in this task
+- Do NOT change capture-reply or convert-to-crm behavior in this task
+- Do NOT guess when multiple records could match
+- Do NOT redesign the whole Marketplace flow
+
+8. Deliverables
+After planning, tell me:
+- what files need changes
+- the exact matching strategy you recommend
+- how ambiguity/no-match will be handled
+- whether this should extend the current lookup route or create a
+  separate Messenger-specific lookup route
+- a simple test checklist for:
+  - sellerProfileUrl lookup still works
+  - Messenger lookup finds a clear single match
+  - Messenger lookup returns no match safely
+  - Messenger lookup avoids ambiguous wrong matches
+
+Please inspect the actual current backend code first.
+No implementation yet, just precise planning.

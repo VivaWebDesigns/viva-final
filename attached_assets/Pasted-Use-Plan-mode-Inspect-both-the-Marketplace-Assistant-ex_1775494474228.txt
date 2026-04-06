@@ -1,0 +1,84 @@
+Use Plan mode.
+
+Inspect both the Marketplace Assistant extension code and the Viva
+backend Marketplace/reply-capture flow.
+
+I want to verify exactly how reply handling works today and whether the
+extension can continue the workflow from Messenger directly, or only
+from the Marketplace listing page.
+
+Goal:
+No code changes yet.
+I want a precise behavior map of the current reply/capture/convert flow
+so I understand whether I must go back to the seller's listing page in
+order to continue to Convert to CRM.
+
+Please read the actual current code and answer these exact questions
+based on code, not guesses:
+
+1. Is the extension popup designed to work only on a Marketplace
+listing page, or can it also work inside Messenger threads?
+
+2. What page context does the popup require in order to:
+- extract seller info
+- extract sellerProfileUrl
+- look up existing pending outreach state
+- show resumed state
+- allow Convert to CRM
+
+3. If a seller replies in Messenger, what exactly moves the outreach
+record into reply_received?
+- Is it automatic?
+- Is it triggered by a route?
+- Is it triggered by a bot/manual action?
+- Does the extension do it?
+- Does Messenger page context matter?
+
+4. Once a reply exists, can I open the extension from the Messenger
+conversation and convert from there?
+Or do I need to return to the original Marketplace listing page for the
+extension to resume correctly?
+
+5. What exact identifiers are used today for resumed-state lookup and
+conversion continuation?
+- sellerProfileUrl
+- listingUrl / adUrl
+- pending outreach ID
+- anything else
+
+6. If the answer is "listing page only," point to the exact code path
+that proves it.
+Examples:
+- content script only runs on Marketplace listing URLs
+- popup requires fields that only exist on listing pages
+- Messenger pages do not expose the needed sellerProfileUrl
+- lookup is skipped without sellerProfileUrl
+- convert button depends on a record ID only available after listing
+page extraction
+
+7. If there is already any Messenger-capable path in the current code,
+map it precisely.
+
+Deliverable format:
+Please give me three sections:
+
+CURRENT REALITY
+- Can popup workflow continue from Messenger directly? yes/no
+- Do I need to return to the listing page to convert? yes/no
+- One-paragraph plain-English explanation
+
+CODE PROOF
+- File(s):
+- Exact logic that proves the answer:
+- What page context is required:
+
+ACTUAL REPLY → CONVERT FLOW
+Explain the real current sequence from:
+message sent ->
+seller replies ->
+reply captured ->
+reply_received ->
+Convert to CRM available
+
+Please inspect the actual relevant files first.
+No implementation yet, just precise analysis.
