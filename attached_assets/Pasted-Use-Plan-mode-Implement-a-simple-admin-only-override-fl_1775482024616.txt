@@ -1,0 +1,177 @@
+Use Plan mode.
+
+Implement a simple, admin-only override flow for Marketplace
+precheck failures caused by Hispanic name scoring, plus admin-only
+actions to permanently add missing names to our saved Hispanic name
+lists.
+
+Scope and constraints:
+- Keep this simple.
+- Do NOT add audit tables.
+- Do NOT add timestamps/history tracking UI.
+- Do NOT add complex admin dashboards.
+- Do NOT weaken the default protection for non-admin users.
+- Do NOT allow overriding duplicate detection or missing required
+  data errors.
+- Only allow override for the specific reason:
+  name_score_below_threshold
+
+Goal:
+When the extension precheck says a seller is "not Hispanic enough"
+but I know they clearly are, I want admin-only actions that let me:
+1. override this one record and continue immediately
+2. add the parsed first name and/or surname to the existing saved
+   Hispanic name lists used by the backend scoring logic
+
+High-level behavior:
+- Non-admin users:
+  - no change to current behavior
+  - they only see the normal skip/fail behavior
+- Admin users:
+  - if precheck fails ONLY because of
+    reason = name_score_below_threshold
+  - show extra actions in the extension popup:
+    - Override
+    - Add first name
+    - Add surname
+    - Add both
+- Override:
+  - bypasses only the name-score failure for this one attempt
+  - does NOT bypass duplicate checks
+  - does NOT bypass missing seller name
+  - does NOT bypass missing seller profile URL
+  - does NOT bypass missing profile URL / required fields
+- Add first/surname/both:
+  - updates the real saved Hispanic name lists already used in the
+    backend scoring code
+  - normalize input before saving
+  - avoid duplicates
+  - after saving, either rerun precheck automatically or continue
+    with a clean success path if that is simpler and safer
+
+Important architecture:
+- Do NOT let the Chrome extension directly edit local files
+- The extension must call backend admin-only API route(s)
+- Backend performs:
+  - auth/role check
+  - normalization
+  - persistence/update of the existing name lists
+  - safe dedupe
+- Keep the existing list source of truth intact and extend it
+  cleanly
+
+Please inspect the current code first and then implement with minimal,
+non-destructive changes.
+
+Implementation requirements:
+
+1) Identify the current name scoring source
+- Find the existing Hispanic first-name and surname list source used
+  by marketplace precheck / nameScore
+- Reuse that exact source of truth if possible
+- If the current lists are hardcoded in a TS file, update that design
+  in the simplest safe way so admin additions persist and are loaded
+  by the backend
+- Prefer the smallest durable solution already compatible with this
+  app’s architecture
+
+2) Backend: admin-only override support
+- Add a backend path for "force continue" or equivalent that is
+  allowed only for authenticated admin users
+- This route must only work when the failure reason is
+  name_score_below_threshold
+- It should preserve all other protections
+- If the flow needs a server-side recheck, structure it so duplicate
+  checks still run normally
+- Keep this logic explicit and easy to audit in code
+
+3) Backend: admin-only name list update routes
+- Add admin-only route(s) to:
+  - add a first name
+  - add a surname
+  - add both in one request if convenient
+- Normalize names before saving:
+  - trim
+  - lowercase for storage/compare
+  - remove accidental extra whitespace
+- Prevent duplicates
+- Return a clean success response indicating what was added and what
+  already existed
+- Keep the code simple and readable
+
+4) Persistence
+- Make the additions survive restart/redeploy in the simplest way that
+  fits the current app
+- Reuse an existing DB-backed settings/config pattern if one already
+  exists
+- If there is already a better persistent storage pattern in the app,
+  use it
+- Avoid hacky temporary in-memory-only solutions
+
+5) Precheck integration
+- Update precheck/nameScore loading so newly added names are actually
+  used by the scoring logic
+- Keep current thresholds and existing scoring behavior unchanged
+  except for the expanded saved names
+
+6) Extension UI
+- Update the Marketplace Assistant popup UI
+- When response is:
+  shouldContinue = false
+  reason = name_score_below_threshold
+  and current user is admin
+  show:
+  - Skip
+  - Override
+  - Add first name
+  - Add surname
+  - Add both
+- Keep UI simple and tight
+- Reuse the already parsed seller name pieces if available
+- If parsed first/last name is unclear, fail gracefully and show a
+  useful message instead of breaking
+
+7) Extension behavior
+- Override button:
+  - continue only for this case
+  - then proceed with the normal downstream flow
+- Add name buttons:
+  - call backend route
+  - on success, show a clear popup status
+  - then rerun precheck automatically if practical
+  - otherwise update the popup so I can continue without refreshing
+- Do not create confusing multi-step UI if a simpler path works
+
+8) Role gating
+- Ensure only admin sees or can use these new actions
+- Enforce this on the backend, not just the frontend
+- If the extension currently does not know role directly, use the
+  backend response to indicate whether admin actions are allowed
+
+9) Safety / non-goals
+- Do NOT add override support for:
+  - existing_seller_found
+  - missing_seller_name
+  - missing_profile_url
+  - missing_seller_profile_url
+  - any other failure reason
+- Do NOT change the default non-admin workflow
+- Do NOT remove current duplicate protections
+- Do NOT add broad "force create anyway" behavior
+
+10) Deliverables
+After implementation, give me:
+- concise summary of files changed
+- exact behavior of the new flow
+- any migration/setup steps if needed
+- simple test checklist for:
+  - non-admin blocked on low name score
+  - admin sees override buttons
+  - admin override continues but duplicate block still works
+  - admin add surname works and future matching improves
+  - admin add first name works
+  - add-both avoids duplicates and persists
+
+Please make the smallest clean implementation that matches the above.
+Read the current related files first before changing anything.
+Do not remove or regress any existing Marketplace flow.
