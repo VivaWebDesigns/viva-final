@@ -1,0 +1,110 @@
+#33 — Fix Marketplace → CRM Mapping for City/State/Trade
+Start in Plan Mode first, then implement.
+
+Goal
+The simplified Phase 1 reply flow is now working live:
+- Reply Received works
+- manual phone entry works
+- Convert to CRM works
+- lead is created in CRM
+- opportunity is created in pipeline
+- task is created
+
+But the converted CRM lead is only receiving the name and
+phone correctly. City/state and trade/occupation are not
+making it through.
+
+We need to determine whether the problem is:
+1. the pending marketplace/outreach record never stored those
+   fields correctly, or
+2. convert-to-crm is not mapping those stored fields into the
+   CRM lead/contact/company records.
+
+This task is ONLY to diagnose and fix that mapping/storage gap.
+
+What I observed
+On the marketplace admin detail page for a converted record,
+the source record looks thin. Example signs:
+- Listing Title shows "Search results"
+- phone fields are blank on the marketplace page unless
+  manually entered later in the flow
+- CRM conversion succeeds
+- name and phone map over
+- city/state and trade do not show in the CRM lead
+
+What to do
+
+1. Inspect the source data path end to end
+Trace the full path for these fields:
+- city
+- state
+- trade / occupation / job title
+
+From:
+- extension extraction / page parsing
+- pending-outreach creation/storage
+- resumed/reply flow if relevant
+- convert-to-crm mapping into CRM lead/contact/company
+
+2. Determine the exact failure point
+I need a clear answer:
+- are these fields missing on the pending-outreach record
+  before conversion?
+- or are they present there but not mapped during
+  convert-to-crm?
+
+3. Fix only the actual gap
+If the fields are not being stored on the pending-outreach
+record:
+- fix the creation/storage path so they are saved correctly
+
+If the fields are stored but not mapped:
+- fix convert-to-crm so they map into the correct CRM fields
+
+If both are broken:
+- fix both, but keep the change scoped only to these fields
+
+Required behavior after the fix
+For Marketplace outreach leads converted to CRM:
+- city should carry over correctly
+- state should carry over correctly
+- trade/occupation should carry over correctly
+- existing name/phone conversion should remain unchanged
+- pipeline creation should remain unchanged
+- task creation should remain unchanged
+- duplicate handling should remain unchanged
+- Phase 1 reply/manual-phone flow should remain unchanged
+
+Important guardrails
+- Do NOT redesign the Marketplace flow
+- Do NOT touch Reply Received / manual phone behavior
+- Do NOT touch overridePhone behavior
+- Do NOT change duplicate-block logic
+- Do NOT broaden this into a general CRM refactor
+- Keep changes scoped to city/state/trade mapping/storage only
+
+What I want in the plan
+1. Exact source fields currently available on the pending
+   outreach record for city/state/trade
+2. Exact destination CRM fields they should map into
+3. Exact point where the breakdown happens
+4. Exact files that need to change
+5. Short manual test plan using one new Marketplace lead
+
+Deliverables after implementation
+1. Exact files changed
+2. Exact fields fixed and where
+3. Whether the issue was:
+   - not stored
+   - not mapped
+   - or both
+4. Short before/after explanation
+5. Short manual retest checklist
+
+Success criteria
+After creating and converting a new Marketplace outreach lead:
+- CRM lead shows correct city
+- CRM lead shows correct state
+- CRM lead shows correct trade/occupation
+- name and phone still map correctly
+- pipeline/opportunity/task creation still works
