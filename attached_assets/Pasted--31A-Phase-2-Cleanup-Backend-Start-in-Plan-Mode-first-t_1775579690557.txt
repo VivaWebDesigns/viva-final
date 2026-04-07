@@ -1,0 +1,78 @@
+#31A — Phase 2 Cleanup (Backend)
+Start in Plan Mode first, then implement.
+
+Goal
+Now that the simplified Phase 1 flow is working live, clean up
+backend logic that belongs to the old brittle auto-capture /
+auto-attach approach and is no longer appropriate for the new
+listing-page Phase 1 flow.
+
+The working intended backend behavior is now:
+- capture-reply on a known pending-outreach record can advance
+  that exact record by ID
+- replyText is optional
+- manualPhone is optional at capture stage
+- convert-to-crm requires phone at convert time
+- convert-to-crm uses overridePhone
+
+Important
+This is a cleanup pass only.
+Do NOT change the working simplified Phase 1 behavior.
+Do NOT touch the city/state/occupation mapping bug in this
+task.
+Do NOT broaden scope into unrelated marketplace refactors.
+
+Cleanup targets
+1. Remove or simplify old capture-reply logic that only existed
+   to support the abandoned auto-match/auto-attach flow, where
+   that logic is no longer needed for the direct-by-record-ID
+   listing-page flow
+2. Remove stale comments, stale error paths, and stale helper
+   assumptions tied only to the abandoned old flow
+3. Keep backward compatibility where needed, but do not keep
+   obviously dead complexity solely for a UI flow we have now
+   abandoned
+4. Keep duplicate handling and convert-to-crm protections
+   unchanged
+
+Specific intent
+The extension already loads the correct pending-outreach
+record. The backend should not still carry unnecessary
+complexity from the old idea that it must infer/attach the
+reply through brittle title/thread confidence logic for this
+direct-by-ID listing-page flow.
+
+What to do
+1. Inspect server/features/marketplace/routes.ts and any small
+   related helper/storage code touched by this flow
+2. Identify code in capture-reply and nearby helpers that is
+   leftover from the abandoned auto-capture / confidence-heavy
+   flow
+3. Remove or simplify only what is truly unnecessary now that
+   the Phase 1 flow is:
+   direct record -> Reply Received -> manual phone -> Convert
+4. Keep the direct working behavior exactly intact
+
+Guardrails
+- Do NOT alter convert-to-crm phone requirements
+- Do NOT rename overridePhone
+- Do NOT change duplicate-block response shape
+- Do NOT touch mapping fields in this task
+- No schema changes unless absolutely necessary
+- Prefer minimal safe cleanup over broad refactors
+
+Deliverables
+1. Exact files changed
+2. Exact old logic/comments/branches removed or simplified
+3. Anything intentionally left in place and why
+4. Short verification checklist proving the working Phase 1
+   flow still behaves the same after cleanup
+
+Success criteria
+After cleanup:
+- Reply Received still works on the correct loaded record
+- manual phone entry still follows
+- Convert to CRM still works with overridePhone
+- old abandoned auto-attach/autocapture clutter is reduced
+- backend behavior is simpler and better aligned to the new
+  dumbed-down product flow
