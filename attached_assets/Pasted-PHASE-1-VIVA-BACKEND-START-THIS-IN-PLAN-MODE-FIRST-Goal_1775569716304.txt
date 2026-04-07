@@ -1,0 +1,77 @@
+PHASE 1 — VIVA BACKEND
+START THIS IN PLAN MODE FIRST
+
+Goal:
+Implement Phase 1 of the Marketplace reply flow.
+We are moving away from auto-captured phone extraction.
+The new live workflow is manual:
+message sent -> waiting for reply -> reply received ->
+manual phone entry -> convert to CRM.
+
+Important:
+This phase is ONLY the functional manual-phone build.
+Do not do cleanup/removal of old unused code yet unless
+required to prevent conflicts in the new live path.
+Phase 2 will handle cleanup.
+
+What to build:
+1. Update the marketplace reply/capture backend so manual
+   phone entry is supported as the primary conversion path.
+2. Keep all existing CRM phone normalization, validation,
+   and duplicate protections intact.
+3. Do not weaken any duplicate blocking behavior.
+4. Do not add preferred name or notes fields.
+5. Do not redesign unrelated marketplace flows.
+
+Required backend behavior:
+1. capture-reply route/schema:
+   - Add optional manualPhone field.
+   - The route must allow reply advancement even when no
+     phone can be auto-extracted from reply text.
+   - For the new Phase 1 flow, manualPhone should be the
+     supported phone source for reply handling.
+
+2. convert-to-crm route/schema:
+   - Add optional manualPhone or overridePhone field
+     (use whichever naming fits the current codebase best,
+     but be consistent between extension and backend).
+   - During conversion, if a manual phone value is provided,
+     use it as the phone source for CRM conversion.
+   - Normalize to the same canonical CRM format already used
+     elsewhere in the system.
+   - Enforce the same phone validation rules already used
+     by CRM manual lead creation.
+   - Run the same duplicate checks as normal conversion.
+
+3. Behavior rules:
+   - Manual phone should be the effective phone source for
+     the new reply-received conversion flow.
+   - Do not require auto-extracted phone text for success.
+   - If manual phone is missing on conversion, return a clear
+     400-style validation error.
+   - If manual phone is invalid, return a clear validation
+     error.
+   - If conversion hits a duplicate block, preserve the
+     existing structured duplicate response behavior.
+
+4. State/progression:
+   - Support the extension being able to move a queued item
+     from waiting-for-reply to reply-received without relying
+     on successful phone extraction from message text.
+   - Keep status logic clean and explicit.
+
+Guardrails:
+- No schema changes unless truly necessary.
+- No broad refactors.
+- No cleanup pass yet.
+- Do not remove old code just because it looks unused.
+- Only touch what is necessary for Phase 1.
+
+Deliverables:
+1. Implement the backend changes.
+2. Show exactly which files changed.
+3. Explain the new request/response contract expected by
+   the extension for:
+   - reply received action
+   - manual phone conversion action
+4. Provide a short test checklist for backend verification.
