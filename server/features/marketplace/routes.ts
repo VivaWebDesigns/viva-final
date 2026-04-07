@@ -989,7 +989,7 @@ router.post(
 );
 
 const captureReplySchema = z.object({
-  replyText:            z.string().min(1),
+  replyText:            z.string().optional(),
   sellerFirstNameSeen:  z.string().optional(),
   listingTitleSeen:     z.string().optional(),
   threadIdentifier:     z.string().optional(),
@@ -1032,7 +1032,7 @@ router.post(
     // Auto-extraction is tried first; manualPhone is the fallback.
     // Phone is no longer required to advance the record — it will be
     // required later at convert-to-crm time instead.
-    const rawPhone       = extractPhoneFromText(d.replyText) ?? d.manualPhone?.trim() ?? null;
+    const rawPhone       = (d.replyText ? extractPhoneFromText(d.replyText) : null) ?? d.manualPhone?.trim() ?? null;
     let normalizedPhone: string | null = null;
 
     if (rawPhone) {
@@ -1074,7 +1074,7 @@ router.post(
       : null;
 
     const updated = await marketplaceStorage.captureReplyOnPendingOutreach(id, {
-      lastReplyText:        d.replyText,
+      lastReplyText:        d.replyText ?? null,
       extractedPhone:       rawPhone       ?? undefined,
       replyPhoneNormalized: normalizedPhone ?? undefined,
       replyMatchConfidence: matchResult.confidence,
