@@ -73,15 +73,11 @@ export async function markPendingOutreachMessageSent(
 export async function captureReplyOnPendingOutreach(
   id: string,
   data: {
-    lastReplyText:        string;
-    extractedPhone?:      string | null;
+    lastReplyText:         string | null;
+    extractedPhone?:       string | null;
     replyPhoneNormalized?: string | null;
-    replyMatchConfidence: string;
-    replyMatchMethod:     string;
-    replyReceivedAt:      Date;
-    manualReviewReason?:  string | null;
-    messageStatus:        string;
-    threadIdentifier?:    string | null;
+    replyReceivedAt:       Date;
+    threadIdentifier?:     string | null;
   }
 ): Promise<MarketplacePendingOutreach | undefined> {
   const [result] = await db
@@ -90,12 +86,10 @@ export async function captureReplyOnPendingOutreach(
       lastReplyText:        data.lastReplyText,
       extractedPhone:       data.extractedPhone       ?? null,
       replyPhoneNormalized: data.replyPhoneNormalized ?? null,
-      replyMatchConfidence: data.replyMatchConfidence,
-      replyMatchMethod:     data.replyMatchMethod,
       replyReceivedAt:      data.replyReceivedAt,
-      messageStatus:        data.messageStatus,
-      ...(data.manualReviewReason !== undefined && { manualReviewReason: data.manualReviewReason }),
-      ...(data.threadIdentifier   !== undefined && { threadIdentifier:   data.threadIdentifier }),
+      messageStatus:        "reply_received",
+      manualReviewReason:   null,
+      ...(data.threadIdentifier !== undefined && { threadIdentifier: data.threadIdentifier }),
       updatedAt: new Date(),
     })
     .where(eq(marketplacePendingOutreach.id, id))

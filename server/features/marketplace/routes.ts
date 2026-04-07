@@ -988,12 +988,10 @@ router.post(
 );
 
 const captureReplySchema = z.object({
-  replyText:            z.string().optional(),
-  sellerFirstNameSeen:  z.string().optional(),
-  listingTitleSeen:     z.string().optional(),
-  threadIdentifier:     z.string().optional(),
-  replyReceivedAt:      z.string().datetime().optional(),
-  manualPhone:          z.string().optional(),
+  replyText:        z.string().optional(),
+  threadIdentifier: z.string().optional(),
+  replyReceivedAt:  z.string().datetime().optional(),
+  manualPhone:      z.string().optional(),
 }).strict();
 
 const ALLOWED_FOR_CAPTURE_REPLY: string[] = [
@@ -1048,17 +1046,12 @@ router.post(
     // without a phone; the extension will supply it at convert-to-crm time.
 
     // Phase 1 simplified flow: the route is already scoped to a specific
-    // record ID — no title/thread/name matching needed to determine the
-    // target. Advance directly to reply_received.
+    // record ID — advance directly to reply_received.
     const updated = await marketplaceStorage.captureReplyOnPendingOutreach(id, {
       lastReplyText:        d.replyText ?? null,
       extractedPhone:       rawPhone       ?? undefined,
       replyPhoneNormalized: normalizedPhone ?? undefined,
-      replyMatchConfidence: "high",
-      replyMatchMethod:     "thread_id",
       replyReceivedAt:      d.replyReceivedAt ? new Date(d.replyReceivedAt) : new Date(),
-      manualReviewReason:   null,
-      messageStatus:        "reply_received",
       ...(d.threadIdentifier !== undefined && { threadIdentifier: d.threadIdentifier }),
     });
 
