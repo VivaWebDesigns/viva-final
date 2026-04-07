@@ -1,0 +1,94 @@
+I need you to verify and, if needed, fix the backend so it is
+ACTUALLY ready for Phase 1 of the Marketplace extension.
+
+Important:
+Do not assume anything based on approved code alone.
+Do not assume anything based on intended behavior alone.
+I only care about the backend that is actually running in my
+current Replit dev app, because that is what the extension
+hits right now.
+
+Your job:
+1. Check whether the app currently builds successfully.
+2. If the build is failing, identify the exact blocker and fix
+   it first.
+3. After the app builds, confirm the running dev backend
+   contract for the Marketplace Phase 1 flow.
+4. Only say "ready" if the running dev app truly matches the
+   Phase 1 contract below.
+
+Phase 1 backend contract that must be true:
+
+A. capture-reply
+- Phone must be OPTIONAL at reply stage.
+- The record must be allowed to advance to reply_received even
+  when no phone is extracted and no manual phone is supplied.
+- If a phone is supplied, it should still validate and store
+  normally.
+
+B. convert-to-crm
+- Phone must be REQUIRED at conversion.
+- If there is no phone source at all, convert-to-crm must
+  return a clear 400 error.
+- If a valid phone is provided, conversion should proceed with
+  the same normalization, duplicate checks, and CRM creation
+  behavior as before.
+- Duplicate-block response shape must remain unchanged.
+
+C. Field-name confirmation
+- Confirm the actual convert-time phone field name the running
+  backend expects.
+- I do not want guesses.
+- Tell me whether it is overridePhone, manualPhone, or
+  something else.
+
+What I want you to do step by step:
+
+1. Build / run the current app and verify whether it starts.
+2. If it fails, fix only what is necessary to get the backend
+   running cleanly.
+3. Then inspect the actual current backend implementation for:
+   - capture-reply
+   - convert-to-crm
+4. Then verify the live behavior of the running dev app, not
+   just static code.
+5. If needed, use or create a real pending outreach record so
+   you can test the actual endpoint behavior properly.
+6. Confirm all of the following from the running dev app:
+   - Does capture-reply still require replyText?
+   - Can capture-reply succeed with no phone present?
+   - What exact phone field does convert-to-crm expect?
+   - If no phone exists at all, does convert-to-crm return the
+     intended 400 error?
+   - If a valid phone is provided, does conversion still work?
+
+Guardrails:
+- Do not work on the extension.
+- Do not adapt anything to stale behavior.
+- Do not give me a mixed answer based on old runtime behavior
+  plus new code assumptions.
+- Fix build/runtime blockers first, then verify the actual dev
+  backend contract.
+
+Deliverables:
+1. Exact files changed, if any.
+2. Exact build issue found, if any.
+3. Whether the app now builds and runs.
+4. Final verdict in this exact format:
+
+PHASE 1 BACKEND READY FOR EXTENSION: YES or NO
+
+Build status:
+[passes or fails]
+
+capture-reply live contract:
+[exact behavior]
+
+convert-to-crm live contract:
+[exact behavior]
+
+convert phone field name:
+[exact confirmed field name]
+
+remaining blocker:
+[none, or exact blocker]

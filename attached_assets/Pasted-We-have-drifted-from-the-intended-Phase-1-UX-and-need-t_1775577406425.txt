@@ -1,0 +1,58 @@
+We have drifted from the intended Phase 1 UX and need to fix it.
+
+Problem
+The extension was rebuilt to match the current dev backend
+contract, which still requires replyText on capture-reply.
+That caused the popup to add a visible "Seller's Reply"
+textarea and a "Confirm Reply Received" submit step.
+
+This is NOT the intended product flow.
+
+Intended Phase 1 UX
+- seller is in message_sent / waiting_for_reply
+- user clicks Reply Received
+- popup immediately advances to manual phone entry
+- user enters phone manually
+- user clicks Convert to CRM
+
+We do NOT want a visible seller-reply text entry step.
+That is an unnecessary and unwanted extra step.
+
+Goal
+Adjust the backend so the extension can support the intended
+UX cleanly.
+
+Required backend change
+Update capture-reply so replyText is no longer required.
+
+Desired capture-reply behavior
+1. The route should allow a simple reply-received action even
+   when no replyText is supplied.
+2. Phone remains optional at capture stage.
+3. If replyText is supplied, it can still be stored/used.
+4. If manualPhone is supplied, it can still be validated/stored.
+5. If neither replyText nor phone is supplied, the record
+   should still be allowed to advance to reply_received,
+   subject to existing status/match-confidence rules where
+   applicable.
+6. Do not change convert-to-crm behavior:
+   - phone still required at convert time
+   - overridePhone remains the convert field
+7. No schema changes unless absolutely necessary.
+8. No unrelated refactors.
+
+Please:
+1. inspect the current capture-reply schema and handler
+2. remove the replyText-required contract
+3. keep behavior backward-compatible where possible
+4. explain exactly which files changed
+5. state the final live dev contract for capture-reply after
+   the fix
+
+Deliverable format
+- files changed
+- exact behavior before
+- exact behavior after
+- whether the extension can now implement:
+  Reply Received -> manual phone entry -> Convert to CRM
+  with no visible reply text box
