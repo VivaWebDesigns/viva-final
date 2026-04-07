@@ -74,8 +74,8 @@ export async function captureReplyOnPendingOutreach(
   id: string,
   data: {
     lastReplyText:        string;
-    extractedPhone:       string;
-    replyPhoneNormalized: string | null;
+    extractedPhone?:      string | null;
+    replyPhoneNormalized?: string | null;
     replyMatchConfidence: string;
     replyMatchMethod:     string;
     replyReceivedAt:      Date;
@@ -88,8 +88,8 @@ export async function captureReplyOnPendingOutreach(
     .update(marketplacePendingOutreach)
     .set({
       lastReplyText:        data.lastReplyText,
-      extractedPhone:       data.extractedPhone,
-      replyPhoneNormalized: data.replyPhoneNormalized,
+      extractedPhone:       data.extractedPhone       ?? null,
+      replyPhoneNormalized: data.replyPhoneNormalized ?? null,
       replyMatchConfidence: data.replyMatchConfidence,
       replyMatchMethod:     data.replyMatchMethod,
       replyReceivedAt:      data.replyReceivedAt,

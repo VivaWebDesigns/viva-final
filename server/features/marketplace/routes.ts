@@ -1028,23 +1028,25 @@ router.post(
 
     const d = parsed.data;
 
-    // ── Phone source resolution ───────────────────────────────────────────
-    // Auto-extraction is tried first. If it fails and the caller supplied a
-    // manualPhone (admin-assisted fallback), use that instead.
-    const rawPhone = extractPhoneFromText(d.replyText) ?? d.manualPhone?.trim() ?? null;
-    if (!rawPhone) {
-      return res.status(400).json({
-        message: "No phone number found in the reply. Paste the phone number manually.",
-      });
-    }
+    // ── Phone source resolution (optional at capture time) ───────────────
+    // Auto-extraction is tried first; manualPhone is the fallback.
+    // Phone is no longer required to advance the record — it will be
+    // required later at convert-to-crm time instead.
+    const rawPhone       = extractPhoneFromText(d.replyText) ?? d.manualPhone?.trim() ?? null;
+    let normalizedPhone: string | null = null;
 
-    // Validate the phone regardless of source (auto or manual).
-    const normalizedPhone = normalizePhone(rawPhone);
-    if (!normalizedPhone) {
-      return res.status(400).json({
-        message: "Invalid phone number — must be a 10-digit US number.",
-      });
+    if (rawPhone) {
+      // A phone source is present — validate it. Invalid format is still an error.
+      const validated = normalizePhone(rawPhone);
+      if (!validated) {
+        return res.status(400).json({
+          message: "Invalid phone number — must be a 10-digit US number.",
+        });
+      }
+      normalizedPhone = validated;
     }
+    // If rawPhone is null, normalizedPhone stays null and the record advances
+    // without a phone; the extension will supply it at convert-to-crm time.
 
     const listingTitleSeenNormalized = d.listingTitleSeen
       ? d.listingTitleSeen.trim().toLowerCase()
@@ -1073,8 +1075,8 @@ router.post(
 
     const updated = await marketplaceStorage.captureReplyOnPendingOutreach(id, {
       lastReplyText:        d.replyText,
-      extractedPhone:       rawPhone,
-      replyPhoneNormalized: normalizedPhone,
+      extractedPhone:       rawPhone       ?? undefined,
+      replyPhoneNormalized: normalizedPhone ?? undefined,
       replyMatchConfidence: matchResult.confidence,
       replyMatchMethod:     matchResult.method,
       replyReceivedAt:      d.replyReceivedAt ? new Date(d.replyReceivedAt) : new Date(),
@@ -1230,11 +1232,17 @@ router.post(
     const state        = opts.overrideState        ?? record.state      ?? null;
 
     // ── Phone resolution ──────────────────────────────────────────────────
-    // overridePhone (from the extension's manual-phone field) takes precedence
-    // over whatever was captured/stored during capture-reply. Validated with the
-    // same normalizePhone() used by capture-reply before being passed downstream.
+    // Resolution order:
+    //   1. overridePhone (caller-supplied at convert time — Phase 1 primary path)
+    //   2. replyPhoneNormalized stored on the record (captured at reply time)
+    //   3. extractedPhone stored on the record (raw auto-extracted fallback)
+    //
+    // Two distinct error cases:
+    //   • No phone source at all → 400 "phone required"
+    //   • Phone source exists but is invalid → 400 "invalid phone" (existing behavior)
     let normalizedPhone: string;
     if (opts.overridePhone) {
+      // Case: caller supplied a phone at convert time — validate it.
       const validated = normalizePhone(opts.overridePhone.trim());
       if (!validated) {
         return res.status(400).json({
@@ -1243,8 +1251,15 @@ router.post(
       }
       normalizedPhone = normalizePhoneDigits(validated);
     } else {
+      // Case: use whatever was stored during capture-reply.
       const rawPhone = record.replyPhoneNormalized ?? record.extractedPhone ?? null;
-      normalizedPhone = rawPhone ? normalizePhoneDigits(rawPhone) : "";
+      if (!rawPhone) {
+        // No phone source at all — block conversion and ask for a phone.
+        return res.status(400).json({
+          message: "Phone number required — provide a phone number to complete conversion.",
+        });
+      }
+      normalizedPhone = normalizePhoneDigits(rawPhone);
     }
 
     // ── Assignee ──────────────────────────────────────────────────────────
