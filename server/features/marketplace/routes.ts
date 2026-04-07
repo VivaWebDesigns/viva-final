@@ -1273,6 +1273,8 @@ router.post(
       company = await crmStorage.createCompany({
         name:     companyName,
         industry: trade ?? undefined,
+        city:     city ?? null,
+        state:    state ?? null,
         website:  null,
         phone:    normalizedPhone || null,
         email:    null,
@@ -1307,7 +1309,7 @@ router.post(
       fromWebsiteForm:  false,
       city:             city ?? null,
       state:            state ?? null,
-      timezone:         null,
+      timezone:         state ? (US_STATE_TIMEZONES[state] ?? null) : null,
       assignedTo:       resolvedAssignee,
       sellerProfileUrl: record.sellerProfileUrl,
       adUrl:            record.listingUrl ?? null,
