@@ -17,7 +17,6 @@ import {
 import { eq, and, desc, sql, ilike } from "drizzle-orm";
 import { scoreHispanicName, addNameToRuntime, hasFirstName, hasSurname } from "./nameScore";
 import {
-  scoreCaptureMatch,
   extractPhoneFromText,
   normalizePhone,
 } from "./captureReplyHelpers";
@@ -1048,40 +1047,18 @@ router.post(
     // If rawPhone is null, normalizedPhone stays null and the record advances
     // without a phone; the extension will supply it at convert-to-crm time.
 
-    const listingTitleSeenNormalized = d.listingTitleSeen
-      ? d.listingTitleSeen.trim().toLowerCase()
-      : null;
-
-    const matchResult = scoreCaptureMatch(record, {
-      sellerFirstNameNormalized: d.sellerFirstNameSeen
-        ? d.sellerFirstNameSeen.trim().toLowerCase()
-        : null,
-      listingTitleNormalized:    listingTitleSeenNormalized,
-      threadIdentifier:          d.threadIdentifier ?? null,
-    });
-
-    if (matchResult.confidence === "low") {
-      return res.status(400).json({
-        message: "Match confidence too low to attach phone. Provide a listing title or thread identifier.",
-        confidence: matchResult.confidence,
-        method:     matchResult.method,
-      });
-    }
-
-    const newStatus     = matchResult.confidence === "high" ? "reply_received" : "manual_review_required";
-    const reviewReason  = matchResult.confidence === "medium"
-      ? `Fuzzy match via ${matchResult.method} — requires human review`
-      : null;
-
+    // Phase 1 simplified flow: the route is already scoped to a specific
+    // record ID — no title/thread/name matching needed to determine the
+    // target. Advance directly to reply_received.
     const updated = await marketplaceStorage.captureReplyOnPendingOutreach(id, {
       lastReplyText:        d.replyText ?? null,
       extractedPhone:       rawPhone       ?? undefined,
       replyPhoneNormalized: normalizedPhone ?? undefined,
-      replyMatchConfidence: matchResult.confidence,
-      replyMatchMethod:     matchResult.method,
+      replyMatchConfidence: "high",
+      replyMatchMethod:     "thread_id",
       replyReceivedAt:      d.replyReceivedAt ? new Date(d.replyReceivedAt) : new Date(),
-      manualReviewReason:   reviewReason,
-      messageStatus:        newStatus,
+      manualReviewReason:   null,
+      messageStatus:        "reply_received",
       ...(d.threadIdentifier !== undefined && { threadIdentifier: d.threadIdentifier }),
     });
 

@@ -1,0 +1,69 @@
+We are still carrying old match-confidence / attachment logic
+into the new simplified Phase 1 flow, and it is wrong.
+
+Current problem
+On the correct Marketplace ad page, the extension already
+pulls up the correct pending-outreach record.
+When I click Reply Received, the backend returns:
+"Match confidence too low to attach phone. Provide a listing
+title or thread identifier."
+
+That is the old autocapture-style logic, and it no longer
+fits the simplified workflow.
+
+Intended simplified workflow
+- extension is already showing the correct queued record
+- user clicks Reply Received
+- that exact record should advance to reply_received
+- then user manually enters phone
+- then Convert to CRM uses overridePhone
+
+We are deliberately dumbing this down.
+We do NOT want Reply Received to depend on title/thread/name
+matching confidence anymore when the request is already being
+made against a specific pending-outreach record ID.
+
+Required backend change
+Update the capture-reply route/handler so that for the Phase 1
+listing-page flow, the targeted pending-outreach record can be
+advanced directly by ID without requiring old match-confidence
+attachment logic.
+
+What to do
+1. Inspect the current capture-reply handler and identify the
+   exact match-confidence gate causing this error.
+2. Remove or bypass that gate for the direct-by-record-ID
+   Phase 1 flow.
+3. If the route is already /pending-outreach/:id/capture-reply,
+   then the route should trust that record ID as the target
+   record instead of trying to infer/attach via listing title,
+   threadIdentifier, or sellerFirstNameSeen.
+4. Keep replyText optional as already implemented.
+5. Keep manualPhone optional at capture stage.
+6. Keep convert-to-crm behavior unchanged:
+   - overridePhone remains the convert field
+   - phone required at convert time
+7. Do not redesign unrelated logic.
+8. Keep the change scoped and minimal.
+
+Important
+- We are intentionally moving away from brittle auto-match
+  behavior in this flow.
+- The extension already has the correct record loaded.
+- Do not force the operator to supply listing title or thread
+  identifier just to mark Reply Received.
+
+Deliverables
+1. exact file(s) changed
+2. exact old gate/logic removed or bypassed
+3. exact new capture-reply behavior
+4. confirmation that Reply Received can now succeed on the
+   already-loaded pending-outreach record without extra
+   match-confidence fields
+
+Success criteria
+On the correct resumed waiting-for-reply listing page:
+- extension loads the correct pending-outreach record
+- user clicks Reply Received
+- backend accepts it with no title/thread confidence error
+- manual phone entry appears next
