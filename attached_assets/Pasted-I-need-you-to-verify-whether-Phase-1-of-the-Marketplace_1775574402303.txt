@@ -1,0 +1,77 @@
+I need you to verify whether Phase 1 of the Marketplace
+backend is actually LIVE and ready for the extension.
+
+Do not make assumptions based on local code only.
+I need confirmation against the deployed backend that the
+extension will actually hit.
+
+Phase 1 contract that must be true on the deployed backend:
+
+1. capture-reply:
+   - phone is OPTIONAL at reply stage
+   - the record should advance to reply_received even when
+     no phone is extracted and no manual phone is provided
+   - if a phone is provided, it should still validate/store
+     normally
+
+2. convert-to-crm:
+   - phone is REQUIRED at conversion
+   - if neither an override phone nor a stored phone exists,
+     convert-to-crm must return a clear 400 error
+   - if a valid manual/override phone is provided, conversion
+     should proceed as normal
+   - duplicate behavior must remain unchanged
+
+I need you to confirm the LIVE backend contract, not just
+the intended code.
+
+Please do the following:
+
+1. Identify the exact deployed backend/environment the
+   extension is currently hitting.
+
+2. Verify whether that deployed backend includes Task #30.
+
+3. Confirm the REAL request contract for these endpoints on
+   the deployed backend:
+   - capture-reply
+   - convert-to-crm
+
+4. Specifically answer these questions with certainty:
+   - Does capture-reply still require replyText on the live
+     backend?
+   - Can capture-reply succeed with no phone present?
+   - What is the actual convert-time phone field name on the
+     live backend?
+   - Is it overridePhone, manualPhone, or something else?
+   - If convert-to-crm receives no phone source at all, does
+     it now return the intended 400 error?
+
+5. If needed, create or use a real pending outreach record
+   and probe the live endpoints carefully so you can confirm
+   behavior from actual responses, not guesses.
+
+6. Give me a final clear verdict in this exact format:
+
+   LIVE BACKEND READY: YES or NO
+
+   capture-reply contract:
+   [state exact live behavior]
+
+   convert-to-crm contract:
+   [state exact live behavior]
+
+   convert phone field name:
+   [exact confirmed field name]
+
+   blocker for extension:
+   [yes/no and why]
+
+Important guardrails:
+- Do not adapt the extension to stale backend behavior.
+- Do not give me a hybrid answer based on local code plus
+  guesses.
+- I only want the real deployed contract the extension
+  should target.
+- If the backend is not ready, say exactly what is still not
+  live.
