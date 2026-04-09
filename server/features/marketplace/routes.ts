@@ -1098,6 +1098,7 @@ const convertToCrmSchema = z.object({
   assignedTo:            z.string().optional(),
   overrideFirstName:     z.string().optional(),
   overrideLastName:      z.string().optional(),
+  overrideCompanyName:   z.string().optional(),
   overrideBusinessName:  z.string().optional(),
   overrideTrade:         z.string().optional(),
   overrideCity:          z.string().optional(),
@@ -1196,7 +1197,7 @@ router.post(
     const { firstName: defaultFirst, lastName: defaultLast } = splitSellerName(record.sellerFullName);
     const firstName    = opts.overrideFirstName   ?? defaultFirst;
     const lastName     = opts.overrideLastName    ?? defaultLast;
-    const businessName = opts.overrideBusinessName ?? null;
+    const businessName = opts.overrideCompanyName?.trim() || opts.overrideBusinessName?.trim() || null;
     const trade        = opts.overrideTrade        ?? record.tradeGuess ?? null;
     const city         = opts.overrideCity         ?? record.city       ?? null;
     const state        = opts.overrideState        ?? record.state      ?? null;
