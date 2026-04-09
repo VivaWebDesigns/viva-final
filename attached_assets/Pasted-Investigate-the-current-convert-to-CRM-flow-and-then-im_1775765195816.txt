@@ -1,0 +1,73 @@
+Investigate the current convert-to-CRM flow and then implement
+support for an optional Company Name override coming from the
+Marketplace Assistant extension.
+
+Goal
+Add an optional company name field to the convert flow so that:
+- the extension can send it during conversion
+- the backend accepts it
+- if provided, it maps into the CRM/company creation flow
+- if blank or missing, current behavior stays exactly the same
+
+Important
+- This is an additive change only
+- Do not break the existing convert flow
+- Do not change the current required fields:
+  phone, state, city, trade
+- Company Name must be optional
+- No unrelated cleanup or refactors
+
+What to do
+
+1. Find the backend convert endpoint used by the Marketplace
+   Assistant extension for converting a pending outreach record
+   into CRM.
+
+2. Update its request schema to accept an optional field named
+   exactly:
+   overrideCompanyName
+
+3. Trace the current conversion flow end to end:
+   - pending outreach lookup
+   - lead creation
+   - company creation / company mapping
+   - opportunity creation
+   - task creation
+
+4. Update the conversion logic so that company name resolution
+   works in this order:
+   - overrideCompanyName, if present and non-empty after trim
+   - otherwise existing current behavior / existing source value
+
+5. Ensure the chosen company name is passed into the same place
+   where the CRM/company record is created or assigned.
+
+6. Preserve all current behavior when overrideCompanyName is
+   absent.
+
+7. Verify that this does not interfere with:
+   - overridePhone
+   - overrideState
+   - overrideCity
+   - overrideTrade
+   - duplicate handling
+   - company city/state mapping
+   - timezone derivation from state
+   - pipeline opportunity creation
+   - task creation
+
+Implementation constraints
+- Keep the change minimal
+- No schema/db changes unless absolutely necessary
+- Prefer using existing company/lead mapping paths
+- Do not rename existing fields
+- Do not invent a second company-name field if one already
+  exists in the current flow
+
+What I want back
+A. Exact files changed
+B. Exact request shape after change
+C. How company name resolution now works
+D. Confirmation that blank/missing overrideCompanyName falls
+   back to current behavior
+E. Any edge cases noticed

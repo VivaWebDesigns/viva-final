@@ -1,0 +1,75 @@
+#34 - Add overrideCompanyName to convert-to-crm
+
+What & Why
+The Marketplace Assistant extension needs to send a company
+name at convert time. The backend already has
+overrideBusinessName in convertToCrmSchema that serves the
+same purpose, but the extension must send the field named
+exactly overrideCompanyName.
+
+This task adds overrideCompanyName as the preferred optional
+company-name input and wires it into the existing business-name
+resolution path while preserving backward compatibility.
+
+Done looks like
+- POST /api/marketplace/pending-outreach/:id/convert-to-crm
+  accepts overrideCompanyName as an optional string
+- If overrideCompanyName is present and non-empty after trim,
+  it is used as the business/company name
+- If overrideCompanyName is absent or trims to empty, fall back
+  to overrideBusinessName if present and non-empty after trim
+- If neither overrideCompanyName nor overrideBusinessName
+  yields a non-empty value, preserve the current default
+  behavior unchanged
+- All downstream behavior continues to work through the
+  existing businessName path:
+  - company lookup
+  - company creation
+  - lead title
+- All other override fields remain unchanged:
+  - overridePhone
+  - overrideState
+  - overrideCity
+  - overrideTrade
+  - overrideFirstName
+  - overrideLastName
+  - overrideBusinessName
+- Company city/state mapping, timezone derivation, duplicate
+  handling, pipeline/opportunity creation, and task creation
+  remain unchanged
+
+Out of scope
+- Renaming or removing overrideBusinessName
+- Any DB changes
+- Any shared schema changes outside this endpoint unless truly
+  required
+- Any UI changes
+- Any changes to pending-outreach creation flow
+- Any unrelated cleanup or refactors
+
+Tasks
+1. In convertToCrmSchema, add:
+   overrideCompanyName: z.string().optional()
+
+2. In the convert handler, update business name resolution to:
+   const businessName =
+     opts.overrideCompanyName?.trim() ||
+     opts.overrideBusinessName?.trim() ||
+     null;
+
+3. Do not change downstream logic if it already uses
+   businessName for:
+   - findCompanyByName
+   - createCompany
+   - lead title / display title logic
+
+4. Confirm the route remains backward compatible for callers
+   that still send only overrideBusinessName.
+
+What I want back
+A. Exact files changed
+B. Exact schema addition
+C. Exact final businessName resolution logic
+D. Confirmation that behavior is unchanged when
+   overrideCompanyName is not sent
+E. Any edge cases noticed
