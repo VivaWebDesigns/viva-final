@@ -1,0 +1,88 @@
+#36 - Write convert-time phone/city/state/trade back to pending outreach for Marketplace table
+
+What & Why
+The Marketplace page table reads Reply Phone, City / State, and
+Trade directly from marketplace_pending_outreach.
+
+Right now, convert-time values from the extension:
+- overridePhone
+- overrideCity
+- overrideState
+- overrideTrade
+
+are used to create/update CRM records, but they are not written
+back to the pending outreach row. As a result, the Marketplace
+table continues to show dashes even after successful conversion.
+
+Goal
+When convert-to-crm succeeds, write the resolved values actually
+used at conversion back onto the corresponding
+marketplace_pending_outreach row so the Marketplace table shows
+the real final data.
+
+Important
+- Main Viva app repo only
+- Minimal change only
+- No DB migration
+- No frontend table changes in this task
+- No backfill in this task
+- Do not change CRM mapping behavior
+- Do not change extension behavior
+
+What to change
+
+1. In server/features/marketplace/storage.ts
+   update updatePendingOutreach() so its allowed update fields
+   include:
+   - city
+   - state
+   - tradeGuess
+   - replyPhoneNormalized
+
+   These columns already exist on marketplace_pending_outreach.
+   This task is only expanding the update whitelist.
+
+2. In server/features/marketplace/routes.ts
+   find the convert-to-crm handler and the final
+   updatePendingOutreach(...) call after successful conversion.
+
+3. Update that final write-back so it includes the resolved
+   convert-time values that were actually used:
+
+   - city: city ?? null
+   - state: state ?? null
+   - tradeGuess: trade ?? null
+   - replyPhoneNormalized: normalizedPhone || null
+
+   along with the existing fields already being written:
+   - crmLeadId
+   - messageStatus
+   - convertedAt
+
+Behavior requirements
+- Converted records should now show Reply Phone, City / State,
+  and Trade on the Marketplace page based on the final values
+  used during conversion
+- Awaiting Reply and Reply Received behavior should remain
+  unchanged
+- No change to CRM company/contact/lead creation logic
+- No change to duplicate handling
+- No change to timezone derivation
+- No change to pending-outreach creation flow
+- No change to capture-reply behavior
+
+Out of scope
+- Any frontend work
+- Any backfill for existing records
+- Any join to CRM data
+- Any changes to confidence/created/updated/company columns
+- Any unrelated cleanup
+
+What I want back
+A. Exact files changed
+B. Exact whitelist fields added to updatePendingOutreach()
+C. Exact final updatePendingOutreach(...) payload in
+   convert-to-crm
+D. Confirmation of which statuses will now show values and which
+   will still correctly remain blank
+E. Any edge cases noticed

@@ -1,0 +1,87 @@
+Investigate only. Do not make changes yet.
+
+We need to understand why the Marketplace page table in the main
+Viva app is not showing these columns correctly:
+
+- Reply Phone
+- City / State
+- Trade
+
+Current problem
+On the Marketplace page table, many rows show dashes for those
+fields even though the extension workflow now captures:
+- phone
+- state
+- city
+- trade
+
+and those values may already be reaching CRM during conversion.
+
+Goal
+Trace the full data path used by the Marketplace page table in
+the main Viva app and determine exactly why those columns are
+blank.
+
+Important
+- This investigation is for the main Viva app repo, not the
+  Chrome extension repo
+- Do not patch anything yet
+- First identify the real source of truth and exact failure
+  point(s)
+
+What to investigate
+
+1. Find the full Marketplace page table data path in the main
+   Viva app:
+   - frontend page/component rendering the table
+   - backend route/query supplying the table rows
+   - DB fields selected / returned for:
+     - reply phone
+     - city
+     - state
+     - trade
+
+2. For each of these columns, determine where the Marketplace
+   page expects the value to come from:
+   - pending outreach record
+   - reply capture data
+   - convert-time overrides
+   - CRM lead/company record after conversion
+   - derived/joined field
+   - something else
+
+3. Identify for each field whether the problem is:
+   - value is never being written
+   - value is written but not stored on the source record used by
+     the Marketplace table
+   - value exists in DB but is not selected in backend query
+   - value is returned by backend but mapped/rendered incorrectly
+     in frontend
+   - blank is expected for some statuses but not others
+
+4. Trace behavior by workflow status:
+   - Awaiting Reply
+   - Reply Received
+   - Converted
+
+5. Explain what the Marketplace table should ideally show for
+   each status for these columns:
+   - Reply Phone
+   - City / State
+   - Trade
+
+6. Be concrete.
+   I want the exact files, exact query path, and exact missing
+   link for each blank column.
+
+What I want back
+A. Exact frontend file(s)/component(s) for the Marketplace table
+B. Exact backend route(s)/query file(s) feeding that table
+C. Field-by-field diagnosis for:
+   - Reply Phone
+   - City / State
+   - Trade
+D. Whether the data already exists and is simply not being
+   surfaced, or whether it is never written to the source used by
+   the Marketplace table
+E. Smallest safe fix plan, but no implementation yet
