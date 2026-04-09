@@ -1345,9 +1345,13 @@ router.post(
 
     // ── Mark pending outreach as converted ────────────────────────────────
     const convertedRecord = await marketplaceStorage.updatePendingOutreach(id, {
-      crmLeadId:     lead.id,
-      messageStatus: "converted",
-      convertedAt:   new Date(),
+      crmLeadId:            lead.id,
+      messageStatus:        "converted",
+      convertedAt:          new Date(),
+      city:                 city ?? null,
+      state:                state ?? null,
+      tradeGuess:           trade ?? null,
+      replyPhoneNormalized: normalizedPhone || null,
     });
 
     await logAudit({

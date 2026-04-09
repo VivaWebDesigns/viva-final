@@ -37,9 +37,13 @@ export async function updatePendingOutreach(
     | "outreachSentAt"
     | "replyReceivedAt"
     | "extractedPhone"
+    | "replyPhoneNormalized"
     | "threadIdentifier"
     | "crmLeadId"
     | "convertedAt"
+    | "city"
+    | "state"
+    | "tradeGuess"
   >>
 ): Promise<MarketplacePendingOutreach | undefined> {
   const [result] = await db
