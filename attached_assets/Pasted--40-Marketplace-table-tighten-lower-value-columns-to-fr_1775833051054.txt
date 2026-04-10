@@ -1,0 +1,74 @@
+#40 - Marketplace table: tighten lower-value columns to free space for Company
+
+What & Why
+The Marketplace table now includes a Company column, but it
+needs a bit more room to be useful. We want to tighten a few
+lower-value columns so Company has more breathing room, without
+changing any data, behavior, or workflow.
+
+Goal
+Rebalance the Marketplace table column widths so Company gets
+more usable display space, while keeping the table clean and
+readable.
+
+Target direction
+Give more room to:
+- Company
+
+Tighten these columns first:
+- Created
+- Updated
+- Trade
+- Reply Phone
+
+Optionally tighten slightly if needed:
+- City / State
+- Status
+
+Prefer leaving Seller Name alone unless absolutely necessary.
+
+Important
+- Main Viva app repo only
+- Frontend-only if possible
+- Presentation-only change
+- Do not change backend routes, queries, schema, or data
+- Do not change row actions, selection, sorting, filtering,
+  pagination, or detail drawer behavior
+- Do not change truncation behavior for Company except as needed
+  to let it use the extra space
+- Do not do unrelated cleanup/refactors
+
+Investigate first
+1. Find how the Marketplace table column widths are currently
+   controlled:
+   - explicit Tailwind width/max-width classes
+   - table layout rules
+   - per-cell wrappers
+   - any shared table styling
+
+2. Identify the smallest safe way to reduce width pressure on:
+   - Created
+   - Updated
+   - Trade
+   - Reply Phone
+   and give that space to Company.
+
+3. Confirm that the change can be done as a display-only width
+   adjustment without affecting interaction or layout behavior.
+
+If safe, implement
+4. Tighten the lower-value columns using the smallest clean UI
+   changes.
+5. Increase the usable width for Company accordingly.
+6. Preserve readability:
+   - dates should still be fully readable
+   - phone should still be readable
+   - badges should not look cramped
+   - Company should still truncate with ellipsis when needed
+
+What I want back
+A. Exact file(s) changed
+B. Which columns were tightened and how
+C. How Company was given more room
+D. Confirmation that this was frontend-only
+E. Any small edge cases noticed
