@@ -44,6 +44,7 @@ export async function updatePendingOutreach(
     | "city"
     | "state"
     | "tradeGuess"
+    | "businessName"
   >>
 ): Promise<MarketplacePendingOutreach | undefined> {
   const [result] = await db

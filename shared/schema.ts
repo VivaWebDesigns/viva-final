@@ -1088,6 +1088,7 @@ export const marketplacePendingOutreach = pgTable("marketplace_pending_outreach"
   listingUrl:             text("listing_url"),
   listingTitleRaw:        text("listing_title_raw"),
   listingTitleNormalized: text("listing_title_normalized"),
+  businessName:           text("business_name"),
   city:                   text("city"),
   state:                  text("state"),
   tradeGuess:             text("trade_guess"),

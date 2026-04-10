@@ -1352,6 +1352,7 @@ router.post(
       state:                state ?? null,
       tradeGuess:           trade ?? null,
       replyPhoneNormalized: normalizedPhone || null,
+      businessName:         companyName,
     });
 
     await logAudit({
