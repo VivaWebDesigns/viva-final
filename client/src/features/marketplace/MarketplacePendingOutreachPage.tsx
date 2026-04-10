@@ -802,7 +802,7 @@ export default function MarketplacePendingOutreachPage() {
                   <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Company</th>
                   <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">City / State</th>
                   <th className="text-left px-2 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Trade</th>
-                  <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Status</th>
+                  <th className="text-left px-2 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Status</th>
                   <th className="text-left px-2 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Reply Phone</th>
                   <th className="text-left px-2 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Created</th>
                   <th className="text-left px-2 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Updated</th>
@@ -856,7 +856,7 @@ export default function MarketplacePendingOutreachPage() {
                           {record.tradeGuess ?? "—"}
                         </div>
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap">
+                      <td className="px-2 py-2 whitespace-nowrap">
                         <StatusBadge status={record.messageStatus} />
                       </td>
                       <td className="px-2 py-2 whitespace-nowrap text-muted-foreground text-xs">
