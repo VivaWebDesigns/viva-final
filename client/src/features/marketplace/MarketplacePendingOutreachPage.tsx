@@ -837,7 +837,7 @@ export default function MarketplacePendingOutreachPage() {
                           onClick={(e) => e.stopPropagation()}
                         />
                       </td>
-                      <td className="px-3 py-2 font-medium whitespace-nowrap max-w-[140px] truncate">
+                      <td className="px-3 py-2 font-medium whitespace-nowrap max-w-[140px] truncate text-xs">
                         {record.sellerFullName}
                       </td>
                       <td
