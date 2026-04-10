@@ -1,0 +1,69 @@
+#38 - Investigate and add Company column to Marketplace table with safe truncation
+
+What & Why
+The Marketplace table is now much cleaner after removing
+Confidence and Listing Title. We want to see whether it is safe
+and useful to add a Company column so the table shows both:
+- Seller Name (Facebook identity)
+- Company (business context)
+
+Company names can be long, so the table display must stay tight.
+If the company name is too long, truncate it visually in the
+table with ellipsis. Keep the full value in the underlying data
+and detail drawer.
+
+Goal
+First verify that the Marketplace table already has access to
+company data, or identify the smallest safe path to surface it.
+If safe, add a Company column with display-only truncation.
+
+Done looks like
+- Marketplace table shows a new Company column
+- Company value displays when available
+- Long company names are truncated in the table display only
+- Full company value is preserved in the data model and detail
+  drawer
+- No backend/schema change unless absolutely required
+- No other columns are changed in this task
+
+Important
+- Main Viva app repo only
+- Investigate first, then implement only if safe
+- Prefer frontend-only if company data is already available in
+  the Marketplace table data path
+- If backend work is required, keep it minimal and explain why
+- Do not change CRM records or extension behavior
+- Do not change row actions, selection, filters, sorting,
+  pagination, or detail drawer behavior
+- Do not do unrelated cleanup/refactors
+
+Investigate first
+1. Find the Marketplace table data path and determine whether
+   each row already includes a company/business name field, or a
+   linked CRM/company field that can safely be displayed.
+2. Identify the exact source of company data for converted rows.
+3. Determine what should display for:
+   - converted rows with company
+   - rows with no company
+   - non-converted rows
+4. Confirm whether adding a Company display column is safe
+   without breaking layout/workflow.
+
+If safe, implement
+5. Add a Company column to the table header and row renderer.
+6. Display the company value when present, otherwise show "—".
+7. Truncate long company names in the table display only using
+   UI/CSS truncation with ellipsis, not destructive string
+   rewriting.
+8. If possible, preserve access to the full value on hover using
+   a native title attribute.
+9. Keep all other table behavior unchanged.
+
+What I want back
+A. Exact files inspected
+B. Whether company data already existed in the Marketplace table
+   data path or required a minimal backend addition
+C. Exact file(s) changed
+D. Exact source field used for Company
+E. How truncation was implemented
+F. Any small edge cases noticed
