@@ -1075,34 +1075,6 @@ export default function MarketplacePendingOutreachPage() {
                 <DetailField label="Listing URL">
                   <DetailLink href={detailRecord.listingUrl} label="Open listing" />
                 </DetailField>
-                <DetailField label="Reply Text">
-                  {detailRecord.lastReplyText ? (
-                    <span className="whitespace-pre-wrap">{detailRecord.lastReplyText}</span>
-                  ) : "—"}
-                </DetailField>
-                <DetailField label="Phone (Raw)">
-                  {detailRecord.extractedPhone ?? "—"}
-                </DetailField>
-                <DetailField label="Phone (Normalized)">
-                  {detailRecord.replyPhoneNormalized ?? "—"}
-                </DetailField>
-                <DetailField label="Confidence">
-                  {detailRecord.replyMatchConfidence
-                    ? detailRecord.replyMatchConfidence.toUpperCase()
-                    : "—"}
-                </DetailField>
-                <DetailField label="Match Method">
-                  {detailRecord.replyMatchMethod ?? "—"}
-                </DetailField>
-                <DetailField label="Thread ID">
-                  {detailRecord.threadIdentifier ?? "—"}
-                </DetailField>
-                <DetailField label="Review Reason">
-                  {detailRecord.manualReviewReason ?? "—"}
-                </DetailField>
-                <DetailField label="FB Join Year">
-                  {String(detailRecord.facebookJoinYear ?? "—")}
-                </DetailField>
                 <DetailField label="CRM Lead ID">
                   {detailRecord.crmLeadId ? (
                     <button
