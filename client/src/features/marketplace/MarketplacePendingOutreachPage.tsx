@@ -137,7 +137,7 @@ function formatDateTime(val: string | Date | null | undefined): string {
 function formatDateShort(val: string | Date | null | undefined): string {
   if (!val) return "—";
   return new Date(val).toLocaleDateString("en-US", {
-    month: "short", day: "numeric", year: "numeric",
+    month: "2-digit", day: "2-digit", year: "2-digit",
   });
 }
 
@@ -804,7 +804,6 @@ export default function MarketplacePendingOutreachPage() {
                   <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Trade</th>
                   <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Status</th>
                   <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Reply Phone</th>
-                  <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Confidence</th>
                   <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Created</th>
                   <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Updated</th>
                 </tr>
@@ -857,20 +856,6 @@ export default function MarketplacePendingOutreachPage() {
                         {phone ? (
                           <span className="inline-flex items-center gap-1">
                             <Phone className="w-3 h-3" /> {phone}
-                          </span>
-                        ) : "—"}
-                      </td>
-                      <td className="px-3 py-2 whitespace-nowrap text-xs">
-                        {record.replyMatchConfidence ? (
-                          <span
-                            className={cn(
-                              "font-medium",
-                              record.replyMatchConfidence === "high"   && "text-green-600",
-                              record.replyMatchConfidence === "medium" && "text-amber-600",
-                              record.replyMatchConfidence === "low"    && "text-red-500",
-                            )}
-                          >
-                            {record.replyMatchConfidence.toUpperCase()}
                           </span>
                         ) : "—"}
                       </td>
