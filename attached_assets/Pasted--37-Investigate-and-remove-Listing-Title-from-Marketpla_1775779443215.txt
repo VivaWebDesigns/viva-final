@@ -1,0 +1,63 @@
+#37 - Investigate and remove Listing Title from Marketplace table
+
+What & Why
+The Marketplace page table currently includes a Listing Title
+column, but in practice it is not providing much value and takes
+up horizontal space. Many rows show generic values like:
+- Search results
+- Home
+- Chats
+
+Before removing it, verify that Listing Title is only a display
+column and that removing it from the table will not break any
+workflow, row behavior, filtering, or hidden dependency.
+
+Goal
+First confirm it is safe to remove Listing Title from the
+Marketplace table display. If confirmed, remove it from the
+table UI only.
+
+Done looks like
+- Listing Title is removed from the Marketplace table header
+- Listing Title is removed from the Marketplace table row cells
+- No row actions, selection behavior, navigation, filters,
+  sorting, or data loading are broken
+- No backend or schema changes are made
+- No other columns are changed
+
+Important
+- Main Viva app repo only
+- Use Plan mode first to verify safety
+- Frontend-only removal unless investigation proves otherwise
+- Do not change backend routes or queries
+- Do not change detail drawer behavior
+- Do not remove the underlying field from data models
+- Do not do unrelated cleanup or refactors
+
+Investigation first
+1. Find where the Marketplace table renders the Listing Title
+   column.
+2. Check whether Listing Title is used for anything beyond
+   display in this table:
+   - row click behavior
+   - links/navigation
+   - filters/search
+   - sorting
+   - conditional rendering
+   - selection logic
+   - detail drawer state
+3. Confirm whether removing only the visible column is safe.
+
+If safe, implement
+4. Remove the Listing Title column from:
+   - the table header
+   - the table row renderer
+   - any table-only column config related solely to this page
+
+What I want back
+A. Exact file(s) inspected
+B. Whether Listing Title was display-only or used elsewhere in
+   the Marketplace table workflow
+C. Exact file(s) changed
+D. Confirmation that removal was frontend-only
+E. Any small edge cases noticed
