@@ -799,7 +799,6 @@ export default function MarketplacePendingOutreachPage() {
                     />
                   </th>
                   <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Seller Name</th>
-                  <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Listing Title</th>
                   <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">City / State</th>
                   <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Trade</th>
                   <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Status</th>
@@ -839,9 +838,6 @@ export default function MarketplacePendingOutreachPage() {
                       </td>
                       <td className="px-3 py-2 font-medium whitespace-nowrap max-w-[140px] truncate">
                         {record.sellerFullName}
-                      </td>
-                      <td className="px-3 py-2 text-muted-foreground max-w-[160px] truncate text-xs">
-                        {record.listingTitleRaw ?? "—"}
                       </td>
                       <td className="px-3 py-2 text-muted-foreground whitespace-nowrap text-xs">
                         {[record.city, record.state].filter(Boolean).join(", ") || "—"}
