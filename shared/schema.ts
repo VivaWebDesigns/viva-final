@@ -282,6 +282,7 @@ export const crmLeads = pgTable("crm_leads", {
   city: text("city"),
   state: text("state"),
   timezone: text("timezone"),
+  trade: text("trade"),
   sellerProfileUrl: text("seller_profile_url"),
   adUrl: text("ad_url"),
   hispanicNameScore: integer("hispanic_name_score"),

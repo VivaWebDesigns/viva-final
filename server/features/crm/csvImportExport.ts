@@ -15,13 +15,13 @@ import { asc, inArray } from "drizzle-orm";
 import type { CrmContact, CrmCompany } from "@shared/schema";
 
 const LEAD_EXPORT_HEADERS = [
-  "id", "title", "source", "seller_profile_url", "ad_url", "value", "notes", "status",
+  "id", "title", "trade", "source", "seller_profile_url", "ad_url", "value", "notes", "status",
   "contact_first_name", "contact_last_name", "contact_email", "contact_phone",
   "company_name", "company_website", "assigned_to", "created_at",
 ];
 
 const LEAD_EXPORT_HEADERS_NO_SELLER = [
-  "id", "title", "source", "value", "notes", "status",
+  "id", "title", "trade", "source", "value", "notes", "status",
   "contact_first_name", "contact_last_name", "contact_email", "contact_phone",
   "company_name", "company_website", "assigned_to", "created_at",
 ];
@@ -39,6 +39,7 @@ export async function exportLeadsToCSV(hideSensitive = false): Promise<string> {
     const rows = enriched.map((lead) => [
       lead.id,
       lead.title,
+      lead.trade ?? "",
       lead.source ?? "",
       lead.value ?? "",
       lead.notes ?? "",
@@ -58,6 +59,7 @@ export async function exportLeadsToCSV(hideSensitive = false): Promise<string> {
   const rows = enriched.map((lead) => [
     lead.id,
     lead.title,
+    lead.trade ?? "",
     lead.source ?? "",
     lead.sellerProfileUrl ?? "",
     lead.adUrl ?? "",
@@ -205,9 +207,11 @@ export async function importLeadsFromCSV(csvText: string): Promise<ImportResult>
 
       const source = row["source"]?.trim() || null;
       const notes = row["notes"]?.trim() || null;
+      const trade = row["trade"]?.trim() || null;
 
       const lead = await createLead({
         title: titleRaw,
+        trade,
         source,
         value,
         notes,

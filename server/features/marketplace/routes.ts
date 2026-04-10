@@ -1306,6 +1306,7 @@ router.post(
       statusId:         defaultStatus?.id ?? null,
       source:           "outreach",
       sourceLabel:      "Outreach",
+      trade:            trade ?? null,
       notes,
       fromWebsiteForm:  false,
       city:             city ?? null,

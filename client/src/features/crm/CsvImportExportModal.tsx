@@ -146,7 +146,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "leads" }: CsvIm
                   <p>
                     <span className="font-semibold text-gray-800 dark:text-gray-200">Optional: </span>
                     <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">
-                      source, value, notes, contact_first_name, contact_last_name, contact_email, contact_phone, company_name, company_website
+                      trade, source, value, notes, contact_first_name, contact_last_name, contact_email, contact_phone, company_name, company_website
                     </code>
                   </p>
                   <p className="text-gray-500">
