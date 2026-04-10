@@ -801,11 +801,11 @@ export default function MarketplacePendingOutreachPage() {
                   <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Seller Name</th>
                   <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Company</th>
                   <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">City / State</th>
-                  <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Trade</th>
+                  <th className="text-left px-2 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Trade</th>
                   <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Status</th>
-                  <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Reply Phone</th>
-                  <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Created</th>
-                  <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Updated</th>
+                  <th className="text-left px-2 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Reply Phone</th>
+                  <th className="text-left px-2 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Created</th>
+                  <th className="text-left px-2 py-2.5 font-medium text-muted-foreground text-xs whitespace-nowrap">Updated</th>
                 </tr>
               </thead>
               <tbody>
@@ -841,31 +841,35 @@ export default function MarketplacePendingOutreachPage() {
                         {record.sellerFullName}
                       </td>
                       <td
-                        className="px-3 py-2 text-muted-foreground whitespace-nowrap max-w-[140px] truncate text-xs"
+                        className="px-3 py-2 text-muted-foreground text-xs"
                         title={record.businessName ?? undefined}
                       >
-                        {record.businessName ?? "—"}
+                        <div className="max-w-[180px] truncate whitespace-nowrap">
+                          {record.businessName ?? "—"}
+                        </div>
                       </td>
                       <td className="px-3 py-2 text-muted-foreground whitespace-nowrap text-xs">
                         {[record.city, record.state].filter(Boolean).join(", ") || "—"}
                       </td>
-                      <td className="px-3 py-2 text-muted-foreground whitespace-nowrap text-xs">
-                        {record.tradeGuess ?? "—"}
+                      <td className="px-2 py-2 text-muted-foreground text-xs">
+                        <div className="max-w-[100px] truncate whitespace-nowrap">
+                          {record.tradeGuess ?? "—"}
+                        </div>
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap">
                         <StatusBadge status={record.messageStatus} />
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap text-muted-foreground text-xs">
+                      <td className="px-2 py-2 whitespace-nowrap text-muted-foreground text-xs">
                         {phone ? (
                           <span className="inline-flex items-center gap-1">
                             <Phone className="w-3 h-3" /> {phone}
                           </span>
                         ) : "—"}
                       </td>
-                      <td className="px-3 py-2 text-muted-foreground whitespace-nowrap text-xs">
+                      <td className="px-2 py-2 text-muted-foreground whitespace-nowrap text-xs">
                         {formatDateShort(record.createdAt)}
                       </td>
-                      <td className="px-3 py-2 text-muted-foreground whitespace-nowrap text-xs">
+                      <td className="px-2 py-2 text-muted-foreground whitespace-nowrap text-xs">
                         {formatDateShort(record.updatedAt)}
                       </td>
                     </tr>
