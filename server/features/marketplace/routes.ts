@@ -1402,7 +1402,7 @@ router.delete(
   requireAuth,
   requireRole("admin", "developer"),
   async (req: Request, res: Response) => {
-    const { id } = req.params;
+    const id = req.params.id as string;
 
     const record = await marketplaceStorage.getPendingOutreachById(id);
     if (!record) return res.status(404).json({ message: "Record not found" });
