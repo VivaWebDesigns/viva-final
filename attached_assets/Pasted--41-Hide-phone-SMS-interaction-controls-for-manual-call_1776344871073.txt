@@ -1,0 +1,70 @@
+#41 - Hide phone/SMS interaction controls for manual-calling workflow
+
+What & Why
+We have decided not to use the CRM-integrated phone/SMS flow for
+now. Reps will call manually outside the CRM instead.
+
+Because of that, we want to hide all CRM phone/text interaction
+affordances so the UI matches the real workflow and does not push
+reps toward calling or texting through the app.
+
+Goal
+Hide these UI elements wherever they appear in the core CRM
+workflow views:
+
+- clickable phone links
+- call icons/buttons
+- SMS icons/buttons
+
+Primary areas to cover
+- Sales Pipeline views
+- Tasks views
+- Lead detail views
+- Company card/views
+- Contact card/views
+
+Important
+- Main Viva app repo only
+- Investigate first, then implement
+- Frontend-only if possible
+- Do not delete phone data from records
+- Do not remove phone numbers as displayed text unless needed
+- Do not change backend routes, schema, or data
+- Do not change task logic, pipeline logic, or lead/company/contact
+  creation behavior
+- Do not do unrelated cleanup/refactors
+
+Clarification on desired behavior
+- Phone numbers may remain visible as plain text
+- But they should no longer be clickable tel: links
+- Call buttons/icons should be hidden
+- SMS buttons/icons should be hidden
+
+What to investigate first
+1. Find every current UI pattern used for phone interaction in:
+   - pipeline
+   - tasks
+   - lead detail
+   - company/contact cards
+2. Identify whether these are rendered through:
+   - shared button/link components
+   - shared phone action components
+   - per-page inline JSX
+3. Determine the smallest safe change that removes these
+   interaction affordances consistently without breaking layout.
+
+If safe, implement
+4. Remove or hide clickable phone links so phone numbers render as
+   plain text only.
+5. Remove or hide call buttons/icons.
+6. Remove or hide SMS buttons/icons.
+7. Preserve layout cleanliness after removal.
+8. Keep all non-phone-related actions unchanged.
+
+What I want back
+A. Exact files inspected
+B. Exact files changed
+C. Which views/components were updated
+D. Whether phone numbers remain visible as plain text
+E. Confirmation that this was frontend-only
+F. Any small edge cases noticed
