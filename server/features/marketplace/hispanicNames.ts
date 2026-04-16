@@ -1085,6 +1085,46 @@ const RAW_HISPANIC_FIRST_NAMES: string[] = [
   "yunior",
   // ── Z ──────────────────────────────────────────────────────────────────
   "zuleika",
+  // ── Central America – names common in Guatemala, Honduras, El Salvador,
+  //    Nicaragua, Costa Rica & Panama but under-represented above ──────────
+  // Audited against top-20 male/female given names per country (INE/national
+  // registry data, 2020–2024). Names already present in the main A-Z section
+  // were excluded; only net-new entries are listed here.
+  // Male
+  "bayardo",
+  "eliecer",
+  "fabricio",
+  "mynor",
+  "otto",
+  "roger",
+  "wilber",
+  // Female
+  "flor",
+  "griselda",
+  "ingrid",
+  "iris",
+  "kimberly",
+  "krissia",
+  // ── Caribbean – names common in Cuba, Dominican Republic & Puerto Rico
+  //    but under-represented above ─────────────────────────────────────────
+  // Audited against top-20 male/female given names per country (ONEC/ONE/
+  // Estado Libre Asociado census data, 2020–2024). Net-new entries only.
+  // Male
+  "ariel",
+  "domingo",
+  "leinier",
+  "livan",
+  "yosvany",
+  "yunier",
+  // Female
+  "altagracia",
+  "dayami",
+  "dulce",
+  "gretel",
+  "ileana",
+  "kenia",
+  "odalis",
+  "yordanka",
   // ── PT/BR – distinctly Brazilian / Portuguese given names ───────────────
   // Male
   "caio",

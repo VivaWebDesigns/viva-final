@@ -136,6 +136,32 @@ describe("scoreHispanicName — Hispanic first name alone does NOT pass", () => 
   });
 });
 
+describe("scoreHispanicName — Central American & Caribbean name coverage", () => {
+  const regionalCases: Array<[string, string]> = [
+    // Central America – one representative per country
+    ["Iris Recinos",       "Guatemala: recinos (+70) + iris (+25) = 95"],
+    ["Kimberly Turcios",   "Honduras: turcios (+70) + kimberly (+25) = 95"],
+    ["Wilber Vasquez",     "El Salvador: vasquez (+70) + wilber (+25) = 95"],
+    ["Bayardo Rivas",      "Nicaragua: rivas (+70) + bayardo (+25) = 95"],
+    ["Fabricio Salazar",   "Costa Rica: salazar (+70) + fabricio (+25) = 95"],
+    ["Griselda Medina",    "Panama: medina (+70) + griselda (+25) = 95"],
+    // Caribbean – female and male representatives per country
+    ["Ileana Batista",     "Cuba (female): batista (+70) + ileana (+25) = 95"],
+    ["Ariel Batista",      "Cuba (male): batista (+70) + ariel (+25) = 95"],
+    ["Altagracia Feliz",   "Dominican Republic (female): feliz (+70) + altagracia (+25) = 95"],
+    ["Domingo Feliz",      "Dominican Republic (male): feliz (+70) + domingo (+25) = 95"],
+    ["Odalis Colon",       "Puerto Rico (female): colon (+70) + odalis (+25) = 95"],
+  ];
+
+  for (const [name, reason] of regionalCases) {
+    it(`scores ≥ 95: ${name} — ${reason}`, () => {
+      const result = scoreHispanicName(name);
+      expect(result.hispanicNameScore).toBeGreaterThanOrEqual(95);
+      expect(result.spanishOutreachRecommended).toBe(true);
+    });
+  }
+});
+
 describe("scoreHispanicName — non-Hispanic names score 0", () => {
   it("Todd Johnson scores 0 (neither name in any list or bridge)", () => {
     const result = scoreHispanicName("Todd Johnson");
