@@ -39,6 +39,7 @@ The Demo Builder at `/admin/demo-builder` generates links to preview pages for p
 | [`query-freshness-strategy.md`](./query-freshness-strategy.md) | TanStack Query `staleTime` tiers and cache invalidation patterns |
 | [`audit-log-patterns.md`](./audit-log-patterns.md) | Canonical `logAudit()` call structure and per-entity metadata shapes |
 | [`logging-policy.md`](./logging-policy.md) | What the server logs, what it redacts, and why |
+| [`external-services-access.md`](./external-services-access.md) | GitHub, Railway, Mailgun, Cloudflare, and secret-handling reference |
 
 ---
 
