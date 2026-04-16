@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DollarSign, List, GripVertical, Phone, Building2, MapPin } from "lucide-react";
 import type { PipelineStage, PipelineOpportunity } from "@shared/schema";
+import { formatPhoneDisplay } from "@shared/phone";
 import QuickTaskModal from "@/components/QuickTaskModal";
 import { useAdminLang } from "@/i18n/LanguageContext";
 import {
@@ -85,7 +86,7 @@ function CardDisplay({
           <div className="flex-1 min-w-0">
             <Link href={`/admin/pipeline/opportunities/${opp.id}`}>
               <span
-                className="text-sm font-semibold text-gray-900 hover:text-[#0D9488] transition-colors line-clamp-1 block"
+                className="text-sm font-semibold text-slate-900 hover:text-[#0D9488] transition-colors line-clamp-1 block"
                 data-testid={`text-opp-title-${opp.id}`}
               >
                 {company && contactName ? `${company.name} – ${contactName}` : company ? company.name : contactName || opp.title}
@@ -93,7 +94,7 @@ function CardDisplay({
             </Link>
 
             {company && (
-              <span className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
+              <span className="flex items-center gap-1 text-xs text-slate-500 mt-0.5">
                 <Building2 className="w-3 h-3 flex-shrink-0" />
                 <span className="truncate" data-testid={`text-opp-company-${opp.id}`}>{company.name}</span>
               </span>
@@ -105,11 +106,11 @@ function CardDisplay({
           {contact?.phone && (
             <div className="flex flex-col gap-0.5">
               <span
-                className="flex items-center gap-1 text-xs text-gray-600"
+                className="flex items-center gap-1 text-xs text-slate-700 font-medium"
                 data-testid={`link-phone-${opp.id}`}
               >
                 <Phone className="w-3 h-3 flex-shrink-0" />
-                {contact.phone}
+                {formatPhoneDisplay(contact.phone)}
               </span>
             </div>
           )}

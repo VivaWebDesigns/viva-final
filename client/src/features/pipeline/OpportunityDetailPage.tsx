@@ -25,6 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 import type { PipelineStage, PipelineOpportunity, PipelineActivity, CrmCompany, CrmContact, CrmLead, FollowupTask } from "@shared/schema";
 import { WEBSITE_PACKAGES } from "@shared/schema";
+import { formatPhoneDisplay } from "@shared/phone";
 import { renderActivityContent, getActivityTypeLabel, renderTaskTitle } from "@/lib/activityI18n";
 import QuickTaskModal, { formatTaskTimeDisplay } from "@/components/QuickTaskModal";
 import CompleteTaskModal from "@/components/CompleteTaskModal";
@@ -514,9 +515,9 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                     {resolvedPhone ? (
                       <span
                         data-testid="link-phone"
-                        className="text-sm font-medium text-gray-800"
+                        className="text-sm font-medium text-slate-700"
                       >
-                        {resolvedPhone}
+                        {formatPhoneDisplay(resolvedPhone)}
                       </span>
                     ) : (
                       <span className="text-sm text-gray-400">—</span>
@@ -855,7 +856,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                     {company.name}
                   </p>
                 </Link>
-                {company.phone && <p className="text-xs text-gray-500 mt-1">{company.phone}</p>}
+                {company.phone && <p className="text-xs text-slate-700 font-medium mt-1">{formatPhoneDisplay(company.phone)}</p>}
                 {company.email && <p className="text-xs text-gray-500">{company.email}</p>}
               </CardContent>
             </Card>
@@ -878,7 +879,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                     {contact.firstName} {contact.lastName || ""}
                   </p>
                 </Link>
-                {contact.phone && <p className="text-xs text-gray-500 mt-1">{contact.phone}</p>}
+                {contact.phone && <p className="text-xs text-slate-700 font-medium mt-1">{formatPhoneDisplay(contact.phone)}</p>}
                 {contact.email && <p className="text-xs text-gray-500">{contact.email}</p>}
               </CardContent>
             </Card>

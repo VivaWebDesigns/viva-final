@@ -25,6 +25,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@features/auth/useAuth";
 import { cn } from "@/lib/utils";
 import type { CrmLead, CrmLeadStatus, CrmContact, CrmCompany, CrmTag } from "@shared/schema";
+import { formatPhoneDisplay } from "@shared/phone";
 import { useAdminLang } from "@/i18n/LanguageContext";
 
 interface LeadWithRelations extends CrmLead {
@@ -491,7 +492,7 @@ export default function LeadListPage() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <h3
-                              className="font-medium text-gray-900 dark:text-gray-100 text-sm truncate"
+                              className="font-semibold text-slate-900 dark:text-gray-100 text-sm truncate"
                               data-testid={`text-lead-title-${lead.id}`}
                             >
                               {getLeadDisplayTitle(lead)}
@@ -508,7 +509,7 @@ export default function LeadListPage() {
                               {getContactName(lead)}
                             </span>
                             {lead.company && (
-                              <span data-testid={`text-lead-company-${lead.id}`}>
+                              <span className="text-slate-500" data-testid={`text-lead-company-${lead.id}`}>
                                 {lead.company.name}
                               </span>
                             )}
@@ -518,8 +519,8 @@ export default function LeadListPage() {
                               </span>
                             )}
                             {lead.contact?.phone && (
-                              <span className="hidden sm:flex items-center gap-1">
-                                <Phone className="w-3 h-3" /> {lead.contact.phone}
+                              <span className="hidden sm:flex items-center gap-1 text-slate-700 font-medium">
+                                <Phone className="w-3 h-3" /> {formatPhoneDisplay(lead.contact.phone)}
                               </span>
                             )}
                             {lead.assignedTo && (

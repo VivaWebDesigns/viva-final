@@ -14,6 +14,7 @@ import DemoCompletedModal from "@/components/DemoCompletedModal";
 import PaymentSentModal from "@/components/PaymentSentModal";
 import PaymentFollowupModal from "@/components/PaymentFollowupModal";
 import type { FollowupTask } from "@shared/schema";
+import { formatPhoneDisplay } from "@shared/phone";
 import { useAdminLang } from "@/i18n/LanguageContext";
 import { renderTaskTitle, renderTaskNotes, getStageLabel } from "@/lib/activityI18n";
 import { useAuth } from "@features/auth/useAuth";
@@ -104,23 +105,23 @@ function TaskRow({
 
         <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1.5">
           {contactName && (
-            <span className="flex items-center gap-1 text-xs text-gray-500" data-testid={`text-contact-name-${task.id}`}>
-              <span className="font-medium">{contactName}</span>
+            <span className="flex items-center gap-1 text-xs" data-testid={`text-contact-name-${task.id}`}>
+              <span className="font-semibold text-slate-900">{contactName}</span>
             </span>
           )}
           {task.company && (
-            <span className="flex items-center gap-1 text-xs text-gray-500" data-testid={`text-company-name-${task.id}`}>
+            <span className="flex items-center gap-1 text-xs text-slate-500" data-testid={`text-company-name-${task.id}`}>
               <Building2 className="w-3 h-3 flex-shrink-0" />
               {task.company.name}
             </span>
           )}
           {task.contact?.phone && (
             <span
-              className="flex items-center gap-1 text-xs text-gray-600"
+              className="flex items-center gap-1 text-xs text-slate-700 font-medium"
               data-testid={`link-phone-${task.id}`}
             >
               <Phone className="w-3 h-3 flex-shrink-0" />
-              {task.contact.phone}
+              {formatPhoneDisplay(task.contact.phone)}
             </span>
           )}
         </div>

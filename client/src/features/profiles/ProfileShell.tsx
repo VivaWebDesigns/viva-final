@@ -13,6 +13,7 @@
  */
 
 import { useState, useRef, useEffect } from "react";
+import { formatPhoneDisplay } from "@shared/phone";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   Building2, User, Phone, Mail, MapPin, Globe,
@@ -562,7 +563,7 @@ export function CompanyContactCard({ entry, company, primaryContact, contacts }:
           {company.phone && (
             <div className="flex items-center gap-2">
               <Phone className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-              <span className="text-gray-700" data-testid="text-company-phone">{company.phone}</span>
+              <span className="text-slate-700 font-medium" data-testid="text-company-phone">{formatPhoneDisplay(company.phone)}</span>
               <CallButton phone={company.phone} clientId={company.id} />
               <SMSButton phone={company.phone} clientId={company.id} />
             </div>
@@ -638,7 +639,7 @@ export function CompanyContactCard({ entry, company, primaryContact, contacts }:
             {(primaryContact.phone || company.phone) && (
               <div className="flex items-center gap-2">
                 <Phone className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                <span className="text-gray-700" data-testid="text-contact-phone">{primaryContact.phone || company.phone}</span>
+                <span className="text-slate-700 font-medium" data-testid="text-contact-phone">{formatPhoneDisplay(primaryContact.phone || company.phone)}</span>
                 <CallButton phone={primaryContact.phone || company.phone} contactId={primaryContact.id} clientId={company.id} />
                 <SMSButton phone={primaryContact.phone || company.phone} contactId={primaryContact.id} clientId={company.id} />
               </div>
@@ -2504,7 +2505,7 @@ function ProfileShellInner({
                     {c.phone && (
                       <div className="flex items-center gap-2">
                         <Phone className="w-3.5 h-3.5 text-gray-400" />
-                        <span className="text-xs text-gray-700">{c.phone}</span>
+                        <span className="text-xs text-slate-700 font-medium">{formatPhoneDisplay(c.phone)}</span>
                         <CallButton phone={c.phone} contactId={c.id} clientId={identity.company.id} />
                         <SMSButton phone={c.phone} contactId={c.id} clientId={identity.company.id} />
                       </div>

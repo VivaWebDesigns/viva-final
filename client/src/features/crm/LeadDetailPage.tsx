@@ -25,6 +25,7 @@ import {
 import { queryClient, apiRequest, STALE } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { CrmLead, CrmLeadStatus, CrmContact, CrmCompany, CrmLeadNote, CrmTag, PipelineStage, FollowupTask, PipelineOpportunity, DemoConfig } from "@shared/schema";
+import { formatPhoneDisplay } from "@shared/phone";
 import QuickTaskModal, { formatTaskTimeDisplay } from "@/components/QuickTaskModal";
 import CompleteTaskModal from "@/components/CompleteTaskModal";
 import { RecordTimeline } from "@/components/RecordTimeline";
@@ -932,9 +933,9 @@ export default function LeadDetailPage({ id }: { id: string }) {
                   </div>
                 )}
                 {lead.contact.phone && (
-                  <div className="flex items-center gap-2 text-gray-600">
+                  <div className="flex items-center gap-2">
                     <Phone className="w-3.5 h-3.5 text-gray-400" />
-                    <span>{lead.contact.phone}</span>
+                    <span className="text-slate-700 font-medium">{formatPhoneDisplay(lead.contact.phone)}</span>
                   </div>
                 )}
               </div>
@@ -965,9 +966,9 @@ export default function LeadDetailPage({ id }: { id: string }) {
                   </div>
                 )}
                 {lead.company.phone && (
-                  <div className="flex items-center gap-2 text-gray-600">
+                  <div className="flex items-center gap-2">
                     <Phone className="w-3.5 h-3.5 text-gray-400" />
-                    <span>{lead.company.phone}</span>
+                    <span className="text-slate-700 font-medium">{formatPhoneDisplay(lead.company.phone)}</span>
                   </div>
                 )}
                 {lead.company.city && (
