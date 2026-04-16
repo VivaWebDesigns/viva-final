@@ -563,6 +563,37 @@ const RAW_HISPANIC_LAST_NAMES: string[] = [
   "zepeda",
   "zertuche",
   "zuniga",
+  // ── Portuguese/Brazilian surnames ──────────────────────────────────────
+  // Common surnames in Brazil and Portugal that were absent from the
+  // Spanish-focused list. Many Brazilian sellers have these names and were
+  // scoring 0 despite clearly Latin identity.
+  "alves",
+  "azevedo",
+  "barros",
+  "cardoso",
+  "carneiro",
+  "carvalho",
+  "correia",
+  "cunha",
+  "fernandes",
+  "fonseca",
+  "freitas",
+  "gomes",
+  "lima",
+  "lopes",
+  "mendes",
+  "monteiro",
+  "moreira",
+  "nascimento",
+  "nunes",
+  "oliveira",
+  "pinto",
+  "reis",
+  "ribeiro",
+  "rodrigues",
+  "sousa",
+  "teixeira",
+  "vieira",
 ];
 
 const RAW_HISPANIC_FIRST_NAMES: string[] = [
