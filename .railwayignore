@@ -1,0 +1,12 @@
+node_modules
+dist
+.DS_Store
+.env*
+!.env.example
+/docs
+/tests
+
+attached_assets/*
+!attached_assets/Viva_1772823591549.png
+!attached_assets/icon_1772859732991.png
+!attached_assets/image_1_(5)_1772575534808_1773059817248.png

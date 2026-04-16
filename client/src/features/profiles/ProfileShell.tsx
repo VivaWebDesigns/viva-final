@@ -542,6 +542,7 @@ export function CompanyContactCard({ entry, company, primaryContact, contacts }:
   const { t } = useAdminLang();
   const [editCompanyOpen, setEditCompanyOpen] = useState(false);
   const [editContactOpen, setEditContactOpen] = useState(false);
+  const primaryContactPhone = primaryContact?.phone || company.phone || null;
 
   return (
     <>
@@ -636,12 +637,12 @@ export function CompanyContactCard({ entry, company, primaryContact, contacts }:
                 <span className="font-normal text-gray-500"> · {primaryContact.title}</span>
               )}
             </div>
-            {(primaryContact.phone || company.phone) && (
+            {primaryContactPhone && (
               <div className="flex items-center gap-2">
                 <Phone className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                <span className="text-slate-700 font-medium" data-testid="text-contact-phone">{formatPhoneDisplay(primaryContact.phone || company.phone)}</span>
-                <CallButton phone={primaryContact.phone || company.phone} contactId={primaryContact.id} clientId={company.id} />
-                <SMSButton phone={primaryContact.phone || company.phone} contactId={primaryContact.id} clientId={company.id} />
+                <span className="text-slate-700 font-medium" data-testid="text-contact-phone">{formatPhoneDisplay(primaryContactPhone)}</span>
+                <CallButton phone={primaryContactPhone} contactId={primaryContact.id} clientId={company.id} />
+                <SMSButton phone={primaryContactPhone} contactId={primaryContact.id} clientId={company.id} />
               </div>
             )}
             {primaryContact.email && (
