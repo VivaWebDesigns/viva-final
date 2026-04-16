@@ -162,6 +162,25 @@ describe("scoreHispanicName — Central American & Caribbean name coverage", () 
   }
 });
 
+describe("scoreHispanicName — South American sub-regional name coverage", () => {
+  const southAmericaCases: Array<[string, string]> = [
+    // Paraguay – Guaraní-influenced / locally common given names
+    ["Mirna Cardozo",    "Paraguay (female): cardozo (+70) + mirna (+25) = 95"],
+    // Bolivia – Andean / indigenous-heritage community names
+    ["Lidia Mamani",     "Bolivia (female): mamani (+70) + lidia (+25) = 95"],
+    // Ecuador – coastal and highland Ecuador names
+    ["Tatiana Suarez",   "Ecuador (female): suarez (+70) + tatiana (+25) = 95"],
+  ];
+
+  for (const [name, reason] of southAmericaCases) {
+    it(`scores ≥ 95: ${name} — ${reason}`, () => {
+      const result = scoreHispanicName(name);
+      expect(result.hispanicNameScore).toBeGreaterThanOrEqual(95);
+      expect(result.spanishOutreachRecommended).toBe(true);
+    });
+  }
+});
+
 describe("scoreHispanicName — non-Hispanic names score 0", () => {
   it("Todd Johnson scores 0 (neither name in any list or bridge)", () => {
     const result = scoreHispanicName("Todd Johnson");

@@ -1125,6 +1125,38 @@ const RAW_HISPANIC_FIRST_NAMES: string[] = [
   "kenia",
   "odalis",
   "yordanka",
+  // ── South America – Paraguay, Bolivia & Ecuador sub-regional names ────────
+  // Audited against top-20 male/female given names per country (DGEEC/INE/
+  // INEC registry data, 2020–2024). Net-new entries only; names already
+  // present in the main A–Z section or Central America block were excluded.
+  // Paraguay – Guaraní-influenced and locally common given names
+  // Male
+  "arnaldo",
+  "dionisio",
+  "wilberto",
+  // Female
+  "carina",
+  "gladys",
+  "mirna",
+  "noelia",
+  "ramona",
+  "zunilda",
+  // Bolivia – names common in Andean / indigenous-heritage communities
+  // Male
+  "willy",
+  // Female
+  "lidia",
+  "nadia",
+  // Ecuador – names common in coastal and highland Ecuador
+  // Male
+  "jefferson",
+  "jhonatan",
+  // Female
+  "estefania",
+  "pamela",
+  "stephanie",
+  "tatiana",
+  "viviana",
   // ── PT/BR – distinctly Brazilian / Portuguese given names ───────────────
   // Male
   "caio",
