@@ -13,8 +13,6 @@ import CompleteTaskModal from "@/components/CompleteTaskModal";
 import DemoCompletedModal from "@/components/DemoCompletedModal";
 import PaymentSentModal from "@/components/PaymentSentModal";
 import PaymentFollowupModal from "@/components/PaymentFollowupModal";
-import CallButton from "@/components/CallButton";
-import SMSButton from "@/components/SMSButton";
 import type { FollowupTask } from "@shared/schema";
 import { useAdminLang } from "@/i18n/LanguageContext";
 import { renderTaskTitle, renderTaskNotes, getStageLabel } from "@/lib/activityI18n";

@@ -10,9 +10,6 @@ import { DollarSign, List, GripVertical, Phone, Building2, MapPin } from "lucide
 import type { PipelineStage, PipelineOpportunity } from "@shared/schema";
 import QuickTaskModal from "@/components/QuickTaskModal";
 import { useAdminLang } from "@/i18n/LanguageContext";
-import CallButton from "@/components/CallButton";
-import SMSButton from "@/components/SMSButton";
-
 import {
   DndContext,
   DragOverlay,
