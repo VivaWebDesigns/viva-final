@@ -1165,7 +1165,7 @@ router.post(
   botOrRole,
   async (req: Request, res: Response) => {
     const id = req.params.id as string;
-
+    try {
     const record = await marketplaceStorage.getPendingOutreachById(id);
     if (!record) {
       return res.status(404).json({ message: "Pending outreach record not found." });
@@ -1373,6 +1373,20 @@ router.post(
       messageStatus:     "converted",
       lead,
     });
+    } catch (err: unknown) {
+      const pgErr = err as { code?: string; message?: string; detail?: string; column?: string; table?: string };
+      console.error("[convert-to-crm] DB error", {
+        code:    pgErr?.code,
+        message: pgErr?.message,
+        detail:  pgErr?.detail,
+        column:  pgErr?.column,
+        table:   pgErr?.table,
+      });
+      return res.status(500).json({
+        message: "Internal server error during conversion.",
+        detail:  pgErr?.message ?? "Unknown error",
+      });
+    }
   }
 );
 
