@@ -196,6 +196,44 @@ describe("scoreHispanicName — threshold alignment", () => {
   });
 });
 
+describe("scoreHispanicName — fuzzy first-name matching", () => {
+  it("Vinycius Silva — 'Vinycius' is distance 1 from 'Vinicius', scores 95 (70 surname + 25 first)", () => {
+    const result = scoreHispanicName("Vinycius Silva");
+    expect(result.hispanicNameScore).toBe(95);
+    expect(result.matchNotes.some((n) => n.includes("fuzzy") && n.includes("first name"))).toBe(true);
+  });
+
+  it("Beatris Santos — 'Beatris' is distance 1 from 'Beatriz', scores 95 (70 surname + 25 first)", () => {
+    const result = scoreHispanicName("Beatris Santos");
+    expect(result.hispanicNameScore).toBe(95);
+    expect(result.matchNotes.some((n) => n.includes("fuzzy") && n.includes("first name"))).toBe(true);
+  });
+
+  it("Rafaell Pereira — 'Rafaell' is distance 1 from 'Rafael', scores 95 (70 surname + 25 first)", () => {
+    const result = scoreHispanicName("Rafaell Pereira");
+    expect(result.hispanicNameScore).toBe(95);
+    expect(result.matchNotes.some((n) => n.includes("fuzzy") && n.includes("first name"))).toBe(true);
+  });
+
+  it("Fernanda Lopez — exact first-name match is unaffected by fuzzy logic, scores 95", () => {
+    const result = scoreHispanicName("Fernanda Lopez");
+    expect(result.hispanicNameScore).toBe(95);
+    expect(result.matchNotes.every((n) => !n.includes("first name"))).toBe(true);
+  });
+
+  it("Todd Johnson — unrelated first name does not fuzzy-match any Hispanic first name, scores 0", () => {
+    const result = scoreHispanicName("Todd Johnson");
+    expect(result.hispanicNameScore).toBe(0);
+  });
+
+  it("Beatryzz Santos — distance-2 first name receives partial credit (15 pts), total 85 (70 + 15)", () => {
+    // 'beatryzz' (8 chars, threshold 2) → distance 2 from 'beatriz' (y→i, extra z) → 15 pts
+    const result = scoreHispanicName("Beatryzz Santos");
+    expect(result.hispanicNameScore).toBe(85);
+    expect(result.matchNotes.some((n) => n.includes("first name") && n.includes("edit distance 2"))).toBe(true);
+  });
+});
+
 describe("scoreHispanicName — normalization", () => {
   it("strips accented characters (José Rodríguez)", () => {
     const result = scoreHispanicName("José Rodríguez");

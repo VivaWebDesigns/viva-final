@@ -97,6 +97,22 @@ function fuzzyMatchSurname(name: string): { match: string; distance: number } | 
   return best;
 }
 
+// Returns the closest known first name and its edit distance, or null if none within threshold
+function fuzzyMatchFirstName(name: string): { match: string; distance: number } | null {
+  if (!name) return null;
+  // Allow 1 edit for any name; 2 edits only for names ≥ 8 chars
+  const threshold = name.length >= 8 ? 2 : 1;
+  let best: { match: string; distance: number } | null = null;
+  for (const known of _firstNames) {
+    const d = editDistance(name, known);
+    if (d <= threshold && (best === null || d < best.distance)) {
+      best = { match: known, distance: d };
+      if (d === 0) break; // exact match, can't do better
+    }
+  }
+  return best;
+}
+
 export function scoreHispanicName(sellerName: string): NameScoreResult {
   const normalized = stripDiacritics(sellerName.trim().toLowerCase())
     .replace(/[^a-z\s]/g, "")
@@ -155,6 +171,16 @@ export function scoreHispanicName(sellerName: string): NameScoreResult {
         notes.push(
           `first name "${firstName}" recognized as anglicized form of "${bridgeMapped}"`,
         );
+      } else {
+        // Fuzzy match against known first names (same edit-distance logic as surnames)
+        const fuzzyFirst = fuzzyMatchFirstName(firstName);
+        if (fuzzyFirst) {
+          // Distance 1 → full credit; distance 2 → partial credit
+          firstNameScore = fuzzyFirst.distance <= 1 ? 25 : 15;
+          notes.push(
+            `first name "${firstName}" fuzzy-matched "${fuzzyFirst.match}" (edit distance ${fuzzyFirst.distance})`,
+          );
+        }
       }
     }
   }
