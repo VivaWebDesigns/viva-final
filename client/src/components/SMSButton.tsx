@@ -55,6 +55,7 @@ export default function SMSButton({ phone, contactId, leadId, clientId }: SMSBut
   });
 
   if (!phone) return null;
+  return null;
 
   function handleSend() {
     if (!message.trim()) return;

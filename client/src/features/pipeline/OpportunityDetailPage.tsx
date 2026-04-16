@@ -512,13 +512,12 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                       {t.pipeline.phone}
                     </p>
                     {resolvedPhone ? (
-                      <a
-                        href={`tel:${resolvedPhone}`}
+                      <span
                         data-testid="link-phone"
-                        className="text-sm font-medium text-gray-800 hover:text-[#0D9488]"
+                        className="text-sm font-medium text-gray-800"
                       >
                         {resolvedPhone}
-                      </a>
+                      </span>
                     ) : (
                       <span className="text-sm text-gray-400">—</span>
                     )}

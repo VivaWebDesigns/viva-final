@@ -107,26 +107,13 @@ function CardDisplay({
         <div className="ml-6 space-y-1">
           {contact?.phone && (
             <div className="flex flex-col gap-0.5">
-              <a
-                href={`tel:${contact.phone}`}
-                className="flex items-center gap-1 text-xs text-[#0D9488] hover:underline"
+              <span
+                className="flex items-center gap-1 text-xs text-gray-600"
                 data-testid={`link-phone-${opp.id}`}
               >
                 <Phone className="w-3 h-3 flex-shrink-0" />
                 {contact.phone}
-              </a>
-              <div className="flex items-center gap-1.5">
-                <CallButton
-                  phone={contact.phone}
-                  contactId={contact.id}
-                  leadId={opp.leadId}
-                />
-                <SMSButton
-                  phone={contact.phone}
-                  contactId={contact.id}
-                  leadId={opp.leadId}
-                />
-              </div>
+              </span>
             </div>
           )}
 

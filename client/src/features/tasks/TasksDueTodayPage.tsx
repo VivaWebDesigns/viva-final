@@ -117,25 +117,12 @@ function TaskRow({
             </span>
           )}
           {task.contact?.phone && (
-            <span className="flex items-center gap-1.5">
-              <a
-                href={`tel:${task.contact.phone}`}
-                className="flex items-center gap-1 text-xs text-[#0D9488] hover:underline"
-                data-testid={`link-phone-${task.id}`}
-              >
-                <Phone className="w-3 h-3 flex-shrink-0" />
-                {task.contact.phone}
-              </a>
-              <CallButton
-                phone={task.contact.phone}
-                leadId={task.leadId}
-                clientId={task.companyId}
-              />
-              <SMSButton
-                phone={task.contact.phone}
-                leadId={task.leadId}
-                clientId={task.companyId}
-              />
+            <span
+              className="flex items-center gap-1 text-xs text-gray-600"
+              data-testid={`link-phone-${task.id}`}
+            >
+              <Phone className="w-3 h-3 flex-shrink-0" />
+              {task.contact.phone}
             </span>
           )}
         </div>

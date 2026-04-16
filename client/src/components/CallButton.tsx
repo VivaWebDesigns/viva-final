@@ -43,6 +43,7 @@ export default function CallButton({ phone, contactId, leadId, clientId }: CallB
   });
 
   if (!phone) return null;
+  return null;
 
   function handleCall() {
     const repId = isAdmin ? (selectedRepId || null) : (user?.id ?? null);
