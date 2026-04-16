@@ -1,0 +1,65 @@
+Use Plan mode first, then Code mode.
+
+Goal
+Improve visual hierarchy for lead identity info anywhere the CRM shows:
+- lead name
+- company name
+- phone number
+
+What to change
+Apply this visual hierarchy consistently in every relevant CRM surface:
+
+- Lead name:
+  text-slate-900 font-semibold
+
+- Company name:
+  text-slate-500
+
+- Phone number:
+  text-slate-700 font-medium
+
+Optional stronger phone treatment
+If the phone number still looks too buried after implementation, use:
+text-slate-800 font-medium tracking-[0.01em]
+But do not invent extra colors beyond this option.
+
+Important behavior
+Keep normalized storage exactly as-is in the data layer:
+7049208043
+
+But do not display the raw normalized number in the UI.
+Wherever a phone number is shown to users, format it for display like:
+(704) 920-8043
+
+This is a display-only change unless a formatter/helper already exists.
+Do not change schema, DB storage, API contracts, validation rules,
+duplicate detection, or any backend normalization behavior.
+
+Scope
+Update all relevant places in the CRM where these identity rows/cards
+appear, including board/list/task/detail surfaces that show the same
+lead/company/phone pattern.
+
+Implementation rules
+- Reuse an existing phone display formatter if one already exists
+- If none exists, create one small shared display formatter helper
+- Keep the change non-destructive and tightly scoped
+- Do not reintroduce clickable tel links, call buttons, or SMS buttons
+- Do not change underlying stored values
+- Do not change business logic
+- Keep spacing/layout clean after typography updates
+
+Done looks like
+- Lead name is visually strongest using text-slate-900 font-semibold
+- Company name is visually muted using text-slate-500
+- Phone number is clearly readable using text-slate-700 font-medium
+  or the approved stronger option if needed
+- Phone numbers display in human-friendly format such as
+  (704) 920-8043
+- Raw normalized numbers remain stored unchanged underneath
+- Styling is consistent across all relevant CRM views
+- No backend or schema changes were made
+
+Before finishing
+List exactly which files/components were updated and confirm whether the
+standard phone treatment or the stronger approved phone treatment was used.
