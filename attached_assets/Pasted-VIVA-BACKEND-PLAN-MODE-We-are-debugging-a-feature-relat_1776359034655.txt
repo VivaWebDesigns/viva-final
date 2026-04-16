@@ -1,0 +1,47 @@
+VIVA BACKEND — PLAN MODE
+
+We are debugging a feature related to the Facebook Marketplace workflow.
+
+Feature to trace:
+When a seller name fails the Hispanic/Spanish-name check in the Marketplace extension, an admin may be shown controls that allow manually adding the name to the Spanish/Hispanic name list and effectively overriding the fail so the workflow can continue.
+
+I need you to inspect the Viva backend only and tell me exactly what backend code is involved in this feature.
+
+What to do:
+1. Find all backend files, routes, handlers, services, helpers, DB access code, and schemas involved in:
+   - evaluating the failed name-check result
+   - returning the reason/code for the failure
+   - determining whether the current user is allowed to perform admin-only rescue actions
+   - returning any flags/fields the extension needs in order to show manual add / override controls
+   - accepting any request that adds a first name and/or last name to a Spanish/Hispanic list
+   - persisting those names to the correct table/store/list
+   - returning success/failure after the add
+   - allowing the lead to continue after the manual add, if the backend participates in that step
+
+2. For every file involved, explain in plain English what it does.
+
+3. Identify exact function names, route names, schema names, response fields, and DB tables involved.
+
+4. Tell me whether the backend is the source of truth for:
+   - admin permission for this feature
+   - exact fail reason
+   - exact fields needed by the extension to render admin override controls
+
+5. Identify the exact conditions that must be true in backend logic for the extension to be able to show those controls.
+   Examples:
+   - authenticated user required
+   - admin role required
+   - exact reason code required
+   - firstName / lastName must be present
+   - feature flag / env var required
+
+6. If this works on dev but not live, list the most likely backend-side causes only.
+   Do not speculate about extension rendering unless the backend clearly feeds it.
+
+Output format:
+- Short conclusion first
+- Files involved
+- Request/response flow
+- DB/storage involved
+- Exact gating conditions
+- Most likely live-backend failure points
