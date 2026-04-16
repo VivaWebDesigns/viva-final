@@ -169,10 +169,12 @@ router.post(
       return res.status(400).json({ message: "Invalid input", errors: parsed.error.flatten() });
     }
 
-    // adminActionsAllowed: true only when authenticated via bot secret (admin-level credential).
-    // Session-authenticated callers (any role) do not get admin override UI in the extension.
-    // TODO: derive this from req.user.role once the extension migrates to token-based auth.
-    const adminActionsAllowed: boolean = res.locals.isAdminBotCall === true;
+    // adminActionsAllowed: true for bot secret callers and for session-authenticated
+    // admin, developer, or lead_gen users. Revert lead_gen here (and in botOrAdminRole
+    // below) to restrict the add-name popup back to admin/developer only.
+    const adminActionsAllowed: boolean =
+      res.locals.isAdminBotCall === true ||
+      ["admin", "developer", "lead_gen"].includes(req.authUser?.role ?? "");
 
     const normalizedUrl = normalizeSellerUrl(parsed.data.sellerProfileUrl);
     const score = scoreHispanicName(parsed.data.sellerName);
@@ -624,16 +626,16 @@ function botOrRole(req: Request, res: Response, next: NextFunction) {
   return requireRole("admin", "developer", "lead_gen")(req, res, next);
 }
 
-// Admin/developer variant: bot secret OR session with admin or developer role.
-// lead_gen, sales_rep, and all other roles are denied (403) on session-auth.
-// Backend is the authoritative enforcer — a non-admin/developer session caller receives 403.
+// Bot secret OR session with admin, developer, or lead_gen role.
+// To restrict back to admin/developer only: remove "lead_gen" here and from
+// the adminActionsAllowed line in the /precheck handler above.
 function botOrAdminRole(req: Request, res: Response, next: NextFunction) {
   const botSecret = process.env.MARKETPLACE_BOT_SECRET;
   if (botSecret) {
     const authHeader = req.headers.authorization ?? "";
     if (authHeader === `Bearer ${botSecret}`) return next();
   }
-  return requireRole("admin", "developer")(req, res, next);
+  return requireRole("admin", "developer", "lead_gen")(req, res, next);
 }
 
 const createPendingOutreachSchema = z.object({
