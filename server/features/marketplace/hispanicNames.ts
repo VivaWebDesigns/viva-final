@@ -1085,6 +1085,31 @@ const RAW_HISPANIC_FIRST_NAMES: string[] = [
   "yunior",
   // ── Z ──────────────────────────────────────────────────────────────────
   "zuleika",
+  // ── PT/BR – distinctly Brazilian / Portuguese given names ───────────────
+  // Male
+  "caio",
+  "fabio",
+  "flavio",
+  "henrique",
+  "igor",
+  "joao",
+  "mateus",
+  "matheus",
+  "tiago",
+  "vinicius",
+  // Female
+  "alessandra",
+  "aline",
+  "bruna",
+  "carla",
+  "debora",
+  "juliana",
+  "larissa",
+  "luciana",
+  "priscila",
+  "rafaela",
+  "tatiane",
+  "viviane",
 ];
 
 const normalize = (raw: string[]): string[] =>
