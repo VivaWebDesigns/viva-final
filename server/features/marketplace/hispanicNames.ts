@@ -563,6 +563,51 @@ const RAW_HISPANIC_LAST_NAMES: string[] = [
   "zepeda",
   "zertuche",
   "zuniga",
+  // ── Caribbean & Central American surnames – Task #51 ───────────────────
+  // Audited top surnames for Honduras, El Salvador, Guatemala, Nicaragua,
+  // Cuba, Dominican Republic, and Puerto Rico against RAW_HISPANIC_LAST_NAMES.
+  // Only net-new entries absent from the main A-Z block are listed here.
+  //
+  // Honduras
+  "banegas",
+  "bustillo",
+  "coello",
+  "espinal",
+  "euceda",
+  "funez",
+  "guifarro",
+  "interiano",
+  "murillo",
+  "reconco",
+  "sabillon",
+  "suazo",
+  "valladares",
+  // El Salvador
+  "alvarenga",
+  "baires",
+  "jovel",
+  "magana",
+  "melara",
+  "pacas",
+  // Guatemala
+  "osorio",
+  // Nicaragua
+  "arauz",
+  "blandon",
+  "calero",
+  "chavarria",
+  "lanzas",
+  "munguia",
+  "rugama",
+  "tellez",
+  "vallejos",
+  // Dominican Republic
+  "mercedes",
+  "novas",
+  "payano",
+  // Puerto Rico
+  "nieves",
+  "pagan",
   // ── Portuguese/Brazilian surnames ──────────────────────────────────────
   // Common surnames in Brazil and Portugal that were absent from the
   // Spanish-focused list. Many Brazilian sellers have these names and were

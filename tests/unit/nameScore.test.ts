@@ -181,6 +181,61 @@ describe("scoreHispanicName — South American sub-regional name coverage", () =
   }
 });
 
+describe("scoreHispanicName — Caribbean & Central American surname-only coverage (Task #51)", () => {
+  // Each entry uses "Todd" as the first name (not in any list or bridge table)
+  // so the score is driven solely by the recognised surname (+70 = pass threshold).
+  const surnameOnlyCases: Array<[string, string]> = [
+    // Honduras
+    ["Todd Banegas",    "Honduras: banegas (+70) + todd (+0) = 70"],
+    ["Todd Bustillo",   "Honduras: bustillo (+70) + todd (+0) = 70"],
+    ["Todd Coello",     "Honduras: coello (+70) + todd (+0) = 70"],
+    ["Todd Espinal",    "Honduras/DR: espinal (+70) + todd (+0) = 70"],
+    ["Todd Euceda",     "Honduras: euceda (+70) + todd (+0) = 70"],
+    ["Todd Funez",      "Honduras: funez (+70) + todd (+0) = 70"],
+    ["Todd Guifarro",   "Honduras: guifarro (+70) + todd (+0) = 70"],
+    ["Todd Interiano",  "Honduras/El Salvador: interiano (+70) + todd (+0) = 70"],
+    ["Todd Murillo",    "Honduras: murillo (+70) + todd (+0) = 70"],
+    ["Todd Reconco",    "Honduras: reconco (+70) + todd (+0) = 70"],
+    ["Todd Sabillon",   "Honduras: sabillon (+70) + todd (+0) = 70"],
+    ["Todd Suazo",      "Honduras: suazo (+70) + todd (+0) = 70"],
+    ["Todd Valladares", "Honduras: valladares (+70) + todd (+0) = 70"],
+    // El Salvador
+    ["Todd Alvarenga",  "El Salvador: alvarenga (+70) + todd (+0) = 70"],
+    ["Todd Baires",     "El Salvador: baires (+70) + todd (+0) = 70"],
+    ["Todd Jovel",      "El Salvador: jovel (+70) + todd (+0) = 70"],
+    ["Todd Magana",     "El Salvador: magana (+70) + todd (+0) = 70"],
+    ["Todd Melara",     "El Salvador: melara (+70) + todd (+0) = 70"],
+    ["Todd Pacas",      "El Salvador: pacas (+70) + todd (+0) = 70"],
+    // Guatemala
+    ["Todd Osorio",     "Guatemala: osorio (+70) + todd (+0) = 70"],
+    // Nicaragua
+    ["Todd Arauz",      "Nicaragua: arauz (+70) + todd (+0) = 70"],
+    ["Todd Blandon",    "Nicaragua: blandon (+70) + todd (+0) = 70"],
+    ["Todd Calero",     "Nicaragua: calero (+70) + todd (+0) = 70"],
+    ["Todd Chavarria",  "Nicaragua: chavarria (+70) + todd (+0) = 70"],
+    ["Todd Lanzas",     "Nicaragua: lanzas (+70) + todd (+0) = 70"],
+    ["Todd Munguia",    "Nicaragua: munguia (+70) + todd (+0) = 70"],
+    ["Todd Rugama",     "Nicaragua: rugama (+70) + todd (+0) = 70"],
+    ["Todd Tellez",     "Nicaragua: tellez (+70) + todd (+0) = 70"],
+    ["Todd Vallejos",   "Nicaragua: vallejos (+70) + todd (+0) = 70"],
+    // Dominican Republic
+    ["Todd Mercedes",   "Dominican Republic: mercedes (+70) + todd (+0) = 70"],
+    ["Todd Novas",      "Dominican Republic: novas (+70) + todd (+0) = 70"],
+    ["Todd Payano",     "Dominican Republic: payano (+70) + todd (+0) = 70"],
+    // Puerto Rico
+    ["Todd Nieves",     "Puerto Rico: nieves (+70) + todd (+0) = 70"],
+    ["Todd Pagan",      "Puerto Rico: pagan (+70) + todd (+0) = 70"],
+  ];
+
+  for (const [name, reason] of surnameOnlyCases) {
+    it(`surname alone passes at exactly 70: ${name} — ${reason}`, () => {
+      const result = scoreHispanicName(name);
+      expect(result.hispanicNameScore).toBe(SURNAME_SCORE);
+      expect(result.spanishOutreachRecommended).toBe(true);
+    });
+  }
+});
+
 describe("scoreHispanicName — non-Hispanic names score 0", () => {
   it("Todd Johnson scores 0 (neither name in any list or bridge)", () => {
     const result = scoreHispanicName("Todd Johnson");
