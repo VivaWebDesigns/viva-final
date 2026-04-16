@@ -116,19 +116,29 @@ export function scoreHispanicName(sellerName: string): NameScoreResult {
   const notes: string[] = [];
 
   // ── Surname scoring ──────────────────────────────────────────────────────
+  // Latin naming convention commonly places both a paternal and maternal
+  // surname after the given name (e.g. "Clayton Carneiro Medas"). The
+  // previous code only checked the LAST token, silently skipping any
+  // recognizable surname in a middle position.  We now score every non-first
+  // token as a candidate and keep the highest score.
+  const surnameCandidates = tokens.length >= 2 ? tokens.slice(1) : [];
   let lastNameScore = 0;
-  if (lastName) {
-    if (_lastNames.has(lastName)) {
-      lastNameScore = 70;
+  for (const candidate of surnameCandidates) {
+    let candidateScore = 0;
+    let candidateNote: string | null = null;
+    if (_lastNames.has(candidate)) {
+      candidateScore = 70;
     } else {
-      const fuzzy = fuzzyMatchSurname(lastName);
+      const fuzzy = fuzzyMatchSurname(candidate);
       if (fuzzy) {
         // Exact phonetic match (distance 1) → full credit; distance 2 → partial
-        lastNameScore = fuzzy.distance <= 1 ? 70 : 55;
-        notes.push(
-          `surname "${lastName}" fuzzy-matched "${fuzzy.match}" (edit distance ${fuzzy.distance})`,
-        );
+        candidateScore = fuzzy.distance <= 1 ? 70 : 55;
+        candidateNote = `surname "${candidate}" fuzzy-matched "${fuzzy.match}" (edit distance ${fuzzy.distance})`;
       }
+    }
+    if (candidateScore > lastNameScore) {
+      lastNameScore = candidateScore;
+      if (candidateNote) notes.push(candidateNote);
     }
   }
 
