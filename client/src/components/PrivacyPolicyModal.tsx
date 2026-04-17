@@ -153,7 +153,7 @@ function PrivacyPolicyContent() {
           <li>Send service updates, proposals, and communications related to your account</li>
           <li>Improve our website, services, and marketing materials</li>
           <li>Comply with legal obligations</li>
-          <li>Send SMS and email communications you have opted into</li>
+          <li>Send email communications you have opted into</li>
         </ul>
       </PolicySection>
 
