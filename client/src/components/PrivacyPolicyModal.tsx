@@ -56,16 +56,13 @@ function PrivacyPolicyContent() {
 
       <PolicySection title="3. Compartir tu información">
         <p>
-          No vendemos, compartimos, alquilamos ni divulgamos tu información móvil a terceros o afiliados con fines de marketing o promoción.
+          No vendemos, alquilamos ni compartimos tu información personal con terceros con fines de marketing o promoción.
         </p>
         <p>
-          Los datos de opt-in de SMS, los registros de consentimiento y los números de teléfono móvil recopilados para comunicaciones SMS se utilizan únicamente para mensajería con Viva Web Designs.
+          Podemos compartir información con proveedores de servicios de confianza que nos ayudan a operar nuestro sitio web y negocio, como proveedores de programación, pagos, alojamiento o soporte. Ellos solo pueden usar tu información para prestar servicios en nuestro nombre.
         </p>
         <p>
-          Los datos de opt-in de SMS y el consentimiento no serán compartidos con ningún tercero, excepto con el proveedor del servicio de mensajes de texto SMS.
-        </p>
-        <p>
-          Podemos compartir información personal con proveedores de servicios que ayudan a operar nuestro sitio web y negocio, pero los datos de opt-in de SMS, los registros de consentimiento y los números de teléfono móvil no se compartirán con fines de marketing o promoción bajo ninguna circunstancia.
+          También podemos divulgar información si lo exige la ley o si es necesario para proteger nuestro negocio, clientes o sitio web.
         </p>
       </PolicySection>
 
@@ -112,28 +109,10 @@ function PrivacyPolicyContent() {
 
       <PolicySection title="10. Términos de SMS y Política de Privacidad">
         <p>
-          Al suscribirte a los mensajes SMS de {company}, aceptas recibir mensajes de texto para atención al cliente, actualizaciones del servicio y otras comunicaciones relacionadas con tu cuenta.
+          Si te comunicas con Viva Web Designs LLC a través de nuestro sitio web, formularios, correo electrónico, teléfono o herramientas de programación, podemos contactarte con respecto a tu consulta, los servicios solicitados, citas, actualizaciones del proyecto o soporte al cliente.
         </p>
         <p>
-          Puedes cancelar el servicio SMS en cualquier momento. Solo responde <strong>STOP</strong>. Después de enviar el mensaje "STOP", recibirás un mensaje de confirmación de cancelación y ya no recibirás más mensajes SMS. Si deseas volver a suscribirte, regístrate como lo hiciste la primera vez.
-        </p>
-        <p>
-          Si tienes problemas con el programa de mensajes, puedes responder <strong>HELP</strong> para obtener más ayuda.
-        </p>
-        <p>
-          Los operadores no son responsables por mensajes retrasados o no entregados.
-        </p>
-        <p>
-          Pueden aplicarse tarifas de mensajes y datos. La frecuencia de los mensajes puede variar. Si tienes preguntas sobre tu plan de mensajes o datos, lo mejor es contactar a tu proveedor de servicios inalámbricos.
-        </p>
-        <p>
-          {company} no comparte números de teléfono móvil, datos de opt-in de mensajes de texto ni consentimiento con terceros o afiliados con fines de marketing o promoción.
-        </p>
-        <p>
-          La información móvil solo puede compartirse con subcontratistas y proveedores de servicios que apoyan la prestación de servicios de SMS, como plataformas de mensajería, proveedores de telecomunicaciones o proveedores de atención al cliente. Esta información se utiliza únicamente para proporcionar y operar el servicio de mensajería.
-        </p>
-        <p>
-          Todas las categorías anteriores excluyen los datos de opt-in de mensajes de texto y el consentimiento; esta información no se compartirá con terceros.
+          Podemos comunicarnos contigo usando la información de contacto que proporcionas y mediante los métodos de comunicación apropiados para tu solicitud.
         </p>
       </PolicySection>
 
@@ -180,16 +159,13 @@ function PrivacyPolicyContent() {
 
       <PolicySection title="3. Sharing of Your Information">
         <p>
-          We do not sell, share, rent, or disclose your mobile information to third parties or affiliates for marketing or promotional purposes.
+          We do not sell, rent, or share your personal information with third parties for marketing or promotional purposes.
         </p>
         <p>
-          SMS opt-in data, consent records, and mobile numbers collected for SMS communications are used only for messaging with Viva Web Designs.
+          We may share information with trusted service providers who help us operate our website and business, such as scheduling, payment, hosting, or support providers. They may only use your information to provide services on our behalf.
         </p>
         <p>
-          SMS opt-in data and consent will not be shared with any third party except the SMS texting service provider.
-        </p>
-        <p>
-          We may share personal information with service providers that help operate our website and business, but SMS opt-in data, consent records, and mobile numbers will not be shared for marketing or promotional purposes under any circumstances.
+          We may also disclose information if required by law or if necessary to protect our business, clients, or website.
         </p>
       </PolicySection>
 
@@ -236,28 +212,10 @@ function PrivacyPolicyContent() {
 
       <PolicySection title="10. SMS Terms &amp; Privacy Policy">
         <p>
-          By opting in to SMS messages from {company}, you agree to receive text messages for customer support, service updates, and other communications related to your account.
+          If you contact Viva Web Designs LLC through our website, forms, email, phone, or scheduling tools, we may contact you regarding your inquiry, requested services, appointments, project updates, or customer support.
         </p>
         <p>
-          You can cancel the SMS service at any time. Just text <strong>STOP</strong>. After you send the SMS message "STOP" to us, we will send you an SMS message to confirm that you have been unsubscribed. After this, you will no longer receive SMS messages from us. If you want to join again, just sign up as you did the first time and we will start sending SMS messages to you again.
-        </p>
-        <p>
-          If you are experiencing issues with the messaging program, you can reply with the keyword <strong>HELP</strong> for more assistance.
-        </p>
-        <p>
-          Carriers are not liable for delayed or undelivered messages.
-        </p>
-        <p>
-          As always, message and data rates may apply for any messages sent to you from us and to us from you. Message frequency varies. If you have any questions about your text plan or data plan, it is best to contact your wireless provider.
-        </p>
-        <p>
-          {company} does not share mobile numbers, text messaging originator opt-in data, or consent with any third parties or affiliates for marketing or promotional purposes.
-        </p>
-        <p>
-          Mobile information may be shared only with subcontractors and service providers that support the delivery of SMS services, such as messaging platforms, telecommunications providers, or customer support vendors. This information is used solely to provide and operate the messaging service.
-        </p>
-        <p>
-          All the above categories exclude text messaging originator opt-in data and consent; this information will not be shared with any third parties.
+          We may communicate with you using the contact information you provide and through the communication methods appropriate to your request.
         </p>
       </PolicySection>
 
