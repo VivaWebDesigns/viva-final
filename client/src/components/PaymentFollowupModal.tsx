@@ -208,7 +208,7 @@ export default function PaymentFollowupModal({
               <Button
                 className="w-full justify-start h-auto py-3 px-4"
                 variant="outline"
-                onClick={() => setPath("wont-pay")}
+                onClick={() => wontPayMutation.mutate()}
                 data-testid="button-wont-pay"
               >
                 <div className="text-left">
@@ -320,6 +320,7 @@ export default function PaymentFollowupModal({
           </>
         )}
 
+        {/* WONT-PAY CLOSING MESSAGE SCREEN — hidden until re-enabled
         {path === "wont-pay" && (() => {
           const name = contactName?.trim() || (lang === "es" ? "cliente" : "there");
           const smsText = lang === "es"
@@ -375,6 +376,7 @@ export default function PaymentFollowupModal({
             </>
           );
         })()}
+        */}
       </DialogContent>
     </Dialog>
   );
