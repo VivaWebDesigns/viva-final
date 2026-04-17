@@ -369,14 +369,17 @@ export default function MarketplacePendingOutreachPage() {
     onError: (e: unknown) => {
       setShowConvertDialog(false);
       if (e instanceof ApiError) {
-        const body = e.body as { code?: string; match?: DuplicateMatch; message?: string };
+        const body = e.body as { code?: string; match?: DuplicateMatch; message?: string; detail?: string };
         if (e.status === 409 && body.code === "DUPLICATE_LEAD" && body.match) {
           setDuplicateMatch(body.match);
           return;
         }
+        const description = body.detail
+          ? `${body.message ?? `Error ${e.status}`} — ${body.detail}`
+          : (body.message ?? `Error ${e.status}`);
         toast({
           title: "Conversion failed",
-          description: body.message ?? `Error ${e.status}`,
+          description,
           variant: "destructive",
         });
         return;
