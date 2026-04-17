@@ -6,7 +6,7 @@ This project is an internal operations platform for Viva Web Designs, a marketin
 ## User Preferences
 - **NEVER** mention "latinos" or "Google Ads" in any copy.
 - The Charlotte Painting Pro logo (`image_1_(5)_1772575534808_1773059817248.png`) should NEVER be replaced with the Viva logo.
-- The brand phone number is **(980) 949-0548**.
+- The brand phone number is **(704) 222-7067**.
 - The `admin` role has full access across all modules.
 
 ## System Architecture

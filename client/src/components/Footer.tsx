@@ -41,7 +41,7 @@ export default function Footer() {
               </li>
               <li className="flex items-start gap-3">
                 <Phone className="w-5 h-5 text-[#10B981] flex-shrink-0 mt-0.5" />
-                <a href={`tel:+19809490548`} className="text-gray-400 text-sm hover:text-white transition-colors duration-200" data-testid="link-footer-phone">{t("global.phone")}</a>
+                <a href={`tel:+17042227067`} className="text-gray-400 text-sm hover:text-white transition-colors duration-200" data-testid="link-footer-phone">{t("global.phone")}</a>
               </li>
               <li className="flex items-start gap-3">
                 <Mail className="w-5 h-5 text-[#10B981] flex-shrink-0 mt-0.5" />

@@ -67,7 +67,7 @@ export default function Home() {
   };
 
   const bizName = P?.businessName || "Charlotte Painting Pro";
-  const phone   = P?.phone || "(980) 949-0548";
+  const phone   = P?.phone || "(704) 222-7067";
   const serviceArea = P ? `${P.city} and surrounding area` : "Charlotte, NC and surrounding area";
   // Language-aware services and reviews — switch when language toggle is clicked
   const previewServices = P ? (language === "es" ? P.servicesES : P.servicesEN) as Array<any> | null : null;

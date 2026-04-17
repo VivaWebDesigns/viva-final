@@ -9,7 +9,7 @@ export default function JsonLd() {
     description:
       "Agencia de marketing digital especializada en contratistas. Sitios web profesionales, SEO local y posicionamiento en Google.",
     url: "https://vivawebdesigns.com",
-    telephone: "+1-980-949-0548",
+    telephone: "+1-704-222-7067",
     email: "info@vivawebdesigns.com",
     image: "https://vivawebdesigns.com/logo.png",
     priceRange: "$497 - $1,997",

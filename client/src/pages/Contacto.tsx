@@ -391,7 +391,7 @@ export default function Contacto() {
                 {/* Contact info */}
                 <div className="space-y-6">
                   <h3 className="text-xl font-bold text-[#111] dark:text-white">{t("contacto.sidebar.contactInfoTitle")}</h3>
-                  <a href="tel:+19809490548" className="flex items-start gap-4 group" data-testid="link-contacto-phone">
+                  <a href="tel:+17042227067" className="flex items-start gap-4 group" data-testid="link-contacto-phone">
                     <div className="w-12 h-12 rounded-md bg-teal-50 dark:bg-teal-950/30 flex items-center justify-center flex-shrink-0">
                       <Phone className="w-6 h-6 text-[#10B981]" />
                     </div>

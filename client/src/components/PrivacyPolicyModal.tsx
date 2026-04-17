@@ -18,7 +18,7 @@ function PolicySection({ title, children }: { title: string; children: React.Rea
 function PrivacyPolicyContent() {
   const company = "Viva Web Designs LLC";
   const email = "info@vivawebdesigns.com";
-  const phone = "(980) 949-0548";
+  const phone = "(704) 222-7067";
   const effective = "April 3, 2026";
   const effectiveEs = "3 de abril de 2026";
 

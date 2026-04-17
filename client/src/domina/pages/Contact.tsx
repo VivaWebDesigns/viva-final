@@ -31,7 +31,7 @@ export default function Contact() {
   const { t } = useLanguage();
   const P = window.__PREVIEW__?.payload ?? null;
   const bizName = P?.businessName || "Charlotte Painting Pro";
-  const phone = P?.phone || "(980) 949-0548";
+  const phone = P?.phone || "(704) 222-7067";
   const phoneRaw = phone.replace(/\D/g, "");
   const email = P?.email || "quotes@charlottepaintingpro.com";
   const serviceAreaText = P?.city ? `${P.city} and surrounding area` : null;

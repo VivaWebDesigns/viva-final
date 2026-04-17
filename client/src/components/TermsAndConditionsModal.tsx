@@ -18,7 +18,7 @@ function TermsSection({ title, children }: { title: string; children: React.Reac
 
 function TermsContent() {
   const company = "Viva Web Designs";
-  const phone = "(980) 949-0548";
+  const phone = "(704) 222-7067";
   const email = "info@vivawebdesigns.com";
   const effectiveDate = "April 3, 2026";
 

@@ -1182,7 +1182,7 @@ export const en = {
     messageSentCountdown: "Message sent ({{n}}s)",
     messageSentCloseLead: "Message sent — Close Lead",
     confirmProceed: "Confirm & Proceed",
-    closingSms: "Hi {{name}}, thank you for your time speaking with us. We appreciate the opportunity and hope we can work together in the future. Don't hesitate to reach out anytime. — Viva Web Designs (980) 949-0548",
+    closingSms: "Hi {{name}}, thank you for your time speaking with us. We appreciate the opportunity and hope we can work together in the future. Don't hesitate to reach out anytime. — Viva Web Designs (704) 222-7067",
   },
   trades: {
     painting:          "Painting",
