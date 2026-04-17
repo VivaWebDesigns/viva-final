@@ -1,0 +1,68 @@
+Use Replit Plan mode first.
+
+Make a very small, non-destructive UI update on the CRM Tasks page.
+
+Goal:
+On task rows, only visually change the company name when the
+company name is different from the primary contact name.
+
+Current intent:
+The building/company icon already exists and should stay as-is.
+Do not add new icons, labels, chips, badges, pills, or layout
+changes.
+Do not change anything about the trade text in this task.
+Do not change backend behavior unless absolutely necessary.
+
+What I want:
+If the company name is effectively the same as the primary
+contact name, keep the current styling exactly as it is now.
+
+If the company name is different from the primary contact name,
+change only the company name text styling so it is easier for
+sales reps to identify at a glance.
+
+Use this visual treatment for the company name when different:
+- text-indigo-700
+- font-medium
+
+Keep the primary contact name styling unchanged.
+Keep the company icon styling unchanged.
+Keep spacing/alignment unchanged.
+Keep phone number and trade styling unchanged.
+
+Matching rule:
+Treat the company name as "same" if it matches the primary
+contact name after reasonable normalization:
+- trim whitespace
+- lowercase comparison
+- collapse repeated spaces
+Do not overengineer fuzzy matching unless the codebase already
+has a helper for this.
+
+Implementation preference:
+Prefer doing the comparison in the frontend render layer for the
+tasks row if both values are already available there.
+Only add a tiny helper if needed.
+Do not refactor unrelated code.
+
+Deliverables:
+1. Find where the tasks row renders the company name.
+2. Add the conditional comparison between primary contact name
+   and company name.
+3. Apply text-indigo-700 font-medium only when the company name
+   is different.
+4. Leave the current style untouched when the company name is
+   the same.
+5. Verify there are no unintended style changes elsewhere.
+
+Done looks like:
+- "Jose Guzman" + company "Jose Guzman" => company keeps current
+  muted styling
+- "Rene Sanchez" + company "3 Little Stars Landscape" =>
+  company name renders in indigo medium weight
+- No new UI elements
+- No spacing drift
+- No other tasks page styling changes
+
+At the end, tell me exactly which file(s) were changed and show
+the conditional logic used for the comparison.

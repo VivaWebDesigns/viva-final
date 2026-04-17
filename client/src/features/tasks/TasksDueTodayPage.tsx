@@ -61,6 +61,8 @@ function TaskRow({
   const contactName = task.contact
     ? `${task.contact.firstName}${task.contact.lastName ? " " + task.contact.lastName : ""}`
     : null;
+  const normalize = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
+  const companyIsDifferent = task.company && (!contactName || normalize(task.company.name) !== normalize(contactName));
 
   return (
     <div
@@ -111,7 +113,7 @@ function TaskRow({
             </span>
           )}
           {task.company && (
-            <span className="flex items-center gap-1 text-xs text-slate-500" data-testid={`text-company-name-${task.id}`}>
+            <span className={`flex items-center gap-1 text-xs ${companyIsDifferent ? "text-indigo-700 font-medium" : "text-slate-500"}`} data-testid={`text-company-name-${task.id}`}>
               <Building2 className="w-3 h-3 flex-shrink-0" />
               {task.company.name}
             </span>
