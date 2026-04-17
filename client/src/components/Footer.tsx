@@ -65,7 +65,7 @@ export default function Footer() {
           <p className="text-gray-600 text-sm text-center sm:text-left" data-testid="text-footer-statement">
             {t("footer.statement")}
           </p>
-          <p className="text-gray-600 text-xs text-center sm:text-left mt-3" data-testid="text-service-area">
+          <p className="text-gray-600 text-sm text-center sm:text-left mt-3" data-testid="text-service-area">
             Atendemos a clientes hispanohablantes en todo Estados Unidos.
           </p>
         </div>
