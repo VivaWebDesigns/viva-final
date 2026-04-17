@@ -1,6 +1,6 @@
 import { db } from "../../db";
 import {
-  followupTasks, crmContacts, crmCompanies, automationExecutionLogs,
+  followupTasks, crmContacts, crmCompanies, crmLeads, automationExecutionLogs,
   pipelineOpportunities, pipelineStages,
   type InsertFollowupTask, type FollowupTask,
 } from "@shared/schema";
@@ -15,6 +15,7 @@ export interface TaskAutomationMeta {
 export type TaskWithContact = FollowupTask & {
   contact: { firstName: string; lastName: string | null; phone: string | null } | null;
   company: { name: string } | null;
+  lead: { trade: string | null } | null;
   automationMeta: TaskAutomationMeta | null;
   opportunityStageSlug: string | null;
 };
@@ -143,8 +144,9 @@ async function enrichTasks(tasks: FollowupTask[]): Promise<TaskWithContact[]> {
   const taskIds = tasks.map(t => t.id);
   const contactIds = [...new Set(tasks.map(t => t.contactId).filter(Boolean) as string[])];
   const opportunityIds = [...new Set(tasks.map(t => t.opportunityId).filter(Boolean) as string[])];
+  const leadIds = [...new Set(tasks.map(t => t.leadId).filter(Boolean) as string[])];
 
-  const [contacts, automationLogRows, oppStageRows] = await Promise.all([
+  const [contacts, automationLogRows, oppStageRows, leads] = await Promise.all([
     contactIds.length
       ? db.select({ id: crmContacts.id, firstName: crmContacts.firstName, lastName: crmContacts.lastName, phone: crmContacts.phone, companyId: crmContacts.companyId })
           .from(crmContacts)
@@ -169,10 +171,16 @@ async function enrichTasks(tasks: FollowupTask[]): Promise<TaskWithContact[]> {
           .innerJoin(pipelineStages, eq(pipelineOpportunities.stageId, pipelineStages.id))
           .where(inArray(pipelineOpportunities.id, opportunityIds))
       : Promise.resolve([]),
+    leadIds.length
+      ? db.select({ id: crmLeads.id, trade: crmLeads.trade })
+          .from(crmLeads)
+          .where(inArray(crmLeads.id, leadIds))
+      : Promise.resolve([]),
   ]);
 
   const contactMap = Object.fromEntries(contacts.map(c => [c.id, c]));
   const oppStageMap = Object.fromEntries(oppStageRows.map(r => [r.opportunityId, r.slug]));
+  const leadMap = Object.fromEntries(leads.map(l => [l.id, l]));
 
   const companyIds = [...new Set([
     ...contacts.map(c => c.companyId).filter(Boolean) as string[],
@@ -199,8 +207,9 @@ async function enrichTasks(tasks: FollowupTask[]): Promise<TaskWithContact[]> {
     const company = (task.companyId ? companyMap[task.companyId] : null)
       ?? (contact?.companyId ? companyMap[contact.companyId] : null)
       ?? null;
+    const lead = task.leadId ? leadMap[task.leadId] ?? null : null;
     const automationMeta = automationMetaMap.get(task.id) ?? null;
     const opportunityStageSlug = task.opportunityId ? oppStageMap[task.opportunityId] ?? null : null;
-    return { ...task, contact, company, automationMeta, opportunityStageSlug };
+    return { ...task, contact, company, lead, automationMeta, opportunityStageSlug };
   });
 }

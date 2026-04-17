@@ -29,6 +29,7 @@ interface AutomationMeta {
 interface TaskWithContact extends FollowupTask {
   contact: { firstName: string; lastName: string | null; phone: string | null } | null;
   company: { name: string } | null;
+  lead: { trade: string | null } | null;
   automationMeta: AutomationMeta | null;
   opportunityStageSlug: string | null;
 }
@@ -122,6 +123,11 @@ function TaskRow({
             >
               <Phone className="w-3 h-3 flex-shrink-0" />
               {formatPhoneDisplay(task.contact.phone)}
+            </span>
+          )}
+          {task.lead?.trade && (
+            <span className="text-xs text-slate-400" data-testid={`text-lead-trade-${task.id}`}>
+              {task.lead.trade}
             </span>
           )}
         </div>
