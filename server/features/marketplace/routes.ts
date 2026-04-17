@@ -27,8 +27,6 @@ import * as marketplaceStorage from "./storage";
 import { logAudit } from "../audit/service";
 import { executeStageAutomations } from "../automations/trigger";
 
-const DEFAULT_SALES_REP_ID = "o3UuGD02vDKCBSusAGK6O9A2RzfI3uhE";
-
 const router = Router();
 
 function normalizeSellerUrl(url: string): string {
@@ -1236,7 +1234,9 @@ router.post(
     }
 
     // ── Assignee ──────────────────────────────────────────────────────────
-    const resolvedAssignee = opts.assignedTo ?? req.authUser?.id ?? DEFAULT_SALES_REP_ID;
+    const resolvedAssignee = await crmStorage.resolveLeadAssignee(
+      opts.assignedTo ?? req.authUser?.id ?? null,
+    );
 
     // ── Duplicate check ───────────────────────────────────────────────────
     const dupCheck = await crmStorage.checkManualLeadDuplicate({

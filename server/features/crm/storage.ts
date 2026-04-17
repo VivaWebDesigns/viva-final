@@ -77,6 +77,39 @@ export async function createLead(data: InsertCrmLead): Promise<CrmLead> {
   return result;
 }
 
+export async function resolveLeadAssignee(
+  preferredId: string | null | undefined,
+): Promise<string | null> {
+  if (preferredId) {
+    const [preferred] = await db
+      .select({ id: user.id })
+      .from(user)
+      .where(and(eq(user.id, preferredId), eq(user.banned, false)))
+      .limit(1);
+    if (preferred) {
+      return preferred.id;
+    }
+  }
+
+  const [salesRep] = await db
+    .select({ id: user.id })
+    .from(user)
+    .where(and(eq(user.role, "sales_rep"), eq(user.banned, false)))
+    .orderBy(asc(user.createdAt))
+    .limit(1);
+  if (salesRep) {
+    return salesRep.id;
+  }
+
+  const [fallbackUser] = await db
+    .select({ id: user.id })
+    .from(user)
+    .where(eq(user.banned, false))
+    .orderBy(asc(user.createdAt))
+    .limit(1);
+  return fallbackUser?.id ?? null;
+}
+
 export async function updateLead(id: string, data: Partial<InsertCrmLead>): Promise<CrmLead> {
   const [result] = await db.update(crmLeads).set({
     ...data,
