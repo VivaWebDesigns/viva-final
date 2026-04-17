@@ -12,7 +12,6 @@ import { insertContactSchema, type InsertContact } from "@shared/schema";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Checkbox } from "@/components/ui/checkbox";
 import { PrivacyPolicyModal } from "@/components/PrivacyPolicyModal";
-import { TermsAndConditionsModal } from "@/components/TermsAndConditionsModal";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
