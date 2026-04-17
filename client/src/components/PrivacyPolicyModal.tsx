@@ -50,7 +50,7 @@ function PrivacyPolicyContent() {
           <li>Enviar actualizaciones de servicio, propuestas y comunicaciones relacionadas con tu cuenta</li>
           <li>Mejorar nuestro sitio web, servicios y materiales de marketing</li>
           <li>Cumplir con obligaciones legales</li>
-          <li>Enviar comunicaciones por SMS y correo electrónico a las que te hayas suscrito</li>
+          <li>Enviar comunicaciones por correo electrónico a las que te hayas suscrito</li>
         </ul>
       </PolicySection>
 
