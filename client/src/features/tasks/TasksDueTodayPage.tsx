@@ -126,10 +126,7 @@ function TaskRow({
             </span>
           )}
           {task.lead?.trade && (
-            <span
-              className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs text-amber-700"
-              data-testid={`badge-lead-trade-${task.id}`}
-            >
+            <span className="text-xs font-semibold text-amber-700" data-testid={`text-lead-trade-${task.id}`}>
               {task.lead.trade}
             </span>
           )}
