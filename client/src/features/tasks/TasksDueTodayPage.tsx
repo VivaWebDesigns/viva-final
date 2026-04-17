@@ -127,7 +127,7 @@ function TaskRow({
           )}
           {task.lead?.trade && (
             <span className="text-xs font-medium text-sky-700" data-testid={`text-lead-trade-${task.id}`}>
-              {task.lead.trade}
+              {(t.trades as Record<string, string>)[task.lead.trade.toLowerCase()] ?? task.lead.trade}
             </span>
           )}
         </div>
