@@ -107,7 +107,7 @@ function PrivacyPolicyContent() {
         </p>
       </PolicySection>
 
-      <PolicySection title="10. Términos de SMS y Política de Privacidad">
+      <PolicySection title="10. Comunicaciones">
         <p>
           Si te comunicas con Viva Web Designs LLC a través de nuestro sitio web, formularios, correo electrónico, teléfono o herramientas de programación, podemos contactarte con respecto a tu consulta, los servicios solicitados, citas, actualizaciones del proyecto o soporte al cliente.
         </p>
@@ -210,7 +210,7 @@ function PrivacyPolicyContent() {
         </p>
       </PolicySection>
 
-      <PolicySection title="10. SMS Terms &amp; Privacy Policy">
+      <PolicySection title="10. Communications">
         <p>
           If you contact Viva Web Designs LLC through our website, forms, email, phone, or scheduling tools, we may contact you regarding your inquiry, requested services, appointments, project updates, or customer support.
         </p>
