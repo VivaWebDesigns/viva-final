@@ -184,7 +184,7 @@ export default function DemoCompletedModal({
               <Button
                 className="w-full justify-start h-auto py-3 px-4"
                 variant="outline"
-                onClick={() => handleOutcomeSelect("not-interested")}
+                onClick={handleNotInterestedConfirm}
                 data-testid="button-demo-outcome-lost"
               >
                 <div className="text-left">
@@ -284,6 +284,7 @@ export default function DemoCompletedModal({
           </>
         )}
 
+        {/* NOT-INTERESTED SMS SCREEN — hidden until re-enabled
         {outcome === "not-interested" && (
           <>
             <div className="space-y-4 py-2">
@@ -327,6 +328,7 @@ export default function DemoCompletedModal({
             </DialogFooter>
           </>
         )}
+        */}
       </DialogContent>
     </Dialog>
   );
