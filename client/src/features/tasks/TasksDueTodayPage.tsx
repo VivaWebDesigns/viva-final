@@ -28,7 +28,7 @@ interface AutomationMeta {
 
 interface TaskWithContact extends FollowupTask {
   contact: { firstName: string; lastName: string | null; phone: string | null } | null;
-  company: { name: string } | null;
+  company: { name: string; industry: string | null } | null;
   lead: { trade: string | null } | null;
   automationMeta: AutomationMeta | null;
   opportunityStageSlug: string | null;

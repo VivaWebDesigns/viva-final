@@ -14,7 +14,7 @@ export interface TaskAutomationMeta {
 
 export type TaskWithContact = FollowupTask & {
   contact: { firstName: string; lastName: string | null; phone: string | null } | null;
-  company: { name: string } | null;
+  company: { name: string; industry: string | null } | null;
   lead: { trade: string | null } | null;
   automationMeta: TaskAutomationMeta | null;
   opportunityStageSlug: string | null;
@@ -187,7 +187,7 @@ async function enrichTasks(tasks: FollowupTask[]): Promise<TaskWithContact[]> {
     ...tasks.map(t => t.companyId).filter(Boolean) as string[],
   ])];
   const companies = companyIds.length
-    ? await db.select({ id: crmCompanies.id, name: crmCompanies.name })
+    ? await db.select({ id: crmCompanies.id, name: crmCompanies.name, industry: crmCompanies.industry })
         .from(crmCompanies)
         .where(inArray(crmCompanies.id, companyIds))
     : [];
@@ -207,7 +207,8 @@ async function enrichTasks(tasks: FollowupTask[]): Promise<TaskWithContact[]> {
     const company = (task.companyId ? companyMap[task.companyId] : null)
       ?? (contact?.companyId ? companyMap[contact.companyId] : null)
       ?? null;
-    const lead = task.leadId ? leadMap[task.leadId] ?? null : null;
+    const rawTrade = (task.leadId ? leadMap[task.leadId]?.trade : null) ?? company?.industry ?? null;
+    const lead: TaskWithContact["lead"] = rawTrade ? { trade: rawTrade } : null;
     const automationMeta = automationMetaMap.get(task.id) ?? null;
     const opportunityStageSlug = task.opportunityId ? oppStageMap[task.opportunityId] ?? null : null;
     return { ...task, contact, company, lead, automationMeta, opportunityStageSlug };
