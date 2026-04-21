@@ -6,7 +6,7 @@ import { useLocation } from "wouter";
 import {
   Search, Phone, ExternalLink, ChevronLeft, ChevronRight,
   ShoppingBag, AlertCircle, CheckCircle2, Clock, Eye, SkipForward,
-  ThumbsUp, ThumbsDown, X, Trash2,
+  ThumbsUp, ThumbsDown, X, Trash2, Ban,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
@@ -93,6 +93,7 @@ const ALL_STATUSES = [
   "manual_review_required",
   "converted",
   "skipped",
+  "duplicate_business",
 ] as const;
 
 type OutreachStatus = typeof ALL_STATUSES[number];
@@ -104,6 +105,7 @@ const STATUS_LABELS: Record<OutreachStatus, string> = {
   manual_review_required: "Manual Review",
   converted:              "Converted",
   skipped:                "Skipped",
+  duplicate_business:     "Duplicate Business",
 };
 
 const STATUS_BADGE_CLASSES: Record<OutreachStatus, string> = {
@@ -113,6 +115,7 @@ const STATUS_BADGE_CLASSES: Record<OutreachStatus, string> = {
   manual_review_required: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300",
   converted:              "bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300",
   skipped:                "bg-gray-100 text-gray-600 dark:bg-gray-800/50 dark:text-gray-400",
+  duplicate_business:     "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300",
 };
 
 const SUMMARY_COUNT_COLORS: Record<OutreachStatus, string> = {
@@ -122,6 +125,7 @@ const SUMMARY_COUNT_COLORS: Record<OutreachStatus, string> = {
   manual_review_required: "text-orange-600",
   converted:              "text-teal-600",
   skipped:                "text-gray-500",
+  duplicate_business:     "text-rose-600",
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -425,6 +429,24 @@ export default function MarketplacePendingOutreachPage() {
     },
   });
 
+  // ── Mark Duplicate Business ───────────────────────────────────────────────
+  const markDuplicateBusinessMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiFetch("POST", `/api/marketplace/pending-outreach/${id}/mark-duplicate-business`);
+      return res.json() as Promise<MarketplacePendingOutreach>;
+    },
+    onSuccess: () => {
+      invalidateAll();
+      toast({ title: "Marked as Duplicate Business" });
+    },
+    onError: (e: unknown) => {
+      const msg = e instanceof ApiError
+        ? ((e.body.message as string | undefined) ?? `Error ${e.status}`)
+        : e instanceof Error ? e.message : "Unknown error";
+      toast({ title: "Failed to mark as duplicate business", description: msg, variant: "destructive" });
+    },
+  });
+
   // ── Bulk Skip mutation ────────────────────────────────────────────────────
   const bulkSkipMutation = useMutation({
     mutationFn: async (ids: string[]) => {
@@ -588,11 +610,12 @@ export default function MarketplacePendingOutreachPage() {
     setConvertedLeadId(null);
   };
 
-  const canSkip      = (s: string) => ["ready_to_message", "awaiting_reply", "reply_received"].includes(s);
-  const canConvert   = (s: string) => s === "reply_received";
-  const canApprove   = (s: string) => s === "manual_review_required";
-  const canReject    = (s: string) => s === "manual_review_required";
-  const isConverted  = (s: string) => s === "converted";
+  const canSkip             = (s: string) => ["ready_to_message", "awaiting_reply", "reply_received"].includes(s);
+  const canConvert          = (s: string) => s === "reply_received";
+  const canApprove          = (s: string) => s === "manual_review_required";
+  const canReject           = (s: string) => s === "manual_review_required";
+  const isConverted         = (s: string) => s === "converted";
+  const canMarkDuplicate    = (s: string) => !["converted", "skipped", "duplicate_business"].includes(s);
 
   return (
     <div className="flex flex-col gap-6" data-testid="page-marketplace-pending-outreach">
@@ -627,7 +650,7 @@ export default function MarketplacePendingOutreachPage() {
               )}
             >
               <p className={cn("text-2xl font-bold", SUMMARY_COUNT_COLORS[status])}>{cnt}</p>
-              <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{STATUS_LABELS[status]}</p>
+              <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{STATUS_LABELS[status] ?? status}</p>
             </button>
           );
         })}
@@ -999,6 +1022,19 @@ export default function MarketplacePendingOutreachPage() {
                   </Button>
                 )}
 
+                {canMarkDuplicate(detailRecord.messageStatus) && (
+                  <Button
+                    variant="outline"
+                    className="w-full border-rose-200 text-rose-700 hover:bg-rose-50 hover:border-rose-300 dark:border-rose-800 dark:hover:bg-rose-950/20"
+                    onClick={() => markDuplicateBusinessMutation.mutate(detailRecord.id)}
+                    disabled={markDuplicateBusinessMutation.isPending}
+                    data-testid="button-mark-duplicate-business"
+                  >
+                    <Ban className="w-4 h-4 mr-2" />
+                    {markDuplicateBusinessMutation.isPending ? "Marking…" : "Duplicate Business"}
+                  </Button>
+                )}
+
                 {isConverted(detailRecord.messageStatus) && detailRecord.crmLeadId && (
                   <Button
                     variant="outline"
@@ -1011,12 +1047,12 @@ export default function MarketplacePendingOutreachPage() {
                   </Button>
                 )}
 
-                {detailRecord.messageStatus === "skipped" && (
+                {(detailRecord.messageStatus === "skipped" || detailRecord.messageStatus === "duplicate_business") && (
                   <p
                     className="text-sm text-muted-foreground text-center py-2"
                     data-testid="text-no-actions"
                   >
-                    No actions available for skipped records.
+                    No actions available for {detailRecord.messageStatus === "duplicate_business" ? "duplicate business" : "skipped"} records.
                   </p>
                 )}
 

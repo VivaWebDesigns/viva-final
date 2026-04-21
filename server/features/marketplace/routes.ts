@@ -12,6 +12,7 @@ import {
   pipelineStages,
   user,
   MARKETPLACE_PENDING_OUTREACH_STATUSES,
+  MARKETPLACE_PENDING_OUTREACH_NON_TERMINAL_STATUSES,
   hispanicNameAdditions,
 } from "@shared/schema";
 import { eq, and, desc, sql, ilike } from "drizzle-orm";
@@ -952,7 +953,7 @@ const markMessageSentSchema = z.object({
   outreachSentAt:  z.string().datetime().optional(),
 }).strict();
 
-const BLOCKED_FOR_MARK_SENT: string[] = ["skipped", "converted"];
+const BLOCKED_FOR_MARK_SENT: string[] = ["skipped", "converted", "duplicate_business"];
 
 router.post(
   "/pending-outreach/:id/mark-message-sent",
@@ -983,6 +984,36 @@ router.post(
       outreachMessage: d.outreachMessage,
     });
 
+    return res.json(updated);
+  }
+);
+
+// ─── Mark Duplicate Business ────────────────────────────────────────────────
+
+const ELIGIBLE_FOR_DUPLICATE_BUSINESS = MARKETPLACE_PENDING_OUTREACH_NON_TERMINAL_STATUSES;
+
+router.post(
+  "/pending-outreach/:id/mark-duplicate-business",
+  botOrRole,
+  async (req, res) => {
+    const id = req.params.id as string;
+
+    const record = await marketplaceStorage.getPendingOutreachById(id);
+    if (!record) {
+      return res.status(404).json({ message: "Not found" });
+    }
+
+    if (!ELIGIBLE_FOR_DUPLICATE_BUSINESS.includes(record.messageStatus as any)) {
+      return res.status(400).json({
+        message: `Cannot mark as duplicate business: record status is "${record.messageStatus}". Only active (non-terminal) records may be marked as duplicate business.`,
+        currentStatus: record.messageStatus,
+      });
+    }
+
+    const updated = await marketplaceStorage.markPendingOutreachDuplicateBusiness(id);
+    if (!updated) {
+      return res.status(404).json({ message: "Not found" });
+    }
     return res.json(updated);
   }
 );

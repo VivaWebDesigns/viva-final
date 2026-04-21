@@ -326,6 +326,17 @@ export async function bulkApprovePendingOutreach(
   return { updatedIds, count: updatedIds.length, newStatus: "reply_received" };
 }
 
+export async function markPendingOutreachDuplicateBusiness(
+  id: string
+): Promise<MarketplacePendingOutreach | undefined> {
+  const [result] = await db
+    .update(marketplacePendingOutreach)
+    .set({ messageStatus: "duplicate_business", updatedAt: new Date() })
+    .where(eq(marketplacePendingOutreach.id, id))
+    .returning();
+  return result;
+}
+
 export async function deletePendingOutreach(
   id: string
 ): Promise<boolean> {

@@ -1069,6 +1069,7 @@ export const MARKETPLACE_PENDING_OUTREACH_STATUSES = [
   "converted",
   "skipped",
   "manual_review_required",
+  "duplicate_business",
 ] as const;
 export type MarketplacePendingOutreachStatus = typeof MARKETPLACE_PENDING_OUTREACH_STATUSES[number];
 
