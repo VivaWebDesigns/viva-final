@@ -1,3 +1,5 @@
+import { normalizeForScoring } from "./nameUtils";
+
 // Hispanic/Latino name lists for the marketplace name precheck.
 //
 // SCORING
@@ -1230,7 +1232,7 @@ const RAW_HISPANIC_FIRST_NAMES: string[] = [
 ];
 
 const normalize = (raw: string[]): string[] =>
-  Array.from(new Set(raw.map((n) => n.trim().toLowerCase()))).sort();
+  Array.from(new Set(raw.map((n) => normalizeForScoring(n)))).sort();
 
 export const HISPANIC_LAST_NAMES: string[] = normalize(RAW_HISPANIC_LAST_NAMES);
 export const HISPANIC_FIRST_NAMES: string[] = normalize(RAW_HISPANIC_FIRST_NAMES);

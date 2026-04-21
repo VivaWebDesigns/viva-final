@@ -3,6 +3,7 @@ import {
   HISPANIC_LAST_NAMES,
   ANGLICIZED_FIRST_NAME_MAP,
 } from "./hispanicNames";
+import { normalizeForScoring } from "./nameUtils";
 
 // Suffixes stripped before scoring so they don't become the "last name"
 const NAME_SUFFIXES = new Set(["jr", "sr", "ii", "iii", "iv", "v"]);
@@ -22,8 +23,9 @@ export async function loadAdminNameAdditions(): Promise<void> {
     const { hispanicNameAdditions } = await import("@shared/schema");
     const rows = await db.select().from(hispanicNameAdditions);
     for (const row of rows) {
-      if (row.type === "surname") _lastNames.add(row.name);
-      else if (row.type === "first_name") _firstNames.add(row.name);
+      const n = normalizeForScoring(row.name);
+      if (row.type === "surname") _lastNames.add(n);
+      else if (row.type === "first_name") _firstNames.add(n);
     }
     console.log(`[nameScore] loaded ${rows.length} admin name addition(s) from DB`);
   } catch (err: any) {
@@ -59,9 +61,6 @@ export interface NameScoreResult {
   matchNotes: string[];
 }
 
-function stripDiacritics(s: string): string {
-  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-}
 
 // Levenshtein edit distance
 function editDistance(a: string, b: string): number {
@@ -114,7 +113,7 @@ function fuzzyMatchFirstName(name: string): { match: string; distance: number } 
 }
 
 export function scoreHispanicName(sellerName: string): NameScoreResult {
-  const normalized = stripDiacritics(sellerName.trim().toLowerCase())
+  const normalized = normalizeForScoring(sellerName)
     .replace(/[^a-z\s]/g, "")
     .trim();
 
