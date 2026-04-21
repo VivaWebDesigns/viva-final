@@ -990,7 +990,7 @@ router.post(
 
 // ─── Mark Duplicate Business ────────────────────────────────────────────────
 
-const ELIGIBLE_FOR_DUPLICATE_BUSINESS = MARKETPLACE_PENDING_OUTREACH_NON_TERMINAL_STATUSES;
+const ELIGIBLE_FOR_DUPLICATE_BUSINESS: string[] = [...MARKETPLACE_PENDING_OUTREACH_NON_TERMINAL_STATUSES];
 
 router.post(
   "/pending-outreach/:id/mark-duplicate-business",
@@ -1003,7 +1003,7 @@ router.post(
       return res.status(404).json({ message: "Not found" });
     }
 
-    if (!ELIGIBLE_FOR_DUPLICATE_BUSINESS.includes(record.messageStatus as any)) {
+    if (!ELIGIBLE_FOR_DUPLICATE_BUSINESS.includes(record.messageStatus)) {
       return res.status(400).json({
         message: `Cannot mark as duplicate business: record status is "${record.messageStatus}". Only active (non-terminal) records may be marked as duplicate business.`,
         currentStatus: record.messageStatus,
