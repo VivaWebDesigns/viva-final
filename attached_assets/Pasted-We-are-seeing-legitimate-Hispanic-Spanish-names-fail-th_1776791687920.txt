@@ -1,0 +1,58 @@
+We are seeing legitimate Hispanic/Spanish names fail the name check when they contain accented characters, for example:
+- Alemán
+- José
+- García
+- María
+- Muñoz
+
+Please inspect the Hispanic/Spanish name scoring flow and fix accent/diacritic normalization so names are evaluated correctly for both first names and surnames.
+
+What to do
+1. Find the backend code path that:
+   - parses seller names
+   - splits first/last names
+   - scores or checks names against the Hispanic/Spanish name lists
+
+2. Add safe normalization before matching/scoring:
+   - lowercase
+   - trim
+   - remove diacritic marks / accents
+   - preserve original raw values for display/storage where appropriate
+
+3. Apply normalization consistently to:
+   - incoming seller first names
+   - incoming seller last names
+   - any lookup/list comparison values used by the scorer for both first and last names
+
+4. Keep the original accented name for display/UI.
+   This is important because our sales reps are Latin and the accent marks can help them pronounce names more naturally.
+   The accent-stripped version should be used only for internal matching/scoring logic.
+
+5. Do not change visible UI display names.
+   Do not replace stored/displayed raw names with normalized names unless there is already a separate internal normalized field/pipeline meant for matching only.
+
+6. Verify examples like:
+   - Alemán -> Aleman
+   - García -> Garcia
+   - Muñoz -> Munoz
+   - José -> Jose
+   - María -> Maria
+   - Ángel -> Angel
+
+7. Tell me:
+   - exact files changed
+   - exact function(s) updated
+   - whether this affects only scoring or also manual override/add-name flows
+
+Guardrails
+- Keep this tight and non-destructive
+- Do not redesign the scoring system
+- Do not change thresholds unless absolutely necessary
+- Do not remove support for original accented display values
+- Do not change how names are shown to users unless you find an actual bug in display rendering
+
+Output
+- root cause
+- files/functions involved
+- exact normalization fix
+- any edge cases to be aware of
