@@ -1,0 +1,59 @@
+VIVA BACKEND — PLAN MODE
+
+#58 - Add Duplicate Business terminal status for Marketplace records blocked by CRM duplicate conversion
+
+What & Why
+In Marketplace, we are running into cases where different Facebook seller profiles / listings actually belong to the same business and resolve to the same phone number.
+
+Right now, when the user tries to convert one of these from the extension and the phone matches an existing CRM lead, convert is correctly blocked with a duplicate-lead response. That duplicate blocking should stay in place.
+
+The problem is that the Marketplace pending-outreach row then remains stuck in an active state like Awaiting Reply, even though we already know it should never be converted. I do not want to delete these rows because I still want to preserve the seller profile URL and listing URL history.
+
+We need a terminal Marketplace status for this exact scenario.
+
+Decision
+Add a new terminal Marketplace status:
+- slug: duplicate_business
+- label: Duplicate Business
+
+This status means:
+- keep the Marketplace row
+- keep seller profile URL
+- keep listing URL
+- do not convert to CRM
+- do not treat the row as active work anymore
+
+Done looks like
+- duplicate_business is a valid Marketplace status in backend/domain logic
+- records can be intentionally moved into duplicate_business
+- duplicate_business is treated as terminal / non-convertible where appropriate
+- convert-to-crm duplicate blocking remains unchanged
+- seller profile URL and listing URL remain preserved
+- no deletion is required
+
+Scope
+- Add duplicate_business to the Marketplace status model/enum/type definitions
+- Add or update the backend route/action needed so the extension can mark a pending-outreach row as duplicate_business
+- Ensure this status is treated as terminal in Marketplace workflow logic where appropriate
+- Keep existing duplicate-lead convert blocking intact
+
+Guardrails
+- Do not weaken or bypass CRM duplicate checks
+- Do not auto-convert duplicate rows
+- Do not delete Marketplace rows
+- Do not redesign duplicate handling across the whole CRM
+- Do not add unrelated schema/workflow changes unless truly required for this status to function
+
+What to inspect
+- Marketplace pending outreach status enum/type/model definitions
+- Backend status validation and update paths
+- convert-to-crm duplicate error handling path
+- Any workflow logic that assumes the current set of active/terminal Marketplace statuses
+- Any list/filter/count/grouping logic in the backend that depends on status buckets
+
+What I need back
+1. Exact backend files that need to change
+2. Whether this can reuse an existing status-update path or needs a new route/action
+3. Any places where current status assumptions will break once duplicate_business is added
+4. The minimal clean implementation plan
+5. Any schema/db implications, if any
