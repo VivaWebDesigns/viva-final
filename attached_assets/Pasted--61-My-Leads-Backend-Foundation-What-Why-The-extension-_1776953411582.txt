@@ -1,0 +1,198 @@
+#61 - My Leads Backend Foundation
+
+What & Why
+The extension currently uses a shared bot token for all requests, so
+createdBy is null on marketplace records created through that path.
+This task prepares only the backend foundation for a future lightweight
+lead-gen "My Leads" view.
+
+The backend must stay structurally the same.
+Do not add new columns.
+Do not add derived fields.
+Do not add payload bloat.
+The only schema change allowed is a createdBy index.
+
+This task should:
+- add a createdBy index for efficient per-user queries
+- add a new scoped endpoint returning only the current session user’s
+  own records
+- use only existing schema fields
+- keep bot-token flows unchanged
+
+No extension changes.
+No admin UI changes.
+No existing route modifications beyond adding the new endpoint.
+No changes to the bot-secret auth path.
+
+Done looks like
+- GET /api/marketplace/pending-outreach/my-leads exists
+- Route requires a valid session user with role:
+  - lead_gen
+  - admin
+  - developer
+- Route returns only records where createdBy = req.authUser.id
+- Response is paginated
+- Response returns only existing fields already present in the schema
+- No new columns or derived fields are introduced
+- Optional ?statusGroup=open|converted|closed filter works
+- Default sort is updatedAt DESC, with createdAt DESC fallback
+- A createdBy index exists on marketplace_pending_outreach
+- Existing bot-token flows remain unchanged
+- Existing POST /pending-outreach still stores createdBy for
+  session-based calls (already wired — verify only)
+- Historical records created through the current bot-token path may
+  still have createdBy = null and are not backfilled by this task
+
+Important product direction
+This backend task is only laying the foundation for a future extension
+view.
+
+The intended extension behavior later is:
+- main tab = Active
+- converted leads do not remain in the worker’s visible queue
+- after conversion, the lead disappears from Active
+- the extension will later show lightweight trust/accountability via:
+  - Active count
+  - Converted today count
+  - Duplicate / Closed today count
+  - optional toast or success confirmation
+
+That later extension behavior should NOT cause backend payload expansion
+in this task.
+
+Out of scope
+- Extension changes
+- Admin UI changes
+- Ownership checks on existing mutation routes
+  (deferred — noted as follow-up)
+- Any migration beyond npm run db:push
+- Changes to the bot-secret auth path
+- Any backfill of historical createdBy=null records
+- Any new schema fields
+- Any new response-only convenience fields
+
+Steps
+
+1. Schema index
+- Add mpo_created_by_idx on createdBy in the
+  marketplacePendingOutreach table definition in shared/schema.ts,
+  following the existing mpo_* naming pattern
+- Run npm run db:push to apply
+
+2. Storage function
+- Add listMyLeads(userId, filters) to
+  server/features/marketplace/storage.ts
+- Select only existing schema fields using an explicit column list
+  (never select *)
+- Do not add derived fields
+- Do not reshape the schema model
+- Filter where created_by = userId
+- Support optional statusGroup parameter that maps:
+  - open → existing non-terminal Marketplace statuses
+  - converted → ["converted"]
+  - closed → ["skipped", "duplicate_business"]
+- Reuse existing Marketplace status constants/helpers if they already
+  exist; only define local arrays if no shared constant exists
+- Paginate with:
+  - default page = 1
+  - default limit = 50
+  - max limit = 100
+- Sort by:
+  - updatedAt DESC
+  - fallback createdAt DESC
+- Return:
+  - { items, total, page, limit }
+- total must reflect the count after applying:
+  - createdBy = userId
+  - optional statusGroup filter
+
+3. Route
+- Add GET /pending-outreach/my-leads to
+  server/features/marketplace/routes.ts
+- Register it before GET /pending-outreach/:id so it does not get
+  swallowed by the wildcard route
+- Gate with requireAuth plus allowed roles:
+  - lead_gen
+  - admin
+  - developer
+- Bot-secret requests must not be able to use this endpoint
+- Parse and validate:
+  - ?statusGroup
+  - ?page
+  - ?limit
+- Validation rules:
+  - invalid statusGroup returns 400
+  - page and limit must be positive integers
+  - default page=1
+  - default limit=50
+  - max limit=100
+- Call listMyLeads and return the result
+
+Response shape
+Use existing schema fields only.
+Do not add any new fields for extension convenience.
+
+Safe returned fields for this endpoint:
+- id
+- sellerFullName
+- businessName
+- city
+- state
+- tradeGuess
+- messageStatus
+- createdAt
+- updatedAt
+- convertedAt
+- listingUrl
+- sellerProfileUrl
+
+Important note:
+The future extension UI may choose to display only:
+- sellerFullName
+- messageStatus
+- createdAt
+
+But this backend task should not create any special reduced payload just
+for that UI. Use the existing safe field subset only.
+
+Exclude
+- outreachMessage
+- nameScore
+- precheckReason
+- precheckPassed
+- lastReplyText
+- manualReviewReason
+- replyMatchConfidence
+- replyMatchMethod
+- threadIdentifier
+- extractedPhone
+- replyPhoneNormalized
+- crmLeadId
+- createdBy
+- facebookJoinYear
+
+Deferred (follow-up task)
+Ownership enforcement on existing mutation routes:
+- PATCH /pending-outreach/:id
+- mark-message-sent
+- mark-duplicate-business
+- capture-reply
+- convert-to-crm
+
+This remains deferred until the extension switches from bot-secret auth
+to real session-based auth so operator identity is actually present on
+those calls.
+
+Relevant files
+- shared/schema.ts
+- server/features/marketplace/storage.ts
+- server/features/marketplace/routes.ts
+
+My main revisions are:
+
+stronger language that the backend must not add fields
+clearer separation between backend foundation now and extension behavior later
+keeping the backend safe-field subset intact, while making clear the extension will only render 3 fields
+preserving statusGroup=converted|closed on the backend even though the first extension version may only use Active
+
+That gives you flexibility later without letting the backend plan drift.

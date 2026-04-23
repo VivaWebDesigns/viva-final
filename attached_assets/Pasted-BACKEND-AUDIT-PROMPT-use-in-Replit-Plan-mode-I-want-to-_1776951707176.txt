@@ -1,0 +1,226 @@
+BACKEND AUDIT PROMPT — use in Replit Plan mode
+
+I want to add a new extension-facing “My Leads” view for lead-gen
+users, but before writing any code I need a precise backend audit.
+
+Context:
+- We already have a Facebook Marketplace extension + Viva backend.
+- Current workflow uses marketplace_pending_outreach.
+- We want lead-gen users to stay out of /admin.
+- The extension should eventually show ONLY the current user’s own
+  Marketplace records, including:
+  - open / in-progress leads
+  - converted leads
+  - duplicate_business / other terminal outcomes as appropriate
+- This view is for trust/accountability so users can see what they
+  created and what counted, without seeing the broader Viva strategy.
+- We do NOT want full CRM/admin visibility.
+- We do NOT want broad access to all Marketplace records.
+- We do NOT want this task to drift into implementation yet.
+
+Your job right now is ONLY to inspect the backend and report exactly
+what already exists, what is missing, and the safest direction for a
+future build prompt.
+
+Please analyze and answer in a structured way:
+
+1. Current auth / identity model
+- How does the backend currently identify the signed-in user?
+- What user/session fields are available server-side?
+- Is there already a role for lead_gen or similar?
+- Is there already a reliable user id we can use to scope records?
+
+2. marketplace_pending_outreach ownership
+- Does marketplace_pending_outreach currently store who created the
+  record?
+- If yes, identify the exact field(s), type, and how reliably they are
+  populated.
+- If no, say that clearly.
+- Identify any related tables or audit fields that could be used to
+  infer ownership.
+
+3. Existing Marketplace endpoints
+- List all current relevant Marketplace endpoints.
+- For each, say:
+  - purpose
+  - auth path
+  - whether it returns all records or scoped records
+  - whether it is safe or unsafe for lead-gen use
+- Call out whether any endpoint already supports a “my leads” style
+  response.
+
+4. Current status model
+- List the Marketplace statuses currently supported.
+- Identify which are non-terminal vs terminal.
+- Confirm how converted and duplicate_business are represented.
+- Identify the cleanest status grouping for future extension tabs such
+  as:
+  - Open
+  - Converted
+  - Duplicate / Closed
+
+5. Safe data shape for extension-side My Leads
+- Based on the existing schema, propose the minimum safe response shape
+  for a future “my leads” endpoint.
+- Include only fields lead-gen should see.
+- Exclude anything that reveals broader admin / CRM strategy.
+- Tell me which fields are already available and which would require
+  backend changes.
+
+6. Permission / exposure risks
+- Identify anything that would accidentally expose:
+  - all Marketplace records
+  - other users’ records
+  - CRM/admin context
+  - Viva branding/strategy details
+- Be specific.
+
+7. Exact gap analysis
+- Tell me the smallest backend changes likely needed to support a future
+  extension-side My Leads view.
+- Examples:
+  - new scoped endpoint
+  - ownership field enforcement
+  - query filters
+  - pagination
+  - limited serializer / DTO
+  - role gating
+- Do NOT write code yet.
+- Do NOT implement.
+- Do NOT make assumptions if you cannot verify them in the codebase.
+
+8. Final output format
+Give me:
+A. What already exists
+B. What is missing
+C. What must be verified before implementation
+D. The safest backend direction for the later build prompt
+
+Important:
+- Be conservative and exact.
+- Base everything on the actual codebase, not guesses.
+- If something is unclear, explicitly say “not verified.”
+- Do not start building yet.
+
+
+EXTENSION AUDIT PROMPT — use in Replit Plan mode
+
+I want to add a lightweight “My Leads” view inside the Marketplace
+extension, but before writing any code I need a precise extension audit.
+
+Context:
+- The extension currently plugs into the Facebook Marketplace workflow.
+- We want to keep lead-gen users inside the extension and OUT of
+  Viva /admin.
+- Future goal: the extension should have a lightweight My Leads area
+  showing ONLY that user’s own records, likely grouped into:
+  - Open
+  - Converted
+  - Duplicate / Closed
+- It should feel similar in spirit to the Marketplace page layout, but
+  remain lightweight and purpose-built.
+- This is about visibility and trust, not broader admin access.
+- We do NOT want implementation yet.
+- We do NOT want feature creep.
+
+Your job right now is ONLY to inspect the extension codebase and report
+what already exists, what is missing, and the cleanest direction for a
+future build prompt.
+
+Please analyze and answer in a structured way:
+
+1. Current extension structure
+- Identify the relevant extension files for:
+  - popup UI
+  - popup logic
+  - auth/session handling
+  - API requests
+  - current Marketplace workflow state
+- Tell me how the extension is organized today.
+
+2. Existing UI surfaces
+- What screens/views/states already exist in the extension?
+- Is there already any list/table/history view?
+- Is there already any reusable layout pattern that could support a
+  future My Leads screen?
+
+3. Current auth behavior
+- How does the extension authenticate to the backend right now?
+- Cookie session, bearer token, other?
+- Is the current auth model enough to safely request “my leads” data,
+  or would it likely need backend/session support?
+- Do not guess—verify from code.
+
+4. Existing data fetching utilities
+- Identify current fetch helpers / API client patterns.
+- Identify where a future My Leads request would best plug in.
+- Note any rate/performance concerns in the current approach.
+
+5. Current state management
+- How is popup state handled today?
+- Would adding a new tab/panel be straightforward or messy?
+- Are there existing patterns for:
+  - tab switching
+  - conditional panels
+  - loading states
+  - empty states
+  - error handling
+
+6. Lightweight UI feasibility
+- Based on the actual extension code, what is the cleanest way to add a
+  lightweight My Leads view without bloating the popup?
+- Would this be better as:
+  - a new tab
+  - a slide-over panel
+  - a second view/state
+  - another pattern already used in the extension
+- Recommend the cleanest option based on the current structure.
+
+7. Table/list feasibility
+- Can the extension reasonably support a compact list/table with columns
+  like:
+  - Seller Name
+  - Company
+  - City / State
+  - Trade
+  - Status
+  - Created
+  - Updated
+- If space is too tight, propose the best compact fallback based on the
+  current popup dimensions and UI patterns.
+
+8. Performance / UX risks
+- Identify what would make this heavy or slow.
+- Identify the safest lightweight behavior, such as:
+  - fetch only on demand
+  - limit results
+  - paginate if needed
+  - do not background sync constantly
+- Be specific.
+
+9. Exact gap analysis
+- Tell me the smallest extension-side changes likely needed later for a
+  proper My Leads feature.
+- Examples:
+  - new tab/view
+  - new fetch call
+  - list renderer
+  - filter chips/tabs
+  - detail modal/drawer if needed
+  - row click behavior
+- Do NOT write code yet.
+- Do NOT implement.
+- Do NOT invent backend endpoints unless they already exist.
+
+10. Final output format
+Give me:
+A. What already exists
+B. What is missing
+C. What must be verified before implementation
+D. The safest extension direction for the later build prompt
+
+Important:
+- Be exact and non-destructive.
+- Base everything on the real extension codebase.
+- If something is unclear, explicitly say “not verified.”
+- Do not start building yet.

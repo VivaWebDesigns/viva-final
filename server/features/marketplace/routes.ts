@@ -905,6 +905,39 @@ router.post(
   }
 );
 
+// ─── My Leads: scoped to the authenticated session user ───────────────────
+// Requires a real session — bot-secret requests have no req.authUser and
+// cannot pass requireRole. Returns only the current user's own records
+// using a safe, lead-gen-visible field subset.
+router.get(
+  "/pending-outreach/my-leads",
+  requireRole("admin", "developer", "lead_gen"),
+  async (req, res) => {
+    const VALID_GROUPS = ["open", "converted", "closed"] as const;
+
+    const rawGroup    = req.query.statusGroup;
+    const rawPage     = req.query.page;
+    const rawLimit    = req.query.limit;
+
+    if (rawGroup !== undefined && !VALID_GROUPS.includes(rawGroup as any)) {
+      return res.status(400).json({
+        message: `Invalid statusGroup. Must be one of: ${VALID_GROUPS.join(", ")}`,
+      });
+    }
+
+    const page  = Math.max(1, Number(rawPage)  || 1);
+    const limit = Math.min(100, Math.max(1, Number(rawLimit) || 50));
+
+    const result = await marketplaceStorage.listMyLeads(req.authUser!.id, {
+      statusGroup: rawGroup as "open" | "converted" | "closed" | undefined,
+      page,
+      limit,
+    });
+
+    return res.json(result);
+  }
+);
+
 router.get(
   "/pending-outreach/:id",
   botOrRole,

@@ -1,0 +1,181 @@
+BACKEND BUILD PROMPT — use in Replit Plan mode first
+
+I want to prepare the backend for a future extension-side "My Leads"
+view for lead-gen users.
+
+This is a backend/auth task first.
+Do NOT work on the extension UI in this task.
+Do NOT drift into unrelated cleanup.
+Keep this scoped and non-destructive.
+
+Context
+- We already have a Facebook Marketplace extension tied to Viva.
+- We want lead-gen users to stay out of /admin.
+- Later, the extension should show only the current operator’s own
+  Marketplace records:
+  - Open
+  - Converted
+  - Closed / Duplicate
+- Right now, the backend audit found that:
+  - marketplace_pending_outreach already has createdBy
+  - createdBy is set from req.authUser?.id
+  - but extension-originated requests currently use a shared bot token,
+    so req.authUser is undefined and createdBy is being stored as null
+  - there is no scoped "my leads" endpoint yet
+- We do NOT want to expose broader Marketplace/admin/CRM data.
+- We do NOT want to break the existing extension flow.
+- We do NOT want a big auth rewrite in this task unless truly required.
+
+Primary goal
+Prepare the backend so that a future extension can reliably support a
+true per-user "My Leads" view.
+
+Your job in this task
+1. Inspect the current backend implementation carefully
+2. Produce a precise implementation plan
+3. Then implement only the minimum backend changes needed for this
+   foundation
+4. Do not touch extension files
+5. Do not add UI pages
+6. Do not refactor unrelated Marketplace logic
+
+Target outcomes
+A. New records created by authenticated lead-gen users can reliably store
+   createdBy = req.authUser.id
+B. There is a safe backend endpoint for "my leads" that returns only the
+   current user’s own records
+C. The response shape is limited to safe lead-gen-visible fields only
+D. Existing extension bot-token flows are not broken by this task
+E. Scope stays narrow and clean
+
+Requirements
+
+1. Preserve existing behavior
+- Do not break current bot-token extension flows
+- Do not remove current auth paths unless absolutely necessary
+- This task is about adding the proper foundation, not forcing the full
+  migration in one step
+
+2. Add a new scoped endpoint
+Create a new backend endpoint for something like:
+GET /api/marketplace/pending-outreach/my-leads
+
+Requirements for this endpoint:
+- authenticated session user required
+- intended for lead_gen users (admin/developer may also be allowed if
+  that already fits existing role patterns)
+- must filter strictly to records where createdBy = req.authUser.id
+- must NOT return all records
+- must support simple status-group filtering if clean to do now,
+  otherwise document the recommended query format for the next task
+
+Preferred grouping support if easy and clean:
+- open
+- converted
+- closed
+
+Map status groups conservatively based on the existing status model.
+
+3. Safe response shape only
+Return only fields that are appropriate for a lead-gen-facing extension
+list.
+
+Safe fields likely include:
+- id
+- sellerFullName
+- businessName
+- city
+- state
+- tradeGuess
+- messageStatus
+- createdAt
+- updatedAt
+- convertedAt
+- listingUrl
+- sellerProfileUrl
+
+Do NOT include fields that reveal strategy / internal logic / sensitive
+internals unless clearly required:
+- outreachMessage
+- nameScore
+- precheckReason
+- precheckPassed
+- lastReplyText
+- manualReviewReason
+- replyMatchConfidence
+- replyMatchMethod
+- threadIdentifier
+- extractedPhone
+- replyPhoneNormalized
+- crmLeadId
+
+If any field name differs in the real schema, use the real schema names.
+
+4. createdBy support
+- Verify the current create path again
+- Make sure authenticated session-based creates can store createdBy
+  correctly
+- Do not break the existing bot-token path
+- If a small guard or comment is needed to make this behavior clearer,
+  do it cleanly
+
+5. Ownership safety
+For THIS task, prioritize the new read endpoint first.
+Only add ownership checks to existing mutation routes if:
+- it is small,
+- clearly safe,
+- and does not risk breaking current bot-token behavior
+
+If ownership checks would broaden scope or risk breaking current flows,
+do not implement them now.
+Instead, document them clearly as the next follow-up task.
+
+6. Database/indexing
+- Add an index for createdBy if appropriate in the schema/migration
+  approach used in this repo
+- Keep it minimal and consistent with the existing database patterns
+- Do not make speculative schema changes beyond what this task needs
+
+7. Pagination / limits
+Keep this lightweight and extension-friendly.
+- Support a conservative default limit if appropriate
+- Do not overengineer pagination
+- If the repo already has a list-response pattern, follow it
+- If not, keep it simple and consistent
+
+8. Security / exposure
+Be careful not to expose:
+- other users’ leads
+- all Marketplace records
+- admin-only summary data
+- CRM/admin context not needed for lead gen
+
+9. Output / delivery
+Before coding, give me:
+1. a short implementation plan
+2. any risk flags
+3. exact files you expect to touch
+
+After coding, give me:
+1. what changed
+2. what endpoint was added
+3. exact response fields returned
+4. anything intentionally deferred
+5. a concise test plan
+
+Important constraints
+- No extension changes in this task
+- No admin UI changes
+- No Marketplace page redesign
+- No broad auth rewrite
+- No drift
+- Be exact and non-destructive
+- Use the real codebase, not assumptions
+
+Definition of done
+- Backend has a safe, user-scoped "my leads" endpoint
+- Endpoint returns only safe fields
+- Query is scoped by req.authUser.id
+- createdBy indexing/foundation is in place if needed
+- Existing bot-token workflow remains intact
+- Follow-up work is clearly separated for the later extension task

@@ -1,0 +1,127 @@
+#61 - My Leads Backend Foundation
+
+What & Why
+The extension currently uses a shared bot token for all requests, so
+createdBy is null on marketplace records created through that path.
+This task prepares the backend foundation for a future per-user
+"My Leads" view: adds a createdBy index for efficient per-user queries,
+and adds a new scoped endpoint that returns only the current user's own
+records using existing schema fields only and a safe lead-gen-visible
+response shape.
+
+No extension changes.
+No admin UI changes.
+No existing route modifications beyond adding the new endpoint.
+Do not add new columns.
+Do not add derived fields.
+Do not add extra response fields for convenience.
+
+Done looks like
+- GET /api/marketplace/pending-outreach/my-leads exists
+- Route requires a valid session user with role:
+  - lead_gen
+  - admin
+  - developer
+- Route returns only records where createdBy = req.authUser.id
+- Response is paginated and contains only safe fields
+  (no outreach script, no scoring internals, no raw PII)
+- Optional ?statusGroup=open|converted|closed filter works
+- Default sort is updatedAt DESC, with createdAt DESC fallback
+- A createdBy index exists on marketplace_pending_outreach
+- Existing bot-token flows remain unchanged by this task
+- Existing POST /pending-outreach correctly stores createdBy for
+  session-based calls (already wired — verify and annotate only if needed)
+- Historical records created through the current bot-token path may
+  still have createdBy = null and are not backfilled by this task
+
+Out of scope
+- Extension changes
+- Admin UI changes
+- Ownership checks on existing mutation routes
+  (deferred — noted as follow-up)
+- Any migration beyond npm run db:push
+- Changes to the bot-secret auth path
+- Any backfill of historical createdBy=null records
+
+Steps
+Schema index — Add mpo_created_by_idx on createdBy in the
+marketplacePendingOutreach table definition in shared/schema.ts,
+following the existing mpo_* naming pattern. Run npm run db:push to apply.
+
+Storage function — Add listMyLeads(userId, filters) to
+server/features/marketplace/storage.ts. Select only the safe field
+projection using an explicit column list (not select *). Use existing
+schema fields only. Filter where created_by = userId. Support optional
+statusGroup parameter that maps:
+- open → non-terminal statuses
+- converted → ["converted"]
+- closed → ["skipped", "duplicate_business"]
+
+Reuse existing Marketplace status constants/helpers if they already
+exist. Paginate with default page=1, default limit=50, max limit=100.
+Sort by updatedAt DESC with createdAt DESC fallback.
+Return { items, total, page, limit }.
+total must reflect the count after applying createdBy = userId and the
+optional statusGroup filter.
+
+Route — Add GET /pending-outreach/my-leads to
+server/features/marketplace/routes.ts, registered before
+GET /pending-outreach/:id to avoid the wildcard.
+Gate with requireAuth plus allowed roles:
+- lead_gen
+- admin
+- developer
+
+Bot-secret requests must not be able to use this endpoint.
+Parse and validate ?statusGroup, ?page, ?limit from query.
+Validation rules:
+- invalid statusGroup returns 400
+- page and limit must be positive integers
+- default page=1
+- default limit=50
+- max limit=100
+
+Call listMyLeads. Return the result.
+
+Safe response fields
+Return these existing fields only:
+- id
+- sellerFullName
+- businessName
+- city
+- state
+- tradeGuess
+- messageStatus
+- createdAt
+- updatedAt
+- convertedAt
+- listingUrl
+- sellerProfileUrl
+
+Exclude:
+- outreachMessage
+- nameScore
+- precheckReason
+- precheckPassed
+- lastReplyText
+- manualReviewReason
+- replyMatchConfidence
+- replyMatchMethod
+- threadIdentifier
+- extractedPhone
+- replyPhoneNormalized
+- crmLeadId
+- createdBy
+- facebookJoinYear
+
+Deferred (follow-up task)
+Ownership enforcement on existing mutation routes
+(PATCH /pending-outreach/:id, mark-message-sent,
+mark-duplicate-business, capture-reply, convert-to-crm)
+remains deferred until the extension switches from bot-secret to session
+auth so real user IDs are present on those calls.
+
+Relevant files
+- shared/schema.ts
+- server/features/marketplace/storage.ts
+- server/features/marketplace/routes.ts

@@ -1119,6 +1119,7 @@ export const marketplacePendingOutreach = pgTable("marketplace_pending_outreach"
   index("mpo_message_status_idx").on(t.messageStatus),
   index("mpo_created_at_idx").on(t.createdAt),
   index("mpo_crm_lead_id_idx").on(t.crmLeadId),
+  index("mpo_created_by_idx").on(t.createdBy),
 ]);
 
 export const insertMarketplacePendingOutreachSchema = createInsertSchema(marketplacePendingOutreach).omit({

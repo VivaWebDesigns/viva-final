@@ -359,6 +359,89 @@ export async function bulkDeletePendingOutreach(
   return { deletedIds, count: deletedIds.length };
 }
 
+export interface ListMyLeadsFilters {
+  statusGroup?: "open" | "converted" | "closed";
+  page:         number;
+  limit:        number;
+}
+
+export interface MyLeadsItem {
+  id:              string;
+  sellerFullName:  string;
+  businessName:    string | null;
+  city:            string | null;
+  state:           string | null;
+  tradeGuess:      string | null;
+  messageStatus:   string;
+  createdAt:       Date;
+  updatedAt:       Date;
+  convertedAt:     Date | null;
+  listingUrl:      string | null;
+  sellerProfileUrl: string;
+}
+
+export interface ListMyLeadsResult {
+  items: MyLeadsItem[];
+  total: number;
+  page:  number;
+  limit: number;
+}
+
+const STATUS_GROUP_MAP: Record<"open" | "converted" | "closed", string[]> = {
+  open:      [...MARKETPLACE_PENDING_OUTREACH_NON_TERMINAL_STATUSES],
+  converted: ["converted"],
+  closed:    ["skipped", "duplicate_business"],
+};
+
+export async function listMyLeads(
+  userId: string,
+  filters: ListMyLeadsFilters
+): Promise<ListMyLeadsResult> {
+  const { statusGroup, page, limit } = filters;
+  const offset = (page - 1) * limit;
+
+  const conditions = [eq(marketplacePendingOutreach.createdBy, userId)];
+
+  if (statusGroup) {
+    conditions.push(inArray(marketplacePendingOutreach.messageStatus, STATUS_GROUP_MAP[statusGroup]));
+  }
+
+  const where = and(...conditions);
+
+  const [totalRow] = await db
+    .select({ count: count() })
+    .from(marketplacePendingOutreach)
+    .where(where);
+
+  const items = await db
+    .select({
+      id:              marketplacePendingOutreach.id,
+      sellerFullName:  marketplacePendingOutreach.sellerFullName,
+      businessName:    marketplacePendingOutreach.businessName,
+      city:            marketplacePendingOutreach.city,
+      state:           marketplacePendingOutreach.state,
+      tradeGuess:      marketplacePendingOutreach.tradeGuess,
+      messageStatus:   marketplacePendingOutreach.messageStatus,
+      createdAt:       marketplacePendingOutreach.createdAt,
+      updatedAt:       marketplacePendingOutreach.updatedAt,
+      convertedAt:     marketplacePendingOutreach.convertedAt,
+      listingUrl:      marketplacePendingOutreach.listingUrl,
+      sellerProfileUrl: marketplacePendingOutreach.sellerProfileUrl,
+    })
+    .from(marketplacePendingOutreach)
+    .where(where)
+    .orderBy(desc(marketplacePendingOutreach.updatedAt), desc(marketplacePendingOutreach.createdAt))
+    .limit(limit)
+    .offset(offset);
+
+  return {
+    items,
+    total: Number(totalRow?.count ?? 0),
+    page,
+    limit,
+  };
+}
+
 export async function getPendingOutreachSummary(): Promise<Record<string, number>> {
   const rows = await db
     .select({
