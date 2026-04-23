@@ -276,16 +276,7 @@ router.delete("/users/:id", requireRole("admin"), async (req, res) => {
     }
   }
 
-  // 4. Auto-clean auth plumbing and ephemeral data (safe, no business history lost)
-  await db.update(auditLogs).set({ userId: null }).where(eq(auditLogs.userId, targetId));
-  await db.delete(notificationPreferences).where(eq(notificationPreferences.userId, targetId));
-  await db.delete(notifications).where(eq(notifications.recipientId, targetId));
-  await db.delete(chatReadState).where(eq(chatReadState.userId, targetId));
-  await db.delete(chatReactions).where(eq(chatReactions.userId, targetId));
-  await db.delete(session).where(eq(session.userId, targetId));
-  await db.delete(account).where(eq(account.userId, targetId));
-
-  // 5. Business-record safety check — block if any meaningful records exist
+  // 4. Business-record safety check — block before touching anything if records exist
   const [
     [{ count: chatMsgCount }],
     [{ count: chatDmCount }],
@@ -344,7 +335,16 @@ router.delete("/users/:id", requireRole("admin"), async (req, res) => {
     });
   }
 
-  // 6. Safe to delete
+  // 5. All clear — auto-clean auth plumbing and ephemeral data, then delete
+  await db.update(auditLogs).set({ userId: null }).where(eq(auditLogs.userId, targetId));
+  await db.delete(notificationPreferences).where(eq(notificationPreferences.userId, targetId));
+  await db.delete(notifications).where(eq(notifications.recipientId, targetId));
+  await db.delete(chatReadState).where(eq(chatReadState.userId, targetId));
+  await db.delete(chatReactions).where(eq(chatReactions.userId, targetId));
+  await db.delete(session).where(eq(session.userId, targetId));
+  await db.delete(account).where(eq(account.userId, targetId));
+
+  // 6. Delete user
   await db.delete(user).where(eq(user.id, targetId));
 
   await logAudit({
