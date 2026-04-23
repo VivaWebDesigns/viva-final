@@ -856,6 +856,7 @@ export const es: AdminTranslations = {
       developer: "Desarrollador",
       sales_rep: "Vendedor",
       lead_gen: "Lead Gen",
+      extension_worker: "Extension Worker",
     },
     editMember: "Editar {{name}}",
     accountStatus: "Estado de Cuenta",

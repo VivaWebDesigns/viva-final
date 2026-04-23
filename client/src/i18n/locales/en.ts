@@ -854,6 +854,7 @@ export const en = {
       developer: "Developer",
       sales_rep: "Sales Rep",
       lead_gen: "Lead Gen",
+      extension_worker: "Extension Worker",
     },
     editMember: "Edit {{name}}",
     accountStatus: "Account Status",
