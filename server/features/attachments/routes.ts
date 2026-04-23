@@ -7,6 +7,14 @@ import { eq, and } from "drizzle-orm";
 import * as storageService from "../../services/storage";
 
 const router = Router();
+
+router.use(requireAuth, (req, res, next) => {
+  if (req.authUser?.role === "extension_worker") {
+    return res.status(403).json({ message: "Forbidden" });
+  }
+  next();
+});
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: storageService.MAX_FILE_SIZE_BYTES },

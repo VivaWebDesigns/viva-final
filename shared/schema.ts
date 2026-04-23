@@ -689,7 +689,7 @@ export type IntegrationRecord = typeof integrationRecords.$inferSelect;
 export type User = typeof user.$inferSelect;
 export type Session = typeof session.$inferSelect;
 
-export const ROLES = ["admin", "developer", "sales_rep", "lead_gen"] as const;
+export const ROLES = ["admin", "developer", "sales_rep", "lead_gen", "extension_worker"] as const;
 export type Role = typeof ROLES[number];
 
 // ─── Team Chat ────────────────────────────────────────────────────────

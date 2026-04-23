@@ -4,6 +4,13 @@ import * as notificationService from "./service";
 
 const router = Router();
 
+router.use(requireAuth, (req, res, next) => {
+  if (req.authUser?.role === "extension_worker") {
+    return res.status(403).json({ message: "Forbidden" });
+  }
+  next();
+});
+
 router.get("/", requireAuth, async (req, res) => {
   try {
     const userId = req.authUser!.id;

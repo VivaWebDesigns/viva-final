@@ -156,7 +156,7 @@ router.post(
       }
     }
     res.locals.isAdminBotCall = false;
-    return requireRole("admin", "developer", "lead_gen")(req, res, next);
+    return requireRole("admin", "developer", "lead_gen", "extension_worker")(req, res, next);
   },
   async (req, res) => {
     const schema = z.object({
@@ -173,7 +173,7 @@ router.post(
     // below) to restrict the add-name popup back to admin/developer only.
     const adminActionsAllowed: boolean =
       res.locals.isAdminBotCall === true ||
-      ["admin", "developer", "lead_gen"].includes(req.authUser?.role ?? "");
+      ["admin", "developer", "lead_gen", "extension_worker"].includes(req.authUser?.role ?? "");
 
     const normalizedUrl = normalizeSellerUrl(parsed.data.sellerProfileUrl);
     const score = scoreHispanicName(parsed.data.sellerName);
@@ -400,7 +400,7 @@ router.post(
 
 router.post(
   "/create-outreach-lead",
-  requireRole("admin", "developer", "lead_gen"),
+  requireRole("admin", "developer", "lead_gen", "extension_worker"),
   async (req, res) => {
     const schema = z.object({
       sellerName:                 z.string().trim().min(1),
@@ -613,8 +613,8 @@ router.post(
 );
 
 // ─── Pending Outreach routes ───────────────────────────────────────────────
-// All three routes share the same auth middleware: MARKETPLACE_BOT_SECRET
-// bearer bypass, then fall back to requireRole("admin","developer","lead_gen").
+// All routes share the same auth middleware: MARKETPLACE_BOT_SECRET bearer
+// bypass, then fall back to requireRole("admin","developer","lead_gen","extension_worker").
 
 function botOrRole(req: Request, res: Response, next: NextFunction) {
   const botSecret = process.env.MARKETPLACE_BOT_SECRET;
@@ -622,19 +622,19 @@ function botOrRole(req: Request, res: Response, next: NextFunction) {
     const authHeader = req.headers.authorization ?? "";
     if (authHeader === `Bearer ${botSecret}`) return next();
   }
-  return requireRole("admin", "developer", "lead_gen")(req, res, next);
+  return requireRole("admin", "developer", "lead_gen", "extension_worker")(req, res, next);
 }
 
-// Bot secret OR session with admin, developer, or lead_gen role.
-// To restrict back to admin/developer only: remove "lead_gen" here and from
-// the adminActionsAllowed line in the /precheck handler above.
+// Bot secret OR session with admin, developer, lead_gen, or extension_worker role.
+// To restrict back to admin/developer only: remove "lead_gen" and "extension_worker"
+// here and from the adminActionsAllowed line in the /precheck handler above.
 function botOrAdminRole(req: Request, res: Response, next: NextFunction) {
   const botSecret = process.env.MARKETPLACE_BOT_SECRET;
   if (botSecret) {
     const authHeader = req.headers.authorization ?? "";
     if (authHeader === `Bearer ${botSecret}`) return next();
   }
-  return requireRole("admin", "developer", "lead_gen")(req, res, next);
+  return requireRole("admin", "developer", "lead_gen", "extension_worker")(req, res, next);
 }
 
 const createPendingOutreachSchema = z.object({
@@ -911,7 +911,7 @@ router.post(
 // using a safe, lead-gen-visible field subset.
 router.get(
   "/pending-outreach/my-leads",
-  requireRole("admin", "developer", "lead_gen"),
+  requireRole("admin", "developer", "lead_gen", "extension_worker"),
   async (req, res) => {
     const VALID_GROUPS = ["open", "converted", "closed"] as const;
 

@@ -11,6 +11,13 @@ import { CHANNEL_DEFINITIONS, normalizeChannelId } from "@shared/channels";
 
 const router = Router();
 
+router.use(requireAuth, (req, res, next) => {
+  if (req.authUser?.role === "extension_worker") {
+    return res.status(403).json({ message: "Forbidden" });
+  }
+  next();
+});
+
 // ── One-time migration: rename legacy "ventas" channel → "sales" ──────
 (async () => {
   try {

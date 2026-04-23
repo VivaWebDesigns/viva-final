@@ -7,6 +7,13 @@ import { z } from "zod";
 
 const router = Router();
 
+router.use(requireAuth, (req, res, next) => {
+  if (req.authUser?.role === "extension_worker") {
+    return res.status(403).json({ message: "Forbidden" });
+  }
+  next();
+});
+
 const createDemoConfigSchema = z.object({
   leadId: z.string().optional().nullable(),
   businessName: z.string().min(1),

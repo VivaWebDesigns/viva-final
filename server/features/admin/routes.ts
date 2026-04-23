@@ -197,7 +197,7 @@ router.post("/users", requireRole("admin"), async (req, res) => {
       name: z.string().min(1),
       email: z.string().email(),
       password: z.string().min(8),
-      role: z.enum(["admin", "developer", "sales_rep", "lead_gen"]).default("sales_rep"),
+      role: z.enum(["admin", "developer", "sales_rep", "lead_gen", "extension_worker"]).default("sales_rep"),
     });
     const { name, email, password, role: newRole } = schema.parse(req.body);
 
@@ -224,7 +224,7 @@ router.post("/users", requireRole("admin"), async (req, res) => {
 router.put("/users/:id", requireRole("admin"), async (req, res) => {
   try {
     const schema = z.object({
-      role: z.enum(["admin", "developer", "sales_rep", "lead_gen"]).optional(),
+      role: z.enum(["admin", "developer", "sales_rep", "lead_gen", "extension_worker"]).optional(),
       name: z.string().min(1).optional(),
       banned: z.boolean().optional(),
     });
