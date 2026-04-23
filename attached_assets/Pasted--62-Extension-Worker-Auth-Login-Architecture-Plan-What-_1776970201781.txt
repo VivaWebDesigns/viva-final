@@ -1,0 +1,176 @@
+#62 - Extension Worker Auth / Login Architecture Plan
+
+What & Why
+We are changing direction.
+
+We do NOT want lead gen workers signing into Viva.
+We do NOT want them using /admin.
+We do NOT want them knowing the broader Viva setup if avoidable.
+
+The extension should remain the worker-facing tool.
+Admin should be able to create a restricted worker account or credential
+from the backend, and the worker should sign into the extension itself.
+
+This task is NOT to implement yet.
+This is an architecture / audit / plan task only.
+
+Goal
+Inspect the real codebase and design the cleanest, safest way to support:
+- backend-managed worker identity
+- extension-only sign-in
+- per-worker attribution for created marketplace records
+- future worker-specific Active / My Leads view
+- no Viva/admin access for workers
+
+Important product constraints
+- Workers should not log into Viva directly
+- Workers should not use /admin
+- Extension should remain lightweight
+- Do not break the current working extension flow
+- Do not expose broader CRM/admin/company strategy
+- We want admin to be able to create, activate, disable, and manage
+  worker access cleanly
+- We want each worker’s actions attributable without using the shared bot
+  identity forever
+
+Your job in this task
+Audit the backend and extension code and produce the best implementation
+direction for a worker-auth system that lives in the extension, not in
+Viva admin UI.
+
+Do NOT implement yet.
+Do NOT modify files yet.
+Do NOT drift into My Leads UI yet.
+
+Please answer in a structured way:
+
+1. Current auth reality
+- How does the extension authenticate today?
+- How does the backend authenticate Marketplace routes today?
+- What parts of the current auth model can be reused?
+- What parts clearly do NOT fit the worker-login goal?
+
+2. Feasible worker-auth models
+Evaluate realistic options for extension worker identity.
+At minimum evaluate:
+
+Option A:
+Admin-created worker accounts in backend + extension login form +
+backend-issued worker token
+
+Option B:
+Admin-created worker activation links / one-time setup flow +
+extension stores issued worker token
+
+Option C:
+Separate worker API key per user entered into extension manually
+
+Option D:
+Any cleaner option already supported by the current codebase
+
+For each option, explain:
+- security
+- admin manageability
+- worker UX
+- implementation complexity
+- revocation / disabling
+- fit for our secrecy / compartmentalization goal
+
+3. Best-fit recommendation
+Recommend ONE best approach for this project.
+
+The recommended solution should:
+- keep workers out of Viva
+- let admin create/manage workers
+- let workers sign into extension only
+- support per-worker attribution
+- support future Active / My Leads view
+- keep the extension lightweight
+- avoid long-term technical debt
+
+4. Data / identity model
+Without implementing, explain what identity object should exist for
+extension workers.
+
+Questions to answer:
+- Should this be the existing user table with a restricted role, or a
+  separate table/model?
+- If existing user table, how do we keep workers isolated from normal
+  Viva users?
+- If separate table, what fields are needed at minimum?
+- How should records in marketplace_pending_outreach be attributed to
+  the worker identity?
+- Is createdBy still the right field, or is a separate attribution field
+  needed?
+
+Be exact and conservative.
+Do not add fields casually.
+Recommend the smallest clean model.
+
+5. Auth token/session design
+Explain the cleanest auth mechanism for extension workers:
+- token-based
+- session-based
+- refresh tokens or not
+- where credentials/tokens would live
+- how the extension would present them on requests
+- how backend would verify them
+- how admin could revoke them
+
+6. Admin workflow
+Describe the ideal backend/admin workflow for managing workers:
+- create worker
+- activate worker
+- reset credential
+- disable worker
+- audit worker activity
+
+Do NOT build admin UI yet.
+Just specify what the later implementation task would need to support.
+
+7. Extension workflow
+Describe the ideal worker experience:
+- first install
+- sign in
+- signed-out state
+- expired/invalid credential state
+- daily use
+- what happens if access is revoked
+
+Keep it lightweight and neutral.
+No Viva/admin concepts should be required in the worker flow.
+
+8. Route / permission model
+Identify how Marketplace routes should behave under the future worker
+auth model:
+- which routes should allow worker-auth access
+- which should remain admin/dev only
+- what permission boundaries are needed
+- how to avoid accidental CRM/admin exposure
+
+9. Migration / rollout plan
+Describe the safest rollout path from today’s shared bot token model to
+worker-specific identity.
+
+Questions:
+- can bot token coexist temporarily?
+- how do we avoid breaking the current workflow?
+- when would we remove the shared bot token?
+- how do we handle existing records with no worker attribution?
+
+10. Final output format
+Give me:
+A. What exists today
+B. Realistic architecture options
+C. Your recommended worker-auth model
+D. Exact implementation direction for the later build task
+E. Risks / tradeoffs to watch
+
+Important
+- Base everything on the real codebase, not guesses
+- Be conservative and exact
+- Do not implement
+- Do not touch files
+- Do not drift into extension UI features beyond what is necessary to
+  explain login/auth flow
+- This is specifically an extension worker auth architecture plan

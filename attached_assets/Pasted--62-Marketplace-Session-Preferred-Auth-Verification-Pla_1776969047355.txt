@@ -1,0 +1,96 @@
+#62 - Marketplace Session-Preferred Auth Verification & Plan
+
+What & Why
+We now have the backend foundation for My Leads:
+- createdBy exists and is indexed
+- GET /api/marketplace/pending-outreach/my-leads exists and is scoped
+  by req.authUser.id
+
+The current blocker is operator identity for extension-created records.
+The extension audit found that the extension already sends both:
+- Authorization: Bearer <shared bot token>
+- credentials: "include"
+
+That suggests the cleanest direction may be to let Marketplace routes
+prefer a valid Viva session when present, and fall back to the bot token
+otherwise.
+
+Before implementing that, I want a backend-only verification and plan
+based on the actual live backend code.
+
+This is a Plan mode task only.
+Do not implement yet.
+Do not modify files yet.
+
+Goal
+Verify whether session-preferred dual auth is the correct and safest
+backend direction for Marketplace routes, and identify the exact minimal
+implementation path.
+
+Please inspect the real backend code and answer in a structured way.
+
+1. Current auth path on Marketplace routes
+- What middleware currently protects Marketplace routes?
+- Where is bot-token auth implemented?
+- Where is BetterAuth / session auth implemented?
+- In what order do these run today?
+- On Marketplace requests, can req.authUser already be populated from a
+  valid session cookie, or not?
+
+2. CORS reality for the extension
+- Inspect the real live/backend CORS config
+- Does it allow chrome-extension:// origins?
+- Does it send Access-Control-Allow-Credentials: true?
+- Are there environment-specific differences between dev/live?
+- Be exact and cite the real code paths involved
+
+3. Session cookie reality
+- Inspect how the auth/session cookie is actually configured
+- What SameSite value is used?
+- Is Secure enabled?
+- Would this cookie be sent on extension-origin requests to the live
+  backend?
+- If not, say exactly why not
+
+4. Feasibility of session-preferred dual auth
+Evaluate whether the following design is safe and compatible:
+- if a valid session exists, use req.authUser.id
+- if no valid session exists, fall back to existing bot-token auth
+- existing extension flows continue to work
+- createdBy gets populated for logged-in operators automatically
+
+Tell me:
+- whether this is truly feasible in the current backend
+- what exact middleware/routes would need to change
+- what could break
+
+5. Minimal implementation direction
+Without coding yet, identify the smallest clean implementation plan.
+Break it into:
+A. middleware/auth changes
+B. cookie/CORS changes if needed
+C. route-level changes if needed
+D. rollout expectations
+
+6. Important edge cases
+Call out any issues such as:
+- session cookie not available cross-origin
+- browser sends cookie but backend ignores it
+- bot token path overriding session identity
+- dev vs live mismatch
+- extension users not logged into Viva
+- accidental admin exposure
+
+7. Final output format
+Give me:
+A. What is confirmed true
+B. What is not true / not verified
+C. Whether session-preferred dual auth is the right next step
+D. The exact implementation plan I should use for the next build task
+
+Important
+- Use the real backend code, not guesses
+- Be conservative and exact
+- Do not implement
+- Do not touch extension files
+- This is specifically a backend verification + planning task

@@ -1,0 +1,177 @@
+#62 - Extension-Only Worker Auth Using Existing User Accounts
+
+What & Why
+We are locking the direction now.
+
+Use the existing user/account system for attribution.
+Do NOT create a new marketplace_workers table.
+Do NOT add any new Marketplace attribution field.
+Do NOT require workers to sign into Viva in a browser.
+Do NOT send workers through /admin.
+
+The goal is:
+- each lead gen worker has their own restricted account
+- each worker signs into the extension only
+- the extension uses a bearer token for that worker
+- backend attributes records using the existing user identity model
+- backend Marketplace tables remain structurally unchanged
+- later, the extension will show only:
+  - Active leads
+  - converted counter
+
+This task is to inspect the codebase and produce the exact clean
+implementation direction for that model.
+
+This is Plan mode only.
+Do NOT implement yet.
+Do NOT modify files yet.
+
+Hard constraints
+- Use existing user accounts
+- Use existing createdBy attribution
+- No new Marketplace tables
+- No new attribution fields
+- No Viva browser-session requirement for workers
+- No worker access to /admin
+- Keep the extension lightweight
+- Do not drift into building the full Active/My Leads UI yet
+
+Goal
+Design the cleanest architecture for:
+- extension-only worker sign-in
+- bearer-token auth for extension use
+- existing user-table attribution
+- no Marketplace schema changes
+- no Viva/admin exposure to workers
+
+Please answer in a structured way:
+
+1. Current reusable pieces
+Inspect the real codebase and identify exactly what can be reused for
+this model:
+- existing user table / role model
+- existing auth stack
+- existing BetterAuth features/plugins
+- existing createdBy behavior
+- existing my-leads behavior
+- existing extension fetch/auth pattern
+
+Be exact about what already fits this direction.
+
+2. Required auth flow
+Based on the real code, what is the cleanest way for the extension to
+authenticate a restricted worker account without requiring a Viva browser
+session?
+
+Specifically evaluate and confirm whether this direction works:
+- worker enters username/email + password in the extension
+- backend authenticates that worker account
+- backend returns a bearer token suitable for extension use
+- extension stores it locally
+- extension sends Authorization: Bearer <worker-token> on Marketplace
+  requests
+- backend resolves that token back to the existing user account
+- createdBy continues using the existing user id
+
+Be clear whether this can be done cleanly with the existing auth system
+or whether anything is missing.
+
+3. Best-fit implementation direction
+Recommend ONE exact approach for this project.
+
+The answer should preserve:
+- existing user accounts
+- existing createdBy
+- no new Marketplace tables
+- no new attribution fields
+- extension-only login experience
+- no Viva browser login requirement
+- ability to support multiple lead gen workers at the same time
+
+4. Data model confirmation
+Confirm the exact identity model to use.
+
+Questions to answer:
+- Is the existing user table sufficient?
+- Is lead_gen the correct role, or should there be a different
+  restricted role?
+- Can createdBy remain exactly as-is?
+- Are any schema changes required outside of auth/session support?
+- Are any Marketplace schema changes required? (expected answer should
+  be no unless code proves otherwise)
+
+5. Auth/token mechanics
+Explain the exact token/session path for the extension-only flow.
+
+Need to know:
+- what endpoint would handle extension login
+- what token format/mechanism would be used
+- whether BetterAuth bearer support is the right fit
+- how the token would be verified on existing Marketplace routes
+- whether existing middleware like requireAuth / requireRole / botOrRole
+  can stay mostly intact
+- what, if anything, must change so that worker bearer tokens resolve to
+  req.authUser correctly
+
+6. Admin / worker management implications
+Without building admin UI yet, identify what backend support is needed
+for admins to manage workers using the existing user system:
+- create worker
+- disable worker
+- reset password
+- list workers
+- keep worker restricted from broader system access
+
+State whether existing BetterAuth admin functionality already covers
+this or if thin wrapper endpoints are needed.
+
+7. Extension implications
+Without building yet, identify the exact extension changes that would
+later be needed:
+- signed-out state
+- login form
+- token storage
+- token injection into fetches
+- 401 / revoked-access handling
+
+Do NOT drift into full Active list UI yet.
+Only cover what is necessary for auth/login flow.
+
+8. Permission boundaries
+Be very explicit about how to keep workers out of Viva/admin while still
+using existing user accounts.
+
+Questions:
+- What routes would a lead_gen user still be able to hit?
+- What routes remain blocked?
+- Is there any risk that using existing user accounts accidentally gives
+  them more visibility than intended?
+- What safeguards should be part of the later build task?
+
+9. Migration / rollout plan
+Describe the clean rollout from today’s shared bot-token model to the
+new extension-only worker login model.
+
+Need clear answers:
+- can bot token coexist temporarily?
+- how do we avoid breaking current workers?
+- when does createdBy begin populating per worker?
+- what happens to old records with null createdBy?
+- when would the shared bot token be retired?
+
+10. Final output format
+Give me:
+A. What already exists and can be reused
+B. What exact auth approach you recommend
+C. Why it is better than a separate worker table/token system
+D. Exact implementation direction for the next build task
+E. Risks / tradeoffs to watch
+
+Important
+- Base everything on the real codebase, not guesses
+- Be conservative and exact
+- Do not implement
+- Do not modify files
+- Do not propose new Marketplace tables
+- Do not propose new attribution fields
+- Do not drift into the full Active/My Leads feature yet
