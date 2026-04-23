@@ -1,8 +1,16 @@
 import { Router } from "express";
 import { requireAuth, requireRole } from "../auth/middleware";
 import { db } from "../../db";
-import { user, contacts, docArticles, docCategories, integrationRecords, auditLogs, crmLeads, crmCompanies, crmContacts as crmContactsTable, pipelineOpportunities } from "@shared/schema";
-import { sql, desc, eq } from "drizzle-orm";
+import {
+  user, contacts, docArticles, docCategories, integrationRecords, auditLogs,
+  crmLeads, crmCompanies, crmContacts as crmContactsTable, pipelineOpportunities,
+  session, account, notifications, notificationPreferences,
+  chatMessages, chatDmMessages, chatReadState, chatReactions,
+  crmLeadNotes, clientNotes, pipelineActivities,
+  followupTasks, onboardingRecords, onboardingChecklistItems, onboardingNotes,
+  attachments, demoConfigs, marketplacePendingOutreach,
+} from "@shared/schema";
+import { sql, desc, eq, or } from "drizzle-orm";
 import { auth } from "../auth/auth";
 import { logAudit } from "../audit/service";
 import * as pipelineStorage from "../pipeline/storage";
@@ -243,6 +251,112 @@ router.put("/users/:id", requireRole("admin"), async (req, res) => {
   } catch (err: any) {
     res.status(400).json({ message: err.message });
   }
+});
+
+router.delete("/users/:id", requireRole("admin"), async (req, res) => {
+  const targetId = req.params.id as string;
+
+  // 1. Self-delete guard
+  if (req.authUser?.id === targetId) {
+    return res.status(400).json({ message: "You cannot delete your own account." });
+  }
+
+  // 2. Verify user exists and capture details for audit log
+  const [target] = await db.select().from(user).where(eq(user.id, targetId));
+  if (!target) return res.status(404).json({ message: "User not found." });
+
+  // 3. Last-admin guard
+  if (target.role === "admin") {
+    const [{ count: remainingAdmins }] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(user)
+      .where(sql`role = 'admin' AND id != ${targetId}`);
+    if (remainingAdmins === 0) {
+      return res.status(400).json({ message: "Cannot delete the last admin account." });
+    }
+  }
+
+  // 4. Auto-clean auth plumbing and ephemeral data (safe, no business history lost)
+  await db.update(auditLogs).set({ userId: null }).where(eq(auditLogs.userId, targetId));
+  await db.delete(notificationPreferences).where(eq(notificationPreferences.userId, targetId));
+  await db.delete(notifications).where(eq(notifications.recipientId, targetId));
+  await db.delete(chatReadState).where(eq(chatReadState.userId, targetId));
+  await db.delete(chatReactions).where(eq(chatReactions.userId, targetId));
+  await db.delete(session).where(eq(session.userId, targetId));
+  await db.delete(account).where(eq(account.userId, targetId));
+
+  // 5. Business-record safety check — block if any meaningful records exist
+  const [
+    [{ count: chatMsgCount }],
+    [{ count: chatDmCount }],
+    [{ count: mpoCount }],
+    [{ count: leadsCount }],
+    [{ count: leadNotesCount }],
+    [{ count: clientNotesCount }],
+    [{ count: opportunitiesCount }],
+    [{ count: activitiesCount }],
+    [{ count: tasksCount }],
+    [{ count: onboardingCount }],
+    [{ count: checklistCount }],
+    [{ count: onboardingNotesCount }],
+    [{ count: attachmentsCount }],
+    [{ count: articlesCount }],
+    [{ count: demosCount }],
+  ] = await Promise.all([
+    db.select({ count: sql<number>`count(*)::int` }).from(chatMessages).where(eq(chatMessages.senderId, targetId)),
+    db.select({ count: sql<number>`count(*)::int` }).from(chatDmMessages).where(or(eq(chatDmMessages.senderId, targetId), eq(chatDmMessages.recipientId, targetId))),
+    db.select({ count: sql<number>`count(*)::int` }).from(marketplacePendingOutreach).where(eq(marketplacePendingOutreach.createdBy, targetId)),
+    db.select({ count: sql<number>`count(*)::int` }).from(crmLeads).where(eq(crmLeads.assignedTo, targetId)),
+    db.select({ count: sql<number>`count(*)::int` }).from(crmLeadNotes).where(eq(crmLeadNotes.authorId, targetId)),
+    db.select({ count: sql<number>`count(*)::int` }).from(clientNotes).where(eq(clientNotes.authorId, targetId)),
+    db.select({ count: sql<number>`count(*)::int` }).from(pipelineOpportunities).where(eq(pipelineOpportunities.assignedTo, targetId)),
+    db.select({ count: sql<number>`count(*)::int` }).from(pipelineActivities).where(eq(pipelineActivities.userId, targetId)),
+    db.select({ count: sql<number>`count(*)::int` }).from(followupTasks).where(or(eq(followupTasks.assignedTo, targetId), eq(followupTasks.createdBy, targetId))),
+    db.select({ count: sql<number>`count(*)::int` }).from(onboardingRecords).where(eq(onboardingRecords.assignedTo, targetId)),
+    db.select({ count: sql<number>`count(*)::int` }).from(onboardingChecklistItems).where(eq(onboardingChecklistItems.completedBy, targetId)),
+    db.select({ count: sql<number>`count(*)::int` }).from(onboardingNotes).where(eq(onboardingNotes.userId, targetId)),
+    db.select({ count: sql<number>`count(*)::int` }).from(attachments).where(eq(attachments.uploaderUserId, targetId)),
+    db.select({ count: sql<number>`count(*)::int` }).from(docArticles).where(eq(docArticles.authorId, targetId)),
+    db.select({ count: sql<number>`count(*)::int` }).from(demoConfigs).where(eq(demoConfigs.createdByUserId, targetId)),
+  ]);
+
+  const blockers: Record<string, number> = {};
+  if (chatMsgCount > 0) blockers.chatMessages = chatMsgCount;
+  if (chatDmCount > 0) blockers.directMessages = chatDmCount;
+  if (mpoCount > 0) blockers.marketplaceLeads = mpoCount;
+  if (leadsCount > 0) blockers.assignedLeads = leadsCount;
+  if (leadNotesCount > 0) blockers.leadNotes = leadNotesCount;
+  if (clientNotesCount > 0) blockers.clientNotes = clientNotesCount;
+  if (opportunitiesCount > 0) blockers.opportunities = opportunitiesCount;
+  if (activitiesCount > 0) blockers.pipelineActivities = activitiesCount;
+  if (tasksCount > 0) blockers.tasks = tasksCount;
+  if (onboardingCount > 0) blockers.onboardingRecords = onboardingCount;
+  if (checklistCount > 0) blockers.checklistItems = checklistCount;
+  if (onboardingNotesCount > 0) blockers.onboardingNotes = onboardingNotesCount;
+  if (attachmentsCount > 0) blockers.attachments = attachmentsCount;
+  if (articlesCount > 0) blockers.docArticles = articlesCount;
+  if (demosCount > 0) blockers.demoConfigs = demosCount;
+
+  if (Object.keys(blockers).length > 0) {
+    return res.status(409).json({
+      message: "This user has existing records and cannot be deleted. Ban the account instead to preserve history.",
+      blockers,
+    });
+  }
+
+  // 6. Safe to delete
+  await db.delete(user).where(eq(user.id, targetId));
+
+  await logAudit({
+    userId: req.authUser?.id,
+    action: "delete_user",
+    entity: "user",
+    entityId: targetId,
+    metadata: { name: target.name, email: target.email, role: target.role },
+    ipAddress: req.ip,
+  });
+
+  res.json({ message: "User deleted successfully." });
 });
 
 export default router;

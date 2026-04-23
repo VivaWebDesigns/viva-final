@@ -867,6 +867,13 @@ export const en = {
     userCreated: "New team member added successfully.",
     userCreatedTitle: "User created",
     userUpdatedTitle: "User updated",
+    deleteAccount: "Delete Account",
+    deleteConfirmTitle: "Permanently delete this account?",
+    deleteConfirmBody: "This removes {{name}}'s login credentials permanently and cannot be undone. Only delete accounts created in error or test accounts with no activity. To deactivate an active user, ban them instead.",
+    deleteConfirmButton: "Delete permanently",
+    deleteBlockedTitle: "Cannot delete account",
+    userDeletedTitle: "Account deleted",
+    userDeleted: "The account has been permanently deleted.",
   },
   automations: {
     tabLabel: "Automations",

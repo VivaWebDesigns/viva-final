@@ -1,0 +1,115 @@
+#66 - Admin: Guarded Delete User Action
+
+What & Why
+Right now admin can ban users, but not delete them.
+We want to add a guarded Delete User action.
+
+Direction is locked:
+- Ban remains the normal operational deactivation path
+- Delete is allowed only when it is safe
+- If the user has related records that should preserve history or
+  attribution, delete must be blocked with a clear message telling admin
+  to ban instead
+- This must be safe for extension_worker users and all other user roles
+- Do not break existing user management
+
+This task is to inspect the real codebase and produce the exact clean
+implementation direction for a guarded delete flow.
+
+This is Plan mode only.
+Do NOT implement yet.
+Do NOT modify files yet.
+
+Goal
+Design the smallest safe admin-side delete-user flow that:
+- adds a Delete action in admin user management
+- confirms intent before deletion
+- checks backend safety before deleting
+- blocks deletion when related records exist
+- preserves the existing Ban flow
+
+Hard constraints
+- Ban must stay
+- Delete must be guarded, not unrestricted
+- Do not orphan related records
+- Do not break attribution/history
+- If deletion is unsafe, backend must reject with a clear message
+- Keep the admin UI change compact
+- Do not drift into broader admin redesign
+
+Please answer in a structured way:
+
+1. Current user-management reality
+Inspect the real codebase and identify:
+- current admin user routes
+- current create/edit/ban behavior
+- whether any delete route already exists
+- how the admin UI currently renders actions
+
+2. Related-record safety audit
+Identify what user-linked records exist that matter for delete safety.
+
+Be explicit about:
+- marketplace_pending_outreach.createdBy
+- any CRM lead ownership/assignment
+- chat/messages
+- notifications
+- attachments
+- sessions
+- any other tables that reference user.id
+
+For each reference, say:
+- whether delete would fail due to FK/reference constraints
+- whether it would orphan useful history
+- whether delete should therefore be blocked
+
+3. Best delete policy
+Recommend the exact delete rule.
+
+For example:
+- allow delete only if user has no related records
+- otherwise block delete and require Ban instead
+
+If there are a few tables that can be safely ignored/cleaned up
+automatically (like sessions), say so explicitly.
+Be conservative.
+
+4. Backend implementation direction
+Without coding yet, specify the cleanest backend design:
+- endpoint shape
+- required role guard
+- safety checks
+- delete behavior
+- failure response message
+- success response shape
+
+5. Admin UI implementation direction
+Without coding yet, specify the cleanest UI behavior:
+- where the Delete button should appear
+- how dangerous styling should look relative to Ban
+- confirmation step wording
+- what message to show when delete is blocked
+- what success behavior should be
+
+6. Edge cases
+Call out:
+- deleting yourself
+- deleting the last admin
+- deleting users with createdBy-linked Marketplace records
+- deleting banned users
+- deleting test users with no activity
+
+7. Final output format
+Give me:
+A. what exists today
+B. what related-record constraints matter
+C. the exact guarded delete policy
+D. the implementation plan for backend + admin UI
+E. risks to avoid
+
+Important
+- Be exact and conservative
+- Base everything on the real codebase
+- Do not implement yet
+- Do not drift
+- Preserve Ban as the default operational path

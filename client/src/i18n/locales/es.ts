@@ -869,6 +869,13 @@ export const es: AdminTranslations = {
     userCreated: "Nuevo miembro del equipo agregado correctamente.",
     userCreatedTitle: "Usuario creado",
     userUpdatedTitle: "Usuario actualizado",
+    deleteAccount: "Eliminar Cuenta",
+    deleteConfirmTitle: "¿Eliminar permanentemente esta cuenta?",
+    deleteConfirmBody: "Esto elimina las credenciales de {{name}} de forma permanente y no se puede deshacer. Solo elimina cuentas creadas por error o cuentas de prueba sin actividad. Para desactivar un usuario activo, bloquéalo en su lugar.",
+    deleteConfirmButton: "Eliminar permanentemente",
+    deleteBlockedTitle: "No se puede eliminar la cuenta",
+    userDeletedTitle: "Cuenta eliminada",
+    userDeleted: "La cuenta ha sido eliminada permanentemente.",
   },
   automations: {
     tabLabel: "Automatizaciones",

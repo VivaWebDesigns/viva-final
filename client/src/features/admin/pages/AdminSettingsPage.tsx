@@ -7,13 +7,18 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Settings, Users, Shield, Activity, Plus, Edit2, Ban, CheckCircle2,
-  Clock, AlertCircle, Zap, Puzzle,
+  Clock, AlertCircle, Zap, Puzzle, Trash2,
 } from "lucide-react";
 import { useAdminLang } from "@/i18n/LanguageContext";
 import AutomationsTab from "./AutomationsTab";
@@ -56,6 +61,7 @@ export default function AdminSettingsPage() {
   const [tab, setTab] = useState<Tab>("users");
   const [showAddUser, setShowAddUser] = useState(false);
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
+  const [confirmDeleteUser, setConfirmDeleteUser] = useState(false);
   const [newUser, setNewUser] = useState({ name: "", email: "", password: "", role: "sales_rep" });
   const [editRole, setEditRole] = useState("");
 
@@ -95,6 +101,31 @@ export default function AdminSettingsPage() {
       toast({ title: t.settings.userUpdatedTitle });
     },
     onError: (err: Error) => toast({ title: t.common.error, description: err.message, variant: "destructive" }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("DELETE", `/api/admin/users/${id}`);
+      if (!res.ok) {
+        const body = await res.json();
+        throw Object.assign(new Error(body.message || "Delete failed"), { blockers: body.blockers });
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      setConfirmDeleteUser(false);
+      setEditingUser(null);
+      toast({ title: t.settings.userDeletedTitle, description: t.settings.userDeleted });
+    },
+    onError: (err: any) => {
+      setConfirmDeleteUser(false);
+      const blockers: Record<string, number> = err.blockers ?? {};
+      const detail = Object.keys(blockers).length > 0
+        ? Object.entries(blockers).map(([k, v]) => `${v} ${k.replace(/([A-Z])/g, " $1").toLowerCase()}`).join(", ")
+        : err.message;
+      toast({ title: t.settings.deleteBlockedTitle, description: detail, variant: "destructive" });
+    },
   });
 
   const ROLE_LABELS = t.settings.roles as Record<string, string>;
@@ -380,6 +411,21 @@ export default function AdminSettingsPage() {
                 {editingUser?.banned ? t.settings.unban : t.settings.ban}
               </Button>
             </div>
+            <Separator />
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-gray-400">{t.settings.deleteAccount}</p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400"
+                onClick={() => setConfirmDeleteUser(true)}
+                disabled={deleteMutation.isPending}
+                data-testid="button-delete-user"
+              >
+                <Trash2 className="w-3.5 h-3.5 mr-1" />
+                {t.settings.deleteAccount}
+              </Button>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditingUser(null)}>{t.settings.cancel}</Button>
@@ -394,6 +440,28 @@ export default function AdminSettingsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={confirmDeleteUser} onOpenChange={setConfirmDeleteUser}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t.settings.deleteConfirmTitle}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t.settings.deleteConfirmBody.replace("{{name}}", editingUser?.name ?? "")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-delete-cancel">{t.settings.cancel}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteMutation.mutate(editingUser!.id)}
+              disabled={deleteMutation.isPending}
+              className="bg-red-600 hover:bg-red-700 text-white"
+              data-testid="button-delete-confirm"
+            >
+              {deleteMutation.isPending ? "Deleting..." : t.settings.deleteConfirmButton}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
