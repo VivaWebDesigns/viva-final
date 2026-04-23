@@ -239,7 +239,7 @@ export default function MarketplacePendingOutreachPage() {
   const [hasPhone, setHasPhone]         = useState<boolean | undefined>(undefined);
   const [hasCrmLead, setHasCrmLead]     = useState<boolean | undefined>(undefined);
   const [page, setPage]                 = useState(1);
-  const limit                            = 25;
+  const limit                            = 100;
 
   // selectedId drives the Sheet drawer; null = closed
   const [selectedId, setSelectedId]           = useState<string | null>(null);
