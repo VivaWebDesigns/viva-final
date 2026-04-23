@@ -1,0 +1,70 @@
+#68 - Fix worker extension sign-in 403 on /api/auth/sign-in/email
+
+Current verified behavior
+The extension worker sign-in request is now hitting the correct endpoint:
+
+POST /api/auth/sign-in/email
+
+The old 404 endpoint mismatch is fixed.
+
+Current failure:
+- request reaches the backend
+- backend responds with 403
+- this happens when signing in from the Chrome extension popup
+
+This means the problem is now backend-side auth policy/config, not the
+extension URL.
+
+Goal
+Inspect the real backend auth configuration and fix the worker extension
+sign-in flow so extension_worker accounts can authenticate from the
+Chrome extension popup.
+
+Do not redesign auth.
+Do not change worker queue logic.
+Keep the fix narrow.
+
+Please inspect and fix the following:
+
+1. Determine the exact reason for the 403
+- inspect the auth route handling for /api/auth/sign-in/email
+- determine whether the 403 is caused by:
+  - untrusted / disallowed chrome-extension origin
+  - banned/disabled user handling
+  - CSRF/origin checks
+  - another BetterAuth policy/config issue
+
+2. Verify trusted origins / extension origin handling
+- inspect BetterAuth trustedOrigins / allowed origins config
+- confirm whether the extension origin is allowed for /api/auth/*
+- if not, add the correct extension origin handling needed for worker
+  extension sign-in
+- do this safely, not broadly
+
+3. Verify extension_worker account sign-in is allowed
+- confirm extension_worker users are allowed to sign in through BetterAuth
+- confirm banned=false users can authenticate normally
+- confirm no role-based sign-in restriction is accidentally blocking them
+
+4. Keep scope narrow
+- do not change Marketplace tables
+- do not change extension queue logic
+- do not remove existing auth protections broadly
+- fix only what is needed for extension sign-in
+
+5. Verification before complete
+- valid extension_worker credentials from the extension succeed
+- token is returned in set-auth-token as expected
+- popup can proceed into worker_signed_in mode
+- admin path remains unchanged
+
+Output
+Before coding:
+- short diagnosis
+- exact files to touch
+
+After coding:
+- exact cause of the 403
+- what changed
+- how extension auth is now allowed safely
+- how it was verified
