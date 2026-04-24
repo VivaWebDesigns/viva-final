@@ -58,6 +58,13 @@ export const BUSINESS_TRADES = [
   "shed_building",
   "concrete_asphalt",
   "tree_service",
+  "masonry",
+  "siding",
+  "shower_glass",
+  "stonework",
+  "windows",
+  "doors",
+  "handyman",
 ] as const;
 
 const baseSchema = z.object({
