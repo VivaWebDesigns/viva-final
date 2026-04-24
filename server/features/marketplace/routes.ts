@@ -915,7 +915,9 @@ router.get(
   async (req, res) => {
     const VALID_GROUPS = ["open", "converted", "closed"] as const;
 
-    const rawGroup    = req.query.statusGroup;
+    // Accept `group` as an alias for `statusGroup` so callers using either name
+    // get correct filtering instead of silently returning all records.
+    const rawGroup    = req.query.statusGroup ?? req.query.group;
     const rawPage     = req.query.page;
     const rawLimit    = req.query.limit;
 
