@@ -1,0 +1,59 @@
+#68 - Fix My-Leads Query Contract and Worker Scoping
+What & Why
+Live worker testing shows the Active list contains converted records, the Converted count is inconsistent, and records appear older than expected. Investigation confirms these symptoms have a single root cause: the extension is passing the wrong query parameter name to /api/marketplace/pending-outreach/my-leads.
+
+The backend reads req.query.statusGroup. If the extension sends ?group=open or ?status=open instead of ?statusGroup=open, the backend receives undefined, skips the status filter entirely, and returns all records for the worker regardless of status — including converted and closed. This makes the Active list show everything, Converted count reflect all records (not just converted ones), and "old" records appear because the worker's full history is returned.
+
+Worker scoping (WHERE createdBy = workerId) is correct and working — records are properly owned-by-worker filtered. Only the status filter is missing.
+
+Exact backend contract (confirmed by code inspection)
+Endpoint: GET /api/marketplace/pending-outreach/my-leads
+
+Auth: Authorization: Bearer <workerSessionToken> (requireRole — bot-secret not accepted)
+
+Query parameters:
+
+Param	Type	Required	Notes
+statusGroup	string	No	open, converted, or closed; omit = all statuses
+page	number	No	Default 1
+limit	number	No	Default 50, max 100
+statusGroup values:
+
+open → statuses: ready_to_message, message_sent, awaiting_reply, reply_received, manual_review_required
+converted → statuses: converted
+closed → statuses: skipped, duplicate_business
+Response shape:
+
+{ "items": [...], "total": 123, "page": 1, "limit": 50 }
+
+Active count = result.total from ?statusGroup=open Converted count = result.total from ?statusGroup=converted
+
+Done looks like
+Worker Active list shows only non-converted records
+Worker Active list never shows records with status converted, skipped, or duplicate_business
+Converted count on popup open matches the backend total, not a session-local counter
+Close and reopen popup: both counts are accurate and backend-sourced
+Converting a record correctly moves it from Active to Converted
+Out of scope
+Marketplace schema changes
+UI redesign
+Worker attribution / createdBy fix (Task #67)
+Admin filtered views (Task #65)
+Steps
+Add backend alias for resilience — In the /my-leads route handler, accept group as a fallback alias if statusGroup is absent. This is a one-line defensive change (req.query.statusGroup ?? req.query.group) that prevents silent filter-bypass if the extension ever uses the shorter name.
+
+Write exact API contract in the spec doc — Add or update docs/extension-worker-auth-spec.md to document the precise query parameter name (statusGroup), accepted values, and response shape so the extension has an authoritative reference.
+
+Fix the extension calls — In the extension's popup entry point, locate the two my-leads fetch calls (one for Active count, one for Converted count) and ensure both use ?statusGroup=open and ?statusGroup=converted respectively, with result.total used for the displayed count.
+
+Verify end-to-end — With a signed-in extension_worker: confirm Active list shows only non-converted records, confirm Converted count is backend-accurate, convert a record, close and reopen the popup, verify Converted count is still correct.
+
+Relevant files
+server/features/marketplace/routes.ts:909-940
+server/features/marketplace/storage.ts:385-445
+shared/schema.ts:1076-1083
+docs/extension-resume-state-spec.md
+docs/extension-admin-ui-spec.md
+Dependencies
+
+Extension worker auth backend foundation
