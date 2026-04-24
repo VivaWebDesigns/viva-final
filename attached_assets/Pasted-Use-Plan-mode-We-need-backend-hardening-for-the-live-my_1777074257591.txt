@@ -1,0 +1,64 @@
+Use Plan mode.
+
+We need backend hardening for the live /my-leads worker isolation bug.
+
+Important context:
+The Chrome extension and the backend are separate projects. Do not attempt to edit extension files from this backend repo.
+
+Root cause from diagnosis:
+The extension can send both:
+- Authorization: Bearer <worker token>
+- browser cookies from vivawebdesigns.com
+
+BetterAuth's bearer plugin appends the bearer-derived session cookie after any existing cookie. If an existing Viva cookie is already present, BetterAuth may resolve the existing cookie user instead of the bearer-token user.
+
+The backend /my-leads query is correctly scoped by:
+
+createdBy = req.authUser.id
+
+But req.authUser.id can be the wrong user if cookie identity wins over bearer identity.
+
+Goal:
+Harden only this backend route:
+
+/api/marketplace/pending-outreach/my-leads
+
+So that when an Authorization: Bearer token is present, the bearer identity wins over any browser cookie identity.
+
+Do not patch yet. First inspect and propose the safest implementation.
+
+Please inspect and report:
+
+1. Current route handler and middleware for:
+/api/marketplace/pending-outreach/my-leads
+
+2. Current requireAuth / requireRole behavior.
+
+3. Whether there is already a helper for resolving auth from bearer-only headers.
+
+4. Safest minimal backend fix:
+   - Either custom middleware for this route
+   - Or route-level auth handling that strips Cookie before calling BetterAuth getSession when Authorization: Bearer is present
+
+5. Confirm bot secret remains rejected for /my-leads.
+
+6. Confirm role requirement remains:
+   admin, developer, lead_gen, extension_worker
+
+7. Confirm createdBy scoping stays unchanged.
+
+Out of scope:
+- Extension repo changes
+- UI changes
+- Schema changes
+- Marketplace status logic changes
+- Admin Marketplace page redesign
+- Any changes to lead conversion behavior
+
+Verification checklist:
+- With both an existing Viva cookie and a worker bearer token present, /my-leads resolves req.authUser to the bearer-token worker.
+- With only a worker bearer token, /my-leads works.
+- With only valid session cookie, /my-leads still works for allowed roles if that was previously intended.
+- With bot secret, /my-leads returns 401.
+- Query still uses createdBy = req.authUser.id.
+- statusGroup=open and statusGroup=converted still work.

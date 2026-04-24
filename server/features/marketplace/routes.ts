@@ -1,6 +1,6 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import { z } from "zod";
-import { requireAuth, requireRole } from "../auth/middleware";
+import { requireAuth, requireRole, requireBearerFirstRole } from "../auth/middleware";
 import { db } from "../../db";
 import {
   crmLeads,
@@ -911,7 +911,7 @@ router.post(
 // using a safe, lead-gen-visible field subset.
 router.get(
   "/pending-outreach/my-leads",
-  requireRole("admin", "developer", "lead_gen", "extension_worker"),
+  requireBearerFirstRole("admin", "developer", "lead_gen", "extension_worker"),
   async (req, res) => {
     const VALID_GROUPS = ["open", "converted", "closed"] as const;
 

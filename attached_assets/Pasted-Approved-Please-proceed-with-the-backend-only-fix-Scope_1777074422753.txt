@@ -1,0 +1,57 @@
+Approved. Please proceed with the backend-only fix.
+
+Scope:
+This task is only for the main Viva backend/CRM app.
+Do not inspect, edit, or reference extension files.
+The Chrome extension is a separate project and has no line of sight into this repo.
+
+Goal:
+Harden only this route:
+
+/api/marketplace/pending-outreach/my-leads
+
+So that if an Authorization: Bearer token is present, bearer-token identity wins over any browser cookie identity.
+
+Approved implementation:
+1. In server/features/auth/middleware.ts:
+   - Add requireBearerFirstAuth
+   - Add requireBearerFirstRole
+
+Behavior:
+- If req.headers.authorization starts with Bearer:
+  - make a copy of req.headers
+  - remove cookie / Cookie from the copied headers
+  - call auth.api.getSession with the cookie-stripped copied headers
+- If no Bearer Authorization header is present:
+  - preserve current cookie/session behavior
+
+2. In server/features/marketplace/routes.ts:
+   - Change only the /my-leads route middleware from:
+
+     requireRole("admin", "developer", "lead_gen", "extension_worker")
+
+     to:
+
+     requireBearerFirstRole("admin", "developer", "lead_gen", "extension_worker")
+
+Do not change:
+- createdBy scoping
+- statusGroup filtering
+- Marketplace status logic
+- conversion logic
+- database schema
+- admin Marketplace UI
+- any other route middleware
+
+Important:
+Bot secret must still be rejected by /my-leads. The bot secret is not a BetterAuth session token, so with cookie stripped, getSession should return null and the route should return 401.
+
+Verification checklist:
+- /my-leads with valid worker Bearer token and no cookies works.
+- /my-leads with valid worker Bearer token plus existing Viva cookies resolves to the bearer-token worker.
+- /my-leads with only a valid allowed-role session cookie still works if that was already supported.
+- /my-leads with bot secret returns 401.
+- Role requirement remains exactly:
+  admin, developer, lead_gen, extension_worker
+- Query still scopes by createdBy = req.authUser.id.
+- statusGroup=open and statusGroup=converted still work.
