@@ -1,0 +1,78 @@
+#32 - Verify live my-leads filtering and worker scoping contract
+
+Current live evidence from worker testing:
+- the Active list contains records that are clearly converted
+- the Converted count is inconsistent
+- some records shown appear older than this extension_worker should have
+  access to
+- Active and Converted are just summary counters, not clickable tabs
+- therefore the worker queue dataset itself is still wrong
+
+Goal
+Determine exactly what the live
+/api/marketplace/pending-outreach/my-leads endpoint is returning for this
+worker, what query/filter contract it actually supports in production,
+and whether worker scoping is being honored.
+
+Please verify all of the following using the real live backend and a real
+signed-in extension_worker.
+
+1. Exact query contract
+- What is the real supported query parameter name?
+  - group
+  - statusGroup
+  - status
+  - something else
+- What exact values are supported for:
+  - active/open
+  - converted
+
+2. Exact filtering behavior
+For the signed-in worker making the request, confirm whether:
+- active/open returns only non-converted records
+- converted returns only converted records
+- both are scoped only to createdBy = current worker user id
+
+3. Exact production response shape
+Provide the real response shape for:
+- active/open query
+- converted query
+
+Include whether the endpoint returns:
+- { items, total, page, limit }
+- { data, ... }
+- flat array
+- or something else
+
+4. Explain the current bad behavior
+Based on the real live response, determine whether the observed issue is:
+- wrong query param/value in the extension
+- backend ignoring the requested filter
+- worker scoping not applied correctly
+- backend returning mixed records
+- local UI count being overwritten by backend truth
+- or some combination
+
+5. Fix only the real mismatch
+- if the extension is using the wrong contract, fix the extension
+- if the backend is not honoring the intended filter/scoping, fix backend
+- do not redesign UI
+- keep scope tight
+
+6. Verification before complete
+Do not mark complete until all are confirmed:
+- worker Active list contains no converted rows
+- worker Converted count is backend-correct on popup open
+- converting a record increments Converted and stays correct on reopen
+- records shown actually belong to the signed-in worker
+
+Output
+Before coding:
+- short diagnosis
+- exact files to touch
+
+After coding:
+- exact contract used
+- what was wrong
+- what changed
+- how it was verified

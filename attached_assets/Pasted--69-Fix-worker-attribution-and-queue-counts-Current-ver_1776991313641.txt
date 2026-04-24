@@ -1,0 +1,75 @@
+#69 - Fix worker attribution and queue counts
+
+Current verified issues
+Testing as an extension_worker shows three problems:
+
+1. Active count stays at 0
+2. Converted count can increment locally but resets to 0 after closing/reopening the popup
+3. In admin/backend views, there is no clear evidence that the lead was attributed to the extension_worker
+
+These issues strongly suggest that worker attribution and/or worker queue loading is not fully wired through.
+
+Goal
+Find and fix the real cause so that:
+- worker-created Marketplace records are attributed correctly
+- Active queue loads real backend-backed worker records
+- Converted count is initialized from backend, not just local session state
+- the extension worker flow becomes trustworthy
+
+Scope
+You may inspect both extension and backend.
+Keep changes narrow and targeted.
+Do not redesign UI.
+Do not change Marketplace schema.
+
+Please verify and fix the following:
+
+1. Verify attribution on create
+- When signed in as extension_worker, inspect the actual create pending-outreach request path
+- Confirm whether req.authUser is populated on that request
+- Confirm whether createdBy is being written on the created marketplace_pending_outreach row
+- If not, fix the exact cause
+
+2. Verify my-leads contract
+- Inspect the real backend /api/marketplace/pending-outreach/my-leads route
+- Confirm the exact supported query parameter name/value for:
+  - active/open
+  - converted
+- Confirm the extension is using the exact correct contract
+- Fix any mismatch
+
+3. Verify converted count initialization
+- On popup open in worker_signed_in mode, confirm converted count is actually loaded from backend
+- If it is currently local-only/session-only, fix it so the count is initialized from backend on open
+- Local increment after successful convert is still fine, but backend must be the source of truth on reopen
+
+4. Verify extension request auth
+- Confirm worker-signed-in requests are truly sending the worker bearer token on:
+  - create pending outreach
+  - worker queue fetch
+  - convert to CRM
+- Confirm they are not accidentally falling back to the shared bot token in worker mode
+
+5. Verification before complete
+Do not mark complete until all are confirmed:
+- sign in as extension_worker
+- create a new pending outreach record
+- verify createdBy is set to that worker on the backend
+- verify worker Active queue shows that record
+- convert the record
+- verify Active count decreases
+- verify Converted count increases
+- close and reopen popup
+- verify Converted count is still correct from backend, not reset to 0
+
+Output
+Before coding:
+- short diagnosis
+- exact files to touch
+
+After coding:
+- what the real root cause was
+- whether createdBy was or was not being written before the fix
+- what backend/extension mismatches were corrected
+- how Active and Converted are now sourced
+- how it was verified
