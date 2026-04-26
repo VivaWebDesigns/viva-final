@@ -1,0 +1,75 @@
+Use Plan mode.
+
+We need a backend-only diagnosis and likely fix for Marketplace worker ownership attribution.
+
+Important project boundary:
+This is the main Viva backend only.
+Do not inspect, edit, or reference extension files.
+Assume the extension has already been updated so worker-mode Marketplace requests are bearer-only and do not send cookies.
+
+New evidence from live testing:
+A worker converted 1 lead in the extension.
+The popup briefly showed Converted: 1.
+After closing/reopening the popup, it went back to 0.
+
+Interpretation:
+The optimistic local UI increment still happened, but the backend-backed /my-leads totals still returned 0 even after the extension stopped sending cookies on worker write requests.
+
+This strongly suggests a backend ownership attribution problem still exists in production.
+
+Goal:
+Prove whether Marketplace pending outreach records created by extension_worker users are getting the correct createdBy value, and fix it if not.
+
+Please inspect and report:
+
+1. Create route:
+- exact endpoint path
+- auth middleware used
+- whether extension_worker is allowed
+- what value is written to createdBy
+- whether bot-secret callers get createdBy = null
+- whether worker bearer callers reliably get createdBy = req.authUser.id
+
+2. /my-leads route:
+- exact endpoint path
+- auth middleware used
+- whether it scopes by createdBy = req.authUser.id
+- whether extension_worker is allowed
+- whether production code is bearer-first there
+
+3. Mark message sent, capture reply, and convert-to-crm routes:
+- confirm whether they preserve createdBy rather than rewriting it
+
+4. Production-readiness question:
+- compare local backend code to the latest remote/main code for the Marketplace auth path
+- identify whether local is behind remote in any relevant auth or Marketplace files
+- if the fix already exists on remote but not production, say that clearly
+
+5. If the diagnosis proves backend attribution is still wrong:
+- patch the backend so extension_worker bearer-auth Marketplace create/read/write flows resolve identity correctly
+- prefer a small auth hardening fix
+- do not redesign unrelated logic
+
+6. After patching:
+- summarize exactly what changed
+- say whether the fix affects only worker bearer flows or also admin legacy flows
+- note any tests run or not run
+
+Constraints:
+- Backend only
+- No extension edits
+- No UI redesign
+- No schema redesign unless strictly required
+- Keep the patch narrow and focused on auth/ownership attribution
+
+Very important:
+The extension has already been changed to send bearer-only worker requests, so do not blame cookies coming from the extension anymore. If a cookie-over-bearer issue still exists, it must be in backend auth resolution or production deployment state.
+
+Success condition:
+After the backend fix, a worker-created pending outreach should appear in:
+GET /api/marketplace/pending-outreach/my-leads?statusGroup=open
+
+and after conversion should appear in:
+GET /api/marketplace/pending-outreach/my-leads?statusGroup=converted
+
+even after closing and reopening the extension popup.

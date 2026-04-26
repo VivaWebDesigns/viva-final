@@ -1,0 +1,81 @@
+Use Plan mode.
+
+We need to diagnose why worker-created Marketplace records are not appearing in the worker /my-leads queue.
+
+Important project boundary:
+This is the main Viva backend/CRM app only.
+Do not inspect, edit, or reference Chrome extension files.
+The extension is a separate project.
+
+Observed behavior:
+A signed-in extension_worker named James had:
+
+Active: 0
+Converted: 0
+
+James used the extension to message a seller and enter a phone number, but /my-leads still showed 0 Active.
+
+After conversion, the extension briefly showed Converted: 1, then after refresh/navigating to another seller it returned to 0 Converted.
+
+Expected:
+Records created or converted by James should be visible in:
+
+GET /api/marketplace/pending-outreach/my-leads?statusGroup=open
+GET /api/marketplace/pending-outreach/my-leads?statusGroup=converted
+
+because /my-leads scopes by:
+
+createdBy = req.authUser.id
+
+Goal:
+Inspect backend routes that create/update/convert pending outreach records and verify createdBy attribution.
+
+Please inspect and report:
+
+1. Pending outreach create route:
+   - endpoint path
+   - middleware/auth used
+   - whether extension_worker is allowed
+   - whether bot secret is allowed
+   - what value is written to createdBy when authUser exists
+   - whether bot-created records get createdBy = null
+
+2. Mark message sent route:
+   - endpoint path
+   - middleware/auth used
+   - whether it changes createdBy or preserves it
+
+3. Capture reply / phone route:
+   - endpoint path
+   - middleware/auth used
+   - whether it changes createdBy or preserves it
+
+4. Convert to CRM route:
+   - endpoint path
+   - middleware/auth used
+   - whether it changes createdBy or preserves it
+   - whether converted records remain owned by the original createdBy user
+
+5. For James specifically, query the database:
+   - James user id
+   - records where createdBy = James id
+   - records recently created/updated/converted during the test
+   - createdBy on that specific seller James just messaged/converted
+
+6. Confirm whether the recently tested record has:
+   - createdBy = James id
+   - createdBy = null
+   - createdBy = admin id
+   - createdBy = another worker id
+
+Do not patch yet. Diagnose first.
+
+Out of scope:
+- Extension changes
+- UI changes
+- Schema changes unless a bug proves one is needed
+- Marketplace status redesign
+- Admin Marketplace page changes
+
+Goal:
+Prove whether backend pending outreach creation is correctly assigning createdBy to extension_worker users, and whether conversion preserves that ownership.
