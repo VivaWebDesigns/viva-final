@@ -702,6 +702,14 @@ router.post(
 
     const createdBy = req.authUser?.id ?? null;
 
+    console.log("[DIAG:create-outreach]", {
+      isBotSecret: (req.headers.authorization ?? "") === `Bearer ${process.env.MARKETPLACE_BOT_SECRET}`,
+      hasAuthUser: !!req.authUser,
+      userId: req.authUser?.id ?? null,
+      userRole: req.authUser?.role ?? null,
+      createdBy,
+    });
+
     const record = await marketplaceStorage.createPendingOutreach({
       sellerFullName:         d.sellerFullName,
       sellerFirstName:        derivedFirstName || null,
