@@ -432,6 +432,40 @@ export const insertPipelineActivitySchema = createInsertSchema(pipelineActivitie
 export type InsertPipelineActivity = z.infer<typeof insertPipelineActivitySchema>;
 export type PipelineActivity = typeof pipelineActivities.$inferSelect;
 
+// ─── CRM Activity Intelligence ───────────────────────────────────────
+
+export const CRM_ACTIVITY_EVENT_TYPES = ["view", "active_time", "action"] as const;
+export type CrmActivityEventType = typeof CRM_ACTIVITY_EVENT_TYPES[number];
+
+export const CRM_ACTIVITY_SURFACES = ["crm", "pipeline", "tasks", "clients"] as const;
+export type CrmActivitySurface = typeof CRM_ACTIVITY_SURFACES[number];
+
+export const CRM_ACTIVITY_ENTITY_TYPES = ["lead", "opportunity", "contact", "company", "task", "client"] as const;
+export type CrmActivityEntityType = typeof CRM_ACTIVITY_ENTITY_TYPES[number];
+
+export const crmActivityEvents = pgTable("crm_activity_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: text("user_id").notNull().references(() => user.id),
+  eventType: text("event_type").notNull(),
+  surface: text("surface").notNull(),
+  entityType: text("entity_type"),
+  entityId: varchar("entity_id"),
+  path: text("path").notNull(),
+  activeMs: integer("active_ms").notNull().default(0),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("crm_activity_user_created_idx").on(t.userId, t.createdAt),
+  index("crm_activity_surface_created_idx").on(t.surface, t.createdAt),
+  index("crm_activity_entity_idx").on(t.entityType, t.entityId),
+  index("crm_activity_event_type_idx").on(t.eventType),
+]);
+
+export const insertCrmActivityEventSchema = createInsertSchema(crmActivityEvents).omit({ id: true, userId: true, createdAt: true });
+// @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
+export type InsertCrmActivityEvent = z.infer<typeof insertCrmActivityEventSchema>;
+export type CrmActivityEvent = typeof crmActivityEvents.$inferSelect;
+
 // ─── Onboarding Tables ───────────────────────────────────────────────
 
 export const ONBOARDING_STATUSES = ["pending", "in_progress", "completed", "on_hold"] as const;

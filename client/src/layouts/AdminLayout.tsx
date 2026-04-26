@@ -8,9 +8,10 @@ import {
   LayoutDashboard, Users, TrendingUp, UserPlus, MessageSquare,
   CreditCard, Bell, BarChart3, Settings, BookOpen,
   LogOut, ChevronLeft, ChevronRight, Menu, Building2, Zap,
-  ClipboardList, AlertTriangle, ShoppingBag,
+  ClipboardList, AlertTriangle, ShoppingBag, Activity,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import CrmActivityTracker from "@features/crm-activity/CrmActivityTracker";
 import {
   Tooltip,
   TooltipContent,
@@ -43,6 +44,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { label: t.nav.payments,      path: "/admin/payments",       icon: CreditCard,      color: "text-yellow-600",  roles: ["admin"] as string[] },
     { label: t.nav.notifications, path: "/admin/notifications",  icon: Bell,            color: "text-red-500",     roles: ["admin", "developer"] as string[] },
     { label: t.nav.reports,       path: "/admin/reports",        icon: BarChart3,       color: "text-cyan-500",    roles: ["admin", "developer"] as string[] },
+    { label: t.nav.activity,      path: "/admin/activity",       icon: Activity,        color: "text-emerald-500", roles: ["admin", "developer"] as string[] },
     { label: t.nav.demoBuilder,   path: "/admin/demo-builder",   icon: Zap,             color: "text-amber-500",   roles: ["admin", "developer"] as string[] },
     { label: t.nav.admin,         path: "/admin/settings",       icon: Settings,        color: "text-gray-500",    roles: ["admin"] as string[] },
     { label: t.nav.docs,          path: "/admin/docs",           icon: BookOpen,        color: "text-sky-500",     roles: ["admin", "developer"] as string[] },
@@ -199,6 +201,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
+      <CrmActivityTracker />
       <aside
         className={`hidden md:flex flex-col bg-white border-r border-gray-200 transition-all duration-200 ${
           collapsed ? "w-[68px]" : "w-[250px]"
