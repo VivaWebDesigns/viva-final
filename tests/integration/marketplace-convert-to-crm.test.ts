@@ -18,6 +18,10 @@ vi.mock("../../server/features/auth/middleware", () => ({
     req.authUser = authUser;
     next();
   },
+  requireRoleBearerFirst: () => (req: any, _res: any, next: any) => {
+    req.authUser = authUser;
+    next();
+  },
 }));
 
 const mockGetPendingOutreachById = vi.fn();
@@ -37,6 +41,8 @@ const mockGetDefaultLeadStatus = vi.fn();
 const mockGetLeadStatusBySlug = vi.fn();
 const mockCreateLead = vi.fn();
 const mockResolveLeadAssignee = vi.fn();
+const mockNormalizePersonName = vi.fn((name: string) => name.trim().replace(/\s+/g, " "));
+const mockNormalizeCompanyName = vi.fn((name: string) => name.trim().replace(/\s+/g, " "));
 vi.mock("../../server/features/crm/storage", () => ({
   checkManualLeadDuplicate: mockCheckManualLeadDuplicate,
   findContactByPhone: mockFindContactByPhone,
@@ -48,6 +54,8 @@ vi.mock("../../server/features/crm/storage", () => ({
   getLeadStatusBySlug: mockGetLeadStatusBySlug,
   createLead: mockCreateLead,
   resolveLeadAssignee: mockResolveLeadAssignee,
+  normalizePersonName: mockNormalizePersonName,
+  normalizeCompanyName: mockNormalizeCompanyName,
 }));
 
 const mockGetStageBySlug = vi.fn();

@@ -23,10 +23,27 @@ declare global {
   }
 }
 
-export async function requireAuth(req: Request, res: Response, next: NextFunction) {
+function buildSessionHeaders(req: Request, options?: { preferBearer?: boolean }) {
+  const headers = { ...req.headers };
+
+  // When an explicit bearer token is present, ignore cookies so Better Auth
+  // resolves the worker token instead of a conflicting browser session.
+  if (options?.preferBearer && typeof headers.authorization === "string" && headers.authorization.startsWith("Bearer ")) {
+    delete headers.cookie;
+  }
+
+  return fromNodeHeaders(headers);
+}
+
+async function requireAuthWithOptions(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+  options?: { preferBearer?: boolean }
+) {
   try {
     const result = await auth.api.getSession({
-      headers: fromNodeHeaders(req.headers),
+      headers: buildSessionHeaders(req, options),
     });
 
     if (!result || !result.user) {
@@ -44,6 +61,14 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   }
 }
 
+export async function requireAuth(req: Request, res: Response, next: NextFunction) {
+  return requireAuthWithOptions(req, res, next);
+}
+
+export async function requireAuthBearerFirst(req: Request, res: Response, next: NextFunction) {
+  return requireAuthWithOptions(req, res, next, { preferBearer: true });
+}
+
 export function requireRole(...roles: Role[]) {
   return async (req: Request, res: Response, next: NextFunction) => {
     await requireAuth(req, res, () => {
@@ -57,43 +82,9 @@ export function requireRole(...roles: Role[]) {
   };
 }
 
-// When an Authorization: Bearer header is present, resolve identity from the
-// bearer token only — cookie is stripped so a pre-existing Viva browser
-// session cannot shadow the worker token. Falls back to normal cookie-based
-// resolution when no Bearer header is present.
-export async function requireBearerFirstAuth(req: Request, res: Response, next: NextFunction) {
-  try {
-    const authHeader = req.headers.authorization ?? "";
-    let resolveHeaders: typeof req.headers;
-
-    if (authHeader.startsWith("Bearer ")) {
-      // Copy headers and remove cookie so bearer token wins.
-      resolveHeaders = { ...req.headers };
-      delete (resolveHeaders as Record<string, unknown>).cookie;
-      delete (resolveHeaders as Record<string, unknown>).Cookie;
-    } else {
-      resolveHeaders = req.headers;
-    }
-
-    const result = await auth.api.getSession({
-      headers: fromNodeHeaders(resolveHeaders),
-    });
-
-    if (!result || !result.user) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    req.authUser = result.user as any;
-    req.authSession = result.session as any;
-    next();
-  } catch {
-    return res.status(401).json({ message: "Unauthorized" });
-  }
-}
-
-export function requireBearerFirstRole(...roles: Role[]) {
+export function requireRoleBearerFirst(...roles: Role[]) {
   return async (req: Request, res: Response, next: NextFunction) => {
-    await requireBearerFirstAuth(req, res, () => {
+    await requireAuthBearerFirst(req, res, () => {
       if (!req.authUser) return;
 
       if (!roles.includes(req.authUser.role as Role)) {

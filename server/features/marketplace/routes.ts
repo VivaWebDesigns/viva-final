@@ -1,6 +1,6 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import { z } from "zod";
-import { requireAuth, requireRole, requireBearerFirstRole } from "../auth/middleware";
+import { requireAuth, requireRole, requireRoleBearerFirst } from "../auth/middleware";
 import { db } from "../../db";
 import {
   crmLeads,
@@ -12,7 +12,6 @@ import {
   pipelineStages,
   user,
   MARKETPLACE_PENDING_OUTREACH_STATUSES,
-  MARKETPLACE_PENDING_OUTREACH_NON_TERMINAL_STATUSES,
   hispanicNameAdditions,
 } from "@shared/schema";
 import { eq, and, desc, sql, ilike } from "drizzle-orm";
@@ -156,7 +155,7 @@ router.post(
       }
     }
     res.locals.isAdminBotCall = false;
-    return requireRole("admin", "developer", "lead_gen", "extension_worker")(req, res, next);
+    return requireRole("admin", "developer", "lead_gen")(req, res, next);
   },
   async (req, res) => {
     const schema = z.object({
@@ -173,7 +172,7 @@ router.post(
     // below) to restrict the add-name popup back to admin/developer only.
     const adminActionsAllowed: boolean =
       res.locals.isAdminBotCall === true ||
-      ["admin", "developer", "lead_gen", "extension_worker"].includes(req.authUser?.role ?? "");
+      ["admin", "developer", "lead_gen"].includes(req.authUser?.role ?? "");
 
     const normalizedUrl = normalizeSellerUrl(parsed.data.sellerProfileUrl);
     const score = scoreHispanicName(parsed.data.sellerName);
@@ -400,7 +399,7 @@ router.post(
 
 router.post(
   "/create-outreach-lead",
-  requireRole("admin", "developer", "lead_gen", "extension_worker"),
+  requireRole("admin", "developer", "lead_gen"),
   async (req, res) => {
     const schema = z.object({
       sellerName:                 z.string().trim().min(1),
@@ -613,8 +612,8 @@ router.post(
 );
 
 // ─── Pending Outreach routes ───────────────────────────────────────────────
-// All routes share the same auth middleware: MARKETPLACE_BOT_SECRET bearer
-// bypass, then fall back to requireRole("admin","developer","lead_gen","extension_worker").
+// All three routes share the same auth middleware: MARKETPLACE_BOT_SECRET
+// bearer bypass, then fall back to requireRole("admin","developer","lead_gen").
 
 function botOrRole(req: Request, res: Response, next: NextFunction) {
   const botSecret = process.env.MARKETPLACE_BOT_SECRET;
@@ -622,32 +621,19 @@ function botOrRole(req: Request, res: Response, next: NextFunction) {
     const authHeader = req.headers.authorization ?? "";
     if (authHeader === `Bearer ${botSecret}`) return next();
   }
-  return requireRole("admin", "developer", "lead_gen", "extension_worker")(req, res, next);
+  return requireRoleBearerFirst("admin", "developer", "lead_gen")(req, res, next);
 }
 
-// Bot secret OR session with admin, developer, lead_gen, or extension_worker role.
-// To restrict back to admin/developer only: remove "lead_gen" and "extension_worker"
-// here and from the adminActionsAllowed line in the /precheck handler above.
+// Bot secret OR session with admin, developer, or lead_gen role.
+// To restrict back to admin/developer only: remove "lead_gen" here and from
+// the adminActionsAllowed line in the /precheck handler above.
 function botOrAdminRole(req: Request, res: Response, next: NextFunction) {
   const botSecret = process.env.MARKETPLACE_BOT_SECRET;
   if (botSecret) {
     const authHeader = req.headers.authorization ?? "";
     if (authHeader === `Bearer ${botSecret}`) return next();
   }
-  return requireRole("admin", "developer", "lead_gen", "extension_worker")(req, res, next);
-}
-
-// Like botOrRole but uses bearer-first auth resolution for worker sessions.
-// Bot-secret callers pass through unchanged (req.authUser not set).
-// Worker bearer callers get cookie-stripped getSession so the bearer identity
-// always wins — ensuring createdBy attribution is never shadowed by a cookie.
-function botOrBearerFirstRole(req: Request, res: Response, next: NextFunction) {
-  const botSecret = process.env.MARKETPLACE_BOT_SECRET;
-  if (botSecret) {
-    const authHeader = req.headers.authorization ?? "";
-    if (authHeader === `Bearer ${botSecret}`) return next();
-  }
-  return requireBearerFirstRole("admin", "developer", "lead_gen", "extension_worker")(req, res, next);
+  return requireRoleBearerFirst("admin", "developer", "lead_gen")(req, res, next);
 }
 
 const createPendingOutreachSchema = z.object({
@@ -678,7 +664,7 @@ const patchPendingOutreachSchema = z.object({
 
 router.post(
   "/pending-outreach",
-  botOrBearerFirstRole,
+  botOrRole,
   async (req, res) => {
     const parsed = createPendingOutreachSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -701,14 +687,6 @@ router.post(
     }
 
     const createdBy = req.authUser?.id ?? null;
-
-    console.log("[DIAG:create-outreach]", {
-      isBotSecret: (req.headers.authorization ?? "") === `Bearer ${process.env.MARKETPLACE_BOT_SECRET}`,
-      hasAuthUser: !!req.authUser,
-      userId: req.authUser?.id ?? null,
-      userRole: req.authUser?.role ?? null,
-      createdBy,
-    });
 
     const record = await marketplaceStorage.createPendingOutreach({
       sellerFullName:         d.sellerFullName,
@@ -926,41 +904,6 @@ router.post(
   }
 );
 
-// ─── My Leads: scoped to the authenticated session user ───────────────────
-// Requires a real session — bot-secret requests have no req.authUser and
-// cannot pass requireRole. Returns only the current user's own records
-// using a safe, lead-gen-visible field subset.
-router.get(
-  "/pending-outreach/my-leads",
-  requireBearerFirstRole("admin", "developer", "lead_gen", "extension_worker"),
-  async (req, res) => {
-    const VALID_GROUPS = ["open", "converted", "closed"] as const;
-
-    // Accept `group` as an alias for `statusGroup` so callers using either name
-    // get correct filtering instead of silently returning all records.
-    const rawGroup    = req.query.statusGroup ?? req.query.group;
-    const rawPage     = req.query.page;
-    const rawLimit    = req.query.limit;
-
-    if (rawGroup !== undefined && !VALID_GROUPS.includes(rawGroup as any)) {
-      return res.status(400).json({
-        message: `Invalid statusGroup. Must be one of: ${VALID_GROUPS.join(", ")}`,
-      });
-    }
-
-    const page  = Math.max(1, Number(rawPage)  || 1);
-    const limit = Math.min(100, Math.max(1, Number(rawLimit) || 50));
-
-    const result = await marketplaceStorage.listMyLeads(req.authUser!.id, {
-      statusGroup: rawGroup as "open" | "converted" | "closed" | undefined,
-      page,
-      limit,
-    });
-
-    return res.json(result);
-  }
-);
-
 router.get(
   "/pending-outreach/:id",
   botOrRole,
@@ -1009,11 +952,11 @@ const markMessageSentSchema = z.object({
   outreachSentAt:  z.string().datetime().optional(),
 }).strict();
 
-const BLOCKED_FOR_MARK_SENT: string[] = ["skipped", "converted", "duplicate_business"];
+const BLOCKED_FOR_MARK_SENT: string[] = ["skipped", "converted"];
 
 router.post(
   "/pending-outreach/:id/mark-message-sent",
-  botOrBearerFirstRole,
+  botOrRole,
   async (req, res) => {
     const id = req.params.id as string;
 
@@ -1044,36 +987,6 @@ router.post(
   }
 );
 
-// ─── Mark Duplicate Business ────────────────────────────────────────────────
-
-const ELIGIBLE_FOR_DUPLICATE_BUSINESS: string[] = [...MARKETPLACE_PENDING_OUTREACH_NON_TERMINAL_STATUSES];
-
-router.post(
-  "/pending-outreach/:id/mark-duplicate-business",
-  botOrRole,
-  async (req, res) => {
-    const id = req.params.id as string;
-
-    const record = await marketplaceStorage.getPendingOutreachById(id);
-    if (!record) {
-      return res.status(404).json({ message: "Not found" });
-    }
-
-    if (!ELIGIBLE_FOR_DUPLICATE_BUSINESS.includes(record.messageStatus)) {
-      return res.status(400).json({
-        message: `Cannot mark as duplicate business: record status is "${record.messageStatus}". Only active (non-terminal) records may be marked as duplicate business.`,
-        currentStatus: record.messageStatus,
-      });
-    }
-
-    const updated = await marketplaceStorage.markPendingOutreachDuplicateBusiness(id);
-    if (!updated) {
-      return res.status(404).json({ message: "Not found" });
-    }
-    return res.json(updated);
-  }
-);
-
 const captureReplySchema = z.object({
   replyText:        z.string().optional(),
   threadIdentifier: z.string().optional(),
@@ -1089,7 +1002,7 @@ const ALLOWED_FOR_CAPTURE_REPLY: string[] = [
 
 router.post(
   "/pending-outreach/:id/capture-reply",
-  botOrBearerFirstRole,
+  botOrRole,
   async (req, res) => {
     const id = req.params.id as string;
 
@@ -1247,7 +1160,7 @@ const ELIGIBLE_FOR_CONVERSION = ["reply_received"] as const;
 
 router.post(
   "/pending-outreach/:id/convert-to-crm",
-  botOrBearerFirstRole,
+  botOrRole,
   async (req: Request, res: Response) => {
     const id = req.params.id as string;
     try {
@@ -1282,9 +1195,11 @@ router.post(
 
     // ── Name resolution ───────────────────────────────────────────────────
     const { firstName: defaultFirst, lastName: defaultLast } = splitSellerName(record.sellerFullName);
-    const firstName    = opts.overrideFirstName   ?? defaultFirst;
-    const lastName     = opts.overrideLastName    ?? defaultLast;
-    const businessName = opts.overrideCompanyName?.trim() || opts.overrideBusinessName?.trim() || null;
+    const firstName    = crmStorage.normalizePersonName(opts.overrideFirstName ?? defaultFirst);
+    const rawLastName  = opts.overrideLastName ?? defaultLast;
+    const lastName     = rawLastName ? crmStorage.normalizePersonName(rawLastName) : null;
+    const rawBusinessName = opts.overrideCompanyName?.trim() || opts.overrideBusinessName?.trim() || null;
+    const businessName = rawBusinessName ? crmStorage.normalizeCompanyName(rawBusinessName) : null;
     const trade        = opts.overrideTrade        ?? record.tradeGuess ?? null;
     const city         = opts.overrideCity         ?? record.city       ?? null;
     const state        = opts.overrideState        ?? record.state      ?? null;
@@ -1357,7 +1272,7 @@ router.post(
 
     // ── Company: find or create ───────────────────────────────────────────
     const fullDisplayName = lastName ? `${firstName} ${lastName}`.trim() : firstName;
-    const companyName     = businessName?.trim() || fullDisplayName;
+    const companyName     = businessName || fullDisplayName;
     let company = await crmStorage.findCompanyByName(companyName);
     if (!company) {
       company = await crmStorage.createCompany({
@@ -1381,8 +1296,8 @@ router.post(
       (await crmStorage.getLeadStatusBySlug("new"));
 
     // ── Lead title & notes ────────────────────────────────────────────────
-    const leadTitle = businessName?.trim()
-      ? `${businessName.trim()} – ${fullDisplayName}`
+    const leadTitle = businessName
+      ? `${businessName} – ${fullDisplayName}`
       : fullDisplayName;
 
     const notes = buildOutreachSnapshot(record);

@@ -40,8 +40,10 @@ export async function ingestWebsiteFormSubmission(
   }
 
   const nameParts = formData.name.trim().split(/\s+/);
-  const firstName = nameParts[0] || formData.name;
-  const lastName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : undefined;
+  const firstName = crmStorage.normalizePersonName(nameParts[0] || formData.name);
+  const lastName = nameParts.length > 1
+    ? crmStorage.normalizePersonName(nameParts.slice(1).join(" "))
+    : undefined;
 
   let existingContact = null;
   let isDuplicateContact = false;
@@ -73,7 +75,9 @@ export async function ingestWebsiteFormSubmission(
   }
 
   let companyId: string | null = null;
-  const businessName = formData.business?.trim();
+  const businessName = formData.business?.trim()
+    ? crmStorage.normalizeCompanyName(formData.business)
+    : undefined;
   const companyLabel = businessName || `${firstName}${lastName ? " " + lastName : ""} (Personal)`;
 
   let company = businessName

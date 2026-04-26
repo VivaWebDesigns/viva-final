@@ -1,6 +1,6 @@
 # External Services Access
 
-> Last updated: 2026-04-16
+> Last updated: 2026-04-23
 
 This document records the external systems currently used by the Viva platform and where their configuration is managed.
 
@@ -36,9 +36,17 @@ Operational note:
 Configuration notes:
 - Runtime app secrets should live in Railway service variables for `VivaWebDesigns.com`
 - Do not commit Railway secret values into the repo
+- Local CLI access has been verified on this machine
+- Local Railway CLI binary path: `~/.local/bin/railway`
+- This checkout is linked to Railway project `viva-final` in the `production` environment
 - Useful CLI checks:
   - `railway status`
   - `railway variable list -s VivaWebDesigns.com -e production`
+
+Operational status verified on 2026-04-23:
+- Railway CLI authentication succeeded for the current operator account
+- `railway status` resolves this checkout to project `viva-final`, environment `production`
+- Production variable inspection is available through the CLI
 
 ---
 
@@ -66,6 +74,8 @@ Management notes:
 - DNS zone: `vivawebdesigns.com`
 - Mailgun sending DNS is attached to the dedicated subdomain `mg.vivawebdesigns.com`
 - Mailgun-related DNS records should remain **DNS only** (not proxied)
+- Local Cloudflare DNS API access has been verified on this machine
+- Local Cloudflare CLI access is available via `~/.bun/bin/bunx wrangler`
 
 Current Mailgun send-side DNS shape:
 - SPF TXT on `mg.vivawebdesigns.com`
@@ -76,6 +86,11 @@ Protection notes:
 - Root-domain mail routing on `vivawebdesigns.com` must not be overwritten when working on Mailgun DNS
 - Existing non-Mailgun records such as Google Workspace, SES, DMARC, and Railway verification records should be preserved unless there is an explicit migration plan
 
+Operational status verified on 2026-04-23:
+- A local ignored env file contains a Cloudflare API token for the Viva zone
+- The token was verified against the Cloudflare API and has active DNS read/edit access for zone `vivawebdesigns.com`
+- The token value must remain in local ignored env files only and must not be copied into tracked docs
+
 ---
 
 ## Local Secret Handling
@@ -83,6 +98,8 @@ Protection notes:
 - Use `.env.local` for local-only secrets when needed
 - `.env*` files are ignored by git, except for `.env.example`
 - `.env.example` should contain placeholders and safe defaults only
+- Current local operator setup includes `.env.local` values for Cloudflare DNS and Mailgun
+- Treat local env files as machine-specific operator state, not as project configuration to commit
 - Never commit:
   - API keys
   - personal access tokens
@@ -98,7 +115,8 @@ When setting up a new machine or fresh checkout:
 
 1. Clone `VivaWebDesigns/viva-final`
 2. Verify GitHub access to the repo
-3. Link Railway CLI to project `viva-final`
-4. Confirm Railway production vars for Mailgun are present
-5. Confirm `mg.vivawebdesigns.com` is the active Mailgun sending domain
-6. Confirm the Mailgun DNS records in Cloudflare are still present and unproxied
+3. Install or confirm local access to Railway CLI and Cloudflare tooling
+4. Authenticate Railway CLI and link it to project `viva-final`
+5. Confirm Railway production vars for Mailgun are present
+6. Confirm `mg.vivawebdesigns.com` is the active Mailgun sending domain
+7. Confirm the Mailgun DNS records in Cloudflare are still present and unproxied
