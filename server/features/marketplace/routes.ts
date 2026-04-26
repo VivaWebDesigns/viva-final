@@ -1,6 +1,6 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import { z } from "zod";
-import { requireAuth, requireRole, requireRoleBearerFirst } from "../auth/middleware";
+import { requireAuth, requireAuthBearerFirst, requireRole, requireRoleBearerFirst } from "../auth/middleware";
 import { db } from "../../db";
 import {
   crmLeads,
@@ -126,7 +126,7 @@ router.post(
 
 router.post(
   "/name-score",
-  requireAuth,
+  requireAuthBearerFirst,
   async (req, res) => {
     const schema = z.object({ sellerName: z.string().min(2) });
     const parsed = schema.safeParse(req.body);
@@ -155,7 +155,7 @@ router.post(
       }
     }
     res.locals.isAdminBotCall = false;
-    return requireRole("admin", "developer", "lead_gen")(req, res, next);
+    return requireRoleBearerFirst("admin", "developer", "lead_gen")(req, res, next);
   },
   async (req, res) => {
     const schema = z.object({
@@ -721,6 +721,34 @@ router.get(
   async (_req, res) => {
     const summary = await marketplaceStorage.getPendingOutreachSummary();
     return res.json(summary);
+  }
+);
+
+router.get(
+  "/pending-outreach/my-leads",
+  requireRoleBearerFirst("admin", "developer", "lead_gen"),
+  async (req, res) => {
+    const VALID_GROUPS = ["open", "converted", "closed"] as const;
+    const rawGroup = req.query.statusGroup;
+    const rawPage = req.query.page;
+    const rawLimit = req.query.limit;
+
+    if (rawGroup !== undefined && !VALID_GROUPS.includes(rawGroup as (typeof VALID_GROUPS)[number])) {
+      return res.status(400).json({
+        message: `Invalid statusGroup. Must be one of: ${VALID_GROUPS.join(", ")}`,
+      });
+    }
+
+    const page = Math.max(1, Number(rawPage) || 1);
+    const limit = Math.min(100, Math.max(1, Number(rawLimit) || 50));
+
+    const result = await marketplaceStorage.listMyLeads(req.authUser!.id, {
+      statusGroup: rawGroup as "open" | "converted" | "closed" | undefined,
+      page,
+      limit,
+    });
+
+    return res.json(result);
   }
 );
 
