@@ -155,7 +155,7 @@ router.post(
       }
     }
     res.locals.isAdminBotCall = false;
-    return requireRoleBearerFirst("admin", "developer", "lead_gen")(req, res, next);
+    return requireRoleBearerFirst("admin", "developer", "lead_gen", "extension_worker")(req, res, next);
   },
   async (req, res) => {
     const schema = z.object({
@@ -172,7 +172,7 @@ router.post(
     // below) to restrict the add-name popup back to admin/developer only.
     const adminActionsAllowed: boolean =
       res.locals.isAdminBotCall === true ||
-      ["admin", "developer", "lead_gen"].includes(req.authUser?.role ?? "");
+      ["admin", "developer", "lead_gen", "extension_worker"].includes(req.authUser?.role ?? "");
 
     const normalizedUrl = normalizeSellerUrl(parsed.data.sellerProfileUrl);
     const score = scoreHispanicName(parsed.data.sellerName);
@@ -621,7 +621,7 @@ function botOrRole(req: Request, res: Response, next: NextFunction) {
     const authHeader = req.headers.authorization ?? "";
     if (authHeader === `Bearer ${botSecret}`) return next();
   }
-  return requireRoleBearerFirst("admin", "developer", "lead_gen")(req, res, next);
+  return requireRoleBearerFirst("admin", "developer", "lead_gen", "extension_worker")(req, res, next);
 }
 
 // Bot secret OR session with admin, developer, or lead_gen role.
@@ -633,7 +633,7 @@ function botOrAdminRole(req: Request, res: Response, next: NextFunction) {
     const authHeader = req.headers.authorization ?? "";
     if (authHeader === `Bearer ${botSecret}`) return next();
   }
-  return requireRoleBearerFirst("admin", "developer", "lead_gen")(req, res, next);
+  return requireRoleBearerFirst("admin", "developer", "lead_gen", "extension_worker")(req, res, next);
 }
 
 const createPendingOutreachSchema = z.object({
@@ -726,7 +726,7 @@ router.get(
 
 router.get(
   "/pending-outreach/my-leads",
-  requireRoleBearerFirst("admin", "developer", "lead_gen"),
+  requireRoleBearerFirst("admin", "developer", "lead_gen", "extension_worker"),
   async (req, res) => {
     const VALID_GROUPS = ["open", "converted", "closed"] as const;
     const rawGroup = req.query.statusGroup;
