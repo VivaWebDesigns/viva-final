@@ -637,6 +637,19 @@ function botOrAdminRole(req: Request, res: Response, next: NextFunction) {
   return requireRole("admin", "developer", "lead_gen", "extension_worker")(req, res, next);
 }
 
+// Like botOrRole but uses bearer-first auth resolution for worker sessions.
+// Bot-secret callers pass through unchanged (req.authUser not set).
+// Worker bearer callers get cookie-stripped getSession so the bearer identity
+// always wins — ensuring createdBy attribution is never shadowed by a cookie.
+function botOrBearerFirstRole(req: Request, res: Response, next: NextFunction) {
+  const botSecret = process.env.MARKETPLACE_BOT_SECRET;
+  if (botSecret) {
+    const authHeader = req.headers.authorization ?? "";
+    if (authHeader === `Bearer ${botSecret}`) return next();
+  }
+  return requireBearerFirstRole("admin", "developer", "lead_gen", "extension_worker")(req, res, next);
+}
+
 const createPendingOutreachSchema = z.object({
   sellerFullName:   z.string().trim().min(1),
   sellerProfileUrl: z.string().url(),
@@ -665,7 +678,7 @@ const patchPendingOutreachSchema = z.object({
 
 router.post(
   "/pending-outreach",
-  botOrRole,
+  botOrBearerFirstRole,
   async (req, res) => {
     const parsed = createPendingOutreachSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -992,7 +1005,7 @@ const BLOCKED_FOR_MARK_SENT: string[] = ["skipped", "converted", "duplicate_busi
 
 router.post(
   "/pending-outreach/:id/mark-message-sent",
-  botOrRole,
+  botOrBearerFirstRole,
   async (req, res) => {
     const id = req.params.id as string;
 
@@ -1068,7 +1081,7 @@ const ALLOWED_FOR_CAPTURE_REPLY: string[] = [
 
 router.post(
   "/pending-outreach/:id/capture-reply",
-  botOrRole,
+  botOrBearerFirstRole,
   async (req, res) => {
     const id = req.params.id as string;
 
@@ -1226,7 +1239,7 @@ const ELIGIBLE_FOR_CONVERSION = ["reply_received"] as const;
 
 router.post(
   "/pending-outreach/:id/convert-to-crm",
-  botOrRole,
+  botOrBearerFirstRole,
   async (req: Request, res: Response) => {
     const id = req.params.id as string;
     try {
