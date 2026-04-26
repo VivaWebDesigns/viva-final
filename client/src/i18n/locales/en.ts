@@ -10,6 +10,7 @@ export const en = {
     payments: "Payments",
     notifications: "Notifications",
     reports: "Reports",
+    activity: "Activity Intelligence",
     integrations: "Integrations",
     demoBuilder: "Demo Builder",
     admin: "System Settings",
