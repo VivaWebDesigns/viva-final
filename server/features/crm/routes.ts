@@ -407,11 +407,14 @@ router.post("/leads/manual", requireRole("admin", "developer", "lead_gen"), asyn
       return res.status(400).json({ message: "Ad URL is required for Outreach leads." });
     }
 
+    const normalizedFirstName = crmStorage.normalizePersonName(data.firstName);
+    const normalizedLastName = crmStorage.normalizePersonName(data.lastName);
+
     // Duplicate check — must run before any record is created
     const dupCheck = await crmStorage.checkManualLeadDuplicate({
       normalizedPhone,
-      firstName: data.firstName,
-      lastName:  data.lastName,
+      firstName: normalizedFirstName,
+      lastName:  normalizedLastName,
       businessName: data.businessName,
       state: data.state,
       source: data.source,
@@ -427,8 +430,8 @@ router.post("/leads/manual", requireRole("admin", "developer", "lead_gen"), asyn
     if (!contact) contact = await crmStorage.findContactByPhone(normalizedPhone);
     if (!contact) {
       contact = await crmStorage.createContact({
-        firstName: data.firstName,
-        lastName: data.lastName,
+        firstName: normalizedFirstName,
+        lastName: normalizedLastName,
         phone: normalizedPhone,
         email: data.email || null,
         notes: null,
@@ -439,8 +442,10 @@ router.post("/leads/manual", requireRole("admin", "developer", "lead_gen"), asyn
     }
 
     // 2. Find or create company — fallback to "First Last" if no business name provided
-    const fullName = `${data.firstName} ${data.lastName}`.trim();
-    const companyName = data.businessName?.trim() || fullName;
+    const fullName = `${normalizedFirstName} ${normalizedLastName}`.trim();
+    const companyName = data.businessName?.trim()
+      ? crmStorage.normalizeCompanyName(data.businessName)
+      : fullName;
     let companyId: string | null = null;
     {
       let company = await crmStorage.findCompanyByName(companyName);
@@ -471,7 +476,7 @@ router.post("/leads/manual", requireRole("admin", "developer", "lead_gen"), asyn
 
     // 4. Build lead title
     const leadTitle = data.businessName?.trim()
-      ? `${data.businessName.trim()} – ${fullName}`
+      ? `${crmStorage.normalizeCompanyName(data.businessName)} – ${fullName}`
       : fullName;
 
     // 5. Create CRM lead — assign to chosen user or fall back to creator

@@ -148,14 +148,38 @@ export async function getCompanyById(id: string): Promise<CrmCompany | undefined
   return result;
 }
 
+export function normalizeCompanyName(name: string): string {
+  const cleaned = name.trim().replace(/\s+/g, " ");
+  const titleCased = cleaned
+    .toLowerCase()
+    .replace(/\b([a-z])/g, (_, ch: string) => ch.toUpperCase());
+
+  return titleCased.replace(/\bLlc\b/g, "LLC");
+}
+
+export function normalizePersonName(name: string): string {
+  return name
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase()
+    .replace(/\b([a-z])/g, (_, ch: string) => ch.toUpperCase());
+}
+
 export async function createCompany(data: InsertCrmCompany): Promise<CrmCompany> {
-  const [result] = await db.insert(crmCompanies).values(data).returning();
+  const [result] = await db
+    .insert(crmCompanies)
+    .values({
+      ...data,
+      name: normalizeCompanyName(data.name),
+    })
+    .returning();
   return result;
 }
 
 export async function updateCompany(id: string, data: Partial<InsertCrmCompany>): Promise<CrmCompany> {
   const [result] = await db.update(crmCompanies).set({
     ...data,
+    ...(typeof data.name === "string" ? { name: normalizeCompanyName(data.name) } : {}),
     updatedAt: new Date(),
   }).where(eq(crmCompanies.id, id)).returning();
   return result;
@@ -192,13 +216,22 @@ export async function getContactById(id: string): Promise<CrmContact | undefined
 }
 
 export async function createContact(data: InsertCrmContact): Promise<CrmContact> {
-  const [result] = await db.insert(crmContacts).values(data).returning();
+  const [result] = await db
+    .insert(crmContacts)
+    .values({
+      ...data,
+      firstName: normalizePersonName(data.firstName),
+      ...(typeof data.lastName === "string" ? { lastName: normalizePersonName(data.lastName) } : {}),
+    })
+    .returning();
   return result;
 }
 
 export async function updateContact(id: string, data: Partial<InsertCrmContact>): Promise<CrmContact> {
   const [result] = await db.update(crmContacts).set({
     ...data,
+    ...(typeof data.firstName === "string" ? { firstName: normalizePersonName(data.firstName) } : {}),
+    ...(typeof data.lastName === "string" ? { lastName: normalizePersonName(data.lastName) } : {}),
     updatedAt: new Date(),
   }).where(eq(crmContacts.id, id)).returning();
   return result;

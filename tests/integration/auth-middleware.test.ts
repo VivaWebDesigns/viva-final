@@ -26,7 +26,7 @@ vi.mock("better-auth/node", () => ({
   fromNodeHeaders: (h: unknown) => h,
 }));
 
-import { requireAuth, requireRole } from "../../server/features/auth/middleware";
+import { requireAuth, requireAuthBearerFirst, requireRole, requireRoleBearerFirst } from "../../server/features/auth/middleware";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -88,6 +88,24 @@ describe("requireAuth middleware", () => {
     expect((body as any).ok).toBe(true);
     expect((body as any).user.email).toBe("admin@viva.com");
   });
+
+  it("strips cookies when bearer-first auth is used", async () => {
+    mockGetSession.mockResolvedValue({ user: ADMIN_USER, session: { id: "s-1", token: "t1" } });
+
+    const { status } = await fetchFrom(
+      buildApp([requireAuthBearerFirst]),
+      "/protected",
+      {
+        authorization: "Bearer worker-token",
+        cookie: "session=admin-cookie",
+      },
+    );
+
+    expect(status).toBe(200);
+    const forwardedHeaders = mockGetSession.mock.calls[0]?.[0]?.headers ?? {};
+    expect(forwardedHeaders.authorization).toBe("Bearer worker-token");
+    expect(forwardedHeaders.cookie).toBeUndefined();
+  });
 });
 
 // ── requireRole ───────────────────────────────────────────────────────────────
@@ -125,5 +143,20 @@ describe("requireRole middleware", () => {
     mockGetSession.mockResolvedValue({ user: devUser, session: {} });
     const { status } = await fetchFrom(buildApp([requireRole("admin", "sales_rep")]), "/protected");
     expect(status).toBe(403);
+  });
+
+  it("supports bearer-first role checks", async () => {
+    mockGetSession.mockResolvedValue({ user: SALES_USER, session: {} });
+    const { status } = await fetchFrom(
+      buildApp([requireRoleBearerFirst("admin", "sales_rep")]),
+      "/protected",
+      {
+        authorization: "Bearer worker-token",
+        cookie: "session=admin-cookie",
+      },
+    );
+    expect(status).toBe(200);
+    const forwardedHeaders = mockGetSession.mock.calls[0]?.[0]?.headers ?? {};
+    expect(forwardedHeaders.cookie).toBeUndefined();
   });
 });
