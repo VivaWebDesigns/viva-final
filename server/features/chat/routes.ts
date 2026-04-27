@@ -18,6 +18,20 @@ router.use(requireAuth, (req, res, next) => {
   next();
 });
 
+const CHAT_ADMIN_ROLE = "admin";
+const isChatAdmin = (role?: string | null) => role === CHAT_ADMIN_ROLE;
+
+async function getUserRole(userId: string) {
+  const [row] = await db.select({ role: user.role }).from(user).where(eq(user.id, userId));
+  return row?.role ?? null;
+}
+
+async function canUseDirectMessage(senderRole: string | undefined, recipientId: string) {
+  if (isChatAdmin(senderRole)) return true;
+  const recipientRole = await getUserRole(recipientId);
+  return isChatAdmin(recipientRole);
+}
+
 // ── One-time migration: rename legacy "ventas" channel → "sales" ──────
 (async () => {
   try {
@@ -32,6 +46,8 @@ router.use(requireAuth, (req, res, next) => {
 
 router.get("/channels", requireAuth, async (req, res) => {
   try {
+    if (!isChatAdmin(req.authUser?.role)) return res.json([]);
+
     const userId = req.authUser?.id!;
     const result = await Promise.all(
       CHANNEL_DEFINITIONS.map(async (ch) => {
@@ -61,6 +77,10 @@ router.get("/channels", requireAuth, async (req, res) => {
 
 router.get("/messages", requireAuth, async (req, res) => {
   try {
+    if (!isChatAdmin(req.authUser?.role)) {
+      return res.status(403).json({ message: "Only admins can access team channels" });
+    }
+
     const channel = normalizeChannelId((req.query.channel as string) || "general") ?? "general";
     const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
     const before = req.query.before as string | undefined;
@@ -131,6 +151,10 @@ router.get("/messages", requireAuth, async (req, res) => {
 
 router.post("/messages", requireAuth, async (req, res) => {
   try {
+    if (!isChatAdmin(req.authUser?.role)) {
+      return res.status(403).json({ message: "Only admins can post in team channels" });
+    }
+
     const parsed = z.object({
       channel: z.string().default("general"),
       content: z.string().min(1).max(4000),
@@ -172,8 +196,12 @@ router.post("/messages", requireAuth, async (req, res) => {
   }
 });
 
-router.delete("/messages/:id", requireRole("admin", "developer"), async (req, res) => {
+router.delete("/messages/:id", requireRole("admin"), async (req, res) => {
   try {
+    if (!isChatAdmin(req.authUser?.role)) {
+      return res.status(403).json({ message: "Only admins can delete team channel messages" });
+    }
+
     await db.delete(chatReactions).where(eq(chatReactions.messageId, req.params.id as string));
     await db.delete(chatMessages).where(eq(chatMessages.id, req.params.id as string));
     res.json({ success: true });
@@ -186,6 +214,10 @@ router.delete("/messages/:id", requireRole("admin", "developer"), async (req, re
 
 router.post("/read", requireAuth, async (req, res) => {
   try {
+    if (!isChatAdmin(req.authUser?.role)) {
+      return res.status(403).json({ message: "Only admins can mark team channels read" });
+    }
+
     const parsed = z.object({ channelId: z.string() }).parse(req.body);
     const channelId = normalizeChannelId(parsed.channelId) ?? parsed.channelId;
     const userId = req.authUser?.id!;
@@ -201,6 +233,10 @@ router.post("/read", requireAuth, async (req, res) => {
 // ── Pinned messages ───────────────────────────────────────────────────
 
 router.get("/pinned", requireAuth, async (req, res) => {
+  if (!isChatAdmin(req.authUser?.role)) {
+    return res.status(403).json({ message: "Only admins can access pinned team channel messages" });
+  }
+
   const channel = normalizeChannelId((req.query.channel as string) || "general") ?? "general";
   const rows = await db
     .select({ id: chatMessages.id, content: chatMessages.content, createdAt: chatMessages.createdAt, senderName: user.name })
@@ -211,8 +247,12 @@ router.get("/pinned", requireAuth, async (req, res) => {
   res.json(rows);
 });
 
-router.put("/messages/:id/pin", requireRole("admin", "developer"), async (req, res) => {
+router.put("/messages/:id/pin", requireRole("admin"), async (req, res) => {
   try {
+    if (!isChatAdmin(req.authUser?.role)) {
+      return res.status(403).json({ message: "Only admins can pin team channel messages" });
+    }
+
     const { pinned } = z.object({ pinned: z.boolean() }).parse(req.body);
     await db.update(chatMessages).set({ isPinned: pinned }).where(eq(chatMessages.id, req.params.id as string));
     res.json({ success: true });
@@ -225,6 +265,10 @@ router.put("/messages/:id/pin", requireRole("admin", "developer"), async (req, r
 
 router.post("/messages/:id/react", requireAuth, async (req, res) => {
   try {
+    if (!isChatAdmin(req.authUser?.role)) {
+      return res.status(403).json({ message: "Only admins can react to team channel messages" });
+    }
+
     const { emoji } = z.object({ emoji: z.string().max(8) }).parse(req.body);
     const userId = req.authUser?.id!;
     const messageId = req.params.id as string;
@@ -249,6 +293,10 @@ router.post("/messages/:id/react", requireAuth, async (req, res) => {
 
 router.get("/search", requireAuth, async (req, res) => {
   try {
+    if (!isChatAdmin(req.authUser?.role)) {
+      return res.status(403).json({ message: "Only admins can search team channels" });
+    }
+
     const q = (req.query.q as string)?.trim();
     if (!q || q.length < 2) return res.json([]);
     const rawChannel = req.query.channel as string | undefined;
@@ -273,6 +321,7 @@ router.get("/search", requireAuth, async (req, res) => {
 router.get("/dm/conversations", requireAuth, async (req, res) => {
   try {
     const userId = req.authUser?.id!;
+    const userCanMessageAll = isChatAdmin(req.authUser?.role);
 
     const sent = await db
       .select({ otherId: chatDmMessages.recipientId })
@@ -336,14 +385,16 @@ router.get("/dm/conversations", requireAuth, async (req, res) => {
     for (const u of users) userMap[u.id] = u;
 
     res.json(
-      conversationData.map((c) => ({
-        userId: c.otherId,
-        userName: userMap[c.otherId]?.name ?? "Unknown",
-        userRole: userMap[c.otherId]?.role ?? "",
-        lastMessageAt: c.lastMessageAt,
-        lastContent: c.lastContent,
-        unreadCount: c.unreadCount,
-      }))
+      conversationData
+        .filter((c) => userCanMessageAll || isChatAdmin(userMap[c.otherId]?.role))
+        .map((c) => ({
+          userId: c.otherId,
+          userName: userMap[c.otherId]?.name ?? "Unknown",
+          userRole: userMap[c.otherId]?.role ?? "",
+          lastMessageAt: c.lastMessageAt,
+          lastContent: c.lastContent,
+          unreadCount: c.unreadCount,
+        }))
     );
   } catch (err: any) {
     console.error("DM conversations error:", err);
@@ -356,6 +407,10 @@ router.get("/dm/messages", requireAuth, async (req, res) => {
     const userId = req.authUser?.id!;
     const otherUserId = req.query.userId as string;
     if (!otherUserId) return res.status(400).json({ message: "userId required" });
+    if (otherUserId === userId) return res.status(400).json({ message: "Cannot open a DM with yourself" });
+
+    const allowed = await canUseDirectMessage(req.authUser?.role, otherUserId);
+    if (!allowed) return res.status(403).json({ message: "Non-admin users can only message admins" });
 
     const rows = await db.select().from(chatDmMessages)
       .where(or(
@@ -382,9 +437,13 @@ router.post("/dm/messages", requireAuth, async (req, res) => {
       content: z.string().min(1).max(4000),
     }).parse(req.body);
     const senderId = req.authUser?.id!;
+    if (recipientId === senderId) return res.status(400).json({ message: "Cannot send a DM to yourself" });
 
-    const [targetUser] = await db.select({ id: user.id }).from(user).where(eq(user.id, recipientId));
+    const [targetUser] = await db.select({ id: user.id, role: user.role }).from(user).where(eq(user.id, recipientId));
     if (!targetUser) return res.status(404).json({ message: "Recipient not found" });
+    if (!isChatAdmin(req.authUser?.role) && !isChatAdmin(targetUser.role)) {
+      return res.status(403).json({ message: "Non-admin users can only message admins" });
+    }
 
     const [msg] = await db.insert(chatDmMessages).values({ senderId, recipientId, content }).returning();
 
@@ -409,8 +468,11 @@ router.post("/dm/messages", requireAuth, async (req, res) => {
 
 // ── Users (for @mentions + DM picker) ────────────────────────────────
 
-router.get("/users", requireAuth, async (_req, res) => {
-  const users = await db.select({ id: user.id, name: user.name, role: user.role }).from(user);
+router.get("/users", requireAuth, async (req, res) => {
+  const query = db.select({ id: user.id, name: user.name, role: user.role }).from(user);
+  const users = isChatAdmin(req.authUser?.role)
+    ? await query
+    : await query.where(eq(user.role, CHAT_ADMIN_ROLE));
   res.json(users);
 });
 

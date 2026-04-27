@@ -145,6 +145,7 @@ export default function TeamChatPage() {
   const isTypingRef = useRef(false);
   const isInDm = !!activeDmUserId;
   const currentUserId = (user as any)?.id as string | undefined;
+  const canUseChannels = role === "admin";
 
   // ── Queries ────────────────────────────────────────────────────────────────
 
@@ -152,6 +153,7 @@ export default function TeamChatPage() {
     queryKey: ["/api/chat/channels"],
     refetchInterval: 60000,
     staleTime: STALE.FAST,
+    enabled: canUseChannels,
   });
 
   const { data: teamUsers = [] } = useQuery<TeamUser[]>({
@@ -168,7 +170,7 @@ export default function TeamChatPage() {
   const { data: messages = [], isLoading } = useQuery<ChatMessage[]>({
     queryKey: [`/api/chat/messages?channel=${activeChannel}`],
     refetchInterval: 60000,
-    enabled: !isInDm,
+    enabled: !isInDm && canUseChannels,
   });
 
   const { data: dmMessages = [] } = useQuery<DmMessage[]>({
@@ -188,7 +190,7 @@ export default function TeamChatPage() {
       return res.json();
     },
     refetchInterval: 30000,
-    enabled: !!threadParentId,
+    enabled: !!threadParentId && canUseChannels,
   });
 
   const { data: pinnedMessages = [] } = useQuery<PinnedMsg[]>({
@@ -198,7 +200,7 @@ export default function TeamChatPage() {
       return res.json();
     },
     staleTime: STALE.MEDIUM,
-    enabled: !isInDm,
+    enabled: !isInDm && canUseChannels,
   });
 
   const { data: searchResults = [] } = useQuery<SearchResult[]>({
@@ -207,7 +209,7 @@ export default function TeamChatPage() {
       const res = await fetch(`/api/chat/search?q=${encodeURIComponent(searchQuery)}&channel=${activeChannel}`, { credentials: "include" });
       return res.json();
     },
-    enabled: searchQuery.length >= 2,
+    enabled: searchQuery.length >= 2 && canUseChannels,
     staleTime: STALE.REALTIME,
   });
 
@@ -217,6 +219,7 @@ export default function TeamChatPage() {
 
   useEffect(() => {
     if (!socket || !isConnected) return;
+    if (!canUseChannels) return;
     if (!isInDm) {
       if (prevChannelRef.current && prevChannelRef.current !== activeChannel) {
         socket.emit("leave:channel", prevChannelRef.current);
@@ -224,7 +227,7 @@ export default function TeamChatPage() {
       socket.emit("join:channel", activeChannel);
       prevChannelRef.current = activeChannel;
     }
-  }, [socket, isConnected, activeChannel, isInDm]);
+  }, [socket, isConnected, activeChannel, isInDm, canUseChannels]);
 
   // ── Socket: incoming messages ──────────────────────────────────────────────
 
@@ -290,10 +293,10 @@ export default function TeamChatPage() {
     isTypingRef.current = false;
     if (isInDm && activeDmUserId) {
       socket.emit("typing:stop", { target: activeDmUserId, targetType: "dm" });
-    } else {
+    } else if (canUseChannels) {
       socket.emit("typing:stop", { target: activeChannel, targetType: "channel" });
     }
-  }, [socket, isInDm, activeDmUserId, activeChannel]);
+  }, [socket, isInDm, activeDmUserId, activeChannel, canUseChannels]);
 
   const emitTypingStart = useCallback(() => {
     if (!socket) return;
@@ -301,13 +304,13 @@ export default function TeamChatPage() {
       isTypingRef.current = true;
       if (isInDm && activeDmUserId) {
         socket.emit("typing:start", { target: activeDmUserId, targetType: "dm" });
-      } else {
+      } else if (canUseChannels) {
         socket.emit("typing:start", { target: activeChannel, targetType: "channel" });
       }
     }
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(emitTypingStop, 1500);
-  }, [socket, isInDm, activeDmUserId, activeChannel, emitTypingStop]);
+  }, [socket, isInDm, activeDmUserId, activeChannel, canUseChannels, emitTypingStop]);
 
   // ── Mutations ──────────────────────────────────────────────────────────────
 
@@ -390,18 +393,19 @@ export default function TeamChatPage() {
 
   // ── Handlers ───────────────────────────────────────────────────────────────
 
-  const canDelete = (msg: ChatMessage) => msg.senderId === currentUserId || role === "admin" || role === "developer";
+  const canDelete = (msg: ChatMessage) => msg.senderId === currentUserId || role === "admin";
 
   const handleEditorSend = useCallback((html: string) => {
     const trimmed = html.trim();
     if (!trimmed || trimmed === "<p></p>") return;
+    if (!isInDm && !canUseChannels) return;
     emitTypingStop();
     if (isInDm) sendDmMutation.mutate(trimmed);
     else sendMutation.mutate(trimmed);
     editorRef.current?.clearEditor();
     setEditorIsEmpty(true);
     setMentionQuery(null);
-  }, [isInDm, emitTypingStop, sendDmMutation, sendMutation]);
+  }, [isInDm, canUseChannels, emitTypingStop, sendDmMutation, sendMutation]);
 
   const handleKeyDownThread = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -431,6 +435,7 @@ export default function TeamChatPage() {
   };
 
   const selectChannel = (id: string) => {
+    if (!canUseChannels) return;
     emitTypingStop();
     setActiveChannel(id);
     setActiveDmUserId(null);
@@ -456,7 +461,10 @@ export default function TeamChatPage() {
   const activeDmUser = teamUsers.find((u) => u.id === activeDmUserId);
   const activeChannelData = channels.find((c) => c.id === activeChannel);
   const threadParentMsg = messages.find((m) => m.id === threadParentId);
-  const dmUserList = teamUsers.filter((u) => (u as any).id !== currentUserId);
+  const dmUserList = teamUsers.filter((u) => (
+    (u as any).id !== currentUserId
+    && (canUseChannels || u.role === "admin")
+  ));
   const filteredMentions = mentionQuery !== null
     ? teamUsers.filter((u) => (u as any).id !== currentUserId && u.name.toLowerCase().includes(mentionQuery.toLowerCase()))
     : [];
@@ -467,6 +475,21 @@ export default function TeamChatPage() {
   });
 
   const isOnline = (userId: string) => onlineUserIds.includes(userId);
+  const chatInputDisabled = (!isInDm && !canUseChannels) || sendMutation.isPending || sendDmMutation.isPending;
+
+  useEffect(() => {
+    if (canUseChannels) return;
+
+    const adminDmUsers = teamUsers.filter((u) => (u as any).id !== currentUserId && u.role === "admin");
+    const activeDmIsAllowed = adminDmUsers.some((u) => u.id === activeDmUserId);
+
+    if (!activeDmIsAllowed) {
+      setActiveDmUserId(adminDmUsers[0]?.id ?? null);
+      setThreadParentId(null);
+      setShowSearch(false);
+      setShowDmPicker(false);
+    }
+  }, [canUseChannels, teamUsers, currentUserId, activeDmUserId]);
 
   // ── Render helpers ─────────────────────────────────────────────────────────
 
@@ -522,7 +545,7 @@ export default function TeamChatPage() {
               >
                 <MessageSquare className="w-3.5 h-3.5" />
               </button>
-              {(role === "admin" || role === "developer") && (
+              {role === "admin" && (
                 <button
                   onClick={() => pinMutation.mutate({ id: msg.id, pinned: !msg.isPinned })}
                   className={`p-1 rounded hover:bg-gray-100 ${msg.isPinned ? "text-yellow-500" : "text-gray-300 hover:text-yellow-500"}`}
@@ -627,49 +650,53 @@ export default function TeamChatPage() {
 
         <div className="flex-1 overflow-y-auto py-2">
           {/* Channels */}
-          <div className="px-3 mb-3">
-            <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider px-2 mb-1">{t.chat.channels}</p>
-            {channels.map((ch) => (
-              <button
-                key={ch.id}
-                onClick={() => selectChannel(ch.id)}
-                className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-sm transition-colors ${
-                  !isInDm && activeChannel === ch.id
-                    ? "bg-[#0D9488] text-white"
-                    : "hover:bg-gray-800 text-gray-300"
-                }`}
-                data-testid={`button-channel-${ch.id}`}
-              >
-                <span className="flex items-center gap-1.5 truncate">
-                  <Hash className="w-3.5 h-3.5 flex-shrink-0" />
-                  <span className="truncate">{(t.chat.channelNames as Record<string, string>)[ch.id] || ch.name}</span>
-                </span>
-                {ch.unreadCount > 0 && (
-                  <span className="bg-red-500 text-white text-[10px] rounded-full px-1.5 min-w-[18px] text-center font-bold flex-shrink-0" data-testid={`unread-${ch.id}`}>
-                    {ch.unreadCount > 99 ? "99+" : ch.unreadCount}
+          {canUseChannels && (
+            <div className="px-3 mb-3">
+              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider px-2 mb-1">{t.chat.channels}</p>
+              {channels.map((ch) => (
+                <button
+                  key={ch.id}
+                  onClick={() => selectChannel(ch.id)}
+                  className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-sm transition-colors ${
+                    !isInDm && activeChannel === ch.id
+                      ? "bg-[#0D9488] text-white"
+                      : "hover:bg-gray-800 text-gray-300"
+                  }`}
+                  data-testid={`button-channel-${ch.id}`}
+                >
+                  <span className="flex items-center gap-1.5 truncate">
+                    <Hash className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span className="truncate">{(t.chat.channelNames as Record<string, string>)[ch.id] || ch.name}</span>
                   </span>
-                )}
-              </button>
-            ))}
-          </div>
+                  {ch.unreadCount > 0 && (
+                    <span className="bg-red-500 text-white text-[10px] rounded-full px-1.5 min-w-[18px] text-center font-bold flex-shrink-0" data-testid={`unread-${ch.id}`}>
+                      {ch.unreadCount > 99 ? "99+" : ch.unreadCount}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* DMs */}
           <div className="px-3">
             <div className="flex items-center justify-between px-2 mb-1">
               <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">{t.chat.directMessages}</p>
-              <button
-                onClick={(e) => { e.stopPropagation(); setShowDmPicker(!showDmPicker); }}
-                className="text-gray-500 hover:text-gray-300 transition-colors"
-                title={t.chat.newDm}
-                data-testid="button-new-dm"
-              >
-                <Plus className="w-3.5 h-3.5" />
-              </button>
+              {canUseChannels && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); setShowDmPicker(!showDmPicker); }}
+                  className="text-gray-500 hover:text-gray-300 transition-colors"
+                  title={t.chat.newDm}
+                  data-testid="button-new-dm"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
 
             {/* DM user picker */}
             <AnimatePresence>
-              {showDmPicker && (
+              {showDmPicker && canUseChannels && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
@@ -774,7 +801,7 @@ export default function TeamChatPage() {
                 </>
               )}
             </div>
-            {!isInDm && (
+            {!isInDm && canUseChannels && (
               <div className="flex items-center gap-1">
                 {pinnedMessages.length > 0 && (
                   <Button
@@ -921,6 +948,11 @@ export default function TeamChatPage() {
                   })}
                 </div>
               )
+            ) : !canUseChannels ? (
+              <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-gray-300">
+                <MessageCircle className="w-10 h-10 mb-3" />
+                <p className="text-sm font-medium text-gray-400">{t.chat.noMessages}</p>
+              </div>
             ) : messages.length === 0 && !isLoading ? (
               <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-gray-300">
                 <Hash className="w-10 h-10 mb-3" />
@@ -971,7 +1003,7 @@ export default function TeamChatPage() {
                 onSend={handleEditorSend}
                 onTextChange={handleEditorTextChange}
                 onBlur={emitTypingStop}
-                disabled={sendMutation.isPending || sendDmMutation.isPending}
+                disabled={chatInputDisabled}
                 data-testid="input-chat-message"
               />
               <Button
@@ -979,7 +1011,7 @@ export default function TeamChatPage() {
                   const html = editorRef.current?.getHTML() ?? "";
                   handleEditorSend(html);
                 }}
-                disabled={editorIsEmpty || sendMutation.isPending || sendDmMutation.isPending}
+                disabled={editorIsEmpty || chatInputDisabled}
                 size="icon"
                 className="bg-[#0D9488] hover:bg-[#0F766E] text-white flex-shrink-0 h-10 w-10 self-end"
                 data-testid="button-send-message"
