@@ -36,8 +36,16 @@ function clamp(value: number, min = 0, max = 100) {
   return Math.max(min, Math.min(max, value));
 }
 
-function toDateKey(value: Date) {
-  return value.toISOString().slice(0, 10);
+function toIso(value: Date | string | null | undefined) {
+  if (!value) return null;
+  if (value instanceof Date) return value.toISOString();
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+function toDateKey(value: Date | string) {
+  return (toIso(value) ?? String(value)).slice(0, 10);
 }
 
 function eachDateKey(range: ActivityRange) {
@@ -355,8 +363,8 @@ export async function getActivitySummary(days = 7) {
     date: string;
     activeMs: number;
     signIns: number;
-    firstSignInAt: Date | null;
-    lastActivityAt: Date | null;
+    firstSignInAt: Date | string | null;
+    lastActivityAt: Date | string | null;
     leadsWorked: number;
     pipelineActions: number;
     tasksCompleted: number;
@@ -375,8 +383,8 @@ export async function getActivitySummary(days = 7) {
     date: string;
     activeMs: number;
     signIns: number;
-    firstSignInAt: Date | null;
-    lastActivityAt: Date | null;
+    firstSignInAt: Date | string | null;
+    lastActivityAt: Date | string | null;
     leadsWorked: number;
     pipelineActions: number;
     tasksCompleted: number;
@@ -393,7 +401,7 @@ export async function getActivitySummary(days = 7) {
   for (const row of signInRows) {
     const current = signInMap.get(row.userId) ?? { count: 0, lastSignInAt: null };
     current.count += 1;
-    if (!current.lastSignInAt) current.lastSignInAt = row.createdAt.toISOString();
+    if (!current.lastSignInAt) current.lastSignInAt = toIso(row.createdAt);
     signInMap.set(row.userId, current);
   }
 
@@ -518,7 +526,9 @@ export async function getActivitySummary(days = 7) {
     const dateKey = toDateKey(row.createdAt);
     const dayMap = dailyMap.get(dateKey) ?? new Map<string, string[]>();
     const times = dayMap.get(row.userId) ?? [];
-    times.push(row.createdAt.toISOString());
+    const signInAt = toIso(row.createdAt);
+    if (!signInAt) continue;
+    times.push(signInAt);
     dayMap.set(row.userId, times);
     dailyMap.set(dateKey, dayMap);
   }
@@ -585,8 +595,8 @@ export async function getActivitySummary(days = 7) {
         tasksCompleted: row.tasksCompleted,
         demosScheduled: row.demosScheduled,
         closedWon: row.closedWon,
-        firstSignInAt: row.firstSignInAt ? row.firstSignInAt.toISOString() : null,
-        lastActivityAt: row.lastActivityAt ? row.lastActivityAt.toISOString() : null,
+        firstSignInAt: toIso(row.firstSignInAt),
+        lastActivityAt: toIso(row.lastActivityAt),
         signedInNoActivity,
       });
     }

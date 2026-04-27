@@ -221,7 +221,7 @@ function EmptyState({ children }: { children: ReactNode }) {
 export default function CrmActivityPage() {
   const [days, setDays] = useState("7");
   const [trendMetric, setTrendMetric] = useState<"activeMinutes" | "leadsWorked" | "signIns" | "demosScheduled" | "closedWon">("leadsWorked");
-  const { data, isLoading } = useQuery<ActivitySummary>({
+  const { data, error, isError, isLoading } = useQuery<ActivitySummary>({
     queryKey: [`/api/crm-activity/summary?days=${days}`],
     staleTime: STALE.MEDIUM,
   });
@@ -271,6 +271,13 @@ export default function CrmActivityPage() {
           {[1, 2, 3, 4, 5].map((item) => (
             <div key={item} className="h-28 animate-pulse rounded-lg bg-gray-100" />
           ))}
+        </div>
+      ) : isError ? (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-5 text-sm text-red-700" data-testid="error-crm-activity-summary">
+          <p className="font-semibold">CRM Activity Intelligence could not load.</p>
+          <p className="mt-1 text-red-600">
+            {error instanceof Error ? error.message : "Refresh the page or try another date range."}
+          </p>
         </div>
       ) : data ? (
         <>
