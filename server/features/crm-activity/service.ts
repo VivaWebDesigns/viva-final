@@ -9,7 +9,7 @@ import {
   pipelineStages,
   user,
 } from "@shared/schema";
-import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, gte, sql } from "drizzle-orm";
 
 export interface ActivityRange {
   from: Date;
@@ -183,7 +183,7 @@ export async function getActivitySummary(days = 7) {
       crmActivityEvents,
       and(eq(crmActivityEvents.userId, user.id), gte(crmActivityEvents.createdAt, range.from)),
     )
-    .where(inArray(user.role, ["sales_rep", "lead_gen"]))
+    .where(eq(user.role, "sales_rep"))
     .groupBy(user.id, user.name, user.email, user.role)
     .orderBy(desc(sql`COALESCE(SUM(${crmActivityEvents.activeMs}), 0)`));
 
