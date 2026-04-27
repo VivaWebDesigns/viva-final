@@ -434,10 +434,10 @@ export type PipelineActivity = typeof pipelineActivities.$inferSelect;
 
 // ─── CRM Activity Intelligence ───────────────────────────────────────
 
-export const CRM_ACTIVITY_EVENT_TYPES = ["view", "active_time", "action"] as const;
+export const CRM_ACTIVITY_EVENT_TYPES = ["view", "active_time", "action", "sign_in"] as const;
 export type CrmActivityEventType = typeof CRM_ACTIVITY_EVENT_TYPES[number];
 
-export const CRM_ACTIVITY_SURFACES = ["crm", "pipeline", "tasks", "clients"] as const;
+export const CRM_ACTIVITY_SURFACES = ["auth", "crm", "pipeline", "tasks", "clients"] as const;
 export type CrmActivitySurface = typeof CRM_ACTIVITY_SURFACES[number];
 
 export const CRM_ACTIVITY_ENTITY_TYPES = ["lead", "opportunity", "contact", "company", "task", "client"] as const;
