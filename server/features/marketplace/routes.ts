@@ -42,6 +42,32 @@ function normalizeSellerUrl(url: string): string {
   }
 }
 
+async function logMarketplaceNameReview(req: Request, data: {
+  nameAction: "add_first_name" | "add_surname" | "add_both" | "override";
+  sellerName?: string | null;
+  sellerProfileUrl?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  originalNameScore?: number | null;
+  result?: string | null;
+}) {
+  await logAudit({
+    userId: req.authUser?.id,
+    action: "marketplace_name_review",
+    entity: "marketplace_name_review",
+    metadata: {
+      nameAction: data.nameAction,
+      sellerName: data.sellerName ?? null,
+      sellerProfileUrl: data.sellerProfileUrl ?? null,
+      firstName: data.firstName ?? null,
+      lastName: data.lastName ?? null,
+      originalNameScore: data.originalNameScore ?? null,
+      result: data.result ?? null,
+    },
+    ipAddress: req.ip,
+  });
+}
+
 const US_STATE_TIMEZONES: Record<string, string> = {
   AL: "America/Chicago",    AK: "America/Anchorage",  AZ: "America/Phoenix",
   AR: "America/Chicago",    CA: "America/Los_Angeles", CO: "America/Denver",
@@ -271,7 +297,7 @@ router.post(
 router.post(
   "/precheck-override",
   botOrAdminRole,
-  async (req, res) => {
+  async (req: Request, res: Response) => {
     const schema = z.object({
       sellerName: z.string().min(2),
       sellerProfileUrl: z.string().url(),
@@ -302,6 +328,15 @@ router.post(
     if (row) {
       const existingLeadName =
         [row.leadFirstName, row.leadLastName].filter(Boolean).join(" ") || null;
+      await logMarketplaceNameReview(req, {
+        nameAction: "override",
+        sellerName: parsed.data.sellerName,
+        sellerProfileUrl: normalizedUrl,
+        firstName,
+        lastName,
+        originalNameScore: hispanicNameScore,
+        result: "seller_already_in_crm",
+      });
       return res.json({
         shouldContinue: false,
         reason: "seller_already_in_crm",
@@ -316,6 +351,16 @@ router.post(
         adminActionsAllowed: true,
       });
     }
+
+    await logMarketplaceNameReview(req, {
+      nameAction: "override",
+      sellerName: parsed.data.sellerName,
+      sellerProfileUrl: normalizedUrl,
+      firstName,
+      lastName,
+      originalNameScore: hispanicNameScore,
+      result: "override_name_score",
+    });
 
     return res.json({
       shouldContinue: true,
@@ -343,6 +388,10 @@ router.post(
       .object({
         firstName: z.string().optional(),
         lastName:  z.string().optional(),
+        sellerName: z.string().optional(),
+        sellerProfileUrl: z.string().url().optional(),
+        originalNameScore: z.number().int().min(0).max(100).optional(),
+        precheckReason: z.string().optional(),
       })
       .refine((d) => d.firstName || d.lastName, {
         message: "At least one of firstName or lastName is required",
@@ -392,6 +441,22 @@ router.post(
         }
       }
     }
+
+    const hasFirstNameAction = Boolean(parsed.data.firstName);
+    const hasLastNameAction = Boolean(parsed.data.lastName);
+    await logMarketplaceNameReview(req, {
+      nameAction: hasFirstNameAction && hasLastNameAction
+        ? "add_both"
+        : hasFirstNameAction
+          ? "add_first_name"
+          : "add_surname",
+      sellerName: parsed.data.sellerName ?? null,
+      sellerProfileUrl: parsed.data.sellerProfileUrl ? normalizeSellerUrl(parsed.data.sellerProfileUrl) : null,
+      firstName: parsed.data.firstName ?? null,
+      lastName: parsed.data.lastName ?? null,
+      originalNameScore: parsed.data.originalNameScore ?? null,
+      result: parsed.data.precheckReason ?? null,
+    });
 
     return res.json({ added, alreadyExisted });
   }
@@ -720,6 +785,16 @@ router.get(
   requireRole("admin", "developer"),
   async (_req, res) => {
     const summary = await marketplaceStorage.getPendingOutreachSummary();
+    return res.json(summary);
+  }
+);
+
+router.get(
+  "/lead-gen/summary",
+  requireRole("admin", "developer"),
+  async (req, res) => {
+    const days = parseInt(req.query.days as string, 10) || 7;
+    const summary = await marketplaceStorage.getLeadGenPerformanceSummary(days);
     return res.json(summary);
   }
 );

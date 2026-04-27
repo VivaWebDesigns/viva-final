@@ -11,6 +11,7 @@ export const en = {
     notifications: "Notifications",
     reports: "Reports",
     activity: "Activity Intelligence",
+    leadGen: "Lead Gen Intelligence",
     integrations: "Integrations",
     demoBuilder: "Demo Builder",
     admin: "System Settings",
