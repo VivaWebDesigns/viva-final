@@ -128,6 +128,14 @@ function addDays(value: Date, days: number) {
   return date;
 }
 
+function startOfWeek(value: Date) {
+  const date = new Date(value);
+  const day = date.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  date.setDate(date.getDate() + diff);
+  return date;
+}
+
 function formatDateTime(value: string) {
   return new Date(value).toLocaleString(undefined, {
     month: "short",
@@ -161,7 +169,7 @@ function scoreTone(score: number) {
 
 const PIE_COLORS = ["#10B981", "#2563EB", "#F59E0B", "#8B5CF6", "#EF4444", "#14B8A6", "#64748B"];
 
-type RangeMode = "today" | "7" | "30" | "90" | "custom";
+type RangeMode = "today" | "this_week" | "last_week" | "7" | "30" | "90" | "custom";
 
 function StatCard({
   label,
@@ -215,6 +223,18 @@ export default function LeadGenIntelligencePage() {
       return params.toString();
     }
 
+    if (rangeMode === "this_week" || rangeMode === "last_week") {
+      const currentDay = new Date(`${today}T00:00:00`);
+      const thisWeekStart = startOfWeek(currentDay);
+      const from = rangeMode === "this_week" ? thisWeekStart : addDays(thisWeekStart, -7);
+      const to = rangeMode === "this_week" ? currentDay : addDays(thisWeekStart, -1);
+      const days = Math.max(1, Math.round((to.getTime() - from.getTime()) / 86400000) + 1);
+      params.set("days", String(days));
+      params.set("from", toDateInputValue(from));
+      params.set("to", toDateInputValue(to));
+      return params.toString();
+    }
+
     const days = rangeMode === "today" ? 1 : Number(rangeMode);
     const to = new Date(`${today}T00:00:00`);
     const from = addDays(to, -days + 1);
@@ -255,6 +275,10 @@ export default function LeadGenIntelligencePage() {
 
   const rangeLabel = rangeMode === "today"
     ? "today"
+    : rangeMode === "this_week"
+      ? "this week"
+      : rangeMode === "last_week"
+        ? "last week"
     : rangeMode === "custom"
       ? customFrom === customTo ? formatDateShort(customFrom) : `${formatDateShort(customFrom)} - ${formatDateShort(customTo)}`
       : `${rangeMode}d`;
@@ -274,6 +298,8 @@ export default function LeadGenIntelligencePage() {
           <div className="flex items-center gap-1 rounded-lg bg-gray-100 p-1" data-testid="filter-lead-gen-range">
             {[
               ["today", "Today"],
+              ["this_week", "This week"],
+              ["last_week", "Last week"],
               ["7", "7d"],
               ["30", "30d"],
               ["90", "90d"],
