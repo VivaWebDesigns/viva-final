@@ -11,6 +11,8 @@ declare global {
         name: string;
         email: string;
         role: string;
+        banned?: boolean | null;
+        banExpires?: Date | string | null;
         image?: string | null;
       };
       authSession?: {
@@ -35,6 +37,17 @@ function buildSessionHeaders(req: Request, options?: { preferBearer?: boolean })
   return fromNodeHeaders(headers);
 }
 
+function hasActiveBan(user: { banned?: boolean | null; banExpires?: Date | string | null }) {
+  if (!user.banned) return false;
+  if (!user.banExpires) return true;
+
+  const banExpiresAt = user.banExpires instanceof Date
+    ? user.banExpires
+    : new Date(user.banExpires);
+
+  return Number.isNaN(banExpiresAt.getTime()) || banExpiresAt.getTime() > Date.now();
+}
+
 async function requireAuthWithOptions(
   req: Request,
   res: Response,
@@ -48,6 +61,10 @@ async function requireAuthWithOptions(
 
     if (!result || !result.user) {
       return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    if (hasActiveBan(result.user as any)) {
+      return res.status(403).json({ message: "Forbidden: account disabled" });
     }
 
     // BetterAuth returns its own User/Session types which differ from the

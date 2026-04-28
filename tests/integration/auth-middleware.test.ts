@@ -89,6 +89,16 @@ describe("requireAuth middleware", () => {
     expect((body as any).user.email).toBe("admin@viva.com");
   });
 
+  it("returns 403 when the authenticated user is banned", async () => {
+    mockGetSession.mockResolvedValue({
+      user: { ...ADMIN_USER, banned: true, banExpires: null },
+      session: { id: "s-1", token: "t1" },
+    });
+    const { status, body } = await fetchFrom(buildApp([requireAuth]), "/protected");
+    expect(status).toBe(403);
+    expect((body as any).message).toMatch(/account disabled/i);
+  });
+
   it("strips cookies when bearer-first auth is used", async () => {
     mockGetSession.mockResolvedValue({ user: ADMIN_USER, session: { id: "s-1", token: "t1" } });
 

@@ -237,16 +237,27 @@ router.put("/users/:id", requireRole("admin"), async (req, res) => {
       banned: z.boolean().optional(),
     });
     const updates = schema.parse(req.body);
-    await db.update(user).set(updates).where(eq(user.id, req.params.id as string));
+    const targetId = req.params.id as string;
+
+    if (updates.banned === true && req.authUser?.id === targetId) {
+      return res.status(400).json({ message: "You cannot ban your own account." });
+    }
+
+    await db.update(user).set(updates).where(eq(user.id, targetId));
+
+    if (updates.banned === true) {
+      await db.delete(session).where(eq(session.userId, targetId));
+    }
+
     await logAudit({
       userId: req.authUser?.id,
       action: "update_user",
       entity: "user",
-      entityId: req.params.id as string,
+      entityId: targetId,
       metadata: updates,
       ipAddress: req.ip,
     });
-    const [updated] = await db.select({ id: user.id, name: user.name, email: user.email, role: user.role, banned: user.banned, createdAt: user.createdAt }).from(user).where(eq(user.id, req.params.id as string));
+    const [updated] = await db.select({ id: user.id, name: user.name, email: user.email, role: user.role, banned: user.banned, createdAt: user.createdAt }).from(user).where(eq(user.id, targetId));
     res.json(updated);
   } catch (err: any) {
     res.status(400).json({ message: err.message });
