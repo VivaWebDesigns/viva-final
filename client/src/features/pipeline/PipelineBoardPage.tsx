@@ -1,28 +1,15 @@
-import { useState, useCallback } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { apiRequest, queryClient, STALE } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
+import { STALE } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { DollarSign, List, GripVertical, Phone, Building2, MapPin } from "lucide-react";
+import { DollarSign, List, Phone, Building2, MapPin } from "lucide-react";
 import type { PipelineStage, PipelineOpportunity } from "@shared/schema";
 import { formatPhoneDisplay } from "@shared/phone";
 import QuickTaskModal from "@/components/QuickTaskModal";
 import { useAdminLang } from "@/i18n/LanguageContext";
-import {
-  DndContext,
-  DragOverlay,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  closestCorners,
-  type DragStartEvent,
-  type DragEndEvent,
-  type DragOverEvent,
-} from "@dnd-kit/core";
-import { useDraggable, useDroppable } from "@dnd-kit/core";
 
 type ContactSnap = { id: string; firstName: string; lastName: string | null; phone: string | null };
 type CompanySnap = { id: string; name: string; city: string | null; industry: string | null };
@@ -42,18 +29,11 @@ const PKG_COLORS: Record<string, string> = {
 
 function CardDisplay({
   opp,
-  isDragging = false,
-  dragHandleProps,
   contactMap,
   companyMap,
   onTaskClick,
 }: {
   opp: PipelineOpportunity;
-  isDragging?: boolean;
-  dragHandleProps?: {
-    listeners: Record<string, any> | undefined;
-    attributes: Record<string, any> | undefined;
-  };
   contactMap: Record<string, ContactSnap>;
   companyMap: Record<string, CompanySnap>;
   onTaskClick?: (opp: PipelineOpportunity) => void;
@@ -66,23 +46,10 @@ function CardDisplay({
 
   return (
     <Card
-      className={`hover:shadow-md transition-all group ${
-        isDragging
-          ? "shadow-2xl ring-2 ring-[#0D9488] rotate-1 scale-[1.03] opacity-95 cursor-grabbing"
-          : "cursor-default"
-      }`}
+      className="hover:shadow-md transition-all group cursor-default"
     >
       <CardContent className="p-3">
         <div className="flex items-start gap-2 mb-1.5">
-          <button
-            className="mt-0.5 flex-shrink-0 cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 transition-colors touch-none select-none"
-            data-testid={`drag-handle-${opp.id}`}
-            {...(dragHandleProps?.listeners || {})}
-            {...(dragHandleProps?.attributes || {})}
-          >
-            <GripVertical className="w-4 h-4" />
-          </button>
-
           <div className="flex-1 min-w-0">
             <Link href={`/admin/pipeline/opportunities/${opp.id}`}>
               <span
@@ -102,7 +69,7 @@ function CardDisplay({
           </div>
         </div>
 
-        <div className="ml-6 space-y-1">
+        <div className="space-y-1">
           {contact?.phone && (
             <div className="flex flex-col gap-0.5">
               <span
@@ -154,7 +121,7 @@ function CardDisplay({
         {opp.status !== "open" && (
           <Badge
             variant={opp.status === "won" ? "default" : "destructive"}
-            className="mt-2 text-xs ml-6"
+            className="mt-2 text-xs"
           >
             {opp.status === "won" ? t.pipeline.closeWon.split("—")[1]?.trim() || "Won" : t.pipeline.closeLost.split("—")[1]?.trim() || "Lost"}
           </Badge>
@@ -164,7 +131,7 @@ function CardDisplay({
   );
 }
 
-function DraggableCard({
+function OpportunityCard({
   opp,
   contactMap,
   companyMap,
@@ -175,26 +142,10 @@ function DraggableCard({
   companyMap: Record<string, CompanySnap>;
   onTaskClick: (opp: PipelineOpportunity) => void;
 }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: opp.id,
-    data: { opp },
-  });
-
-  if (isDragging) {
-    return (
-      <div
-        ref={setNodeRef}
-        className="mb-2 h-[116px] rounded-lg border-2 border-dashed border-[#0D9488]/25 bg-[#0D9488]/5"
-        data-testid={`card-opportunity-${opp.id}`}
-      />
-    );
-  }
-
   return (
-    <div ref={setNodeRef} className="mb-2" data-testid={`card-opportunity-${opp.id}`}>
+    <div className="mb-2" data-testid={`card-opportunity-${opp.id}`}>
       <CardDisplay
         opp={opp}
-        dragHandleProps={{ listeners, attributes }}
         contactMap={contactMap}
         companyMap={companyMap}
         onTaskClick={onTaskClick}
@@ -206,20 +157,17 @@ function DraggableCard({
 function StageColumn({
   stage,
   opportunities,
-  isOver,
   contactMap,
   companyMap,
   onTaskClick,
 }: {
   stage: PipelineStage;
   opportunities: PipelineOpportunity[];
-  isOver: boolean;
   contactMap: Record<string, ContactSnap>;
   companyMap: Record<string, CompanySnap>;
   onTaskClick: (opp: PipelineOpportunity) => void;
 }) {
   const { t } = useAdminLang();
-  const { setNodeRef } = useDroppable({ id: stage.id, data: { stage } });
   const totalValue = opportunities.reduce((sum, o) => sum + parseFloat(o.value || "0"), 0);
 
   return (
@@ -249,15 +197,10 @@ function StageColumn({
       )}
 
       <div
-        ref={setNodeRef}
-        className={`flex-1 overflow-y-auto min-h-[120px] px-1 pb-2 rounded-xl transition-all duration-150 ${
-          isOver
-            ? "bg-[#0D9488]/8 ring-2 ring-[#0D9488]/30 ring-inset"
-            : "bg-transparent"
-        }`}
+        className="flex-1 overflow-y-auto min-h-[120px] px-1 pb-2 rounded-xl transition-all duration-150 bg-transparent"
       >
         {opportunities.map((opp) => (
-          <DraggableCard
+          <OpportunityCard
             key={opp.id}
             opp={opp}
             contactMap={contactMap}
@@ -268,14 +211,10 @@ function StageColumn({
 
         {opportunities.length === 0 && (
           <div
-            className={`flex items-center justify-center h-24 rounded-lg border-2 border-dashed transition-all duration-150 ${
-              isOver
-                ? "border-[#0D9488]/50 bg-[#0D9488]/5 text-[#0D9488]"
-                : "border-gray-200 text-gray-300"
-            }`}
+            className="flex items-center justify-center h-24 rounded-lg border-2 border-dashed transition-all duration-150 border-gray-200 text-gray-300"
           >
             <span className="text-xs font-medium">
-              {isOver ? t.pipeline.dropHere : t.pipeline.noOpportunities}
+              {t.pipeline.noOpportunities}
             </span>
           </div>
         )}
@@ -285,10 +224,7 @@ function StageColumn({
 }
 
 export default function PipelineBoardPage() {
-  const { toast } = useToast();
   const { t } = useAdminLang();
-  const [activeOpp, setActiveOpp] = useState<PipelineOpportunity | null>(null);
-  const [overId, setOverId] = useState<string | null>(null);
   const [taskOpp, setTaskOpp] = useState<PipelineOpportunity | null>(null);
 
   const { data, isLoading } = useQuery<BoardData>({
@@ -296,92 +232,6 @@ export default function PipelineBoardPage() {
     staleTime: STALE.FAST,
     refetchOnWindowFocus: true,
   });
-
-  const moveMutation = useMutation({
-    mutationFn: async ({ oppId, stageId }: { oppId: string; stageId: string }) => {
-      const res = await apiRequest("PUT", `/api/pipeline/opportunities/${oppId}/stage`, { stageId });
-      return res.json();
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities/board"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
-      if (data?.opportunity?.status === "won") {
-        queryClient.invalidateQueries({ predicate: (q) => typeof q.queryKey[0] === "string" && q.queryKey[0].startsWith("/api/clients") });
-      }
-    },
-    onError: (err: Error) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities/board"] });
-      toast({ title: "Move failed", description: err.message, variant: "destructive" });
-    },
-  });
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
-  );
-
-  const handleDragStart = useCallback((event: DragStartEvent) => {
-    setActiveOpp((event.active.data.current?.opp as PipelineOpportunity) ?? null);
-  }, []);
-
-  const handleDragOver = useCallback((event: DragOverEvent) => {
-    setOverId(event.over ? String(event.over.id) : null);
-  }, []);
-
-  const handleDragEnd = useCallback(
-    (event: DragEndEvent) => {
-      setActiveOpp(null);
-      setOverId(null);
-
-      const { active, over } = event;
-      if (!over) return;
-
-      const oppId = String(active.id);
-      const targetStageId = String(over.id);
-      const opp = active.data.current?.opp as PipelineOpportunity | undefined;
-      if (!opp || opp.stageId === targetStageId) return;
-
-      const targetStage = data?.stages.find((s) => s.id === targetStageId);
-      if (!targetStage) return;
-
-      queryClient.setQueryData<BoardData>(
-        ["/api/pipeline/opportunities/board"],
-        (old) => {
-          if (!old) return old;
-          const newBoard = { ...old.board };
-
-          if (opp.stageId && newBoard[opp.stageId]) {
-            newBoard[opp.stageId] = {
-              ...newBoard[opp.stageId],
-              opportunities: newBoard[opp.stageId].opportunities.filter((o) => o.id !== oppId),
-            };
-          }
-
-          const updatedOpp: PipelineOpportunity = {
-            ...opp,
-            stageId: targetStageId,
-            status: targetStage.isClosed
-              ? targetStage.slug === "closed-won"
-                ? "won"
-                : "lost"
-              : "open",
-          };
-
-          if (newBoard[targetStageId]) {
-            newBoard[targetStageId] = {
-              ...newBoard[targetStageId],
-              opportunities: [updatedOpp, ...newBoard[targetStageId].opportunities],
-            };
-          }
-
-          return { ...old, board: newBoard };
-        }
-      );
-
-      moveMutation.mutate({ oppId, stageId: targetStageId });
-    },
-    [data, moveMutation]
-  );
 
   if (isLoading) {
     return (
@@ -398,86 +248,59 @@ export default function PipelineBoardPage() {
 
   return (
     <>
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCorners}
-        onDragStart={handleDragStart}
-        onDragOver={handleDragOver}
-        onDragEnd={handleDragEnd}
-      >
-        <div className="h-full flex flex-col" data-testid="page-pipeline-board">
-          <div className="flex items-center justify-between mb-4 flex-shrink-0">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900" data-testid="text-pipeline-title">
-                {t.pipeline.title}
-              </h1>
-              <p className="text-sm text-gray-500 mt-1">
-                {t.pipeline.helperText}
-              </p>
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <Link href="/admin/pipeline/list">
-                <Button variant="outline" size="sm" data-testid="button-list-view">
-                  <List className="w-4 h-4 mr-1" />
-                  <span className="hidden sm:inline">{t.pipeline.listView}</span>
-                </Button>
-              </Link>
-              <Link href="/admin/pipeline/stages">
-                <Button variant="outline" size="sm" data-testid="button-manage-stages">
-                  <span className="hidden sm:inline">{t.pipeline.manageStages}</span>
-                  <span className="sm:hidden">Stages</span>
-                </Button>
-              </Link>
-            </div>
+      <div className="h-full flex flex-col" data-testid="page-pipeline-board">
+        <div className="flex items-center justify-between mb-4 flex-shrink-0">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900" data-testid="text-pipeline-title">
+              {t.pipeline.title}
+            </h1>
+            <p className="text-sm text-gray-500 mt-1">
+              {t.pipeline.helperText}
+            </p>
           </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Link href="/admin/pipeline/list">
+              <Button variant="outline" size="sm" data-testid="button-list-view">
+                <List className="w-4 h-4 mr-1" />
+                <span className="hidden sm:inline">{t.pipeline.listView}</span>
+              </Button>
+            </Link>
+            <Link href="/admin/pipeline/stages">
+              <Button variant="outline" size="sm" data-testid="button-manage-stages">
+                <span className="hidden sm:inline">{t.pipeline.manageStages}</span>
+                <span className="sm:hidden">Stages</span>
+              </Button>
+            </Link>
+          </div>
+        </div>
 
-          <div className="flex-1 relative">
+        <div className="flex-1 relative">
+          <div
+            className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-gray-50 to-transparent pointer-events-none z-10 lg:hidden"
+            aria-hidden="true"
+          />
+          <div
+            className="h-full overflow-x-auto overscroll-x-contain touch-pan-x"
+            style={{ WebkitOverflowScrolling: "touch" }}
+          >
             <div
-              className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-gray-50 to-transparent pointer-events-none z-10 lg:hidden"
-              aria-hidden="true"
-            />
-            <div
-              className="h-full overflow-x-auto overscroll-x-contain touch-pan-x"
-              style={{ WebkitOverflowScrolling: "touch" }}
+              className="flex gap-4 min-h-[400px] pb-4"
+              style={{ minWidth: stages.length * 288 }}
             >
-              <div
-                className="flex gap-4 min-h-[400px] pb-4"
-                style={{ minWidth: stages.length * 288 }}
-              >
               {stages.map((stage) => (
                 <StageColumn
                   key={stage.id}
                   stage={stage}
                   opportunities={board[stage.id]?.opportunities || []}
-                  isOver={overId === stage.id}
                   contactMap={contactMap}
                   companyMap={companyMap}
                   onTaskClick={(opp) => setTaskOpp(opp)}
                 />
               ))}
-              </div>
             </div>
           </div>
         </div>
-
-        <DragOverlay
-          dropAnimation={{
-            duration: 180,
-            easing: "cubic-bezier(0.18, 0.67, 0.6, 1.22)",
-          }}
-        >
-          {activeOpp ? (
-            <div className="w-[256px]">
-              <CardDisplay
-                opp={activeOpp}
-                isDragging
-                contactMap={contactMap}
-                companyMap={companyMap}
-              />
-            </div>
-          ) : null}
-        </DragOverlay>
-      </DndContext>
+      </div>
 
       <QuickTaskModal
         open={!!taskOpp}
