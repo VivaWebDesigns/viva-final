@@ -27,6 +27,17 @@ const PKG_COLORS: Record<string, string> = {
   domina:  "bg-amber-100 text-amber-700",
 };
 
+function humanizeSlug(value: string) {
+  return value
+    .replace(/[-_]+/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function translateTrade(value: string, t: ReturnType<typeof useAdminLang>["t"]) {
+  const key = value.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  return (t.crm.trades as Record<string, string>)[key] ?? humanizeSlug(value);
+}
+
 function CardDisplay({
   opp,
   contactMap,
@@ -43,6 +54,7 @@ function CardDisplay({
   const company = opp.companyId ? companyMap[opp.companyId] : null;
   const contactName = contact ? `${contact.firstName}${contact.lastName ? " " + contact.lastName : ""}` : null;
   const pkg = (opp as any).websitePackage as string | null;
+  const translatedIndustry = company?.industry ? translateTrade(company.industry, t) : null;
 
   return (
     <Card
@@ -83,8 +95,8 @@ function CardDisplay({
           )}
 
           <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-gray-400">
-            {company?.industry && (
-              <span data-testid={`text-opp-industry-${opp.id}`}>{company.industry}</span>
+            {translatedIndustry && (
+              <span data-testid={`text-opp-industry-${opp.id}`}>{translatedIndustry}</span>
             )}
             {company?.city && (
               <span className="flex items-center gap-0.5">
