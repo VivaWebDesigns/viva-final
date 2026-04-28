@@ -4,13 +4,11 @@ import { useQuery } from "@tanstack/react-query";
 import { STALE } from "@/lib/queryClient";
 import {
   AlertTriangle,
-  BarChart3,
   CheckCircle2,
   Clock,
   Gauge,
   MessageCircle,
   ShieldAlert,
-  Target,
   UserCheck,
 } from "lucide-react";
 import {
@@ -354,10 +352,8 @@ export default function LeadGenIntelligencePage() {
         </div>
       ) : data ? (
         <>
-          <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
+          <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <StatCard label={`Converted ${rangeLabel}`} value={data.totals.converted} icon={CheckCircle2} tone="bg-emerald-500" />
-            <StatCard label="Completed 7d" value={data.windows.completed7d} icon={Target} tone="bg-cyan-500" />
-            <StatCard label="Completed 30d" value={data.windows.completed30d} icon={BarChart3} tone="bg-indigo-500" />
             <StatCard label="Leads contacted" value={data.totals.contacted} sub={`${data.totals.contactRate}% contact rate`} icon={MessageCircle} tone="bg-teal-500" />
             <StatCard label="Replies" value={data.totals.replies} sub={`${data.totals.replyRate}% reply rate`} icon={UserCheck} tone="bg-slate-500" />
             <StatCard label="Avg queue to complete" value={formatHours(data.totals.avgQueueToConvertHours)} icon={Clock} tone="bg-amber-500" />
@@ -492,7 +488,9 @@ export default function LeadGenIntelligencePage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      {topWorkers.map((worker) => (
+                      {topWorkers.map((worker) => {
+                        const additions = worker.nameActions.addFirstName + worker.nameActions.addSurname + worker.nameActions.addBoth;
+                        return (
                         <tr key={worker.userId} className="hover:bg-gray-50/70">
                           <td className="px-5 py-4">
                             <p className="font-medium text-gray-900">{worker.name}</p>
@@ -521,11 +519,12 @@ export default function LeadGenIntelligencePage() {
                             <p className="text-xs text-gray-500">{worker.duplicateBusiness} duplicates</p>
                           </td>
                           <td className={`px-5 py-4 font-medium ${worker.nameActions.total > 0 ? "text-amber-700" : "text-gray-500"}`}>
-                            <p>{worker.nameActions.total}</p>
+                            <p>{additions} additions</p>
                             <p className="text-xs font-normal text-gray-500">{worker.nameActions.override} overrides</p>
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
