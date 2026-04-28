@@ -9,19 +9,59 @@ import {
   pipelineStages,
   user,
 } from "@shared/schema";
-import { and, desc, eq, gte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
 
 export interface ActivityRange {
   from: Date;
   to: Date;
+  endExclusive: Date;
+  days: number;
 }
 
-function makeRange(days = 7): ActivityRange {
-  const safeDays = Number.isFinite(days) && days > 0 ? Math.min(days, 365) : 7;
-  const to = new Date();
+function startOfLocalDay(value: Date) {
+  const date = new Date(value);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function nextLocalDay(value: Date) {
+  const date = startOfLocalDay(value);
+  date.setDate(date.getDate() + 1);
+  return date;
+}
+
+function parseDateOnly(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function daysBetweenInclusive(from: Date, to: Date) {
+  const start = startOfLocalDay(from).getTime();
+  const end = startOfLocalDay(to).getTime();
+  return Math.max(1, Math.round((end - start) / 86400000) + 1);
+}
+
+function makeRange(options: number | { days?: number; from?: string; to?: string } = 7): ActivityRange {
+  if (typeof options !== "number" && (options.from || options.to)) {
+    const parsedFrom = options.from ? parseDateOnly(options.from) : null;
+    const parsedTo = options.to ? parseDateOnly(options.to) : parsedFrom;
+    if (parsedFrom && parsedTo) {
+      const from = startOfLocalDay(parsedFrom <= parsedTo ? parsedFrom : parsedTo);
+      const requestedTo = startOfLocalDay(parsedFrom <= parsedTo ? parsedTo : parsedFrom);
+      const days = Math.min(daysBetweenInclusive(from, requestedTo), 365);
+      const to = new Date(from);
+      to.setDate(to.getDate() + days - 1);
+      return { from, to, endExclusive: nextLocalDay(to), days };
+    }
+  }
+
+  const rawDays = typeof options === "number" ? options : options.days;
+  const safeDays = Number.isFinite(rawDays) && rawDays && rawDays > 0 ? Math.min(rawDays, 365) : 7;
+  const to = startOfLocalDay(new Date());
   const from = new Date(to);
-  from.setDate(from.getDate() - safeDays);
-  return { from, to };
+  from.setDate(from.getDate() - safeDays + 1);
+  return { from, to, endExclusive: nextLocalDay(to), days: safeDays };
 }
 
 function msToMinutes(ms: number) {
@@ -164,8 +204,8 @@ export async function createActivityEvent(userId: string, data: {
   return event;
 }
 
-export async function getActivitySummary(days = 7) {
-  const range = makeRange(days);
+export async function getActivitySummary(options: number | { days?: number; from?: string; to?: string } = 7) {
+  const range = makeRange(options);
 
   const reps = await db
     .select({
@@ -181,7 +221,11 @@ export async function getActivitySummary(days = 7) {
     .from(user)
     .leftJoin(
       crmActivityEvents,
-      and(eq(crmActivityEvents.userId, user.id), gte(crmActivityEvents.createdAt, range.from)),
+      and(
+        eq(crmActivityEvents.userId, user.id),
+        gte(crmActivityEvents.createdAt, range.from),
+        lt(crmActivityEvents.createdAt, range.endExclusive),
+      ),
     )
     .where(eq(user.role, "sales_rep"))
     .groupBy(user.id, user.name, user.email, user.role)
@@ -194,7 +238,7 @@ export async function getActivitySummary(days = 7) {
         count: sql<number>`COUNT(*)::int`,
       })
       .from(crmLeads)
-      .where(and(gte(crmLeads.createdAt, range.from), sql`${crmLeads.assignedTo} IS NOT NULL`))
+      .where(and(gte(crmLeads.createdAt, range.from), lt(crmLeads.createdAt, range.endExclusive), sql`${crmLeads.assignedTo} IS NOT NULL`))
       .groupBy(crmLeads.assignedTo),
     db
       .select({
@@ -204,6 +248,7 @@ export async function getActivitySummary(days = 7) {
       .from(crmActivityEvents)
       .where(and(
         gte(crmActivityEvents.createdAt, range.from),
+        lt(crmActivityEvents.createdAt, range.endExclusive),
         eq(crmActivityEvents.entityType, "lead"),
         sql`${crmActivityEvents.entityId} IS NOT NULL`,
       ))
@@ -214,7 +259,7 @@ export async function getActivitySummary(days = 7) {
         count: sql<number>`COUNT(*)::int`,
       })
       .from(crmLeadNotes)
-      .where(and(gte(crmLeadNotes.createdAt, range.from), sql`${crmLeadNotes.userId} IS NOT NULL`))
+      .where(and(gte(crmLeadNotes.createdAt, range.from), lt(crmLeadNotes.createdAt, range.endExclusive), sql`${crmLeadNotes.userId} IS NOT NULL`))
       .groupBy(crmLeadNotes.userId),
     db
       .select({
@@ -222,7 +267,7 @@ export async function getActivitySummary(days = 7) {
         count: sql<number>`COUNT(*)::int`,
       })
       .from(pipelineActivities)
-      .where(and(gte(pipelineActivities.createdAt, range.from), sql`${pipelineActivities.userId} IS NOT NULL`))
+      .where(and(gte(pipelineActivities.createdAt, range.from), lt(pipelineActivities.createdAt, range.endExclusive), sql`${pipelineActivities.userId} IS NOT NULL`))
       .groupBy(pipelineActivities.userId),
     db
       .select({
@@ -232,7 +277,7 @@ export async function getActivitySummary(days = 7) {
         overdue: sql<number>`COUNT(*) FILTER (WHERE ${followupTasks.completed} = false AND ${followupTasks.dueDate} < NOW())::int`,
       })
       .from(followupTasks)
-      .where(and(gte(followupTasks.createdAt, range.from), sql`${followupTasks.assignedTo} IS NOT NULL`))
+      .where(and(gte(followupTasks.createdAt, range.from), lt(followupTasks.createdAt, range.endExclusive), sql`${followupTasks.assignedTo} IS NOT NULL`))
       .groupBy(followupTasks.assignedTo),
     db
       .select({
@@ -242,6 +287,7 @@ export async function getActivitySummary(days = 7) {
       .from(crmActivityEvents)
       .where(and(
         gte(crmActivityEvents.createdAt, range.from),
+        lt(crmActivityEvents.createdAt, range.endExclusive),
         eq(crmActivityEvents.eventType, "sign_in"),
       ))
       .orderBy(desc(crmActivityEvents.createdAt)),
@@ -264,6 +310,7 @@ export async function getActivitySummary(days = 7) {
       ) first_seen ON true
       WHERE l.assigned_to IS NOT NULL
         AND l.created_at >= ${range.from}
+        AND l.created_at < ${range.endExclusive}
       GROUP BY l.assigned_to
     `),
     db.execute(sql`
@@ -279,6 +326,7 @@ export async function getActivitySummary(days = 7) {
       INNER JOIN pipeline_opportunities po ON po.id = pa.opportunity_id
       WHERE pa.user_id IS NOT NULL
         AND pa.created_at >= ${range.from}
+        AND pa.created_at < ${range.endExclusive}
       GROUP BY pa.user_id
     `),
     db.execute(sql`
@@ -294,6 +342,7 @@ export async function getActivitySummary(days = 7) {
         FROM crm_activity_events a
         WHERE a.user_id IS NOT NULL
           AND a.created_at >= ${range.from}
+          AND a.created_at < ${range.endExclusive}
         GROUP BY a.user_id, DATE(a.created_at)
       ),
       pipeline_daily AS (
@@ -308,17 +357,21 @@ export async function getActivitySummary(days = 7) {
         INNER JOIN pipeline_opportunities po ON po.id = pa.opportunity_id
         WHERE pa.user_id IS NOT NULL
           AND pa.created_at >= ${range.from}
+          AND pa.created_at < ${range.endExclusive}
         GROUP BY pa.user_id, DATE(pa.created_at)
       ),
       task_daily AS (
         SELECT
           ft.assigned_to AS "userId",
           DATE(COALESCE(ft.completed_at, ft.created_at)) AS "date",
-          COUNT(*) FILTER (WHERE ft.completed = true AND ft.completed_at >= ${range.from})::int AS "tasksCompleted",
-          COUNT(*) FILTER (WHERE ft.created_at >= ${range.from})::int AS "tasksCreated"
+          COUNT(*) FILTER (WHERE ft.completed = true AND ft.completed_at >= ${range.from} AND ft.completed_at < ${range.endExclusive})::int AS "tasksCompleted",
+          COUNT(*) FILTER (WHERE ft.created_at >= ${range.from} AND ft.created_at < ${range.endExclusive})::int AS "tasksCreated"
         FROM followup_tasks ft
         WHERE ft.assigned_to IS NOT NULL
-          AND (ft.created_at >= ${range.from} OR ft.completed_at >= ${range.from})
+          AND (
+            (ft.created_at >= ${range.from} AND ft.created_at < ${range.endExclusive})
+            OR (ft.completed_at >= ${range.from} AND ft.completed_at < ${range.endExclusive})
+          )
         GROUP BY ft.assigned_to, DATE(COALESCE(ft.completed_at, ft.created_at))
       )
       SELECT
@@ -424,14 +477,14 @@ export async function getActivitySummary(days = 7) {
     const demoCloseRate = pct(closedWon, demosScheduled);
 
     const leadWorkScore = clamp((leadsWorked / Math.max(assigned, 1)) * 100);
-    const activityScore = clamp(rep.activeMs / (Math.max(days, 1) * 30 * 60 * 1000) * 100);
+    const activityScore = clamp(rep.activeMs / (Math.max(range.days, 1) * 30 * 60 * 1000) * 100);
     const firstTouchScore = firstTouch?.avgFirstTouchMinutes
       ? clamp(100 - (firstTouch.avgFirstTouchMinutes / 24 / 60) * 100)
       : (assigned > 0 ? 40 : 70);
     const pipelineScore = clamp(((outcomes?.pipelineActions ?? 0) + (tasks?.completed ?? 0)) / Math.max(leadsWorked, 1) * 30);
     const followUpScore = tasks?.created ? pct(tasks.completed ?? 0, tasks.created) : 75;
     const outcomeScore = clamp(demoRate * 0.6 + closeRate * 1.2 + demoCloseRate * 0.4);
-    const consistencyScore = clamp((activeDays / Math.min(Math.max(days, 1), 7)) * 100);
+    const consistencyScore = clamp((activeDays / Math.min(Math.max(range.days, 1), 7)) * 100);
     const overduePenalty = Math.min((tasks?.overdue ?? 0) * 6, 18);
     const noActivityPenalty = Math.min(signedInNoActivityDays * 8, 24);
     const productivityScore = clamp(Math.round(
@@ -605,7 +658,7 @@ export async function getActivitySummary(days = 7) {
   const riskQueues = await getRiskQueues(range);
 
   return {
-    range: { from: range.from.toISOString(), to: range.to.toISOString(), days },
+    range: { from: range.from.toISOString(), to: range.to.toISOString(), days: range.days },
     totals: {
       ...totals,
       leadTouchRate: pct(totals.leadsTouched, totals.leadsAssigned),
