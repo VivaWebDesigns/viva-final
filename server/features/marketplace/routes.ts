@@ -915,6 +915,7 @@ router.get(
     const search    = typeof req.query.search   === "string" && req.query.search   ? req.query.search   : undefined;
     const hasPhone  = req.query.hasPhone   === "true" ? true  : req.query.hasPhone   === "false" ? false  : undefined;
     const hasCrmLead = req.query.hasCrmLead === "true" ? true  : req.query.hasCrmLead === "false" ? false : undefined;
+    const deleted   = req.query.deleted === "true" ? true : undefined;
 
     const result = await marketplaceStorage.listPendingOutreach({
       page,
@@ -923,6 +924,7 @@ router.get(
       search,
       hasPhone,
       hasCrmLead,
+      deleted,
     });
 
     return res.json(result);
@@ -960,11 +962,11 @@ router.post(
     }
 
     const ineligible = records.filter(
-      r => !(BULK_SKIP_ELIGIBLE as readonly string[]).includes(r.messageStatus)
+      r => r.deletedAt || !(BULK_SKIP_ELIGIBLE as readonly string[]).includes(r.messageStatus)
     );
     if (ineligible.length > 0) {
       return res.status(400).json({
-        message: `${ineligible.length} selected record(s) cannot be skipped. Only ready_to_message, awaiting_reply, reply_received, and manual_review_required records may be skipped. Ineligible: ${ineligible.map(r => r.sellerFullName).join(", ")}.`,
+        message: `${ineligible.length} selected record(s) cannot be skipped. Deleted records and terminal statuses are not eligible. Ineligible: ${ineligible.map(r => r.sellerFullName).join(", ")}.`,
         ineligibleIds:      ineligible.map(r => r.id),
         ineligibleStatuses: [...new Set(ineligible.map(r => r.messageStatus))],
       });
@@ -1498,7 +1500,35 @@ router.post(
   }
 );
 
-// ─── Delete single record (admin / developer only) ─────────────────────────
+// ─── Restore soft-deleted record (admin / developer only) ──────────────────
+
+router.post(
+  "/pending-outreach/:id/restore",
+  requireAuth,
+  requireRole("admin", "developer"),
+  async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+
+    const record = await marketplaceStorage.getPendingOutreachById(id);
+    if (!record) return res.status(404).json({ message: "Record not found" });
+
+    const restored = await marketplaceStorage.restorePendingOutreach(id);
+    if (!restored) return res.status(404).json({ message: "Record not found" });
+
+    await logAudit({
+      userId:    req.authUser?.id,
+      action:    "restore",
+      entity:    "marketplace_pending_outreach",
+      entityId:  id,
+      metadata:  { sellerFullName: record.sellerFullName, messageStatus: record.messageStatus },
+      ipAddress: req.ip,
+    });
+
+    return res.status(200).json(restored);
+  }
+);
+
+// ─── Soft-delete single record (admin / developer only) ────────────────────
 
 router.delete(
   "/pending-outreach/:id",
@@ -1510,7 +1540,7 @@ router.delete(
     const record = await marketplaceStorage.getPendingOutreachById(id);
     if (!record) return res.status(404).json({ message: "Record not found" });
 
-    const deleted = await marketplaceStorage.deletePendingOutreach(id);
+    const deleted = await marketplaceStorage.deletePendingOutreach(id, req.authUser?.id);
     if (!deleted) return res.status(404).json({ message: "Record not found" });
 
     await logAudit({
@@ -1518,15 +1548,15 @@ router.delete(
       action:    "delete",
       entity:    "marketplace_pending_outreach",
       entityId:  id,
-      metadata:  { sellerFullName: record.sellerFullName, messageStatus: record.messageStatus },
+      metadata:  { sellerFullName: record.sellerFullName, messageStatus: record.messageStatus, softDeleted: true },
       ipAddress: req.ip,
     });
 
-    return res.status(200).json({ deleted: true, id });
+    return res.status(200).json({ deleted: true, id, deletedAt: deleted.deletedAt });
   }
 );
 
-// ─── Bulk delete (admin / developer only) ──────────────────────────────────
+// ─── Bulk soft delete (admin / developer only) ─────────────────────────────
 
 const bulkDeleteSchema = z.object({ ids: z.array(z.string().min(1)).min(1) }).strict();
 
@@ -1539,7 +1569,16 @@ router.post(
     if (!parsed.success) return res.status(400).json({ message: "Invalid request body", errors: parsed.error.flatten() });
 
     const { ids } = parsed.data;
-    const result = await marketplaceStorage.bulkDeletePendingOutreach(ids);
+    const result = await marketplaceStorage.bulkDeletePendingOutreach(ids, req.authUser?.id);
+
+    await logAudit({
+      userId:    req.authUser?.id,
+      action:    "bulk_delete",
+      entity:    "marketplace_pending_outreach",
+      metadata:  { count: result.count, softDeleted: true },
+      ipAddress: req.ip,
+    });
+
     return res.json(result);
   }
 );

@@ -1146,6 +1146,9 @@ export const marketplacePendingOutreach = pgTable("marketplace_pending_outreach"
   crmLeadId:              varchar("crm_lead_id").references(() => crmLeads.id),
   convertedAt:            timestamp("converted_at"),
   convertedBy:            text("converted_by").references(() => user.id),
+  deletedAt:              timestamp("deleted_at"),
+  deletedBy:              text("deleted_by").references(() => user.id),
+  deleteReason:           text("delete_reason"),
   createdBy:              text("created_by").references(() => user.id),
   createdAt:              timestamp("created_at").defaultNow().notNull(),
   updatedAt:              timestamp("updated_at").defaultNow().notNull(),
@@ -1156,12 +1159,17 @@ export const marketplacePendingOutreach = pgTable("marketplace_pending_outreach"
   index("mpo_crm_lead_id_idx").on(t.crmLeadId),
   index("mpo_created_by_idx").on(t.createdBy),
   index("mpo_converted_by_idx").on(t.convertedBy),
+  index("mpo_deleted_at_idx").on(t.deletedAt),
+  index("mpo_deleted_by_idx").on(t.deletedBy),
 ]);
 
 export const insertMarketplacePendingOutreachSchema = createInsertSchema(marketplacePendingOutreach).omit({
   id: true,
   sellerFirstName: true,
   listingTitleNormalized: true,
+  deletedAt: true,
+  deletedBy: true,
+  deleteReason: true,
   createdAt: true,
   updatedAt: true,
 });

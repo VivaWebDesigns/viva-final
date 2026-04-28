@@ -6,7 +6,7 @@ import { useLocation } from "wouter";
 import {
   Search, Phone, ExternalLink, ChevronLeft, ChevronRight,
   ShoppingBag, AlertCircle, CheckCircle2, Clock, Eye, SkipForward,
-  ThumbsUp, ThumbsDown, X, Trash2, Ban,
+  ThumbsUp, ThumbsDown, X, Trash2, Ban, RotateCcw,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
@@ -70,6 +70,7 @@ interface SummaryResponse {
   manual_review_required?: number;
   converted?:              number;
   skipped?:                number;
+  deleted?:                number;
   [key: string]:           number | undefined;
 }
 
@@ -97,6 +98,7 @@ const ALL_STATUSES = [
 ] as const;
 
 type OutreachStatus = typeof ALL_STATUSES[number];
+type StatusFilter = OutreachStatus | "deleted" | "";
 
 const STATUS_LABELS: Record<OutreachStatus, string> = {
   ready_to_message:       "Ready to Message",
@@ -127,6 +129,8 @@ const SUMMARY_COUNT_COLORS: Record<OutreachStatus, string> = {
   skipped:                "text-gray-500",
   duplicate_business:     "text-rose-600",
 };
+
+const DELETED_LABEL = "Deleted";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -235,7 +239,7 @@ export default function MarketplacePendingOutreachPage() {
 
   const [rawSearch, setRawSearch]       = useState("");
   const search                           = useDebounce(rawSearch, 300);
-  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("");
   const [hasPhone, setHasPhone]         = useState<boolean | undefined>(undefined);
   const [hasCrmLead, setHasCrmLead]     = useState<boolean | undefined>(undefined);
   const [page, setPage]                 = useState(1);
@@ -284,7 +288,11 @@ export default function MarketplacePendingOutreachPage() {
     queryFn: async () => {
       const params = new URLSearchParams();
       if (search)       params.set("search",     search);
-      if (statusFilter) params.set("status",     statusFilter);
+      if (statusFilter === "deleted") {
+        params.set("deleted", "true");
+      } else if (statusFilter) {
+        params.set("status", statusFilter);
+      }
       if (hasPhone  !== undefined) params.set("hasPhone",   String(hasPhone));
       if (hasCrmLead !== undefined) params.set("hasCrmLead", String(hasCrmLead));
       params.set("page",  String(page));
@@ -354,6 +362,24 @@ export default function MarketplacePendingOutreachPage() {
         ? ((e.body.message as string | undefined) ?? `Error ${e.status}`)
         : e instanceof Error ? e.message : "Unknown error";
       toast({ title: "Failed to skip", description: msg, variant: "destructive" });
+    },
+  });
+
+  // ── Restore soft-deleted record ──────────────────────────────────────────
+  const restoreMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiFetch("POST", `/api/marketplace/pending-outreach/${id}/restore`);
+      return res.json() as Promise<MarketplacePendingOutreach>;
+    },
+    onSuccess: () => {
+      invalidateAll();
+      toast({ title: "Record restored" });
+    },
+    onError: (e: unknown) => {
+      const msg = e instanceof ApiError
+        ? ((e.body.message as string | undefined) ?? `Error ${e.status}`)
+        : e instanceof Error ? e.message : "Unknown error";
+      toast({ title: "Restore failed", description: msg, variant: "destructive" });
     },
   });
 
@@ -466,25 +492,6 @@ export default function MarketplacePendingOutreachPage() {
     },
   });
 
-  // ── Bulk Approve mutation ─────────────────────────────────────────────────
-  const bulkApproveMutation = useMutation({
-    mutationFn: async (ids: string[]) => {
-      const res = await apiFetch("POST", "/api/marketplace/pending-outreach/bulk-approve-match", { ids });
-      return res.json() as Promise<{ count: number; updatedIds: string[] }>;
-    },
-    onSuccess: (data) => {
-      setSelectedIds(new Set());
-      invalidateAll();
-      toast({ title: `${data.count} record${data.count !== 1 ? "s" : ""} approved` });
-    },
-    onError: (e: unknown) => {
-      const msg = e instanceof ApiError
-        ? ((e.body.message as string | undefined) ?? `Error ${e.status}`)
-        : e instanceof Error ? e.message : "Unknown error";
-      toast({ title: "Bulk approve failed", description: msg, variant: "destructive" });
-    },
-  });
-
   // ── Delete single record ──────────────────────────────────────────────────
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -494,7 +501,7 @@ export default function MarketplacePendingOutreachPage() {
     onSuccess: () => {
       closeDrawer();
       invalidateAll();
-      toast({ title: "Record deleted" });
+      toast({ title: "Record moved to Deleted" });
     },
     onError: (e: unknown) => {
       const msg = e instanceof ApiError
@@ -513,7 +520,7 @@ export default function MarketplacePendingOutreachPage() {
     onSuccess: (data) => {
       setSelectedIds(new Set());
       invalidateAll();
-      toast({ title: `${data.count} record${data.count !== 1 ? "s" : ""} deleted` });
+      toast({ title: `${data.count} record${data.count !== 1 ? "s" : ""} moved to Deleted` });
     },
     onError: (e: unknown) => {
       const msg = e instanceof ApiError
@@ -564,12 +571,12 @@ export default function MarketplacePendingOutreachPage() {
   const handleBulkSkip = () => {
     const selectedRecords = items.filter((item) => selectedIds.has(item.id));
     const ineligible = selectedRecords.filter(
-      (r) => !BULK_SKIP_ELIGIBLE_STATUSES.includes(r.messageStatus)
+      (r) => r.deletedAt || !BULK_SKIP_ELIGIBLE_STATUSES.includes(r.messageStatus)
     );
     if (ineligible.length > 0) {
       toast({
         title: "Cannot bulk skip",
-        description: `${ineligible.length} record(s) are not eligible for skipping (${[...new Set(ineligible.map((r) => r.messageStatus))].join(", ")}).`,
+        description: `${ineligible.length} record(s) are not eligible for skipping (${[...new Set(ineligible.map((r) => r.deletedAt ? "deleted" : r.messageStatus))].join(", ")}).`,
         variant: "destructive",
       });
       return;
@@ -577,24 +584,12 @@ export default function MarketplacePendingOutreachPage() {
     bulkSkipMutation.mutate([...selectedIds]);
   };
 
-  const handleBulkApprove = () => {
-    const selectedRecords = items.filter((item) => selectedIds.has(item.id));
-    const ineligible = selectedRecords.filter(
-      (r) => r.messageStatus !== "manual_review_required"
-    );
-    if (ineligible.length > 0) {
-      toast({
-        title: "Cannot bulk approve",
-        description: `${ineligible.length} record(s) are not in "Manual Review" status (${[...new Set(ineligible.map((r) => r.messageStatus))].join(", ")}).`,
-        variant: "destructive",
-      });
-      return;
-    }
-    bulkApproveMutation.mutate([...selectedIds]);
-  };
-
   const handleCardClick = (status: OutreachStatus) => {
     setStatusFilter(statusFilter === status ? "" : status);
+  };
+
+  const handleDeletedCardClick = () => {
+    setStatusFilter(statusFilter === "deleted" ? "" : "deleted");
   };
 
   const handleRowClick = (record: MarketplacePendingOutreach) => {
@@ -616,6 +611,7 @@ export default function MarketplacePendingOutreachPage() {
   const canReject           = (s: string) => s === "manual_review_required";
   const isConverted         = (s: string) => s === "converted";
   const canMarkDuplicate    = (s: string) => !["converted", "skipped", "duplicate_business"].includes(s);
+  const detailIsDeleted     = !!detailRecord?.deletedAt;
 
   return (
     <div className="flex flex-col gap-6" data-testid="page-marketplace-pending-outreach">
@@ -633,7 +629,7 @@ export default function MarketplacePendingOutreachPage() {
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-3">
         {ALL_STATUSES.map((status) => {
           const cnt = summary[status] ?? 0;
           const active = statusFilter === status;
@@ -654,6 +650,19 @@ export default function MarketplacePendingOutreachPage() {
             </button>
           );
         })}
+        <button
+          onClick={handleDeletedCardClick}
+          data-testid="card-summary-deleted"
+          className={cn(
+            "rounded-lg border bg-white dark:bg-gray-900 p-3 text-left transition-all cursor-pointer hover:shadow-sm",
+            statusFilter === "deleted"
+              ? "ring-2 ring-violet-400 border-violet-300 shadow-sm"
+              : "border-gray-200 hover:border-gray-300"
+          )}
+        >
+          <p className="text-2xl font-bold text-red-600">{summary.deleted ?? 0}</p>
+          <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{DELETED_LABEL}</p>
+        </button>
       </div>
 
       {/* Filter bar */}
@@ -671,7 +680,7 @@ export default function MarketplacePendingOutreachPage() {
           </div>
           <Select
             value={statusFilter || "all"}
-            onValueChange={(v) => { setStatusFilter(v === "all" ? "" : v); setPage(1); }}
+            onValueChange={(v) => { setStatusFilter(v === "all" ? "" : v as StatusFilter); setPage(1); }}
           >
             <SelectTrigger className="w-full sm:w-52" data-testid="select-status-filter">
               <SelectValue placeholder="All statuses" />
@@ -681,6 +690,7 @@ export default function MarketplacePendingOutreachPage() {
               {ALL_STATUSES.map((s) => (
                 <SelectItem key={s} value={s}>{STATUS_LABELS[s]}</SelectItem>
               ))}
+              <SelectItem value="deleted">{DELETED_LABEL}</SelectItem>
             </SelectContent>
           </Select>
           <div className="flex items-center gap-2 sm:ml-2">
@@ -736,7 +746,7 @@ export default function MarketplacePendingOutreachPage() {
               size="sm"
               variant="outline"
               onClick={handleBulkSkip}
-              disabled={bulkSkipMutation.isPending || bulkApproveMutation.isPending}
+              disabled={bulkSkipMutation.isPending}
               data-testid="button-bulk-skip"
             >
               <SkipForward className="w-3.5 h-3.5 mr-1.5" />
@@ -744,20 +754,10 @@ export default function MarketplacePendingOutreachPage() {
             </Button>
             <Button
               size="sm"
-              className="bg-green-600 hover:bg-green-700 text-white"
-              onClick={handleBulkApprove}
-              disabled={bulkSkipMutation.isPending || bulkApproveMutation.isPending}
-              data-testid="button-bulk-approve"
-            >
-              <ThumbsUp className="w-3.5 h-3.5 mr-1.5" />
-              Approve Match ({selectedIds.size})
-            </Button>
-            <Button
-              size="sm"
               variant="outline"
               className="border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-950/20"
               onClick={() => setShowBulkDeleteConfirm(true)}
-              disabled={bulkDeleteMutation.isPending || bulkSkipMutation.isPending || bulkApproveMutation.isPending}
+              disabled={bulkDeleteMutation.isPending || bulkSkipMutation.isPending}
               data-testid="button-bulk-delete"
             >
               <Trash2 className="w-3.5 h-3.5 mr-1.5" />
@@ -953,15 +953,41 @@ export default function MarketplacePendingOutreachPage() {
             <>
               <SheetHeader className="mb-4">
                 <SheetTitle className="text-base leading-snug">{detailRecord.sellerFullName}</SheetTitle>
-                <div className="mt-1">
+                <div className="mt-1 flex flex-wrap items-center gap-2">
                   <StatusBadge status={detailRecord.messageStatus} />
+                  {detailRecord.deletedAt && (
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">
+                      Deleted
+                    </span>
+                  )}
                 </div>
               </SheetHeader>
 
               {/* ── Action buttons ── */}
               <div className="space-y-2 mb-6">
+                {detailIsDeleted && (
+                  <div className="rounded-md border border-red-200 bg-red-50 dark:bg-red-950/20 p-3 space-y-2">
+                    <p className="text-xs font-semibold text-red-700 dark:text-red-300 uppercase tracking-wide">
+                      Deleted Queue
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      This record is hidden from normal outreach lists and reporting until restored.
+                    </p>
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => restoreMutation.mutate(detailRecord.id)}
+                      disabled={restoreMutation.isPending}
+                      data-testid="button-restore-record"
+                    >
+                      <RotateCcw className="w-4 h-4 mr-2" />
+                      {restoreMutation.isPending ? "Restoring…" : "Restore Record"}
+                    </Button>
+                  </div>
+                )}
+
                 {/* Manual review gate: Approve or Reject */}
-                {canApprove(detailRecord.messageStatus) && (
+                {!detailIsDeleted && canApprove(detailRecord.messageStatus) && (
                   <div className="rounded-md border border-orange-200 bg-orange-50 dark:bg-orange-950/20 p-3 space-y-2">
                     <p className="text-xs font-semibold text-orange-700 dark:text-orange-300 uppercase tracking-wide">
                       Manual Review Required
@@ -993,7 +1019,7 @@ export default function MarketplacePendingOutreachPage() {
                   </div>
                 )}
 
-                {canConvert(detailRecord.messageStatus) && (
+                {!detailIsDeleted && canConvert(detailRecord.messageStatus) && (
                   <Button
                     className="w-full"
                     onClick={() => {
@@ -1009,7 +1035,7 @@ export default function MarketplacePendingOutreachPage() {
                   </Button>
                 )}
 
-                {canSkip(detailRecord.messageStatus) && (
+                {!detailIsDeleted && canSkip(detailRecord.messageStatus) && (
                   <Button
                     variant="outline"
                     className="w-full"
@@ -1022,7 +1048,7 @@ export default function MarketplacePendingOutreachPage() {
                   </Button>
                 )}
 
-                {canMarkDuplicate(detailRecord.messageStatus) && (
+                {!detailIsDeleted && canMarkDuplicate(detailRecord.messageStatus) && (
                   <Button
                     variant="outline"
                     className="w-full border-rose-200 text-rose-700 hover:bg-rose-50 hover:border-rose-300 dark:border-rose-800 dark:hover:bg-rose-950/20"
@@ -1035,7 +1061,7 @@ export default function MarketplacePendingOutreachPage() {
                   </Button>
                 )}
 
-                {isConverted(detailRecord.messageStatus) && detailRecord.crmLeadId && (
+                {!detailIsDeleted && isConverted(detailRecord.messageStatus) && detailRecord.crmLeadId && (
                   <Button
                     variant="outline"
                     className="w-full"
@@ -1047,7 +1073,7 @@ export default function MarketplacePendingOutreachPage() {
                   </Button>
                 )}
 
-                {(detailRecord.messageStatus === "skipped" || detailRecord.messageStatus === "duplicate_business") && (
+                {!detailIsDeleted && (detailRecord.messageStatus === "skipped" || detailRecord.messageStatus === "duplicate_business") && (
                   <p
                     className="text-sm text-muted-foreground text-center py-2"
                     data-testid="text-no-actions"
@@ -1057,16 +1083,18 @@ export default function MarketplacePendingOutreachPage() {
                 )}
 
                 {/* Delete — always available, requires confirmation */}
-                <Button
-                  variant="outline"
-                  className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 dark:border-red-800 dark:hover:bg-red-950/20"
-                  onClick={() => setShowDeleteConfirm(true)}
-                  disabled={deleteMutation.isPending}
-                  data-testid="button-delete-record"
-                >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  {deleteMutation.isPending ? "Deleting…" : "Delete Record"}
-                </Button>
+                {!detailIsDeleted && (
+                  <Button
+                    variant="outline"
+                    className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 dark:border-red-800 dark:hover:bg-red-950/20"
+                    onClick={() => setShowDeleteConfirm(true)}
+                    disabled={deleteMutation.isPending}
+                    data-testid="button-delete-record"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    {deleteMutation.isPending ? "Moving…" : "Move to Deleted"}
+                  </Button>
+                )}
 
                 {/* Duplicate 409: inline under action buttons */}
                 {duplicateMatch && (
@@ -1138,6 +1166,11 @@ export default function MarketplacePendingOutreachPage() {
                 <DetailField label="Updated At">
                   {formatDateTime(detailRecord.updatedAt)}
                 </DetailField>
+                {detailRecord.deletedAt && (
+                  <DetailField label="Deleted At">
+                    {formatDateTime(detailRecord.deletedAt)}
+                  </DetailField>
+                )}
               </div>
             </>
           ) : (
@@ -1189,11 +1222,11 @@ export default function MarketplacePendingOutreachPage() {
       <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <DialogContent data-testid="dialog-delete-confirm">
           <DialogHeader>
-            <DialogTitle>Delete this record?</DialogTitle>
+            <DialogTitle>Move this record to Deleted?</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            This will permanently delete the record for{" "}
-            <strong>{detailRecord?.sellerFullName}</strong>. This action cannot be undone.
+            This will hide the record for <strong>{detailRecord?.sellerFullName}</strong> from normal lists and reporting.
+            You can restore it from the Deleted queue later.
           </p>
           <DialogFooter className="mt-4">
             <Button
@@ -1215,7 +1248,7 @@ export default function MarketplacePendingOutreachPage() {
               disabled={deleteMutation.isPending}
               data-testid="button-confirm-delete"
             >
-              {deleteMutation.isPending ? "Deleting…" : "Delete"}
+              {deleteMutation.isPending ? "Moving…" : "Move to Deleted"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1225,10 +1258,11 @@ export default function MarketplacePendingOutreachPage() {
       <Dialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>
         <DialogContent data-testid="dialog-bulk-delete-confirm">
           <DialogHeader>
-            <DialogTitle>Delete {selectedIds.size} record{selectedIds.size !== 1 ? "s" : ""}?</DialogTitle>
+            <DialogTitle>Move {selectedIds.size} record{selectedIds.size !== 1 ? "s" : ""} to Deleted?</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            This will permanently delete {selectedIds.size} selected record{selectedIds.size !== 1 ? "s" : ""}. This action cannot be undone.
+            This will hide the selected record{selectedIds.size !== 1 ? "s" : ""} from normal lists and reporting.
+            You can restore them from the Deleted queue later.
           </p>
           <DialogFooter className="mt-4">
             <Button
@@ -1248,7 +1282,7 @@ export default function MarketplacePendingOutreachPage() {
               disabled={bulkDeleteMutation.isPending}
               data-testid="button-confirm-bulk-delete"
             >
-              {bulkDeleteMutation.isPending ? "Deleting…" : `Delete ${selectedIds.size}`}
+              {bulkDeleteMutation.isPending ? "Moving…" : `Move ${selectedIds.size}`}
             </Button>
           </DialogFooter>
         </DialogContent>

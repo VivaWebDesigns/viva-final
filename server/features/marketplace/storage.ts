@@ -4,7 +4,7 @@ import {
   MARKETPLACE_PENDING_OUTREACH_NON_TERMINAL_STATUSES,
   type MarketplacePendingOutreach,
 } from "@shared/schema";
-import { and, eq, inArray, isNotNull, isNull, or, ilike, sql, desc, count } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull, or, ilike, sql, desc, count, type SQL } from "drizzle-orm";
 
 type InsertMarketplacePendingOutreachFull = typeof marketplacePendingOutreach.$inferInsert;
 
@@ -112,6 +112,7 @@ export async function findActivePendingOutreachBySellerUrl(
     .where(
       and(
         eq(marketplacePendingOutreach.sellerProfileUrl, normalizedSellerProfileUrl),
+        isNull(marketplacePendingOutreach.deletedAt),
         inArray(
           marketplacePendingOutreach.messageStatus,
           [...MARKETPLACE_PENDING_OUTREACH_NON_TERMINAL_STATUSES]
@@ -133,7 +134,10 @@ export async function findLatestPendingOutreachBySellerUrl(
   const [result] = await db
     .select()
     .from(marketplacePendingOutreach)
-    .where(eq(marketplacePendingOutreach.sellerProfileUrl, normalizedSellerProfileUrl))
+    .where(and(
+      eq(marketplacePendingOutreach.sellerProfileUrl, normalizedSellerProfileUrl),
+      isNull(marketplacePendingOutreach.deletedAt)
+    ))
     .orderBy(desc(marketplacePendingOutreach.createdAt))
     .limit(1);
   return result;
@@ -163,6 +167,7 @@ export async function findPendingOutreachByMessengerClues(
     .from(marketplacePendingOutreach)
     .where(
       and(
+        isNull(marketplacePendingOutreach.deletedAt),
         ilike(marketplacePendingOutreach.sellerFirstName, sellerFirstNameNormalized),
         or(
           ilike(marketplacePendingOutreach.listingTitleNormalized, `%${listingTitleNormalized}%`),
@@ -185,6 +190,7 @@ export interface ListPendingOutreachFilters {
   search?:    string;
   hasPhone?:  boolean;
   hasCrmLead?: boolean;
+  deleted?:   boolean;
 }
 
 export interface ListPendingOutreachResult {
@@ -197,10 +203,14 @@ export interface ListPendingOutreachResult {
 export async function listPendingOutreach(
   filters: ListPendingOutreachFilters
 ): Promise<ListPendingOutreachResult> {
-  const { page, limit, status, search, hasPhone, hasCrmLead } = filters;
+  const { page, limit, status, search, hasPhone, hasCrmLead, deleted } = filters;
   const offset = (page - 1) * limit;
 
-  const conditions = [];
+  const conditions: SQL[] = [
+    deleted === true
+      ? isNotNull(marketplacePendingOutreach.deletedAt)
+      : isNull(marketplacePendingOutreach.deletedAt),
+  ];
 
   if (status) {
     conditions.push(eq(marketplacePendingOutreach.messageStatus, status));
@@ -214,7 +224,7 @@ export async function listPendingOutreach(
         ilike(marketplacePendingOutreach.listingTitleRaw,      term),
         ilike(marketplacePendingOutreach.replyPhoneNormalized, term),
         ilike(marketplacePendingOutreach.extractedPhone,       term)
-      )
+      )!
     );
   }
 
@@ -223,14 +233,14 @@ export async function listPendingOutreach(
       or(
         isNotNull(marketplacePendingOutreach.replyPhoneNormalized),
         isNotNull(marketplacePendingOutreach.extractedPhone)
-      )
+      )!
     );
   } else if (hasPhone === false) {
     conditions.push(
       and(
         isNull(marketplacePendingOutreach.replyPhoneNormalized),
         isNull(marketplacePendingOutreach.extractedPhone)
-      )
+      )!
     );
   }
 
@@ -339,25 +349,53 @@ export async function markPendingOutreachDuplicateBusiness(
 }
 
 export async function deletePendingOutreach(
-  id: string
-): Promise<boolean> {
-  const result = await db
-    .delete(marketplacePendingOutreach)
+  id: string,
+  deletedBy?: string | null
+): Promise<MarketplacePendingOutreach | undefined> {
+  const [result] = await db
+    .update(marketplacePendingOutreach)
+    .set({
+      deletedAt: new Date(),
+      deletedBy: deletedBy ?? null,
+      updatedAt: new Date(),
+    })
     .where(eq(marketplacePendingOutreach.id, id))
-    .returning({ id: marketplacePendingOutreach.id });
-  return result.length > 0;
+    .returning();
+  return result;
 }
 
 export async function bulkDeletePendingOutreach(
-  ids: string[]
+  ids: string[],
+  deletedBy?: string | null
 ): Promise<{ deletedIds: string[]; count: number }> {
   if (ids.length === 0) return { deletedIds: [], count: 0 };
   const results = await db
-    .delete(marketplacePendingOutreach)
+    .update(marketplacePendingOutreach)
+    .set({
+      deletedAt: new Date(),
+      deletedBy: deletedBy ?? null,
+      updatedAt: new Date(),
+    })
     .where(inArray(marketplacePendingOutreach.id, ids))
     .returning({ id: marketplacePendingOutreach.id });
   const deletedIds = results.map(r => r.id);
   return { deletedIds, count: deletedIds.length };
+}
+
+export async function restorePendingOutreach(
+  id: string
+): Promise<MarketplacePendingOutreach | undefined> {
+  const [result] = await db
+    .update(marketplacePendingOutreach)
+    .set({
+      deletedAt: null,
+      deletedBy: null,
+      deleteReason: null,
+      updatedAt: new Date(),
+    })
+    .where(eq(marketplacePendingOutreach.id, id))
+    .returning();
+  return result;
 }
 
 export interface ListMyLeadsFilters {
@@ -401,7 +439,10 @@ export async function listMyLeads(
   const { statusGroup, page, limit } = filters;
   const offset = (page - 1) * limit;
 
-  const conditions = [eq(marketplacePendingOutreach.createdBy, userId)];
+  const conditions = [
+    eq(marketplacePendingOutreach.createdBy, userId),
+    isNull(marketplacePendingOutreach.deletedAt),
+  ];
 
   if (statusGroup) {
     conditions.push(inArray(marketplacePendingOutreach.messageStatus, STATUS_GROUP_MAP[statusGroup]));
@@ -450,12 +491,19 @@ export async function getPendingOutreachSummary(): Promise<Record<string, number
       count:  count(),
     })
     .from(marketplacePendingOutreach)
+    .where(isNull(marketplacePendingOutreach.deletedAt))
     .groupBy(marketplacePendingOutreach.messageStatus);
+
+  const [deletedRow] = await db
+    .select({ count: count() })
+    .from(marketplacePendingOutreach)
+    .where(isNotNull(marketplacePendingOutreach.deletedAt));
 
   const result: Record<string, number> = {};
   for (const row of rows) {
     result[row.status] = Number(row.count);
   }
+  result.deleted = Number(deletedRow?.count ?? 0);
   return result;
 }
 
@@ -562,8 +610,11 @@ export async function getLeadGenPerformanceSummary(options: number | { days?: nu
           FILTER (WHERE COALESCE(m.converted_by, m.created_by) = w.id AND m.message_status = 'converted' AND m.converted_at >= ${range.from} AND m.converted_at < ${range.endExclusive}), 1) AS "avgQueueToConvertHours"
       FROM workers w
       LEFT JOIN marketplace_pending_outreach m
-        ON m.created_by = w.id
-        OR COALESCE(m.converted_by, m.created_by) = w.id
+        ON m.deleted_at IS NULL
+        AND (
+          m.created_by = w.id
+          OR COALESCE(m.converted_by, m.created_by) = w.id
+        )
       GROUP BY w.id, w.name, w.email, w.role
       ORDER BY "converted" DESC, "contacted" DESC, w.name ASC
     `),
@@ -575,6 +626,7 @@ export async function getLeadGenPerformanceSummary(options: number | { days?: nu
       FROM marketplace_pending_outreach m
       INNER JOIN "user" u ON u.id = COALESCE(m.converted_by, m.created_by)
       WHERE u.role IN ('lead_gen', 'extension_worker')
+        AND m.deleted_at IS NULL
     `),
     db.execute(sql`
       WITH days AS (
@@ -600,6 +652,7 @@ export async function getLeadGenPerformanceSummary(options: number | { days?: nu
           OR DATE(m.converted_at) = d.day
           OR DATE(m.updated_at) = d.day
         )
+        AND m.deleted_at IS NULL
         AND EXISTS (
           SELECT 1 FROM "user" u
           WHERE u.role IN ('lead_gen', 'extension_worker')
@@ -636,6 +689,7 @@ export async function getLeadGenPerformanceSummary(options: number | { days?: nu
       CROSS JOIN workers w
       LEFT JOIN marketplace_pending_outreach m
         ON (m.created_by = w.id OR COALESCE(m.converted_by, m.created_by) = w.id)
+        AND m.deleted_at IS NULL
         AND (
           DATE(m.created_at) = d.day
           OR DATE(m.outreach_sent_at) = d.day
