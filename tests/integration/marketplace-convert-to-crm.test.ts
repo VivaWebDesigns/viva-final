@@ -14,6 +14,10 @@ vi.mock("../../server/features/auth/middleware", () => ({
     req.authUser = authUser;
     next();
   },
+  requireAuthBearerFirst: (req: any, _res: any, next: any) => {
+    req.authUser = authUser;
+    next();
+  },
   requireRole: () => (req: any, _res: any, next: any) => {
     req.authUser = authUser;
     next();
@@ -173,6 +177,12 @@ describe("POST /api/marketplace/pending-outreach/:id/convert-to-crm", () => {
     expect(mockCreateLead).toHaveBeenCalledWith(
       expect.objectContaining({
         assignedTo: authUser.id,
+      }),
+    );
+    expect(mockUpdatePendingOutreach).toHaveBeenCalledWith(
+      "pending-1",
+      expect.objectContaining({
+        convertedBy: authUser.id,
       }),
     );
   });

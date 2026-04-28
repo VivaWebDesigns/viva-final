@@ -41,6 +41,7 @@ export async function updatePendingOutreach(
     | "threadIdentifier"
     | "crmLeadId"
     | "convertedAt"
+    | "convertedBy"
     | "city"
     | "state"
     | "tradeGuess"
@@ -544,24 +545,25 @@ export async function getLeadGenPerformanceSummary(options: number | { days?: nu
         SELECT id, name, email, role
         FROM "user"
         WHERE role IN ('lead_gen', 'extension_worker')
-          AND COALESCE(banned, false) = false
       )
       SELECT
         w.id AS "userId",
         w.name,
         w.email,
         w.role,
-        COUNT(m.id) FILTER (WHERE m.created_at >= ${range.from} AND m.created_at < ${range.endExclusive})::int AS "reviewed",
-        COUNT(m.id) FILTER (WHERE m.outreach_sent_at >= ${range.from} AND m.outreach_sent_at < ${range.endExclusive})::int AS "contacted",
-        COUNT(m.id) FILTER (WHERE m.reply_received_at >= ${range.from} AND m.reply_received_at < ${range.endExclusive})::int AS "replies",
-        COUNT(m.id) FILTER (WHERE m.message_status = 'converted' AND m.converted_at >= ${range.from} AND m.converted_at < ${range.endExclusive})::int AS "converted",
-        COUNT(m.id) FILTER (WHERE m.message_status = 'skipped' AND m.updated_at >= ${range.from} AND m.updated_at < ${range.endExclusive})::int AS "skipped",
-        COUNT(m.id) FILTER (WHERE m.message_status = 'duplicate_business' AND m.updated_at >= ${range.from} AND m.updated_at < ${range.endExclusive})::int AS "duplicateBusiness",
-        COUNT(m.id) FILTER (WHERE m.message_status = 'manual_review_required' AND m.updated_at >= ${range.from} AND m.updated_at < ${range.endExclusive})::int AS "manualReview",
+        COUNT(m.id) FILTER (WHERE m.created_by = w.id AND m.created_at >= ${range.from} AND m.created_at < ${range.endExclusive})::int AS "reviewed",
+        COUNT(m.id) FILTER (WHERE m.created_by = w.id AND m.outreach_sent_at >= ${range.from} AND m.outreach_sent_at < ${range.endExclusive})::int AS "contacted",
+        COUNT(m.id) FILTER (WHERE m.created_by = w.id AND m.reply_received_at >= ${range.from} AND m.reply_received_at < ${range.endExclusive})::int AS "replies",
+        COUNT(m.id) FILTER (WHERE COALESCE(m.converted_by, m.created_by) = w.id AND m.message_status = 'converted' AND m.converted_at >= ${range.from} AND m.converted_at < ${range.endExclusive})::int AS "converted",
+        COUNT(m.id) FILTER (WHERE m.created_by = w.id AND m.message_status = 'skipped' AND m.updated_at >= ${range.from} AND m.updated_at < ${range.endExclusive})::int AS "skipped",
+        COUNT(m.id) FILTER (WHERE m.created_by = w.id AND m.message_status = 'duplicate_business' AND m.updated_at >= ${range.from} AND m.updated_at < ${range.endExclusive})::int AS "duplicateBusiness",
+        COUNT(m.id) FILTER (WHERE m.created_by = w.id AND m.message_status = 'manual_review_required' AND m.updated_at >= ${range.from} AND m.updated_at < ${range.endExclusive})::int AS "manualReview",
         ROUND(AVG(EXTRACT(EPOCH FROM (m.converted_at - m.created_at)) / 3600.0)
-          FILTER (WHERE m.message_status = 'converted' AND m.converted_at >= ${range.from} AND m.converted_at < ${range.endExclusive}), 1) AS "avgQueueToConvertHours"
+          FILTER (WHERE COALESCE(m.converted_by, m.created_by) = w.id AND m.message_status = 'converted' AND m.converted_at >= ${range.from} AND m.converted_at < ${range.endExclusive}), 1) AS "avgQueueToConvertHours"
       FROM workers w
-      LEFT JOIN marketplace_pending_outreach m ON m.created_by = w.id
+      LEFT JOIN marketplace_pending_outreach m
+        ON m.created_by = w.id
+        OR COALESCE(m.converted_by, m.created_by) = w.id
       GROUP BY w.id, w.name, w.email, w.role
       ORDER BY "converted" DESC, "contacted" DESC, w.name ASC
     `),
@@ -571,7 +573,7 @@ export async function getLeadGenPerformanceSummary(options: number | { days?: nu
         COUNT(*) FILTER (WHERE message_status = 'converted' AND converted_at >= ${sevenDaysAgo})::int AS "completed7d",
         COUNT(*) FILTER (WHERE message_status = 'converted' AND converted_at >= ${thirtyDaysAgo})::int AS "completed30d"
       FROM marketplace_pending_outreach m
-      INNER JOIN "user" u ON u.id = m.created_by
+      INNER JOIN "user" u ON u.id = COALESCE(m.converted_by, m.created_by)
       WHERE u.role IN ('lead_gen', 'extension_worker')
     `),
     db.execute(sql`
@@ -583,7 +585,11 @@ export async function getLeadGenPerformanceSummary(options: number | { days?: nu
         COUNT(m.id) FILTER (WHERE DATE(m.created_at) = d.day)::int AS "reviewed",
         COUNT(m.id) FILTER (WHERE DATE(m.outreach_sent_at) = d.day)::int AS "contacted",
         COUNT(m.id) FILTER (WHERE DATE(m.reply_received_at) = d.day)::int AS "replies",
-        COUNT(m.id) FILTER (WHERE m.message_status = 'converted' AND DATE(m.converted_at) = d.day)::int AS "converted",
+        COUNT(m.id) FILTER (WHERE m.message_status = 'converted' AND DATE(m.converted_at) = d.day AND EXISTS (
+          SELECT 1 FROM "user" u
+          WHERE u.id = COALESCE(m.converted_by, m.created_by)
+            AND u.role IN ('lead_gen', 'extension_worker')
+        ))::int AS "converted",
         COUNT(m.id) FILTER (WHERE m.message_status = 'skipped' AND DATE(m.updated_at) = d.day)::int AS "skipped"
       FROM days d
       LEFT JOIN marketplace_pending_outreach m
@@ -596,8 +602,11 @@ export async function getLeadGenPerformanceSummary(options: number | { days?: nu
         )
         AND EXISTS (
           SELECT 1 FROM "user" u
-          WHERE u.id = m.created_by
-            AND u.role IN ('lead_gen', 'extension_worker')
+          WHERE u.role IN ('lead_gen', 'extension_worker')
+            AND (
+              u.id = m.created_by
+              OR u.id = COALESCE(m.converted_by, m.created_by)
+            )
         )
       GROUP BY d.day
       ORDER BY d.day ASC
@@ -610,24 +619,23 @@ export async function getLeadGenPerformanceSummary(options: number | { days?: nu
         SELECT id, name, email, role
         FROM "user"
         WHERE role IN ('lead_gen', 'extension_worker')
-          AND COALESCE(banned, false) = false
       )
       SELECT
         d.day::text AS "date",
         w.id AS "userId",
         w.name,
         w.email,
-        COUNT(m.id) FILTER (WHERE DATE(m.created_at) = d.day)::int AS "reviewed",
-        COUNT(m.id) FILTER (WHERE DATE(m.outreach_sent_at) = d.day)::int AS "contacted",
-        COUNT(m.id) FILTER (WHERE DATE(m.reply_received_at) = d.day)::int AS "replies",
-        COUNT(m.id) FILTER (WHERE m.message_status = 'converted' AND DATE(m.converted_at) = d.day)::int AS "converted",
-        COUNT(m.id) FILTER (WHERE m.message_status = 'skipped' AND DATE(m.updated_at) = d.day)::int AS "skipped",
-        COUNT(m.id) FILTER (WHERE m.message_status = 'duplicate_business' AND DATE(m.updated_at) = d.day)::int AS "duplicateBusiness",
-        COUNT(m.id) FILTER (WHERE m.message_status = 'manual_review_required' AND DATE(m.updated_at) = d.day)::int AS "manualReview"
+        COUNT(m.id) FILTER (WHERE m.created_by = w.id AND DATE(m.created_at) = d.day)::int AS "reviewed",
+        COUNT(m.id) FILTER (WHERE m.created_by = w.id AND DATE(m.outreach_sent_at) = d.day)::int AS "contacted",
+        COUNT(m.id) FILTER (WHERE m.created_by = w.id AND DATE(m.reply_received_at) = d.day)::int AS "replies",
+        COUNT(m.id) FILTER (WHERE COALESCE(m.converted_by, m.created_by) = w.id AND m.message_status = 'converted' AND DATE(m.converted_at) = d.day)::int AS "converted",
+        COUNT(m.id) FILTER (WHERE m.created_by = w.id AND m.message_status = 'skipped' AND DATE(m.updated_at) = d.day)::int AS "skipped",
+        COUNT(m.id) FILTER (WHERE m.created_by = w.id AND m.message_status = 'duplicate_business' AND DATE(m.updated_at) = d.day)::int AS "duplicateBusiness",
+        COUNT(m.id) FILTER (WHERE m.created_by = w.id AND m.message_status = 'manual_review_required' AND DATE(m.updated_at) = d.day)::int AS "manualReview"
       FROM days d
       CROSS JOIN workers w
       LEFT JOIN marketplace_pending_outreach m
-        ON m.created_by = w.id
+        ON (m.created_by = w.id OR COALESCE(m.converted_by, m.created_by) = w.id)
         AND (
           DATE(m.created_at) = d.day
           OR DATE(m.outreach_sent_at) = d.day

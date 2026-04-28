@@ -166,6 +166,13 @@ Content-Type: application/json
 Using the worker token here ensures the CRM lead's `assignedTo` defaults to the worker's user ID
 when no explicit `assignedTo` is provided.
 
+Conversion attribution is tracked separately from origination:
+- `createdBy` preserves the worker who originally created/sourced the pending outreach record.
+- `convertedBy` is set to the authenticated user who completes `convert-to-crm`.
+
+Admin payroll and conversion reporting should credit worker conversions by `convertedBy`, with
+`createdBy` used only as a fallback for legacy records created before `convertedBy` existed.
+
 ---
 
 ## Token Priority Rules

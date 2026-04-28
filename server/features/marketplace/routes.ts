@@ -1458,6 +1458,7 @@ router.post(
       crmLeadId:            lead.id,
       messageStatus:        "converted",
       convertedAt:          new Date(),
+      convertedBy:          req.authUser?.id ?? null,
       city:                 city ?? null,
       state:                state ?? null,
       tradeGuess:           trade ?? null,

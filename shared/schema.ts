@@ -1145,6 +1145,7 @@ export const marketplacePendingOutreach = pgTable("marketplace_pending_outreach"
   manualReviewReason:     text("manual_review_reason"),
   crmLeadId:              varchar("crm_lead_id").references(() => crmLeads.id),
   convertedAt:            timestamp("converted_at"),
+  convertedBy:            text("converted_by").references(() => user.id),
   createdBy:              text("created_by").references(() => user.id),
   createdAt:              timestamp("created_at").defaultNow().notNull(),
   updatedAt:              timestamp("updated_at").defaultNow().notNull(),
@@ -1154,6 +1155,7 @@ export const marketplacePendingOutreach = pgTable("marketplace_pending_outreach"
   index("mpo_created_at_idx").on(t.createdAt),
   index("mpo_crm_lead_id_idx").on(t.crmLeadId),
   index("mpo_created_by_idx").on(t.createdBy),
+  index("mpo_converted_by_idx").on(t.convertedBy),
 ]);
 
 export const insertMarketplacePendingOutreachSchema = createInsertSchema(marketplacePendingOutreach).omit({
