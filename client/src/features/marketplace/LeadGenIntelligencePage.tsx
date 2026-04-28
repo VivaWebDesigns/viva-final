@@ -17,6 +17,10 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
+  Legend,
+  Pie,
+  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -81,6 +85,19 @@ interface LeadGenSummary {
     converted: number;
     skipped: number;
   }>;
+  dailyByWorker: Array<{
+    date: string;
+    userId: string;
+    name: string;
+    email: string;
+    reviewed: number;
+    contacted: number;
+    replies: number;
+    converted: number;
+    skipped: number;
+    duplicateBusiness: number;
+    manualReview: number;
+  }>;
   workers: LeadGenWorker[];
   recentNameActions: Array<{
     createdAt: string;
@@ -96,6 +113,19 @@ interface LeadGenSummary {
 
 function formatDateShort(value: string) {
   return new Date(`${value}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function toDateInputValue(value: Date) {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function addDays(value: Date, days: number) {
+  const date = new Date(value);
+  date.setDate(date.getDate() + days);
+  return date;
 }
 
 function formatDateTime(value: string) {
@@ -128,6 +158,10 @@ function scoreTone(score: number) {
   if (score >= 55) return "border-amber-200 bg-amber-50 text-amber-700";
   return "border-red-200 bg-red-50 text-red-700";
 }
+
+const PIE_COLORS = ["#10B981", "#2563EB", "#F59E0B", "#8B5CF6", "#EF4444", "#14B8A6", "#64748B"];
+
+type RangeMode = "today" | "7" | "30" | "90" | "custom";
 
 function StatCard({
   label,
@@ -167,9 +201,31 @@ function EmptyState({ children }: { children: ReactNode }) {
 }
 
 export default function LeadGenIntelligencePage() {
-  const [days, setDays] = useState("7");
+  const today = useMemo(() => toDateInputValue(new Date()), []);
+  const [rangeMode, setRangeMode] = useState<RangeMode>("today");
+  const [customFrom, setCustomFrom] = useState(today);
+  const [customTo, setCustomTo] = useState(today);
+  const [selectedWorkerId, setSelectedWorkerId] = useState("all");
+
+  const rangeQuery = useMemo(() => {
+    const params = new URLSearchParams();
+    if (rangeMode === "custom") {
+      params.set("from", customFrom);
+      params.set("to", customTo);
+      return params.toString();
+    }
+
+    const days = rangeMode === "today" ? 1 : Number(rangeMode);
+    const to = new Date(`${today}T00:00:00`);
+    const from = addDays(to, -days + 1);
+    params.set("days", String(days));
+    params.set("from", toDateInputValue(from));
+    params.set("to", today);
+    return params.toString();
+  }, [customFrom, customTo, rangeMode, today]);
+
   const { data, error, isError, isLoading } = useQuery<LeadGenSummary>({
-    queryKey: [`/api/marketplace/lead-gen/summary?days=${days}`],
+    queryKey: [`/api/marketplace/lead-gen/summary?${rangeQuery}`],
     staleTime: STALE.MEDIUM,
   });
 
@@ -177,6 +233,31 @@ export default function LeadGenIntelligencePage() {
     () => [...(data?.workers ?? [])].sort((a, b) => b.productivityScore - a.productivityScore || b.converted - a.converted),
     [data?.workers],
   );
+
+  const chartData = useMemo(() => {
+    if (!data || selectedWorkerId === "all") return data?.daily ?? [];
+    return data.dailyByWorker
+      .filter((row) => row.userId === selectedWorkerId)
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, [data, selectedWorkerId]);
+
+  const dailyWorkerRows = useMemo(() => {
+    const rows = data?.dailyByWorker ?? [];
+    return selectedWorkerId === "all" ? rows : rows.filter((row) => row.userId === selectedWorkerId);
+  }, [data?.dailyByWorker, selectedWorkerId]);
+
+  const conversionShare = useMemo(
+    () => topWorkers
+      .filter((worker) => worker.converted > 0)
+      .map((worker) => ({ name: worker.name, value: worker.converted })),
+    [topWorkers],
+  );
+
+  const rangeLabel = rangeMode === "today"
+    ? "today"
+    : rangeMode === "custom"
+      ? customFrom === customTo ? formatDateShort(customFrom) : `${formatDateShort(customFrom)} - ${formatDateShort(customTo)}`
+      : `${rangeMode}d`;
 
   return (
     <div>
@@ -189,19 +270,46 @@ export default function LeadGenIntelligencePage() {
             Extension worker output, contact flow, conversions, and Spanish-name review activity.
           </p>
         </div>
-        <div className="flex items-center gap-1 rounded-lg bg-gray-100 p-1" data-testid="filter-lead-gen-range">
-          {["7", "30", "90"].map((range) => (
-            <button
-              key={range}
-              onClick={() => setDays(range)}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                days === range ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
-              }`}
-              data-testid={`button-lead-gen-range-${range}`}
-            >
-              {range}d
-            </button>
-          ))}
+        <div className="flex flex-col gap-2 sm:items-end">
+          <div className="flex items-center gap-1 rounded-lg bg-gray-100 p-1" data-testid="filter-lead-gen-range">
+            {[
+              ["today", "Today"],
+              ["7", "7d"],
+              ["30", "30d"],
+              ["90", "90d"],
+              ["custom", "Custom"],
+            ].map(([range, label]) => (
+              <button
+                key={range}
+                onClick={() => setRangeMode(range as RangeMode)}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                  rangeMode === range ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
+                }`}
+                data-testid={`button-lead-gen-range-${range}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {rangeMode === "custom" && (
+            <div className="flex items-center gap-2 text-sm">
+              <input
+                type="date"
+                value={customFrom}
+                onChange={(event) => setCustomFrom(event.target.value)}
+                className="rounded-md border border-gray-200 px-2 py-1.5 text-gray-700"
+                data-testid="input-lead-gen-from"
+              />
+              <span className="text-gray-400">to</span>
+              <input
+                type="date"
+                value={customTo}
+                onChange={(event) => setCustomTo(event.target.value)}
+                className="rounded-md border border-gray-200 px-2 py-1.5 text-gray-700"
+                data-testid="input-lead-gen-to"
+              />
+            </div>
+          )}
         </div>
       </div>
 
@@ -221,7 +329,7 @@ export default function LeadGenIntelligencePage() {
       ) : data ? (
         <>
           <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
-            <StatCard label="Completed today" value={data.windows.completedToday} icon={CheckCircle2} tone="bg-emerald-500" />
+            <StatCard label={`Converted ${rangeLabel}`} value={data.totals.converted} icon={CheckCircle2} tone="bg-emerald-500" />
             <StatCard label="Completed 7d" value={data.windows.completed7d} icon={Target} tone="bg-cyan-500" />
             <StatCard label="Completed 30d" value={data.windows.completed30d} icon={BarChart3} tone="bg-indigo-500" />
             <StatCard label="Leads contacted" value={data.totals.contacted} sub={`${data.totals.contactRate}% contact rate`} icon={MessageCircle} tone="bg-teal-500" />
@@ -233,17 +341,27 @@ export default function LeadGenIntelligencePage() {
             <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
               <div>
                 <h2 className="text-base font-semibold text-gray-900">Daily Lead Gen Flow</h2>
-                <p className="text-xs text-gray-500">Reviewed, contacted, replies, and converted records by day.</p>
+                <p className="text-xs text-gray-500">Contacted, replies, and converted records by day.</p>
               </div>
+              <select
+                value={selectedWorkerId}
+                onChange={(event) => setSelectedWorkerId(event.target.value)}
+                className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700"
+                data-testid="select-lead-gen-worker"
+              >
+                <option value="all">All workers</option>
+                {topWorkers.map((worker) => (
+                  <option key={worker.userId} value={worker.userId}>{worker.name}</option>
+                ))}
+              </select>
             </div>
             <div className="h-80 p-5">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data.daily}>
+                <BarChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis dataKey="date" tickFormatter={formatDateShort} tick={{ fontSize: 12 }} />
                   <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
                   <Tooltip labelFormatter={(value) => formatDateShort(String(value))} />
-                  <Bar dataKey="reviewed" name="Reviewed" fill="#94A3B8" radius={[4, 4, 0, 0]} />
                   <Bar dataKey="contacted" name="Contacted" fill="#0D9488" radius={[4, 4, 0, 0]} />
                   <Bar dataKey="replies" name="Replies" fill="#2563EB" radius={[4, 4, 0, 0]} />
                   <Bar dataKey="converted" name="Converted" fill="#10B981" radius={[4, 4, 0, 0]} />
@@ -251,6 +369,73 @@ export default function LeadGenIntelligencePage() {
               </ResponsiveContainer>
             </div>
           </section>
+
+          <div className="mb-6 grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+            <section className="rounded-lg border border-gray-200 bg-white" data-testid="card-conversion-share">
+              <div className="border-b border-gray-100 px-5 py-4">
+                <h2 className="text-base font-semibold text-gray-900">Conversion Share</h2>
+                <p className="text-xs text-gray-500">Converted records by worker for {rangeLabel}.</p>
+              </div>
+              <div className="h-72 p-5">
+                {conversionShare.length === 0 ? (
+                  <EmptyState>No conversions for this range.</EmptyState>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Tooltip formatter={(value) => [`${value} converted`, ""]} />
+                      <Pie data={conversionShare} dataKey="value" nameKey="name" innerRadius={55} outerRadius={95} paddingAngle={2}>
+                        {conversionShare.map((entry, index) => (
+                          <Cell key={entry.name} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Legend verticalAlign="bottom" iconType="circle" />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </section>
+
+            <section className="rounded-lg border border-gray-200 bg-white" data-testid="card-daily-worker-activity">
+              <div className="border-b border-gray-100 px-5 py-4">
+                <h2 className="text-base font-semibold text-gray-900">Daily Worker Activity</h2>
+                <p className="text-xs text-gray-500">Per-worker outcomes for the selected date range.</p>
+              </div>
+              <div className="max-h-80 overflow-auto">
+                <table className="w-full min-w-[760px] text-left text-sm">
+                  <thead className="sticky top-0 bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
+                    <tr>
+                      <th className="px-5 py-3 font-semibold">Date</th>
+                      <th className="px-5 py-3 font-semibold">Worker</th>
+                      <th className="px-5 py-3 font-semibold">Contacted</th>
+                      <th className="px-5 py-3 font-semibold">Replies</th>
+                      <th className="px-5 py-3 font-semibold">Converted</th>
+                      <th className="px-5 py-3 font-semibold">Closed out</th>
+                      <th className="px-5 py-3 font-semibold">Manual review</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {dailyWorkerRows.map((row) => (
+                      <tr key={`${row.date}-${row.userId}`} className="hover:bg-gray-50/70">
+                        <td className="px-5 py-3 text-gray-700">{formatDateShort(row.date)}</td>
+                        <td className="px-5 py-3">
+                          <p className="font-medium text-gray-900">{row.name}</p>
+                          <p className="text-xs text-gray-500">{row.email}</p>
+                        </td>
+                        <td className="px-5 py-3 text-gray-700">{row.contacted}</td>
+                        <td className="px-5 py-3 text-gray-700">{row.replies}</td>
+                        <td className="px-5 py-3 font-semibold text-emerald-700">{row.converted}</td>
+                        <td className="px-5 py-3 text-gray-700">
+                          <p>{row.skipped} skipped</p>
+                          <p className="text-xs text-gray-500">{row.duplicateBusiness} duplicates</p>
+                        </td>
+                        <td className="px-5 py-3 text-gray-700">{row.manualReview}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </div>
 
           <div className="mb-6 grid gap-6 xl:grid-cols-[1.4fr_1fr]">
             <section className="rounded-lg border border-gray-200 bg-white" data-testid="card-lead-gen-workers">

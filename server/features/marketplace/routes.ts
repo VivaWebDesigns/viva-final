@@ -794,7 +794,9 @@ router.get(
   requireRole("admin", "developer"),
   async (req, res) => {
     const days = parseInt(req.query.days as string, 10) || 7;
-    const summary = await marketplaceStorage.getLeadGenPerformanceSummary(days);
+    const from = typeof req.query.from === "string" ? req.query.from : undefined;
+    const to = typeof req.query.to === "string" ? req.query.to : undefined;
+    const summary = await marketplaceStorage.getLeadGenPerformanceSummary({ days, from, to });
     return res.json(summary);
   }
 );

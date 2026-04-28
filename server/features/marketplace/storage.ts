@@ -458,12 +458,49 @@ export async function getPendingOutreachSummary(): Promise<Record<string, number
   return result;
 }
 
-function makeLeadGenRange(days = 7) {
-  const safeDays = Number.isFinite(days) && days > 0 ? Math.min(days, 90) : 7;
-  const to = new Date();
+function startOfLocalDay(value: Date) {
+  const date = new Date(value);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function nextLocalDay(value: Date) {
+  const date = startOfLocalDay(value);
+  date.setDate(date.getDate() + 1);
+  return date;
+}
+
+function parseDateOnly(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function daysBetweenInclusive(from: Date, to: Date) {
+  const start = startOfLocalDay(from).getTime();
+  const end = startOfLocalDay(to).getTime();
+  return Math.max(1, Math.round((end - start) / 86400000) + 1);
+}
+
+function makeLeadGenRange(options: { days?: number; from?: string; to?: string } = {}) {
+  if (options.from || options.to) {
+    const parsedFrom = options.from ? parseDateOnly(options.from) : null;
+    const parsedTo = options.to ? parseDateOnly(options.to) : parsedFrom;
+    if (parsedFrom && parsedTo) {
+      const from = startOfLocalDay(parsedFrom <= parsedTo ? parsedFrom : parsedTo);
+      const toDay = startOfLocalDay(parsedFrom <= parsedTo ? parsedTo : parsedFrom);
+      const days = Math.min(daysBetweenInclusive(from, toDay), 90);
+      const cappedToDay = new Date(from);
+      cappedToDay.setDate(cappedToDay.getDate() + days - 1);
+      return { from, to: cappedToDay, endExclusive: nextLocalDay(cappedToDay), days };
+    }
+  }
+
+  const safeDays = Number.isFinite(options.days) && options.days && options.days > 0 ? Math.min(options.days, 90) : 7;
+  const to = startOfLocalDay(new Date());
   const from = new Date(to);
-  from.setDate(from.getDate() - safeDays);
-  return { from, to, days: safeDays };
+  from.setDate(from.getDate() - safeDays + 1);
+  return { from, to, endExclusive: nextLocalDay(to), days: safeDays };
 }
 
 function toNumber(value: unknown) {
@@ -493,16 +530,15 @@ type LeadGenWorkerRow = {
   avgQueueToConvertHours: number | null;
 };
 
-export async function getLeadGenPerformanceSummary(days = 7) {
-  const range = makeLeadGenRange(days);
-  const todayStart = new Date(range.to);
-  todayStart.setHours(0, 0, 0, 0);
-  const sevenDaysAgo = new Date(range.to);
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-  const thirtyDaysAgo = new Date(range.to);
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+export async function getLeadGenPerformanceSummary(options: number | { days?: number; from?: string; to?: string } = 7) {
+  const range = makeLeadGenRange(typeof options === "number" ? { days: options } : options);
+  const todayStart = startOfLocalDay(new Date());
+  const sevenDaysAgo = new Date(todayStart);
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+  const thirtyDaysAgo = new Date(todayStart);
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
 
-  const [workerRows, windowRows, dailyRows, nameActionRows, recentNameActionRows] = await Promise.all([
+  const [workerRows, windowRows, dailyRows, dailyWorkerRows, nameActionRows, recentNameActionRows] = await Promise.all([
     db.execute(sql`
       WITH workers AS (
         SELECT id, name, email, role
@@ -515,15 +551,15 @@ export async function getLeadGenPerformanceSummary(days = 7) {
         w.name,
         w.email,
         w.role,
-        COUNT(m.id) FILTER (WHERE m.created_at >= ${range.from})::int AS "reviewed",
-        COUNT(m.id) FILTER (WHERE m.outreach_sent_at >= ${range.from})::int AS "contacted",
-        COUNT(m.id) FILTER (WHERE m.reply_received_at >= ${range.from})::int AS "replies",
-        COUNT(m.id) FILTER (WHERE m.message_status = 'converted' AND m.converted_at >= ${range.from})::int AS "converted",
-        COUNT(m.id) FILTER (WHERE m.message_status = 'skipped' AND m.updated_at >= ${range.from})::int AS "skipped",
-        COUNT(m.id) FILTER (WHERE m.message_status = 'duplicate_business' AND m.updated_at >= ${range.from})::int AS "duplicateBusiness",
-        COUNT(m.id) FILTER (WHERE m.message_status = 'manual_review_required' AND m.updated_at >= ${range.from})::int AS "manualReview",
+        COUNT(m.id) FILTER (WHERE m.created_at >= ${range.from} AND m.created_at < ${range.endExclusive})::int AS "reviewed",
+        COUNT(m.id) FILTER (WHERE m.outreach_sent_at >= ${range.from} AND m.outreach_sent_at < ${range.endExclusive})::int AS "contacted",
+        COUNT(m.id) FILTER (WHERE m.reply_received_at >= ${range.from} AND m.reply_received_at < ${range.endExclusive})::int AS "replies",
+        COUNT(m.id) FILTER (WHERE m.message_status = 'converted' AND m.converted_at >= ${range.from} AND m.converted_at < ${range.endExclusive})::int AS "converted",
+        COUNT(m.id) FILTER (WHERE m.message_status = 'skipped' AND m.updated_at >= ${range.from} AND m.updated_at < ${range.endExclusive})::int AS "skipped",
+        COUNT(m.id) FILTER (WHERE m.message_status = 'duplicate_business' AND m.updated_at >= ${range.from} AND m.updated_at < ${range.endExclusive})::int AS "duplicateBusiness",
+        COUNT(m.id) FILTER (WHERE m.message_status = 'manual_review_required' AND m.updated_at >= ${range.from} AND m.updated_at < ${range.endExclusive})::int AS "manualReview",
         ROUND(AVG(EXTRACT(EPOCH FROM (m.converted_at - m.created_at)) / 3600.0)
-          FILTER (WHERE m.message_status = 'converted' AND m.converted_at >= ${range.from}), 1) AS "avgQueueToConvertHours"
+          FILTER (WHERE m.message_status = 'converted' AND m.converted_at >= ${range.from} AND m.converted_at < ${range.endExclusive}), 1) AS "avgQueueToConvertHours"
       FROM workers w
       LEFT JOIN marketplace_pending_outreach m ON m.created_by = w.id
       GROUP BY w.id, w.name, w.email, w.role
@@ -540,7 +576,7 @@ export async function getLeadGenPerformanceSummary(days = 7) {
     `),
     db.execute(sql`
       WITH days AS (
-        SELECT generate_series(${range.from}::timestamp::date, ${range.to}::timestamp::date, interval '1 day')::date AS day
+        SELECT generate_series(${range.from}::timestamp::date, (${range.endExclusive}::timestamp::date - interval '1 day')::date, interval '1 day')::date AS day
       )
       SELECT
         d.day::text AS "date",
@@ -567,6 +603,42 @@ export async function getLeadGenPerformanceSummary(days = 7) {
       ORDER BY d.day ASC
     `),
     db.execute(sql`
+      WITH days AS (
+        SELECT generate_series(${range.from}::timestamp::date, (${range.endExclusive}::timestamp::date - interval '1 day')::date, interval '1 day')::date AS day
+      ),
+      workers AS (
+        SELECT id, name, email, role
+        FROM "user"
+        WHERE role IN ('lead_gen', 'extension_worker')
+          AND COALESCE(banned, false) = false
+      )
+      SELECT
+        d.day::text AS "date",
+        w.id AS "userId",
+        w.name,
+        w.email,
+        COUNT(m.id) FILTER (WHERE DATE(m.created_at) = d.day)::int AS "reviewed",
+        COUNT(m.id) FILTER (WHERE DATE(m.outreach_sent_at) = d.day)::int AS "contacted",
+        COUNT(m.id) FILTER (WHERE DATE(m.reply_received_at) = d.day)::int AS "replies",
+        COUNT(m.id) FILTER (WHERE m.message_status = 'converted' AND DATE(m.converted_at) = d.day)::int AS "converted",
+        COUNT(m.id) FILTER (WHERE m.message_status = 'skipped' AND DATE(m.updated_at) = d.day)::int AS "skipped",
+        COUNT(m.id) FILTER (WHERE m.message_status = 'duplicate_business' AND DATE(m.updated_at) = d.day)::int AS "duplicateBusiness",
+        COUNT(m.id) FILTER (WHERE m.message_status = 'manual_review_required' AND DATE(m.updated_at) = d.day)::int AS "manualReview"
+      FROM days d
+      CROSS JOIN workers w
+      LEFT JOIN marketplace_pending_outreach m
+        ON m.created_by = w.id
+        AND (
+          DATE(m.created_at) = d.day
+          OR DATE(m.outreach_sent_at) = d.day
+          OR DATE(m.reply_received_at) = d.day
+          OR DATE(m.converted_at) = d.day
+          OR DATE(m.updated_at) = d.day
+        )
+      GROUP BY d.day, w.id, w.name, w.email
+      ORDER BY d.day DESC, "converted" DESC, "contacted" DESC, w.name ASC
+    `),
+    db.execute(sql`
       SELECT
         a.user_id AS "userId",
         COALESCE(a.metadata->>'nameAction', 'unknown') AS "action",
@@ -575,6 +647,7 @@ export async function getLeadGenPerformanceSummary(days = 7) {
       LEFT JOIN "user" u ON u.id = a.user_id
       WHERE a.entity = 'marketplace_name_review'
         AND a.created_at >= ${range.from}
+        AND a.created_at < ${range.endExclusive}
         AND (u.role IN ('lead_gen', 'extension_worker') OR a.user_id IS NULL)
       GROUP BY a.user_id, COALESCE(a.metadata->>'nameAction', 'unknown')
     `),
@@ -592,6 +665,7 @@ export async function getLeadGenPerformanceSummary(days = 7) {
       LEFT JOIN "user" u ON u.id = a.user_id
       WHERE a.entity = 'marketplace_name_review'
         AND a.created_at >= ${range.from}
+        AND a.created_at < ${range.endExclusive}
         AND (u.role IN ('lead_gen', 'extension_worker') OR a.user_id IS NULL)
       ORDER BY a.created_at DESC
       LIMIT 20
@@ -710,7 +784,7 @@ export async function getLeadGenPerformanceSummary(days = 7) {
   const windowRow = (windowRows.rows[0] ?? {}) as { completedToday?: number; completed7d?: number; completed30d?: number };
 
   return {
-    range: { from: range.from.toISOString(), to: range.to.toISOString(), days: range.days },
+    range: { from: range.from.toISOString(), to: range.endExclusive.toISOString(), days: range.days },
     windows: {
       completedToday: toNumber(windowRow.completedToday),
       completed7d: toNumber(windowRow.completed7d),
@@ -739,6 +813,31 @@ export async function getLeadGenPerformanceSummary(days = 7) {
       replies: toNumber(row.replies),
       converted: toNumber(row.converted),
       skipped: toNumber(row.skipped),
+    })),
+    dailyByWorker: (dailyWorkerRows.rows as Array<{
+      date: string;
+      userId: string;
+      name: string;
+      email: string;
+      reviewed: number;
+      contacted: number;
+      replies: number;
+      converted: number;
+      skipped: number;
+      duplicateBusiness: number;
+      manualReview: number;
+    }>).map((row) => ({
+      date: String(row.date).slice(0, 10),
+      userId: row.userId,
+      name: row.name,
+      email: row.email,
+      reviewed: toNumber(row.reviewed),
+      contacted: toNumber(row.contacted),
+      replies: toNumber(row.replies),
+      converted: toNumber(row.converted),
+      skipped: toNumber(row.skipped),
+      duplicateBusiness: toNumber(row.duplicateBusiness),
+      manualReview: toNumber(row.manualReview),
     })),
     workers: workers.sort((a, b) => b.productivityScore - a.productivityScore || b.converted - a.converted),
     recentNameActions: (recentNameActionRows.rows as Array<{
