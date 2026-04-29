@@ -101,6 +101,7 @@ interface LeadGenSummary {
     userName: string;
     action: string;
     sellerName: string | null;
+    sellerProfileUrl: string | null;
     firstName: string | null;
     lastName: string | null;
     originalNameScore: number | null;
@@ -352,7 +353,7 @@ export default function LeadGenIntelligencePage() {
         <>
           <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             <StatCard label={`Converted ${rangeLabel}`} value={data.totals.converted} icon={CheckCircle2} tone="bg-emerald-500" />
-            <StatCard label="Leads contacted" value={data.totals.contacted} sub={`${data.totals.contactRate}% contact rate`} icon={MessageCircle} tone="bg-teal-500" />
+            <StatCard label="Leads contacted" value={data.totals.contacted} icon={MessageCircle} tone="bg-teal-500" />
             <StatCard label="Avg queue to complete" value={formatHours(data.totals.avgQueueToConvertHours)} icon={Clock} tone="bg-amber-500" />
           </div>
 
@@ -435,7 +436,6 @@ export default function LeadGenIntelligencePage() {
                         <td className="px-5 py-3 text-gray-700">{formatDateShort(row.date)}</td>
                         <td className="px-5 py-3">
                           <p className="font-medium text-gray-900">{row.name}</p>
-                          <p className="text-xs text-gray-500">{row.email}</p>
                         </td>
                         <td className="px-5 py-3 text-gray-700">{row.contacted}</td>
                         <td className="px-5 py-3 font-semibold text-emerald-700">{row.converted}</td>
@@ -485,7 +485,6 @@ export default function LeadGenIntelligencePage() {
                         <tr key={worker.userId} className="hover:bg-gray-50/70">
                           <td className="px-5 py-4">
                             <p className="font-medium text-gray-900">{worker.name}</p>
-                            <p className="text-xs text-gray-500">{worker.email}</p>
                           </td>
                           <td className="px-5 py-4">
                             <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${scoreTone(worker.productivityScore)}`}>
@@ -556,14 +555,29 @@ export default function LeadGenIntelligencePage() {
                         <p className="text-sm font-medium text-gray-900">{actionLabel(event.action)}</p>
                         <span className="text-xs text-gray-400">{formatDateTime(event.createdAt)}</span>
                       </div>
-                      <p className="text-sm text-gray-600">{event.userName}</p>
+                      <p className="mt-1">
+                        <span className="inline-flex rounded-md bg-cyan-50 px-1.5 py-0.5 text-xs font-semibold text-cyan-800 ring-1 ring-inset ring-cyan-100">
+                          {event.userName}
+                        </span>
+                      </p>
                       <p className="mt-1 text-xs text-gray-500">
                         {event.sellerName || "Unknown seller"}
                         {event.originalNameScore !== null ? ` · score ${event.originalNameScore}` : ""}
                       </p>
                       {(event.firstName || event.lastName) && (
                         <p className="mt-1 text-xs text-amber-700">
-                          {[event.firstName, event.lastName].filter(Boolean).join(" ")}
+                          {event.sellerProfileUrl ? (
+                            <a
+                              href={event.sellerProfileUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="font-medium text-amber-700 underline decoration-amber-300 underline-offset-2 hover:text-amber-800 hover:decoration-amber-500"
+                            >
+                              {[event.firstName, event.lastName].filter(Boolean).join(" ")}
+                            </a>
+                          ) : (
+                            [event.firstName, event.lastName].filter(Boolean).join(" ")
+                          )}
                         </p>
                       )}
                     </div>

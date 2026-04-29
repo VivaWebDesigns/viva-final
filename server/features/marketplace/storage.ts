@@ -720,6 +720,7 @@ export async function getLeadGenPerformanceSummary(options: number | { days?: nu
         COALESCE(u.name, 'Unknown') AS "userName",
         COALESCE(a.metadata->>'nameAction', 'unknown') AS "action",
         a.metadata->>'sellerName' AS "sellerName",
+        a.metadata->>'sellerProfileUrl' AS "sellerProfileUrl",
         a.metadata->>'firstName' AS "firstName",
         a.metadata->>'lastName' AS "lastName",
         a.metadata->>'originalNameScore' AS "originalNameScore"
@@ -908,6 +909,7 @@ export async function getLeadGenPerformanceSummary(options: number | { days?: nu
       userName: string;
       action: string;
       sellerName: string | null;
+      sellerProfileUrl: string | null;
       firstName: string | null;
       lastName: string | null;
       originalNameScore: string | null;
@@ -917,6 +919,7 @@ export async function getLeadGenPerformanceSummary(options: number | { days?: nu
       userName: row.userName,
       action: row.action,
       sellerName: row.sellerName,
+      sellerProfileUrl: row.sellerProfileUrl,
       firstName: row.firstName,
       lastName: row.lastName,
       originalNameScore: row.originalNameScore ? Number(row.originalNameScore) : null,
