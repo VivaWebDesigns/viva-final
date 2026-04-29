@@ -40,6 +40,10 @@ interface DueTodayData {
   upcoming: TaskWithContact[];
 }
 
+function normalizeDisplayName(value: string) {
+  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, " ");
+}
+
 function TaskRow({
   task,
   onComplete,
@@ -61,8 +65,10 @@ function TaskRow({
   const contactName = task.contact
     ? `${task.contact.firstName}${task.contact.lastName ? " " + task.contact.lastName : ""}`
     : null;
-  const normalize = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
-  const companyIsDifferent = task.company && (!contactName || normalize(task.company.name) !== normalize(contactName));
+  const companyIsDifferent = Boolean(
+    task.company
+    && (!contactName || normalizeDisplayName(task.company.name) !== normalizeDisplayName(contactName))
+  );
 
   return (
     <div
@@ -112,8 +118,8 @@ function TaskRow({
               <span className="font-semibold text-slate-900">{contactName}</span>
             </span>
           )}
-          {task.company && (
-            <span className={`flex items-center gap-1 text-xs ${companyIsDifferent ? "text-indigo-700 font-medium" : "text-slate-500"}`} data-testid={`text-company-name-${task.id}`}>
+          {task.company && companyIsDifferent && (
+            <span className="flex items-center gap-1 text-xs font-medium text-indigo-700" data-testid={`text-company-name-${task.id}`}>
               <Building2 className="w-3 h-3 flex-shrink-0" />
               {task.company.name}
             </span>
@@ -194,6 +200,10 @@ function CompletedTaskCard({
   const contactName = task.contact
     ? `${task.contact.firstName}${task.contact.lastName ? " " + task.contact.lastName : ""}`
     : null;
+  const companyIsDifferent = Boolean(
+    task.company
+    && (!contactName || normalizeDisplayName(task.company.name) !== normalizeDisplayName(contactName))
+  );
 
   const profileLink = getProfileLink(task);
   const completedDate = task.completedAt
@@ -224,7 +234,7 @@ function CompletedTaskCard({
                 {contactName}
               </span>
             )}
-            {task.company && (
+            {task.company && companyIsDifferent && (
               <span className="flex items-center gap-1 text-xs text-gray-500">
                 <Building2 className="w-3 h-3" />
                 {task.company.name}
