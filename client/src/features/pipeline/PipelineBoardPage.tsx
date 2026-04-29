@@ -38,6 +38,10 @@ function translateTrade(value: string, t: ReturnType<typeof useAdminLang>["t"]) 
   return (t.crm.trades as Record<string, string>)[key] ?? humanizeSlug(value);
 }
 
+function normalizeDisplayName(value: string) {
+  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, " ");
+}
+
 function CardDisplay({
   opp,
   contactMap,
@@ -55,6 +59,14 @@ function CardDisplay({
   const contactName = contact ? `${contact.firstName}${contact.lastName ? " " + contact.lastName : ""}` : null;
   const pkg = (opp as any).websitePackage as string | null;
   const translatedIndustry = company?.industry ? translateTrade(company.industry, t) : null;
+  const companyMatchesContact = Boolean(
+    company?.name
+    && contactName
+    && normalizeDisplayName(company.name) === normalizeDisplayName(contactName)
+  );
+  const displayTitle = company && contactName && !companyMatchesContact
+    ? `${company.name} – ${contactName}`
+    : company?.name || contactName || opp.title;
 
   return (
     <Card
@@ -68,11 +80,11 @@ function CardDisplay({
                 className="text-sm font-semibold text-slate-900 hover:text-[#0D9488] transition-colors line-clamp-1 block"
                 data-testid={`text-opp-title-${opp.id}`}
               >
-                {company && contactName ? `${company.name} – ${contactName}` : company ? company.name : contactName || opp.title}
+                {displayTitle}
               </span>
             </Link>
 
-            {company && (
+            {company && !companyMatchesContact && (
               <span className="flex items-center gap-1 text-xs text-slate-500 mt-0.5">
                 <Building2 className="w-3 h-3 flex-shrink-0" />
                 <span className="truncate" data-testid={`text-opp-company-${opp.id}`}>{company.name}</span>
