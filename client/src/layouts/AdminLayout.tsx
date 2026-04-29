@@ -34,8 +34,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const NAV_ITEMS = [
     { label: t.nav.dashboard,     path: "/admin",               icon: LayoutDashboard, color: "text-blue-500",    roles: ["admin", "developer"] as string[] },
-    { label: t.nav.clients,       path: "/admin/clients",        icon: Building2,       color: "text-indigo-500",  roles: ["admin", "developer", "sales_rep"] as string[] },
-    { label: t.nav.crm,           path: "/admin/crm",            icon: Users,           color: "text-emerald-500" },
+    { label: t.nav.clients,       path: "/admin/clients",        icon: Building2,       color: "text-indigo-500",  roles: ["admin", "developer"] as string[] },
+    { label: t.nav.crm,           path: "/admin/crm",            icon: Users,           color: "text-emerald-500", roles: ["admin", "developer"] as string[] },
     { label: t.nav.marketplace,   path: "/admin/marketplace",    icon: ShoppingBag,     color: "text-violet-500",  roles: ["admin", "developer"] as string[] },
     { label: t.nav.pipeline,      path: "/admin/pipeline",       icon: TrendingUp,      color: "text-orange-500",  roles: ["admin", "developer", "sales_rep"] as string[] },
     { label: t.nav.tasks,         path: "/admin/tasks",          icon: ClipboardList,   color: "text-teal-500",    roles: ["admin", "developer", "sales_rep"] as string[] },

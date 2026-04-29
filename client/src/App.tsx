@@ -88,16 +88,28 @@ function AdminRouter() {
                 <DashboardPage />
               </ProtectedRoute>
             </Route>
-            <Route path="/admin/crm" component={LeadListPage} />
+            <Route path="/admin/crm">
+              <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/pipeline">
+                <LeadListPage />
+              </ProtectedRoute>
+            </Route>
             <Route path="/admin/crm/leads/:id">
-              {(params) => <LeadProfilePage id={params.id} />}
+              {(params) => (
+                <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/pipeline">
+                  <LeadProfilePage id={params.id} />
+                </ProtectedRoute>
+              )}
             </Route>
             <Route path="/admin/crm/companies/:id">
-              {(params) => <CompanyDetailPage id={params.id} />}
+              {(params) => (
+                <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/pipeline">
+                  <CompanyDetailPage id={params.id} />
+                </ProtectedRoute>
+              )}
             </Route>
             <Route path="/admin/crm/contacts/:id">
               {(params) => (
-                <ProtectedRoute roles={["admin", "developer", "sales_rep"]}>
+                <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/pipeline">
                   <ContactDetailPage id={params.id} />
                 </ProtectedRoute>
               )}
@@ -153,13 +165,13 @@ function AdminRouter() {
             </Route>
             <Route path="/admin/clients/:id">
               {(params) => (
-                <ProtectedRoute roles={["admin", "developer", "sales_rep"]}>
+                <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/pipeline">
                   <ClientProfilePage id={params.id} />
                 </ProtectedRoute>
               )}
             </Route>
             <Route path="/admin/clients">
-              <ProtectedRoute roles={["admin", "developer", "sales_rep"]}>
+              <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/pipeline">
                 <ClientsPage />
               </ProtectedRoute>
             </Route>
