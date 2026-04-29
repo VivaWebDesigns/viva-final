@@ -3,13 +3,11 @@ import type { ComponentType, ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { STALE } from "@/lib/queryClient";
 import {
-  AlertTriangle,
   CheckCircle2,
   Clock,
   Gauge,
   MessageCircle,
   ShieldAlert,
-  UserCheck,
 } from "lucide-react";
 import {
   Bar,
@@ -352,10 +350,9 @@ export default function LeadGenIntelligencePage() {
         </div>
       ) : data ? (
         <>
-          <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             <StatCard label={`Converted ${rangeLabel}`} value={data.totals.converted} icon={CheckCircle2} tone="bg-emerald-500" />
             <StatCard label="Leads contacted" value={data.totals.contacted} sub={`${data.totals.contactRate}% contact rate`} icon={MessageCircle} tone="bg-teal-500" />
-            <StatCard label="Replies" value={data.totals.replies} sub={`${data.totals.replyRate}% reply rate`} icon={UserCheck} tone="bg-slate-500" />
             <StatCard label="Avg queue to complete" value={formatHours(data.totals.avgQueueToConvertHours)} icon={Clock} tone="bg-amber-500" />
           </div>
 
@@ -363,7 +360,7 @@ export default function LeadGenIntelligencePage() {
             <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
               <div>
                 <h2 className="text-base font-semibold text-gray-900">Daily Lead Gen Flow</h2>
-                <p className="text-xs text-gray-500">Contacted, replies, and converted records by day.</p>
+                <p className="text-xs text-gray-500">Contacted and converted records by day.</p>
               </div>
               <select
                 value={selectedWorkerId}
@@ -385,7 +382,6 @@ export default function LeadGenIntelligencePage() {
                   <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
                   <Tooltip labelFormatter={(value) => formatDateShort(String(value))} />
                   <Bar dataKey="contacted" name="Contacted" fill="#0D9488" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="replies" name="Replies" fill="#2563EB" radius={[4, 4, 0, 0]} />
                   <Bar dataKey="converted" name="Converted" fill="#10B981" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -423,16 +419,14 @@ export default function LeadGenIntelligencePage() {
                 <p className="text-xs text-gray-500">Per-worker outcomes for the selected date range.</p>
               </div>
               <div className="max-h-80 overflow-auto">
-                <table className="w-full min-w-[760px] text-left text-sm">
+                <table className="w-full min-w-[640px] text-left text-sm">
                   <thead className="sticky top-0 bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
                     <tr>
                       <th className="px-5 py-3 font-semibold">Date</th>
                       <th className="px-5 py-3 font-semibold">Worker</th>
                       <th className="px-5 py-3 font-semibold">Contacted</th>
-                      <th className="px-5 py-3 font-semibold">Replies</th>
                       <th className="px-5 py-3 font-semibold">Converted</th>
                       <th className="px-5 py-3 font-semibold">Closed out</th>
-                      <th className="px-5 py-3 font-semibold">Manual review</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -444,13 +438,11 @@ export default function LeadGenIntelligencePage() {
                           <p className="text-xs text-gray-500">{row.email}</p>
                         </td>
                         <td className="px-5 py-3 text-gray-700">{row.contacted}</td>
-                        <td className="px-5 py-3 text-gray-700">{row.replies}</td>
                         <td className="px-5 py-3 font-semibold text-emerald-700">{row.converted}</td>
                         <td className="px-5 py-3 text-gray-700">
                           <p>{row.skipped} skipped</p>
                           <p className="text-xs text-gray-500">{row.duplicateBusiness} duplicates</p>
                         </td>
-                        <td className="px-5 py-3 text-gray-700">{row.manualReview}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -474,14 +466,13 @@ export default function LeadGenIntelligencePage() {
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[980px] text-left text-sm">
+                  <table className="w-full min-w-[860px] text-left text-sm">
                     <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
                       <tr>
                         <th className="px-5 py-3 font-semibold">Worker</th>
                         <th className="px-5 py-3 font-semibold">Score</th>
                         <th className="px-5 py-3 font-semibold">Reviewed</th>
                         <th className="px-5 py-3 font-semibold">Contacted</th>
-                        <th className="px-5 py-3 font-semibold">Replies</th>
                         <th className="px-5 py-3 font-semibold">Converted</th>
                         <th className="px-5 py-3 font-semibold">Closed out</th>
                         <th className="px-5 py-3 font-semibold">Name actions</th>
@@ -505,10 +496,6 @@ export default function LeadGenIntelligencePage() {
                           <td className="px-5 py-4">
                             <p className="font-medium text-gray-900">{worker.contacted}</p>
                             <p className="text-xs text-gray-500">{worker.contactRate}% contact rate</p>
-                          </td>
-                          <td className="px-5 py-4">
-                            <p className="font-medium text-gray-900">{worker.replies}</p>
-                            <p className="text-xs text-gray-500">{worker.replyRate}% of contacted</p>
                           </td>
                           <td className="px-5 py-4">
                             <p className="font-medium text-gray-900">{worker.converted}</p>
@@ -585,31 +572,6 @@ export default function LeadGenIntelligencePage() {
               )}
             </section>
           </div>
-
-          <section className="rounded-lg border border-gray-200 bg-white p-5" data-testid="card-lead-gen-risk">
-            <div className="mb-4 flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-amber-500" />
-              <h2 className="text-base font-semibold text-gray-900">Close-Out Breakdown</h2>
-            </div>
-            <div className="grid gap-4 text-sm md:grid-cols-4">
-              <div>
-                <p className="text-xs uppercase tracking-wide text-gray-500">Converted to CRM</p>
-                <p className="mt-1 text-2xl font-bold text-gray-900">{data.totals.converted}</p>
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-wide text-gray-500">Skipped</p>
-                <p className="mt-1 text-2xl font-bold text-gray-900">{data.totals.skipped}</p>
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-wide text-gray-500">Duplicate business</p>
-                <p className="mt-1 text-2xl font-bold text-gray-900">{data.totals.duplicateBusiness}</p>
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-wide text-gray-500">Manual review status</p>
-                <p className="mt-1 text-2xl font-bold text-gray-900">{data.totals.manualReview}</p>
-              </div>
-            </div>
-          </section>
         </>
       ) : null}
     </div>
