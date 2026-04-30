@@ -28,7 +28,7 @@ export function Navigation() {
   const [scrolled, setScrolled] = useState(false);
   const [servicesOpen, setServicesOpen] = useState(false);
   const [mobileServicesOpen, setMobileServicesOpen] = useState(false);
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -59,9 +59,13 @@ export function Navigation() {
     }, 0);
   };
 
-  const handleNavLinkClick = (href: string) => {
+  const handleNavLinkClick = (href: string, event?: React.MouseEvent<HTMLAnchorElement>) => {
     const [path, hash] = href.split("#");
-    if (hash && (location === path || (path === "/" && location === "/"))) {
+    if (hash) {
+      event?.preventDefault();
+      if (location !== path) {
+        setLocation(path);
+      }
       scrollToHash(hash);
       return;
     }
@@ -184,7 +188,7 @@ export function Navigation() {
               className={`text-sm font-medium cursor-pointer transition-colors ${
                 location === link.href ? "text-primary" : "text-foreground/60 hover:text-foreground"
               }`}
-              onClick={() => handleNavLinkClick(link.href)}
+              onClick={(event) => handleNavLinkClick(link.href, event)}
               data-testid={`link-nav-${link.href.replace("/", "").replace("#", "") || "home"}`}
             >
               {link.name}
@@ -282,8 +286,8 @@ export function Navigation() {
                 className={`text-base font-medium py-3 border-b border-border/50 cursor-pointer ${
                   location === link.href ? "text-primary" : "text-foreground/80"
                 }`}
-                onClick={() => {
-                  handleNavLinkClick(link.href);
+                onClick={(event) => {
+                  handleNavLinkClick(link.href, event);
                   setIsOpen(false);
                 }}
                 data-testid={`link-mobile-${link.href.replace("/", "").replace("#", "") || "home"}`}
