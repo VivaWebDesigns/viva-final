@@ -355,6 +355,7 @@ export default function Home() {
                 <ReviewCard name={t("review3Name")} location={t("review3Loc")} text={t("review3Text")} delay={0.3} />
                 <ReviewCard name={t("review4Name")} location={t("review4Loc")} text={t("review4Text")} delay={0.4} />
                 <ReviewCard name={t("review5Name")} location={t("review5Loc")} text={t("review5Text")} delay={0.5} />
+                <ReviewCard name={t("review6Name")} location={t("review6Loc")} text={t("review6Text")} delay={0.6} />
               </>
             )}
           </div>

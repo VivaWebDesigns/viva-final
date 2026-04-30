@@ -126,7 +126,11 @@ const translations = {
     // Review 5
     review5Name: "Robert Chen",
     review5Loc: "South Charlotte",
-    review5Text: "Professional, punctual, and reasonably priced. The deck looks great after the staining."
+    review5Text: "Professional, punctual, and reasonably priced. The deck looks great after the staining.",
+    // Review 6
+    review6Name: "Daniel & Ashley Carter",
+    review6Loc: "SouthPark, Charlotte",
+    review6Text: "David refreshed our master bedroom and upstairs hallway with a clean, modern palette. He was in and out in a single day, and every line — including the trim — was flawless. We've already referred him to two neighbors."
   },
   es: {
     // Nav
@@ -245,7 +249,11 @@ const translations = {
     // Reseña 5
     review5Name: "Robert Chen",
     review5Loc: "South Charlotte",
-    review5Text: "Profesional, puntual y a un precio razonable. La terraza luce genial después del teñido."
+    review5Text: "Profesional, puntual y a un precio razonable. La terraza luce genial después del teñido.",
+    // Reseña 6
+    review6Name: "Daniel & Ashley Carter",
+    review6Loc: "SouthPark, Charlotte",
+    review6Text: "David renovó nuestra habitación principal y el pasillo del segundo piso con una paleta limpia y moderna. Terminó en un solo día y cada línea — incluidas las molduras — quedó impecable. Ya lo recomendamos a dos vecinos."
   }
 };
 
