@@ -244,6 +244,9 @@ export default function Home() {
                 <ReviewCard name={t.home.reviews.review1Name} location={t.home.reviews.review1Location} text={t.home.reviews.review1Text} delay={0.1} />
                 <ReviewCard name={t.home.reviews.review2Name} location={t.home.reviews.review2Location} text={t.home.reviews.review2Text} delay={0.2} />
                 <ReviewCard name={t.home.reviews.review3Name} location={t.home.reviews.review3Location} text={t.home.reviews.review3Text} delay={0.3} />
+                <ReviewCard name={t.home.reviews.review4Name} location={t.home.reviews.review4Location} text={t.home.reviews.review4Text} delay={0.4} />
+                <ReviewCard name={t.home.reviews.review5Name} location={t.home.reviews.review5Location} text={t.home.reviews.review5Text} delay={0.5} />
+                <ReviewCard name={t.home.reviews.review6Name} location={t.home.reviews.review6Location} text={t.home.reviews.review6Text} delay={0.6} />
               </>
             )}
           </div>

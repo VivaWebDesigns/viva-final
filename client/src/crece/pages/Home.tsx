@@ -264,6 +264,24 @@ export default function Home() {
                   text={language === "en" ? "Best quote we received and the quality exceeded our expectations. David helped us choose the perfect gray for our kitchen cabinets." : "El mejor presupuesto que recibimos y la calidad superó nuestras expectativas. David nos ayudó a elegir el gris perfecto para nuestros gabinetes de cocina."}
                   delay={0.3}
                 />
+                <ReviewCard
+                  name="James & Pat Wilson"
+                  location="Myers Park"
+                  text={language === "en" ? "David's team was respectful of our home and did a fantastic job on our exterior trim. Highly recommend!" : "El equipo de David fue respetuoso con nuestro hogar y realizó un trabajo fantástico en nuestras molduras exteriores. ¡Altamente recomendados!"}
+                  delay={0.4}
+                />
+                <ReviewCard
+                  name="Robert Chen"
+                  location="South Charlotte"
+                  text={language === "en" ? "Professional, punctual, and reasonably priced. The deck looks great after the staining." : "Profesional, puntual y a un precio razonable. La terraza luce genial después del teñido."}
+                  delay={0.5}
+                />
+                <ReviewCard
+                  name="Daniel & Ashley Carter"
+                  location="SouthPark, Charlotte"
+                  text={language === "en" ? "David refreshed our master bedroom and upstairs hallway with a clean, modern palette. He was in and out in a single day, and every line — including the trim — was flawless. We've already referred him to two neighbors." : "David renovó nuestra habitación principal y el pasillo del segundo piso con una paleta limpia y moderna. Terminó en un solo día y cada línea — incluidas las molduras — quedó impecable. Ya lo recomendamos a dos vecinos."}
+                  delay={0.6}
+                />
               </>
             )}
           </div>
