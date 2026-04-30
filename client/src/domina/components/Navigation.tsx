@@ -50,12 +50,33 @@ export function Navigation() {
   }, []);
 
   const isServicesActive = location.startsWith("/services");
+  const scrollToHash = (hash: string) => {
+    setTimeout(() => {
+      const el = document.getElementById(hash);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }, 0);
+  };
+
+  const handleNavLinkClick = (href: string) => {
+    const [path, hash] = href.split("#");
+    if (hash && (location === path || (path === "/" && location === "/"))) {
+      scrollToHash(hash);
+      return;
+    }
+
+    if (!hash && location === href) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
 
   const navLinks = [
     { name: t.nav.home, href: "/" },
     { name: t.nav.portfolio, href: "/portfolio" },
     { name: t.nav.gallery, href: "/gallery" },
     { name: t.nav.about, href: "/about" },
+    { name: t.nav.reviews, href: "/#reviews" },
     { name: t.nav.contact, href: "/contact" },
   ];
 
@@ -163,12 +184,8 @@ export function Navigation() {
               className={`text-sm font-medium cursor-pointer transition-colors ${
                 location === link.href ? "text-primary" : "text-foreground/60 hover:text-foreground"
               }`}
-              onClick={() => {
-                if (location === link.href) {
-                  window.scrollTo({ top: 0, behavior: "smooth" });
-                }
-              }}
-              data-testid={`link-nav-${link.href.replace("/", "") || "home"}`}
+              onClick={() => handleNavLinkClick(link.href)}
+              data-testid={`link-nav-${link.href.replace("/", "").replace("#", "") || "home"}`}
             >
               {link.name}
             </Link>
@@ -266,12 +283,10 @@ export function Navigation() {
                   location === link.href ? "text-primary" : "text-foreground/80"
                 }`}
                 onClick={() => {
-                  if (location === link.href) {
-                    window.scrollTo({ top: 0, behavior: "smooth" });
-                  }
+                  handleNavLinkClick(link.href);
                   setIsOpen(false);
                 }}
-                data-testid={`link-mobile-${link.href.replace("/", "") || "home"}`}
+                data-testid={`link-mobile-${link.href.replace("/", "").replace("#", "") || "home"}`}
               >
                 {link.name}
               </Link>

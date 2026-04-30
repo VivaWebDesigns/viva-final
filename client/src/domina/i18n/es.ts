@@ -5,6 +5,7 @@ export const es = {
     portfolio: "Portafolio",
     gallery: "Galería",
     about: "Nosotros",
+    reviews: "Reseñas",
     contact: "Contacto",
     allServices: "Todos los Servicios",
     getEstimate: "Obtenga Su Presupuesto Gratis",

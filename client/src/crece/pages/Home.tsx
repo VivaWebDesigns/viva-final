@@ -47,7 +47,16 @@ export default function Home() {
       const meta = document.querySelector('meta[name="description"]');
       if (meta) meta.setAttribute("content", "Charlotte Painting Pro offers professional interior & exterior painting, cabinet painting, and deck staining in Charlotte, NC. Get a free estimate today.");
     }
-    window.scrollTo(0, 0);
+    if (window.location.hash) {
+      setTimeout(() => {
+        const el = document.querySelector(window.location.hash);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 0);
+    } else {
+      window.scrollTo(0, 0);
+    }
   }, []);
 
   useEffect(() => {
@@ -221,7 +230,7 @@ export default function Home() {
       </section>
 
       {/* Reviews Section */}
-      <section className="py-24 bg-secondary">
+      <section id="reviews" className="py-24 bg-secondary">
         <div className="container mx-auto px-4 md:px-6">
           <div className="text-center max-w-2xl mx-auto mb-16">
             <p className="text-primary font-semibold text-sm tracking-wider uppercase mb-3">{t("reviews.subtitle")}</p>
