@@ -12,6 +12,7 @@ export const en = {
     reports: "Reports",
     activity: "Activity Intelligence",
     leadGen: "Lead Gen Intelligence",
+    leadCoverage: "Lead Coverage Map",
     integrations: "Integrations",
     demoBuilder: "Demo Builder",
     admin: "System Settings",

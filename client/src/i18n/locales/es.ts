@@ -14,6 +14,7 @@ export const es: AdminTranslations = {
     reports: "Reportes",
     activity: "Inteligencia de Actividad",
     leadGen: "Inteligencia de Lead Gen",
+    leadCoverage: "Mapa de Cobertura",
     integrations: "Integraciones",
     demoBuilder: "Constructor de Demo",
     admin: "Configuración del Sistema",

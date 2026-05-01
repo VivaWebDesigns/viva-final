@@ -564,6 +564,305 @@ function clamp(value: number, min = 0, max = 100) {
   return Math.max(min, Math.min(max, value));
 }
 
+const PRIMARY_COVERAGE_TRADES = [
+  { value: "landscaping",        label: "Landscaping" },
+  { value: "painting",           label: "Painting" },
+  { value: "house_cleaning",     label: "House Cleaning" },
+  { value: "tile_installation",  label: "Tile Installation" },
+  { value: "deck_building",      label: "Deck Building" },
+  { value: "concrete_asphalt",   label: "Concrete / Asphalt" },
+  { value: "tree_service",       label: "Tree Service" },
+  { value: "flooring",           label: "Flooring" },
+  { value: "fence_installation", label: "Fence Installation" },
+  { value: "roofing",            label: "Roofing" },
+] as const;
+
+const ALL_EXTENSION_TRADES: Record<string, string> = {
+  carpentry: "Carpentry",
+  concrete_asphalt: "Concrete / Asphalt",
+  deck_building: "Deck Building",
+  doors: "Doors",
+  electrical: "Electrical",
+  fence_installation: "Fence Installation",
+  flooring: "Flooring",
+  general_contractor: "General Contractor",
+  handyman: "Handyman",
+  house_cleaning: "House Cleaning",
+  hvac: "HVAC",
+  landscaping: "Landscaping",
+  masonry: "Masonry",
+  painting: "Painting",
+  plumbing: "Plumbing",
+  pressure_washing: "Pressure Washing",
+  roofing: "Roofing",
+  shed_building: "Shed Building",
+  shower_glass: "Shower glass",
+  siding: "Siding",
+  stonework: "Stonework",
+  tile_installation: "Tile Installation",
+  tree_service: "Tree Service",
+  windows: "Windows",
+};
+
+const NC_TARGET_MARKETS = [
+  {
+    id: "nc-charlotte",
+    name: "Charlotte",
+    state: "NC",
+    radiusMiles: 20,
+    pin: { x: 36, y: 68 },
+    cities: ["Belmont", "Charlotte", "Concord", "Cornelius", "Davidson", "Gastonia", "Harrisburg", "Huntersville", "Indian Trail", "Matthews", "Mint Hill", "Stallings"],
+  },
+  {
+    id: "nc-raleigh",
+    name: "Raleigh",
+    state: "NC",
+    radiusMiles: 20,
+    pin: { x: 68, y: 54 },
+    cities: ["Apex", "Cary", "Clayton", "Fuquay-Varina", "Garner", "Holly Springs", "Knightdale", "Morrisville", "Raleigh", "Wake Forest"],
+  },
+  {
+    id: "nc-durham",
+    name: "Durham",
+    state: "NC",
+    radiusMiles: 20,
+    pin: { x: 62, y: 47 },
+    cities: ["Chapel Hill", "Durham", "Pittsboro"],
+  },
+  {
+    id: "nc-greensboro",
+    name: "Greensboro",
+    state: "NC",
+    radiusMiles: 20,
+    pin: { x: 50, y: 45 },
+    cities: ["Archdale", "Burlington", "Graham", "Greensboro", "High Point", "Thomasville"],
+  },
+  {
+    id: "nc-winston-salem",
+    name: "Winston-Salem",
+    state: "NC",
+    radiusMiles: 20,
+    pin: { x: 43, y: 43 },
+    cities: ["Kernersville", "Lewisville", "Winston-Salem"],
+  },
+  {
+    id: "nc-fayetteville",
+    name: "Fayetteville",
+    state: "NC",
+    radiusMiles: 20,
+    pin: { x: 64, y: 72 },
+    cities: ["Fayetteville", "Hope Mills"],
+  },
+  {
+    id: "nc-wilmington",
+    name: "Wilmington",
+    state: "NC",
+    radiusMiles: 20,
+    pin: { x: 83, y: 80 },
+    cities: ["Wilmington"],
+  },
+  {
+    id: "nc-asheville",
+    name: "Asheville",
+    state: "NC",
+    radiusMiles: 20,
+    pin: { x: 18, y: 49 },
+    cities: ["Asheville"],
+  },
+  {
+    id: "nc-greenville",
+    name: "Greenville",
+    state: "NC",
+    radiusMiles: 20,
+    pin: { x: 82, y: 49 },
+    cities: ["Greenville", "Winterville"],
+  },
+  {
+    id: "nc-hickory",
+    name: "Hickory",
+    state: "NC",
+    radiusMiles: 20,
+    pin: { x: 32, y: 47 },
+    cities: ["Hickory"],
+  },
+  {
+    id: "nc-jacksonville",
+    name: "Jacksonville",
+    state: "NC",
+    radiusMiles: 20,
+    pin: { x: 84, y: 69 },
+    cities: ["Jacksonville"],
+  },
+] as const;
+
+type TargetMarket = typeof NC_TARGET_MARKETS[number];
+
+function normalizeCoverageToken(value: string | null | undefined) {
+  return (value ?? "").trim().toLowerCase();
+}
+
+function marketCityKey(city: string | null | undefined, state: string | null | undefined) {
+  return `${normalizeCoverageToken(city)}|${normalizeCoverageToken(state)}`;
+}
+
+const NC_MARKET_BY_CITY = new Map<string, TargetMarket>();
+for (const market of NC_TARGET_MARKETS) {
+  for (const city of market.cities) {
+    const key = marketCityKey(city, market.state);
+    if (!NC_MARKET_BY_CITY.has(key)) {
+      NC_MARKET_BY_CITY.set(key, market);
+    }
+  }
+}
+
+function formatTradeLabel(value: string | null | undefined) {
+  if (!value) return "Unknown";
+  return ALL_EXTENSION_TRADES[value] ?? value.replace(/_/g, " ").replace(/\b\w/g, ch => ch.toUpperCase());
+}
+
+type CoverageLeadRow = {
+  id: string;
+  sellerFullName: string;
+  businessName: string | null;
+  city: string | null;
+  state: string | null;
+  trade: string | null;
+  convertedAt: Date | null;
+  crmLeadId: string | null;
+  convertedBy: string | null;
+  convertedByName: string | null;
+};
+
+type MutableCoverageMarket = {
+  id: string;
+  name: string;
+  state: string;
+  radiusMiles: number;
+  pin: { x: number; y: number } | null;
+  includedCities: string[];
+  totalLeads: number;
+  dateRange: { from: string | null; to: string | null };
+  reps: Map<string, { userId: string | null; name: string; count: number }>;
+  trades: Map<string, { value: string; label: string; count: number }>;
+  capturedCities: Map<string, { city: string; state: string; count: number }>;
+  recentLeads: Array<{
+    id: string;
+    sellerFullName: string;
+    businessName: string | null;
+    city: string | null;
+    state: string | null;
+    trade: string | null;
+    tradeLabel: string;
+    convertedAt: string | null;
+    convertedByName: string | null;
+    crmLeadId: string | null;
+  }>;
+};
+
+function makeMutableCoverageMarket(market: TargetMarket): MutableCoverageMarket {
+  return {
+    id: market.id,
+    name: market.name,
+    state: market.state,
+    radiusMiles: market.radiusMiles,
+    pin: market.pin,
+    includedCities: [...market.cities].sort((a, b) => a.localeCompare(b)),
+    totalLeads: 0,
+    dateRange: { from: null, to: null },
+    reps: new Map(),
+    trades: new Map(),
+    capturedCities: new Map(),
+    recentLeads: [],
+  };
+}
+
+function finalizeCoverageMarket(market: MutableCoverageMarket) {
+  const primaryValues = new Set<string>(PRIMARY_COVERAGE_TRADES.map(trade => trade.value));
+  const coveredPrimaryValues = new Set(
+    [...market.trades.values()]
+      .filter(trade => primaryValues.has(trade.value) && trade.count > 0)
+      .map(trade => trade.value)
+  );
+  const missingTrades = PRIMARY_COVERAGE_TRADES
+    .filter(trade => !coveredPrimaryValues.has(trade.value))
+    .map(trade => ({ value: trade.value, label: trade.label }));
+
+  return {
+    id: market.id,
+    name: market.name,
+    state: market.state,
+    radiusMiles: market.radiusMiles,
+    pin: market.pin,
+    includedCities: market.includedCities,
+    totalLeads: market.totalLeads,
+    dateRange: market.dateRange,
+    coverage: {
+      covered: coveredPrimaryValues.size,
+      total: PRIMARY_COVERAGE_TRADES.length,
+      percent: pct(coveredPrimaryValues.size, PRIMARY_COVERAGE_TRADES.length),
+      missingTrades,
+    },
+    reps: [...market.reps.values()].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)),
+    trades: [...market.trades.values()].sort((a, b) => b.count - a.count || a.label.localeCompare(b.label)),
+    capturedCities: [...market.capturedCities.values()].sort((a, b) => b.count - a.count || a.city.localeCompare(b.city)),
+    recentLeads: market.recentLeads
+      .sort((a, b) => String(b.convertedAt ?? "").localeCompare(String(a.convertedAt ?? "")))
+      .slice(0, 12),
+  };
+}
+
+function addLeadToCoverageMarket(market: MutableCoverageMarket, row: CoverageLeadRow) {
+  market.totalLeads += 1;
+
+  const convertedAtIso = row.convertedAt?.toISOString() ?? null;
+  if (convertedAtIso) {
+    if (!market.dateRange.from || convertedAtIso < market.dateRange.from) market.dateRange.from = convertedAtIso;
+    if (!market.dateRange.to || convertedAtIso > market.dateRange.to) market.dateRange.to = convertedAtIso;
+  }
+
+  const repKey = row.convertedBy ?? "__unknown__";
+  const rep = market.reps.get(repKey) ?? {
+    userId: row.convertedBy,
+    name: row.convertedByName ?? "Unknown rep",
+    count: 0,
+  };
+  rep.count += 1;
+  market.reps.set(repKey, rep);
+
+  const tradeValue = row.trade ?? "unknown";
+  const trade = market.trades.get(tradeValue) ?? {
+    value: tradeValue,
+    label: formatTradeLabel(row.trade),
+    count: 0,
+  };
+  trade.count += 1;
+  market.trades.set(tradeValue, trade);
+
+  const cityLabel = row.city?.trim() || "Unknown city";
+  const stateLabel = row.state?.trim().toUpperCase() || "NC";
+  const cityKey = marketCityKey(cityLabel, stateLabel);
+  const capturedCity = market.capturedCities.get(cityKey) ?? {
+    city: cityLabel,
+    state: stateLabel,
+    count: 0,
+  };
+  capturedCity.count += 1;
+  market.capturedCities.set(cityKey, capturedCity);
+
+  market.recentLeads.push({
+    id: row.id,
+    sellerFullName: row.sellerFullName,
+    businessName: row.businessName,
+    city: row.city,
+    state: row.state,
+    trade: row.trade,
+    tradeLabel: formatTradeLabel(row.trade),
+    convertedAt: convertedAtIso,
+    convertedByName: row.convertedByName,
+    crmLeadId: row.crmLeadId,
+  });
+}
+
 type LeadGenWorkerRow = {
   userId: string;
   name: string;
@@ -578,6 +877,86 @@ type LeadGenWorkerRow = {
   manualReview: number;
   avgQueueToConvertHours: number | null;
 };
+
+export async function getLeadCoverageSummary(options: number | { days?: number; from?: string; to?: string } = 30) {
+  const range = makeLeadGenRange(typeof options === "number" ? { days: options } : options);
+
+  const rows = await db.execute(sql`
+    SELECT
+      m.id,
+      m.seller_full_name AS "sellerFullName",
+      m.business_name AS "businessName",
+      m.city,
+      m.state,
+      m.trade_guess AS "trade",
+      m.converted_at AS "convertedAt",
+      m.crm_lead_id AS "crmLeadId",
+      m.converted_by AS "convertedBy",
+      u.name AS "convertedByName"
+    FROM marketplace_pending_outreach m
+    LEFT JOIN "user" u ON u.id = m.converted_by
+    WHERE m.deleted_at IS NULL
+      AND m.message_status = 'converted'
+      AND m.converted_at >= ${range.from}
+      AND m.converted_at < ${range.endExclusive}
+      AND upper(coalesce(m.state, '')) = 'NC'
+    ORDER BY m.converted_at DESC
+  `);
+
+  const markets = new Map<string, MutableCoverageMarket>();
+  for (const target of NC_TARGET_MARKETS) {
+    markets.set(target.id, makeMutableCoverageMarket(target));
+  }
+
+  const outsideMarket: MutableCoverageMarket = {
+    id: "outside-target-markets",
+    name: "Outside Target Markets",
+    state: "NC",
+    radiusMiles: 0,
+    pin: null,
+    includedCities: [],
+    totalLeads: 0,
+    dateRange: { from: null, to: null },
+    reps: new Map(),
+    trades: new Map(),
+    capturedCities: new Map(),
+    recentLeads: [],
+  };
+
+  for (const row of rows.rows as CoverageLeadRow[]) {
+    const market = NC_MARKET_BY_CITY.get(marketCityKey(row.city, row.state));
+    if (market) {
+      addLeadToCoverageMarket(markets.get(market.id)!, row);
+    } else {
+      addLeadToCoverageMarket(outsideMarket, row);
+    }
+  }
+
+  const marketList = [...markets.values()].map(finalizeCoverageMarket);
+  const outside = finalizeCoverageMarket(outsideMarket);
+  const totalLeads = marketList.reduce((sum, market) => sum + market.totalLeads, 0) + outside.totalLeads;
+  const marketsWithCoverage = marketList.filter(market => market.totalLeads > 0).length;
+  const completeMarkets = marketList.filter(market => market.coverage.missingTrades.length === 0).length;
+  const averageCoveragePercent = marketList.length > 0
+    ? Math.round(marketList.reduce((sum, market) => sum + market.coverage.percent, 0) / marketList.length)
+    : 0;
+
+  return {
+    range: { from: range.from.toISOString(), to: range.endExclusive.toISOString(), days: range.days },
+    targetState: "NC",
+    targetTrades: PRIMARY_COVERAGE_TRADES,
+    totals: {
+      totalLeads,
+      targetMarkets: marketList.length,
+      marketsWithCoverage,
+      completeMarkets,
+      outsideTargetLeads: outside.totalLeads,
+      averageCoveragePercent,
+    },
+    markets: marketList,
+    outsideTargetMarkets: outside,
+  };
+}
 
 export async function getLeadGenPerformanceSummary(options: number | { days?: number; from?: string; to?: string } = 7) {
   const range = makeLeadGenRange(typeof options === "number" ? { days: options } : options);

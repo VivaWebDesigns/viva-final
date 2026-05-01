@@ -51,6 +51,7 @@ const ClientProfilePage = lazy(() => import("@features/profiles/ClientProfilePag
 const TasksDueTodayPage = lazy(() => import("@features/tasks/TasksDueTodayPage"));
 const MarketplacePendingOutreachPage = lazy(() => import("@features/marketplace/MarketplacePendingOutreachPage"));
 const LeadGenIntelligencePage = lazy(() => import("@features/marketplace/LeadGenIntelligencePage"));
+const LeadCoverageMapPage = lazy(() => import("@features/marketplace/LeadCoverageMapPage"));
 
 function PageFallback() {
   return (
@@ -201,6 +202,11 @@ function AdminRouter() {
             <Route path="/admin/lead-gen">
               <ProtectedRoute roles={["admin", "developer"]}>
                 <LeadGenIntelligencePage />
+              </ProtectedRoute>
+            </Route>
+            <Route path="/admin/lead-coverage">
+              <ProtectedRoute roles={["admin", "developer"]}>
+                <LeadCoverageMapPage />
               </ProtectedRoute>
             </Route>
             <Route path="/admin/settings">
