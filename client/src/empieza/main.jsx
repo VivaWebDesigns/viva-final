@@ -1,7 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { Router } from "wouter";
-import { useHashLocation } from "wouter/use-hash-location";
 import App from "./App.tsx";
 import "./index.css";
 
@@ -31,7 +30,7 @@ createRoot(document.getElementById("root-empieza")).render(
     <>
       <DemoBar />
       <div style={{ paddingTop: "44px" }}>
-        <Router hook={useHashLocation}>
+        <Router base="/empieza">
           <App />
         </Router>
       </div>
