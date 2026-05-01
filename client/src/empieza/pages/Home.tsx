@@ -130,7 +130,7 @@ export default function Home() {
                   return (
                     <>
                       {parts[0]}
-                      <span className="text-white/90">{phrase}</span>{" "}
+                      <span className="text-white/90">{phrase}</span>{parts[1] && /^\w/.test(parts[1]) ? " " : ""}
                       {parts[1] || ""}
                     </>
                   );
