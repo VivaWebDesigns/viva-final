@@ -123,11 +123,18 @@ export default function Home() {
               {P ? (
                 t("heroTitle")
               ) : (
-                <>
-                  {t("heroTitle").split("painting needs")[0]}
-                  <span className="text-white/90">{t("heroTitle").includes("painting needs") ? "painting needs" : "necesidades de pintura"}</span>{" "}
-                  {t("heroTitle").split("painting needs")[1] || t("heroTitle").split("necesidades de pintura")[1] || ""}
-                </>
+                (() => {
+                  const title = t("heroTitle");
+                  const phrase = title.includes("painting needs") ? "painting needs" : "necesidades de pintura";
+                  const parts = title.split(phrase);
+                  return (
+                    <>
+                      {parts[0]}
+                      <span className="text-white/90">{phrase}</span>{" "}
+                      {parts[1] || ""}
+                    </>
+                  );
+                })()
               )}
             </h1>
 
