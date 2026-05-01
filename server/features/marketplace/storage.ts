@@ -720,6 +720,13 @@ function formatTradeLabel(value: string | null | undefined) {
   return ALL_EXTENSION_TRADES[value] ?? value.replace(/_/g, " ").replace(/\b\w/g, ch => ch.toUpperCase());
 }
 
+function toCoverageIsoDate(value: Date | string | null | undefined) {
+  if (!value) return null;
+  if (value instanceof Date) return value.toISOString();
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+}
+
 type CoverageLeadRow = {
   id: string;
   sellerFullName: string;
@@ -727,7 +734,7 @@ type CoverageLeadRow = {
   city: string | null;
   state: string | null;
   trade: string | null;
-  convertedAt: Date | null;
+  convertedAt: Date | string | null;
   crmLeadId: string | null;
   convertedBy: string | null;
   convertedByName: string | null;
@@ -814,7 +821,7 @@ function finalizeCoverageMarket(market: MutableCoverageMarket) {
 function addLeadToCoverageMarket(market: MutableCoverageMarket, row: CoverageLeadRow) {
   market.totalLeads += 1;
 
-  const convertedAtIso = row.convertedAt?.toISOString() ?? null;
+  const convertedAtIso = toCoverageIsoDate(row.convertedAt);
   if (convertedAtIso) {
     if (!market.dateRange.from || convertedAtIso < market.dateRange.from) market.dateRange.from = convertedAtIso;
     if (!market.dateRange.to || convertedAtIso > market.dateRange.to) market.dateRange.to = convertedAtIso;
