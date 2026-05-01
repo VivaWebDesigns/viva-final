@@ -49,7 +49,12 @@ export async function setupVite(server: Server, app: Express) {
       };
 
       const urlPath = url.split("?")[0];
-      const mpaFile = mpaHtmlFiles[urlPath];
+      const mpaFile =
+        mpaHtmlFiles[urlPath] ??
+        (urlPath.startsWith("/empieza") ? "empieza.html" :
+         urlPath.startsWith("/crece")   ? "crece.html"   :
+         urlPath.startsWith("/domina")  ? "domina.html"  :
+         undefined);
 
       const clientTemplate = path.resolve(
         import.meta.dirname,

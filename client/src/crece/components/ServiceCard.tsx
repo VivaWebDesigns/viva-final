@@ -56,7 +56,7 @@ export function ServiceCard({ title, description, benefits, icon: Icon, delay, h
       </ul>
 
       <Link
-        href="/contact#contact-form"
+        href="/contact"
         className="flex items-center gap-2 text-primary text-sm font-semibold cursor-pointer group/link"
         data-testid={`link-service-quote-${title.toLowerCase().replace(/\s+/g, '-')}`}
         onClick={(e: React.MouseEvent) => e.stopPropagation()}

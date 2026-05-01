@@ -124,7 +124,7 @@ export default function Home() {
             </p>
 
             <div className="flex flex-col sm:flex-row flex-wrap gap-4 pt-4">
-              <Link href="/contact#contact-form">
+              <Link href="/contact">
                 <Button data-testid="button-hero-cta" className="bg-primary text-primary-foreground font-semibold px-8 h-12 text-base border border-primary">
                   {t("nav.freeEstimate")}
                   <ArrowRight className="ml-2" size={18} />
@@ -168,12 +168,12 @@ export default function Home() {
               ))
             ) : (
               <>
-                <ServiceCard title={t("services.interior")} description={t("services.interior.desc")} benefits={language === "en" ? ["Walls & Ceilings", "Trim & Molding", "Drywall Repair"] : ["Paredes y Techos", "Molduras", "Reparación de Paneles de Yeso"]} icon={PaintBucket} delay={0.1} href="/services#interior-painting" />
-                <ServiceCard title={t("services.exterior")} description={t("services.exterior.desc")} benefits={language === "en" ? ["Siding Painting", "Brick Painting", "Pressure Washing"] : ["Pintura de Revestimiento", "Pintura de Ladrillo", "Lavado a Presión"]} icon={HomeIcon} delay={0.2} href="/services#exterior-painting" />
-                <ServiceCard title={t("services.cabinets")} description={t("services.cabinets.desc")} benefits={language === "en" ? ["Factory Finish", "Hardware Updates", "Color Consulting"] : ["Acabado de Fábrica", "Actualización de Herrajes", "Consultoría de Color"]} icon={Layers} delay={0.3} href="/services#kitchen-cabinet-painting" />
-                <ServiceCard title={t("services.deck")} description={t("services.deck.desc")} benefits={language === "en" ? ["Cleaning & Sanding", "Stain or Paint", "Weatherproof Sealing"] : ["Limpieza y Lijado", "Tinte o Pintura", "Sellado Impermeable"]} icon={Sun} delay={0.4} href="/services#deck-staining" />
-                <ServiceCard title={t("services.fence")} description={t("services.fence.desc")} benefits={language === "en" ? ["Full Fence Prep", "Even Coverage", "Moisture Protection"] : ["Preparación Completa", "Cobertura Uniforme", "Protección contra Humedad"]} icon={Fence} delay={0.5} href="/services#fence-staining" />
-                <ServiceCard title={t("services.commercial")} description={t("services.commercial.desc")} benefits={language === "en" ? ["Offices & Retail", "Flexible Scheduling", "Low-Odor Paints"] : ["Oficinas y Comercios", "Horario Flexible", "Pinturas de Bajo Olor"]} icon={Building2} delay={0.6} href="/services#commercial-painting" />
+                <ServiceCard title={t("services.interior")} description={t("services.interior.desc")} benefits={language === "en" ? ["Walls & Ceilings", "Trim & Molding", "Drywall Repair"] : ["Paredes y Techos", "Molduras", "Reparación de Paneles de Yeso"]} icon={PaintBucket} delay={0.1} href="/services" />
+                <ServiceCard title={t("services.exterior")} description={t("services.exterior.desc")} benefits={language === "en" ? ["Siding Painting", "Brick Painting", "Pressure Washing"] : ["Pintura de Revestimiento", "Pintura de Ladrillo", "Lavado a Presión"]} icon={HomeIcon} delay={0.2} href="/services" />
+                <ServiceCard title={t("services.cabinets")} description={t("services.cabinets.desc")} benefits={language === "en" ? ["Factory Finish", "Hardware Updates", "Color Consulting"] : ["Acabado de Fábrica", "Actualización de Herrajes", "Consultoría de Color"]} icon={Layers} delay={0.3} href="/services" />
+                <ServiceCard title={t("services.deck")} description={t("services.deck.desc")} benefits={language === "en" ? ["Cleaning & Sanding", "Stain or Paint", "Weatherproof Sealing"] : ["Limpieza y Lijado", "Tinte o Pintura", "Sellado Impermeable"]} icon={Sun} delay={0.4} href="/services" />
+                <ServiceCard title={t("services.fence")} description={t("services.fence.desc")} benefits={language === "en" ? ["Full Fence Prep", "Even Coverage", "Moisture Protection"] : ["Preparación Completa", "Cobertura Uniforme", "Protección contra Humedad"]} icon={Fence} delay={0.5} href="/services" />
+                <ServiceCard title={t("services.commercial")} description={t("services.commercial.desc")} benefits={language === "en" ? ["Offices & Retail", "Flexible Scheduling", "Low-Odor Paints"] : ["Oficinas y Comercios", "Horario Flexible", "Pinturas de Bajo Olor"]} icon={Building2} delay={0.6} href="/services" />
               </>
             )}
           </div>
@@ -291,7 +291,7 @@ export default function Home() {
           </p>
 
           <div className="text-center mt-8">
-            <Link href="/contact#contact-form">
+            <Link href="/contact">
               <Button data-testid="button-reviews-cta" className="bg-primary text-primary-foreground font-semibold px-8">
                 {t("reviews.book")}
                 <ArrowRight className="ml-2" size={18} />
@@ -310,7 +310,7 @@ export default function Home() {
           <p className="text-muted-foreground text-lg max-w-xl mx-auto mb-8">
             {t("cta.desc")}
           </p>
-          <Link href="/contact#contact-form">
+          <Link href="/contact">
             <Button data-testid="button-bottom-cta" className="bg-primary text-primary-foreground font-semibold px-8 h-12 text-base">
               {t("nav.freeEstimate")}
               <ArrowRight className="ml-2" size={18} />

@@ -296,7 +296,7 @@ export function Navigation() {
               </Link>
             ))}
             <Link
-              href="/contact#contact-form"
+              href="/contact"
               onClick={() => setIsOpen(false)}
             >
               <Button data-testid="button-mobile-quote" className="w-full bg-primary text-primary-foreground text-base font-semibold mt-4">

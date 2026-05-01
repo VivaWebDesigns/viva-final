@@ -119,7 +119,7 @@ export default function Home() {
             </p>
 
             <div className="flex flex-col sm:flex-row flex-wrap gap-4 pt-4">
-              <Link href="/contact#contact-form">
+              <Link href="/contact">
                 <Button data-testid="button-hero-cta" className="bg-primary text-primary-foreground font-semibold px-8 h-12 text-base border border-primary">
                   {t.home.ctaEstimate}
                   <ArrowRight className="ml-2" size={18} />
@@ -256,7 +256,7 @@ export default function Home() {
           </p>
 
           <div className="text-center mt-8">
-            <Link href="/contact#contact-form">
+            <Link href="/contact">
               <Button data-testid="button-reviews-cta" className="bg-primary text-primary-foreground font-semibold px-8">
                 {t.home.bookQuote}
                 <ArrowRight className="ml-2" size={18} />
@@ -275,7 +275,7 @@ export default function Home() {
           <p className="text-muted-foreground text-lg max-w-xl mx-auto mb-8">
             {t.home.readySubtitle}
           </p>
-          <Link href="/contact#contact-form">
+          <Link href="/contact">
             <Button data-testid="button-bottom-cta" className="bg-primary text-primary-foreground font-semibold px-8 h-12 text-base">
               {t.home.ctaEstimate}
               <ArrowRight className="ml-2" size={18} />

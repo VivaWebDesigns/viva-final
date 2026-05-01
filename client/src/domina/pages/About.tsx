@@ -82,7 +82,7 @@ export default function About() {
                 </div>
               </div>
 
-              <Link href="/contact#contact-form">
+              <Link href="/contact">
                 <Button data-testid="button-about-cta" className="bg-primary text-primary-foreground font-semibold px-8 h-12">
                   {t.about.ctaEstimate}
                   <ArrowRight className="ml-2" size={18} />
@@ -129,7 +129,7 @@ export default function About() {
           <p className="text-muted-foreground text-lg leading-relaxed mb-8">
             {t.about.valuesText}
           </p>
-          <Link href="/contact#contact-form">
+          <Link href="/contact">
             <Button data-testid="button-values-cta" className="bg-primary text-primary-foreground font-semibold px-8">
               {t.about.contactUs}
               <ArrowRight className="ml-2" size={18} />

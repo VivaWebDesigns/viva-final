@@ -135,7 +135,7 @@ export default function Gallery() {
           <p className="text-muted-foreground text-lg mb-8">
             {t.gallery.likeSubtitle}
           </p>
-          <Link href="/contact#contact-form">
+          <Link href="/contact">
             <Button data-testid="button-gallery-cta" className="bg-primary text-primary-foreground font-semibold px-8 h-12 text-base">
               {t.gallery.getEstimate}
               <ArrowRight className="ml-2" size={18} />

@@ -80,7 +80,7 @@ export default function CommercialPainting() {
             <p className="text-xl md:text-2xl text-white mb-10 max-w-3xl mx-auto drop-shadow-md font-medium opacity-90">
               {t.commercialPage.heroSubtitle}
             </p>
-            <Link href="/contact#contact-form">
+            <Link href="/contact">
               <Button data-testid="button-hero-cta" className="bg-[#3089a8] hover:bg-[#256d86] text-white font-bold px-10 py-4 text-lg rounded-md transition-all flex items-center gap-2 mx-auto">
                 {t.commercialPage.scheduleFreeEstimate}
                 <ArrowRight size={22} className="ml-2" />
@@ -245,7 +245,7 @@ export default function CommercialPainting() {
           <p className="text-primary-foreground/80 mb-8">
             {t.commercialPage.ctaText}
           </p>
-          <Link href="/contact#contact-form">
+          <Link href="/contact">
             <Button data-testid="button-final-cta" className="bg-white text-primary font-semibold px-8 py-3 text-base hover:bg-white/90">
               {t.commercialPage.scheduleEstimate}
               <ArrowRight className="ml-2" size={18} />

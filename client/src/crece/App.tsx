@@ -13,7 +13,7 @@ const Contact = lazy(() => import("@crece/pages/Contact"));
 const Gallery = lazy(() => import("@crece/pages/Gallery"));
 const NotFound = lazy(() => import("@crece/pages/not-found"));
 
-function Router() {
+function AppRouter() {
   return (
     <Suspense fallback={<div className="min-h-screen bg-background" />}>
       <Switch>
@@ -33,7 +33,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
         <TooltipProvider>
-          <Router />
+          <AppRouter />
           <Toaster />
         </TooltipProvider>
       </LanguageProvider>

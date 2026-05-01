@@ -189,7 +189,7 @@ export default function ProjectDetail() {
             {t.projectDetail.ctaSubtitle}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/contact#contact-form">
+            <Link href="/contact">
               <Button
                 data-testid="button-project-cta"
                 className="bg-primary text-primary-foreground font-semibold text-base"

@@ -104,7 +104,7 @@ function ServiceBlock({ title, description, highlights, process, icon: Icon, del
           <p className="text-muted-foreground text-sm leading-relaxed mb-8">{process}</p>
         )}
         <div className="mt-auto">
-          <Link href="/contact#contact-form">
+          <Link href="/contact">
             <Button data-testid={`button-estimate-${title.toLowerCase().replace(/\s+/g, '-')}`} className="bg-primary text-primary-foreground font-semibold">
               {t("nav.freeEstimate")}
               <ArrowRight className="ml-2" size={18} />
@@ -212,7 +212,7 @@ export default function Services() {
                         ))}
                       </ul>
                       <div className="mt-auto">
-                        <Link href="/contact#contact-form">
+                        <Link href="/contact">
                           <Button data-testid={`button-estimate-${i}`} className="bg-primary text-primary-foreground font-semibold">
                             {t("nav.freeEstimate")}
                             <ArrowRight className="ml-2" size={16} />
@@ -394,7 +394,7 @@ export default function Services() {
           <p className="text-muted-foreground max-w-2xl mx-auto mb-8">
             {t("services.areaDesc")}
           </p>
-          <Link href="/contact#contact-form">
+          <Link href="/contact">
             <Button data-testid="button-cta-services" className="bg-primary text-primary-foreground font-semibold px-8 h-12 text-base">
               {t("nav.freeEstimate")}
               <ArrowRight className="ml-2" size={18} />

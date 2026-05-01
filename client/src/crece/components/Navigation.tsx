@@ -104,7 +104,7 @@ export function Navigation() {
             EN/ES
           </Button>
 
-          <Link href="/contact#contact-form">
+          <Link href="/contact">
             <Button data-testid="button-nav-quote" className="bg-primary text-primary-foreground font-semibold">
               {t("nav.getQuote")}
             </Button>
@@ -157,7 +157,7 @@ export function Navigation() {
               </Link>
             ))}
             <Link
-              href="/contact#contact-form"
+              href="/contact"
               onClick={() => setIsOpen(false)}
             >
               <Button data-testid="button-mobile-quote" className="w-full bg-primary text-primary-foreground text-base font-semibold mt-4">

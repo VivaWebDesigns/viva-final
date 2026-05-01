@@ -7,7 +7,7 @@ import Home from "@empieza/pages/Home";
 import NotFound from "@empieza/pages/not-found";
 import { LanguageProvider } from "@empieza/hooks/use-language";
 
-function Router() {
+function AppRouter() {
   return (
     <Switch>
       <Route path="/" component={Home} />
@@ -21,7 +21,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
         <TooltipProvider>
-          <Router />
+          <AppRouter />
           <Toaster />
         </TooltipProvider>
       </LanguageProvider>

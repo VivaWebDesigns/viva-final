@@ -86,7 +86,7 @@ export default function ServiceDetail() {
             <p className="text-xl md:text-2xl text-primary-foreground/85 mb-10 max-w-2xl mx-auto font-medium">
               {service.description}
             </p>
-            <Link href="/contact#contact-form">
+            <Link href="/contact">
               <Button
                 data-testid="button-hero-cta"
                 className="bg-white text-primary hover:bg-white/90 font-bold px-10 py-4 text-lg rounded-md transition-all"
@@ -148,7 +148,7 @@ export default function ServiceDetail() {
               ? `${biz} ofrece estimados gratuitos. Contáctanos hoy.`
               : `${biz} offers free estimates. Contact us today.`}
           </p>
-          <Link href="/contact#contact-form">
+          <Link href="/contact">
             <Button
               data-testid="button-final-cta"
               className="bg-white text-primary font-semibold px-8 py-3 text-base hover:bg-white/90"
