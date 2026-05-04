@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, type ChangeEvent } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest, STALE } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Hash, Send, Trash2, MessageSquare, Search, Pin, SmilePlus, X,
-  MessageCircle, Plus, Wifi, WifiOff, Circle,
+  MessageCircle, Plus, Wifi, WifiOff, Circle, Paperclip, FileText,
+  Image as ImageIcon, Loader2,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import RichTextEditor, { type RichTextEditorHandle, sanitizeHtml } from "./RichTextEditor";
@@ -27,6 +28,7 @@ interface ChatMessage {
   isPinned: boolean;
   reactions: { emoji: string; count: number; users: string[] }[];
   replyCount: number;
+  attachments?: ChatAttachment[];
 }
 
 interface DmMessage {
@@ -35,6 +37,16 @@ interface DmMessage {
   recipientId: string;
   content: string;
   readAt: string | null;
+  createdAt: string;
+  attachments?: ChatAttachment[];
+}
+
+interface ChatAttachment {
+  id: string;
+  url: string;
+  originalName: string;
+  mimeType: string;
+  sizeBytes: number;
   createdAt: string;
 }
 
@@ -89,6 +101,24 @@ const ROLE_COLORS: Record<string, string> = {
 };
 
 const QUICK_EMOJIS = ["👍", "❤️", "😂", "🎉", "🔥", "👀", "✅", "💯"];
+const CHAT_ATTACHMENT_TYPES = new Set(["image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf"]);
+const MAX_CHAT_ATTACHMENTS = 5;
+const MAX_CHAT_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+
+function isImageAttachment(attachment: Pick<ChatAttachment, "mimeType">) {
+  return attachment.mimeType.startsWith("image/");
+}
+
+function formatFileSize(size: number) {
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${Math.round(size / 1024)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function hasMessageContent(content: string | null | undefined) {
+  const trimmed = (content ?? "").trim();
+  return !!trimmed && trimmed !== "<p></p>";
+}
 
 function formatTime(ts: string) {
   const d = new Date(ts);
@@ -138,9 +168,12 @@ export default function TeamChatPage() {
   const [mentionQueryLen, setMentionQueryLen] = useState(0);
   const [showDmPicker, setShowDmPicker] = useState(false);
   const [typingUsers, setTypingUsers] = useState<TypingState[]>([]);
+  const [pendingAttachments, setPendingAttachments] = useState<ChatAttachment[]>([]);
+  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<RichTextEditorHandle>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isTypingRef = useRef(false);
   const isInDm = !!activeDmUserId;
@@ -321,9 +354,16 @@ export default function TeamChatPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/chat/channels"] }),
   });
 
+  const clearComposer = useCallback(() => {
+    editorRef.current?.clearEditor();
+    setEditorIsEmpty(true);
+    setMentionQuery(null);
+    setPendingAttachments([]);
+  }, []);
+
   const sendMutation = useMutation({
-    mutationFn: async (content: string) => {
-      const res = await apiRequest("POST", "/api/chat/messages", { channel: activeChannel, content });
+    mutationFn: async ({ content, attachmentIds }: { content: string; attachmentIds: string[] }) => {
+      const res = await apiRequest("POST", "/api/chat/messages", { channel: activeChannel, content, attachmentIds });
       return res.json();
     },
     onSuccess: (newMsg: ChatMessage) => {
@@ -333,13 +373,14 @@ export default function TeamChatPage() {
         return [...prev, newMsg];
       });
       markReadMutation.mutate(activeChannel);
+      clearComposer();
     },
     onError: (err: Error) => toast({ title: t.chat.sendError, description: err.message, variant: "destructive" }),
   });
 
   const sendDmMutation = useMutation({
-    mutationFn: async (content: string) => {
-      const res = await apiRequest("POST", "/api/chat/dm/messages", { recipientId: activeDmUserId, content });
+    mutationFn: async ({ content, attachmentIds }: { content: string; attachmentIds: string[] }) => {
+      const res = await apiRequest("POST", "/api/chat/dm/messages", { recipientId: activeDmUserId, content, attachmentIds });
       return res.json();
     },
     onSuccess: (newMsg: DmMessage) => {
@@ -349,6 +390,7 @@ export default function TeamChatPage() {
         return [...prev, newMsg];
       });
       qc.invalidateQueries({ queryKey: ["/api/chat/dm/conversations"] });
+      clearComposer();
     },
     onError: (err: Error) => toast({ title: t.chat.sendError, description: err.message, variant: "destructive" }),
   });
@@ -397,15 +439,14 @@ export default function TeamChatPage() {
 
   const handleEditorSend = useCallback((html: string) => {
     const trimmed = html.trim();
-    if (!trimmed || trimmed === "<p></p>") return;
+    const attachmentIds = pendingAttachments.map((attachment) => attachment.id);
+    if ((!trimmed || trimmed === "<p></p>") && attachmentIds.length === 0) return;
+    if (isUploadingAttachment) return;
     if (!isInDm && !canUseChannels) return;
     emitTypingStop();
-    if (isInDm) sendDmMutation.mutate(trimmed);
-    else sendMutation.mutate(trimmed);
-    editorRef.current?.clearEditor();
-    setEditorIsEmpty(true);
-    setMentionQuery(null);
-  }, [isInDm, canUseChannels, emitTypingStop, sendDmMutation, sendMutation]);
+    if (isInDm) sendDmMutation.mutate({ content: trimmed === "<p></p>" ? "" : trimmed, attachmentIds });
+    else sendMutation.mutate({ content: trimmed === "<p></p>" ? "" : trimmed, attachmentIds });
+  }, [pendingAttachments, isUploadingAttachment, isInDm, canUseChannels, emitTypingStop, sendDmMutation, sendMutation]);
 
   const handleKeyDownThread = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -432,6 +473,71 @@ export default function TeamChatPage() {
     editorRef.current?.insertMentionText(mentionQueryLen, u.name);
     setMentionQuery(null);
     setMentionQueryLen(0);
+  };
+
+  const uploadChatFiles = useCallback(async (files: File[]) => {
+    const remainingSlots = MAX_CHAT_ATTACHMENTS - pendingAttachments.length;
+    if (remainingSlots <= 0) {
+      toast({ title: t.chat.attachmentLimit, variant: "destructive" });
+      return;
+    }
+
+    const acceptedFiles = files.slice(0, remainingSlots).filter((file) => {
+      if (!CHAT_ATTACHMENT_TYPES.has(file.type)) {
+        toast({ title: t.chat.attachmentUnsupported, description: file.name, variant: "destructive" });
+        return false;
+      }
+      if (file.size > MAX_CHAT_ATTACHMENT_BYTES) {
+        toast({ title: t.chat.attachmentTooLarge, description: file.name, variant: "destructive" });
+        return false;
+      }
+      return true;
+    });
+    if (acceptedFiles.length === 0) return;
+
+    setIsUploadingAttachment(true);
+    try {
+      const uploaded: ChatAttachment[] = [];
+      for (const file of acceptedFiles) {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("folder", "chat");
+        const res = await fetch("/api/attachments/upload", {
+          method: "POST",
+          body: formData,
+          credentials: "include",
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => null);
+          throw new Error(err?.message || "Upload failed");
+        }
+        uploaded.push(await res.json());
+      }
+      setPendingAttachments((prev) => [...prev, ...uploaded].slice(0, MAX_CHAT_ATTACHMENTS));
+    } catch (err: unknown) {
+      toast({
+        title: t.chat.attachmentUploadError,
+        description: err instanceof Error ? err.message : "Upload failed",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploadingAttachment(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }, [pendingAttachments.length, t.chat.attachmentLimit, t.chat.attachmentTooLarge, t.chat.attachmentUnsupported, t.chat.attachmentUploadError, toast]);
+
+  const handleAttachmentInputChange = (event: ChangeEvent<HTMLInputElement>) => {
+    void uploadChatFiles(Array.from(event.target.files ?? []));
+  };
+
+  const removePendingAttachment = async (attachmentId: string) => {
+    setPendingAttachments((prev) => prev.filter((attachment) => attachment.id !== attachmentId));
+    try {
+      await apiRequest("DELETE", `/api/attachments/${attachmentId}`);
+    } catch {
+      // The message send path only uses the local pending list, so a failed
+      // cleanup should not block the user from continuing.
+    }
   };
 
   const selectChannel = (id: string) => {
@@ -491,7 +597,70 @@ export default function TeamChatPage() {
     }
   }, [canUseChannels, teamUsers, currentUserId, activeDmUserId]);
 
+  useEffect(() => {
+    const handlePaste = (event: ClipboardEvent) => {
+      if (chatInputDisabled || isUploadingAttachment) return;
+      const target = event.target instanceof Element ? event.target : null;
+      if (!target?.closest("[data-chat-composer='true']")) return;
+      const files = Array.from(event.clipboardData?.files ?? []).filter((file) => file.type.startsWith("image/"));
+      if (files.length === 0) return;
+      event.preventDefault();
+      void uploadChatFiles(files);
+    };
+
+    window.addEventListener("paste", handlePaste);
+    return () => window.removeEventListener("paste", handlePaste);
+  }, [chatInputDisabled, isUploadingAttachment, uploadChatFiles]);
+
   // ── Render helpers ─────────────────────────────────────────────────────────
+
+  function renderAttachment(attachment: ChatAttachment, compact = false) {
+    if (isImageAttachment(attachment)) {
+      return (
+        <a
+          key={attachment.id}
+          href={attachment.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`group block overflow-hidden rounded-lg border border-gray-200 bg-gray-50 ${compact ? "max-w-64" : "max-w-sm"}`}
+          title={attachment.originalName}
+        >
+          <img
+            src={attachment.url}
+            alt={attachment.originalName}
+            className="max-h-56 w-full object-cover transition-transform group-hover:scale-[1.01]"
+            loading="lazy"
+          />
+        </a>
+      );
+    }
+
+    return (
+      <a
+        key={attachment.id}
+        href={attachment.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={`flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 hover:border-[#0D9488]/40 hover:bg-[#0D9488]/5 ${compact ? "max-w-64" : "max-w-sm"}`}
+        title={attachment.originalName}
+      >
+        <FileText className="h-4 w-4 flex-shrink-0 text-[#0D9488]" />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate font-medium">{attachment.originalName}</span>
+          <span className="block text-xs text-gray-400">{formatFileSize(attachment.sizeBytes)}</span>
+        </span>
+      </a>
+    );
+  }
+
+  function renderAttachmentList(attachments: ChatAttachment[] | undefined, compact = false) {
+    if (!attachments?.length) return null;
+    return (
+      <div className={`mt-2 flex flex-col gap-2 ${compact ? "items-start" : ""}`}>
+        {attachments.map((attachment) => renderAttachment(attachment, compact))}
+      </div>
+    );
+  }
 
   function renderChannelMsg(msg: ChatMessage, idx: number, arr: ChatMessage[]) {
     const prev = arr[idx - 1];
@@ -524,10 +693,14 @@ export default function TeamChatPage() {
             </div>
           )}
           <div className="flex items-start gap-2">
-            <div
-              className="text-sm text-gray-700 leading-relaxed flex-1 min-w-0 chat-message-content"
-              dangerouslySetInnerHTML={{ __html: sanitizeHtml(msg.content) }}
-            />
+            {hasMessageContent(msg.content) ? (
+              <div
+                className="text-sm text-gray-700 leading-relaxed flex-1 min-w-0 chat-message-content"
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(msg.content) }}
+              />
+            ) : (
+              <div className="flex-1" />
+            )}
             <div className="opacity-0 group-hover:opacity-100 transition-all flex items-center gap-0.5 flex-shrink-0 mt-0.5">
               <button
                 onClick={() => setShowEmojiFor(showEmojiFor === msg.id ? null : msg.id)}
@@ -567,6 +740,7 @@ export default function TeamChatPage() {
               )}
             </div>
           </div>
+          {renderAttachmentList(msg.attachments)}
 
           {msg.reactions.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-1">
@@ -937,10 +1111,13 @@ export default function TeamChatPage() {
                           {!sameUser && !isMine && (
                             <span className="text-xs text-gray-500 mb-0.5 ml-1">{senderName}</span>
                           )}
-                          <div
-                            className={`rounded-2xl px-3 py-2 text-sm chat-message-content ${isMine ? "bg-[#0D9488] text-white rounded-br-sm" : "bg-gray-100 text-gray-900 rounded-bl-sm"}`}
-                            dangerouslySetInnerHTML={{ __html: sanitizeHtml(msg.content) }}
-                          />
+                          {hasMessageContent(msg.content) && (
+                            <div
+                              className={`rounded-2xl px-3 py-2 text-sm chat-message-content ${isMine ? "bg-[#0D9488] text-white rounded-br-sm" : "bg-gray-100 text-gray-900 rounded-bl-sm"}`}
+                              dangerouslySetInnerHTML={{ __html: sanitizeHtml(msg.content) }}
+                            />
+                          )}
+                          {renderAttachmentList(msg.attachments, true)}
                           <span className="text-[10px] text-gray-300 mt-0.5 px-1">{formatTime(msg.createdAt)}</span>
                         </div>
                       </div>
@@ -977,7 +1154,7 @@ export default function TeamChatPage() {
           )}
 
           {/* Input area */}
-          <div className="px-4 py-3 border-t border-gray-100 flex-shrink-0 relative">
+          <div className="px-4 py-3 border-t border-gray-100 flex-shrink-0 relative" data-chat-composer="true">
             {mentionQuery !== null && filteredMentions.length > 0 && (
               <div className="absolute bottom-full left-4 right-4 mb-1 bg-white border border-gray-200 rounded-lg shadow-lg z-30 overflow-hidden max-h-40 overflow-y-auto">
                 {filteredMentions.map((u) => (
@@ -996,7 +1173,53 @@ export default function TeamChatPage() {
                 ))}
               </div>
             )}
+            {pendingAttachments.length > 0 && (
+              <div className="mb-2 flex flex-wrap gap-2" data-testid="pending-chat-attachments">
+                {pendingAttachments.map((attachment) => (
+                  <div key={attachment.id} className="group relative flex max-w-56 items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 text-xs text-gray-700">
+                    {isImageAttachment(attachment) ? (
+                      <ImageIcon className="h-3.5 w-3.5 flex-shrink-0 text-[#0D9488]" />
+                    ) : (
+                      <FileText className="h-3.5 w-3.5 flex-shrink-0 text-[#0D9488]" />
+                    )}
+                    <span className="min-w-0 flex-1 truncate" title={attachment.originalName}>
+                      {attachment.originalName}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => void removePendingAttachment(attachment.id)}
+                      className="rounded-full p-0.5 text-gray-400 hover:bg-white hover:text-red-500"
+                      title={t.chat.removeAttachment}
+                      data-testid={`button-remove-attachment-${attachment.id}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="flex items-end gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept="image/jpeg,image/png,image/gif,image/webp,application/pdf"
+                className="hidden"
+                onChange={handleAttachmentInputChange}
+                data-testid="input-chat-attachment"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={chatInputDisabled || isUploadingAttachment || pendingAttachments.length >= MAX_CHAT_ATTACHMENTS}
+                className="h-10 w-10 flex-shrink-0 self-end"
+                title={t.chat.attachFile}
+                data-testid="button-attach-file"
+              >
+                {isUploadingAttachment ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+              </Button>
               <RichTextEditor
                 ref={editorRef}
                 placeholder={isInDm ? t.chat.dmPlaceholder.replace("{{name}}", activeDmUser?.name ?? "DM") : t.chat.messagePlaceholder.replace("{{channel}}", activeChannel)}
@@ -1011,7 +1234,7 @@ export default function TeamChatPage() {
                   const html = editorRef.current?.getHTML() ?? "";
                   handleEditorSend(html);
                 }}
-                disabled={editorIsEmpty || chatInputDisabled}
+                disabled={(editorIsEmpty && pendingAttachments.length === 0) || chatInputDisabled || isUploadingAttachment}
                 size="icon"
                 className="bg-[#0D9488] hover:bg-[#0F766E] text-white flex-shrink-0 h-10 w-10 self-end"
                 data-testid="button-send-message"
@@ -1048,7 +1271,10 @@ export default function TeamChatPage() {
               {threadParentMsg && (
                 <div className="px-3 py-2 bg-white border-b border-gray-100 flex-shrink-0">
                   <p className="text-xs font-medium text-gray-500">{threadParentMsg.senderName}</p>
-                  <div className="text-xs text-gray-700 mt-0.5 whitespace-pre-wrap line-clamp-3 chat-message-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(threadParentMsg.content) }} />
+                  {hasMessageContent(threadParentMsg.content) && (
+                    <div className="text-xs text-gray-700 mt-0.5 whitespace-pre-wrap line-clamp-3 chat-message-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(threadParentMsg.content) }} />
+                  )}
+                  {renderAttachmentList(threadParentMsg.attachments, true)}
                 </div>
               )}
 
@@ -1066,7 +1292,10 @@ export default function TeamChatPage() {
                           <span className="text-xs font-semibold text-gray-900">{msg.senderName}</span>
                           <span className="text-[10px] text-gray-400">{formatTime(msg.createdAt)}</span>
                         </div>
-                        <div className="text-xs text-gray-700 chat-message-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(msg.content) }} />
+                        {hasMessageContent(msg.content) && (
+                          <div className="text-xs text-gray-700 chat-message-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(msg.content) }} />
+                        )}
+                        {renderAttachmentList(msg.attachments, true)}
                       </div>
                     </div>
                   ))

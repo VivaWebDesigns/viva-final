@@ -2,7 +2,7 @@ import { Router } from "express";
 import { requireAuth, requireRole } from "../auth/middleware";
 import { db } from "../../db";
 import {
-  chatMessages, chatDmMessages, chatReadState, chatReactions, user,
+  attachments, chatMessages, chatDmMessages, chatReadState, chatReactions, user,
 } from "@shared/schema";
 import { eq, desc, asc, and, or, sql, lt, gt, ilike, ne, inArray } from "drizzle-orm";
 import { z } from "zod";
@@ -20,6 +20,107 @@ router.use(requireAuth, (req, res, next) => {
 
 const CHAT_ADMIN_ROLE = "admin";
 const isChatAdmin = (role?: string | null) => role === CHAT_ADMIN_ROLE;
+const MAX_CHAT_ATTACHMENTS = 5;
+const CHAT_ATTACHMENT_MIME_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+  "application/pdf",
+]);
+const CHAT_MESSAGE_ENTITY = "chat_message";
+const CHAT_DM_MESSAGE_ENTITY = "chat_dm_message";
+
+type ChatAttachmentDto = {
+  id: string;
+  url: string;
+  originalName: string;
+  mimeType: string;
+  sizeBytes: number;
+  createdAt: string;
+};
+
+type AttachmentRow = typeof attachments.$inferSelect;
+
+function toIso(value: Date | string | null | undefined) {
+  if (!value) return new Date().toISOString();
+  if (value instanceof Date) return value.toISOString();
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
+}
+
+function mapAttachment(row: AttachmentRow): ChatAttachmentDto {
+  return {
+    id: row.id,
+    url: row.url,
+    originalName: row.originalName,
+    mimeType: row.mimeType,
+    sizeBytes: row.sizeBytes,
+    createdAt: toIso(row.createdAt),
+  };
+}
+
+function hasChatContent(content: string) {
+  const trimmed = content.trim();
+  return !!trimmed && trimmed !== "<p></p>";
+}
+
+async function getAttachmentsByEntity(entityType: string, entityIds: string[]) {
+  const map = new Map<string, ChatAttachmentDto[]>();
+  if (entityIds.length === 0) return map;
+
+  const rows = await db
+    .select()
+    .from(attachments)
+    .where(and(eq(attachments.entityType, entityType), inArray(attachments.entityId, entityIds)))
+    .orderBy(asc(attachments.createdAt));
+
+  for (const row of rows) {
+    if (!row.entityId) continue;
+    const list = map.get(row.entityId) ?? [];
+    list.push(mapAttachment(row));
+    map.set(row.entityId, list);
+  }
+
+  return map;
+}
+
+async function validateChatAttachments(attachmentIds: string[] | undefined, uploaderUserId: string) {
+  const ids = [...new Set(attachmentIds ?? [])].slice(0, MAX_CHAT_ATTACHMENTS);
+  if (ids.length === 0) return [];
+
+  const rows = await db.select().from(attachments).where(inArray(attachments.id, ids));
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  const orderedRows = ids.map((id) => byId.get(id));
+
+  if (orderedRows.some((row) => !row)) {
+    throw new Error("One or more attachments were not found");
+  }
+
+  for (const row of orderedRows as AttachmentRow[]) {
+    if (row.uploaderUserId !== uploaderUserId) {
+      throw new Error("You can only send files you uploaded");
+    }
+    if (row.entityType || row.entityId) {
+      throw new Error("One or more attachments are already attached to another record");
+    }
+    if (!CHAT_ATTACHMENT_MIME_TYPES.has(row.mimeType)) {
+      throw new Error("Team Chat supports images and PDFs only");
+    }
+  }
+
+  return orderedRows as AttachmentRow[];
+}
+
+async function assignChatAttachments(rows: AttachmentRow[], entityType: string, entityId: string) {
+  if (rows.length === 0) return [];
+  const ids = rows.map((row) => row.id);
+  await db
+    .update(attachments)
+    .set({ entityType, entityId })
+    .where(inArray(attachments.id, ids));
+  return rows.map((row) => mapAttachment({ ...row, entityType, entityId }));
+}
 
 async function getUserRole(userId: string) {
   const [row] = await db.select({ role: user.role }).from(user).where(eq(user.id, userId));
@@ -138,10 +239,13 @@ router.get("/messages", requireAuth, async (req, res) => {
     const threadCountMap: Record<string, number> = {};
     for (const t of threadCounts) if (t.parentId) threadCountMap[t.parentId] = t.count;
 
+    const attachmentMap = await getAttachmentsByEntity(CHAT_MESSAGE_ENTITY, msgIds);
+
     res.json(msgs.map((m) => ({
       ...m,
       reactions: reactionMap[m.id] ?? [],
       replyCount: threadCountMap[m.id] ?? 0,
+      attachments: attachmentMap.get(m.id) ?? [],
     })));
   } catch (err: any) {
     console.error("Chat messages error:", err);
@@ -157,24 +261,31 @@ router.post("/messages", requireAuth, async (req, res) => {
 
     const parsed = z.object({
       channel: z.string().default("general"),
-      content: z.string().min(1).max(4000),
+      content: z.string().max(4000).optional().default(""),
       parentId: z.string().optional(),
+      attachmentIds: z.array(z.string()).max(MAX_CHAT_ATTACHMENTS).optional().default([]),
     }).parse(req.body);
     const channel = normalizeChannelId(parsed.channel) ?? "general";
     const { content, parentId } = parsed;
     const senderId = req.authUser?.id!;
+    const attachmentRows = await validateChatAttachments(parsed.attachmentIds, senderId);
+
+    if (!hasChatContent(content) && attachmentRows.length === 0) {
+      return res.status(400).json({ message: "Message content or attachment is required" });
+    }
 
     const [msg] = await db.insert(chatMessages)
       .values({ channel, content, senderId, parentId: parentId || null })
       .returning();
 
+    const messageAttachments = await assignChatAttachments(attachmentRows, CHAT_MESSAGE_ENTITY, msg.id);
     const [sender] = await db.select({ name: user.name, role: user.role }).from(user).where(eq(user.id, senderId));
 
     await db.insert(chatReadState)
       .values({ userId: senderId, channelId: channel, lastReadAt: msg.createdAt })
       .onConflictDoUpdate({ target: [chatReadState.userId, chatReadState.channelId], set: { lastReadAt: msg.createdAt } });
 
-    const fullMsg = { ...msg, senderName: sender?.name, senderRole: sender?.role, reactions: [], replyCount: 0 };
+    const fullMsg = { ...msg, senderName: sender?.name, senderRole: sender?.role, reactions: [], replyCount: 0, attachments: messageAttachments };
 
     try {
       const io = getIO();
@@ -424,7 +535,11 @@ router.get("/dm/messages", requireAuth, async (req, res) => {
       .set({ readAt: new Date() })
       .where(and(eq(chatDmMessages.recipientId, userId), eq(chatDmMessages.senderId, otherUserId), sql`${chatDmMessages.readAt} IS NULL`));
 
-    res.json(rows);
+    const attachmentMap = await getAttachmentsByEntity(CHAT_DM_MESSAGE_ENTITY, rows.map((row) => row.id));
+    res.json(rows.map((row) => ({
+      ...row,
+      attachments: attachmentMap.get(row.id) ?? [],
+    })));
   } catch (err: any) {
     res.status(500).json({ message: err.message });
   }
@@ -432,12 +547,17 @@ router.get("/dm/messages", requireAuth, async (req, res) => {
 
 router.post("/dm/messages", requireAuth, async (req, res) => {
   try {
-    const { recipientId, content } = z.object({
+    const { recipientId, content, attachmentIds } = z.object({
       recipientId: z.string().min(1),
-      content: z.string().min(1).max(4000),
+      content: z.string().max(4000).optional().default(""),
+      attachmentIds: z.array(z.string()).max(MAX_CHAT_ATTACHMENTS).optional().default([]),
     }).parse(req.body);
     const senderId = req.authUser?.id!;
     if (recipientId === senderId) return res.status(400).json({ message: "Cannot send a DM to yourself" });
+    const attachmentRows = await validateChatAttachments(attachmentIds, senderId);
+    if (!hasChatContent(content) && attachmentRows.length === 0) {
+      return res.status(400).json({ message: "Message content or attachment is required" });
+    }
 
     const [targetUser] = await db.select({ id: user.id, role: user.role }).from(user).where(eq(user.id, recipientId));
     if (!targetUser) return res.status(404).json({ message: "Recipient not found" });
@@ -446,6 +566,7 @@ router.post("/dm/messages", requireAuth, async (req, res) => {
     }
 
     const [msg] = await db.insert(chatDmMessages).values({ senderId, recipientId, content }).returning();
+    const messageAttachments = await assignChatAttachments(attachmentRows, CHAT_DM_MESSAGE_ENTITY, msg.id);
 
     try {
       const io = getIO();
@@ -454,13 +575,14 @@ router.post("/dm/messages", requireAuth, async (req, res) => {
           ...msg,
           createdAt: msg.createdAt.toISOString(),
           readAt: msg.readAt ? msg.readAt.toISOString() : null,
+          attachments: messageAttachments,
         };
         io.to(`user:${recipientId}`).emit("chat:dm_message", payload);
         io.to(`user:${senderId}`).emit("chat:dm_message", payload);
       }
     } catch (_) {}
 
-    res.status(201).json(msg);
+    res.status(201).json({ ...msg, attachments: messageAttachments });
   } catch (err: any) {
     res.status(400).json({ message: err.message });
   }

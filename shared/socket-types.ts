@@ -59,6 +59,7 @@ export interface ChannelMessagePayload {
   isPinned: boolean;
   reactions: { emoji: string; count: number; users: string[] }[];
   replyCount: number;
+  attachments: ChatAttachmentPayload[];
 }
 
 /** Payload for a direct message broadcast via `chat:dm_message`. */
@@ -68,6 +69,16 @@ export interface DmMessagePayload {
   recipientId: string;
   content: string;
   readAt: string | null;
+  createdAt: string;
+  attachments: ChatAttachmentPayload[];
+}
+
+export interface ChatAttachmentPayload {
+  id: string;
+  url: string;
+  originalName: string;
+  mimeType: string;
+  sizeBytes: number;
   createdAt: string;
 }
 
