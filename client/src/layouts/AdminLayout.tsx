@@ -3,7 +3,6 @@ import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@features/auth/useAuth";
 import { STALE } from "@/lib/queryClient";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, Users, TrendingUp, UserPlus, MessageSquare,
   CreditCard, Bell, BarChart3, Settings, BookOpen,
@@ -84,10 +83,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <img src={logoIcon} alt="Viva Web Designs" className="w-full h-full object-contain" />
             </div>
             {!collapsed && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="overflow-hidden whitespace-nowrap">
+              <div className="overflow-hidden whitespace-nowrap animate-in fade-in-0 duration-150">
                 <p className="font-semibold text-gray-900 text-sm leading-tight">Viva Web Designs</p>
                 <p className="text-xs text-gray-500">{t.nav.internalPlatform}</p>
-              </motion.div>
+              </div>
             )}
           </div>
           <button
@@ -213,28 +212,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {sidebar}
       </aside>
 
-      <AnimatePresence>
-        {mobileOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/30 z-40 md:hidden"
-              onClick={() => setMobileOpen(false)}
-            />
-            <motion.aside
-              initial={{ x: -280 }}
-              animate={{ x: 0 }}
-              exit={{ x: -280 }}
-              transition={{ type: "spring", damping: 25 }}
-              className="fixed left-0 top-0 bottom-0 w-[280px] bg-white z-50 md:hidden shadow-xl"
-            >
-              {sidebar}
-            </motion.aside>
-          </>
-        )}
-      </AnimatePresence>
+      {mobileOpen && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/30 z-40 md:hidden animate-in fade-in-0 duration-150"
+            onClick={() => setMobileOpen(false)}
+          />
+          <aside className="fixed left-0 top-0 bottom-0 w-[280px] bg-white z-50 md:hidden shadow-xl animate-in slide-in-from-left duration-200">
+            {sidebar}
+          </aside>
+        </>
+      )}
 
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-4 md:px-6 flex-shrink-0">

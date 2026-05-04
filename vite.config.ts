@@ -46,6 +46,25 @@ export default defineConfig({
         "preview-crece": path.resolve(import.meta.dirname, "client", "preview-crece.html"),
         "preview-domina": path.resolve(import.meta.dirname, "client", "preview-domina.html"),
       },
+      output: {
+        manualChunks(id) {
+          const normalizedId = id.replace(/\\/g, "/");
+          if (
+            normalizedId.includes("/node_modules/react/") ||
+            normalizedId.includes("/node_modules/react-dom/") ||
+            normalizedId.includes("/node_modules/scheduler/")
+          ) {
+            return "react-vendor";
+          }
+          if (
+            normalizedId.includes("/node_modules/framer-motion/") ||
+            normalizedId.includes("/node_modules/motion-dom/") ||
+            normalizedId.includes("/node_modules/motion-utils/")
+          ) {
+            return "framer-motion";
+          }
+        },
+      },
     },
   },
   server: {
