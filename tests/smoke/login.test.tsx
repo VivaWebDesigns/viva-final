@@ -17,14 +17,14 @@ describe("LoginPage smoke", () => {
   beforeAll(() => server.listen({ onUnhandledRequest: "bypass" }));
   afterAll(()  => server.close());
 
-  it("renders the email and password inputs", () => {
+  it("renders the email and password inputs", async () => {
     renderWithProviders(<LoginPage />, { route: "/login" });
-    expect(screen.getByTestId("input-email")).toBeInTheDocument();
-    expect(screen.getByTestId("input-password")).toBeInTheDocument();
+    expect(await screen.findByTestId("input-email")).toBeInTheDocument();
+    expect(await screen.findByTestId("input-password")).toBeInTheDocument();
   });
 
-  it("renders the submit button", () => {
+  it("renders the submit button", async () => {
     renderWithProviders(<LoginPage />, { route: "/login" });
-    expect(screen.getByRole("button", { name: /sign in/i })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /sign in/i })).toBeInTheDocument();
   });
 });
