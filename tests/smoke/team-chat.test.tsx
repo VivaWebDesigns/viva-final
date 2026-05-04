@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 import { screen }                                        from "@testing-library/react";
+import { http, HttpResponse }                            from "msw";
 import { renderWithProviders }                           from "../helpers/renderWithProviders";
 import { server }                                       from "../helpers/server";
 
@@ -38,5 +39,41 @@ describe("TeamChatPage smoke", () => {
   it("renders channel sidebar buttons", async () => {
     renderWithProviders(<TeamChatPage />, { route: "/admin/chat" });
     expect(await screen.findByTestId("button-channel-general")).toBeInTheDocument();
+  });
+
+  it("uses the authenticated download route for chat attachments", async () => {
+    server.use(
+      http.get("/api/chat/messages", () => HttpResponse.json([
+        {
+          id: "msg-1",
+          channel: "general",
+          content: "",
+          senderId: "u1",
+          senderName: "Admin",
+          senderRole: "admin",
+          createdAt: new Date().toISOString(),
+          parentId: null,
+          isPinned: false,
+          reactions: [],
+          replyCount: 0,
+          attachments: [
+            {
+              id: "att-1",
+              url: "/broken-stored-url",
+              originalName: "screenshot.png",
+              mimeType: "image/png",
+              sizeBytes: 1024,
+              createdAt: new Date().toISOString(),
+            },
+          ],
+        },
+      ])),
+    );
+
+    renderWithProviders(<TeamChatPage />, { route: "/admin/chat" });
+
+    const image = await screen.findByAltText("screenshot.png");
+    expect(image).toHaveAttribute("src", "/api/attachments/att-1/download");
+    expect(image.closest("a")).toHaveAttribute("href", "/api/attachments/att-1/download");
   });
 });

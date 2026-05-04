@@ -55,7 +55,7 @@ router.post("/upload", requireAuth, upload.single("file"), async (req, res) => {
     if (err.code === "LIMIT_FILE_SIZE") {
       return res.status(413).json({ message: "File too large. Maximum size is 10MB." });
     }
-    res.status(400).json({ message: err.message });
+    res.status(err.statusCode ?? 400).json({ message: err.message });
   }
 });
 
@@ -88,6 +88,18 @@ router.delete("/:id", requireAuth, async (req, res) => {
 
 router.get("/status", requireAuth, (_req, res) => {
   res.json({ configured: storageService.isConfigured(), allowedTypes: storageService.ALLOWED_TYPES, maxSizeBytes: storageService.MAX_FILE_SIZE_BYTES });
+});
+
+router.get("/:id/download", requireAuth, async (req, res) => {
+  try {
+    const [att] = await db.select().from(attachments).where(eq(attachments.id, req.params.id as string));
+    if (!att) return res.status(404).json({ message: "Attachment not found" });
+
+    const url = await storageService.getSignedDownloadUrl(att.key);
+    res.redirect(url);
+  } catch (err: any) {
+    res.status(err.statusCode ?? 500).json({ message: err.message });
+  }
 });
 
 export default router;

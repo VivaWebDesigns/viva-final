@@ -2,14 +2,15 @@
  * R2 Storage Service
  *
  * Abstraction layer for Cloudflare R2 (S3-compatible) file storage.
- * Falls back to local/mock mode when R2 credentials are not configured.
+ * Uploads require R2 credentials. Missing storage config returns a clear
+ * service-unavailable error instead of creating broken placeholder links.
  *
  * Required environment variables for production R2:
- *   R2_ACCOUNT_ID      — Cloudflare account ID
- *   R2_ACCESS_KEY_ID   — R2 API token (Access Key ID)
- *   R2_SECRET_ACCESS_KEY — R2 API token (Secret Access Key)
- *   R2_BUCKET_NAME     — Bucket name in R2
- *   R2_PUBLIC_URL      — Public URL prefix (e.g. https://pub-xxx.r2.dev or custom domain)
+ *   R2_ACCOUNT_ID        - Cloudflare account ID
+ *   R2_ACCESS_KEY_ID     - R2 API token (Access Key ID)
+ *   R2_SECRET_ACCESS_KEY - R2 API token (Secret Access Key)
+ *   R2_BUCKET_NAME       - Bucket name in R2
+ *   R2_PUBLIC_URL        - Public URL prefix (e.g. https://pub-xxx.r2.dev or custom domain)
  */
 
 import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
@@ -25,22 +26,42 @@ export interface UploadResult {
   sizeBytes: number;
 }
 
+function firstEnv(names: string[]): string | undefined {
+  for (const name of names) {
+    const value = process.env[name]?.trim();
+    if (value) return value;
+  }
+  return undefined;
+}
+
+function trimTrailingSlash(url: string | undefined): string | undefined {
+  return url?.replace(/\/+$/, "");
+}
+
+function storageNotConfiguredError() {
+  const error = new Error("File storage is not configured. Cloudflare R2 environment variables are missing.");
+  (error as Error & { statusCode: number }).statusCode = 503;
+  return error;
+}
+
 function getConfig() {
-  const accountId = process.env.R2_ACCOUNT_ID;
-  const accessKeyId = process.env.R2_ACCESS_KEY_ID;
-  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
-  const bucketName = process.env.R2_BUCKET_NAME;
-  const publicUrl = process.env.R2_PUBLIC_URL;
-  const configured = !!(accountId && accessKeyId && secretAccessKey && bucketName);
-  return { accountId, accessKeyId, secretAccessKey, bucketName, publicUrl, configured };
+  const accountId = firstEnv(["R2_ACCOUNT_ID"]);
+  const accessKeyId = firstEnv(["R2_ACCESS_KEY_ID", "CLOUDFLARE_R2_ACCESS_KEY", "CLOUDFLARE_R2_ACCESS_KEY_ID"]);
+  const secretAccessKey = firstEnv(["R2_SECRET_ACCESS_KEY", "CLOUDFLARE_R2_SECRET_KEY", "CLOUDFLARE_R2_SECRET_ACCESS_KEY"]);
+  const bucketName = firstEnv(["R2_BUCKET_NAME", "CLOUDFLARE_R2_BUCKET"]);
+  const endpoint = trimTrailingSlash(firstEnv(["R2_ENDPOINT", "CLOUDFLARE_R2_ENDPOINT"]))
+    ?? (accountId ? `https://${accountId}.r2.cloudflarestorage.com` : undefined);
+  const publicUrl = trimTrailingSlash(firstEnv(["R2_PUBLIC_URL", "CLOUDFLARE_R2_PUBLIC_URL"]));
+  const configured = !!(endpoint && accessKeyId && secretAccessKey && bucketName);
+  return { endpoint, accessKeyId, secretAccessKey, bucketName, publicUrl, configured };
 }
 
 function getS3Client() {
-  const { accountId, accessKeyId, secretAccessKey, configured } = getConfig();
+  const { endpoint, accessKeyId, secretAccessKey, configured } = getConfig();
   if (!configured) return null;
   return new S3Client({
     region: "auto",
-    endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+    endpoint,
     credentials: { accessKeyId: accessKeyId!, secretAccessKey: secretAccessKey! },
   });
 }
@@ -65,11 +86,7 @@ export async function uploadFile(
   const { bucketName, publicUrl, configured } = getConfig();
   const key = generateKey(originalName, folder);
 
-  if (!configured) {
-    const mockUrl = `/api/attachments/mock/${key}`;
-    console.warn("[storage] R2 not configured — using mock upload. Key:", key);
-    return { key, url: mockUrl, originalName, mimeType, sizeBytes: buffer.byteLength };
-  }
+  if (!configured) throw storageNotConfiguredError();
 
   const client = getS3Client()!;
   await client.send(new PutObjectCommand({
@@ -96,7 +113,7 @@ export async function deleteFile(key: string): Promise<void> {
 
 export async function getSignedDownloadUrl(key: string, expiresInSeconds = 3600): Promise<string> {
   const { bucketName, publicUrl, configured } = getConfig();
-  if (!configured) return `/api/attachments/mock/${key}`;
+  if (!configured) throw storageNotConfiguredError();
   if (publicUrl) return `${publicUrl}/${key}`;
   const client = getS3Client()!;
   return getSignedUrl(client, new GetObjectCommand({ Bucket: bucketName!, Key: key }), { expiresIn: expiresInSeconds });

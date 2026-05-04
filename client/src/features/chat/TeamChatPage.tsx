@@ -115,6 +115,10 @@ function formatFileSize(size: number) {
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function getAttachmentDownloadUrl(attachment: Pick<ChatAttachment, "id">) {
+  return `/api/attachments/${encodeURIComponent(attachment.id)}/download`;
+}
+
 function hasMessageContent(content: string | null | undefined) {
   const trimmed = (content ?? "").trim();
   return !!trimmed && trimmed !== "<p></p>";
@@ -615,18 +619,20 @@ export default function TeamChatPage() {
   // ── Render helpers ─────────────────────────────────────────────────────────
 
   function renderAttachment(attachment: ChatAttachment, compact = false) {
+    const downloadUrl = getAttachmentDownloadUrl(attachment);
+
     if (isImageAttachment(attachment)) {
       return (
         <a
           key={attachment.id}
-          href={attachment.url}
+          href={downloadUrl}
           target="_blank"
           rel="noopener noreferrer"
           className={`group block overflow-hidden rounded-lg border border-gray-200 bg-gray-50 ${compact ? "max-w-64" : "max-w-sm"}`}
           title={attachment.originalName}
         >
           <img
-            src={attachment.url}
+            src={downloadUrl}
             alt={attachment.originalName}
             className="max-h-56 w-full object-cover transition-transform group-hover:scale-[1.01]"
             loading="lazy"
@@ -638,7 +644,7 @@ export default function TeamChatPage() {
     return (
       <a
         key={attachment.id}
-        href={attachment.url}
+        href={downloadUrl}
         target="_blank"
         rel="noopener noreferrer"
         className={`flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 hover:border-[#0D9488]/40 hover:bg-[#0D9488]/5 ${compact ? "max-w-64" : "max-w-sm"}`}
