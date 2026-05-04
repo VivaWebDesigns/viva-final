@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, lazy, Suspense, useMemo, useState } from "react";
 import type { ComponentType, ReactNode } from "react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
@@ -16,17 +16,8 @@ import {
   TrendingUp,
   Users,
 } from "lucide-react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+
+const CrmActivityTrendCharts = lazy(() => import("./CrmActivityTrendCharts"));
 
 interface RepActivity {
   userId: string;
@@ -282,6 +273,15 @@ function EmptyState({ children }: { children: ReactNode }) {
     <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 py-8 text-center text-sm text-gray-500">
       {children}
     </div>
+  );
+}
+
+function ChartGridFallback() {
+  return (
+    <>
+      <div className="h-72 animate-pulse rounded-lg bg-gray-100" />
+      <div className="h-72 animate-pulse rounded-lg bg-gray-100" />
+    </>
   );
 }
 
@@ -675,28 +675,9 @@ export default function CrmActivityPage() {
               </p>
             )}
             <div className="grid gap-6 p-5 xl:grid-cols-[1.5fr_1fr]">
-              <div className="h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={trendData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="date" tickFormatter={formatDateShort} tick={{ fontSize: 12 }} />
-                    <YAxis tick={{ fontSize: 12 }} />
-                    <Tooltip labelFormatter={(value) => formatDateLong(String(value))} formatter={(value) => [value, trendLabel]} />
-                    <Line type="monotone" dataKey={trendMetric} stroke="#0D9488" strokeWidth={2.5} dot={false} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={trendData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="date" tickFormatter={formatDateShort} tick={{ fontSize: 12 }} />
-                    <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
-                    <Tooltip labelFormatter={(value) => formatDateLong(String(value))} />
-                    <Bar dataKey="signedInNoActivity" name="Signed in, no activity" fill="#EF4444" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+              <Suspense fallback={<ChartGridFallback />}>
+                <CrmActivityTrendCharts trendData={trendData} trendMetric={trendMetric} trendLabel={trendLabel} />
+              </Suspense>
             </div>
           </section>
 

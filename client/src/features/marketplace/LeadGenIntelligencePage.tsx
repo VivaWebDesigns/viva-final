@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import type { ComponentType, ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { STALE } from "@/lib/queryClient";
@@ -9,19 +9,13 @@ import {
   MessageCircle,
   ShieldAlert,
 } from "lucide-react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Legend,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+
+const LeadGenFlowChart = lazy(() =>
+  import("./LeadGenIntelligenceCharts").then((module) => ({ default: module.LeadGenFlowChart })),
+);
+const ConversionShareChart = lazy(() =>
+  import("./LeadGenIntelligenceCharts").then((module) => ({ default: module.ConversionShareChart })),
+);
 
 interface LeadGenWorker {
   userId: string;
@@ -164,8 +158,6 @@ function scoreTone(score: number) {
   return "border-red-200 bg-red-50 text-red-700";
 }
 
-const PIE_COLORS = ["#10B981", "#2563EB", "#F59E0B", "#8B5CF6", "#EF4444", "#14B8A6", "#64748B"];
-
 type RangeMode = "today" | "this_week" | "last_week" | "7" | "30" | "90" | "custom";
 
 function StatCard({
@@ -203,6 +195,10 @@ function EmptyState({ children }: { children: ReactNode }) {
       {children}
     </div>
   );
+}
+
+function ChartFallback() {
+  return <div className="h-full animate-pulse rounded-lg bg-gray-100" />;
 }
 
 export default function LeadGenIntelligencePage() {
@@ -376,16 +372,9 @@ export default function LeadGenIntelligencePage() {
               </select>
             </div>
             <div className="h-80 p-5">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="date" tickFormatter={formatDateShort} tick={{ fontSize: 12 }} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
-                  <Tooltip labelFormatter={(value) => formatDateShort(String(value))} />
-                  <Bar dataKey="contacted" name="Contacted" fill="#0D9488" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="converted" name="Converted" fill="#10B981" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              <Suspense fallback={<ChartFallback />}>
+                <LeadGenFlowChart data={chartData} />
+              </Suspense>
             </div>
           </section>
 
@@ -396,21 +385,9 @@ export default function LeadGenIntelligencePage() {
                 <p className="text-xs text-gray-500">Converted records by worker for {rangeLabel}.</p>
               </div>
               <div className="h-72 p-5">
-                {conversionShare.length === 0 ? (
-                  <EmptyState>No conversions for this range.</EmptyState>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Tooltip formatter={(value) => [`${value} converted`, ""]} />
-                      <Pie data={conversionShare} dataKey="value" nameKey="name" innerRadius={55} outerRadius={95} paddingAngle={2}>
-                        {conversionShare.map((entry, index) => (
-                          <Cell key={entry.name} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Legend verticalAlign="bottom" iconType="circle" />
-                    </PieChart>
-                  </ResponsiveContainer>
-                )}
+                <Suspense fallback={<ChartFallback />}>
+                  <ConversionShareChart data={conversionShare} />
+                </Suspense>
               </div>
             </section>
 
