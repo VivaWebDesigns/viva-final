@@ -2,10 +2,12 @@ import { useEditor, EditorContent, Extension } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
-import { useEffect, useImperativeHandle, forwardRef, useState, useRef } from "react";
+import { useEffect, useImperativeHandle, forwardRef, useState, useRef, lazy, Suspense } from "react";
 import { Bold, Italic, Strikethrough, Link2, Smile } from "lucide-react";
-import EmojiPicker, { type EmojiClickData, Theme } from "emoji-picker-react";
+import type { RichTextEmojiClickData } from "./LazyEmojiPicker";
 import { sanitizeHtml } from "./richTextSanitize";
+
+const LazyEmojiPicker = lazy(() => import("./LazyEmojiPicker"));
 
 export interface RichTextEditorHandle {
   clearEditor: () => void;
@@ -140,7 +142,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
       setLinkUrl("");
     };
 
-    const handleEmojiClick = (data: EmojiClickData) => {
+    const handleEmojiClick = (data: RichTextEmojiClickData) => {
       editor?.chain().focus().insertContent(data.emoji).run();
       setShowEmojiPicker(false);
     };
@@ -245,15 +247,17 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
             </ToolbarButton>
             {showEmojiPicker && (
               <div className="absolute bottom-full left-0 mb-2 z-50 shadow-xl rounded-xl overflow-hidden" data-testid="emoji-picker-full">
-                <EmojiPicker
-                  onEmojiClick={handleEmojiClick}
-                  theme={Theme.LIGHT}
-                  width={320}
-                  height={380}
-                  searchPlaceholder="Buscar emoji..."
-                  previewConfig={{ showPreview: false }}
-                  skinTonesDisabled
-                />
+                <Suspense fallback={<EmojiPickerLoading width={320} height={380} />}>
+                  <LazyEmojiPicker
+                    onEmojiClick={handleEmojiClick}
+                    theme="light"
+                    width={320}
+                    height={380}
+                    searchPlaceholder="Buscar emoji..."
+                    previewConfig={{ showPreview: false }}
+                    skinTonesDisabled
+                  />
+                </Suspense>
               </div>
             )}
           </div>
@@ -271,6 +275,18 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
 );
 
 RichTextEditor.displayName = "RichTextEditor";
+
+function EmojiPickerLoading({ width, height }: { width: number; height: number }) {
+  return (
+    <div
+      aria-busy="true"
+      className="flex items-center justify-center rounded-xl border border-gray-200 bg-white text-xs text-gray-400"
+      style={{ width, height }}
+    >
+      Loading emojis...
+    </div>
+  );
+}
 
 function ToolbarButton({
   children,

@@ -2,10 +2,12 @@ import { useEditor, EditorContent, Extension } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
-import { useEffect, useRef, useState, forwardRef } from "react";
+import { useEffect, useRef, useState, forwardRef, lazy, Suspense } from "react";
 import { Bold, Italic, Strikethrough, Link2, Smile } from "lucide-react";
-import EmojiPicker, { type EmojiClickData, Theme } from "emoji-picker-react";
+import type { RichTextEmojiClickData } from "./LazyEmojiPicker";
 import { sanitizeHtml } from "./richTextSanitize";
+
+const LazyEmojiPicker = lazy(() => import("./LazyEmojiPicker"));
 
 export interface RichTextEditorFieldProps extends Omit<React.HTMLAttributes<HTMLDivElement>, "onChange"> {
   value?: string;
@@ -145,7 +147,7 @@ const RichTextEditorField = forwardRef<HTMLDivElement, RichTextEditorFieldProps>
       setLinkUrl("");
     };
 
-    const onEmojiClick = (emojiData: EmojiClickData) => {
+    const onEmojiClick = (emojiData: RichTextEmojiClickData) => {
       editor?.chain().focus().insertContent(emojiData.emoji).run();
       setShowEmojiPicker(false);
     };
@@ -231,13 +233,15 @@ const RichTextEditorField = forwardRef<HTMLDivElement, RichTextEditorFieldProps>
             </button>
             {showEmojiPicker && (
               <div className="absolute bottom-full left-0 mb-1 z-50">
-                <EmojiPicker
-                  onEmojiClick={onEmojiClick}
-                  theme={Theme.LIGHT}
-                  searchPlaceholder="Search emoji..."
-                  width={300}
-                  height={360}
-                />
+                <Suspense fallback={<EmojiPickerLoading width={300} height={360} />}>
+                  <LazyEmojiPicker
+                    onEmojiClick={onEmojiClick}
+                    theme="light"
+                    searchPlaceholder="Search emoji..."
+                    width={300}
+                    height={360}
+                  />
+                </Suspense>
               </div>
             )}
           </div>
@@ -251,4 +255,17 @@ const RichTextEditorField = forwardRef<HTMLDivElement, RichTextEditorFieldProps>
 );
 
 RichTextEditorField.displayName = "RichTextEditorField";
+
+function EmojiPickerLoading({ width, height }: { width: number; height: number }) {
+  return (
+    <div
+      aria-busy="true"
+      className="flex items-center justify-center rounded-xl border border-gray-200 bg-white text-xs text-gray-400"
+      style={{ width, height }}
+    >
+      Loading emojis...
+    </div>
+  );
+}
+
 export default RichTextEditorField;
