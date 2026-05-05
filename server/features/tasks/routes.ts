@@ -11,6 +11,10 @@ import { crmLeads, pipelineOpportunities, followupTasks, automationExecutionLogs
 
 const router = Router();
 
+function scopedTaskOwnerId(req: { authUser?: { id?: string; role?: string } }): string | undefined {
+  return req.authUser?.role === "sales_rep" ? req.authUser.id : undefined;
+}
+
 function parseDueDate(raw: string): Date {
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
     return new Date(raw + "T00:00:00Z");
@@ -68,12 +72,13 @@ const updateTaskSchema = z.object({
   completed: z.boolean().optional(),
 }).strict();
 
-router.get("/due-today", requireRole("admin", "sales_rep", "developer"), async (_req, res) => {
+router.get("/due-today", requireRole("admin", "sales_rep", "developer"), async (req, res) => {
   try {
+    const ownerId = scopedTaskOwnerId(req);
     const [dueTodayTasks, overdueTasks, upcomingTasks] = await Promise.all([
-      taskStorage.getTasksDueToday(),
-      taskStorage.getOverdueTasks(),
-      taskStorage.getUpcomingTasks(),
+      taskStorage.getTasksDueToday(ownerId),
+      taskStorage.getOverdueTasks(ownerId),
+      taskStorage.getUpcomingTasks(ownerId),
     ]);
     res.json({ dueToday: dueTodayTasks, overdue: overdueTasks, upcoming: upcomingTasks });
   } catch (err: any) {
@@ -84,7 +89,7 @@ router.get("/due-today", requireRole("admin", "sales_rep", "developer"), async (
 router.get("/completed-history", requireRole("admin", "sales_rep", "developer"), async (req, res) => {
   try {
     const limit = Math.min(Number(req.query.limit) || 50, 200);
-    const tasks = await taskStorage.getCompletedTaskHistory(limit);
+    const tasks = await taskStorage.getCompletedTaskHistory(limit, scopedTaskOwnerId(req));
     res.json(tasks);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";
@@ -94,7 +99,7 @@ router.get("/completed-history", requireRole("admin", "sales_rep", "developer"),
 
 router.get("/for-opportunity/:id", requireRole("admin", "sales_rep", "developer"), async (req, res) => {
   try {
-    const tasks = await taskStorage.getTasksForOpportunity(req.params.id as string);
+    const tasks = await taskStorage.getTasksForOpportunity(req.params.id as string, scopedTaskOwnerId(req));
     res.json(tasks);
   } catch (err: any) {
     res.status(500).json({ message: err.message });
@@ -103,7 +108,7 @@ router.get("/for-opportunity/:id", requireRole("admin", "sales_rep", "developer"
 
 router.get("/for-lead/:id", requireRole("admin", "sales_rep", "developer"), async (req, res) => {
   try {
-    const tasks = await taskStorage.getTasksForLead(req.params.id as string);
+    const tasks = await taskStorage.getTasksForLead(req.params.id as string, scopedTaskOwnerId(req));
     res.json(tasks);
   } catch (err: any) {
     res.status(500).json({ message: err.message });

@@ -7,6 +7,7 @@ import { notifyLeadAssignment } from "../notifications/triggers";
 import { appendHistorySafe } from "../history/service";
 import * as crmStorage from "./storage";
 import * as pipelineStorage from "../pipeline/storage";
+import * as taskStorage from "../tasks/storage";
 import { normalizePhoneDigits, isValidUSPhone } from "@shared/phone";
 import {
   exportLeadsToCSV, exportContactsToCSV,
@@ -212,6 +213,7 @@ router.post("/leads/bulk/assign", requireRole("admin", "developer"), async (req,
     const { ids, assignedTo } = bulkAssignSchema.parse(req.body);
     const count = await crmStorage.bulkAssignLeads(ids, assignedTo);
     await pipelineStorage.bulkAssignOpportunitiesByLeadIds(ids, assignedTo);
+    await taskStorage.syncOpenTaskOwnershipForLeadIds(ids, assignedTo);
     await logAudit({
       userId: req.authUser?.id,
       action: "bulk_assign",
@@ -589,7 +591,10 @@ router.put("/leads/:id", requireRole("admin", "developer", "sales_rep", "lead_ge
         if (linkedOpp) {
           await pipelineStorage.updateOpportunity(linkedOpp.id, { assignedTo: validated.assignedTo ?? null });
         }
-      } catch (_) {}
+        await taskStorage.syncOpenTaskOwnershipForLeadIds([id], validated.assignedTo ?? null);
+      } catch (err) {
+        console.error("[crm/leads] Failed to sync linked ownership:", err);
+      }
     }
     if (validated.adUrl !== undefined && validated.adUrl !== existing.adUrl) {
       appendHistorySafe({ entityType: "lead", entityId: id, event: "field_changed", fieldName: "adUrl", fromValue: existing.adUrl ?? null, toValue: validated.adUrl ?? null, ...actor });

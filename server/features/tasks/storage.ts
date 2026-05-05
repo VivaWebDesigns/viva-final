@@ -4,7 +4,7 @@ import {
   pipelineOpportunities, pipelineStages,
   type InsertFollowupTask, type FollowupTask,
 } from "@shared/schema";
-import { eq, and, gte, lte, lt, desc, asc, inArray } from "drizzle-orm";
+import { eq, and, gte, lte, lt, desc, asc, inArray, isNull, or } from "drizzle-orm";
 
 export interface TaskAutomationMeta {
   triggerStageSlug: string;
@@ -28,40 +28,125 @@ function todayRange() {
   return { start, end };
 }
 
-export async function getTasksDueToday(): Promise<TaskWithContact[]> {
-  const { start, end } = todayRange();
-  const tasks = await db.select().from(followupTasks)
-    .where(and(
-      eq(followupTasks.completed, false),
-      gte(followupTasks.dueDate, start),
-      lte(followupTasks.dueDate, end),
-    ))
-    .orderBy(asc(followupTasks.dueDate));
-  return enrichTasks(tasks);
+async function excludeSupersededAutomationTasks<T extends FollowupTask>(tasks: T[]): Promise<T[]> {
+  if (tasks.length === 0) return tasks;
+
+  const taskIds = tasks.map((task) => task.id);
+  const opportunityIds = [...new Set(tasks.map((task) => task.opportunityId).filter(Boolean) as string[])];
+  if (opportunityIds.length === 0) return tasks;
+
+  const [automationRows, oppStageRows] = await Promise.all([
+    db
+      .select({
+        generatedTaskId: automationExecutionLogs.generatedTaskId,
+        triggerStageSlug: automationExecutionLogs.triggerStageSlug,
+      })
+      .from(automationExecutionLogs)
+      .where(and(
+        inArray(automationExecutionLogs.generatedTaskId, taskIds),
+        eq(automationExecutionLogs.status, "success"),
+      )),
+    db
+      .select({ opportunityId: pipelineOpportunities.id, stageSlug: pipelineStages.slug })
+      .from(pipelineOpportunities)
+      .innerJoin(pipelineStages, eq(pipelineOpportunities.stageId, pipelineStages.id))
+      .where(inArray(pipelineOpportunities.id, opportunityIds)),
+  ]);
+
+  if (automationRows.length === 0 || oppStageRows.length === 0) return tasks;
+
+  const taskMap = new Map(tasks.map((task) => [task.id, task]));
+  const oppStageMap = new Map(oppStageRows.map((row) => [row.opportunityId, row.stageSlug]));
+  const supersededTaskIds = new Set<string>();
+
+  for (const row of automationRows) {
+    if (!row.generatedTaskId) continue;
+    const task = taskMap.get(row.generatedTaskId);
+    if (!task?.opportunityId) continue;
+    const currentStageSlug = oppStageMap.get(task.opportunityId);
+    if (currentStageSlug && row.triggerStageSlug !== currentStageSlug) {
+      supersededTaskIds.add(row.generatedTaskId);
+    }
+  }
+
+  if (supersededTaskIds.size === 0) return tasks;
+  return tasks.filter((task) => !supersededTaskIds.has(task.id));
 }
 
-export async function getOverdueTasks(): Promise<TaskWithContact[]> {
+function scopedTaskOwnerCondition(ownerId?: string) {
+  if (!ownerId) return undefined;
+
+  const ownedOpportunityIds = db
+    .select({ id: pipelineOpportunities.id })
+    .from(pipelineOpportunities)
+    .where(eq(pipelineOpportunities.assignedTo, ownerId));
+  const ownedLeadIds = db
+    .select({ id: crmLeads.id })
+    .from(crmLeads)
+    .where(eq(crmLeads.assignedTo, ownerId));
+
+  return or(
+    inArray(followupTasks.opportunityId, ownedOpportunityIds),
+    and(
+      isNull(followupTasks.opportunityId),
+      inArray(followupTasks.leadId, ownedLeadIds),
+    ),
+    and(
+      isNull(followupTasks.opportunityId),
+      isNull(followupTasks.leadId),
+      eq(followupTasks.assignedTo, ownerId),
+    ),
+  );
+}
+
+export async function getTasksDueToday(ownerId?: string): Promise<TaskWithContact[]> {
+  const { start, end } = todayRange();
+  const ownerCond = scopedTaskOwnerCondition(ownerId);
+  const conditions = [
+    eq(followupTasks.completed, false),
+    gte(followupTasks.dueDate, start),
+    lte(followupTasks.dueDate, end),
+  ];
+  if (ownerCond) conditions.push(ownerCond);
+  const tasks = await db.select().from(followupTasks)
+    .where(and(...conditions))
+    .orderBy(asc(followupTasks.dueDate));
+  return enrichTasks(await excludeSupersededAutomationTasks(tasks));
+}
+
+export async function getOverdueTasks(ownerId?: string): Promise<TaskWithContact[]> {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+  const ownerCond = scopedTaskOwnerCondition(ownerId);
+  const conditions = [
+    eq(followupTasks.completed, false),
+    lt(followupTasks.dueDate, today),
+  ];
+  if (ownerCond) conditions.push(ownerCond);
   const tasks = await db.select().from(followupTasks)
-    .where(and(
-      eq(followupTasks.completed, false),
-      lt(followupTasks.dueDate, today),
-    ))
+    .where(and(...conditions))
     .orderBy(asc(followupTasks.dueDate));
-  return enrichTasks(tasks);
+  return enrichTasks(await excludeSupersededAutomationTasks(tasks));
 }
 
-export async function getTasksForOpportunity(opportunityId: string): Promise<FollowupTask[]> {
-  return db.select().from(followupTasks)
-    .where(eq(followupTasks.opportunityId, opportunityId))
+export async function getTasksForOpportunity(opportunityId: string, ownerId?: string): Promise<FollowupTask[]> {
+  const ownerCond = scopedTaskOwnerCondition(ownerId);
+  const conditions = [eq(followupTasks.opportunityId, opportunityId)];
+  if (ownerCond) conditions.push(ownerCond);
+  const tasks = await db.select().from(followupTasks)
+    .where(and(...conditions))
     .orderBy(asc(followupTasks.dueDate));
+  return excludeSupersededAutomationTasks(tasks);
 }
 
-export async function getTasksForLead(leadId: string): Promise<FollowupTask[]> {
-  return db.select().from(followupTasks)
-    .where(eq(followupTasks.leadId, leadId))
+export async function getTasksForLead(leadId: string, ownerId?: string): Promise<FollowupTask[]> {
+  const ownerCond = scopedTaskOwnerCondition(ownerId);
+  const conditions = [eq(followupTasks.leadId, leadId)];
+  if (ownerCond) conditions.push(ownerCond);
+  const tasks = await db.select().from(followupTasks)
+    .where(and(...conditions))
     .orderBy(asc(followupTasks.dueDate));
+  return excludeSupersededAutomationTasks(tasks);
 }
 
 export async function getTasksForContact(contactId: string): Promise<FollowupTask[]> {
@@ -70,15 +155,18 @@ export async function getTasksForContact(contactId: string): Promise<FollowupTas
     .orderBy(asc(followupTasks.dueDate));
 }
 
-export async function getUpcomingTasks(): Promise<TaskWithContact[]> {
+export async function getUpcomingTasks(ownerId?: string): Promise<TaskWithContact[]> {
   const { end } = todayRange();
+  const ownerCond = scopedTaskOwnerCondition(ownerId);
+  const conditions = [
+    eq(followupTasks.completed, false),
+    gte(followupTasks.dueDate, new Date(end.getTime() + 1)),
+  ];
+  if (ownerCond) conditions.push(ownerCond);
   const tasks = await db.select().from(followupTasks)
-    .where(and(
-      eq(followupTasks.completed, false),
-      gte(followupTasks.dueDate, new Date(end.getTime() + 1)),
-    ))
+    .where(and(...conditions))
     .orderBy(asc(followupTasks.dueDate));
-  return enrichTasks(tasks);
+  return enrichTasks(await excludeSupersededAutomationTasks(tasks));
 }
 
 export async function getActiveTaskForContext(leadId?: string | null, opportunityId?: string | null, taskType?: string | null): Promise<FollowupTask | null> {
@@ -130,12 +218,106 @@ export async function deleteTask(id: string): Promise<void> {
   await db.delete(followupTasks).where(eq(followupTasks.id, id));
 }
 
-export async function getCompletedTaskHistory(limit = 50): Promise<TaskWithContact[]> {
+export async function getCompletedTaskHistory(limit = 50, ownerId?: string): Promise<TaskWithContact[]> {
+  const ownerCond = scopedTaskOwnerCondition(ownerId);
+  const conditions = [eq(followupTasks.completed, true)];
+  if (ownerCond) conditions.push(ownerCond);
   const tasks = await db.select().from(followupTasks)
-    .where(eq(followupTasks.completed, true))
+    .where(and(...conditions))
     .orderBy(desc(followupTasks.completedAt))
     .limit(limit);
   return enrichTasks(tasks);
+}
+
+export async function syncOpenTaskOwnershipForLeadIds(leadIds: string[], assignedTo: string | null): Promise<number> {
+  if (leadIds.length === 0) return 0;
+
+  const opportunityRows = await db
+    .select({ id: pipelineOpportunities.id, leadId: pipelineOpportunities.leadId, stageSlug: pipelineStages.slug })
+    .from(pipelineOpportunities)
+    .leftJoin(pipelineStages, eq(pipelineOpportunities.stageId, pipelineStages.id))
+    .where(inArray(pipelineOpportunities.leadId, leadIds));
+  const opportunityIds = opportunityRows.map((row) => row.id);
+  const opportunityStageMap = new Map(opportunityRows.map((row) => [row.id, row.stageSlug ?? null]));
+  const leadOpportunityStageMap = new Map(
+    opportunityRows
+      .filter((row) => row.leadId)
+      .map((row) => [row.leadId!, row.stageSlug ?? null]),
+  );
+
+  const linkedTaskCondition = opportunityIds.length > 0
+    ? or(
+        inArray(followupTasks.leadId, leadIds),
+        inArray(followupTasks.opportunityId, opportunityIds),
+      )
+    : inArray(followupTasks.leadId, leadIds);
+
+  const today = todayRange().start;
+  const openTaskRows = await db
+    .select({
+      id: followupTasks.id,
+      dueDate: followupTasks.dueDate,
+      leadId: followupTasks.leadId,
+      opportunityId: followupTasks.opportunityId,
+      triggerStageSlug: automationExecutionLogs.triggerStageSlug,
+    })
+    .from(followupTasks)
+    .leftJoin(
+      automationExecutionLogs,
+      and(
+        eq(automationExecutionLogs.generatedTaskId, followupTasks.id),
+        eq(automationExecutionLogs.status, "success"),
+      ),
+    )
+    .where(and(
+      eq(followupTasks.completed, false),
+      linkedTaskCondition,
+    ));
+
+  const currentTaskIds = new Set<string>();
+  const overdueCurrentTaskIds = new Set<string>();
+
+  for (const row of openTaskRows) {
+    const currentStageSlug = row.opportunityId
+      ? opportunityStageMap.get(row.opportunityId) ?? null
+      : row.leadId
+        ? leadOpportunityStageMap.get(row.leadId) ?? null
+        : null;
+    const isStaleAutomation = Boolean(
+      row.triggerStageSlug
+      && currentStageSlug
+      && row.triggerStageSlug !== currentStageSlug,
+    );
+
+    if (isStaleAutomation) {
+      continue;
+    }
+
+    currentTaskIds.add(row.id);
+    if (row.dueDate < today) {
+      overdueCurrentTaskIds.add(row.id);
+    }
+  }
+
+  const overdueCurrentIds = [...overdueCurrentTaskIds];
+  const overdueUpdated = overdueCurrentIds.length > 0
+    ? await db
+        .update(followupTasks)
+        .set({ assignedTo, dueDate: today })
+        .where(inArray(followupTasks.id, overdueCurrentIds))
+        .returning({ id: followupTasks.id })
+    : [];
+
+  const nonOverdueCurrentIds = [...currentTaskIds].filter((id) => !overdueCurrentTaskIds.has(id));
+  const currentUpdated = nonOverdueCurrentIds.length > 0
+    ? await db
+        .update(followupTasks)
+        .set({ assignedTo })
+        .where(inArray(followupTasks.id, nonOverdueCurrentIds))
+        .returning({ id: followupTasks.id })
+    : [];
+
+  return overdueUpdated.length + currentUpdated.length;
 }
 
 async function enrichTasks(tasks: FollowupTask[]): Promise<TaskWithContact[]> {
