@@ -8,6 +8,12 @@ import { eq, desc, asc, and, or, sql, lt, gt, ilike, ne, inArray } from "drizzle
 import { z } from "zod";
 import { getIO } from "./socket";
 import { CHANNEL_DEFINITIONS, normalizeChannelId } from "@shared/channels";
+import {
+  canUserDirectMessageUser,
+  canUsersDirectMessage,
+  getChatAccessUser,
+  type ChatAccessUser,
+} from "./access";
 
 const router = Router();
 
@@ -122,17 +128,6 @@ async function assignChatAttachments(rows: AttachmentRow[], entityType: string, 
   return rows.map((row) => mapAttachment({ ...row, entityType, entityId }));
 }
 
-async function getUserRole(userId: string) {
-  const [row] = await db.select({ role: user.role }).from(user).where(eq(user.id, userId));
-  return row?.role ?? null;
-}
-
-async function canUseDirectMessage(senderRole: string | undefined, recipientId: string) {
-  if (isChatAdmin(senderRole)) return true;
-  const recipientRole = await getUserRole(recipientId);
-  return isChatAdmin(recipientRole);
-}
-
 async function getChannelUnreadCount(userId: string, channelId: string) {
   const [readState] = await db
     .select()
@@ -157,6 +152,9 @@ async function getChannelUnreadTotal(userId: string) {
 }
 
 async function getDmUnreadCount(userId: string, senderId?: string) {
+  const currentUser = await getChatAccessUser(userId);
+  if (!currentUser) return 0;
+
   const conditions = [
     eq(chatDmMessages.recipientId, userId),
     sql`${chatDmMessages.readAt} IS NULL`,
@@ -166,12 +164,35 @@ async function getDmUnreadCount(userId: string, senderId?: string) {
     conditions.push(eq(chatDmMessages.senderId, senderId));
   }
 
-  const [{ count }] = await db
-    .select({ count: sql<number>`count(*)::int` })
+  const rows = await db
+    .select({
+      senderId: chatDmMessages.senderId,
+      count: sql<number>`count(*)::int`,
+    })
     .from(chatDmMessages)
-    .where(and(...conditions));
+    .where(and(...conditions))
+    .groupBy(chatDmMessages.senderId);
 
-  return count ?? 0;
+  if (rows.length === 0) return 0;
+
+  const senderIds = rows.map((row) => row.senderId);
+  const senders = await db
+    .select({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      banned: user.banned,
+      banExpires: user.banExpires,
+    })
+    .from(user)
+    .where(inArray(user.id, senderIds));
+
+  const senderMap = new Map(senders.map((sender) => [sender.id, sender]));
+  return rows.reduce((total, row) => {
+    const sender = senderMap.get(row.senderId);
+    return canUsersDirectMessage(sender, currentUser) ? total + (row.count ?? 0) : total;
+  }, 0);
 }
 
 async function getChatUnreadTotal(userId: string, role?: string | null) {
@@ -508,7 +529,7 @@ router.get("/search", requireAuth, async (req, res) => {
 router.get("/dm/conversations", requireAuth, async (req, res) => {
   try {
     const userId = req.authUser?.id!;
-    const userCanMessageAll = isChatAdmin(req.authUser?.role);
+    const currentUser = req.authUser as ChatAccessUser;
 
     const sent = await db
       .select({ otherId: chatDmMessages.recipientId })
@@ -564,16 +585,23 @@ router.get("/dm/conversations", requireAuth, async (req, res) => {
     conversationData.sort((a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime());
 
     const users = await db
-      .select({ id: user.id, name: user.name, role: user.role })
+      .select({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        banned: user.banned,
+        banExpires: user.banExpires,
+      })
       .from(user)
       .where(inArray(user.id, otherIds));
 
-    const userMap: Record<string, { id: string; name: string; role: string }> = {};
+    const userMap: Record<string, ChatAccessUser> = {};
     for (const u of users) userMap[u.id] = u;
 
     res.json(
       conversationData
-        .filter((c) => userCanMessageAll || isChatAdmin(userMap[c.otherId]?.role))
+        .filter((c) => canUsersDirectMessage(currentUser, userMap[c.otherId]))
         .map((c) => ({
           userId: c.otherId,
           userName: userMap[c.otherId]?.name ?? "Unknown",
@@ -596,8 +624,8 @@ router.get("/dm/messages", requireAuth, async (req, res) => {
     if (!otherUserId) return res.status(400).json({ message: "userId required" });
     if (otherUserId === userId) return res.status(400).json({ message: "Cannot open a DM with yourself" });
 
-    const allowed = await canUseDirectMessage(req.authUser?.role, otherUserId);
-    if (!allowed) return res.status(403).json({ message: "Non-admin users can only message admins" });
+    const allowed = await canUserDirectMessageUser(userId, otherUserId);
+    if (!allowed) return res.status(403).json({ message: "Direct messages are limited to Matt and the sales team" });
 
     const rows = await db.select().from(chatDmMessages)
       .where(or(
@@ -656,10 +684,20 @@ router.post("/dm/messages", requireAuth, async (req, res) => {
       return res.status(400).json({ message: "Message content or attachment is required" });
     }
 
-    const [targetUser] = await db.select({ id: user.id, role: user.role }).from(user).where(eq(user.id, recipientId));
+    const [targetUser] = await db
+      .select({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        banned: user.banned,
+        banExpires: user.banExpires,
+      })
+      .from(user)
+      .where(eq(user.id, recipientId));
     if (!targetUser) return res.status(404).json({ message: "Recipient not found" });
-    if (!isChatAdmin(req.authUser?.role) && !isChatAdmin(targetUser.role)) {
-      return res.status(403).json({ message: "Non-admin users can only message admins" });
+    if (!canUsersDirectMessage(req.authUser as ChatAccessUser, targetUser)) {
+      return res.status(403).json({ message: "Direct messages are limited to Matt and the sales team" });
     }
 
     const [msg] = await db.insert(chatDmMessages).values({ senderId, recipientId, content }).returning();
@@ -689,11 +727,23 @@ router.post("/dm/messages", requireAuth, async (req, res) => {
 // ── Users (for @mentions + DM picker) ────────────────────────────────
 
 router.get("/users", requireAuth, async (req, res) => {
-  const query = db.select({ id: user.id, name: user.name, role: user.role }).from(user);
-  const users = isChatAdmin(req.authUser?.role)
-    ? await query
-    : await query.where(eq(user.role, CHAT_ADMIN_ROLE));
-  res.json(users);
+  const currentUser = req.authUser as ChatAccessUser;
+  const users = await db
+    .select({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      banned: user.banned,
+      banExpires: user.banExpires,
+    })
+    .from(user);
+
+  res.json(
+    users
+      .filter((chatUser) => canUsersDirectMessage(currentUser, chatUser))
+      .map((chatUser) => ({ id: chatUser.id, name: chatUser.name, role: chatUser.role }))
+  );
 });
 
 export default router;

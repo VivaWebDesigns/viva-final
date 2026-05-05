@@ -1,7 +1,6 @@
 import { Server as SocketIOServer } from "socket.io";
 import type { Server as HttpServer } from "http";
 import { auth } from "../auth/auth";
-import { db } from "../../db";
 import type {
   ServerToClientEvents,
   ClientToServerEvents,
@@ -9,19 +8,12 @@ import type {
   SocketData,
 } from "@shared/socket-types";
 import { normalizeChannelId } from "@shared/channels";
-import { user } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { canUserDirectMessageUser } from "./access";
 
 let io: SocketIOServer<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
 
 const CHAT_ADMIN_ROLE = "admin";
 const isChatAdmin = (role?: string | null) => role === CHAT_ADMIN_ROLE;
-
-async function canUseDirectMessage(senderRole: string | undefined, recipientId: string) {
-  if (isChatAdmin(senderRole)) return true;
-  const [recipient] = await db.select({ role: user.role }).from(user).where(eq(user.id, recipientId));
-  return isChatAdmin(recipient?.role);
-}
 
 export function initSocket(httpServer: HttpServer) {
   io = new SocketIOServer<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>(
@@ -79,7 +71,7 @@ export function initSocket(httpServer: HttpServer) {
 
     socket.on("typing:start", async (data) => {
       if (data.targetType === "channel" && !isChatAdmin(userRole)) return;
-      if (data.targetType === "dm" && !(await canUseDirectMessage(userRole, data.target))) return;
+      if (data.targetType === "dm" && !(await canUserDirectMessageUser(userId, data.target))) return;
 
       const target = data.targetType === "channel"
         ? normalizeChannelId(data.target)
@@ -97,7 +89,7 @@ export function initSocket(httpServer: HttpServer) {
 
     socket.on("typing:stop", async (data) => {
       if (data.targetType === "channel" && !isChatAdmin(userRole)) return;
-      if (data.targetType === "dm" && !(await canUseDirectMessage(userRole, data.target))) return;
+      if (data.targetType === "dm" && !(await canUserDirectMessageUser(userId, data.target))) return;
 
       const target = data.targetType === "channel"
         ? normalizeChannelId(data.target)
