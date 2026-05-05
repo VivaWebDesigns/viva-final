@@ -97,19 +97,6 @@ export default function LoginPage() {
         throw new Error(data.message || "Invalid email or password");
       }
 
-      await fetch("/api/crm-activity/events", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          eventType: "sign_in",
-          surface: "auth",
-          path: "/login",
-          metadata: { source: "login_page" },
-        }),
-        credentials: "include",
-        keepalive: true,
-      }).catch(() => undefined);
-
       setLocation("/admin");
       window.location.reload();
     } catch (err: any) {

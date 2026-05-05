@@ -4,6 +4,7 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import { toNodeHandler } from "better-auth/node";
 import { auth } from "./features/auth/auth";
+import { createActivityEvent } from "./features/crm-activity/service";
 import { runBootstrap } from "./bootstrap";
 import path from "path";
 import fs from "fs";
@@ -35,6 +36,60 @@ app.get("/robots.txt", (_req, res) => {
   if (!fs.existsSync(file)) return res.status(404).end();
   res.setHeader("Content-Type", "text/plain; charset=utf-8");
   res.sendFile(file);
+});
+
+app.use((req, res, next) => {
+  if (req.method !== "POST" || req.path !== "/api/auth/sign-in/email") {
+    return next();
+  }
+
+  const chunks: Buffer[] = [];
+  const originalWrite = res.write.bind(res);
+  const originalEnd = res.end.bind(res);
+
+  (res as any).write = (chunk: any, ...args: any[]) => {
+    if (chunk) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    }
+    return originalWrite(chunk, ...args);
+  };
+
+  (res as any).end = (chunk: any, ...args: any[]) => {
+    if (chunk) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    }
+    return originalEnd(chunk, ...args);
+  };
+
+  res.on("finish", () => {
+    if (res.statusCode < 200 || res.statusCode >= 300) return;
+
+    try {
+      const body = Buffer.concat(chunks).toString("utf8");
+      const data = JSON.parse(body) as { user?: { id?: string; email?: string; role?: string } };
+      const signedInUser = data.user;
+
+      if (!signedInUser?.id || signedInUser.role !== "sales_rep") return;
+
+      void createActivityEvent(signedInUser.id, {
+        eventType: "sign_in",
+        surface: "auth",
+        path: "/login",
+        metadata: {
+          source: "auth_server",
+          email: signedInUser.email ?? null,
+          role: signedInUser.role,
+          userAgent: req.get("user-agent") ?? null,
+        },
+      }).catch((error) => {
+        console.error("[crm-activity] failed to log sales rep sign-in:", error?.message ?? error);
+      });
+    } catch (error: any) {
+      console.error("[crm-activity] failed to parse auth sign-in response:", error?.message ?? error);
+    }
+  });
+
+  next();
 });
 
 app.all("/api/auth/*splat", toNodeHandler(auth));
