@@ -529,7 +529,8 @@ router.get("/search", requireAuth, async (req, res) => {
 router.get("/dm/conversations", requireAuth, async (req, res) => {
   try {
     const userId = req.authUser?.id!;
-    const currentUser = req.authUser as ChatAccessUser;
+    const currentUser = await getChatAccessUser(userId);
+    if (!currentUser) return res.status(403).json({ message: "Chat access unavailable" });
 
     const sent = await db
       .select({ otherId: chatDmMessages.recipientId })
@@ -679,6 +680,8 @@ router.post("/dm/messages", requireAuth, async (req, res) => {
     }).parse(req.body);
     const senderId = req.authUser?.id!;
     if (recipientId === senderId) return res.status(400).json({ message: "Cannot send a DM to yourself" });
+    const sender = await getChatAccessUser(senderId);
+    if (!sender) return res.status(403).json({ message: "Chat access unavailable" });
     const attachmentRows = await validateChatAttachments(attachmentIds, senderId);
     if (!hasChatContent(content) && attachmentRows.length === 0) {
       return res.status(400).json({ message: "Message content or attachment is required" });
@@ -696,7 +699,7 @@ router.post("/dm/messages", requireAuth, async (req, res) => {
       .from(user)
       .where(eq(user.id, recipientId));
     if (!targetUser) return res.status(404).json({ message: "Recipient not found" });
-    if (!canUsersDirectMessage(req.authUser as ChatAccessUser, targetUser)) {
+    if (!canUsersDirectMessage(sender, targetUser)) {
       return res.status(403).json({ message: "Direct messages are limited to Matt and the sales team" });
     }
 
@@ -727,7 +730,9 @@ router.post("/dm/messages", requireAuth, async (req, res) => {
 // ── Users (for @mentions + DM picker) ────────────────────────────────
 
 router.get("/users", requireAuth, async (req, res) => {
-  const currentUser = req.authUser as ChatAccessUser;
+  const currentUser = await getChatAccessUser(req.authUser?.id!);
+  if (!currentUser) return res.status(403).json({ message: "Chat access unavailable" });
+
   const users = await db
     .select({
       id: user.id,
