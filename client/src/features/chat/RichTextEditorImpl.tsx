@@ -108,6 +108,10 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
       editor.view.dispatch(editor.state.tr);
     }, [editor, placeholder]);
 
+    useEffect(() => {
+      editor?.setEditable(!disabled);
+    }, [editor, disabled]);
+
     useImperativeHandle(ref, () => ({
       clearEditor: () => editor?.commands.clearContent(true),
       focusEditor: () => editor?.commands.focus(),

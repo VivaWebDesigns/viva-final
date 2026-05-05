@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeAll, afterAll, afterEach, beforeEach } from "vitest";
 import { act, screen, waitFor }                                                 from "@testing-library/react";
+import userEvent                                                               from "@testing-library/user-event";
 import { http, HttpResponse }                            from "msw";
 import { renderWithProviders }                           from "../helpers/renderWithProviders";
 import { server }                                       from "../helpers/server";
@@ -140,5 +141,23 @@ describe("TeamChatPage smoke", () => {
 
     expect(await screen.findByTestId("button-dm-matt")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByTestId("button-attach-file")).not.toBeDisabled());
+  });
+
+  it("enables typing after a sales rep DM is auto-selected", async () => {
+    const user = userEvent.setup();
+    mockAuthState.user = { id: "ivonne", email: "ivonne@test.com", name: "Ivonne", role: "sales_rep" };
+    server.use(
+      http.get("/api/chat/users", () => HttpResponse.json([
+        { id: "matt", name: "Matt Carney", role: "admin" },
+      ])),
+    );
+
+    renderWithProviders(<TeamChatPage />, { route: "/admin/chat" });
+
+    const editor = await screen.findByTestId("input-chat-message");
+    await user.click(editor);
+    await user.keyboard("Reply from Ivonne");
+
+    expect(editor).toHaveTextContent("Reply from Ivonne");
   });
 });
