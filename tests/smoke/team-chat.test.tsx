@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
-import { screen }                                        from "@testing-library/react";
+import { act, screen }                                   from "@testing-library/react";
 import { http, HttpResponse }                            from "msw";
 import { renderWithProviders }                           from "../helpers/renderWithProviders";
 import { server }                                       from "../helpers/server";
@@ -14,15 +14,28 @@ vi.mock("@features/auth/authClient", () => ({
   signOut: vi.fn(),
 }));
 
-vi.mock("socket.io-client", () => ({
-  io: () => ({
-    on: vi.fn(),
-    off: vi.fn(),
+const { socketHandlers, mockSocket } = vi.hoisted(() => {
+  const socketHandlers = new Map<string, Set<(data: any) => void>>();
+  const mockSocket = {
+    on: vi.fn((event: string, handler: (data: any) => void) => {
+      const handlers = socketHandlers.get(event) ?? new Set();
+      handlers.add(handler);
+      socketHandlers.set(event, handlers);
+    }),
+    off: vi.fn((event: string, handler: (data: any) => void) => {
+      socketHandlers.get(event)?.delete(handler);
+    }),
     emit: vi.fn(),
     connect: vi.fn(),
     disconnect: vi.fn(),
-    connected: false,
-  }),
+    connected: true,
+  };
+
+  return { socketHandlers, mockSocket };
+});
+
+vi.mock("socket.io-client", () => ({
+  io: () => mockSocket,
 }));
 
 import TeamChatPage from "@features/chat/TeamChatPage";
@@ -75,5 +88,22 @@ describe("TeamChatPage smoke", () => {
     const image = await screen.findByAltText("screenshot.png");
     expect(image).toHaveAttribute("src", "/api/attachments/att-1/download");
     expect(image.closest("a")).toHaveAttribute("href", "/api/attachments/att-1/download");
+  });
+
+  it("shows an online presence dot beside online DM users", async () => {
+    server.use(
+      http.get("/api/chat/users", () => HttpResponse.json([
+        { id: "u2", name: "Ivonne", role: "sales_rep" },
+      ])),
+    );
+
+    renderWithProviders(<TeamChatPage />, { route: "/admin/chat" });
+    expect(await screen.findByTestId("button-dm-u2")).toBeInTheDocument();
+
+    act(() => {
+      socketHandlers.get("chat:presence")?.forEach((handler) => handler({ onlineUserIds: ["u2"] }));
+    });
+
+    expect(await screen.findByTestId("presence-dot-u2")).toBeInTheDocument();
   });
 });

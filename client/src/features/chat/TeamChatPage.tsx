@@ -149,6 +149,19 @@ function getInitials(name: string) {
   return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
 }
 
+function PresenceDot({ isOnline, testId }: { isOnline: boolean; testId?: string }) {
+  if (!isOnline) return null;
+
+  return (
+    <span
+      aria-label="Online"
+      title="Online"
+      className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border border-gray-900 bg-emerald-400 shadow-sm"
+      data-testid={testId}
+    />
+  );
+}
+
 function HighlightMentions({ text, users }: { text: string; users: TeamUser[] }) {
   const parts = text.split(/(@\S+)/g);
   return (
@@ -942,9 +955,7 @@ export default function TeamChatPage() {
                           <div className="w-5 h-5 rounded-full bg-gray-600 flex items-center justify-center text-[10px] font-bold text-gray-200">
                             {getInitials(u.name)}
                           </div>
-                          {isOnline(u.id) && (
-                            <Circle className="w-2 h-2 text-emerald-400 fill-emerald-400 absolute -bottom-0.5 -right-0.5" />
-                          )}
+                          <PresenceDot isOnline={isOnline(u.id)} />
                         </div>
                         <span className="text-xs text-gray-300 truncate">{u.name}</span>
                       </button>
@@ -975,9 +986,7 @@ export default function TeamChatPage() {
                         <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${isActive ? "bg-white text-[#0D9488]" : "bg-gray-600 text-gray-200"}`}>
                           {getInitials(u.name)}
                         </div>
-                        {online && (
-                          <Circle className="w-2 h-2 text-emerald-400 fill-emerald-400 absolute -bottom-0.5 -right-0.5" />
-                        )}
+                        <PresenceDot isOnline={online} testId={`presence-dot-${u.id}`} />
                       </div>
                       <span className="truncate text-xs">{u.name}</span>
                     </span>

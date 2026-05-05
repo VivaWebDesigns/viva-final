@@ -8,10 +8,11 @@ import type {
 type ChatSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
 let globalSocket: ChatSocket | null = null;
+let globalOnlineUserIds: string[] = [];
 
 export function useSocket() {
   const [isConnected, setIsConnected] = useState(false);
-  const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
+  const [onlineUserIds, setOnlineUserIds] = useState<string[]>(globalOnlineUserIds);
   const socketRef = useRef<ChatSocket | null>(null);
 
   useEffect(() => {
@@ -33,6 +34,7 @@ export function useSocket() {
     const onConnect = () => setIsConnected(true);
     const onDisconnect = () => setIsConnected(false);
     const onPresence = (data: { onlineUserIds: string[] }) => {
+      globalOnlineUserIds = data.onlineUserIds;
       setOnlineUserIds(data.onlineUserIds);
     };
 
