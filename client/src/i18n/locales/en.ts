@@ -972,6 +972,7 @@ export const en = {
     connected: "Connected in real-time",
     reconnecting: "Reconnecting...",
     you: "You",
+    seenAt: "Seen {{time}}",
     sendError: "Failed to send message",
     attachFile: "Attach image or PDF",
     removeAttachment: "Remove attachment",

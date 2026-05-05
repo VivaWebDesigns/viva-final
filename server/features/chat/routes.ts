@@ -531,13 +531,33 @@ router.get("/dm/messages", requireAuth, async (req, res) => {
       .orderBy(asc(chatDmMessages.createdAt))
       .limit(100);
 
-    await db.update(chatDmMessages)
-      .set({ readAt: new Date() })
-      .where(and(eq(chatDmMessages.recipientId, userId), eq(chatDmMessages.senderId, otherUserId), sql`${chatDmMessages.readAt} IS NULL`));
+    const readAt = new Date();
+    const newlyReadRows = await db.update(chatDmMessages)
+      .set({ readAt })
+      .where(and(eq(chatDmMessages.recipientId, userId), eq(chatDmMessages.senderId, otherUserId), sql`${chatDmMessages.readAt} IS NULL`))
+      .returning({ id: chatDmMessages.id, readAt: chatDmMessages.readAt });
 
+    if (newlyReadRows.length > 0) {
+      try {
+        const io = getIO();
+        if (io) {
+          const payload = {
+            readerId: userId,
+            senderId: otherUserId,
+            messageIds: newlyReadRows.map((row) => row.id),
+            readAt: readAt.toISOString(),
+          };
+          io.to(`user:${userId}`).emit("chat:dm_read", payload);
+          io.to(`user:${otherUserId}`).emit("chat:dm_read", payload);
+        }
+      } catch (_) {}
+    }
+
+    const newlyReadMap = new Map(newlyReadRows.map((row) => [row.id, row.readAt]));
     const attachmentMap = await getAttachmentsByEntity(CHAT_DM_MESSAGE_ENTITY, rows.map((row) => row.id));
     res.json(rows.map((row) => ({
       ...row,
+      readAt: newlyReadMap.get(row.id) ?? row.readAt,
       attachments: attachmentMap.get(row.id) ?? [],
     })));
   } catch (err: any) {

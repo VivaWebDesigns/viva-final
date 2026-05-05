@@ -41,6 +41,13 @@ interface DmMessage {
   attachments?: ChatAttachment[];
 }
 
+interface DmReadReceipt {
+  readerId: string;
+  senderId: string;
+  messageIds: string[];
+  readAt: string;
+}
+
 interface ChatAttachment {
   id: string;
   url: string;
@@ -286,8 +293,21 @@ export default function TeamChatPage() {
     const onDmMessage = (msg: DmMessage) => {
       qc.setQueryData<DmMessage[]>(["/api/chat/dm/messages", msg.senderId === currentUserId ? msg.recipientId : msg.senderId], (prev) => {
         if (!prev) return [msg];
-        if (prev.some((m) => m.id === msg.id)) return prev;
+        if (prev.some((m) => m.id === msg.id)) {
+          return prev.map((m) => m.id === msg.id ? { ...m, ...msg } : m);
+        }
         return [...prev, msg];
+      });
+      qc.invalidateQueries({ queryKey: ["/api/chat/dm/conversations"] });
+    };
+
+    const onDmRead = (receipt: DmReadReceipt) => {
+      if (receipt.readerId !== currentUserId && receipt.senderId !== currentUserId) return;
+      const otherUserId = receipt.readerId === currentUserId ? receipt.senderId : receipt.readerId;
+      const readIds = new Set(receipt.messageIds);
+      qc.setQueryData<DmMessage[]>(["/api/chat/dm/messages", otherUserId], (prev) => {
+        if (!prev) return prev;
+        return prev.map((m) => readIds.has(m.id) ? { ...m, readAt: receipt.readAt } : m);
       });
       qc.invalidateQueries({ queryKey: ["/api/chat/dm/conversations"] });
     };
@@ -308,11 +328,13 @@ export default function TeamChatPage() {
 
     socket.on("chat:channel_message", onChannelMessage);
     socket.on("chat:dm_message", onDmMessage);
+    socket.on("chat:dm_read", onDmRead);
     socket.on("chat:typing", onTyping as any);
 
     return () => {
       socket.off("chat:channel_message", onChannelMessage);
       socket.off("chat:dm_message", onDmMessage);
+      socket.off("chat:dm_read", onDmRead);
       socket.off("chat:typing", onTyping as any);
     };
   }, [socket, currentUserId, qc]);
@@ -390,7 +412,9 @@ export default function TeamChatPage() {
     onSuccess: (newMsg: DmMessage) => {
       qc.setQueryData<DmMessage[]>(["/api/chat/dm/messages", activeDmUserId], (prev) => {
         if (!prev) return [newMsg];
-        if (prev.some((m) => m.id === newMsg.id)) return prev;
+        if (prev.some((m) => m.id === newMsg.id)) {
+          return prev.map((m) => m.id === newMsg.id ? { ...m, ...newMsg } : m);
+        }
         return [...prev, newMsg];
       });
       qc.invalidateQueries({ queryKey: ["/api/chat/dm/conversations"] });
@@ -1101,6 +1125,9 @@ export default function TeamChatPage() {
                     const sameUser = prev?.senderId === msg.senderId
                       && new Date(msg.createdAt).getTime() - new Date(prev.createdAt).getTime() < 5 * 60 * 1000;
                     const senderName = isMine ? ((user as any)?.name ?? t.chat.you) : (activeDmUser?.name ?? "");
+                    const readReceipt = isMine && msg.readAt
+                      ? t.chat.seenAt.replace("{{time}}", formatTime(msg.readAt))
+                      : null;
                     return (
                       <div
                         key={msg.id}
@@ -1124,7 +1151,14 @@ export default function TeamChatPage() {
                             />
                           )}
                           {renderAttachmentList(msg.attachments, true)}
-                          <span className="text-[10px] text-gray-300 mt-0.5 px-1">{formatTime(msg.createdAt)}</span>
+                          <span className="text-[10px] text-gray-300 mt-0.5 px-1">
+                            {formatTime(msg.createdAt)}
+                            {readReceipt && (
+                              <span className="ml-1 text-[#0D9488]" data-testid={`dm-read-receipt-${msg.id}`}>
+                                · {readReceipt}
+                              </span>
+                            )}
+                          </span>
                         </div>
                       </div>
                     );

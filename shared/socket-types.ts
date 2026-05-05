@@ -3,6 +3,7 @@
  *
  * - `chat:channel_message` — Broadcast when a new message is posted in a channel room.
  * - `chat:dm_message` — Sent privately to sender and recipient when a DM is created.
+ * - `chat:dm_read` — Sent privately to both DM participants when messages are read.
  * - `chat:typing` — Broadcast to the relevant room when a user starts or stops typing.
  * - `chat:presence` — Broadcast to all connected clients when the online user list changes.
  * - `chat:unread_update` — Sent to a specific user when their unread count changes for a channel or DM.
@@ -10,6 +11,7 @@
 export interface ServerToClientEvents {
   "chat:channel_message": (msg: ChannelMessagePayload) => void;
   "chat:dm_message": (msg: DmMessagePayload) => void;
+  "chat:dm_read": (data: DmReadReceiptPayload) => void;
   "chat:typing": (data: TypingPayload) => void;
   "chat:presence": (data: PresencePayload) => void;
   "chat:unread_update": (data: UnreadUpdatePayload) => void;
@@ -71,6 +73,16 @@ export interface DmMessagePayload {
   readAt: string | null;
   createdAt: string;
   attachments: ChatAttachmentPayload[];
+}
+
+/** Payload for a DM read receipt broadcast via `chat:dm_read`. */
+export interface DmReadReceiptPayload {
+  /** User who opened the conversation and read the messages. */
+  readerId: string;
+  /** User who sent the messages that were read. */
+  senderId: string;
+  messageIds: string[];
+  readAt: string;
 }
 
 export interface ChatAttachmentPayload {

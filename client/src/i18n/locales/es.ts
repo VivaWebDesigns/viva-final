@@ -974,6 +974,7 @@ export const es: AdminTranslations = {
     connected: "Conectado en tiempo real",
     reconnecting: "Reconectando...",
     you: "Tú",
+    seenAt: "Visto {{time}}",
     sendError: "Error al enviar mensaje",
     attachFile: "Adjuntar imagen o PDF",
     removeAttachment: "Quitar adjunto",
