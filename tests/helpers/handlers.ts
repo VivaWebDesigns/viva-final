@@ -42,6 +42,7 @@ function pickResponse(pathname: string): unknown {
   if (pathname.includes("/clients"))                 return EMPTY_CLIENTS;
   if (pathname.includes("/admin/users"))             return [];
   if (pathname.includes("/admin/stats"))             return ADMIN_STATS;
+  if (pathname.includes("/chat/unread-count"))        return { count: 0 };
   if (pathname.includes("/chat/users"))               return [];
   if (pathname.includes("/chat/channels"))            return CHAT_CHANNELS;
   if (pathname.includes("/chat/messages"))            return [];

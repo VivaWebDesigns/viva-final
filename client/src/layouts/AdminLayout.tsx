@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@features/auth/useAuth";
 import { STALE } from "@/lib/queryClient";
+import { useSocket } from "@/hooks/useSocket";
+import type { ServerToClientEvents } from "@shared/socket-types";
 import {
   LayoutDashboard, Users, TrendingUp, UserPlus, MessageSquare,
   CreditCard, Bell, BarChart3, Settings, BookOpen,
@@ -27,6 +29,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const { user, signOut, role } = useAuth();
   const [location, navigate] = useLocation();
   const { lang, setLang, t } = useAdminLang();
+  const queryClient = useQueryClient();
+  const { socket, isConnected } = useSocket();
 
   useEffect(() => {
     setMobileOpen(false);
@@ -58,6 +62,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   });
   const unreadCount = unreadData?.count || 0;
 
+  const { data: chatUnreadData } = useQuery<{ count: number }>({
+    queryKey: ["/api/chat/unread-count"],
+    staleTime: STALE.REALTIME,
+    refetchInterval: 30000,
+    enabled: !!role,
+  });
+  const chatUnreadCount = chatUnreadData?.count || 0;
+
   const { data: overdueData } = useQuery<{ totalCount: number }>({
     queryKey: ["/api/workflow/overdue-summary"],
     staleTime: STALE.MEDIUM,
@@ -68,6 +80,31 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const visibleItems = NAV_ITEMS.filter(
     (item) => !item.roles || (role && item.roles.includes(role))
   );
+
+  useEffect(() => {
+    if (!socket || !isConnected) return;
+
+    const refreshChatUnread = () => {
+      void queryClient.invalidateQueries({ queryKey: ["/api/chat/unread-count"] });
+    };
+
+    const onChannelMessage = (_msg: Parameters<ServerToClientEvents["chat:channel_message"]>[0]) => refreshChatUnread();
+    const onDmMessage = (_msg: Parameters<ServerToClientEvents["chat:dm_message"]>[0]) => refreshChatUnread();
+    const onDmRead = (_data: Parameters<ServerToClientEvents["chat:dm_read"]>[0]) => refreshChatUnread();
+    const onUnreadUpdate = (_data: Parameters<ServerToClientEvents["chat:unread_update"]>[0]) => refreshChatUnread();
+
+    socket.on("chat:channel_message", onChannelMessage);
+    socket.on("chat:dm_message", onDmMessage);
+    socket.on("chat:dm_read", onDmRead);
+    socket.on("chat:unread_update", onUnreadUpdate);
+
+    return () => {
+      socket.off("chat:channel_message", onChannelMessage);
+      socket.off("chat:dm_message", onDmMessage);
+      socket.off("chat:dm_read", onDmRead);
+      socket.off("chat:unread_update", onUnreadUpdate);
+    };
+  }, [socket, isConnected, queryClient]);
 
   const isActive = (path: string) => {
     if (path === "/admin") return location === "/admin";
@@ -102,10 +139,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {visibleItems.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.path);
+            const badgeCount = item.path === "/admin/chat" ? chatUnreadCount : 0;
             const content = (
               <Link key={item.path} href={item.path}>
                 <div
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors text-sm ${
+                  className={`relative flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors text-sm ${
                     active
                       ? "bg-[#0D9488]/10 text-[#0D9488] font-medium"
                       : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
@@ -114,7 +152,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   data-testid={`nav-${item.path.split("/").pop()}`}
                 >
                   <Icon className={`w-5 h-5 flex-shrink-0 ${active ? "text-[#0D9488]" : item.color || "text-gray-500"}`} />
-                  {!collapsed && <span>{item.label}</span>}
+                  {!collapsed && <span className="min-w-0 flex-1 truncate">{item.label}</span>}
+                  {badgeCount > 0 && (
+                    <span
+                      className={
+                        collapsed
+                          ? "absolute right-1 top-1 min-w-[16px] h-4 px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center pointer-events-none"
+                          : "ml-auto min-w-[18px] h-[18px] px-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center pointer-events-none"
+                      }
+                      data-testid="badge-chat-unread-count"
+                    >
+                      {badgeCount > 99 ? "99+" : badgeCount}
+                    </span>
+                  )}
                 </div>
               </Link>
             );

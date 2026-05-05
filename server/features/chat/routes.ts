@@ -133,6 +133,71 @@ async function canUseDirectMessage(senderRole: string | undefined, recipientId: 
   return isChatAdmin(recipientRole);
 }
 
+async function getChannelUnreadCount(userId: string, channelId: string) {
+  const [readState] = await db
+    .select()
+    .from(chatReadState)
+    .where(and(eq(chatReadState.userId, userId), eq(chatReadState.channelId, channelId)));
+
+  if (!readState) return 0;
+
+  const [{ count }] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(chatMessages)
+    .where(and(eq(chatMessages.channel, channelId), gt(chatMessages.createdAt, readState.lastReadAt)));
+
+  return count ?? 0;
+}
+
+async function getChannelUnreadTotal(userId: string) {
+  const counts = await Promise.all(
+    CHANNEL_DEFINITIONS.map((channel) => getChannelUnreadCount(userId, channel.id))
+  );
+  return counts.reduce((total, count) => total + count, 0);
+}
+
+async function getDmUnreadCount(userId: string, senderId?: string) {
+  const conditions = [
+    eq(chatDmMessages.recipientId, userId),
+    sql`${chatDmMessages.readAt} IS NULL`,
+  ];
+
+  if (senderId) {
+    conditions.push(eq(chatDmMessages.senderId, senderId));
+  }
+
+  const [{ count }] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(chatDmMessages)
+    .where(and(...conditions));
+
+  return count ?? 0;
+}
+
+async function getChatUnreadTotal(userId: string, role?: string | null) {
+  const dmUnread = await getDmUnreadCount(userId);
+  const channelUnread = isChatAdmin(role) ? await getChannelUnreadTotal(userId) : 0;
+  return dmUnread + channelUnread;
+}
+
+async function emitChannelUnreadUpdate(userId: string, channelId: string) {
+  try {
+    const io = getIO();
+    if (!io) return;
+    const unreadCount = await getChannelUnreadCount(userId, channelId);
+    io.to(`user:${userId}`).emit("chat:unread_update", { channelId, unreadCount });
+  } catch (_) {}
+}
+
+async function emitDmUnreadUpdate(userId: string, dmUserId: string) {
+  try {
+    const io = getIO();
+    if (!io) return;
+    const unreadCount = await getDmUnreadCount(userId, dmUserId);
+    io.to(`user:${userId}`).emit("chat:unread_update", { dmUserId, unreadCount });
+  } catch (_) {}
+}
+
 // ── One-time migration: rename legacy "ventas" channel → "sales" ──────
 (async () => {
   try {
@@ -145,6 +210,16 @@ async function canUseDirectMessage(senderRole: string | undefined, recipientId: 
 
 // ── Channels with unread counts ───────────────────────────────────────
 
+router.get("/unread-count", requireAuth, async (req, res) => {
+  try {
+    const userId = req.authUser?.id!;
+    const count = await getChatUnreadTotal(userId, req.authUser?.role);
+    res.json({ count });
+  } catch (err: any) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 router.get("/channels", requireAuth, async (req, res) => {
   try {
     if (!isChatAdmin(req.authUser?.role)) return res.json([]);
@@ -152,19 +227,7 @@ router.get("/channels", requireAuth, async (req, res) => {
     const userId = req.authUser?.id!;
     const result = await Promise.all(
       CHANNEL_DEFINITIONS.map(async (ch) => {
-        const [readState] = await db
-          .select()
-          .from(chatReadState)
-          .where(and(eq(chatReadState.userId, userId), eq(chatReadState.channelId, ch.id)));
-
-        let unreadCount = 0;
-        if (readState) {
-          const [{ count }] = await db
-            .select({ count: sql<number>`count(*)::int` })
-            .from(chatMessages)
-            .where(and(eq(chatMessages.channel, ch.id), gt(chatMessages.createdAt, readState.lastReadAt)));
-          unreadCount = count;
-        }
+        const unreadCount = await getChannelUnreadCount(userId, ch.id);
         return { ...ch, unreadCount };
       })
     );
@@ -301,6 +364,18 @@ router.post("/messages", requireAuth, async (req, res) => {
       }
     } catch (_) {}
 
+    try {
+      const adminUsers = await db
+        .select({ id: user.id })
+        .from(user)
+        .where(eq(user.role, CHAT_ADMIN_ROLE));
+      await Promise.all(
+        adminUsers
+          .filter((adminUser) => adminUser.id !== senderId)
+          .map((adminUser) => emitChannelUnreadUpdate(adminUser.id, channel))
+      );
+    } catch (_) {}
+
     res.status(201).json(fullMsg);
   } catch (err: any) {
     res.status(400).json({ message: err.message });
@@ -335,6 +410,7 @@ router.post("/read", requireAuth, async (req, res) => {
     await db.insert(chatReadState)
       .values({ userId, channelId, lastReadAt: new Date() })
       .onConflictDoUpdate({ target: [chatReadState.userId, chatReadState.channelId], set: { lastReadAt: new Date() } });
+    await emitChannelUnreadUpdate(userId, channelId);
     res.json({ success: true });
   } catch (err: any) {
     res.status(400).json({ message: err.message });
@@ -551,6 +627,7 @@ router.get("/dm/messages", requireAuth, async (req, res) => {
           io.to(`user:${otherUserId}`).emit("chat:dm_read", payload);
         }
       } catch (_) {}
+      await emitDmUnreadUpdate(userId, otherUserId);
     }
 
     const newlyReadMap = new Map(newlyReadRows.map((row) => [row.id, row.readAt]));
@@ -601,6 +678,7 @@ router.post("/dm/messages", requireAuth, async (req, res) => {
         io.to(`user:${senderId}`).emit("chat:dm_message", payload);
       }
     } catch (_) {}
+    await emitDmUnreadUpdate(recipientId, senderId);
 
     res.status(201).json({ ...msg, attachments: messageAttachments });
   } catch (err: any) {

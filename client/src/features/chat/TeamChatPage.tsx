@@ -48,6 +48,12 @@ interface DmReadReceipt {
   readAt: string;
 }
 
+interface UnreadUpdate {
+  channelId?: string;
+  dmUserId?: string;
+  unreadCount: number;
+}
+
 interface ChatAttachment {
   id: string;
   url: string;
@@ -312,6 +318,16 @@ export default function TeamChatPage() {
       qc.invalidateQueries({ queryKey: ["/api/chat/dm/conversations"] });
     };
 
+    const onUnreadUpdate = (data: UnreadUpdate) => {
+      if (data.channelId) {
+        qc.invalidateQueries({ queryKey: ["/api/chat/channels"] });
+      }
+      if (data.dmUserId) {
+        qc.invalidateQueries({ queryKey: ["/api/chat/dm/conversations"] });
+      }
+      qc.invalidateQueries({ queryKey: ["/api/chat/unread-count"] });
+    };
+
     const onTyping = (data: TypingState & { isTyping: boolean }) => {
       if (data.userId === currentUserId) return;
       setTypingUsers((prev) => {
@@ -329,12 +345,14 @@ export default function TeamChatPage() {
     socket.on("chat:channel_message", onChannelMessage);
     socket.on("chat:dm_message", onDmMessage);
     socket.on("chat:dm_read", onDmRead);
+    socket.on("chat:unread_update", onUnreadUpdate);
     socket.on("chat:typing", onTyping as any);
 
     return () => {
       socket.off("chat:channel_message", onChannelMessage);
       socket.off("chat:dm_message", onDmMessage);
       socket.off("chat:dm_read", onDmRead);
+      socket.off("chat:unread_update", onUnreadUpdate);
       socket.off("chat:typing", onTyping as any);
     };
   }, [socket, currentUserId, qc]);
@@ -377,7 +395,10 @@ export default function TeamChatPage() {
     mutationFn: async (channelId: string) => {
       await apiRequest("POST", "/api/chat/read", { channelId });
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/chat/channels"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/chat/channels"] });
+      qc.invalidateQueries({ queryKey: ["/api/chat/unread-count"] });
+    },
   });
 
   const clearComposer = useCallback(() => {
