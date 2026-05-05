@@ -1,12 +1,18 @@
-import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
-import { act, screen }                                   from "@testing-library/react";
+import { describe, it, expect, vi, beforeAll, afterAll, afterEach, beforeEach } from "vitest";
+import { act, screen, waitFor }                                                 from "@testing-library/react";
 import { http, HttpResponse }                            from "msw";
 import { renderWithProviders }                           from "../helpers/renderWithProviders";
 import { server }                                       from "../helpers/server";
 
+const { mockAuthState } = vi.hoisted(() => ({
+  mockAuthState: {
+    user: { id: "u1", email: "admin@test.com", name: "Admin", role: "admin" },
+  },
+}));
+
 vi.mock("@features/auth/authClient", () => ({
   useSession: () => ({
-    data: { user: { id: "u1", email: "admin@test.com", name: "Admin", role: "admin" }, session: {} },
+    data: { user: mockAuthState.user, session: {} },
     isPending: false,
     error: null,
   }),
@@ -42,6 +48,13 @@ import TeamChatPage from "@features/chat/TeamChatPage";
 
 describe("TeamChatPage smoke", () => {
   beforeAll(() => server.listen({ onUnhandledRequest: "bypass" }));
+  beforeEach(() => {
+    mockAuthState.user = { id: "u1", email: "admin@test.com", name: "Admin", role: "admin" };
+  });
+  afterEach(() => {
+    server.resetHandlers();
+    socketHandlers.clear();
+  });
   afterAll(()  => server.close());
 
   it("renders without crashing", async () => {
@@ -105,5 +118,27 @@ describe("TeamChatPage smoke", () => {
     });
 
     expect(await screen.findByTestId("presence-dot-u2")).toBeInTheDocument();
+  });
+
+  it("lets a sales rep reply when Matt comes from an existing DM conversation", async () => {
+    mockAuthState.user = { id: "ivonne", email: "ivonne@test.com", name: "Ivonne", role: "sales_rep" };
+    server.use(
+      http.get("/api/chat/users", () => HttpResponse.json([])),
+      http.get("/api/chat/dm/conversations", () => HttpResponse.json([
+        {
+          userId: "matt",
+          userName: "Matt Carney",
+          userRole: "admin",
+          lastMessageAt: new Date().toISOString(),
+          lastContent: "Can you reply?",
+          unreadCount: 0,
+        },
+      ])),
+    );
+
+    renderWithProviders(<TeamChatPage />, { route: "/admin/chat" });
+
+    expect(await screen.findByTestId("button-dm-matt")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId("button-attach-file")).not.toBeDisabled());
   });
 });

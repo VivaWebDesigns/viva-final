@@ -42,6 +42,7 @@ describe("chat DM access", () => {
   const daniela = chatUser({ id: "daniela", name: "Daniela Ortega", role: "sales_rep" });
   const juan = chatUser({ id: "juan", name: "Juan Salazar", role: "sales_rep" });
   const otherRep = chatUser({ id: "other-rep", name: "Other Rep", role: "sales_rep" });
+  const bannedRep = chatUser({ id: "banned-rep", name: "Banned Rep", role: "sales_rep", banned: true });
 
   it("recognizes the primary Matt admin account by email", () => {
     expect(isPrimaryChatAdmin(matt)).toBe(true);
@@ -49,23 +50,25 @@ describe("chat DM access", () => {
     expect(isPrimaryChatAdmin(oldMatt)).toBe(false);
   });
 
-  it("recognizes the three allowed sales reps by configured names and aliases", () => {
+  it("allows active sales reps without depending on display-name spelling", () => {
     expect(isAllowedSalesRepChatUser(ivonne)).toBe(true);
     expect(isAllowedSalesRepChatUser(daniela)).toBe(true);
     expect(isAllowedSalesRepChatUser(juan)).toBe(true);
-    expect(isAllowedSalesRepChatUser(otherRep)).toBe(false);
+    expect(isAllowedSalesRepChatUser(otherRep)).toBe(true);
   });
 
-  it("only allows DMs between Matt and the allowed sales reps", () => {
+  it("only allows DMs between Matt and active sales reps", () => {
     expect(canUsersDirectMessage(matt, ivonne)).toBe(true);
     expect(canUsersDirectMessage(ivonne, matt)).toBe(true);
     expect(canUsersDirectMessage(matt, daniela)).toBe(true);
     expect(canUsersDirectMessage(juan, matt)).toBe(true);
+    expect(canUsersDirectMessage(otherRep, matt)).toBe(true);
 
     expect(canUsersDirectMessage(ivonne, daniela)).toBe(false);
     expect(canUsersDirectMessage(ivonne, unusedAdmin)).toBe(false);
     expect(canUsersDirectMessage(unusedAdmin, ivonne)).toBe(false);
     expect(canUsersDirectMessage(ivonne, oldMatt)).toBe(false);
-    expect(canUsersDirectMessage(otherRep, matt)).toBe(false);
+    expect(canUsersDirectMessage(bannedRep, matt)).toBe(false);
+    expect(canUsersDirectMessage(matt, bannedRep)).toBe(false);
   });
 });

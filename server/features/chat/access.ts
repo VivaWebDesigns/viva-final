@@ -4,15 +4,6 @@ import { user } from "@shared/schema";
 
 export const PRIMARY_CHAT_ADMIN_EMAIL = "matt@vivawebdesigns.com";
 
-const ALLOWED_SALES_REP_NAMES = new Set([
-  "ivonne",
-  "ivonne curiel",
-  "daniela",
-  "daniela ortega",
-  "juan",
-  "juan salazar",
-]);
-
 export interface ChatAccessUser {
   id: string;
   name: string;
@@ -42,7 +33,7 @@ export function isPrimaryChatAdmin(chatUser: Pick<ChatAccessUser, "email" | "rol
 }
 
 export function isAllowedSalesRepChatUser(chatUser: Pick<ChatAccessUser, "name" | "role"> | null | undefined) {
-  return chatUser?.role === "sales_rep" && ALLOWED_SALES_REP_NAMES.has(normalizeIdentity(chatUser.name));
+  return chatUser?.role === "sales_rep";
 }
 
 export function canUsersDirectMessage(sender: ChatAccessUser | null | undefined, recipient: ChatAccessUser | null | undefined) {

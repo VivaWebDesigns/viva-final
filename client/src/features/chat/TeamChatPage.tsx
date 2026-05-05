@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, type ChangeEvent } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback, type ChangeEvent } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest, STALE } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -626,13 +626,25 @@ export default function TeamChatPage() {
 
   // ── Derived data ───────────────────────────────────────────────────────────
 
-  const activeDmUser = teamUsers.find((u) => u.id === activeDmUserId);
+  const dmUserList = useMemo(() => {
+    const dmUserMap = new Map<string, TeamUser>();
+    for (const u of teamUsers) {
+      if ((u as any).id !== currentUserId) {
+        dmUserMap.set(u.id, u);
+      }
+    }
+    for (const conv of dmConversations) {
+      if (conv.userId !== currentUserId && !dmUserMap.has(conv.userId)) {
+        dmUserMap.set(conv.userId, { id: conv.userId, name: conv.userName, role: conv.userRole });
+      }
+    }
+    return Array.from(dmUserMap.values()).filter((u) => (
+      canUseChannels || u.role === "admin"
+    ));
+  }, [canUseChannels, currentUserId, dmConversations, teamUsers]);
+  const activeDmUser = dmUserList.find((u) => u.id === activeDmUserId);
   const activeChannelData = channels.find((c) => c.id === activeChannel);
   const threadParentMsg = messages.find((m) => m.id === threadParentId);
-  const dmUserList = teamUsers.filter((u) => (
-    (u as any).id !== currentUserId
-    && (canUseChannels || u.role === "admin")
-  ));
   const filteredMentions = mentionQuery !== null
     ? teamUsers.filter((u) => (u as any).id !== currentUserId && u.name.toLowerCase().includes(mentionQuery.toLowerCase()))
     : [];
@@ -648,7 +660,7 @@ export default function TeamChatPage() {
   useEffect(() => {
     if (canUseChannels) return;
 
-    const adminDmUsers = teamUsers.filter((u) => (u as any).id !== currentUserId && u.role === "admin");
+    const adminDmUsers = dmUserList.filter((u) => u.role === "admin");
     const activeDmIsAllowed = adminDmUsers.some((u) => u.id === activeDmUserId);
 
     if (!activeDmIsAllowed) {
@@ -657,7 +669,7 @@ export default function TeamChatPage() {
       setShowSearch(false);
       setShowDmPicker(false);
     }
-  }, [canUseChannels, teamUsers, currentUserId, activeDmUserId]);
+  }, [canUseChannels, dmUserList, activeDmUserId]);
 
   useEffect(() => {
     const handlePaste = (event: ClipboardEvent) => {
