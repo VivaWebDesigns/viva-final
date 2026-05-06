@@ -154,6 +154,7 @@ export const en = {
     title: "CRM Leads",
     newLead: "New Lead",
     searchPlaceholder: "Search leads...",
+    allReps: "All reps",
     allStatuses: "All statuses",
     allSources: "All sources",
     source: "Source",

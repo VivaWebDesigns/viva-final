@@ -50,7 +50,20 @@ export async function getLeads(filters: LeadFilters = {}) {
   }
   if (statusId) conditions.push(eq(crmLeads.statusId, statusId));
   if (source) conditions.push(eq(crmLeads.source, source));
-  if (assignedTo) conditions.push(eq(crmLeads.assignedTo, assignedTo));
+  if (assignedTo === "__unassigned__") {
+    conditions.push(sql`(
+      ${crmLeads.assignedTo} IS NULL
+      OR NOT EXISTS (
+        SELECT 1
+        FROM ${user}
+        WHERE ${user.id} = ${crmLeads.assignedTo}
+          AND ${user.role} = 'sales_rep'
+          AND COALESCE(${user.banned}, false) = false
+      )
+    )`);
+  } else if (assignedTo) {
+    conditions.push(eq(crmLeads.assignedTo, assignedTo));
+  }
   if (fromWebsiteForm !== undefined) conditions.push(eq(crmLeads.fromWebsiteForm, fromWebsiteForm));
 
   const where = conditions.length > 0 ? and(...conditions) : undefined;

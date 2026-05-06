@@ -62,6 +62,7 @@ export default function LeadListPage() {
   const search = useDebounce(rawSearch, 300);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
+  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
   const [page, setPage] = useState(1);
   useEffect(() => { setPage(1); }, [search]);
   const pageSize = 20;
@@ -91,7 +92,7 @@ export default function LeadListPage() {
   });
 
   const { data: leadsData, isLoading } = useQuery<LeadsResponse>({
-    queryKey: ["/api/crm/leads", search, statusFilter, sourceFilter, page],
+    queryKey: ["/api/crm/leads", search, statusFilter, sourceFilter, assigneeFilter, page],
     staleTime: STALE.FAST,
     refetchOnWindowFocus: true,
     queryFn: async () => {
@@ -99,6 +100,7 @@ export default function LeadListPage() {
       if (search) params.set("search", search);
       if (statusFilter && statusFilter !== "all") params.set("statusId", statusFilter);
       if (sourceFilter && sourceFilter !== "all") params.set("source", sourceFilter);
+      if (assigneeFilter && assigneeFilter !== "all") params.set("assignedTo", assigneeFilter);
       params.set("page", String(page));
       params.set("pageSize", String(pageSize));
       const res = await fetch(`/api/crm/leads?${params}`, { credentials: "include" });
@@ -109,6 +111,7 @@ export default function LeadListPage() {
 
   const leads = leadsData?.leads ?? [];
   const total = leadsData?.total ?? 0;
+  const activeSalesReps = assignableUsers.filter((user) => user.role === "sales_rep");
   const totalPages = Math.ceil(total / pageSize);
   const allOnPageSelected = leads.length > 0 && leads.every(l => selectedIds.has(l.id));
   const someOnPageSelected = leads.some(l => selectedIds.has(l.id)) && !allOnPageSelected;
@@ -292,7 +295,7 @@ export default function LeadListPage() {
       <CreateLeadModal open={showCreateModal} onClose={() => setShowCreateModal(false)} />
 
       <Card className="mb-4">
-        <div className="p-4 flex flex-col sm:flex-row gap-3">
+        <div className="p-4 flex flex-col gap-3 lg:flex-row">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <Input
@@ -303,8 +306,22 @@ export default function LeadListPage() {
               data-testid="input-search-leads"
             />
           </div>
+          {isAdmin && (
+            <Select value={assigneeFilter} onValueChange={(v) => { setAssigneeFilter(v); setPage(1); }}>
+              <SelectTrigger className="w-full lg:w-44" data-testid="select-assignee-filter">
+                <SelectValue placeholder={t.crm.allReps} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t.crm.allReps}</SelectItem>
+                {activeSalesReps.map((user) => (
+                  <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>
+                ))}
+                <SelectItem value="__unassigned__">{t.crm.unassigned}</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
           <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
-            <SelectTrigger className="w-full sm:w-44" data-testid="select-status-filter">
+            <SelectTrigger className="w-full lg:w-44" data-testid="select-status-filter">
               <SelectValue placeholder={t.crm.allStatuses} />
             </SelectTrigger>
             <SelectContent>
@@ -315,8 +332,8 @@ export default function LeadListPage() {
             </SelectContent>
           </Select>
           <Select value={sourceFilter} onValueChange={(v) => { setSourceFilter(v); setPage(1); }}>
-            <SelectTrigger className="w-full sm:w-44" data-testid="select-source-filter">
-              <SelectValue placeholder="Todas las fuentes" />
+            <SelectTrigger className="w-full lg:w-44" data-testid="select-source-filter">
+              <SelectValue placeholder={t.crm.allSources} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t.crm.allSources}</SelectItem>

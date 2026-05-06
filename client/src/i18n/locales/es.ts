@@ -156,6 +156,7 @@ export const es: AdminTranslations = {
     title: "Prospectos CRM",
     newLead: "Nuevo Prospecto",
     searchPlaceholder: "Buscar prospectos...",
+    allReps: "Todos los reps",
     allStatuses: "Todos los estados",
     allSources: "Todas las fuentes",
     source: "Fuente",

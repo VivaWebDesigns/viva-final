@@ -514,14 +514,6 @@ router.post(
 
     const defaultStatus = await crmStorage.getDefaultLeadStatus();
 
-    const [defaultRep] = await db
-      .select({ id: user.id })
-      .from(user)
-      .where(and(eq(user.role, "sales_rep"), eq(user.banned, false)))
-      .orderBy(user.createdAt)
-      .limit(1);
-    const defaultAssignedRepId = defaultRep?.id ?? req.authUser!.id;
-
     const { lead, contact, company } = await db.transaction(async (tx) => {
       let [contact] = await tx
         .select()
@@ -621,7 +613,7 @@ router.post(
           spanishOutreachRecommended: parsed.data.spanishOutreachRecommended,
           firstOutreachSentAt:        new Date(parsed.data.firstOutreachSentAt),
           fromWebsiteForm:            false,
-          assignedTo:                 defaultAssignedRepId,
+          assignedTo:                 null,
         })
         .returning();
 
@@ -646,7 +638,7 @@ router.post(
         stageId:         newLeadStage.id,
         status:          "open",
         sourceLeadTitle: lead.title,
-        assignedTo:      defaultAssignedRepId,
+        assignedTo:      null,
       });
       try {
         await executeStageAutomations({
@@ -654,7 +646,7 @@ router.post(
           leadId:        lead.id,
           contactId:     contact.id,
           companyId:     company.id,
-          assignedTo:    defaultAssignedRepId,
+          assignedTo:    null,
           stageSlug:     "new-lead",
           actorId:       req.authUser!.id,
         });
@@ -1354,11 +1346,6 @@ router.post(
       normalizedPhone = normalizePhoneDigits(rawPhone);
     }
 
-    // ── Assignee ──────────────────────────────────────────────────────────
-    const resolvedAssignee = await crmStorage.resolveLeadAssignee(
-      opts.assignedTo ?? req.authUser?.id ?? null,
-    );
-
     // ── Duplicate check ───────────────────────────────────────────────────
     const dupCheck = await crmStorage.checkManualLeadDuplicate({
       normalizedPhone,
@@ -1435,7 +1422,7 @@ router.post(
       city:             city ?? null,
       state:            state ?? null,
       timezone:         state ? (US_STATE_TIMEZONES[state] ?? null) : null,
-      assignedTo:       resolvedAssignee,
+      assignedTo:       null,
       sellerProfileUrl: record.sellerProfileUrl,
       adUrl:            record.listingUrl ?? null,
     });
@@ -1452,16 +1439,16 @@ router.post(
         status:          "open",
         sourceLeadTitle: leadTitle,
         notes,
-        assignedTo:      resolvedAssignee,
+        assignedTo:      null,
       });
       executeStageAutomations({
         opportunityId: opp.id,
         leadId:        lead.id,
         contactId:     contact.id,
         companyId,
-        assignedTo:    resolvedAssignee,
+        assignedTo:    null,
         stageSlug:     "new-lead",
-        actorId:       resolvedAssignee,
+        actorId:       req.authUser?.id ?? null,
       }).catch((err: unknown) => {
         console.error("[marketplace/convert-to-crm] executeStageAutomations failed:", err);
       });
