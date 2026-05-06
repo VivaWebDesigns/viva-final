@@ -109,9 +109,9 @@ const BOARD_CARD_COLUMNS = {
 
 export async function getOpportunitiesByStage(
   userId?: string,
-  options: { includeArchived?: boolean } = {},
+  options: { includeArchived?: boolean; includeAssigneeMap?: boolean } = {},
 ) {
-  const { includeArchived = true } = options;
+  const { includeArchived = true, includeAssigneeMap = false } = options;
   const stages = await getStages();
 
   // Build WHERE clause from userId + optional status filter.
@@ -138,23 +138,32 @@ export async function getOpportunitiesByStage(
     board[stage.id] = { stage, opportunities: buckets.get(stage.id) ?? [] };
   }
 
-  // Enrich board with contact + company snapshots for card display.
+  // Enrich board with compact snapshots for card display.
   const contactIds = [...new Set(allOpps.map(o => o.contactId).filter(Boolean) as string[])];
   const companyIds = [...new Set(allOpps.map(o => o.companyId).filter(Boolean) as string[])];
+  const assigneeIds = includeAssigneeMap
+    ? [...new Set(allOpps.map(o => o.assignedTo).filter(Boolean) as string[])]
+    : [];
 
-  const [contactRows, companyRows] = await Promise.all([
+  const [contactRows, companyRows, assigneeRows] = await Promise.all([
     contactIds.length
       ? db.select({ id: crmContacts.id, firstName: crmContacts.firstName, lastName: crmContacts.lastName, phone: crmContacts.phone }).from(crmContacts).where(inArray(crmContacts.id, contactIds))
       : [],
     companyIds.length
       ? db.select({ id: crmCompanies.id, name: crmCompanies.name, city: crmCompanies.city, industry: crmCompanies.industry }).from(crmCompanies).where(inArray(crmCompanies.id, companyIds))
       : [],
+    assigneeIds.length
+      ? db.select({ id: user.id, name: user.name }).from(user).where(inArray(user.id, assigneeIds))
+      : [],
   ]);
 
   const contactMap: Record<string, { id: string; firstName: string; lastName: string | null; phone: string | null }> = Object.fromEntries(contactRows.map(c => [c.id, c]));
   const companyMap: Record<string, { id: string; name: string; city: string | null; industry: string | null }> = Object.fromEntries(companyRows.map(c => [c.id, c]));
+  const assigneeMap: Record<string, { id: string; name: string }> | undefined = includeAssigneeMap
+    ? Object.fromEntries(assigneeRows.map(a => [a.id, a]))
+    : undefined;
 
-  return { stages, board, contactMap, companyMap };
+  return { stages, board, contactMap, companyMap, ...(assigneeMap ? { assigneeMap } : {}) };
 }
 
 export async function getOpportunityById(id: string): Promise<PipelineOpportunity | undefined> {

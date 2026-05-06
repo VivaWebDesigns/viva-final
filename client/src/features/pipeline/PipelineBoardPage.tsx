@@ -5,7 +5,7 @@ import { STALE } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { DollarSign, List, Phone, Building2, MapPin } from "lucide-react";
+import { DollarSign, List, Phone, Building2, MapPin, UserRound } from "lucide-react";
 import type { PipelineStage, PipelineOpportunity } from "@shared/schema";
 import { formatPhoneDisplay } from "@shared/phone";
 import QuickTaskModal from "@/components/QuickTaskModal";
@@ -13,12 +13,14 @@ import { useAdminLang } from "@/i18n/LanguageContext";
 
 type ContactSnap = { id: string; firstName: string; lastName: string | null; phone: string | null };
 type CompanySnap = { id: string; name: string; city: string | null; industry: string | null };
+type AssigneeSnap = { id: string; name: string };
 
 interface BoardData {
   stages: PipelineStage[];
   board: Record<string, { stage: PipelineStage; opportunities: PipelineOpportunity[] }>;
   contactMap: Record<string, ContactSnap>;
   companyMap: Record<string, CompanySnap>;
+  assigneeMap?: Record<string, AssigneeSnap>;
 }
 
 const PKG_COLORS: Record<string, string> = {
@@ -46,11 +48,13 @@ function CardDisplay({
   opp,
   contactMap,
   companyMap,
+  assigneeMap,
   onTaskClick,
 }: {
   opp: PipelineOpportunity;
   contactMap: Record<string, ContactSnap>;
   companyMap: Record<string, CompanySnap>;
+  assigneeMap?: Record<string, AssigneeSnap>;
   onTaskClick?: (opp: PipelineOpportunity) => void;
 }) {
   const { t } = useAdminLang();
@@ -67,6 +71,9 @@ function CardDisplay({
   const displayTitle = company && contactName && !companyMatchesContact
     ? `${company.name} – ${contactName}`
     : company?.name || contactName || opp.title;
+  const assigneeName = assigneeMap
+    ? (opp.assignedTo ? assigneeMap[opp.assignedTo]?.name ?? "Unknown rep" : "Unassigned")
+    : null;
 
   return (
     <Card
@@ -118,6 +125,13 @@ function CardDisplay({
             )}
           </div>
 
+          {assigneeName && (
+            <span className="flex items-center gap-1 text-xs text-slate-500" data-testid={`text-opp-assignee-${opp.id}`}>
+              <UserRound className="w-3 h-3 flex-shrink-0" />
+              <span className="truncate">{assigneeName}</span>
+            </span>
+          )}
+
           <div className="flex items-center justify-between pt-0.5">
             <div className="flex items-center gap-2">
               {opp.value && parseFloat(opp.value) > 0 && (
@@ -159,11 +173,13 @@ function OpportunityCard({
   opp,
   contactMap,
   companyMap,
+  assigneeMap,
   onTaskClick,
 }: {
   opp: PipelineOpportunity;
   contactMap: Record<string, ContactSnap>;
   companyMap: Record<string, CompanySnap>;
+  assigneeMap?: Record<string, AssigneeSnap>;
   onTaskClick: (opp: PipelineOpportunity) => void;
 }) {
   return (
@@ -172,6 +188,7 @@ function OpportunityCard({
         opp={opp}
         contactMap={contactMap}
         companyMap={companyMap}
+        assigneeMap={assigneeMap}
         onTaskClick={onTaskClick}
       />
     </div>
@@ -183,12 +200,14 @@ function StageColumn({
   opportunities,
   contactMap,
   companyMap,
+  assigneeMap,
   onTaskClick,
 }: {
   stage: PipelineStage;
   opportunities: PipelineOpportunity[];
   contactMap: Record<string, ContactSnap>;
   companyMap: Record<string, CompanySnap>;
+  assigneeMap?: Record<string, AssigneeSnap>;
   onTaskClick: (opp: PipelineOpportunity) => void;
 }) {
   const { t } = useAdminLang();
@@ -229,6 +248,7 @@ function StageColumn({
             opp={opp}
             contactMap={contactMap}
             companyMap={companyMap}
+            assigneeMap={assigneeMap}
             onTaskClick={onTaskClick}
           />
         ))}
@@ -269,6 +289,7 @@ export default function PipelineBoardPage() {
   const board = data?.board || {};
   const contactMap = data?.contactMap || {};
   const companyMap = data?.companyMap || {};
+  const assigneeMap = data?.assigneeMap;
 
   return (
     <>
@@ -318,6 +339,7 @@ export default function PipelineBoardPage() {
                   opportunities={board[stage.id]?.opportunities || []}
                   contactMap={contactMap}
                   companyMap={companyMap}
+                  assigneeMap={assigneeMap}
                   onTaskClick={(opp) => setTaskOpp(opp)}
                 />
               ))}

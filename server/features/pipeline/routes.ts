@@ -147,7 +147,10 @@ router.get("/opportunities/board", requireRole("admin", "developer", "sales_rep"
     // ?includeArchived=false hides won/lost opportunities from the board.
     // Default true for backward compatibility — existing board shows all stages.
     const includeArchived = req.query.includeArchived !== "false";
-    const result = await pipelineStorage.getOpportunitiesByStage(userId, { includeArchived });
+    const result = await pipelineStorage.getOpportunitiesByStage(userId, {
+      includeArchived,
+      includeAssigneeMap: req.authUser?.role === "admin",
+    });
     res.json(result);
   } catch (error: any) {
     res.status(500).json({ message: error.message });
