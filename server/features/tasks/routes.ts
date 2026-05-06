@@ -336,6 +336,7 @@ router.put("/:id", requireRole("admin", "developer", "sales_rep"), async (req, r
     const validated = updateTaskSchema.parse(req.body);
     const data: Record<string, unknown> = { ...validated };
     if (validated.dueDate) data.dueDate = parseDueDate(validated.dueDate);
+    if (validated.completed === true) data.completedAt = new Date();
     if (validated.completed === false) data.completedAt = null;
     const task = await taskStorage.updateTask(req.params.id as string, data as any);
     await logAudit({

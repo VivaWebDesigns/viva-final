@@ -26,9 +26,11 @@ interface RepActivity {
   activeDays: number;
   leadsAssigned: number;
   leadsTouched: number;
+  leadsContacted: number;
   leadNotes: number;
   pipelineActions: number;
   tasksCompleted: number;
+  followUpsDue: number;
   followUpsCompleted: number;
   overdueTasks: number;
   demosScheduled: number;
@@ -59,10 +61,12 @@ interface ActivitySummary {
     activeDays: number;
     leadsAssigned: number;
     leadsTouched: number;
+    leadsContacted: number;
     leadTouchRate: number;
     overdueTasks: number;
     pipelineActions: number;
     tasksCompleted: number;
+    followUpsDue: number;
     followUpsCompleted: number;
     demosScheduled: number;
     closedWon: number;
@@ -348,9 +352,9 @@ export default function CrmActivityPage() {
           <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4 xl:grid-cols-7">
             <StatCard label="CRM active time" value={formatMinutes(data.totals.activeMinutes)} icon={Clock} tone="bg-teal-500" />
             <StatCard label="Sign-ins" value={data.totals.signIns} icon={Users} tone="bg-slate-500" />
-            <StatCard label="Leads touched" value={data.totals.leadsTouched} icon={Target} tone="bg-cyan-500" />
+            <StatCard label="Leads contacted" value={data.totals.leadsContacted} icon={Target} tone="bg-cyan-500" />
             <StatCard label="Demo rate" value={`${data.totals.demoRate}%`} icon={TrendingUp} tone="bg-emerald-500" />
-            <StatCard label="Follow-ups" value={data.totals.followUpsCompleted} icon={TrendingUp} tone="bg-emerald-500" />
+            <StatCard label="Follow-ups" value={`${data.totals.followUpsCompleted}/${data.totals.followUpsDue}`} icon={TrendingUp} tone="bg-emerald-500" />
             <StatCard label="Closed won" value={data.totals.closedWon} icon={BarChart3} tone="bg-indigo-500" />
             <StatCard label="Tasks completed" value={data.totals.tasksCompleted} icon={CheckCircle2} tone="bg-teal-500" />
           </div>
@@ -382,9 +386,9 @@ export default function CrmActivityPage() {
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
-                      <span>Leads worked: <strong className="text-gray-900">{rep.leadsTouched}</strong></span>
+                      <span>Leads contacted: <strong className="text-gray-900">{rep.leadsContacted}</strong></span>
                       <span>Tasks completed: <strong className="text-gray-900">{rep.tasksCompleted}</strong></span>
-                      <span>Follow-ups: <strong className="text-gray-900">{rep.followUpsCompleted}</strong></span>
+                      <span>Follow-ups: <strong className="text-gray-900">{rep.followUpsCompleted}/{rep.followUpsDue}</strong></span>
                       <span>Active: <strong className="text-gray-900">{formatMinutes(rep.activeMinutes)}</strong></span>
                       <span>Demos: <strong className="text-gray-900">{rep.demosScheduled}</strong></span>
                       <span>Closed won: <strong className="text-gray-900">{rep.closedWon}</strong></span>
