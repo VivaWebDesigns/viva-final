@@ -206,7 +206,7 @@ export async function getActivitySummary(options: number | { days?: number; from
           ft.id,
           ft.title,
           ft.task_type AS "taskType",
-          ft.assigned_to AS "userId",
+          COALESCE(po.assigned_to, cl.assigned_to, ft.assigned_to) AS "userId",
           ft.completed,
           ft.completed_at AS "completedAt",
           ft.due_date AS "dueAt",
@@ -215,7 +215,8 @@ export async function getActivitySummary(options: number | { days?: number; from
           COALESCE(ft.lead_id, po.lead_id) AS "resolvedLeadId"
         FROM followup_tasks ft
         LEFT JOIN pipeline_opportunities po ON po.id = ft.opportunity_id
-        WHERE ft.assigned_to IS NOT NULL
+        LEFT JOIN crm_leads cl ON cl.id = COALESCE(ft.lead_id, po.lead_id)
+        WHERE COALESCE(po.assigned_to, cl.assigned_to, ft.assigned_to) IS NOT NULL
           AND (
             (ft.completed = true AND ft.completed_at >= ${range.from} AND ft.completed_at < ${range.endExclusive})
             OR (ft.due_date >= ${range.from} AND ft.due_date < ${range.endExclusive})
@@ -301,13 +302,15 @@ export async function getActivitySummary(options: number | { days?: number; from
       ),
       overdue_rollup AS (
         SELECT
-          ft.assigned_to AS "userId",
+          COALESCE(po.assigned_to, cl.assigned_to, ft.assigned_to) AS "userId",
           COUNT(*)::int AS "overdue"
         FROM followup_tasks ft
-        WHERE ft.assigned_to IS NOT NULL
+        LEFT JOIN pipeline_opportunities po ON po.id = ft.opportunity_id
+        LEFT JOIN crm_leads cl ON cl.id = COALESCE(ft.lead_id, po.lead_id)
+        WHERE COALESCE(po.assigned_to, cl.assigned_to, ft.assigned_to) IS NOT NULL
           AND ft.completed = false
           AND ft.due_date < NOW()
-        GROUP BY ft.assigned_to
+        GROUP BY COALESCE(po.assigned_to, cl.assigned_to, ft.assigned_to)
       )
       SELECT
         COALESCE(c."userId", o."userId") AS "userId",
@@ -402,16 +405,18 @@ export async function getActivitySummary(options: number | { days?: number; from
       ),
       task_daily AS (
         SELECT
-          ft.assigned_to AS "userId",
+          COALESCE(po.assigned_to, cl.assigned_to, ft.assigned_to) AS "userId",
           DATE(COALESCE(ft.completed_at, ft.created_at)) AS "date",
           COUNT(*) FILTER (WHERE ft.completed = true AND ft.completed_at >= ${range.from} AND ft.completed_at < ${range.endExclusive})::int AS "tasksCompleted"
         FROM followup_tasks ft
-        WHERE ft.assigned_to IS NOT NULL
+        LEFT JOIN pipeline_opportunities po ON po.id = ft.opportunity_id
+        LEFT JOIN crm_leads cl ON cl.id = COALESCE(ft.lead_id, po.lead_id)
+        WHERE COALESCE(po.assigned_to, cl.assigned_to, ft.assigned_to) IS NOT NULL
           AND (
             (ft.created_at >= ${range.from} AND ft.created_at < ${range.endExclusive})
             OR (ft.completed_at >= ${range.from} AND ft.completed_at < ${range.endExclusive})
           )
-        GROUP BY ft.assigned_to, DATE(COALESCE(ft.completed_at, ft.created_at))
+        GROUP BY COALESCE(po.assigned_to, cl.assigned_to, ft.assigned_to), DATE(COALESCE(ft.completed_at, ft.created_at))
       )
       SELECT
         COALESCE(c."userId", p."userId", t."userId") AS "userId",
