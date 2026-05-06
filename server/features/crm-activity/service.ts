@@ -114,6 +114,11 @@ function getScoreStatus(score: number) {
   return "at_risk";
 }
 
+const visibleSalesRepPredicate = and(
+  eq(user.role, "sales_rep"),
+  eq(user.includeInActivityIntelligence, true),
+);
+
 async function getRiskQueues(range: ActivityRange) {
   const untouchedCutoff = new Date();
   untouchedCutoff.setHours(untouchedCutoff.getHours() - 24);
@@ -131,6 +136,8 @@ async function getRiskQueues(range: ActivityRange) {
     FROM crm_leads l
     LEFT JOIN "user" u ON u.id = l.assigned_to
     WHERE l.assigned_to IS NOT NULL
+      AND u.role = 'sales_rep'
+      AND u.include_in_activity_intelligence = true
       AND l.created_at < ${untouchedCutoff}
       AND NOT EXISTS (
         SELECT 1 FROM crm_activity_events a
@@ -159,6 +166,8 @@ async function getRiskQueues(range: ActivityRange) {
     LEFT JOIN "user" u ON u.id = o.assigned_to
     WHERE o.status = 'open'
       AND o.assigned_to IS NOT NULL
+      AND u.role = 'sales_rep'
+      AND u.include_in_activity_intelligence = true
       AND o.updated_at < ${staleOpportunityCutoff}
       AND NOT EXISTS (
         SELECT 1 FROM pipeline_activities pa
@@ -227,7 +236,7 @@ export async function getActivitySummary(options: number | { days?: number; from
         lt(crmActivityEvents.createdAt, range.endExclusive),
       ),
     )
-    .where(eq(user.role, "sales_rep"))
+    .where(visibleSalesRepPredicate)
     .groupBy(user.id, user.name, user.email, user.role)
     .orderBy(desc(sql`COALESCE(SUM(${crmActivityEvents.activeMs}), 0)`));
 

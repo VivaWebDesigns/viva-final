@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
@@ -31,6 +32,7 @@ interface AdminUser {
   name: string;
   email: string;
   role: string;
+  includeInActivityIntelligence: boolean;
   banned: boolean;
   createdAt: string;
 }
@@ -64,6 +66,7 @@ export default function AdminSettingsPage() {
   const [confirmDeleteUser, setConfirmDeleteUser] = useState(false);
   const [newUser, setNewUser] = useState({ name: "", email: "", password: "", role: "sales_rep" });
   const [editRole, setEditRole] = useState("");
+  const [editIncludeInActivityIntelligence, setEditIncludeInActivityIntelligence] = useState(true);
 
   const { data: users = [], isLoading: usersLoading } = useQuery<AdminUser[]>({
     queryKey: ["/api/admin/users"],
@@ -196,6 +199,7 @@ export default function AdminSettingsPage() {
                     <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-4 py-3">{t.common.name}</th>
                     <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-4 py-3">{t.settings.roleLabel}</th>
                     <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-4 py-3">{t.common.status}</th>
+                    <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-4 py-3">{t.settings.activityIntelLabel}</th>
                     <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-4 py-3">{t.common.joined}</th>
                     <th className="px-4 py-3" />
                   </tr>
@@ -233,6 +237,17 @@ export default function AdminSettingsPage() {
                           </span>
                         )}
                       </td>
+                      <td className="px-4 py-3">
+                        {u.role === "sales_rep" ? (
+                          u.includeInActivityIntelligence ? (
+                            <span className="text-xs font-medium text-emerald-600">{t.settings.activityIntelIncluded}</span>
+                          ) : (
+                            <span className="text-xs font-medium text-gray-400">{t.settings.activityIntelHidden}</span>
+                          )
+                        ) : (
+                          <span className="text-xs text-gray-300">-</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-xs text-gray-400">
                         {new Date(u.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                       </td>
@@ -241,7 +256,11 @@ export default function AdminSettingsPage() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => { setEditingUser(u); setEditRole(u.role); }}
+                            onClick={() => {
+                              setEditingUser(u);
+                              setEditRole(u.role);
+                              setEditIncludeInActivityIntelligence(u.includeInActivityIntelligence);
+                            }}
                             className="text-gray-400 hover:text-gray-700"
                             data-testid={`button-edit-user-${u.id}`}
                           >
@@ -411,6 +430,22 @@ export default function AdminSettingsPage() {
                 {editingUser?.banned ? t.settings.unban : t.settings.ban}
               </Button>
             </div>
+            <div className="flex items-center justify-between gap-4 p-3 bg-gray-50 rounded-lg">
+              <div>
+                <p className="text-sm font-medium text-gray-900">{t.settings.activityIntelTitle}</p>
+                <p className="text-xs text-gray-500">
+                  {editRole === "sales_rep"
+                    ? t.settings.activityIntelDescription
+                    : t.settings.activityIntelSalesOnly}
+                </p>
+              </div>
+              <Switch
+                checked={editIncludeInActivityIntelligence}
+                onCheckedChange={setEditIncludeInActivityIntelligence}
+                disabled={editRole !== "sales_rep"}
+                data-testid="toggle-activity-intelligence"
+              />
+            </div>
             <Separator />
             <div className="flex items-center justify-between">
               <p className="text-xs text-gray-400">{t.settings.deleteAccount}</p>
@@ -430,7 +465,13 @@ export default function AdminSettingsPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditingUser(null)}>{t.settings.cancel}</Button>
             <Button
-              onClick={() => updateMutation.mutate({ id: editingUser!.id, updates: { role: editRole } })}
+              onClick={() => updateMutation.mutate({
+                id: editingUser!.id,
+                updates: {
+                  role: editRole,
+                  includeInActivityIntelligence: editIncludeInActivityIntelligence,
+                },
+              })}
               disabled={updateMutation.isPending}
               className="bg-[#0D9488] hover:bg-[#0F766E] text-white"
               data-testid="button-save-user"

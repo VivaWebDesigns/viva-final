@@ -186,6 +186,7 @@ router.get("/users", requireRole("admin", "developer"), async (req, res) => {
             name: user.name,
             email: user.email,
             role: user.role,
+            includeInActivityIntelligence: user.includeInActivityIntelligence,
             banned: user.banned,
             createdAt: user.createdAt,
           })
@@ -222,7 +223,14 @@ router.post("/users", requireRole("admin"), async (req, res) => {
       ipAddress: req.ip,
     });
 
-    const [created] = await db.select({ id: user.id, name: user.name, email: user.email, role: user.role, createdAt: user.createdAt }).from(user).where(eq(user.id, result.user.id));
+    const [created] = await db.select({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      includeInActivityIntelligence: user.includeInActivityIntelligence,
+      createdAt: user.createdAt,
+    }).from(user).where(eq(user.id, result.user.id));
     res.status(201).json(created);
   } catch (err: any) {
     res.status(400).json({ message: err.message });
@@ -235,6 +243,7 @@ router.put("/users/:id", requireRole("admin"), async (req, res) => {
       role: z.enum(["admin", "developer", "sales_rep", "lead_gen", "extension_worker"]).optional(),
       name: z.string().min(1).optional(),
       banned: z.boolean().optional(),
+      includeInActivityIntelligence: z.boolean().optional(),
     });
     const updates = schema.parse(req.body);
     const targetId = req.params.id as string;
@@ -257,7 +266,15 @@ router.put("/users/:id", requireRole("admin"), async (req, res) => {
       metadata: updates,
       ipAddress: req.ip,
     });
-    const [updated] = await db.select({ id: user.id, name: user.name, email: user.email, role: user.role, banned: user.banned, createdAt: user.createdAt }).from(user).where(eq(user.id, targetId));
+    const [updated] = await db.select({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      includeInActivityIntelligence: user.includeInActivityIntelligence,
+      banned: user.banned,
+      createdAt: user.createdAt,
+    }).from(user).where(eq(user.id, targetId));
     res.json(updated);
   } catch (err: any) {
     res.status(400).json({ message: err.message });
