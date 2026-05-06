@@ -101,6 +101,11 @@ function eachDateKey(range: ActivityRange) {
   return dates;
 }
 
+function isWeekdayDateKey(value: string) {
+  const day = new Date(`${value}T00:00:00`).getDay();
+  return day !== 0 && day !== 6;
+}
+
 function mapByUser<T extends { userId: string | null }>(rows: T[]) {
   return new Map(rows.filter((row) => row.userId).map((row) => [row.userId!, row]));
 }
@@ -116,6 +121,8 @@ const visibleSalesRepPredicate = and(
   eq(user.role, "sales_rep"),
   eq(user.includeInActivityIntelligence, true),
 );
+
+const TARGET_TASKS_COMPLETED_PER_WEEKDAY = 6;
 
 export async function createActivityEvent(userId: string, data: {
   eventType: string;
@@ -205,16 +212,81 @@ export async function getActivitySummary(options: number | { days?: number; from
       .from(pipelineActivities)
       .where(and(gte(pipelineActivities.createdAt, range.from), lt(pipelineActivities.createdAt, range.endExclusive), sql`${pipelineActivities.userId} IS NOT NULL`))
       .groupBy(pipelineActivities.userId),
-    db
-      .select({
-        userId: followupTasks.assignedTo,
-        created: sql<number>`COUNT(*)::int`,
-        completed: sql<number>`COUNT(*) FILTER (WHERE ${followupTasks.completed} = true)::int`,
-        overdue: sql<number>`COUNT(*) FILTER (WHERE ${followupTasks.completed} = false AND ${followupTasks.dueDate} < NOW())::int`,
-      })
-      .from(followupTasks)
-      .where(and(gte(followupTasks.createdAt, range.from), lt(followupTasks.createdAt, range.endExclusive), sql`${followupTasks.assignedTo} IS NOT NULL`))
-      .groupBy(followupTasks.assignedTo),
+    db.execute(sql`
+      WITH completed_tasks AS (
+        SELECT
+          ft.id,
+          ft.assigned_to AS "userId",
+          ft.completed_at AS "completedAt",
+          ft.lead_id AS "leadId",
+          ft.opportunity_id AS "opportunityId",
+          COALESCE(ft.lead_id, po.lead_id) AS "resolvedLeadId"
+        FROM followup_tasks ft
+        LEFT JOIN pipeline_opportunities po ON po.id = ft.opportunity_id
+        WHERE ft.assigned_to IS NOT NULL
+          AND ft.completed = true
+          AND ft.completed_at >= ${range.from}
+          AND ft.completed_at < ${range.endExclusive}
+      ),
+      completed_rollup AS (
+        SELECT
+          ct."userId",
+          COUNT(*)::int AS "completed",
+          COUNT(*) FILTER (WHERE (
+            (
+              ct."resolvedLeadId" IS NOT NULL
+              AND EXISTS (
+                SELECT 1
+                FROM crm_lead_notes n
+                WHERE n.lead_id = ct."resolvedLeadId"
+                  AND n.created_at < ct."completedAt"
+                  AND n.type IN ('call', 'email', 'sms', 'task')
+              )
+            )
+            OR (
+              ct."resolvedLeadId" IS NOT NULL
+              AND EXISTS (
+                SELECT 1
+                FROM followup_tasks previous_ft
+                LEFT JOIN pipeline_opportunities previous_po ON previous_po.id = previous_ft.opportunity_id
+                WHERE previous_ft.id <> ct.id
+                  AND previous_ft.completed = true
+                  AND previous_ft.completed_at < ct."completedAt"
+                  AND COALESCE(previous_ft.lead_id, previous_po.lead_id) = ct."resolvedLeadId"
+              )
+            )
+            OR (
+              ct."opportunityId" IS NOT NULL
+              AND EXISTS (
+                SELECT 1
+                FROM pipeline_activities pa
+                WHERE pa.opportunity_id = ct."opportunityId"
+                  AND pa.created_at < ct."completedAt"
+                  AND pa.type IN ('call', 'email', 'task')
+              )
+            )
+          ))::int AS "followUpsCompleted"
+        FROM completed_tasks ct
+        GROUP BY ct."userId"
+      ),
+      overdue_rollup AS (
+        SELECT
+          ft.assigned_to AS "userId",
+          COUNT(*)::int AS "overdue"
+        FROM followup_tasks ft
+        WHERE ft.assigned_to IS NOT NULL
+          AND ft.completed = false
+          AND ft.due_date < NOW()
+        GROUP BY ft.assigned_to
+      )
+      SELECT
+        COALESCE(c."userId", o."userId") AS "userId",
+        COALESCE(c."completed", 0)::int AS "completed",
+        COALESCE(c."followUpsCompleted", 0)::int AS "followUpsCompleted",
+        COALESCE(o."overdue", 0)::int AS "overdue"
+      FROM completed_rollup c
+      FULL OUTER JOIN overdue_rollup o ON o."userId" = c."userId"
+    `),
     db
       .select({
         userId: crmActivityEvents.userId,
@@ -300,8 +372,7 @@ export async function getActivitySummary(options: number | { days?: number; from
         SELECT
           ft.assigned_to AS "userId",
           DATE(COALESCE(ft.completed_at, ft.created_at)) AS "date",
-          COUNT(*) FILTER (WHERE ft.completed = true AND ft.completed_at >= ${range.from} AND ft.completed_at < ${range.endExclusive})::int AS "tasksCompleted",
-          COUNT(*) FILTER (WHERE ft.created_at >= ${range.from} AND ft.created_at < ${range.endExclusive})::int AS "tasksCreated"
+          COUNT(*) FILTER (WHERE ft.completed = true AND ft.completed_at >= ${range.from} AND ft.completed_at < ${range.endExclusive})::int AS "tasksCompleted"
         FROM followup_tasks ft
         WHERE ft.assigned_to IS NOT NULL
           AND (
@@ -320,7 +391,6 @@ export async function getActivitySummary(options: number | { days?: number; from
         (COALESCE(c."leadsTouched", 0) + COALESCE(p."leadsWorked", 0))::int AS "leadsWorked",
         COALESCE(p."pipelineActions", 0)::int AS "pipelineActions",
         COALESCE(t."tasksCompleted", 0)::int AS "tasksCompleted",
-        COALESCE(t."tasksCreated", 0)::int AS "tasksCreated",
         COALESCE(p."demosScheduled", 0)::int AS "demosScheduled",
         COALESCE(p."closedWon", 0)::int AS "closedWon"
       FROM crm_daily c
@@ -337,7 +407,12 @@ export async function getActivitySummary(options: number | { days?: number; from
   const touchedMap = mapByUser(touchedLeads);
   const notesMap = mapByUser(leadNotes);
   const pipelineMap = mapByUser(pipelineActions);
-  const tasksMap = mapByUser(taskRows);
+  const tasksMap = new Map((taskRows.rows as Array<{
+    userId: string;
+    completed: number;
+    followUpsCompleted: number;
+    overdue: number;
+  }>).filter((row) => row.userId).map((row) => [row.userId, row]));
   const signInMap = new Map<string, { count: number; lastSignInAt: string | null }>();
   const outcomeMap = new Map((outcomeRows.rows as Array<{
     userId: string;
@@ -357,7 +432,6 @@ export async function getActivitySummary(options: number | { days?: number; from
     leadsWorked: number;
     pipelineActions: number;
     tasksCompleted: number;
-    tasksCreated: number;
     demosScheduled: number;
     closedWon: number;
   }>>();
@@ -366,6 +440,8 @@ export async function getActivitySummary(options: number | { days?: number; from
     touchedCount: number;
     avgFirstTouchMinutes: number;
   }>).map((row) => [row.userId, row]));
+  const dateKeys = eachDateKey(range);
+  const businessDaysInRange = Math.max(dateKeys.filter(isWeekdayDateKey).length, 1);
 
   for (const row of dailyRows.rows as Array<{
     userId: string;
@@ -377,7 +453,6 @@ export async function getActivitySummary(options: number | { days?: number; from
     leadsWorked: number;
     pipelineActions: number;
     tasksCompleted: number;
-    tasksCreated: number;
     demosScheduled: number;
     closedWon: number;
   }>) {
@@ -401,38 +476,32 @@ export async function getActivitySummary(options: number | { days?: number; from
     const firstTouch = firstTouchMap.get(rep.userId);
     const outcomes = outcomeMap.get(rep.userId);
     const daily = dailyByUser.get(rep.userId) ?? [];
-    const activeDays = daily.filter((day) => day.activeMs > 0 || day.leadsWorked > 0 || day.pipelineActions > 0 || day.tasksCompleted > 0).length;
-    const signedInNoActivityDays = daily.filter((day) => day.signIns > 0 && day.activeMs < 5 * 60 * 1000 && day.leadsWorked === 0 && day.pipelineActions === 0 && day.tasksCompleted === 0).length;
+    const activeDays = daily.filter((day) => isWeekdayDateKey(day.date) && (day.activeMs > 0 || day.leadsWorked > 0 || day.pipelineActions > 0 || day.tasksCompleted > 0)).length;
     const leadsWorked = Math.max(touched, outcomes?.leadsWorked ?? 0);
+    const tasksCompleted = tasks?.completed ?? 0;
+    const followUpsCompleted = tasks?.followUpsCompleted ?? 0;
     const demosScheduled = outcomes?.demosScheduled ?? 0;
     const closedWon = outcomes?.closedWon ?? 0;
     const closedLost = outcomes?.closedLost ?? 0;
-    const outcomeTotal = closedWon + closedLost;
     const demoRate = pct(demosScheduled, leadsWorked);
     const closeRate = pct(closedWon, leadsWorked);
     const demoCloseRate = pct(closedWon, demosScheduled);
 
     const leadWorkScore = clamp((leadsWorked / Math.max(assigned, 1)) * 100);
-    const activityScore = clamp(rep.activeMs / (Math.max(range.days, 1) * 30 * 60 * 1000) * 100);
+    const followUpScore = clamp((followUpsCompleted / (businessDaysInRange * TARGET_TASKS_COMPLETED_PER_WEEKDAY)) * 100);
+    const activityScore = clamp(rep.activeMs / (businessDaysInRange * 30 * 60 * 1000) * 100);
     const firstTouchScore = firstTouch?.avgFirstTouchMinutes
       ? clamp(100 - (firstTouch.avgFirstTouchMinutes / 24 / 60) * 100)
       : (assigned > 0 ? 40 : 70);
-    const pipelineScore = clamp(((outcomes?.pipelineActions ?? 0) + (tasks?.completed ?? 0)) / Math.max(leadsWorked, 1) * 30);
-    const followUpScore = tasks?.created ? pct(tasks.completed ?? 0, tasks.created) : 75;
     const outcomeScore = clamp(demoRate * 0.6 + closeRate * 1.2 + demoCloseRate * 0.4);
-    const consistencyScore = clamp((activeDays / Math.min(Math.max(range.days, 1), 7)) * 100);
-    const overduePenalty = Math.min((tasks?.overdue ?? 0) * 6, 18);
-    const noActivityPenalty = Math.min(signedInNoActivityDays * 8, 24);
+    const consistencyScore = clamp((activeDays / businessDaysInRange) * 100);
     const productivityScore = clamp(Math.round(
-      leadWorkScore * 0.25
-      + activityScore * 0.15
-      + firstTouchScore * 0.12
-      + pipelineScore * 0.16
-      + followUpScore * 0.12
-      + outcomeScore * 0.12
-      + consistencyScore * 0.08
-      - overduePenalty
-      - noActivityPenalty
+      followUpScore * 0.4
+      + activityScore * 0.2
+      + leadWorkScore * 0.15
+      + firstTouchScore * 0.1
+      + outcomeScore * 0.1
+      + consistencyScore * 0.05
     ));
 
     return {
@@ -444,16 +513,14 @@ export async function getActivitySummary(options: number | { days?: number; from
       signIns: signInMap.get(rep.userId)?.count ?? 0,
       lastSignInAt: signInMap.get(rep.userId)?.lastSignInAt ?? null,
       activeDays,
-      signedInNoActivityDays,
       leadsAssigned: assigned,
       leadsTouched: leadsWorked,
       leadTouchRate: pct(leadsWorked, assigned),
       leadNotes: notesMap.get(rep.userId)?.count ?? 0,
       pipelineActions: Math.max(pipelineMap.get(rep.userId)?.count ?? 0, outcomes?.pipelineActions ?? 0),
-      tasksCreated: tasks?.created ?? 0,
-      tasksCompleted: tasks?.completed ?? 0,
+      tasksCompleted,
+      followUpsCompleted,
       overdueTasks: tasks?.overdue ?? 0,
-      followUpCompletionRate: pct(tasks?.completed ?? 0, tasks?.created ?? 0),
       avgFirstTouchMinutes: firstTouch?.avgFirstTouchMinutes ?? null,
       firstTouchedLeads: firstTouch?.touchedCount ?? 0,
       demosScheduled,
@@ -463,19 +530,16 @@ export async function getActivitySummary(options: number | { days?: number; from
       demoRate,
       closeRate,
       demoCloseRate,
-      avgTouchesBeforeDemo: demosScheduled > 0 ? Math.round(((outcomes?.pipelineActions ?? 0) + (tasks?.completed ?? 0)) / demosScheduled) : null,
+      avgTouchesBeforeDemo: demosScheduled > 0 ? Math.round(((outcomes?.pipelineActions ?? 0) + tasksCompleted) / demosScheduled) : null,
       productivityScore,
       productivityStatus: getScoreStatus(productivityScore),
       scoreBreakdown: {
         leadWork: Math.round(leadWorkScore),
         activity: Math.round(activityScore),
         firstTouch: Math.round(firstTouchScore),
-        pipelineAndTasks: Math.round(pipelineScore),
-        followUp: Math.round(followUpScore),
+        followUps: Math.round(followUpScore),
         outcomes: Math.round(outcomeScore),
         consistency: Math.round(consistencyScore),
-        overduePenalty,
-        noActivityPenalty,
       },
     };
   });
@@ -484,12 +548,12 @@ export async function getActivitySummary(options: number | { days?: number; from
     activeMinutes: acc.activeMinutes + rep.activeMinutes,
     signIns: acc.signIns + rep.signIns,
     activeDays: acc.activeDays + rep.activeDays,
-    signedInNoActivityDays: acc.signedInNoActivityDays + rep.signedInNoActivityDays,
     leadsAssigned: acc.leadsAssigned + rep.leadsAssigned,
     leadsTouched: acc.leadsTouched + rep.leadsTouched,
     overdueTasks: acc.overdueTasks + rep.overdueTasks,
     pipelineActions: acc.pipelineActions + rep.pipelineActions,
     tasksCompleted: acc.tasksCompleted + rep.tasksCompleted,
+    followUpsCompleted: acc.followUpsCompleted + rep.followUpsCompleted,
     demosScheduled: acc.demosScheduled + rep.demosScheduled,
     closedWon: acc.closedWon + rep.closedWon,
     closedLost: acc.closedLost + rep.closedLost,
@@ -497,12 +561,12 @@ export async function getActivitySummary(options: number | { days?: number; from
     activeMinutes: 0,
     signIns: 0,
     activeDays: 0,
-    signedInNoActivityDays: 0,
     leadsAssigned: 0,
     leadsTouched: 0,
     overdueTasks: 0,
     pipelineActions: 0,
     tasksCompleted: 0,
+    followUpsCompleted: 0,
     demosScheduled: 0,
     closedWon: 0,
     closedLost: 0,
@@ -533,64 +597,6 @@ export async function getActivitySummary(options: number | { days?: number; from
       })),
     }));
 
-  const dateKeys = eachDateKey(range);
-  const trendMap = new Map(dateKeys.map((date) => [date, {
-    date,
-    activeMinutes: 0,
-    signIns: 0,
-    leadsWorked: 0,
-    pipelineActions: 0,
-    tasksCompleted: 0,
-    demosScheduled: 0,
-    closedWon: 0,
-    signedInNoActivity: 0,
-    users: [] as Array<{
-      userId: string;
-      name: string;
-      activeMinutes: number;
-      signIns: number;
-      leadsWorked: number;
-      pipelineActions: number;
-      tasksCompleted: number;
-      demosScheduled: number;
-      closedWon: number;
-      firstSignInAt: string | null;
-      lastActivityAt: string | null;
-      signedInNoActivity: boolean;
-    }>,
-  }]));
-
-  for (const rep of reps) {
-    for (const row of dailyByUser.get(rep.userId) ?? []) {
-      const trend = trendMap.get(row.date);
-      if (!trend) continue;
-      const activeMinutes = msToMinutes(row.activeMs);
-      const signedInNoActivity = row.signIns > 0 && row.activeMs < 5 * 60 * 1000 && row.leadsWorked === 0 && row.pipelineActions === 0 && row.tasksCompleted === 0;
-      trend.activeMinutes += activeMinutes;
-      trend.signIns += row.signIns;
-      trend.leadsWorked += row.leadsWorked;
-      trend.pipelineActions += row.pipelineActions;
-      trend.tasksCompleted += row.tasksCompleted;
-      trend.demosScheduled += row.demosScheduled;
-      trend.closedWon += row.closedWon;
-      trend.signedInNoActivity += signedInNoActivity ? 1 : 0;
-      trend.users.push({
-        userId: rep.userId,
-        name: rep.name,
-        activeMinutes,
-        signIns: row.signIns,
-        leadsWorked: row.leadsWorked,
-        pipelineActions: row.pipelineActions,
-        tasksCompleted: row.tasksCompleted,
-        demosScheduled: row.demosScheduled,
-        closedWon: row.closedWon,
-        firstSignInAt: toIso(row.firstSignInAt),
-        lastActivityAt: toIso(row.lastActivityAt),
-        signedInNoActivity,
-      });
-    }
-  }
-
   return {
     range: { from: range.from.toISOString(), to: range.to.toISOString(), days: range.days },
     totals: {
@@ -602,6 +608,5 @@ export async function getActivitySummary(options: number | { days?: number; from
     },
     reps: repSummaries,
     dailySignIns,
-    dailyTrend: [...trendMap.values()].sort((a, b) => a.date.localeCompare(b.date)),
   };
 }

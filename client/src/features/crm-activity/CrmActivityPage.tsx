@@ -1,9 +1,8 @@
-import { Fragment, lazy, Suspense, useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import type { ComponentType, ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { STALE } from "@/lib/queryClient";
 import {
-  AlertTriangle,
   BarChart3,
   CalendarDays,
   ChevronDown,
@@ -16,31 +15,22 @@ import {
   Users,
 } from "lucide-react";
 
-const CrmActivityTrendCharts = lazy(() => import("./CrmActivityTrendCharts"));
-
 interface RepActivity {
   userId: string;
   name: string;
   email: string;
   role: string;
   activeMinutes: number;
-  crmMinutes: number;
-  pipelineMinutes: number;
-  taskMinutes: number;
   signIns: number;
   lastSignInAt: string | null;
   activeDays: number;
-  signedInNoActivityDays: number;
   leadsAssigned: number;
   leadsTouched: number;
-  leadTouchRate: number;
   leadNotes: number;
   pipelineActions: number;
-  tasksCreated: number;
   tasksCompleted: number;
+  followUpsCompleted: number;
   overdueTasks: number;
-  followUpCompletionRate: number;
-  avgFirstTouchMinutes: number | null;
   demosScheduled: number;
   demosCompleted: number;
   closedWon: number;
@@ -55,12 +45,9 @@ interface RepActivity {
     leadWork: number;
     activity: number;
     firstTouch: number;
-    pipelineAndTasks: number;
-    followUp: number;
+    followUps: number;
     outcomes: number;
     consistency: number;
-    overduePenalty: number;
-    noActivityPenalty: number;
   };
 }
 
@@ -70,13 +57,13 @@ interface ActivitySummary {
     activeMinutes: number;
     signIns: number;
     activeDays: number;
-    signedInNoActivityDays: number;
     leadsAssigned: number;
     leadsTouched: number;
     leadTouchRate: number;
     overdueTasks: number;
     pipelineActions: number;
     tasksCompleted: number;
+    followUpsCompleted: number;
     demosScheduled: number;
     closedWon: number;
     closedLost: number;
@@ -93,35 +80,9 @@ interface ActivitySummary {
       times: string[];
     }>;
   }>;
-  dailyTrend: Array<{
-    date: string;
-    activeMinutes: number;
-    signIns: number;
-    leadsWorked: number;
-    pipelineActions: number;
-    tasksCompleted: number;
-    demosScheduled: number;
-    closedWon: number;
-    signedInNoActivity: number;
-    users: Array<{
-      userId: string;
-      name: string;
-      activeMinutes: number;
-      signIns: number;
-      leadsWorked: number;
-      pipelineActions: number;
-      tasksCompleted: number;
-      demosScheduled: number;
-      closedWon: number;
-      firstSignInAt: string | null;
-      lastActivityAt: string | null;
-      signedInNoActivity: boolean;
-    }>;
-  }>;
 }
 
 type DateMode = "today" | "this_week" | "last_week" | "7" | "30" | "90" | "custom";
-type TrendMetric = "activeMinutes" | "leadsWorked" | "signIns" | "demosScheduled" | "closedWon";
 type ActivityRangeSelection = { days: string } | { from: string; to: string };
 
 function formatMinutes(minutes: number) {
@@ -137,10 +98,6 @@ function formatDateLong(value: string) {
     month: "short",
     day: "numeric",
   });
-}
-
-function formatDateShort(value: string) {
-  return new Date(`${value}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
 function formatTime(value: string | null) {
@@ -245,22 +202,11 @@ function EmptyState({ children }: { children: ReactNode }) {
   );
 }
 
-function ChartGridFallback() {
-  return (
-    <>
-      <div className="h-72 animate-pulse rounded-lg bg-gray-100" />
-      <div className="h-72 animate-pulse rounded-lg bg-gray-100" />
-    </>
-  );
-}
-
 export default function CrmActivityPage() {
   const todayKey = useMemo(() => toLocalDateInput(new Date()), []);
   const [dateMode, setDateMode] = useState<DateMode>("7");
   const [customFrom, setCustomFrom] = useState(todayKey);
   const [customTo, setCustomTo] = useState(todayKey);
-  const [trendMetric, setTrendMetric] = useState<TrendMetric>("leadsWorked");
-  const [trendRepId, setTrendRepId] = useState("all");
   const [expandedSignInRepId, setExpandedSignInRepId] = useState<string | null>(null);
   const [showAllSignInsForRepId, setShowAllSignInsForRepId] = useState<string | null>(null);
 
@@ -288,38 +234,6 @@ export default function CrmActivityPage() {
     () => [...(data?.reps ?? [])].sort((a, b) => b.productivityScore - a.productivityScore || b.leadsTouched - a.leadsTouched),
     [data?.reps],
   );
-
-  const trendLabel = {
-    activeMinutes: "Active minutes",
-    leadsWorked: "Leads worked",
-    signIns: "Sign-ins",
-    demosScheduled: "Demos scheduled",
-    closedWon: "Closed won",
-  }[trendMetric];
-
-  const trendRepOptions = useMemo(
-    () => sortedReps.map((rep) => ({ id: rep.userId, name: rep.name })),
-    [sortedReps],
-  );
-  const selectedTrendRep = trendRepOptions.find((rep) => rep.id === trendRepId);
-  const trendData = useMemo(() => {
-    if (!data || trendRepId === "all") return data?.dailyTrend ?? [];
-    return data.dailyTrend.map((day) => {
-      const repDay = day.users.find((userDay) => userDay.userId === trendRepId);
-      return {
-        ...day,
-        activeMinutes: repDay?.activeMinutes ?? 0,
-        signIns: repDay?.signIns ?? 0,
-        leadsWorked: repDay?.leadsWorked ?? 0,
-        pipelineActions: repDay?.pipelineActions ?? 0,
-        tasksCompleted: repDay?.tasksCompleted ?? 0,
-        demosScheduled: repDay?.demosScheduled ?? 0,
-        closedWon: repDay?.closedWon ?? 0,
-        signedInNoActivity: repDay?.signedInNoActivity ? 1 : 0,
-        users: repDay ? [repDay] : [],
-      };
-    });
-  }, [data, trendRepId]);
 
   const dateKeys = useMemo(() => {
     if (!data) return [];
@@ -431,13 +345,14 @@ export default function CrmActivityPage() {
         </div>
       ) : data ? (
         <>
-          <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
+          <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4 xl:grid-cols-7">
             <StatCard label="CRM active time" value={formatMinutes(data.totals.activeMinutes)} icon={Clock} tone="bg-teal-500" />
             <StatCard label="Sign-ins" value={data.totals.signIns} icon={Users} tone="bg-slate-500" />
             <StatCard label="Leads touched" value={data.totals.leadsTouched} icon={Target} tone="bg-cyan-500" />
             <StatCard label="Demo rate" value={`${data.totals.demoRate}%`} icon={TrendingUp} tone="bg-emerald-500" />
+            <StatCard label="Follow-ups" value={data.totals.followUpsCompleted} icon={TrendingUp} tone="bg-emerald-500" />
             <StatCard label="Closed won" value={data.totals.closedWon} icon={BarChart3} tone="bg-indigo-500" />
-            <StatCard label="Overdue tasks" value={data.totals.overdueTasks} icon={AlertTriangle} tone={data.totals.overdueTasks > 0 ? "bg-red-500" : "bg-gray-400"} />
+            <StatCard label="Tasks completed" value={data.totals.tasksCompleted} icon={CheckCircle2} tone="bg-teal-500" />
           </div>
 
           <section className="mb-6 rounded-lg border border-gray-200 bg-white" data-testid="card-productivity-scores">
@@ -468,149 +383,18 @@ export default function CrmActivityPage() {
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
                       <span>Leads worked: <strong className="text-gray-900">{rep.leadsTouched}</strong></span>
+                      <span>Tasks completed: <strong className="text-gray-900">{rep.tasksCompleted}</strong></span>
+                      <span>Follow-ups: <strong className="text-gray-900">{rep.followUpsCompleted}</strong></span>
+                      <span>Active: <strong className="text-gray-900">{formatMinutes(rep.activeMinutes)}</strong></span>
                       <span>Demos: <strong className="text-gray-900">{rep.demosScheduled}</strong></span>
                       <span>Closed won: <strong className="text-gray-900">{rep.closedWon}</strong></span>
                       <span>Active days: <strong className="text-gray-900">{rep.activeDays}</strong></span>
-                      <span>Demo rate: <strong className="text-gray-900">{rep.demoRate}%</strong></span>
                       <span>Close rate: <strong className="text-gray-900">{rep.closeRate}%</strong></span>
                     </div>
                   </div>
                 ))}
               </div>
             )}
-          </section>
-
-          <section className="mb-6 rounded-lg border border-gray-200 bg-white" data-testid="card-rep-activity-table">
-            <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
-              <h2 className="text-base font-semibold text-gray-900">Rep Activity</h2>
-              <div className="flex items-center gap-2 text-xs text-gray-500">
-                <Users className="h-4 w-4" />
-                {sortedReps.length} reps
-              </div>
-            </div>
-            {sortedReps.length === 0 ? (
-              <div className="p-5">
-                <EmptyState>No sales rep activity for this range yet.</EmptyState>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[1160px] text-left text-sm">
-                  <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
-                    <tr>
-                      <th className="px-5 py-3 font-semibold">Rep</th>
-                      <th className="px-5 py-3 font-semibold">Score</th>
-                      <th className="px-5 py-3 font-semibold">Sign-ins</th>
-                      <th className="px-5 py-3 font-semibold">Active</th>
-                      <th className="px-5 py-3 font-semibold">Leads</th>
-                      <th className="px-5 py-3 font-semibold">First touch</th>
-                      <th className="px-5 py-3 font-semibold">Demos</th>
-                      <th className="px-5 py-3 font-semibold">Closed</th>
-                      <th className="px-5 py-3 font-semibold">Follow-up</th>
-                      <th className="px-5 py-3 font-semibold">Overdue</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {sortedReps.map((rep) => (
-                      <tr key={rep.userId} className="hover:bg-gray-50/70">
-                        <td className="px-5 py-4">
-                          <p className="font-medium text-gray-900">{rep.name}</p>
-                          <p className="text-xs text-gray-500">{rep.email}</p>
-                        </td>
-                        <td className="px-5 py-4">
-                          <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${getScoreTone(rep.productivityStatus)}`}>
-                            {rep.productivityScore} · {getScoreLabel(rep.productivityStatus)}
-                          </span>
-                        </td>
-                        <td className="px-5 py-4 text-gray-700">
-                          <p>{rep.signIns}</p>
-                          <p className="text-xs text-gray-400">Last {formatTime(rep.lastSignInAt)}</p>
-                        </td>
-                        <td className="px-5 py-4 text-gray-700">
-                          <p>{formatMinutes(rep.activeMinutes)}</p>
-                          <p className="text-xs text-gray-400">CRM {formatMinutes(rep.crmMinutes)} · pipeline {formatMinutes(rep.pipelineMinutes)}</p>
-                        </td>
-                        <td className="px-5 py-4">
-                          <p className="font-medium text-gray-900">{rep.leadsTouched}/{rep.leadsAssigned}</p>
-                          <p className="text-xs text-gray-500">{rep.leadTouchRate}% touched</p>
-                        </td>
-                        <td className="px-5 py-4 text-gray-700">
-                          {rep.avgFirstTouchMinutes === null ? "No touches" : formatMinutes(rep.avgFirstTouchMinutes)}
-                        </td>
-                        <td className="px-5 py-4 text-gray-700">
-                          <p>{rep.demosScheduled}</p>
-                          <p className="text-xs text-gray-500">{rep.demoRate}% of worked</p>
-                        </td>
-                        <td className="px-5 py-4 text-gray-700">
-                          <p>{rep.closedWon} won</p>
-                          <p className="text-xs text-gray-500">{rep.closeRate}% close</p>
-                        </td>
-                        <td className="px-5 py-4">
-                          <div className="flex items-center gap-2 text-gray-700">
-                            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                            {rep.tasksCompleted}/{rep.tasksCreated}
-                          </div>
-                          <p className="text-xs text-gray-500">{rep.followUpCompletionRate}% complete</p>
-                        </td>
-                        <td className={`px-5 py-4 font-medium ${rep.overdueTasks > 0 ? "text-red-600" : "text-gray-500"}`}>
-                          {rep.overdueTasks}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
-
-          <section className="mb-6 rounded-lg border border-gray-200 bg-white" data-testid="card-activity-trends">
-            <div className="flex flex-col gap-3 border-b border-gray-100 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <h2 className="text-base font-semibold text-gray-900">Daily Trend Graph</h2>
-                <p className="text-xs text-gray-500">Spot consistency, outcomes, and sign-ins without activity.</p>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <select
-                  value={trendRepId}
-                  onChange={(event) => setTrendRepId(event.target.value)}
-                  className="h-8 rounded-md border border-gray-200 bg-white px-2 text-xs font-medium text-gray-700"
-                  data-testid="select-trend-rep-filter"
-                >
-                  <option value="all">All reps</option>
-                  {trendRepOptions.map((rep) => (
-                    <option key={rep.id} value={rep.id}>{rep.name}</option>
-                  ))}
-                </select>
-                <div className="flex flex-wrap gap-1 rounded-lg bg-gray-100 p-1">
-                  {([
-                    ["leadsWorked", "Leads"],
-                    ["activeMinutes", "Active"],
-                    ["signIns", "Sign-ins"],
-                    ["demosScheduled", "Demos"],
-                    ["closedWon", "Won"],
-                  ] as const).map(([metric, label]) => (
-                    <button
-                      key={metric}
-                      onClick={() => setTrendMetric(metric)}
-                      className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
-                        trendMetric === metric ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-            {selectedTrendRep && (
-              <p className="border-b border-gray-100 px-5 py-2 text-xs text-gray-500">
-                Showing daily trend for {selectedTrendRep.name}.
-              </p>
-            )}
-            <div className="grid gap-6 p-5 xl:grid-cols-[1.5fr_1fr]">
-              <Suspense fallback={<ChartGridFallback />}>
-                <CrmActivityTrendCharts trendData={trendData} trendMetric={trendMetric} trendLabel={trendLabel} />
-              </Suspense>
-            </div>
           </section>
 
           <section className="mb-6 rounded-lg border border-gray-200 bg-white" data-testid="card-daily-sign-ins">
