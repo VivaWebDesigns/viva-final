@@ -1882,9 +1882,6 @@ function ClientTaskRow({ task, onComplete, onToggle, onReschedule, onDelete, can
               </>
             ) : t.profileShell.noDueDate}
           </span>
-          {task.creatorName && (
-            <span className="text-xs text-gray-400">by {task.creatorName}</span>
-          )}
         </div>
       </div>
       <div className="flex items-center gap-1 shrink-0">

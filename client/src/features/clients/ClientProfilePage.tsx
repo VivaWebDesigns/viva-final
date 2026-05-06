@@ -1285,9 +1285,6 @@ function TaskRow({ task, onToggle, onDelete, isToggling, renderTitle }: {
             <CalendarDays className="w-3 h-3" />
             {task.dueDate ? new Date(task.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }) : "No due date"}
           </span>
-          {task.creatorName && (
-            <span className="text-xs text-gray-400">by {task.creatorName}</span>
-          )}
         </div>
       </div>
       <Button
