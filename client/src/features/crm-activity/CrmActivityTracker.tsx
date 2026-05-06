@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useLocation } from "wouter";
+import { useAuth } from "@features/auth/useAuth";
 
 type Surface = "crm" | "pipeline" | "tasks" | "clients";
 type EntityType = "lead" | "opportunity" | "contact" | "company" | "task" | "client";
@@ -47,13 +48,41 @@ function postActivity(payload: Record<string, unknown>) {
   }).catch(() => undefined);
 }
 
+function localDateKey(value: Date) {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 export default function CrmActivityTracker() {
   const [location] = useLocation();
+  const { user, role } = useAuth();
   const context = useMemo(() => getActivityContext(location), [location]);
   const lastInputAt = useRef(Date.now());
   const lastTickAt = useRef(Date.now());
   const pendingActiveMs = useRef(0);
   const currentPayload = useRef<{ path: string; context: ActivityContext } | null>(null);
+
+  useEffect(() => {
+    if (role !== "sales_rep" || !user?.id) return;
+
+    const today = localDateKey(new Date());
+    const storageKey = `crm-activity:session-start:${user.id}:${today}`;
+    if (window.localStorage.getItem(storageKey)) return;
+    window.localStorage.setItem(storageKey, new Date().toISOString());
+
+    void postActivity({
+      eventType: "sign_in",
+      surface: "auth",
+      path: location || "/admin",
+      metadata: {
+        source: "client_session",
+        role,
+        userAgent: window.navigator.userAgent,
+      },
+    });
+  }, [location, role, user?.id]);
 
   const flushActiveTime = useCallback(() => {
     const payload = currentPayload.current;
