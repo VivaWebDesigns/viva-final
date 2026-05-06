@@ -1,6 +1,5 @@
 import { Fragment, lazy, Suspense, useMemo, useState } from "react";
 import type { ComponentType, ReactNode } from "react";
-import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { STALE } from "@/lib/queryClient";
 import {
@@ -65,21 +64,6 @@ interface RepActivity {
   };
 }
 
-interface RiskLead {
-  id: string;
-  title: string;
-  createdAt: string;
-  assignedName: string | null;
-}
-
-interface RiskOpportunity {
-  id: string;
-  title: string;
-  updatedAt: string;
-  nextActionDate: string | null;
-  assignedName: string | null;
-}
-
 interface ActivitySummary {
   range: { from: string; to: string; days: number };
   totals: {
@@ -134,10 +118,6 @@ interface ActivitySummary {
       signedInNoActivity: boolean;
     }>;
   }>;
-  riskQueues: {
-    untouchedLeads: RiskLead[];
-    staleOpportunities: RiskOpportunity[];
-  };
 }
 
 type DateMode = "today" | "this_week" | "last_week" | "7" | "30" | "90" | "custom";
@@ -149,11 +129,6 @@ function formatMinutes(minutes: number) {
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
   return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
-}
-
-function formatDate(value: string | null) {
-  if (!value) return "No date";
-  return new Date(value).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
 function formatDateLong(value: string) {
@@ -294,7 +269,6 @@ export default function CrmActivityPage() {
   const [trendRepId, setTrendRepId] = useState("all");
   const [expandedSignInRepId, setExpandedSignInRepId] = useState<string | null>(null);
   const [showAllSignInsForRepId, setShowAllSignInsForRepId] = useState<string | null>(null);
-  const [showRiskQueues, setShowRiskQueues] = useState(false);
 
   const activityRange = useMemo(
     () => getDateRange(dateMode, customFrom, customTo),
@@ -792,83 +766,6 @@ export default function CrmActivityPage() {
             )}
           </section>
 
-          <section className="rounded-lg border border-gray-200 bg-white" data-testid="card-risk-queues">
-            <button
-              type="button"
-              onClick={() => setShowRiskQueues((value) => !value)}
-              className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left"
-              data-testid="button-toggle-risk-queues"
-            >
-              <div>
-                <h2 className="text-base font-semibold text-gray-900">Risk Queues</h2>
-                <p className="text-xs text-gray-500">Untouched assigned leads and stale open opportunities.</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600">
-                  {data.riskQueues.untouchedLeads.length} untouched
-                </span>
-                <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
-                  {data.riskQueues.staleOpportunities.length} stale
-                </span>
-                {showRiskQueues ? <ChevronDown className="h-4 w-4 text-gray-400" /> : <ChevronRight className="h-4 w-4 text-gray-400" />}
-              </div>
-            </button>
-            {showRiskQueues && (
-              <div className="grid grid-cols-1 gap-6 border-t border-gray-100 p-5 xl:grid-cols-2">
-                <section data-testid="card-untouched-leads">
-                  <div className="mb-4 flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-gray-900">Untouched Assigned Leads</h3>
-                    <span className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600">
-                      {data.riskQueues.untouchedLeads.length}
-                    </span>
-                  </div>
-                  {data.riskQueues.untouchedLeads.length === 0 ? (
-                    <EmptyState>No assigned leads older than 24 hours are untouched.</EmptyState>
-                  ) : (
-                    <div className="space-y-2">
-                      {data.riskQueues.untouchedLeads.map((lead) => (
-                        <Link key={lead.id} href={`/admin/crm/leads/${lead.id}`}>
-                          <div className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-gray-100 p-3 transition-colors hover:bg-gray-50">
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-medium text-gray-900">{lead.title}</p>
-                              <p className="mt-1 text-xs text-gray-500">{lead.assignedName || "Unassigned"} · created {formatDate(lead.createdAt)}</p>
-                            </div>
-                            <AlertTriangle className="h-4 w-4 flex-shrink-0 text-red-500" />
-                          </div>
-                        </Link>
-                      ))}
-                    </div>
-                  )}
-                </section>
-
-                <section data-testid="card-stale-opportunities">
-                  <div className="mb-4 flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-gray-900">Stale Open Opportunities</h3>
-                    <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
-                      {data.riskQueues.staleOpportunities.length}
-                    </span>
-                  </div>
-                  {data.riskQueues.staleOpportunities.length === 0 ? (
-                    <EmptyState>No open opportunities are stale for this range.</EmptyState>
-                  ) : (
-                    <div className="space-y-2">
-                      {data.riskQueues.staleOpportunities.map((opp) => (
-                        <Link key={opp.id} href={`/admin/pipeline/opportunities/${opp.id}`}>
-                          <div className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-gray-100 p-3 transition-colors hover:bg-gray-50">
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-medium text-gray-900">{opp.title}</p>
-                              <p className="mt-1 text-xs text-gray-500">{opp.assignedName || "Unassigned"} · updated {formatDate(opp.updatedAt)}</p>
-                            </div>
-                            <Clock className="h-4 w-4 flex-shrink-0 text-amber-500" />
-                          </div>
-                        </Link>
-                      ))}
-                    </div>
-                  )}
-                </section>
-              </div>
-            )}
-          </section>
         </>
       ) : null}
     </div>

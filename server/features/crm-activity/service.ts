@@ -5,8 +5,6 @@ import {
   crmLeads,
   followupTasks,
   pipelineActivities,
-  pipelineOpportunities,
-  pipelineStages,
   user,
 } from "@shared/schema";
 import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
@@ -118,77 +116,6 @@ const visibleSalesRepPredicate = and(
   eq(user.role, "sales_rep"),
   eq(user.includeInActivityIntelligence, true),
 );
-
-async function getRiskQueues(range: ActivityRange) {
-  const untouchedCutoff = new Date();
-  untouchedCutoff.setHours(untouchedCutoff.getHours() - 24);
-
-  const staleOpportunityCutoff = new Date();
-  staleOpportunityCutoff.setDate(staleOpportunityCutoff.getDate() - 7);
-
-  const untouchedLeadRows = await db.execute(sql`
-    SELECT
-      l.id,
-      l.title,
-      l.created_at AS "createdAt",
-      l.assigned_to AS "assignedTo",
-      u.name AS "assignedName"
-    FROM crm_leads l
-    LEFT JOIN "user" u ON u.id = l.assigned_to
-    WHERE l.assigned_to IS NOT NULL
-      AND u.role = 'sales_rep'
-      AND u.include_in_activity_intelligence = true
-      AND l.created_at < ${untouchedCutoff}
-      AND NOT EXISTS (
-        SELECT 1 FROM crm_activity_events a
-        WHERE a.entity_type = 'lead'
-          AND a.entity_id = l.id
-          AND a.user_id = l.assigned_to
-      )
-      AND NOT EXISTS (
-        SELECT 1 FROM crm_lead_notes n
-        WHERE n.lead_id = l.id
-          AND n.user_id = l.assigned_to
-      )
-    ORDER BY l.created_at ASC
-    LIMIT 20
-  `);
-
-  const staleOpportunityRows = await db.execute(sql`
-    SELECT
-      o.id,
-      o.title,
-      o.updated_at AS "updatedAt",
-      o.next_action_date AS "nextActionDate",
-      o.assigned_to AS "assignedTo",
-      u.name AS "assignedName"
-    FROM pipeline_opportunities o
-    LEFT JOIN "user" u ON u.id = o.assigned_to
-    WHERE o.status = 'open'
-      AND o.assigned_to IS NOT NULL
-      AND u.role = 'sales_rep'
-      AND u.include_in_activity_intelligence = true
-      AND o.updated_at < ${staleOpportunityCutoff}
-      AND NOT EXISTS (
-        SELECT 1 FROM pipeline_activities pa
-        WHERE pa.opportunity_id = o.id
-          AND pa.created_at >= ${range.from}
-      )
-      AND NOT EXISTS (
-        SELECT 1 FROM crm_activity_events a
-        WHERE a.entity_type = 'opportunity'
-          AND a.entity_id = o.id
-          AND a.created_at >= ${range.from}
-      )
-    ORDER BY o.updated_at ASC
-    LIMIT 20
-  `);
-
-  return {
-    untouchedLeads: untouchedLeadRows.rows,
-    staleOpportunities: staleOpportunityRows.rows,
-  };
-}
 
 export async function createActivityEvent(userId: string, data: {
   eventType: string;
@@ -664,8 +591,6 @@ export async function getActivitySummary(options: number | { days?: number; from
     }
   }
 
-  const riskQueues = await getRiskQueues(range);
-
   return {
     range: { from: range.from.toISOString(), to: range.to.toISOString(), days: range.days },
     totals: {
@@ -678,6 +603,5 @@ export async function getActivitySummary(options: number | { days?: number; from
     reps: repSummaries,
     dailySignIns,
     dailyTrend: [...trendMap.values()].sort((a, b) => a.date.localeCompare(b.date)),
-    riskQueues,
   };
 }
