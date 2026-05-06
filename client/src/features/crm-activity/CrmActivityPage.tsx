@@ -202,12 +202,6 @@ function getDateRange(mode: DateMode, customFrom: string, customTo: string): Act
   return { days: mode };
 }
 
-function getSignInStatus(missedDays: number, noActivityDays: number) {
-  if (missedDays >= 2) return { label: "At risk", className: "border-red-200 bg-red-50 text-red-700" };
-  if (missedDays > 0 || noActivityDays > 0) return { label: "Needs review", className: "border-amber-200 bg-amber-50 text-amber-700" };
-  return { label: "Good", className: "border-emerald-200 bg-emerald-50 text-emerald-700" };
-}
-
 function getScoreTone(status: RepActivity["productivityStatus"]) {
   if (status === "excellent") return "border-emerald-200 bg-emerald-50 text-emerald-700";
   if (status === "strong") return "border-cyan-200 bg-cyan-50 text-cyan-700";
@@ -343,34 +337,11 @@ export default function CrmActivityPage() {
       }
     }
 
-    const dailyActivityByRep = new Map<string, Map<string, { noActivity: boolean }>>();
-    for (const day of data.dailyTrend) {
-      for (const entry of day.users) {
-        const repDays = dailyActivityByRep.get(entry.userId) ?? new Map<string, { noActivity: boolean }>();
-        repDays.set(day.date, { noActivity: entry.signedInNoActivity });
-        dailyActivityByRep.set(entry.userId, repDays);
-      }
-    }
-
     return sortedReps.map((rep) => {
       const repDays = signInsByRep.get(rep.userId) ?? new Map<string, string[]>();
-      const signedInDates = dateKeys.filter((date) => (repDays.get(date)?.length ?? 0) > 0);
-      const missedDays = Math.max(dateKeys.length - signedInDates.length, 0);
-      const noActivityDays = dateKeys.filter((date) => dailyActivityByRep.get(rep.userId)?.get(date)?.noActivity).length;
-      const latestSignIn = signedInDates
+      const signInTimes = dateKeys
         .flatMap((date) => repDays.get(date) ?? [])
-        .sort((a, b) => b.localeCompare(a))[0] ?? null;
-      const firstSignInMinutes = signedInDates
-        .map((date) => {
-          const first = [...(repDays.get(date) ?? [])].sort()[0];
-          if (!first) return null;
-          const parsed = new Date(first);
-          return Number.isNaN(parsed.getTime()) ? null : parsed.getHours() * 60 + parsed.getMinutes();
-        })
-        .filter((value): value is number => value !== null);
-      const avgFirstSignInMinutes = firstSignInMinutes.length > 0
-        ? Math.round(firstSignInMinutes.reduce((sum, value) => sum + value, 0) / firstSignInMinutes.length)
-        : null;
+        .sort();
       const dayRows = dateKeys
         .slice()
         .reverse()
@@ -378,26 +349,13 @@ export default function CrmActivityPage() {
 
       return {
         rep,
-        expectedDays: dateKeys.length,
-        signedInDays: signedInDates.length,
-        missedDays,
-        noActivityDays,
-        latestSignIn,
-        avgFirstSignInMinutes,
+        signInCount: signInTimes.length,
+        firstSignIn: signInTimes[0] ?? null,
+        latestSignIn: signInTimes.at(-1) ?? null,
         dayRows,
-        status: getSignInStatus(missedDays, noActivityDays),
       };
     });
   }, [data, dateKeys, sortedReps]);
-
-  function formatMinutesAsTime(minutes: number | null) {
-    if (minutes === null) return "No sign-ins";
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    const date = new Date();
-    date.setHours(hours, mins, 0, 0);
-    return date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-  }
 
   return (
     <div>
@@ -669,16 +627,13 @@ export default function CrmActivityPage() {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[900px] text-left text-sm">
+                <table className="w-full min-w-[760px] text-left text-sm">
                   <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
                     <tr>
                       <th className="px-5 py-3 font-semibold">Rep</th>
-                      <th className="px-5 py-3 font-semibold">Signed in</th>
-                      <th className="px-5 py-3 font-semibold">Missed</th>
-                      <th className="px-5 py-3 font-semibold">No activity</th>
-                      <th className="px-5 py-3 font-semibold">Avg first sign-in</th>
+                      <th className="px-5 py-3 font-semibold">Sign-ins</th>
+                      <th className="px-5 py-3 font-semibold">First sign-in</th>
                       <th className="px-5 py-3 font-semibold">Last sign-in</th>
-                      <th className="px-5 py-3 font-semibold">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -708,29 +663,18 @@ export default function CrmActivityPage() {
                               </button>
                             </td>
                             <td className="px-5 py-4 font-medium text-gray-900">
-                              {summary.signedInDays}/{summary.expectedDays}
-                            </td>
-                            <td className={`px-5 py-4 font-medium ${summary.missedDays > 0 ? "text-red-600" : "text-gray-600"}`}>
-                              {summary.missedDays}
-                            </td>
-                            <td className={`px-5 py-4 font-medium ${summary.noActivityDays > 0 ? "text-amber-600" : "text-gray-600"}`}>
-                              {summary.noActivityDays}
+                              {summary.signInCount}
                             </td>
                             <td className="px-5 py-4 text-gray-700">
-                              {formatMinutesAsTime(summary.avgFirstSignInMinutes)}
+                              {formatTime(summary.firstSignIn)}
                             </td>
                             <td className="px-5 py-4 text-gray-700">
                               {formatTime(summary.latestSignIn)}
                             </td>
-                            <td className="px-5 py-4">
-                              <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${summary.status.className}`}>
-                                {summary.status.label}
-                              </span>
-                            </td>
                           </tr>
                           {expanded && (
                             <tr key={`${summary.rep.userId}-details`} className="bg-gray-50/60">
-                              <td colSpan={7} className="px-12 py-4">
+                              <td colSpan={4} className="px-12 py-4">
                                 {signInDayRows.length === 0 ? (
                                   <p className="text-sm text-gray-500">No sign-in timestamps in this range.</p>
                                 ) : (
