@@ -11,6 +11,14 @@
 - After committing or pushing, report the commit hash, repository, and branch.
 - Do not leave stale task branches, temporary worktrees, unpushed requested commits, or unrelated staged files behind.
 
+## Database Schema Changes
+
+- This project deploys on Railway. Local shells usually do not have `DATABASE_URL`, and the app service `DATABASE_URL` may point at Railway's private hostname (`postgres.railway.internal`), which is not reachable from this machine.
+- For Drizzle schema pushes, use the Railway database service's public URL by running:
+  `~/.local/bin/railway run -s "Viva Web Designs Database" -e production sh -lc 'DATABASE_URL="$DATABASE_PUBLIC_URL" npm run db:push'`
+- After running a schema push, verify important columns or indexes with a read-only query against the same Railway database service.
+- Never print or commit database connection strings or Railway secret values.
+
 ## Safety
 
 - Never discard, reset, or delete local work unless the user explicitly approves that exact cleanup.

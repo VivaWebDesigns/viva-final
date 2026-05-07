@@ -219,7 +219,7 @@ const OUTCOME_STAGE_SLUG: Partial<Record<string, string>> = {
   "Appointment set":"demo-scheduled",
 };
 
-const RECYCLE_FAILED_CONTACT_THRESHOLD = 5;
+const RECYCLE_FAILED_CONTACT_THRESHOLD = 3;
 const AUTO_FOLLOWUP_OUTCOMES = new Set(["No answer", "Left voicemail"]);
 const CONTACT_STREAK_RESET_OUTCOMES = new Set<string>(
   ALLOWED_OUTCOMES.filter((outcome) => !AUTO_FOLLOWUP_OUTCOMES.has(outcome)),
