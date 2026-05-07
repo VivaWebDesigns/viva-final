@@ -15,7 +15,7 @@ import {
   hispanicNameAdditions,
 } from "@shared/schema";
 import { eq, and, desc, sql, ilike } from "drizzle-orm";
-import { scoreHispanicName, addNameToRuntime, hasFirstName, hasSurname } from "./nameScore";
+import { scoreHispanicName, addNameToRuntime, hasFirstName, hasSurname, isBlockedNameToken } from "./nameScore";
 import {
   extractPhoneFromText,
   normalizePhone,
@@ -413,11 +413,14 @@ router.post(
 
     const added:         { firstNames: string[]; surnames: string[] } = { firstNames: [], surnames: [] };
     const alreadyExisted: { firstNames: string[]; surnames: string[] } = { firstNames: [], surnames: [] };
+    const blocked:       { firstNames: string[]; surnames: string[] } = { firstNames: [], surnames: [] };
 
     if (parsed.data.firstName) {
       const norm = normalizeNameToken(parsed.data.firstName);
       if (norm) {
-        if (hasFirstName(norm)) {
+        if (isBlockedNameToken(norm)) {
+          blocked.firstNames.push(norm);
+        } else if (hasFirstName(norm)) {
           // Already in runtime set (file constants or previous DB addition)
           alreadyExisted.firstNames.push(norm);
         } else {
@@ -431,7 +434,9 @@ router.post(
     if (parsed.data.lastName) {
       const norm = normalizeNameToken(parsed.data.lastName);
       if (norm) {
-        if (hasSurname(norm)) {
+        if (isBlockedNameToken(norm)) {
+          blocked.surnames.push(norm);
+        } else if (hasSurname(norm)) {
           // Already in runtime set (file constants or previous DB addition)
           alreadyExisted.surnames.push(norm);
         } else {
@@ -458,7 +463,7 @@ router.post(
       result: parsed.data.precheckReason ?? null,
     });
 
-    return res.json({ added, alreadyExisted });
+    return res.json({ added, alreadyExisted, blocked });
   }
 );
 

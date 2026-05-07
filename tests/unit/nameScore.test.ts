@@ -250,6 +250,22 @@ describe("scoreHispanicName — non-Hispanic names score 0", () => {
   });
 });
 
+describe("scoreHispanicName — Facebook UI labels never pass", () => {
+  it("Spanish seller-details heading scores 0", () => {
+    const result = scoreHispanicName("Detalles del vendedor");
+    expect(result.firstName).toBe("detalles");
+    expect(result.lastName).toBe("vendedor");
+    expect(result.hispanicNameScore).toBe(0);
+    expect(result.spanishOutreachRecommended).toBe(false);
+  });
+
+  it("blocked UI surname token does not receive surname credit", () => {
+    const result = scoreHispanicName("Jose Vendedor");
+    expect(result.hispanicNameScore).toBe(FIRST_NAME_SCORE);
+    expect(result.spanishOutreachRecommended).toBe(false);
+  });
+});
+
 describe("scoreHispanicName — threshold alignment", () => {
   it("score exactly at threshold (70) sets spanishOutreachRecommended true", () => {
     // "Todd" is not in any list or bridge → 0; Navarro in surnames → +70 = exactly 70

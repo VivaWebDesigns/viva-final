@@ -19,6 +19,10 @@
 - After running a schema push, verify important columns or indexes with a read-only query against the same Railway database service.
 - Never print or commit database connection strings or Railway secret values.
 
+## Related Repositories
+
+- Marketplace extension source: `/Users/matt/Projects/extension/chrome-extension/marketplace-assistant`
+
 ## Safety
 
 - Never discard, reset, or delete local work unless the user explicitly approves that exact cleanup.

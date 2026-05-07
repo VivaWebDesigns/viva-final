@@ -8,10 +8,26 @@ import { normalizeForScoring } from "./nameUtils";
 // Suffixes stripped before scoring so they don't become the "last name"
 const NAME_SUFFIXES = new Set(["jr", "sr", "ii", "iii", "iv", "v"]);
 
+// Facebook UI labels can be accidentally extracted as names in localized pages.
+const GENERIC_NON_NAME_TOKENS = new Set([
+  "del",
+  "detalle",
+  "detalles",
+  "vendedor",
+  "vendedora",
+]);
+
 // Runtime sets — initialized from file constants, extended by admin additions at startup.
 // Using Sets allows O(1) lookup and immediate effect without server restart.
 let _lastNames: Set<string> = new Set(HISPANIC_LAST_NAMES);
 let _firstNames: Set<string> = new Set(HISPANIC_FIRST_NAMES);
+
+export function isBlockedNameToken(name: string): boolean {
+  const normalized = normalizeForScoring(name)
+    .replace(/[^a-z]/g, "")
+    .trim();
+  return GENERIC_NON_NAME_TOKENS.has(normalized);
+}
 
 /**
  * Called once at server startup (after DB is ready) to merge admin-added names
@@ -24,6 +40,7 @@ export async function loadAdminNameAdditions(): Promise<void> {
     const rows = await db.select().from(hispanicNameAdditions);
     for (const row of rows) {
       const n = normalizeForScoring(row.name);
+      if (isBlockedNameToken(n)) continue;
       if (row.type === "surname") _lastNames.add(n);
       else if (row.type === "first_name") _firstNames.add(n);
     }
@@ -38,17 +55,20 @@ export async function loadAdminNameAdditions(): Promise<void> {
  * without requiring a server restart.
  */
 export function addNameToRuntime(type: "first_name" | "surname", name: string): void {
+  if (isBlockedNameToken(name)) return;
   if (type === "surname") _lastNames.add(name);
   else _firstNames.add(name);
 }
 
 /** Returns true if the normalized name is already in the runtime surname set. */
 export function hasSurname(name: string): boolean {
+  if (isBlockedNameToken(name)) return false;
   return _lastNames.has(name);
 }
 
 /** Returns true if the normalized name is already in the runtime first name set. */
 export function hasFirstName(name: string): boolean {
+  if (isBlockedNameToken(name)) return false;
   return _firstNames.has(name);
 }
 
@@ -139,6 +159,7 @@ export function scoreHispanicName(sellerName: string): NameScoreResult {
   const surnameCandidates = tokens.length >= 2 ? tokens.slice(1) : [];
   let lastNameScore = 0;
   for (const candidate of surnameCandidates) {
+    if (isBlockedNameToken(candidate)) continue;
     let candidateScore = 0;
     let candidateNote: string | null = null;
     if (_lastNames.has(candidate)) {
@@ -159,7 +180,7 @@ export function scoreHispanicName(sellerName: string): NameScoreResult {
 
   // ── First name scoring ───────────────────────────────────────────────────
   let firstNameScore = 0;
-  if (firstName) {
+  if (firstName && !isBlockedNameToken(firstName)) {
     if (_firstNames.has(firstName)) {
       firstNameScore = 25;
     } else {
