@@ -5,8 +5,7 @@ import { SiWhatsapp } from "react-icons/si";
 import { motion } from "framer-motion";
 import SEO from "@/components/SEO";
 import { t, tArr, tObjArr } from "@/content";
-
-const CALENDLY_URL = "https://calendly.com/admin-vivawebdesigns/30min";
+import { CALENDLY_URL } from "@/lib/externalLinks";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 30 },
