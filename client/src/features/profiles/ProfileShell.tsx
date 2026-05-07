@@ -2065,6 +2065,7 @@ function ProfileShellInner({
   const { identity, sales, work, service, derived } = profile;
   const { role } = useAuth();
   const isSalesRep = role === "sales_rep";
+  const canCreateTasks = Boolean(role && !isSalesRep);
   const hideSalesRepOppSections = entry.type === "opportunity" && isSalesRep;
 
   const spokeWithLeadTaskIdRef = useRef<string | null>(null);
@@ -2535,23 +2536,25 @@ function ProfileShellInner({
         <TabsContent value="tasks" className="mt-4 space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold text-gray-900">{t.profileShell.tasks}</h3>
-            <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm" data-testid="button-add-task">
-                  <Plus className="w-4 h-4 mr-1.5" /> {t.profileShell.newTask}
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-md max-h-[90dvh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>{t.profileShell.createTask}</DialogTitle>
-                </DialogHeader>
-                <TaskForm
-                  onSubmit={(data) => addTaskMutation.mutate(data)}
-                  isPending={addTaskMutation.isPending}
-                  t={t}
-                />
-              </DialogContent>
-            </Dialog>
+            {canCreateTasks && (
+              <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" data-testid="button-add-task">
+                    <Plus className="w-4 h-4 mr-1.5" /> {t.profileShell.newTask}
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-md max-h-[90dvh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>{t.profileShell.createTask}</DialogTitle>
+                  </DialogHeader>
+                  <TaskForm
+                    onSubmit={(data) => addTaskMutation.mutate(data)}
+                    isPending={addTaskMutation.isPending}
+                    t={t}
+                  />
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
 
           {tasksLoading ? (

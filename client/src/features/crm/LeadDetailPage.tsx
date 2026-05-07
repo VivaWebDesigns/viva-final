@@ -76,6 +76,7 @@ export default function LeadDetailPage({ id }: { id: string }) {
   const { t } = useAdminLang();
   const { role: authRole } = useAuth();
   const isRestricted = authRole === "sales_rep" || authRole === "lead_gen";
+  const canCreateTasks = Boolean(authRole && authRole !== "sales_rep");
 
   const NOTE_TYPE_LABELS: Record<string, string> = {
     note: t.crm.note,
@@ -1022,16 +1023,18 @@ export default function LeadDetailPage({ id }: { id: string }) {
                   </Badge>
                 )}
               </h3>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-7 px-2 text-xs text-[#0D9488] hover:bg-[#0D9488]/10"
-                onClick={() => { setRescheduleTask(null); setTaskModalOpen(true); }}
-                data-testid="button-add-lead-task"
-              >
-                <Plus className="w-3.5 h-3.5 mr-1" />
-                {t.common.add}
-              </Button>
+              {canCreateTasks && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 px-2 text-xs text-[#0D9488] hover:bg-[#0D9488]/10"
+                  onClick={() => { setRescheduleTask(null); setTaskModalOpen(true); }}
+                  data-testid="button-add-lead-task"
+                >
+                  <Plus className="w-3.5 h-3.5 mr-1" />
+                  {t.common.add}
+                </Button>
+              )}
             </div>
             <div className="space-y-2">
               {(!tasks || tasks.length === 0) ? (

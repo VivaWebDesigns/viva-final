@@ -65,6 +65,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
   const { toast } = useToast();
   const { t } = useAdminLang();
   const { role: authRole, user: authUser } = useAuth();
+  const canCreateTasks = Boolean(authRole && authRole !== "sales_rep");
   const [noteContent, setNoteContent] = useState("");
   const [noteType, setNoteType] = useState("note");
   const [editingActivityId, setEditingActivityId] = useState<string | null>(null);
@@ -763,16 +764,18 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                     </Badge>
                   )}
                 </CardTitle>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 px-2 text-xs text-[#0D9488] hover:bg-[#0D9488]/10"
-                  onClick={() => { setRescheduleTask(null); setTaskModalOpen(true); }}
-                  data-testid="button-add-task"
-                >
-                  <Plus className="w-3.5 h-3.5 mr-1" />
-                  {t.common.add}
-                </Button>
+                {canCreateTasks && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2 text-xs text-[#0D9488] hover:bg-[#0D9488]/10"
+                    onClick={() => { setRescheduleTask(null); setTaskModalOpen(true); }}
+                    data-testid="button-add-task"
+                  >
+                    <Plus className="w-3.5 h-3.5 mr-1" />
+                    {t.common.add}
+                  </Button>
+                )}
               </div>
             </CardHeader>
             <CardContent className="space-y-2">

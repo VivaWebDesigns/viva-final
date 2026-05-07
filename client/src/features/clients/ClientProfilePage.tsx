@@ -45,6 +45,7 @@ import { useUnifiedProfile, PROFILE_KEYS } from "@/features/profiles/hooks";
 import type { UnifiedProfileDto } from "@/features/profiles/types";
 import { EditCompanyDialog } from "@/features/profiles/edit/EditCompanyDialog";
 import { EditContactDialog } from "@/features/profiles/edit/EditContactDialog";
+import { useAuth } from "@/features/auth/useAuth";
 
 function toTitleCase(str: string): string {
   return str.replace(/\b\w/g, ch => ch.toUpperCase());
@@ -217,6 +218,8 @@ function adaptToClient(
 export default function ClientProfilePage({ id }: { id: string }) {
   const { toast } = useToast();
   const { t } = useAdminLang();
+  const { role } = useAuth();
+  const canCreateTasks = Boolean(role && role !== "sales_rep");
   const [, navigate] = useLocation();
   const urlTab = new URLSearchParams(window.location.search).get("tab");
   const validTabs = ["overview", "notes", "contacts", "tasks", "files", "billing", "activity"];
@@ -908,23 +911,25 @@ export default function ClientProfilePage({ id }: { id: string }) {
         <TabsContent value="tasks" className="space-y-4 pt-4">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-bold">Tasks &amp; Follow-Ups</h2>
-            <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
-              <DialogTrigger asChild>
-                <Button data-testid="button-create-task">
-                  <Plus className="w-4 h-4 mr-2" />
-                  New Task
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-h-[90dvh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Create Task</DialogTitle>
-                </DialogHeader>
-                <TaskForm
-                  onSubmit={(data) => createTaskMutation.mutate(data)}
-                  isPending={createTaskMutation.isPending}
-                />
-              </DialogContent>
-            </Dialog>
+            {canCreateTasks && (
+              <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button data-testid="button-create-task">
+                    <Plus className="w-4 h-4 mr-2" />
+                    New Task
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-h-[90dvh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Create Task</DialogTitle>
+                  </DialogHeader>
+                  <TaskForm
+                    onSubmit={(data) => createTaskMutation.mutate(data)}
+                    isPending={createTaskMutation.isPending}
+                  />
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
 
           {tasksLoading ? (
