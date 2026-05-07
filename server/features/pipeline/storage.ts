@@ -1,7 +1,7 @@
 import { db } from "../../db";
 import {
   pipelineStages, pipelineOpportunities, pipelineActivities,
-  crmLeads, crmCompanies, crmContacts, crmLeadNotes, user,
+  crmLeads, crmCompanies, crmContacts, crmLeadNotes, user, followupTasks,
   type InsertPipelineStage, type InsertPipelineOpportunity, type InsertPipelineActivity,
   type PipelineStage, type PipelineOpportunity, type PipelineActivity,
 } from "@shared/schema";
@@ -91,14 +91,15 @@ export async function getOpportunities(filters: OpportunityFilters = {}) {
   return { items, total: totalResult[0]?.total ?? 0, page, limit };
 }
 
-// Board card projection — only columns needed for display and DnD.
-// Excluded: notes, expectedCloseDate, stageEnteredAt, sourceLeadTitle, leadId, updatedAt,
+// Board card projection — only columns needed for display, task scheduling, and DnD.
+// Excluded: notes, expectedCloseDate, stageEnteredAt, sourceLeadTitle, updatedAt,
 //           nextActionDate, followUpDate — none are rendered on the kanban card.
 const BOARD_CARD_COLUMNS = {
   id:             pipelineOpportunities.id,
   title:          pipelineOpportunities.title,
   value:          pipelineOpportunities.value,
   stageId:        pipelineOpportunities.stageId,
+  leadId:         pipelineOpportunities.leadId,
   contactId:      pipelineOpportunities.contactId,
   companyId:      pipelineOpportunities.companyId,
   status:         pipelineOpportunities.status,
@@ -127,10 +128,60 @@ export async function getOpportunitiesByStage(
       : await db.select(BOARD_CARD_COLUMNS).from(pipelineOpportunities)
           .orderBy(asc(pipelineOpportunities.createdAt))
   ) as unknown as PipelineOpportunity[];
+  const opportunityIds = allOpps.map((opp) => opp.id);
+  const opportunityIdSet = new Set(opportunityIds);
+  const leadIds = [...new Set(allOpps.map((opp) => opp.leadId).filter(Boolean) as string[])];
+  const leadOpportunityMap = new Map(
+    allOpps
+      .filter((opp) => opp.leadId)
+      .map((opp) => [opp.leadId!, opp.id]),
+  );
+  const taskLinkCondition = opportunityIds.length > 0
+    ? (leadIds.length > 0
+      ? or(inArray(followupTasks.opportunityId, opportunityIds), inArray(followupTasks.leadId, leadIds))
+      : inArray(followupTasks.opportunityId, opportunityIds))
+    : undefined;
+  const openTaskRows = taskLinkCondition
+    ? await db
+        .select({
+          opportunityId: followupTasks.opportunityId,
+          leadId: followupTasks.leadId,
+          dueDate: followupTasks.dueDate,
+        })
+        .from(followupTasks)
+        .where(and(eq(followupTasks.completed, false), taskLinkCondition))
+    : [];
+  const nextTaskDueByOpportunity = new Map<string, number>();
+
+  for (const task of openTaskRows) {
+    const opportunityId = task.opportunityId && opportunityIdSet.has(task.opportunityId)
+      ? task.opportunityId
+      : task.leadId
+        ? leadOpportunityMap.get(task.leadId)
+        : undefined;
+    if (!opportunityId) continue;
+
+    const dueTime = new Date(task.dueDate).getTime();
+    const currentDueTime = nextTaskDueByOpportunity.get(opportunityId);
+    if (currentDueTime === undefined || dueTime < currentDueTime) {
+      nextTaskDueByOpportunity.set(opportunityId, dueTime);
+    }
+  }
 
   const buckets = new Map<string, PipelineOpportunity[]>(stages.map(s => [s.id, []]));
   for (const opp of allOpps) {
     if (opp.stageId) buckets.get(opp.stageId)?.push(opp);
+  }
+
+  for (const opportunities of buckets.values()) {
+    opportunities.sort((a, b) => {
+      const aDue = nextTaskDueByOpportunity.get(a.id);
+      const bDue = nextTaskDueByOpportunity.get(b.id);
+      if (aDue !== undefined && bDue !== undefined && aDue !== bDue) return aDue - bDue;
+      if (aDue !== undefined && bDue === undefined) return -1;
+      if (aDue === undefined && bDue !== undefined) return 1;
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    });
   }
 
   const board: Record<string, { stage: PipelineStage; opportunities: PipelineOpportunity[] }> = {};
