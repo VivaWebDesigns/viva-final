@@ -64,7 +64,7 @@ export default function PaqueteCrece() {
               <a href={CALENDLY_URL} target="_blank" rel="noopener noreferrer">
                 <Button size="lg" className="bg-[#0D9488] text-white font-bold text-lg gap-2 rounded-full transition-all duration-200 hover:shadow-lg" data-testid="button-crece-cta">
                   <CalendarDays className="w-5 h-5" />
-                  Book a Demo
+                  Agenda una demo
                 </Button>
               </a>
             </motion.div>
@@ -236,7 +236,7 @@ export default function PaqueteCrece() {
               <a href={CALENDLY_URL} target="_blank" rel="noopener noreferrer">
                 <Button size="lg" className="bg-[#0D9488] text-white font-bold text-lg gap-2 rounded-full transition-all duration-200 hover:shadow-lg" data-testid="button-crece-cta-bottom">
                   <CalendarDays className="w-5 h-5" />
-                  Book a Demo
+                  Agenda una demo
                 </Button>
               </a>
             </motion.div>
