@@ -69,6 +69,7 @@ interface CompleteTaskModalProps {
     leadId?: string | null;
     opportunityId?: string | null;
     contactId?: string | null;
+    companyId?: string | null;
   } | null;
   leadTimezone?: string | null;
   opportunityId?: string | null;
@@ -119,6 +120,7 @@ export default function CompleteTaskModal({
   const effOppId = task?.opportunityId ?? opportunityId ?? null;
   const effLeadId = task?.leadId ?? leadId ?? null;
   const effContactId = task?.contactId ?? contactId ?? null;
+  const effCompanyId = task?.companyId ?? null;
 
   const isAppointmentSet = outcome === "Appointment set";
 
@@ -164,6 +166,10 @@ export default function CompleteTaskModal({
     }
     if (effLeadId) queryClient.invalidateQueries({ queryKey: ["/api/tasks/for-lead", effLeadId] });
     if (effContactId) queryClient.invalidateQueries({ queryKey: ["/api/tasks/for-contact", effContactId] });
+    if (effCompanyId) {
+      queryClient.invalidateQueries({ queryKey: ["/api/profiles/company", effCompanyId, "notes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/history/client", effCompanyId] });
+    }
   };
 
   const submitMutation = useMutation({

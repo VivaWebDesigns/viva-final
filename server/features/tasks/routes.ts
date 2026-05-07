@@ -7,7 +7,7 @@ import * as taskStorage from "./storage";
 import { addLeadNote } from "../crm/storage";
 import { addActivity, getStages, moveOpportunity } from "../pipeline/storage";
 import { db } from "../../db";
-import { crmLeads, pipelineOpportunities, followupTasks, automationExecutionLogs } from "@shared/schema";
+import { crmLeads, pipelineOpportunities, followupTasks, automationExecutionLogs, clientNotes } from "@shared/schema";
 
 const router = Router();
 
@@ -254,6 +254,23 @@ router.put("/:id/complete", requireRole("admin", "developer", "sales_rep"), asyn
     };
     if (task.leadId) addLeadNote({ leadId: task.leadId, userId: actorId, type: "task", content: completionContent, metadata: completionMeta }).catch(() => {});
     else if (task.opportunityId) addActivity({ opportunityId: task.opportunityId, userId: actorId, type: "task", content: completionContent, metadata: completionMeta }).catch(() => {});
+
+    if (body?.completionNote) {
+      const companyId = await resolveCompanyId(task.companyId, task.leadId, task.opportunityId);
+      if (companyId) {
+        try {
+          await db.insert(clientNotes).values({
+            companyId,
+            userId: actorId,
+            type: "call",
+            content: body.completionNote,
+            isPinned: false,
+          });
+        } catch (err: unknown) {
+          console.error("[tasks/complete] client note creation failed:", err);
+        }
+      }
+    }
 
     if (body?.outcome && task.opportunityId) {
       const targetSlug = OUTCOME_STAGE_SLUG[body.outcome];
