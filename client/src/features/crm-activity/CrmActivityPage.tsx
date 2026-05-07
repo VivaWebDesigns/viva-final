@@ -208,7 +208,7 @@ function EmptyState({ children }: { children: ReactNode }) {
 
 export default function CrmActivityPage() {
   const todayKey = useMemo(() => toLocalDateInput(new Date()), []);
-  const [dateMode, setDateMode] = useState<DateMode>("7");
+  const [dateMode, setDateMode] = useState<DateMode>("today");
   const [customFrom, setCustomFrom] = useState(todayKey);
   const [customTo, setCustomTo] = useState(todayKey);
   const [expandedSignInRepId, setExpandedSignInRepId] = useState<string | null>(null);

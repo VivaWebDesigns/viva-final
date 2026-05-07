@@ -31,7 +31,7 @@ router.post("/events", requireRole("admin", "developer", "sales_rep", "lead_gen"
 });
 
 router.get("/summary", requireRole("admin", "developer"), async (req, res) => {
-  const days = parseInt(req.query.days as string, 10) || 7;
+  const days = parseInt(req.query.days as string, 10) || 1;
   const from = typeof req.query.from === "string" ? req.query.from : undefined;
   const to = typeof req.query.to === "string" ? req.query.to : undefined;
   const summary = await activityService.getActivitySummary(from || to ? { days, from, to } : days);

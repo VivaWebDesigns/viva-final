@@ -40,7 +40,7 @@ function daysBetweenInclusive(from: Date, to: Date) {
   return Math.max(1, Math.round((end - start) / 86400000) + 1);
 }
 
-function makeRange(options: number | { days?: number; from?: string; to?: string } = 7): ActivityRange {
+function makeRange(options: number | { days?: number; from?: string; to?: string } = 1): ActivityRange {
   if (typeof options !== "number" && (options.from || options.to)) {
     const parsedFrom = options.from ? parseDateOnly(options.from) : null;
     const parsedTo = options.to ? parseDateOnly(options.to) : parsedFrom;
@@ -55,7 +55,7 @@ function makeRange(options: number | { days?: number; from?: string; to?: string
   }
 
   const rawDays = typeof options === "number" ? options : options.days;
-  const safeDays = Number.isFinite(rawDays) && rawDays && rawDays > 0 ? Math.min(rawDays, 365) : 7;
+  const safeDays = Number.isFinite(rawDays) && rawDays && rawDays > 0 ? Math.min(rawDays, 365) : 1;
   const to = startOfLocalDay(new Date());
   const from = new Date(to);
   from.setDate(from.getDate() - safeDays + 1);
@@ -148,7 +148,7 @@ export async function createActivityEvent(userId: string, data: {
   return event;
 }
 
-export async function getActivitySummary(options: number | { days?: number; from?: string; to?: string } = 7) {
+export async function getActivitySummary(options: number | { days?: number; from?: string; to?: string } = 1) {
   const range = makeRange(options);
 
   const reps = await db
