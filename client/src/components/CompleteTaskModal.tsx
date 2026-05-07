@@ -44,6 +44,7 @@ const NEW_LEAD_OUTCOME_LABELS: Record<string, string> = {
   noAnswer:      "No answer",
   leftVoicemail: "Left voicemail",
   spokeWithLead: "Spoke with lead",
+  hungUp:        "Hung up",
 };
 const NEW_LEAD_OUTCOME_KEYS = Object.keys(NEW_LEAD_OUTCOME_LABELS) as readonly string[];
 
@@ -164,7 +165,12 @@ export default function CompleteTaskModal({
       queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities/board"] });
       queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities", effOppId] });
     }
-    if (effLeadId) queryClient.invalidateQueries({ queryKey: ["/api/tasks/for-lead", effLeadId] });
+    queryClient.invalidateQueries({ queryKey: ["/api/crm/leads"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities/board"] });
+    if (effLeadId) {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks/for-lead", effLeadId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/crm/leads", effLeadId] });
+    }
     if (effContactId) queryClient.invalidateQueries({ queryKey: ["/api/tasks/for-contact", effContactId] });
     if (effCompanyId) {
       queryClient.invalidateQueries({ queryKey: ["/api/profiles/company", effCompanyId, "notes"] });
@@ -250,6 +256,7 @@ export default function CompleteTaskModal({
     ? Object.fromEntries(Object.entries(baseOutcomeLabels).filter(([k]) => !excludeOutcomes.includes(k)))
     : baseOutcomeLabels;
   const isSpokeWithLead = isNewLead && outcome === "Spoke with lead";
+  const isHungUp = isNewLead && outcome === "Hung up";
 
   const customDateValid = followUp !== "custom" || customDate !== "";
   const followUpRequired = !isNewLead && !hideFollowUp && REQUIRES_FOLLOW_UP.has(outcome);
@@ -464,7 +471,9 @@ export default function CompleteTaskModal({
 
           {isNewLead && outcome !== "" && !isSpokeWithLead && (
             <p className="text-xs text-gray-500" data-testid="text-auto-followup-info">
-              {(t.tasks.outcomes as Record<string, string>).autoFollowUpInfo}
+              {isHungUp
+                ? (t.tasks.outcomes as Record<string, string>).hungUpInfo
+                : (t.tasks.outcomes as Record<string, string>).autoFollowUpInfo}
             </p>
           )}
         </div>

@@ -27,11 +27,13 @@ import { cn } from "@/lib/utils";
 import type { CrmLead, CrmLeadStatus, CrmContact, CrmCompany, CrmTag } from "@shared/schema";
 import { formatPhoneDisplay } from "@shared/phone";
 import { useAdminLang } from "@/i18n/LanguageContext";
+import RecycledLeadIconStack from "@/components/RecycledLeadIconStack";
 
 interface LeadWithRelations extends CrmLead {
   contact?: CrmContact | null;
   company?: CrmCompany | null;
   status?: CrmLeadStatus | null;
+  lastUnassignedFromUser?: { id: string; name: string } | null;
 }
 
 interface LeadsResponse {
@@ -249,6 +251,11 @@ export default function LeadListPage() {
     if (companyName) return companyName;
     if (contactName) return contactName;
     return lead.title;
+  };
+
+  const getLastUnassignedInitial = (lead: LeadWithRelations) => {
+    const name = lead.lastUnassignedFromUser?.name?.trim();
+    return name ? name.charAt(0).toUpperCase() : null;
   };
 
   const toggleTagId = (id: string) =>
@@ -515,6 +522,20 @@ export default function LeadListPage() {
                               {getLeadDisplayTitle(lead)}
                             </h3>
                             {getStatusBadge(lead)}
+                            <RecycledLeadIconStack
+                              recycleCount={lead.recycleCount}
+                              hungUpCount={lead.hungUpCount}
+                            />
+                            {!lead.assignedTo && getLastUnassignedInitial(lead) && (
+                              <span
+                                className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-[10px] font-semibold text-slate-600"
+                                title={`Last rep: ${lead.lastUnassignedFromUser?.name}`}
+                                aria-label={`Last rep: ${lead.lastUnassignedFromUser?.name}`}
+                                data-testid={`badge-last-unassigned-rep-${lead.id}`}
+                              >
+                                {getLastUnassignedInitial(lead)}
+                              </span>
+                            )}
                             {lead.fromWebsiteForm && (
                               <Badge variant="secondary" className="text-xs" data-testid={`badge-web-form-${lead.id}`}>
                                 <Globe className="w-3 h-3 mr-1" /> Web Form

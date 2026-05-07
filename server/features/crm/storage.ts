@@ -16,6 +16,7 @@ export type EnrichedLead = CrmLead & {
   status: CrmLeadStatus | null;
   contact: CrmContact | null;
   company: CrmCompany | null;
+  lastUnassignedFromUser: { id: string; name: string } | null;
 };
 
 interface PaginationParams {
@@ -517,22 +518,28 @@ export async function enrichLeads(leads: CrmLead[]): Promise<EnrichedLead[]> {
   const statusIds = [...new Set(leads.map(l => l.statusId).filter((id): id is string => id !== null))];
   const contactIds = [...new Set(leads.map(l => l.contactId).filter((id): id is string => id !== null))];
   const companyIds = [...new Set(leads.map(l => l.companyId).filter((id): id is string => id !== null))];
+  const lastUnassignedFromIds = [...new Set(leads.map(l => l.lastUnassignedFrom).filter((id): id is string => id !== null))];
 
-  const [statuses, contacts, companies] = await Promise.all([
+  const [statuses, contacts, companies, lastUnassignedUsers] = await Promise.all([
     statusIds.length > 0 ? db.select().from(crmLeadStatuses).where(inArray(crmLeadStatuses.id, statusIds)) : [],
     contactIds.length > 0 ? db.select().from(crmContacts).where(inArray(crmContacts.id, contactIds)) : [],
     companyIds.length > 0 ? db.select().from(crmCompanies).where(inArray(crmCompanies.id, companyIds)) : [],
+    lastUnassignedFromIds.length > 0
+      ? db.select({ id: user.id, name: user.name }).from(user).where(inArray(user.id, lastUnassignedFromIds))
+      : [],
   ]);
 
   const statusMap = Object.fromEntries(statuses.map(s => [s.id, s]));
   const contactMap = Object.fromEntries(contacts.map(c => [c.id, c]));
   const companyMap = Object.fromEntries(companies.map(c => [c.id, c]));
+  const lastUnassignedUserMap = Object.fromEntries(lastUnassignedUsers.map(u => [u.id, u]));
 
   return leads.map(lead => ({
     ...lead,
     status: lead.statusId ? statusMap[lead.statusId] ?? null : null,
     contact: lead.contactId ? contactMap[lead.contactId] ?? null : null,
     company: lead.companyId ? companyMap[lead.companyId] ?? null : null,
+    lastUnassignedFromUser: lead.lastUnassignedFrom ? lastUnassignedUserMap[lead.lastUnassignedFrom] ?? null : null,
   }));
 }
 

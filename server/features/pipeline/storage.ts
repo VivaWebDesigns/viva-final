@@ -198,7 +198,7 @@ export async function getOpportunitiesByStage(
 
   const [leadRows, contactRows, companyRows, assigneeRows] = await Promise.all([
     leadIds.length
-      ? db.select({ id: crmLeads.id, recycleCount: crmLeads.recycleCount }).from(crmLeads).where(inArray(crmLeads.id, leadIds))
+      ? db.select({ id: crmLeads.id, recycleCount: crmLeads.recycleCount, hungUpCount: crmLeads.hungUpCount }).from(crmLeads).where(inArray(crmLeads.id, leadIds))
       : [],
     contactIds.length
       ? db.select({ id: crmContacts.id, firstName: crmContacts.firstName, lastName: crmContacts.lastName, phone: crmContacts.phone }).from(crmContacts).where(inArray(crmContacts.id, contactIds))
@@ -211,7 +211,7 @@ export async function getOpportunitiesByStage(
       : [],
   ]);
 
-  const leadRecycleMap: Record<string, { id: string; recycleCount: number }> = Object.fromEntries(leadRows.map(l => [l.id, l]));
+  const leadRecycleMap: Record<string, { id: string; recycleCount: number; hungUpCount: number }> = Object.fromEntries(leadRows.map(l => [l.id, l]));
   const contactMap: Record<string, { id: string; firstName: string; lastName: string | null; phone: string | null }> = Object.fromEntries(contactRows.map(c => [c.id, c]));
   const companyMap: Record<string, { id: string; name: string; city: string | null; industry: string | null }> = Object.fromEntries(companyRows.map(c => [c.id, c]));
   const assigneeMap: Record<string, { id: string; name: string }> | undefined = includeAssigneeMap

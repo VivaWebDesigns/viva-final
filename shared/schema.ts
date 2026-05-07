@@ -292,6 +292,10 @@ export const crmLeads = pgTable("crm_leads", {
   unansweredCallStreak: integer("unanswered_call_streak").notNull().default(0),
   recycleCount: integer("recycle_count").notNull().default(0),
   lastRecycledAt: timestamp("last_recycled_at"),
+  hungUpCount: integer("hung_up_count").notNull().default(0),
+  lastHungUpAt: timestamp("last_hung_up_at"),
+  lastUnassignedFrom: text("last_unassigned_from").references(() => user.id),
+  lastUnassignedReason: text("last_unassigned_reason"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (t) => [
@@ -301,6 +305,8 @@ export const crmLeads = pgTable("crm_leads", {
   index("crm_leads_created_idx").on(t.createdAt),
   index("crm_leads_assigned_idx").on(t.assignedTo),
   index("crm_leads_recycle_count_idx").on(t.recycleCount),
+  index("crm_leads_hung_up_count_idx").on(t.hungUpCount),
+  index("crm_leads_last_unassigned_from_idx").on(t.lastUnassignedFrom),
   index("crm_leads_source_idx").on(t.source),
   index("crm_leads_web_form_idx").on(t.fromWebsiteForm),
 ]);

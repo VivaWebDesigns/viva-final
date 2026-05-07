@@ -30,7 +30,7 @@ interface AutomationMeta {
 interface TaskWithContact extends FollowupTask {
   contact: { firstName: string; lastName: string | null; phone: string | null } | null;
   company: { name: string; industry: string | null } | null;
-  lead: { trade: string | null; recycleCount: number } | null;
+  lead: { trade: string | null; recycleCount: number; hungUpCount: number } | null;
   automationMeta: AutomationMeta | null;
   opportunityStageSlug: string | null;
 }
@@ -71,6 +71,8 @@ function TaskRow({
     && (!contactName || normalizeDisplayName(task.company.name) !== normalizeDisplayName(contactName))
   );
   const recycleCount = task.lead?.recycleCount ?? 0;
+  const hungUpCount = task.lead?.hungUpCount ?? 0;
+  const hasLeadSignals = recycleCount > 0 || hungUpCount > 0;
 
   return (
     <div
@@ -118,11 +120,11 @@ function TaskRow({
           {contactName && (
             <span className="flex items-center gap-1 text-xs" data-testid={`text-contact-name-${task.id}`}>
               <span className="font-semibold text-slate-900">{contactName}</span>
-              <RecycledLeadIconStack count={recycleCount} className="ml-0.5" />
+              <RecycledLeadIconStack recycleCount={recycleCount} hungUpCount={hungUpCount} className="ml-0.5" />
             </span>
           )}
-          {!contactName && recycleCount > 0 && (
-            <RecycledLeadIconStack count={recycleCount} />
+          {!contactName && hasLeadSignals && (
+            <RecycledLeadIconStack recycleCount={recycleCount} hungUpCount={hungUpCount} />
           )}
           {task.company && companyIsDifferent && (
             <span className="flex items-center gap-1 text-xs font-medium text-indigo-700" data-testid={`text-company-name-${task.id}`}>

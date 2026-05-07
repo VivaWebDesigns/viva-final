@@ -15,7 +15,7 @@ import { useAdminLang } from "@/i18n/LanguageContext";
 type ContactSnap = { id: string; firstName: string; lastName: string | null; phone: string | null };
 type CompanySnap = { id: string; name: string; city: string | null; industry: string | null };
 type AssigneeSnap = { id: string; name: string };
-type LeadRecycleSnap = { id: string; recycleCount: number };
+type LeadRecycleSnap = { id: string; recycleCount: number; hungUpCount: number };
 
 interface BoardData {
   stages: PipelineStage[];
@@ -80,6 +80,8 @@ function CardDisplay({
     ? (opp.assignedTo ? assigneeMap[opp.assignedTo]?.name ?? "Unknown rep" : "Unassigned")
     : null;
   const recycleCount = opp.leadId ? leadRecycleMap?.[opp.leadId]?.recycleCount ?? 0 : 0;
+  const hungUpCount = opp.leadId ? leadRecycleMap?.[opp.leadId]?.hungUpCount ?? 0 : 0;
+  const hasLeadSignals = recycleCount > 0 || hungUpCount > 0;
 
   return (
     <Card
@@ -131,7 +133,7 @@ function CardDisplay({
             )}
           </div>
 
-          {(assigneeName || recycleCount > 0) && (
+          {(assigneeName || hasLeadSignals) && (
             <span className="flex items-center gap-1 text-xs text-slate-500" data-testid={`text-opp-assignee-${opp.id}`}>
               {assigneeName && (
                 <>
@@ -139,7 +141,11 @@ function CardDisplay({
                   <span className="truncate">{assigneeName}</span>
                 </>
               )}
-              <RecycledLeadIconStack count={recycleCount} className={assigneeName ? "ml-0.5" : undefined} />
+              <RecycledLeadIconStack
+                recycleCount={recycleCount}
+                hungUpCount={hungUpCount}
+                className={assigneeName ? "ml-0.5" : undefined}
+              />
             </span>
           )}
 

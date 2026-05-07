@@ -192,8 +192,10 @@ router.post("/", requireRole("admin", "developer", "sales_rep"), async (req, res
   }
 });
 
+const HUNG_UP_OUTCOME = "Hung up";
+
 const ALLOWED_OUTCOMES = [
-  "No answer", "Left voicemail", "Spoke with lead",
+  "No answer", "Left voicemail", "Spoke with lead", HUNG_UP_OUTCOME,
   "Interested", "Uncertain", "Not interested",
   "Bad number", "Appointment set",
   "Payment received", "Still waiting", "Won't pay",
@@ -203,6 +205,7 @@ const OUTCOME_VALUE_TO_KEY: Record<string, string> = {
   "No answer":        "noAnswer",
   "Left voicemail":   "leftVoicemail",
   "Spoke with lead":  "spokeWithLead",
+  "Hung up":          "hungUp",
   "Interested":       "interested",
   "Uncertain":        "uncertain",
   "Not interested":   "notInterested",
@@ -231,6 +234,18 @@ const completeTaskSchema = z.object({
   demoDate: z.string().optional(),
 }).optional();
 
+type LeadContactOutcomeResult = {
+  leadId: string | null;
+  recycled: boolean;
+  recycleCount: number;
+  hungUp: boolean;
+  hungUpCount: number;
+};
+
+function emptyLeadContactOutcomeResult(): LeadContactOutcomeResult {
+  return { leadId: null, recycled: false, recycleCount: 0, hungUp: false, hungUpCount: 0 };
+}
+
 async function resolveTaskLeadId(task: Pick<FollowupTask, "leadId" | "opportunityId">): Promise<string | null> {
   if (task.leadId) return task.leadId;
   if (!task.opportunityId) return null;
@@ -248,24 +263,79 @@ async function applyLeadContactOutcome(
   outcome: string | undefined,
   actorId: string | null,
   ipAddress: string | undefined,
-): Promise<{ leadId: string | null; recycled: boolean; recycleCount: number }> {
+): Promise<LeadContactOutcomeResult> {
   if (!outcome || (!AUTO_FOLLOWUP_OUTCOMES.has(outcome) && !CONTACT_STREAK_RESET_OUTCOMES.has(outcome))) {
-    return { leadId: null, recycled: false, recycleCount: 0 };
+    return emptyLeadContactOutcomeResult();
   }
 
   const leadId = await resolveTaskLeadId(task);
-  if (!leadId) return { leadId: null, recycled: false, recycleCount: 0 };
+  if (!leadId) return emptyLeadContactOutcomeResult();
 
   const [lead] = await db
     .select({
       title: crmLeads.title,
+      assignedTo: crmLeads.assignedTo,
       unansweredCallStreak: crmLeads.unansweredCallStreak,
       recycleCount: crmLeads.recycleCount,
+      hungUpCount: crmLeads.hungUpCount,
     })
     .from(crmLeads)
     .where(eq(crmLeads.id, leadId))
     .limit(1);
-  if (!lead) return { leadId, recycled: false, recycleCount: 0 };
+  if (!lead) return { leadId, recycled: false, recycleCount: 0, hungUp: false, hungUpCount: 0 };
+
+  if (outcome === HUNG_UP_OUTCOME) {
+    const hungUpAt = new Date();
+    const nextHungUpCount = lead.hungUpCount + 1;
+    const [updatedLead] = await db
+      .update(crmLeads)
+      .set({
+        assignedTo: null,
+        unansweredCallStreak: 0,
+        hungUpCount: nextHungUpCount,
+        lastHungUpAt: hungUpAt,
+        lastUnassignedFrom: lead.assignedTo,
+        lastUnassignedReason: "hung_up",
+        updatedAt: hungUpAt,
+      })
+      .where(eq(crmLeads.id, leadId))
+      .returning({ hungUpCount: crmLeads.hungUpCount });
+
+    await Promise.all([
+      bulkAssignOpportunitiesByLeadIds([leadId], null),
+      taskStorage.syncOpenTaskOwnershipForLeadIds([leadId], null),
+    ]);
+
+    const hungUpCount = updatedLead?.hungUpCount ?? nextHungUpCount;
+    await logAudit({
+      userId: actorId ?? undefined,
+      action: "update",
+      entity: "crm_lead",
+      entityId: leadId,
+      metadata: {
+        action: "hung_up_unassigned",
+        title: lead.title,
+        outcome,
+        previousAssigneeId: lead.assignedTo,
+        hungUpCount,
+      },
+      ipAddress,
+    });
+    addLeadNote({
+      leadId,
+      userId: actorId,
+      type: "system",
+      content: "Lead marked as hung up and unassigned for reassignment.",
+      metadata: {
+        event: "lead_hung_up_unassigned",
+        outcome,
+        previousAssigneeId: lead.assignedTo,
+        hungUpCount,
+      },
+    }).catch(() => {});
+
+    return { leadId, recycled: false, recycleCount: lead.recycleCount, hungUp: true, hungUpCount };
+  }
 
   if (AUTO_FOLLOWUP_OUTCOMES.has(outcome)) {
     const nextStreak = lead.unansweredCallStreak + 1;
@@ -274,7 +344,7 @@ async function applyLeadContactOutcome(
         .update(crmLeads)
         .set({ unansweredCallStreak: nextStreak, updatedAt: new Date() })
         .where(eq(crmLeads.id, leadId));
-      return { leadId, recycled: false, recycleCount: lead.recycleCount };
+      return { leadId, recycled: false, recycleCount: lead.recycleCount, hungUp: false, hungUpCount: lead.hungUpCount };
     }
 
     const recycledAt = new Date();
@@ -286,6 +356,8 @@ async function applyLeadContactOutcome(
         unansweredCallStreak: 0,
         recycleCount: nextRecycleCount,
         lastRecycledAt: recycledAt,
+        lastUnassignedFrom: lead.assignedTo,
+        lastUnassignedReason: "recycled",
         updatedAt: recycledAt,
       })
       .where(eq(crmLeads.id, leadId))
@@ -306,6 +378,7 @@ async function applyLeadContactOutcome(
         action: "auto_recycled",
         title: lead.title,
         outcome,
+        previousAssigneeId: lead.assignedTo,
         failedContactThreshold: RECYCLE_FAILED_CONTACT_THRESHOLD,
         recycleCount,
       },
@@ -319,12 +392,13 @@ async function applyLeadContactOutcome(
       metadata: {
         event: "lead_recycled",
         outcome,
+        previousAssigneeId: lead.assignedTo,
         failedContactThreshold: RECYCLE_FAILED_CONTACT_THRESHOLD,
         recycleCount,
       },
     }).catch(() => {});
 
-    return { leadId, recycled: true, recycleCount };
+    return { leadId, recycled: true, recycleCount, hungUp: false, hungUpCount: lead.hungUpCount };
   }
 
   if (lead.unansweredCallStreak > 0) {
@@ -334,7 +408,7 @@ async function applyLeadContactOutcome(
       .where(eq(crmLeads.id, leadId));
   }
 
-  return { leadId, recycled: false, recycleCount: lead.recycleCount };
+  return { leadId, recycled: false, recycleCount: lead.recycleCount, hungUp: false, hungUpCount: lead.hungUpCount };
 }
 
 router.put("/:id/complete", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
@@ -386,7 +460,7 @@ router.put("/:id/complete", requireRole("admin", "developer", "sales_rep"), asyn
       }
     }
 
-    const recycleResult = await applyLeadContactOutcome(task, body?.outcome, actorId, req.ip);
+    const leadOutcomeResult = await applyLeadContactOutcome(task, body?.outcome, actorId, req.ip);
 
     if (body?.outcome && task.opportunityId) {
       const targetSlug = OUTCOME_STAGE_SLUG[body.outcome];
@@ -441,9 +515,9 @@ router.put("/:id/complete", requireRole("admin", "developer", "sales_rep"), asyn
             taskType: task.taskType,
             dueDate: tomorrow,
             completed: false,
-            assignedTo: recycleResult.recycled ? null : task.assignedTo,
+            assignedTo: leadOutcomeResult.recycled ? null : task.assignedTo,
             opportunityId: task.opportunityId,
-            leadId: task.leadId ?? recycleResult.leadId,
+            leadId: task.leadId ?? leadOutcomeResult.leadId,
             contactId: task.contactId,
             companyId: task.companyId,
             createdBy: actorId,
@@ -454,6 +528,38 @@ router.put("/:id/complete", requireRole("admin", "developer", "sales_rep"), asyn
           else if (newTask.opportunityId) addActivity({ opportunityId: newTask.opportunityId, userId: actorId, type: "task", content: scheduleContent, metadata: scheduleMeta }).catch(() => {});
         } catch (err: unknown) {
           console.error("[tasks/complete] auto-follow-up creation failed:", err);
+        }
+      }
+    }
+
+    if (body?.outcome === HUNG_UP_OUTCOME && leadOutcomeResult.hungUp) {
+      const hasExisting = await taskStorage.getActiveTaskForContext(
+        task.leadId ?? leadOutcomeResult.leadId,
+        task.opportunityId,
+        task.taskType,
+      );
+      if (!hasExisting) {
+        const reassignmentDue = new Date();
+        reassignmentDue.setUTCHours(0, 0, 0, 0);
+        try {
+          const newTask = await taskStorage.createTask({
+            title: task.title,
+            taskType: task.taskType,
+            dueDate: reassignmentDue,
+            completed: false,
+            assignedTo: null,
+            opportunityId: task.opportunityId,
+            leadId: task.leadId ?? leadOutcomeResult.leadId,
+            contactId: task.contactId,
+            companyId: task.companyId,
+            createdBy: actorId,
+          });
+          const scheduleContent = `Unassigned follow-up scheduled: ${newTask.title}`;
+          const scheduleMeta = { event: "hung_up_follow_up_scheduled", taskTitle: newTask.title };
+          if (newTask.leadId) addLeadNote({ leadId: newTask.leadId, userId: actorId, type: "task", content: scheduleContent, metadata: scheduleMeta }).catch(() => {});
+          else if (newTask.opportunityId) addActivity({ opportunityId: newTask.opportunityId, userId: actorId, type: "task", content: scheduleContent, metadata: scheduleMeta }).catch(() => {});
+        } catch (err: unknown) {
+          console.error("[tasks/complete] hung-up follow-up creation failed:", err);
         }
       }
     }
