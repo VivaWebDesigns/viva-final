@@ -13,6 +13,7 @@ import CompleteTaskModal from "@/components/CompleteTaskModal";
 import DemoCompletedModal from "@/components/DemoCompletedModal";
 import PaymentSentModal from "@/components/PaymentSentModal";
 import PaymentFollowupModal from "@/components/PaymentFollowupModal";
+import RecycledLeadIconStack from "@/components/RecycledLeadIconStack";
 import type { FollowupTask } from "@shared/schema";
 import { formatPhoneDisplay } from "@shared/phone";
 import { useAdminLang } from "@/i18n/LanguageContext";
@@ -29,7 +30,7 @@ interface AutomationMeta {
 interface TaskWithContact extends FollowupTask {
   contact: { firstName: string; lastName: string | null; phone: string | null } | null;
   company: { name: string; industry: string | null } | null;
-  lead: { trade: string | null } | null;
+  lead: { trade: string | null; recycleCount: number } | null;
   automationMeta: AutomationMeta | null;
   opportunityStageSlug: string | null;
 }
@@ -69,6 +70,7 @@ function TaskRow({
     task.company
     && (!contactName || normalizeDisplayName(task.company.name) !== normalizeDisplayName(contactName))
   );
+  const recycleCount = task.lead?.recycleCount ?? 0;
 
   return (
     <div
@@ -116,7 +118,11 @@ function TaskRow({
           {contactName && (
             <span className="flex items-center gap-1 text-xs" data-testid={`text-contact-name-${task.id}`}>
               <span className="font-semibold text-slate-900">{contactName}</span>
+              <RecycledLeadIconStack count={recycleCount} className="ml-0.5" />
             </span>
+          )}
+          {!contactName && recycleCount > 0 && (
+            <RecycledLeadIconStack count={recycleCount} />
           )}
           {task.company && companyIsDifferent && (
             <span className="flex items-center gap-1 text-xs font-medium text-indigo-700" data-testid={`text-company-name-${task.id}`}>

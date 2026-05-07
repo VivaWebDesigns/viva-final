@@ -9,11 +9,13 @@ import { DollarSign, List, Phone, Building2, MapPin, UserRound } from "lucide-re
 import type { PipelineStage, PipelineOpportunity } from "@shared/schema";
 import { formatPhoneDisplay } from "@shared/phone";
 import QuickTaskModal from "@/components/QuickTaskModal";
+import RecycledLeadIconStack from "@/components/RecycledLeadIconStack";
 import { useAdminLang } from "@/i18n/LanguageContext";
 
 type ContactSnap = { id: string; firstName: string; lastName: string | null; phone: string | null };
 type CompanySnap = { id: string; name: string; city: string | null; industry: string | null };
 type AssigneeSnap = { id: string; name: string };
+type LeadRecycleSnap = { id: string; recycleCount: number };
 
 interface BoardData {
   stages: PipelineStage[];
@@ -21,6 +23,7 @@ interface BoardData {
   contactMap: Record<string, ContactSnap>;
   companyMap: Record<string, CompanySnap>;
   assigneeMap?: Record<string, AssigneeSnap>;
+  leadRecycleMap?: Record<string, LeadRecycleSnap>;
 }
 
 const PKG_COLORS: Record<string, string> = {
@@ -49,12 +52,14 @@ function CardDisplay({
   contactMap,
   companyMap,
   assigneeMap,
+  leadRecycleMap,
   onTaskClick,
 }: {
   opp: PipelineOpportunity;
   contactMap: Record<string, ContactSnap>;
   companyMap: Record<string, CompanySnap>;
   assigneeMap?: Record<string, AssigneeSnap>;
+  leadRecycleMap?: Record<string, LeadRecycleSnap>;
   onTaskClick?: (opp: PipelineOpportunity) => void;
 }) {
   const { t } = useAdminLang();
@@ -74,6 +79,7 @@ function CardDisplay({
   const assigneeName = assigneeMap
     ? (opp.assignedTo ? assigneeMap[opp.assignedTo]?.name ?? "Unknown rep" : "Unassigned")
     : null;
+  const recycleCount = opp.leadId ? leadRecycleMap?.[opp.leadId]?.recycleCount ?? 0 : 0;
 
   return (
     <Card
@@ -125,10 +131,15 @@ function CardDisplay({
             )}
           </div>
 
-          {assigneeName && (
+          {(assigneeName || recycleCount > 0) && (
             <span className="flex items-center gap-1 text-xs text-slate-500" data-testid={`text-opp-assignee-${opp.id}`}>
-              <UserRound className="w-3 h-3 flex-shrink-0" />
-              <span className="truncate">{assigneeName}</span>
+              {assigneeName && (
+                <>
+                  <UserRound className="w-3 h-3 flex-shrink-0" />
+                  <span className="truncate">{assigneeName}</span>
+                </>
+              )}
+              <RecycledLeadIconStack count={recycleCount} className={assigneeName ? "ml-0.5" : undefined} />
             </span>
           )}
 
@@ -174,12 +185,14 @@ function OpportunityCard({
   contactMap,
   companyMap,
   assigneeMap,
+  leadRecycleMap,
   onTaskClick,
 }: {
   opp: PipelineOpportunity;
   contactMap: Record<string, ContactSnap>;
   companyMap: Record<string, CompanySnap>;
   assigneeMap?: Record<string, AssigneeSnap>;
+  leadRecycleMap?: Record<string, LeadRecycleSnap>;
   onTaskClick: (opp: PipelineOpportunity) => void;
 }) {
   return (
@@ -189,6 +202,7 @@ function OpportunityCard({
         contactMap={contactMap}
         companyMap={companyMap}
         assigneeMap={assigneeMap}
+        leadRecycleMap={leadRecycleMap}
         onTaskClick={onTaskClick}
       />
     </div>
@@ -201,6 +215,7 @@ function StageColumn({
   contactMap,
   companyMap,
   assigneeMap,
+  leadRecycleMap,
   onTaskClick,
 }: {
   stage: PipelineStage;
@@ -208,6 +223,7 @@ function StageColumn({
   contactMap: Record<string, ContactSnap>;
   companyMap: Record<string, CompanySnap>;
   assigneeMap?: Record<string, AssigneeSnap>;
+  leadRecycleMap?: Record<string, LeadRecycleSnap>;
   onTaskClick: (opp: PipelineOpportunity) => void;
 }) {
   const { t } = useAdminLang();
@@ -249,6 +265,7 @@ function StageColumn({
             contactMap={contactMap}
             companyMap={companyMap}
             assigneeMap={assigneeMap}
+            leadRecycleMap={leadRecycleMap}
             onTaskClick={onTaskClick}
           />
         ))}
@@ -290,6 +307,7 @@ export default function PipelineBoardPage() {
   const contactMap = data?.contactMap || {};
   const companyMap = data?.companyMap || {};
   const assigneeMap = data?.assigneeMap;
+  const leadRecycleMap = data?.leadRecycleMap || {};
 
   return (
     <>
@@ -340,6 +358,7 @@ export default function PipelineBoardPage() {
                   contactMap={contactMap}
                   companyMap={companyMap}
                   assigneeMap={assigneeMap}
+                  leadRecycleMap={leadRecycleMap}
                   onTaskClick={(opp) => setTaskOpp(opp)}
                 />
               ))}

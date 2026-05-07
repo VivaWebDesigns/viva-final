@@ -5,9 +5,9 @@ import { requireAuth, requireRole } from "../auth/middleware";
 import { logAudit } from "../audit/service";
 import * as taskStorage from "./storage";
 import { addLeadNote } from "../crm/storage";
-import { addActivity, getStages, moveOpportunity } from "../pipeline/storage";
+import { addActivity, bulkAssignOpportunitiesByLeadIds, getStages, moveOpportunity } from "../pipeline/storage";
 import { db } from "../../db";
-import { crmLeads, pipelineOpportunities, followupTasks, automationExecutionLogs, clientNotes } from "@shared/schema";
+import { crmLeads, pipelineOpportunities, followupTasks, automationExecutionLogs, clientNotes, type FollowupTask } from "@shared/schema";
 
 const router = Router();
 
@@ -219,7 +219,11 @@ const OUTCOME_STAGE_SLUG: Partial<Record<string, string>> = {
   "Appointment set":"demo-scheduled",
 };
 
+const RECYCLE_FAILED_CONTACT_THRESHOLD = 5;
 const AUTO_FOLLOWUP_OUTCOMES = new Set(["No answer", "Left voicemail"]);
+const CONTACT_STREAK_RESET_OUTCOMES = new Set<string>(
+  ALLOWED_OUTCOMES.filter((outcome) => !AUTO_FOLLOWUP_OUTCOMES.has(outcome)),
+);
 
 const completeTaskSchema = z.object({
   outcome: z.enum(ALLOWED_OUTCOMES).optional(),
@@ -227,9 +231,119 @@ const completeTaskSchema = z.object({
   demoDate: z.string().optional(),
 }).optional();
 
+async function resolveTaskLeadId(task: Pick<FollowupTask, "leadId" | "opportunityId">): Promise<string | null> {
+  if (task.leadId) return task.leadId;
+  if (!task.opportunityId) return null;
+
+  const [opportunity] = await db
+    .select({ leadId: pipelineOpportunities.leadId })
+    .from(pipelineOpportunities)
+    .where(eq(pipelineOpportunities.id, task.opportunityId))
+    .limit(1);
+  return opportunity?.leadId ?? null;
+}
+
+async function applyLeadContactOutcome(
+  task: Pick<FollowupTask, "leadId" | "opportunityId">,
+  outcome: string | undefined,
+  actorId: string | null,
+  ipAddress: string | undefined,
+): Promise<{ leadId: string | null; recycled: boolean; recycleCount: number }> {
+  if (!outcome || (!AUTO_FOLLOWUP_OUTCOMES.has(outcome) && !CONTACT_STREAK_RESET_OUTCOMES.has(outcome))) {
+    return { leadId: null, recycled: false, recycleCount: 0 };
+  }
+
+  const leadId = await resolveTaskLeadId(task);
+  if (!leadId) return { leadId: null, recycled: false, recycleCount: 0 };
+
+  const [lead] = await db
+    .select({
+      title: crmLeads.title,
+      unansweredCallStreak: crmLeads.unansweredCallStreak,
+      recycleCount: crmLeads.recycleCount,
+    })
+    .from(crmLeads)
+    .where(eq(crmLeads.id, leadId))
+    .limit(1);
+  if (!lead) return { leadId, recycled: false, recycleCount: 0 };
+
+  if (AUTO_FOLLOWUP_OUTCOMES.has(outcome)) {
+    const nextStreak = lead.unansweredCallStreak + 1;
+    if (nextStreak < RECYCLE_FAILED_CONTACT_THRESHOLD) {
+      await db
+        .update(crmLeads)
+        .set({ unansweredCallStreak: nextStreak, updatedAt: new Date() })
+        .where(eq(crmLeads.id, leadId));
+      return { leadId, recycled: false, recycleCount: lead.recycleCount };
+    }
+
+    const recycledAt = new Date();
+    const nextRecycleCount = lead.recycleCount + 1;
+    const [updatedLead] = await db
+      .update(crmLeads)
+      .set({
+        assignedTo: null,
+        unansweredCallStreak: 0,
+        recycleCount: nextRecycleCount,
+        lastRecycledAt: recycledAt,
+        updatedAt: recycledAt,
+      })
+      .where(eq(crmLeads.id, leadId))
+      .returning({ recycleCount: crmLeads.recycleCount });
+
+    await Promise.all([
+      bulkAssignOpportunitiesByLeadIds([leadId], null),
+      taskStorage.syncOpenTaskOwnershipForLeadIds([leadId], null),
+    ]);
+
+    const recycleCount = updatedLead?.recycleCount ?? nextRecycleCount;
+    await logAudit({
+      userId: actorId ?? undefined,
+      action: "update",
+      entity: "crm_lead",
+      entityId: leadId,
+      metadata: {
+        action: "auto_recycled",
+        title: lead.title,
+        outcome,
+        failedContactThreshold: RECYCLE_FAILED_CONTACT_THRESHOLD,
+        recycleCount,
+      },
+      ipAddress,
+    });
+    addLeadNote({
+      leadId,
+      userId: actorId,
+      type: "system",
+      content: `Lead recycled after ${RECYCLE_FAILED_CONTACT_THRESHOLD} failed contact attempts.`,
+      metadata: {
+        event: "lead_recycled",
+        outcome,
+        failedContactThreshold: RECYCLE_FAILED_CONTACT_THRESHOLD,
+        recycleCount,
+      },
+    }).catch(() => {});
+
+    return { leadId, recycled: true, recycleCount };
+  }
+
+  if (lead.unansweredCallStreak > 0) {
+    await db
+      .update(crmLeads)
+      .set({ unansweredCallStreak: 0, updatedAt: new Date() })
+      .where(eq(crmLeads.id, leadId));
+  }
+
+  return { leadId, recycled: false, recycleCount: lead.recycleCount };
+}
+
 router.put("/:id/complete", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
     const body = completeTaskSchema.parse(req.body);
+    const existingTask = await taskStorage.getTaskById(req.params.id as string);
+    if (!existingTask) return res.status(404).json({ message: "Task not found" });
+    if (existingTask.completed) return res.json(existingTask);
+
     const task = await taskStorage.completeTask(req.params.id as string, body ?? undefined);
     await logAudit({
       userId: req.authUser?.id,
@@ -271,6 +385,8 @@ router.put("/:id/complete", requireRole("admin", "developer", "sales_rep"), asyn
         }
       }
     }
+
+    const recycleResult = await applyLeadContactOutcome(task, body?.outcome, actorId, req.ip);
 
     if (body?.outcome && task.opportunityId) {
       const targetSlug = OUTCOME_STAGE_SLUG[body.outcome];
@@ -325,9 +441,9 @@ router.put("/:id/complete", requireRole("admin", "developer", "sales_rep"), asyn
             taskType: task.taskType,
             dueDate: tomorrow,
             completed: false,
-            assignedTo: task.assignedTo,
+            assignedTo: recycleResult.recycled ? null : task.assignedTo,
             opportunityId: task.opportunityId,
-            leadId: task.leadId,
+            leadId: task.leadId ?? recycleResult.leadId,
             contactId: task.contactId,
             companyId: task.companyId,
             createdBy: actorId,

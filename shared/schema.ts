@@ -289,6 +289,9 @@ export const crmLeads = pgTable("crm_leads", {
   hispanicNameScore: integer("hispanic_name_score"),
   spanishOutreachRecommended: boolean("spanish_outreach_recommended"),
   firstOutreachSentAt: timestamp("first_outreach_sent_at"),
+  unansweredCallStreak: integer("unanswered_call_streak").notNull().default(0),
+  recycleCount: integer("recycle_count").notNull().default(0),
+  lastRecycledAt: timestamp("last_recycled_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (t) => [
@@ -297,6 +300,7 @@ export const crmLeads = pgTable("crm_leads", {
   index("crm_leads_contact_idx").on(t.contactId),
   index("crm_leads_created_idx").on(t.createdAt),
   index("crm_leads_assigned_idx").on(t.assignedTo),
+  index("crm_leads_recycle_count_idx").on(t.recycleCount),
   index("crm_leads_source_idx").on(t.source),
   index("crm_leads_web_form_idx").on(t.fromWebsiteForm),
 ]);
