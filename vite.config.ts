@@ -36,7 +36,7 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       input: {
-        main: path.resolve(import.meta.dirname, "client", "index.html"),
+        main: path.resolve(import.meta.dirname, "client", "_app.html"),
         empieza: path.resolve(import.meta.dirname, "client", "empieza.html"),
         crece: path.resolve(import.meta.dirname, "client", "crece.html"),
         domina: path.resolve(import.meta.dirname, "client", "domina.html"),

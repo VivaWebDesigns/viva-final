@@ -49,6 +49,19 @@ export async function setupVite(server: Server, app: Express) {
       };
 
       const urlPath = url.split("?")[0];
+      if (urlPath === "/") {
+        const marketingIndex = path.resolve(
+          import.meta.dirname,
+          "..",
+          "client",
+          "public",
+          "index.html",
+        );
+        const page = await fs.promises.readFile(marketingIndex, "utf-8");
+        res.status(200).set({ "Content-Type": "text/html" }).end(page);
+        return;
+      }
+
       const mpaFile =
         mpaHtmlFiles[urlPath] ??
         (urlPath.startsWith("/empieza/") ? "empieza.html" :
@@ -60,7 +73,7 @@ export async function setupVite(server: Server, app: Express) {
         import.meta.dirname,
         "..",
         "client",
-        mpaFile ?? "index.html",
+        mpaFile ?? "_app.html",
       );
 
       // always reload the html file from disk incase it changes

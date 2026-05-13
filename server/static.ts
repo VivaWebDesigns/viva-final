@@ -61,8 +61,13 @@ export function serveStatic(app: Express) {
     res.setHeader("Pragma", "no-cache");
     res.setHeader("Expires", "0");
     const urlPath = req.originalUrl.split("?")[0];
-    const mpaFile = mpaHtmlFiles[urlPath];
-    const htmlFile = mpaFile ?? "index.html";
+    const mpaFile =
+      mpaHtmlFiles[urlPath] ??
+      (urlPath.startsWith("/empieza/") ? "empieza.html" :
+       urlPath.startsWith("/crece/")   ? "crece.html"   :
+       urlPath.startsWith("/domina/")  ? "domina.html"  :
+       undefined);
+    const htmlFile = mpaFile ?? "_app.html";
     res.sendFile(path.resolve(distPath, htmlFile));
   });
 }
