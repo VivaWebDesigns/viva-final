@@ -8,7 +8,6 @@ import { usePreviewLang } from "@/contexts/PreviewLangContext";
 
 const navLinks = [
   { href: "/", labelKey: "nav.home" },
-  { href: "/paquetes#paquetes-list", labelKey: "nav.packages" },
   { href: "/contacto", labelKey: "nav.contact" },
 ];
 

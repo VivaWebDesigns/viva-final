@@ -116,12 +116,12 @@ export default function Home() {
             </motion.p>
 
             <motion.div variants={fadeUp} className="flex flex-col sm:flex-row items-start gap-4">
-              <Link href="/paquetes">
+              <a href="#paquetes">
                 <Button size="lg" className="rounded-full bg-[#0D9488] text-white font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-hero-paquetes">
                   {t("home.hero.ctaPackages")}
                   <ArrowRight className="w-5 h-5" />
                 </Button>
-              </Link>
+              </a>
               <a href={`${whatsappUrl}?text=Hi%2C%20I%27m%20interested%20in%20learning%20more%20about%20your%20services`} target="_blank" rel="noopener noreferrer">
                 <Button size="lg" variant="outline" className="rounded-full text-white border-white/30 font-bold text-lg gap-2 bg-white/5 backdrop-blur-sm hover:shadow-lg transition-all duration-200" data-testid="button-hero-whatsapp">
                   <SiWhatsapp className="w-5 h-5" />
@@ -165,12 +165,12 @@ export default function Home() {
           </motion.div>
 
           <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }} className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-12">
-            <Link href="/paquetes">
+            <a href="#paquetes">
               <Button size="lg" className="rounded-full bg-[#0D9488] text-white font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-paquetes-problem">
                 {t("home.ctaButtons.verPaquetes")}
                 <ArrowRight className="w-5 h-5" />
               </Button>
-            </Link>
+            </a>
             <a href={`${whatsappUrl}?text=Hi%2C%20I%27m%20interested%20in%20learning%20more%20about%20your%20services`} target="_blank" rel="noopener noreferrer">
               <Button size="lg" variant="outline" className="rounded-full text-[#111] dark:text-white border-gray-300 dark:border-gray-600 font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-whatsapp-problem">
                 <SiWhatsapp className="w-5 h-5" />
@@ -211,12 +211,12 @@ export default function Home() {
           </motion.div>
 
           <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }} className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-12">
-            <Link href="/paquetes">
+            <a href="#paquetes">
               <Button size="lg" className="rounded-full bg-[#0D9488] text-white font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-paquetes-solution">
                 {t("home.ctaButtons.verPaquetes")}
                 <ArrowRight className="w-5 h-5" />
               </Button>
-            </Link>
+            </a>
             <a href={`${whatsappUrl}?text=Hi%2C%20I%27m%20interested%20in%20learning%20more%20about%20your%20services`} target="_blank" rel="noopener noreferrer">
               <Button size="lg" variant="outline" className="rounded-full text-[#111] dark:text-white border-gray-300 dark:border-gray-600 font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-whatsapp-solution">
                 <SiWhatsapp className="w-5 h-5" />
@@ -250,7 +250,7 @@ export default function Home() {
                   <div className="flex justify-center -mb-4 relative z-30">
                     <span className="bg-[#FCD34D] text-[#111] text-xs font-bold px-5 py-1.5 rounded-full uppercase tracking-widest flex items-center gap-1.5 shadow-lg" data-testid="badge-inicio">
                       <Zap className="w-3 h-3 fill-[#111]" />
-                      Inicio
+                      Starter
                     </span>
                   </div>
                 )}
@@ -258,7 +258,7 @@ export default function Home() {
                   <div className="flex justify-center -mb-4 relative z-30">
                     <span className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold px-5 py-1.5 rounded-full uppercase tracking-widest flex items-center gap-1.5 shadow-lg" data-testid="badge-best-value">
                       <Crown className="w-3 h-3 fill-white" />
-                      El Mejor Valor
+                      Best Value
                     </span>
                   </div>
                 )}
@@ -283,11 +283,11 @@ export default function Home() {
 
                     <div className="border-t border-gray-100 dark:border-gray-800 pt-6 mb-6">
                       <p className="text-3xl font-extrabold text-[#111] dark:text-white" data-testid={`text-price-${pkg.slug}`}>{pkg.price}</p>
-                      <p className="text-[11px] text-gray-400 dark:text-gray-500 font-medium mt-1">Configuración inicial del sitio</p>
+                      <p className="text-[11px] text-gray-400 dark:text-gray-500 font-medium mt-1">Initial website setup</p>
                       <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
-                        <p className="text-2xl font-extrabold text-[#111] dark:text-white">$97 <span className="text-base font-semibold text-gray-400">/ mes</span></p>
-                        <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">Hosting • soporte • mantenimiento • seguridad</p>
-                        <a href="#plan-soporte" className="text-[10px] text-[#0D9488] hover:underline mt-1 inline-block">Ver qué incluye</a>
+                        <p className="text-2xl font-extrabold text-[#111] dark:text-white">$97 <span className="text-base font-semibold text-gray-400">/ month</span></p>
+                        <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">Hosting • support • maintenance • security</p>
+                        <a href="#plan-soporte" className="text-[10px] text-[#0D9488] hover:underline mt-1 inline-block">See what is included</a>
                       </div>
                     </div>
                   </div>
@@ -308,7 +308,7 @@ export default function Home() {
           </motion.div>
           <motion.p initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ delay: 0.4 }} className="text-center text-sm text-gray-400 dark:text-gray-500 mt-8" data-testid="text-payment-reassurance">
             {t("home.packages.paymentNote")}{" "}
-            <a href={`${whatsappUrl}?text=Hola%2C%20quiero%20saber%20sobre%20opciones%20de%20pago`} target="_blank" rel="noopener noreferrer" className="underline hover:text-[#0D9488] transition-colors">
+            <a href={`${whatsappUrl}?text=Hi%2C%20I%27d%20like%20to%20learn%20about%20payment%20options`} target="_blank" rel="noopener noreferrer" className="underline hover:text-[#0D9488] transition-colors">
               {t("home.packages.paymentNoteLink")}
             </a>
           </motion.p>
@@ -380,12 +380,12 @@ export default function Home() {
           </motion.div>
 
           <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }} className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-12">
-            <Link href="/paquetes">
+            <a href="#paquetes">
               <Button size="lg" className="rounded-full bg-[#0D9488] text-white font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-paquetes-beforeafter">
                 {t("home.ctaButtons.verPaquetes")}
                 <ArrowRight className="w-5 h-5" />
               </Button>
-            </Link>
+            </a>
             <a href={`${whatsappUrl}?text=Hi%2C%20I%27m%20interested%20in%20learning%20more%20about%20your%20services`} target="_blank" rel="noopener noreferrer">
               <Button size="lg" variant="outline" className="rounded-full text-white border-white/30 bg-white/5 font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-whatsapp-beforeafter">
                 <SiWhatsapp className="w-5 h-5" />
@@ -418,12 +418,12 @@ export default function Home() {
           </motion.div>
 
           <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }} className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-12">
-            <Link href="/paquetes">
+            <a href="#paquetes">
               <Button size="lg" className="rounded-full bg-[#0D9488] text-white font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-paquetes-process">
                 {t("home.ctaButtons.verPaquetes")}
                 <ArrowRight className="w-5 h-5" />
               </Button>
-            </Link>
+            </a>
             <a href={`${whatsappUrl}?text=Hi%2C%20I%27m%20interested%20in%20learning%20more%20about%20your%20services`} target="_blank" rel="noopener noreferrer">
               <Button size="lg" variant="outline" className="rounded-full text-[#111] dark:text-white border-gray-300 dark:border-gray-600 font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-whatsapp-process">
                 <SiWhatsapp className="w-5 h-5" />
@@ -471,12 +471,12 @@ export default function Home() {
           </motion.div>
 
           <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }} className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-12">
-            <Link href="/paquetes">
+            <a href="#paquetes">
               <Button size="lg" className="rounded-full bg-[#0D9488] text-white font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-paquetes-testimonials">
                 {t("home.ctaButtons.verPaquetes")}
                 <ArrowRight className="w-5 h-5" />
               </Button>
-            </Link>
+            </a>
             <a href={`${whatsappUrl}?text=Hi%2C%20I%27m%20interested%20in%20learning%20more%20about%20your%20services`} target="_blank" rel="noopener noreferrer">
               <Button size="lg" variant="outline" className="rounded-full text-[#111] dark:text-white border-gray-300 dark:border-gray-600 font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-whatsapp-testimonials">
                 <SiWhatsapp className="w-5 h-5" />
@@ -505,12 +505,12 @@ export default function Home() {
           </motion.div>
 
           <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }} className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-12">
-            <Link href="/paquetes">
+            <a href="#paquetes">
               <Button size="lg" className="rounded-full bg-[#0D9488] text-white font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-paquetes-faq">
                 {t("home.ctaButtons.verPaquetes")}
                 <ArrowRight className="w-5 h-5" />
               </Button>
-            </Link>
+            </a>
             <a href={`${whatsappUrl}?text=Hi%2C%20I%27m%20interested%20in%20learning%20more%20about%20your%20services`} target="_blank" rel="noopener noreferrer">
               <Button size="lg" variant="outline" className="rounded-full text-[#111] dark:text-white border-gray-300 dark:border-gray-600 font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-whatsapp-faq">
                 <SiWhatsapp className="w-5 h-5" />

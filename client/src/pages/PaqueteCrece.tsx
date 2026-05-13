@@ -54,17 +54,17 @@ export default function PaqueteCrece() {
             <motion.p variants={fadeUp} className="text-4xl font-extrabold text-white mb-2">
               {t("crece.hero.price")}
             </motion.p>
-            <motion.p variants={fadeUp} className="text-xs text-white/60 font-medium mt-1">Configuración inicial del sitio</motion.p>
+            <motion.p variants={fadeUp} className="text-xs text-white/60 font-medium mt-1">Initial website setup</motion.p>
             <motion.div variants={fadeUp} className="mt-3 pt-3 border-t border-white/20 mb-8">
-              <p className="text-2xl font-extrabold text-white">$97 <span className="text-base font-semibold text-white/60">/ mes</span></p>
-              <p className="text-[10px] text-white/50 mt-1">Hosting • soporte • mantenimiento • seguridad</p>
-              <a href="#plan-soporte" className="text-[10px] text-teal-300 hover:underline mt-1 inline-block">Ver qué incluye</a>
+              <p className="text-2xl font-extrabold text-white">$97 <span className="text-base font-semibold text-white/60">/ month</span></p>
+              <p className="text-[10px] text-white/50 mt-1">Hosting • support • maintenance • security</p>
+              <a href="#plan-soporte" className="text-[10px] text-teal-300 hover:underline mt-1 inline-block">See what is included</a>
             </motion.div>
             <motion.div variants={fadeUp} className="flex flex-col sm:flex-row items-start gap-4">
               <a href={CALENDLY_URL} target="_blank" rel="noopener noreferrer">
                 <Button size="lg" className="bg-[#0D9488] text-white font-bold text-lg gap-2 rounded-full transition-all duration-200 hover:shadow-lg" data-testid="button-crece-cta">
                   <CalendarDays className="w-5 h-5" />
-                  Agenda una demo
+                  Schedule a demo
                 </Button>
               </a>
             </motion.div>
@@ -100,11 +100,11 @@ export default function PaqueteCrece() {
                 <h3 className="text-2xl font-extrabold text-[#111] dark:text-white mb-3">{t("crece.ideal.cardTitle")}</h3>
                 <p className="text-gray-600 dark:text-gray-400 mb-6">{t("crece.ideal.cardSubtitle")}</p>
                 <p className="text-5xl font-extrabold text-[#0D9488] mb-1">$997</p>
-                <p className="text-[11px] text-gray-400 font-medium mt-1 mb-4">Configuración inicial del sitio</p>
+                <p className="text-[11px] text-gray-400 font-medium mt-1 mb-4">Initial website setup</p>
                 <div className="mt-2 pt-4 border-t border-gray-100 dark:border-gray-800 mb-4">
-                  <p className="text-2xl font-extrabold text-[#111] dark:text-white">$97 <span className="text-base font-semibold text-gray-400">/ mes</span></p>
-                  <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">Hosting • soporte • mantenimiento • seguridad</p>
-                  <a href="#plan-soporte" className="text-[10px] text-[#0D9488] hover:underline mt-1 inline-block">Ver qué incluye</a>
+                  <p className="text-2xl font-extrabold text-[#111] dark:text-white">$97 <span className="text-base font-semibold text-gray-400">/ month</span></p>
+                  <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">Hosting • support • maintenance • security</p>
+                  <a href="#plan-soporte" className="text-[10px] text-[#0D9488] hover:underline mt-1 inline-block">See what is included</a>
                 </div>
               </div>
             </motion.div>
@@ -181,11 +181,11 @@ export default function PaqueteCrece() {
                       <ArrowRight className="w-5 h-5" />
                     </Button>
                   </Link>
-                  <Link href="/paquetes">
+                  <a href="/#paquetes">
                     <Button size="lg" variant="outline" className="font-bold text-lg gap-2 rounded-full transition-all duration-200 hover:shadow-lg" data-testid="button-crece-comparar">
                       {t("crece.upgrade.ctaComparar")}
                     </Button>
-                  </Link>
+                  </a>
                 </div>
               </div>
             </motion.div>
@@ -236,7 +236,7 @@ export default function PaqueteCrece() {
               <a href={CALENDLY_URL} target="_blank" rel="noopener noreferrer">
                 <Button size="lg" className="bg-[#0D9488] text-white font-bold text-lg gap-2 rounded-full transition-all duration-200 hover:shadow-lg" data-testid="button-crece-cta-bottom">
                   <CalendarDays className="w-5 h-5" />
-                  Agenda una demo
+                  Schedule a demo
                 </Button>
               </a>
             </motion.div>

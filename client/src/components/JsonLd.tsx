@@ -7,7 +7,7 @@ export default function JsonLd() {
     "@id": "https://vivawebdesigns.com",
     name: "Viva Web Designs",
     description:
-      "Agencia de marketing digital especializada en contratistas. Sitios web profesionales, SEO local y posicionamiento en Google.",
+      "Digital marketing agency for contractors. Professional websites, local SEO, and Google positioning.",
     url: "https://vivawebdesigns.com",
     telephone: "+1-704-222-7067",
     email: "info@vivawebdesigns.com",
@@ -15,15 +15,15 @@ export default function JsonLd() {
     priceRange: "$497 - $1,997",
     address: {
       "@type": "PostalAddress",
-      streetAddress: "[Dirección]",
-      addressLocality: "[Ciudad]",
-      addressRegion: "[Estado]",
-      postalCode: "[Código Postal]",
+      streetAddress: "[Address]",
+      addressLocality: "[City]",
+      addressRegion: "[State]",
+      postalCode: "[ZIP Code]",
       addressCountry: "US",
     },
     areaServed: {
       "@type": "Place",
-      name: "[Ciudad / Área de servicio]",
+      name: "[City / Service Area]",
     },
     sameAs: [
       "https://www.facebook.com/vivawebdesigns",

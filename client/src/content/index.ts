@@ -1,6 +1,7 @@
 import content from "./content.json";
 
 type ContentNode = { en: string; es: string } | boolean | ContentNode[] | { [key: string]: ContentNode };
+const MARKETING_LANG = "en";
 
 function getNestedValue(obj: unknown, path: string[]): unknown {
   let current: unknown = obj;
@@ -22,9 +23,9 @@ export function t(path: string): string {
       return `[MISSING: ${path}]`;
     }
 
-    if (typeof value === "object" && !Array.isArray(value) && "es" in (value as object)) {
+    if (typeof value === "object" && !Array.isArray(value) && MARKETING_LANG in (value as object)) {
       const node = value as { en: string; es: string };
-      return node.es;
+      return node[MARKETING_LANG];
     }
 
     return `[MISSING: ${path}]`;
@@ -40,8 +41,8 @@ export function tArr(path: string): string[] {
 
     if (Array.isArray(value)) {
       return value.map((item: unknown) => {
-        if (typeof item === "object" && item !== null && "es" in (item as object)) {
-          return (item as { es: string }).es;
+        if (typeof item === "object" && item !== null && MARKETING_LANG in (item as object)) {
+          return (item as { en: string; es: string })[MARKETING_LANG];
         }
         return String(item);
       });
@@ -63,8 +64,8 @@ export function tObjArr<T extends Record<string, unknown>>(path: string): T[] {
         if (typeof item !== "object" || item === null) return {} as T;
         const result: Record<string, unknown> = {};
         for (const [key, val] of Object.entries(item as Record<string, unknown>)) {
-          if (typeof val === "object" && val !== null && "es" in (val as object)) {
-            result[key] = (val as { es: string }).es;
+          if (typeof val === "object" && val !== null && MARKETING_LANG in (val as object)) {
+            result[key] = (val as { en: string; es: string })[MARKETING_LANG];
           } else if (typeof val === "boolean") {
             result[key] = val;
           } else {
