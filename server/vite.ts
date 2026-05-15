@@ -15,6 +15,22 @@ export async function setupVite(server: Server, app: Express) {
     allowedHosts: true as const,
   };
 
+  app.get("/", async (_req, res, next) => {
+    try {
+      const marketingIndex = path.resolve(
+        import.meta.dirname,
+        "..",
+        "client",
+        "public",
+        "index.html",
+      );
+      const page = await fs.promises.readFile(marketingIndex, "utf-8");
+      res.status(200).set({ "Content-Type": "text/html" }).end(page);
+    } catch (e) {
+      next(e);
+    }
+  });
+
   const vite = await createViteServer({
     ...viteConfig,
     configFile: false,
@@ -49,19 +65,6 @@ export async function setupVite(server: Server, app: Express) {
       };
 
       const urlPath = url.split("?")[0];
-      if (urlPath === "/") {
-        const marketingIndex = path.resolve(
-          import.meta.dirname,
-          "..",
-          "client",
-          "public",
-          "index.html",
-        );
-        const page = await fs.promises.readFile(marketingIndex, "utf-8");
-        res.status(200).set({ "Content-Type": "text/html" }).end(page);
-        return;
-      }
-
       const mpaFile =
         mpaHtmlFiles[urlPath] ??
         (urlPath.startsWith("/empieza/") ? "empieza.html" :
