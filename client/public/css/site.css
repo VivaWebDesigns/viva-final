@@ -1,16 +1,22 @@
 :root {
   --teal: #0fa38c;
   --teal-dark: #0b7f70;
+  --pink: #e72b78;
+  --blue: #1187c9;
   --ink: #111111;
   --muted: #666666;
   --soft: #f4f6f8;
-  --dark: #0a0a0a;
+  --cream: #fff8ed;
+  --mint: #eaf8f4;
+  --paper: #fffdf9;
+  --dark: #0b1413;
   --line: #e6eaee;
   --danger-bg: #fff5f5;
   --danger: #dc2626;
   --gold: #f5b301;
   --radius: 8px;
   --shadow: 0 18px 50px rgba(17, 17, 17, 0.08);
+  --shadow-card: 0 16px 42px rgba(17, 17, 17, 0.06);
 }
 
 * {
@@ -24,7 +30,7 @@ html {
 body {
   margin: 0;
   color: var(--ink);
-  background: #ffffff;
+  background: var(--paper);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   line-height: 1.5;
   text-rendering: optimizeLegibility;
@@ -80,9 +86,10 @@ select {
   position: sticky;
   top: 0;
   z-index: 50;
-  background: rgba(255, 255, 255, 0.96);
+  background: rgba(255, 253, 249, 0.96);
   border-bottom: 1px solid var(--line);
   backdrop-filter: blur(14px);
+  box-shadow: 0 1px 20px rgba(17, 17, 17, 0.04);
 }
 
 .header-inner {
@@ -220,7 +227,7 @@ select {
   font-weight: 900;
   line-height: 1.1;
   text-align: center;
-  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
 }
 
 .button:hover,
@@ -229,8 +236,9 @@ select {
 }
 
 .button-primary {
-  background: var(--teal);
+  background: linear-gradient(135deg, var(--teal), #12b7a0);
   color: #ffffff;
+  box-shadow: 0 12px 28px rgba(15, 163, 140, 0.22);
 }
 
 .button-primary:hover,
@@ -241,7 +249,7 @@ select {
 .button-secondary {
   border-color: rgba(255, 255, 255, 0.5);
   color: #ffffff;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .button-outline {
@@ -259,18 +267,20 @@ select {
   position: relative;
   display: flex;
   align-items: center;
-  min-height: 78vh;
-  padding: 96px 0;
+  min-height: 72vh;
+  padding: 88px 0;
   overflow: hidden;
   color: #ffffff;
-  background: #111111;
+  background: var(--dark);
 }
 
 .hero::before {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(90deg, rgba(0, 0, 0, 0.78) 0%, rgba(0, 0, 0, 0.68) 48%, rgba(0, 0, 0, 0.46) 100%),
+    radial-gradient(circle at 18% 62%, rgba(15, 163, 140, 0.22), transparent 31%),
+    radial-gradient(circle at 74% 20%, rgba(231, 43, 120, 0.15), transparent 28%),
+    linear-gradient(90deg, rgba(7, 18, 17, 0.74) 0%, rgba(7, 18, 17, 0.58) 50%, rgba(7, 18, 17, 0.34) 100%),
     url("/img/hero-bg.jpg") center / cover no-repeat;
   content: "";
 }
@@ -338,11 +348,12 @@ select {
 }
 
 .section {
-  padding: 82px 0;
+  padding: 74px 0;
 }
 
 .section-soft {
-  background: var(--soft);
+  background:
+    linear-gradient(180deg, rgba(255, 248, 237, 0.68) 0%, rgba(244, 246, 248, 0.96) 100%);
 }
 
 .section-dark {
@@ -417,14 +428,25 @@ select {
 .card {
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: #ffffff;
-  box-shadow: 0 1px 0 rgba(17, 17, 17, 0.03);
+  background: linear-gradient(180deg, #ffffff 0%, #fcfdfc 100%);
+  box-shadow: var(--shadow-card);
+  position: relative;
+  overflow: hidden;
 }
 
 .pillar-card,
 .testimonial-card,
 .service-card {
   padding: 26px;
+}
+
+.pillar-card::before,
+.service-card::before {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: linear-gradient(90deg, var(--teal), var(--blue), var(--pink));
+  content: "";
 }
 
 .card-icon {
@@ -434,10 +456,20 @@ select {
   margin-bottom: 18px;
   place-items: center;
   border-radius: var(--radius);
-  background: rgba(15, 163, 140, 0.1);
+  background: var(--mint);
   color: var(--teal);
   font-size: 24px;
   font-weight: 900;
+}
+
+.card-grid > article:nth-child(3n + 2) .card-icon {
+  background: rgba(245, 179, 1, 0.16);
+  color: #b87800;
+}
+
+.card-grid > article:nth-child(3n) .card-icon {
+  background: rgba(231, 43, 120, 0.12);
+  color: var(--pink);
 }
 
 .card h3 {
@@ -460,9 +492,10 @@ select {
 
 .scan-card {
   overflow: hidden;
-  border: 1px solid rgba(15, 163, 140, 0.52);
+  border: 1px solid rgba(15, 163, 140, 0.38);
   border-radius: var(--radius);
-  background: #141414;
+  background: #111918;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.18);
 }
 
 .scan-card img {
@@ -509,7 +542,7 @@ select {
 .step-number {
   display: block;
   margin-bottom: 8px;
-  color: #d4d8dd;
+  color: rgba(15, 163, 140, 0.18);
   font-size: 46px;
   line-height: 1;
   font-weight: 950;
@@ -584,6 +617,7 @@ select {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: #ffffff;
+  box-shadow: 0 8px 28px rgba(17, 17, 17, 0.04);
   font-weight: 800;
   list-style: none;
 }
@@ -624,6 +658,7 @@ select {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: #ffffff;
+  box-shadow: var(--shadow-card);
 }
 
 .faq-list details + details {
@@ -670,7 +705,7 @@ select {
 }
 
 .site-footer {
-  background: #050505;
+  background: #07100f;
   color: rgba(255, 255, 255, 0.72);
 }
 
@@ -727,9 +762,12 @@ select {
 
 .page-hero,
 .scan-hero {
-  padding: 84px 0;
+  padding: 78px 0;
   color: #ffffff;
-  background: var(--dark);
+  background:
+    radial-gradient(circle at 17% 40%, rgba(15, 163, 140, 0.2), transparent 30%),
+    radial-gradient(circle at 72% 15%, rgba(245, 179, 1, 0.13), transparent 26%),
+    linear-gradient(135deg, #07100f 0%, #111111 58%, #082722 100%);
 }
 
 .page-hero .container,
@@ -775,6 +813,7 @@ select {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: #ffffff;
+  box-shadow: 0 8px 28px rgba(17, 17, 17, 0.04);
   list-style: none;
 }
 
@@ -902,7 +941,7 @@ select {
   }
 
   .section {
-    padding: 104px 0;
+    padding: 90px 0;
   }
 
   .section-header h2,
@@ -961,6 +1000,10 @@ select {
   .floating-cta {
     right: 12px;
     bottom: 12px;
-    width: calc(100% - 24px);
+    width: auto;
+    min-height: 44px;
+    padding: 12px 18px;
+    font-size: 14px;
+    box-shadow: 0 10px 28px rgba(15, 163, 140, 0.22);
   }
 }
