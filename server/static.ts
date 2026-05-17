@@ -42,7 +42,8 @@ export function serveStatic(app: Express) {
   );
 
   const mpaHtmlFiles: Record<string, string> = {
-    // Public demo routes — linked from /demo showroom
+    // Public demo routes
+    "/demo": "domina.html",
     "/empieza": "empieza.html",
     "/empieza.html": "empieza.html",
     "/crece": "crece.html",
@@ -63,7 +64,8 @@ export function serveStatic(app: Express) {
     const urlPath = req.originalUrl.split("?")[0];
     const mpaFile =
       mpaHtmlFiles[urlPath] ??
-      (urlPath.startsWith("/empieza/") ? "empieza.html" :
+      (urlPath.startsWith("/demo/")    ? "domina.html"  :
+       urlPath.startsWith("/empieza/") ? "empieza.html" :
        urlPath.startsWith("/crece/")   ? "crece.html"   :
        urlPath.startsWith("/domina/")  ? "domina.html"  :
        undefined);

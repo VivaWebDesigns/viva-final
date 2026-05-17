@@ -41,6 +41,11 @@ export async function registerRoutes(
     res.redirect(301, "/index.html");
   });
 
+  app.get(/^\/domina(?:\.html|\/.*)?$/, (req, res) => {
+    const suffix = req.path === "/domina.html" ? "" : req.path.slice("/domina".length);
+    res.redirect(301, `/demo${suffix}`);
+  });
+
   app.get("/contacto", (_req, res) => {
     res.redirect(301, "/contact.html");
   });
