@@ -88,7 +88,7 @@ export function Navigation() {
     <>
     <nav
       data-testid="navigation"
-      className={`sticky ${window.__PREVIEW__ ? "top-0" : "top-[44px]"} w-full z-50 bg-white transition-shadow duration-300 py-3 ${
+      className={`sticky top-0 w-full z-50 bg-white transition-shadow duration-300 py-3 ${
         scrolled ? "shadow-md" : ""
       }`}
     >
