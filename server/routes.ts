@@ -37,8 +37,8 @@ export async function registerRoutes(
 
   app.use("/api", featureRoutes);
 
-  app.get(/^\/(?:packages(?:\.html)?|paquetes(?:\/.*)?)$/, (_req, res) => {
-    res.redirect(301, "/services.html");
+  app.get(/^\/(?:services\.html|packages(?:\.html)?|paquetes(?:\/.*)?)$/, (_req, res) => {
+    res.redirect(301, "/index.html");
   });
 
   app.get("/contacto", (_req, res) => {
