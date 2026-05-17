@@ -815,6 +815,15 @@ select {
   max-width: 780px;
 }
 
+.scan-hero h1 {
+  color: #F5F0E8;
+  font-weight: 700;
+}
+
+.scan-hero p {
+  color: #C8C2B8;
+}
+
 .service-band {
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
