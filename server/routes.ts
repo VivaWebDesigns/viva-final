@@ -103,7 +103,7 @@ export async function registerRoutes(
         enqueueJob(
           "email_notification",
           {
-            to: "info@vivawebdesigns.com",
+            to: "matt@vivawebdesigns.com",
             subject: `New Visibility Scan Request - ${data.business}`,
             html: `
               <h2>New Visibility Scan Request</h2>
@@ -177,7 +177,7 @@ export async function registerRoutes(
         enqueueJob(
           "email_notification",
           {
-            to: "info@vivawebdesigns.com",
+            to: "matt@vivawebdesigns.com",
             subject: `New Contact Form Submission - ${data.name}`,
             html: `
               <h2>New Contact Form Submission</h2>
@@ -256,7 +256,7 @@ export async function registerRoutes(
         enqueueJob(
           "email_notification",
           {
-            to: "info@vivawebdesigns.com",
+            to: "matt@vivawebdesigns.com",
             subject: `New Contact Form Submission — ${data.name}`,
             html: `
               <h2>New Contact Form Submission</h2>
@@ -340,7 +340,7 @@ export async function registerRoutes(
         enqueueJob(
           "email_notification",
           {
-            to: "info@vivawebdesigns.com",
+            to: "matt@vivawebdesigns.com",
             subject: `New Inquiry — ${data.name}`,
             html: `
               <h2>New Inquiry from Demo Site</h2>

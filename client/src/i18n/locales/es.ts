@@ -1218,7 +1218,7 @@ export const es: AdminTranslations = {
     messageSentCountdown: "Mensaje enviado ({{n}}s)",
     messageSentCloseLead: "Mensaje enviado — Cerrar Prospecto",
     confirmProceed: "Confirmar y Continuar",
-    closingSms: "Hola {{name}}, gracias por tu tiempo hablando con nosotros. Apreciamos la oportunidad y esperamos poder trabajar contigo en el futuro. No dudes en comunicarte con nosotros en cualquier momento. — Viva Web Designs (704) 222-7067",
+    closingSms: "Hola {{name}}, gracias por tu tiempo hablando con nosotros. Apreciamos la oportunidad y esperamos poder trabajar contigo en el futuro. No dudes en comunicarte con nosotros en cualquier momento. — Viva Web Designs (980) 475-4924",
   },
   trades: {
     painting:          "Pintura",

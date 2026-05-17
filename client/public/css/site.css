@@ -533,10 +533,11 @@ select {
 }
 
 .scan-card img {
+  display: block;
   width: 100%;
-  aspect-ratio: 3 / 2;
-  object-fit: cover;
-  background: #e5e7eb;
+  aspect-ratio: 1.18 / 1;
+  object-fit: contain;
+  background: #eef7f2;
 }
 
 .scan-caption {
