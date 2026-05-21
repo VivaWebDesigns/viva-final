@@ -52,7 +52,6 @@ export async function setupVite(server: Server, app: Express) {
 
     try {
       const mpaHtmlFiles: Record<string, string> = {
-        "/demo": "domina.html",
         "/empieza": "empieza.html",
         "/empieza.html": "empieza.html",
         "/crece": "crece.html",
@@ -68,8 +67,7 @@ export async function setupVite(server: Server, app: Express) {
       const urlPath = url.split("?")[0];
       const mpaFile =
         mpaHtmlFiles[urlPath] ??
-        (urlPath.startsWith("/demo/")    ? "domina.html"  :
-         urlPath.startsWith("/empieza/") ? "empieza.html" :
+        (urlPath.startsWith("/empieza/") ? "empieza.html" :
          urlPath.startsWith("/crece/")   ? "crece.html"   :
          urlPath.startsWith("/domina/")  ? "domina.html"  :
          undefined);
