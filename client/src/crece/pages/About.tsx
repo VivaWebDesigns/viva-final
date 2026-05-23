@@ -11,7 +11,7 @@ import {
   ShieldCheck,
   Clock,
 } from "lucide-react";
-import aboutPhoto from "@crece/assets/images/optimized/gabriel-tovar-En1Is3KsRZw-unsplash_1771517255358.webp";
+import aboutPhoto from "@crece/assets/images/optimized/greek-family-about.webp";
 
 export default function About() {
   const { t, language } = useLanguage();

@@ -10,7 +10,7 @@ import {
   ShieldCheck,
   Clock,
 } from "lucide-react";
-import aboutPhoto from "@domina/assets/images/optimized/gabriel-tovar-En1Is3KsRZw-unsplash_1771517255358.webp";
+import aboutPhoto from "@domina/assets/images/optimized/greek-family-about.webp";
 import { useLanguage } from "@domina/i18n/LanguageContext";
 
 export default function About() {

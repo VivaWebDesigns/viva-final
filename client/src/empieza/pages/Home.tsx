@@ -23,7 +23,7 @@ import { SiTiktok, SiYoutube, SiFacebook, SiInstagram } from "react-icons/si";
 import heroVideoMp4 from "@empieza/assets/videos/hero-painting-optimized.mp4";
 import heroVideoWebm from "@empieza/assets/videos/hero-painting-optimized.webm";
 import heroPoster from "@empieza/assets/videos/poster.webp";
-import aboutPhoto from "@empieza/assets/images/optimized/gabriel-tovar-En1Is3KsRZw-unsplash_1771517255358.webp";
+import aboutPhoto from "@empieza/assets/images/optimized/greek-family-about.webp";
 import galleryKitchen1 from "@empieza/assets/images/optimized/AdobeStock_615565130_1771521960347.webp";
 import galleryLiving1 from "@empieza/assets/images/optimized/AdobeStock_470165599_1771521960348.webp";
 import galleryKitchen2 from "@empieza/assets/images/optimized/ChatGPT_Image_Feb_19,_2026,_12_19_17_PM_1771521960349.webp";
