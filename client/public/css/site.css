@@ -744,7 +744,7 @@ select {
 }
 
 .site-footer {
-  background: var(--dark);
+  background: #000000;
   color: rgba(255, 255, 255, 0.72);
 }
 
@@ -756,8 +756,7 @@ select {
 }
 
 .site-footer img {
-  width: 154px;
-  filter: brightness(1.1);
+  width: min(240px, 100%);
 }
 
 .site-footer h3 {
