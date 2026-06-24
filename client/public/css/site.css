@@ -99,7 +99,7 @@ select {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 72px;
+  min-height: 84px;
   gap: 18px;
 }
 
@@ -110,7 +110,7 @@ select {
 }
 
 .logo img {
-  width: 158px;
+  width: 208px;
 }
 
 .desktop-nav,
@@ -1074,7 +1074,7 @@ select {
   }
 
   .logo img {
-    width: 132px;
+    width: 150px;
   }
 
   .hero h1,
