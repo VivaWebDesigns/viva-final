@@ -25,6 +25,8 @@
 
 ## Safety
 
+- When the user asks what is happening, asks for analysis, or asks for an opinion about an issue, first explain the diagnosis and proposed fix, then wait for explicit confirmation before making changes. If the user directly asks for an action, proceed normally within the existing git and safety workflow.
+- When replacing or updating logos, favicons, app icons, or other persistent brand assets, include a cache-busting strategy in the same change, such as updating the referenced asset URL with a version query string or using a new filename. Do this automatically as part of the asset replacement unless the user explicitly asks not to.
 - Never discard, reset, or delete local work unless the user explicitly approves that exact cleanup.
 - If cleanup is needed, preserve recovery points first with a backup branch or named stash.
 - Prefer small, scoped changes that follow the existing codebase patterns.
