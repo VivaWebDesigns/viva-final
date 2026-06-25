@@ -1,36 +1,62 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Star, ArrowRight, CheckCircle2, XCircle, Image, Eye, PhoneCall, ChevronDown, Zap, Rocket, Crown, Shield } from "lucide-react";
+import {
+  ArrowRight,
+  BarChart3,
+  CheckCircle2,
+  ChevronDown,
+  Crown,
+  Eye,
+  Image as ImageIcon,
+  MapPinned,
+  PhoneCall,
+  Rocket,
+  Shield,
+  Star,
+  Trophy,
+  XCircle,
+  Zap,
+} from "lucide-react";
 import { SiWhatsapp } from "react-icons/si";
 import { motion } from "framer-motion";
 import { useState } from "react";
 import SEO from "@/components/SEO";
 import { t, tArr, tObjArr } from "@/content";
 
+const heroHeatmapUrl = "/img/local-falcon-heatmap.webp?v=20260625-local-falcon-heatmap";
+
 const fadeUp = {
-  hidden: { opacity: 0, y: 30 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } },
+  hidden: { opacity: 0, y: 24 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.55, ease: "easeOut" } },
 };
 
 const stagger = {
-  visible: { transition: { staggerChildren: 0.12 } },
+  visible: { transition: { staggerChildren: 0.1 } },
 };
+
+const sectionLabel = "text-[#0b4bff] font-medium text-sm mb-4";
+const sectionTitle = "text-3xl sm:text-4xl lg:text-5xl font-medium text-[#061a3d] leading-[1.08]";
+const sectionCopy = "text-base sm:text-lg text-[#6b7185] leading-relaxed";
+const cardClass = "rounded-lg border border-[#e8e8ec] bg-white shadow-[0_16px_44px_rgba(6,26,61,0.06)]";
+const primaryButton = "rounded-md bg-[#0b4bff] hover:bg-[#063bd1] text-white font-medium min-h-[44px] px-6";
+const outlineButton = "rounded-md border-[#d0d2da] text-[#061a3d] bg-white/70 hover:bg-white font-medium min-h-[44px] px-6";
 
 function FAQItem({ q, a }: { q: string; a: string }) {
   const [open, setOpen] = useState(false);
+
   return (
-    <div className="border-b border-gray-200 dark:border-gray-700 last:border-0">
+    <div className="border-b border-[#e8e8ec] last:border-0">
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between py-6 text-left gap-4"
+        className="flex w-full items-center justify-between gap-5 py-6 text-left"
         data-testid={`button-faq-${q.slice(1, 15).replace(/\s/g, "-").toLowerCase()}`}
       >
-        <span className="text-lg font-bold text-[#111] dark:text-white">{q}</span>
-        <ChevronDown className={`w-5 h-5 text-gray-500 flex-shrink-0 transition-transform duration-300 ${open ? "rotate-180" : ""}`} />
+        <span className="text-lg font-medium text-[#061a3d]">{q}</span>
+        <ChevronDown className={`h-5 w-5 flex-shrink-0 text-[#6b7185] transition-transform duration-300 ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
         <div className="pb-6 pr-8">
-          <p className="text-gray-600 dark:text-gray-400 leading-relaxed">{a}</p>
+          <p className="leading-relaxed text-[#6b7185]">{a}</p>
         </div>
       )}
     </div>
@@ -42,7 +68,7 @@ export default function Home() {
   const faqs = tObjArr<{ q: string; a: string }>("home.faq.items");
   const processSteps = tObjArr<{ step: string; title: string; desc: string }>("home.process.steps");
   const solutionCards = tObjArr<{ title: string; desc: string }>("home.solution.cards");
-  const solutionIcons = [Image, Eye, PhoneCall];
+  const solutionIcons = [MapPinned, Eye, PhoneCall];
   const trustItems = [t("home.hero.trust1"), t("home.hero.trust2"), t("home.hero.trust3")];
   const problemItems = tArr("home.problem.items");
   const beforeItems = tArr("home.beforeAfter.beforeItems");
@@ -59,7 +85,6 @@ export default function Home() {
       desc: t("home.packages.empieza.desc"),
       positioning: t("home.packages.empieza.positioning"),
       price: t("home.packages.empieza.price"),
-      microcopy: t("home.packages.empieza.microcopy"),
       inicio: true,
     },
     {
@@ -70,7 +95,6 @@ export default function Home() {
       desc: t("home.packages.crece.desc"),
       positioning: t("home.packages.crece.positioning"),
       price: t("home.packages.crece.price"),
-      microcopy: t("home.packages.crece.microcopy"),
       popular: true,
     },
     {
@@ -81,59 +105,53 @@ export default function Home() {
       desc: t("home.packages.domina.desc"),
       positioning: t("home.packages.domina.positioning"),
       price: t("home.packages.domina.price"),
-      microcopy: t("home.packages.domina.microcopy"),
       premium: true,
       bestValue: true,
     },
   ];
 
+  const ctaHref = `${whatsappUrl}?text=Hi%2C%20I%27m%20interested%20in%20learning%20more%20about%20your%20services`;
+
   return (
-    <div className="overflow-x-hidden">
+    <div className="overflow-x-hidden bg-white text-[#061a3d]">
       <SEO
         title={t("home.seo.title")}
         description={t("home.seo.description")}
         path="/"
       />
-      {/* SECTION 1 – HERO */}
-      <section className="relative min-h-[90vh] flex items-center overflow-hidden" data-testid="section-hero">
-        <div className="absolute inset-0 bg-[#111]">
-          <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=1920&q=80')] bg-cover bg-center opacity-30" />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#111] via-[#111]/83 to-[#111]/63" />
-        </div>
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-32 lg:py-40">
-          <motion.div initial="hidden" animate="visible" variants={stagger} className="max-w-3xl">
-            <motion.h1 variants={fadeUp} className="text-4xl sm:text-5xl lg:text-7xl font-extrabold text-white leading-[1.1] tracking-tight mb-6" data-testid="text-hero-title">
+      <section className="relative isolate overflow-hidden bg-[#f6f7fb] pt-[62px]" data-testid="section-hero">
+        <div
+          className="absolute inset-0 bg-no-repeat bg-[length:118%_auto] bg-[position:58%_center] max-md:bg-cover max-md:bg-[position:center_top]"
+          style={{ backgroundImage: `url(${heroHeatmapUrl})` }}
+          aria-hidden="true"
+        />
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(246,247,251,0.94)_0%,rgba(246,247,251,0.62)_42%,rgba(246,247,251,0.1)_100%)] max-md:bg-[linear-gradient(180deg,rgba(246,247,251,0.1)_0%,rgba(246,247,251,0.42)_40%,rgba(246,247,251,0.96)_78%)]" />
+
+        <div className="relative z-10 mx-auto grid min-h-[560px] max-w-7xl items-center px-4 py-16 sm:px-6 md:min-h-[600px] lg:min-h-[620px] lg:px-8 lg:py-20">
+          <motion.div initial="hidden" animate="visible" variants={stagger} className={`${cardClass} max-w-[560px] bg-white/80 p-7 backdrop-blur-[2px] sm:p-8`} data-testid="card-hero-content">
+            <motion.p variants={fadeUp} className="mb-4 text-[15px] font-medium text-[#0b4bff]">
+              Are you number 1 for searches in your area?
+            </motion.p>
+            <motion.h1 variants={fadeUp} className="mb-5 text-4xl font-medium leading-[1.06] text-[#061a3d] sm:text-5xl lg:text-6xl" data-testid="text-hero-title">
               {t("home.hero.title1")}{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#0D9488] to-[#14B8A6]">
-                {t("home.hero.titleAccent")}
-              </span>{" "}
+              <span className="text-[#0b4bff]">{t("home.hero.titleAccent")}</span>{" "}
               {t("home.hero.title2")}
             </motion.h1>
-
-            <motion.p variants={fadeUp} className="text-lg sm:text-xl text-gray-300 leading-relaxed mb-10 max-w-2xl" data-testid="text-hero-subtitle">
+            <motion.p variants={fadeUp} className="max-w-sm text-lg leading-relaxed text-[#6b7185]" data-testid="text-hero-subtitle">
               {t("home.hero.subtitle")}
             </motion.p>
-
-            <motion.div variants={fadeUp} className="flex flex-col sm:flex-row items-start gap-4">
-              <a href="#paquetes">
-                <Button size="lg" className="rounded-full bg-[#0D9488] text-white font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-hero-paquetes">
-                  {t("home.hero.ctaPackages")}
-                  <ArrowRight className="w-5 h-5" />
+            <motion.div variants={fadeUp} className="mt-7 flex flex-col gap-3 sm:flex-row">
+              <Link href="/contacto">
+                <Button size="lg" className={`${primaryButton} w-full sm:w-auto`} data-testid="button-hero-scan">
+                  Get Your Free Visibility Scan
+                  <ArrowRight className="h-5 w-5" />
                 </Button>
-              </a>
-              <a href={`${whatsappUrl}?text=Hi%2C%20I%27m%20interested%20in%20learning%20more%20about%20your%20services`} target="_blank" rel="noopener noreferrer">
-                <Button size="lg" variant="outline" className="rounded-full text-white border-white/30 font-bold text-lg gap-2 bg-white/5 backdrop-blur-sm hover:shadow-lg transition-all duration-200" data-testid="button-hero-whatsapp">
-                  <SiWhatsapp className="w-5 h-5" />
-                  {t("home.hero.ctaWhatsapp")}
-                </Button>
-              </a>
+              </Link>
             </motion.div>
-
-            <motion.div variants={fadeUp} className="flex flex-wrap gap-x-5 gap-y-2 mt-6">
+            <motion.div variants={fadeUp} className="mt-6 flex flex-wrap gap-2" aria-label="Project trust points">
               {trustItems.map((item) => (
-                <span key={item} className="flex items-center gap-1.5 text-sm text-white/60">
-                  <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
+                <span key={item} className="inline-flex min-h-[30px] items-center rounded-full border border-[#d0d2da] bg-white px-3 py-1.5 text-xs font-medium text-[#6b7185]">
                   {item}
                 </span>
               ))}
@@ -141,200 +159,139 @@ export default function Home() {
           </motion.div>
         </div>
       </section>
-      {/* SECTION 2 – PROBLEM */}
-      <section className="py-24 lg:py-40 bg-white dark:bg-[#0d0d0d]" data-testid="section-problem">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="max-w-3xl mx-auto">
-            <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#111] dark:text-white leading-tight mb-10 text-center" data-testid="text-problem-title">
-              {t("home.problem.title1")}{" "}
-              <span className="text-[#0D9488]">{t("home.problem.titleAccent")}</span>
-            </motion.h2>
 
-            <motion.div variants={fadeUp} className="space-y-5 mb-10">
+      <section className="bg-white py-20 lg:py-24" data-testid="section-problem">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={stagger}>
+            <div className="mx-auto mb-12 max-w-3xl text-center">
+              <motion.h2 variants={fadeUp} className={sectionTitle} data-testid="text-problem-title">
+                {t("home.problem.title1")}{" "}
+                <span className="text-[#0b4bff]">{t("home.problem.titleAccent")}</span>
+              </motion.h2>
+            </div>
+            <motion.div variants={fadeUp} className="mx-auto grid max-w-4xl gap-3">
               {problemItems.map((item) => (
-                <div key={item} className="flex items-start gap-4 p-4 rounded-md bg-red-50 dark:bg-red-950/20">
-                  <XCircle className="w-6 h-6 text-red-500 flex-shrink-0 mt-0.5" />
-                  <span className="text-gray-800 dark:text-gray-200 font-medium text-lg">{item}</span>
+                <div key={item} className="flex items-start gap-3 rounded-lg bg-[#f6f7fb] p-4 text-lg font-medium text-[#061a3d]">
+                  <XCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-[#0b4bff]" />
+                  <span>{item}</span>
                 </div>
               ))}
             </motion.div>
-
-            <motion.p variants={fadeUp} className="text-2xl sm:text-3xl font-extrabold text-center text-red-500">
+            <motion.p variants={fadeUp} className="mx-auto mt-10 max-w-2xl text-center text-2xl font-medium text-[#061a3d]">
               {t("home.problem.conclusion")}
             </motion.p>
           </motion.div>
+        </div>
+      </section>
 
-          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }} className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-12">
-            <a href="#paquetes">
-              <Button size="lg" className="rounded-full bg-[#0D9488] text-white font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-paquetes-problem">
-                {t("home.ctaButtons.verPaquetes")}
-                <ArrowRight className="w-5 h-5" />
-              </Button>
-            </a>
-            <a href={`${whatsappUrl}?text=Hi%2C%20I%27m%20interested%20in%20learning%20more%20about%20your%20services`} target="_blank" rel="noopener noreferrer">
-              <Button size="lg" variant="outline" className="rounded-full text-[#111] dark:text-white border-gray-300 dark:border-gray-600 font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-whatsapp-problem">
-                <SiWhatsapp className="w-5 h-5" />
-                {t("home.ctaButtons.whatsapp")}
-              </Button>
-            </a>
+      <section className="bg-[#f6f7fb] py-20 lg:py-24" data-testid="section-solution">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={stagger}>
+            <div className="mx-auto mb-12 max-w-3xl text-center">
+              <motion.p variants={fadeUp} className={sectionLabel}>
+                {t("home.solution.title1")}
+              </motion.p>
+              <motion.h2 variants={fadeUp} className={sectionTitle} data-testid="text-solution-title">
+                <span className="text-[#0b4bff]">{t("home.solution.titleAccent")}</span>
+              </motion.h2>
+              <motion.p variants={fadeUp} className={`${sectionCopy} mt-5`}>
+                {t("home.solution.subtitle")}
+              </motion.p>
+            </div>
+            <div className="grid gap-5 md:grid-cols-3">
+              {solutionCards.map((item, i) => {
+                const Icon = solutionIcons[i] ?? ImageIcon;
+                return (
+                  <motion.article key={item.title} variants={fadeUp} className={`${cardClass} p-7`}>
+                    <div className="mb-5 grid h-11 w-11 place-items-center rounded-lg bg-[rgba(11,75,255,0.07)] text-[#0b4bff]">
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <h3 className="mb-3 text-xl font-medium text-[#061a3d]">{item.title}</h3>
+                    <p className="leading-relaxed text-[#6b7185]">{item.desc}</p>
+                  </motion.article>
+                );
+              })}
+            </div>
           </motion.div>
         </div>
       </section>
-      {/* SECTION 3 – SOLUTION POSITIONING */}
-      <section className="py-24 lg:py-40 bg-[#f9f9f9] dark:bg-[#111] relative overflow-hidden" data-testid="section-solution">
-        <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-[#0D9488]/60 to-transparent shadow-[0_0_120px_50px_rgba(13,148,136,0.25)] pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-[#0D9488]/60 to-transparent shadow-[0_0_120px_50px_rgba(13,148,136,0.25)] pointer-events-none" />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center max-w-3xl mx-auto mb-16">
-            <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#111] dark:text-white leading-tight mb-6" data-testid="text-solution-title">
-              {t("home.solution.title1")}{" "}
-              <span className="text-[#0D9488]">{t("home.solution.titleAccent")}</span>
-            </motion.h2>
-            <motion.p variants={fadeUp} className="text-lg text-gray-600 dark:text-gray-400 leading-relaxed">
-              {t("home.solution.subtitle")}
-            </motion.p>
-          </motion.div>
 
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {solutionCards.map((item, i) => {
-              const Icon = solutionIcons[i];
-              return (
-                <motion.div key={item.title} variants={fadeUp} className="p-8 lg:p-10 rounded-[20px] border border-[#efefef] bg-white dark:bg-[#0d0d0d] shadow-sm hover:shadow-lg transition-all duration-300 text-center">
-                  <div className="w-12 h-12 mx-auto rounded-xl bg-[#10B981]/10 flex items-center justify-center mb-6">
-                    <Icon className="w-6 h-6 text-[#10B981]" />
-                  </div>
-                  <h3 className="text-xl font-bold text-[#111] dark:text-white mb-3">{item.title}</h3>
-                  <p className="text-gray-600 dark:text-gray-400 leading-relaxed">{item.desc}</p>
-                </motion.div>
-              );
-            })}
-          </motion.div>
+      <section id="paquetes" className="scroll-mt-24 bg-white py-20 lg:py-24" data-testid="section-packages">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={stagger}>
+            <div className="mx-auto mb-12 max-w-3xl text-center">
+              <motion.p variants={fadeUp} className={sectionLabel}>
+                {t("home.packages.sectionLabel")}
+              </motion.p>
+              <motion.h2 variants={fadeUp} className={sectionTitle} data-testid="text-packages-title">
+                {t("home.packages.title")}
+              </motion.h2>
+            </div>
 
-          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }} className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-12">
-            <a href="#paquetes">
-              <Button size="lg" className="rounded-full bg-[#0D9488] text-white font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-paquetes-solution">
-                {t("home.ctaButtons.verPaquetes")}
-                <ArrowRight className="w-5 h-5" />
-              </Button>
-            </a>
-            <a href={`${whatsappUrl}?text=Hi%2C%20I%27m%20interested%20in%20learning%20more%20about%20your%20services`} target="_blank" rel="noopener noreferrer">
-              <Button size="lg" variant="outline" className="rounded-full text-[#111] dark:text-white border-gray-300 dark:border-gray-600 font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-whatsapp-solution">
-                <SiWhatsapp className="w-5 h-5" />
-                {t("home.ctaButtons.whatsapp")}
-              </Button>
-            </a>
-          </motion.div>
-        </div>
-      </section>
-      {/* SECTION 4 – PACKAGES PREVIEW */}
-      <section className="py-24 lg:py-40 bg-white dark:bg-[#0d0d0d]" data-testid="section-packages">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center max-w-3xl mx-auto mb-16">
-            <motion.p variants={fadeUp} className="text-[#0D9488] font-bold text-sm uppercase tracking-widest mb-4">
-              {t("home.packages.sectionLabel")}
-            </motion.p>
-            <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#111] dark:text-white leading-tight" data-testid="text-packages-title">
-              {t("home.packages.title")}
-            </motion.h2>
-          </motion.div>
-
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-10 items-end" id="paquetes">
-            {packages.map((pkg) => (
-              <motion.div
-                key={pkg.slug}
-                variants={fadeUp}
-                className={`relative flex flex-col ${"popular" in pkg && pkg.popular ? "md:scale-[1.06] md:z-10" : ""}`}
-                data-testid={`card-package-${pkg.slug}`}
-              >
-                {"inicio" in pkg && pkg.inicio && (
-                  <div className="flex justify-center -mb-4 relative z-30">
-                    <span className="bg-[#FCD34D] text-[#111] text-xs font-bold px-5 py-1.5 rounded-full uppercase tracking-widest flex items-center gap-1.5 shadow-lg" data-testid="badge-inicio">
-                      <Zap className="w-3 h-3 fill-[#111]" />
-                      Starter
+            <div className="grid gap-5 lg:grid-cols-3">
+              {packages.map((pkg) => (
+                <motion.article key={pkg.slug} variants={fadeUp} className={`${cardClass} relative flex flex-col p-7 ${"popular" in pkg && pkg.popular ? "border-[#0b4bff] shadow-[0_18px_54px_rgba(11,75,255,0.12)]" : ""}`} data-testid={`card-package-${pkg.slug}`}>
+                  {"popular" in pkg && pkg.popular && (
+                    <span className="mb-5 inline-flex w-fit items-center gap-1.5 rounded-full bg-[#0b4bff] px-3 py-1.5 text-xs font-medium text-white" data-testid="badge-popular">
+                      <Star className="h-3.5 w-3.5 fill-white" />
+                      {t("home.packages.badgePopular")}
                     </span>
-                  </div>
-                )}
-                {"bestValue" in pkg && pkg.bestValue && (
-                  <div className="flex justify-center -mb-4 relative z-30">
-                    <span className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold px-5 py-1.5 rounded-full uppercase tracking-widest flex items-center gap-1.5 shadow-lg" data-testid="badge-best-value">
-                      <Crown className="w-3 h-3 fill-white" />
+                  )}
+                  {"bestValue" in pkg && pkg.bestValue && (
+                    <span className="mb-5 inline-flex w-fit items-center gap-1.5 rounded-full bg-[#061a3d] px-3 py-1.5 text-xs font-medium text-white" data-testid="badge-best-value">
+                      <Trophy className="h-3.5 w-3.5" />
                       Best Value
                     </span>
-                  </div>
-                )}
-                <div className={`rounded-[20px] border bg-white dark:bg-[#0d0d0d] flex flex-col flex-1 transition-all duration-300 relative z-20 ${"popular" in pkg && pkg.popular ? "md:scale-[1.06] border-[#efefef] shadow-xl shadow-[#0D9488]/5 hover:shadow-2xl hover:shadow-[#0D9488]/10" : "border-[#efefef] shadow-sm hover:shadow-lg"}`}>
-                  {"popular" in pkg && pkg.popular && (
-                    <>
-                      <div className="absolute inset-0 rounded-[20px] bg-[#0D9488]/20 blur-[60px] -z-30 pointer-events-none scale-90" />
-                      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 flex justify-center">
-                        <span className="bg-[#0D9488] text-white text-xs font-bold px-5 py-1.5 rounded-full uppercase tracking-widest flex items-center gap-1.5 shadow-lg" data-testid="badge-popular">
-                          <Star className="w-3 h-3 fill-white" />
-                          {t("home.packages.badgePopular")}
-                        </span>
-                      </div>
-                    </>
                   )}
-                  <div className="p-8 lg:p-10 text-center bg-[#ffffff] rounded-t-[20px]">
-                    <div className="w-12 h-12 mx-auto rounded-xl flex items-center justify-center mb-5 bg-[#10B981]/10">
-                      <pkg.icon className="w-6 h-6 text-[#10B981]" />
-                    </div>
-                    <h3 className="text-2xl font-extrabold text-[#111] dark:text-white mb-1">{pkg.name}</h3>
-                    <p className="text-gray-500 dark:text-gray-400 text-xs leading-snug max-w-[220px] mx-auto mb-8">{pkg.subLabel}</p>
-
-                    <div className="border-t border-gray-100 dark:border-gray-800 pt-6 mb-6">
-                      <p className="text-3xl font-extrabold text-[#111] dark:text-white" data-testid={`text-price-${pkg.slug}`}>{pkg.price}</p>
-                      <p className="text-[11px] text-gray-400 dark:text-gray-500 font-medium mt-1">Initial website setup</p>
-                      <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
-                        <p className="text-2xl font-extrabold text-[#111] dark:text-white">$97 <span className="text-base font-semibold text-gray-400">/ month</span></p>
-                        <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">Hosting • support • maintenance • security</p>
-                        <a href="#plan-soporte" className="text-[10px] text-[#0D9488] hover:underline mt-1 inline-block">See what is included</a>
-                      </div>
-                    </div>
+                  {"inicio" in pkg && pkg.inicio && (
+                    <span className="mb-5 inline-flex w-fit items-center gap-1.5 rounded-full bg-[#f6f7fb] px-3 py-1.5 text-xs font-medium text-[#061a3d]" data-testid="badge-inicio">
+                      <Zap className="h-3.5 w-3.5" />
+                      Starter
+                    </span>
+                  )}
+                  <div className="mb-5 grid h-11 w-11 place-items-center rounded-lg bg-[rgba(11,75,255,0.07)] text-[#0b4bff]">
+                    <pkg.icon className="h-5 w-5" />
                   </div>
-
-                  <div className="px-8 lg:px-10 pb-8 lg:pb-10 flex-1 flex flex-col bg-[#ffffff] rounded-b-[20px]">
-                    <p className="text-[#0D9488] text-xs font-semibold uppercase tracking-wider mb-3">{pkg.positioning}</p>
-                    <p className="text-gray-600 dark:text-gray-400 leading-relaxed mb-8 flex-1 text-sm">{pkg.desc}</p>
-                    <Link href={`/paquetes/${pkg.slug}`}>
-                      <Button size="lg" className={`w-full rounded-full font-bold text-lg gap-2 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 ${"popular" in pkg && pkg.popular ? "bg-[#0D9488] text-white shadow-[#0D9488]/20 hover:bg-[#0F766E]" : "bg-[#111] dark:bg-white text-white dark:text-[#111] shadow-xl"}`} data-testid={`button-ver-${pkg.slug}`}>
-                        {t("home.packages.viewDetails")}
-                        <ArrowRight className="w-5 h-5" />
-                      </Button>
-                    </Link>
+                  <h3 className="text-2xl font-medium text-[#061a3d]">{pkg.name}</h3>
+                  <p className="mt-2 min-h-[40px] text-sm leading-relaxed text-[#6b7185]">{pkg.subLabel}</p>
+                  <div className="my-6 border-y border-[#e8e8ec] py-6">
+                    <p className="text-3xl font-medium text-[#061a3d]" data-testid={`text-price-${pkg.slug}`}>{pkg.price}</p>
+                    <p className="mt-1 text-xs text-[#6b7185]">Initial website setup</p>
                   </div>
-                </div>
-              </motion.div>
-            ))}
+                  <p className="mb-3 text-xs font-medium uppercase tracking-wider text-[#0b4bff]">{pkg.positioning}</p>
+                  <p className="mb-7 flex-1 leading-relaxed text-[#6b7185]">{pkg.desc}</p>
+                  <Link href={`/paquetes/${pkg.slug}`}>
+                    <Button size="lg" className={`${"popular" in pkg && pkg.popular ? primaryButton : "rounded-md bg-[#061a3d] text-white hover:bg-[#0b254f] font-medium min-h-[44px] px-6"} w-full`} data-testid={`button-ver-${pkg.slug}`}>
+                      {t("home.packages.viewDetails")}
+                      <ArrowRight className="h-5 w-5" />
+                    </Button>
+                  </Link>
+                </motion.article>
+              ))}
+            </div>
           </motion.div>
-          <motion.p initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ delay: 0.4 }} className="text-center text-sm text-gray-400 dark:text-gray-500 mt-8" data-testid="text-payment-reassurance">
-            {t("home.packages.paymentNote")}{" "}
-            <a href={`${whatsappUrl}?text=Hi%2C%20I%27d%20like%20to%20learn%20about%20payment%20options`} target="_blank" rel="noopener noreferrer" className="underline hover:text-[#0D9488] transition-colors">
-              {t("home.packages.paymentNoteLink")}
-            </a>
-          </motion.p>
         </div>
       </section>
-      {/* SUPPORT PLAN */}
-      <section id="plan-soporte" className="py-16 lg:py-20 bg-[#f5f5f5] dark:bg-[#111]" data-testid="section-support-plan">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center">
-            <motion.div variants={fadeUp} className="inline-flex items-center gap-2 bg-white dark:bg-[#0d0d0d] border border-gray-200 dark:border-gray-700 rounded-full px-5 py-2 mb-6 shadow-sm">
-              <Shield className="w-4 h-4 text-[#10B981]" />
-              <span className="text-xs font-bold text-[#111] dark:text-white uppercase tracking-widest">{t("home.support.badgeLabel")}</span>
+
+      <section id="plan-soporte" className="bg-[#f6f7fb] py-16 lg:py-20" data-testid="section-support-plan">
+        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={stagger} className={`${cardClass} p-7 text-center sm:p-9`}>
+            <motion.div variants={fadeUp} className="mx-auto mb-5 grid h-11 w-11 place-items-center rounded-lg bg-[rgba(11,75,255,0.07)] text-[#0b4bff]">
+              <Shield className="h-5 w-5" />
             </motion.div>
-            <motion.p variants={fadeUp} className="text-gray-500 dark:text-gray-400 text-sm max-w-xl mx-auto mb-6">
+            <motion.p variants={fadeUp} className={sectionLabel}>
+              {t("home.support.badgeLabel")}
+            </motion.p>
+            <motion.p variants={fadeUp} className={`${sectionCopy} mx-auto max-w-2xl`}>
               {t("home.support.description")}
             </motion.p>
-            <motion.p variants={fadeUp} className="text-2xl sm:text-3xl font-extrabold text-[#111] dark:text-white mb-2" data-testid="text-support-price">
-              {t("home.support.price")} <span className="text-base font-semibold text-gray-400">{t("home.support.priceUnit")}</span>
+            <motion.p variants={fadeUp} className="mt-7 text-3xl font-medium text-[#061a3d]" data-testid="text-support-price">
+              {t("home.support.price")} <span className="text-base text-[#6b7185]">{t("home.support.priceUnit")}</span>
             </motion.p>
-            <motion.p variants={fadeUp} className="text-gray-400 dark:text-gray-500 text-xs italic mb-8">
-              {t("home.support.tagline")}
-            </motion.p>
-            <motion.div variants={fadeUp} className="flex flex-wrap justify-center gap-x-6 gap-y-3 text-sm text-gray-600 dark:text-gray-300">
+            <motion.div variants={fadeUp} className="mt-7 flex flex-wrap justify-center gap-x-6 gap-y-3 text-sm text-[#6b7185]">
               {supportItems.map((item) => (
-                <span key={item} className="flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-[#10B981] flex-shrink-0" />
+                <span key={item} className="inline-flex items-center gap-1.5">
+                  <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-[#0b4bff]" />
                   {item}
                 </span>
               ))}
@@ -342,201 +299,151 @@ export default function Home() {
           </motion.div>
         </div>
       </section>
-      {/* SECTION 5 – BEFORE / AFTER */}
-      <section className="py-24 lg:py-40 bg-[#111] relative overflow-hidden" data-testid="section-before-after">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-5xl h-[2px] bg-gradient-to-r from-transparent via-[#0D9488] to-transparent shadow-[0_0_120px_60px_rgba(13,148,136,0.4)] pointer-events-none opacity-80" />
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-5xl h-[2px] bg-gradient-to-r from-transparent via-[#0D9488] to-transparent shadow-[0_0_120px_60px_rgba(13,148,136,0.4)] pointer-events-none opacity-80" />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center mb-16">
-            <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white leading-tight" data-testid="text-before-after-title">
-              {t("home.beforeAfter.title1")} <span className="text-[#0D9488]">{t("home.beforeAfter.titleAccent")}</span>
-            </motion.h2>
-          </motion.div>
 
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
-            <motion.div variants={fadeUp} className="rounded-md border border-red-500/30 bg-red-950/20 p-8 lg:p-10" data-testid="card-before">
-              <div className="text-red-400 font-bold text-sm uppercase tracking-widest mb-6">{t("home.beforeAfter.beforeLabel")}</div>
-              <ul className="space-y-5">
-                {beforeItems.map((item) => (
-                  <li key={item} className="flex items-start gap-3">
-                    <XCircle className="w-6 h-6 text-red-500 flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-300 text-lg font-medium">{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </motion.div>
-
-            <motion.div variants={fadeUp} className="rounded-md border border-[#0D9488]/30 bg-[#0D9488]/10 p-8 lg:p-10" data-testid="card-after">
-              <div className="text-[#0D9488] font-bold text-sm uppercase tracking-widest mb-6">{t("home.beforeAfter.afterLabel")}</div>
-              <ul className="space-y-5">
-                {afterItems.map((item) => (
-                  <li key={item} className="flex items-start gap-3">
-                    <CheckCircle2 className="w-6 h-6 text-[#10B981] flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-200 text-lg font-medium">{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </motion.div>
-          </motion.div>
-
-          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }} className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-12">
-            <a href="#paquetes">
-              <Button size="lg" className="rounded-full bg-[#0D9488] text-white font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-paquetes-beforeafter">
-                {t("home.ctaButtons.verPaquetes")}
-                <ArrowRight className="w-5 h-5" />
-              </Button>
-            </a>
-            <a href={`${whatsappUrl}?text=Hi%2C%20I%27m%20interested%20in%20learning%20more%20about%20your%20services`} target="_blank" rel="noopener noreferrer">
-              <Button size="lg" variant="outline" className="rounded-full text-white border-white/30 bg-white/5 font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-whatsapp-beforeafter">
-                <SiWhatsapp className="w-5 h-5" />
-                {t("home.ctaButtons.whatsapp")}
-              </Button>
-            </a>
-          </motion.div>
-        </div>
-      </section>
-      {/* SECTION 6 – HOW IT WORKS */}
-      <section id="como-funciona" className="scroll-mt-20 py-24 lg:py-40 bg-white dark:bg-[#0d0d0d]" data-testid="section-process">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center max-w-3xl mx-auto mb-16">
-            <motion.p variants={fadeUp} className="text-[#0D9488] font-bold text-sm uppercase tracking-widest mb-4">
-              {t("home.process.sectionLabel")}
-            </motion.p>
-            <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#111] dark:text-white leading-tight" data-testid="text-process-title">
-              {t("home.process.title")}
-            </motion.h2>
-          </motion.div>
-
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {processSteps.map((item) => (
-              <motion.div key={item.step} variants={fadeUp} className="text-center relative">
-                <div className="text-7xl font-extrabold text-gray-100 dark:text-gray-800 mb-4">{item.step}</div>
-                <h3 className="text-lg font-bold text-[#111] dark:text-white mb-3">{item.title}</h3>
-                <p className="text-gray-600 dark:text-gray-400 leading-relaxed text-sm">{item.desc}</p>
-              </motion.div>
-            ))}
-          </motion.div>
-
-          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }} className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-12">
-            <a href="#paquetes">
-              <Button size="lg" className="rounded-full bg-[#0D9488] text-white font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-paquetes-process">
-                {t("home.ctaButtons.verPaquetes")}
-                <ArrowRight className="w-5 h-5" />
-              </Button>
-            </a>
-            <a href={`${whatsappUrl}?text=Hi%2C%20I%27m%20interested%20in%20learning%20more%20about%20your%20services`} target="_blank" rel="noopener noreferrer">
-              <Button size="lg" variant="outline" className="rounded-full text-[#111] dark:text-white border-gray-300 dark:border-gray-600 font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-whatsapp-process">
-                <SiWhatsapp className="w-5 h-5" />
-                {t("home.ctaButtons.whatsapp")}
-              </Button>
-            </a>
-          </motion.div>
-        </div>
-      </section>
-      {/* SECTION 7 – TESTIMONIALS */}
-      <section className="py-24 lg:py-40 dark:bg-[#111] relative overflow-hidden bg-[#ffffff]" data-testid="section-testimonials">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-px bg-gradient-to-r from-transparent via-[#0D9488]/30 to-transparent shadow-[0_0_100px_40px_rgba(13,148,136,0.1)] pointer-events-none" />
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-px bg-gradient-to-r from-transparent via-[#0D9488]/30 to-transparent shadow-[0_0_100px_40px_rgba(13,148,136,0.1)] pointer-events-none" />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center max-w-3xl mx-auto mb-16">
-            <motion.p variants={fadeUp} className="text-[#0D9488] font-bold text-sm uppercase tracking-widest mb-4">
-              {t("home.testimonials.sectionLabel")}
-            </motion.p>
-            <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#111] dark:text-white leading-tight" data-testid="text-testimonials-title">
-              {t("home.testimonials.title1")}{" "}
-              <span className="text-[#0D9488]">{t("home.testimonials.titleAccent")}</span>
-            </motion.h2>
-          </motion.div>
-
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {testimonials.map((testimonial) => (
-              <motion.div key={testimonial.name} variants={fadeUp} className="bg-white dark:bg-gray-800 rounded-md p-8" data-testid={`card-testimonial-${testimonial.name.split(" ")[0].toLowerCase()}`}>
-                <div className="flex items-center gap-1 mb-4">
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <Star key={i} className="w-5 h-5 text-amber-400 fill-amber-400" />
+      <section className="bg-[#061a3d] py-20 text-white lg:py-24" data-testid="section-before-after">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={stagger}>
+            <div className="mx-auto mb-12 max-w-3xl text-center">
+              <motion.h2 variants={fadeUp} className="text-3xl font-medium leading-[1.08] text-white sm:text-4xl lg:text-5xl" data-testid="text-before-after-title">
+                {t("home.beforeAfter.title1")} <span className="text-white">{t("home.beforeAfter.titleAccent")}</span>
+              </motion.h2>
+            </div>
+            <div className="grid gap-5 lg:grid-cols-2">
+              <motion.article variants={fadeUp} className="rounded-lg border border-white/10 bg-white/[0.04] p-7" data-testid="card-before">
+                <div className="mb-6 text-sm font-medium uppercase tracking-widest text-white/50">{t("home.beforeAfter.beforeLabel")}</div>
+                <ul className="space-y-4">
+                  {beforeItems.map((item) => (
+                    <li key={item} className="flex items-start gap-3">
+                      <XCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-white/60" />
+                      <span className="text-lg text-white/80">{item}</span>
+                    </li>
                   ))}
-                </div>
-                <p className="text-gray-700 dark:text-gray-300 leading-relaxed mb-6 italic">"{testimonial.text}"</p>
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#0D9488] to-[#14B8A6] flex items-center justify-center text-white font-bold">
-                    {testimonial.name.split(" ").map((n: string) => n[0]).join("")}
-                  </div>
-                  <div>
-                    <p className="font-bold text-[#111] dark:text-white">{testimonial.name}</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">{testimonial.business} · {testimonial.trade}</p>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </motion.div>
-
-          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }} className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-12">
-            <a href="#paquetes">
-              <Button size="lg" className="rounded-full bg-[#0D9488] text-white font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-paquetes-testimonials">
-                {t("home.ctaButtons.verPaquetes")}
-                <ArrowRight className="w-5 h-5" />
-              </Button>
-            </a>
-            <a href={`${whatsappUrl}?text=Hi%2C%20I%27m%20interested%20in%20learning%20more%20about%20your%20services`} target="_blank" rel="noopener noreferrer">
-              <Button size="lg" variant="outline" className="rounded-full text-[#111] dark:text-white border-gray-300 dark:border-gray-600 font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-whatsapp-testimonials">
-                <SiWhatsapp className="w-5 h-5" />
-                {t("home.ctaButtons.whatsapp")}
-              </Button>
-            </a>
+                </ul>
+              </motion.article>
+              <motion.article variants={fadeUp} className="rounded-lg border border-[#0b4bff]/50 bg-[#0b4bff]/15 p-7" data-testid="card-after">
+                <div className="mb-6 text-sm font-medium uppercase tracking-widest text-white">{t("home.beforeAfter.afterLabel")}</div>
+                <ul className="space-y-4">
+                  {afterItems.map((item) => (
+                    <li key={item} className="flex items-start gap-3">
+                      <CheckCircle2 className="mt-0.5 h-5 w-5 flex-shrink-0 text-white" />
+                      <span className="text-lg text-white/90">{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </motion.article>
+            </div>
           </motion.div>
         </div>
       </section>
-      {/* SECTION 8 – FAQ */}
-      <section className="py-24 lg:py-40 bg-white dark:bg-[#0d0d0d]" data-testid="section-faq">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger} className="text-center mb-16">
-            <motion.p variants={fadeUp} className="text-[#0D9488] font-bold text-sm uppercase tracking-widest mb-4">
-              {t("home.faq.sectionLabel")}
-            </motion.p>
-            <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#111] dark:text-white leading-tight" data-testid="text-faq-title">
-              {t("home.faq.title")}
-            </motion.h2>
-          </motion.div>
 
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={fadeUp}>
-            {faqs.map((faq) => (
-              <FAQItem key={faq.q} q={faq.q} a={faq.a} />
-            ))}
-          </motion.div>
-
-          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }} className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-12">
-            <a href="#paquetes">
-              <Button size="lg" className="rounded-full bg-[#0D9488] text-white font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-paquetes-faq">
-                {t("home.ctaButtons.verPaquetes")}
-                <ArrowRight className="w-5 h-5" />
-              </Button>
-            </a>
-            <a href={`${whatsappUrl}?text=Hi%2C%20I%27m%20interested%20in%20learning%20more%20about%20your%20services`} target="_blank" rel="noopener noreferrer">
-              <Button size="lg" variant="outline" className="rounded-full text-[#111] dark:text-white border-gray-300 dark:border-gray-600 font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-whatsapp-faq">
-                <SiWhatsapp className="w-5 h-5" />
-                {t("home.ctaButtons.whatsapp")}
-              </Button>
-            </a>
+      <section id="como-funciona" className="scroll-mt-24 bg-white py-20 lg:py-24" data-testid="section-process">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={stagger}>
+            <div className="mx-auto mb-12 max-w-3xl text-center">
+              <motion.p variants={fadeUp} className={sectionLabel}>
+                {t("home.process.sectionLabel")}
+              </motion.p>
+              <motion.h2 variants={fadeUp} className={sectionTitle} data-testid="text-process-title">
+                {t("home.process.title")}
+              </motion.h2>
+            </div>
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              {processSteps.map((item) => (
+                <motion.article key={item.step} variants={fadeUp} className={`${cardClass} p-6`}>
+                  <div className="mb-5 text-5xl font-medium text-[#dfe4f0]">{item.step}</div>
+                  <h3 className="mb-3 text-xl font-medium text-[#061a3d]">{item.title}</h3>
+                  <p className="text-sm leading-relaxed text-[#6b7185]">{item.desc}</p>
+                </motion.article>
+              ))}
+            </div>
           </motion.div>
         </div>
       </section>
-      {/* SECTION 9 – FINAL CTA */}
-      <section className="py-24 lg:py-40 bg-[#111]" data-testid="section-cta">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+
+      <section className="bg-[#f6f7fb] py-20 lg:py-24" data-testid="section-testimonials">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={stagger}>
+            <div className="mx-auto mb-12 max-w-3xl text-center">
+              <motion.p variants={fadeUp} className={sectionLabel}>
+                {t("home.testimonials.sectionLabel")}
+              </motion.p>
+              <motion.h2 variants={fadeUp} className={sectionTitle} data-testid="text-testimonials-title">
+                {t("home.testimonials.title1")}{" "}
+                <span className="text-[#0b4bff]">{t("home.testimonials.titleAccent")}</span>
+              </motion.h2>
+            </div>
+            <div className="grid gap-5 md:grid-cols-3">
+              {testimonials.map((testimonial) => (
+                <motion.article key={testimonial.name} variants={fadeUp} className={`${cardClass} p-7`} data-testid={`card-testimonial-${testimonial.name.split(" ")[0].toLowerCase()}`}>
+                  <div className="mb-4 flex items-center gap-1">
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <Star key={i} className="h-4 w-4 fill-[#0b4bff] text-[#0b4bff]" />
+                    ))}
+                  </div>
+                  <p className="mb-6 leading-relaxed text-[#6b7185]">"{testimonial.text}"</p>
+                  <div className="flex items-center gap-3">
+                    <div className="grid h-11 w-11 place-items-center rounded-full bg-[#061a3d] text-sm font-medium text-white">
+                      {testimonial.name.split(" ").map((n: string) => n[0]).join("")}
+                    </div>
+                    <div>
+                      <p className="font-medium text-[#061a3d]">{testimonial.name}</p>
+                      <p className="text-sm text-[#6b7185]">{testimonial.business} · {testimonial.trade}</p>
+                    </div>
+                  </div>
+                </motion.article>
+              ))}
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      <section className="bg-white py-20 lg:py-24" data-testid="section-faq">
+        <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={stagger}>
+            <div className="mb-10 text-center">
+              <motion.p variants={fadeUp} className={sectionLabel}>
+                {t("home.faq.sectionLabel")}
+              </motion.p>
+              <motion.h2 variants={fadeUp} className={sectionTitle} data-testid="text-faq-title">
+                {t("home.faq.title")}
+              </motion.h2>
+            </div>
+            <motion.div variants={fadeUp} className={cardClass}>
+              <div className="px-6">
+                {faqs.map((faq) => (
+                  <FAQItem key={faq.q} q={faq.q} a={faq.a} />
+                ))}
+              </div>
+            </motion.div>
+          </motion.div>
+        </div>
+      </section>
+
+      <section className="bg-[#061a3d] py-20 text-white lg:py-24" data-testid="section-cta">
+        <div className="mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger}>
-            <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white leading-tight mb-6" data-testid="text-cta-title">
+            <motion.div variants={fadeUp} className="mx-auto mb-6 grid h-12 w-12 place-items-center rounded-lg bg-white/10">
+              <BarChart3 className="h-6 w-6" />
+            </motion.div>
+            <motion.h2 variants={fadeUp} className="text-3xl font-medium leading-[1.08] text-white sm:text-4xl lg:text-5xl" data-testid="text-cta-title">
               {t("home.cta.title")}
             </motion.h2>
-            <motion.p variants={fadeUp} className="text-2xl text-white/90 mb-10 font-semibold">
+            <motion.p variants={fadeUp} className="mx-auto mt-5 max-w-2xl text-xl text-white/70">
               {t("home.cta.subtitle")}
             </motion.p>
-            <motion.div variants={fadeUp}>
+            <motion.div variants={fadeUp} className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link href="/contacto">
-                <Button size="lg" className="rounded-full bg-[#0D9488] text-white font-bold text-lg gap-2 hover:shadow-lg transition-all duration-200" data-testid="button-cta-bottom">
+                <Button size="lg" className={primaryButton} data-testid="button-cta-bottom">
                   {t("home.cta.button")}
-                  <ArrowRight className="w-5 h-5" />
+                  <ArrowRight className="h-5 w-5" />
                 </Button>
               </Link>
+              <a href={ctaHref} target="_blank" rel="noopener noreferrer">
+                <Button size="lg" variant="outline" className="min-h-[44px] rounded-md border-white/25 bg-white/5 px-6 font-medium text-white hover:bg-white/10">
+                  <SiWhatsapp className="h-5 w-5" />
+                  {t("home.ctaButtons.whatsapp")}
+                </Button>
+              </a>
             </motion.div>
           </motion.div>
         </div>
