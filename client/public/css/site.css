@@ -573,12 +573,12 @@ select {
   display: block;
   margin-bottom: 8px;
   font-size: 14px;
-  font-weight: 950;
+  font-weight: 500;
   text-transform: uppercase;
 }
 
 .scan-caption .before {
-  color: #ff6b6b;
+  color: rgba(255, 255, 255, 0.62);
 }
 
 .scan-caption .after {
@@ -605,7 +605,7 @@ select {
   color: rgba(11, 75, 255, 0.16);
   font-size: 46px;
   line-height: 1;
-  font-weight: 950;
+  font-weight: 500;
 }
 
 .step h3 {
@@ -644,14 +644,14 @@ select {
   margin: 10px 0 4px;
   font-size: 52px;
   line-height: 1;
-  font-weight: 950;
+  font-weight: 500;
   text-align: center;
 }
 
 .support-price span {
   color: var(--muted);
   font-size: 17px;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .support-note {
@@ -686,7 +686,7 @@ select {
   border-radius: var(--radius);
   background: #ffffff;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
-  font-weight: 800;
+  font-weight: 500;
   list-style: none;
 }
 
@@ -717,7 +717,7 @@ select {
   border-radius: 999px;
   background: var(--dark);
   color: #ffffff;
-  font-weight: 950;
+  font-weight: 500;
 }
 
 .faq-list {
@@ -741,7 +741,7 @@ select {
   padding: 22px;
   cursor: pointer;
   font-size: 18px;
-  font-weight: 950;
+  font-weight: 500;
   list-style: none;
 }
 
@@ -792,7 +792,7 @@ select {
   margin: 0 0 14px;
   color: #ffffff;
   font-size: 14px;
-  font-weight: 950;
+  font-weight: 700;
   text-transform: uppercase;
 }
 
@@ -820,33 +820,59 @@ select {
 }
 
 .page-hero,
-.scan-hero {
-  padding: 78px 0;
-  color: #ffffff;
-  background: linear-gradient(135deg, var(--dark) 0%, var(--dark-soft) 100%);
+.scan-hero,
+.results-page-headline {
+  position: relative;
+  overflow: hidden;
+  padding: 72px 0;
+  color: var(--ink);
+  background: var(--soft);
+}
+
+.page-hero::before,
+.scan-hero::before,
+.results-page-headline::before {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(246, 247, 251, 0.96) 0%, rgba(246, 247, 251, 0.72) 50%, rgba(246, 247, 251, 0.22) 100%),
+    url("/img/local-falcon-heatmap.webp?v=20260625-local-falcon-heatmap") 64% center / 118% auto no-repeat,
+    var(--soft);
+  content: "";
 }
 
 .page-hero .container,
-.scan-hero .container-narrow {
+.scan-hero .container-narrow,
+.results-page-headline .section-header {
   position: relative;
+  z-index: 1;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 28px;
+  border: 0.5px solid rgba(232, 232, 236, 0.9);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: var(--shadow);
 }
 
 .page-hero .eyebrow {
-  color: var(--teal);
+  color: var(--blue);
+  font-weight: 500;
+  letter-spacing: 0;
 }
 
 .page-hero p,
-.scan-hero p {
-  max-width: 780px;
+.scan-hero p,
+.results-page-headline p {
+  max-width: 680px;
+  color: var(--muted);
 }
 
-.scan-hero h1 {
-  color: #ffffff;
-  font-weight: 700;
-}
-
-.scan-hero p {
-  color: rgba(255, 255, 255, 0.74);
+.scan-hero h1,
+.page-hero h1,
+.results-page-headline h1 {
+  color: var(--ink);
+  font-weight: 500;
 }
 
 .service-band {
@@ -872,7 +898,7 @@ select {
 }
 
 .results-page-headline {
-  padding-bottom: 64px;
+  padding-bottom: 72px;
 }
 
 .results-page-headline .section-header {
@@ -883,7 +909,7 @@ select {
   margin: 0;
   font-size: 44px;
   line-height: 1.08;
-  font-weight: 950;
+  font-weight: 500;
 }
 
 .results-context {
@@ -899,19 +925,19 @@ select {
 
 .results-context p:first-child {
   font-size: 22px;
-  font-weight: 950;
+  font-weight: 500;
 }
 
 .results-callout {
   margin: 0;
   padding: 24px;
-  border: 1px solid var(--line);
+  border: 0.5px solid var(--line);
   border-radius: var(--radius);
   background: #ffffff;
   box-shadow: var(--shadow-card);
   color: var(--ink);
   font-size: 20px;
-  font-weight: 800;
+  font-weight: 500;
   text-align: center;
 }
 
@@ -927,10 +953,10 @@ select {
   gap: 12px;
   align-items: flex-start;
   padding: 18px;
-  border: 1px solid var(--line);
+  border: 0.5px solid var(--line);
   border-radius: var(--radius);
   background: #ffffff;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 8px 24px rgba(6, 26, 61, 0.04);
   list-style: none;
 }
 
@@ -946,7 +972,7 @@ select {
 
 .form-shell {
   padding: 24px;
-  border: 1px solid var(--line);
+  border: 0.5px solid var(--line);
   border-radius: var(--radius);
   background: #ffffff;
   box-shadow: var(--shadow);
@@ -962,7 +988,7 @@ select {
   display: block;
   margin-bottom: 7px;
   font-size: 14px;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .field input,
@@ -971,7 +997,7 @@ select {
   width: 100%;
   min-height: 48px;
   padding: 12px 14px;
-  border: 1px solid #cbd5e1;
+  border: 0.5px solid var(--line-strong);
   border-radius: var(--radius);
   background: #ffffff;
   color: var(--ink);
@@ -985,8 +1011,8 @@ select {
 .field input:focus,
 .field textarea:focus,
 .field select:focus {
-  outline: 3px solid rgba(15, 159, 142, 0.16);
-  border-color: var(--teal);
+  outline: 3px solid rgba(11, 75, 255, 0.14);
+  border-color: var(--blue);
 }
 
 .required {
@@ -1052,7 +1078,7 @@ select {
   .page-hero h1,
   .scan-hero h1,
   .results-page-headline h1 {
-    font-size: 70px;
+    font-size: 50px;
   }
 
   .hero p {
@@ -1060,8 +1086,9 @@ select {
   }
 
   .page-hero p,
-  .scan-hero p {
-    font-size: 21px;
+  .scan-hero p,
+  .results-page-headline p {
+    font-size: 18px;
   }
 
   .section {
@@ -1117,6 +1144,27 @@ select {
   }
 
   .hero-content {
+    padding: 22px;
+  }
+
+  .page-hero,
+  .scan-hero,
+  .results-page-headline {
+    padding: 54px 0;
+  }
+
+  .page-hero::before,
+  .scan-hero::before,
+  .results-page-headline::before {
+    background:
+      linear-gradient(180deg, rgba(246, 247, 251, 0.28) 0%, rgba(246, 247, 251, 0.84) 48%, rgba(246, 247, 251, 0.98) 100%),
+      url("/img/local-falcon-heatmap.webp?v=20260625-local-falcon-heatmap") center top / cover no-repeat,
+      var(--soft);
+  }
+
+  .page-hero .container,
+  .scan-hero .container-narrow,
+  .results-page-headline .section-header {
     padding: 22px;
   }
 }
