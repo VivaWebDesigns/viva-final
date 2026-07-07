@@ -6,8 +6,8 @@
 - Work from clean `main` unless the user explicitly asks for another branch.
 - If local changes already exist, identify them before editing. Do not mix new work into unrelated changes.
 - Stage only files that belong to the user's requested task.
-- When the user asks to commit, create a clear, focused commit for the requested task.
-- When the user asks to push, push the requested commit to the intended branch, usually `main` when Replit or production sync is expected.
+- After completing a user-requested file change, validate the change, then automatically create a clear, focused commit and push it to the intended branch, usually `main` when Replit or production sync is expected.
+- If pre-existing local changes are present, do not mix scopes. Stage, commit, and push only the files that belong to the current requested task. If the current task cannot be safely separated from existing local changes, stop and explain the blocker before committing or pushing.
 - After committing or pushing, report the commit hash, repository, and branch.
 - Do not leave stale task branches, temporary worktrees, unpushed requested commits, or unrelated staged files behind.
 
