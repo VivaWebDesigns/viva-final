@@ -136,14 +136,6 @@ export default function Home() {
             <motion.p variants={fadeUp} className="mt-5 max-w-xs text-2xl font-medium leading-[1.28] text-white/90 md:text-[clamp(24px,2.4vw,34px)]" data-testid="text-hero-subtitle">
               Our AI-powered SEO expands your visibility across the entire United States.
             </motion.p>
-            <motion.div variants={fadeUp} className="mt-6 w-full max-w-[316px] rounded-lg border border-slate-400/30 bg-[#000c18]/40 px-5 py-4 shadow-[0_14px_34px_rgba(0,0,0,0.22)] md:px-7 md:py-5" aria-label="Visibility level from low to high">
-              <strong className="block text-lg font-extrabold uppercase text-white">Visibility Level</strong>
-              <div className="mt-4 h-[26px] rounded-lg bg-[linear-gradient(90deg,#003f49_0%,#087f4f_36%,#79bd2e_68%,#d6f027_100%)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08),0_0_18px_rgba(181,232,43,0.18)]" aria-hidden="true" />
-              <div className="mt-2 flex justify-between text-base font-extrabold uppercase text-white">
-                <span>Low</span>
-                <span>High</span>
-              </div>
-            </motion.div>
           </motion.div>
         </div>
       </section>
