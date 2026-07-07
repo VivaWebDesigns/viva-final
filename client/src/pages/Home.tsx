@@ -129,7 +129,7 @@ export default function Home() {
 
         <div className="relative z-10 mx-auto flex min-h-[648px] max-w-7xl flex-col px-4 py-7 sm:px-6 md:min-h-[556px] lg:px-8">
           <motion.div initial="hidden" animate="visible" variants={stagger} className="mb-0 mt-[292px] max-w-[355px] drop-shadow-[0_2px_10px_rgba(0,0,0,0.72)] md:mb-5 md:mt-[42px]" data-testid="card-hero-content">
-            <motion.h1 variants={fadeUp} className="text-[clamp(42px,4.3vw,60px)] font-extrabold uppercase leading-none tracking-[0.01em] text-white" data-testid="text-hero-title">
+            <motion.h1 variants={fadeUp} className="text-[clamp(38px,4.3vw,60px)] font-extrabold uppercase leading-none tracking-[0.01em] text-white" data-testid="text-hero-title">
               Be found.
               <span className="block text-[#78c943]">Everywhere.</span>
             </motion.h1>

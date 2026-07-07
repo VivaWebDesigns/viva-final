@@ -320,7 +320,7 @@ select {
 
 .hero h1 {
   color: #ffffff;
-  font-size: clamp(42px, 4.3vw, 60px);
+  font-size: clamp(38px, 4.3vw, 60px);
   font-weight: 800;
   letter-spacing: 0.01em;
   line-height: 1;
