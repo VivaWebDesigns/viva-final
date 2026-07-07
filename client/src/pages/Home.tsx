@@ -69,7 +69,6 @@ export default function Home() {
   const processSteps = tObjArr<{ step: string; title: string; desc: string }>("home.process.steps");
   const solutionCards = tObjArr<{ title: string; desc: string }>("home.solution.cards");
   const solutionIcons = [MapPinned, Eye, PhoneCall];
-  const trustItems = [t("home.hero.trust1"), t("home.hero.trust2"), t("home.hero.trust3")];
   const problemItems = tArr("home.problem.items");
   const beforeItems = tArr("home.beforeAfter.beforeItems");
   const afterItems = tArr("home.beforeAfter.afterItems");
@@ -120,41 +119,34 @@ export default function Home() {
         path="/"
       />
 
-      <section className="relative isolate overflow-hidden bg-[#f6f7fb] pt-[62px]" data-testid="section-hero">
+      <section className="relative isolate overflow-hidden bg-[#001426] pt-[62px] text-white" data-testid="section-hero">
         <div
-          className="absolute inset-0 bg-no-repeat bg-[length:118%_auto] bg-[position:58%_center] max-md:bg-cover max-md:bg-[position:center_top]"
+          className="absolute inset-0 bg-no-repeat bg-[length:150%_auto] bg-[position:30%_center] max-md:bg-[length:auto_100%] max-md:bg-[position:46%_center]"
           style={{ backgroundImage: `url(${heroHeatmapUrl})` }}
           aria-hidden="true"
         />
-        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(246,247,251,0.94)_0%,rgba(246,247,251,0.62)_42%,rgba(246,247,251,0.1)_100%)] max-md:bg-[linear-gradient(180deg,rgba(246,247,251,0.1)_0%,rgba(246,247,251,0.42)_40%,rgba(246,247,251,0.96)_78%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,14,27,0.96)_0%,rgba(0,14,27,0.82)_28%,rgba(0,14,27,0.32)_56%,rgba(0,14,27,0.04)_100%)] max-md:bg-[linear-gradient(180deg,rgba(0,14,27,0.86)_0%,rgba(0,14,27,0.26)_35%,rgba(0,14,27,0.9)_72%,rgba(0,14,27,0.98)_100%)]" />
 
-        <div className="relative z-10 mx-auto grid min-h-[560px] max-w-7xl items-center px-4 py-16 sm:px-6 md:min-h-[600px] lg:min-h-[620px] lg:px-8 lg:py-20">
-          <motion.div initial="hidden" animate="visible" variants={stagger} className={`${cardClass} max-w-[560px] bg-white/80 p-7 backdrop-blur-[2px] sm:p-8`} data-testid="card-hero-content">
-            <motion.p variants={fadeUp} className="mb-4 text-[15px] font-medium text-[#0b4bff]">
-              Are you number 1 for searches in your area?
-            </motion.p>
-            <motion.h1 variants={fadeUp} className="mb-5 text-4xl font-medium leading-[1.06] text-[#061a3d] sm:text-5xl lg:text-6xl" data-testid="text-hero-title">
-              {t("home.hero.title1")}{" "}
-              <span className="text-[#0b4bff]">{t("home.hero.titleAccent")}</span>{" "}
-              {t("home.hero.title2")}
+        <div className="relative z-10 mx-auto flex min-h-[648px] max-w-7xl flex-col px-4 py-7 sm:px-6 md:min-h-[556px] lg:px-8">
+          <motion.p initial="hidden" animate="visible" variants={fadeUp} className="max-w-xs text-xl font-extrabold uppercase leading-[1.15] tracking-[0.02em] text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.72)] md:max-w-none md:text-[clamp(18px,2.35vw,34px)]">
+            Option 3: Heat Map Coverage (National)
+          </motion.p>
+
+          <motion.div initial="hidden" animate="visible" variants={stagger} className="mb-0 mt-auto max-w-[355px] drop-shadow-[0_2px_10px_rgba(0,0,0,0.72)] md:mb-5" data-testid="card-hero-content">
+            <motion.h1 variants={fadeUp} className="text-[clamp(42px,4.3vw,60px)] font-extrabold uppercase leading-none tracking-[0.01em] text-white" data-testid="text-hero-title">
+              Be found.
+              <span className="block text-[#78c943]">Everywhere.</span>
             </motion.h1>
-            <motion.p variants={fadeUp} className="max-w-sm text-lg leading-relaxed text-[#6b7185]" data-testid="text-hero-subtitle">
-              {t("home.hero.subtitle")}
+            <motion.p variants={fadeUp} className="mt-5 max-w-xs text-2xl font-medium leading-[1.28] text-white/90 md:text-[clamp(24px,2.4vw,34px)]" data-testid="text-hero-subtitle">
+              Our AI-powered SEO expands your visibility across the entire United States.
             </motion.p>
-            <motion.div variants={fadeUp} className="mt-7 flex flex-col gap-3 sm:flex-row">
-              <Link href="/contacto">
-                <Button size="lg" className={`${primaryButton} w-full sm:w-auto`} data-testid="button-hero-scan">
-                  Get Your Free Visibility Scan
-                  <ArrowRight className="h-5 w-5" />
-                </Button>
-              </Link>
-            </motion.div>
-            <motion.div variants={fadeUp} className="mt-6 flex flex-wrap gap-2" aria-label="Project trust points">
-              {trustItems.map((item) => (
-                <span key={item} className="inline-flex min-h-[30px] items-center rounded-full border border-[#d0d2da] bg-white px-3 py-1.5 text-xs font-medium text-[#6b7185]">
-                  {item}
-                </span>
-              ))}
+            <motion.div variants={fadeUp} className="mt-6 w-full max-w-[316px] rounded-lg border border-slate-400/30 bg-[#000c18]/40 px-5 py-4 shadow-[0_14px_34px_rgba(0,0,0,0.22)] md:px-7 md:py-5" aria-label="Visibility level from low to high">
+              <strong className="block text-lg font-extrabold uppercase text-white">Visibility Level</strong>
+              <div className="mt-4 h-[26px] rounded-lg bg-[linear-gradient(90deg,#003f49_0%,#087f4f_36%,#79bd2e_68%,#d6f027_100%)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08),0_0_18px_rgba(181,232,43,0.18)]" aria-hidden="true" />
+              <div className="mt-2 flex justify-between text-base font-extrabold uppercase text-white">
+                <span>Low</span>
+                <span>High</span>
+              </div>
             </motion.div>
           </motion.div>
         </div>
