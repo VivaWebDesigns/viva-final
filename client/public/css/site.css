@@ -279,8 +279,8 @@ select {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(90deg, rgba(0, 14, 27, 0.96) 0%, rgba(0, 14, 27, 0.82) 28%, rgba(0, 14, 27, 0.32) 56%, rgba(0, 14, 27, 0.04) 100%),
-    url("/img/homepage-visibility-map.webp?v=20260707-homepage-visibility-map") 30% center / 150% auto no-repeat,
+    linear-gradient(90deg, rgba(0, 14, 27, 0.96) 0%, rgba(0, 14, 27, 0.78) 28%, rgba(0, 14, 27, 0.2) 62%, rgba(0, 14, 27, 0.04) 100%),
+    url("/img/homepage-visibility-map.webp?v=20260707-homepage-visibility-map") center center / 100% auto no-repeat,
     #001426;
   content: "";
 }
@@ -291,17 +291,6 @@ select {
   display: flex;
   min-height: 556px;
   flex-direction: column;
-}
-
-.hero-kicker {
-  margin: 0;
-  color: #ffffff;
-  font-size: clamp(18px, 2.35vw, 34px);
-  font-weight: 800;
-  letter-spacing: 0.02em;
-  line-height: 1;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.72);
-  text-transform: uppercase;
 }
 
 .hero-content {
@@ -1201,19 +1190,13 @@ select {
 
   .hero::before {
     background:
-      linear-gradient(180deg, rgba(0, 14, 27, 0.86) 0%, rgba(0, 14, 27, 0.26) 35%, rgba(0, 14, 27, 0.9) 72%, rgba(0, 14, 27, 0.98) 100%),
-      url("/img/homepage-visibility-map.webp?v=20260707-homepage-visibility-map") 46% center / auto 100% no-repeat,
+      linear-gradient(180deg, rgba(0, 14, 27, 0.58) 0%, rgba(0, 14, 27, 0.16) 32%, rgba(0, 14, 27, 0.86) 70%, rgba(0, 14, 27, 0.98) 100%),
+      url("/img/homepage-visibility-map.webp?v=20260707-homepage-visibility-map") center 72px / 100% auto no-repeat,
       #001426;
   }
 
   .hero-layout {
     min-height: 648px;
-  }
-
-  .hero-kicker {
-    max-width: 320px;
-    font-size: 20px;
-    line-height: 1.15;
   }
 
   .hero-content {

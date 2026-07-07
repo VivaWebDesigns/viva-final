@@ -121,17 +121,13 @@ export default function Home() {
 
       <section className="relative isolate overflow-hidden bg-[#001426] pt-[62px] text-white" data-testid="section-hero">
         <div
-          className="absolute inset-0 bg-no-repeat bg-[length:150%_auto] bg-[position:30%_center] max-md:bg-[length:auto_100%] max-md:bg-[position:46%_center]"
+          className="absolute inset-0 bg-no-repeat bg-[length:100%_auto] bg-[position:center_center] max-md:bg-[length:100%_auto] max-md:bg-[position:center_72px]"
           style={{ backgroundImage: `url(${heroHeatmapUrl})` }}
           aria-hidden="true"
         />
-        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,14,27,0.96)_0%,rgba(0,14,27,0.82)_28%,rgba(0,14,27,0.32)_56%,rgba(0,14,27,0.04)_100%)] max-md:bg-[linear-gradient(180deg,rgba(0,14,27,0.86)_0%,rgba(0,14,27,0.26)_35%,rgba(0,14,27,0.9)_72%,rgba(0,14,27,0.98)_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,14,27,0.96)_0%,rgba(0,14,27,0.78)_28%,rgba(0,14,27,0.2)_62%,rgba(0,14,27,0.04)_100%)] max-md:bg-[linear-gradient(180deg,rgba(0,14,27,0.58)_0%,rgba(0,14,27,0.16)_32%,rgba(0,14,27,0.86)_70%,rgba(0,14,27,0.98)_100%)]" />
 
         <div className="relative z-10 mx-auto flex min-h-[648px] max-w-7xl flex-col px-4 py-7 sm:px-6 md:min-h-[556px] lg:px-8">
-          <motion.p initial="hidden" animate="visible" variants={fadeUp} className="max-w-xs text-xl font-extrabold uppercase leading-[1.15] tracking-[0.02em] text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.72)] md:max-w-none md:text-[clamp(18px,2.35vw,34px)]">
-            Option 3: Heat Map Coverage (National)
-          </motion.p>
-
           <motion.div initial="hidden" animate="visible" variants={stagger} className="mb-0 mt-auto max-w-[355px] drop-shadow-[0_2px_10px_rgba(0,0,0,0.72)] md:mb-5" data-testid="card-hero-content">
             <motion.h1 variants={fadeUp} className="text-[clamp(42px,4.3vw,60px)] font-extrabold uppercase leading-none tracking-[0.01em] text-white" data-testid="text-hero-title">
               Be found.
