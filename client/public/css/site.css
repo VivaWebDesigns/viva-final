@@ -1154,7 +1154,7 @@ select {
   .hero::before {
     background:
       linear-gradient(180deg, rgba(0, 14, 27, 0.58) 0%, rgba(0, 14, 27, 0.16) 32%, rgba(0, 14, 27, 0.86) 70%, rgba(0, 14, 27, 0.98) 100%),
-      url("/img/homepage-visibility-mainland.webp?v=20260707-mainland-mobile-map") center 96px / 104% auto no-repeat,
+      url("/img/homepage-visibility-mainland.webp?v=20260707-mainland-mobile-map") center 68px / 104% auto no-repeat,
       #001426;
   }
 
@@ -1164,7 +1164,7 @@ select {
 
   .hero-content {
     max-width: 330px;
-    margin-top: 315px;
+    margin-top: 292px;
     margin-bottom: 0;
   }
 
