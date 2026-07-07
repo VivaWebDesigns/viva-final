@@ -295,7 +295,7 @@ select {
 
 .hero-content {
   max-width: 355px;
-  margin-top: auto;
+  margin-top: 42px;
   margin-bottom: 20px;
   text-shadow: 0 2px 10px rgba(0, 0, 0, 0.72);
 }
@@ -1164,6 +1164,7 @@ select {
 
   .hero-content {
     max-width: 330px;
+    margin-top: auto;
     margin-bottom: 0;
   }
 
