@@ -121,7 +121,7 @@ export default function Home() {
 
       <section className="relative isolate overflow-hidden bg-[#001426] pt-[62px] text-white" data-testid="section-hero">
         <div
-          className="absolute inset-0 bg-no-repeat bg-[length:100%_auto] bg-[position:center_center] max-md:bg-[length:112%_auto] max-md:bg-[position:center_96px]"
+          className="absolute inset-0 bg-no-repeat bg-[length:100%_auto] bg-[position:center_center] max-md:bg-[length:104%_auto] max-md:bg-[position:center_96px]"
           style={{ backgroundImage: `url(${heroHeatmapUrl})` }}
           aria-hidden="true"
         />

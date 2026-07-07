@@ -1154,7 +1154,7 @@ select {
   .hero::before {
     background:
       linear-gradient(180deg, rgba(0, 14, 27, 0.58) 0%, rgba(0, 14, 27, 0.16) 32%, rgba(0, 14, 27, 0.86) 70%, rgba(0, 14, 27, 0.98) 100%),
-      url("/img/homepage-visibility-mainland.webp?v=20260707-mainland-mobile-map") center 96px / 112% auto no-repeat,
+      url("/img/homepage-visibility-mainland.webp?v=20260707-mainland-mobile-map") center 96px / 104% auto no-repeat,
       #001426;
   }
 
