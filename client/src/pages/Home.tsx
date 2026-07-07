@@ -23,7 +23,7 @@ import { useState } from "react";
 import SEO from "@/components/SEO";
 import { t, tArr, tObjArr } from "@/content";
 
-const heroHeatmapUrl = "/img/local-falcon-heatmap.webp?v=20260625-local-falcon-heatmap";
+const heroHeatmapUrl = "/img/homepage-visibility-map.webp?v=20260707-homepage-visibility-map";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },

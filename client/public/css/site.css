@@ -280,8 +280,8 @@ select {
   inset: 0;
   background:
     linear-gradient(90deg, rgba(246, 247, 251, 0.94) 0%, rgba(246, 247, 251, 0.62) 42%, rgba(246, 247, 251, 0.1) 100%),
-    url("/img/local-falcon-heatmap.webp?v=20260625-local-falcon-heatmap") 58% center / 118% auto no-repeat,
-    var(--soft);
+    url("/img/homepage-visibility-map.webp?v=20260707-homepage-visibility-map") 58% center / 118% auto no-repeat,
+    #001426;
   content: "";
 }
 
@@ -1139,8 +1139,8 @@ select {
   .hero::before {
     background:
       linear-gradient(180deg, rgba(246, 247, 251, 0.08) 0%, rgba(246, 247, 251, 0.34) 42%, rgba(246, 247, 251, 0.92) 70%, rgba(246, 247, 251, 0.98) 100%),
-      url("/img/local-falcon-heatmap.webp?v=20260625-local-falcon-heatmap") center top / cover no-repeat,
-      var(--soft);
+      url("/img/homepage-visibility-map.webp?v=20260707-homepage-visibility-map") center top / cover no-repeat,
+      #001426;
   }
 
   .hero-content {
