@@ -160,7 +160,7 @@ export default function Navigation() {
             </div>
           ) : (
             <button
-              className="md:hidden p-2 text-[#111] dark:text-gray-300"
+              className="md:hidden p-2 text-[#5FD62C]"
               onClick={() => setIsOpen(!isOpen)}
               data-testid="button-mobile-menu"
             >

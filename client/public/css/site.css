@@ -159,7 +159,7 @@ select {
   width: 18px;
   height: 2px;
   border-radius: 2px;
-  background: var(--ink);
+  background: #5FD62C;
   content: "";
 }
 
