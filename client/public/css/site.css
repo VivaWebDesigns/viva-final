@@ -293,6 +293,10 @@ select {
   flex-direction: column;
 }
 
+.hero-visibility-legend {
+  display: none;
+}
+
 .hero-content {
   max-width: 355px;
   margin-top: 42px;
@@ -1160,6 +1164,46 @@ select {
 
   .hero-layout {
     min-height: 648px;
+  }
+
+  .hero-visibility-legend {
+    position: absolute;
+    top: 66px;
+    right: 12px;
+    z-index: 2;
+    display: block;
+    width: 118px;
+    padding: 8px 10px;
+    color: #ffffff;
+    background: #001426;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    box-shadow: 0 0 18px rgba(0, 0, 0, 0.36);
+    pointer-events: none;
+  }
+
+  .legend-title {
+    font-size: 8px;
+    font-weight: 700;
+    line-height: 1;
+    text-align: center;
+    text-transform: uppercase;
+  }
+
+  .legend-bar {
+    height: 8px;
+    margin-top: 8px;
+    background: linear-gradient(90deg, #005a58 0%, #2f9638 54%, #fff02a 100%);
+    border-radius: 999px;
+  }
+
+  .legend-scale {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 5px;
+    font-size: 8px;
+    line-height: 1;
+    text-transform: uppercase;
   }
 
   .hero-content {
