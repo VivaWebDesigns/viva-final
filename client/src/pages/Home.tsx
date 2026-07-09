@@ -121,7 +121,7 @@ export default function Home() {
 
       <section className="relative isolate overflow-hidden bg-[#001426] pt-[62px] text-white" data-testid="section-hero">
         <div
-          className="absolute inset-0 bg-no-repeat bg-[length:100%_auto] bg-[position:center_center] max-md:bg-[length:108%_auto] max-md:bg-[position:center_53px]"
+          className="absolute inset-0 bg-no-repeat bg-[length:100%_auto] bg-[position:center_center] max-md:bg-[length:108%_auto] max-md:bg-[position:center_21px]"
           style={{ backgroundImage: `url(${heroHeatmapUrl})` }}
           aria-hidden="true"
         />
@@ -137,7 +137,7 @@ export default function Home() {
 
         <div className="relative z-10 mx-auto flex min-h-[648px] max-w-7xl flex-col px-4 py-7 sm:px-6 md:min-h-[556px] lg:px-8">
           <motion.div initial="hidden" animate="visible" variants={stagger} className="mb-0 mt-[264px] max-w-[355px] drop-shadow-[0_2px_10px_rgba(0,0,0,0.72)] md:mb-5 md:mt-[36px]" data-testid="card-hero-content">
-            <motion.h1 variants={fadeUp} className="text-[clamp(38px,4.3vw,60px)] font-extrabold uppercase leading-none tracking-[0.01em] text-white" data-testid="text-hero-title">
+            <motion.h1 variants={fadeUp} className="text-[clamp(34px,4.3vw,60px)] font-extrabold uppercase leading-none tracking-[0.01em] text-white" data-testid="text-hero-title">
               Get found.
               <span className="block text-[#016192]">Get called.</span>
             </motion.h1>
