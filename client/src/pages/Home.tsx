@@ -142,7 +142,7 @@ export default function Home() {
               <span className="block text-[#78c943]">Get called.</span>
             </motion.h1>
             <motion.p variants={fadeUp} className="mt-5 max-w-xs text-2xl font-medium leading-[1.28] text-white/90 md:text-[clamp(24px,2.4vw,34px)]" data-testid="text-hero-subtitle">
-              A rebuilt website and Google profile that turn "[trade] near me" searches into phone calls.
+              We scan your website and Google rankings to show exactly why you're not showing up — and how to fix it.
             </motion.p>
           </motion.div>
         </div>
