@@ -34,11 +34,11 @@ const stagger = {
   visible: { transition: { staggerChildren: 0.1 } },
 };
 
-const sectionLabel = "text-[#0b4bff] font-medium text-sm mb-4";
+const sectionLabel = "text-[#0f659e] font-medium text-sm mb-4";
 const sectionTitle = "text-3xl sm:text-4xl lg:text-5xl font-medium text-[#061a3d] leading-[1.08]";
 const sectionCopy = "text-base sm:text-lg text-[#6b7185] leading-relaxed";
 const cardClass = "rounded-lg border border-[#e8e8ec] bg-white shadow-[0_16px_44px_rgba(6,26,61,0.06)]";
-const primaryButton = "rounded-md bg-[#0b4bff] hover:bg-[#063bd1] text-white font-medium min-h-[44px] px-6";
+const primaryButton = "rounded-md bg-[#0f659e] hover:bg-[#0b4f7d] text-white font-medium min-h-[44px] px-6";
 const outlineButton = "rounded-md border-[#d0d2da] text-[#061a3d] bg-white/70 hover:bg-white font-medium min-h-[44px] px-6";
 
 function FAQItem({ q, a }: { q: string; a: string }) {
@@ -154,13 +154,13 @@ export default function Home() {
             <div className="mx-auto mb-12 max-w-3xl text-center">
               <motion.h2 variants={fadeUp} className={sectionTitle} data-testid="text-problem-title">
                 {t("home.problem.title1")}{" "}
-                <span className="text-[#0b4bff]">{t("home.problem.titleAccent")}</span>
+                <span className="text-[#0f659e]">{t("home.problem.titleAccent")}</span>
               </motion.h2>
             </div>
             <motion.div variants={fadeUp} className="mx-auto grid max-w-4xl gap-3">
               {problemItems.map((item) => (
                 <div key={item} className="flex items-start gap-3 rounded-lg bg-[#f6f7fb] p-4 text-lg font-medium text-[#061a3d]">
-                  <XCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-[#0b4bff]" />
+                  <XCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-[#0f659e]" />
                   <span>{item}</span>
                 </div>
               ))}
@@ -180,7 +180,7 @@ export default function Home() {
                 {t("home.solution.title1")}
               </motion.p>
               <motion.h2 variants={fadeUp} className={sectionTitle} data-testid="text-solution-title">
-                <span className="text-[#0b4bff]">{t("home.solution.titleAccent")}</span>
+                <span className="text-[#0f659e]">{t("home.solution.titleAccent")}</span>
               </motion.h2>
               <motion.p variants={fadeUp} className={`${sectionCopy} mt-5`}>
                 {t("home.solution.subtitle")}
@@ -191,7 +191,7 @@ export default function Home() {
                 const Icon = solutionIcons[i] ?? ImageIcon;
                 return (
                   <motion.article key={item.title} variants={fadeUp} className={`${cardClass} p-7`}>
-                    <div className="mb-5 grid h-11 w-11 place-items-center rounded-lg bg-[rgba(11,75,255,0.07)] text-[#0b4bff]">
+                    <div className="mb-5 grid h-11 w-11 place-items-center rounded-lg bg-[rgba(15,101,158,0.07)] text-[#0f659e]">
                       <Icon className="h-5 w-5" />
                     </div>
                     <h3 className="mb-3 text-xl font-medium text-[#061a3d]">{item.title}</h3>
@@ -218,9 +218,9 @@ export default function Home() {
 
             <div className="grid gap-5 lg:grid-cols-3">
               {packages.map((pkg) => (
-                <motion.article key={pkg.slug} variants={fadeUp} className={`${cardClass} relative flex flex-col p-7 ${"popular" in pkg && pkg.popular ? "border-[#0b4bff] shadow-[0_18px_54px_rgba(11,75,255,0.12)]" : ""}`} data-testid={`card-package-${pkg.slug}`}>
+                <motion.article key={pkg.slug} variants={fadeUp} className={`${cardClass} relative flex flex-col p-7 ${"popular" in pkg && pkg.popular ? "border-[#0f659e] shadow-[0_18px_54px_rgba(15,101,158,0.12)]" : ""}`} data-testid={`card-package-${pkg.slug}`}>
                   {"popular" in pkg && pkg.popular && (
-                    <span className="mb-5 inline-flex w-fit items-center gap-1.5 rounded-full bg-[#0b4bff] px-3 py-1.5 text-xs font-medium text-white" data-testid="badge-popular">
+                    <span className="mb-5 inline-flex w-fit items-center gap-1.5 rounded-full bg-[#0f659e] px-3 py-1.5 text-xs font-medium text-white" data-testid="badge-popular">
                       <Star className="h-3.5 w-3.5 fill-white" />
                       {t("home.packages.badgePopular")}
                     </span>
@@ -237,7 +237,7 @@ export default function Home() {
                       Starter
                     </span>
                   )}
-                  <div className="mb-5 grid h-11 w-11 place-items-center rounded-lg bg-[rgba(11,75,255,0.07)] text-[#0b4bff]">
+                  <div className="mb-5 grid h-11 w-11 place-items-center rounded-lg bg-[rgba(15,101,158,0.07)] text-[#0f659e]">
                     <pkg.icon className="h-5 w-5" />
                   </div>
                   <h3 className="text-2xl font-medium text-[#061a3d]">{pkg.name}</h3>
@@ -246,7 +246,7 @@ export default function Home() {
                     <p className="text-3xl font-medium text-[#061a3d]" data-testid={`text-price-${pkg.slug}`}>{pkg.price}</p>
                     <p className="mt-1 text-xs text-[#6b7185]">Initial website setup</p>
                   </div>
-                  <p className="mb-3 text-xs font-medium uppercase tracking-wider text-[#0b4bff]">{pkg.positioning}</p>
+                  <p className="mb-3 text-xs font-medium uppercase tracking-wider text-[#0f659e]">{pkg.positioning}</p>
                   <p className="mb-7 flex-1 leading-relaxed text-[#6b7185]">{pkg.desc}</p>
                   <Link href={`/paquetes/${pkg.slug}`}>
                     <Button size="lg" className={`${"popular" in pkg && pkg.popular ? primaryButton : "rounded-md bg-[#061a3d] text-white hover:bg-[#0b254f] font-medium min-h-[44px] px-6"} w-full`} data-testid={`button-ver-${pkg.slug}`}>
@@ -264,7 +264,7 @@ export default function Home() {
       <section id="plan-soporte" className="bg-[#f6f7fb] py-16 lg:py-20" data-testid="section-support-plan">
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={stagger} className={`${cardClass} p-7 text-center sm:p-9`}>
-            <motion.div variants={fadeUp} className="mx-auto mb-5 grid h-11 w-11 place-items-center rounded-lg bg-[rgba(11,75,255,0.07)] text-[#0b4bff]">
+            <motion.div variants={fadeUp} className="mx-auto mb-5 grid h-11 w-11 place-items-center rounded-lg bg-[rgba(15,101,158,0.07)] text-[#0f659e]">
               <Shield className="h-5 w-5" />
             </motion.div>
             <motion.p variants={fadeUp} className={sectionLabel}>
@@ -279,7 +279,7 @@ export default function Home() {
             <motion.div variants={fadeUp} className="mt-7 flex flex-wrap justify-center gap-x-6 gap-y-3 text-sm text-[#6b7185]">
               {supportItems.map((item) => (
                 <span key={item} className="inline-flex items-center gap-1.5">
-                  <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-[#0b4bff]" />
+                  <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-[#0f659e]" />
                   {item}
                 </span>
               ))}
@@ -308,7 +308,7 @@ export default function Home() {
                   ))}
                 </ul>
               </motion.article>
-              <motion.article variants={fadeUp} className="rounded-lg border border-[#0b4bff]/50 bg-[#0b4bff]/15 p-7" data-testid="card-after">
+              <motion.article variants={fadeUp} className="rounded-lg border border-[#0f659e]/50 bg-[#0f659e]/15 p-7" data-testid="card-after">
                 <div className="mb-6 text-sm font-medium uppercase tracking-widest text-white">{t("home.beforeAfter.afterLabel")}</div>
                 <ul className="space-y-4">
                   {afterItems.map((item) => (
@@ -357,7 +357,7 @@ export default function Home() {
               </motion.p>
               <motion.h2 variants={fadeUp} className={sectionTitle} data-testid="text-testimonials-title">
                 {t("home.testimonials.title1")}{" "}
-                <span className="text-[#0b4bff]">{t("home.testimonials.titleAccent")}</span>
+                <span className="text-[#0f659e]">{t("home.testimonials.titleAccent")}</span>
               </motion.h2>
             </div>
             <div className="grid gap-5 md:grid-cols-3">
@@ -365,7 +365,7 @@ export default function Home() {
                 <motion.article key={testimonial.name} variants={fadeUp} className={`${cardClass} p-7`} data-testid={`card-testimonial-${testimonial.name.split(" ")[0].toLowerCase()}`}>
                   <div className="mb-4 flex items-center gap-1">
                     {[1, 2, 3, 4, 5].map((i) => (
-                      <Star key={i} className="h-4 w-4 fill-[#0b4bff] text-[#0b4bff]" />
+                      <Star key={i} className="h-4 w-4 fill-[#0f659e] text-[#0f659e]" />
                     ))}
                   </div>
                   <p className="mb-6 leading-relaxed text-[#6b7185]">"{testimonial.text}"</p>

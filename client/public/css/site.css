@@ -1,22 +1,22 @@
 :root {
-  --teal: #0b4bff;
-  --teal-dark: #063bd1;
-  --teal-soft: rgba(11, 75, 255, 0.07);
-  --blue: #0b4bff;
+  --teal: #0f659e;
+  --teal-dark: #0b4f7d;
+  --teal-soft: rgba(15, 101, 158, 0.07);
+  --blue: #0f659e;
   --ink: #061a3d;
   --muted: #6b7185;
   --muted-light: #7c8395;
   --soft: #f6f7fb;
   --surface-alt: #f6f7fb;
   --cream: #f6f7fb;
-  --mint: rgba(11, 75, 255, 0.07);
+  --mint: rgba(15, 101, 158, 0.07);
   --paper: #ffffff;
   --dark: #061a3d;
   --dark-soft: #040f24;
   --line: #e8e8ec;
   --line-strong: #d0d2da;
   --danger-bg: #f6f7fb;
-  --danger: #0b4bff;
+  --danger: #0f659e;
   --warning: #f59e0b;
   --radius: 8px;
   --shadow: 0 18px 44px rgba(6, 26, 61, 0.08);
@@ -622,7 +622,7 @@ select {
 .step-number {
   display: block;
   margin-bottom: 8px;
-  color: rgba(11, 75, 255, 0.16);
+  color: rgba(15, 101, 158, 0.16);
   font-size: 46px;
   line-height: 1;
   font-weight: 500;
@@ -1031,7 +1031,7 @@ select {
 .field input:focus,
 .field textarea:focus,
 .field select:focus {
-  outline: 3px solid rgba(11, 75, 255, 0.14);
+  outline: 3px solid rgba(15, 101, 158, 0.14);
   border-color: var(--blue);
 }
 
