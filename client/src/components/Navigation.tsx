@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import logoImg from "@assets/Viva_1772823591549.png";
 import { t } from "@/content";
 import { usePreviewLang } from "@/contexts/PreviewLangContext";
+
+const headerLogoUrl = "/img/logo-blue-20260709.svg?v=20260709-blue-header";
 
 const navLinks = [
   { href: "/", labelKey: "nav.home" },
@@ -66,7 +67,7 @@ export default function Navigation() {
 
           {/* Logo — always visible */}
           <Link href="/" className="flex items-center gap-2 flex-shrink-0" data-testid="link-logo">
-            <img src={logoImg} alt="Viva Web Designs" className="h-14 md:h-12 w-auto object-contain" />
+            <img src={headerLogoUrl} alt="Viva Web Designs" className="h-14 md:h-12 w-auto object-contain" />
           </Link>
 
           {/* Desktop nav links — always visible */}
