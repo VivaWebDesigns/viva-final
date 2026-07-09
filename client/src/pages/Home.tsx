@@ -1,22 +1,11 @@
-import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import {
   ArrowRight,
   BarChart3,
   CheckCircle2,
   ChevronDown,
-  Crown,
-  Eye,
-  Image as ImageIcon,
-  MapPinned,
-  PhoneCall,
-  Rocket,
-  Star,
-  Trophy,
   XCircle,
-  Zap,
 } from "lucide-react";
-import { SiWhatsapp } from "react-icons/si";
 import { motion } from "framer-motion";
 import { useState } from "react";
 import SEO from "@/components/SEO";
@@ -33,12 +22,65 @@ const stagger = {
   visible: { transition: { staggerChildren: 0.1 } },
 };
 
-const sectionLabel = "text-[#0f659e] font-medium text-sm mb-4";
 const sectionTitle = "text-3xl sm:text-4xl lg:text-5xl font-medium text-[#061a3d] leading-[1.08]";
 const sectionCopy = "text-base sm:text-lg text-[#6b7185] leading-relaxed";
 const cardClass = "rounded-lg border border-[#e8e8ec] bg-white shadow-[0_16px_44px_rgba(6,26,61,0.06)]";
 const primaryButton = "rounded-md bg-[#0f659e] hover:bg-[#0b4f7d] text-white font-medium min-h-[44px] px-6";
-const outlineButton = "rounded-md border-[#d0d2da] text-[#061a3d] bg-white/70 hover:bg-white font-medium min-h-[44px] px-6";
+
+const proofScans = [
+  {
+    image: "/img/glass-door-pro-before.jpeg",
+    alt: "Before heatmap showing weak local rankings within a 1.5-mile radius",
+    label: "BEFORE — 1.5-MILE RADIUS",
+    tone: "before",
+    caption: "Ranked outside the top 20 across much of the market. Invisible on Google Maps. Losing calls to competitors in the same town.",
+  },
+  {
+    image: "/img/glass-door-pro-after-60-days.jpeg",
+    alt: "After 60 days heatmap showing improved local rankings within a 1.5-mile radius",
+    label: "AFTER 60 DAYS — 1.5-MILE RADIUS",
+    tone: "after",
+    caption: "Significant improvement across the same 1.5-mile radius. Results were strong enough that we immediately expanded the scan to see how far they held.",
+  },
+  {
+    image: "/img/glass-door-pro-after-60-days-12-mile.jpeg",
+    alt: "After 60 days heatmap showing strong local rankings across a 12-mile radius",
+    label: "AFTER 60 DAYS — 12-MILE RADIUS",
+    tone: "after",
+    caption: "We increased the radius by 8x. Dominant rankings across a market that previously wasn't showing the business at all.",
+  },
+];
+
+const serviceCapabilities = [
+  {
+    title: "Service-page structure",
+    desc: "One page per important service, built around how customers actually search.",
+  },
+  {
+    title: "Local SEO foundation",
+    desc: "Titles, headings, internal links, schema, speed, and crawlable HTML.",
+  },
+  {
+    title: "Map ranking focus",
+    desc: "Your website and Google profile are optimized as one system, so they're always working in the same direction.",
+  },
+  {
+    title: "Proof after launch",
+    desc: "We don't stop at a pretty site. Your rankings are tracked every month so you always know where you stand.",
+  },
+];
+
+const deliverables = [
+  "Market visibility scan",
+  "Strategy call and findings",
+  "Website rebuild",
+  "Local SEO service pages",
+  "Google Business Profile cleanup",
+  "Review request automation",
+  "Technical SEO setup",
+  "Fast hosting and SSL",
+  "Monthly visibility scanning",
+];
 
 function FAQItem({ q, a }: { q: string; a: string }) {
   const [open, setOpen] = useState(false);
@@ -63,51 +105,12 @@ function FAQItem({ q, a }: { q: string; a: string }) {
 }
 
 export default function Home() {
-  const testimonials = tObjArr<{ name: string; business: string; text: string; trade: string }>("home.testimonials.items");
-  const faqs = tObjArr<{ q: string; a: string }>("home.faq.items");
+  const faqs = tObjArr<{ q: string; a: string }>("home.faq.items").filter((faq) => {
+    const question = faq.q.toLowerCase();
+    return !question.includes("installments") && !question.includes("partes");
+  });
   const processSteps = tObjArr<{ step: string; title: string; desc: string }>("home.process.steps");
-  const solutionCards = tObjArr<{ title: string; desc: string }>("home.solution.cards");
-  const solutionIcons = [MapPinned, Eye, PhoneCall];
   const problemItems = tArr("home.problem.items");
-  const beforeItems = tArr("home.beforeAfter.beforeItems");
-  const afterItems = tArr("home.beforeAfter.afterItems");
-  const whatsappUrl = t("global.whatsappUrl");
-
-  const packages = [
-    {
-      name: t("home.packages.empieza.name"),
-      subLabel: t("home.packages.empieza.subLabel"),
-      slug: "empieza",
-      icon: Zap,
-      desc: t("home.packages.empieza.desc"),
-      positioning: t("home.packages.empieza.positioning"),
-      price: t("home.packages.empieza.price"),
-      inicio: true,
-    },
-    {
-      name: t("home.packages.crece.name"),
-      subLabel: t("home.packages.crece.subLabel"),
-      slug: "crece",
-      icon: Rocket,
-      desc: t("home.packages.crece.desc"),
-      positioning: t("home.packages.crece.positioning"),
-      price: t("home.packages.crece.price"),
-      popular: true,
-    },
-    {
-      name: t("home.packages.domina.name"),
-      subLabel: t("home.packages.domina.subLabel"),
-      slug: "domina",
-      icon: Crown,
-      desc: t("home.packages.domina.desc"),
-      positioning: t("home.packages.domina.positioning"),
-      price: t("home.packages.domina.price"),
-      premium: true,
-      bestValue: true,
-    },
-  ];
-
-  const ctaHref = `${whatsappUrl}?text=Hi%2C%20I%27m%20interested%20in%20learning%20more%20about%20your%20services`;
 
   return (
     <div className="overflow-x-hidden bg-white text-[#061a3d]">
@@ -177,130 +180,50 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="bg-[#f6f7fb] py-20 lg:py-24" data-testid="section-solution">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={stagger}>
-            <div className="mx-auto mb-12 max-w-3xl text-center">
-              <motion.p variants={fadeUp} className={sectionLabel}>
-                {t("home.solution.title1")}
-              </motion.p>
-              <motion.h2 variants={fadeUp} className={sectionTitle} data-testid="text-solution-title">
-                <span className="text-[#0f659e]">{t("home.solution.titleAccent")}</span>
-              </motion.h2>
-              <motion.p variants={fadeUp} className={`${sectionCopy} mt-5`}>
-                {t("home.solution.subtitle")}
-              </motion.p>
-            </div>
-            <div className="grid gap-5 md:grid-cols-3">
-              {solutionCards.map((item, i) => {
-                const Icon = solutionIcons[i] ?? ImageIcon;
-                return (
-                  <motion.article key={item.title} variants={fadeUp} className={`${cardClass} p-7`}>
-                    <div className="mb-5 grid h-11 w-11 place-items-center rounded-lg bg-[rgba(15,101,158,0.07)] text-[#0f659e]">
-                      <Icon className="h-5 w-5" />
-                    </div>
-                    <h3 className="mb-3 text-xl font-medium text-[#061a3d]">{item.title}</h3>
-                    <p className="leading-relaxed text-[#6b7185]">{item.desc}</p>
-                  </motion.article>
-                );
-              })}
-            </div>
-          </motion.div>
-        </div>
-      </section>
-
-      <section id="paquetes" className="scroll-mt-24 bg-white py-20 lg:py-24" data-testid="section-packages">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={stagger}>
-            <div className="mx-auto mb-12 max-w-3xl text-center">
-              <motion.p variants={fadeUp} className={sectionLabel}>
-                {t("home.packages.sectionLabel")}
-              </motion.p>
-              <motion.h2 variants={fadeUp} className={sectionTitle} data-testid="text-packages-title">
-                {t("home.packages.title")}
-              </motion.h2>
-            </div>
-
-            <div className="grid gap-5 lg:grid-cols-3">
-              {packages.map((pkg) => (
-                <motion.article key={pkg.slug} variants={fadeUp} className={`${cardClass} relative flex flex-col p-7 ${"popular" in pkg && pkg.popular ? "border-[#0f659e] shadow-[0_18px_54px_rgba(15,101,158,0.12)]" : ""}`} data-testid={`card-package-${pkg.slug}`}>
-                  {"popular" in pkg && pkg.popular && (
-                    <span className="mb-5 inline-flex w-fit items-center gap-1.5 rounded-full bg-[#0f659e] px-3 py-1.5 text-xs font-medium text-white" data-testid="badge-popular">
-                      <Star className="h-3.5 w-3.5 fill-white" />
-                      {t("home.packages.badgePopular")}
-                    </span>
-                  )}
-                  {"bestValue" in pkg && pkg.bestValue && (
-                    <span className="mb-5 inline-flex w-fit items-center gap-1.5 rounded-full bg-[#061a3d] px-3 py-1.5 text-xs font-medium text-white" data-testid="badge-best-value">
-                      <Trophy className="h-3.5 w-3.5" />
-                      Best Value
-                    </span>
-                  )}
-                  {"inicio" in pkg && pkg.inicio && (
-                    <span className="mb-5 inline-flex w-fit items-center gap-1.5 rounded-full bg-[#f6f7fb] px-3 py-1.5 text-xs font-medium text-[#061a3d]" data-testid="badge-inicio">
-                      <Zap className="h-3.5 w-3.5" />
-                      Starter
-                    </span>
-                  )}
-                  <div className="mb-5 grid h-11 w-11 place-items-center rounded-lg bg-[rgba(15,101,158,0.07)] text-[#0f659e]">
-                    <pkg.icon className="h-5 w-5" />
-                  </div>
-                  <h3 className="text-2xl font-medium text-[#061a3d]">{pkg.name}</h3>
-                  <p className="mt-2 min-h-[40px] text-sm leading-relaxed text-[#6b7185]">{pkg.subLabel}</p>
-                  <div className="my-6 border-y border-[#e8e8ec] py-6">
-                    <p className="text-3xl font-medium text-[#061a3d]" data-testid={`text-price-${pkg.slug}`}>{pkg.price}</p>
-                    <p className="mt-1 text-xs text-[#6b7185]">Initial website setup</p>
-                  </div>
-                  <p className="mb-3 text-xs font-medium uppercase tracking-wider text-[#0f659e]">{pkg.positioning}</p>
-                  <p className="mb-7 flex-1 leading-relaxed text-[#6b7185]">{pkg.desc}</p>
-                  <Link href={`/paquetes/${pkg.slug}`}>
-                    <Button size="lg" className={`${"popular" in pkg && pkg.popular ? primaryButton : "rounded-md bg-[#061a3d] text-white hover:bg-[#0b254f] font-medium min-h-[44px] px-6"} w-full`} data-testid={`button-ver-${pkg.slug}`}>
-                      {t("home.packages.viewDetails")}
-                      <ArrowRight className="h-5 w-5" />
-                    </Button>
-                  </Link>
-                </motion.article>
-              ))}
-            </div>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Support & Growth Plan archived in docs/archive/support-growth-plan.html. */}
-
       <section className="bg-[#061a3d] py-20 text-white lg:py-24" data-testid="section-before-after">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={stagger}>
             <div className="mx-auto mb-12 max-w-3xl text-center">
               <motion.h2 variants={fadeUp} className="text-3xl font-medium leading-[1.08] text-white sm:text-4xl lg:text-5xl" data-testid="text-before-after-title">
-                {t("home.beforeAfter.title1")} <span className="text-white">{t("home.beforeAfter.titleAccent")}</span>
+                Before vs <span className="text-[#0f659e]">After</span>
               </motion.h2>
+              <motion.p variants={fadeUp} className="mt-4 text-base text-white/70">
+                Real ranking data from a real client. Same business. Same market. Sixty days apart.
+              </motion.p>
             </div>
-            <div className="grid gap-5 lg:grid-cols-2">
-              <motion.article variants={fadeUp} className="rounded-lg border border-white/10 bg-white/[0.04] p-7" data-testid="card-before">
-                <div className="mb-6 text-sm font-medium uppercase tracking-widest text-white/50">{t("home.beforeAfter.beforeLabel")}</div>
-                <ul className="space-y-4">
-                  {beforeItems.map((item) => (
-                    <li key={item} className="flex items-start gap-3">
-                      <XCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-white/60" />
-                      <span className="text-lg text-white/80">{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </motion.article>
-              <motion.article variants={fadeUp} className="rounded-lg border border-[#0f659e]/50 bg-[#0f659e]/15 p-7" data-testid="card-after">
-                <div className="mb-6 text-sm font-medium uppercase tracking-widest text-white">{t("home.beforeAfter.afterLabel")}</div>
-                <ul className="space-y-4">
-                  {afterItems.map((item) => (
-                    <li key={item} className="flex items-start gap-3">
-                      <CheckCircle2 className="mt-0.5 h-5 w-5 flex-shrink-0 text-white" />
-                      <span className="text-lg text-white/90">{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </motion.article>
+            <div className="grid gap-5 lg:grid-cols-3">
+              {proofScans.map((scan) => (
+                <motion.article key={scan.label} variants={fadeUp} className="overflow-hidden rounded-lg bg-[#02152f] shadow-[0_18px_54px_rgba(0,0,0,0.18)]">
+                  <img src={scan.image} alt={scan.alt} className="aspect-[1.14] w-full object-cover" loading="lazy" />
+                  <div className="p-5">
+                    <strong className={`text-xs font-bold uppercase tracking-wide ${scan.tone === "before" ? "text-[#d8b400]" : "text-[#0f659e]"}`}>
+                      {scan.label}
+                    </strong>
+                    <p className="mt-3 text-sm leading-relaxed text-white/80">{scan.caption}</p>
+                  </div>
+                </motion.article>
+              ))}
             </div>
+            <motion.p variants={fadeUp} className="mx-auto mt-7 max-w-3xl text-center text-xs text-white/55">
+              Glass and Door Pro, Monroe, NC. Results vary by market, competition, and how established the business is.
+            </motion.p>
+            <motion.div variants={fadeUp} className="mt-8 text-center">
+              <a href="/scan.html">
+                <Button size="lg" className={primaryButton} data-testid="button-proof-scan">
+                  Get Your Free Visibility Scan
+                  <ArrowRight className="h-5 w-5" />
+                </Button>
+              </a>
+            </motion.div>
           </motion.div>
+        </div>
+      </section>
+
+      <section className="bg-[#061a3d] py-14 text-white" data-testid="section-positioning">
+        <div className="mx-auto max-w-5xl px-4 text-center sm:px-6 lg:px-8">
+          <motion.p initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={fadeUp} className="text-2xl font-medium leading-tight text-white sm:text-3xl">
+            We don't sell websites. We sell visibility. Every project starts with a scan and ends with proof — not promises.
+          </motion.p>
         </div>
       </section>
 
@@ -308,9 +231,6 @@ export default function Home() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={stagger}>
             <div className="mx-auto mb-12 max-w-3xl text-center">
-              <motion.p variants={fadeUp} className={sectionLabel}>
-                {t("home.process.sectionLabel")}
-              </motion.p>
               <motion.h2 variants={fadeUp} className={sectionTitle} data-testid="text-process-title">
                 {t("home.process.title")}
               </motion.h2>
@@ -328,50 +248,59 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="bg-[#f6f7fb] py-20 lg:py-24" data-testid="section-testimonials">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <section className="bg-white py-20 lg:py-24" data-testid="section-service-businesses">
+        <div className="mx-auto grid max-w-7xl gap-10 px-4 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={stagger}>
-            <div className="mx-auto mb-12 max-w-3xl text-center">
-              <motion.p variants={fadeUp} className={sectionLabel}>
-                {t("home.testimonials.sectionLabel")}
-              </motion.p>
-              <motion.h2 variants={fadeUp} className={sectionTitle} data-testid="text-testimonials-title">
-                {t("home.testimonials.title1")}{" "}
-                <span className="text-[#0f659e]">{t("home.testimonials.titleAccent")}</span>
+            <motion.h2 variants={fadeUp} className={sectionTitle}>
+              Built for service businesses
+            </motion.h2>
+            <motion.p variants={fadeUp} className={`${sectionCopy} mt-5`}>
+              If customers are searching for what you do, we help you show up first.
+            </motion.p>
+          </motion.div>
+          <motion.ul initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={stagger} className="space-y-3">
+            {serviceCapabilities.map((item) => (
+              <motion.li key={item.title} variants={fadeUp} className={`${cardClass} flex gap-3 p-5`}>
+                <CheckCircle2 className="mt-1 h-5 w-5 flex-shrink-0 text-[#0f659e]" />
+                <div>
+                  <strong className="block font-medium text-[#061a3d]">{item.title}</strong>
+                  <span className="text-sm leading-relaxed text-[#6b7185]">{item.desc}</span>
+                </div>
+              </motion.li>
+            ))}
+          </motion.ul>
+        </div>
+      </section>
+
+      <section className="bg-[#f6f7fb] py-20 lg:py-24" data-testid="section-deliverables">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={stagger}>
+            <div className="mx-auto mb-10 max-w-3xl text-center">
+              <motion.h2 variants={fadeUp} className={sectionTitle}>
+                What you get
               </motion.h2>
+              <motion.p variants={fadeUp} className={`${sectionCopy} mt-4`}>
+                The exact scope depends on your market and scan, but every project is built around these deliverables.
+              </motion.p>
             </div>
-            <div className="grid gap-5 md:grid-cols-3">
-              {testimonials.map((testimonial) => (
-                <motion.article key={testimonial.name} variants={fadeUp} className={`${cardClass} p-7`} data-testid={`card-testimonial-${testimonial.name.split(" ")[0].toLowerCase()}`}>
-                  <div className="mb-4 flex items-center gap-1">
-                    {[1, 2, 3, 4, 5].map((i) => (
-                      <Star key={i} className="h-4 w-4 fill-[#0f659e] text-[#0f659e]" />
-                    ))}
-                  </div>
-                  <p className="mb-6 leading-relaxed text-[#6b7185]">"{testimonial.text}"</p>
-                  <div className="flex items-center gap-3">
-                    <div className="grid h-11 w-11 place-items-center rounded-full bg-[#061a3d] text-sm font-medium text-white">
-                      {testimonial.name.split(" ").map((n: string) => n[0]).join("")}
-                    </div>
-                    <div>
-                      <p className="font-medium text-[#061a3d]">{testimonial.name}</p>
-                      <p className="text-sm text-[#6b7185]">{testimonial.business} · {testimonial.trade}</p>
-                    </div>
-                  </div>
-                </motion.article>
+            <motion.ul variants={fadeUp} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {deliverables.map((item) => (
+                <li key={item} className="flex items-center gap-3 rounded-md border border-[#e8e8ec] bg-white px-4 py-3 text-sm font-medium text-[#061a3d]">
+                  <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-[#0f659e]" />
+                  <span>{item}</span>
+                </li>
               ))}
-            </div>
+            </motion.ul>
           </motion.div>
         </div>
       </section>
+
+      {/* Support & Growth Plan archived in docs/archive/support-growth-plan.html. */}
 
       <section className="bg-white py-20 lg:py-24" data-testid="section-faq">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={stagger}>
             <div className="mb-10 text-center">
-              <motion.p variants={fadeUp} className={sectionLabel}>
-                {t("home.faq.sectionLabel")}
-              </motion.p>
               <motion.h2 variants={fadeUp} className={sectionTitle} data-testid="text-faq-title">
                 {t("home.faq.title")}
               </motion.h2>
@@ -399,17 +328,11 @@ export default function Home() {
             <motion.p variants={fadeUp} className="mx-auto mt-5 max-w-2xl text-xl text-white/70">
               {t("home.cta.subtitle")}
             </motion.p>
-            <motion.div variants={fadeUp} className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <Link href="/contacto">
+            <motion.div variants={fadeUp} className="mt-9">
+              <a href="/scan.html">
                 <Button size="lg" className={primaryButton} data-testid="button-cta-bottom">
                   {t("home.cta.button")}
                   <ArrowRight className="h-5 w-5" />
-                </Button>
-              </Link>
-              <a href={ctaHref} target="_blank" rel="noopener noreferrer">
-                <Button size="lg" variant="outline" className="min-h-[44px] rounded-md border-white/25 bg-white/5 px-6 font-medium text-white hover:bg-white/10">
-                  <SiWhatsapp className="h-5 w-5" />
-                  {t("home.ctaButtons.whatsapp")}
                 </Button>
               </a>
             </motion.div>

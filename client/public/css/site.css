@@ -482,7 +482,8 @@ select {
 
 .positioning-section {
   padding: 58px 0;
-  background: #ffffff;
+  background: var(--dark);
+  color: #ffffff;
 }
 
 .positioning-statement {
@@ -492,6 +493,7 @@ select {
   line-height: 1.24;
   font-weight: 500;
   text-align: center;
+  color: #ffffff;
 }
 
 .card-grid {
@@ -639,25 +641,12 @@ select {
   color: var(--muted);
 }
 
-.founder-note {
-  max-width: 680px;
-  margin: 0 auto;
-  text-align: center;
-}
-
-.founder-note h2,
 .split h2,
 .thanks-card h1 {
   margin: 0;
   font-size: 34px;
   line-height: 1.12;
   font-weight: 500;
-}
-
-.founder-note p {
-  margin: 18px 0 0;
-  color: var(--muted);
-  font-size: 18px;
 }
 
 .feature-list {
@@ -1089,7 +1078,6 @@ select {
   .section-header h2,
   .section-header h1,
   .final-cta h2,
-  .founder-note h2,
   .split h2,
   .thanks-card h1 {
     font-size: 50px;
