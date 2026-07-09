@@ -126,7 +126,7 @@ export default function Home() {
           aria-hidden="true"
         />
         <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,14,27,0.96)_0%,rgba(0,14,27,0.78)_28%,rgba(0,14,27,0.2)_62%,rgba(0,14,27,0.04)_100%)] max-md:bg-[linear-gradient(180deg,rgba(0,14,27,0.58)_0%,rgba(0,14,27,0.16)_32%,rgba(0,14,27,0.86)_70%,rgba(0,14,27,0.98)_100%)]" />
-        <div className="pointer-events-none absolute right-3 top-[41px] z-10 w-[100px] rounded-md border border-white/20 bg-[#000818] px-2 py-1.5 text-white shadow-[0_0_18px_rgba(0,0,0,0.36)] md:hidden" aria-hidden="true">
+        <div className="pointer-events-none absolute right-3 top-[26px] z-10 w-[100px] rounded-md border border-white/20 bg-[#000818] px-2 py-1.5 text-white shadow-[0_0_18px_rgba(0,0,0,0.36)] md:hidden" aria-hidden="true">
           <div className="text-center text-[8px] font-semibold uppercase leading-none">Visibility Level</div>
           <div className="mt-1.5 h-[7px] rounded-full bg-[linear-gradient(90deg,#014B77_0%,#29E0F8_100%)]" />
           <div className="mt-1 flex justify-between text-[8px] uppercase leading-none">
@@ -136,7 +136,7 @@ export default function Home() {
         </div>
 
         <div className="relative z-10 mx-auto flex min-h-[648px] max-w-7xl flex-col px-4 py-7 sm:px-6 md:min-h-[556px] lg:px-8">
-          <motion.div initial="hidden" animate="visible" variants={stagger} className="mb-0 mt-[296px] max-w-[355px] drop-shadow-[0_2px_10px_rgba(0,0,0,0.72)] md:mb-5 md:mt-[36px]" data-testid="card-hero-content">
+          <motion.div initial="hidden" animate="visible" variants={stagger} className="mb-0 mt-[278px] max-w-[355px] drop-shadow-[0_2px_10px_rgba(0,0,0,0.72)] md:mb-5 md:mt-[36px]" data-testid="card-hero-content">
             <motion.h1 variants={fadeUp} className="text-[clamp(34px,4.3vw,60px)] font-extrabold uppercase leading-none tracking-[0.01em] text-white" data-testid="text-hero-title">
               Get found.
               <span className="block text-[#016192]">Get called.</span>
