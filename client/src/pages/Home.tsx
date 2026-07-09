@@ -144,6 +144,13 @@ export default function Home() {
             <motion.p variants={fadeUp} className="mt-5 max-w-xs text-2xl font-medium leading-[1.28] text-white/90 md:text-[clamp(24px,2.4vw,34px)]" data-testid="text-hero-subtitle">
               We scan your website and Google rankings to show exactly why you're not showing up — and how to fix it.
             </motion.p>
+            <motion.div variants={fadeUp} className="mt-7">
+              <a href="/scan.html">
+                <Button size="lg" className={primaryButton} data-testid="button-hero-scan">
+                  Get My Free Visibility Scan
+                </Button>
+              </a>
+            </motion.div>
           </motion.div>
         </div>
       </section>
