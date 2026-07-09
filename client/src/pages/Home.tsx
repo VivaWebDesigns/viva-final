@@ -139,7 +139,7 @@ export default function Home() {
           <motion.div initial="hidden" animate="visible" variants={stagger} className="mb-0 mt-[264px] max-w-[355px] drop-shadow-[0_2px_10px_rgba(0,0,0,0.72)] md:mb-5 md:mt-[36px]" data-testid="card-hero-content">
             <motion.h1 variants={fadeUp} className="text-[clamp(38px,4.3vw,60px)] font-extrabold uppercase leading-none tracking-[0.01em] text-white" data-testid="text-hero-title">
               Get found.
-              <span className="block text-white">Get called.</span>
+              <span className="block text-[#016192]">Get called.</span>
             </motion.h1>
             <motion.p variants={fadeUp} className="mt-5 max-w-xs text-2xl font-medium leading-[1.28] text-white/90 md:text-[clamp(24px,2.4vw,34px)]" data-testid="text-hero-subtitle">
               We scan your website and Google rankings to show exactly why you're not showing up — and how to fix it.
