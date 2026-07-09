@@ -1197,6 +1197,14 @@ select {
     border-radius: 999px;
   }
 
+  .hero-visibility-legend--blue {
+    background: #000818;
+  }
+
+  .legend-bar--blue {
+    background: linear-gradient(90deg, #000818 0%, #F6FFFF 100%);
+  }
+
   .legend-scale {
     display: flex;
     justify-content: space-between;
