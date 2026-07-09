@@ -323,7 +323,7 @@ select {
 }
 
 .hero h1 {
-  color: #016192;
+  color: #ffffff;
   font-size: clamp(38px, 4.3vw, 60px);
   font-weight: 800;
   letter-spacing: 0.01em;
@@ -333,7 +333,7 @@ select {
 
 .hero h1 span {
   display: block;
-  color: #78c943;
+  color: #ffffff;
 }
 
 .hero p,
@@ -1193,7 +1193,7 @@ select {
   .legend-bar {
     height: 8px;
     margin-top: 8px;
-    background: linear-gradient(90deg, #016192 0%, #29E0F8 100%);
+    background: linear-gradient(90deg, #014B77 0%, #29E0F8 100%);
     border-radius: 999px;
   }
 
@@ -1202,7 +1202,7 @@ select {
   }
 
   .legend-bar--blue {
-    background: linear-gradient(90deg, #016192 0%, #29E0F8 100%);
+    background: linear-gradient(90deg, #014B77 0%, #29E0F8 100%);
   }
 
   .legend-scale {
