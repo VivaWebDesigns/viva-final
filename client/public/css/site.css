@@ -299,7 +299,7 @@ select {
 
 .hero-content {
   max-width: 355px;
-  margin-top: 42px;
+  margin-top: 36px;
   margin-bottom: 20px;
   text-shadow: 0 2px 10px rgba(0, 0, 0, 0.72);
 }
@@ -323,7 +323,7 @@ select {
 }
 
 .hero h1 {
-  color: #ffffff;
+  color: #016192;
   font-size: clamp(38px, 4.3vw, 60px);
   font-weight: 800;
   letter-spacing: 0.01em;
@@ -1158,7 +1158,7 @@ select {
   .hero::before {
     background:
       linear-gradient(180deg, rgba(0, 14, 27, 0.58) 0%, rgba(0, 14, 27, 0.16) 32%, rgba(0, 14, 27, 0.86) 70%, rgba(0, 14, 27, 0.98) 100%),
-      url("/img/homepage-visibility-national-blue-20260709.webp?v=20260709-blue-national-map") center 62px / 108% auto no-repeat,
+      url("/img/homepage-visibility-national-blue-20260709.webp?v=20260709-blue-national-map") center 53px / 108% auto no-repeat,
       #001426;
   }
 
@@ -1168,14 +1168,14 @@ select {
 
   .hero-visibility-legend {
     position: absolute;
-    top: 31px;
+    top: 26px;
     right: 12px;
     z-index: 2;
     display: block;
-    width: 118px;
-    padding: 8px 10px;
+    width: 100px;
+    padding: 6px 8px;
     color: #ffffff;
-    background: #001426;
+    background: #000818;
     border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 6px;
     box-shadow: 0 0 18px rgba(0, 0, 0, 0.36);
@@ -1193,7 +1193,7 @@ select {
   .legend-bar {
     height: 8px;
     margin-top: 8px;
-    background: linear-gradient(90deg, #005a58 0%, #2f9638 54%, #fff02a 100%);
+    background: linear-gradient(90deg, #016192 0%, #29E0F8 100%);
     border-radius: 999px;
   }
 
@@ -1202,7 +1202,7 @@ select {
   }
 
   .legend-bar--blue {
-    background: linear-gradient(90deg, #000818 0%, #F6FFFF 100%);
+    background: linear-gradient(90deg, #016192 0%, #29E0F8 100%);
   }
 
   .legend-scale {
@@ -1216,7 +1216,7 @@ select {
 
   .hero-content {
     max-width: 330px;
-    margin-top: 310px;
+    margin-top: 264px;
     margin-bottom: 0;
   }
 
