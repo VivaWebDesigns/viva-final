@@ -11,7 +11,6 @@ import {
   MapPinned,
   PhoneCall,
   Rocket,
-  Shield,
   Star,
   Trophy,
   XCircle,
@@ -72,7 +71,6 @@ export default function Home() {
   const problemItems = tArr("home.problem.items");
   const beforeItems = tArr("home.beforeAfter.beforeItems");
   const afterItems = tArr("home.beforeAfter.afterItems");
-  const supportItems = tArr("home.support.items");
   const whatsappUrl = t("global.whatsappUrl");
 
   const packages = [
@@ -268,32 +266,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="plan-soporte" className="bg-[#f6f7fb] py-16 lg:py-20" data-testid="section-support-plan">
-        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={stagger} className={`${cardClass} p-7 text-center sm:p-9`}>
-            <motion.div variants={fadeUp} className="mx-auto mb-5 grid h-11 w-11 place-items-center rounded-lg bg-[rgba(15,101,158,0.07)] text-[#0f659e]">
-              <Shield className="h-5 w-5" />
-            </motion.div>
-            <motion.p variants={fadeUp} className={sectionLabel}>
-              {t("home.support.badgeLabel")}
-            </motion.p>
-            <motion.p variants={fadeUp} className={`${sectionCopy} mx-auto max-w-2xl`}>
-              {t("home.support.description")}
-            </motion.p>
-            <motion.p variants={fadeUp} className="mt-7 text-3xl font-medium text-[#061a3d]" data-testid="text-support-price">
-              {t("home.support.price")} <span className="text-base text-[#6b7185]">{t("home.support.priceUnit")}</span>
-            </motion.p>
-            <motion.div variants={fadeUp} className="mt-7 flex flex-wrap justify-center gap-x-6 gap-y-3 text-sm text-[#6b7185]">
-              {supportItems.map((item) => (
-                <span key={item} className="inline-flex items-center gap-1.5">
-                  <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-[#0f659e]" />
-                  {item}
-                </span>
-              ))}
-            </motion.div>
-          </motion.div>
-        </div>
-      </section>
+      {/* Support & Growth Plan archived in docs/archive/support-growth-plan.html. */}
 
       <section className="bg-[#061a3d] py-20 text-white lg:py-24" data-testid="section-before-after">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

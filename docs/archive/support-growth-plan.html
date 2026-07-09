@@ -1,0 +1,92 @@
+<!--
+  Archived July 9, 2026.
+  Removed from the live homepage but retained for future reuse.
+  Original locations:
+  - Static homepage: client/public/index.html
+  - React homepage: client/src/pages/Home.tsx
+-->
+
+<section class="section" id="support">
+  <div class="container">
+    <div class="section-header">
+      <h2>Support &amp; Growth Plan</h2>
+      <p>Maintained, protected, and visibly tracked.</p>
+    </div>
+    <p class="support-intro">To keep your site running, protected, and visible, every project includes this monthly plan.</p>
+    <div class="support-price">$97 <span>per month</span></div>
+    <p class="support-note">Your site isn't just built. It's maintained, protected, and visibly tracked.</p>
+    <ul class="feature-list">
+      <li><span class="check" aria-hidden="true"></span> Professional fast hosting</li>
+      <li><span class="check" aria-hidden="true"></span> SSL security certificate</li>
+      <li><span class="check" aria-hidden="true"></span> Automatic backups</li>
+      <li><span class="check" aria-hidden="true"></span> Security monitoring</li>
+      <li><span class="check" aria-hidden="true"></span> Technical updates</li>
+      <li><span class="check" aria-hidden="true"></span> Speed optimization</li>
+      <li><span class="check" aria-hidden="true"></span> Monthly visibility scan report</li>
+      <li><span class="check" aria-hidden="true"></span> Review request automation</li>
+      <li><span class="check" aria-hidden="true"></span> Up to 1 hour of changes per month</li>
+    </ul>
+  </div>
+</section>
+
+<!-- React source content retained for restoration reference:
+const supportItems = tArr("home.support.items");
+
+<section id="plan-soporte" className="bg-[#f6f7fb] py-16 lg:py-20" data-testid="section-support-plan">
+  <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+    <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={stagger} className={`${cardClass} p-7 text-center sm:p-9`}>
+      <motion.div variants={fadeUp} className="mx-auto mb-5 grid h-11 w-11 place-items-center rounded-lg bg-[rgba(15,101,158,0.07)] text-[#0f659e]">
+        <Shield className="h-5 w-5" />
+      </motion.div>
+      <motion.p variants={fadeUp} className={sectionLabel}>
+        {t("home.support.badgeLabel")}
+      </motion.p>
+      <motion.p variants={fadeUp} className={`${sectionCopy} mx-auto max-w-2xl`}>
+        {t("home.support.description")}
+      </motion.p>
+      <motion.p variants={fadeUp} className="mt-7 text-3xl font-medium text-[#061a3d]" data-testid="text-support-price">
+        {t("home.support.price")} <span className="text-base text-[#6b7185]">{t("home.support.priceUnit")}</span>
+      </motion.p>
+      <motion.div variants={fadeUp} className="mt-7 flex flex-wrap justify-center gap-x-6 gap-y-3 text-sm text-[#6b7185]">
+        {supportItems.map((item) => (
+          <span key={item} className="inline-flex items-center gap-1.5">
+            <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-[#0f659e]" />
+            {item}
+          </span>
+        ))}
+      </motion.div>
+    </motion.div>
+  </div>
+</section>
+-->
+
+<!-- Static CSS retained for restoration reference:
+.support-price {
+  margin: 10px 0 4px;
+  font-size: 52px;
+  line-height: 1;
+  font-weight: 500;
+  text-align: center;
+}
+
+.support-price span {
+  color: var(--muted);
+  font-size: 17px;
+  font-weight: 500;
+}
+
+.support-note {
+  margin: 0 auto 28px;
+  color: var(--muted);
+  text-align: center;
+  font-style: italic;
+}
+
+.support-intro {
+  max-width: 720px;
+  margin: -20px auto 24px;
+  color: var(--muted);
+  font-size: 17px;
+  text-align: center;
+}
+-->

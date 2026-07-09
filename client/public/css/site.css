@@ -660,35 +660,6 @@ select {
   font-size: 18px;
 }
 
-.support-price {
-  margin: 10px 0 4px;
-  font-size: 52px;
-  line-height: 1;
-  font-weight: 500;
-  text-align: center;
-}
-
-.support-price span {
-  color: var(--muted);
-  font-size: 17px;
-  font-weight: 500;
-}
-
-.support-note {
-  margin: 0 auto 28px;
-  color: var(--muted);
-  text-align: center;
-  font-style: italic;
-}
-
-.support-intro {
-  max-width: 720px;
-  margin: -20px auto 24px;
-  color: var(--muted);
-  font-size: 17px;
-  text-align: center;
-}
-
 .feature-list {
   display: grid;
   grid-template-columns: 1fr;
