@@ -164,11 +164,14 @@ export default function Home() {
                 {t("home.problem.title1")}{" "}
                 <span className="text-[#0f659e]">{t("home.problem.titleAccent")}</span>
               </motion.h2>
+              <motion.p variants={fadeUp} className={`${sectionCopy} mt-5`}>
+                {t("home.problem.subtitle")}
+              </motion.p>
             </div>
             <motion.div variants={fadeUp} className="mx-auto grid max-w-4xl gap-3">
               {problemItems.map((item) => (
                 <div key={item} className="flex items-start gap-3 rounded-lg bg-[#f6f7fb] p-4 text-lg font-medium text-[#061a3d]">
-                  <XCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-[#0f659e]" />
+                  <XCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-[#dc2626]" />
                   <span>{item}</span>
                 </div>
               ))}

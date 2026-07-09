@@ -48,15 +48,22 @@
       "trust3": { "en": "All in Spanish. No complications.", "es": "Todo en español. Sin complicaciones." }
     },
     "problem": {
-      "title1": { "en": "Does your business run only on", "es": "¿Tu negocio depende solo de" },
-      "titleAccent": { "en": "referrals?", "es": "referencias?" },
+      "title1": { "en": "Are you invisible when customers search", "es": "¿Eres invisible cuando tus clientes buscan" },
+      "titleAccent": { "en": "\"near me\"?", "es": "\"cerca de mí\"?" },
+      "subtitle": {
+        "en": "When Google doesn't show your business, the people searching for you find someone else.",
+        "es": "Cuando Google no muestra tu negocio, las personas que te están buscando encuentran a alguien más."
+      },
       "items": [
-        { "en": "You don't appear on Google Maps", "es": "No apareces en Google Maps" },
-        { "en": "You don't have a professional page", "es": "No tienes página profesional" },
-        { "en": "Clients don't trust you if they can't find you online", "es": "Los clientes no confían si no te encuentran online" },
-        { "en": "Other companies look bigger than you", "es": "Otras compañías se ven más grandes que tú" }
+        { "en": "You don't show up in the Google map results", "es": "No apareces en los resultados de Google Maps" },
+        { "en": "Your website looks fine but doesn't rank", "es": "Tu sitio se ve bien, pero no posiciona" },
+        { "en": "Competitors show up first — even when their reviews are worse", "es": "Tus competidores aparecen primero, incluso cuando sus reseñas son peores" },
+        { "en": "You're paying for ads just to make up for not showing up on your own", "es": "Estás pagando anuncios solo para compensar que no apareces orgánicamente" }
       ],
-      "conclusion": { "en": "That's costing you jobs.", "es": "Eso está costándote trabajos." }
+      "conclusion": {
+        "en": "We'll show you exactly where you rank — then fix it.",
+        "es": "Te mostramos exactamente dónde posicionas — y luego lo arreglamos."
+      }
     },
     "solution": {
       "title1": { "en": "We help you look professional and", "es": "Te ayudamos a verte profesional y" },

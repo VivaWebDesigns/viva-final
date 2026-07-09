@@ -397,7 +397,7 @@ select {
 }
 
 .bad::before {
-  color: var(--danger);
+  color: currentColor;
   content: "\00d7";
 }
 
@@ -467,7 +467,8 @@ select {
   flex: 0 0 auto;
   place-items: center;
   border-radius: 999px;
-  background: var(--teal-soft);
+  background: rgba(220, 38, 38, 0.1);
+  color: #dc2626;
   font-size: 20px;
   line-height: 1;
 }
