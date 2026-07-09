@@ -280,7 +280,7 @@ select {
   inset: 0;
   background:
     linear-gradient(90deg, rgba(0, 14, 27, 0.96) 0%, rgba(0, 14, 27, 0.78) 28%, rgba(0, 14, 27, 0.2) 62%, rgba(0, 14, 27, 0.04) 100%),
-    url("/img/homepage-visibility-clean-map.webp?v=20260707-clean-map-legend") center center / 100% auto no-repeat,
+    url("/img/homepage-visibility-national-blue-20260709.webp?v=20260709-blue-national-map") center center / 100% auto no-repeat,
     #001426;
   content: "";
 }
@@ -1158,7 +1158,7 @@ select {
   .hero::before {
     background:
       linear-gradient(180deg, rgba(0, 14, 27, 0.58) 0%, rgba(0, 14, 27, 0.16) 32%, rgba(0, 14, 27, 0.86) 70%, rgba(0, 14, 27, 0.98) 100%),
-      url("/img/homepage-visibility-clean-map.webp?v=20260707-clean-map-legend") center 62px / 108% auto no-repeat,
+      url("/img/homepage-visibility-national-blue-20260709.webp?v=20260709-blue-national-map") center 62px / 108% auto no-repeat,
       #001426;
   }
 
