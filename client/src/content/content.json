@@ -204,27 +204,31 @@
     },
     "faq": {
       "sectionLabel": { "en": "Frequently Asked Questions", "es": "Preguntas Frecuentes" },
-      "title": { "en": "Got Questions?", "es": "¿Tienes Preguntas?" },
+      "title": { "en": "Frequently Asked Questions", "es": "Frequently Asked Questions" },
       "items": [
         {
           "q": { "en": "How long does it take?", "es": "¿Cuánto tiempo tarda?" },
-          "a": { "en": "Depending on the package, your website can be ready in as little as 7-14 days. We work fast because we know every day without an online presence is money you're leaving on the table.", "es": "Dependiendo del paquete, tu sitio web puede estar listo en tan solo 7-14 días. Trabajamos rápido porque sabemos que cada día sin presencia online es dinero que estás dejando en la mesa." }
+          "a": { "en": "Most projects take about 2–4 weeks once we start. The free visibility scan and strategy call happen first, usually within your first week of reaching out.", "es": "Most projects take about 2–4 weeks once we start. The free visibility scan and strategy call happen first, usually within your first week of reaching out." }
         },
         {
-          "q": { "en": "Do I need Google Business?", "es": "¿Necesito tener Google Business?" },
-          "a": { "en": "If you don't have one, we'll guide you through the setup and verification process. If you already have one, we'll optimize it to improve your visibility in local searches and on Google Maps.", "es": "Si no tienes uno, te guiaremos a través del proceso de configuración y verificación. Si ya tienes uno, lo optimizaremos para mejorar tu visibilidad en las búsquedas locales y en Google Maps." }
+          "q": { "en": "I already have a Google Business Profile — can you optimize it?", "es": "I already have a Google Business Profile — can you optimize it?" },
+          "a": { "en": "Yes. Most established businesses have one, but it's incomplete or set up wrong. We clean it up end-to-end: full service list, accurate service area, refreshed photos, and listing you in the right categories.", "es": "Yes. Most established businesses have one, but it's incomplete or set up wrong. We clean it up end-to-end: full service list, accurate service area, refreshed photos, and listing you in the right categories." }
         },
         {
-          "q": { "en": "Can I pay in installments?", "es": "¿Puedo pagar en partes?" },
-          "a": { "en": "Yes. We require 50% to get started and the remaining 50% once your website is completed and ready to launch, keeping the process simple and clear for both sides.", "es": "Sí. Requerimos el 50% para comenzar y el 50% restante una vez que su sitio web esté terminado y listo para lanzar, manteniendo el proceso simple y claro para ambas partes." }
+          "q": { "en": "I already have a website — why would I need a new one?", "es": "I already have a website — why would I need a new one?" },
+          "a": { "en": "We don't push new builds when an existing site is fixable. But many DIY and template sites aren't set up for local search — they load slowly, they're not built the way Google wants for local, or they're missing the behind-the-scenes setup that helps you rank. After the scan and review, we'll tell you honestly whether your site needs a rebuild or just some tuning.", "es": "We don't push new builds when an existing site is fixable. But many DIY and template sites aren't set up for local search — they load slowly, they're not built the way Google wants for local, or they're missing the behind-the-scenes setup that helps you rank. After the scan and review, we'll tell you honestly whether your site needs a rebuild or just some tuning." }
         },
         {
-          "q": { "en": "What if I don't have photos?", "es": "¿Qué pasa si no tengo fotos?" },
-          "a": { "en": "No problem. We can use professional stock photos that look amazing, or guide you to take photos of your work with your phone. Many of our best sites started this way.", "es": "No hay problema. Podemos usar fotos profesionales de stock que se ven increíbles, o te guiamos para que tomes fotos de tu trabajo con tu teléfono. Muchos de nuestros mejores sitios empezaron así." }
+          "q": { "en": "How do you measure results?", "es": "How do you measure results?" },
+          "a": { "en": "We re-run your visibility scan every 30 days and compare it to the original. As your rankings improve, we expand the scan radius so you can see how far your visibility has grown.", "es": "We re-run your visibility scan every 30 days and compare it to the original. As your rankings improve, we expand the scan radius so you can see how far your visibility has grown." }
         },
         {
-          "q": { "en": "Does it include Spanish support?", "es": "¿Incluye soporte en español?" },
-          "a": { "en": "Absolutely. Our entire team speaks Spanish. From the first call to ongoing support, you'll always communicate in your language. No barriers, no confusion.", "es": "Absolutamente. Todo nuestro equipo habla español. Desde la primera llamada hasta el soporte continuo, te comunicarás siempre en tu idioma. Sin barreras, sin confusiones." }
+          "q": { "en": "What if I'm already paying for SEO?", "es": "What if I'm already paying for SEO?" },
+          "a": { "en": "Many businesses are paying for SEO that isn't local-specific. We can review what they're doing and tell you if there's overlap. Sometimes the existing SEO work is fine and what's missing is the foundation — the site itself and the Google profile.", "es": "Many businesses are paying for SEO that isn't local-specific. We can review what they're doing and tell you if there's overlap. Sometimes the existing SEO work is fine and what's missing is the foundation — the site itself and the Google profile." }
+        },
+        {
+          "q": { "en": "What if I don't have professional photos?", "es": "What if I don't have professional photos?" },
+          "a": { "en": "We'll work with what you have. If your existing photos need work, we can clean them up significantly — and in many cases, help you get quality images that make your business look its best.", "es": "We'll work with what you have. If your existing photos need work, we can clean them up significantly — and in many cases, help you get quality images that make your business look its best." }
         }
       ]
     },
