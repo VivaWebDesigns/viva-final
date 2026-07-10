@@ -295,8 +295,8 @@ select {
 
 .hero-visibility-legend {
   position: absolute;
-  top: clamp(44px, 8vw, 78px);
   right: clamp(28px, 6vw, 116px);
+  bottom: clamp(44px, 8vw, 86px);
   z-index: 2;
   display: block;
   width: clamp(124px, 13vw, 172px);
@@ -1174,6 +1174,7 @@ select {
     position: absolute;
     top: 26px;
     right: 12px;
+    bottom: auto;
     z-index: 2;
     display: block;
     width: 100px;

@@ -127,7 +127,7 @@ export default function Home() {
           aria-hidden="true"
         />
         <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,14,27,0.96)_0%,rgba(0,14,27,0.78)_28%,rgba(0,14,27,0.2)_62%,rgba(0,14,27,0.04)_100%)] max-md:bg-[linear-gradient(180deg,rgba(0,14,27,0.58)_0%,rgba(0,14,27,0.16)_32%,rgba(0,14,27,0.86)_70%,rgba(0,14,27,0.98)_100%)]" />
-        <div className="pointer-events-none absolute right-3 top-[26px] z-10 w-[100px] rounded-md border border-white/20 bg-[#000818] px-2 py-1.5 text-white shadow-[0_0_18px_rgba(0,0,0,0.36)] md:right-[clamp(28px,6vw,116px)] md:top-[clamp(44px,8vw,78px)] md:w-[clamp(124px,13vw,172px)] md:px-[clamp(10px,1vw,14px)] md:py-[clamp(8px,0.8vw,12px)]" aria-hidden="true">
+        <div className="pointer-events-none absolute right-3 top-[26px] z-10 w-[100px] rounded-md border border-white/20 bg-[#000818] px-2 py-1.5 text-white shadow-[0_0_18px_rgba(0,0,0,0.36)] md:bottom-[clamp(44px,8vw,86px)] md:right-[clamp(28px,6vw,116px)] md:top-auto md:w-[clamp(124px,13vw,172px)] md:px-[clamp(10px,1vw,14px)] md:py-[clamp(8px,0.8vw,12px)]" aria-hidden="true">
           <div className="text-center text-[8px] font-semibold uppercase leading-none md:text-[clamp(10px,0.75vw,12px)]">Visibility Level</div>
           <div className="mt-1.5 h-[7px] rounded-full bg-[linear-gradient(90deg,#014B77_0%,#29E0F8_100%)] md:mt-2 md:h-[clamp(8px,0.75vw,11px)]" />
           <div className="mt-1 flex justify-between text-[8px] uppercase leading-none md:text-[clamp(9px,0.65vw,11px)]">
