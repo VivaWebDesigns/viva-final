@@ -225,6 +225,9 @@ export default function Home() {
               <motion.h2 variants={fadeUp} className={sectionTitle} data-testid="text-process-title">
                 {t("home.process.title")}
               </motion.h2>
+              <motion.p variants={fadeUp} className={`${sectionCopy} mt-5`} data-testid="text-process-subtitle">
+                {t("home.process.subtitle")}
+              </motion.p>
             </div>
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
               {processSteps.map((item) => (

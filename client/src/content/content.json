@@ -153,26 +153,27 @@
     "process": {
       "sectionLabel": { "en": "Our Process", "es": "Nuestro Proceso" },
       "title": { "en": "How It Works", "es": "Así Funciona" },
+      "subtitle": { "en": "A simple, audit-first process. Built to prove results, not promise them.", "es": "Un proceso simple que empieza con auditoría. Diseñado para probar resultados, no prometerlos." },
       "steps": [
         {
           "step": { "en": "01", "es": "01" },
-          "title": { "en": "We get to know your business", "es": "Conocemos tu negocio" },
-          "desc": { "en": "We understand your services, your clients, and how you want to present your company online.", "es": "Entendemos tus servicios, tus clientes y cómo quieres presentar tu empresa en línea." }
+          "title": { "en": "Free Visibility Scan", "es": "Escaneo Gratis de Visibilidad" },
+          "desc": { "en": "We scan your market and send you a heatmap showing exactly where you rank when customers search for what you do — and where your competitors land, too.", "es": "Escaneamos tu mercado y te enviamos un mapa de calor que muestra exactamente dónde apareces cuando los clientes buscan lo que haces, y dónde aparecen tus competidores también." }
         },
         {
           "step": { "en": "02", "es": "02" },
-          "title": { "en": "We design and build your website", "es": "Diseñamos y construimos tu sitio web" },
-          "desc": { "en": "We create a clean, modern site that reflects the quality of your work and presents your business professionally.", "es": "Creamos un sitio limpio y moderno que refleja la calidad de tu trabajo y presenta tu negocio de forma profesional." }
+          "title": { "en": "Strategy Call", "es": "Llamada de Estrategia" },
+          "desc": { "en": "We run a full analysis of your website and Google Business Profile, walk you through what the scan found, and show you exactly what's holding you back. No pitch unless you ask for one.", "es": "Hacemos un análisis completo de tu sitio web y Perfil de Empresa en Google, revisamos contigo lo que encontró el escaneo y te mostramos exactamente qué te está frenando. Sin venta a menos que la pidas." }
         },
         {
           "step": { "en": "03", "es": "03" },
-          "title": { "en": "We set up your online presence", "es": "Preparamos tu presencia en línea" },
-          "desc": { "en": "Your site is structured so customers can learn about your services and contact you easily.", "es": "Tu sitio está estructurado para que los clientes conozcan tus servicios y puedan contactarte fácilmente." }
+          "title": { "en": "Move the Needle", "es": "Mover la Aguja" },
+          "desc": { "en": "We tackle whatever's keeping you invisible. Sometimes that's a quick Google profile fix, sometimes it's bigger — we build the plan around your scenario.", "es": "Atacamos lo que te mantiene invisible. A veces es un ajuste rápido en tu perfil de Google, a veces es algo más grande; construimos el plan según tu situación." }
         },
         {
           "step": { "en": "04", "es": "04" },
-          "title": { "en": "Customers trust your business", "es": "Los clientes confían en tu negocio" },
-          "desc": { "en": "When people search for your company online, they find a professional site that builds trust and makes them want to hire you.", "es": "Cuando las personas buscan tu empresa en internet, encuentran un sitio profesional que genera confianza para contratarte." }
+          "title": { "en": "Re-Scan & Prove It", "es": "Reescaneo y Prueba" },
+          "desc": { "en": "Once the work's done, we scan again. You see the new heatmap next to the old one. The improvement is the deliverable.", "es": "Cuando el trabajo está hecho, escaneamos otra vez. Ves el nuevo mapa de calor junto al anterior. La mejora es el entregable." }
         }
       ]
     },
