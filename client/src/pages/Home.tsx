@@ -209,7 +209,7 @@ export default function Home() {
                 {t("home.process.subtitle")}
               </motion.p>
             </div>
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-5 sm:grid-cols-2 lg:mx-auto lg:max-w-[1120px] lg:grid-cols-4 lg:gap-9">
               {processSteps.map((item) => (
                 <motion.article key={item.step} variants={fadeUp} className={`${cardClass} p-6`}>
                   <div className="mb-5 text-5xl font-medium text-[#dfe4f0]">{item.step}</div>
