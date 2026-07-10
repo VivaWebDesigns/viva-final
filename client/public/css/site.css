@@ -694,27 +694,6 @@ select {
   font-weight: 500;
 }
 
-.feature-list {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
-  max-width: 900px;
-  margin: 0 auto;
-}
-
-.feature-list li {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 14px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: #ffffff;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
-  font-weight: 500;
-  list-style: none;
-}
-
 .stars {
   margin-bottom: 16px;
   color: var(--warning);
@@ -995,6 +974,16 @@ select {
   font-size: 18px;
 }
 
+.service-businesses-grid {
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+.service-businesses-header {
+  margin-left: 0;
+  text-align: left;
+}
+
 .form-shell {
   padding: 24px;
   border: 0.5px solid var(--line);
@@ -1140,16 +1129,22 @@ select {
     grid-template-columns: repeat(4, 1fr);
   }
 
-  .feature-list {
-    grid-template-columns: repeat(3, 1fr);
-  }
-
   .footer-grid {
     grid-template-columns: 1.4fr 1fr 1fr;
   }
 
   .split {
     grid-template-columns: 0.9fr 1.1fr;
+  }
+
+  .service-businesses-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .service-businesses-header {
+    margin-right: auto;
+    margin-left: auto;
+    text-align: center;
   }
 }
 

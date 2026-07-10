@@ -70,18 +70,6 @@ const serviceCapabilities = [
   },
 ];
 
-const deliverables = [
-  "Market visibility scan",
-  "Strategy call and findings",
-  "Website rebuild",
-  "Local SEO service pages",
-  "Google Business Profile cleanup",
-  "Review request automation",
-  "Technical SEO setup",
-  "Fast hosting and SSL",
-  "Monthly visibility scanning",
-];
-
 function FAQItem({ q, a }: { q: string; a: string }) {
   const [open, setOpen] = useState(false);
 
@@ -252,8 +240,8 @@ export default function Home() {
       </section>
 
       <section className="bg-white py-20 lg:py-24" data-testid="section-service-businesses">
-        <div className="mx-auto grid max-w-7xl gap-10 px-4 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={stagger}>
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={stagger} className="mb-12 lg:mx-auto lg:max-w-3xl lg:text-center">
             <motion.h2 variants={fadeUp} className={sectionTitle}>
               Built for service businesses
             </motion.h2>
@@ -261,7 +249,7 @@ export default function Home() {
               If customers are searching for what you do, we help you show up first.
             </motion.p>
           </motion.div>
-          <motion.ul initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={stagger} className="space-y-3">
+          <motion.ul initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={stagger} className="mx-auto grid max-w-5xl gap-3 lg:grid-cols-2">
             {serviceCapabilities.map((item) => (
               <motion.li key={item.title} variants={fadeUp} className={`${cardClass} flex gap-3 p-5`}>
                 <CheckCircle2 className="mt-1 h-5 w-5 flex-shrink-0 text-[#0f659e]" />
@@ -272,29 +260,6 @@ export default function Home() {
               </motion.li>
             ))}
           </motion.ul>
-        </div>
-      </section>
-
-      <section className="bg-[#f6f7fb] py-20 lg:py-24" data-testid="section-deliverables">
-        <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={stagger}>
-            <div className="mx-auto mb-10 max-w-3xl text-center">
-              <motion.h2 variants={fadeUp} className={sectionTitle}>
-                What you get
-              </motion.h2>
-              <motion.p variants={fadeUp} className={`${sectionCopy} mt-4`}>
-                The exact scope depends on your market and scan, but every project is built around these deliverables.
-              </motion.p>
-            </div>
-            <motion.ul variants={fadeUp} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {deliverables.map((item) => (
-                <li key={item} className="flex items-center gap-3 rounded-md border border-[#e8e8ec] bg-white px-4 py-3 text-sm font-medium text-[#061a3d]">
-                  <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-[#0f659e]" />
-                  <span>{item}</span>
-                </li>
-              ))}
-            </motion.ul>
-          </motion.div>
         </div>
       </section>
 
