@@ -294,7 +294,51 @@ select {
 }
 
 .hero-visibility-legend {
-  display: none;
+  position: absolute;
+  top: clamp(44px, 8vw, 78px);
+  right: clamp(28px, 6vw, 116px);
+  z-index: 2;
+  display: block;
+  width: clamp(124px, 13vw, 172px);
+  padding: clamp(8px, 0.8vw, 12px) clamp(10px, 1vw, 14px);
+  color: #ffffff;
+  background: #000818;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  box-shadow: 0 0 18px rgba(0, 0, 0, 0.36);
+  pointer-events: none;
+}
+
+.legend-title {
+  font-size: clamp(10px, 0.75vw, 12px);
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.legend-bar {
+  height: clamp(8px, 0.75vw, 11px);
+  margin-top: 8px;
+  background: linear-gradient(90deg, #014B77 0%, #29E0F8 100%);
+  border-radius: 999px;
+}
+
+.hero-visibility-legend--blue {
+  background: #000818;
+}
+
+.legend-bar--blue {
+  background: linear-gradient(90deg, #014B77 0%, #29E0F8 100%);
+}
+
+.legend-scale {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 5px;
+  font-size: clamp(9px, 0.65vw, 11px);
+  line-height: 1;
+  text-transform: uppercase;
 }
 
 .hero-content {
