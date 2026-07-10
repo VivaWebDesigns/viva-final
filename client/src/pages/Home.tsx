@@ -2,7 +2,6 @@ import { Button } from "@/components/ui/button";
 import {
   ArrowRight,
   BarChart3,
-  CheckCircle2,
   ChevronDown,
   XCircle,
 } from "lucide-react";
@@ -48,25 +47,6 @@ const proofScans = [
     label: "AFTER 60 DAYS — 12-MILE RADIUS",
     tone: "after",
     caption: "We increased the radius by 8x. Dominant rankings across a market that previously wasn't showing the business at all.",
-  },
-];
-
-const serviceCapabilities = [
-  {
-    title: "Service-page structure",
-    desc: "One page per important service, built around how customers actually search.",
-  },
-  {
-    title: "Local SEO foundation",
-    desc: "Titles, headings, internal links, schema, speed, and crawlable HTML.",
-  },
-  {
-    title: "Map ranking focus",
-    desc: "Your website and Google profile are optimized as one system, so they're always working in the same direction.",
-  },
-  {
-    title: "Proof after launch",
-    desc: "We don't stop at a pretty site. Your rankings are tracked every month so you always know where you stand.",
   },
 ];
 
@@ -239,30 +219,6 @@ export default function Home() {
               ))}
             </div>
           </motion.div>
-        </div>
-      </section>
-
-      <section className="bg-white py-20 lg:py-24" data-testid="section-service-businesses">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={stagger} className="mb-12 lg:mx-auto lg:max-w-3xl lg:text-center">
-            <motion.h2 variants={fadeUp} className={sectionTitle}>
-              Built for service businesses
-            </motion.h2>
-            <motion.p variants={fadeUp} className={`${sectionCopy} mt-5`}>
-              If customers are searching for what you do, we help you show up first.
-            </motion.p>
-          </motion.div>
-          <motion.ul initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={stagger} className="mx-auto grid max-w-5xl gap-3 lg:grid-cols-2">
-            {serviceCapabilities.map((item) => (
-              <motion.li key={item.title} variants={fadeUp} className={`${cardClass} flex gap-3 p-5`}>
-                <CheckCircle2 className="mt-1 h-5 w-5 flex-shrink-0 text-[#0f659e]" />
-                <div>
-                  <strong className="block font-medium text-[#061a3d]">{item.title}</strong>
-                  <span className="text-sm leading-relaxed text-[#6b7185]">{item.desc}</span>
-                </div>
-              </motion.li>
-            ))}
-          </motion.ul>
         </div>
       </section>
 
