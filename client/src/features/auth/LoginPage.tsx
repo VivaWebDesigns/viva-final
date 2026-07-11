@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-import logoIcon from "@assets/icon_1772859732991.png";
 import { useAdminLang } from "@/i18n/LanguageContext";
+
+const logoIcon = "/favicon-admin-20260711-48x48.png";
 
 // Dev-only credentials are read from environment variables so no plaintext
 // passwords live in source code. The entire dev card is stripped from

@@ -5,7 +5,8 @@ import { Shield, Mail, Lock, User, Eye, EyeOff, AlertCircle, CheckCircle2 } from
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import logoIcon from "@assets/icon_1772859732991.png";
+
+const logoIcon = "/favicon-admin-20260711-48x48.png";
 
 export default function SetupPage() {
   const [, setLocation] = useLocation();

@@ -21,7 +21,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useAdminLang } from "@/i18n/LanguageContext";
-import logoIcon from "@assets/icon_1772859732991.png";
+
+const logoIcon = "/favicon-admin-20260711-48x48.png";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
