@@ -5,8 +5,7 @@ import { Button } from "@/components/ui/button";
 import { t } from "@/content";
 import { usePreviewLang } from "@/contexts/PreviewLangContext";
 
-const headerLogoUrl = "/img/logo-blue-20260709.svg?v=20260709-blue-header";
-const desktopHeaderLogoUrl = "/img/logo-header-lockup-20260713-v2.svg?v=20260713-header-sharp-v2";
+const headerLogoUrl = "/img/logo-blue-20260709.svg?v=20260713-original-header-restored";
 
 const navLinks = [
   { href: "/", labelKey: "nav.home" },
@@ -68,10 +67,7 @@ export default function Navigation() {
 
           {/* Logo — always visible */}
           <Link href="/" className="flex items-center gap-2 flex-shrink-0" data-testid="link-logo">
-            <picture>
-              <source media="(min-width: 820px)" srcSet={desktopHeaderLogoUrl} />
-              <img src={headerLogoUrl} alt="Viva Web Designs" className="h-14 w-auto object-contain md:h-[42px]" />
-            </picture>
+            <img src={headerLogoUrl} alt="Viva Web Designs" className="h-14 w-auto object-contain md:h-[42px]" />
           </Link>
 
           {/* Desktop nav links — always visible */}
