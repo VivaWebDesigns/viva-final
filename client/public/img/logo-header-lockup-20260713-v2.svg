@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="1213"
+     height="395"
+     viewBox="429 152 1213 395"
+     role="img"
+     aria-label="Viva Web Design and Local SEO">
+  <path fill="#061a3d" d="m 429,152 h 80 l 93,223 95,-222 72,-1 -131,300 -78,-1 z"/>
+  <path fill="#0f659e" d="m 834,153 h 72 v 302 h -72 z"/>
+  <path fill="#061a3d" d="m 975,152 76,1 91,221 93,-221 h 74 l -130,299 -77,-1 z"/>
+  <path fill="#061a3d" d="m 1443,152 h 73 l 126,300 -74,-1 -91,-213 -91,214 h -71 z"/>
+  <path fill="#0f659e" d="m 1476,363 45,91 h -93 z"/>
+  <text x="1035.5"
+        y="541"
+        fill="#061a3d"
+        font-family="Arial, Helvetica, sans-serif"
+        font-size="58"
+        font-weight="700"
+        letter-spacing="12"
+        text-anchor="middle">WEB DESIGN &amp; LOCAL SEO</text>
+</svg>

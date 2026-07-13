@@ -6,7 +6,7 @@ import { t } from "@/content";
 import { usePreviewLang } from "@/contexts/PreviewLangContext";
 
 const headerLogoUrl = "/img/logo-blue-20260709.svg?v=20260709-blue-header";
-const desktopHeaderLogoUrl = "/img/logo-desktop-lockup-20260713.svg?v=20260713-lockup";
+const desktopHeaderLogoUrl = "/img/logo-header-lockup-20260713-v2.svg?v=20260713-header-sharp-v2";
 
 const navLinks = [
   { href: "/", labelKey: "nav.home" },
