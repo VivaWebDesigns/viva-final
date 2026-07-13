@@ -18,8 +18,9 @@
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png?v=20260707-viva-favicon">
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=20260707-viva-favicon">
     <link rel="manifest" href="/site.webmanifest?v=20260707-viva-favicon">
-    <link rel="preload" as="image" href="/img/homepage-visibility-national-blue-20260709.webp?v=20260709-blue-national-map">
-    <link rel="stylesheet" href="/css/site.css?v=20260713-desktop-design-pass">
+    <link rel="preload" as="image" href="/img/homepage-visibility-national-blue-desktop-20260713.webp?v=20260713-scan-beam" media="(min-width: 820px)">
+    <link rel="preload" as="image" href="/img/homepage-visibility-national-blue-20260709.webp?v=20260709-blue-national-map" media="(max-width: 819px)">
+    <link rel="stylesheet" href="/css/site.css?v=20260713-desktop-fidelity-pass">
     <script defer src="/js/site.js?v=20260713-desktop-design-pass"></script>
     <script type="application/ld+json">
       {
@@ -38,7 +39,10 @@
     <header class="site-header">
       <div class="container header-inner">
         <a class="logo" href="/" aria-label="Viva Web Designs home">
-          <img src="/img/logo-blue-20260709.svg?v=20260709-blue-header" alt="Viva Web Designs" width="1213" height="303">
+          <picture>
+            <source media="(min-width: 820px)" srcset="/img/logo-desktop-lockup-20260713.svg?v=20260713-lockup">
+            <img src="/img/logo-blue-20260709.svg?v=20260709-blue-header" alt="Viva Web Designs" width="1213" height="303">
+          </picture>
         </a>
         <nav class="desktop-nav" aria-label="Primary navigation">
           <a href="/">Home</a>
@@ -98,10 +102,10 @@
               <p>When Google doesn't show your business, the people searching for you find someone else.</p>
             </div>
             <div class="problem-list">
-              <div class="problem-item"><span class="bad" aria-hidden="true"></span> You don't show up in the Google map results</div>
-              <div class="problem-item"><span class="bad" aria-hidden="true"></span> Your website looks fine but doesn't rank</div>
-              <div class="problem-item"><span class="bad" aria-hidden="true"></span> Competitors show up first &mdash; even when their reviews are worse</div>
-              <div class="problem-item"><span class="bad" aria-hidden="true"></span> You're paying for ads just to make up for not showing up on your own</div>
+              <div class="problem-item"><span class="bad problem-icon" aria-hidden="true"><img src="/img/icons/map-pin.svg" alt="" width="24" height="24"></span> You don't show up in the Google map results</div>
+              <div class="problem-item"><span class="bad problem-icon" aria-hidden="true"><img src="/img/icons/monitor.svg" alt="" width="24" height="24"></span> Your website looks fine but doesn't rank</div>
+              <div class="problem-item"><span class="bad problem-icon" aria-hidden="true"><img src="/img/icons/star.svg" alt="" width="24" height="24"></span> Competitors show up first &mdash; even when their reviews are worse</div>
+              <div class="problem-item"><span class="bad problem-icon" aria-hidden="true"><img src="/img/icons/dollar-sign.svg" alt="" width="24" height="24"></span> You're paying for ads just to make up for not showing up on your own</div>
             </div>
           </div>
           <p class="problem-closing">We'll show you exactly where you rank &mdash; then fix it.</p>
@@ -170,7 +174,7 @@
               <p>We run a full analysis of your website and Google Business Profile, walk you through what the scan found, and show you exactly what's holding you back. No pitch unless you ask for one.</p>
             </article>
             <article class="step">
-              <div class="step-heading"><span class="step-number">03</span><span class="step-icon"><img src="/img/icons/wrench.svg" alt="" width="28" height="28"></span></div>
+              <div class="step-heading"><span class="step-number">03</span><span class="step-icon"><img src="/img/icons/monitor-up.svg" alt="" width="28" height="28"></span></div>
               <h3>Move the Needle</h3>
               <p>We tackle whatever's keeping you invisible. Sometimes that's a quick Google profile fix, sometimes it's bigger &mdash; we build the plan around your scenario.</p>
             </article>

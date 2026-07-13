@@ -1,44 +1,48 @@
-# Desktop Homepage Design QA
+**Design QA**
 
 - Source visual truth: `/Users/matt/.codex/generated_images/019f43aa-5f88-7fa3-b0af-6deb7b94bcc7/ig_0b9e5cdae61b2924016a514aff8454819680361cf2d85418dc.png`
-- Implementation: `http://127.0.0.1:4173/index.html`
-- Implementation evidence: `docs/design-qa/2026-07-13-home-desktop-comparison.jpg`
-- Focused process evidence: `docs/design-qa/2026-07-13-process-icons-comparison.jpg`
-- Mobile regression evidence: `docs/design-qa/2026-07-13-mobile-regression.jpg`
-- Viewport: 1440 x 900 desktop; 390 x 844 mobile regression check
-- State: homepage loaded, reveal animations completed, first FAQ expanded during interaction testing
+- Secondary icon direction: `/Users/matt/.codex/generated_images/019f43aa-5f88-7fa3-b0af-6deb7b94bcc7/ig_0b9e5cdae61b2924016a514b77028081969c937425cf7410e2.png`
+- Implementation URL: `http://127.0.0.1:4174/`
+- Desktop viewport: 1440 x 900
+- Mobile regression viewport: 390 x 844
+- State: homepage, default state; mobile menu and first FAQ also tested open
 
-**Full-View Comparison**
+**Evidence**
 
-The desktop implementation follows option 1's cinematic blue-map hero, split problem composition, dark proof band, restrained white process section, and stronger depth hierarchy. The current site copy, header logo, straight section boundaries, and positioning statement were intentionally retained. The three Before vs After source image paths and image files were not changed.
-
-**Focused Region Comparison**
-
-The How It Works comparison confirms the selected option 3 treatment: four airy peer steps, pale step numbers, blue outlined icons in circular wells, and subtle connecting rules. The implementation uses Lucide-derived line icons and preserves the existing step copy.
+- Final desktop hero: `docs/design-qa/desktop-hero-pass-02.png`
+- Desktop problem section: `docs/design-qa/desktop-problem-pass-01.png`
+- Desktop process section: `docs/design-qa/desktop-process-pass-01.png`
+- Mobile regression: `docs/design-qa/mobile-regression-20260713.png`
+- Hero comparison: `docs/design-qa/hero-comparison-final.png`
+- Problem comparison: `docs/design-qa/problem-comparison-final.png`
+- Process comparison: `docs/design-qa/process-comparison-final.png`
 
 **Findings**
 
-- No actionable P0, P1, or P2 visual mismatches remain within the desktop-only scope.
-- Fonts and typography: existing Inter stack retained; hierarchy, line lengths, wrapping, and optical weights are consistent with the target direction.
-- Spacing and layout rhythm: hero, split problem section, proof cards, and process columns align cleanly at desktop width with no overlap or horizontal overflow.
-- Colors and visual tokens: existing Viva navy, `#0f659e`, and cyan map palette are preserved and mapped consistently across depth, borders, icons, and interactive states.
-- Image quality and asset fidelity: the existing national hero image remains sharp; all three proof-map assets retain their original paths and presentation.
-- Copy and content: no requested homepage copy was removed or rewritten.
+- No actionable P0/P1/P2 mismatch remains within the approved desktop-only scope.
+- Fonts and typography: hierarchy, weight, wrapping, line height, and uppercase treatments match the selected direction. Existing approved copy remains unchanged.
+- Spacing and layout rhythm: the desktop header, hero, angled transition, problem split, card rhythm, and four-step grid align with the reference structure. Mobile remains unchanged.
+- Colors and visual tokens: desktop navy, sampled deep blue `#006296`, and cyan `#00a9df` now map to the reference. Mobile retains its existing colors.
+- Image quality and asset fidelity: the desktop hero uses a dedicated 1536 x 1024 WebP with the visible scan beam. The angled divider is sourced from the selected visual. The three Before/After map assets were not modified.
+- Icons: problem cards now use distinct library icons in navy circles. Step three uses the requested monitor/analytics icon rather than the wrench. No placeholder or text-glyph icons remain in these desktop surfaces.
+- Copy and content: all existing homepage copy is preserved. Reference-only CTA/copy variants were intentionally not introduced because they were outside the requested correction list.
 
-**Interaction And Browser Checks**
+**Interaction And Regression Checks**
 
-- Primary navigation and scan CTAs expose the expected destinations.
-- FAQ accordion opens and reveals its answer correctly.
-- Desktop reveal animations run once as sections enter the viewport.
-- Mobile-only checks confirm the new trust row, section kickers, and process icons remain hidden below the desktop breakpoint.
-- Browser console: no errors or warnings.
+- Mobile menu opens and exposes its navigation panel.
+- FAQ accordion opens and reveals its answer.
+- Primary CTA links remain present and point to `/scan.html`.
+- Browser console errors: none.
+- Mobile hero, map crop, legend, H1 block, CTA, and problem X markers remain on their pre-change behavior.
 
 **Comparison History**
 
-- Pass 1: compared the selected option 1 source against desktop hero, problem, proof, and process captures. No P0/P1/P2 issues found. The option 3 icon treatment was confirmed in a focused process comparison.
+- Pass 01 findings: desktop header used the wordmark-only asset; hero lacked the vertical beam and angled divider; problem cards used repeated X icons; desktop accent colors drifted; step three used a wrench.
+- Fixes: added a cache-busted desktop logo lockup, a dedicated scan-beam hero asset, the reference-derived angled divider, sampled desktop accent tokens, four distinct problem icons, and a monitor/analytics icon for step three.
+- Pass 02 evidence: `desktop-hero-pass-02.png`, `desktop-problem-pass-01.png`, `desktop-process-pass-01.png`, and the three final comparison composites listed above.
 
-**Follow-Up Polish**
+**Follow-up Polish**
 
-- P3: a later pass could explore the reference's angled section transitions, but they are intentionally excluded from this first desktop-only implementation.
+- P3: The implementation keeps the site's existing hero and section copy instead of adopting every alternate line shown in the concept image. This is intentional and does not block the requested visual correction.
 
 final result: passed

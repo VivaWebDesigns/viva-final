@@ -108,6 +108,10 @@ select {
   flex: 0 0 auto;
 }
 
+.logo picture {
+  display: block;
+}
+
 .logo img {
   width: 188px;
 }
@@ -529,6 +533,10 @@ select {
   color: #dc2626;
   font-size: 20px;
   line-height: 1;
+}
+
+.problem-icon img {
+  display: none;
 }
 
 .problem-closing {
@@ -1080,6 +1088,19 @@ select {
 }
 
 @media (min-width: 820px) {
+  :root {
+    --desktop-accent: #006296;
+    --desktop-cyan: #00a9df;
+  }
+
+  .header-inner {
+    min-height: 70px;
+  }
+
+  .logo img {
+    width: 132px;
+  }
+
   .desktop-nav,
   .header-cta {
     display: flex;
@@ -1091,6 +1112,10 @@ select {
 
   .hero h1 {
     font-size: clamp(56px, 4.7vw, 68px);
+  }
+
+  .hero h1 span {
+    color: var(--desktop-accent);
   }
 
   .page-hero h1,
@@ -1105,15 +1130,27 @@ select {
 
   .hero {
     min-height: 680px;
-    padding: 44px 0 50px;
-    border-bottom: 1px solid rgba(41, 224, 248, 0.22);
+    padding: 44px 0 76px;
+    border-bottom: 0;
   }
 
   .hero::before {
     background:
       linear-gradient(90deg, rgba(0, 8, 24, 0.98) 0%, rgba(0, 8, 24, 0.86) 31%, rgba(0, 8, 24, 0.2) 60%, rgba(0, 8, 24, 0.08) 100%),
-      url("/img/homepage-visibility-national-blue-20260709.webp?v=20260709-blue-national-map") center center / 100% auto no-repeat,
+      url("/img/homepage-visibility-national-blue-desktop-20260713.webp?v=20260713-scan-beam") center center / 100% auto no-repeat,
       #000818;
+  }
+
+  .hero::after {
+    position: absolute;
+    right: 0;
+    bottom: -1px;
+    left: 0;
+    z-index: 3;
+    height: 60px;
+    background: url("/img/hero-divider-desktop-20260713.webp?v=20260713-angled-divider") center bottom / 100% 60px no-repeat;
+    content: "";
+    pointer-events: none;
   }
 
   .hero-layout {
@@ -1139,7 +1176,13 @@ select {
   .hero-actions .button {
     min-height: 52px;
     padding-inline: 28px;
-    box-shadow: 0 12px 30px rgba(15, 101, 158, 0.34);
+    background: var(--desktop-accent);
+    box-shadow: 0 12px 30px rgba(0, 98, 150, 0.38);
+  }
+
+  .hero-actions .button:hover,
+  .hero-actions .button:focus {
+    background: #004978;
   }
 
   .hero-trust {
@@ -1193,7 +1236,7 @@ select {
   .desktop-kicker {
     display: block;
     margin-bottom: 13px;
-    color: #0f659e;
+    color: var(--desktop-cyan);
     font-size: 12px;
     font-weight: 800;
     letter-spacing: 0.12em;
@@ -1251,8 +1294,24 @@ select {
   }
 
   #problem .problem-item .bad {
-    background: rgba(15, 101, 158, 0.1);
-    color: #0f659e;
+    width: 46px;
+    height: 46px;
+    background: #061a3d;
+    color: #ffffff;
+  }
+
+  #problem .problem-item .problem-icon::before {
+    content: none;
+  }
+
+  #problem .problem-item .problem-icon img {
+    display: block;
+    width: 22px;
+    height: 22px;
+  }
+
+  #problem .accent {
+    color: var(--desktop-accent);
   }
 
   #problem .problem-closing {
@@ -1268,7 +1327,7 @@ select {
     left: 50%;
     width: 64px;
     height: 2px;
-    background: #0f659e;
+    background: var(--desktop-cyan);
     content: "";
     transform: translateX(-50%);
   }
@@ -1302,7 +1361,7 @@ select {
   }
 
   #results .desktop-kicker {
-    color: #29e0f8;
+    color: var(--desktop-cyan);
   }
 
   .scan-card {
@@ -1338,6 +1397,14 @@ select {
 
   #how-it-works .section-header {
     margin-bottom: 58px;
+  }
+
+  #how-it-works .desktop-kicker {
+    color: var(--desktop-cyan);
+  }
+
+  #how-it-works .section-header h2 {
+    color: #061a3d;
   }
 
   .section-header h2,
@@ -1388,7 +1455,7 @@ select {
   .step-number {
     margin: 0;
     font-size: 34px;
-    color: rgba(15, 101, 158, 0.17);
+    color: rgba(0, 98, 150, 0.18);
   }
 
   .step-icon {
@@ -1396,10 +1463,10 @@ select {
     width: 60px;
     height: 60px;
     place-items: center;
-    border: 1px solid rgba(15, 101, 158, 0.18);
+    border: 1px solid rgba(0, 98, 150, 0.2);
     border-radius: 50%;
     background: #ffffff;
-    box-shadow: 0 14px 30px rgba(6, 26, 61, 0.1), 0 0 0 8px rgba(15, 101, 158, 0.035);
+    box-shadow: 0 14px 30px rgba(6, 26, 61, 0.1), 0 0 0 8px rgba(0, 169, 223, 0.045);
     transition: transform 220ms ease, box-shadow 220ms ease;
   }
 
