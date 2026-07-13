@@ -6,6 +6,7 @@ import { t } from "@/content";
 import { usePreviewLang } from "@/contexts/PreviewLangContext";
 
 const headerLogoUrl = "/img/logo-blue-20260709.svg?v=20260713-original-header-restored";
+const desktopHeaderLogoPngUrl = "/img/logo-header-lockup-20260713-v3.png?v=20260713-header-png-v3";
 
 const navLinks = [
   { href: "/", labelKey: "nav.home" },
@@ -67,7 +68,10 @@ export default function Navigation() {
 
           {/* Logo — always visible */}
           <Link href="/" className="flex items-center gap-2 flex-shrink-0" data-testid="link-logo">
-            <img src={headerLogoUrl} alt="Viva Web Designs" className="h-14 w-auto object-contain md:h-[42px]" />
+            <picture>
+              <source media="(min-width: 820px)" srcSet={desktopHeaderLogoPngUrl} />
+              <img src={headerLogoUrl} alt="Viva Web Designs" className="h-14 w-auto object-contain md:h-[42px]" />
+            </picture>
           </Link>
 
           {/* Desktop nav links — always visible */}

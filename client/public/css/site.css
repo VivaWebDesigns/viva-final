@@ -108,6 +108,10 @@ select {
   flex: 0 0 auto;
 }
 
+.logo picture {
+  display: block;
+}
+
 .logo img {
   width: 188px;
 }
