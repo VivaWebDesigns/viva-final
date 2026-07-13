@@ -1554,7 +1554,19 @@ select {
 @media (max-width: 819px) {
   .hero {
     min-height: 720px;
-    padding: 28px 0 44px;
+    padding: 28px 0 64px;
+  }
+
+  .hero::after {
+    position: absolute;
+    right: 0;
+    bottom: -1px;
+    left: 0;
+    z-index: 3;
+    height: 38px;
+    background: url("/img/hero-divider-desktop-20260713.webp?v=20260713-angled-divider") center bottom / 100% 38px no-repeat;
+    content: "";
+    pointer-events: none;
   }
 
   .hero::before {
@@ -1625,6 +1637,114 @@ select {
 
   .hero-content > p {
     font-size: 24px;
+  }
+
+  .hero h1 span,
+  .accent {
+    color: #006296;
+  }
+
+  .hero-actions .button {
+    background: #006296;
+    box-shadow: 0 10px 26px rgba(0, 98, 150, 0.34);
+  }
+
+  .hero-actions .button:hover,
+  .hero-actions .button:focus {
+    background: #004978;
+  }
+
+  .desktop-kicker {
+    display: block;
+    margin-bottom: 12px;
+    color: #00a9df;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  #problem {
+    background: #f7f9fc;
+  }
+
+  #problem .problem-item {
+    min-height: 72px;
+    align-items: center;
+    border-color: rgba(6, 26, 61, 0.08);
+    box-shadow: 0 12px 28px rgba(6, 26, 61, 0.07);
+  }
+
+  #problem .problem-item .bad {
+    width: 42px;
+    height: 42px;
+    background: #061a3d;
+    color: #ffffff;
+  }
+
+  #problem .problem-item .problem-icon::before {
+    content: none;
+  }
+
+  #problem .problem-item .problem-icon img {
+    display: block;
+    width: 20px;
+    height: 20px;
+  }
+
+  #problem .problem-closing {
+    position: relative;
+    padding-top: 24px;
+    font-size: 20px;
+  }
+
+  #problem .problem-closing::before {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 56px;
+    height: 2px;
+    background: #00a9df;
+    content: "";
+    transform: translateX(-50%);
+  }
+
+  #results .desktop-kicker,
+  #how-it-works .desktop-kicker {
+    color: #00a9df;
+  }
+
+  #how-it-works .section-header {
+    margin-bottom: 44px;
+  }
+
+  .step-heading {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+
+  .step-number {
+    margin: 0;
+    color: rgba(0, 98, 150, 0.18);
+    font-size: 32px;
+  }
+
+  .step-icon {
+    display: grid;
+    width: 54px;
+    height: 54px;
+    place-items: center;
+    border: 1px solid rgba(0, 98, 150, 0.2);
+    border-radius: 50%;
+    background: #ffffff;
+    box-shadow: 0 12px 26px rgba(6, 26, 61, 0.1), 0 0 0 7px rgba(0, 169, 223, 0.045);
+  }
+
+  .step-icon img {
+    width: 25px;
+    height: 25px;
   }
 
   .page-hero,

@@ -11,7 +11,6 @@ import {
   PhoneCall,
   ScanSearch,
   Star,
-  XCircle,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useState } from "react";
@@ -33,7 +32,7 @@ const stagger = {
 const sectionTitle = "text-3xl sm:text-4xl lg:text-5xl font-medium text-[#061a3d] leading-[1.08]";
 const sectionCopy = "text-base sm:text-lg text-[#6b7185] leading-relaxed";
 const cardClass = "rounded-lg border border-[#e8e8ec] bg-white shadow-[0_16px_44px_rgba(6,26,61,0.06)]";
-const primaryButton = "rounded-md bg-[#0f659e] hover:bg-[#0b4f7d] text-white font-medium min-h-[44px] px-6 md:bg-[#006296] md:hover:bg-[#004978]";
+const primaryButton = "rounded-md bg-[#006296] hover:bg-[#004978] text-white font-medium min-h-[44px] px-6";
 
 const proofScans = [
   {
@@ -124,7 +123,7 @@ export default function Home() {
           <motion.div initial="hidden" animate="visible" variants={stagger} className="mb-0 mt-[278px] max-w-[355px] drop-shadow-[0_2px_10px_rgba(0,0,0,0.72)] md:mb-5 md:mt-[54px] md:max-w-[460px]" data-testid="card-hero-content">
             <motion.h1 variants={fadeUp} className="text-[clamp(34px,4.7vw,68px)] font-extrabold uppercase leading-none tracking-[0.01em] text-white" data-testid="text-hero-title">
               Get found.
-              <span className="block text-[#016192] md:text-[#006296]">Get called.</span>
+              <span className="block text-[#006296]">Get called.</span>
             </motion.h1>
             <motion.p variants={fadeUp} className="mt-5 max-w-xs text-2xl font-medium leading-[1.28] text-white/90 md:mt-6 md:max-w-[410px] md:text-[19px] md:leading-[1.55]" data-testid="text-hero-subtitle">
               We scan your website and Google rankings to show exactly why you're not showing up — and how to fix it.
@@ -152,18 +151,18 @@ export default function Home() {
             </motion.div>
           </motion.div>
         </div>
-        <img src="/img/hero-divider-desktop-20260713.webp?v=20260713-angled-divider" alt="" className="pointer-events-none absolute inset-x-0 bottom-0 z-20 hidden h-[60px] w-full md:block" aria-hidden="true" />
+        <img src="/img/hero-divider-desktop-20260713.webp?v=20260713-angled-divider" alt="" className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-[38px] w-full md:h-[60px]" aria-hidden="true" />
       </section>
 
-      <section className="bg-white py-20 md:bg-[#f7f9fc] lg:py-24" data-testid="section-problem">
+      <section className="bg-[#f7f9fc] py-20 lg:py-24" data-testid="section-problem">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={stagger}>
             <div className="md:grid md:grid-cols-[minmax(0,0.88fr)_minmax(480px,1.12fr)] md:items-center md:gap-[clamp(64px,8vw,118px)]">
               <div className="mx-auto mb-12 max-w-3xl text-center md:mx-0 md:mb-0 md:text-left">
-                <motion.span variants={fadeUp} className="mb-3 hidden text-xs font-extrabold uppercase tracking-[0.12em] text-[#00a9df] md:block">The problem</motion.span>
+                <motion.span variants={fadeUp} className="mb-3 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-[#00a9df] md:text-xs">The problem</motion.span>
                 <motion.h2 variants={fadeUp} className={`${sectionTitle} md:text-[clamp(40px,4.1vw,58px)]`} data-testid="text-problem-title">
                   {t("home.problem.title1")}{" "}
-                  <span className="text-[#0f659e] md:text-[#006296]">{t("home.problem.titleAccent")}</span>
+                  <span className="text-[#006296]">{t("home.problem.titleAccent")}</span>
                 </motion.h2>
                 <motion.p variants={fadeUp} className={`${sectionCopy} mt-5 md:max-w-[470px] md:text-lg md:leading-[1.65]`}>
                   {t("home.problem.subtitle")}
@@ -173,9 +172,8 @@ export default function Home() {
                 {problemItems.map((item, index) => {
                   const ProblemIcon = problemIcons[index] ?? MapPin;
                   return (
-                    <div key={item} className="flex items-start gap-3 rounded-lg bg-[#f6f7fb] p-4 text-lg font-medium text-[#061a3d] md:min-h-[72px] md:items-center md:border md:border-[#061a3d]/[0.08] md:bg-white md:px-[22px] md:py-[18px] md:shadow-[0_14px_34px_rgba(6,26,61,0.07)] md:transition md:duration-200 md:hover:translate-x-1.5 md:hover:border-[#006296]/30 md:hover:shadow-[0_18px_40px_rgba(6,26,61,0.11)]">
-                      <XCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-[#dc2626] md:hidden" />
-                      <span className="hidden h-[46px] w-[46px] flex-none place-items-center rounded-full bg-[#061a3d] md:grid">
+                    <div key={item} className="flex min-h-[72px] items-center gap-3 rounded-lg border border-[#061a3d]/[0.08] bg-white p-4 text-lg font-medium text-[#061a3d] shadow-[0_12px_28px_rgba(6,26,61,0.07)] md:px-[22px] md:py-[18px] md:shadow-[0_14px_34px_rgba(6,26,61,0.07)] md:transition md:duration-200 md:hover:translate-x-1.5 md:hover:border-[#006296]/30 md:hover:shadow-[0_18px_40px_rgba(6,26,61,0.11)]">
+                      <span className="grid h-[42px] w-[42px] flex-none place-items-center rounded-full bg-[#061a3d] md:h-[46px] md:w-[46px]">
                         <ProblemIcon className="h-[22px] w-[22px] text-white" />
                       </span>
                       <span>{item}</span>
@@ -195,7 +193,7 @@ export default function Home() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={stagger}>
             <div className="mx-auto mb-12 max-w-3xl text-center">
-              <motion.span variants={fadeUp} className="mb-3 hidden text-xs font-extrabold uppercase tracking-[0.12em] text-[#29e0f8] md:block">Real results</motion.span>
+              <motion.span variants={fadeUp} className="mb-3 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-[#00a9df] md:text-xs">Real results</motion.span>
               <motion.h2 variants={fadeUp} className="text-3xl font-medium leading-[1.08] text-white sm:text-4xl lg:text-5xl" data-testid="text-before-after-title">
                 Before vs <span className="text-[#0f659e]">After</span>
               </motion.h2>
@@ -243,7 +241,7 @@ export default function Home() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={stagger}>
             <div className="mx-auto mb-12 max-w-3xl text-center">
-              <motion.span variants={fadeUp} className="mb-3 hidden text-xs font-extrabold uppercase tracking-[0.12em] text-[#00a9df] md:block">How it works</motion.span>
+              <motion.span variants={fadeUp} className="mb-3 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-[#00a9df] md:text-xs">How it works</motion.span>
               <motion.h2 variants={fadeUp} className={sectionTitle} data-testid="text-process-title">
                 {t("home.process.title")}
               </motion.h2>
@@ -256,10 +254,10 @@ export default function Home() {
                 const ProcessIcon = processIcons[index] ?? ScanSearch;
                 return (
                   <motion.article key={item.step} variants={fadeUp} className={`${cardClass} group p-6 lg:overflow-visible lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none`}>
-                    <div className="mb-5 text-5xl font-medium text-[#dfe4f0] lg:flex lg:items-center lg:gap-3.5 lg:text-[34px]">
+                    <div className="mb-5 flex items-center gap-3.5 text-[32px] font-medium text-[rgba(0,98,150,0.18)] lg:text-[34px]">
                       <span>{item.step}</span>
-                      <span className="hidden h-[60px] w-[60px] place-items-center rounded-full border border-[#0f659e]/20 bg-white shadow-[0_14px_30px_rgba(6,26,61,0.1),0_0_0_8px_rgba(15,101,158,0.035)] transition duration-200 group-hover:-translate-y-1 lg:grid">
-                        <ProcessIcon className="h-7 w-7 text-[#006296]" />
+                      <span className="grid h-[54px] w-[54px] place-items-center rounded-full border border-[#006296]/20 bg-white shadow-[0_12px_26px_rgba(6,26,61,0.1),0_0_0_7px_rgba(0,169,223,0.045)] transition duration-200 group-hover:-translate-y-1 lg:h-[60px] lg:w-[60px]">
+                        <ProcessIcon className="h-[25px] w-[25px] text-[#006296] lg:h-7 lg:w-7" />
                       </span>
                     </div>
                     <h3 className="mb-3 text-xl font-medium text-[#061a3d]">{item.title}</h3>
