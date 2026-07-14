@@ -143,7 +143,11 @@ export async function registerRoutes(
         return res.redirect(303, "/thanks.html");
       }
 
+      const website = typeof req.body.website === "string" ? req.body.website.trim() : "";
       const data = insertContactSchema.parse(req.body);
+      if (website) {
+        data.message = [data.message, `Website: ${website}`].filter(Boolean).join("\n\n");
+      }
       if (data.phone) {
         const normalized = normalizePhoneDigits(data.phone);
         if (!isValidUSPhone(normalized)) {
@@ -162,7 +166,7 @@ export async function registerRoutes(
             formData: {
               name: data.name,
               email: data.email,
-              phone: data.phone,
+              phone: data.phone ?? "",
               business: data.business ?? undefined,
               city: data.city ?? undefined,
               trade: data.trade ?? undefined,
@@ -183,7 +187,7 @@ export async function registerRoutes(
               <h2>New Contact Form Submission</h2>
               <table cellpadding="8" style="border-collapse:collapse;font-family:sans-serif;font-size:15px;">
                 <tr><td><strong>Name</strong></td><td>${escapeHtml(data.name)}</td></tr>
-                <tr><td><strong>Phone</strong></td><td>${escapeHtml(data.phone)}</td></tr>
+                ${data.phone ? `<tr><td><strong>Phone</strong></td><td>${escapeHtml(data.phone)}</td></tr>` : ""}
                 ${data.email ? `<tr><td><strong>Email</strong></td><td>${escapeHtml(data.email)}</td></tr>` : ""}
                 ${data.city ? `<tr><td><strong>City</strong></td><td>${escapeHtml(data.city)}</td></tr>` : ""}
                 ${data.trade ? `<tr><td><strong>Trade</strong></td><td>${escapeHtml(data.trade)}</td></tr>` : ""}
@@ -241,7 +245,7 @@ export async function registerRoutes(
             formData: {
               name: data.name,
               email: data.email,
-              phone: data.phone,
+              phone: data.phone ?? "",
               business: data.business ?? undefined,
               city: data.city ?? undefined,
               trade: data.trade ?? undefined,

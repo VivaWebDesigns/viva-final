@@ -24,9 +24,12 @@ export const contacts = pgTable("contacts", {
 export const insertContactSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().min(1, "Email is required").email("Please enter a valid email address"),
-  phone: z.string().min(1, "Phone is required").refine(
-    (v) => normalizePhoneDigits(v).length === 10,
-    { message: "Enter a valid 10-digit US phone number" }
+  phone: z.preprocess(
+    (value) => value ?? "",
+    z.string().refine(
+      (value) => !value || normalizePhoneDigits(value).length === 10,
+      { message: "Enter a valid 10-digit US phone number" }
+    )
   ),
   business: z.string().optional().nullable(),
   city: z.string().optional().nullable(),

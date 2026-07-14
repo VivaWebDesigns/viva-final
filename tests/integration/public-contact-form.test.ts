@@ -88,7 +88,7 @@ function post(app: express.Application, path: string, body: unknown) {
 
 const VALID_PAYLOAD = {
   name: "Maria Lopez",
-  phone: "555-0100",
+  phone: "512-555-0100",
   email: "maria@example.com",
   city: "Austin",
   trade: "Painting",
@@ -110,6 +110,14 @@ describe("POST /api/contacts", () => {
     expect(status).toBe(201);
     expect((body as any).id).toBe("c-abc");
     expect(mockCreateContact).toHaveBeenCalledOnce();
+  });
+
+  it("accepts a contact request without a phone number", async () => {
+    const app = await buildContactApp();
+    const { phone: _phone, ...payloadWithoutPhone } = VALID_PAYLOAD;
+    const { status } = await post(app, "/api/contacts", payloadWithoutPhone);
+    expect(status).toBe(201);
+    expect(mockCreateContact).toHaveBeenCalledWith(expect.objectContaining({ phone: "" }));
   });
 
   it("enqueues crm_ingest and email_notification jobs after creating contact", async () => {
