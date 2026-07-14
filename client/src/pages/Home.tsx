@@ -237,17 +237,14 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="como-funciona" className="scroll-mt-24 bg-white py-20 lg:py-24" data-testid="section-process">
+      <section id="como-funciona" className="relative scroll-mt-24 overflow-hidden bg-white py-20 before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:z-[1] before:h-[14px] before:bg-[#000818] before:[clip-path:polygon(0_0,100%_0,100%_35%,0_100%)] lg:py-24 lg:before:h-[18px]" data-testid="section-process">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={stagger}>
             <div className="mx-auto mb-12 max-w-3xl text-center">
               <motion.span variants={fadeUp} className="mb-3 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-[#00a9df] md:text-xs">How it works</motion.span>
-              <motion.h2 variants={fadeUp} className={sectionTitle} data-testid="text-process-title">
-                {t("home.process.title")}
-              </motion.h2>
-              <motion.p variants={fadeUp} className={`${sectionCopy} mt-5`} data-testid="text-process-subtitle">
+              <motion.h2 variants={fadeUp} className="text-[27px] font-bold leading-[1.25] text-[#061a3d] md:text-[clamp(26px,2.25vw,32px)]" data-testid="text-process-title">
                 {t("home.process.subtitle")}
-              </motion.p>
+              </motion.h2>
             </div>
             <div className="grid gap-5 sm:grid-cols-2 lg:mx-auto lg:max-w-[1120px] lg:grid-cols-4 lg:gap-[42px]">
               {processSteps.map((item, index) => {

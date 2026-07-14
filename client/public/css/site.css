@@ -1395,6 +1395,19 @@ select {
     background: #ffffff;
   }
 
+  #how-it-works::before {
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    height: 18px;
+    background: #000818;
+    clip-path: polygon(0 0, 100% 0, 100% 35%, 0 100%);
+    content: "";
+    pointer-events: none;
+    z-index: 1;
+  }
+
   #how-it-works .section-header {
     margin-bottom: 58px;
   }
@@ -1405,6 +1418,9 @@ select {
 
   #how-it-works .section-header h2 {
     color: #061a3d;
+    font-size: clamp(26px, 2.25vw, 32px);
+    font-weight: 700;
+    line-height: 1.25;
   }
 
   .section-header h2,
@@ -1720,6 +1736,31 @@ select {
 
   #how-it-works .section-header {
     margin-bottom: 44px;
+  }
+
+  #how-it-works {
+    position: relative;
+    overflow: hidden;
+  }
+
+  #how-it-works::before {
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    height: 14px;
+    background: #000818;
+    clip-path: polygon(0 0, 100% 0, 100% 35%, 0 100%);
+    content: "";
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  #how-it-works .section-header h2 {
+    color: #061a3d;
+    font-size: 27px;
+    font-weight: 700;
+    line-height: 1.25;
   }
 
   .step-heading {
