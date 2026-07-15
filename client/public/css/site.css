@@ -2585,7 +2585,6 @@ select {
 
   .results-snapshot {
     padding: 28px;
-    transform: rotate(0.7deg);
   }
 
   .results-section {
@@ -2675,8 +2674,8 @@ select {
 
 @media (min-width: 820px) and (prefers-reduced-motion: no-preference) {
   @keyframes results-card-arrive {
-    from { opacity: 0; transform: translateY(16px) rotate(0.7deg); }
-    to { opacity: 1; transform: translateY(0) rotate(0.7deg); }
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 }
 
