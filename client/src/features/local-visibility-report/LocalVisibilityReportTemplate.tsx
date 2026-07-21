@@ -10,7 +10,11 @@ import {
 } from "react-icons/fi";
 import { FaRegStar, FaStar } from "react-icons/fa";
 import type { LocalVisibilityReportData } from "./types";
-import { formatScanSettings } from "./types";
+import {
+  formatScanSettings,
+  LOCAL_VISIBILITY_REPORT_HEIGHT,
+  LOCAL_VISIBILITY_REPORT_WIDTH,
+} from "./types";
 import "./local-visibility-report.css";
 
 type Props = {
@@ -49,7 +53,13 @@ const LocalVisibilityReportTemplate = forwardRef<HTMLDivElement, Props>(function
   ref,
 ) {
   return (
-    <div ref={ref} className="lvr-report" data-testid="local-visibility-report-template">
+    <div
+      ref={ref}
+      className="lvr-report"
+      data-testid="local-visibility-report-template"
+      data-export-width={LOCAL_VISIBILITY_REPORT_WIDTH}
+      data-export-height={LOCAL_VISIBILITY_REPORT_HEIGHT}
+    >
       <div className="lvr-report-body">
         <header className="lvr-header">
           <img
@@ -94,7 +104,11 @@ const LocalVisibilityReportTemplate = forwardRef<HTMLDivElement, Props>(function
 
         <figure className="lvr-heatmap-card">
           {data.heatmapImageUrl ? (
-            <img src={data.heatmapImageUrl} alt="Uploaded Local Falcon ranking heatmap" />
+            <img
+              src={data.heatmapImageUrl}
+              alt="Uploaded Local Falcon ranking heatmap"
+              data-crop-mode="cover-center"
+            />
           ) : (
             <div className="lvr-heatmap-empty">
               <FiImage aria-hidden="true" />

@@ -11,6 +11,9 @@ export type LocalVisibilityReportData = {
   heatmapImageUrl: string;
 };
 
+export const LOCAL_VISIBILITY_REPORT_WIDTH = 1080;
+export const LOCAL_VISIBILITY_REPORT_HEIGHT = 1920;
+
 export type ExtractableVisibilityField = Exclude<keyof LocalVisibilityReportData, "heatmapImageUrl">;
 
 export type VisibilityScreenshotAnalysis = {

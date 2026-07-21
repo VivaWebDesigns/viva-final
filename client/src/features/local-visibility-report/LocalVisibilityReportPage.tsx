@@ -19,14 +19,16 @@ import { useToast } from "@/hooks/use-toast";
 import LocalVisibilityReportTemplate from "./LocalVisibilityReportTemplate";
 import {
   DEFAULT_LOCAL_VISIBILITY_REPORT,
+  LOCAL_VISIBILITY_REPORT_HEIGHT,
+  LOCAL_VISIBILITY_REPORT_WIDTH,
   normalizeGridSize,
   type ExtractableVisibilityField,
   type LocalVisibilityReportData,
   type VisibilityScreenshotAnalysis,
 } from "./types";
 
-const REPORT_WIDTH = 1080;
-const REPORT_HEIGHT = 1350;
+const REPORT_WIDTH = LOCAL_VISIBILITY_REPORT_WIDTH;
+const REPORT_HEIGHT = LOCAL_VISIBILITY_REPORT_HEIGHT;
 const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
 const MAX_SMART_PASTE_BYTES = 10 * 1024 * 1024;
 const SUPPORTED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
@@ -370,7 +372,7 @@ export default function LocalVisibilityReportPage({ initialData }: LocalVisibili
       link.download = `${slugify(data.businessName)}-local-visibility-snapshot.png`;
       link.href = image;
       link.click();
-      toast({ title: "PNG downloaded", description: "The report was exported at 1080 × 1350." });
+      toast({ title: "PNG downloaded", description: "The report was exported at 1080 × 1920." });
     } catch (error) {
       toast({
         title: "Export failed",
@@ -404,7 +406,7 @@ export default function LocalVisibilityReportPage({ initialData }: LocalVisibili
               <FileImage className="h-4 w-4" /> Internal report tool
             </div>
             <h1 className="text-2xl font-bold tracking-tight text-[#061a3d] md:text-3xl">Local Visibility Snapshot</h1>
-            <p className="mt-1 text-sm text-gray-500">Build a branded 1080 × 1350 client report from a Local Falcon scan.</p>
+            <p className="mt-1 text-sm text-gray-500">Build a mobile-first 1080 × 1920 client report from a Local Falcon scan.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant="outline" onClick={reset} data-testid="button-reset-report">
@@ -589,7 +591,7 @@ export default function LocalVisibilityReportPage({ initialData }: LocalVisibili
             <div className="mb-3 flex items-center justify-between gap-4">
               <div>
                 <h2 className="text-sm font-semibold text-[#061a3d]">Report preview</h2>
-                <p className="text-xs text-gray-500">Exports at 1080 × 1350 PNG</p>
+                <p className="text-xs text-gray-500">Exports at 1080 × 1920 PNG</p>
               </div>
               <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${previewReady ? "bg-emerald-100 text-emerald-700" : "bg-white text-gray-500"}`}>
                 {previewReady ? "Ready to download" : "Draft"}

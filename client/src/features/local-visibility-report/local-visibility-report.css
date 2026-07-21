@@ -4,7 +4,7 @@
   --lvr-muted: #66748a;
   --lvr-line: #cbd5df;
   width: 1080px;
-  height: 1350px;
+  height: 1920px;
   overflow: hidden;
   background: #ffffff;
   color: var(--lvr-navy);
@@ -19,8 +19,8 @@
 }
 
 .lvr-report-body {
-  height: 1250px;
-  padding: 32px 40px 0;
+  height: 1792px;
+  padding: 36px 40px 0;
 }
 
 .lvr-header {
@@ -28,12 +28,12 @@
   grid-template-columns: 290px 1px minmax(0, 1fr);
   gap: 34px;
   align-items: center;
-  height: 90px;
+  height: 104px;
 }
 
 .lvr-header-logo {
   width: 290px;
-  height: 90px;
+  height: 96px;
   object-fit: contain;
 }
 
@@ -46,7 +46,7 @@
 .lvr-title-wrap h2 {
   margin: 0;
   color: var(--lvr-navy);
-  font-size: 48px;
+  font-size: 50px;
   font-weight: 800;
   letter-spacing: -0.035em;
   line-height: 1.05;
@@ -66,8 +66,8 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
-  height: 96px;
-  margin-top: 18px;
+  height: 118px;
+  margin-top: 20px;
 }
 
 .lvr-info-card,
@@ -83,7 +83,7 @@
   min-width: 0;
   align-items: center;
   gap: 18px;
-  padding: 15px 20px;
+  padding: 18px 22px;
 }
 
 .lvr-icon-circle,
@@ -97,21 +97,21 @@
 }
 
 .lvr-icon-circle {
-  width: 58px;
-  height: 58px;
+  width: 64px;
+  height: 64px;
   border-radius: 50%;
 }
 
 .lvr-icon-circle svg {
-  width: 31px;
-  height: 31px;
+  width: 34px;
+  height: 34px;
   stroke-width: 2.4;
 }
 
 .lvr-label {
   display: block;
   color: var(--lvr-blue);
-  font-size: 17px;
+  font-size: 20px;
   font-weight: 800;
   letter-spacing: 0.1em;
   line-height: 1.1;
@@ -123,7 +123,7 @@
   margin-top: 7px;
   overflow: hidden;
   color: var(--lvr-navy);
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 800;
   line-height: 1.12;
   -webkit-box-orient: vertical;
@@ -134,20 +134,20 @@
   display: flex;
   align-items: center;
   gap: 24px;
-  height: 112px;
-  margin-top: 16px;
-  padding: 16px 26px;
+  height: 132px;
+  margin-top: 18px;
+  padding: 18px 26px;
 }
 
 .lvr-business-icon {
-  width: 78px;
-  height: 78px;
+  width: 88px;
+  height: 88px;
   border-radius: 50%;
 }
 
 .lvr-business-icon svg {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   stroke-width: 1.9;
 }
 
@@ -159,7 +159,7 @@
   margin: 0;
   overflow: hidden;
   color: var(--lvr-navy);
-  font-size: 31px;
+  font-size: 34px;
   font-weight: 800;
   line-height: 1.06;
   text-overflow: ellipsis;
@@ -170,7 +170,7 @@
   margin: 7px 0 0;
   overflow: hidden;
   color: var(--lvr-muted);
-  font-size: 17px;
+  font-size: 20px;
   line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -181,11 +181,11 @@
   align-items: center;
   gap: 10px;
   margin-top: 7px;
-  font-size: 17px;
+  font-size: 20px;
 }
 
 .lvr-rating strong {
-  font-size: 20px;
+  font-size: 23px;
 }
 
 .lvr-stars {
@@ -195,8 +195,8 @@
 }
 
 .lvr-stars svg {
-  width: 19px;
-  height: 19px;
+  width: 22px;
+  height: 22px;
 }
 
 .lvr-review-count {
@@ -206,8 +206,8 @@
 .lvr-heatmap-card {
   position: relative;
   display: grid;
-  height: 560px;
-  margin: 16px 0 0;
+  height: 960px;
+  margin: 18px 0 0;
   overflow: hidden;
   place-items: center;
   border: 3px solid var(--lvr-navy);
@@ -220,7 +220,8 @@
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
+  object-position: center center;
 }
 
 .lvr-heatmap-empty {
@@ -251,20 +252,20 @@
   display: flex;
   align-items: center;
   gap: 24px;
-  height: 94px;
-  margin-top: 14px;
-  padding: 12px 24px;
+  height: 112px;
+  margin-top: 18px;
+  padding: 14px 24px;
 }
 
 .lvr-metric-icon {
-  width: 64px;
-  height: 64px;
+  width: 72px;
+  height: 72px;
   border-radius: 12px;
 }
 
 .lvr-metric-icon svg {
-  width: 34px;
-  height: 34px;
+  width: 38px;
+  height: 38px;
   stroke-width: 2.2;
 }
 
@@ -279,7 +280,7 @@
 
 .lvr-metric-card strong {
   color: var(--lvr-navy);
-  font-size: 46px;
+  font-size: 50px;
   font-weight: 800;
   line-height: 1;
 }
@@ -289,9 +290,9 @@
   grid-template-columns: 40px minmax(0, 1fr);
   gap: 14px;
   align-items: start;
-  min-height: 112px;
-  margin-top: 12px;
-  padding: 14px 16px;
+  min-height: 154px;
+  margin-top: 16px;
+  padding: 18px 16px;
   border-bottom: 1px solid var(--lvr-line);
 }
 
@@ -301,16 +302,16 @@
 }
 
 .lvr-explanation > svg {
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   stroke-width: 2.4;
 }
 
 .lvr-explanation p {
   margin: 0;
   color: var(--lvr-navy);
-  font-size: 15px;
-  line-height: 1.42;
+  font-size: 22px;
+  line-height: 1.4;
 }
 
 .lvr-explanation p + p {
@@ -319,12 +320,12 @@
 
 .lvr-settings {
   display: flex;
-  height: 48px;
+  height: 70px;
   align-items: center;
   gap: 13px;
   padding: 5px 16px;
   color: var(--lvr-navy);
-  font-size: 17px;
+  font-size: 22px;
   font-weight: 700;
 }
 
@@ -336,7 +337,7 @@
 
 .lvr-footer {
   display: flex;
-  height: 100px;
+  height: 128px;
   align-items: center;
   gap: 28px;
   padding: 0 54px;
@@ -345,7 +346,7 @@
 }
 
 .lvr-footer img {
-  width: 144px;
+  width: 150px;
   height: auto;
   object-fit: contain;
 }
@@ -361,7 +362,7 @@
   align-items: baseline;
   gap: 10px;
   margin: 0;
-  font-size: 20px;
+  font-size: 22px;
 }
 
 .lvr-footer strong {

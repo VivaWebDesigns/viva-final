@@ -31,6 +31,8 @@ describe("LocalVisibilityReportTemplate", () => {
       "src",
       "/img/logo-footer-mark-20260721.svg?v=20260721",
     );
+    expect(screen.getByTestId("local-visibility-report-template")).toHaveAttribute("data-export-height", "1920");
+    expect(screen.getByAltText("Uploaded Local Falcon ranking heatmap")).toHaveAttribute("data-crop-mode", "cover-center");
   });
 
   it("does not include retired metrics or square-mile coverage", () => {
