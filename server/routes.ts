@@ -7,6 +7,7 @@ import featureRoutes from "./features";
 import { enqueueJob } from "./features/workflow/queue";
 import { initSocket } from "./features/chat/socket";
 import { normalizePhoneDigits, isValidUSPhone } from "@shared/phone";
+import { registerCleanPublicPageRedirects } from "./public-pages";
 
 const scanSubmitSchema = z.object({
   business: z.string().min(1, "Business name is required"),
@@ -37,8 +38,10 @@ export async function registerRoutes(
 
   app.use("/api", featureRoutes);
 
+  registerCleanPublicPageRedirects(app);
+
   app.get(/^\/(?:services\.html|packages(?:\.html)?|paquetes(?:\/.*)?)$/, (_req, res) => {
-    res.redirect(301, "/index.html");
+    res.redirect(301, "/");
   });
 
   app.get(/^\/domina(?:\.html|\/.*)?$/, (req, res) => {
@@ -47,14 +50,14 @@ export async function registerRoutes(
   });
 
   app.get("/contacto", (_req, res) => {
-    res.redirect(301, "/contact.html");
+    res.redirect(301, "/contact");
   });
 
   app.post("/scan-submit", async (req, res) => {
     try {
       const data = scanSubmitSchema.parse(req.body);
       if (data.honeypot) {
-        return res.redirect(303, "/thanks.html");
+        return res.redirect(303, "/thanks");
       }
 
       const normalizedPhone = data.phone ? normalizePhoneDigits(data.phone) : "";
@@ -126,7 +129,7 @@ export async function registerRoutes(
         console.error("[routes] scan-submit enqueue error (non-blocking):", err);
       });
 
-      res.redirect(303, "/thanks.html");
+      res.redirect(303, "/thanks");
     } catch (error) {
       if (error instanceof ZodError) {
         res.status(400).send("Invalid scan request. Please go back and check the required fields.");
@@ -140,7 +143,7 @@ export async function registerRoutes(
   app.post("/contact-submit", async (req, res) => {
     try {
       if (req.body.honeypot) {
-        return res.redirect(303, "/thanks.html");
+        return res.redirect(303, "/thanks");
       }
 
       const website = typeof req.body.website === "string" ? req.body.website.trim() : "";
@@ -202,7 +205,7 @@ export async function registerRoutes(
         console.error("[routes] contact-submit enqueue error (non-blocking):", err);
       });
 
-      res.redirect(303, "/thanks.html");
+      res.redirect(303, "/thanks");
     } catch (error) {
       if (error instanceof ZodError) {
         res.status(400).send("Invalid contact request. Please go back and check the required fields.");

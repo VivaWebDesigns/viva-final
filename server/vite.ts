@@ -5,6 +5,7 @@ import viteConfig from "../vite.config";
 import fs from "fs";
 import path from "path";
 import { nanoid } from "nanoid";
+import { cleanPublicPageFiles } from "./public-pages";
 
 const viteLogger = createLogger();
 
@@ -52,6 +53,13 @@ export async function setupVite(server: Server, app: Express) {
 
     try {
       const mpaHtmlFiles: Record<string, string> = {
+        // Public marketing pages
+        ...Object.fromEntries(
+          Object.entries(cleanPublicPageFiles).map(([urlPath, htmlFile]) => [
+            urlPath,
+            `public/${htmlFile}`,
+          ]),
+        ),
         "/demo": "domina.html",
         "/empieza": "empieza.html",
         "/empieza.html": "empieza.html",

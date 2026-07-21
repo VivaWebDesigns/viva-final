@@ -33,7 +33,7 @@
 
 - Mobile menu opens and exposes its navigation panel.
 - FAQ accordion opens and reveals its answer.
-- Primary CTA links remain present and point to `/scan.html`.
+- Primary CTA links remain present and point to `/scan`.
 - Browser console errors: none.
 - Mobile hero image, map crop, legend, H1/subhead placement, and logo remain unchanged. The divider, accent colors, problem icons, section labels, and process icons now match the desktop treatment.
 

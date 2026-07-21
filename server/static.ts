@@ -1,6 +1,7 @@
 import express, { type Express } from "express";
 import fs from "fs";
 import path from "path";
+import { cleanPublicPageFiles } from "./public-pages";
 
 export function serveStatic(app: Express) {
   const distPath = path.resolve(__dirname, "public");
@@ -42,6 +43,8 @@ export function serveStatic(app: Express) {
   );
 
   const mpaHtmlFiles: Record<string, string> = {
+    // Public marketing pages
+    ...cleanPublicPageFiles,
     // Public demo routes
     "/demo": "domina.html",
     "/empieza": "empieza.html",

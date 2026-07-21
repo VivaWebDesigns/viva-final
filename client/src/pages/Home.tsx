@@ -129,7 +129,7 @@ export default function Home() {
               We scan your website and Google rankings to show exactly why you're not showing up — and how to fix it.
             </motion.p>
             <motion.div variants={fadeUp} className="mt-7">
-              <a href="/scan.html">
+              <a href="/scan">
                 <Button size="lg" className={primaryButton} data-testid="button-hero-scan">
                   Get My Free Visibility Scan
                 </Button>
@@ -218,7 +218,7 @@ export default function Home() {
               Glass and Door Pro, Monroe, NC. Results vary by market, competition, and how established the business is.
             </motion.p>
             <motion.div variants={fadeUp} className="mt-8 text-center">
-              <a href="/scan.html">
+              <a href="/scan">
                 <Button size="lg" className={primaryButton} data-testid="button-proof-scan">
                   Get Your Free Visibility Scan
                   <ArrowRight className="h-5 w-5" />
@@ -301,7 +301,7 @@ export default function Home() {
               {t("home.cta.subtitle")}
             </motion.p>
             <motion.div variants={fadeUp} className="mt-9">
-              <a href="/scan.html">
+              <a href="/scan">
                 <Button size="lg" className={primaryButton} data-testid="button-cta-bottom">
                   {t("home.cta.button")}
                   <ArrowRight className="h-5 w-5" />
