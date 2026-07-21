@@ -29,6 +29,7 @@ const LeadCoverageMapPage = lazy(() => import("@features/marketplace/LeadCoverag
 const PaymentsPage = lazy(() => import("@features/admin/pages/PaymentsPage"));
 const NotificationCenterPage = lazy(() => import("@features/notifications/NotificationCenterPage"));
 const AdminDemoBuilder = lazy(() => import("@/pages/AdminDemoBuilder"));
+const LocalVisibilityReportPage = lazy(() => import("@features/local-visibility-report/LocalVisibilityReportPage"));
 
 function AdminPageFallback() {
   return (
@@ -182,6 +183,11 @@ export default function AdminRouter() {
             <Route path="/admin/demo-builder">
               <ProtectedRoute roles={["admin", "developer"]}>
                 <AdminDemoBuilder />
+              </ProtectedRoute>
+            </Route>
+            <Route path="/admin/tools/local-visibility-report">
+              <ProtectedRoute roles={["admin", "developer"]}>
+                <LocalVisibilityReportPage />
               </ProtectedRoute>
             </Route>
             <Route path="/admin/marketplace">

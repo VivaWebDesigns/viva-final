@@ -51,3 +51,32 @@
 - P3: The implementation keeps the site's existing hero and section copy instead of adopting every alternate line shown in the concept image. This is intentional and does not block the requested visual correction.
 
 final result: passed
+
+---
+
+## Local Visibility Snapshot Generator — 2026-07-21
+
+**Visual truth and test state**
+
+- Approved reference: `/Users/matt/Downloads/a_clean_business_infographic_dashboard_style_scr_1.png`
+- Implementation route: `/admin/tools/local-visibility-report`
+- Local QA harness: `http://127.0.0.1:4178/local-visibility-qa.html`
+- Export canvas: 1080 × 1350
+- Fixture: Queen City Electric, “electrician near me,” Charlotte, NC, with a full Local Falcon scan
+
+**Evidence**
+
+- Rendered implementation: `docs/design-qa/local-visibility-snapshot-implementation-20260721.jpg`
+- Side-by-side reference comparison: `docs/design-qa/local-visibility-snapshot-comparison-20260721.jpg`
+
+**Findings and fixes**
+
+- Composition matches the approved reference hierarchy: branded header, paired search/market cards, business summary, dominant bordered map, metric treatment, explanation/settings, and navy footer.
+- The SMS-specific content contract is implemented: ATRP and SoLV are absent; one wide “Average Google Maps Position” metric remains; defaults are 7 × 7 and 2.5-mile radius; square-mile coverage is absent; the center-dot explanation is present.
+- The full uploaded scan is preserved with `object-fit: contain`. QA found and fixed an initial grid-image sizing issue that clipped tall scans; the final implementation displays the entire image.
+- Typography, navy/blue palette, uppercase labels, card borders, radii, spacing, and logo treatment closely track the approved design while using the existing Viva brand assets and icon libraries.
+- The generator form, required-field validation, live preview, ready state, reset, responsive admin layout, and client-side export path were exercised. Type-checking, focused component/smoke tests, and the production build pass.
+- Browser console errors: none.
+- Intentional difference: the approved reference is 1080 × 1500 and includes retired metrics and square-mile coverage; the finalized SMS report is 1080 × 1350 and reallocates that space to the map and one wide metric.
+
+final result: passed

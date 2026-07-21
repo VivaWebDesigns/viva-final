@@ -10,6 +10,7 @@ export const en = {
     payments: "Payments",
     notifications: "Notifications",
     reports: "Reports",
+    visibilityReport: "Visibility Report",
     activity: "Activity Intelligence",
     leadGen: "Lead Gen Intelligence",
     leadCoverage: "Lead Coverage Map",
