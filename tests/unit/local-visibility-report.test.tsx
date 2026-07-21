@@ -18,12 +18,16 @@ const report: LocalVisibilityReportData = {
 
 describe("LocalVisibilityReportTemplate", () => {
   it("renders the approved SMS report contract", () => {
-    render(<LocalVisibilityReportTemplate data={report} />);
+    const { container } = render(<LocalVisibilityReportTemplate data={report} />);
 
     expect(screen.getByText("Local Visibility Snapshot")).toBeInTheDocument();
     expect(screen.getByText("Average Google Maps Position")).toBeInTheDocument();
     expect(screen.getByText("3.96")).toBeInTheDocument();
-    expect(screen.getByText(/The center dot is your business location/)).toBeInTheDocument();
+    expect(screen.getByText("Average Google Maps Position").closest(".lvr-business-card")).toBeInTheDocument();
+    expect(container.querySelector(".lvr-metric-card")).not.toBeInTheDocument();
+    expect(screen.getByText("The center dot marks your business.")).toBeInTheDocument();
+    expect(screen.getByText("The surrounding dots show how you rank in nearby areas.")).toBeInTheDocument();
+    expect(screen.getByText("Each number is your Google Maps position from that location.")).toBeInTheDocument();
     expect(screen.getByText("7 × 7 grid · 2.5-mile radius")).toBeInTheDocument();
     expect(screen.getByText("(40 reviews)")).toBeInTheDocument();
     expect(screen.getByText("vivawebdesigns.com")).toBeInTheDocument();

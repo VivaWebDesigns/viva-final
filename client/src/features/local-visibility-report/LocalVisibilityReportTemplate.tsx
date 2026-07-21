@@ -4,7 +4,6 @@ import {
   FiCrosshair,
   FiHome,
   FiImage,
-  FiInfo,
   FiMapPin,
   FiSearch,
 } from "react-icons/fi";
@@ -101,6 +100,10 @@ const LocalVisibilityReportTemplate = forwardRef<HTMLDivElement, Props>(function
             {data.address && <p>{data.address}</p>}
             <Rating rating={data.rating} reviewCount={data.reviewCount} />
           </div>
+          <div className="lvr-business-arp" aria-label="Average Google Maps Position">
+            <span>Average Google Maps Position</span>
+            <strong>{data.averagePosition || "—"}</strong>
+          </div>
         </section>
 
         <figure className="lvr-heatmap-card">
@@ -120,20 +123,20 @@ const LocalVisibilityReportTemplate = forwardRef<HTMLDivElement, Props>(function
           )}
         </figure>
 
-        <section className="lvr-metric-card" aria-label="Average Google Maps Position">
-          <span className="lvr-metric-icon" aria-hidden="true"><FiBarChart2 /></span>
-          <div>
-            <span className="lvr-label">Average Google Maps Position</span>
-            <strong>{data.averagePosition || "—"}</strong>
-          </div>
-        </section>
-
         <section className="lvr-explanation" aria-label="How to read the scan">
-          <FiInfo aria-hidden="true" />
-          <div>
-            <p>Each number shows your Google Maps position when searching from that location.</p>
-            <p>20+ means your business did not appear in the top 20.</p>
-            <p>The center dot is your business location. The surrounding dots show how you rank in nearby areas.</p>
+          <div className="lvr-explanation-row">
+            <span className="lvr-explanation-icon" aria-hidden="true"><FiCrosshair /></span>
+            <p>
+              <strong>The center dot marks your business.</strong>
+              <span>The surrounding dots show how you rank in nearby areas.</span>
+            </p>
+          </div>
+          <div className="lvr-explanation-row">
+            <span className="lvr-explanation-icon" aria-hidden="true"><FiBarChart2 /></span>
+            <p>
+              <strong>Each number is your Google Maps position from that location.</strong>
+              <span><b>20+</b> means you did not appear in the top 20.</span>
+            </p>
           </div>
         </section>
 
