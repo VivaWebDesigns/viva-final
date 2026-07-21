@@ -23,6 +23,18 @@ describe("LocalVisibilityReportPage", () => {
     expect(await screen.findByText("Upload a heatmap image.")).toBeInTheDocument();
   });
 
+  it("keeps paste-area clicks separate from the file picker", () => {
+    render(<LocalVisibilityReportPage />);
+    const fileInput = screen.getByTestId("input-smart-paste-upload") as HTMLInputElement;
+    const inputClick = vi.spyOn(fileInput, "click");
+
+    fireEvent.click(screen.getByTestId("smart-paste-zone"));
+    expect(inputClick).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Choose files" }));
+    expect(inputClick).toHaveBeenCalledOnce();
+  });
+
   it("autofills fields and assigns the heatmap after two screenshots are added", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue({
       ok: true,

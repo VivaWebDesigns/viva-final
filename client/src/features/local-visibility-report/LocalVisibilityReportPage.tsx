@@ -452,16 +452,14 @@ export default function LocalVisibilityReportPage({ initialData }: LocalVisibili
                   data-testid="input-smart-paste-upload"
                 />
                 <div
-                  role="button"
+                  role="group"
+                  aria-label="Paste or drop screenshots"
                   tabIndex={0}
                   onPaste={handleSmartPaste}
                   onDragOver={(event) => event.preventDefault()}
                   onDrop={handleSmartDrop}
-                  onClick={() => smartPasteInputRef.current?.click()}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") smartPasteInputRef.current?.click();
-                  }}
-                  className="cursor-pointer rounded-xl border-2 border-dashed border-[#7ca8ca] bg-[#f5faff] p-4 text-center outline-none transition-colors hover:bg-[#eaf5fc] focus-visible:ring-2 focus-visible:ring-[#0b67b2]"
+                  onClick={(event) => event.currentTarget.focus()}
+                  className="rounded-xl border-2 border-dashed border-[#7ca8ca] bg-[#f5faff] p-4 text-center outline-none transition-colors focus-within:bg-[#eaf5fc] focus-visible:ring-2 focus-visible:ring-[#0b67b2]"
                   data-testid="smart-paste-zone"
                 >
                   {isAnalyzing ? (
@@ -473,6 +471,20 @@ export default function LocalVisibilityReportPage({ initialData }: LocalVisibili
                     {isAnalyzing ? "Reading screenshots…" : "Press ⌘V or drop two images"}
                   </p>
                   <p className="mt-1 text-[11px] text-gray-500">{queuedScreenshots.length} of 2 images added · PNG, JPG, or WebP</p>
+                  {!isAnalyzing && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="mt-3 bg-white"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        smartPasteInputRef.current?.click();
+                      }}
+                    >
+                      <ImagePlus /> Choose files
+                    </Button>
+                  )}
                 </div>
 
                 {queuedScreenshots.length > 0 && (
