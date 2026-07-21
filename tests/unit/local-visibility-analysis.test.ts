@@ -21,6 +21,7 @@ describe("local visibility screenshot analysis", () => {
         radius: "8.0",
       },
       lowConfidenceFields: ["market"],
+      heatmapImageDataUrl: null,
     });
 
     expect(result.fields.averagePosition).toBe("3.96");
@@ -47,5 +48,48 @@ describe("local visibility screenshot analysis", () => {
       gridSize: "7 × 7",
       radius: "8.0",
     });
+  });
+
+  it("extracts reviews independently and never substitutes SoLV for ARP", () => {
+    const result = parseVisibilityScanText(
+      `
+        Scan Report
+        Searching "control access near me" on Google Maps for:
+        Carolina Custom Automation
+        2012 SC-160 STE. 106, Fort Mill, SC 29708
+        5.0 ★★★★★ (19)
+        Searched using a 7 x 7 grid with a 2.5mi radius covering 25.00mi2
+      `,
+      "ATRP 1.71 SoLV 89.80",
+      "ARP 1.71",
+    );
+
+    expect(result.fields).toMatchObject({
+      businessName: "Carolina Custom Automation",
+      rating: "5.0",
+      reviewCount: "19",
+      averagePosition: "1.71",
+      gridSize: "7 × 7",
+      radius: "2.5",
+    });
+  });
+
+  it("leaves average position blank when only SoLV is visible", () => {
+    const result = parseVisibilityScanText(
+      "Scan Report\nCarolina Custom Automation\nSoLV 89.80",
+      "SoLV 89.80",
+    );
+
+    expect(result.fields.averagePosition).toBeNull();
+  });
+
+  it("rejects a partial integer from the dedicated ARP crop", () => {
+    const result = parseVisibilityScanText(
+      "Scan Report\nCarolina Custom Automation\nSoLV 89.80",
+      "ATRP 1.71 SoLV 89.80",
+      "7",
+    );
+
+    expect(result.fields.averagePosition).toBeNull();
   });
 });

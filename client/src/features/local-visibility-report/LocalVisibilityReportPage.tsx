@@ -150,6 +150,7 @@ export default function LocalVisibilityReportPage({ initialData }: LocalVisibili
   const [analysisError, setAnalysisError] = useState("");
   const [analyzedIndexes, setAnalyzedIndexes] = useState<{ report: number; heatmap: number } | null>(null);
   const [reviewFields, setReviewFields] = useState<Set<ExtractableVisibilityField>>(new Set());
+  const [mapZoom, setMapZoom] = useState(100);
   const previewViewportRef = useRef<HTMLDivElement>(null);
   const reportRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -252,9 +253,12 @@ export default function LocalVisibilityReportPage({ initialData }: LocalVisibili
           if (!value?.trim()) continue;
           next[field] = field === "gridSize" ? normalizeGridSize(value) : value.trim();
         }
-        if (heatmapIndex >= 0) next.heatmapImageUrl = screenshots[heatmapIndex].previewUrl;
+        if (heatmapIndex >= 0) {
+          next.heatmapImageUrl = body.heatmapImageDataUrl || screenshots[heatmapIndex].previewUrl;
+        }
         return next;
       });
+      setMapZoom(100);
       setErrors({});
       setReviewFields(new Set(body.lowConfidenceFields));
       setAnalyzedIndexes({ report: body.reportImageIndex, heatmap: heatmapIndex });
@@ -326,6 +330,7 @@ export default function LocalVisibilityReportPage({ initialData }: LocalVisibili
     const reader = new FileReader();
     reader.onload = () => {
       setData((current) => ({ ...current, heatmapImageUrl: String(reader.result) }));
+      setMapZoom(100);
       setErrors((current) => ({ ...current, heatmapImageUrl: undefined }));
       setPreviewReady(false);
     };
@@ -392,6 +397,7 @@ export default function LocalVisibilityReportPage({ initialData }: LocalVisibili
     setAnalysisError("");
     setAnalyzedIndexes(null);
     setReviewFields(new Set());
+    setMapZoom(100);
     lastAnalyzedSignatureRef.current = "";
     if (fileInputRef.current) fileInputRef.current.value = "";
     if (smartPasteInputRef.current) smartPasteInputRef.current.value = "";
@@ -579,6 +585,29 @@ export default function LocalVisibilityReportPage({ initialData }: LocalVisibili
                   {data.heatmapImageUrl ? "Replace heatmap image" : "Upload heatmap image"}
                 </Label>
                 {errors.heatmapImageUrl && <p className="text-xs text-red-600" role="alert">{errors.heatmapImageUrl}</p>}
+                {data.heatmapImageUrl && (
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5">
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                      <Label htmlFor="map-zoom" className="text-xs font-semibold text-[#061a3d]">Map zoom</Label>
+                      <span className="text-xs font-semibold tabular-nums text-[#0b67b2]">{mapZoom}%</span>
+                    </div>
+                    <input
+                      id="map-zoom"
+                      type="range"
+                      min="100"
+                      max="160"
+                      step="5"
+                      value={mapZoom}
+                      onChange={(event) => {
+                        setMapZoom(Number(event.target.value));
+                        setPreviewReady(false);
+                      }}
+                      className="h-2 w-full cursor-pointer accent-[#0b67b2]"
+                      data-testid="input-map-zoom"
+                    />
+                    <p className="mt-1 text-[10px] leading-4 text-gray-500">Use only if the automatic grid crop needs a closer view.</p>
+                  </div>
+                )}
               </section>
 
               <Button type="submit" className="w-full bg-[#0b67b2] text-white hover:bg-[#07568f]" data-testid="button-generate-preview">
@@ -600,7 +629,7 @@ export default function LocalVisibilityReportPage({ initialData }: LocalVisibili
             <div ref={previewViewportRef} className="w-full overflow-hidden rounded-lg" data-testid="report-preview-viewport">
               <div style={{ width: REPORT_WIDTH * previewScale, height: REPORT_HEIGHT * previewScale }}>
                 <div style={{ width: REPORT_WIDTH, height: REPORT_HEIGHT, transform: `scale(${previewScale})`, transformOrigin: "top left" }}>
-                  <LocalVisibilityReportTemplate ref={reportRef} data={data} />
+                  <LocalVisibilityReportTemplate ref={reportRef} data={data} mapZoom={mapZoom} />
                 </div>
               </div>
             </div>

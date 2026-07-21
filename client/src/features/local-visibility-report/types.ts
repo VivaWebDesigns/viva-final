@@ -19,6 +19,7 @@ export type ExtractableVisibilityField = Exclude<keyof LocalVisibilityReportData
 export type VisibilityScreenshotAnalysis = {
   reportImageIndex: number;
   heatmapImageIndex: number;
+  heatmapImageDataUrl: string | null;
   fields: Record<ExtractableVisibilityField, string | null>;
   lowConfidenceFields: ExtractableVisibilityField[];
 };

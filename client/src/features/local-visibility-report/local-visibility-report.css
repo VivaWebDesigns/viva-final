@@ -222,6 +222,7 @@
   height: 100%;
   object-fit: cover;
   object-position: center center;
+  transform-origin: center center;
 }
 
 .lvr-heatmap-empty {

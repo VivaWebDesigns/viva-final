@@ -53,6 +53,7 @@ describe("LocalVisibilityReportPage", () => {
           radius: "8.0",
         },
         lowConfidenceFields: ["market"],
+        heatmapImageDataUrl: "data:image/png;base64,Y3JvcHBlZC1oZWF0bWFw",
       }),
     } as Response);
 
@@ -71,6 +72,12 @@ describe("LocalVisibilityReportPage", () => {
     expect(screen.getByLabelText("Grid size")).toHaveValue("7 × 7");
     expect(screen.getByLabelText("Radius (miles)")).toHaveValue(8);
     expect(screen.getByText("Check this extracted value.")).toBeInTheDocument();
-    expect(screen.getByAltText("Uploaded Local Falcon ranking heatmap")).toBeInTheDocument();
+    const heatmap = screen.getByAltText("Uploaded Local Falcon ranking heatmap");
+    expect(heatmap).toHaveAttribute("src", "data:image/png;base64,Y3JvcHBlZC1oZWF0bWFw");
+
+    const mapZoom = screen.getByTestId("input-map-zoom");
+    expect(mapZoom).toHaveValue("100");
+    fireEvent.change(mapZoom, { target: { value: "125" } });
+    expect(heatmap).toHaveStyle({ transform: "scale(1.25)" });
   });
 });

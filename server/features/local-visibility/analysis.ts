@@ -7,6 +7,7 @@ import { zodTextFormat } from "openai/helpers/zod";
 import sharp from "sharp";
 import { createWorker } from "tesseract.js";
 import { z } from "zod";
+import { cropHeatmapAroundGrid } from "./heatmap";
 
 export const visibilityFieldNames = [
   "businessName",
@@ -22,7 +23,7 @@ export const visibilityFieldNames = [
 
 const nullableText = z.string().nullable();
 
-export const visibilityScreenshotAnalysisSchema = z.object({
+const visibilityScreenshotExtractionSchema = z.object({
   reportImageIndex: z.number().int().min(-1).max(1),
   heatmapImageIndex: z.number().int().min(-1).max(1),
   fields: z.object({
@@ -39,7 +40,12 @@ export const visibilityScreenshotAnalysisSchema = z.object({
   lowConfidenceFields: z.array(z.enum(visibilityFieldNames)),
 });
 
+export const visibilityScreenshotAnalysisSchema = visibilityScreenshotExtractionSchema.extend({
+  heatmapImageDataUrl: z.string().nullable(),
+});
+
 export type VisibilityScreenshotAnalysis = z.infer<typeof visibilityScreenshotAnalysisSchema>;
+type VisibilityScreenshotExtraction = z.infer<typeof visibilityScreenshotExtractionSchema>;
 
 type ScreenshotInput = {
   buffer: Buffer;
@@ -80,6 +86,33 @@ function matchValue(text: string, pattern: RegExp): string | null {
   return text.match(pattern)?.[1]?.trim() || null;
 }
 
+function normalizeAveragePosition(value: string | null): string | null {
+  if (!value) return null;
+  const normalized = value.replace(",", ".");
+  const numeric = Number(normalized);
+  return Number.isFinite(numeric) && numeric > 0 && numeric <= 30 ? normalized : null;
+}
+
+function extractLabeledArp(text: string): string | null {
+  return normalizeAveragePosition(matchValue(
+    text,
+    /(?:^|\s)ARP\b[^0-9]{0,14}([0-9]{1,2}(?:[.,][0-9]{1,2})?)\b/i,
+  ));
+}
+
+function sanitizeExtraction(extraction: VisibilityScreenshotExtraction): VisibilityScreenshotExtraction {
+  const averagePosition = normalizeAveragePosition(extraction.fields.averagePosition);
+  if (averagePosition === extraction.fields.averagePosition) return extraction;
+
+  return {
+    ...extraction,
+    fields: { ...extraction.fields, averagePosition },
+    lowConfidenceFields: extraction.lowConfidenceFields.includes("averagePosition")
+      ? extraction.lowConfidenceFields
+      : [...extraction.lowConfidenceFields, "averagePosition"],
+  };
+}
+
 function reportLikelihood(text: string): number {
   const normalized = text.toLowerCase();
   return (
@@ -94,6 +127,7 @@ function reportLikelihood(text: string): number {
 export function parseVisibilityScanText(
   text: string,
   metricText = "",
+  arpTileText = "",
 ): Pick<VisibilityScreenshotAnalysis, "fields" | "lowConfidenceFields"> {
   const lines = text.split(/\r?\n/).map(cleanOcrLine).filter(Boolean);
   const joined = lines.join("\n");
@@ -113,9 +147,13 @@ export function parseVisibilityScanText(
   const searchPhrase = matchValue(joined, /Searching\s+["“']([^"”'\n]+)["”']/i);
   const ratingReviewMatch = joined.match(/(?:^|\n)\s*([0-5](?:\.\d)?)\s+[^\n]*?\((\d{1,6})\)/m);
   const compactRatingReviewMatch = joined.match(/(?:^|\n)\s*([0-5])\s*([0-9])\s+[^\n]*?\((\d{1,6})\)/m);
-  const averagePosition = matchValue(joined, /(?:^|\s)ARP\s*[:|]?\s*([0-9]+(?:\.\d+)?)/i)
-    || matchValue(metricText, /([0-9]+(?:[.,][0-9]+))/)?.replace(",", ".")
-    || null;
+  const independentReviewMatch = joined.match(/[\[(]\s*(\d{1,6})(?:\s*(?:\)|\]))?/m);
+  const labeledAveragePosition = extractLabeledArp(`${joined}\n${metricText}\n${arpTileText}`);
+  const tileAveragePosition = normalizeAveragePosition(matchValue(
+    arpTileText,
+    /\b([0-9]{1,2}[.,][0-9]{1,2})\b/,
+  ));
+  const averagePosition = labeledAveragePosition || tileAveragePosition;
   const gridMatch = joined.match(/(\d+)\s*[x×]\s*(\d+)\s*grid/i);
   const radius = matchValue(joined, /(?:a|an)?\s*([0-9]+(?:\.\d+)?)\s*mi(?:le)?\s*radius/i);
   const marketMatch = address?.match(/,\s*([^,]+),\s*([A-Z]{2})\s*\d{5}(?:-\d{4})?$/i);
@@ -125,7 +163,7 @@ export function parseVisibilityScanText(
     businessName,
     address,
     rating: ratingReviewMatch?.[1] || (compactRatingReviewMatch ? `${compactRatingReviewMatch[1]}.${compactRatingReviewMatch[2]}` : null),
-    reviewCount: ratingReviewMatch?.[2] || compactRatingReviewMatch?.[3] || null,
+    reviewCount: ratingReviewMatch?.[2] || compactRatingReviewMatch?.[3] || independentReviewMatch?.[1] || null,
     searchPhrase,
     market,
     averagePosition,
@@ -136,6 +174,7 @@ export function parseVisibilityScanText(
   const lowConfidenceFields: VisibilityScreenshotAnalysis["lowConfidenceFields"] = [];
   if (businessName) lowConfidenceFields.push("businessName");
   if (market) lowConfidenceFields.push("market");
+  if (!labeledAveragePosition && tileAveragePosition) lowConfidenceFields.push("averagePosition");
   return { fields, lowConfidenceFields };
 }
 
@@ -149,12 +188,14 @@ async function recognizeReportDetails(
   const height = metadata.height;
   if (!width || !height) return parseVisibilityScanText(fullText);
 
-  const recognizeCrop = async (topRatio: number, heightRatio: number) => {
+  const recognizeCrop = async (leftRatio: number, topRatio: number, widthRatio: number, heightRatio: number) => {
+    const left = Math.min(width - 1, Math.floor(width * leftRatio));
     const top = Math.min(height - 1, Math.floor(height * topRatio));
+    const cropWidth = Math.max(1, Math.min(width - left, Math.floor(width * widthRatio)));
     const cropHeight = Math.max(1, Math.min(height - top, Math.floor(height * heightRatio)));
     const crop = await sharp(screenshot.buffer)
-      .extract({ left: 0, top, width, height: cropHeight })
-      .resize({ width: Math.min(width * 3, 3000) })
+      .extract({ left, top, width: cropWidth, height: cropHeight })
+      .resize({ width: Math.min(cropWidth * 5, 3000) })
       .greyscale()
       .normalize()
       .png()
@@ -162,14 +203,16 @@ async function recognizeReportDetails(
     return (await worker.recognize(crop)).data.text;
   };
 
-  const businessText = await recognizeCrop(0.38, 0.36);
-  const metricText = await recognizeCrop(0.70, 0.22);
-  return parseVisibilityScanText(`${fullText}\n${businessText}`, metricText);
+  const businessText = await recognizeCrop(0, 0.36, 1, 0.36);
+  const ratingText = await recognizeCrop(0.14, 0.42, 0.58, 0.24);
+  const metricText = await recognizeCrop(0.12, 0.67, 0.72, 0.2);
+  const arpTileText = await recognizeCrop(0.275, 0.7, 0.09, 0.115);
+  return parseVisibilityScanText(`${fullText}\n${businessText}\n${ratingText}`, metricText, arpTileText);
 }
 
 async function analyzeWithLocalOcr(
   screenshots: [ScreenshotInput, ScreenshotInput],
-): Promise<VisibilityScreenshotAnalysis> {
+): Promise<VisibilityScreenshotExtraction> {
   const cachePath = process.env.TESSERACT_CACHE_PATH || path.join(tmpdir(), "viva-tesseract-cache");
   await mkdir(cachePath, { recursive: true });
   const worker = await createWorker("eng", 1, { cachePath });
@@ -204,7 +247,7 @@ async function analyzeWithLocalOcr(
   }
 }
 
-function enqueueLocalOcr(screenshots: [ScreenshotInput, ScreenshotInput]): Promise<VisibilityScreenshotAnalysis> {
+function enqueueLocalOcr(screenshots: [ScreenshotInput, ScreenshotInput]): Promise<VisibilityScreenshotExtraction> {
   const task = ocrQueue.then(() => analyzeWithLocalOcr(screenshots));
   ocrQueue = task.catch(() => undefined);
   return task;
@@ -214,7 +257,7 @@ async function analyzeWithOpenAI(
   screenshots: [ScreenshotInput, ScreenshotInput],
   userId: string,
   apiKey: string,
-): Promise<VisibilityScreenshotAnalysis> {
+): Promise<VisibilityScreenshotExtraction> {
   const client = new OpenAI({ apiKey });
   const response = await client.responses.parse({
     model: process.env.OPENAI_VISIBILITY_MODEL || "gpt-5.6-luna",
@@ -231,7 +274,7 @@ async function analyzeWithOpenAI(
       },
     ],
     text: {
-      format: zodTextFormat(visibilityScreenshotAnalysisSchema, "local_visibility_scan"),
+      format: zodTextFormat(visibilityScreenshotExtractionSchema, "local_visibility_scan"),
     },
     reasoning: { effort: "low" },
     max_output_tokens: 1200,
@@ -247,17 +290,43 @@ async function analyzeWithOpenAI(
   return response.output_parsed;
 }
 
+async function addCroppedHeatmap(
+  extraction: VisibilityScreenshotExtraction,
+  screenshots: [ScreenshotInput, ScreenshotInput],
+): Promise<VisibilityScreenshotAnalysis> {
+  const heatmapIndex = extraction.heatmapImageIndex >= 0 && extraction.heatmapImageIndex <= 1
+    ? extraction.heatmapImageIndex
+    : extraction.reportImageIndex >= 0
+      ? 1 - extraction.reportImageIndex
+      : -1;
+  if (heatmapIndex < 0) return { ...extraction, heatmapImageDataUrl: null };
+
+  try {
+    const cropped = await cropHeatmapAroundGrid(screenshots[heatmapIndex].buffer);
+    return {
+      ...extraction,
+      heatmapImageDataUrl: cropped ? `data:image/png;base64,${cropped.buffer.toString("base64")}` : null,
+    };
+  } catch {
+    console.warn("[local-visibility] heatmap auto-crop failed; using original image");
+    return { ...extraction, heatmapImageDataUrl: null };
+  }
+}
+
 export async function analyzeVisibilityScreenshots(
   screenshots: [ScreenshotInput, ScreenshotInput],
   userId: string,
 ): Promise<VisibilityScreenshotAnalysis> {
   const apiKey = process.env.OPENAI_API_KEY;
+  let extraction: VisibilityScreenshotExtraction;
   if (apiKey) {
     try {
-      return await analyzeWithOpenAI(screenshots, userId, apiKey);
+      extraction = await analyzeWithOpenAI(screenshots, userId, apiKey);
+      return addCroppedHeatmap(sanitizeExtraction(extraction), screenshots);
     } catch {
       console.warn("[local-visibility] OpenAI extraction failed; using local OCR fallback");
     }
   }
-  return enqueueLocalOcr(screenshots);
+  extraction = await enqueueLocalOcr(screenshots);
+  return addCroppedHeatmap(sanitizeExtraction(extraction), screenshots);
 }

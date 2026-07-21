@@ -19,6 +19,7 @@ import "./local-visibility-report.css";
 
 type Props = {
   data: LocalVisibilityReportData;
+  mapZoom?: number;
 };
 
 function formatReviews(value: string): string {
@@ -49,7 +50,7 @@ function Rating({ rating, reviewCount }: Pick<LocalVisibilityReportData, "rating
 }
 
 const LocalVisibilityReportTemplate = forwardRef<HTMLDivElement, Props>(function LocalVisibilityReportTemplate(
-  { data },
+  { data, mapZoom = 100 },
   ref,
 ) {
   return (
@@ -108,6 +109,7 @@ const LocalVisibilityReportTemplate = forwardRef<HTMLDivElement, Props>(function
               src={data.heatmapImageUrl}
               alt="Uploaded Local Falcon ranking heatmap"
               data-crop-mode="cover-center"
+              style={{ transform: `scale(${Math.max(100, Math.min(160, mapZoom)) / 100})` }}
             />
           ) : (
             <div className="lvr-heatmap-empty">
