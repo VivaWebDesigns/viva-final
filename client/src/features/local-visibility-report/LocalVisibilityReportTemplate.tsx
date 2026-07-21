@@ -145,7 +145,7 @@ const LocalVisibilityReportTemplate = forwardRef<HTMLDivElement, Props>(function
 
       <footer className="lvr-footer">
         <img
-          src="/img/logo-footer-mark-20260721.svg?v=20260721"
+          src="/img/logo-report-footer-mark-20260721-v2.svg?v=20260721-v2"
           alt="Viva Web Designs"
           width="1213"
           height="303"

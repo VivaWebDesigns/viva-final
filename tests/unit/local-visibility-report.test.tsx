@@ -29,7 +29,7 @@ describe("LocalVisibilityReportTemplate", () => {
     expect(screen.getByText("vivawebdesigns.com")).toBeInTheDocument();
     expect(screen.getByAltText("Viva Web Designs")).toHaveAttribute(
       "src",
-      "/img/logo-footer-mark-20260721.svg?v=20260721",
+      "/img/logo-report-footer-mark-20260721-v2.svg?v=20260721-v2",
     );
     expect(screen.getByTestId("local-visibility-report-template")).toHaveAttribute("data-export-height", "1920");
     expect(screen.getByAltText("Uploaded Local Falcon ranking heatmap")).toHaveAttribute("data-crop-mode", "cover-center");
