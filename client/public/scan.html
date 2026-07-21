@@ -18,8 +18,7 @@
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png?v=20260707-viva-favicon">
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=20260707-viva-favicon">
     <link rel="manifest" href="/site.webmanifest?v=20260707-viva-favicon">
-    <link rel="preload" as="image" href="/img/local-falcon-heatmap.webp?v=20260625-local-falcon-heatmap">
-    <link rel="stylesheet" href="/css/site.css?v=20260710-how-it-works-spacing">
+    <link rel="stylesheet" href="/css/site.css?v=20260721-scan-redesign">
     <script defer src="/js/site.js"></script>
   </head>
   <body>
@@ -52,66 +51,239 @@
       </div>
     </header>
 
-    <main id="main">
-      <section class="scan-hero">
-        <div class="container-narrow">
-          <h1>Most service businesses are <span class="accent">invisible</span> in their own market. Find out if you are.</h1>
-          <p>We'll send you a personalized heatmap showing where you rank across your service area. Delivered within 1 business day. No pitch. No follow-up unless you ask for one.</p>
+    <main id="main" class="scan-page">
+      <section class="scan-landing-hero">
+        <div class="container scan-landing-hero-grid">
+          <div class="scan-hero-copy">
+            <p class="scan-eyebrow">Free Local Visibility Scan</p>
+            <h1>See Exactly Where Your Business Shows Up on Google</h1>
+            <p class="scan-hero-summary">We'll scan your actual service area and create a personalized ranking map showing where your business appears when nearby customers search for your primary service.</p>
+            <div class="scan-hero-actions">
+              <a class="button button-primary" href="#scan-request">Start My Free Scan</a>
+            </div>
+            <p class="scan-trust-line"><span aria-hidden="true">&#10003;</span> Delivered within one business day. No sales pressure. Real ranking data.</p>
+          </div>
+
+          <div class="scan-report-card" aria-label="Example local visibility snapshot for Monroe Plumbing Company">
+            <div class="scan-report-header">
+              <div>
+                <span>Local Visibility Snapshot</span>
+                <h2>Monroe Plumbing Co.</h2>
+              </div>
+              <span class="scan-report-badge">Sample report</span>
+            </div>
+            <dl class="scan-report-details">
+              <div><dt>Search</dt><dd>&ldquo;plumber near me&rdquo;</dd></div>
+              <div><dt>Market</dt><dd>Monroe, NC</dd></div>
+            </dl>
+            <div class="scan-ranking-grid scan-ranking-grid-hero" aria-label="Sample ranking grid with positions ranging from 1 to over 20">
+              <span class="rank-weak">20+</span><span class="rank-low">14</span><span class="rank-mid">8</span><span class="rank-mid">6</span><span class="rank-strong">3</span>
+              <span class="rank-low">17</span><span class="rank-mid">9</span><span class="rank-mid">5</span><span class="rank-strong">2</span><span class="rank-strong">3</span>
+              <span class="rank-mid">10</span><span class="rank-mid">6</span><span class="rank-strong">3</span><span class="rank-strong scan-rank-center">1</span><span class="rank-strong">2</span>
+              <span class="rank-low">13</span><span class="rank-mid">8</span><span class="rank-mid">4</span><span class="rank-strong">2</span><span class="rank-strong">3</span>
+              <span class="rank-weak">20+</span><span class="rank-low">15</span><span class="rank-mid">9</span><span class="rank-mid">7</span><span class="rank-mid">5</span>
+            </div>
+            <dl class="scan-report-metrics">
+              <div><dt>Average Position</dt><dd>8.4</dd></div>
+              <div><dt>Top-3 Coverage</dt><dd>31%</dd></div>
+              <div><dt>Weakest Direction</dt><dd>Northwest</dd></div>
+            </dl>
+            <p class="scan-report-note">Example layout. Your scan will use live data from your actual market.</p>
+          </div>
         </div>
       </section>
 
-      <section class="section section-soft">
-        <div class="container-narrow">
-          <ul class="large-list" aria-label="Scan reassurances">
-            <li><span class="check" aria-hidden="true"></span><div>Real data from your actual service area</div></li>
-            <li><span class="check" aria-hidden="true"></span><div>Delivered as a visual heatmap, not a report you have to interpret</div></li>
-            <li><span class="check" aria-hidden="true"></span><div>Completely free - we're building case studies</div></li>
-          </ul>
+      <section class="scan-section scan-why">
+        <div class="container">
+          <div class="scan-section-header">
+            <p class="scan-eyebrow">What the Scan Shows</p>
+            <h2>One Search From Your Office Does Not Show the Full Picture</h2>
+            <p>Google's local results change depending on where the person searching is located. Your business might rank well from one street and disappear only a few miles away.</p>
+            <p>A visibility scan tests searches from multiple locations throughout your service area so you can see the market the way potential customers actually experience it.</p>
+          </div>
+          <div class="scan-card-grid scan-card-grid-three">
+            <article class="scan-info-card">
+              <span class="scan-icon"><img src="/img/icons/map-pin.svg" alt="" width="24" height="24" loading="lazy"></span>
+              <h3>Your Actual Ranking Area</h3>
+              <p>See where your business appears across multiple points throughout the market&mdash;not just from your current location.</p>
+            </article>
+            <article class="scan-info-card">
+              <span class="scan-icon"><img src="/img/icons/scan-search.svg" alt="" width="24" height="24" loading="lazy"></span>
+              <h3>Clear Visual Results</h3>
+              <p>Each point shows your approximate ranking when the search is performed from that area.</p>
+            </article>
+            <article class="scan-info-card">
+              <span class="scan-icon"><img src="/img/icons/chart-up.svg" alt="" width="24" height="24" loading="lazy"></span>
+              <h3>Actionable Weak Spots</h3>
+              <p>Identify the parts of your service area where competitors are being shown before you.</p>
+            </article>
+          </div>
+        </div>
+      </section>
 
-          <form class="form-shell" action="/scan-submit" method="post">
-            <div class="hidden-field">
-              <label for="scan-honeypot">Leave this field empty</label>
-              <input id="scan-honeypot" type="text" name="honeypot" tabindex="-1" autocomplete="off">
+      <section class="scan-section scan-receive">
+        <div class="container">
+          <div class="scan-section-header">
+            <p class="scan-eyebrow">Included in Your Scan</p>
+            <h2>What You'll Receive</h2>
+          </div>
+          <div class="scan-card-grid scan-card-grid-four">
+            <article class="scan-info-card"><span class="scan-card-number">01</span><h3>Personalized Heatmap</h3><p>A visual ranking grid created specifically for your business and service area.</p></article>
+            <article class="scan-info-card"><span class="scan-card-number">02</span><h3>Primary Search Analysis</h3><p>A scan based on one valuable service customers actually search for.</p></article>
+            <article class="scan-info-card"><span class="scan-card-number">03</span><h3>Plain-English Summary</h3><p>A short explanation of what the ranking pattern means and where visibility appears weakest.</p></article>
+            <article class="scan-info-card"><span class="scan-card-number">04</span><h3>Delivery Within One Business Day</h3><p>The scan is reviewed before it is sent to you.</p></article>
+          </div>
+          <p class="scan-reassurance">You'll receive the data whether or not you decide to work with Viva.</p>
+        </div>
+      </section>
+
+      <section class="scan-section scan-explainer">
+        <div class="container scan-explainer-grid">
+          <figure class="scan-map-card">
+            <figcaption>Example Ranking Heatmap <span>&ldquo;plumber near me&rdquo; &middot; Monroe, NC</span></figcaption>
+            <div class="scan-ranking-grid scan-ranking-grid-large" aria-label="Example heatmap showing stronger rankings near the business and weaker rankings farther northwest">
+              <span class="rank-weak">20+</span><span class="rank-low">18</span><span class="rank-low">14</span><span class="rank-mid">9</span><span class="rank-mid">7</span>
+              <span class="rank-low">16</span><span class="rank-low">12</span><span class="rank-mid">8</span><span class="rank-mid">5</span><span class="rank-strong">3</span>
+              <span class="rank-low">13</span><span class="rank-mid">9</span><span class="rank-mid">6</span><span class="rank-strong scan-rank-center">1</span><span class="rank-strong">2</span>
+              <span class="rank-mid">10</span><span class="rank-mid">7</span><span class="rank-mid">4</span><span class="rank-strong">2</span><span class="rank-strong">3</span>
+              <span class="rank-low">15</span><span class="rank-mid">10</span><span class="rank-mid">8</span><span class="rank-mid">6</span><span class="rank-mid">5</span>
             </div>
-            <div class="form-grid">
-              <div class="field">
-                <label for="business">Business Name <span class="required">*</span></label>
-                <input id="business" name="business" autocomplete="organization" required>
+            <div class="scan-map-legend" aria-label="Ranking color legend"><span><i class="legend-strong"></i>1&ndash;3</span><span><i class="legend-mid"></i>4&ndash;10</span><span><i class="legend-low"></i>11&ndash;20</span><span><i class="legend-weak"></i>20+</span></div>
+          </figure>
+          <div class="scan-explainer-copy">
+            <p class="scan-eyebrow">How to Read the Results</p>
+            <h2>Your Ranking Changes Across the Market</h2>
+            <ul>
+              <li><strong>Rankings 1&ndash;3</strong> indicate strong local visibility.</li>
+              <li><strong>Rankings 4&ndash;10</strong> mean stronger competitors may appear before the business.</li>
+              <li><strong>Rankings above 10</strong> become increasingly difficult for customers to discover.</li>
+              <li><strong>&ldquo;20+&rdquo;</strong> means the business was outside the first 20 local results from that location.</li>
+            </ul>
+            <p class="scan-takeaway">The goal is not merely to rank well at your business address. It is to remain visible throughout the areas where your customers live and work.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="scan-request" class="scan-section scan-form-section">
+        <div class="container">
+          <div class="scan-form-intro">
+            <p class="scan-eyebrow">Request Your Scan</p>
+            <h2>Tell Us What Business and Search Term to Measure</h2>
+            <p>Complete the form with the primary service and market you want tested. Matt will review the request and email your visibility scan within one business day.</p>
+          </div>
+          <div class="scan-form-layout">
+            <aside class="scan-next-steps" aria-labelledby="scan-next-heading">
+              <h3 id="scan-next-heading">What Happens Next</h3>
+              <ol>
+                <li><span>1</span><div><h4>Matt Confirms the Scan</h4><p>The business, service, location, and target market are reviewed for accuracy.</p></div></li>
+                <li><span>2</span><div><h4>The Ranking Grid Is Created</h4><p>The search is measured from multiple points throughout the selected market.</p></div></li>
+                <li><span>3</span><div><h4>You Receive the Results</h4><p>The completed heatmap and a short explanation are sent by email.</p></div></li>
+              </ol>
+              <div class="scan-before-submit">
+                <h4>Before You Submit</h4>
+                <ul>
+                  <li>One business</li><li>One primary service</li><li>One target market</li><li>Delivered by email</li><li>Usually completed within one business day</li>
+                </ul>
+                <p>No obligation to purchase anything after receiving the results.</p>
               </div>
-              <div class="field">
-                <label for="address">Business Address or Google Maps Link <span class="required">*</span></label>
-                <input id="address" name="address" autocomplete="street-address" required>
+            </aside>
+
+            <form class="scan-form-card" action="/scan-submit" method="post">
+              <div class="hidden-field" aria-hidden="true">
+                <label for="scan-honeypot">Leave this field empty</label>
+                <input id="scan-honeypot" type="text" name="honeypot" tabindex="-1" autocomplete="off">
               </div>
-              <div class="field">
-                <label for="service">Primary Service / What You Sell <span class="required">*</span></label>
-                <input id="service" name="service" autocomplete="off" required>
-              </div>
-              <div class="field">
-                <label for="city">City or Service Area <span class="required">*</span></label>
-                <input id="city" name="city" autocomplete="address-level2" required>
-              </div>
-              <div class="form-grid two">
-                <div class="field">
-                  <label for="name">Your Name <span class="required">*</span></label>
-                  <input id="name" name="name" autocomplete="name" required>
+
+              <fieldset class="scan-form-group">
+                <legend>Business Information</legend>
+                <div class="scan-fields">
+                  <div class="field">
+                    <label for="business">Business Name <span class="required">*</span></label>
+                    <input id="business" name="business" autocomplete="organization" required>
+                  </div>
+                  <div class="field scan-field-wide">
+                    <label for="address">Business Address or Google Business Profile Link <span class="required">*</span></label>
+                    <input id="address" name="address" autocomplete="street-address" aria-describedby="address-help" required>
+                    <small id="address-help">We use this to locate the correct business and center the scan accurately.</small>
+                  </div>
                 </div>
-                <div class="field">
-                  <label for="email">Email <span class="required">*</span></label>
-                  <input id="email" name="email" type="email" autocomplete="email" required>
+              </fieldset>
+
+              <fieldset class="scan-form-group">
+                <legend>Scan Target</legend>
+                <div class="scan-fields">
+                  <div class="field">
+                    <label for="service">Primary Service to Scan <span class="required">*</span></label>
+                    <input id="service" name="service" autocomplete="off" aria-describedby="service-help" required>
+                    <small id="service-help">Choose one valuable service, such as &ldquo;roof repair,&rdquo; &ldquo;interior painting,&rdquo; or &ldquo;glass replacement.&rdquo;</small>
+                  </div>
+                  <div class="field">
+                    <label for="city">Primary City or Market <span class="required">*</span></label>
+                    <input id="city" name="city" autocomplete="address-level2" aria-describedby="city-help" required>
+                    <small id="city-help">Enter the main area where you want to attract customers.</small>
+                  </div>
                 </div>
-              </div>
-              <div class="field">
-                <label for="phone">Phone <span class="required">(optional)</span></label>
-                <input id="phone" name="phone" type="tel" autocomplete="tel">
-              </div>
-              <div class="field">
-                <label for="message">Anything else we should know? <span class="required">(optional)</span></label>
-                <textarea id="message" name="message"></textarea>
-              </div>
-              <button class="button button-primary" type="submit">Send My Free Scan &rarr;</button>
-            </div>
-            <p class="form-note">We'll never share your information. The scan is free because we're proving the methodology - every scan we send is a chance to show what we do.</p>
-          </form>
+              </fieldset>
+
+              <fieldset class="scan-form-group">
+                <legend>Delivery Information</legend>
+                <div class="scan-fields">
+                  <div class="field">
+                    <label for="name">Your Name <span class="required">*</span></label>
+                    <input id="name" name="name" autocomplete="name" required>
+                  </div>
+                  <div class="field">
+                    <label for="email">Email <span class="required">*</span></label>
+                    <input id="email" name="email" type="email" autocomplete="email" required>
+                  </div>
+                  <div class="field">
+                    <label for="phone">Phone <span class="required">(optional)</span></label>
+                    <input id="phone" name="phone" type="tel" autocomplete="tel">
+                  </div>
+                  <div class="field scan-field-wide">
+                    <label for="message">Anything Else We Should Consider? <span class="required">(optional)</span></label>
+                    <textarea id="message" name="message" aria-describedby="message-help"></textarea>
+                    <small id="message-help">Include nearby cities, priority neighborhoods, or a specific competitor you frequently see.</small>
+                  </div>
+                </div>
+              </fieldset>
+
+              <button class="button button-primary scan-submit-button" type="submit">Create My Free Visibility Scan</button>
+              <p class="scan-submit-note">Matt will review your request and email the completed scan within one business day.</p>
+              <p class="scan-privacy-note">Your information is used to review and deliver your scan.</p>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <section class="scan-section scan-proof">
+        <div class="container scan-proof-grid">
+          <div>
+            <p class="scan-eyebrow">Real Client Results</p>
+            <h2>The Same Data We Use to Measure Client Visibility</h2>
+            <p>Glass and Door Pro went from barely appearing near its own location to ranking strongly throughout Monroe and nearby markets. Calls increased from approximately 2&ndash;3 per week to 3&ndash;6 per day.</p>
+            <a class="scan-proof-link" href="/results">See the Full Case Study <span aria-hidden="true">&rarr;</span></a>
+          </div>
+          <div class="scan-proof-stats" aria-label="Glass and Door Pro results summary">
+            <div><strong>2&ndash;3</strong><span>calls per week before</span></div>
+            <div><strong>3&ndash;6</strong><span>calls per day after</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="scan-section scan-faq-section">
+        <div class="container">
+          <div class="scan-section-header">
+            <p class="scan-eyebrow">Common Questions</p>
+            <h2>Free Visibility Scan Questions</h2>
+          </div>
+          <div class="scan-faq-list">
+            <details><summary>Is the scan really free?</summary><p>Yes. You will receive the scan whether or not you decide to work with Viva.</p></details>
+            <details><summary>Why do you need my business address?</summary><p>The scan must be centered accurately around the business and its target market.</p></details>
+            <details><summary>What service should I enter?</summary><p>Choose the service that is most valuable to your business or the one you most want to rank for.</p></details>
+            <details><summary>How large of an area will you scan?</summary><p>The initial radius depends on the market, competition, and business location. Viva will choose a range that produces useful data.</p></details>
+            <details><summary>Will you contact me afterward?</summary><p>Viva will email the completed scan and may ask for clarification if the request is incomplete. There is no obligation to schedule a sales call.</p></details>
+          </div>
         </div>
       </section>
     </main>
