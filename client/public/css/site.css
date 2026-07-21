@@ -3589,71 +3589,37 @@ select {
   overflow-wrap: anywhere;
 }
 
-.scan-ranking-grid {
-  position: relative;
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  align-items: center;
-  justify-items: center;
-  overflow: hidden;
-  background:
-    linear-gradient(rgba(15, 101, 158, 0.08) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(15, 101, 158, 0.08) 1px, transparent 1px),
-    #edf5f8;
-  background-size: 28px 28px;
-}
-
-.scan-ranking-grid::before,
-.scan-ranking-grid::after {
-  position: absolute;
-  border: 1px solid rgba(15, 101, 158, 0.14);
-  border-radius: 50%;
-  content: "";
-  pointer-events: none;
-}
-
-.scan-ranking-grid::before {
-  width: 48%;
-  aspect-ratio: 1;
-}
-
-.scan-ranking-grid::after {
-  width: 27%;
-  aspect-ratio: 1;
-}
-
-.scan-ranking-grid > span {
-  z-index: 1;
-  display: grid;
-  width: 30px;
-  height: 30px;
-  place-items: center;
-  border: 2px solid rgba(255, 255, 255, 0.92);
-  border-radius: 50%;
-  box-shadow: 0 3px 8px rgba(6, 26, 61, 0.16);
-  color: #ffffff;
-  font-size: 10px;
-  font-weight: 900;
-}
-
-.scan-ranking-grid .rank-strong,
 .legend-strong { background: #198754; }
-.scan-ranking-grid .rank-mid,
 .legend-mid { background: #d6a800; }
-.scan-ranking-grid .rank-low,
 .legend-low { background: #dc6b27; }
-.scan-ranking-grid .rank-weak,
 .legend-weak { background: #c23934; }
 
-.scan-ranking-grid .scan-rank-center {
-  box-shadow: 0 0 0 5px rgba(15, 101, 158, 0.21), 0 3px 8px rgba(6, 26, 61, 0.18);
+.scan-report-map {
+  position: relative;
+  margin: 14px 0 0;
+  overflow: hidden;
+  border: 1px solid #dce7ed;
+  border-radius: 6px;
+  background: #eef5f8;
 }
 
-.scan-ranking-grid-hero {
-  min-height: 208px;
-  margin-top: 14px;
-  padding: 12px;
-  border-radius: 6px;
+.scan-report-map img {
+  width: 100%;
+  height: auto;
+}
+
+.scan-report-map figcaption {
+  position: absolute;
+  right: 9px;
+  bottom: 9px;
+  padding: 6px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.48);
+  border-radius: 4px;
+  background: rgba(0, 8, 24, 0.78);
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
 }
 
 .scan-report-metrics {
@@ -3815,16 +3781,11 @@ select {
   font-weight: 500;
 }
 
-.scan-ranking-grid-large {
-  min-height: 330px;
-  padding: 22px;
-  background-size: 34px 34px;
-}
-
-.scan-ranking-grid-large > span {
-  width: 38px;
-  height: 38px;
-  font-size: 12px;
+.scan-map-image {
+  width: 100%;
+  max-height: 720px;
+  object-fit: contain;
+  background: #eef5f8;
 }
 
 .scan-map-legend {
@@ -4324,12 +4285,6 @@ select {
     margin-top: 10px;
   }
 
-  .scan-ranking-grid > span {
-    width: 27px;
-    height: 27px;
-    font-size: 9px;
-  }
-
   .scan-report-metrics dt {
     font-size: 8px;
   }
@@ -4338,11 +4293,6 @@ select {
     font-size: 13px;
   }
 
-  .scan-ranking-grid-large > span {
-    width: 32px;
-    height: 32px;
-    font-size: 10px;
-  }
 }
 
 @media (prefers-reduced-motion: no-preference) {

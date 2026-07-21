@@ -40,6 +40,10 @@ describe("visibility scan page contract", () => {
 
   it("uses one H1 and removes experimental offer language", () => {
     expect(scanHtml.match(/<h1(?:\s|>)/g)).toHaveLength(1);
+    expect(scanHtml).toContain("electrician near me");
+    expect(scanHtml).toContain("Charlotte, NC");
+    expect(scanHtml).not.toContain("plumber near me");
+    expect(scanHtml).not.toContain("Monroe Plumbing Co.");
     expect(scanHtml).not.toContain("building case studies");
     expect(scanHtml).not.toContain("proving the methodology");
     expect(scanHtml).not.toContain("No follow-up unless you ask for one");
