@@ -345,8 +345,8 @@
 }
 
 .lvr-footer img {
-  width: 160px;
-  height: 60px;
+  width: 144px;
+  height: auto;
   object-fit: contain;
 }
 
@@ -357,10 +357,18 @@
 }
 
 .lvr-footer p {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
   margin: 0;
   font-size: 20px;
 }
 
 .lvr-footer strong {
   font-weight: 800;
+}
+
+.lvr-footer b {
+  color: rgba(255, 255, 255, 0.55);
+  font-weight: 400;
 }

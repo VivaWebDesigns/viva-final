@@ -26,6 +26,11 @@ describe("LocalVisibilityReportTemplate", () => {
     expect(screen.getByText(/The center dot is your business location/)).toBeInTheDocument();
     expect(screen.getByText("7 × 7 grid · 2.5-mile radius")).toBeInTheDocument();
     expect(screen.getByText("(40 reviews)")).toBeInTheDocument();
+    expect(screen.getByText("vivawebdesigns.com")).toBeInTheDocument();
+    expect(screen.getByAltText("Viva Web Designs")).toHaveAttribute(
+      "src",
+      "/img/logo-footer-mark-20260721.svg?v=20260721",
+    );
   });
 
   it("does not include retired metrics or square-mile coverage", () => {
