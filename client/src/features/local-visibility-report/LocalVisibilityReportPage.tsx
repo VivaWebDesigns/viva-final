@@ -1,8 +1,9 @@
 import { ChangeEvent, ClipboardEvent, DragEvent, useCallback, useEffect, useRef, useState } from "react";
-import { toPng } from "html-to-image";
+import { toBlob } from "html-to-image";
 import {
   AlertTriangle,
   CheckCircle2,
+  ClipboardCopy,
   ClipboardPaste,
   Download,
   FileImage,
@@ -143,7 +144,7 @@ export default function LocalVisibilityReportPage({ initialData }: LocalVisibili
   const [data, setData] = useState<LocalVisibilityReportData>(() => initialData ?? DEFAULT_LOCAL_VISIBILITY_REPORT);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [previewReady, setPreviewReady] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
+  const [activeExport, setActiveExport] = useState<"copy" | "download" | null>(null);
   const [previewScale, setPreviewScale] = useState(0.55);
   const [queuedScreenshots, setQueuedScreenshots] = useState<QueuedScreenshot[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -356,27 +357,63 @@ export default function LocalVisibilityReportPage({ initialData }: LocalVisibili
       return;
     }
     setPreviewReady(true);
-    toast({ title: "Preview ready", description: "Review the snapshot, then download the PNG." });
+    toast({ title: "Preview ready", description: "Review the snapshot, then copy or download the PNG." });
+  };
+
+  const renderReportBlob = async () => {
+    if (!reportRef.current) throw new Error("The report preview is not ready.");
+    await document.fonts?.ready;
+    const blob = await toBlob(reportRef.current, {
+      width: REPORT_WIDTH,
+      height: REPORT_HEIGHT,
+      canvasWidth: REPORT_WIDTH,
+      canvasHeight: REPORT_HEIGHT,
+      pixelRatio: 1,
+      backgroundColor: "#ffffff",
+      cacheBust: true,
+    });
+    if (!blob) throw new Error("The report image could not be created.");
+    return blob;
+  };
+
+  const copyReport = async () => {
+    if (!validate() || !reportRef.current) return;
+    if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") {
+      toast({
+        title: "Image copying is not available",
+        description: "Use Download PNG instead, or open the generator over HTTPS in a supported browser.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setActiveExport("copy");
+    try {
+      const blobPromise = renderReportBlob();
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": blobPromise })]);
+      toast({ title: "Report copied", description: "Paste it directly into Messages or your SMS app." });
+    } catch (error) {
+      toast({
+        title: "Copy failed",
+        description: error instanceof Error ? error.message : "Use Download PNG and attach the saved image instead.",
+        variant: "destructive",
+      });
+    } finally {
+      setActiveExport(null);
+    }
   };
 
   const downloadReport = async () => {
     if (!validate() || !reportRef.current) return;
-    setIsExporting(true);
+    setActiveExport("download");
     try {
-      await document.fonts.ready;
-      const image = await toPng(reportRef.current, {
-        width: REPORT_WIDTH,
-        height: REPORT_HEIGHT,
-        canvasWidth: REPORT_WIDTH,
-        canvasHeight: REPORT_HEIGHT,
-        pixelRatio: 1,
-        backgroundColor: "#ffffff",
-        cacheBust: true,
-      });
+      const image = await renderReportBlob();
+      const imageUrl = URL.createObjectURL(image);
       const link = document.createElement("a");
       link.download = `${slugify(data.businessName)}-local-visibility-snapshot.png`;
-      link.href = image;
+      link.href = imageUrl;
       link.click();
+      URL.revokeObjectURL(imageUrl);
       toast({ title: "PNG downloaded", description: "The report was exported at 1080 × 1920." });
     } catch (error) {
       toast({
@@ -385,7 +422,7 @@ export default function LocalVisibilityReportPage({ initialData }: LocalVisibili
         variant: "destructive",
       });
     } finally {
-      setIsExporting(false);
+      setActiveExport(null);
     }
   };
 
@@ -420,12 +457,22 @@ export default function LocalVisibilityReportPage({ initialData }: LocalVisibili
             </Button>
             <Button
               type="button"
+              variant="outline"
+              onClick={copyReport}
+              disabled={!previewReady || activeExport !== null}
+              className="border-[#0b67b2] text-[#0b67b2] hover:bg-blue-50 hover:text-[#07568f]"
+              data-testid="button-copy-report"
+            >
+              <ClipboardCopy /> {activeExport === "copy" ? "Copying…" : "Copy Report Image"}
+            </Button>
+            <Button
+              type="button"
               onClick={downloadReport}
-              disabled={!previewReady || isExporting}
+              disabled={!previewReady || activeExport !== null}
               className="bg-[#061a3d] text-white hover:bg-[#0b2b59]"
               data-testid="button-download-report"
             >
-              <Download /> {isExporting ? "Exporting…" : "Download PNG"}
+              <Download /> {activeExport === "download" ? "Exporting…" : "Download PNG"}
             </Button>
           </div>
         </div>

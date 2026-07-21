@@ -1,15 +1,36 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { toBlob } from "html-to-image";
 import LocalVisibilityReportPage from "@features/local-visibility-report/LocalVisibilityReportPage";
+import type { LocalVisibilityReportData } from "@features/local-visibility-report/types";
+
+vi.mock("html-to-image", () => ({ toBlob: vi.fn() }));
+
+const completeReport: LocalVisibilityReportData = {
+  businessName: "Carolina Custom Automation",
+  address: "2012 SC-160 STE. 106, Fort Mill, SC 29708",
+  rating: "5.0",
+  reviewCount: "19",
+  searchPhrase: "control access near me",
+  market: "Fort Mill, SC",
+  averagePosition: "1.71",
+  gridSize: "7 × 7",
+  radius: "2.5",
+  heatmapImageUrl: "data:image/png;base64,aGVhdG1hcA==",
+};
 
 describe("LocalVisibilityReportPage", () => {
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
 
   it("starts with the approved scan defaults and a disabled export", () => {
     render(<LocalVisibilityReportPage />);
 
     expect(screen.getByLabelText("Grid size")).toHaveValue("7 × 7");
     expect(screen.getByLabelText("Radius (miles)")).toHaveValue(2.5);
+    expect(screen.getByTestId("button-copy-report")).toBeDisabled();
     expect(screen.getByTestId("button-download-report")).toBeDisabled();
   });
 
@@ -33,6 +54,34 @@ describe("LocalVisibilityReportPage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Choose files" }));
     expect(inputClick).toHaveBeenCalledOnce();
+  });
+
+  it("copies the full-resolution report PNG to the clipboard", async () => {
+    const reportBlob = new Blob(["report"], { type: "image/png" });
+    vi.mocked(toBlob).mockResolvedValue(reportBlob);
+    const write = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { clipboard: { write } });
+    vi.stubGlobal("ClipboardItem", class ClipboardItemMock {
+      constructor(public items: Record<string, Blob | Promise<Blob>>) {}
+    });
+
+    render(<LocalVisibilityReportPage initialData={completeReport} />);
+    const generateButton = screen.getByTestId("button-generate-preview");
+    fireEvent.submit(generateButton.closest("form") as HTMLFormElement);
+    const copyButton = screen.getByTestId("button-copy-report");
+    expect(copyButton).toBeEnabled();
+    fireEvent.click(copyButton);
+
+    await waitFor(() => expect(write).toHaveBeenCalledOnce());
+    expect(toBlob).toHaveBeenCalledWith(expect.any(HTMLElement), expect.objectContaining({
+      width: 1080,
+      height: 1920,
+      canvasWidth: 1080,
+      canvasHeight: 1920,
+      pixelRatio: 1,
+    }));
+    const clipboardItem = write.mock.calls[0][0][0] as { items: Record<string, Promise<Blob>> };
+    await expect(clipboardItem.items["image/png"]).resolves.toBe(reportBlob);
   });
 
   it("autofills fields and assigns the heatmap after two screenshots are added", async () => {
