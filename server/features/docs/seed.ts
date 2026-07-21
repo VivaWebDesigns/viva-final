@@ -1846,14 +1846,15 @@ server/features/integrations/
 
 ---
 
-## OpenAI (Scaffolded)
-**Required:** \`OPENAI_API_KEY\`
+## OpenAI (Optional Enhancement)
+**Required to enable OpenAI extraction:** \`OPENAI_API_KEY\`
+**Optional:** \`OPENAI_VISIBILITY_MODEL\`
 
 1. Create an OpenAI account at platform.openai.com
 2. Navigate to API Keys and create a new secret key
 3. Set OPENAI_API_KEY in your environment variables
 
-**Status:** Scaffolded — no active API calls made yet. Planned for lead scoring, content generation, and activity summaries.
+**Status:** Optional — improves Local Visibility Snapshot smart-paste extraction. The tool falls back to private server-side OCR when OpenAI is not configured.
 
 ---
 

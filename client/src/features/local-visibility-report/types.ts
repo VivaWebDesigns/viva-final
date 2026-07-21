@@ -11,6 +11,15 @@ export type LocalVisibilityReportData = {
   heatmapImageUrl: string;
 };
 
+export type ExtractableVisibilityField = Exclude<keyof LocalVisibilityReportData, "heatmapImageUrl">;
+
+export type VisibilityScreenshotAnalysis = {
+  reportImageIndex: number;
+  heatmapImageIndex: number;
+  fields: Record<ExtractableVisibilityField, string | null>;
+  lowConfidenceFields: ExtractableVisibilityField[];
+};
+
 export const DEFAULT_LOCAL_VISIBILITY_REPORT: LocalVisibilityReportData = {
   businessName: "",
   address: "",

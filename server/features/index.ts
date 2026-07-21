@@ -22,6 +22,7 @@ import profileRoutes from "./profiles/routes";
 import { automationRoutes } from "./automations";
 import quoRoutes from "./quo/routes";
 import marketplaceRoutes from "./marketplace/routes";
+import localVisibilityRoutes from "./local-visibility/routes";
 import { seedDocs } from "./docs/seed";
 import { seedIntegrations } from "./integrations/seed";
 import { seedCrmStatuses } from "./crm/seed";
@@ -52,6 +53,7 @@ router.use("/profiles", profileRoutes);
 router.use("/automations", automationRoutes);
 router.use("/quo", quoRoutes);
 router.use("/marketplace", marketplaceRoutes);
+router.use("/local-visibility", localVisibilityRoutes);
 
 router.post("/admin/seed", requireRole("admin"), async (_req, res) => {
   try {

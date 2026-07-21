@@ -98,9 +98,9 @@ export function checkOpenAIHealth(): ProviderHealth {
     missingVars: missing,
     presentVars: present,
     status: deriveStatus(present, required),
-    featureFlag: "scaffold",
-    notes: "OpenAI is scaffolded for future internal intelligence features such as lead scoring, content generation, and automated summaries. No active usage yet — set OPENAI_API_KEY when ready to enable AI features.",
-    usedBy: ["AI Lead Scoring (planned)", "Content Generation (planned)"],
+    featureFlag: "active",
+    notes: "OpenAI vision improves screenshot extraction in the Local Visibility Snapshot generator. When it is not configured or temporarily unavailable, the tool falls back to private server-side OCR.",
+    usedBy: ["Local Visibility Snapshot Smart Paste", "AI Lead Scoring (planned)", "Content Generation (planned)"],
   };
 }
 
