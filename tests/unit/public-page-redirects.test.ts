@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import express from "express";
 import http from "http";
 import {
+  cleanPublicPageFiles,
   cleanPublicPageRedirects,
   registerCleanPublicPageRedirects,
 } from "../../server/public-pages";
@@ -12,6 +13,11 @@ let baseUrl: string;
 beforeAll(async () => {
   const app = express();
   registerCleanPublicPageRedirects(app);
+  Object.keys(cleanPublicPageFiles).forEach((cleanPath) => {
+    app.get(cleanPath, (_req, res) => {
+      res.status(200).send("clean page");
+    });
+  });
 
   server = http.createServer(app);
   await new Promise<void>((resolve) => server.listen(0, resolve));
@@ -32,6 +38,15 @@ describe("legacy public page redirects", () => {
       const response = await fetch(baseUrl + legacyPath, { redirect: "manual" });
       expect(response.status).toBe(301);
       expect(response.headers.get("location")).toBe(cleanPath);
+    },
+  );
+
+  it.each(Object.keys(cleanPublicPageFiles))(
+    "does not redirect the clean URL %s",
+    async (cleanPath) => {
+      const response = await fetch(baseUrl + cleanPath, { redirect: "manual" });
+      expect(response.status).toBe(200);
+      expect(response.headers.get("location")).toBeNull();
     },
   );
 });

@@ -20,9 +20,12 @@ export const cleanPublicPageRedirects: Record<string, string> = {
 };
 
 export function registerCleanPublicPageRedirects(app: Express) {
-  Object.entries(cleanPublicPageRedirects).forEach(([legacyPath, cleanPath]) => {
-    app.get(legacyPath, (_req, res) => {
-      res.redirect(301, cleanPath);
-    });
+  app.use((req, res, next) => {
+    if (req.method !== "GET" && req.method !== "HEAD") return next();
+
+    const cleanPath = cleanPublicPageRedirects[req.path];
+    if (!cleanPath) return next();
+
+    return res.redirect(301, cleanPath);
   });
 }
