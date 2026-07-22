@@ -126,7 +126,25 @@ describe("LocalVisibilityReportPage", () => {
 
     const mapZoom = screen.getByTestId("input-map-zoom");
     expect(mapZoom).toHaveValue("100");
+    expect(mapZoom).toHaveAttribute("min", "70");
     fireEvent.change(mapZoom, { target: { value: "125" } });
-    expect(heatmap).toHaveStyle({ transform: "scale(1.25)" });
+    expect(heatmap).toHaveStyle({ transform: "translate(0px, 0px) scale(1.25)" });
+
+    const heatmapFrame = screen.getByTestId("report-heatmap");
+    vi.spyOn(heatmapFrame, "getBoundingClientRect").mockReturnValue({
+      width: 500,
+      height: 480,
+      top: 0,
+      right: 500,
+      bottom: 480,
+      left: 0,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+    fireEvent.pointerDown(heatmapFrame, { pointerId: 1, clientX: 100, clientY: 100 });
+    fireEvent.pointerMove(heatmapFrame, { pointerId: 1, clientX: 125, clientY: 90 });
+    fireEvent.pointerUp(heatmapFrame, { pointerId: 1, clientX: 125, clientY: 90 });
+    expect(heatmap).toHaveStyle({ transform: "translate(50px, -20px) scale(1.25)" });
   });
 });

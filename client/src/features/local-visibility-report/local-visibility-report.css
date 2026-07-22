@@ -251,6 +251,16 @@
   background: #f2f7fa;
 }
 
+.lvr-heatmap-draggable {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.lvr-heatmap-draggable.is-dragging {
+  cursor: grabbing;
+}
+
 .lvr-heatmap-card > img {
   position: absolute;
   inset: 0;
@@ -259,6 +269,8 @@
   object-fit: cover;
   object-position: center center;
   transform-origin: center center;
+  pointer-events: none;
+  user-select: none;
 }
 
 .lvr-heatmap-empty {

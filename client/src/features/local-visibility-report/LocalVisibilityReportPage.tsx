@@ -9,6 +9,7 @@ import {
   FileImage,
   ImagePlus,
   Loader2,
+  Move,
   RefreshCw,
   Sparkles,
   X,
@@ -17,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import LocalVisibilityReportTemplate from "./LocalVisibilityReportTemplate";
+import LocalVisibilityReportTemplate, { type MapPosition } from "./LocalVisibilityReportTemplate";
 import {
   DEFAULT_LOCAL_VISIBILITY_REPORT,
   LOCAL_VISIBILITY_REPORT_HEIGHT,
@@ -152,6 +153,7 @@ export default function LocalVisibilityReportPage({ initialData }: LocalVisibili
   const [analyzedIndexes, setAnalyzedIndexes] = useState<{ report: number; heatmap: number } | null>(null);
   const [reviewFields, setReviewFields] = useState<Set<ExtractableVisibilityField>>(new Set());
   const [mapZoom, setMapZoom] = useState(100);
+  const [mapPosition, setMapPosition] = useState<MapPosition>({ x: 0, y: 0 });
   const previewViewportRef = useRef<HTMLDivElement>(null);
   const reportRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -260,6 +262,7 @@ export default function LocalVisibilityReportPage({ initialData }: LocalVisibili
         return next;
       });
       setMapZoom(100);
+      setMapPosition({ x: 0, y: 0 });
       setErrors({});
       setReviewFields(new Set(body.lowConfidenceFields));
       setAnalyzedIndexes({ report: body.reportImageIndex, heatmap: heatmapIndex });
@@ -332,6 +335,7 @@ export default function LocalVisibilityReportPage({ initialData }: LocalVisibili
     reader.onload = () => {
       setData((current) => ({ ...current, heatmapImageUrl: String(reader.result) }));
       setMapZoom(100);
+      setMapPosition({ x: 0, y: 0 });
       setErrors((current) => ({ ...current, heatmapImageUrl: undefined }));
       setPreviewReady(false);
     };
@@ -435,6 +439,7 @@ export default function LocalVisibilityReportPage({ initialData }: LocalVisibili
     setAnalyzedIndexes(null);
     setReviewFields(new Set());
     setMapZoom(100);
+    setMapPosition({ x: 0, y: 0 });
     lastAnalyzedSignatureRef.current = "";
     if (fileInputRef.current) fileInputRef.current.value = "";
     if (smartPasteInputRef.current) smartPasteInputRef.current.value = "";
@@ -641,7 +646,7 @@ export default function LocalVisibilityReportPage({ initialData }: LocalVisibili
                     <input
                       id="map-zoom"
                       type="range"
-                      min="100"
+                      min="70"
                       max="160"
                       step="5"
                       value={mapZoom}
@@ -652,7 +657,25 @@ export default function LocalVisibilityReportPage({ initialData }: LocalVisibili
                       className="h-2 w-full cursor-pointer accent-[#0b67b2]"
                       data-testid="input-map-zoom"
                     />
-                    <p className="mt-1 text-[10px] leading-4 text-gray-500">Use only if the automatic grid crop needs a closer view.</p>
+                    <div className="mt-2 flex items-center justify-between gap-3 border-t border-gray-200 pt-2">
+                      <p className="flex items-center gap-1 text-[10px] leading-4 text-gray-500">
+                        <Move className="h-3 w-3" /> Drag the map in the preview to reposition it.
+                      </p>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 shrink-0 px-2 text-[10px] text-[#0b67b2]"
+                        onClick={() => {
+                          setMapPosition({ x: 0, y: 0 });
+                          setPreviewReady(false);
+                        }}
+                        disabled={mapPosition.x === 0 && mapPosition.y === 0}
+                        data-testid="button-center-map"
+                      >
+                        Center map
+                      </Button>
+                    </div>
                   </div>
                 )}
               </section>
@@ -676,7 +699,16 @@ export default function LocalVisibilityReportPage({ initialData }: LocalVisibili
             <div ref={previewViewportRef} className="w-full overflow-hidden rounded-lg" data-testid="report-preview-viewport">
               <div style={{ width: REPORT_WIDTH * previewScale, height: REPORT_HEIGHT * previewScale }}>
                 <div style={{ width: REPORT_WIDTH, height: REPORT_HEIGHT, transform: `scale(${previewScale})`, transformOrigin: "top left" }}>
-                  <LocalVisibilityReportTemplate ref={reportRef} data={data} mapZoom={mapZoom} />
+                  <LocalVisibilityReportTemplate
+                    ref={reportRef}
+                    data={data}
+                    mapZoom={mapZoom}
+                    mapPosition={mapPosition}
+                    onMapPositionChange={(position) => {
+                      setMapPosition(position);
+                      setPreviewReady(false);
+                    }}
+                  />
                 </div>
               </div>
             </div>

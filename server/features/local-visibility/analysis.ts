@@ -60,6 +60,7 @@ You will receive exactly two numbered screenshots. One is normally a compact "Sc
 
 Rules:
 - averagePosition must come from ARP (Average Rank Position). Never use ATRP or SoLV.
+- Preserve every visible ARP decimal digit exactly; for example, return 3.08 as "3.08", never "3.0".
 - Ignore square-mile coverage entirely.
 - gridSize must use the format "N × N".
 - radius must contain only the numeric mile value, with no unit.
@@ -88,7 +89,7 @@ function matchValue(text: string, pattern: RegExp): string | null {
 
 function normalizeAveragePosition(value: string | null): string | null {
   if (!value) return null;
-  const normalized = value.replace(",", ".");
+  const normalized = value.replace(/\s+/g, "").replace(",", ".");
   const numeric = Number(normalized);
   return Number.isFinite(numeric) && numeric > 0 && numeric <= 30 ? normalized : null;
 }
@@ -96,7 +97,7 @@ function normalizeAveragePosition(value: string | null): string | null {
 function extractLabeledArp(text: string): string | null {
   return normalizeAveragePosition(matchValue(
     text,
-    /(?:^|\s)ARP\b[^0-9]{0,14}([0-9]{1,2}(?:[.,][0-9]{1,2})?)\b/i,
+    /(?:^|\s)ARP\b[^0-9]{0,14}([0-9]{1,2}(?:\s*[.,]\s*[0-9](?:\s*[0-9])?)?)\b/i,
   ));
 }
 
@@ -151,7 +152,7 @@ export function parseVisibilityScanText(
   const labeledAveragePosition = extractLabeledArp(`${joined}\n${metricText}\n${arpTileText}`);
   const tileAveragePosition = normalizeAveragePosition(matchValue(
     arpTileText,
-    /\b([0-9]{1,2}[.,][0-9]{1,2})\b/,
+    /\b([0-9]{1,2}\s*[.,]\s*[0-9](?:\s*[0-9])?)\b/,
   ));
   const averagePosition = labeledAveragePosition || tileAveragePosition;
   const gridMatch = joined.match(/(\d+)\s*[x×]\s*(\d+)\s*grid/i);
@@ -206,7 +207,7 @@ async function recognizeReportDetails(
   const businessText = await recognizeCrop(0, 0.36, 1, 0.36);
   const ratingText = await recognizeCrop(0.14, 0.42, 0.58, 0.24);
   const metricText = await recognizeCrop(0.12, 0.67, 0.72, 0.2);
-  const arpTileText = await recognizeCrop(0.275, 0.7, 0.09, 0.115);
+  const arpTileText = await recognizeCrop(0.275, 0.7, 0.12, 0.115);
   return parseVisibilityScanText(`${fullText}\n${businessText}\n${ratingText}`, metricText, arpTileText);
 }
 

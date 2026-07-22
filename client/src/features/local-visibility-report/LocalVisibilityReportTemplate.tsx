@@ -1,4 +1,4 @@
-import { forwardRef } from "react";
+import { forwardRef, useRef, useState, type PointerEvent } from "react";
 import {
   FiBarChart2,
   FiCrosshair,
@@ -19,7 +19,20 @@ import "./local-visibility-report.css";
 type Props = {
   data: LocalVisibilityReportData;
   mapZoom?: number;
+  mapPosition?: MapPosition;
+  onMapPositionChange?: (position: MapPosition) => void;
 };
+
+export type MapPosition = { x: number; y: number };
+
+const HEATMAP_WIDTH = 1000;
+const HEATMAP_HEIGHT = 960;
+const MAX_MAP_OFFSET_X = HEATMAP_WIDTH / 2;
+const MAX_MAP_OFFSET_Y = HEATMAP_HEIGHT / 2;
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
 
 function formatReviews(value: string): string {
   if (!value.trim()) return "";
@@ -49,9 +62,39 @@ function Rating({ rating, reviewCount }: Pick<LocalVisibilityReportData, "rating
 }
 
 const LocalVisibilityReportTemplate = forwardRef<HTMLDivElement, Props>(function LocalVisibilityReportTemplate(
-  { data, mapZoom = 100 },
+  { data, mapZoom = 100, mapPosition = { x: 0, y: 0 }, onMapPositionChange },
   ref,
 ) {
+  const dragStartRef = useRef<{ clientX: number; clientY: number; position: MapPosition } | null>(null);
+  const [isDraggingMap, setIsDraggingMap] = useState(false);
+
+  const handleMapPointerDown = (event: PointerEvent<HTMLElement>) => {
+    if (!data.heatmapImageUrl || !onMapPositionChange) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    dragStartRef.current = { clientX: event.clientX, clientY: event.clientY, position: mapPosition };
+    setIsDraggingMap(true);
+  };
+
+  const handleMapPointerMove = (event: PointerEvent<HTMLElement>) => {
+    const start = dragStartRef.current;
+    if (!start || !onMapPositionChange) return;
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const scaleX = HEATMAP_WIDTH / (bounds.width || HEATMAP_WIDTH);
+    const scaleY = HEATMAP_HEIGHT / (bounds.height || HEATMAP_HEIGHT);
+    onMapPositionChange({
+      x: clamp(start.position.x + (event.clientX - start.clientX) * scaleX, -MAX_MAP_OFFSET_X, MAX_MAP_OFFSET_X),
+      y: clamp(start.position.y + (event.clientY - start.clientY) * scaleY, -MAX_MAP_OFFSET_Y, MAX_MAP_OFFSET_Y),
+    });
+  };
+
+  const stopMapDrag = (event: PointerEvent<HTMLElement>) => {
+    if (!dragStartRef.current) return;
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
+    dragStartRef.current = null;
+    setIsDraggingMap(false);
+  };
+
   return (
     <div
       ref={ref}
@@ -106,13 +149,24 @@ const LocalVisibilityReportTemplate = forwardRef<HTMLDivElement, Props>(function
           </div>
         </section>
 
-        <figure className="lvr-heatmap-card">
+        <figure
+          className={`lvr-heatmap-card${data.heatmapImageUrl && onMapPositionChange ? " lvr-heatmap-draggable" : ""}${isDraggingMap ? " is-dragging" : ""}`}
+          aria-label={data.heatmapImageUrl ? "Ranking heatmap. Drag to reposition the map." : "Ranking heatmap"}
+          onPointerDown={handleMapPointerDown}
+          onPointerMove={handleMapPointerMove}
+          onPointerUp={stopMapDrag}
+          onPointerCancel={stopMapDrag}
+          data-testid="report-heatmap"
+        >
           {data.heatmapImageUrl ? (
             <img
               src={data.heatmapImageUrl}
               alt="Uploaded Local Falcon ranking heatmap"
               data-crop-mode="cover-center"
-              style={{ transform: `scale(${Math.max(100, Math.min(160, mapZoom)) / 100})` }}
+              draggable={false}
+              style={{
+                transform: `translate(${mapPosition.x}px, ${mapPosition.y}px) scale(${Math.max(70, Math.min(160, mapZoom)) / 100})`,
+              }}
             />
           ) : (
             <div className="lvr-heatmap-empty">

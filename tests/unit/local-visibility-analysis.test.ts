@@ -74,6 +74,15 @@ describe("local visibility screenshot analysis", () => {
     });
   });
 
+  it("preserves both ARP decimal digits when OCR spaces them apart", () => {
+    const result = parseVisibilityScanText(
+      "Scan Report\nCarolina Custom Automation",
+      "ARP 3.0 8   ATRP 5.12   SoLV 64.20",
+    );
+
+    expect(result.fields.averagePosition).toBe("3.08");
+  });
+
   it("leaves average position blank when only SoLV is visible", () => {
     const result = parseVisibilityScanText(
       "Scan Report\nCarolina Custom Automation\nSoLV 89.80",

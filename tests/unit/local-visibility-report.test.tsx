@@ -51,4 +51,19 @@ describe("LocalVisibilityReportTemplate", () => {
   it("normalizes scan settings", () => {
     expect(formatScanSettings({ gridSize: "9x9", radius: "3" })).toBe("9 × 9 grid · 3-mile radius");
   });
+
+  it("preserves ARP precision and applies map zoom and position", () => {
+    render(
+      <LocalVisibilityReportTemplate
+        data={{ ...report, averagePosition: "3.08" }}
+        mapZoom={80}
+        mapPosition={{ x: 24, y: -18 }}
+      />,
+    );
+
+    expect(screen.getByText("3.08")).toBeInTheDocument();
+    expect(screen.getByAltText("Uploaded Local Falcon ranking heatmap")).toHaveStyle({
+      transform: "translate(24px, -18px) scale(0.8)",
+    });
+  });
 });
