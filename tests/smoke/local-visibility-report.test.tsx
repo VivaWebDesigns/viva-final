@@ -125,6 +125,8 @@ describe("LocalVisibilityReportPage", () => {
     expect(heatmap).toHaveAttribute("src", "data:image/png;base64,Y3JvcHBlZC1oZWF0bWFw");
 
     const mapZoom = screen.getByTestId("input-map-zoom");
+    const businessHeading = screen.getByText("Business");
+    expect(screen.getByTestId("map-controls").nextElementSibling).toContainElement(businessHeading);
     expect(mapZoom).toHaveValue("100");
     expect(mapZoom).toHaveAttribute("min", "70");
     fireEvent.change(mapZoom, { target: { value: "125" } });
