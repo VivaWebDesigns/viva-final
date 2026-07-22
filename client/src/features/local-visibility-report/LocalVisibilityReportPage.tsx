@@ -594,49 +594,49 @@ export default function LocalVisibilityReportPage({ initialData }: LocalVisibili
               </section>
 
               <div className="border-t border-gray-100" />
-              {data.heatmapImageUrl && (
-                <section className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5" data-testid="map-controls">
-                  <div className="mb-2 flex items-center justify-between gap-3">
-                    <Label htmlFor="map-zoom" className="text-xs font-semibold text-[#061a3d]">Map zoom</Label>
-                    <span className="text-xs font-semibold tabular-nums text-[#0b67b2]">{mapZoom}%</span>
-                  </div>
-                  <input
-                    id="map-zoom"
-                    type="range"
-                    min="70"
-                    max="160"
-                    step="5"
-                    value={mapZoom}
-                    onChange={(event) => {
-                      setMapZoom(Number(event.target.value));
+              <section className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5" data-testid="map-controls">
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <Label htmlFor="map-zoom" className="text-xs font-semibold text-[#061a3d]">Map zoom</Label>
+                  <span className="text-xs font-semibold tabular-nums text-[#0b67b2]">{mapZoom}%</span>
+                </div>
+                <input
+                  id="map-zoom"
+                  type="range"
+                  min="70"
+                  max="160"
+                  step="5"
+                  value={mapZoom}
+                  disabled={!data.heatmapImageUrl}
+                  onChange={(event) => {
+                    setMapZoom(Number(event.target.value));
+                    setPreviewReady(false);
+                  }}
+                  className="h-2 w-full cursor-pointer accent-[#0b67b2] disabled:cursor-not-allowed disabled:opacity-50"
+                  data-testid="input-map-zoom"
+                />
+                <div className="mt-2 flex items-center justify-between gap-3 border-t border-gray-200 pt-2">
+                  <p className="flex items-center gap-1 text-[10px] leading-4 text-gray-500">
+                    <Move className="h-3 w-3" />
+                    {data.heatmapImageUrl ? "Drag the map in the preview to reposition it." : "Add a heatmap to enable map controls."}
+                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 shrink-0 px-2 text-[10px] text-[#0b67b2]"
+                    onClick={() => {
+                      setMapPosition({ x: 0, y: 0 });
                       setPreviewReady(false);
                     }}
-                    className="h-2 w-full cursor-pointer accent-[#0b67b2]"
-                    data-testid="input-map-zoom"
-                  />
-                  <div className="mt-2 flex items-center justify-between gap-3 border-t border-gray-200 pt-2">
-                    <p className="flex items-center gap-1 text-[10px] leading-4 text-gray-500">
-                      <Move className="h-3 w-3" /> Drag the map in the preview to reposition it.
-                    </p>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      className="h-7 shrink-0 px-2 text-[10px] text-[#0b67b2]"
-                      onClick={() => {
-                        setMapPosition({ x: 0, y: 0 });
-                        setPreviewReady(false);
-                      }}
-                      disabled={mapPosition.x === 0 && mapPosition.y === 0}
-                      data-testid="button-center-map"
-                    >
-                      Center map
-                    </Button>
-                  </div>
-                </section>
-              )}
+                    disabled={!data.heatmapImageUrl || (mapPosition.x === 0 && mapPosition.y === 0)}
+                    data-testid="button-center-map"
+                  >
+                    Center map
+                  </Button>
+                </div>
+              </section>
 
-              <section className={`space-y-3${data.heatmapImageUrl ? " border-t border-gray-100 pt-5" : ""}`}>
+              <section className="space-y-3 border-t border-gray-100 pt-5">
                 <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#0b67b2]">Business</p>
                 <FormField id="businessName" label="Business name" value={data.businessName} error={errors.businessName} needsReview={reviewFields.has("businessName")} placeholder="The Shower Glass" onChange={updateField} />
                 <FormField id="address" label="Address" value={data.address} error={errors.address} needsReview={reviewFields.has("address")} optional placeholder="8334 Pineville-Matthews Rd, Charlotte, NC" onChange={updateField} />

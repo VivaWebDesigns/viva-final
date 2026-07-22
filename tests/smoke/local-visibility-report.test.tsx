@@ -30,6 +30,9 @@ describe("LocalVisibilityReportPage", () => {
 
     expect(screen.getByLabelText("Grid size")).toHaveValue("7 × 7");
     expect(screen.getByLabelText("Radius (miles)")).toHaveValue(2.5);
+    expect(screen.getByTestId("map-controls")).toBeVisible();
+    expect(screen.getByTestId("input-map-zoom")).toBeDisabled();
+    expect(screen.getByText("Add a heatmap to enable map controls.")).toBeInTheDocument();
     expect(screen.getByTestId("button-copy-report")).toBeDisabled();
     expect(screen.getByTestId("button-download-report")).toBeDisabled();
   });
@@ -127,6 +130,7 @@ describe("LocalVisibilityReportPage", () => {
     const mapZoom = screen.getByTestId("input-map-zoom");
     const businessHeading = screen.getByText("Business");
     expect(screen.getByTestId("map-controls").nextElementSibling).toContainElement(businessHeading);
+    expect(mapZoom).toBeEnabled();
     expect(mapZoom).toHaveValue("100");
     expect(mapZoom).toHaveAttribute("min", "70");
     fireEvent.change(mapZoom, { target: { value: "125" } });
