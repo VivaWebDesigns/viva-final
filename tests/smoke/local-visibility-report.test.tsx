@@ -105,7 +105,7 @@ describe("LocalVisibilityReportPage", () => {
           radius: "8.0",
         },
         lowConfidenceFields: ["market"],
-        heatmapImageDataUrl: "data:image/png;base64,Y3JvcHBlZC1oZWF0bWFw",
+        heatmapImageDataUrl: "data:image/png;base64,aGVhdG1hcA==",
       }),
     } as Response);
 
@@ -125,7 +125,7 @@ describe("LocalVisibilityReportPage", () => {
     expect(screen.getByLabelText("Radius (miles)")).toHaveValue(8);
     expect(screen.getByText("Check this extracted value.")).toBeInTheDocument();
     const heatmap = screen.getByAltText("Uploaded Local Falcon ranking heatmap");
-    expect(heatmap).toHaveAttribute("src", "data:image/png;base64,Y3JvcHBlZC1oZWF0bWFw");
+    expect(heatmap).toHaveAttribute("src", "data:image/png;base64,aGVhdG1hcA==");
 
     const mapZoom = screen.getByTestId("input-map-zoom");
     const businessHeading = screen.getByText("Business");

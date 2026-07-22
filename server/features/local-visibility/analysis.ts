@@ -7,7 +7,6 @@ import { zodTextFormat } from "openai/helpers/zod";
 import sharp from "sharp";
 import { createWorker } from "tesseract.js";
 import { z } from "zod";
-import { cropHeatmapAroundGrid } from "./heatmap";
 
 export const visibilityFieldNames = [
   "businessName",
@@ -45,7 +44,7 @@ export const visibilityScreenshotAnalysisSchema = visibilityScreenshotExtraction
 });
 
 export type VisibilityScreenshotAnalysis = z.infer<typeof visibilityScreenshotAnalysisSchema>;
-type VisibilityScreenshotExtraction = z.infer<typeof visibilityScreenshotExtractionSchema>;
+export type VisibilityScreenshotExtraction = z.infer<typeof visibilityScreenshotExtractionSchema>;
 
 type ScreenshotInput = {
   buffer: Buffer;
@@ -291,10 +290,10 @@ async function analyzeWithOpenAI(
   return response.output_parsed;
 }
 
-async function addCroppedHeatmap(
+export function attachOriginalHeatmap(
   extraction: VisibilityScreenshotExtraction,
   screenshots: [ScreenshotInput, ScreenshotInput],
-): Promise<VisibilityScreenshotAnalysis> {
+): VisibilityScreenshotAnalysis {
   const heatmapIndex = extraction.heatmapImageIndex >= 0 && extraction.heatmapImageIndex <= 1
     ? extraction.heatmapImageIndex
     : extraction.reportImageIndex >= 0
@@ -302,16 +301,10 @@ async function addCroppedHeatmap(
       : -1;
   if (heatmapIndex < 0) return { ...extraction, heatmapImageDataUrl: null };
 
-  try {
-    const cropped = await cropHeatmapAroundGrid(screenshots[heatmapIndex].buffer);
-    return {
-      ...extraction,
-      heatmapImageDataUrl: cropped ? `data:image/png;base64,${cropped.buffer.toString("base64")}` : null,
-    };
-  } catch {
-    console.warn("[local-visibility] heatmap auto-crop failed; using original image");
-    return { ...extraction, heatmapImageDataUrl: null };
-  }
+  return {
+    ...extraction,
+    heatmapImageDataUrl: toDataUrl(screenshots[heatmapIndex]),
+  };
 }
 
 export async function analyzeVisibilityScreenshots(
@@ -323,11 +316,11 @@ export async function analyzeVisibilityScreenshots(
   if (apiKey) {
     try {
       extraction = await analyzeWithOpenAI(screenshots, userId, apiKey);
-      return addCroppedHeatmap(sanitizeExtraction(extraction), screenshots);
+      return attachOriginalHeatmap(sanitizeExtraction(extraction), screenshots);
     } catch {
       console.warn("[local-visibility] OpenAI extraction failed; using local OCR fallback");
     }
   }
   extraction = await enqueueLocalOcr(screenshots);
-  return addCroppedHeatmap(sanitizeExtraction(extraction), screenshots);
+  return attachOriginalHeatmap(sanitizeExtraction(extraction), screenshots);
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  attachOriginalHeatmap,
   parseVisibilityScanText,
   visibilityScreenshotAnalysisSchema,
 } from "../../server/features/local-visibility/analysis";
@@ -26,6 +27,32 @@ describe("local visibility screenshot analysis", () => {
 
     expect(result.fields.averagePosition).toBe("3.96");
     expect(result.lowConfidenceFields).toEqual(["market"]);
+  });
+
+  it("returns the identified heatmap unchanged", () => {
+    const heatmap = Buffer.from([0, 255, 12, 34, 56, 78]);
+    const result = attachOriginalHeatmap({
+      reportImageIndex: 0,
+      heatmapImageIndex: 1,
+      fields: {
+        businessName: null,
+        address: null,
+        rating: null,
+        reviewCount: null,
+        searchPhrase: null,
+        market: null,
+        averagePosition: null,
+        gridSize: null,
+        radius: null,
+      },
+      lowConfidenceFields: [],
+    }, [
+      { buffer: Buffer.from("report"), mimeType: "image/png" },
+      { buffer: heatmap, mimeType: "image/webp" },
+    ]);
+
+    expect(result.heatmapImageDataUrl).toBe(`data:image/webp;base64,${heatmap.toString("base64")}`);
+    expect(Buffer.from(result.heatmapImageDataUrl!.split(",")[1], "base64")).toEqual(heatmap);
   });
 
   it("parses the visible Local Falcon summary fields and uses ARP", () => {
