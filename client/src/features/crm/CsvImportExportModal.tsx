@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -12,7 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { Download, Upload, ChevronDown, CheckCircle2, AlertCircle, SkipForward } from "lucide-react";
+import { Download, Upload, ChevronDown, CheckCircle2, AlertCircle, SkipForward, Flag } from "lucide-react";
 import { useAdminLang } from "@/i18n/LanguageContext";
 
 interface ImportRowResult {
@@ -33,23 +34,44 @@ interface ImportResult {
 interface CsvImportModalProps {
   open: boolean;
   onClose: () => void;
-  defaultEntity?: "leads" | "contacts";
+  defaultEntity?: "local_falcon" | "leads" | "contacts";
 }
 
-export function CsvImportModal({ open, onClose, defaultEntity = "leads" }: CsvImportModalProps) {
+interface LocalFalconPreview {
+  batchId: string;
+  batchAlreadyImported: boolean;
+  newCount: number;
+  existingCount: number;
+  flaggedCount: number;
+  errorCount: number;
+  rows: Array<{
+    row: number;
+    placeId: string;
+    companyName: string;
+    outcome: "new" | "existing" | "flagged" | "error";
+    reason?: string;
+    matches?: Array<{ companyName: string; reasons: string[] }>;
+  }>;
+}
+
+export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }: CsvImportModalProps) {
   const { toast } = useToast();
   const { t } = useAdminLang();
   const queryClient = useQueryClient();
 
-  const [entityType, setEntityType] = useState<"leads" | "contacts">(defaultEntity);
+  const [entityType, setEntityType] = useState<"local_falcon" | "leads" | "contacts">(defaultEntity);
   const [file, setFile] = useState<File | null>(null);
-  const [phase, setPhase] = useState<"idle" | "loading" | "done">("idle");
+  const [fileText, setFileText] = useState("");
+  const [phase, setPhase] = useState<"idle" | "loading" | "preview" | "done">("idle");
   const [result, setResult] = useState<ImportResult | null>(null);
+  const [preview, setPreview] = useState<LocalFalconPreview | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFile(e.target.files?.[0] ?? null);
+    setFileText("");
     setResult(null);
+    setPreview(null);
     setImportError(null);
   };
 
@@ -59,6 +81,22 @@ export function CsvImportModal({ open, onClose, defaultEntity = "leads" }: CsvIm
     setImportError(null);
     try {
       const csvText = await file.text();
+      setFileText(csvText);
+      if (entityType === "local_falcon") {
+        const response = await fetch("/api/crm/leads/import-local-falcon/preview", {
+          method: "POST",
+          headers: { "Content-Type": "text/plain" },
+          credentials: "include",
+          body: csvText,
+        });
+        if (!response.ok) {
+          const err = await response.json();
+          throw new Error(err.message ?? "Preview failed");
+        }
+        setPreview(await response.json());
+        setPhase("preview");
+        return;
+      }
       const endpoint =
         entityType === "leads"
           ? "/api/crm/leads/import-csv"
@@ -89,9 +127,44 @@ export function CsvImportModal({ open, onClose, defaultEntity = "leads" }: CsvIm
     }
   };
 
+  const handleConfirmLocalFalcon = async () => {
+    if (!fileText) return;
+    setPhase("loading");
+    setImportError(null);
+    try {
+      const response = await fetch("/api/crm/leads/import-local-falcon/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        credentials: "include",
+        body: fileText,
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message ?? "Import failed");
+      setResult({
+        imported: data.imported,
+        skipped: data.existingCount,
+        errors: data.automationErrors,
+        details: [],
+      });
+      setPhase("done");
+      queryClient.invalidateQueries({ queryKey: ["/api/crm/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities/board"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      toast({
+        title: data.batchAlreadyImported ? "Batch already imported" : "Local Falcon import complete",
+        description: `${data.imported} leads · ${data.tasksCreated} New Lead tasks`,
+      });
+    } catch (err: any) {
+      setImportError(err.message ?? "Import failed");
+      setPhase("preview");
+    }
+  };
+
   const handleClose = () => {
     setFile(null);
+    setFileText("");
     setResult(null);
+    setPreview(null);
     setImportError(null);
     setPhase("idle");
     onClose();
@@ -99,7 +172,9 @@ export function CsvImportModal({ open, onClose, defaultEntity = "leads" }: CsvIm
 
   const resetForMore = () => {
     setFile(null);
+    setFileText("");
     setResult(null);
+    setPreview(null);
     setImportError(null);
     setPhase("idle");
   };
@@ -113,9 +188,18 @@ export function CsvImportModal({ open, onClose, defaultEntity = "leads" }: CsvIm
           </DialogTitle>
         </DialogHeader>
 
-        {phase !== "done" && (
+        {(phase === "idle" || phase === "loading") && (
           <div className="space-y-4 py-1">
             <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant={entityType === "local_falcon" ? "default" : "outline"}
+                onClick={() => { setEntityType("local_falcon"); setResult(null); setPreview(null); setImportError(null); }}
+                disabled={phase === "loading"}
+                data-testid="button-entity-local-falcon"
+              >
+                Local Falcon
+              </Button>
               <Button
                 size="sm"
                 variant={entityType === "leads" ? "default" : "outline"}
@@ -137,7 +221,13 @@ export function CsvImportModal({ open, onClose, defaultEntity = "leads" }: CsvIm
             </div>
 
             <div className="rounded-md bg-gray-50 dark:bg-gray-900 border p-3 text-xs text-gray-600 dark:text-gray-400 space-y-1.5">
-              {entityType === "leads" ? (
+              {entityType === "local_falcon" ? (
+                <>
+                  <p className="font-semibold text-gray-800 dark:text-gray-200">Qualified pursuit-board import</p>
+                  <p>Upload the strict Viva Local Falcon CSV or JSON export. Every accepted company enters the existing New Lead stage and receives its configured task.</p>
+                  <p className="text-amber-600 dark:text-amber-400">Place ID duplicates are rejected. Phone, domain, address, and similar-name matches are flagged for confirmation.</p>
+                </>
+              ) : entityType === "leads" ? (
                 <>
                   <p>
                     <span className="font-semibold text-gray-800 dark:text-gray-200">Required: </span>
@@ -177,7 +267,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "leads" }: CsvIm
               <Input
                 id="csv-file-input"
                 type="file"
-                accept=".csv,text/csv,text/plain"
+                accept={entityType === "local_falcon" ? ".csv,.json,text/csv,text/plain,application/json" : ".csv,text/csv,text/plain"}
                 onChange={handleFileChange}
                 className="mt-1.5"
                 disabled={phase === "loading"}
@@ -195,6 +285,38 @@ export function CsvImportModal({ open, onClose, defaultEntity = "leads" }: CsvIm
                 <AlertCircle className="w-4 h-4 flex-shrink-0" /> {importError}
               </p>
             )}
+          </div>
+        )}
+
+        {phase === "preview" && preview && (
+          <div className="py-1 space-y-4" data-testid="local-falcon-import-preview">
+            <div>
+              <p className="text-sm font-semibold">Batch {preview.batchId}</p>
+              {preview.batchAlreadyImported && <p className="text-sm text-amber-600">This exact batch was already imported. Confirming is a no-op.</p>}
+            </div>
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div className="rounded-lg bg-green-50 dark:bg-green-950/30 p-3"><p className="text-2xl font-bold text-green-600">{preview.newCount}</p><p className="text-xs text-gray-500">New</p></div>
+              <div className="rounded-lg bg-yellow-50 dark:bg-yellow-950/30 p-3"><p className="text-2xl font-bold text-yellow-600">{preview.flaggedCount}</p><p className="text-xs text-gray-500">Flagged</p></div>
+              <div className="rounded-lg bg-gray-100 dark:bg-gray-900 p-3"><p className="text-2xl font-bold text-gray-600">{preview.existingCount}</p><p className="text-xs text-gray-500">Existing</p></div>
+            </div>
+            {preview.rows.some((row) => row.outcome !== "new") && (
+              <ScrollArea className="h-56 rounded border">
+                <div className="p-3 space-y-3">
+                  {preview.rows.filter((row) => row.outcome !== "new").map((row) => (
+                    <div key={`${row.row}-${row.placeId}`} className="text-xs" data-testid={`local-falcon-preview-row-${row.row}`}>
+                      <div className="flex items-center gap-2">
+                        {row.outcome === "flagged" ? <Flag className="w-3.5 h-3.5 text-yellow-500" /> : <SkipForward className="w-3.5 h-3.5 text-gray-500" />}
+                        <span className="font-medium">{row.companyName}</span>
+                        <Badge variant="outline" className="text-[10px]">{row.outcome}</Badge>
+                      </div>
+                      {row.reason && <p className="ml-5 mt-1 text-gray-500">{row.reason}</p>}
+                      {row.matches?.map((match, index) => <p key={index} className="ml-5 mt-1 text-yellow-700">Possible match: {match.companyName} ({match.reasons.join(", ")})</p>)}
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            )}
+            {importError && <p className="text-sm text-red-600">{importError}</p>}
           </div>
         )}
 
@@ -269,6 +391,17 @@ export function CsvImportModal({ open, onClose, defaultEntity = "leads" }: CsvIm
               </Button>
               <Button onClick={handleClose} data-testid="button-import-done">
                 Done
+              </Button>
+            </>
+          ) : phase === "preview" ? (
+            <>
+              <Button variant="outline" onClick={resetForMore}>Choose another file</Button>
+              <Button
+                onClick={handleConfirmLocalFalcon}
+                disabled={preview?.batchAlreadyImported || ((preview?.newCount ?? 0) + (preview?.flaggedCount ?? 0) === 0)}
+                data-testid="button-confirm-local-falcon-import"
+              >
+                Confirm import to New Lead
               </Button>
             </>
           ) : (

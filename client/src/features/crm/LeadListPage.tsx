@@ -298,7 +298,11 @@ export default function LeadListPage() {
         )}
       </div>
 
-      <CsvImportModal open={showImportModal} onClose={() => setShowImportModal(false)} />
+      <CsvImportModal
+        open={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        defaultEntity={isAdmin ? "local_falcon" : "leads"}
+      />
       <CreateLeadModal open={showCreateModal} onClose={() => setShowCreateModal(false)} />
 
       <Card className="mb-4">
@@ -351,6 +355,7 @@ export default function LeadListPage() {
               <SelectItem value="paid_ads">Paid Ads</SelectItem>
               <SelectItem value="event">Event</SelectItem>
               <SelectItem value="manual">Manual</SelectItem>
+              <SelectItem value="local_falcon">Local Falcon / Claude</SelectItem>
               <SelectItem value="other">Other</SelectItem>
             </SelectContent>
           </Select>

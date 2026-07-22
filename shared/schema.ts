@@ -314,6 +314,57 @@ export const crmLeads = pgTable("crm_leads", {
   index("crm_leads_web_form_idx").on(t.fromWebsiteForm),
 ]);
 
+// A Local Falcon import is intentionally insert-only. Batch IDs make an exact
+// resubmission idempotent, while the one-to-one profile preserves the original
+// qualification snapshot that caused a company to enter the sales funnel.
+export const localFalconImportBatches = pgTable("local_falcon_import_batches", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  batchId: text("batch_id").notNull().unique(),
+  marketCity: text("market_city").notNull(),
+  marketState: text("market_state").notNull(),
+  trade: text("trade").notNull(),
+  keyword: text("keyword").notNull(),
+  scanDateStart: timestamp("scan_date_start"),
+  scanDateEnd: timestamp("scan_date_end"),
+  importDate: timestamp("import_date").notNull(),
+  importedBy: text("imported_by").references(() => user.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("lf_import_batches_created_idx").on(t.createdAt),
+  index("lf_import_batches_market_idx").on(t.marketState, t.marketCity),
+]);
+
+export const localFalconProspectProfiles = pgTable("local_falcon_prospect_profiles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  batchRecordId: varchar("batch_record_id").notNull().references(() => localFalconImportBatches.id),
+  leadId: varchar("lead_id").notNull().unique().references(() => crmLeads.id, { onDelete: "cascade" }),
+  placeId: text("place_id").notNull().unique(),
+  ownerName: text("owner_name"),
+  emailDomainType: text("email_domain_type"),
+  googleMapsUrl: text("google_maps_url").notNull(),
+  reportKey: text("report_key").notNull(),
+  scanDate: timestamp("scan_date").notNull(),
+  scanKeyword: text("scan_keyword").notNull(),
+  solv: numeric("solv").notNull(),
+  arp: numeric("arp").notNull(),
+  atrp: numeric("atrp").notNull(),
+  rating: numeric("rating").notNull(),
+  reviewCount: integer("review_count").notNull(),
+  footprintNote: text("footprint_note"),
+  websiteCondition: text("website_condition").notNull(),
+  tier: text("tier").notNull(),
+  pitchType: text("pitch_type").notNull(),
+  pitchSummary: text("pitch_summary").notNull(),
+  sosLookupDone: boolean("sos_lookup_done").notNull(),
+  sosEntityFound: boolean("sos_entity_found").notNull(),
+  licenseRecordFound: boolean("license_record_found").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("lf_profiles_batch_idx").on(t.batchRecordId),
+  index("lf_profiles_tier_idx").on(t.tier),
+  index("lf_profiles_pitch_type_idx").on(t.pitchType),
+]);
+
 export const LEAD_NOTE_TYPES = ["note", "call", "email", "task", "status_change", "system", "sms"] as const;
 export type LeadNoteType = typeof LEAD_NOTE_TYPES[number];
 
@@ -672,6 +723,16 @@ export const insertCrmLeadSchema = createInsertSchema(crmLeads).omit({ id: true,
 // @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
 export type InsertCrmLead = z.infer<typeof insertCrmLeadSchema>;
 export type CrmLead = typeof crmLeads.$inferSelect;
+
+export const insertLocalFalconImportBatchSchema = createInsertSchema(localFalconImportBatches).omit({ id: true, createdAt: true });
+// @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
+export type InsertLocalFalconImportBatch = z.infer<typeof insertLocalFalconImportBatchSchema>;
+export type LocalFalconImportBatch = typeof localFalconImportBatches.$inferSelect;
+
+export const insertLocalFalconProspectProfileSchema = createInsertSchema(localFalconProspectProfiles).omit({ id: true, createdAt: true });
+// @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
+export type InsertLocalFalconProspectProfile = z.infer<typeof insertLocalFalconProspectProfileSchema>;
+export type LocalFalconProspectProfile = typeof localFalconProspectProfiles.$inferSelect;
 
 export const insertCrmLeadNoteSchema = createInsertSchema(crmLeadNotes).omit({ id: true, createdAt: true });
 // @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless

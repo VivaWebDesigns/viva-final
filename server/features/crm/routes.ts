@@ -14,6 +14,12 @@ import {
   importLeadsFromCSV, importContactsFromCSV,
 } from "./csvImportExport";
 import {
+  getLocalFalconProfileForLead,
+  importLocalFalconPayload,
+  parseLocalFalconPayload,
+  previewLocalFalconImport,
+} from "./localFalconImport";
+import {
   insertCrmCompanySchema, insertCrmContactSchema, insertCrmLeadSchema,
   insertCrmLeadNoteSchema, insertCrmTagSchema, crmLeads, pipelineOpportunities,
 } from "@shared/schema";
@@ -350,6 +356,70 @@ router.post(
   }
 );
 
+router.post(
+  "/leads/import-local-falcon/preview",
+  requireRole("admin", "developer"),
+  express.text({ type: ["text/plain", "text/csv", "application/octet-stream"], limit: "5mb" }),
+  async (req, res) => {
+    try {
+      if (typeof req.body !== "string" || !req.body.trim()) {
+        return res.status(400).json({ message: "Request body must be a non-empty CSV or JSON file" });
+      }
+      const payload = parseLocalFalconPayload(req.body);
+      res.json(await previewLocalFalconImport(payload));
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+);
+
+router.post(
+  "/leads/import-local-falcon/confirm",
+  requireRole("admin", "developer"),
+  express.text({ type: ["text/plain", "text/csv", "application/octet-stream"], limit: "5mb" }),
+  async (req, res) => {
+    try {
+      if (typeof req.body !== "string" || !req.body.trim()) {
+        return res.status(400).json({ message: "Request body must be a non-empty CSV or JSON file" });
+      }
+      const payload = parseLocalFalconPayload(req.body);
+      const result = await importLocalFalconPayload(payload, req.authUser!.id);
+      let tasksCreated = 0;
+      let automationErrors = 0;
+      for (const imported of result.importedLeads) {
+        const automation = await executeStageAutomations({
+          opportunityId: imported.opportunityId,
+          leadId: imported.leadId,
+          contactId: imported.contactId,
+          companyId: imported.companyId,
+          assignedTo: null,
+          stageSlug: "new-lead",
+          actorId: req.authUser!.id,
+        });
+        tasksCreated += automation.tasksCreated;
+        automationErrors += automation.errors;
+      }
+      await logAudit({
+        userId: req.authUser?.id,
+        action: "import",
+        entity: "local_falcon_batch",
+        entityId: result.batchId,
+        metadata: {
+          imported: result.imported,
+          existing: result.existingCount,
+          flagged: result.flaggedCount,
+          tasksCreated,
+          automationErrors,
+        },
+        ipAddress: req.ip,
+      });
+      res.json({ ...result, tasksCreated, automationErrors });
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+);
+
 // ── Manual Lead Creation ─────────────────────────────────────────────
 
 const US_STATE_TIMEZONES: Record<string, string> = {
@@ -550,7 +620,9 @@ router.get("/leads/:id", requireRole("admin", "developer", "sales_rep", "lead_ge
   if (isRestricted(req) && lead.assignedTo !== req.authUser!.id) {
     return res.status(403).json({ message: "Access denied" });
   }
-  res.json(stripSensitiveLeadFields(lead, req));
+  const [enriched] = await crmStorage.enrichLeads([lead]);
+  const localFalcon = await getLocalFalconProfileForLead(id);
+  res.json({ ...stripSensitiveLeadFields(enriched, req), localFalcon });
 });
 
 router.put("/leads/:id", requireRole("admin", "developer", "sales_rep", "lead_gen"), async (req, res) => {

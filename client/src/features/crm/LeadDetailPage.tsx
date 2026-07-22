@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/select";
 import { queryClient, apiRequest, STALE } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { CrmLead, CrmLeadStatus, CrmContact, CrmCompany, CrmLeadNote, CrmTag, PipelineStage, FollowupTask, PipelineOpportunity, DemoConfig } from "@shared/schema";
+import type { CrmLead, CrmLeadStatus, CrmContact, CrmCompany, CrmLeadNote, CrmTag, PipelineStage, FollowupTask, PipelineOpportunity, DemoConfig, LocalFalconImportBatch, LocalFalconProspectProfile } from "@shared/schema";
 import { formatPhoneDisplay } from "@shared/phone";
 import QuickTaskModal, { formatTaskTimeDisplay } from "@/components/QuickTaskModal";
 import CompleteTaskModal from "@/components/CompleteTaskModal";
@@ -43,6 +43,7 @@ interface LeadDetail extends CrmLead {
   contact?: CrmContact | null;
   company?: CrmCompany | null;
   status?: CrmLeadStatus | null;
+  localFalcon?: { profile: LocalFalconProspectProfile; batch: LocalFalconImportBatch } | null;
 }
 
 const NOTE_TYPE_ICONS: Record<string, any> = {
@@ -765,6 +766,73 @@ export default function LeadDetailPage({ id }: { id: string }) {
               </div>
             )}
           </Card>
+
+          {lead.localFalcon && (
+            <Card className="p-5" data-testid="card-local-falcon-profile">
+              <div className="flex items-start justify-between gap-4 mb-4">
+                <div>
+                  <h2 className="font-semibold text-gray-900">Local Falcon Qualification</h2>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Write-once snapshot from batch {lead.localFalcon.batch.batchId}
+                  </p>
+                </div>
+                <Badge className="text-sm">Tier {lead.localFalcon.profile.tier}</Badge>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+                {[
+                  ["SoLV", lead.localFalcon.profile.solv],
+                  ["ARP", lead.localFalcon.profile.arp],
+                  ["ATRP", lead.localFalcon.profile.atrp],
+                  ["Reviews", `${lead.localFalcon.profile.rating} · ${lead.localFalcon.profile.reviewCount}`],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-lg bg-gray-50 dark:bg-gray-900 p-3">
+                    <p className="text-xs text-gray-500">{label}</p>
+                    <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">{value}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-xs text-gray-500">Pitch type</p>
+                  <p className="font-medium text-gray-900">{lead.localFalcon.profile.pitchType}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Website condition</p>
+                  <p className="font-medium text-gray-900 capitalize">{lead.localFalcon.profile.websiteCondition}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Owner</p>
+                  <p className="text-gray-900">{lead.localFalcon.profile.ownerName || "Not identified"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Email domain</p>
+                  <p className="text-gray-900 capitalize">{lead.localFalcon.profile.emailDomainType || "Not available"}</p>
+                </div>
+                <div className="sm:col-span-2">
+                  <p className="text-xs text-gray-500">Pitch summary</p>
+                  <p className="text-gray-900 whitespace-pre-wrap">{lead.localFalcon.profile.pitchSummary}</p>
+                </div>
+                {lead.localFalcon.profile.footprintNote && (
+                  <div className="sm:col-span-2">
+                    <p className="text-xs text-gray-500">Visibility footprint</p>
+                    <p className="text-gray-900 whitespace-pre-wrap">{lead.localFalcon.profile.footprintNote}</p>
+                  </div>
+                )}
+                <div className="sm:col-span-2 flex flex-wrap gap-x-4 gap-y-2 text-xs text-gray-600">
+                  <span>SoS lookup: {lead.localFalcon.profile.sosLookupDone ? "done" : "not done"}</span>
+                  <span>Entity found: {lead.localFalcon.profile.sosEntityFound ? "yes" : "no"}</span>
+                  <span>License found: {lead.localFalcon.profile.licenseRecordFound ? "yes" : "no"}</span>
+                </div>
+                <div className="sm:col-span-2 flex flex-wrap gap-3">
+                  <a href={lead.localFalcon.profile.googleMapsUrl ?? "#"} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">Google Maps</a>
+                  <span className="text-gray-500">Report: {lead.localFalcon.profile.reportKey}</span>
+                  <span className="text-gray-500">Place ID: {lead.localFalcon.profile.placeId}</span>
+                </div>
+              </div>
+            </Card>
+          )}
 
           {(lead.utmSource || lead.utmMedium || lead.utmCampaign || lead.referrer || lead.landingPage || lead.formPageUrl) && (
             <Card className="p-5">
