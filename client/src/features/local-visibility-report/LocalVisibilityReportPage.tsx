@@ -17,7 +17,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@features/auth/useAuth";
 import LocalVisibilityReportTemplate, { type MapPosition } from "./LocalVisibilityReportTemplate";
 import {
   DEFAULT_LOCAL_VISIBILITY_REPORT,
@@ -141,6 +145,15 @@ type LocalVisibilityReportPageProps = {
   initialData?: LocalVisibilityReportData;
 };
 
+type ProspectOption = {
+  leadId: string;
+  businessName: string | null;
+  city: string | null;
+  state: string | null;
+  keyword: string;
+  scanDate: string;
+};
+
 export default function LocalVisibilityReportPage({ initialData }: LocalVisibilityReportPageProps = {}) {
   const [data, setData] = useState<LocalVisibilityReportData>(() => initialData ?? DEFAULT_LOCAL_VISIBILITY_REPORT);
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -154,12 +167,47 @@ export default function LocalVisibilityReportPage({ initialData }: LocalVisibili
   const [reviewFields, setReviewFields] = useState<Set<ExtractableVisibilityField>>(new Set());
   const [mapZoom, setMapZoom] = useState(100);
   const [mapPosition, setMapPosition] = useState<MapPosition>({ x: 0, y: 0 });
+  const [selectedProspectId, setSelectedProspectId] = useState("");
+  const [isLoadingProspect, setIsLoadingProspect] = useState(false);
+  const [prospectOptions, setProspectOptions] = useState<ProspectOption[]>([]);
   const previewViewportRef = useRef<HTMLDivElement>(null);
   const reportRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const smartPasteInputRef = useRef<HTMLInputElement>(null);
   const lastAnalyzedSignatureRef = useRef("");
   const { toast } = useToast();
+  const { role } = useAuth();
+
+  useEffect(() => {
+    if (!role) return;
+    let cancelled = false;
+    fetch("/api/local-visibility/prospects", { credentials: "include" })
+      .then(async (response) => response.ok ? response.json() : [])
+      .then((rows) => { if (!cancelled) setProspectOptions(Array.isArray(rows) ? rows : []); })
+      .catch(() => { if (!cancelled) setProspectOptions([]); });
+    return () => { cancelled = true; };
+  }, [role]);
+
+  const loadProspect = async (leadId: string) => {
+    setSelectedProspectId(leadId);
+    setIsLoadingProspect(true);
+    try {
+      const response = await fetch(`/api/local-visibility/prospects/${encodeURIComponent(leadId)}`, { credentials: "include" });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.message ?? "Could not load prospect");
+      setData({ ...body.data, gridSize: normalizeGridSize(body.data.gridSize) });
+      setErrors({});
+      setReviewFields(new Set());
+      setMapZoom(100);
+      setMapPosition({ x: 0, y: 0 });
+      setPreviewReady(false);
+      toast({ title: "Prospect loaded", description: `${body.data.businessName} is ready to review.` });
+    } catch (error: any) {
+      toast({ title: "Could not load prospect", description: error.message, variant: "destructive" });
+    } finally {
+      setIsLoadingProspect(false);
+    }
+  };
 
   const measurePreview = useCallback(() => {
     const width = previewViewportRef.current?.clientWidth ?? 0;
@@ -440,6 +488,7 @@ export default function LocalVisibilityReportPage({ initialData }: LocalVisibili
     setReviewFields(new Set());
     setMapZoom(100);
     setMapPosition({ x: 0, y: 0 });
+    setSelectedProspectId("");
     lastAnalyzedSignatureRef.current = "";
     if (fileInputRef.current) fileInputRef.current.value = "";
     if (smartPasteInputRef.current) smartPasteInputRef.current.value = "";
@@ -490,7 +539,27 @@ export default function LocalVisibilityReportPage({ initialData }: LocalVisibili
             </div>
 
             <form className="space-y-5 p-5" onSubmit={(event) => { event.preventDefault(); generatePreview(); }}>
-              <section className="space-y-3">
+              <section className="space-y-3 rounded-xl border border-blue-200 bg-blue-50/60 p-3">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#0b67b2]">Load from CRM prospect</p>
+                  <p className="mt-1 text-xs leading-5 text-gray-500">Loads the assigned lead's qualification evidence and original heatmap without OCR.</p>
+                </div>
+                <Select value={selectedProspectId} onValueChange={(value) => void loadProspect(value)} disabled={isLoadingProspect || prospectOptions.length === 0}>
+                  <SelectTrigger data-testid="select-local-visibility-prospect">
+                    <SelectValue placeholder={prospectOptions.length ? "Select a prospect" : "No imported prospects available"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {prospectOptions.map((prospect) => (
+                      <SelectItem key={prospect.leadId} value={prospect.leadId}>
+                        {prospect.businessName || "Unnamed prospect"} · {[prospect.city, prospect.state].filter(Boolean).join(", ")}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {isLoadingProspect && <p className="flex items-center gap-1 text-xs text-[#0b67b2]"><Loader2 className="h-3 w-3 animate-spin" />Loading evidence…</p>}
+              </section>
+
+              {role !== "sales_rep" && <section className="space-y-3">
                 <div>
                   <div className="flex items-center gap-2">
                     <Sparkles className="h-4 w-4 text-[#0b67b2]" />
@@ -591,7 +660,7 @@ export default function LocalVisibilityReportPage({ initialData }: LocalVisibili
                   </div>
                 )}
                 <p className="text-[10px] leading-4 text-gray-400">Screenshots are processed securely and are not attached to or saved in Viva records.</p>
-              </section>
+              </section>}
 
               <div className="border-t border-gray-100" />
               <section className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5" data-testid="map-controls">

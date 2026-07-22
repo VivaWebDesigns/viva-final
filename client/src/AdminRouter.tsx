@@ -186,7 +186,7 @@ export default function AdminRouter() {
               </ProtectedRoute>
             </Route>
             <Route path="/admin/tools/local-visibility-report">
-              <ProtectedRoute roles={["admin", "developer"]}>
+              <ProtectedRoute roles={["admin", "developer", "sales_rep"]}>
                 <LocalVisibilityReportPage />
               </ProtectedRoute>
             </Route>

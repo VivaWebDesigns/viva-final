@@ -1,10 +1,13 @@
-import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useRef, useState, type DragEvent } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
@@ -12,16 +15,17 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
-import { Download, Upload, ChevronDown, CheckCircle2, AlertCircle, SkipForward, Flag } from "lucide-react";
+import {
+  AlertCircle, Archive, CheckCircle2, ChevronDown, Download, Flag, ImagePlus, SkipForward, Upload, UploadCloud,
+} from "lucide-react";
 import { useAdminLang } from "@/i18n/LanguageContext";
+import LocalVisibilityReportTemplate from "@features/local-visibility-report/LocalVisibilityReportTemplate";
+import type { LocalVisibilityReportData } from "@features/local-visibility-report/types";
 
 interface ImportRowResult {
   row: number;
   status: "imported" | "skipped" | "error";
   reason?: string;
-  id?: string;
-  name?: string;
 }
 
 interface ImportResult {
@@ -37,42 +41,120 @@ interface CsvImportModalProps {
   defaultEntity?: "local_falcon" | "leads" | "contacts";
 }
 
+interface AssignableUser {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+}
+
+interface LocalFalconPreviewRow {
+  row: number;
+  placeId: string;
+  companyName: string;
+  address: string;
+  heatmapFile: string;
+  heatmapPreviewDataUrl: string | null;
+  reportData: LocalVisibilityReportData;
+  outcome: "new" | "existing" | "flagged";
+  reason?: string;
+  matches?: Array<{ companyName: string; reasons: string[] }>;
+}
+
 interface LocalFalconPreview {
   batchId: string;
+  market: { city: string; state: string };
+  trade: string;
+  keyword: string;
+  scanSpec: { grid_size: string; radius_miles: number };
   batchAlreadyImported: boolean;
   newCount: number;
   existingCount: number;
   flaggedCount: number;
-  errorCount: number;
-  rows: Array<{
-    row: number;
-    placeId: string;
-    companyName: string;
-    outcome: "new" | "existing" | "flagged" | "error";
-    reason?: string;
-    matches?: Array<{ companyName: string; reasons: string[] }>;
-  }>;
+  rows: LocalFalconPreviewRow[];
+}
+
+function FramedReportPreview({ data }: { data: LocalVisibilityReportData }) {
+  return (
+    <div className="h-[480px] w-[270px] overflow-hidden rounded-lg border bg-white shadow-sm" aria-label="Final report framing preview">
+      <div className="h-[1920px] w-[1080px] origin-top-left scale-[0.25] pointer-events-none">
+        <LocalVisibilityReportTemplate data={data} />
+      </div>
+    </div>
+  );
 }
 
 export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }: CsvImportModalProps) {
   const { toast } = useToast();
   const { t } = useAdminLang();
   const queryClient = useQueryClient();
+  const packageInputRef = useRef<HTMLInputElement>(null);
+  const heatmapInputRef = useRef<HTMLInputElement>(null);
 
   const [entityType, setEntityType] = useState<"local_falcon" | "leads" | "contacts">(defaultEntity);
   const [file, setFile] = useState<File | null>(null);
-  const [fileText, setFileText] = useState("");
+  const [heatmapFiles, setHeatmapFiles] = useState<File[]>([]);
   const [phase, setPhase] = useState<"idle" | "loading" | "preview" | "done">("idle");
   const [result, setResult] = useState<ImportResult | null>(null);
   const [preview, setPreview] = useState<LocalFalconPreview | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
+  const [assignedTo, setAssignedTo] = useState("");
+  const [approvedFlagged, setApprovedFlagged] = useState<Set<string>>(new Set());
+  const [confirmedPreviews, setConfirmedPreviews] = useState<Set<string>>(new Set());
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFile(e.target.files?.[0] ?? null);
-    setFileText("");
+  const { data: assignableUsers = [] } = useQuery<AssignableUser[]>({
+    queryKey: ["/api/crm/leads/assignable-users"],
+    enabled: open && entityType === "local_falcon",
+  });
+  const salesReps = assignableUsers.filter((user) => user.role === "sales_rep");
+
+  const clearImportState = () => {
+    setFile(null);
+    setHeatmapFiles([]);
     setResult(null);
     setPreview(null);
     setImportError(null);
+    setAssignedTo("");
+    setApprovedFlagged(new Set());
+    setConfirmedPreviews(new Set());
+    setPhase("idle");
+  };
+
+  const setPrimaryFile = (nextFile: File | null) => {
+    setFile(nextFile);
+    if (nextFile?.name.toLowerCase().endsWith(".zip")) setHeatmapFiles([]);
+    setPreview(null);
+    setResult(null);
+    setImportError(null);
+  };
+
+  const addHeatmaps = (files: File[]) => {
+    const images = files.filter((candidate) => /^image\/(png|jpeg|webp)$/.test(candidate.type) || /\.(png|jpe?g|webp)$/i.test(candidate.name));
+    setHeatmapFiles((current) => {
+      const byName = new Map(current.map((item) => [item.name, item]));
+      images.forEach((item) => byName.set(item.name, item));
+      return [...byName.values()];
+    });
+    setImportError(null);
+  };
+
+  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    if (phase === "loading") return;
+    const dropped = Array.from(event.dataTransfer.files);
+    const primary = dropped.find((candidate) => /\.(zip|json)$/i.test(candidate.name));
+    if (primary) setPrimaryFile(primary);
+    const images = dropped.filter((candidate) => /\.(png|jpe?g|webp)$/i.test(candidate.name));
+    if (images.length) addHeatmaps(images);
+    if (!primary && !images.length) setImportError("Drop a ZIP package, JSON manifest, or supported heatmap image.");
+  };
+
+  const buildPackageForm = () => {
+    if (!file) throw new Error("Choose a package first");
+    const form = new FormData();
+    form.append("package", file);
+    heatmapFiles.forEach((heatmap) => form.append("heatmaps", heatmap, heatmap.name));
+    return form;
   };
 
   const handleImport = async () => {
@@ -80,343 +162,241 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
     setPhase("loading");
     setImportError(null);
     try {
-      const csvText = await file.text();
-      setFileText(csvText);
       if (entityType === "local_falcon") {
         const response = await fetch("/api/crm/leads/import-local-falcon/preview", {
           method: "POST",
-          headers: { "Content-Type": "text/plain" },
           credentials: "include",
-          body: csvText,
+          body: buildPackageForm(),
         });
-        if (!response.ok) {
-          const err = await response.json();
-          throw new Error(err.message ?? "Preview failed");
-        }
-        setPreview(await response.json());
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.message ?? "Preview failed");
+        setPreview(body);
+        setApprovedFlagged(new Set());
+        setConfirmedPreviews(new Set());
         setPhase("preview");
         return;
       }
-      const endpoint =
-        entityType === "leads"
-          ? "/api/crm/leads/import-csv"
-          : "/api/crm/contacts/import-csv";
+
+      const csvText = await file.text();
+      const endpoint = entityType === "leads" ? "/api/crm/leads/import-csv" : "/api/crm/contacts/import-csv";
       const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "text/plain" },
         credentials: "include",
         body: csvText,
       });
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.message ?? "Import failed");
-      }
-      const data: ImportResult = await response.json();
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message ?? "Import failed");
       setResult(data);
       setPhase("done");
-      if (entityType === "leads") {
-        queryClient.invalidateQueries({ queryKey: ["/api/crm/leads"] });
-      }
-      toast({
-        title: "Import complete",
-        description: `${data.imported} imported · ${data.skipped} skipped · ${data.errors} errors`,
-      });
-    } catch (err: any) {
-      setImportError(err.message ?? "Import failed");
+      if (entityType === "leads") queryClient.invalidateQueries({ queryKey: ["/api/crm/leads"] });
+      toast({ title: "Import complete", description: `${data.imported} imported · ${data.skipped} skipped · ${data.errors} errors` });
+    } catch (error: any) {
+      setImportError(error.message ?? "Import failed");
       setPhase("idle");
     }
   };
 
   const handleConfirmLocalFalcon = async () => {
-    if (!fileText) return;
+    if (!preview || !assignedTo) return;
     setPhase("loading");
     setImportError(null);
     try {
+      const form = buildPackageForm();
+      form.append("assignedTo", assignedTo);
+      form.append("approvedFlaggedPlaceIds", JSON.stringify([...approvedFlagged]));
       const response = await fetch("/api/crm/leads/import-local-falcon/confirm", {
         method: "POST",
-        headers: { "Content-Type": "text/plain" },
         credentials: "include",
-        body: fileText,
+        body: form,
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message ?? "Import failed");
-      setResult({
-        imported: data.imported,
-        skipped: data.existingCount,
-        errors: data.automationErrors,
-        details: [],
-      });
+      setResult({ imported: data.imported, skipped: data.existingCount + data.flaggedCount - approvedFlagged.size, errors: data.automationErrors, details: [] });
       setPhase("done");
       queryClient.invalidateQueries({ queryKey: ["/api/crm/leads"] });
       queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities/board"] });
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      toast({
-        title: data.batchAlreadyImported ? "Batch already imported" : "Local Falcon import complete",
-        description: `${data.imported} leads · ${data.tasksCreated} New Lead tasks`,
-      });
-    } catch (err: any) {
-      setImportError(err.message ?? "Import failed");
+      queryClient.invalidateQueries({ queryKey: ["/api/local-visibility/prospects"] });
+      toast({ title: "Local Falcon import complete", description: `${data.imported} assigned leads · ${data.tasksCreated} Contact Lead tasks` });
+    } catch (error: any) {
+      setImportError(error.message ?? "Import failed");
       setPhase("preview");
     }
   };
 
   const handleClose = () => {
-    setFile(null);
-    setFileText("");
-    setResult(null);
-    setPreview(null);
-    setImportError(null);
-    setPhase("idle");
+    clearImportState();
     onClose();
   };
 
-  const resetForMore = () => {
-    setFile(null);
-    setFileText("");
-    setResult(null);
-    setPreview(null);
-    setImportError(null);
-    setPhase("idle");
+  const toggleSet = (setter: React.Dispatch<React.SetStateAction<Set<string>>>, id: string, checked: boolean) => {
+    setter((current) => {
+      const next = new Set(current);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
   };
 
+  const includedRows = preview?.rows.filter((row) => row.outcome === "new" || (row.outcome === "flagged" && approvedFlagged.has(row.placeId))) ?? [];
+  const everyIncludedPreviewConfirmed = includedRows.length > 0 && includedRows.every((row) => confirmedPreviews.has(row.placeId));
+  const isJsonPackage = file?.name.toLowerCase().endsWith(".json");
+
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
-      <DialogContent className="sm:max-w-xl max-h-[90dvh] overflow-y-auto" data-testid="csv-import-modal">
+    <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && handleClose()}>
+      <DialogContent className="max-h-[94dvh] overflow-y-auto sm:max-w-6xl" data-testid="csv-import-modal">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Upload className="w-4 h-4" /> {t.crm.importCsv}
-          </DialogTitle>
+          <DialogTitle className="flex items-center gap-2"><Upload className="h-4 w-4" /> Import prospects</DialogTitle>
         </DialogHeader>
 
         {(phase === "idle" || phase === "loading") && (
           <div className="space-y-4 py-1">
             <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant={entityType === "local_falcon" ? "default" : "outline"}
-                onClick={() => { setEntityType("local_falcon"); setResult(null); setPreview(null); setImportError(null); }}
-                disabled={phase === "loading"}
-                data-testid="button-entity-local-falcon"
-              >
-                Local Falcon
-              </Button>
-              <Button
-                size="sm"
-                variant={entityType === "leads" ? "default" : "outline"}
-                onClick={() => { setEntityType("leads"); setResult(null); setImportError(null); }}
-                disabled={phase === "loading"}
-                data-testid="button-entity-leads"
-              >
-                Leads
-              </Button>
-              <Button
-                size="sm"
-                variant={entityType === "contacts" ? "default" : "outline"}
-                onClick={() => { setEntityType("contacts"); setResult(null); setImportError(null); }}
-                disabled={phase === "loading"}
-                data-testid="button-entity-contacts"
-              >
-                Contacts
-              </Button>
+              {(["local_falcon", "leads", "contacts"] as const).map((type) => (
+                <Button
+                  key={type}
+                  size="sm"
+                  variant={entityType === type ? "default" : "outline"}
+                  disabled={phase === "loading"}
+                  onClick={() => { setEntityType(type); clearImportState(); }}
+                  data-testid={`button-entity-${type.replace("_", "-")}`}
+                >
+                  {type === "local_falcon" ? "Local Falcon" : type === "leads" ? "Leads" : "Contacts"}
+                </Button>
+              ))}
             </div>
 
-            <div className="rounded-md bg-gray-50 dark:bg-gray-900 border p-3 text-xs text-gray-600 dark:text-gray-400 space-y-1.5">
-              {entityType === "local_falcon" ? (
-                <>
-                  <p className="font-semibold text-gray-800 dark:text-gray-200">Qualified pursuit-board import</p>
-                  <p>Upload the strict Viva Local Falcon CSV or JSON export. Every accepted company enters the existing New Lead stage and receives its configured task.</p>
-                  <p className="text-amber-600 dark:text-amber-400">Place ID duplicates are rejected. Phone, domain, address, and similar-name matches are flagged for confirmation.</p>
-                </>
-              ) : entityType === "leads" ? (
-                <>
-                  <p>
-                    <span className="font-semibold text-gray-800 dark:text-gray-200">Required: </span>
-                    <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">title</code>
-                  </p>
-                  <p>
-                    <span className="font-semibold text-gray-800 dark:text-gray-200">Optional: </span>
-                    <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">
-                      trade, source, value, notes, contact_first_name, contact_last_name, contact_email, contact_phone, company_name, company_website
-                    </code>
-                  </p>
-                  <p className="text-gray-500">
-                    Contacts and companies are matched by email/phone/name and reused or created automatically.
-                  </p>
-                </>
-              ) : (
-                <>
-                  <p>
-                    <span className="font-semibold text-gray-800 dark:text-gray-200">Required: </span>
-                    <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">first_name</code>
-                  </p>
-                  <p>
-                    <span className="font-semibold text-gray-800 dark:text-gray-200">Optional: </span>
-                    <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">
-                      last_name, email, phone, alt_phone, title, company_name, preferred_language, notes
-                    </code>
-                  </p>
-                  <p className="text-amber-600 dark:text-amber-400">
-                    Rows with a duplicate email are skipped, not updated.
-                  </p>
-                </>
-              )}
-            </div>
-
-            <div>
-              <Label htmlFor="csv-file-input">CSV file (max 5 MB)</Label>
-              <Input
-                id="csv-file-input"
-                type="file"
-                accept={entityType === "local_falcon" ? ".csv,.json,text/csv,text/plain,application/json" : ".csv,text/csv,text/plain"}
-                onChange={handleFileChange}
-                className="mt-1.5"
-                disabled={phase === "loading"}
-                data-testid="input-csv-file"
-              />
-              {file && (
-                <p className="text-xs text-gray-500 mt-1">
-                  {file.name} · {(file.size / 1024).toFixed(1)} KB
-                </p>
-              )}
-            </div>
-
-            {importError && (
-              <p className="text-sm text-red-600 flex items-center gap-1.5" data-testid="text-import-error">
-                <AlertCircle className="w-4 h-4 flex-shrink-0" /> {importError}
-              </p>
+            {entityType === "local_falcon" ? (
+              <>
+                <div className="rounded-md border bg-slate-50 p-3 text-sm text-slate-600">
+                  <p className="font-semibold text-slate-900">Qualified Local Falcon package</p>
+                  <p className="mt-1">Preferred: one ZIP containing canonical <code>batch.json</code> and original files in <code>heatmaps/</code>. You may also provide the JSON and heatmaps separately.</p>
+                </div>
+                <div
+                  className="flex min-h-44 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-white p-6 text-center transition hover:border-blue-500 hover:bg-blue-50/40"
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={handleDrop}
+                  onClick={() => packageInputRef.current?.click()}
+                  data-testid="local-falcon-package-dropzone"
+                >
+                  <UploadCloud className="mb-3 h-9 w-9 text-blue-600" />
+                  <p className="font-semibold text-slate-900">Drop a ZIP package or JSON manifest here</p>
+                  <p className="mt-1 text-sm text-slate-500">or click to browse</p>
+                  <Input
+                    ref={packageInputRef}
+                    type="file"
+                    accept=".zip,.json,application/zip,application/json"
+                    className="hidden"
+                    onChange={(event) => setPrimaryFile(event.target.files?.[0] ?? null)}
+                    data-testid="input-csv-file"
+                  />
+                </div>
+                {file && (
+                  <div className="flex items-center gap-3 rounded-lg border p-3 text-sm">
+                    <Archive className="h-5 w-5 text-blue-600" />
+                    <div><p className="font-medium">{file.name}</p><p className="text-xs text-slate-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p></div>
+                  </div>
+                )}
+                {isJsonPackage && (
+                  <div
+                    className="rounded-lg border border-dashed p-4"
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={(event) => { event.preventDefault(); addHeatmaps(Array.from(event.dataTransfer.files)); }}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2"><ImagePlus className="h-5 w-5 text-blue-600" /><div><p className="text-sm font-medium">Add referenced heatmaps</p><p className="text-xs text-slate-500">Drop the original PNG, JPG, or WebP files here.</p></div></div>
+                      <Button type="button" variant="outline" size="sm" onClick={() => heatmapInputRef.current?.click()}>Choose images</Button>
+                    </div>
+                    <Input ref={heatmapInputRef} type="file" accept="image/png,image/jpeg,image/webp" multiple className="hidden" onChange={(event) => addHeatmaps(Array.from(event.target.files ?? []))} />
+                    {heatmapFiles.length > 0 && <p className="mt-3 text-xs text-green-700">{heatmapFiles.length} heatmap{heatmapFiles.length === 1 ? "" : "s"} selected</p>}
+                  </div>
+                )}
+              </>
+            ) : (
+              <div>
+                <Label htmlFor="csv-file-input">CSV file (max 5 MB)</Label>
+                <Input id="csv-file-input" type="file" accept=".csv,text/csv,text/plain" onChange={(event) => setPrimaryFile(event.target.files?.[0] ?? null)} className="mt-1.5" disabled={phase === "loading"} data-testid="input-csv-file" />
+              </div>
             )}
+            {importError && <p className="flex items-center gap-2 text-sm text-red-600"><AlertCircle className="h-4 w-4" />{importError}</p>}
           </div>
         )}
 
         {phase === "preview" && preview && (
-          <div className="py-1 space-y-4" data-testid="local-falcon-import-preview">
-            <div>
-              <p className="text-sm font-semibold">Batch {preview.batchId}</p>
-              {preview.batchAlreadyImported && <p className="text-sm text-amber-600">This exact batch was already imported. Confirming is a no-op.</p>}
+          <div className="space-y-5" data-testid="local-falcon-import-preview">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div><p className="font-semibold">Batch {preview.batchId}</p><p className="text-sm text-slate-500">{preview.market.city}, {preview.market.state} · {preview.trade} · {preview.keyword} · {preview.scanSpec.grid_size} / {preview.scanSpec.radius_miles} miles</p></div>
+              <div className="flex gap-2 text-center text-xs">
+                <Badge className="bg-green-100 text-green-700">{preview.newCount} new</Badge>
+                <Badge className="bg-yellow-100 text-yellow-700">{preview.flaggedCount} flagged</Badge>
+                <Badge variant="secondary">{preview.existingCount} existing</Badge>
+              </div>
             </div>
-            <div className="grid grid-cols-3 gap-3 text-center">
-              <div className="rounded-lg bg-green-50 dark:bg-green-950/30 p-3"><p className="text-2xl font-bold text-green-600">{preview.newCount}</p><p className="text-xs text-gray-500">New</p></div>
-              <div className="rounded-lg bg-yellow-50 dark:bg-yellow-950/30 p-3"><p className="text-2xl font-bold text-yellow-600">{preview.flaggedCount}</p><p className="text-xs text-gray-500">Flagged</p></div>
-              <div className="rounded-lg bg-gray-100 dark:bg-gray-900 p-3"><p className="text-2xl font-bold text-gray-600">{preview.existingCount}</p><p className="text-xs text-gray-500">Existing</p></div>
+
+            <div className="grid gap-2 md:grid-cols-[180px_1fr] md:items-center">
+              <Label>Assign this batch to</Label>
+              <Select value={assignedTo} onValueChange={setAssignedTo}>
+                <SelectTrigger data-testid="select-local-falcon-assignee"><SelectValue placeholder="Select appointment setter" /></SelectTrigger>
+                <SelectContent>{salesReps.map((rep) => <SelectItem key={rep.id} value={rep.id}>{rep.name} · {rep.email}</SelectItem>)}</SelectContent>
+              </Select>
             </div>
-            {preview.rows.some((row) => row.outcome !== "new") && (
-              <ScrollArea className="h-56 rounded border">
-                <div className="p-3 space-y-3">
-                  {preview.rows.filter((row) => row.outcome !== "new").map((row) => (
-                    <div key={`${row.row}-${row.placeId}`} className="text-xs" data-testid={`local-falcon-preview-row-${row.row}`}>
-                      <div className="flex items-center gap-2">
-                        {row.outcome === "flagged" ? <Flag className="w-3.5 h-3.5 text-yellow-500" /> : <SkipForward className="w-3.5 h-3.5 text-gray-500" />}
-                        <span className="font-medium">{row.companyName}</span>
-                        <Badge variant="outline" className="text-[10px]">{row.outcome}</Badge>
+
+            <div className="space-y-4">
+              {preview.rows.map((row) => {
+                const isIncluded = row.outcome === "new" || approvedFlagged.has(row.placeId);
+                return (
+                  <div key={row.placeId} className="rounded-xl border p-4" data-testid={`local-falcon-preview-row-${row.row}`}>
+                    <div className="grid gap-5 lg:grid-cols-[1fr_270px]">
+                      <div className="space-y-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-semibold">{row.companyName}</p>
+                          <Badge variant={row.outcome === "new" ? "default" : "outline"}>{row.outcome}</Badge>
+                        </div>
+                        <p className="text-sm text-slate-500">{row.address}</p>
+                        <p className="font-mono text-xs text-slate-400">{row.heatmapFile}</p>
+                        {row.reason && <p className="text-sm text-slate-600">{row.reason}</p>}
+                        {row.matches?.map((match) => <p key={match.companyName} className="text-sm text-amber-700"><Flag className="mr-1 inline h-4 w-4" />Possible match: {match.companyName} ({match.reasons.join(", ")})</p>)}
+                        {row.outcome === "flagged" && (
+                          <label className="flex items-center gap-2 text-sm font-medium"><Checkbox checked={approvedFlagged.has(row.placeId)} onCheckedChange={(value) => toggleSet(setApprovedFlagged, row.placeId, value === true)} />Import this flagged prospect</label>
+                        )}
+                        {row.outcome === "existing" ? (
+                          <p className="flex items-center gap-2 text-sm text-slate-500"><SkipForward className="h-4 w-4" />This row will be skipped.</p>
+                        ) : isIncluded ? (
+                          <label className="flex items-start gap-2 rounded-lg bg-blue-50 p-3 text-sm font-medium text-blue-950">
+                            <Checkbox checked={confirmedPreviews.has(row.placeId)} onCheckedChange={(value) => toggleSet(setConfirmedPreviews, row.placeId, value === true)} />
+                            <span>I confirmed the image belongs to this company and all 49 grid dots are visible in the framed report.</span>
+                          </label>
+                        ) : null}
                       </div>
-                      {row.reason && <p className="ml-5 mt-1 text-gray-500">{row.reason}</p>}
-                      {row.matches?.map((match, index) => <p key={index} className="ml-5 mt-1 text-yellow-700">Possible match: {match.companyName} ({match.reasons.join(", ")})</p>)}
+                      <FramedReportPreview data={row.reportData} />
                     </div>
-                  ))}
-                </div>
-              </ScrollArea>
-            )}
+                  </div>
+                );
+              })}
+            </div>
             {importError && <p className="text-sm text-red-600">{importError}</p>}
           </div>
         )}
 
         {phase === "done" && result && (
-          <div className="py-1 space-y-4">
+          <div className="space-y-4 py-4">
             <div className="grid grid-cols-3 gap-3 text-center">
-              <div className="rounded-lg bg-green-50 dark:bg-green-950/30 p-3">
-                <p className="text-2xl font-bold text-green-600">{result.imported}</p>
-                <p className="text-xs text-gray-500 mt-0.5">{t.crm.imported}</p>
-              </div>
-              <div className="rounded-lg bg-yellow-50 dark:bg-yellow-950/30 p-3">
-                <p className="text-2xl font-bold text-yellow-600">{result.skipped}</p>
-                <p className="text-xs text-gray-500 mt-0.5">Skipped</p>
-              </div>
-              <div className="rounded-lg bg-red-50 dark:bg-red-950/30 p-3">
-                <p className="text-2xl font-bold text-red-600">{result.errors}</p>
-                <p className="text-xs text-gray-500 mt-0.5">Errors</p>
-              </div>
+              <div className="rounded-lg bg-green-50 p-3"><p className="text-2xl font-bold text-green-600">{result.imported}</p><p className="text-xs text-slate-500">Imported</p></div>
+              <div className="rounded-lg bg-yellow-50 p-3"><p className="text-2xl font-bold text-yellow-600">{result.skipped}</p><p className="text-xs text-slate-500">Skipped</p></div>
+              <div className="rounded-lg bg-red-50 p-3"><p className="text-2xl font-bold text-red-600">{result.errors}</p><p className="text-xs text-slate-500">Errors</p></div>
             </div>
-
-            {result.details.some((d) => d.status !== "imported") && (
-              <div>
-                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                  Skipped & error details
-                </p>
-                <ScrollArea className="h-52 rounded border">
-                  <div className="p-3 space-y-1.5">
-                    {result.details
-                      .filter((d) => d.status !== "imported")
-                      .map((d) => (
-                        <div
-                          key={d.row}
-                          className="flex items-start gap-2 text-xs"
-                          data-testid={`import-row-result-${d.row}`}
-                        >
-                          {d.status === "error" ? (
-                            <AlertCircle className="w-3.5 h-3.5 text-red-500 flex-shrink-0 mt-0.5" />
-                          ) : (
-                            <SkipForward className="w-3.5 h-3.5 text-yellow-500 flex-shrink-0 mt-0.5" />
-                          )}
-                          <span className="font-mono text-gray-400 flex-shrink-0">Row {d.row}</span>
-                          <span
-                            className={cn(
-                              "font-medium",
-                              d.status === "error" ? "text-red-600" : "text-yellow-600"
-                            )}
-                          >
-                            [{d.status}]
-                          </span>
-                          <span className="text-gray-600 dark:text-gray-400">{d.reason}</span>
-                        </div>
-                      ))}
-                  </div>
-                </ScrollArea>
-              </div>
-            )}
-
-            {result.errors === 0 && result.skipped === 0 && (
-              <div className="flex items-center gap-2 text-sm text-green-600">
-                <CheckCircle2 className="w-4 h-4" />
-                All rows imported successfully.
-              </div>
-            )}
+            {result.errors === 0 && <p className="flex items-center gap-2 text-sm text-green-700"><CheckCircle2 className="h-4 w-4" />Import completed successfully.</p>}
           </div>
         )}
 
         <DialogFooter>
           {phase === "done" ? (
-            <>
-              <Button variant="outline" onClick={resetForMore} data-testid="button-import-more">
-                Import More
-              </Button>
-              <Button onClick={handleClose} data-testid="button-import-done">
-                Done
-              </Button>
-            </>
+            <><Button variant="outline" onClick={clearImportState}>Import more</Button><Button onClick={handleClose}>Done</Button></>
           ) : phase === "preview" ? (
-            <>
-              <Button variant="outline" onClick={resetForMore}>Choose another file</Button>
-              <Button
-                onClick={handleConfirmLocalFalcon}
-                disabled={preview?.batchAlreadyImported || ((preview?.newCount ?? 0) + (preview?.flaggedCount ?? 0) === 0)}
-                data-testid="button-confirm-local-falcon-import"
-              >
-                Confirm import to New Lead
-              </Button>
-            </>
+            <><Button variant="outline" onClick={clearImportState}>Choose another package</Button><Button onClick={handleConfirmLocalFalcon} disabled={preview?.batchAlreadyImported || !assignedTo || !everyIncludedPreviewConfirmed} data-testid="button-confirm-local-falcon-import">Import assigned leads</Button></>
           ) : (
-            <>
-              <Button variant="outline" onClick={handleClose} disabled={phase === "loading"}>
-                Cancel
-              </Button>
-              <Button
-                onClick={handleImport}
-                disabled={!file || phase === "loading"}
-                data-testid="button-start-import"
-              >
-                {phase === "loading" ? t.crm.importing : t.crm.import}
-              </Button>
-            </>
+            <><Button variant="outline" onClick={handleClose} disabled={phase === "loading"}>Cancel</Button><Button onClick={handleImport} disabled={!file || phase === "loading"} data-testid="button-start-import">{phase === "loading" ? t.crm.importing : "Review import"}</Button></>
           )}
         </DialogFooter>
       </DialogContent>
@@ -424,80 +404,41 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
   );
 }
 
-export async function triggerCsvExport(
-  type: "leads" | "contacts",
-  onError: (msg: string) => void
-): Promise<void> {
+export async function triggerCsvExport(type: "leads" | "contacts", onError: (msg: string) => void): Promise<void> {
   try {
-    const url =
-      type === "leads"
-        ? "/api/crm/leads/export-csv"
-        : "/api/crm/contacts/export-csv";
-    const response = await fetch(url, { credentials: "include" });
+    const response = await fetch(type === "leads" ? "/api/crm/leads/export-csv" : "/api/crm/contacts/export-csv", { credentials: "include" });
     if (!response.ok) {
-      const err = await response.json().catch(() => ({ message: "Export failed" }));
-      throw new Error(err.message ?? "Export failed");
+      const error = await response.json().catch(() => ({ message: "Export failed" }));
+      throw new Error(error.message ?? "Export failed");
     }
-    const blob = await response.blob();
-    const blobUrl = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    const date = new Date().toISOString().split("T")[0];
-    a.href = blobUrl;
-    a.download = `${type}-${date}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    const blobUrl = URL.createObjectURL(await response.blob());
+    const anchor = document.createElement("a");
+    anchor.href = blobUrl;
+    anchor.download = `${type}-${new Date().toISOString().split("T")[0]}.csv`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
     URL.revokeObjectURL(blobUrl);
-  } catch (err: any) {
-    onError(err.message ?? "Export failed");
+  } catch (error: any) {
+    onError(error.message ?? "Export failed");
   }
 }
 
-interface CsvExportButtonProps {
-  className?: string;
-}
-
-export function CsvExportDropdown({ className }: CsvExportButtonProps) {
+export function CsvExportDropdown({ className }: { className?: string }) {
   const { toast } = useToast();
   const { t } = useAdminLang();
   const [exporting, setExporting] = useState(false);
-
   const handleExport = async (type: "leads" | "contacts") => {
     setExporting(true);
-    await triggerCsvExport(type, (msg) =>
-      toast({ title: t.crm.exportError, description: msg, variant: "destructive" })
-    );
+    await triggerCsvExport(type, (message) => toast({ title: t.crm.exportError, description: message, variant: "destructive" }));
     setExporting(false);
   };
-
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={exporting}
-          className={className}
-          data-testid="button-export-dropdown"
-        >
-          <Download className="w-4 h-4 mr-1.5" />
-          {t.crm.export}
-          <ChevronDown className="w-3 h-3 ml-1" />
-        </Button>
-      </DropdownMenuTrigger>
+      <DropdownMenuTrigger asChild><Button variant="outline" size="sm" disabled={exporting} className={className} data-testid="button-export-dropdown"><Download className="mr-1.5 h-4 w-4" />{t.crm.export}<ChevronDown className="ml-1 h-3 w-3" /></Button></DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem
-          onClick={() => handleExport("leads")}
-          data-testid="menu-item-export-leads"
-        >
-          <Download className="w-4 h-4 mr-2" /> {t.crm.exportLeads}
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => handleExport("contacts")}
-          data-testid="menu-item-export-contacts"
-        >
-          <Download className="w-4 h-4 mr-2" /> {t.crm.exportContacts}
-        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => handleExport("leads")}><Download className="mr-2 h-4 w-4" />{t.crm.exportLeads}</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => handleExport("contacts")}><Download className="mr-2 h-4 w-4" />{t.crm.exportContacts}</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

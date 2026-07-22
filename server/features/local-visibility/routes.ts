@@ -1,7 +1,11 @@
 import { Router, type NextFunction, type Request, type Response } from "express";
 import multer from "multer";
+import { and, desc, eq, isNotNull } from "drizzle-orm";
 import { requireRole } from "../auth/middleware";
 import { analyzeVisibilityScreenshots } from "./analysis";
+import { db } from "../../db";
+import { crmLeads, localFalconImportBatches, localFalconProspectProfiles } from "@shared/schema";
+import { getSignedDownloadUrl } from "../../services/storage";
 
 const router = Router();
 const ALLOWED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
@@ -15,6 +19,77 @@ const upload = multer({
     else callback(new Error("Only PNG, JPG, and WebP screenshots are supported."));
   },
 });
+
+router.get(
+  "/prospects",
+  requireRole("admin", "developer", "sales_rep"),
+  async (req, res) => {
+    try {
+      const ownership = req.authUser?.role === "sales_rep" ? eq(crmLeads.assignedTo, req.authUser.id) : undefined;
+      const where = ownership
+        ? and(isNotNull(localFalconProspectProfiles.heatmapStorageKey), ownership)
+        : isNotNull(localFalconProspectProfiles.heatmapStorageKey);
+      const rows = await db.select({
+        leadId: crmLeads.id,
+        businessName: localFalconProspectProfiles.companyName,
+        city: localFalconProspectProfiles.city,
+        state: localFalconProspectProfiles.state,
+        keyword: localFalconProspectProfiles.scanKeyword,
+        scanDate: localFalconProspectProfiles.scanDate,
+      }).from(localFalconProspectProfiles)
+        .innerJoin(crmLeads, eq(localFalconProspectProfiles.leadId, crmLeads.id))
+        .where(where)
+        .orderBy(desc(localFalconProspectProfiles.createdAt));
+      res.json(rows);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  },
+);
+
+router.get(
+  "/prospects/:leadId",
+  requireRole("admin", "developer", "sales_rep"),
+  async (req, res) => {
+    try {
+      const [record] = await db.select({
+        profile: localFalconProspectProfiles,
+        batch: localFalconImportBatches,
+        assignedTo: crmLeads.assignedTo,
+      }).from(localFalconProspectProfiles)
+        .innerJoin(localFalconImportBatches, eq(localFalconProspectProfiles.batchRecordId, localFalconImportBatches.id))
+        .innerJoin(crmLeads, eq(localFalconProspectProfiles.leadId, crmLeads.id))
+        .where(eq(localFalconProspectProfiles.leadId, req.params.leadId as string))
+        .limit(1);
+      if (!record) return res.status(404).json({ message: "Local Falcon prospect not found" });
+      if (req.authUser?.role === "sales_rep" && record.assignedTo !== req.authUser.id) {
+        return res.status(403).json({ message: "This prospect is not assigned to you" });
+      }
+      if (!record.profile.heatmapStorageKey) return res.status(409).json({ message: "This prospect has no heatmap evidence" });
+      const heatmapImageUrl = await getSignedDownloadUrl(record.profile.heatmapStorageKey);
+      const address = [record.profile.address, record.profile.city, record.profile.state, record.profile.zip]
+        .filter(Boolean).join(", ").replace(/, ([A-Z]{2}), /, ", $1 ");
+      res.json({
+        leadId: req.params.leadId as string,
+        reportUrl: record.profile.reportUrl,
+        data: {
+          businessName: record.profile.companyName ?? "",
+          address,
+          rating: record.profile.rating,
+          reviewCount: String(record.profile.reviewCount),
+          searchPhrase: record.profile.scanKeyword,
+          market: `${record.batch.marketCity}, ${record.batch.marketState}`,
+          averagePosition: record.profile.arp,
+          gridSize: record.batch.gridSize ?? "7 × 7",
+          radius: record.batch.radiusMiles ?? "2.5",
+          heatmapImageUrl,
+        },
+      });
+    } catch (error: any) {
+      res.status(error?.statusCode ?? 500).json({ message: error.message });
+    }
+  },
+);
 
 router.post(
   "/analyze-screenshots",

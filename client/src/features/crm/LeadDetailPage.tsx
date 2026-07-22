@@ -776,15 +776,15 @@ export default function LeadDetailPage({ id }: { id: string }) {
                     Write-once snapshot from batch {lead.localFalcon.batch.batchId}
                   </p>
                 </div>
-                <Badge className="text-sm">Tier {lead.localFalcon.profile.tier}</Badge>
+                <Badge className="text-sm capitalize">{lead.localFalcon.profile.qualificationStatus}</Badge>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
                 {[
-                  ["SoLV", lead.localFalcon.profile.solv],
                   ["ARP", lead.localFalcon.profile.arp],
-                  ["ATRP", lead.localFalcon.profile.atrp],
-                  ["Reviews", `${lead.localFalcon.profile.rating} · ${lead.localFalcon.profile.reviewCount}`],
+                  ["Rating", lead.localFalcon.profile.rating],
+                  ["Reviews", lead.localFalcon.profile.reviewCount],
+                  ["Service pages", lead.localFalcon.profile.servicePageCount ?? 0],
                 ].map(([label, value]) => (
                   <div key={label} className="rounded-lg bg-gray-50 dark:bg-gray-900 p-3">
                     <p className="text-xs text-gray-500">{label}</p>
@@ -795,39 +795,25 @@ export default function LeadDetailPage({ id }: { id: string }) {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                 <div>
-                  <p className="text-xs text-gray-500">Pitch type</p>
-                  <p className="font-medium text-gray-900">{lead.localFalcon.profile.pitchType}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Website condition</p>
-                  <p className="font-medium text-gray-900 capitalize">{lead.localFalcon.profile.websiteCondition}</p>
-                </div>
-                <div>
                   <p className="text-xs text-gray-500">Owner</p>
                   <p className="text-gray-900">{lead.localFalcon.profile.ownerName || "Not identified"}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500">Email domain</p>
-                  <p className="text-gray-900 capitalize">{lead.localFalcon.profile.emailDomainType || "Not available"}</p>
+                  <p className="text-xs text-gray-500">Website</p>
+                  <p className="font-medium text-gray-900">{lead.localFalcon.profile.hasWebsite ? "Present" : "Missing"}</p>
                 </div>
-                <div className="sm:col-span-2">
-                  <p className="text-xs text-gray-500">Pitch summary</p>
-                  <p className="text-gray-900 whitespace-pre-wrap">{lead.localFalcon.profile.pitchSummary}</p>
+                <div>
+                  <p className="text-xs text-gray-500">Scan</p>
+                  <p className="text-gray-900">{lead.localFalcon.batch.gridSize} · {lead.localFalcon.batch.radiusMiles}-mile radius</p>
                 </div>
-                {lead.localFalcon.profile.footprintNote && (
-                  <div className="sm:col-span-2">
-                    <p className="text-xs text-gray-500">Visibility footprint</p>
-                    <p className="text-gray-900 whitespace-pre-wrap">{lead.localFalcon.profile.footprintNote}</p>
-                  </div>
-                )}
-                <div className="sm:col-span-2 flex flex-wrap gap-x-4 gap-y-2 text-xs text-gray-600">
-                  <span>SoS lookup: {lead.localFalcon.profile.sosLookupDone ? "done" : "not done"}</span>
-                  <span>Entity found: {lead.localFalcon.profile.sosEntityFound ? "yes" : "no"}</span>
-                  <span>License found: {lead.localFalcon.profile.licenseRecordFound ? "yes" : "no"}</span>
+                <div>
+                  <p className="text-xs text-gray-500">Keyword</p>
+                  <p className="text-gray-900">{lead.localFalcon.profile.scanKeyword}</p>
                 </div>
                 <div className="sm:col-span-2 flex flex-wrap gap-3">
                   <a href={lead.localFalcon.profile.googleMapsUrl ?? "#"} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">Google Maps</a>
-                  <span className="text-gray-500">Report: {lead.localFalcon.profile.reportKey}</span>
+                  {lead.localFalcon.profile.reportUrl && <a href={lead.localFalcon.profile.reportUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">Local Falcon report</a>}
+                  <a href="/admin/tools/local-visibility-report" className="text-indigo-600 hover:underline">Generate snapshot</a>
                   <span className="text-gray-500">Place ID: {lead.localFalcon.profile.placeId}</span>
                 </div>
               </div>

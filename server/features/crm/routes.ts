@@ -1,4 +1,5 @@
 import express, { Router } from "express";
+import multer from "multer";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
 import { requireRole } from "../auth/middleware";
@@ -16,15 +17,21 @@ import {
 import {
   getLocalFalconProfileForLead,
   importLocalFalconPayload,
-  parseLocalFalconPayload,
   previewLocalFalconImport,
+  type LocalFalconUploadedAsset,
 } from "./localFalconImport";
+import {
+  LOCAL_FALCON_PACKAGE_MAX_BYTES,
+  parseLocalFalconPackage,
+  type IncomingPackageFile,
+} from "./localFalconPackage";
 import {
   insertCrmCompanySchema, insertCrmContactSchema, insertCrmLeadSchema,
   insertCrmLeadNoteSchema, insertCrmTagSchema, crmLeads, pipelineOpportunities,
 } from "@shared/schema";
 import { db } from "../../db";
 import { executeStageAutomations } from "../automations/trigger";
+import * as storageService from "../../services/storage";
 
 async function cascadeCompanyNameToTitles(companyId: string, oldName: string, newName: string) {
   const leads = await db.select({ id: crmLeads.id, title: crmLeads.title })
@@ -356,17 +363,61 @@ router.post(
   }
 );
 
+const localFalconPackageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: LOCAL_FALCON_PACKAGE_MAX_BYTES, files: 201 },
+});
+
+const localFalconPackageFields = localFalconPackageUpload.fields([
+  { name: "package", maxCount: 1 },
+  { name: "heatmaps", maxCount: 200 },
+]);
+
+function packageFiles(req: express.Request): { primary: IncomingPackageFile; supplemental: IncomingPackageFile[] } {
+  const files = (req.files ?? {}) as Record<string, Express.Multer.File[]>;
+  const primaryFile = files.package?.[0];
+  if (!primaryFile) throw new Error("Upload one ZIP package or JSON manifest");
+  return {
+    primary: { buffer: primaryFile.buffer, originalName: primaryFile.originalname, mimeType: primaryFile.mimetype },
+    supplemental: (files.heatmaps ?? []).map((file) => ({
+      buffer: file.buffer,
+      originalName: file.originalname,
+      mimeType: file.mimetype,
+    })),
+  };
+}
+
 router.post(
   "/leads/import-local-falcon/preview",
   requireRole("admin", "developer"),
-  express.text({ type: ["text/plain", "text/csv", "application/octet-stream"], limit: "5mb" }),
+  localFalconPackageFields,
   async (req, res) => {
     try {
-      if (typeof req.body !== "string" || !req.body.trim()) {
-        return res.status(400).json({ message: "Request body must be a non-empty CSV or JSON file" });
-      }
-      const payload = parseLocalFalconPayload(req.body);
-      res.json(await previewLocalFalconImport(payload));
+      const { primary, supplemental } = packageFiles(req);
+      const parsedPackage = await parseLocalFalconPackage(primary, supplemental);
+      const preview = await previewLocalFalconImport(parsedPackage.payload);
+      res.json({
+        ...preview,
+        rows: preview.rows.map((row) => {
+          const prospect = parsedPackage.payload.prospects.find((candidate) => candidate.place_id === row.placeId)!;
+          return {
+            ...row,
+            heatmapPreviewDataUrl: parsedPackage.heatmapsByPlaceId.get(row.placeId)?.previewDataUrl ?? null,
+            reportData: {
+              businessName: prospect.company_name,
+              address: [prospect.address, prospect.city, prospect.state, prospect.zip].filter(Boolean).join(", "),
+              rating: String(prospect.rating),
+              reviewCount: String(prospect.review_count),
+              searchPhrase: prospect.scan_keyword,
+              market: `${parsedPackage.payload.batch.market.city}, ${parsedPackage.payload.batch.market.state}`,
+              averagePosition: String(prospect.arp),
+              gridSize: parsedPackage.payload.batch.scan_spec.grid_size,
+              radius: String(parsedPackage.payload.batch.scan_spec.radius_miles),
+              heatmapImageUrl: parsedPackage.heatmapsByPlaceId.get(row.placeId)?.previewDataUrl ?? "",
+            },
+          };
+        }),
+      });
     } catch (error: any) {
       res.status(400).json({ message: error.message });
     }
@@ -376,14 +427,64 @@ router.post(
 router.post(
   "/leads/import-local-falcon/confirm",
   requireRole("admin", "developer"),
-  express.text({ type: ["text/plain", "text/csv", "application/octet-stream"], limit: "5mb" }),
+  localFalconPackageFields,
   async (req, res) => {
+    const uploadedKeys: string[] = [];
     try {
-      if (typeof req.body !== "string" || !req.body.trim()) {
-        return res.status(400).json({ message: "Request body must be a non-empty CSV or JSON file" });
+      const assignedTo = z.string().min(1).parse(req.body.assignedTo);
+      const approvedFlagged = z.array(z.string()).parse(JSON.parse(req.body.approvedFlaggedPlaceIds || "[]"));
+      const assignableUsers = await crmStorage.getAssignableUsers();
+      const setter = assignableUsers.find((candidate) => candidate.id === assignedTo && candidate.role === "sales_rep");
+      if (!setter) return res.status(400).json({ message: "Select an active sales rep before importing" });
+
+      const { primary, supplemental } = packageFiles(req);
+      const parsedPackage = await parseLocalFalconPackage(primary, supplemental);
+      const preview = await previewLocalFalconImport(parsedPackage.payload);
+      const approvedFlaggedSet = new Set(approvedFlagged);
+      const selectedRows = preview.rows.filter(
+        (row) => row.outcome === "new" || (row.outcome === "flagged" && approvedFlaggedSet.has(row.placeId)),
+      );
+      if (selectedRows.length === 0) throw new Error("No new prospects were selected for import");
+
+      const assetsByPlaceId = new Map<string, LocalFalconUploadedAsset>();
+      for (const row of selectedRows) {
+        const heatmap = parsedPackage.heatmapsByPlaceId.get(row.placeId);
+        if (!heatmap) throw new Error(`Heatmap missing for ${row.companyName}`);
+        const upload = await storageService.uploadFile(
+          heatmap.buffer,
+          heatmap.originalName,
+          heatmap.mimeType,
+          "local-falcon",
+        );
+        uploadedKeys.push(upload.key);
+        assetsByPlaceId.set(row.placeId, {
+          key: upload.key,
+          originalName: upload.originalName,
+          mimeType: upload.mimeType,
+          sizeBytes: upload.sizeBytes,
+          sha256: heatmap.sha256,
+          manifestPath: heatmap.manifestPath,
+        });
       }
-      const payload = parseLocalFalconPayload(req.body);
-      const result = await importLocalFalconPayload(payload, req.authUser!.id);
+
+      const selectedPlaceIds = new Set(selectedRows.map((row) => row.placeId));
+      const result = await importLocalFalconPayload(
+        parsedPackage.payload,
+        req.authUser!.id,
+        assignedTo,
+        selectedPlaceIds,
+        assetsByPlaceId,
+      );
+
+      const importedPlaceIds = new Set(result.importedLeads.map((lead) => lead.placeId));
+      for (const [placeId, asset] of assetsByPlaceId) {
+        if (!importedPlaceIds.has(placeId)) {
+          await storageService.deleteFile(asset.key).catch(() => undefined);
+          const index = uploadedKeys.indexOf(asset.key);
+          if (index >= 0) uploadedKeys.splice(index, 1);
+        }
+      }
+
       let tasksCreated = 0;
       let automationErrors = 0;
       for (const imported of result.importedLeads) {
@@ -392,13 +493,15 @@ router.post(
           leadId: imported.leadId,
           contactId: imported.contactId,
           companyId: imported.companyId,
-          assignedTo: null,
+          assignedTo,
           stageSlug: "new-lead",
           actorId: req.authUser!.id,
         });
         tasksCreated += automation.tasksCreated;
         automationErrors += automation.errors;
+        try { notifyLeadAssignment({ id: imported.leadId, title: parsedPackage.payload.prospects.find((p) => p.place_id === imported.placeId)?.company_name ?? "Local Falcon lead" }, assignedTo); } catch (_) {}
       }
+
       await logAudit({
         userId: req.authUser?.id,
         action: "import",
@@ -408,14 +511,17 @@ router.post(
           imported: result.imported,
           existing: result.existingCount,
           flagged: result.flaggedCount,
+          assignedTo,
           tasksCreated,
           automationErrors,
         },
         ipAddress: req.ip,
       });
+      uploadedKeys.length = 0;
       res.json({ ...result, tasksCreated, automationErrors });
     } catch (error: any) {
-      res.status(400).json({ message: error.message });
+      await Promise.all(uploadedKeys.map((key) => storageService.deleteFile(key).catch(() => undefined)));
+      res.status(error?.code === "LIMIT_FILE_SIZE" ? 413 : error?.statusCode ?? 400).json({ message: error.message });
     }
   },
 );
