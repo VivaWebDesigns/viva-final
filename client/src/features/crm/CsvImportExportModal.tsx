@@ -1,4 +1,9 @@
-import { useRef, useState, type DragEvent } from "react";
+import {
+  useRef,
+  useState,
+  type ClipboardEvent as ReactClipboardEvent,
+  type DragEvent,
+} from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import {
-  AlertCircle, Archive, CheckCircle2, ChevronDown, Download, Flag, ImagePlus, SkipForward, Upload, UploadCloud,
+  AlertCircle, Archive, CheckCircle2, ChevronDown, ClipboardPaste, Download, Flag, ImagePlus, SkipForward, Upload,
 } from "lucide-react";
 import { useAdminLang } from "@/i18n/LanguageContext";
 import LocalVisibilityReportTemplate from "@features/local-visibility-report/LocalVisibilityReportTemplate";
@@ -149,6 +154,55 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
     if (!primary && !images.length) setImportError("Drop a ZIP package, JSON manifest, or supported heatmap image.");
   };
 
+  const handlePackagePaste = (event: ReactClipboardEvent<HTMLDivElement>) => {
+    if (phase === "loading") return;
+
+    const pastedFiles = Array.from(event.clipboardData.files);
+    const primary = pastedFiles.find((candidate) => /\.(zip|json)$/i.test(candidate.name));
+    const images = pastedFiles.filter((candidate) => /\.(png|jpe?g|webp)$/i.test(candidate.name));
+
+    if (primary) {
+      event.preventDefault();
+      event.stopPropagation();
+      setPrimaryFile(primary);
+      if (!primary.name.toLowerCase().endsWith(".zip") && images.length) addHeatmaps(images);
+      return;
+    }
+
+    if (images.length) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (file?.name.toLowerCase().endsWith(".json")) {
+        addHeatmaps(images);
+      } else {
+        setImportError("Paste the JSON manifest first, then paste its heatmap images.");
+      }
+      return;
+    }
+
+    const clipboardText = event.clipboardData.getData("text/plain").trim();
+    if (!clipboardText) {
+      setImportError("The clipboard does not contain a ZIP file, JSON file, or JSON text.");
+      return;
+    }
+
+    const fencedMatch = clipboardText.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+    const jsonText = (fencedMatch?.[1] ?? clipboardText).trim();
+    try {
+      JSON.parse(jsonText);
+    } catch {
+      setImportError("The pasted clipboard text is not valid JSON.");
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    setPrimaryFile(new File([jsonText], "batch.json", {
+      type: "application/json",
+      lastModified: Date.now(),
+    }));
+  };
+
   const buildPackageForm = () => {
     if (!file) throw new Error("Choose a package first");
     const form = new FormData();
@@ -274,15 +328,32 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
                   <p className="mt-1">Preferred: one ZIP containing canonical <code>batch.json</code> and original files in <code>heatmaps/</code>. You may also provide the JSON and heatmaps separately.</p>
                 </div>
                 <div
-                  className="flex min-h-44 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-white p-6 text-center transition hover:border-blue-500 hover:bg-blue-50/40"
+                  role="group"
+                  aria-label="Paste, drop, or choose a Local Falcon package"
+                  tabIndex={0}
+                  className="flex min-h-44 cursor-text flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-white p-6 text-center outline-none transition hover:border-blue-500 hover:bg-blue-50/40 focus-visible:border-blue-500 focus-visible:bg-blue-50/40 focus-visible:ring-2 focus-visible:ring-blue-500"
+                  onPaste={handlePackagePaste}
                   onDragOver={(event) => event.preventDefault()}
                   onDrop={handleDrop}
-                  onClick={() => packageInputRef.current?.click()}
+                  onClick={(event) => event.currentTarget.focus()}
                   data-testid="local-falcon-package-dropzone"
                 >
-                  <UploadCloud className="mb-3 h-9 w-9 text-blue-600" />
-                  <p className="font-semibold text-slate-900">Drop a ZIP package or JSON manifest here</p>
-                  <p className="mt-1 text-sm text-slate-500">or click to browse</p>
+                  <ClipboardPaste className="mb-3 h-9 w-9 text-blue-600" />
+                  <p className="font-semibold text-slate-900">Click this box, then press Ctrl+V or ⌘V</p>
+                  <p className="mt-1 text-sm text-slate-500">Paste JSON text or a copied ZIP/JSON file · you can also drop files here</p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="mt-4 bg-white"
+                    disabled={phase === "loading"}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      packageInputRef.current?.click();
+                    }}
+                  >
+                    Choose ZIP or JSON
+                  </Button>
                   <Input
                     ref={packageInputRef}
                     type="file"
