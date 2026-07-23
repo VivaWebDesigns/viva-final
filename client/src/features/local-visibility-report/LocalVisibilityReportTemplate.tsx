@@ -195,7 +195,7 @@ const LocalVisibilityReportTemplate = forwardRef<HTMLDivElement, Props>(function
         </section>
 
         <section className="lvr-settings" aria-label="Scan settings">
-          <FiCrosshair aria-hidden="true" />
+          <span className="lvr-explanation-icon" aria-hidden="true"><FiCrosshair /></span>
           <span>{formatScanSettings(data)}</span>
         </section>
       </div>

@@ -306,10 +306,6 @@
   border-bottom: 1px solid var(--lvr-line);
 }
 
-.lvr-settings > svg {
-  color: var(--lvr-blue);
-}
-
 .lvr-explanation-row {
   display: grid;
   grid-template-columns: 54px minmax(0, 1fr);
@@ -361,20 +357,15 @@
 }
 
 .lvr-settings {
-  display: flex;
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr);
   height: 80px;
   align-items: center;
-  gap: 13px;
+  gap: 18px;
   padding: 5px 16px;
   color: var(--lvr-navy);
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 700;
-}
-
-.lvr-settings > svg {
-  width: 30px;
-  height: 30px;
-  stroke-width: 2.2;
 }
 
 .lvr-footer {
