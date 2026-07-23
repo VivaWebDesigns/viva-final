@@ -24,6 +24,7 @@ import {
   Trash2, Users, CalendarDays, Upload, ExternalLink,
   BarChart3, CheckSquare, History, Star, Edit2,
   ClipboardList, CheckCircle, ChevronDown, ChevronRight, CalendarClock,
+  ClipboardCopy,
 } from "lucide-react";
 import { format, formatDistanceToNow, isPast } from "date-fns";
 import { es as dateFnsEs } from "date-fns/locale";
@@ -145,6 +146,35 @@ function LocalFalconSnapshotCard({ leadId }: { leadId: string }) {
       return body;
     },
   });
+  const snapshotFileUrl = `/api/local-visibility/prospects/${encodeURIComponent(leadId)}/snapshot-file`;
+  const copySnapshot = async () => {
+    if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") {
+      toast({ title: "Image copying is not available", description: "Use Download PNG instead.", variant: "destructive" });
+      return;
+    }
+    try {
+      const blobPromise = fetch(snapshotFileUrl, { credentials: "include" }).then(async (response) => {
+        if (!response.ok) throw new Error("Could not load the stored snapshot.");
+        return response.blob();
+      });
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": blobPromise })]);
+      toast({ title: "Image copied", description: "Paste it directly into your SMS or messaging app." });
+    } catch (error) {
+      toast({
+        title: "Copy failed",
+        description: error instanceof Error ? error.message : "Use Download PNG instead.",
+        variant: "destructive",
+      });
+    }
+  };
+  const downloadSnapshot = () => {
+    const link = document.createElement("a");
+    link.href = snapshotFileUrl;
+    link.download = `${data?.data.businessName || "local-visibility"}-snapshot.png`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  };
   const saveSnapshot = useMutation({
     mutationFn: async () => {
       const blob = await renderLocalVisibilityReportBlob(reportRef.current);
@@ -173,30 +203,40 @@ function LocalFalconSnapshotCard({ leadId }: { leadId: string }) {
 
   return (
     <Card data-testid="local-falcon-snapshot-card">
-      <CardHeader className="flex-row items-start justify-between gap-3 space-y-0">
+      <CardHeader>
         <div>
           <CardTitle className="text-base">Local Visibility Snapshot</CardTitle>
           <p className="mt-1 text-sm text-gray-500">
             Local Falcon · {data.data.searchPhrase} · {data.data.market} · ARP {data.data.averagePosition}
           </p>
         </div>
-        {data.reportUrl && (
-          <Button variant="outline" size="sm" asChild>
-            <a href={data.reportUrl} target="_blank" rel="noopener noreferrer">
-              Local Falcon report <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
-            </a>
-          </Button>
-        )}
       </CardHeader>
       <CardContent>
         {data.snapshotImageUrl ? (
-          <a href={data.snapshotImageUrl} target="_blank" rel="noopener noreferrer">
-            <img
-              src={data.snapshotImageUrl}
-              alt={`${data.data.businessName} Local Visibility Snapshot`}
-              className="mx-auto max-h-[760px] w-auto rounded-lg border shadow-sm"
-            />
-          </a>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+            <a href={snapshotFileUrl} target="_blank" rel="noopener noreferrer" className="shrink-0">
+              <img
+                src={snapshotFileUrl}
+                alt={`${data.data.businessName} Local Visibility Snapshot`}
+                className="h-[280px] w-[158px] rounded-lg border object-cover shadow-sm"
+              />
+            </a>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={copySnapshot}>
+                <ClipboardCopy className="mr-1.5 h-4 w-4" /> Copy image
+              </Button>
+              <Button variant="outline" onClick={downloadSnapshot}>
+                <Download className="mr-1.5 h-4 w-4" /> Download PNG
+              </Button>
+              {data.reportUrl && (
+                <Button variant="outline" asChild>
+                  <a href={data.reportUrl} target="_blank" rel="noopener noreferrer">
+                    Local Falcon report <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
+                  </a>
+                </Button>
+              )}
+            </div>
+          </div>
         ) : (
           <div className="space-y-3">
             <p className="text-sm text-amber-700">

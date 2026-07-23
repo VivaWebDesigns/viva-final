@@ -136,6 +136,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
   const [approvedFlagged, setApprovedFlagged] = useState<Set<string>>(new Set());
   const [confirmedPreviews, setConfirmedPreviews] = useState<Set<string>>(new Set());
   const [imageFailures, setImageFailures] = useState<LocalFalconImageFailure[]>([]);
+  const [isGeneratingSnapshots, setIsGeneratingSnapshots] = useState(false);
 
   const { data: assignableUsers = [] } = useQuery<AssignableUser[]>({
     queryKey: ["/api/crm/leads/assignable-users"],
@@ -153,6 +154,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
     setApprovedFlagged(new Set());
     setConfirmedPreviews(new Set());
     setImageFailures([]);
+    setIsGeneratingSnapshots(false);
     reportRefs.current.clear();
     setPhase("idle");
   };
@@ -279,8 +281,8 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
 
   const handleConfirmLocalFalcon = async () => {
     if (!preview || !assignedTo) return;
-    setPhase("loading");
     setImportError(null);
+    setIsGeneratingSnapshots(true);
     try {
       const form = buildPackageForm();
       form.append("assignedTo", assignedTo);
@@ -295,6 +297,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
         const blob = await renderLocalVisibilityReportBlob(reportRefs.current.get(row.placeId) ?? null);
         form.append("snapshots", blob, `${row.placeId}.png`);
       }
+      setPhase("loading");
       const response = await fetch("/api/crm/leads/import-local-falcon/confirm", {
         method: "POST",
         credentials: "include",
@@ -321,6 +324,8 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
     } catch (error: any) {
       setImportError(error.message ?? "Import failed");
       setPhase("preview");
+    } finally {
+      setIsGeneratingSnapshots(false);
     }
   };
 
@@ -539,7 +544,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
           {phase === "done" ? (
             <><Button variant="outline" onClick={clearImportState}>Import more</Button><Button onClick={handleClose}>Done</Button></>
           ) : phase === "preview" ? (
-            <><Button variant="outline" onClick={clearImportState}>Choose another package</Button><Button onClick={handleConfirmLocalFalcon} disabled={preview?.batchAlreadyImported || !assignedTo || !everyIncludedPreviewConfirmed} data-testid="button-confirm-local-falcon-import">Import assigned leads</Button></>
+            <><Button variant="outline" onClick={clearImportState} disabled={isGeneratingSnapshots}>Choose another package</Button><Button onClick={handleConfirmLocalFalcon} disabled={preview?.batchAlreadyImported || !assignedTo || !everyIncludedPreviewConfirmed || isGeneratingSnapshots} data-testid="button-confirm-local-falcon-import">{isGeneratingSnapshots ? "Generating snapshots…" : "Import assigned leads"}</Button></>
           ) : (
             <><Button variant="outline" onClick={handleClose} disabled={phase === "loading"}>Cancel</Button><Button onClick={handleImport} disabled={!file || phase === "loading"} data-testid="button-start-import">{phase === "loading" ? t.crm.importing : "Review import"}</Button></>
           )}

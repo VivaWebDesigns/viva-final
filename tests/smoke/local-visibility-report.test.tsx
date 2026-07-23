@@ -62,6 +62,8 @@ describe("LocalVisibilityReportPage", () => {
   it("copies the full-resolution report PNG to the clipboard", async () => {
     const reportBlob = new Blob(["report"], { type: "image/png" });
     vi.mocked(toBlob).mockResolvedValue(reportBlob);
+    vi.spyOn(HTMLImageElement.prototype, "decode").mockResolvedValue();
+    vi.spyOn(HTMLImageElement.prototype, "naturalWidth", "get").mockReturnValue(100);
     const write = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal("navigator", { clipboard: { write } });
     vi.stubGlobal("ClipboardItem", class ClipboardItemMock {

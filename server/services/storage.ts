@@ -119,6 +119,18 @@ export async function getSignedDownloadUrl(key: string, expiresInSeconds = 3600)
   return getSignedUrl(client, new GetObjectCommand({ Bucket: bucketName!, Key: key }), { expiresIn: expiresInSeconds });
 }
 
+export async function getFileBuffer(key: string): Promise<{ buffer: Buffer; mimeType: string }> {
+  const { bucketName, configured } = getConfig();
+  if (!configured) throw storageNotConfiguredError();
+  const response = await getS3Client()!.send(new GetObjectCommand({ Bucket: bucketName!, Key: key }));
+  if (!response.Body) throw new Error("The stored file is empty.");
+  const bytes = await response.Body.transformToByteArray();
+  return {
+    buffer: Buffer.from(bytes),
+    mimeType: response.ContentType || "application/octet-stream",
+  };
+}
+
 export const ALLOWED_TYPES = [
   "image/jpeg", "image/png", "image/gif", "image/webp",
   "application/pdf",

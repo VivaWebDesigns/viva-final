@@ -7,7 +7,7 @@ import { requireRole } from "../auth/middleware";
 import { analyzeVisibilityScreenshots } from "./analysis";
 import { db } from "../../db";
 import { crmLeads, localFalconImportBatches, localFalconProspectProfiles } from "@shared/schema";
-import { deleteFile, getSignedDownloadUrl, uploadFile } from "../../services/storage";
+import { deleteFile, getFileBuffer, getSignedDownloadUrl, uploadFile } from "../../services/storage";
 import {
   getLocalFalconMapPresentation,
 } from "@shared/localVisibility";
@@ -48,6 +48,34 @@ router.get(
       res.json(rows);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
+    }
+  },
+);
+
+router.get(
+  "/prospects/:leadId/snapshot-file",
+  requireRole("admin", "developer", "sales_rep"),
+  async (req, res) => {
+    try {
+      const [record] = await db.select({
+        snapshotStorageKey: localFalconProspectProfiles.snapshotStorageKey,
+        assignedTo: crmLeads.assignedTo,
+      }).from(localFalconProspectProfiles)
+        .innerJoin(crmLeads, eq(localFalconProspectProfiles.leadId, crmLeads.id))
+        .where(eq(localFalconProspectProfiles.leadId, req.params.leadId as string))
+        .limit(1);
+      if (!record?.snapshotStorageKey) return res.status(404).json({ message: "Finished snapshot not found" });
+      if (req.authUser?.role === "sales_rep" && record.assignedTo !== req.authUser.id) {
+        return res.status(403).json({ message: "This prospect is not assigned to you" });
+      }
+      const file = await getFileBuffer(record.snapshotStorageKey);
+      res.setHeader("Content-Type", file.mimeType);
+      res.setHeader("Content-Length", String(file.buffer.byteLength));
+      res.setHeader("Cache-Control", "private, max-age=300");
+      res.setHeader("Content-Disposition", `inline; filename="${req.params.leadId}-local-visibility-snapshot.png"`);
+      res.send(file.buffer);
+    } catch (error: any) {
+      res.status(error?.statusCode ?? 500).json({ message: error.message });
     }
   },
 );
