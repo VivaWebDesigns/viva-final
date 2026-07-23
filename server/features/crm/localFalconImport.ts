@@ -44,14 +44,14 @@ const prospectSchema = z.object({
   has_website: z.boolean(),
   website_url: nullableUrl,
   service_page_count: z.number().int().min(0),
-  report_key: z.string().trim().min(1),
+  report_key: z.string().trim().regex(/^[a-f0-9]{12,64}$/i, "Must be a Local Falcon report key"),
   report_url: z.string().trim().url(),
   scan_date: z.string().trim().min(1),
   scan_keyword: z.string().trim().min(1),
   arp: z.coerce.number().finite().min(0),
   rating: z.coerce.number().finite().min(0).max(5),
   review_count: z.coerce.number().int().min(0),
-  heatmap_file: z.string().trim().min(1),
+  heatmap_file: z.string().trim().min(1).optional(),
   qualification_status: z.literal("qualified"),
 }).strict().superRefine((value, ctx) => {
   if (value.has_website && !value.website_url) {
@@ -60,8 +60,8 @@ const prospectSchema = z.object({
   if (!value.has_website && value.website_url) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["website_url"], message: "Must be null when has_website is false" });
   }
-  const normalizedPath = value.heatmap_file.replace(/\\/g, "/");
-  if (!/^heatmaps\/[A-Za-z0-9._-]+\.(png|jpe?g|webp)$/i.test(normalizedPath) || normalizedPath.includes("..")) {
+  const normalizedPath = value.heatmap_file?.replace(/\\/g, "/");
+  if (normalizedPath && (!/^heatmaps\/[A-Za-z0-9._-]+\.(png|jpe?g|webp)$/i.test(normalizedPath) || normalizedPath.includes(".."))) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["heatmap_file"],
@@ -86,6 +86,7 @@ export interface LocalFalconUploadedAsset {
   sizeBytes: number;
   sha256: string;
   manifestPath: string;
+  sourceUrl?: string;
 }
 
 export interface FallbackMatch {
@@ -150,9 +151,11 @@ export function parseLocalFalconPayload(text: string): LocalFalconPayload {
       throw new Error(`prospects.${index}.scan_keyword must match batch.keyword`);
     }
     if (placeIds.has(prospect.place_id)) throw new Error(`prospects.${index}.place_id is duplicated inside the batch`);
-    if (heatmapFiles.has(prospect.heatmap_file)) throw new Error(`prospects.${index}.heatmap_file is referenced more than once`);
+    if (prospect.heatmap_file && heatmapFiles.has(prospect.heatmap_file)) {
+      throw new Error(`prospects.${index}.heatmap_file is referenced more than once`);
+    }
     placeIds.add(prospect.place_id);
-    heatmapFiles.add(prospect.heatmap_file);
+    if (prospect.heatmap_file) heatmapFiles.add(prospect.heatmap_file);
   }
 
   return parsed.data;
@@ -222,7 +225,7 @@ export async function previewLocalFalconImport(payload: LocalFalconPayload): Pro
       placeId: prospect.place_id,
       companyName: prospect.company_name,
       address: prospect.address,
-      heatmapFile: prospect.heatmap_file,
+      heatmapFile: prospect.heatmap_file ?? "Official Local Falcon image",
     };
     const existingLeadId = existingByPlace.get(prospect.place_id);
     if (existingLeadId || existingBatch) {
@@ -377,7 +380,8 @@ export async function importLocalFalconPayload(
         scanDate: new Date(prospect.scan_date),
         scanKeyword: prospect.scan_keyword,
         qualificationStatus: prospect.qualification_status,
-        heatmapFile: prospect.heatmap_file,
+        heatmapFile: prospect.heatmap_file ?? null,
+        heatmapSourceUrl: asset.sourceUrl ?? null,
         heatmapStorageKey: asset.key,
         heatmapOriginalName: asset.originalName,
         heatmapMimeType: asset.mimeType,

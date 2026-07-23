@@ -360,6 +360,7 @@ export const localFalconProspectProfiles = pgTable("local_falcon_prospect_profil
   scanKeyword: text("scan_keyword").notNull(),
   qualificationStatus: text("qualification_status").notNull().default("qualified"),
   heatmapFile: text("heatmap_file"),
+  heatmapSourceUrl: text("heatmap_source_url"),
   heatmapStorageKey: text("heatmap_storage_key"),
   heatmapOriginalName: text("heatmap_original_name"),
   heatmapMimeType: text("heatmap_mime_type"),

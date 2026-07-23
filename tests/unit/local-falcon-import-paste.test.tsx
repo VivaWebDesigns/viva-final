@@ -31,7 +31,26 @@ describe("Local Falcon import clipboard", () => {
       },
     });
 
-    expect((await screen.findAllByText("batch.json")).length).toBeGreaterThan(1);
+    expect(await screen.findByText("batch.json")).toBeInTheDocument();
+    expect(screen.getByTestId("button-start-import")).toBeEnabled();
+  });
+
+  it("uses pasted JSON text when the clipboard also contains an image", async () => {
+    renderModal();
+    const zone = screen.getByTestId("local-falcon-package-dropzone");
+    const clipboardImage = new File(["image"], "clipboard.png", { type: "image/png" });
+
+    fireEvent.paste(zone, {
+      clipboardData: {
+        files: [clipboardImage],
+        getData: (type: string) => type === "text/plain"
+          ? "{\"batch\":{\"batch_id\":\"test\"},\"prospects\":[]}"
+          : "",
+      },
+    });
+
+    expect(await screen.findByText("batch.json")).toBeInTheDocument();
+    expect(screen.queryByText(/paste the json manifest first/i)).not.toBeInTheDocument();
     expect(screen.getByTestId("button-start-import")).toBeEnabled();
   });
 
@@ -48,5 +67,33 @@ describe("Local Falcon import clipboard", () => {
 
     expect(await screen.findByText("The pasted clipboard text is not valid JSON.")).toBeInTheDocument();
     expect(screen.getByTestId("button-start-import")).toBeDisabled();
+  });
+
+  it("shows the image uploader only after automatic Local Falcon retrieval fails", async () => {
+    server.use(
+      http.post("/api/crm/leads/import-local-falcon/preview", () => HttpResponse.json({
+        code: "LOCAL_FALCON_IMAGE_FETCH_FAILED",
+        message: "Local Falcon could not retrieve 1 official map.",
+        failures: [{
+          placeId: "ChIJ-test-1",
+          companyName: "Acme Roofing",
+          reportKey: "abcdef123456789",
+          reason: "Local Falcon returned HTTP 404",
+        }],
+      }, { status: 422 })),
+    );
+    renderModal();
+    expect(screen.queryByTestId("local-falcon-image-fallback")).not.toBeInTheDocument();
+
+    fireEvent.paste(screen.getByTestId("local-falcon-package-dropzone"), {
+      clipboardData: {
+        files: [],
+        getData: () => "{\"batch\":{\"batch_id\":\"test\"},\"prospects\":[]}",
+      },
+    });
+    fireEvent.click(screen.getByTestId("button-start-import"));
+
+    expect(await screen.findByTestId("local-falcon-image-fallback")).toBeInTheDocument();
+    expect(screen.getByText(/name the file/i)).toHaveTextContent("ChIJ-test-1.png");
   });
 });

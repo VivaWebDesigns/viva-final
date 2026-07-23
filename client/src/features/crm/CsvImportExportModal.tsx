@@ -14,7 +14,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -60,6 +60,8 @@ interface LocalFalconPreviewRow {
   address: string;
   heatmapFile: string;
   heatmapPreviewDataUrl: string | null;
+  heatmapSha256: string;
+  heatmapSourceUrl: string | null;
   reportData: LocalVisibilityReportData;
   outcome: "new" | "existing" | "flagged";
   reason?: string;
@@ -76,7 +78,15 @@ interface LocalFalconPreview {
   newCount: number;
   existingCount: number;
   flaggedCount: number;
+  sourceMode: "local_falcon" | "zip" | "fallback";
   rows: LocalFalconPreviewRow[];
+}
+
+interface LocalFalconImageFailure {
+  placeId: string;
+  companyName: string;
+  reportKey: string;
+  reason: string;
 }
 
 function FramedReportPreview({ data }: { data: LocalVisibilityReportData }) {
@@ -106,6 +116,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
   const [assignedTo, setAssignedTo] = useState("");
   const [approvedFlagged, setApprovedFlagged] = useState<Set<string>>(new Set());
   const [confirmedPreviews, setConfirmedPreviews] = useState<Set<string>>(new Set());
+  const [imageFailures, setImageFailures] = useState<LocalFalconImageFailure[]>([]);
 
   const { data: assignableUsers = [] } = useQuery<AssignableUser[]>({
     queryKey: ["/api/crm/leads/assignable-users"],
@@ -122,15 +133,17 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
     setAssignedTo("");
     setApprovedFlagged(new Set());
     setConfirmedPreviews(new Set());
+    setImageFailures([]);
     setPhase("idle");
   };
 
   const setPrimaryFile = (nextFile: File | null) => {
     setFile(nextFile);
-    if (nextFile?.name.toLowerCase().endsWith(".zip")) setHeatmapFiles([]);
+    setHeatmapFiles([]);
     setPreview(null);
     setResult(null);
     setImportError(null);
+    setImageFailures([]);
   };
 
   const addHeatmaps = (files: File[]) => {
@@ -149,58 +162,45 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
     const dropped = Array.from(event.dataTransfer.files);
     const primary = dropped.find((candidate) => /\.(zip|json)$/i.test(candidate.name));
     if (primary) setPrimaryFile(primary);
-    const images = dropped.filter((candidate) => /\.(png|jpe?g|webp)$/i.test(candidate.name));
-    if (images.length) addHeatmaps(images);
-    if (!primary && !images.length) setImportError("Drop a ZIP package, JSON manifest, or supported heatmap image.");
+    if (!primary) setImportError("Drop a ZIP package or JSON manifest, or paste JSON text.");
   };
 
   const handlePackagePaste = (event: ReactClipboardEvent<HTMLDivElement>) => {
     if (phase === "loading") return;
 
+    const clipboardText = event.clipboardData.getData("text/plain").trim();
+    if (clipboardText) {
+      const fencedMatch = clipboardText.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+      const jsonText = (fencedMatch?.[1] ?? clipboardText).trim();
+      try {
+        JSON.parse(jsonText);
+        event.preventDefault();
+        event.stopPropagation();
+        setPrimaryFile(new File([jsonText], "batch.json", {
+          type: "application/json",
+          lastModified: Date.now(),
+        }));
+        return;
+      } catch {
+        // Copied files can include non-JSON text metadata, so check files next.
+      }
+    }
+
     const pastedFiles = Array.from(event.clipboardData.files);
     const primary = pastedFiles.find((candidate) => /\.(zip|json)$/i.test(candidate.name));
-    const images = pastedFiles.filter((candidate) => /\.(png|jpe?g|webp)$/i.test(candidate.name));
 
     if (primary) {
       event.preventDefault();
       event.stopPropagation();
       setPrimaryFile(primary);
-      if (!primary.name.toLowerCase().endsWith(".zip") && images.length) addHeatmaps(images);
       return;
     }
 
-    if (images.length) {
-      event.preventDefault();
-      event.stopPropagation();
-      if (file?.name.toLowerCase().endsWith(".json")) {
-        addHeatmaps(images);
-      } else {
-        setImportError("Paste the JSON manifest first, then paste its heatmap images.");
-      }
-      return;
-    }
-
-    const clipboardText = event.clipboardData.getData("text/plain").trim();
-    if (!clipboardText) {
-      setImportError("The clipboard does not contain a ZIP file, JSON file, or JSON text.");
-      return;
-    }
-
-    const fencedMatch = clipboardText.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
-    const jsonText = (fencedMatch?.[1] ?? clipboardText).trim();
-    try {
-      JSON.parse(jsonText);
-    } catch {
+    if (clipboardText) {
       setImportError("The pasted clipboard text is not valid JSON.");
       return;
     }
-
-    event.preventDefault();
-    event.stopPropagation();
-    setPrimaryFile(new File([jsonText], "batch.json", {
-      type: "application/json",
-      lastModified: Date.now(),
-    }));
+    setImportError("Paste JSON text or a copied ZIP/JSON file. Images are requested separately only if Local Falcon retrieval fails.");
   };
 
   const buildPackageForm = () => {
@@ -223,8 +223,14 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
           body: buildPackageForm(),
         });
         const body = await response.json();
-        if (!response.ok) throw new Error(body.message ?? "Preview failed");
+        if (!response.ok) {
+          if (body.code === "LOCAL_FALCON_IMAGE_FETCH_FAILED" && Array.isArray(body.failures)) {
+            setImageFailures(body.failures);
+          }
+          throw new Error(body.message ?? "Preview failed");
+        }
         setPreview(body);
+        setImageFailures([]);
         setApprovedFlagged(new Set());
         setConfirmedPreviews(new Set());
         setPhase("preview");
@@ -259,13 +265,25 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
       const form = buildPackageForm();
       form.append("assignedTo", assignedTo);
       form.append("approvedFlaggedPlaceIds", JSON.stringify([...approvedFlagged]));
+      form.append("previewHeatmapChecksums", JSON.stringify(Object.fromEntries(
+        preview.rows.map((row) => [row.placeId, row.heatmapSha256]),
+      )));
       const response = await fetch("/api/crm/leads/import-local-falcon/confirm", {
         method: "POST",
         credentials: "include",
         body: form,
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.message ?? "Import failed");
+      if (!response.ok) {
+        if (data.code === "LOCAL_FALCON_IMAGE_FETCH_FAILED" && Array.isArray(data.failures)) {
+          setImageFailures(data.failures);
+          setPreview(null);
+          setPhase("idle");
+          setImportError(data.message ?? "Local Falcon image retrieval failed");
+          return;
+        }
+        throw new Error(data.message ?? "Import failed");
+      }
       setResult({ imported: data.imported, skipped: data.existingCount + data.flaggedCount - approvedFlagged.size, errors: data.automationErrors, details: [] });
       setPhase("done");
       queryClient.invalidateQueries({ queryKey: ["/api/crm/leads"] });
@@ -295,13 +313,15 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
 
   const includedRows = preview?.rows.filter((row) => row.outcome === "new" || (row.outcome === "flagged" && approvedFlagged.has(row.placeId))) ?? [];
   const everyIncludedPreviewConfirmed = includedRows.length > 0 && includedRows.every((row) => confirmedPreviews.has(row.placeId));
-  const isJsonPackage = file?.name.toLowerCase().endsWith(".json");
 
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && handleClose()}>
       <DialogContent className="max-h-[94dvh] overflow-y-auto sm:max-w-6xl" data-testid="csv-import-modal">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><Upload className="h-4 w-4" /> Import prospects</DialogTitle>
+          <DialogDescription className="sr-only">
+            Import qualified Local Falcon prospects from JSON, or import leads and contacts from CSV.
+          </DialogDescription>
         </DialogHeader>
 
         {(phase === "idle" || phase === "loading") && (
@@ -324,8 +344,8 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
             {entityType === "local_falcon" ? (
               <>
                 <div className="rounded-md border bg-slate-50 p-3 text-sm text-slate-600">
-                  <p className="font-semibold text-slate-900">Qualified Local Falcon package</p>
-                  <p className="mt-1">Preferred: one ZIP containing canonical <code>batch.json</code> and original files in <code>heatmaps/</code>. You may also provide the JSON and heatmaps separately.</p>
+                  <p className="font-semibold text-slate-900">Qualified Local Falcon prospects</p>
+                  <p className="mt-1">Paste the canonical JSON manifest. The CRM retrieves each official map automatically from its <code>report_key</code>. ZIP packages remain available as a fallback.</p>
                 </div>
                 <div
                   role="group"
@@ -340,7 +360,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
                 >
                   <ClipboardPaste className="mb-3 h-9 w-9 text-blue-600" />
                   <p className="font-semibold text-slate-900">Click this box, then press Ctrl+V or ⌘V</p>
-                  <p className="mt-1 text-sm text-slate-500">Paste JSON text or a copied ZIP/JSON file · you can also drop files here</p>
+                  <p className="mt-1 text-sm text-slate-500">Paste JSON text or a copied JSON file · ZIP fallback also supported</p>
                   <Button
                     type="button"
                     variant="outline"
@@ -352,7 +372,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
                       packageInputRef.current?.click();
                     }}
                   >
-                    Choose ZIP or JSON
+                    Choose JSON or ZIP
                   </Button>
                   <Input
                     ref={packageInputRef}
@@ -369,18 +389,32 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
                     <div><p className="font-medium">{file.name}</p><p className="text-xs text-slate-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p></div>
                   </div>
                 )}
-                {isJsonPackage && (
+                {imageFailures.length > 0 && (
                   <div
-                    className="rounded-lg border border-dashed p-4"
+                    className="rounded-lg border border-dashed border-amber-400 bg-amber-50 p-4"
                     onDragOver={(event) => event.preventDefault()}
                     onDrop={(event) => { event.preventDefault(); addHeatmaps(Array.from(event.dataTransfer.files)); }}
+                    data-testid="local-falcon-image-fallback"
                   >
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2"><ImagePlus className="h-5 w-5 text-blue-600" /><div><p className="text-sm font-medium">Add referenced heatmaps</p><p className="text-xs text-slate-500">Drop the original PNG, JPG, or WebP files here.</p></div></div>
-                      <Button type="button" variant="outline" size="sm" onClick={() => heatmapInputRef.current?.click()}>Choose images</Button>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-2">
+                        <ImagePlus className="mt-0.5 h-5 w-5 text-amber-700" />
+                        <div>
+                          <p className="text-sm font-medium text-amber-950">Local Falcon image fallback</p>
+                          <p className="text-xs text-amber-800">Automatic retrieval failed only for the prospect{imageFailures.length === 1 ? "" : "s"} below. Add the original image and review again.</p>
+                        </div>
+                      </div>
+                      <Button type="button" variant="outline" size="sm" className="bg-white" onClick={() => heatmapInputRef.current?.click()}>Choose fallback images</Button>
                     </div>
                     <Input ref={heatmapInputRef} type="file" accept="image/png,image/jpeg,image/webp" multiple className="hidden" onChange={(event) => addHeatmaps(Array.from(event.target.files ?? []))} />
-                    {heatmapFiles.length > 0 && <p className="mt-3 text-xs text-green-700">{heatmapFiles.length} heatmap{heatmapFiles.length === 1 ? "" : "s"} selected</p>}
+                    <div className="mt-3 space-y-1">
+                      {imageFailures.map((failure) => (
+                        <p key={failure.placeId} className="text-xs text-amber-900">
+                          <span className="font-semibold">{failure.companyName}:</span> name the file <code>{failure.placeId}.png</code>
+                        </p>
+                      ))}
+                    </div>
+                    {heatmapFiles.length > 0 && <p className="mt-3 text-xs font-medium text-green-700">{heatmapFiles.length} fallback image{heatmapFiles.length === 1 ? "" : "s"} selected</p>}
                   </div>
                 )}
               </>
@@ -425,7 +459,13 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
                           <Badge variant={row.outcome === "new" ? "default" : "outline"}>{row.outcome}</Badge>
                         </div>
                         <p className="text-sm text-slate-500">{row.address}</p>
-                        <p className="font-mono text-xs text-slate-400">{row.heatmapFile}</p>
+                        {row.heatmapSourceUrl ? (
+                          <a href={row.heatmapSourceUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline">
+                            Official map retrieved automatically from Local Falcon
+                          </a>
+                        ) : (
+                          <p className="font-mono text-xs text-slate-400">{row.heatmapFile}</p>
+                        )}
                         {row.reason && <p className="text-sm text-slate-600">{row.reason}</p>}
                         {row.matches?.map((match) => <p key={match.companyName} className="text-sm text-amber-700"><Flag className="mr-1 inline h-4 w-4" />Possible match: {match.companyName} ({match.reasons.join(", ")})</p>)}
                         {row.outcome === "flagged" && (

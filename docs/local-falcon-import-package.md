@@ -1,15 +1,11 @@
-# Local Falcon prospect package
+# Local Falcon prospect import
 
-The canonical handoff is JSON. For a complete CRM import, `batch.json` and its original Local Falcon heatmaps travel together inside one ZIP file.
+The canonical handoff is a single JSON manifest. The CRM derives the official
+Local Falcon image URL from each prospect's `report_key`, retrieves the original
+image server-side, validates it, shows the exact report framing for approval,
+and stores the confirmed bytes in R2.
 
-```text
-monroe-nc-plumbing-20260722.zip
-├── batch.json
-└── heatmaps/
-    └── ChIJBVJ_i_OJgWkRT9fe4f3IpK0.png
-```
-
-The CRM also accepts `batch.json` directly when the referenced heatmap files are added separately in the import screen.
+No heatmap screenshot or ZIP is required during the normal import flow.
 
 ## Canonical manifest
 
@@ -50,7 +46,6 @@ The CRM also accepts `batch.json` directly when the referenced heatmap files are
       "arp": 4.87,
       "rating": 4.7,
       "review_count": 13,
-      "heatmap_file": "heatmaps/ChIJBVJ_i_OJgWkRT9fe4f3IpK0.png",
       "qualification_status": "qualified"
     }
   ]
@@ -61,20 +56,67 @@ The CRM also accepts `batch.json` directly when the referenced heatmap files are
 
 - Only `qualification_status: "qualified"` may enter the CRM.
 - `scan_keyword` must match the batch keyword.
-- Every Place ID and every `heatmap_file` reference must be unique inside the manifest.
-- Every referenced heatmap must exist, and every heatmap in the package must be referenced exactly once.
-- Heatmaps must be original PNG, JPG, or WebP files. The importer never crops, resizes, or reconstructs the stored evidence asset.
+- Every Place ID must be unique inside the manifest.
+- `report_key` must be the hexadecimal Local Falcon report key. It is the only
+  input used to derive the official image URL.
+- The importer accepts only a successful PNG, JPG, or WebP response from the
+  fixed Local Falcon image host. Redirects, oversized files, invalid images, and
+  incomplete map dimensions are rejected.
+- The original retrieved bytes are checksummed and stored unchanged. The report
+  generator owns presentation framing; the importer never crops, resizes, or
+  reconstructs the stored evidence asset.
 - `website_url` is required when `has_website` is true and must be `null` when false.
 - Phone and owner may be `null` when unavailable.
 - Setter assignment is CRM operational data and is selected during confirmation; it does not belong in the manifest.
 
 ## CRM workflow
 
-1. Drag the ZIP into **CRM → Leads → Import → Local Falcon**.
-2. Review duplicate checks and the exact final report framing for every included prospect.
-3. Explicitly approve any flagged possible duplicate.
-4. Confirm the company/image pairing and full-grid visibility.
-5. Select the appointment setter.
-6. Confirm the import.
+1. Open **CRM → Leads → Import → Local Falcon**.
+2. Click the import box and paste the JSON with **Ctrl+V** or **⌘V**. Dropping or
+   choosing the JSON file also works.
+3. Click **Review import**. The CRM retrieves the official maps automatically.
+4. Review duplicate checks and the exact final report framing for every included prospect.
+5. Explicitly approve any flagged possible duplicate.
+6. Confirm the company/image pairing and full-grid visibility.
+7. Select the appointment setter.
+8. Confirm the import.
 
 The CRM stores the original heatmap in R2, creates the assigned lead and opportunity in **New Lead**, and creates the assigned **Contact lead** task. Sales reps can then load their assigned evidence directly in the Local Visibility Snapshot generator without OCR or re-entry.
+
+## Image fallback
+
+If Local Falcon cannot supply an official map, the import stays on the same
+screen and identifies the affected prospect. Only then does the CRM show a
+fallback image uploader. Name each original PNG, JPG, or WebP with the
+prospect's Place ID and review the import again.
+
+Example:
+
+```text
+ChIJBVJ_i_OJgWkRT9fe4f3IpK0.png
+```
+
+The fallback is not displayed during a healthy JSON import.
+
+## ZIP fallback
+
+ZIP remains supported for an outage or a fully self-contained archive. In that
+mode, every prospect must include `heatmap_file`, and matching is validated in
+both directions.
+
+```text
+monroe-nc-plumbing-20260722.zip
+├── batch.json
+└── heatmaps/
+    └── ChIJBVJ_i_OJgWkRT9fe4f3IpK0.png
+```
+
+```json
+{
+  "place_id": "ChIJBVJ_i_OJgWkRT9fe4f3IpK0",
+  "heatmap_file": "heatmaps/ChIJBVJ_i_OJgWkRT9fe4f3IpK0.png"
+}
+```
+
+Every referenced file must exist, no file may be unreferenced, and each path
+may be used only once.

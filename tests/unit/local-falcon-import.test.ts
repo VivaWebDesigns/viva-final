@@ -1,8 +1,12 @@
 import { readFile } from "node:fs/promises";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { strToU8, zipSync } from "fflate";
+import sharp from "sharp";
 import { parseLocalFalconPayload } from "../../server/features/crm/localFalconImport";
-import { parseLocalFalconPackage } from "../../server/features/crm/localFalconPackage";
+import {
+  LocalFalconImageFetchError,
+  parseLocalFalconPackage,
+} from "../../server/features/crm/localFalconPackage";
 
 const heatmapPath = "heatmaps/ChIJ-test-1.png";
 const prospect = {
@@ -18,8 +22,8 @@ const prospect = {
   has_website: true,
   website_url: "https://acmeroofing.com",
   service_page_count: 3,
-  report_key: "report-1",
-  report_url: "https://www.localfalcon.com/reports/view/report-1",
+  report_key: "abcdef123456789",
+  report_url: "https://www.localfalcon.com/reports/view/abcdef123456789",
   scan_date: "2026-07-20",
   scan_keyword: "roofer",
   arp: 8.2,
@@ -80,6 +84,7 @@ describe("parseLocalFalconPackage", () => {
     });
     expect(result.heatmapsByPlaceId.get(prospect.place_id)?.buffer).toEqual(heatmap);
     expect(result.heatmapsByPlaceId.get(prospect.place_id)?.sha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(result.sourceMode).toBe("zip");
   });
 
   it("rejects ZIP heatmaps that are not referenced by the manifest", async () => {
@@ -103,5 +108,79 @@ describe("parseLocalFalconPackage", () => {
       originalName: "monroe-roofing.zip",
       mimeType: "application/zip",
     })).rejects.toThrow(/missing heatmap/i);
+  });
+
+  it("retrieves the official Local Falcon map for JSON-only imports", async () => {
+    const fixture = await readFile("tests/fixtures/local-visibility/carolina-custom-automation-heatmap.png");
+    const officialMap = await sharp(fixture).resize(1000, 1000, { fit: "fill" }).png().toBuffer();
+    const fetchMap = vi.fn(async () => new Response(new Uint8Array(officialMap), {
+      status: 200,
+      headers: { "content-type": "image/png", "content-length": String(officialMap.length) },
+    }));
+    const jsonPayload = {
+      ...payload,
+      prospects: [{ ...prospect, heatmap_file: undefined }],
+    };
+
+    const result = await parseLocalFalconPackage({
+      buffer: Buffer.from(JSON.stringify(jsonPayload)),
+      originalName: "batch.json",
+      mimeType: "application/json",
+    }, [], fetchMap);
+
+    expect(fetchMap).toHaveBeenCalledWith(
+      "https://lf-static-v2.localfalcon.com/image/abcdef123456789",
+      expect.objectContaining({ redirect: "manual" }),
+    );
+    expect(result.sourceMode).toBe("local_falcon");
+    expect(result.heatmapsByPlaceId.get(prospect.place_id)?.buffer).toEqual(officialMap);
+    expect(result.heatmapsByPlaceId.get(prospect.place_id)?.sourceUrl).toBe(
+      "https://lf-static-v2.localfalcon.com/image/abcdef123456789",
+    );
+  });
+
+  it("uses a Place ID-named fallback only when an official map cannot be retrieved", async () => {
+    const fallback = await readFile("tests/fixtures/local-visibility/carolina-custom-automation-heatmap.png");
+    const fetchMap = vi.fn();
+    const jsonPayload = {
+      ...payload,
+      prospects: [{ ...prospect, heatmap_file: undefined }],
+    };
+
+    const result = await parseLocalFalconPackage({
+      buffer: Buffer.from(JSON.stringify(jsonPayload)),
+      originalName: "batch.json",
+      mimeType: "application/json",
+    }, [{
+      buffer: fallback,
+      originalName: `${prospect.place_id}.png`,
+      mimeType: "image/png",
+    }], fetchMap);
+
+    expect(fetchMap).not.toHaveBeenCalled();
+    expect(result.sourceMode).toBe("fallback");
+    expect(result.heatmapsByPlaceId.get(prospect.place_id)?.buffer).toEqual(fallback);
+  });
+
+  it("returns structured failures when official retrieval fails", async () => {
+    const jsonPayload = {
+      ...payload,
+      prospects: [{ ...prospect, heatmap_file: undefined }],
+    };
+    const fetchMap = vi.fn(async () => new Response("missing", { status: 404 }));
+
+    const promise = parseLocalFalconPackage({
+      buffer: Buffer.from(JSON.stringify(jsonPayload)),
+      originalName: "batch.json",
+      mimeType: "application/json",
+    }, [], fetchMap);
+
+    await expect(promise).rejects.toMatchObject({
+      name: LocalFalconImageFetchError.name,
+      failures: [expect.objectContaining({
+        placeId: prospect.place_id,
+        reportKey: prospect.report_key,
+      })],
+    });
   });
 });
