@@ -433,16 +433,17 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
                         <ImagePlus className="mt-0.5 h-5 w-5 text-amber-700" />
                         <div>
                           <p className="text-sm font-medium text-amber-950">Local Falcon image fallback</p>
-                          <p className="text-xs text-amber-800">Automatic retrieval failed only for the prospect{imageFailures.length === 1 ? "" : "s"} below. Add the original image and review again.</p>
+                          <p className="text-xs text-amber-800">Automatic retrieval exhausted its retries for the prospect{imageFailures.length === 1 ? "" : "s"} below. Retry the retained package, or add the original image and review again.</p>
                         </div>
                       </div>
-                      <Button type="button" variant="outline" size="sm" className="bg-white" onClick={() => heatmapInputRef.current?.click()}>Choose fallback images</Button>
+                      <Button type="button" variant="outline" size="sm" className="bg-white" disabled={phase === "loading"} onClick={() => heatmapInputRef.current?.click()}>Choose fallback images</Button>
                     </div>
                     <Input ref={heatmapInputRef} type="file" accept="image/png,image/jpeg,image/webp" multiple className="hidden" onChange={(event) => addHeatmaps(Array.from(event.target.files ?? []))} />
                     <div className="mt-3 space-y-1">
                       {imageFailures.map((failure) => (
                         <p key={failure.placeId} className="text-xs text-amber-900">
                           <span className="font-semibold">{failure.companyName}:</span> name the file <code>{failure.placeId}.png</code>
+                          <span className="block text-amber-800">Last error: {failure.reason}</span>
                         </p>
                       ))}
                     </div>
@@ -546,7 +547,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
           ) : phase === "preview" ? (
             <><Button variant="outline" onClick={clearImportState} disabled={isGeneratingSnapshots}>Choose another package</Button><Button onClick={handleConfirmLocalFalcon} disabled={preview?.batchAlreadyImported || !assignedTo || !everyIncludedPreviewConfirmed || isGeneratingSnapshots} data-testid="button-confirm-local-falcon-import">{isGeneratingSnapshots ? "Generating snapshots…" : "Import assigned leads"}</Button></>
           ) : (
-            <><Button variant="outline" onClick={handleClose} disabled={phase === "loading"}>Cancel</Button><Button onClick={handleImport} disabled={!file || phase === "loading"} data-testid="button-start-import">{phase === "loading" ? t.crm.importing : "Review import"}</Button></>
+            <><Button variant="outline" onClick={handleClose} disabled={phase === "loading"}>Cancel</Button><Button onClick={handleImport} disabled={!file || phase === "loading"} data-testid="button-start-import">{phase === "loading" ? t.crm.importing : imageFailures.length > 0 ? "Retry automatic retrieval" : "Review import"}</Button></>
           )}
         </DialogFooter>
       </DialogContent>

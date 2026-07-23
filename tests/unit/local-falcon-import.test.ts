@@ -193,6 +193,68 @@ describe("parseLocalFalconPackage", () => {
     );
   });
 
+  it("retries transient failures before accepting the official map", async () => {
+    const fixture = await readFile("tests/fixtures/local-visibility/carolina-custom-automation-heatmap.png");
+    const officialMap = await sharp(fixture).resize(1000, 1000, { fit: "fill" }).png().toBuffer();
+    const fetchMap = vi.fn()
+      .mockRejectedValueOnce(new TypeError("fetch failed"))
+      .mockResolvedValueOnce(new Response("busy", { status: 503 }))
+      .mockResolvedValueOnce(new Response(new Uint8Array(officialMap), {
+        status: 200,
+        headers: { "content-type": "image/png" },
+      }));
+    const jsonPayload = {
+      ...payload,
+      prospects: [{ ...prospect, heatmap_file: undefined }],
+    };
+
+    const result = await parseLocalFalconPackage({
+      buffer: Buffer.from(JSON.stringify(jsonPayload)),
+      originalName: "batch.json",
+      mimeType: "application/json",
+    }, [], fetchMap);
+
+    expect(fetchMap).toHaveBeenCalledTimes(3);
+    expect(result.heatmapsByPlaceId.get(prospect.place_id)?.buffer).toEqual(officialMap);
+  });
+
+  it("caps simultaneous Local Falcon image requests at three", async () => {
+    const fixture = await readFile("tests/fixtures/local-visibility/carolina-custom-automation-heatmap.png");
+    const officialMap = await sharp(fixture).resize(1000, 1000, { fit: "fill" }).png().toBuffer();
+    let activeRequests = 0;
+    let maxActiveRequests = 0;
+    const fetchMap = vi.fn(async () => {
+      activeRequests += 1;
+      maxActiveRequests = Math.max(maxActiveRequests, activeRequests);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      activeRequests -= 1;
+      return new Response(new Uint8Array(officialMap), {
+        status: 200,
+        headers: { "content-type": "image/png" },
+      });
+    });
+    const jsonPayload = {
+      ...payload,
+      prospects: Array.from({ length: 7 }, (_, index) => ({
+        ...prospect,
+        place_id: `ChIJ-test-${index}`,
+        company_name: `Acme Roofing ${index}`,
+        report_key: index.toString(16).padStart(15, "0"),
+        heatmap_file: undefined,
+      })),
+    };
+
+    const result = await parseLocalFalconPackage({
+      buffer: Buffer.from(JSON.stringify(jsonPayload)),
+      originalName: "batch.json",
+      mimeType: "application/json",
+    }, [], fetchMap);
+
+    expect(fetchMap).toHaveBeenCalledTimes(7);
+    expect(maxActiveRequests).toBe(3);
+    expect(result.heatmapsByPlaceId.size).toBe(7);
+  });
+
   it("uses a Place ID-named fallback only when an official map cannot be retrieved", async () => {
     const fallback = await readFile("tests/fixtures/local-visibility/carolina-custom-automation-heatmap.png");
     const fetchMap = vi.fn();
@@ -236,5 +298,6 @@ describe("parseLocalFalconPackage", () => {
         reportKey: prospect.report_key,
       })],
     });
+    expect(fetchMap).toHaveBeenCalledTimes(1);
   });
 });

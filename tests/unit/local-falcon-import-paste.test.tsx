@@ -95,6 +95,8 @@ describe("Local Falcon import clipboard", () => {
 
     expect(await screen.findByTestId("local-falcon-image-fallback")).toBeInTheDocument();
     expect(screen.getByText(/name the file/i)).toHaveTextContent("ChIJ-test-1.png");
+    expect(screen.getByText("Last error: Local Falcon returned HTTP 404")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retry automatic retrieval" })).toBeEnabled();
   });
 
   it("shows automatically retrieved maps with the approved centered crop", async () => {

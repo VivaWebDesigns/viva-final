@@ -12,6 +12,10 @@ export const LOCAL_FALCON_PACKAGE_MAX_BYTES = 50 * 1024 * 1024;
 export const LOCAL_FALCON_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
 const MAX_UNCOMPRESSED_BYTES = 100 * 1024 * 1024;
 const LOCAL_FALCON_IMAGE_ORIGIN = "https://lf-static-v2.localfalcon.com";
+const LOCAL_FALCON_IMAGE_TIMEOUT_MS = 30_000;
+const LOCAL_FALCON_IMAGE_MAX_ATTEMPTS = 3;
+const LOCAL_FALCON_IMAGE_CONCURRENCY = 3;
+const LOCAL_FALCON_RETRY_DELAYS_MS = [500, 1_500];
 
 type FetchLike = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 
@@ -46,6 +50,17 @@ export class LocalFalconImageFetchError extends Error {
     const label = failures.length === 1 ? "map" : "maps";
     super(`Local Falcon could not retrieve ${failures.length} official ${label}. Add the fallback image${failures.length === 1 ? "" : "s"} shown below, then review again.`);
     this.name = "LocalFalconImageFetchError";
+  }
+}
+
+class LocalFalconFetchAttemptError extends Error {
+  constructor(
+    message: string,
+    readonly retryable: boolean,
+    readonly status: number | null = null,
+  ) {
+    super(message);
+    this.name = "LocalFalconFetchAttemptError";
   }
 }
 
@@ -200,7 +215,32 @@ async function readResponseWithLimit(response: Response): Promise<Buffer> {
   return Buffer.concat(chunks);
 }
 
-async function fetchOfficialMap(
+function errorMessage(error: unknown, fallback = "network request failed"): string {
+  return error instanceof Error ? error.message : fallback;
+}
+
+function logOfficialMapFailure(details: {
+  prospect: LocalFalconProspectInput;
+  attempt: number;
+  durationMs: number;
+  error: LocalFalconFetchAttemptError;
+  final: boolean;
+}) {
+  console.warn("[local-falcon:image-fetch]", JSON.stringify({
+    reportKey: details.prospect.report_key,
+    placeId: details.prospect.place_id,
+    companyName: details.prospect.company_name,
+    attempt: details.attempt,
+    maxAttempts: LOCAL_FALCON_IMAGE_MAX_ATTEMPTS,
+    durationMs: details.durationMs,
+    httpStatus: details.error.status,
+    retryable: details.error.retryable,
+    outcome: details.final ? "failed" : "retrying",
+    reason: details.error.message,
+  }));
+}
+
+async function fetchOfficialMapAttempt(
   prospect: LocalFalconProspectInput,
   fetchImpl: FetchLike,
 ): Promise<ValidatedHeatmap> {
@@ -210,28 +250,99 @@ async function fetchOfficialMap(
     response = await fetchImpl(sourceUrl, {
       method: "GET",
       redirect: "manual",
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(LOCAL_FALCON_IMAGE_TIMEOUT_MS),
       headers: { Accept: "image/png,image/jpeg,image/webp" },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "network request failed";
-    throw new Error(message);
+    throw new LocalFalconFetchAttemptError(errorMessage(error), true);
   }
 
-  if (response.status >= 300 && response.status < 400) throw new Error("Local Falcon returned an unexpected redirect");
-  if (!response.ok) throw new Error(`Local Falcon returned HTTP ${response.status}`);
+  if (response.status >= 300 && response.status < 400) {
+    throw new LocalFalconFetchAttemptError("Local Falcon returned an unexpected redirect", false, response.status);
+  }
+  if (!response.ok) {
+    const retryable = [408, 425, 429].includes(response.status) || response.status >= 500;
+    throw new LocalFalconFetchAttemptError(`Local Falcon returned HTTP ${response.status}`, retryable, response.status);
+  }
   const contentType = response.headers.get("content-type")?.split(";")[0].trim().toLowerCase();
   if (!contentType || !["image/png", "image/jpeg", "image/webp"].includes(contentType)) {
-    throw new Error(`Local Falcon returned ${contentType || "an unknown content type"} instead of an image`);
+    throw new LocalFalconFetchAttemptError(
+      `Local Falcon returned ${contentType || "an unknown content type"} instead of an image`,
+      false,
+      response.status,
+    );
   }
 
-  const buffer = await readResponseWithLimit(response);
+  let buffer: Buffer;
+  try {
+    buffer = await readResponseWithLimit(response);
+  } catch (error) {
+    const message = errorMessage(error, "Local Falcon image download failed");
+    throw new LocalFalconFetchAttemptError(
+      message,
+      !message.includes("exceeds the 10 MB limit"),
+      response.status,
+    );
+  }
   const extension = contentType === "image/jpeg" ? "jpg" : contentType.split("/")[1];
-  return validateHeatmap(buffer, `local-falcon/${prospect.place_id}.${extension}`, {
-    originalName: `${prospect.place_id}.${extension}`,
-    sourceUrl,
-    requireFullMap: true,
-  });
+  try {
+    return await validateHeatmap(buffer, `local-falcon/${prospect.place_id}.${extension}`, {
+      originalName: `${prospect.place_id}.${extension}`,
+      sourceUrl,
+      requireFullMap: true,
+    });
+  } catch (error) {
+    throw new LocalFalconFetchAttemptError(errorMessage(error, "Local Falcon image validation failed"), false, response.status);
+  }
+}
+
+async function fetchOfficialMap(
+  prospect: LocalFalconProspectInput,
+  fetchImpl: FetchLike,
+): Promise<ValidatedHeatmap> {
+  for (let attempt = 1; attempt <= LOCAL_FALCON_IMAGE_MAX_ATTEMPTS; attempt += 1) {
+    const startedAt = Date.now();
+    try {
+      return await fetchOfficialMapAttempt(prospect, fetchImpl);
+    } catch (error) {
+      const attemptError = error instanceof LocalFalconFetchAttemptError
+        ? error
+        : new LocalFalconFetchAttemptError(errorMessage(error, "Image retrieval failed"), false);
+      const final = !attemptError.retryable || attempt === LOCAL_FALCON_IMAGE_MAX_ATTEMPTS;
+      logOfficialMapFailure({
+        prospect,
+        attempt,
+        durationMs: Date.now() - startedAt,
+        error: attemptError,
+        final,
+      });
+      if (final) throw new Error(attemptError.message);
+
+      const delayMs = process.env.NODE_ENV === "test"
+        ? 0
+        : LOCAL_FALCON_RETRY_DELAYS_MS[attempt - 1] ?? LOCAL_FALCON_RETRY_DELAYS_MS.at(-1)!;
+      if (delayMs > 0) await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+  throw new Error("Image retrieval failed");
+}
+
+async function forEachWithConcurrency<T>(
+  items: T[],
+  concurrency: number,
+  callback: (item: T) => Promise<void>,
+): Promise<void> {
+  let nextIndex = 0;
+  const worker = async () => {
+    while (nextIndex < items.length) {
+      const item = items[nextIndex];
+      nextIndex += 1;
+      await callback(item);
+    }
+  };
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, items.length) }, () => worker()),
+  );
 }
 
 async function parseZipPackage(manifestText: string, images: Map<string, Buffer>): Promise<ParsedLocalFalconPackage> {
@@ -270,14 +381,14 @@ async function parseJsonPackage(
   const usedFallbackPaths = new Set<string>();
   const failures: LocalFalconImageFailure[] = [];
 
-  for (const prospect of payload.prospects) {
+  await forEachWithConcurrency(payload.prospects, LOCAL_FALCON_IMAGE_CONCURRENCY, async (prospect) => {
     const fallbackPath = fallbackPathForProspect(prospect, images);
     if (fallbackPath) {
       const heatmap = await validateHeatmap(images.get(fallbackPath)!, fallbackPath);
       heatmapsByPath.set(fallbackPath, heatmap);
       heatmapsByPlaceId.set(prospect.place_id, heatmap);
       usedFallbackPaths.add(fallbackPath);
-      continue;
+      return;
     }
 
     try {
@@ -292,7 +403,7 @@ async function parseJsonPackage(
         reason: error instanceof Error ? error.message : "Image retrieval failed",
       });
     }
-  }
+  });
 
   for (const imagePath of images.keys()) {
     if (!usedFallbackPaths.has(imagePath)) throw new Error(`Unreferenced fallback image: ${imagePath}`);
