@@ -314,9 +314,9 @@ export const crmLeads = pgTable("crm_leads", {
   index("crm_leads_web_form_idx").on(t.fromWebsiteForm),
 ]);
 
-// A Local Falcon import is intentionally insert-only. Batch IDs make an exact
-// resubmission idempotent, while the one-to-one profile preserves the original
-// qualification snapshot that caused a company to enter the sales funnel.
+// Batch IDs preserve import provenance and can be reused when a prospect from
+// an earlier batch is intentionally deleted and later restored. Place IDs on
+// prospect profiles provide row-level duplicate protection.
 export const localFalconImportBatches = pgTable("local_falcon_import_batches", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   batchId: text("batch_id").notNull().unique(),

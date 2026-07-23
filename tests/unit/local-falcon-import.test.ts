@@ -2,7 +2,10 @@ import { readFile } from "node:fs/promises";
 import { describe, expect, it, vi } from "vitest";
 import { strToU8, zipSync } from "fflate";
 import sharp from "sharp";
-import { parseLocalFalconPayload } from "../../server/features/crm/localFalconImport";
+import {
+  isLocalFalconBatchFullyImported,
+  parseLocalFalconPayload,
+} from "../../server/features/crm/localFalconImport";
 import {
   LocalFalconImageFetchError,
   parseLocalFalconPackage,
@@ -70,6 +73,30 @@ describe("parseLocalFalconPayload", () => {
       ...payload,
       prospects: [{ ...prospect, scan_keyword: "roof repair" }],
     }))).toThrow(/scan_keyword must match batch.keyword/i);
+  });
+});
+
+describe("Local Falcon batch idempotency", () => {
+  it("allows a deleted prospect to be restored from an existing batch", () => {
+    expect(isLocalFalconBatchFullyImported("existing-batch-id", [{
+      row: 1,
+      placeId: prospect.place_id,
+      companyName: prospect.company_name,
+      address: prospect.address,
+      heatmapFile: heatmapPath,
+      outcome: "new",
+    }])).toBe(false);
+  });
+
+  it("keeps a fully surviving batch protected from duplicate imports", () => {
+    expect(isLocalFalconBatchFullyImported("existing-batch-id", [{
+      row: 1,
+      placeId: prospect.place_id,
+      companyName: prospect.company_name,
+      address: prospect.address,
+      heatmapFile: heatmapPath,
+      outcome: "existing",
+    }])).toBe(true);
   });
 });
 

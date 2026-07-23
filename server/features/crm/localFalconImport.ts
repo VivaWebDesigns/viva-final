@@ -127,6 +127,13 @@ export interface LocalFalconPreviewResult {
   rows: ProspectPreview[];
 }
 
+export function isLocalFalconBatchFullyImported(
+  existingBatchId: string | undefined,
+  rows: ProspectPreview[],
+): boolean {
+  return Boolean(existingBatchId) && rows.length > 0 && rows.every((row) => row.outcome === "existing");
+}
+
 function assertDate(value: string, field: string): void {
   if (Number.isNaN(new Date(value).getTime())) throw new Error(`${field} must be a valid date`);
 }
@@ -235,13 +242,11 @@ export async function previewLocalFalconImport(payload: LocalFalconPayload): Pro
       heatmapFile: prospect.heatmap_file ?? "Official Local Falcon image",
     };
     const existingLeadId = existingByPlace.get(prospect.place_id);
-    if (existingLeadId || existingBatch) {
+    if (existingLeadId) {
       rows.push({
         ...base,
         outcome: "existing",
-        reason: existingBatch
-          ? `Batch ${payload.batch.batch_id} was already imported`
-          : `Place ID already belongs to lead ${existingLeadId}`,
+        reason: `Place ID already belongs to lead ${existingLeadId}`,
       });
       continue;
     }
@@ -255,7 +260,7 @@ export async function previewLocalFalconImport(payload: LocalFalconPayload): Pro
     trade: payload.batch.trade,
     keyword: payload.batch.keyword,
     scanSpec: payload.batch.scan_spec,
-    batchAlreadyImported: Boolean(existingBatch),
+    batchAlreadyImported: isLocalFalconBatchFullyImported(existingBatch?.id, rows),
     newCount: rows.filter((row) => row.outcome === "new").length,
     existingCount: rows.filter((row) => row.outcome === "existing").length,
     flaggedCount: rows.filter((row) => row.outcome === "flagged").length,
@@ -276,7 +281,6 @@ export async function importLocalFalconPayload(
   assetsByPlaceId: Map<string, LocalFalconUploadedAsset>,
 ): Promise<LocalFalconImportResult> {
   const preview = await previewLocalFalconImport(payload);
-  if (preview.batchAlreadyImported) return { ...preview, imported: 0, importedLeads: [] };
 
   const allowedPlaceIds = new Set(
     preview.rows.filter((row) => row.outcome === "new" || (row.outcome === "flagged" && selectedPlaceIds.has(row.placeId)))
@@ -288,18 +292,23 @@ export async function importLocalFalconPayload(
   }
 
   const importedLeads = await db.transaction(async (tx) => {
-    const [batch] = await tx.insert(localFalconImportBatches).values({
-      batchId: payload.batch.batch_id,
-      marketCity: payload.batch.market.city,
-      marketState: payload.batch.market.state,
-      trade: payload.batch.trade,
-      keyword: payload.batch.keyword,
-      exportDate: new Date(payload.batch.export_date),
-      gridSize: payload.batch.scan_spec.grid_size,
-      radiusMiles: String(payload.batch.scan_spec.radius_miles),
-      importDate: new Date(),
-      importedBy,
-    }).returning();
+    const [existingBatch] = await tx.select().from(localFalconImportBatches)
+      .where(eq(localFalconImportBatches.batchId, payload.batch.batch_id)).limit(1);
+    let batch = existingBatch;
+    if (!batch) {
+      [batch] = await tx.insert(localFalconImportBatches).values({
+        batchId: payload.batch.batch_id,
+        marketCity: payload.batch.market.city,
+        marketState: payload.batch.market.state,
+        trade: payload.batch.trade,
+        keyword: payload.batch.keyword,
+        exportDate: new Date(payload.batch.export_date),
+        gridSize: payload.batch.scan_spec.grid_size,
+        radiusMiles: String(payload.batch.scan_spec.radius_miles),
+        importDate: new Date(),
+        importedBy,
+      }).returning();
+    }
 
     const [status] = await tx.select().from(crmLeadStatuses).where(eq(crmLeadStatuses.slug, "new")).limit(1);
     const [stage] = await tx.select().from(pipelineStages).where(eq(pipelineStages.slug, "new-lead")).limit(1);
