@@ -88,6 +88,9 @@ import type {
   PipelineStage, ClientNote, User as DbUser, FollowupTask,
 } from "@shared/schema";
 import { useLocation } from "wouter";
+import LocalVisibilityReportTemplate, { type MapPosition } from "@/features/local-visibility-report/LocalVisibilityReportTemplate";
+import { renderLocalVisibilityReportBlob } from "@/features/local-visibility-report/exportReport";
+import type { LocalVisibilityReportData } from "@/features/local-visibility-report/types";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -114,6 +117,107 @@ interface BillingSnapshot {
   carePlanStatus: string | null;
   stripeCustomer: { id: string; stripeCustomerId: string; email: string | null; metadata: Record<string, unknown> } | null;
   recentEvents: Array<{ id: string; type: string; amount: number; status: string; created: number }>;
+}
+
+interface LocalFalconSnapshot {
+  leadId: string;
+  reportUrl: string | null;
+  snapshotImageUrl: string | null;
+  snapshotGeneratedAt: string | null;
+  mapPresentation: {
+    mapZoom: number;
+    mapPosition: MapPosition;
+  };
+  data: LocalVisibilityReportData;
+}
+
+function LocalFalconSnapshotCard({ leadId }: { leadId: string }) {
+  const reportRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
+  const { data, isLoading } = useQuery<LocalFalconSnapshot>({
+    queryKey: ["/api/local-visibility/prospects", leadId],
+    queryFn: async () => {
+      const response = await fetch(`/api/local-visibility/prospects/${encodeURIComponent(leadId)}`, {
+        credentials: "include",
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.message ?? "Could not load Local Falcon details");
+      return body;
+    },
+  });
+  const saveSnapshot = useMutation({
+    mutationFn: async () => {
+      const blob = await renderLocalVisibilityReportBlob(reportRef.current);
+      const form = new FormData();
+      form.append("snapshot", blob, `${leadId}-local-visibility-snapshot.png`);
+      const response = await fetch(`/api/local-visibility/prospects/${encodeURIComponent(leadId)}/snapshot`, {
+        method: "POST",
+        credentials: "include",
+        body: form,
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.message ?? "Could not save the finished snapshot");
+      return body;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/local-visibility/prospects", leadId] });
+      toast({ title: "Snapshot saved", description: "The finished Local Visibility Snapshot is now attached to this lead." });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Snapshot could not be saved", description: error.message, variant: "destructive" });
+    },
+  });
+
+  if (isLoading) return <Skeleton className="h-64 w-full" />;
+  if (!data) return null;
+
+  return (
+    <Card data-testid="local-falcon-snapshot-card">
+      <CardHeader className="flex-row items-start justify-between gap-3 space-y-0">
+        <div>
+          <CardTitle className="text-base">Local Visibility Snapshot</CardTitle>
+          <p className="mt-1 text-sm text-gray-500">
+            Local Falcon · {data.data.searchPhrase} · {data.data.market} · ARP {data.data.averagePosition}
+          </p>
+        </div>
+        {data.reportUrl && (
+          <Button variant="outline" size="sm" asChild>
+            <a href={data.reportUrl} target="_blank" rel="noopener noreferrer">
+              Local Falcon report <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
+            </a>
+          </Button>
+        )}
+      </CardHeader>
+      <CardContent>
+        {data.snapshotImageUrl ? (
+          <a href={data.snapshotImageUrl} target="_blank" rel="noopener noreferrer">
+            <img
+              src={data.snapshotImageUrl}
+              alt={`${data.data.businessName} Local Visibility Snapshot`}
+              className="mx-auto max-h-[760px] w-auto rounded-lg border shadow-sm"
+            />
+          </a>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-sm text-amber-700">
+              This older Local Falcon lead has the official heatmap but no stored finished snapshot yet.
+            </p>
+            <Button onClick={() => saveSnapshot.mutate()} disabled={saveSnapshot.isPending}>
+              {saveSnapshot.isPending ? "Generating snapshot…" : "Generate and attach snapshot"}
+            </Button>
+            <div className="fixed left-[-10000px] top-0 h-[1920px] w-[1080px]" aria-hidden="true">
+              <LocalVisibilityReportTemplate
+                ref={reportRef}
+                data={data.data}
+                mapZoom={data.mapPresentation.mapZoom}
+                mapPosition={data.mapPresentation.mapPosition}
+              />
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
 }
 
 // ── Schemas ────────────────────────────────────────────────────────────────────
@@ -2379,6 +2483,9 @@ function ProfileShellInner({
               contacts={identity.contacts}
             />
           </div>
+          {sales.sourceLead?.source === "local_falcon" && (
+            <LocalFalconSnapshotCard leadId={sales.sourceLead.id} />
+          )}
         </TabsContent>
 
         {/* ── Notes Tab ────────────────────────────────────────────────────── */}

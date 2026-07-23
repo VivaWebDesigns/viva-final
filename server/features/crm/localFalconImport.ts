@@ -87,6 +87,13 @@ export interface LocalFalconUploadedAsset {
   sha256: string;
   manifestPath: string;
   sourceUrl?: string;
+  snapshot: {
+    key: string;
+    originalName: string;
+    mimeType: string;
+    sizeBytes: number;
+    sha256: string;
+  };
 }
 
 export interface FallbackMatch {
@@ -389,6 +396,12 @@ export async function importLocalFalconPayload(
         heatmapMimeType: asset.mimeType,
         heatmapSizeBytes: asset.sizeBytes,
         heatmapSha256: asset.sha256,
+        snapshotStorageKey: asset.snapshot.key,
+        snapshotOriginalName: asset.snapshot.originalName,
+        snapshotMimeType: asset.snapshot.mimeType,
+        snapshotSizeBytes: asset.snapshot.sizeBytes,
+        snapshotSha256: asset.snapshot.sha256,
+        snapshotGeneratedAt: new Date(),
         arp: String(prospect.arp),
         rating: String(prospect.rating),
         reviewCount: prospect.review_count,

@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { useAdminLang } from "@/i18n/LanguageContext";
 import LocalVisibilityReportTemplate from "@features/local-visibility-report/LocalVisibilityReportTemplate";
+import { renderLocalVisibilityReportBlob } from "@features/local-visibility-report/exportReport";
 import type { LocalVisibilityReportData } from "@features/local-visibility-report/types";
 
 interface ImportRowResult {
@@ -96,14 +97,17 @@ interface LocalFalconImageFailure {
 function FramedReportPreview({
   data,
   mapPresentation,
+  reportRef,
 }: {
   data: LocalVisibilityReportData;
   mapPresentation: LocalFalconPreviewRow["mapPresentation"];
+  reportRef?: (element: HTMLDivElement | null) => void;
 }) {
   return (
     <div className="h-[480px] w-[270px] overflow-hidden rounded-lg border bg-white shadow-sm" aria-label="Final report framing preview">
       <div className="h-[1920px] w-[1080px] origin-top-left scale-[0.25] pointer-events-none">
         <LocalVisibilityReportTemplate
+          ref={reportRef}
           data={data}
           mapZoom={mapPresentation.mapZoom}
           mapPosition={mapPresentation.mapPosition}
@@ -119,6 +123,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
   const queryClient = useQueryClient();
   const packageInputRef = useRef<HTMLInputElement>(null);
   const heatmapInputRef = useRef<HTMLInputElement>(null);
+  const reportRefs = useRef(new Map<string, HTMLDivElement>());
 
   const [entityType, setEntityType] = useState<"local_falcon" | "leads" | "contacts">(defaultEntity);
   const [file, setFile] = useState<File | null>(null);
@@ -148,6 +153,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
     setApprovedFlagged(new Set());
     setConfirmedPreviews(new Set());
     setImageFailures([]);
+    reportRefs.current.clear();
     setPhase("idle");
   };
 
@@ -282,6 +288,13 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
       form.append("previewHeatmapChecksums", JSON.stringify(Object.fromEntries(
         preview.rows.map((row) => [row.placeId, row.heatmapSha256]),
       )));
+      const selectedRows = preview.rows.filter(
+        (row) => row.outcome === "new" || (row.outcome === "flagged" && approvedFlagged.has(row.placeId)),
+      );
+      for (const row of selectedRows) {
+        const blob = await renderLocalVisibilityReportBlob(reportRefs.current.get(row.placeId) ?? null);
+        form.append("snapshots", blob, `${row.placeId}.png`);
+      }
       const response = await fetch("/api/crm/leads/import-local-falcon/confirm", {
         method: "POST",
         credentials: "include",
@@ -494,7 +507,14 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
                           </label>
                         ) : null}
                       </div>
-                      <FramedReportPreview data={row.reportData} mapPresentation={row.mapPresentation} />
+                      <FramedReportPreview
+                        data={row.reportData}
+                        mapPresentation={row.mapPresentation}
+                        reportRef={(element) => {
+                          if (element) reportRefs.current.set(row.placeId, element);
+                          else reportRefs.current.delete(row.placeId);
+                        }}
+                      />
                     </div>
                   </div>
                 );

@@ -1,5 +1,4 @@
 import { ChangeEvent, ClipboardEvent, DragEvent, useCallback, useEffect, useRef, useState } from "react";
-import { toBlob } from "html-to-image";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -23,6 +22,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@features/auth/useAuth";
 import LocalVisibilityReportTemplate, { type MapPosition } from "./LocalVisibilityReportTemplate";
+import { renderLocalVisibilityReportBlob } from "./exportReport";
 import {
   DEFAULT_LOCAL_VISIBILITY_REPORT,
   LOCAL_VISIBILITY_REPORT_HEIGHT,
@@ -413,19 +413,7 @@ export default function LocalVisibilityReportPage({ initialData }: LocalVisibili
   };
 
   const renderReportBlob = async () => {
-    if (!reportRef.current) throw new Error("The report preview is not ready.");
-    await document.fonts?.ready;
-    const blob = await toBlob(reportRef.current, {
-      width: REPORT_WIDTH,
-      height: REPORT_HEIGHT,
-      canvasWidth: REPORT_WIDTH,
-      canvasHeight: REPORT_HEIGHT,
-      pixelRatio: 1,
-      backgroundColor: "#ffffff",
-      cacheBust: true,
-    });
-    if (!blob) throw new Error("The report image could not be created.");
-    return blob;
+    return renderLocalVisibilityReportBlob(reportRef.current);
   };
 
   const copyReport = async () => {

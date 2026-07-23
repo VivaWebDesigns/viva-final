@@ -1,5 +1,7 @@
 import express, { Router } from "express";
 import multer from "multer";
+import crypto from "node:crypto";
+import sharp from "sharp";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
 import { requireRole } from "../auth/middleware";
@@ -369,12 +371,13 @@ router.post(
 
 const localFalconPackageUpload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: LOCAL_FALCON_PACKAGE_MAX_BYTES, files: 201 },
+  limits: { fileSize: LOCAL_FALCON_PACKAGE_MAX_BYTES, files: 401 },
 });
 
 const localFalconPackageFields = localFalconPackageUpload.fields([
   { name: "package", maxCount: 1 },
   { name: "heatmaps", maxCount: 200 },
+  { name: "snapshots", maxCount: 200 },
 ]);
 
 function packageFiles(req: express.Request): { primary: IncomingPackageFile; supplemental: IncomingPackageFile[] } {
@@ -470,11 +473,26 @@ router.post(
         (row) => row.outcome === "new" || (row.outcome === "flagged" && approvedFlaggedSet.has(row.placeId)),
       );
       if (selectedRows.length === 0) throw new Error("No new prospects were selected for import");
+      const requestFiles = (req.files ?? {}) as Record<string, Express.Multer.File[]>;
+      const snapshotsByPlaceId = new Map(
+        (requestFiles.snapshots ?? []).map((snapshot) => [
+          snapshot.originalname.replace(/\.png$/i, ""),
+          snapshot,
+        ]),
+      );
       for (const row of selectedRows) {
         const confirmedChecksum = previewHeatmapChecksums[row.placeId];
         const currentChecksum = parsedPackage.heatmapsByPlaceId.get(row.placeId)?.sha256;
         if (!confirmedChecksum || confirmedChecksum !== currentChecksum) {
           throw new Error(`The Local Falcon image changed for ${row.companyName}. Review the framed preview again before importing.`);
+        }
+        const snapshot = snapshotsByPlaceId.get(row.placeId);
+        if (!snapshot || snapshot.mimetype !== "image/png") {
+          throw new Error(`The finished snapshot is missing for ${row.companyName}. Review the preview and try again.`);
+        }
+        const metadata = await sharp(snapshot.buffer).metadata();
+        if (metadata.width !== 1080 || metadata.height !== 1920) {
+          throw new Error(`The finished snapshot for ${row.companyName} must be 1080 × 1920.`);
         }
       }
 
@@ -489,6 +507,14 @@ router.post(
           "local-falcon",
         );
         uploadedKeys.push(upload.key);
+        const snapshotFile = snapshotsByPlaceId.get(row.placeId)!;
+        const snapshotUpload = await storageService.uploadFile(
+          snapshotFile.buffer,
+          `${row.placeId}-local-visibility-snapshot.png`,
+          "image/png",
+          "local-visibility-snapshots",
+        );
+        uploadedKeys.push(snapshotUpload.key);
         assetsByPlaceId.set(row.placeId, {
           key: upload.key,
           originalName: upload.originalName,
@@ -497,6 +523,13 @@ router.post(
           sha256: heatmap.sha256,
           manifestPath: heatmap.manifestPath,
           sourceUrl: heatmap.sourceUrl,
+          snapshot: {
+            key: snapshotUpload.key,
+            originalName: snapshotUpload.originalName,
+            mimeType: snapshotUpload.mimeType,
+            sizeBytes: snapshotUpload.sizeBytes,
+            sha256: crypto.createHash("sha256").update(snapshotFile.buffer).digest("hex"),
+          },
         });
       }
 
@@ -513,8 +546,11 @@ router.post(
       for (const [placeId, asset] of assetsByPlaceId) {
         if (!importedPlaceIds.has(placeId)) {
           await storageService.deleteFile(asset.key).catch(() => undefined);
+          await storageService.deleteFile(asset.snapshot.key).catch(() => undefined);
           const index = uploadedKeys.indexOf(asset.key);
           if (index >= 0) uploadedKeys.splice(index, 1);
+          const snapshotIndex = uploadedKeys.indexOf(asset.snapshot.key);
+          if (snapshotIndex >= 0) uploadedKeys.splice(snapshotIndex, 1);
         }
       }
 

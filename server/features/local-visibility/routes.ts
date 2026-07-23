@@ -1,11 +1,13 @@
 import { Router, type NextFunction, type Request, type Response } from "express";
 import multer from "multer";
+import crypto from "node:crypto";
+import sharp from "sharp";
 import { and, desc, eq, isNotNull } from "drizzle-orm";
 import { requireRole } from "../auth/middleware";
 import { analyzeVisibilityScreenshots } from "./analysis";
 import { db } from "../../db";
 import { crmLeads, localFalconImportBatches, localFalconProspectProfiles } from "@shared/schema";
-import { getSignedDownloadUrl } from "../../services/storage";
+import { deleteFile, getSignedDownloadUrl, uploadFile } from "../../services/storage";
 import {
   getLocalFalconMapPresentation,
 } from "@shared/localVisibility";
@@ -70,11 +72,16 @@ router.get(
       }
       if (!record.profile.heatmapStorageKey) return res.status(409).json({ message: "This prospect has no heatmap evidence" });
       const heatmapImageUrl = await getSignedDownloadUrl(record.profile.heatmapStorageKey);
+      const snapshotImageUrl = record.profile.snapshotStorageKey
+        ? await getSignedDownloadUrl(record.profile.snapshotStorageKey)
+        : null;
       const address = [record.profile.address, record.profile.city, record.profile.state, record.profile.zip]
         .filter(Boolean).join(", ").replace(/, ([A-Z]{2}), /, ", $1 ");
       res.json({
         leadId: req.params.leadId as string,
         reportUrl: record.profile.reportUrl,
+        snapshotImageUrl,
+        snapshotGeneratedAt: record.profile.snapshotGeneratedAt,
         mapPresentation: getLocalFalconMapPresentation(!!record.profile.heatmapSourceUrl),
         data: {
           businessName: record.profile.companyName ?? "",
@@ -90,6 +97,60 @@ router.get(
         },
       });
     } catch (error: any) {
+      res.status(error?.statusCode ?? 500).json({ message: error.message });
+    }
+  },
+);
+
+router.post(
+  "/prospects/:leadId/snapshot",
+  requireRole("admin", "developer"),
+  upload.single("snapshot"),
+  async (req, res) => {
+    let uploadedKey: string | null = null;
+    try {
+      const snapshot = req.file;
+      if (!snapshot || snapshot.mimetype !== "image/png") {
+        return res.status(400).json({ message: "Upload the finished report as a PNG." });
+      }
+      const metadata = await sharp(snapshot.buffer).metadata();
+      if (metadata.width !== 1080 || metadata.height !== 1920) {
+        return res.status(400).json({ message: "The finished snapshot must be 1080 × 1920." });
+      }
+      const [record] = await db.select({
+        id: localFalconProspectProfiles.id,
+        previousKey: localFalconProspectProfiles.snapshotStorageKey,
+      }).from(localFalconProspectProfiles)
+        .where(eq(localFalconProspectProfiles.leadId, req.params.leadId as string))
+        .limit(1);
+      if (!record) return res.status(404).json({ message: "Local Falcon prospect not found" });
+
+      const stored = await uploadFile(
+        snapshot.buffer,
+        `${req.params.leadId}-local-visibility-snapshot.png`,
+        "image/png",
+        "local-visibility-snapshots",
+      );
+      uploadedKey = stored.key;
+      const generatedAt = new Date();
+      await db.update(localFalconProspectProfiles).set({
+        snapshotStorageKey: stored.key,
+        snapshotOriginalName: stored.originalName,
+        snapshotMimeType: stored.mimeType,
+        snapshotSizeBytes: stored.sizeBytes,
+        snapshotSha256: crypto.createHash("sha256").update(snapshot.buffer).digest("hex"),
+        snapshotGeneratedAt: generatedAt,
+      }).where(eq(localFalconProspectProfiles.id, record.id));
+      if (record.previousKey && record.previousKey !== stored.key) {
+        await deleteFile(record.previousKey).catch(() => undefined);
+      }
+      uploadedKey = null;
+      res.json({
+        snapshotImageUrl: await getSignedDownloadUrl(stored.key),
+        snapshotGeneratedAt: generatedAt,
+      });
+    } catch (error: any) {
+      if (uploadedKey) await deleteFile(uploadedKey).catch(() => undefined);
       res.status(error?.statusCode ?? 500).json({ message: error.message });
     }
   },
