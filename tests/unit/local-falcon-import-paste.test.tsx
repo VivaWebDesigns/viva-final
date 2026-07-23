@@ -96,4 +96,61 @@ describe("Local Falcon import clipboard", () => {
     expect(await screen.findByTestId("local-falcon-image-fallback")).toBeInTheDocument();
     expect(screen.getByText(/name the file/i)).toHaveTextContent("ChIJ-test-1.png");
   });
+
+  it("shows automatically retrieved maps with the approved centered crop", async () => {
+    server.use(
+      http.post("/api/crm/leads/import-local-falcon/preview", () => HttpResponse.json({
+        batchId: "MONROE-NC-PLUMBING-20260722-01",
+        market: { city: "Monroe", state: "NC" },
+        trade: "plumbing",
+        keyword: "plumber near me",
+        scanSpec: { grid_size: "7x7", radius_miles: 2.5 },
+        batchAlreadyImported: false,
+        newCount: 1,
+        existingCount: 0,
+        flaggedCount: 0,
+        sourceMode: "local_falcon",
+        rows: [{
+          row: 1,
+          placeId: "ChIJ-test-1",
+          companyName: "Boda Plumbing, Inc.",
+          address: "1909 Tower Industrial Dr",
+          heatmapFile: "Official Local Falcon image",
+          heatmapPreviewDataUrl: "data:image/png;base64,aGVhdG1hcA==",
+          heatmapSha256: "a".repeat(64),
+          heatmapSourceUrl: "https://lf-static-v2.localfalcon.com/image/279b8ac00c7ec41",
+          mapPresentation: {
+            mapZoom: 160,
+            mapPosition: { x: 0, y: 0 },
+          },
+          reportData: {
+            businessName: "Boda Plumbing, Inc.",
+            address: "1909 Tower Industrial Dr, Monroe, NC 28110",
+            rating: "5",
+            reviewCount: "60",
+            searchPhrase: "plumber near me",
+            market: "Monroe, NC",
+            averagePosition: "4.45",
+            gridSize: "7x7",
+            radius: "2.5",
+            heatmapImageUrl: "data:image/png;base64,aGVhdG1hcA==",
+          },
+          outcome: "new",
+        }],
+      })),
+    );
+    renderModal();
+
+    fireEvent.paste(screen.getByTestId("local-falcon-package-dropzone"), {
+      clipboardData: {
+        files: [],
+        getData: () => "{\"batch\":{\"batch_id\":\"test\"},\"prospects\":[]}",
+      },
+    });
+    fireEvent.click(screen.getByTestId("button-start-import"));
+
+    expect(await screen.findByAltText("Uploaded Local Falcon ranking heatmap")).toHaveStyle({
+      transform: "translate(0px, 0px) scale(1.6)",
+    });
+  });
 });

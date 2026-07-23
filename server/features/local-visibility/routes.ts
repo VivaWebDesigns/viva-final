@@ -6,6 +6,9 @@ import { analyzeVisibilityScreenshots } from "./analysis";
 import { db } from "../../db";
 import { crmLeads, localFalconImportBatches, localFalconProspectProfiles } from "@shared/schema";
 import { getSignedDownloadUrl } from "../../services/storage";
+import {
+  getLocalFalconMapPresentation,
+} from "@shared/localVisibility";
 
 const router = Router();
 const ALLOWED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
@@ -72,6 +75,7 @@ router.get(
       res.json({
         leadId: req.params.leadId as string,
         reportUrl: record.profile.reportUrl,
+        mapPresentation: getLocalFalconMapPresentation(!!record.profile.heatmapSourceUrl),
         data: {
           businessName: record.profile.companyName ?? "",
           address,

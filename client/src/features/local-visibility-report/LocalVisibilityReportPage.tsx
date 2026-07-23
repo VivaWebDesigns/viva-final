@@ -198,8 +198,8 @@ export default function LocalVisibilityReportPage({ initialData }: LocalVisibili
       setData({ ...body.data, gridSize: normalizeGridSize(body.data.gridSize) });
       setErrors({});
       setReviewFields(new Set());
-      setMapZoom(100);
-      setMapPosition({ x: 0, y: 0 });
+      setMapZoom(Number(body.mapPresentation?.mapZoom ?? 100));
+      setMapPosition(body.mapPresentation?.mapPosition ?? { x: 0, y: 0 });
       setPreviewReady(false);
       toast({ title: "Prospect loaded", description: `${body.data.businessName} is ready to review.` });
     } catch (error: any) {

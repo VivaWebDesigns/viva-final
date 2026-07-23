@@ -27,6 +27,9 @@ import {
   type IncomingPackageFile,
 } from "./localFalconPackage";
 import {
+  getLocalFalconMapPresentation,
+} from "@shared/localVisibility";
+import {
   insertCrmCompanySchema, insertCrmContactSchema, insertCrmLeadSchema,
   insertCrmLeadNoteSchema, insertCrmTagSchema, crmLeads, pipelineOpportunities,
 } from "@shared/schema";
@@ -420,6 +423,7 @@ router.post(
             heatmapPreviewDataUrl: heatmap.previewDataUrl,
             heatmapSha256: heatmap.sha256,
             heatmapSourceUrl: heatmap.sourceUrl ?? null,
+            mapPresentation: getLocalFalconMapPresentation(!!heatmap.sourceUrl),
             reportData: {
               businessName: prospect.company_name,
               address: [prospect.address, prospect.city, prospect.state, prospect.zip].filter(Boolean).join(", "),

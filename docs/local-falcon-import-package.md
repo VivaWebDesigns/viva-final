@@ -27,25 +27,25 @@ No heatmap screenshot or ZIP is required during the normal import flow.
   },
   "prospects": [
     {
-      "place_id": "ChIJBVJ_i_OJgWkRT9fe4f3IpK0",
-      "company_name": "Example Plumbing",
-      "address": "2614 W Roosevelt Blvd",
+      "place_id": "ChIJoRG1v646VIgRPb7BV5C7Rf4",
+      "company_name": "Boda Plumbing, Inc.",
+      "address": "1909 Tower Industrial Dr",
       "city": "Monroe",
       "state": "NC",
       "zip": "28110",
-      "phone": "+19805550123",
-      "owner_name": null,
-      "google_maps_url": "https://www.google.com/maps/place/?q=place_id:ChIJBVJ_i_OJgWkRT9fe4f3IpK0",
-      "has_website": false,
-      "website_url": null,
+      "phone": "+17042919097",
+      "owner_name": "Dave Boda",
+      "google_maps_url": "https://www.google.com/maps/place/?q=place_id:ChIJoRG1v646VIgRPb7BV5C7Rf4",
+      "has_website": true,
+      "website_url": "https://bodaplumbing.com/",
       "service_page_count": 0,
-      "report_key": "d7a24d34777a24d",
-      "report_url": "https://www.localfalcon.com/reports/view/d7a24d34777a24d",
+      "report_key": "279b8ac00c7ec41",
+      "report_url": "https://localrankingtracker.com/scan-report/279b8ac00c7ec41/4f93067a53a7fa5/",
       "scan_date": "2026-07-14",
       "scan_keyword": "plumber near me",
-      "arp": 4.87,
-      "rating": 4.7,
-      "review_count": 13,
+      "arp": 4.45,
+      "rating": 5.0,
+      "review_count": 60,
       "qualification_status": "qualified"
     }
   ]
@@ -59,6 +59,9 @@ No heatmap screenshot or ZIP is required during the normal import flow.
 - Every Place ID must be unique inside the manifest.
 - `report_key` must be the hexadecimal Local Falcon report key. It is the only
   input used to derive the official image URL.
+- `report_url` must be the verified Local Falcon `public_url`. Current public
+  report links use `localrankingtracker.com` and include a second identifier
+  that cannot be derived from `report_key`.
 - The importer accepts only a successful PNG, JPG, or WebP response from the
   fixed Local Falcon image host. Redirects, oversized files, invalid images, and
   incomplete map dimensions are rejected.
@@ -82,6 +85,12 @@ No heatmap screenshot or ZIP is required during the normal import flow.
 8. Confirm the import.
 
 The CRM stores the original heatmap in R2, creates the assigned lead and opportunity in **New Lead**, and creates the assigned **Contact lead** task. Sales reps can then load their assigned evidence directly in the Local Visibility Snapshot generator without OCR or re-entry.
+
+For maps retrieved automatically from Local Falcon, the report applies the
+approved centered 160% presentation framing. This reproduces the close
+perimeter crop used by the manual report workflow while leaving the original
+R2 evidence bytes unchanged. The import preview and **Load from prospect** use
+the same framing values.
 
 ## Image fallback
 

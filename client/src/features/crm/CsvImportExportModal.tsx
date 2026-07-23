@@ -62,6 +62,10 @@ interface LocalFalconPreviewRow {
   heatmapPreviewDataUrl: string | null;
   heatmapSha256: string;
   heatmapSourceUrl: string | null;
+  mapPresentation: {
+    mapZoom: number;
+    mapPosition: { x: number; y: number };
+  };
   reportData: LocalVisibilityReportData;
   outcome: "new" | "existing" | "flagged";
   reason?: string;
@@ -89,11 +93,21 @@ interface LocalFalconImageFailure {
   reason: string;
 }
 
-function FramedReportPreview({ data }: { data: LocalVisibilityReportData }) {
+function FramedReportPreview({
+  data,
+  mapPresentation,
+}: {
+  data: LocalVisibilityReportData;
+  mapPresentation: LocalFalconPreviewRow["mapPresentation"];
+}) {
   return (
     <div className="h-[480px] w-[270px] overflow-hidden rounded-lg border bg-white shadow-sm" aria-label="Final report framing preview">
       <div className="h-[1920px] w-[1080px] origin-top-left scale-[0.25] pointer-events-none">
-        <LocalVisibilityReportTemplate data={data} />
+        <LocalVisibilityReportTemplate
+          data={data}
+          mapZoom={mapPresentation.mapZoom}
+          mapPosition={mapPresentation.mapPosition}
+        />
       </div>
     </div>
   );
@@ -480,7 +494,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
                           </label>
                         ) : null}
                       </div>
-                      <FramedReportPreview data={row.reportData} />
+                      <FramedReportPreview data={row.reportData} mapPresentation={row.mapPresentation} />
                     </div>
                   </div>
                 );
