@@ -125,6 +125,10 @@ interface LocalFalconSnapshot {
   reportUrl: string | null;
   snapshotImageUrl: string | null;
   snapshotGeneratedAt: string | null;
+  qualification: {
+    hasWebsite: boolean | null;
+    servicePageCount: number | null;
+  };
   mapPresentation: {
     mapZoom: number;
     mapPosition: MapPosition;
@@ -212,6 +216,50 @@ function LocalFalconSnapshotCard({ leadId }: { leadId: string }) {
         </div>
       </CardHeader>
       <CardContent>
+        <div className="mb-5 grid max-w-xl grid-cols-1 gap-3 sm:grid-cols-2" data-testid="local-falcon-qualification">
+          <div
+            className={`flex items-center gap-3 rounded-xl border-l-4 p-4 shadow-sm ${
+              data.qualification.hasWebsite
+                ? "border-l-emerald-500 bg-emerald-50"
+                : "border-l-amber-500 bg-amber-50"
+            }`}
+          >
+            <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-full ${
+              data.qualification.hasWebsite ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+            }`}>
+              <Globe className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Website</p>
+              <p className={`text-2xl font-extrabold ${
+                data.qualification.hasWebsite ? "text-emerald-800" : "text-amber-800"
+              }`} data-testid="local-falcon-has-website">
+                {data.qualification.hasWebsite ? "Yes" : "No"}
+              </p>
+            </div>
+          </div>
+          <div
+            className={`flex items-center gap-3 rounded-xl border-l-4 p-4 shadow-sm ${
+              (data.qualification.servicePageCount ?? 0) > 0
+                ? "border-l-blue-500 bg-blue-50"
+                : "border-l-amber-500 bg-amber-50"
+            }`}
+          >
+            <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-full ${
+              (data.qualification.servicePageCount ?? 0) > 0 ? "bg-blue-100 text-blue-700" : "bg-amber-100 text-amber-700"
+            }`}>
+              <FileText className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Service pages</p>
+              <p className={`text-2xl font-extrabold ${
+                (data.qualification.servicePageCount ?? 0) > 0 ? "text-blue-800" : "text-amber-800"
+              }`} data-testid="local-falcon-service-page-count">
+                {data.qualification.servicePageCount ?? 0}
+              </p>
+            </div>
+          </div>
+        </div>
         {data.snapshotImageUrl ? (
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
             <a href={snapshotFileUrl} target="_blank" rel="noopener noreferrer" className="shrink-0">

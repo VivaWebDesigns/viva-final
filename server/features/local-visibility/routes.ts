@@ -110,6 +110,10 @@ router.get(
         reportUrl: record.profile.reportUrl,
         snapshotImageUrl,
         snapshotGeneratedAt: record.profile.snapshotGeneratedAt,
+        qualification: {
+          hasWebsite: record.profile.hasWebsite,
+          servicePageCount: record.profile.servicePageCount,
+        },
         mapPresentation: getLocalFalconMapPresentation(!!record.profile.heatmapSourceUrl),
         data: {
           businessName: record.profile.companyName ?? "",
