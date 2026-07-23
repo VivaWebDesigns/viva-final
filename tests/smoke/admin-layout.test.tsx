@@ -4,9 +4,11 @@ import { http, HttpResponse }                                     from "msw";
 import { renderWithProviders }                                    from "../helpers/renderWithProviders";
 import { server }                                                 from "../helpers/server";
 
+const authState = vi.hoisted(() => ({ role: "admin" }));
+
 vi.mock("@features/auth/authClient", () => ({
   useSession: () => ({
-    data: { user: { id: "u1", email: "admin@test.com", name: "Admin", role: "admin" }, session: {} },
+    data: { user: { id: "u1", email: "admin@test.com", name: "Admin", role: authState.role }, session: {} },
     isPending: false,
     error: null,
   }),
@@ -29,7 +31,10 @@ import AdminLayout from "@/layouts/AdminLayout";
 
 describe("AdminLayout smoke", () => {
   beforeAll(() => server.listen({ onUnhandledRequest: "bypass" }));
-  afterEach(() => server.resetHandlers());
+  afterEach(() => {
+    authState.role = "admin";
+    server.resetHandlers();
+  });
   afterAll(()  => server.close());
 
   it("shows a Team Chat unread badge in the sidebar", async () => {
@@ -47,5 +52,18 @@ describe("AdminLayout smoke", () => {
     const badge = await screen.findByTestId("badge-chat-unread-count");
     expect(badge).toHaveTextContent("7");
     expect(screen.getByTestId("nav-chat")).toContainElement(badge);
+  });
+
+  it("hides the Visibility Report generator from appointment setters", () => {
+    authState.role = "sales_rep";
+
+    renderWithProviders(
+      <AdminLayout>
+        <div>Pipeline</div>
+      </AdminLayout>,
+      { route: "/admin/pipeline" },
+    );
+
+    expect(screen.queryByText("Visibility Report")).not.toBeInTheDocument();
   });
 });

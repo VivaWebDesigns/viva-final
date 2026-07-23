@@ -27,7 +27,7 @@ const upload = multer({
 
 router.get(
   "/prospects",
-  requireRole("admin", "developer", "sales_rep"),
+  requireRole("admin", "developer"),
   async (req, res) => {
     try {
       const ownership = req.authUser?.role === "sales_rep" ? eq(crmLeads.assignedTo, req.authUser.id) : undefined;
