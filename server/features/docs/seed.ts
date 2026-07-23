@@ -357,7 +357,7 @@ Stores business/company records linked to leads and contacts.
 | website, phone, email | text | Contact info |
 | address, city, state, zip, country | text | Location |
 | industry | text | Business type |
-| preferred_language | text | Default: es |
+| preferred_language | text | Default: en |
 | notes | text | Internal notes |
 
 ### crm_contacts
@@ -370,7 +370,7 @@ Individual people associated with companies and leads.
 | last_name | text | |
 | email, phone, alt_phone | text | Contact info |
 | title | text | Job title |
-| preferred_language | text | Default: es |
+| preferred_language | text | Default: en |
 
 ### crm_leads
 Sales opportunities with full attribution tracking.

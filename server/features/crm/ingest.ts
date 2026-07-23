@@ -69,7 +69,7 @@ export async function ingestWebsiteFormSubmission(
       lastName,
       email: formData.email || null,
       phone: normalizedPhone,
-      preferredLanguage: "es",
+      preferredLanguage: "en",
       notes: formData.message || null,
     });
   }
@@ -89,7 +89,7 @@ export async function ingestWebsiteFormSubmission(
       name: companyLabel,
       industry: formData.trade || null,
       city: formData.city || formData.zipCode || null,
-      preferredLanguage: "es",
+      preferredLanguage: "en",
     });
   }
   companyId = company.id;

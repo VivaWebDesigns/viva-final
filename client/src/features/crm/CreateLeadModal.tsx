@@ -131,7 +131,7 @@ export default function CreateLeadModal({ open, onClose }: Props) {
       source: "website",
       sellerProfileUrl: "",
       adUrl: "",
-      preferredLanguage: "es",
+      preferredLanguage: "en",
       notes: "",
       city: "",
       state: undefined,

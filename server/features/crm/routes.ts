@@ -592,7 +592,7 @@ const manualLeadSchema = z.object({
   source:            z.enum(["website", "outreach"]),
   sellerProfileUrl:  z.string().url().optional().or(z.literal("")),
   adUrl:             z.string().url().optional().or(z.literal("")),
-  preferredLanguage: z.enum(["es", "en"]).default("es"),
+  preferredLanguage: z.enum(["es", "en"]).default("en"),
   notes:             z.string().optional(),
   city:              z.string().min(1, "City is required"),
   state:             z.string().length(2, "State is required"),

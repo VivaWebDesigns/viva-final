@@ -544,7 +544,7 @@ router.post(
             lastName,
             phone: parsed.data.phone,
             email: parsed.data.email,
-            preferredLanguage: "es",
+            preferredLanguage: "en",
           })
           .returning();
       } else {
@@ -578,6 +578,7 @@ router.post(
             industry: parsed.data.trade,
             city:     parsed.data.city,
             state:    stateCode,
+            preferredLanguage: "en",
           })
           .returning();
       } else {
@@ -1377,7 +1378,7 @@ router.post(
         email:    null,
         notes:    null,
         isPrimary: true,
-        preferredLanguage: null,
+        preferredLanguage: "en",
       });
     }
 
@@ -1394,6 +1395,7 @@ router.post(
         website:  null,
         phone:    normalizedPhone || null,
         email:    null,
+        preferredLanguage: "en",
       });
     }
     const companyId = company.id;

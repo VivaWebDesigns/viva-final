@@ -110,7 +110,7 @@ export async function exportContactsToCSV(): Promise<string> {
     c.altPhone ?? "",
     c.title ?? "",
     c.companyId ? (companyMap[c.companyId] ?? "") : "",
-    c.preferredLanguage ?? "es",
+    c.preferredLanguage ?? "en",
     c.notes ?? "",
     c.createdAt ? new Date(c.createdAt).toISOString().split("T")[0] : "",
   ]);
@@ -287,7 +287,7 @@ export async function importContactsFromCSV(csvText: string): Promise<ImportResu
         phone: row["phone"]?.trim() || null,
         altPhone: row["alt_phone"]?.trim() || null,
         title: row["title"]?.trim() || null,
-        preferredLanguage: row["preferred_language"]?.trim() || "es",
+        preferredLanguage: row["preferred_language"]?.trim() || "en",
         notes: row["notes"]?.trim() || null,
         companyId,
       });

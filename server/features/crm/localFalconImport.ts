@@ -317,6 +317,7 @@ export async function importLocalFalconPayload(
         zip: prospect.zip,
         country: "US",
         industry: payload.batch.trade,
+        preferredLanguage: "en",
         clientStatus: "prospect",
       }).returning();
 
@@ -329,6 +330,7 @@ export async function importLocalFalconPayload(
           lastName: parts.slice(1).join(" ") || null,
           phone: prospect.phone ? normalizePhoneDigits(prospect.phone) : null,
           title: "Owner",
+          preferredLanguage: "en",
           isPrimary: true,
         }).returning();
         contactId = contact.id;
