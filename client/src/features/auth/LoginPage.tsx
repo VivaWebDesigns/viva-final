@@ -36,7 +36,7 @@ const DEV_USERS = [
     dot: "bg-blue-500",
   },
   {
-    role: "Sales Rep",
+    role: "Appointment Setter",
     email: import.meta.env.VITE_DEV_SALESREP_EMAIL || "",
     password: import.meta.env.VITE_DEV_SALESREP_PASSWORD || "",
     icon: Users,

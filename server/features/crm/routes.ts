@@ -460,7 +460,7 @@ router.post(
       ).parse(JSON.parse(req.body.previewHeatmapChecksums || "{}"));
       const assignableUsers = await crmStorage.getAssignableUsers();
       const setter = assignableUsers.find((candidate) => candidate.id === assignedTo && candidate.role === "sales_rep");
-      if (!setter) return res.status(400).json({ message: "Select an active sales rep before importing" });
+      if (!setter) return res.status(400).json({ message: "Select an active appointment setter before importing" });
 
       const { primary, supplemental } = packageFiles(req);
       const parsedPackage = await parseLocalFalconPackage(primary, supplemental);
