@@ -15,6 +15,7 @@ import {
 
 const nullableText = z.string().trim().min(1).nullable();
 const nullableUrl = z.string().trim().url().nullable();
+const nullableAnalysis = z.array(z.string()).min(3).max(6).nullable().optional().default(null);
 
 const batchSchema = z.object({
   batch_id: z.string().trim().min(1),
@@ -43,7 +44,10 @@ const prospectSchema = z.object({
   google_maps_url: z.string().trim().url(),
   has_website: z.boolean(),
   website_url: nullableUrl,
+  website_platform: z.string().nullable().optional().default(null),
   service_page_count: z.number().int().min(0),
+  website_analysis: nullableAnalysis,
+  reviews_analysis: nullableAnalysis,
   report_key: z.string().trim().regex(/^[a-f0-9]{12,64}$/i, "Must be a Local Falcon report key"),
   report_url: z.string().trim().url(),
   scan_date: z.string().trim().min(1),
@@ -392,7 +396,10 @@ export async function importLocalFalconPayload(
         googleMapsUrl: prospect.google_maps_url,
         hasWebsite: prospect.has_website,
         websiteUrl: prospect.website_url,
+        websitePlatform: prospect.website_platform,
         servicePageCount: prospect.service_page_count,
+        websiteAnalysis: prospect.website_analysis,
+        reviewsAnalysis: prospect.reviews_analysis,
         reportKey: prospect.report_key,
         reportUrl: prospect.report_url,
         scanDate: new Date(prospect.scan_date),

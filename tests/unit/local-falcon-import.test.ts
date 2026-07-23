@@ -74,6 +74,33 @@ describe("parseLocalFalconPayload", () => {
       prospects: [{ ...prospect, scan_keyword: "roof repair" }],
     }))).toThrow(/scan_keyword must match batch.keyword/i);
   });
+
+  it("accepts nullable platform and 3–6 sentence analysis arrays", () => {
+    const result = parseLocalFalconPayload(JSON.stringify({
+      ...payload,
+      prospects: [{
+        ...prospect,
+        website_platform: "Lovable",
+        website_analysis: ["One.", "Two.", "Three."],
+        reviews_analysis: null,
+      }],
+    }));
+
+    expect(result.prospects[0].website_platform).toBe("Lovable");
+    expect(result.prospects[0].website_analysis).toEqual(["One.", "Two.", "Three."]);
+    expect(result.prospects[0].reviews_analysis).toBeNull();
+  });
+
+  it("rejects analysis arrays outside the 3–6 element limit", () => {
+    expect(() => parseLocalFalconPayload(JSON.stringify({
+      ...payload,
+      prospects: [{
+        ...prospect,
+        website_analysis: ["One.", "Two."],
+        reviews_analysis: null,
+      }],
+    }))).toThrow(/website_analysis/i);
+  });
 });
 
 describe("Local Falcon batch idempotency", () => {

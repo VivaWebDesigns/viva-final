@@ -112,7 +112,12 @@ router.get(
         snapshotGeneratedAt: record.profile.snapshotGeneratedAt,
         qualification: {
           hasWebsite: record.profile.hasWebsite,
+          websitePlatform: record.profile.websitePlatform,
           servicePageCount: record.profile.servicePageCount,
+        },
+        intelligence: {
+          websiteAnalysis: record.profile.websiteAnalysis,
+          reviewsAnalysis: record.profile.reviewsAnalysis,
         },
         mapPresentation: getLocalFalconMapPresentation(!!record.profile.heatmapSourceUrl),
         data: {

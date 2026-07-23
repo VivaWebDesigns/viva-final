@@ -127,7 +127,12 @@ interface LocalFalconSnapshot {
   snapshotGeneratedAt: string | null;
   qualification: {
     hasWebsite: boolean | null;
+    websitePlatform: string | null;
     servicePageCount: number | null;
+  };
+  intelligence: {
+    websiteAnalysis: string[] | null;
+    reviewsAnalysis: string[] | null;
   };
   mapPresentation: {
     mapZoom: number;
@@ -216,7 +221,7 @@ function LocalFalconSnapshotCard({ leadId }: { leadId: string }) {
         </div>
       </CardHeader>
       <CardContent>
-        <div className="mb-5 grid max-w-xl grid-cols-1 gap-3 sm:grid-cols-2" data-testid="local-falcon-qualification">
+        <div className="mb-5 grid max-w-4xl grid-cols-1 gap-3 md:grid-cols-3" data-testid="local-falcon-qualification">
           <div
             className={`flex items-center gap-3 rounded-xl border-l-4 p-4 shadow-sm ${
               data.qualification.hasWebsite
@@ -235,6 +240,17 @@ function LocalFalconSnapshotCard({ leadId }: { leadId: string }) {
                 data.qualification.hasWebsite ? "text-emerald-800" : "text-amber-800"
               }`} data-testid="local-falcon-has-website">
                 {data.qualification.hasWebsite ? "Yes" : "No"}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 rounded-xl border-l-4 border-l-violet-500 bg-violet-50 p-4 shadow-sm">
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-violet-100 text-violet-700">
+              <Globe className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Website platform</p>
+              <p className="truncate text-xl font-extrabold text-violet-800" data-testid="local-falcon-website-platform">
+                {data.qualification.websitePlatform || "Unknown"}
               </p>
             </div>
           </div>
@@ -260,6 +276,32 @@ function LocalFalconSnapshotCard({ leadId }: { leadId: string }) {
             </div>
           </div>
         </div>
+        {(data.intelligence.websiteAnalysis || data.intelligence.reviewsAnalysis) && (
+          <div className="mb-5 grid gap-4 lg:grid-cols-2" data-testid="local-falcon-analysis">
+            {data.intelligence.websiteAnalysis && (
+              <section className="rounded-xl border border-blue-200 bg-blue-50/60 p-5">
+                <div className="mb-3 flex items-center gap-2 text-blue-900">
+                  <Globe className="h-5 w-5" />
+                  <h3 className="font-bold">Website analysis</h3>
+                </div>
+                <ul className="list-disc space-y-2 pl-5 text-sm leading-6 text-gray-800">
+                  {data.intelligence.websiteAnalysis.map((item, index) => <li key={index}>{item}</li>)}
+                </ul>
+              </section>
+            )}
+            {data.intelligence.reviewsAnalysis && (
+              <section className="rounded-xl border border-amber-200 bg-amber-50/60 p-5">
+                <div className="mb-3 flex items-center gap-2 text-amber-900">
+                  <Star className="h-5 w-5" />
+                  <h3 className="font-bold">Reviews analysis</h3>
+                </div>
+                <ul className="list-disc space-y-2 pl-5 text-sm leading-6 text-gray-800">
+                  {data.intelligence.reviewsAnalysis.map((item, index) => <li key={index}>{item}</li>)}
+                </ul>
+              </section>
+            )}
+          </div>
+        )}
         {data.snapshotImageUrl ? (
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
             <a href={snapshotFileUrl} target="_blank" rel="noopener noreferrer" className="shrink-0">
