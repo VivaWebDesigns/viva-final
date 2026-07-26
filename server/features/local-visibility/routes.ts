@@ -11,10 +11,28 @@ import { deleteFile, getFileBuffer, getSignedDownloadUrl, uploadFile } from "../
 import {
   getLocalFalconMapPresentation,
 } from "@shared/localVisibility";
+import {
+  canViewCompanyReports,
+  canViewReport,
+  getCompanyReportLibrary,
+  getReportAccessRecord,
+  type ReportViewer,
+} from "./reportLibrary";
 
 const router = Router();
 const ALLOWED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 const MAX_SCREENSHOT_BYTES = 10 * 1024 * 1024;
+
+function viewerFor(req: Request): ReportViewer {
+  return {
+    id: req.authUser!.id,
+    role: req.authUser!.role,
+  };
+}
+
+function contextCompanyId(req: Request): string | undefined {
+  return typeof req.query.contextCompanyId === "string" ? req.query.contextCompanyId : undefined;
+}
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -35,6 +53,7 @@ router.get(
         ? and(isNotNull(localFalconProspectProfiles.heatmapStorageKey), ownership)
         : isNotNull(localFalconProspectProfiles.heatmapStorageKey);
       const rows = await db.select({
+        reportId: localFalconProspectProfiles.id,
         leadId: crmLeads.id,
         businessName: localFalconProspectProfiles.companyName,
         city: localFalconProspectProfiles.city,
@@ -48,6 +67,168 @@ router.get(
       res.json(rows);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
+    }
+  },
+);
+
+router.get(
+  "/companies/:companyId/reports",
+  requireRole("admin", "developer", "sales_rep"),
+  async (req, res) => {
+    try {
+      const companyId = req.params.companyId as string;
+      if (!(await canViewCompanyReports(viewerFor(req), companyId))) {
+        return res.status(403).json({ message: "You do not have access to this company's reports" });
+      }
+      res.json(await getCompanyReportLibrary(companyId));
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  },
+);
+
+router.get(
+  "/reports/:reportId/snapshot-file",
+  requireRole("admin", "developer", "sales_rep"),
+  async (req, res) => {
+    try {
+      const report = await getReportAccessRecord(req.params.reportId as string);
+      if (!report) return res.status(404).json({ message: "Local Falcon report not found" });
+      if (!(await canViewReport(viewerFor(req), report, contextCompanyId(req)))) {
+        return res.status(403).json({ message: "You do not have access to this report" });
+      }
+      const [record] = await db.select({
+        snapshotStorageKey: localFalconProspectProfiles.snapshotStorageKey,
+      }).from(localFalconProspectProfiles)
+        .where(eq(localFalconProspectProfiles.id, report.id))
+        .limit(1);
+      if (!record?.snapshotStorageKey) return res.status(404).json({ message: "Finished snapshot not found" });
+      const file = await getFileBuffer(record.snapshotStorageKey);
+      res.setHeader("Content-Type", file.mimeType);
+      res.setHeader("Content-Length", String(file.buffer.byteLength));
+      res.setHeader("Cache-Control", "private, max-age=300");
+      res.setHeader("Content-Disposition", `inline; filename="${report.id}-local-visibility-snapshot.png"`);
+      res.send(file.buffer);
+    } catch (error: any) {
+      res.status(error?.statusCode ?? 500).json({ message: error.message });
+    }
+  },
+);
+
+router.get(
+  "/reports/:reportId",
+  requireRole("admin", "developer", "sales_rep"),
+  async (req, res) => {
+    try {
+      const accessRecord = await getReportAccessRecord(req.params.reportId as string);
+      if (!accessRecord) return res.status(404).json({ message: "Local Falcon report not found" });
+      if (!(await canViewReport(viewerFor(req), accessRecord, contextCompanyId(req)))) {
+        return res.status(403).json({ message: "You do not have access to this report" });
+      }
+      const [record] = await db.select({
+        profile: localFalconProspectProfiles,
+        batch: localFalconImportBatches,
+      }).from(localFalconProspectProfiles)
+        .innerJoin(
+          localFalconImportBatches,
+          eq(localFalconProspectProfiles.batchRecordId, localFalconImportBatches.id),
+        )
+        .where(eq(localFalconProspectProfiles.id, accessRecord.id))
+        .limit(1);
+      if (!record?.profile.heatmapStorageKey) {
+        return res.status(409).json({ message: "This report has no heatmap evidence" });
+      }
+      const heatmapImageUrl = await getSignedDownloadUrl(record.profile.heatmapStorageKey);
+      const snapshotImageUrl = record.profile.snapshotStorageKey
+        ? await getSignedDownloadUrl(record.profile.snapshotStorageKey)
+        : null;
+      const address = [record.profile.address, record.profile.city, record.profile.state, record.profile.zip]
+        .filter(Boolean).join(", ").replace(/, ([A-Z]{2}), /, ", $1 ");
+      res.json({
+        reportId: accessRecord.id,
+        leadId: record.profile.leadId,
+        reportUrl: record.profile.reportUrl,
+        snapshotImageUrl,
+        snapshotGeneratedAt: record.profile.snapshotGeneratedAt,
+        qualification: {
+          hasWebsite: record.profile.hasWebsite,
+          websitePlatform: record.profile.websitePlatform,
+          servicePageCount: record.profile.servicePageCount,
+        },
+        intelligence: {
+          websiteAnalysis: record.profile.websiteAnalysis,
+          reviewsAnalysis: record.profile.reviewsAnalysis,
+        },
+        mapPresentation: getLocalFalconMapPresentation(!!record.profile.heatmapSourceUrl),
+        data: {
+          businessName: record.profile.companyName ?? "",
+          address,
+          rating: record.profile.rating,
+          reviewCount: String(record.profile.reviewCount),
+          searchPhrase: record.profile.scanKeyword,
+          market: `${record.batch.marketCity}, ${record.batch.marketState}`,
+          averagePosition: record.profile.arp,
+          gridSize: record.batch.gridSize ?? "7 × 7",
+          radius: record.batch.radiusMiles ?? "2.5",
+          heatmapImageUrl,
+        },
+      });
+    } catch (error: any) {
+      res.status(error?.statusCode ?? 500).json({ message: error.message });
+    }
+  },
+);
+
+router.post(
+  "/reports/:reportId/snapshot",
+  requireRole("admin", "developer"),
+  upload.single("snapshot"),
+  async (req, res) => {
+    let uploadedKey: string | null = null;
+    try {
+      const snapshot = req.file;
+      if (!snapshot || snapshot.mimetype !== "image/png") {
+        return res.status(400).json({ message: "Upload the finished report as a PNG." });
+      }
+      const metadata = await sharp(snapshot.buffer).metadata();
+      if (metadata.width !== 1080 || metadata.height !== 1920) {
+        return res.status(400).json({ message: "The finished snapshot must be 1080 × 1920." });
+      }
+      const [record] = await db.select({
+        id: localFalconProspectProfiles.id,
+        previousKey: localFalconProspectProfiles.snapshotStorageKey,
+      }).from(localFalconProspectProfiles)
+        .where(eq(localFalconProspectProfiles.id, req.params.reportId as string))
+        .limit(1);
+      if (!record) return res.status(404).json({ message: "Local Falcon report not found" });
+
+      const stored = await uploadFile(
+        snapshot.buffer,
+        `${record.id}-local-visibility-snapshot.png`,
+        "image/png",
+        "local-visibility-snapshots",
+      );
+      uploadedKey = stored.key;
+      const generatedAt = new Date();
+      await db.update(localFalconProspectProfiles).set({
+        snapshotStorageKey: stored.key,
+        snapshotOriginalName: stored.originalName,
+        snapshotMimeType: stored.mimeType,
+        snapshotSizeBytes: stored.sizeBytes,
+        snapshotSha256: crypto.createHash("sha256").update(snapshot.buffer).digest("hex"),
+        snapshotGeneratedAt: generatedAt,
+      }).where(eq(localFalconProspectProfiles.id, record.id));
+      if (record.previousKey && record.previousKey !== stored.key) {
+        await deleteFile(record.previousKey).catch(() => undefined);
+      }
+      uploadedKey = null;
+      res.json({
+        snapshotImageUrl: await getSignedDownloadUrl(stored.key),
+        snapshotGeneratedAt: generatedAt,
+      });
+    } catch (error: any) {
+      if (uploadedKey) await deleteFile(uploadedKey).catch(() => undefined);
+      res.status(error?.statusCode ?? 500).json({ message: error.message });
     }
   },
 );

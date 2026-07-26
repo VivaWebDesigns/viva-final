@@ -68,7 +68,7 @@ interface LocalFalconPreviewRow {
     mapPosition: { x: number; y: number };
   };
   reportData: LocalVisibilityReportData;
-  outcome: "new" | "existing" | "flagged";
+  outcome: "new" | "variation" | "existing" | "flagged";
   reason?: string;
   matches?: Array<{ companyName: string; reasons: string[] }>;
 }
@@ -81,6 +81,7 @@ interface LocalFalconPreview {
   scanSpec: { grid_size: string; radius_miles: number };
   batchAlreadyImported: boolean;
   newCount: number;
+  variationCount: number;
   existingCount: number;
   flaggedCount: number;
   sourceMode: "local_falcon" | "zip" | "fallback";
@@ -291,7 +292,10 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
         preview.rows.map((row) => [row.placeId, row.heatmapSha256]),
       )));
       const selectedRows = preview.rows.filter(
-        (row) => row.outcome === "new" || (row.outcome === "flagged" && approvedFlagged.has(row.placeId)),
+        (row) =>
+          row.outcome === "new"
+          || row.outcome === "variation"
+          || (row.outcome === "flagged" && approvedFlagged.has(row.placeId)),
       );
       for (const row of selectedRows) {
         const blob = await renderLocalVisibilityReportBlob(reportRefs.current.get(row.placeId) ?? null);
@@ -320,7 +324,10 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
       queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities/board"] });
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/local-visibility/prospects"] });
-      toast({ title: "Local Falcon import complete", description: `${data.imported} assigned leads · ${data.tasksCreated} Contact Lead tasks` });
+      toast({
+        title: "Local Falcon import complete",
+        description: `${data.imported} reports · ${data.leadsCreated} new leads · ${data.tasksCreated} Contact Lead tasks`,
+      });
     } catch (error: any) {
       setImportError(error.message ?? "Import failed");
       setPhase("preview");
@@ -343,7 +350,11 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
     });
   };
 
-  const includedRows = preview?.rows.filter((row) => row.outcome === "new" || (row.outcome === "flagged" && approvedFlagged.has(row.placeId))) ?? [];
+  const includedRows = preview?.rows.filter((row) =>
+    row.outcome === "new"
+    || row.outcome === "variation"
+    || (row.outcome === "flagged" && approvedFlagged.has(row.placeId)),
+  ) ?? [];
   const everyIncludedPreviewConfirmed = includedRows.length > 0 && includedRows.every((row) => confirmedPreviews.has(row.placeId));
 
   return (
@@ -467,6 +478,9 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
               <div><p className="font-semibold">Batch {preview.batchId}</p><p className="text-sm text-slate-500">{preview.market.city}, {preview.market.state} · {preview.trade} · {preview.keyword} · {preview.scanSpec.grid_size} / {preview.scanSpec.radius_miles} miles</p></div>
               <div className="flex gap-2 text-center text-xs">
                 <Badge className="bg-green-100 text-green-700">{preview.newCount} new</Badge>
+                {preview.variationCount > 0 && (
+                  <Badge className="bg-blue-100 text-blue-700">{preview.variationCount} variations</Badge>
+                )}
                 <Badge className="bg-yellow-100 text-yellow-700">{preview.flaggedCount} flagged</Badge>
                 <Badge variant="secondary">{preview.existingCount} existing</Badge>
               </div>
@@ -482,14 +496,16 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
 
             <div className="space-y-4">
               {preview.rows.map((row) => {
-                const isIncluded = row.outcome === "new" || approvedFlagged.has(row.placeId);
+                const isIncluded = row.outcome === "new" || row.outcome === "variation" || approvedFlagged.has(row.placeId);
                 return (
                   <div key={row.placeId} className="rounded-xl border p-4" data-testid={`local-falcon-preview-row-${row.row}`}>
                     <div className="grid gap-5 lg:grid-cols-[1fr_270px]">
                       <div className="space-y-3">
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="font-semibold">{row.companyName}</p>
-                          <Badge variant={row.outcome === "new" ? "default" : "outline"}>{row.outcome}</Badge>
+                          <Badge variant={row.outcome === "new" || row.outcome === "variation" ? "default" : "outline"}>
+                            {row.outcome}
+                          </Badge>
                         </div>
                         <p className="text-sm text-slate-500">{row.address}</p>
                         {row.heatmapSourceUrl ? (

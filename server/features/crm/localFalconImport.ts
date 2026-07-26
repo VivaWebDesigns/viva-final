@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { eq, inArray } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 import { db } from "../../db";
 import { normalizePhoneDigits } from "@shared/phone";
 import {
@@ -113,7 +113,7 @@ export interface ProspectPreview {
   companyName: string;
   address: string;
   heatmapFile: string;
-  outcome: "new" | "existing" | "flagged";
+  outcome: "new" | "variation" | "existing" | "flagged";
   reason?: string;
   matches?: FallbackMatch[];
 }
@@ -126,6 +126,7 @@ export interface LocalFalconPreviewResult {
   scanSpec: LocalFalconBatchInput["scan_spec"];
   batchAlreadyImported: boolean;
   newCount: number;
+  variationCount: number;
   existingCount: number;
   flaggedCount: number;
   rows: ProspectPreview[];
@@ -162,6 +163,7 @@ export function parseLocalFalconPayload(text: string): LocalFalconPayload {
   assertDate(parsed.data.batch.export_date, "batch.export_date");
 
   const placeIds = new Set<string>();
+  const reportKeys = new Set<string>();
   const heatmapFiles = new Set<string>();
   for (const [index, prospect] of parsed.data.prospects.entries()) {
     assertDate(prospect.scan_date, `prospects.${index}.scan_date`);
@@ -169,10 +171,12 @@ export function parseLocalFalconPayload(text: string): LocalFalconPayload {
       throw new Error(`prospects.${index}.scan_keyword must match batch.keyword`);
     }
     if (placeIds.has(prospect.place_id)) throw new Error(`prospects.${index}.place_id is duplicated inside the batch`);
+    if (reportKeys.has(prospect.report_key)) throw new Error(`prospects.${index}.report_key is duplicated inside the batch`);
     if (prospect.heatmap_file && heatmapFiles.has(prospect.heatmap_file)) {
       throw new Error(`prospects.${index}.heatmap_file is referenced more than once`);
     }
     placeIds.add(prospect.place_id);
+    reportKeys.add(prospect.report_key);
     if (prospect.heatmap_file) heatmapFiles.add(prospect.heatmap_file);
   }
 
@@ -232,9 +236,28 @@ export async function previewLocalFalconImport(payload: LocalFalconPayload): Pro
   const [existingBatch] = await db.select({ id: localFalconImportBatches.id })
     .from(localFalconImportBatches).where(eq(localFalconImportBatches.batchId, payload.batch.batch_id)).limit(1);
   const placeIds = payload.prospects.map((prospect) => prospect.place_id);
-  const existingProfiles = await db.select({ placeId: localFalconProspectProfiles.placeId, leadId: localFalconProspectProfiles.leadId })
-    .from(localFalconProspectProfiles).where(inArray(localFalconProspectProfiles.placeId, placeIds));
-  const existingByPlace = new Map(existingProfiles.map((row) => [row.placeId, row.leadId]));
+  const reportKeys = payload.prospects.map((prospect) => prospect.report_key);
+  const [existingPlaceProfiles, existingReportProfiles] = await Promise.all([
+    db.select({
+      placeId: localFalconProspectProfiles.placeId,
+      leadId: localFalconProspectProfiles.leadId,
+      companyName: localFalconProspectProfiles.companyName,
+    }).from(localFalconProspectProfiles)
+      .where(inArray(localFalconProspectProfiles.placeId, placeIds))
+      .orderBy(desc(localFalconProspectProfiles.createdAt)),
+    db.select({
+      reportKey: localFalconProspectProfiles.reportKey,
+      leadId: localFalconProspectProfiles.leadId,
+    }).from(localFalconProspectProfiles)
+      .where(inArray(localFalconProspectProfiles.reportKey, reportKeys)),
+  ]);
+  const existingByPlace = new Map<string, { leadId: string; companyName: string | null }>();
+  for (const row of existingPlaceProfiles) {
+    if (!existingByPlace.has(row.placeId)) {
+      existingByPlace.set(row.placeId, { leadId: row.leadId, companyName: row.companyName });
+    }
+  }
+  const existingByReport = new Map(existingReportProfiles.map((row) => [row.reportKey, row.leadId]));
 
   const rows: ProspectPreview[] = [];
   for (const [index, prospect] of payload.prospects.entries()) {
@@ -245,12 +268,21 @@ export async function previewLocalFalconImport(payload: LocalFalconPayload): Pro
       address: prospect.address,
       heatmapFile: prospect.heatmap_file ?? "Official Local Falcon image",
     };
-    const existingLeadId = existingByPlace.get(prospect.place_id);
-    if (existingLeadId) {
+    const duplicateLeadId = existingByReport.get(prospect.report_key);
+    if (duplicateLeadId) {
       rows.push({
         ...base,
         outcome: "existing",
-        reason: `Place ID already belongs to lead ${existingLeadId}`,
+        reason: `This Local Falcon report is already attached to lead ${duplicateLeadId}`,
+      });
+      continue;
+    }
+    const existingBusiness = existingByPlace.get(prospect.place_id);
+    if (existingBusiness) {
+      rows.push({
+        ...base,
+        outcome: "variation",
+        reason: `New scan variation for ${existingBusiness.companyName ?? prospect.company_name}; the existing CRM record will be reused`,
       });
       continue;
     }
@@ -266,6 +298,7 @@ export async function previewLocalFalconImport(payload: LocalFalconPayload): Pro
     scanSpec: payload.batch.scan_spec,
     batchAlreadyImported: isLocalFalconBatchFullyImported(existingBatch?.id, rows),
     newCount: rows.filter((row) => row.outcome === "new").length,
+    variationCount: rows.filter((row) => row.outcome === "variation").length,
     existingCount: rows.filter((row) => row.outcome === "existing").length,
     flaggedCount: rows.filter((row) => row.outcome === "flagged").length,
     rows,
@@ -274,7 +307,15 @@ export async function previewLocalFalconImport(payload: LocalFalconPayload): Pro
 
 export interface LocalFalconImportResult extends LocalFalconPreviewResult {
   imported: number;
-  importedLeads: Array<{ leadId: string; opportunityId: string; contactId: string | null; companyId: string; placeId: string }>;
+  leadsCreated: number;
+  importedLeads: Array<{
+    leadId: string;
+    opportunityId: string;
+    contactId: string | null;
+    companyId: string;
+    placeId: string;
+    createdNewLead: boolean;
+  }>;
 }
 
 export async function importLocalFalconPayload(
@@ -287,7 +328,11 @@ export async function importLocalFalconPayload(
   const preview = await previewLocalFalconImport(payload);
 
   const allowedPlaceIds = new Set(
-    preview.rows.filter((row) => row.outcome === "new" || (row.outcome === "flagged" && selectedPlaceIds.has(row.placeId)))
+    preview.rows.filter((row) =>
+      row.outcome === "new"
+      || row.outcome === "variation"
+      || (row.outcome === "flagged" && selectedPlaceIds.has(row.placeId)),
+    )
       .map((row) => row.placeId),
   );
   if (allowedPlaceIds.size === 0) throw new Error("No new prospects were selected for import");
@@ -323,64 +368,107 @@ export async function importLocalFalconPayload(
     for (const prospect of payload.prospects) {
       if (!allowedPlaceIds.has(prospect.place_id)) continue;
       const [duplicate] = await tx.select({ id: localFalconProspectProfiles.id })
-        .from(localFalconProspectProfiles).where(eq(localFalconProspectProfiles.placeId, prospect.place_id)).limit(1);
+        .from(localFalconProspectProfiles).where(eq(localFalconProspectProfiles.reportKey, prospect.report_key)).limit(1);
       if (duplicate) continue;
       const asset = assetsByPlaceId.get(prospect.place_id)!;
 
-      const [company] = await tx.insert(crmCompanies).values({
-        name: prospect.company_name,
-        website: prospect.website_url,
-        phone: prospect.phone ? normalizePhoneDigits(prospect.phone) : null,
-        address: prospect.address,
-        city: prospect.city,
-        state: prospect.state,
-        zip: prospect.zip,
-        country: "US",
-        industry: payload.batch.trade,
-        preferredLanguage: "en",
-        clientStatus: "prospect",
-      }).returning();
+      const [existingScan] = await tx.select({
+        lead: crmLeads,
+      }).from(localFalconProspectProfiles)
+        .innerJoin(crmLeads, eq(localFalconProspectProfiles.leadId, crmLeads.id))
+        .where(eq(localFalconProspectProfiles.placeId, prospect.place_id))
+        .orderBy(desc(localFalconProspectProfiles.createdAt))
+        .limit(1);
 
-      let contactId: string | null = null;
-      if (prospect.owner_name) {
-        const parts = prospect.owner_name.split(/\s+/);
-        const [contact] = await tx.insert(crmContacts).values({
-          companyId: company.id,
-          firstName: parts[0],
-          lastName: parts.slice(1).join(" ") || null,
+      let company: typeof crmCompanies.$inferSelect;
+      let lead: typeof crmLeads.$inferSelect;
+      let opportunity: typeof pipelineOpportunities.$inferSelect;
+      let contactId: string | null;
+      let createdNewLead = false;
+
+      if (existingScan?.lead.companyId) {
+        const [existingCompany] = await tx.select().from(crmCompanies)
+          .where(eq(crmCompanies.id, existingScan.lead.companyId))
+          .limit(1);
+        if (!existingCompany) throw new Error(`Existing company was not found for ${prospect.company_name}`);
+        company = existingCompany;
+        lead = existingScan.lead;
+        contactId = lead.contactId;
+        const [existingOpportunity] = await tx.select().from(pipelineOpportunities)
+          .where(eq(pipelineOpportunities.leadId, lead.id))
+          .limit(1);
+        if (existingOpportunity) {
+          opportunity = existingOpportunity;
+        } else {
+          [opportunity] = await tx.insert(pipelineOpportunities).values({
+            title: prospect.company_name,
+            leadId: lead.id,
+            companyId: company.id,
+            contactId,
+            stageId: stage.id,
+            status: "open",
+            sourceLeadTitle: prospect.company_name,
+            notes: `Local Falcon report ${prospect.report_key}`,
+            assignedTo: lead.assignedTo ?? assignedTo,
+          }).returning();
+        }
+      } else {
+        [company] = await tx.insert(crmCompanies).values({
+          name: prospect.company_name,
+          website: prospect.website_url,
           phone: prospect.phone ? normalizePhoneDigits(prospect.phone) : null,
-          title: "Owner",
+          address: prospect.address,
+          city: prospect.city,
+          state: prospect.state,
+          zip: prospect.zip,
+          country: "US",
+          industry: payload.batch.trade,
           preferredLanguage: "en",
-          isPrimary: true,
+          clientStatus: "prospect",
         }).returning();
-        contactId = contact.id;
+
+        contactId = null;
+        if (prospect.owner_name) {
+          const parts = prospect.owner_name.split(/\s+/);
+          const [contact] = await tx.insert(crmContacts).values({
+            companyId: company.id,
+            firstName: parts[0],
+            lastName: parts.slice(1).join(" ") || null,
+            phone: prospect.phone ? normalizePhoneDigits(prospect.phone) : null,
+            title: "Owner",
+            preferredLanguage: "en",
+            isPrimary: true,
+          }).returning();
+          contactId = contact.id;
+        }
+
+        [lead] = await tx.insert(crmLeads).values({
+          companyId: company.id,
+          contactId,
+          statusId: status.id,
+          title: prospect.company_name,
+          source: "local_falcon",
+          sourceLabel: "Local Falcon / Claude",
+          city: prospect.city,
+          state: prospect.state,
+          trade: payload.batch.trade,
+          notes: `Qualified Local Falcon prospect · ARP ${prospect.arp}`,
+          assignedTo,
+        }).returning();
+
+        [opportunity] = await tx.insert(pipelineOpportunities).values({
+          title: prospect.company_name,
+          leadId: lead.id,
+          companyId: company.id,
+          contactId,
+          stageId: stage.id,
+          status: "open",
+          sourceLeadTitle: prospect.company_name,
+          notes: `Local Falcon report ${prospect.report_key}`,
+          assignedTo,
+        }).returning();
+        createdNewLead = true;
       }
-
-      const [lead] = await tx.insert(crmLeads).values({
-        companyId: company.id,
-        contactId,
-        statusId: status.id,
-        title: prospect.company_name,
-        source: "local_falcon",
-        sourceLabel: "Local Falcon / Claude",
-        city: prospect.city,
-        state: prospect.state,
-        trade: payload.batch.trade,
-        notes: `Qualified Local Falcon prospect · ARP ${prospect.arp}`,
-        assignedTo,
-      }).returning();
-
-      const [opportunity] = await tx.insert(pipelineOpportunities).values({
-        title: prospect.company_name,
-        leadId: lead.id,
-        companyId: company.id,
-        contactId,
-        stageId: stage.id,
-        status: "open",
-        sourceLeadTitle: prospect.company_name,
-        notes: `Local Falcon report ${prospect.report_key}`,
-        assignedTo,
-      }).returning();
 
       await tx.insert(localFalconProspectProfiles).values({
         batchRecordId: batch.id,
@@ -423,18 +511,32 @@ export async function importLocalFalconPayload(
         reviewCount: prospect.review_count,
       });
 
-      results.push({ leadId: lead.id, opportunityId: opportunity.id, contactId, companyId: company.id, placeId: prospect.place_id });
+      results.push({
+        leadId: lead.id,
+        opportunityId: opportunity.id,
+        contactId,
+        companyId: company.id,
+        placeId: prospect.place_id,
+        createdNewLead,
+      });
     }
     return results;
   });
 
-  return { ...preview, imported: importedLeads.length, importedLeads };
+  return {
+    ...preview,
+    imported: importedLeads.length,
+    leadsCreated: importedLeads.filter((row) => row.createdNewLead).length,
+    importedLeads,
+  };
 }
 
 export async function getLocalFalconProfileForLead(leadId: string) {
   const [result] = await db.select({ profile: localFalconProspectProfiles, batch: localFalconImportBatches })
     .from(localFalconProspectProfiles)
     .innerJoin(localFalconImportBatches, eq(localFalconProspectProfiles.batchRecordId, localFalconImportBatches.id))
-    .where(eq(localFalconProspectProfiles.leadId, leadId)).limit(1);
+    .where(eq(localFalconProspectProfiles.leadId, leadId))
+    .orderBy(desc(localFalconProspectProfiles.scanDate))
+    .limit(1);
   return result ?? null;
 }

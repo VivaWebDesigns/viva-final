@@ -34,6 +34,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter
@@ -88,6 +89,10 @@ import { ProfileLinkageApiError } from "./types";
 import type {
   PipelineStage, ClientNote, User as DbUser, FollowupTask,
 } from "@shared/schema";
+import type {
+  LocalVisibilityReportLibrary,
+  LocalVisibilityReportSummary,
+} from "@shared/localVisibility";
 import { useLocation } from "wouter";
 import LocalVisibilityReportTemplate, { type MapPosition } from "@/features/local-visibility-report/LocalVisibilityReportTemplate";
 import { renderLocalVisibilityReportBlob } from "@/features/local-visibility-report/exportReport";
@@ -121,6 +126,7 @@ interface BillingSnapshot {
 }
 
 interface LocalFalconSnapshot {
+  reportId: string;
   leadId: string;
   reportUrl: string | null;
   snapshotImageUrl: string | null;
@@ -141,21 +147,34 @@ interface LocalFalconSnapshot {
   data: LocalVisibilityReportData;
 }
 
-function LocalFalconSnapshotCard({ leadId }: { leadId: string }) {
+function reportSnapshotFileUrl(reportId: string, contextCompanyId: string) {
+  return `/api/local-visibility/reports/${encodeURIComponent(reportId)}/snapshot-file?contextCompanyId=${encodeURIComponent(contextCompanyId)}`;
+}
+
+function LocalFalconSnapshotCard({
+  reportId,
+  contextCompanyId,
+}: {
+  reportId: string;
+  contextCompanyId: string;
+}) {
   const reportRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const { data, isLoading } = useQuery<LocalFalconSnapshot>({
-    queryKey: ["/api/local-visibility/prospects", leadId],
+    queryKey: ["/api/local-visibility/reports", reportId, contextCompanyId],
     queryFn: async () => {
-      const response = await fetch(`/api/local-visibility/prospects/${encodeURIComponent(leadId)}`, {
+      const response = await fetch(
+        `/api/local-visibility/reports/${encodeURIComponent(reportId)}?contextCompanyId=${encodeURIComponent(contextCompanyId)}`,
+        {
         credentials: "include",
-      });
+        },
+      );
       const body = await response.json();
       if (!response.ok) throw new Error(body.message ?? "Could not load Local Falcon details");
       return body;
     },
   });
-  const snapshotFileUrl = `/api/local-visibility/prospects/${encodeURIComponent(leadId)}/snapshot-file`;
+  const snapshotFileUrl = reportSnapshotFileUrl(reportId, contextCompanyId);
   const copySnapshot = async () => {
     if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") {
       toast({ title: "Image copying is not available", description: "Use Download PNG instead.", variant: "destructive" });
@@ -188,8 +207,8 @@ function LocalFalconSnapshotCard({ leadId }: { leadId: string }) {
     mutationFn: async () => {
       const blob = await renderLocalVisibilityReportBlob(reportRef.current);
       const form = new FormData();
-      form.append("snapshot", blob, `${leadId}-local-visibility-snapshot.png`);
-      const response = await fetch(`/api/local-visibility/prospects/${encodeURIComponent(leadId)}/snapshot`, {
+      form.append("snapshot", blob, `${reportId}-local-visibility-snapshot.png`);
+      const response = await fetch(`/api/local-visibility/reports/${encodeURIComponent(reportId)}/snapshot`, {
         method: "POST",
         credentials: "include",
         body: form,
@@ -199,7 +218,8 @@ function LocalFalconSnapshotCard({ leadId }: { leadId: string }) {
       return body;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/local-visibility/prospects", leadId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/local-visibility/reports", reportId, contextCompanyId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/local-visibility/companies", contextCompanyId, "reports"] });
       toast({ title: "Snapshot saved", description: "The finished Local Visibility Snapshot is now attached to this lead." });
     },
     onError: (error: Error) => {
@@ -347,6 +367,271 @@ function LocalFalconSnapshotCard({ leadId }: { leadId: string }) {
         )}
       </CardContent>
     </Card>
+  );
+}
+
+function reportVariantLabel(report: LocalVisibilityReportSummary) {
+  const radius = report.radius ? `${report.radius} mi` : "Radius unavailable";
+  return `${report.keyword} · ${radius} · ${format(new Date(report.scanDate), "MMM d, yyyy")}`;
+}
+
+function ReportVariantSelector({
+  reports,
+  value,
+  onChange,
+  label = "Scan variation",
+}: {
+  reports: LocalVisibilityReportSummary[];
+  value: string;
+  onChange: (reportId: string) => void;
+  label?: string;
+}) {
+  if (reports.length <= 1) return null;
+  return (
+    <div className="mb-4 max-w-xl space-y-1.5">
+      <Label>{label}</Label>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger data-testid="select-local-visibility-report-variation">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {reports.map((report) => (
+            <SelectItem key={report.id} value={report.id}>
+              {reportVariantLabel(report)}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+function OriginalCompanyReports({
+  companyId,
+  reports,
+}: {
+  companyId: string;
+  reports: LocalVisibilityReportSummary[];
+}) {
+  const [selectedReportId, setSelectedReportId] = useState(reports[0]?.id ?? "");
+
+  useEffect(() => {
+    if (!reports.some((report) => report.id === selectedReportId)) {
+      setSelectedReportId(reports[0]?.id ?? "");
+    }
+  }, [reports, selectedReportId]);
+
+  if (!selectedReportId) return null;
+  return (
+    <section data-testid="original-company-reports">
+      <ReportVariantSelector
+        reports={reports}
+        value={selectedReportId}
+        onChange={setSelectedReportId}
+      />
+      <LocalFalconSnapshotCard reportId={selectedReportId} contextCompanyId={companyId} />
+    </section>
+  );
+}
+
+async function copySnapshotImage(snapshotUrl: string) {
+  if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") {
+    throw new Error("Image copying is not available. Use Download PNG instead.");
+  }
+  const blobPromise = fetch(snapshotUrl, { credentials: "include" }).then(async (response) => {
+    if (!response.ok) throw new Error("Could not load the stored snapshot.");
+    return response.blob();
+  });
+  await navigator.clipboard.write([new ClipboardItem({ "image/png": blobPromise })]);
+}
+
+async function downloadSnapshotImage(snapshotUrl: string, businessName: string) {
+  const response = await fetch(snapshotUrl, { credentials: "include" });
+  if (!response.ok) throw new Error("Could not load the stored snapshot.");
+  const blob = await response.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = `${businessName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "competitor"}-local-visibility.png`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(objectUrl);
+}
+
+function CompetitorReportCard({
+  report,
+  companyId,
+  rank,
+}: {
+  report: LocalVisibilityReportSummary;
+  companyId: string;
+  rank: number;
+}) {
+  const { toast } = useToast();
+  const [activeAction, setActiveAction] = useState<"copy" | "download" | null>(null);
+  const snapshotUrl = reportSnapshotFileUrl(report.id, companyId);
+
+  const copy = async () => {
+    setActiveAction("copy");
+    try {
+      await copySnapshotImage(snapshotUrl);
+      toast({
+        title: "Competitor report copied",
+        description: "Paste the full 1080 × 1920 report into your messaging app.",
+      });
+    } catch (error) {
+      toast({
+        title: "Copy failed",
+        description: error instanceof Error ? error.message : "Use Download PNG instead.",
+        variant: "destructive",
+      });
+    } finally {
+      setActiveAction(null);
+    }
+  };
+
+  const download = async () => {
+    setActiveAction("download");
+    try {
+      await downloadSnapshotImage(snapshotUrl, report.businessName);
+    } catch (error) {
+      toast({
+        title: "Download failed",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setActiveAction(null);
+    }
+  };
+
+  return (
+    <Card className="overflow-hidden" data-testid={`competitor-report-${report.id}`}>
+      <CardHeader className="space-y-2">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <CardTitle className="text-base">{report.businessName}</CardTitle>
+            <p className="mt-1 text-xs text-gray-500">{report.keyword} · {report.radius} miles</p>
+          </div>
+          <Badge className="shrink-0 bg-emerald-100 text-emerald-800">#{rank}</Badge>
+        </div>
+        <p className="text-sm font-semibold text-[#061a3d]">Average rank {report.averagePosition}</p>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <a href={snapshotUrl} target="_blank" rel="noopener noreferrer" className="block">
+          <img
+            src={snapshotUrl}
+            alt={`${report.businessName} competitor Local Visibility Snapshot`}
+            className="aspect-[9/16] w-full rounded-lg border bg-slate-50 object-contain"
+          />
+        </a>
+        <div className="grid gap-2">
+          <Button onClick={() => void copy()} disabled={activeAction !== null}>
+            <ClipboardCopy className="mr-1.5 h-4 w-4" />
+            {activeAction === "copy" ? "Copying…" : "Copy image"}
+          </Button>
+          <Button variant="outline" onClick={() => void download()} disabled={activeAction !== null}>
+            <Download className="mr-1.5 h-4 w-4" />
+            {activeAction === "download" ? "Saving…" : "Download PNG"}
+          </Button>
+          <Button variant="outline" asChild>
+            <a href={snapshotUrl} target="_blank" rel="noopener noreferrer">
+              Open full size <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
+            </a>
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function CompetitorReportsPanel({
+  companyId,
+  library,
+}: {
+  companyId: string;
+  library: LocalVisibilityReportLibrary;
+}) {
+  const [selectedSourceReportId, setSelectedSourceReportId] = useState(library.ownReports[0]?.id ?? "");
+  const [viewMode, setViewMode] = useState<"top" | "all">("top");
+
+  useEffect(() => {
+    if (!library.ownReports.some((report) => report.id === selectedSourceReportId)) {
+      setSelectedSourceReportId(library.ownReports[0]?.id ?? "");
+    }
+  }, [library.ownReports, selectedSourceReportId]);
+
+  const group = library.competitorGroups.find(
+    (candidate) => candidate.sourceReportId === selectedSourceReportId,
+  );
+  const competitors = group?.competitors ?? [];
+  const visibleReports = viewMode === "top" ? competitors.slice(0, 3) : competitors;
+
+  return (
+    <div className="space-y-5" data-testid="competitor-reports-panel">
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
+            <div className="max-w-xl">
+              <h2 className="text-lg font-semibold text-[#061a3d]">Competitor reports</h2>
+              <p className="mt-1 text-sm leading-6 text-gray-500">
+                These companies were scanned in the exact same market, keyword, radius, grid, and Local Falcon batch.
+                The strongest average rankings appear first.
+              </p>
+            </div>
+            <div className="flex rounded-lg border bg-slate-50 p-1">
+              <Button
+                size="sm"
+                variant={viewMode === "top" ? "default" : "ghost"}
+                onClick={() => setViewMode("top")}
+                data-testid="button-competitors-top-three"
+              >
+                Top 3
+              </Button>
+              <Button
+                size="sm"
+                variant={viewMode === "all" ? "default" : "ghost"}
+                onClick={() => setViewMode("all")}
+                data-testid="button-competitors-show-all"
+              >
+                All competitors ({competitors.length})
+              </Button>
+            </div>
+          </div>
+          <div className="mt-5">
+            <ReportVariantSelector
+              reports={library.ownReports}
+              value={selectedSourceReportId}
+              onChange={(reportId) => {
+                setSelectedSourceReportId(reportId);
+                setViewMode("top");
+              }}
+              label="Compare against scan variation"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {visibleReports.length > 0 ? (
+        <div className="grid gap-5 lg:grid-cols-2 xl:grid-cols-3">
+          {visibleReports.map((report) => (
+            <CompetitorReportCard
+              key={report.id}
+              report={report}
+              companyId={companyId}
+              rank={competitors.indexOf(report) + 1}
+            />
+          ))}
+        </div>
+      ) : (
+        <Card className="p-10 text-center">
+          <BarChart3 className="mx-auto mb-3 h-10 w-10 text-gray-300" />
+          <p className="font-medium text-gray-700">No matching competitor reports</p>
+          <p className="mt-1 text-sm text-gray-500">This scan batch does not contain another finished company report yet.</p>
+        </Card>
+      )}
+    </div>
   );
 }
 
@@ -2141,7 +2426,7 @@ function ClientTaskRow({ task, onComplete, onToggle, onReschedule, onDelete, can
 
 export interface ProfileShellProps {
   entry: ProfileEntry;
-  defaultTab?: "overview" | "notes" | "contacts" | "tasks" | "files" | "billing" | "activity";
+  defaultTab?: "overview" | "notes" | "competitors" | "contacts" | "tasks" | "files" | "billing" | "activity";
   className?: string;
 }
 
@@ -2152,9 +2437,30 @@ export default function ProfileShell({
 }: ProfileShellProps) {
   const { data: profile, isLoading, error } = useUnifiedProfile(entry);
   const { role } = useAuth();
+  const reportCompanyId = profile?.identity.company.id;
+  const { data: reportLibrary } = useQuery<LocalVisibilityReportLibrary>({
+    queryKey: ["/api/local-visibility/companies", reportCompanyId, "reports"],
+    queryFn: async () => {
+      const response = await fetch(
+        `/api/local-visibility/companies/${encodeURIComponent(reportCompanyId!)}/reports`,
+        { credentials: "include" },
+      );
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.message ?? "Could not load Local Falcon reports");
+      return body;
+    },
+    enabled: Boolean(
+      reportCompanyId
+      && (role === "admin" || role === "developer" || role === "sales_rep"),
+    ),
+    staleTime: STALE.MEDIUM,
+  });
+  const hasLocalVisibilityReports = Boolean(reportLibrary?.ownReports.length);
   const urlTab = new URLSearchParams(window.location.search).get("tab");
   const validTabs = [
-    "overview", "notes", "contacts", "tasks", "files", "billing", "activity",
+    "overview", "notes",
+    ...(hasLocalVisibilityReports ? ["competitors"] : []),
+    "contacts", "tasks", "files", "billing", "activity",
     ...(entry.type === "lead" ? ["sms"] : []),
   ].filter(
     (tab) => !(tab === "notes" && role === "sales_rep")
@@ -2167,7 +2473,7 @@ export default function ProfileShell({
     if (!validTabs.includes(activeTab)) {
       setActiveTab(safeDefaultTab);
     }
-  }, [role]);
+  }, [role, hasLocalVisibilityReports, activeTab, safeDefaultTab]);
   const { toast } = useToast();
   const { t } = useAdminLang();
   const [, navigate] = useLocation();
@@ -2207,6 +2513,7 @@ export default function ProfileShell({
     <ProfileShellInner
       entry={entry}
       profile={profile}
+      reportLibrary={reportLibrary}
       companyId={companyId}
       activeOpp={activeOpp}
       hasOpenOpp={!!hasOpenOpp}
@@ -2246,6 +2553,7 @@ export default function ProfileShell({
 interface ProfileShellInnerProps {
   entry: ProfileEntry;
   profile: UnifiedProfileDto;
+  reportLibrary?: LocalVisibilityReportLibrary;
   companyId: string;
   activeOpp: MappedOpportunity | null;
   hasOpenOpp: boolean;
@@ -2281,7 +2589,7 @@ interface ProfileShellInnerProps {
 }
 
 function ProfileShellInner({
-  entry, profile, companyId, activeOpp, hasOpenOpp,
+  entry, profile, reportLibrary, companyId, activeOpp, hasOpenOpp,
   activeTab, setActiveTab, toast, t, navigate,
   contactedPendingStageId, setContactedPendingStageId,
   paymentSentPendingStageId, setPaymentSentPendingStageId,
@@ -2584,6 +2892,9 @@ function ProfileShellInner({
         <TabsList className="w-full justify-start overflow-x-auto" data-testid="tabs-profile">
           <TabsTrigger value="overview" data-testid="tab-overview">{t.profileShell.overview}</TabsTrigger>
           {!isSalesRep && <TabsTrigger value="notes" data-testid="tab-notes">{t.profileShell.notes}</TabsTrigger>}
+          {reportLibrary && reportLibrary.ownReports.length > 0 && (
+            <TabsTrigger value="competitors" data-testid="tab-competitors">Competitors</TabsTrigger>
+          )}
           <TabsTrigger value="contacts" data-testid="tab-contacts">
             {t.profileShell.contacts}
           </TabsTrigger>
@@ -2613,8 +2924,8 @@ function ProfileShellInner({
               contacts={identity.contacts}
             />
           </div>
-          {sales.sourceLead?.source === "local_falcon" && (
-            <LocalFalconSnapshotCard leadId={sales.sourceLead.id} />
+          {reportLibrary && reportLibrary.ownReports.length > 0 && (
+            <OriginalCompanyReports companyId={companyId} reports={reportLibrary.ownReports} />
           )}
         </TabsContent>
 
@@ -2675,6 +2986,12 @@ function ProfileShellInner({
             </div>
           )}
         </TabsContent>}
+
+        {reportLibrary && reportLibrary.ownReports.length > 0 && (
+          <TabsContent value="competitors" className="mt-4">
+            <CompetitorReportsPanel companyId={companyId} library={reportLibrary} />
+          </TabsContent>
+        )}
 
         {/* ── Contacts Tab ─────────────────────────────────────────────────── */}
         <TabsContent value="contacts" className="mt-4 space-y-4">

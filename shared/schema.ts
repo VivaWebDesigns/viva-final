@@ -340,8 +340,11 @@ export const localFalconImportBatches = pgTable("local_falcon_import_batches", {
 export const localFalconProspectProfiles = pgTable("local_falcon_prospect_profiles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   batchRecordId: varchar("batch_record_id").notNull().references(() => localFalconImportBatches.id),
-  leadId: varchar("lead_id").notNull().unique().references(() => crmLeads.id, { onDelete: "cascade" }),
-  placeId: text("place_id").notNull().unique(),
+  // A lead/company can have multiple radius variations of the same scan.
+  // reportKey identifies the immutable Local Falcon report; placeId identifies
+  // the scanned business and is intentionally reusable across later batches.
+  leadId: varchar("lead_id").notNull().references(() => crmLeads.id, { onDelete: "cascade" }),
+  placeId: text("place_id").notNull(),
   companyName: text("company_name"),
   address: text("address"),
   city: text("city"),
@@ -357,7 +360,7 @@ export const localFalconProspectProfiles = pgTable("local_falcon_prospect_profil
   servicePageCount: integer("service_page_count"),
   websiteAnalysis: jsonb("website_analysis").$type<string[]>(),
   reviewsAnalysis: jsonb("reviews_analysis").$type<string[]>(),
-  reportKey: text("report_key").notNull(),
+  reportKey: text("report_key").notNull().unique(),
   reportUrl: text("report_url"),
   scanDate: timestamp("scan_date").notNull(),
   scanKeyword: text("scan_keyword").notNull(),
@@ -391,6 +394,9 @@ export const localFalconProspectProfiles = pgTable("local_falcon_prospect_profil
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (t) => [
   index("lf_profiles_batch_idx").on(t.batchRecordId),
+  index("lf_profiles_lead_idx").on(t.leadId),
+  index("lf_profiles_place_idx").on(t.placeId),
+  index("lf_profiles_scan_date_idx").on(t.scanDate),
   index("lf_profiles_tier_idx").on(t.tier),
   index("lf_profiles_pitch_type_idx").on(t.pitchType),
 ]);

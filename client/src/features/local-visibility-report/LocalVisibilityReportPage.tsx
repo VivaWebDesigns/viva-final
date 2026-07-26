@@ -146,6 +146,7 @@ type LocalVisibilityReportPageProps = {
 };
 
 type ProspectOption = {
+  reportId: string;
   leadId: string;
   businessName: string | null;
   city: string | null;
@@ -188,11 +189,11 @@ export default function LocalVisibilityReportPage({ initialData }: LocalVisibili
     return () => { cancelled = true; };
   }, [role]);
 
-  const loadProspect = async (leadId: string) => {
-    setSelectedProspectId(leadId);
+  const loadProspect = async (reportId: string) => {
+    setSelectedProspectId(reportId);
     setIsLoadingProspect(true);
     try {
-      const response = await fetch(`/api/local-visibility/prospects/${encodeURIComponent(leadId)}`, { credentials: "include" });
+      const response = await fetch(`/api/local-visibility/reports/${encodeURIComponent(reportId)}`, { credentials: "include" });
       const body = await response.json();
       if (!response.ok) throw new Error(body.message ?? "Could not load prospect");
       setData({ ...body.data, gridSize: normalizeGridSize(body.data.gridSize) });
@@ -538,8 +539,8 @@ export default function LocalVisibilityReportPage({ initialData }: LocalVisibili
                   </SelectTrigger>
                   <SelectContent>
                     {prospectOptions.map((prospect) => (
-                      <SelectItem key={prospect.leadId} value={prospect.leadId}>
-                        {prospect.businessName || "Unnamed prospect"} · {[prospect.city, prospect.state].filter(Boolean).join(", ")}
+                      <SelectItem key={prospect.reportId} value={prospect.reportId}>
+                        {prospect.businessName || "Unnamed prospect"} · {[prospect.city, prospect.state].filter(Boolean).join(", ")} · {prospect.keyword}
                       </SelectItem>
                     ))}
                   </SelectContent>

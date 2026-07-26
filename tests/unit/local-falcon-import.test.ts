@@ -61,6 +61,21 @@ describe("parseLocalFalconPayload", () => {
       .toThrow(/place_id is duplicated/i);
   });
 
+  it("rejects duplicate report keys even when the Place IDs differ", () => {
+    expect(() => parseLocalFalconPayload(JSON.stringify({
+      ...payload,
+      prospects: [
+        prospect,
+        {
+          ...prospect,
+          place_id: "ChIJ-test-2",
+          company_name: "Beta Roofing LLC",
+          heatmap_file: "heatmaps/ChIJ-test-2.png",
+        },
+      ],
+    }))).toThrow(/report_key is duplicated/i);
+  });
+
   it("rejects disqualified rows before they can enter the CRM", () => {
     expect(() => parseLocalFalconPayload(JSON.stringify({
       ...payload,
@@ -124,6 +139,17 @@ describe("Local Falcon batch idempotency", () => {
       heatmapFile: heatmapPath,
       outcome: "existing",
     }])).toBe(true);
+  });
+
+  it("allows a new radius variation to be imported into an existing batch context", () => {
+    expect(isLocalFalconBatchFullyImported("existing-batch-id", [{
+      row: 1,
+      placeId: prospect.place_id,
+      companyName: prospect.company_name,
+      address: prospect.address,
+      heatmapFile: heatmapPath,
+      outcome: "variation",
+    }])).toBe(false);
   });
 });
 

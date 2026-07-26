@@ -470,7 +470,10 @@ router.post(
       const preview = await previewLocalFalconImport(parsedPackage.payload);
       const approvedFlaggedSet = new Set(approvedFlagged);
       const selectedRows = preview.rows.filter(
-        (row) => row.outcome === "new" || (row.outcome === "flagged" && approvedFlaggedSet.has(row.placeId)),
+        (row) =>
+          row.outcome === "new"
+          || row.outcome === "variation"
+          || (row.outcome === "flagged" && approvedFlaggedSet.has(row.placeId)),
       );
       if (selectedRows.length === 0) throw new Error("No new prospects were selected for import");
       const requestFiles = (req.files ?? {}) as Record<string, Express.Multer.File[]>;
@@ -557,6 +560,7 @@ router.post(
       let tasksCreated = 0;
       let automationErrors = 0;
       for (const imported of result.importedLeads) {
+        if (!imported.createdNewLead) continue;
         const automation = await executeStageAutomations({
           opportunityId: imported.opportunityId,
           leadId: imported.leadId,

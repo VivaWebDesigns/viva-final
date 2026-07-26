@@ -57,8 +57,12 @@ No heatmap screenshot or ZIP is required during the normal import flow.
 - Only `qualification_status: "qualified"` may enter the CRM.
 - `scan_keyword` must match the batch keyword.
 - Every Place ID must be unique inside the manifest.
-- `report_key` must be the hexadecimal Local Falcon report key. It is the only
-  input used to derive the official image URL.
+- Every `report_key` must be unique inside the manifest and across imported
+  reports. It is the immutable report identifier and the only input used to
+  derive the official image URL.
+- A Place ID may appear again in a later batch for another radius variation.
+  The importer attaches that report to the existing company, lead, and
+  opportunity instead of creating duplicate CRM records.
 - `report_url` must be the verified Local Falcon `public_url`. Current public
   report links use `localrankingtracker.com` and include a second identifier
   that cannot be derived from `report_key`.
@@ -84,7 +88,18 @@ No heatmap screenshot or ZIP is required during the normal import flow.
 7. Select the appointment setter.
 8. Confirm the import.
 
-The CRM stores the original heatmap in R2, creates the assigned lead and opportunity in **New Lead**, and creates the assigned **Contact lead** task. Sales reps can then load their assigned evidence directly in the Local Visibility Snapshot generator without OCR or re-entry.
+For a new company, the CRM stores the original heatmap in R2, creates the
+assigned lead and opportunity in **New Lead**, and creates the assigned
+**Contact lead** task. A later radius variation stores another report on the
+same CRM records without creating another lead, opportunity, task, or
+assignment notification. Sales reps can load every assigned report directly
+in the Local Visibility Snapshot generator without OCR or re-entry.
+
+On the unified opportunity profile, one report displays without an extra
+selector. When multiple radius variations exist, the profile adds a scan
+variation selector. The **Competitors** tab automatically uses the selected
+report's exact batch and shows the three companies with the lowest average
+ranking position first, with an optional all-competitors view.
 
 For maps retrieved automatically from Local Falcon, the report applies the
 approved centered 160% presentation framing. This reproduces the close

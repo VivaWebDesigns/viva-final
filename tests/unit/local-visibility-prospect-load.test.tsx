@@ -35,6 +35,7 @@ describe("Local Visibility CRM prospect loader", () => {
       const url = String(input);
       if (url === "/api/local-visibility/prospects") {
         return jsonResponse([{
+          reportId: "report-1",
           leadId: "lead-1",
           businessName: "Boda Plumbing, Inc.",
           city: "Monroe",
@@ -43,8 +44,9 @@ describe("Local Visibility CRM prospect loader", () => {
           scanDate: "2026-07-14",
         }]);
       }
-      if (url === "/api/local-visibility/prospects/lead-1") {
+      if (url === "/api/local-visibility/reports/report-1") {
         return jsonResponse({
+          reportId: "report-1",
           leadId: "lead-1",
           reportUrl: "https://localrankingtracker.com/scan-report/example/public/",
           mapPresentation: {
@@ -75,7 +77,7 @@ describe("Local Visibility CRM prospect loader", () => {
       { credentials: "include" },
     ));
     await user.click(screen.getByTestId("select-local-visibility-prospect"));
-    const prospectLabels = await screen.findAllByText("Boda Plumbing, Inc. · Monroe, NC");
+    const prospectLabels = await screen.findAllByText("Boda Plumbing, Inc. · Monroe, NC · plumber near me");
     await user.click(prospectLabels.at(-1)!);
 
     await waitFor(() => expect(screen.getByLabelText("Business name")).toHaveValue("Boda Plumbing, Inc."));

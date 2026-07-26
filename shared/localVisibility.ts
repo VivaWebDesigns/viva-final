@@ -14,3 +14,29 @@ export function getLocalFalconMapPresentation(automaticallyRetrieved: boolean) {
     mapPosition: LOCAL_VISIBILITY_CENTERED_MAP_POSITION,
   };
 }
+
+export type LocalVisibilityReportSummary = {
+  id: string;
+  leadId: string;
+  companyId: string;
+  batchId: string;
+  businessName: string;
+  keyword: string;
+  market: string;
+  radius: string;
+  gridSize: string;
+  scanDate: string;
+  averagePosition: string;
+  reportUrl: string | null;
+  hasSnapshot: boolean;
+};
+
+export type LocalVisibilityCompetitorGroup = {
+  sourceReportId: string;
+  competitors: LocalVisibilityReportSummary[];
+};
+
+export type LocalVisibilityReportLibrary = {
+  ownReports: LocalVisibilityReportSummary[];
+  competitorGroups: LocalVisibilityCompetitorGroup[];
+};
