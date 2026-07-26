@@ -1,11 +1,66 @@
 # Local Falcon prospect import
 
-The canonical handoff is a single JSON manifest. The CRM derives the official
+The canonical handoff is `batch.json` plus an optional sibling
+`competitors.json`. The CRM derives the official
 Local Falcon image URL from each prospect's `report_key`, retrieves the original
 image server-side, validates it, shows the exact report framing for approval,
 and stores the confirmed bytes in R2.
 
 No heatmap screenshot or ZIP is required during the normal import flow.
+
+## Competitor sidecar
+
+`competitors.json` stores the full Local Falcon competitor list for each
+individual scan. Its `reports` object is keyed by the same immutable
+`report_key` used in `batch.json`.
+
+```json
+{
+  "version": 1,
+  "batch_id": "MONROE-NC-PLUMBING-20260722-01",
+  "generated_at": "2026-07-22T14:30:00-04:00",
+  "ranking_source": "local_falcon",
+  "reports": {
+    "279b8ac00c7ec41": {
+      "competitor_report_key": "abcdef123456789",
+      "subject_place_id": "ChIJoRG1v646VIgRPb7BV5C7Rf4",
+      "subject_name": "Boda Plumbing, Inc.",
+      "keyword": "plumber near me",
+      "grid_size": 7,
+      "radius_miles": 2.5,
+      "scan_date": "2026-07-14",
+      "subject_rank": 4,
+      "total_businesses": 28,
+      "businesses_ahead_count": 3,
+      "warnings": [],
+      "businesses": []
+    }
+  }
+}
+```
+
+The `businesses` array contains the complete normalized response, not a top-10
+subset. Each entry includes rank, Place ID, name, address fields,
+latitude/longitude, ARP, ATRP, `atrp_capped`, SoLV, reviews, rating, and
+`is_subject`.
+
+- Preserve Local Falcon's business array exactly; never re-sort it. `rank` is
+  the one-based array position.
+- Place ID is the identity key. Business names are display-only.
+- When Local Falcon returns ATRP as `20+`, store `atrp: null` and
+  `atrp_capped: true`.
+- `subject_rank` comes from the subject's array position, not its found-in/data
+  point count. If the subject is missing, rank and businesses-ahead count are
+  `null`, while the full returned list is retained.
+- A retrieval failure uses an empty business array, nullable totals/ranks, and
+  an explanatory warning.
+- The list can contain out-of-city or otherwise noisy businesses. It is scan
+  evidence for sales context, not a vetted market-share claim.
+- Two same-keyword radius variations are separate report entries because each
+  has its own `report_key`.
+- Competitor ranking metrics are always visible. Copy/download/open actions are
+  available only when that competitor Place ID was also independently scanned
+  and imported in the same batch.
 
 ## Canonical manifest
 
@@ -79,8 +134,8 @@ No heatmap screenshot or ZIP is required during the normal import flow.
 ## CRM workflow
 
 1. Open **CRM → Leads → Import → Local Falcon**.
-2. Click the import box and paste the JSON with **Ctrl+V** or **⌘V**. Dropping or
-   choosing the JSON file also works.
+2. Select `batch.json` and optional `competitors.json` together. Pasting the
+   batch JSON, dropping both files, or choosing a ZIP also works.
 3. Click **Review import**. The CRM retrieves the official maps automatically.
 4. Review duplicate checks and the exact final report framing for every included prospect.
 5. Explicitly approve any flagged possible duplicate.
@@ -98,8 +153,10 @@ in the Local Visibility Snapshot generator without OCR or re-entry.
 On the unified opportunity profile, one report displays without an extra
 selector. When multiple radius variations exist, the profile adds a scan
 variation selector. The **Competitors** tab automatically uses the selected
-report's exact batch and shows the three companies with the lowest average
-ranking position first, with an optional all-competitors view.
+scan variation. It shows the subject's true Local Falcon position, the number
+of businesses ahead, and the first three higher-ranked companies in preserved
+SoLV order. **Show all** reveals the complete set ahead of the subject,
+including cases where the subject ranks below the top ten.
 
 For maps retrieved automatically from Local Falcon, the report applies the
 approved centered 160% presentation framing. This reproduces the close
@@ -131,6 +188,7 @@ both directions.
 ```text
 monroe-nc-plumbing-20260722.zip
 ├── batch.json
+├── competitors.json
 └── heatmaps/
     └── ChIJBVJ_i_OJgWkRT9fe4f3IpK0.png
 ```

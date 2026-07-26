@@ -31,9 +31,38 @@ export type LocalVisibilityReportSummary = {
   hasSnapshot: boolean;
 };
 
+export type LocalFalconCompetitorBusiness = {
+  rank: number;
+  place_id: string;
+  name: string;
+  address_raw: string;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
+  lat: number;
+  lng: number;
+  arp: number;
+  atrp: number | null;
+  atrp_capped: boolean;
+  solv: number;
+  reviews: number;
+  rating: number;
+  is_subject: boolean;
+};
+
+export type LocalVisibilityCompetitorBusiness = LocalFalconCompetitorBusiness & {
+  sendableReport: LocalVisibilityReportSummary | null;
+};
+
 export type LocalVisibilityCompetitorGroup = {
   sourceReportId: string;
-  competitors: LocalVisibilityReportSummary[];
+  subjectRank: number | null;
+  totalBusinesses: number | null;
+  businessesAheadCount: number | null;
+  warnings: string[];
+  dataSource: "local_falcon" | "batch_fallback" | "unavailable";
+  competitors: LocalVisibilityCompetitorBusiness[];
 };
 
 export type LocalVisibilityReportLibrary = {

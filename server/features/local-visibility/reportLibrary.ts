@@ -2,6 +2,7 @@ import { and, asc, desc, eq, inArray, isNotNull, ne } from "drizzle-orm";
 import { db } from "../../db";
 import {
   crmLeads,
+  localFalconCompetitorStandings,
   localFalconImportBatches,
   localFalconProspectProfiles,
   pipelineOpportunities,
@@ -41,6 +42,7 @@ type ReportRow = {
   companyId: string | null;
   batchRecordId: string;
   batchId: string;
+  placeId: string;
   businessName: string | null;
   keyword: string;
   marketCity: string;
@@ -77,6 +79,7 @@ const reportSelection = {
   companyId: crmLeads.companyId,
   batchRecordId: localFalconProspectProfiles.batchRecordId,
   batchId: localFalconImportBatches.batchId,
+  placeId: localFalconProspectProfiles.placeId,
   businessName: localFalconProspectProfiles.companyName,
   keyword: localFalconProspectProfiles.scanKeyword,
   marketCity: localFalconImportBatches.marketCity,
@@ -105,40 +108,83 @@ export async function getCompanyReportLibrary(companyId: string): Promise<LocalV
 
   if (ownRows.length === 0) return { ownReports: [], competitorGroups: [] };
 
-  const batchRecordIds = [...new Set(ownRows.map((row) => row.batchRecordId))];
-  const competitorRows = await db.select(reportSelection)
-    .from(localFalconProspectProfiles)
-    .innerJoin(crmLeads, eq(localFalconProspectProfiles.leadId, crmLeads.id))
-    .innerJoin(
-      localFalconImportBatches,
-      eq(localFalconProspectProfiles.batchRecordId, localFalconImportBatches.id),
-    )
-    .where(and(
-      inArray(localFalconProspectProfiles.batchRecordId, batchRecordIds),
-      ne(crmLeads.companyId, companyId),
-      isNotNull(localFalconProspectProfiles.snapshotStorageKey),
-    ))
-    .orderBy(asc(localFalconProspectProfiles.arp));
+  const standings = await db.select({
+    reportId: localFalconCompetitorStandings.reportId,
+    subjectRank: localFalconCompetitorStandings.subjectRank,
+    totalBusinesses: localFalconCompetitorStandings.totalBusinesses,
+    businessesAheadCount: localFalconCompetitorStandings.businessesAheadCount,
+    warnings: localFalconCompetitorStandings.warnings,
+    businesses: localFalconCompetitorStandings.businesses,
+  }).from(localFalconCompetitorStandings)
+    .where(inArray(localFalconCompetitorStandings.reportId, ownRows.map((row) => row.id)));
+  const standingByReportId = new Map(standings.map((standing) => [standing.reportId, standing]));
 
-  const competitorsByBatch = new Map<string, LocalVisibilityReportSummary[]>();
-  for (const batchRecordId of batchRecordIds) {
-    const seenCompanies = new Set<string>();
-    const reports: LocalVisibilityReportSummary[] = [];
-    for (const row of competitorRows) {
-      if (row.batchRecordId !== batchRecordId || !row.companyId || seenCompanies.has(row.companyId)) continue;
-      seenCompanies.add(row.companyId);
-      reports.push(summarizeReport(row));
-    }
-    reports.sort((left, right) => Number(left.averagePosition) - Number(right.averagePosition));
-    competitorsByBatch.set(batchRecordId, reports);
+  const competitorPlaceIds = [...new Set(
+    standings.flatMap((standing) => standing.businesses.map((business) => business.place_id)),
+  )];
+  const competitorRows = competitorPlaceIds.length > 0
+    ? await db.select(reportSelection)
+      .from(localFalconProspectProfiles)
+      .innerJoin(crmLeads, eq(localFalconProspectProfiles.leadId, crmLeads.id))
+      .innerJoin(
+        localFalconImportBatches,
+        eq(localFalconProspectProfiles.batchRecordId, localFalconImportBatches.id),
+      )
+      .where(and(
+        inArray(localFalconProspectProfiles.placeId, competitorPlaceIds),
+        ne(crmLeads.companyId, companyId),
+        isNotNull(localFalconProspectProfiles.snapshotStorageKey),
+      ))
+      .orderBy(desc(localFalconProspectProfiles.scanDate))
+    : [];
+  const sendableByPlace = new Map<string, ReportRow[]>();
+  for (const row of competitorRows) {
+    const candidates = sendableByPlace.get(row.placeId) ?? [];
+    candidates.push(row);
+    sendableByPlace.set(row.placeId, candidates);
   }
 
   return {
     ownReports: ownRows.map(summarizeReport),
-    competitorGroups: ownRows.map((row) => ({
-      sourceReportId: row.id,
-      competitors: competitorsByBatch.get(row.batchRecordId) ?? [],
-    })),
+    competitorGroups: ownRows.map((row) => {
+      const standing = standingByReportId.get(row.id);
+      if (!standing) {
+        return {
+          sourceReportId: row.id,
+          subjectRank: null,
+          totalBusinesses: null,
+          businessesAheadCount: null,
+          warnings: [],
+          dataSource: "unavailable" as const,
+          competitors: [],
+        };
+      }
+
+      const businessesAhead = standing.subjectRank === null
+        ? standing.businesses.filter((business) => !business.is_subject)
+        : standing.businesses.filter((business) => business.rank < standing.subjectRank!);
+      return {
+        sourceReportId: row.id,
+        subjectRank: standing.subjectRank,
+        totalBusinesses: standing.totalBusinesses,
+        businessesAheadCount: standing.businessesAheadCount,
+        warnings: standing.warnings,
+        dataSource: "local_falcon" as const,
+        competitors: businessesAhead.map((business) => {
+          const candidates = sendableByPlace.get(business.place_id) ?? [];
+          const bestMatch = candidates.find((candidate) => candidate.batchRecordId === row.batchRecordId)
+            ?? candidates.find((candidate) =>
+              candidate.keyword === row.keyword
+              && Number(candidate.radius) === Number(row.radius))
+            ?? candidates.find((candidate) => candidate.keyword === row.keyword)
+            ?? candidates[0];
+          return {
+            ...business,
+            sendableReport: bestMatch ? summarizeReport(bestMatch) : null,
+          };
+        }),
+      };
+    }),
   };
 }
 
@@ -146,6 +192,7 @@ export async function getReportAccessRecord(reportId: string) {
   const [record] = await db.select({
     id: localFalconProspectProfiles.id,
     batchRecordId: localFalconProspectProfiles.batchRecordId,
+    placeId: localFalconProspectProfiles.placeId,
     subjectCompanyId: crmLeads.companyId,
     assignedTo: crmLeads.assignedTo,
   }).from(localFalconProspectProfiles)
@@ -173,5 +220,17 @@ export async function canViewReport(
       eq(localFalconProspectProfiles.batchRecordId, report.batchRecordId),
     ))
     .limit(1);
-  return Boolean(matchingContextReport);
+  if (matchingContextReport) return true;
+
+  const contextStandings = await db.select({
+    businesses: localFalconCompetitorStandings.businesses,
+  }).from(localFalconCompetitorStandings)
+    .innerJoin(
+      localFalconProspectProfiles,
+      eq(localFalconCompetitorStandings.reportId, localFalconProspectProfiles.id),
+    )
+    .innerJoin(crmLeads, eq(localFalconProspectProfiles.leadId, crmLeads.id))
+    .where(eq(crmLeads.companyId, contextCompanyId));
+  return contextStandings.some((standing) =>
+    standing.businesses.some((business) => business.place_id === report.placeId));
 }

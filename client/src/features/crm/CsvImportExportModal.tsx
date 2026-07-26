@@ -39,6 +39,7 @@ interface ImportResult {
   skipped: number;
   errors: number;
   details: ImportRowResult[];
+  competitorReportsImported?: number;
 }
 
 interface CsvImportModalProps {
@@ -80,6 +81,11 @@ interface LocalFalconPreview {
   keyword: string;
   scanSpec: { grid_size: string; radius_miles: number };
   batchAlreadyImported: boolean;
+  competitorReportsCount: number;
+  competitorSidecar: {
+    present: boolean;
+    reports: number;
+  };
   newCount: number;
   variationCount: number;
   existingCount: number;
@@ -128,6 +134,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
 
   const [entityType, setEntityType] = useState<"local_falcon" | "leads" | "contacts">(defaultEntity);
   const [file, setFile] = useState<File | null>(null);
+  const [competitorsFile, setCompetitorsFile] = useState<File | null>(null);
   const [heatmapFiles, setHeatmapFiles] = useState<File[]>([]);
   const [phase, setPhase] = useState<"idle" | "loading" | "preview" | "done">("idle");
   const [result, setResult] = useState<ImportResult | null>(null);
@@ -147,6 +154,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
 
   const clearImportState = () => {
     setFile(null);
+    setCompetitorsFile(null);
     setHeatmapFiles([]);
     setResult(null);
     setPreview(null);
@@ -162,11 +170,36 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
 
   const setPrimaryFile = (nextFile: File | null) => {
     setFile(nextFile);
+    setCompetitorsFile(null);
     setHeatmapFiles([]);
     setPreview(null);
     setResult(null);
     setImportError(null);
     setImageFailures([]);
+  };
+
+  const setLocalFalconPackageFiles = (files: File[]) => {
+    const zip = files.find((candidate) => /\.zip$/i.test(candidate.name));
+    if (zip) {
+      setPrimaryFile(zip);
+      return;
+    }
+
+    const sidecar = files.find((candidate) => candidate.name.toLowerCase() === "competitors.json");
+    const batch = files.find(
+      (candidate) => /\.json$/i.test(candidate.name) && candidate.name.toLowerCase() !== "competitors.json",
+    );
+    if (batch) {
+      setPrimaryFile(batch);
+      setCompetitorsFile(sidecar ?? null);
+      return;
+    }
+    if (sidecar && file && /\.json$/i.test(file.name)) {
+      setCompetitorsFile(sidecar);
+      setImportError(null);
+      return;
+    }
+    setImportError("Choose batch.json with optional competitors.json, or choose one ZIP package.");
   };
 
   const addHeatmaps = (files: File[]) => {
@@ -183,9 +216,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
     event.preventDefault();
     if (phase === "loading") return;
     const dropped = Array.from(event.dataTransfer.files);
-    const primary = dropped.find((candidate) => /\.(zip|json)$/i.test(candidate.name));
-    if (primary) setPrimaryFile(primary);
-    if (!primary) setImportError("Drop a ZIP package or JSON manifest, or paste JSON text.");
+    setLocalFalconPackageFiles(dropped);
   };
 
   const handlePackagePaste = (event: ReactClipboardEvent<HTMLDivElement>) => {
@@ -210,12 +241,10 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
     }
 
     const pastedFiles = Array.from(event.clipboardData.files);
-    const primary = pastedFiles.find((candidate) => /\.(zip|json)$/i.test(candidate.name));
-
-    if (primary) {
+    if (pastedFiles.some((candidate) => /\.(zip|json)$/i.test(candidate.name))) {
       event.preventDefault();
       event.stopPropagation();
-      setPrimaryFile(primary);
+      setLocalFalconPackageFiles(pastedFiles);
       return;
     }
 
@@ -230,6 +259,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
     if (!file) throw new Error("Choose a package first");
     const form = new FormData();
     form.append("package", file);
+    if (competitorsFile) form.append("competitors", competitorsFile, competitorsFile.name);
     heatmapFiles.forEach((heatmap) => form.append("heatmaps", heatmap, heatmap.name));
     return form;
   };
@@ -281,12 +311,12 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
   };
 
   const handleConfirmLocalFalcon = async () => {
-    if (!preview || !assignedTo) return;
+    if (!preview) return;
     setImportError(null);
     setIsGeneratingSnapshots(true);
     try {
       const form = buildPackageForm();
-      form.append("assignedTo", assignedTo);
+      if (assignedTo) form.append("assignedTo", assignedTo);
       form.append("approvedFlaggedPlaceIds", JSON.stringify([...approvedFlagged]));
       form.append("previewHeatmapChecksums", JSON.stringify(Object.fromEntries(
         preview.rows.map((row) => [row.placeId, row.heatmapSha256]),
@@ -318,7 +348,13 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
         }
         throw new Error(data.message ?? "Import failed");
       }
-      setResult({ imported: data.imported, skipped: data.existingCount + data.flaggedCount - approvedFlagged.size, errors: data.automationErrors, details: [] });
+      setResult({
+        imported: data.imported,
+        skipped: data.existingCount + data.flaggedCount - approvedFlagged.size,
+        errors: data.automationErrors,
+        details: [],
+        competitorReportsImported: data.competitorReportsImported,
+      });
       setPhase("done");
       queryClient.invalidateQueries({ queryKey: ["/api/crm/leads"] });
       queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities/board"] });
@@ -326,7 +362,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
       queryClient.invalidateQueries({ queryKey: ["/api/local-visibility/prospects"] });
       toast({
         title: "Local Falcon import complete",
-        description: `${data.imported} reports · ${data.leadsCreated} new leads · ${data.tasksCreated} Contact Lead tasks`,
+        description: `${data.imported} scan reports · ${data.competitorReportsImported ?? 0} competitor standings · ${data.leadsCreated} new leads`,
       });
     } catch (error: any) {
       setImportError(error.message ?? "Import failed");
@@ -355,7 +391,9 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
     || row.outcome === "variation"
     || (row.outcome === "flagged" && approvedFlagged.has(row.placeId)),
   ) ?? [];
-  const everyIncludedPreviewConfirmed = includedRows.length > 0 && includedRows.every((row) => confirmedPreviews.has(row.placeId));
+  const everyIncludedPreviewConfirmed = includedRows.length === 0
+    ? (preview?.competitorReportsCount ?? 0) > 0
+    : includedRows.every((row) => confirmedPreviews.has(row.placeId));
 
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && handleClose()}>
@@ -388,7 +426,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
               <>
                 <div className="rounded-md border bg-slate-50 p-3 text-sm text-slate-600">
                   <p className="font-semibold text-slate-900">Qualified Local Falcon prospects</p>
-                  <p className="mt-1">Paste the canonical JSON manifest. The CRM retrieves each official map automatically from its <code>report_key</code>. ZIP packages remain available as a fallback.</p>
+                  <p className="mt-1">Choose the batch manifest with optional <code>competitors.json</code>, or a ZIP containing both. The CRM retrieves each official map automatically from its <code>report_key</code>.</p>
                 </div>
                 <div
                   role="group"
@@ -403,7 +441,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
                 >
                   <ClipboardPaste className="mb-3 h-9 w-9 text-blue-600" />
                   <p className="font-semibold text-slate-900">Click this box, then press Ctrl+V or ⌘V</p>
-                  <p className="mt-1 text-sm text-slate-500">Paste JSON text or a copied JSON file · ZIP fallback also supported</p>
+                  <p className="mt-1 text-sm text-slate-500">Paste batch JSON text, select both JSON files, or use one ZIP</p>
                   <Button
                     type="button"
                     variant="outline"
@@ -415,21 +453,26 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
                       packageInputRef.current?.click();
                     }}
                   >
-                    Choose JSON or ZIP
+                    Choose JSON file(s) or ZIP
                   </Button>
                   <Input
                     ref={packageInputRef}
                     type="file"
                     accept=".zip,.json,application/zip,application/json"
+                    multiple
                     className="hidden"
-                    onChange={(event) => setPrimaryFile(event.target.files?.[0] ?? null)}
+                    onChange={(event) => setLocalFalconPackageFiles(Array.from(event.target.files ?? []))}
                     data-testid="input-csv-file"
                   />
                 </div>
                 {file && (
-                  <div className="flex items-center gap-3 rounded-lg border p-3 text-sm">
-                    <Archive className="h-5 w-5 text-blue-600" />
-                    <div><p className="font-medium">{file.name}</p><p className="text-xs text-slate-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p></div>
+                  <div className="space-y-2">
+                    {[file, competitorsFile].filter((selected): selected is File => Boolean(selected)).map((selected) => (
+                      <div key={selected.name} className="flex items-center gap-3 rounded-lg border p-3 text-sm">
+                        <Archive className="h-5 w-5 text-blue-600" />
+                        <div><p className="font-medium">{selected.name}</p><p className="text-xs text-slate-500">{(selected.size / 1024 / 1024).toFixed(2)} MB</p></div>
+                      </div>
+                    ))}
                   </div>
                 )}
                 {imageFailures.length > 0 && (
@@ -483,16 +526,21 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
                 )}
                 <Badge className="bg-yellow-100 text-yellow-700">{preview.flaggedCount} flagged</Badge>
                 <Badge variant="secondary">{preview.existingCount} existing</Badge>
+                {preview.competitorSidecar?.present && (
+                  <Badge className="bg-violet-100 text-violet-700">{preview.competitorReportsCount} competitor lists</Badge>
+                )}
               </div>
             </div>
 
-            <div className="grid gap-2 md:grid-cols-[180px_1fr] md:items-center">
-              <Label>Assign this batch to</Label>
-              <Select value={assignedTo} onValueChange={setAssignedTo}>
-                <SelectTrigger data-testid="select-local-falcon-assignee"><SelectValue placeholder="Select appointment setter" /></SelectTrigger>
-                <SelectContent>{salesReps.map((rep) => <SelectItem key={rep.id} value={rep.id}>{rep.name} · {rep.email}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
+            {includedRows.length > 0 && (
+              <div className="grid gap-2 md:grid-cols-[180px_1fr] md:items-center">
+                <Label>Assign this batch to</Label>
+                <Select value={assignedTo} onValueChange={setAssignedTo}>
+                  <SelectTrigger data-testid="select-local-falcon-assignee"><SelectValue placeholder="Select appointment setter" /></SelectTrigger>
+                  <SelectContent>{salesReps.map((rep) => <SelectItem key={rep.id} value={rep.id}>{rep.name} · {rep.email}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="space-y-4">
               {preview.rows.map((row) => {
@@ -554,6 +602,9 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
               <div className="rounded-lg bg-red-50 p-3"><p className="text-2xl font-bold text-red-600">{result.errors}</p><p className="text-xs text-slate-500">Errors</p></div>
             </div>
             {result.errors === 0 && <p className="flex items-center gap-2 text-sm text-green-700"><CheckCircle2 className="h-4 w-4" />Import completed successfully.</p>}
+            {(result.competitorReportsImported ?? 0) > 0 && (
+              <p className="text-sm text-slate-600">{result.competitorReportsImported} Local Falcon competitor list{result.competitorReportsImported === 1 ? "" : "s"} stored.</p>
+            )}
           </div>
         )}
 
@@ -561,7 +612,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
           {phase === "done" ? (
             <><Button variant="outline" onClick={clearImportState}>Import more</Button><Button onClick={handleClose}>Done</Button></>
           ) : phase === "preview" ? (
-            <><Button variant="outline" onClick={clearImportState} disabled={isGeneratingSnapshots}>Choose another package</Button><Button onClick={handleConfirmLocalFalcon} disabled={preview?.batchAlreadyImported || !assignedTo || !everyIncludedPreviewConfirmed || isGeneratingSnapshots} data-testid="button-confirm-local-falcon-import">{isGeneratingSnapshots ? "Generating snapshots…" : "Import assigned leads"}</Button></>
+            <><Button variant="outline" onClick={clearImportState} disabled={isGeneratingSnapshots}>Choose another package</Button><Button onClick={handleConfirmLocalFalcon} disabled={preview?.batchAlreadyImported || (includedRows.length > 0 && !assignedTo) || !everyIncludedPreviewConfirmed || isGeneratingSnapshots} data-testid="button-confirm-local-falcon-import">{isGeneratingSnapshots ? "Generating snapshots…" : includedRows.length === 0 ? "Import competitor standings" : "Import reports and standings"}</Button></>
           ) : (
             <><Button variant="outline" onClick={handleClose} disabled={phase === "loading"}>Cancel</Button><Button onClick={handleImport} disabled={!file || phase === "loading"} data-testid="button-start-import">{phase === "loading" ? t.crm.importing : imageFailures.length > 0 ? "Retry automatic retrieval" : "Review import"}</Button></>
           )}

@@ -10,6 +10,7 @@ import {
   LocalFalconImageFetchError,
   parseLocalFalconPackage,
 } from "../../server/features/crm/localFalconPackage";
+import { parseLocalFalconCompetitorSidecar } from "../../server/features/crm/localFalconCompetitors";
 
 const heatmapPath = "heatmaps/ChIJ-test-1.png";
 const prospect = {
@@ -46,6 +47,68 @@ const payload = {
     scan_spec: { grid_size: "7x7", radius_miles: 2.5 },
   },
   prospects: [prospect],
+};
+
+const competitorSidecar = {
+  version: 1,
+  batch_id: payload.batch.batch_id,
+  generated_at: "2026-07-22T14:30:00-04:00",
+  ranking_source: "local_falcon",
+  reports: {
+    [prospect.report_key]: {
+      competitor_report_key: "fedcba987654321",
+      subject_place_id: prospect.place_id,
+      subject_name: prospect.company_name,
+      keyword: prospect.scan_keyword,
+      grid_size: 7,
+      radius_miles: payload.batch.scan_spec.radius_miles,
+      scan_date: prospect.scan_date,
+      subject_rank: 2,
+      total_businesses: 2,
+      businesses_ahead_count: 1,
+      warnings: [],
+      businesses: [
+        {
+          rank: 1,
+          place_id: "ChIJ-competitor-1",
+          name: "Beta Roofing",
+          address_raw: "2 Main St, Monroe, NC 28110",
+          address: "2 Main St",
+          city: "Monroe",
+          state: "NC",
+          zip: "28110",
+          lat: 35.0,
+          lng: -80.5,
+          arp: 3.1,
+          atrp: null,
+          atrp_capped: true,
+          solv: 51.02,
+          reviews: 464,
+          rating: 4.7,
+          is_subject: false,
+        },
+        {
+          rank: 2,
+          place_id: prospect.place_id,
+          name: prospect.company_name,
+          address_raw: "1 Main St, Monroe, NC 28110",
+          address: "1 Main St",
+          city: "Monroe",
+          state: "NC",
+          zip: "28110",
+          lat: 35.01,
+          lng: -80.51,
+          arp: 8.2,
+          atrp: 10.27,
+          atrp_capped: false,
+          solv: 16.33,
+          reviews: 41,
+          rating: 4.8,
+          is_subject: true,
+        },
+      ],
+    },
+  },
 };
 
 describe("parseLocalFalconPayload", () => {
@@ -153,6 +216,36 @@ describe("Local Falcon batch idempotency", () => {
   });
 });
 
+describe("parseLocalFalconCompetitorSidecar", () => {
+  it("accepts the full Local Falcon order and derives subject position from the array", () => {
+    const result = parseLocalFalconCompetitorSidecar(
+      JSON.stringify(competitorSidecar),
+      parseLocalFalconPayload(JSON.stringify(payload)),
+    );
+
+    expect(result.reports[prospect.report_key].businesses.map((business) => business.rank)).toEqual([1, 2]);
+    expect(result.reports[prospect.report_key].subject_rank).toBe(2);
+    expect(result.reports[prospect.report_key].businesses[0].atrp_capped).toBe(true);
+  });
+
+  it("rejects a sidecar whose business array has been re-sorted", () => {
+    const invalid = structuredClone(competitorSidecar);
+    invalid.reports[prospect.report_key].businesses[0].rank = 2;
+
+    expect(() => parseLocalFalconCompetitorSidecar(
+      JSON.stringify(invalid),
+      parseLocalFalconPayload(JSON.stringify(payload)),
+    )).toThrow(/array position/i);
+  });
+
+  it("rejects a sidecar from a different batch", () => {
+    expect(() => parseLocalFalconCompetitorSidecar(
+      JSON.stringify({ ...competitorSidecar, batch_id: "another-batch" }),
+      parseLocalFalconPayload(JSON.stringify(payload)),
+    )).toThrow(/batch_id must match/i);
+  });
+});
+
 describe("parseLocalFalconPackage", () => {
   it("loads canonical JSON and its referenced original heatmap from one ZIP", async () => {
     const heatmap = await readFile("tests/fixtures/local-visibility/carolina-custom-automation-heatmap.png");
@@ -165,6 +258,22 @@ describe("parseLocalFalconPackage", () => {
     expect(result.heatmapsByPlaceId.get(prospect.place_id)?.buffer).toEqual(heatmap);
     expect(result.heatmapsByPlaceId.get(prospect.place_id)?.sha256).toMatch(/^[a-f0-9]{64}$/);
     expect(result.sourceMode).toBe("zip");
+  });
+
+  it("loads competitors.json from the ZIP root alongside the scan manifest", async () => {
+    const heatmap = await readFile("tests/fixtures/local-visibility/carolina-custom-automation-heatmap.png");
+    const zipped = zipSync({
+      "batch.json": strToU8(JSON.stringify(payload)),
+      "competitors.json": strToU8(JSON.stringify(competitorSidecar)),
+      [heatmapPath]: heatmap,
+    });
+    const result = await parseLocalFalconPackage({
+      buffer: Buffer.from(zipped),
+      originalName: "monroe-roofing.zip",
+      mimeType: "application/zip",
+    });
+
+    expect(result.competitors?.reports[prospect.report_key].subject_rank).toBe(2);
   });
 
   it("rejects ZIP heatmaps that are not referenced by the manifest", async () => {
@@ -181,13 +290,15 @@ describe("parseLocalFalconPackage", () => {
     })).rejects.toThrow(/unreferenced heatmap/i);
   });
 
-  it("rejects a manifest reference whose image is missing", async () => {
+  it("falls back to official retrieval when a ZIP contains no heatmap", async () => {
     const zipped = zipSync({ "batch.json": strToU8(JSON.stringify(payload)) });
+    const fetchMap = vi.fn(async () => new Response("missing", { status: 404 }));
     await expect(parseLocalFalconPackage({
       buffer: Buffer.from(zipped),
       originalName: "monroe-roofing.zip",
       mimeType: "application/zip",
-    })).rejects.toThrow(/missing heatmap/i);
+    }, [], fetchMap)).rejects.toBeInstanceOf(LocalFalconImageFetchError);
+    expect(fetchMap).toHaveBeenCalledTimes(1);
   });
 
   it("retrieves the official Local Falcon map for JSON-only imports", async () => {

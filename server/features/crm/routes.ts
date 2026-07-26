@@ -371,21 +371,32 @@ router.post(
 
 const localFalconPackageUpload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: LOCAL_FALCON_PACKAGE_MAX_BYTES, files: 401 },
+  limits: { fileSize: LOCAL_FALCON_PACKAGE_MAX_BYTES, files: 402 },
 });
 
 const localFalconPackageFields = localFalconPackageUpload.fields([
   { name: "package", maxCount: 1 },
+  { name: "competitors", maxCount: 1 },
   { name: "heatmaps", maxCount: 200 },
   { name: "snapshots", maxCount: 200 },
 ]);
 
-function packageFiles(req: express.Request): { primary: IncomingPackageFile; supplemental: IncomingPackageFile[] } {
+function packageFiles(req: express.Request): {
+  primary: IncomingPackageFile;
+  supplemental: IncomingPackageFile[];
+  competitors?: IncomingPackageFile;
+} {
   const files = (req.files ?? {}) as Record<string, Express.Multer.File[]>;
   const primaryFile = files.package?.[0];
+  const competitorFile = files.competitors?.[0];
   if (!primaryFile) throw new Error("Upload one ZIP package or JSON manifest");
   return {
     primary: { buffer: primaryFile.buffer, originalName: primaryFile.originalname, mimeType: primaryFile.mimetype },
+    competitors: competitorFile ? {
+      buffer: competitorFile.buffer,
+      originalName: competitorFile.originalname,
+      mimeType: competitorFile.mimetype,
+    } : undefined,
     supplemental: (files.heatmaps ?? []).map((file) => ({
       buffer: file.buffer,
       originalName: file.originalname,
@@ -412,12 +423,18 @@ router.post(
   localFalconPackageFields,
   async (req, res) => {
     try {
-      const { primary, supplemental } = packageFiles(req);
-      const parsedPackage = await parseLocalFalconPackage(primary, supplemental);
-      const preview = await previewLocalFalconImport(parsedPackage.payload);
+      const { primary, supplemental, competitors } = packageFiles(req);
+      const parsedPackage = await parseLocalFalconPackage(primary, supplemental, fetch, competitors);
+      const preview = await previewLocalFalconImport(parsedPackage.payload, parsedPackage.competitors);
       res.json({
         ...preview,
         sourceMode: parsedPackage.sourceMode,
+        competitorSidecar: {
+          present: Boolean(parsedPackage.competitors),
+          reports: parsedPackage.competitors
+            ? Object.keys(parsedPackage.competitors.reports).length
+            : 0,
+        },
         rows: preview.rows.map((row) => {
           const prospect = parsedPackage.payload.prospects.find((candidate) => candidate.place_id === row.placeId)!;
           const heatmap = parsedPackage.heatmapsByPlaceId.get(row.placeId)!;
@@ -455,19 +472,16 @@ router.post(
   async (req, res) => {
     const uploadedKeys: string[] = [];
     try {
-      const assignedTo = z.string().min(1).parse(req.body.assignedTo);
+      const assignedTo = z.string().optional().default("").parse(req.body.assignedTo);
       const approvedFlagged = z.array(z.string()).parse(JSON.parse(req.body.approvedFlaggedPlaceIds || "[]"));
       const previewHeatmapChecksums = z.record(
         z.string(),
         z.string().regex(/^[a-f0-9]{64}$/),
       ).parse(JSON.parse(req.body.previewHeatmapChecksums || "{}"));
-      const assignableUsers = await crmStorage.getAssignableUsers();
-      const setter = assignableUsers.find((candidate) => candidate.id === assignedTo && candidate.role === "sales_rep");
-      if (!setter) return res.status(400).json({ message: "Select an active appointment setter before importing" });
 
-      const { primary, supplemental } = packageFiles(req);
-      const parsedPackage = await parseLocalFalconPackage(primary, supplemental);
-      const preview = await previewLocalFalconImport(parsedPackage.payload);
+      const { primary, supplemental, competitors } = packageFiles(req);
+      const parsedPackage = await parseLocalFalconPackage(primary, supplemental, fetch, competitors);
+      const preview = await previewLocalFalconImport(parsedPackage.payload, parsedPackage.competitors);
       const approvedFlaggedSet = new Set(approvedFlagged);
       const selectedRows = preview.rows.filter(
         (row) =>
@@ -475,7 +489,17 @@ router.post(
           || row.outcome === "variation"
           || (row.outcome === "flagged" && approvedFlaggedSet.has(row.placeId)),
       );
-      if (selectedRows.length === 0) throw new Error("No new prospects were selected for import");
+      const competitorReportsCount = parsedPackage.competitors
+        ? Object.keys(parsedPackage.competitors.reports).length
+        : 0;
+      if (selectedRows.length === 0 && competitorReportsCount === 0) {
+        throw new Error("No new prospects or competitor standings were selected for import");
+      }
+      if (selectedRows.length > 0) {
+        const assignableUsers = await crmStorage.getAssignableUsers();
+        const setter = assignableUsers.find((candidate) => candidate.id === assignedTo && candidate.role === "sales_rep");
+        if (!setter) return res.status(400).json({ message: "Select an active appointment setter before importing" });
+      }
       const requestFiles = (req.files ?? {}) as Record<string, Express.Multer.File[]>;
       const snapshotsByPlaceId = new Map(
         (requestFiles.snapshots ?? []).map((snapshot) => [
@@ -543,6 +567,7 @@ router.post(
         assignedTo,
         selectedPlaceIds,
         assetsByPlaceId,
+        parsedPackage.competitors,
       );
 
       const importedPlaceIds = new Set(result.importedLeads.map((lead) => lead.placeId));
@@ -585,6 +610,7 @@ router.post(
           existing: result.existingCount,
           flagged: result.flaggedCount,
           assignedTo,
+          competitorReportsImported: result.competitorReportsImported,
           tasksCreated,
           automationErrors,
         },

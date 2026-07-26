@@ -90,6 +90,7 @@ import type {
   PipelineStage, ClientNote, User as DbUser, FollowupTask,
 } from "@shared/schema";
 import type {
+  LocalVisibilityCompetitorBusiness,
   LocalVisibilityReportLibrary,
   LocalVisibilityReportSummary,
 } from "@shared/localVisibility";
@@ -460,19 +461,19 @@ async function downloadSnapshotImage(snapshotUrl: string, businessName: string) 
 }
 
 function CompetitorReportCard({
-  report,
+  business,
   companyId,
-  rank,
 }: {
-  report: LocalVisibilityReportSummary;
+  business: LocalVisibilityCompetitorBusiness;
   companyId: string;
-  rank: number;
 }) {
   const { toast } = useToast();
   const [activeAction, setActiveAction] = useState<"copy" | "download" | null>(null);
-  const snapshotUrl = reportSnapshotFileUrl(report.id, companyId);
+  const report = business.sendableReport;
+  const snapshotUrl = report ? reportSnapshotFileUrl(report.id, companyId) : null;
 
   const copy = async () => {
+    if (!snapshotUrl) return;
     setActiveAction("copy");
     try {
       await copySnapshotImage(snapshotUrl);
@@ -492,6 +493,7 @@ function CompetitorReportCard({
   };
 
   const download = async () => {
+    if (!snapshotUrl || !report) return;
     setActiveAction("download");
     try {
       await downloadSnapshotImage(snapshotUrl, report.businessName);
@@ -507,40 +509,55 @@ function CompetitorReportCard({
   };
 
   return (
-    <Card className="overflow-hidden" data-testid={`competitor-report-${report.id}`}>
+    <Card className="overflow-hidden" data-testid={`competitor-report-${business.place_id}`}>
       <CardHeader className="space-y-2">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <CardTitle className="text-base">{report.businessName}</CardTitle>
-            <p className="mt-1 text-xs text-gray-500">{report.keyword} · {report.radius} miles</p>
+            <CardTitle className="text-base">{business.name}</CardTitle>
+            <p className="mt-1 text-xs text-gray-500">
+              {business.address_raw || [business.address, business.city, business.state, business.zip].filter(Boolean).join(", ")}
+            </p>
           </div>
-          <Badge className="shrink-0 bg-emerald-100 text-emerald-800">#{rank}</Badge>
+          <Badge className="shrink-0 bg-emerald-100 text-emerald-800">#{business.rank}</Badge>
         </div>
-        <p className="text-sm font-semibold text-[#061a3d]">Average rank {report.averagePosition}</p>
+        <div className="grid grid-cols-3 gap-2 text-center text-xs">
+          <div className="rounded-md bg-slate-50 p-2"><p className="font-semibold text-[#061a3d]">{business.solv.toFixed(2)}</p><p className="text-gray-500">SoLV</p></div>
+          <div className="rounded-md bg-slate-50 p-2"><p className="font-semibold text-[#061a3d]">{business.arp.toFixed(2)}</p><p className="text-gray-500">ARP</p></div>
+          <div className="rounded-md bg-slate-50 p-2"><p className="font-semibold text-[#061a3d]">{business.atrp_capped ? "20+" : business.atrp?.toFixed(2) ?? "—"}</p><p className="text-gray-500">ATRP</p></div>
+        </div>
+        <p className="text-xs text-gray-500">{business.rating.toFixed(1)} stars · {business.reviews.toLocaleString()} reviews</p>
       </CardHeader>
       <CardContent className="space-y-3">
-        <a href={snapshotUrl} target="_blank" rel="noopener noreferrer" className="block">
-          <img
-            src={snapshotUrl}
-            alt={`${report.businessName} competitor Local Visibility Snapshot`}
-            className="aspect-[9/16] w-full rounded-lg border bg-slate-50 object-contain"
-          />
-        </a>
-        <div className="grid gap-2">
-          <Button onClick={() => void copy()} disabled={activeAction !== null}>
-            <ClipboardCopy className="mr-1.5 h-4 w-4" />
-            {activeAction === "copy" ? "Copying…" : "Copy image"}
-          </Button>
-          <Button variant="outline" onClick={() => void download()} disabled={activeAction !== null}>
-            <Download className="mr-1.5 h-4 w-4" />
-            {activeAction === "download" ? "Saving…" : "Download PNG"}
-          </Button>
-          <Button variant="outline" asChild>
-            <a href={snapshotUrl} target="_blank" rel="noopener noreferrer">
-              Open full size <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
+        {report && snapshotUrl ? (
+          <>
+            <a href={snapshotUrl} target="_blank" rel="noopener noreferrer" className="block">
+              <img
+                src={snapshotUrl}
+                alt={`${business.name} competitor Local Visibility Snapshot`}
+                className="aspect-[9/16] w-full rounded-lg border bg-slate-50 object-contain"
+              />
             </a>
-          </Button>
-        </div>
+            <div className="grid gap-2">
+              <Button onClick={() => void copy()} disabled={activeAction !== null}>
+                <ClipboardCopy className="mr-1.5 h-4 w-4" />
+                {activeAction === "copy" ? "Copying…" : "Copy image"}
+              </Button>
+              <Button variant="outline" onClick={() => void download()} disabled={activeAction !== null}>
+                <Download className="mr-1.5 h-4 w-4" />
+                {activeAction === "download" ? "Saving…" : "Download PNG"}
+              </Button>
+              <Button variant="outline" asChild>
+                <a href={snapshotUrl} target="_blank" rel="noopener noreferrer">
+                  Open full size <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
+                </a>
+              </Button>
+            </div>
+          </>
+        ) : (
+          <div className="rounded-lg border border-dashed bg-slate-50 p-4 text-sm text-gray-500">
+            Ranking data only. A full sendable report will appear automatically if this company is independently scanned in the same batch.
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -566,7 +583,7 @@ function CompetitorReportsPanel({
     (candidate) => candidate.sourceReportId === selectedSourceReportId,
   );
   const competitors = group?.competitors ?? [];
-  const visibleReports = viewMode === "top" ? competitors.slice(0, 3) : competitors;
+  const visibleBusinesses = viewMode === "top" ? competitors.slice(0, 3) : competitors;
 
   return (
     <div className="space-y-5" data-testid="competitor-reports-panel">
@@ -576,9 +593,16 @@ function CompetitorReportsPanel({
             <div className="max-w-xl">
               <h2 className="text-lg font-semibold text-[#061a3d]">Competitor reports</h2>
               <p className="mt-1 text-sm leading-6 text-gray-500">
-                These companies were scanned in the exact same market, keyword, radius, grid, and Local Falcon batch.
-                The strongest average rankings appear first.
+                Companies beating this business in the selected Local Falcon scan, kept in Local Falcon's SoLV ranking order.
+                These are scan results, not a vetted market-share list.
               </p>
+              {group?.dataSource === "local_falcon" && (
+                <p className="mt-2 text-sm font-medium text-[#061a3d]">
+                  {group.subjectRank === null
+                    ? `${competitors.length} ranked businesses appear above the unranked subject.`
+                    : `Subject rank #${group.subjectRank}${group.totalBusinesses !== null ? ` of ${group.totalBusinesses}` : ""} · ${group.businessesAheadCount ?? competitors.length} ahead`}
+                </p>
+              )}
             </div>
             <div className="flex rounded-lg border bg-slate-50 p-1">
               <Button
@@ -595,7 +619,7 @@ function CompetitorReportsPanel({
                 onClick={() => setViewMode("all")}
                 data-testid="button-competitors-show-all"
               >
-                All competitors ({competitors.length})
+                Show all ahead ({competitors.length})
               </Button>
             </div>
           </div>
@@ -613,22 +637,37 @@ function CompetitorReportsPanel({
         </CardContent>
       </Card>
 
-      {visibleReports.length > 0 ? (
+      {(group?.warnings.length ?? 0) > 0 && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          {group!.warnings.join(" ")}
+        </div>
+      )}
+
+      {visibleBusinesses.length > 0 ? (
         <div className="grid gap-5 lg:grid-cols-2 xl:grid-cols-3">
-          {visibleReports.map((report) => (
+          {visibleBusinesses.map((business) => (
             <CompetitorReportCard
-              key={report.id}
-              report={report}
+              key={business.place_id}
+              business={business}
               companyId={companyId}
-              rank={competitors.indexOf(report) + 1}
             />
           ))}
         </div>
       ) : (
         <Card className="p-10 text-center">
           <BarChart3 className="mx-auto mb-3 h-10 w-10 text-gray-300" />
-          <p className="font-medium text-gray-700">No matching competitor reports</p>
-          <p className="mt-1 text-sm text-gray-500">This scan batch does not contain another finished company report yet.</p>
+          <p className="font-medium text-gray-700">
+            {group?.dataSource === "unavailable"
+              ? "Competitor standings were not included"
+              : group?.subjectRank === 1
+                ? "This company ranks #1 in this scan"
+                : "No businesses ahead were returned"}
+          </p>
+          <p className="mt-1 text-sm text-gray-500">
+            {group?.dataSource === "unavailable"
+              ? "Re-import this batch with competitors.json to add the complete Local Falcon ranking list."
+              : "There are no higher-ranked businesses to show for this scan variation."}
+          </p>
         </Card>
       )}
     </div>

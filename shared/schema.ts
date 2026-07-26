@@ -401,6 +401,29 @@ export const localFalconProspectProfiles = pgTable("local_falcon_prospect_profil
   index("lf_profiles_pitch_type_idx").on(t.pitchType),
 ]);
 
+export const localFalconCompetitorStandings = pgTable("local_falcon_competitor_standings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  reportId: varchar("report_id").notNull().unique().references(() => localFalconProspectProfiles.id, { onDelete: "cascade" }),
+  competitorReportKey: text("competitor_report_key"),
+  subjectPlaceId: text("subject_place_id").notNull(),
+  subjectName: text("subject_name").notNull(),
+  keyword: text("keyword").notNull(),
+  gridSize: integer("grid_size").notNull(),
+  radiusMiles: numeric("radius_miles").notNull(),
+  scanDate: timestamp("scan_date").notNull(),
+  subjectRank: integer("subject_rank"),
+  totalBusinesses: integer("total_businesses"),
+  businessesAheadCount: integer("businesses_ahead_count"),
+  warnings: jsonb("warnings").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+  businesses: jsonb("businesses").$type<import("./localVisibility").LocalFalconCompetitorBusiness[]>().notNull().default(sql`'[]'::jsonb`),
+  generatedAt: timestamp("generated_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (t) => [
+  index("lf_competitor_standings_report_idx").on(t.reportId),
+  index("lf_competitor_standings_subject_idx").on(t.subjectPlaceId),
+]);
+
 export const LEAD_NOTE_TYPES = ["note", "call", "email", "task", "status_change", "system", "sms"] as const;
 export type LeadNoteType = typeof LEAD_NOTE_TYPES[number];
 
@@ -769,6 +792,11 @@ export const insertLocalFalconProspectProfileSchema = createInsertSchema(localFa
 // @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
 export type InsertLocalFalconProspectProfile = z.infer<typeof insertLocalFalconProspectProfileSchema>;
 export type LocalFalconProspectProfile = typeof localFalconProspectProfiles.$inferSelect;
+
+export const insertLocalFalconCompetitorStandingSchema = createInsertSchema(localFalconCompetitorStandings).omit({ id: true, createdAt: true, updatedAt: true });
+// @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
+export type InsertLocalFalconCompetitorStanding = z.infer<typeof insertLocalFalconCompetitorStandingSchema>;
+export type LocalFalconCompetitorStanding = typeof localFalconCompetitorStandings.$inferSelect;
 
 export const insertCrmLeadNoteSchema = createInsertSchema(crmLeadNotes).omit({ id: true, createdAt: true });
 // @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
