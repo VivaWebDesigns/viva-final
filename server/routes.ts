@@ -147,7 +147,7 @@ export async function registerRoutes(
   app.post("/contact-submit", async (req, res) => {
     try {
       if (req.body.honeypot) {
-        return res.redirect(303, "/thanks");
+        return res.redirect(303, "/contact-thanks");
       }
 
       const website = typeof req.body.website === "string" ? req.body.website.trim() : "";
@@ -210,7 +210,7 @@ export async function registerRoutes(
         console.error("[routes] contact-submit enqueue error (non-blocking):", err);
       });
 
-      res.redirect(303, "/thanks");
+      res.redirect(303, "/contact-thanks");
     } catch (error) {
       if (error instanceof ZodError) {
         res.status(400).send("Invalid contact request. Please go back and check the required fields.");

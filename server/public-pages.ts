@@ -5,6 +5,7 @@ export const cleanPublicPageFiles: Record<string, string> = {
   "/contact": "contact.html",
   "/scan": "scan.html",
   "/thanks": "thanks.html",
+  "/contact-thanks": "contact-thanks.html",
 };
 
 export const cleanPublicPageRedirects: Record<string, string> = {
@@ -17,6 +18,8 @@ export const cleanPublicPageRedirects: Record<string, string> = {
   "/scan/": "/scan",
   "/thanks.html": "/thanks",
   "/thanks/": "/thanks",
+  "/contact-thanks.html": "/contact-thanks",
+  "/contact-thanks/": "/contact-thanks",
 };
 
 export function registerCleanPublicPageRedirects(app: Express) {

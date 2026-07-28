@@ -32,6 +32,7 @@ beforeAll(async () => {
   fs.writeFileSync(path.join(tmpDir, "contact.html"), "<html>contact page</html>");
   fs.writeFileSync(path.join(tmpDir, "scan.html"), "<html>scan page</html>");
   fs.writeFileSync(path.join(tmpDir, "thanks.html"), "<html>thanks page</html>");
+  fs.writeFileSync(path.join(tmpDir, "contact-thanks.html"), "<html>contact thanks page</html>");
   fs.writeFileSync(path.join(tmpDir, "favicon.ico"), "icon");
 
   const { serveStatic } = await import("../../server/static");
@@ -105,6 +106,7 @@ describe("Clean public page routes", () => {
     ["/contact", "contact page"],
     ["/scan", "scan page"],
     ["/thanks", "thanks page"],
+    ["/contact-thanks", "contact thanks page"],
   ])("serves %s from its static HTML file", async (url, expectedText) => {
     const res = await fetch(baseUrl + url);
     expect(res.status).toBe(200);
