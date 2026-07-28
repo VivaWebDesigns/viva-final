@@ -9,6 +9,9 @@ import { initSocket } from "./features/chat/socket";
 import { normalizePhoneDigits, isValidUSPhone } from "@shared/phone";
 import { registerCleanPublicPageRedirects } from "./public-pages";
 
+const CONTACT_NOTIFICATION_EMAIL =
+  process.env.CONTACT_NOTIFICATION_EMAIL || "matt@vivawebdesigns.com";
+
 const scanSubmitSchema = z.object({
   business: z.string().min(1, "Business name is required"),
   address: z.string().min(1, "Business address or Google Maps link is required"),
@@ -106,7 +109,8 @@ export async function registerRoutes(
         enqueueJob(
           "email_notification",
           {
-            to: "matt@vivawebdesigns.com",
+            to: CONTACT_NOTIFICATION_EMAIL,
+            replyTo: data.email,
             subject: `New Visibility Scan Request - ${data.business}`,
             html: `
               <h2>New Visibility Scan Request</h2>
@@ -184,7 +188,8 @@ export async function registerRoutes(
         enqueueJob(
           "email_notification",
           {
-            to: "matt@vivawebdesigns.com",
+            to: CONTACT_NOTIFICATION_EMAIL,
+            replyTo: data.email || undefined,
             subject: `New Contact Form Submission - ${data.name}`,
             html: `
               <h2>New Contact Form Submission</h2>
@@ -263,7 +268,8 @@ export async function registerRoutes(
         enqueueJob(
           "email_notification",
           {
-            to: "matt@vivawebdesigns.com",
+            to: CONTACT_NOTIFICATION_EMAIL,
+            replyTo: data.email || undefined,
             subject: `New Contact Form Submission — ${data.name}`,
             html: `
               <h2>New Contact Form Submission</h2>
@@ -347,7 +353,8 @@ export async function registerRoutes(
         enqueueJob(
           "email_notification",
           {
-            to: "matt@vivawebdesigns.com",
+            to: CONTACT_NOTIFICATION_EMAIL,
+            replyTo: data.email,
             subject: `New Inquiry — ${data.name}`,
             html: `
               <h2>New Inquiry from Demo Site</h2>

@@ -23,6 +23,8 @@ import {
 import { recordSuccess, recordFailure, getSnapshot } from "../../lib/provider-snapshot";
 
 const RESEND_TIMEOUT_MS = 15_000;
+const CONTACT_EMAIL_FROM =
+  process.env.CONTACT_EMAIL_FROM || "matt@vivawebdesigns.com";
 
 // ── Job payload types ─────────────────────────────────────────────────
 
@@ -54,6 +56,7 @@ interface CrmIngestPayload {
 
 interface EmailNotificationPayload {
   to: string;
+  replyTo?: string;
   subject: string;
   html: string;
 }
@@ -131,8 +134,9 @@ async function processEmailNotification(job: WorkflowJob): Promise<void> {
   try {
     const result = await withTimeout(
       async (_signal) => resend.emails.send({
-        from: "Viva Web Designs <info@vivawebdesigns.com>",
+        from: `Viva Web Designs <${CONTACT_EMAIL_FROM}>`,
         to: payload.to,
+        ...(payload.replyTo ? { replyTo: payload.replyTo } : {}),
         subject: payload.subject,
         html: payload.html,
       }),
