@@ -47,5 +47,7 @@ describe("public contact form contract", () => {
     expect(contactThanksHtml).toContain("Your message has been sent");
     expect(contactThanksHtml).not.toContain("Your scan is on the way");
     expect(scanThanksHtml).toContain("Your scan is on the way");
+    expect(scanThanksHtml).toContain('href="/results">See Client Results');
+    expect(scanThanksHtml).not.toContain('href="/scan">Get Your Free Visibility Scan');
   });
 });
