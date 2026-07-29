@@ -391,9 +391,25 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
     || row.outcome === "variation"
     || (row.outcome === "flagged" && approvedFlagged.has(row.placeId)),
   ) ?? [];
+  const confirmedIncludedPreviewCount = includedRows.filter((row) => confirmedPreviews.has(row.placeId)).length;
+  const allIncludedPreviewsConfirmed = includedRows.length > 0
+    && confirmedIncludedPreviewCount === includedRows.length;
+  const someIncludedPreviewsConfirmed = confirmedIncludedPreviewCount > 0
+    && !allIncludedPreviewsConfirmed;
   const everyIncludedPreviewConfirmed = includedRows.length === 0
     ? (preview?.competitorReportsCount ?? 0) > 0
-    : includedRows.every((row) => confirmedPreviews.has(row.placeId));
+    : allIncludedPreviewsConfirmed;
+
+  const setAllIncludedPreviewsConfirmed = (checked: boolean) => {
+    setConfirmedPreviews((current) => {
+      const next = new Set(current);
+      includedRows.forEach((row) => {
+        if (checked) next.add(row.placeId);
+        else next.delete(row.placeId);
+      });
+      return next;
+    });
+  };
 
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && handleClose()}>
@@ -542,6 +558,25 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
               </div>
             )}
 
+            {includedRows.length > 1 && (
+              <label
+                className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-medium text-blue-950"
+                data-testid="confirm-all-local-falcon-previews"
+              >
+                <Checkbox
+                  checked={allIncludedPreviewsConfirmed ? true : someIncludedPreviewsConfirmed ? "indeterminate" : false}
+                  onCheckedChange={(value) => setAllIncludedPreviewsConfirmed(value === true)}
+                  data-testid="checkbox-confirm-all-local-falcon-previews"
+                />
+                <span>
+                  Confirm all {includedRows.length} included reports
+                  <span className="mt-0.5 block text-xs font-normal text-blue-800">
+                    I reviewed every included image and confirmed it belongs to the listed company with all 49 grid dots visible.
+                  </span>
+                </span>
+              </label>
+            )}
+
             <div className="space-y-4">
               {preview.rows.map((row) => {
                 const isIncluded = row.outcome === "new" || row.outcome === "variation" || approvedFlagged.has(row.placeId);
@@ -572,7 +607,11 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
                           <p className="flex items-center gap-2 text-sm text-slate-500"><SkipForward className="h-4 w-4" />This row will be skipped.</p>
                         ) : isIncluded ? (
                           <label className="flex items-start gap-2 rounded-lg bg-blue-50 p-3 text-sm font-medium text-blue-950">
-                            <Checkbox checked={confirmedPreviews.has(row.placeId)} onCheckedChange={(value) => toggleSet(setConfirmedPreviews, row.placeId, value === true)} />
+                            <Checkbox
+                              checked={confirmedPreviews.has(row.placeId)}
+                              onCheckedChange={(value) => toggleSet(setConfirmedPreviews, row.placeId, value === true)}
+                              data-testid={`checkbox-confirm-local-falcon-preview-${row.row}`}
+                            />
                             <span>I confirmed the image belongs to this company and all 49 grid dots are visible in the framed report.</span>
                           </label>
                         ) : null}

@@ -155,4 +155,87 @@ describe("Local Falcon import clipboard", () => {
       transform: "translate(0px, 0px) scale(1.6)",
     });
   });
+
+  it("can confirm or clear every included report at once", async () => {
+    const makeRow = (row: number, placeId: string, companyName: string) => ({
+      row,
+      placeId,
+      companyName,
+      address: `${row} Main St`,
+      heatmapFile: "Official Local Falcon image",
+      heatmapPreviewDataUrl: "data:image/png;base64,aGVhdG1hcA==",
+      heatmapSha256: "a".repeat(64),
+      heatmapSourceUrl: `https://lf-static-v2.localfalcon.com/image/${placeId}`,
+      mapPresentation: {
+        mapZoom: 160,
+        mapPosition: { x: 0, y: 0 },
+      },
+      reportData: {
+        businessName: companyName,
+        address: `${row} Main St, Monroe, NC 28110`,
+        rating: "5",
+        reviewCount: "60",
+        searchPhrase: "plumber near me",
+        market: "Monroe, NC",
+        averagePosition: "4.45",
+        gridSize: "7x7",
+        radius: "2.5",
+        heatmapImageUrl: "data:image/png;base64,aGVhdG1hcA==",
+      },
+      outcome: "new",
+    });
+
+    server.use(
+      http.post("/api/crm/leads/import-local-falcon/preview", () => HttpResponse.json({
+        batchId: "MONROE-NC-PLUMBING-20260722-01",
+        market: { city: "Monroe", state: "NC" },
+        trade: "plumbing",
+        keyword: "plumber near me",
+        scanSpec: { grid_size: "7x7", radius_miles: 2.5 },
+        batchAlreadyImported: false,
+        newCount: 2,
+        existingCount: 0,
+        flaggedCount: 0,
+        sourceMode: "local_falcon",
+        rows: [
+          makeRow(1, "ChIJ-test-1", "Acme Plumbing"),
+          makeRow(2, "ChIJ-test-2", "Bravo Plumbing"),
+        ],
+      })),
+    );
+    renderModal();
+
+    fireEvent.paste(screen.getByTestId("local-falcon-package-dropzone"), {
+      clipboardData: {
+        files: [],
+        getData: () => "{\"batch\":{\"batch_id\":\"test\"},\"prospects\":[]}",
+      },
+    });
+    fireEvent.click(screen.getByTestId("button-start-import"));
+
+    const confirmAll = await screen.findByTestId("checkbox-confirm-all-local-falcon-previews");
+    const firstReport = screen.getByTestId("checkbox-confirm-local-falcon-preview-1");
+    const secondReport = screen.getByTestId("checkbox-confirm-local-falcon-preview-2");
+
+    expect(confirmAll).not.toBeChecked();
+    fireEvent.click(confirmAll);
+    expect(confirmAll).toBeChecked();
+    expect(firstReport).toBeChecked();
+    expect(secondReport).toBeChecked();
+
+    fireEvent.click(firstReport);
+    expect(confirmAll).toBePartiallyChecked();
+    expect(firstReport).not.toBeChecked();
+    expect(secondReport).toBeChecked();
+
+    fireEvent.click(confirmAll);
+    expect(confirmAll).toBeChecked();
+    expect(firstReport).toBeChecked();
+    expect(secondReport).toBeChecked();
+
+    fireEvent.click(confirmAll);
+    expect(confirmAll).not.toBeChecked();
+    expect(firstReport).not.toBeChecked();
+    expect(secondReport).not.toBeChecked();
+  });
 });
