@@ -69,6 +69,21 @@ describe("Local Falcon import clipboard", () => {
     expect(screen.getByTestId("button-start-import")).toBeDisabled();
   });
 
+  it("rejects the retired competitors sidecar", async () => {
+    renderModal();
+
+    fireEvent.change(screen.getByTestId("input-csv-file"), {
+      target: {
+        files: [new File(["{}"], "competitors.json", { type: "application/json" })],
+      },
+    });
+
+    expect(await screen.findByText(
+      "competitors.json is no longer used. Choose batch.json or a scan ZIP.",
+    )).toBeInTheDocument();
+    expect(screen.getByTestId("button-start-import")).toBeDisabled();
+  });
+
   it("shows the image uploader only after automatic Local Falcon retrieval fails", async () => {
     server.use(
       http.post("/api/crm/leads/import-local-falcon/preview", () => HttpResponse.json({

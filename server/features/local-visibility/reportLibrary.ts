@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, isNotNull, ne } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 import { db } from "../../db";
 import {
   crmLeads,
@@ -106,85 +106,9 @@ export async function getCompanyReportLibrary(companyId: string): Promise<LocalV
       asc(localFalconImportBatches.radiusMiles),
     );
 
-  if (ownRows.length === 0) return { ownReports: [], competitorGroups: [] };
-
-  const standings = await db.select({
-    reportId: localFalconCompetitorStandings.reportId,
-    subjectRank: localFalconCompetitorStandings.subjectRank,
-    totalBusinesses: localFalconCompetitorStandings.totalBusinesses,
-    businessesAheadCount: localFalconCompetitorStandings.businessesAheadCount,
-    warnings: localFalconCompetitorStandings.warnings,
-    businesses: localFalconCompetitorStandings.businesses,
-  }).from(localFalconCompetitorStandings)
-    .where(inArray(localFalconCompetitorStandings.reportId, ownRows.map((row) => row.id)));
-  const standingByReportId = new Map(standings.map((standing) => [standing.reportId, standing]));
-
-  const competitorPlaceIds = [...new Set(
-    standings.flatMap((standing) => standing.businesses.map((business) => business.place_id)),
-  )];
-  const competitorRows = competitorPlaceIds.length > 0
-    ? await db.select(reportSelection)
-      .from(localFalconProspectProfiles)
-      .innerJoin(crmLeads, eq(localFalconProspectProfiles.leadId, crmLeads.id))
-      .innerJoin(
-        localFalconImportBatches,
-        eq(localFalconProspectProfiles.batchRecordId, localFalconImportBatches.id),
-      )
-      .where(and(
-        inArray(localFalconProspectProfiles.placeId, competitorPlaceIds),
-        ne(crmLeads.companyId, companyId),
-        isNotNull(localFalconProspectProfiles.snapshotStorageKey),
-      ))
-      .orderBy(desc(localFalconProspectProfiles.scanDate))
-    : [];
-  const sendableByPlace = new Map<string, ReportRow[]>();
-  for (const row of competitorRows) {
-    const candidates = sendableByPlace.get(row.placeId) ?? [];
-    candidates.push(row);
-    sendableByPlace.set(row.placeId, candidates);
-  }
-
   return {
     ownReports: ownRows.map(summarizeReport),
-    competitorGroups: ownRows.map((row) => {
-      const standing = standingByReportId.get(row.id);
-      if (!standing) {
-        return {
-          sourceReportId: row.id,
-          subjectRank: null,
-          totalBusinesses: null,
-          businessesAheadCount: null,
-          warnings: [],
-          dataSource: "unavailable" as const,
-          competitors: [],
-        };
-      }
-
-      const businessesAhead = standing.subjectRank === null
-        ? standing.businesses.filter((business) => !business.is_subject)
-        : standing.businesses.filter((business) => business.rank < standing.subjectRank!);
-      return {
-        sourceReportId: row.id,
-        subjectRank: standing.subjectRank,
-        totalBusinesses: standing.totalBusinesses,
-        businessesAheadCount: standing.businessesAheadCount,
-        warnings: standing.warnings,
-        dataSource: "local_falcon" as const,
-        competitors: businessesAhead.map((business) => {
-          const candidates = sendableByPlace.get(business.place_id) ?? [];
-          const bestMatch = candidates.find((candidate) => candidate.batchRecordId === row.batchRecordId)
-            ?? candidates.find((candidate) =>
-              candidate.keyword === row.keyword
-              && Number(candidate.radius) === Number(row.radius))
-            ?? candidates.find((candidate) => candidate.keyword === row.keyword)
-            ?? candidates[0];
-          return {
-            ...business,
-            sendableReport: bestMatch ? summarizeReport(bestMatch) : null,
-          };
-        }),
-      };
-    }),
+    competitorGroups: [],
   };
 }
 

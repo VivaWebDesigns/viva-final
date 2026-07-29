@@ -376,7 +376,6 @@ const localFalconPackageUpload = multer({
 
 const localFalconPackageFields = localFalconPackageUpload.fields([
   { name: "package", maxCount: 1 },
-  { name: "competitors", maxCount: 1 },
   { name: "heatmaps", maxCount: 200 },
   { name: "snapshots", maxCount: 200 },
 ]);
@@ -384,19 +383,12 @@ const localFalconPackageFields = localFalconPackageUpload.fields([
 function packageFiles(req: express.Request): {
   primary: IncomingPackageFile;
   supplemental: IncomingPackageFile[];
-  competitors?: IncomingPackageFile;
 } {
   const files = (req.files ?? {}) as Record<string, Express.Multer.File[]>;
   const primaryFile = files.package?.[0];
-  const competitorFile = files.competitors?.[0];
   if (!primaryFile) throw new Error("Upload one ZIP package or JSON manifest");
   return {
     primary: { buffer: primaryFile.buffer, originalName: primaryFile.originalname, mimeType: primaryFile.mimetype },
-    competitors: competitorFile ? {
-      buffer: competitorFile.buffer,
-      originalName: competitorFile.originalname,
-      mimeType: competitorFile.mimetype,
-    } : undefined,
     supplemental: (files.heatmaps ?? []).map((file) => ({
       buffer: file.buffer,
       originalName: file.originalname,
@@ -423,18 +415,12 @@ router.post(
   localFalconPackageFields,
   async (req, res) => {
     try {
-      const { primary, supplemental, competitors } = packageFiles(req);
-      const parsedPackage = await parseLocalFalconPackage(primary, supplemental, fetch, competitors);
-      const preview = await previewLocalFalconImport(parsedPackage.payload, parsedPackage.competitors);
+      const { primary, supplemental } = packageFiles(req);
+      const parsedPackage = await parseLocalFalconPackage(primary, supplemental, fetch);
+      const preview = await previewLocalFalconImport(parsedPackage.payload);
       res.json({
         ...preview,
         sourceMode: parsedPackage.sourceMode,
-        competitorSidecar: {
-          present: Boolean(parsedPackage.competitors),
-          reports: parsedPackage.competitors
-            ? Object.keys(parsedPackage.competitors.reports).length
-            : 0,
-        },
         rows: preview.rows.map((row) => {
           const prospect = parsedPackage.payload.prospects.find((candidate) => candidate.place_id === row.placeId)!;
           const heatmap = parsedPackage.heatmapsByPlaceId.get(row.placeId)!;
@@ -482,9 +468,9 @@ router.post(
         z.string().regex(/^[a-f0-9]{64}$/),
       ).parse(JSON.parse(req.body.previewHeatmapChecksums || "{}"));
 
-      const { primary, supplemental, competitors } = packageFiles(req);
-      const parsedPackage = await parseLocalFalconPackage(primary, supplemental, fetch, competitors);
-      const preview = await previewLocalFalconImport(parsedPackage.payload, parsedPackage.competitors);
+      const { primary, supplemental } = packageFiles(req);
+      const parsedPackage = await parseLocalFalconPackage(primary, supplemental, fetch);
+      const preview = await previewLocalFalconImport(parsedPackage.payload);
       const approvedFlaggedSet = new Set(approvedFlagged);
       const selectedRows = preview.rows.filter(
         (row) =>
@@ -492,11 +478,8 @@ router.post(
           || row.outcome === "variation"
           || (row.outcome === "flagged" && approvedFlaggedSet.has(row.placeId)),
       );
-      const competitorReportsCount = parsedPackage.competitors
-        ? Object.keys(parsedPackage.competitors.reports).length
-        : 0;
-      if (selectedRows.length === 0 && competitorReportsCount === 0) {
-        throw new Error("No new prospects or competitor standings were selected for import");
+      if (selectedRows.length === 0) {
+        throw new Error("No new scan reports were selected for import");
       }
       if (selectedRows.length > 0) {
         const assignableUsers = await crmStorage.getAssignableUsers();
@@ -570,7 +553,6 @@ router.post(
         assignedTo,
         selectedPlaceIds,
         assetsByPlaceId,
-        parsedPackage.competitors,
       );
 
       const importedPlaceIds = new Set(result.importedLeads.map((lead) => lead.placeId));
@@ -613,7 +595,6 @@ router.post(
           existing: result.existingCount,
           flagged: result.flaggedCount,
           assignedTo,
-          competitorReportsImported: result.competitorReportsImported,
           tasksCreated,
           automationErrors,
         },
