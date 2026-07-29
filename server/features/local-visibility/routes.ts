@@ -88,6 +88,35 @@ router.get(
 );
 
 router.get(
+  "/reports/:reportId/heatmap-file",
+  requireRole("admin", "developer", "sales_rep"),
+  async (req, res) => {
+    try {
+      const report = await getReportAccessRecord(req.params.reportId as string);
+      if (!report) return res.status(404).json({ message: "Local Falcon report not found" });
+      if (!(await canViewReport(viewerFor(req), report, contextCompanyId(req)))) {
+        return res.status(403).json({ message: "You do not have access to this report" });
+      }
+      const [record] = await db.select({
+        heatmapStorageKey: localFalconProspectProfiles.heatmapStorageKey,
+        heatmapMimeType: localFalconProspectProfiles.heatmapMimeType,
+      }).from(localFalconProspectProfiles)
+        .where(eq(localFalconProspectProfiles.id, report.id))
+        .limit(1);
+      if (!record?.heatmapStorageKey) return res.status(404).json({ message: "Heatmap not found" });
+      const file = await getFileBuffer(record.heatmapStorageKey);
+      res.setHeader("Content-Type", record.heatmapMimeType ?? file.mimeType);
+      res.setHeader("Content-Length", String(file.buffer.byteLength));
+      res.setHeader("Cache-Control", "private, max-age=300");
+      res.setHeader("Content-Disposition", `inline; filename="${report.id}-local-falcon-heatmap"`);
+      res.send(file.buffer);
+    } catch (error: any) {
+      res.status(error?.statusCode ?? 500).json({ message: error.message });
+    }
+  },
+);
+
+router.get(
   "/reports/:reportId/snapshot-file",
   requireRole("admin", "developer", "sales_rep"),
   async (req, res) => {
@@ -138,7 +167,12 @@ router.get(
       if (!record?.profile.heatmapStorageKey) {
         return res.status(409).json({ message: "This report has no heatmap evidence" });
       }
-      const heatmapImageUrl = await getSignedDownloadUrl(record.profile.heatmapStorageKey);
+      const reportContextCompanyId = contextCompanyId(req);
+      const heatmapImageUrl = `/api/local-visibility/reports/${encodeURIComponent(accessRecord.id)}/heatmap-file${
+        reportContextCompanyId
+          ? `?contextCompanyId=${encodeURIComponent(reportContextCompanyId)}`
+          : ""
+      }`;
       const snapshotImageUrl = record.profile.snapshotStorageKey
         ? await getSignedDownloadUrl(record.profile.snapshotStorageKey)
         : null;
