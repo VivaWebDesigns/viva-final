@@ -159,7 +159,10 @@ router.get(
           websiteAnalysis: record.profile.websiteAnalysis,
           reviewsAnalysis: record.profile.reviewsAnalysis,
         },
-        mapPresentation: getLocalFalconMapPresentation(!!record.profile.heatmapSourceUrl),
+        mapPresentation: getLocalFalconMapPresentation(
+          !!record.profile.heatmapSourceUrl,
+          record.batch.radiusMiles,
+        ),
         data: {
           businessName: record.profile.companyName ?? "",
           address,
@@ -300,7 +303,10 @@ router.get(
           websiteAnalysis: record.profile.websiteAnalysis,
           reviewsAnalysis: record.profile.reviewsAnalysis,
         },
-        mapPresentation: getLocalFalconMapPresentation(!!record.profile.heatmapSourceUrl),
+        mapPresentation: getLocalFalconMapPresentation(
+          !!record.profile.heatmapSourceUrl,
+          record.batch.radiusMiles,
+        ),
         data: {
           businessName: record.profile.companyName ?? "",
           address,

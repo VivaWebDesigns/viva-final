@@ -161,6 +161,8 @@ function LocalFalconSnapshotCard({
 }) {
   const reportRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const { role } = useAuth();
+  const canManageSnapshot = role === "admin" || role === "developer";
   const { data, isLoading } = useQuery<LocalFalconSnapshot>({
     queryKey: ["/api/local-visibility/reports", reportId, contextCompanyId],
     queryFn: async () => {
@@ -221,7 +223,10 @@ function LocalFalconSnapshotCard({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/local-visibility/reports", reportId, contextCompanyId] });
       queryClient.invalidateQueries({ queryKey: ["/api/local-visibility/companies", contextCompanyId, "reports"] });
-      toast({ title: "Snapshot saved", description: "The finished Local Visibility Snapshot is now attached to this lead." });
+      toast({
+        title: data?.snapshotImageUrl ? "Snapshot regenerated" : "Snapshot saved",
+        description: "The finished Local Visibility Snapshot is now attached to this lead.",
+      });
     },
     onError: (error: Error) => {
       toast({ title: "Snapshot could not be saved", description: error.message, variant: "destructive" });
@@ -339,6 +344,16 @@ function LocalFalconSnapshotCard({
               <Button variant="outline" onClick={downloadSnapshot}>
                 <Download className="mr-1.5 h-4 w-4" /> Download PNG
               </Button>
+              {canManageSnapshot && (
+                <Button
+                  variant="outline"
+                  onClick={() => saveSnapshot.mutate()}
+                  disabled={saveSnapshot.isPending}
+                >
+                  <RefreshCw className={`mr-1.5 h-4 w-4 ${saveSnapshot.isPending ? "animate-spin" : ""}`} />
+                  {saveSnapshot.isPending ? "Regenerating…" : "Regenerate snapshot"}
+                </Button>
+              )}
               {data.reportUrl && (
                 <Button variant="outline" asChild>
                   <a href={data.reportUrl} target="_blank" rel="noopener noreferrer">
@@ -356,14 +371,16 @@ function LocalFalconSnapshotCard({
             <Button onClick={() => saveSnapshot.mutate()} disabled={saveSnapshot.isPending}>
               {saveSnapshot.isPending ? "Generating snapshot…" : "Generate and attach snapshot"}
             </Button>
-            <div className="fixed left-[-10000px] top-0 h-[1920px] w-[1080px]" aria-hidden="true">
-              <LocalVisibilityReportTemplate
-                ref={reportRef}
-                data={data.data}
-                mapZoom={data.mapPresentation.mapZoom}
-                mapPosition={data.mapPresentation.mapPosition}
-              />
-            </div>
+          </div>
+        )}
+        {(!data.snapshotImageUrl || canManageSnapshot) && (
+          <div className="fixed left-[-10000px] top-0 h-[1920px] w-[1080px]" aria-hidden="true">
+            <LocalVisibilityReportTemplate
+              ref={reportRef}
+              data={data.data}
+              mapZoom={data.mapPresentation.mapZoom}
+              mapPosition={data.mapPresentation.mapPosition}
+            />
           </div>
         )}
       </CardContent>

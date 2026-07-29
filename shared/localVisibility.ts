@@ -1,4 +1,5 @@
 export const LOCAL_FALCON_AUTOMATED_MAP_ZOOM = 160;
+export const LOCAL_FALCON_CLOSE_RADIUS_MAP_ZOOM = 150;
 export const LOCAL_VISIBILITY_DEFAULT_MAP_ZOOM = 100;
 
 export const LOCAL_VISIBILITY_CENTERED_MAP_POSITION = {
@@ -6,10 +7,19 @@ export const LOCAL_VISIBILITY_CENTERED_MAP_POSITION = {
   y: 0,
 } as const;
 
-export function getLocalFalconMapPresentation(automaticallyRetrieved: boolean) {
+export function getLocalFalconMapPresentation(
+  automaticallyRetrieved: boolean,
+  radiusMiles?: string | number | null,
+) {
+  const parsedRadius = Number(radiusMiles);
+  const usesCloseRadiusFraming = automaticallyRetrieved
+    && Number.isFinite(parsedRadius)
+    && parsedRadius <= 3;
   return {
     mapZoom: automaticallyRetrieved
-      ? LOCAL_FALCON_AUTOMATED_MAP_ZOOM
+      ? usesCloseRadiusFraming
+        ? LOCAL_FALCON_CLOSE_RADIUS_MAP_ZOOM
+        : LOCAL_FALCON_AUTOMATED_MAP_ZOOM
       : LOCAL_VISIBILITY_DEFAULT_MAP_ZOOM,
     mapPosition: LOCAL_VISIBILITY_CENTERED_MAP_POSITION,
   };
