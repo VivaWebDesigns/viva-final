@@ -24,7 +24,7 @@ describe("Local Falcon map presentation", () => {
       mapZoom: LOCAL_FALCON_CLOSE_RADIUS_MAP_ZOOM,
       mapPosition: { x: 0, y: 0 },
     });
-    expect(LOCAL_FALCON_CLOSE_RADIUS_MAP_ZOOM).toBe(150);
+    expect(LOCAL_FALCON_CLOSE_RADIUS_MAP_ZOOM).toBe(140);
   });
 
   it("keeps the tighter crop for automatically retrieved scans above three miles", () => {
