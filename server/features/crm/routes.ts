@@ -32,6 +32,10 @@ import {
   getLocalFalconMapPresentation,
 } from "@shared/localVisibility";
 import {
+  LOCAL_FALCON_LEAD_CLASSIFICATION_VALUES,
+  type LocalFalconLeadClassification,
+} from "@shared/leadClassification";
+import {
   insertCrmCompanySchema, insertCrmContactSchema, insertCrmLeadSchema,
   insertCrmLeadNoteSchema, insertCrmTagSchema, crmLeads, pipelineOpportunities,
 } from "@shared/schema";
@@ -179,7 +183,7 @@ async function assertLeadAccess(
 
 router.get("/leads", requireRole("admin", "developer", "sales_rep", "lead_gen"), async (req, res) => {
   try {
-    const { search, statusId, source, assignedTo, fromWebsiteForm, page, limit } = req.query;
+    const { search, statusId, source, assignedTo, tagId, fromWebsiteForm, page, limit } = req.query;
     // Restricted roles can only see their own leads — ignore any client-supplied filter.
     const resolvedAssignedTo = isRestricted(req)
       ? req.authUser!.id
@@ -189,6 +193,7 @@ router.get("/leads", requireRole("admin", "developer", "sales_rep", "lead_gen"),
       statusId: statusId as string | undefined,
       source: source as string | undefined,
       assignedTo: resolvedAssignedTo,
+      tagId: tagId as string | undefined,
       fromWebsiteForm: fromWebsiteForm === "true" ? true : fromWebsiteForm === "false" ? false : undefined,
       page: page ? parseInt(page as string, 10) : undefined,
       limit: limit ? parseInt(limit as string, 10) : undefined,
@@ -462,6 +467,9 @@ router.post(
     const uploadedKeys: string[] = [];
     try {
       const assignedTo = z.string().optional().default("").parse(req.body.assignedTo);
+      const leadClassification = z.enum(LOCAL_FALCON_LEAD_CLASSIFICATION_VALUES).parse(
+        req.body.leadClassification,
+      ) as LocalFalconLeadClassification;
       const approvedFlagged = z.array(z.string()).parse(JSON.parse(req.body.approvedFlaggedPlaceIds || "[]"));
       const previewHeatmapChecksums = z.record(
         z.string(),
@@ -551,6 +559,7 @@ router.post(
         parsedPackage.payload,
         req.authUser!.id,
         assignedTo,
+        leadClassification,
         selectedPlaceIds,
         assetsByPlaceId,
       );
@@ -595,6 +604,7 @@ router.post(
           existing: result.existingCount,
           flagged: result.flaggedCount,
           assignedTo,
+          leadClassification,
           tasksCreated,
           automationErrors,
         },

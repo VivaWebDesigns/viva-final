@@ -160,6 +160,7 @@ export const es: AdminTranslations = {
     allReps: "Todos los reps",
     allStatuses: "Todos los estados",
     allSources: "Todas las fuentes",
+    allTags: "Todas las etiquetas",
     source: "Fuente",
     status: "Estado",
     assigned: "Asignado",

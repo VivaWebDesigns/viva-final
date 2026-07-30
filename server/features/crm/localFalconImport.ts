@@ -1,12 +1,14 @@
 import { z } from "zod";
-import { desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "../../db";
 import { normalizePhoneDigits } from "@shared/phone";
 import {
   crmCompanies,
   crmContacts,
+  crmLeadTags,
   crmLeads,
   crmLeadStatuses,
+  crmTags,
   localFalconCompetitorStandings,
   localFalconImportBatches,
   localFalconProspectProfiles,
@@ -14,6 +16,11 @@ import {
   pipelineStages,
 } from "@shared/schema";
 import type { LocalFalconCompetitorSidecar } from "./localFalconCompetitors";
+import {
+  LOCAL_FALCON_LEAD_CLASSIFICATIONS,
+  getLocalFalconLeadClassification,
+  type LocalFalconLeadClassification,
+} from "@shared/leadClassification";
 
 const nullableText = z.string().trim().min(1).nullable();
 const nullableUrl = z.string().trim().url().nullable();
@@ -332,6 +339,7 @@ export async function importLocalFalconPayload(
   payload: LocalFalconPayload,
   importedBy: string,
   assignedTo: string,
+  leadClassification: LocalFalconLeadClassification,
   selectedPlaceIds: Set<string>,
   assetsByPlaceId: Map<string, LocalFalconUploadedAsset>,
   competitors: LocalFalconCompetitorSidecar | null = null,
@@ -376,6 +384,23 @@ export async function importLocalFalconPayload(
     const [stage] = await tx.select().from(pipelineStages).where(eq(pipelineStages.slug, "new-lead")).limit(1);
     if (!status) throw new Error("CRM status 'new' is not configured");
     if (!stage) throw new Error("Pipeline stage 'new-lead' is not configured");
+
+    const classificationTags = [];
+    for (const classification of LOCAL_FALCON_LEAD_CLASSIFICATIONS) {
+      const [tag] = await tx.insert(crmTags).values({
+        name: classification.label,
+        slug: classification.tagSlug,
+        color: classification.tagColor,
+      }).onConflictDoUpdate({
+        target: crmTags.slug,
+        set: { name: classification.label, color: classification.tagColor },
+      }).returning();
+      classificationTags.push(tag);
+    }
+    const selectedClassification = getLocalFalconLeadClassification(leadClassification);
+    const selectedTag = classificationTags.find((tag) => tag.slug === selectedClassification.tagSlug);
+    if (!selectedTag) throw new Error(`CRM tag '${selectedClassification.label}' is not configured`);
+    const classificationTagIds = classificationTags.map((tag) => tag.id);
 
     const results: LocalFalconImportResult["importedLeads"] = [];
     for (const prospect of payload.prospects) {
@@ -482,6 +507,12 @@ export async function importLocalFalconPayload(
         }).returning();
         createdNewLead = true;
       }
+
+      await tx.delete(crmLeadTags).where(and(
+        eq(crmLeadTags.leadId, lead.id),
+        inArray(crmLeadTags.tagId, classificationTagIds),
+      ));
+      await tx.insert(crmLeadTags).values({ leadId: lead.id, tagId: selectedTag.id });
 
       await tx.insert(localFalconProspectProfiles).values({
         batchRecordId: batch.id,

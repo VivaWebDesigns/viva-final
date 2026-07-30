@@ -28,11 +28,13 @@ import type { CrmLead, CrmLeadStatus, CrmContact, CrmCompany, CrmTag } from "@sh
 import { formatPhoneDisplay } from "@shared/phone";
 import { useAdminLang } from "@/i18n/LanguageContext";
 import RecycledLeadIconStack from "@/components/RecycledLeadIconStack";
+import LeadTagBadges from "@/components/LeadTagBadges";
 
 interface LeadWithRelations extends CrmLead {
   contact?: CrmContact | null;
   company?: CrmCompany | null;
   status?: CrmLeadStatus | null;
+  tags?: CrmTag[];
   lastUnassignedFromUser?: { id: string; name: string } | null;
 }
 
@@ -64,6 +66,7 @@ export default function LeadListPage() {
   const search = useDebounce(rawSearch, 300);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
+  const [tagFilter, setTagFilter] = useState<string>("all");
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
   const [page, setPage] = useState(1);
   useEffect(() => { setPage(1); }, [search]);
@@ -94,7 +97,7 @@ export default function LeadListPage() {
   });
 
   const { data: leadsData, isLoading } = useQuery<LeadsResponse>({
-    queryKey: ["/api/crm/leads", search, statusFilter, sourceFilter, assigneeFilter, page],
+    queryKey: ["/api/crm/leads", search, statusFilter, sourceFilter, assigneeFilter, tagFilter, page],
     staleTime: STALE.FAST,
     refetchOnWindowFocus: true,
     queryFn: async () => {
@@ -102,6 +105,7 @@ export default function LeadListPage() {
       if (search) params.set("search", search);
       if (statusFilter && statusFilter !== "all") params.set("statusId", statusFilter);
       if (sourceFilter && sourceFilter !== "all") params.set("source", sourceFilter);
+      if (tagFilter && tagFilter !== "all") params.set("tagId", tagFilter);
       if (assigneeFilter && assigneeFilter !== "all") params.set("assignedTo", assigneeFilter);
       params.set("page", String(page));
       params.set("pageSize", String(pageSize));
@@ -369,6 +373,17 @@ export default function LeadListPage() {
               <SelectItem value="other">Other</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={tagFilter} onValueChange={(v) => { setTagFilter(v); setPage(1); }}>
+            <SelectTrigger className="w-full lg:w-44" data-testid="select-tag-filter">
+              <SelectValue placeholder={t.crm.allTags} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t.crm.allTags}</SelectItem>
+              {allTags.map((tag) => (
+                <SelectItem key={tag.id} value={tag.id}>{tag.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </Card>
 
@@ -589,6 +604,10 @@ export default function LeadListPage() {
                                 {leadCity}
                               </span>
                             )}
+                            <LeadTagBadges
+                              tags={lead.tags}
+                              testIdPrefix={`badge-lead-tag-${lead.id}`}
+                            />
                             {lead.assignedTo && (
                               <span className="hidden sm:flex items-center gap-1" data-testid={`text-lead-assignee-${lead.id}`}>
                                 <UserCircle className="w-3 h-3" />

@@ -158,6 +158,7 @@ export const en = {
     allReps: "All reps",
     allStatuses: "All statuses",
     allSources: "All sources",
+    allTags: "All tags",
     source: "Source",
     status: "Status",
     assigned: "Assigned",

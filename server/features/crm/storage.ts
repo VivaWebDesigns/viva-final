@@ -17,6 +17,7 @@ export type EnrichedLead = CrmLead & {
   contact: CrmContact | null;
   company: CrmCompany | null;
   lastUnassignedFromUser: { id: string; name: string } | null;
+  tags: CrmTag[];
 };
 
 interface PaginationParams {
@@ -29,6 +30,7 @@ interface LeadFilters extends PaginationParams {
   statusId?: string;
   source?: string;
   assignedTo?: string;
+  tagId?: string;
   fromWebsiteForm?: boolean;
 }
 
@@ -37,7 +39,7 @@ interface SearchParams extends PaginationParams {
 }
 
 export async function getLeads(filters: LeadFilters = {}) {
-  const { search, statusId, source, assignedTo, fromWebsiteForm, page = 1, limit = 50 } = filters;
+  const { search, statusId, source, assignedTo, tagId, fromWebsiteForm, page = 1, limit = 50 } = filters;
   const offset = (page - 1) * limit;
   const conditions = [];
 
@@ -51,6 +53,14 @@ export async function getLeads(filters: LeadFilters = {}) {
   }
   if (statusId) conditions.push(eq(crmLeads.statusId, statusId));
   if (source) conditions.push(eq(crmLeads.source, source));
+  if (tagId) {
+    conditions.push(inArray(
+      crmLeads.id,
+      db.select({ leadId: crmLeadTags.leadId })
+        .from(crmLeadTags)
+        .where(eq(crmLeadTags.tagId, tagId)),
+    ));
+  }
   if (assignedTo === "__unassigned__") {
     conditions.push(sql`(
       ${crmLeads.assignedTo} IS NULL
@@ -310,6 +320,34 @@ export async function getLeadTags(leadId: string): Promise<CrmTag[]> {
   return result;
 }
 
+export async function getTagsByLeadIds(leadIds: string[]): Promise<Record<string, CrmTag[]>> {
+  if (leadIds.length === 0) return {};
+
+  const rows = await db
+    .select({
+      leadId: crmLeadTags.leadId,
+      id: crmTags.id,
+      name: crmTags.name,
+      slug: crmTags.slug,
+      color: crmTags.color,
+    })
+    .from(crmLeadTags)
+    .innerJoin(crmTags, eq(crmLeadTags.tagId, crmTags.id))
+    .where(inArray(crmLeadTags.leadId, leadIds))
+    .orderBy(asc(crmTags.name));
+
+  const tagsByLeadId: Record<string, CrmTag[]> = {};
+  for (const row of rows) {
+    (tagsByLeadId[row.leadId] ??= []).push({
+      id: row.id,
+      name: row.name,
+      slug: row.slug,
+      color: row.color,
+    });
+  }
+  return tagsByLeadId;
+}
+
 export async function setLeadTags(leadId: string, tagIds: string[]): Promise<void> {
   await db.delete(crmLeadTags).where(eq(crmLeadTags.leadId, leadId));
   if (tagIds.length > 0) {
@@ -520,13 +558,14 @@ export async function enrichLeads(leads: CrmLead[]): Promise<EnrichedLead[]> {
   const companyIds = [...new Set(leads.map(l => l.companyId).filter((id): id is string => id !== null))];
   const lastUnassignedFromIds = [...new Set(leads.map(l => l.lastUnassignedFrom).filter((id): id is string => id !== null))];
 
-  const [statuses, contacts, companies, lastUnassignedUsers] = await Promise.all([
+  const [statuses, contacts, companies, lastUnassignedUsers, tagsByLeadId] = await Promise.all([
     statusIds.length > 0 ? db.select().from(crmLeadStatuses).where(inArray(crmLeadStatuses.id, statusIds)) : [],
     contactIds.length > 0 ? db.select().from(crmContacts).where(inArray(crmContacts.id, contactIds)) : [],
     companyIds.length > 0 ? db.select().from(crmCompanies).where(inArray(crmCompanies.id, companyIds)) : [],
     lastUnassignedFromIds.length > 0
       ? db.select({ id: user.id, name: user.name }).from(user).where(inArray(user.id, lastUnassignedFromIds))
       : [],
+    getTagsByLeadIds(leads.map((lead) => lead.id)),
   ]);
 
   const statusMap = Object.fromEntries(statuses.map(s => [s.id, s]));
@@ -540,6 +579,7 @@ export async function enrichLeads(leads: CrmLead[]): Promise<EnrichedLead[]> {
     contact: lead.contactId ? contactMap[lead.contactId] ?? null : null,
     company: lead.companyId ? companyMap[lead.companyId] ?? null : null,
     lastUnassignedFromUser: lead.lastUnassignedFrom ? lastUnassignedUserMap[lead.lastUnassignedFrom] ?? null : null,
+    tags: tagsByLeadId[lead.id] ?? [],
   }));
 }
 

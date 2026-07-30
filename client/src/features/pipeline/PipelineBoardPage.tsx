@@ -6,16 +6,17 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DollarSign, List, Phone, Building2, MapPin, UserRound } from "lucide-react";
-import type { PipelineStage, PipelineOpportunity } from "@shared/schema";
+import type { CrmTag, PipelineStage, PipelineOpportunity } from "@shared/schema";
 import { formatPhoneDisplay } from "@shared/phone";
 import QuickTaskModal from "@/components/QuickTaskModal";
 import RecycledLeadIconStack from "@/components/RecycledLeadIconStack";
 import { useAdminLang } from "@/i18n/LanguageContext";
+import LeadTagBadges from "@/components/LeadTagBadges";
 
 type ContactSnap = { id: string; firstName: string; lastName: string | null; phone: string | null };
 type CompanySnap = { id: string; name: string; city: string | null; industry: string | null };
 type AssigneeSnap = { id: string; name: string };
-type LeadRecycleSnap = { id: string; recycleCount: number; hungUpCount: number };
+type LeadRecycleSnap = { id: string; recycleCount: number; hungUpCount: number; tags: CrmTag[] };
 
 interface BoardData {
   stages: PipelineStage[];
@@ -131,6 +132,10 @@ function CardDisplay({
                 <span data-testid={`text-opp-city-${opp.id}`}>{company.city}</span>
               </span>
             )}
+            <LeadTagBadges
+              tags={opp.leadId ? leadRecycleMap?.[opp.leadId]?.tags : undefined}
+              testIdPrefix={`badge-pipeline-tag-${opp.id}`}
+            />
           </div>
 
           {(assigneeName || hasLeadSignals) && (

@@ -169,6 +169,8 @@ describe("Local Falcon import clipboard", () => {
     expect(await screen.findByAltText("Uploaded Local Falcon ranking heatmap")).toHaveStyle({
       transform: "translate(0px, 0px) scale(1.6)",
     });
+    expect(screen.getByTestId("select-local-falcon-lead-type")).toHaveTextContent("Choose SAB or Location Based");
+    expect(screen.getByTestId("button-confirm-local-falcon-import")).toBeDisabled();
   });
 
   it("can confirm or clear every included report at once", async () => {

@@ -11,6 +11,10 @@ import {
   parseLocalFalconPackage,
 } from "../../server/features/crm/localFalconPackage";
 import { parseLocalFalconCompetitorSidecar } from "../../server/features/crm/localFalconCompetitors";
+import {
+  LOCAL_FALCON_LEAD_CLASSIFICATIONS,
+  getLocalFalconLeadClassification,
+} from "../../shared/leadClassification";
 
 const heatmapPath = "heatmaps/ChIJ-test-1.png";
 const prospect = {
@@ -110,6 +114,19 @@ const competitorSidecar = {
     },
   },
 };
+
+describe("Local Falcon lead classifications", () => {
+  it("requires the two supported import classifications", () => {
+    expect(LOCAL_FALCON_LEAD_CLASSIFICATIONS.map((item) => item.value)).toEqual([
+      "sab",
+      "location_based",
+    ]);
+    expect(getLocalFalconLeadClassification("sab")).toMatchObject({
+      label: "SAB",
+      tagSlug: "sab",
+    });
+  });
+});
 
 describe("parseLocalFalconPayload", () => {
   it("parses the canonical JSON manifest and normalizes state", () => {

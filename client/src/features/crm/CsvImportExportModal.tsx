@@ -27,6 +27,10 @@ import { useAdminLang } from "@/i18n/LanguageContext";
 import LocalVisibilityReportTemplate from "@features/local-visibility-report/LocalVisibilityReportTemplate";
 import { renderLocalVisibilityReportBlob } from "@features/local-visibility-report/exportReport";
 import type { LocalVisibilityReportData } from "@features/local-visibility-report/types";
+import {
+  LOCAL_FALCON_LEAD_CLASSIFICATIONS,
+  type LocalFalconLeadClassification,
+} from "@shared/leadClassification";
 
 interface ImportRowResult {
   row: number;
@@ -134,6 +138,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
   const [preview, setPreview] = useState<LocalFalconPreview | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [assignedTo, setAssignedTo] = useState("");
+  const [leadClassification, setLeadClassification] = useState<LocalFalconLeadClassification | "">("");
   const [approvedFlagged, setApprovedFlagged] = useState<Set<string>>(new Set());
   const [confirmedPreviews, setConfirmedPreviews] = useState<Set<string>>(new Set());
   const [imageFailures, setImageFailures] = useState<LocalFalconImageFailure[]>([]);
@@ -152,6 +157,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
     setPreview(null);
     setImportError(null);
     setAssignedTo("");
+    setLeadClassification("");
     setApprovedFlagged(new Set());
     setConfirmedPreviews(new Set());
     setImageFailures([]);
@@ -299,11 +305,16 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
 
   const handleConfirmLocalFalcon = async () => {
     if (!preview) return;
+    if (!leadClassification) {
+      setImportError("Choose SAB or Location Based before importing.");
+      return;
+    }
     setImportError(null);
     setIsGeneratingSnapshots(true);
     try {
       const form = buildPackageForm();
       if (assignedTo) form.append("assignedTo", assignedTo);
+      form.append("leadClassification", leadClassification);
       form.append("approvedFlaggedPlaceIds", JSON.stringify([...approvedFlagged]));
       form.append("previewHeatmapChecksums", JSON.stringify(Object.fromEntries(
         preview.rows.map((row) => [row.placeId, row.heatmapSha256]),
@@ -343,6 +354,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
       });
       setPhase("done");
       queryClient.invalidateQueries({ queryKey: ["/api/crm/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/crm/tags"] });
       queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities/board"] });
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/local-visibility/prospects"] });
@@ -528,12 +540,37 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
             </div>
 
             {includedRows.length > 0 && (
-              <div className="grid gap-2 md:grid-cols-[180px_1fr] md:items-center">
-                <Label>Assign this batch to</Label>
-                <Select value={assignedTo} onValueChange={setAssignedTo}>
-                  <SelectTrigger data-testid="select-local-falcon-assignee"><SelectValue placeholder="Select appointment setter" /></SelectTrigger>
-                  <SelectContent>{salesReps.map((rep) => <SelectItem key={rep.id} value={rep.id}>{rep.name} · {rep.email}</SelectItem>)}</SelectContent>
-                </Select>
+              <div className="space-y-3">
+                <div className="grid gap-2 md:grid-cols-[180px_1fr] md:items-center">
+                  <Label>Lead type <span className="text-red-500">*</span></Label>
+                  <div>
+                    <Select
+                      value={leadClassification}
+                      onValueChange={(value) => setLeadClassification(value as LocalFalconLeadClassification)}
+                    >
+                      <SelectTrigger data-testid="select-local-falcon-lead-type">
+                        <SelectValue placeholder="Choose SAB or Location Based" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {LOCAL_FALCON_LEAD_CLASSIFICATIONS.map((classification) => (
+                          <SelectItem key={classification.value} value={classification.value}>
+                            {classification.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="mt-1 text-xs text-slate-500">
+                      This required tag is applied to every included company in the batch.
+                    </p>
+                  </div>
+                </div>
+                <div className="grid gap-2 md:grid-cols-[180px_1fr] md:items-center">
+                  <Label>Assign this batch to</Label>
+                  <Select value={assignedTo} onValueChange={setAssignedTo}>
+                    <SelectTrigger data-testid="select-local-falcon-assignee"><SelectValue placeholder="Select appointment setter" /></SelectTrigger>
+                    <SelectContent>{salesReps.map((rep) => <SelectItem key={rep.id} value={rep.id}>{rep.name} · {rep.email}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
               </div>
             )}
 
@@ -627,7 +664,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
           {phase === "done" ? (
             <><Button variant="outline" onClick={clearImportState}>Import more</Button><Button onClick={handleClose}>Done</Button></>
           ) : phase === "preview" ? (
-            <><Button variant="outline" onClick={clearImportState} disabled={isGeneratingSnapshots}>Choose another package</Button><Button onClick={handleConfirmLocalFalcon} disabled={preview?.batchAlreadyImported || (includedRows.length > 0 && !assignedTo) || !everyIncludedPreviewConfirmed || isGeneratingSnapshots} data-testid="button-confirm-local-falcon-import">{isGeneratingSnapshots ? "Generating snapshots…" : "Import reports"}</Button></>
+            <><Button variant="outline" onClick={clearImportState} disabled={isGeneratingSnapshots}>Choose another package</Button><Button onClick={handleConfirmLocalFalcon} disabled={preview?.batchAlreadyImported || (includedRows.length > 0 && (!assignedTo || !leadClassification)) || !everyIncludedPreviewConfirmed || isGeneratingSnapshots} data-testid="button-confirm-local-falcon-import">{isGeneratingSnapshots ? "Generating snapshots…" : "Import reports"}</Button></>
           ) : (
             <><Button variant="outline" onClick={handleClose} disabled={phase === "loading"}>Cancel</Button><Button onClick={handleImport} disabled={!file || phase === "loading"} data-testid="button-start-import">{phase === "loading" ? t.crm.importing : imageFailures.length > 0 ? "Retry automatic retrieval" : "Review import"}</Button></>
           )}

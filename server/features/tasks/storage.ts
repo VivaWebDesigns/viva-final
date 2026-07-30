@@ -2,9 +2,10 @@ import { db } from "../../db";
 import {
   followupTasks, crmContacts, crmCompanies, crmLeads, automationExecutionLogs,
   pipelineOpportunities, pipelineStages,
-  type InsertFollowupTask, type FollowupTask,
+  type InsertFollowupTask, type FollowupTask, type CrmTag,
 } from "@shared/schema";
 import { eq, and, gte, lte, lt, desc, asc, inArray, isNull, or } from "drizzle-orm";
+import { getTagsByLeadIds } from "../crm/storage";
 
 export interface TaskAutomationMeta {
   triggerStageSlug: string;
@@ -15,7 +16,7 @@ export interface TaskAutomationMeta {
 export type TaskWithContact = FollowupTask & {
   contact: { firstName: string; lastName: string | null; phone: string | null } | null;
   company: { name: string; industry: string | null; city: string | null } | null;
-  lead: { trade: string | null; city: string | null; recycleCount: number; hungUpCount: number } | null;
+  lead: { trade: string | null; city: string | null; recycleCount: number; hungUpCount: number; tags: CrmTag[] } | null;
   automationMeta: TaskAutomationMeta | null;
   opportunityStageSlug: string | null;
 };
@@ -364,7 +365,7 @@ async function enrichTasks(tasks: FollowupTask[]): Promise<TaskWithContact[]> {
     ...directLeadIds,
     ...oppStageRows.map((row) => row.leadId).filter(Boolean) as string[],
   ])];
-  const leads = await (
+  const [leads, tagsByLeadId] = await Promise.all([
     leadIds.length
       ? db.select({
           id: crmLeads.id,
@@ -375,8 +376,9 @@ async function enrichTasks(tasks: FollowupTask[]): Promise<TaskWithContact[]> {
         })
           .from(crmLeads)
           .where(inArray(crmLeads.id, leadIds))
-      : Promise.resolve([])
-  );
+      : Promise.resolve([]),
+    getTagsByLeadIds(leadIds),
+  ]);
 
   const contactMap = Object.fromEntries(contacts.map(c => [c.id, c]));
   const oppStageMap = Object.fromEntries(oppStageRows.map(r => [r.opportunityId, r.slug]));
@@ -419,8 +421,9 @@ async function enrichTasks(tasks: FollowupTask[]): Promise<TaskWithContact[]> {
     const rawCity = leadRow?.city || company?.city || null;
     const recycleCount = leadRow?.recycleCount ?? 0;
     const hungUpCount = leadRow?.hungUpCount ?? 0;
-    const lead: TaskWithContact["lead"] = rawTrade || rawCity || recycleCount > 0 || hungUpCount > 0
-      ? { trade: rawTrade, city: rawCity, recycleCount, hungUpCount }
+    const tags = effectiveLeadId ? tagsByLeadId[effectiveLeadId] ?? [] : [];
+    const lead: TaskWithContact["lead"] = rawTrade || rawCity || recycleCount > 0 || hungUpCount > 0 || tags.length > 0
+      ? { trade: rawTrade, city: rawCity, recycleCount, hungUpCount, tags }
       : null;
     const automationMeta = automationMetaMap.get(task.id) ?? null;
     const opportunityStageSlug = task.opportunityId ? oppStageMap[task.opportunityId] ?? null : null;

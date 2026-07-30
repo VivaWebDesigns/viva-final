@@ -11,8 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   DollarSign, Calendar, Search, LayoutGrid, ChevronLeft, ChevronRight, User,
 } from "lucide-react";
-import type { PipelineStage, PipelineOpportunity } from "@shared/schema";
+import type { CrmTag, PipelineStage, PipelineOpportunity } from "@shared/schema";
 import { useAdminLang } from "@/i18n/LanguageContext";
+import LeadTagBadges from "@/components/LeadTagBadges";
 
 interface ContactSnap { firstName: string; lastName?: string | null }
 interface CompanySnap { name: string }
@@ -24,6 +25,7 @@ interface OppsResponse {
   limit: number;
   companyMap?: Record<string, CompanySnap>;
   contactMap?: Record<string, ContactSnap>;
+  leadTagMap?: Record<string, CrmTag[]>;
 }
 
 function buildOppDisplayTitle(
@@ -142,9 +144,15 @@ export default function PipelineListPage() {
                 <Card className="hover:shadow-md transition-shadow cursor-pointer" data-testid={`row-opportunity-${opp.id}`}>
                   <CardContent className="p-4 flex items-center gap-4">
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900 truncate" data-testid={`text-opp-title-${opp.id}`}>
-                        {buildOppDisplayTitle(opp, data?.companyMap, data?.contactMap)}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-gray-900 truncate" data-testid={`text-opp-title-${opp.id}`}>
+                          {buildOppDisplayTitle(opp, data?.companyMap, data?.contactMap)}
+                        </p>
+                        <LeadTagBadges
+                          tags={opp.leadId ? data?.leadTagMap?.[opp.leadId] : undefined}
+                          testIdPrefix={`badge-pipeline-list-tag-${opp.id}`}
+                        />
+                      </div>
                       {opp.sourceLeadTitle && opp.sourceLeadTitle !== opp.title && (
                         <p className="text-xs text-gray-400 truncate mt-0.5">From: {opp.sourceLeadTitle}</p>
                       )}

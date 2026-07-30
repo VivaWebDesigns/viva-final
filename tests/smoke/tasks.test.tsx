@@ -59,7 +59,13 @@ describe("TasksDueTodayPage smoke", () => {
           createdAt: "2026-07-30T12:00:00.000Z",
           contact: null,
           company: { name: "Happi Plumbing Corp", industry: "plumbing", city: "Monroe" },
-          lead: { trade: "plumbing", city: "Monroe", recycleCount: 0, hungUpCount: 0 },
+          lead: {
+            trade: "plumbing",
+            city: "Monroe",
+            recycleCount: 0,
+            hungUpCount: 0,
+            tags: [{ id: "tag-sab", name: "SAB", slug: "sab", color: "#7C3AED" }],
+          },
           automationMeta: null,
           opportunityStageSlug: "new-lead",
         }],
@@ -72,5 +78,6 @@ describe("TasksDueTodayPage smoke", () => {
 
     expect(await screen.findByTestId("text-lead-trade-task-1")).toHaveTextContent("Plumbing");
     expect(screen.getByTestId("text-lead-city-task-1")).toHaveTextContent("Monroe");
+    expect(screen.getByTestId("badge-task-tag-task-1-sab")).toHaveTextContent("SAB");
   });
 });

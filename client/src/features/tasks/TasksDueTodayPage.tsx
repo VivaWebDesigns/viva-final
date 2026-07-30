@@ -14,12 +14,13 @@ import DemoCompletedModal from "@/components/DemoCompletedModal";
 import PaymentSentModal from "@/components/PaymentSentModal";
 import PaymentFollowupModal from "@/components/PaymentFollowupModal";
 import RecycledLeadIconStack from "@/components/RecycledLeadIconStack";
-import type { FollowupTask } from "@shared/schema";
+import type { CrmTag, FollowupTask } from "@shared/schema";
 import { formatPhoneDisplay } from "@shared/phone";
 import { useAdminLang } from "@/i18n/LanguageContext";
 import { renderTaskTitle, renderTaskNotes, getStageLabel } from "@/lib/activityI18n";
 import { useAuth } from "@features/auth/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import LeadTagBadges from "@/components/LeadTagBadges";
 
 interface AutomationMeta {
   triggerStageSlug: string;
@@ -30,7 +31,7 @@ interface AutomationMeta {
 interface TaskWithContact extends FollowupTask {
   contact: { firstName: string; lastName: string | null; phone: string | null } | null;
   company: { name: string; industry: string | null; city: string | null } | null;
-  lead: { trade: string | null; city: string | null; recycleCount: number; hungUpCount: number } | null;
+  lead: { trade: string | null; city: string | null; recycleCount: number; hungUpCount: number; tags: CrmTag[] } | null;
   automationMeta: AutomationMeta | null;
   opportunityStageSlug: string | null;
 }
@@ -157,6 +158,10 @@ function TaskRow({
               {task.lead.city}
             </span>
           )}
+          <LeadTagBadges
+            tags={task.lead?.tags}
+            testIdPrefix={`badge-task-tag-${task.id}`}
+          />
         </div>
 
         <div className="flex flex-wrap items-center gap-2 mt-1.5">
@@ -271,6 +276,10 @@ function CompletedTaskCard({
                 {task.lead.city}
               </span>
             )}
+            <LeadTagBadges
+              tags={task.lead?.tags}
+              testIdPrefix={`badge-completed-task-tag-${task.id}`}
+            />
           </div>
 
           {outcomeLabel && (

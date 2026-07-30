@@ -7,7 +7,7 @@ import { insertPipelineStageSchema, insertPipelineOpportunitySchema, insertPipel
 import { db } from "../../db";
 import { eq, isNull, and, inArray, isNotNull } from "drizzle-orm";
 import { appendHistorySafe } from "../history/service";
-import { upsertLeadStatus, updateLead } from "../crm/storage";
+import { getTagsByLeadIds, upsertLeadStatus, updateLead } from "../crm/storage";
 import { z } from "zod";
 import { executeStageAutomations } from "../automations/trigger";
 
@@ -127,14 +127,16 @@ router.get("/opportunities", requireRole("admin", "developer", "sales_rep", "lea
 
     const companyIds = [...new Set(result.items.map((o: { companyId?: string | null }) => o.companyId).filter((id): id is string => !!id))];
     const contactIds = [...new Set(result.items.map((o: { contactId?: string | null }) => o.contactId).filter((id): id is string => !!id))];
-    const [companies, contacts] = await Promise.all([
+    const leadIds = [...new Set(result.items.map((o: { leadId?: string | null }) => o.leadId).filter((id): id is string => !!id))];
+    const [companies, contacts, leadTagMap] = await Promise.all([
       companyIds.length > 0 ? db.select().from(crmCompanies).where(inArray(crmCompanies.id, companyIds as string[])) : [],
       contactIds.length > 0 ? db.select().from(crmContacts).where(inArray(crmContacts.id, contactIds as string[])) : [],
+      getTagsByLeadIds(leadIds),
     ]);
     const companyMap = Object.fromEntries(companies.map(c => [c.id, { name: c.name }]));
     const contactMap = Object.fromEntries(contacts.map(c => [c.id, { firstName: c.firstName, lastName: c.lastName }]));
 
-    res.json({ ...result, companyMap, contactMap });
+    res.json({ ...result, companyMap, contactMap, leadTagMap });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }

@@ -3,9 +3,10 @@ import {
   pipelineStages, pipelineOpportunities, pipelineActivities,
   crmLeads, crmCompanies, crmContacts, crmLeadNotes, user, followupTasks,
   type InsertPipelineStage, type InsertPipelineOpportunity, type InsertPipelineActivity,
-  type PipelineStage, type PipelineOpportunity, type PipelineActivity,
+  type PipelineStage, type PipelineOpportunity, type PipelineActivity, type CrmTag,
 } from "@shared/schema";
 import { eq, ilike, or, desc, asc, sql, and, count, inArray } from "drizzle-orm";
+import { getTagsByLeadIds } from "../crm/storage";
 
 interface PaginationParams {
   page?: number;
@@ -196,7 +197,7 @@ export async function getOpportunitiesByStage(
     ? [...new Set(allOpps.map(o => o.assignedTo).filter(Boolean) as string[])]
     : [];
 
-  const [leadRows, contactRows, companyRows, assigneeRows] = await Promise.all([
+  const [leadRows, contactRows, companyRows, assigneeRows, tagsByLeadId] = await Promise.all([
     leadIds.length
       ? db.select({ id: crmLeads.id, recycleCount: crmLeads.recycleCount, hungUpCount: crmLeads.hungUpCount }).from(crmLeads).where(inArray(crmLeads.id, leadIds))
       : [],
@@ -209,9 +210,12 @@ export async function getOpportunitiesByStage(
     assigneeIds.length
       ? db.select({ id: user.id, name: user.name }).from(user).where(inArray(user.id, assigneeIds))
       : [],
+    getTagsByLeadIds(leadIds),
   ]);
 
-  const leadRecycleMap: Record<string, { id: string; recycleCount: number; hungUpCount: number }> = Object.fromEntries(leadRows.map(l => [l.id, l]));
+  const leadRecycleMap: Record<string, { id: string; recycleCount: number; hungUpCount: number; tags: CrmTag[] }> = Object.fromEntries(
+    leadRows.map((lead) => [lead.id, { ...lead, tags: tagsByLeadId[lead.id] ?? [] }]),
+  );
   const contactMap: Record<string, { id: string; firstName: string; lastName: string | null; phone: string | null }> = Object.fromEntries(contactRows.map(c => [c.id, c]));
   const companyMap: Record<string, { id: string; name: string; city: string | null; industry: string | null }> = Object.fromEntries(companyRows.map(c => [c.id, c]));
   const assigneeMap: Record<string, { id: string; name: string }> | undefined = includeAssigneeMap
