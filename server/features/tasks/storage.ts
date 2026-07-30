@@ -14,8 +14,8 @@ export interface TaskAutomationMeta {
 
 export type TaskWithContact = FollowupTask & {
   contact: { firstName: string; lastName: string | null; phone: string | null } | null;
-  company: { name: string; industry: string | null } | null;
-  lead: { trade: string | null; recycleCount: number; hungUpCount: number } | null;
+  company: { name: string; industry: string | null; city: string | null } | null;
+  lead: { trade: string | null; city: string | null; recycleCount: number; hungUpCount: number } | null;
   automationMeta: TaskAutomationMeta | null;
   opportunityStageSlug: string | null;
 };
@@ -366,7 +366,13 @@ async function enrichTasks(tasks: FollowupTask[]): Promise<TaskWithContact[]> {
   ])];
   const leads = await (
     leadIds.length
-      ? db.select({ id: crmLeads.id, trade: crmLeads.trade, recycleCount: crmLeads.recycleCount, hungUpCount: crmLeads.hungUpCount })
+      ? db.select({
+          id: crmLeads.id,
+          trade: crmLeads.trade,
+          city: crmLeads.city,
+          recycleCount: crmLeads.recycleCount,
+          hungUpCount: crmLeads.hungUpCount,
+        })
           .from(crmLeads)
           .where(inArray(crmLeads.id, leadIds))
       : Promise.resolve([])
@@ -382,7 +388,12 @@ async function enrichTasks(tasks: FollowupTask[]): Promise<TaskWithContact[]> {
     ...tasks.map(t => t.companyId).filter(Boolean) as string[],
   ])];
   const companies = companyIds.length
-    ? await db.select({ id: crmCompanies.id, name: crmCompanies.name, industry: crmCompanies.industry })
+    ? await db.select({
+        id: crmCompanies.id,
+        name: crmCompanies.name,
+        industry: crmCompanies.industry,
+        city: crmCompanies.city,
+      })
         .from(crmCompanies)
         .where(inArray(crmCompanies.id, companyIds))
     : [];
@@ -404,11 +415,12 @@ async function enrichTasks(tasks: FollowupTask[]): Promise<TaskWithContact[]> {
       ?? null;
     const effectiveLeadId = task.leadId ?? (task.opportunityId ? oppLeadMap[task.opportunityId] ?? null : null);
     const leadRow = effectiveLeadId ? leadMap[effectiveLeadId] ?? null : null;
-    const rawTrade = leadRow?.trade ?? company?.industry ?? null;
+    const rawTrade = leadRow?.trade || company?.industry || null;
+    const rawCity = leadRow?.city || company?.city || null;
     const recycleCount = leadRow?.recycleCount ?? 0;
     const hungUpCount = leadRow?.hungUpCount ?? 0;
-    const lead: TaskWithContact["lead"] = rawTrade || recycleCount > 0 || hungUpCount > 0
-      ? { trade: rawTrade, recycleCount, hungUpCount }
+    const lead: TaskWithContact["lead"] = rawTrade || rawCity || recycleCount > 0 || hungUpCount > 0
+      ? { trade: rawTrade, city: rawCity, recycleCount, hungUpCount }
       : null;
     const automationMeta = automationMetaMap.get(task.id) ?? null;
     const opportunityStageSlug = task.opportunityId ? oppStageMap[task.opportunityId] ?? null : null;

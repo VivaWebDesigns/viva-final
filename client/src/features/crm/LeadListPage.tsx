@@ -6,7 +6,7 @@ import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, ChevronLeft, ChevronRight, Globe, Phone, Mail,
-  X, Trash2, UserCheck, CircleDot, Tag, Tags, AlertTriangle, Users, Upload, UserPlus, UserCircle,
+  X, Trash2, UserCheck, CircleDot, Tag, Tags, AlertTriangle, Users, Upload, UserPlus, UserCircle, MapPin,
 } from "lucide-react";
 import { CsvImportModal, CsvExportDropdown } from "./CsvImportExportModal";
 import CreateLeadModal from "./CreateLeadModal";
@@ -253,6 +253,16 @@ export default function LeadListPage() {
     return lead.title;
   };
 
+  const getLeadTrade = (lead: LeadWithRelations) => {
+    const trade = lead.trade || lead.company?.industry;
+    if (!trade) return null;
+    const key = trade.trim().toLowerCase().replace(/[\s-]+/g, "_");
+    return (t.trades as Record<string, string>)[key] ?? trade;
+  };
+
+  const getLeadCity = (lead: LeadWithRelations) =>
+    lead.city || lead.company?.city || null;
+
   const getLastUnassignedInitial = (lead: LeadWithRelations) => {
     const name = lead.lastUnassignedFromUser?.name?.trim();
     return name ? name.charAt(0).toUpperCase() : null;
@@ -489,6 +499,8 @@ export default function LeadListPage() {
           </div>
           {leads.map((lead) => {
             const isSelected = selectedIds.has(lead.id);
+            const leadTrade = getLeadTrade(lead);
+            const leadCity = getLeadCity(lead);
             return (
               <motion.div
                 key={lead.id}
@@ -564,6 +576,17 @@ export default function LeadListPage() {
                             {lead.contact?.phone && (
                               <span className="hidden sm:flex items-center gap-1 text-slate-700 font-medium">
                                 <Phone className="w-3 h-3" /> {formatPhoneDisplay(lead.contact.phone)}
+                              </span>
+                            )}
+                            {leadTrade && (
+                              <span className="font-medium text-sky-700" data-testid={`text-lead-trade-${lead.id}`}>
+                                {leadTrade}
+                              </span>
+                            )}
+                            {leadCity && (
+                              <span className="flex items-center gap-0.5" data-testid={`text-lead-city-${lead.id}`}>
+                                <MapPin className="w-3 h-3 flex-shrink-0" />
+                                {leadCity}
                               </span>
                             )}
                             {lead.assignedTo && (

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CheckCircle2, Clock, Phone, Building2, AlertTriangle, CalendarClock, ExternalLink, Plus, Zap, History, FileText, Trash2 } from "lucide-react";
+import { CheckCircle2, Clock, Phone, Building2, AlertTriangle, CalendarClock, ExternalLink, Plus, Zap, History, FileText, Trash2, MapPin } from "lucide-react";
 import { sanitizeHtml } from "@/features/chat/RichTextEditor";
 import QuickTaskModal, { formatTaskTimeDisplay } from "@/components/QuickTaskModal";
 import CompleteTaskModal from "@/components/CompleteTaskModal";
@@ -29,8 +29,8 @@ interface AutomationMeta {
 
 interface TaskWithContact extends FollowupTask {
   contact: { firstName: string; lastName: string | null; phone: string | null } | null;
-  company: { name: string; industry: string | null } | null;
-  lead: { trade: string | null; recycleCount: number; hungUpCount: number } | null;
+  company: { name: string; industry: string | null; city: string | null } | null;
+  lead: { trade: string | null; city: string | null; recycleCount: number; hungUpCount: number } | null;
   automationMeta: AutomationMeta | null;
   opportunityStageSlug: string | null;
 }
@@ -43,6 +43,11 @@ interface DueTodayData {
 
 function normalizeDisplayName(value: string) {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, " ");
+}
+
+function translateTrade(value: string, trades: Record<string, string>) {
+  const key = value.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  return trades[key] ?? value;
 }
 
 function TaskRow({
@@ -143,7 +148,13 @@ function TaskRow({
           )}
           {task.lead?.trade && (
             <span className="text-xs font-medium text-sky-700" data-testid={`text-lead-trade-${task.id}`}>
-              {(t.trades as Record<string, string>)[task.lead.trade.toLowerCase()] ?? task.lead.trade}
+              {translateTrade(task.lead.trade, t.trades as Record<string, string>)}
+            </span>
+          )}
+          {task.lead?.city && (
+            <span className="flex items-center gap-0.5 text-xs text-gray-500" data-testid={`text-lead-city-${task.id}`}>
+              <MapPin className="w-3 h-3 flex-shrink-0" />
+              {task.lead.city}
             </span>
           )}
         </div>
@@ -205,6 +216,7 @@ function CompletedTaskCard({
   renderTitle: (task: { title: string }) => string;
   onDelete?: () => void;
 }) {
+  const { t } = useAdminLang();
   const contactName = task.contact
     ? `${task.contact.firstName}${task.contact.lastName ? " " + task.contact.lastName : ""}`
     : null;
@@ -246,6 +258,17 @@ function CompletedTaskCard({
               <span className="flex items-center gap-1 text-xs text-gray-500">
                 <Building2 className="w-3 h-3" />
                 {task.company.name}
+              </span>
+            )}
+            {task.lead?.trade && (
+              <span className="text-xs font-medium text-sky-700" data-testid={`completed-lead-trade-${task.id}`}>
+                {translateTrade(task.lead.trade, t.trades as Record<string, string>)}
+              </span>
+            )}
+            {task.lead?.city && (
+              <span className="flex items-center gap-0.5 text-xs text-gray-500" data-testid={`completed-lead-city-${task.id}`}>
+                <MapPin className="w-3 h-3 flex-shrink-0" />
+                {task.lead.city}
               </span>
             )}
           </div>
