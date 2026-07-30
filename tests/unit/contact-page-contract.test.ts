@@ -50,4 +50,8 @@ describe("public contact form contract", () => {
     expect(scanThanksHtml).toContain('href="/results">See Client Results');
     expect(scanThanksHtml).not.toContain('href="/scan">Get Your Free Visibility Scan');
   });
+
+  it("keeps the contact card location concise", () => {
+    expect(contactHtml).toContain("<dt>Based in</dt><dd>Charlotte, NC</dd>");
+  });
 });

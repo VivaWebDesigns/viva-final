@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { Phone, Mail } from "lucide-react";
+import { Phone, Mail, MapPin, Clock } from "lucide-react";
 import { SiFacebook, SiInstagram, SiTiktok, SiWhatsapp } from "react-icons/si";
 import logoImg from "@assets/Viva_1772823591549.png";
 import { t } from "@/content";
@@ -49,8 +49,22 @@ export default function Footer() {
             </ul>
           </div>
 
-          <div className="hidden lg:block">
-            {/* Spacer to maintain grid layout if needed, or just remove the column */}
+          <div>
+            <h3 className="text-white font-bold text-sm uppercase tracking-wider mb-6">{t("footer.businessInfoTitle")}</h3>
+            <ul className="space-y-3">
+              <li className="flex items-start gap-3">
+                <MapPin className="w-5 h-5 text-[#10B981] flex-shrink-0 mt-0.5" />
+                <span className="text-gray-400 text-sm" data-testid="text-footer-address">{t("footer.address")}</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <Clock className="w-5 h-5 text-[#10B981] flex-shrink-0 mt-0.5" />
+                <div className="space-y-1 text-gray-400 text-sm" data-testid="text-footer-hours">
+                  <p>{t("footer.weekdayHours")}</p>
+                  <p>{t("footer.saturdayHours")}</p>
+                  <p>{t("footer.sundayHours")}</p>
+                </div>
+              </li>
+            </ul>
           </div>
         </div>
 
