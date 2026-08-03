@@ -41,7 +41,7 @@ export function createSabMcpServer(repository: SabSheetsRepository, actorEmail: 
 
   server.registerTool("save_sab_company", {
     description:
-      "Save approved research fields for one SAB company immediately after completing it. Website and review audits must contain 3–6 concise, relevant findings; review findings must preserve company trajectory.",
+      "Save approved research fields for one SAB company immediately after completing it. Website and review audits must contain 3–6 concise, relevant findings; review findings must preserve company trajectory. Set qualification_status to 'qualified' before status 'complete'.",
     inputSchema: saveSabCompanyInputSchema,
   }, async ({ place_id, updates }) => {
     return jsonToolResult(await repository.saveCompany(place_id, updates, actorEmail));

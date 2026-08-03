@@ -55,6 +55,7 @@ function row(overrides: Partial<Record<typeof SAB_HEADERS[number], string>> = {}
     service_page_count: "4",
     website_analysis: JSON.stringify(["Finding 1", "Finding 2", "Finding 3"]),
     reviews_analysis: JSON.stringify(["Trajectory", "Response behavior", "Job mix"]),
+    qualification_status: "qualified",
     ...overrides,
   })[header]);
 }
@@ -141,6 +142,20 @@ describe("SabSheetsRepository", () => {
       { status: "complete" },
       "matt@vivawebdesigns.com",
     )).rejects.toThrow(/reviews_analysis/);
+  });
+
+  it("rejects complete status until the CRM qualification gate is set", async () => {
+    const { repository } = buildRepository([
+      row({
+        qualification_status: "",
+      }),
+    ]);
+
+    await expect(repository.saveCompany(
+      "place-1",
+      { status: "complete" },
+      "matt@vivawebdesigns.com",
+    )).rejects.toThrow(/qualification_status/);
   });
 
   it("reports progress by batch and status", async () => {

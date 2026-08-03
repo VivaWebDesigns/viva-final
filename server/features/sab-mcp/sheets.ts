@@ -297,6 +297,10 @@ export class SabSheetsRepository {
     const missing = ["address", "city", "state", "zip", "reviews_analysis"]
       .filter((header) => !row[header as SabHeader]);
 
+    if (row.qualification_status !== "qualified") {
+      missing.push("qualification_status (must be 'qualified')");
+    }
+
     const reviews = parseJsonArray(row.reviews_analysis);
     if (!reviews || reviews.length < 3 || reviews.length > 6) {
       missing.push("reviews_analysis (3–6 findings)");

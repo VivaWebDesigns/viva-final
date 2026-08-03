@@ -73,7 +73,9 @@ export const sabCompanyUpdatesSchema = z.object({
   reviews_analysis: auditFindings.optional(),
   rating: z.number().min(0).max(5).nullable().optional(),
   review_count: z.number().int().min(0).nullable().optional(),
-  qualification_status: nullableString.optional(),
+  qualification_status: z.literal("qualified").optional().describe(
+    "CRM import gate. Set exactly to 'qualified' before marking a company complete.",
+  ),
   blocker: nullableString.optional(),
   research_notes: nullableString.optional(),
 }).strict();
