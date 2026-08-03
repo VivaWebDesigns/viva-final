@@ -8,6 +8,7 @@ import { enqueueJob } from "./features/workflow/queue";
 import { initSocket } from "./features/chat/socket";
 import { normalizePhoneDigits, isValidUSPhone } from "@shared/phone";
 import { registerCleanPublicPageRedirects } from "./public-pages";
+import { registerSabMcpRoutes } from "./features/sab-mcp/routes";
 
 const CONTACT_NOTIFICATION_EMAIL =
   process.env.CONTACT_NOTIFICATION_EMAIL || "matt@vivawebdesigns.com";
@@ -39,6 +40,7 @@ export async function registerRoutes(
 ): Promise<Server> {
   initSocket(httpServer);
 
+  registerSabMcpRoutes(app);
   app.use("/api", featureRoutes);
 
   registerCleanPublicPageRedirects(app);

@@ -117,6 +117,54 @@ export const verification = pgTable("verification", {
   index("verification_expires_idx").on(t.expiresAt),
 ]);
 
+// OAuth 2.1 tables used by Better Auth's MCP provider. These allow Claude to
+// authenticate through the existing Viva login without sharing a static secret.
+export const oauthApplication = pgTable("oauth_application", {
+  id: text("id").primaryKey(),
+  clientId: text("client_id").notNull().unique(),
+  clientSecret: text("client_secret"),
+  type: text("type").notNull(),
+  name: text("name").notNull(),
+  icon: text("icon"),
+  metadata: text("metadata"),
+  disabled: boolean("disabled").notNull().default(false),
+  redirectUrls: text("redirect_urls").notNull(),
+  userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").notNull(),
+  updatedAt: timestamp("updated_at").notNull(),
+}, (t) => [
+  index("oauth_application_user_idx").on(t.userId),
+]);
+
+export const oauthAccessToken = pgTable("oauth_access_token", {
+  id: text("id").primaryKey(),
+  accessToken: text("access_token").notNull().unique(),
+  refreshToken: text("refresh_token").notNull().unique(),
+  accessTokenExpiresAt: timestamp("access_token_expires_at").notNull(),
+  refreshTokenExpiresAt: timestamp("refresh_token_expires_at").notNull(),
+  clientId: text("client_id").notNull().references(() => oauthApplication.clientId, { onDelete: "cascade" }),
+  userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
+  scopes: text("scopes").notNull(),
+  createdAt: timestamp("created_at").notNull(),
+  updatedAt: timestamp("updated_at").notNull(),
+}, (t) => [
+  index("oauth_access_token_client_idx").on(t.clientId),
+  index("oauth_access_token_user_idx").on(t.userId),
+]);
+
+export const oauthConsent = pgTable("oauth_consent", {
+  id: text("id").primaryKey(),
+  clientId: text("client_id").notNull().references(() => oauthApplication.clientId, { onDelete: "cascade" }),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  scopes: text("scopes").notNull(),
+  consentGiven: boolean("consent_given").notNull(),
+  createdAt: timestamp("created_at").notNull(),
+  updatedAt: timestamp("updated_at").notNull(),
+}, (t) => [
+  index("oauth_consent_client_idx").on(t.clientId),
+  index("oauth_consent_user_idx").on(t.userId),
+]);
+
 export const auditLogs = pgTable("audit_logs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: text("user_id").references(() => user.id),

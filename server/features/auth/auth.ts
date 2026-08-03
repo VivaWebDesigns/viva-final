@@ -1,6 +1,6 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { admin, bearer } from "better-auth/plugins";
+import { admin, bearer, mcp } from "better-auth/plugins";
 import { db } from "../../db";
 import * as schema from "@shared/schema";
 
@@ -31,6 +31,9 @@ export const auth = betterAuth({
       session: schema.session,
       account: schema.account,
       verification: schema.verification,
+      oauthApplication: schema.oauthApplication,
+      oauthAccessToken: schema.oauthAccessToken,
+      oauthConsent: schema.oauthConsent,
     },
   }),
   emailAndPassword: {
@@ -42,6 +45,25 @@ export const auth = betterAuth({
       adminRoles: ["admin"],
     }),
     bearer(),
+    mcp({
+      loginPage: "/login",
+      resource: `${baseURL}/mcp`,
+      oidcConfig: {
+        loginPage: "/login",
+        defaultScope: "openid profile email offline_access sab:read sab:write",
+        scopes: ["sab:read", "sab:write"],
+        metadata: {
+          scopes_supported: [
+            "openid",
+            "profile",
+            "email",
+            "offline_access",
+            "sab:read",
+            "sab:write",
+          ],
+        },
+      },
+    }),
   ],
   secret: process.env.BETTER_AUTH_SECRET,
   baseURL,
