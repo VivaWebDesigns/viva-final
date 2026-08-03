@@ -47,6 +47,8 @@ export const SAB_HEADERS = [
   "research_notes",
   "updated_at",
   "updated_by",
+  "sales_priority",
+  "sales_priority_reason",
 ] as const;
 
 export type SabHeader = typeof SAB_HEADERS[number];
@@ -76,6 +78,10 @@ export const sabCompanyUpdatesSchema = z.object({
   qualification_status: z.literal("qualified").optional().describe(
     "CRM import gate. Set exactly to 'qualified' before marking a company complete.",
   ),
+  sales_priority: z.number().int().min(1).max(3).optional().describe(
+    "Website-sales priority: 3 is strongest, 2 is viable, and 1 is low priority.",
+  ),
+  sales_priority_reason: nullableString.optional(),
   blocker: nullableString.optional(),
   research_notes: nullableString.optional(),
 }).strict();

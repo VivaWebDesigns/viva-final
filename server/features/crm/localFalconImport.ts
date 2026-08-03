@@ -50,6 +50,7 @@ const prospectSchema = z.object({
   zip: z.string().trim().min(1),
   phone: nullableText,
   owner_name: nullableText,
+  email: nullableText,
   google_maps_url: z.string().trim().url(),
   has_website: z.boolean(),
   website_url: nullableUrl,
@@ -62,8 +63,11 @@ const prospectSchema = z.object({
   scan_date: z.string().trim().min(1),
   scan_keyword: z.string().trim().min(1),
   arp: z.coerce.number().finite().min(0),
+  solv: z.coerce.number().finite().min(0).max(100),
   rating: z.coerce.number().finite().min(0).max(5),
   review_count: z.coerce.number().int().min(0),
+  sales_priority: z.coerce.number().int().min(1).max(3),
+  sales_priority_reason: z.string().trim().min(1).max(500),
   heatmap_file: z.string().trim().min(1).optional(),
   qualification_status: z.literal("qualified"),
 }).strict().superRefine((value, ctx) => {
@@ -455,6 +459,7 @@ export async function importLocalFalconPayload(
           name: prospect.company_name,
           website: prospect.website_url,
           phone: prospect.phone ? normalizePhoneDigits(prospect.phone) : null,
+          email: prospect.email,
           address: prospect.address,
           city: prospect.city,
           state: prospect.state,
@@ -472,6 +477,7 @@ export async function importLocalFalconPayload(
             companyId: company.id,
             firstName: parts[0],
             lastName: parts.slice(1).join(" ") || null,
+            email: prospect.email,
             phone: prospect.phone ? normalizePhoneDigits(prospect.phone) : null,
             title: "Owner",
             preferredLanguage: "en",
@@ -551,8 +557,12 @@ export async function importLocalFalconPayload(
         snapshotSha256: asset.snapshot.sha256,
         snapshotGeneratedAt: new Date(),
         arp: String(prospect.arp),
+        solv: String(prospect.solv),
         rating: String(prospect.rating),
         reviewCount: prospect.review_count,
+        tier: String(prospect.sales_priority),
+        pitchType: "website",
+        pitchSummary: prospect.sales_priority_reason,
       });
 
       results.push({

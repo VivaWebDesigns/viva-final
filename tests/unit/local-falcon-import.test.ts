@@ -26,6 +26,7 @@ const prospect = {
   zip: "28110",
   phone: "704-555-0111",
   owner_name: "Ana Rivera",
+  email: "ana@acmeroofing.com",
   google_maps_url: "https://maps.google.com/example",
   has_website: true,
   website_url: "https://acmeroofing.com",
@@ -35,8 +36,11 @@ const prospect = {
   scan_date: "2026-07-20",
   scan_keyword: "roofer",
   arp: 8.2,
+  solv: 16.33,
   rating: 4.8,
   review_count: 41,
+  sales_priority: 3,
+  sales_priority_reason: "Thin website and active paid-lead usage.",
   heatmap_file: heatmapPath,
   qualification_status: "qualified",
 };
@@ -134,6 +138,12 @@ describe("parseLocalFalconPayload", () => {
     expect(result.batch.market.state).toBe("NC");
     expect(result.prospects[0].state).toBe("NC");
     expect(result.prospects[0].qualification_status).toBe("qualified");
+    expect(result.prospects[0]).toMatchObject({
+      email: "ana@acmeroofing.com",
+      solv: 16.33,
+      sales_priority: 3,
+      sales_priority_reason: "Thin website and active paid-lead usage.",
+    });
   });
 
   it("rejects duplicate Place IDs inside one manifest", () => {

@@ -170,6 +170,7 @@ function publicRow(row: SabRow) {
     reviews_analysis: parseJsonArray(row.reviews_analysis),
     rating: row.rating ? Number(row.rating) : null,
     review_count: row.review_count ? Number(row.review_count) : null,
+    sales_priority: row.sales_priority ? Number(row.sales_priority) : null,
   };
 }
 
