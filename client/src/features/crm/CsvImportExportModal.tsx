@@ -149,6 +149,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
     enabled: open && entityType === "local_falcon",
   });
   const salesReps = assignableUsers.filter((user) => user.role === "sales_rep");
+  const isJsonPackage = file?.name.toLowerCase().endsWith(".json") ?? false;
 
   const clearImportState = () => {
     setFile(null);
@@ -485,33 +486,58 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
                     </div>
                   </div>
                 )}
-                {imageFailures.length > 0 && (
+                {file && isJsonPackage && (
                   <div
-                    className="rounded-lg border border-dashed border-amber-400 bg-amber-50 p-4"
+                    className={`rounded-lg border border-dashed p-4 ${
+                      imageFailures.length > 0
+                        ? "border-amber-400 bg-amber-50"
+                        : "border-slate-300 bg-slate-50"
+                    }`}
                     onDragOver={(event) => event.preventDefault()}
                     onDrop={(event) => { event.preventDefault(); addHeatmaps(Array.from(event.dataTransfer.files)); }}
-                    data-testid="local-falcon-image-fallback"
+                    data-testid="local-falcon-image-overrides"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-start gap-2">
-                        <ImagePlus className="mt-0.5 h-5 w-5 text-amber-700" />
+                        <ImagePlus className={`mt-0.5 h-5 w-5 ${imageFailures.length > 0 ? "text-amber-700" : "text-slate-600"}`} />
                         <div>
-                          <p className="text-sm font-medium text-amber-950">Local Falcon image fallback</p>
-                          <p className="text-xs text-amber-800">Automatic retrieval exhausted its retries for the prospect{imageFailures.length === 1 ? "" : "s"} below. Retry the retained package, or add the original image and review again.</p>
+                          <p className={`text-sm font-medium ${imageFailures.length > 0 ? "text-amber-950" : "text-slate-900"}`}>
+                            Map image overrides
+                          </p>
+                          <p className={`text-xs ${imageFailures.length > 0 ? "text-amber-800" : "text-slate-600"}`}>
+                            Optional: add an original Local Falcon image named <code>&lt;place_id&gt;.png</code>. It replaces the automatic download, including a defective image that Local Falcon reports as successful.
+                          </p>
                         </div>
                       </div>
-                      <Button type="button" variant="outline" size="sm" className="bg-white" disabled={phase === "loading"} onClick={() => heatmapInputRef.current?.click()}>Choose fallback images</Button>
+                      <Button type="button" variant="outline" size="sm" className="bg-white" disabled={phase === "loading"} onClick={() => heatmapInputRef.current?.click()}>
+                        Choose map overrides
+                      </Button>
                     </div>
-                    <Input ref={heatmapInputRef} type="file" accept="image/png,image/jpeg,image/webp" multiple className="hidden" onChange={(event) => addHeatmaps(Array.from(event.target.files ?? []))} />
-                    <div className="mt-3 space-y-1">
-                      {imageFailures.map((failure) => (
-                        <p key={failure.placeId} className="text-xs text-amber-900">
-                          <span className="font-semibold">{failure.companyName}:</span> name the file <code>{failure.placeId}.png</code>
-                          <span className="block text-amber-800">Last error: {failure.reason}</span>
-                        </p>
-                      ))}
-                    </div>
-                    {heatmapFiles.length > 0 && <p className="mt-3 text-xs font-medium text-green-700">{heatmapFiles.length} fallback image{heatmapFiles.length === 1 ? "" : "s"} selected</p>}
+                    <Input
+                      ref={heatmapInputRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      multiple
+                      className="hidden"
+                      onChange={(event) => addHeatmaps(Array.from(event.target.files ?? []))}
+                      data-testid="input-local-falcon-map-overrides"
+                    />
+                    {imageFailures.length > 0 && (
+                      <div className="mt-3 space-y-1" data-testid="local-falcon-image-fallback">
+                        {imageFailures.map((failure) => (
+                          <p key={failure.placeId} className="text-xs text-amber-900">
+                            <span className="font-semibold">{failure.companyName}:</span> name the file <code>{failure.placeId}.png</code>
+                            <span className="block text-amber-800">Last error: {failure.reason}</span>
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                    {heatmapFiles.length > 0 && (
+                      <div className="mt-3 text-xs text-green-700">
+                        <p className="font-medium">{heatmapFiles.length} map override{heatmapFiles.length === 1 ? "" : "s"} selected</p>
+                        <p className="mt-1 break-all">{heatmapFiles.map((heatmap) => heatmap.name).join(", ")}</p>
+                      </div>
+                    )}
                   </div>
                 )}
               </>
@@ -666,7 +692,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
           ) : phase === "preview" ? (
             <><Button variant="outline" onClick={clearImportState} disabled={isGeneratingSnapshots}>Choose another package</Button><Button onClick={handleConfirmLocalFalcon} disabled={preview?.batchAlreadyImported || (includedRows.length > 0 && (!assignedTo || !leadClassification)) || !everyIncludedPreviewConfirmed || isGeneratingSnapshots} data-testid="button-confirm-local-falcon-import">{isGeneratingSnapshots ? "Generating snapshots…" : "Import reports"}</Button></>
           ) : (
-            <><Button variant="outline" onClick={handleClose} disabled={phase === "loading"}>Cancel</Button><Button onClick={handleImport} disabled={!file || phase === "loading"} data-testid="button-start-import">{phase === "loading" ? t.crm.importing : imageFailures.length > 0 ? "Retry automatic retrieval" : "Review import"}</Button></>
+            <><Button variant="outline" onClick={handleClose} disabled={phase === "loading"}>Cancel</Button><Button onClick={handleImport} disabled={!file || phase === "loading"} data-testid="button-start-import">{phase === "loading" ? t.crm.importing : imageFailures.length > 0 && heatmapFiles.length === 0 ? "Retry automatic retrieval" : "Review import"}</Button></>
           )}
         </DialogFooter>
       </DialogContent>

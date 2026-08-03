@@ -84,7 +84,52 @@ describe("Local Falcon import clipboard", () => {
     expect(screen.getByTestId("button-start-import")).toBeDisabled();
   });
 
-  it("shows the image uploader only after automatic Local Falcon retrieval fails", async () => {
+  it("allows map overrides before automatic Local Falcon retrieval", async () => {
+    let uploadedOverrideName: string | null = null;
+    server.use(
+      http.post("/api/crm/leads/import-local-falcon/preview", async ({ request }) => {
+        const form = await request.formData();
+        uploadedOverrideName = (form.get("heatmaps") as File | null)?.name ?? null;
+        return HttpResponse.json({
+          batchId: "test",
+          market: { city: "Charlotte", state: "NC" },
+          trade: "plumbing",
+          keyword: "plumber near me",
+          scanSpec: { grid_size: "7x7", radius_miles: 3 },
+          batchAlreadyImported: false,
+          newCount: 0,
+          variationCount: 0,
+          existingCount: 0,
+          flaggedCount: 0,
+          sourceMode: "fallback",
+          rows: [],
+        });
+      }),
+    );
+    renderModal();
+    expect(screen.queryByTestId("local-falcon-image-overrides")).not.toBeInTheDocument();
+
+    fireEvent.paste(screen.getByTestId("local-falcon-package-dropzone"), {
+      clipboardData: {
+        files: [],
+        getData: () => "{\"batch\":{\"batch_id\":\"test\"},\"prospects\":[]}",
+      },
+    });
+
+    expect(await screen.findByTestId("local-falcon-image-overrides")).toBeInTheDocument();
+    const override = new File(["image"], "ChIJ-test-1.png", { type: "image/png" });
+    fireEvent.change(screen.getByTestId("input-local-falcon-map-overrides"), {
+      target: { files: [override] },
+    });
+    expect(screen.getByText("1 map override selected")).toBeInTheDocument();
+    expect(screen.getByText("ChIJ-test-1.png")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("button-start-import"));
+    expect(await screen.findByTestId("local-falcon-import-preview")).toBeInTheDocument();
+    expect(uploadedOverrideName).toBe("ChIJ-test-1.png");
+  });
+
+  it("shows retrieval failures in the always-available map override panel", async () => {
     server.use(
       http.post("/api/crm/leads/import-local-falcon/preview", () => HttpResponse.json({
         code: "LOCAL_FALCON_IMAGE_FETCH_FAILED",
@@ -98,7 +143,6 @@ describe("Local Falcon import clipboard", () => {
       }, { status: 422 })),
     );
     renderModal();
-    expect(screen.queryByTestId("local-falcon-image-fallback")).not.toBeInTheDocument();
 
     fireEvent.paste(screen.getByTestId("local-falcon-package-dropzone"), {
       clipboardData: {
@@ -109,6 +153,7 @@ describe("Local Falcon import clipboard", () => {
     fireEvent.click(screen.getByTestId("button-start-import"));
 
     expect(await screen.findByTestId("local-falcon-image-fallback")).toBeInTheDocument();
+    expect(screen.getByTestId("local-falcon-image-overrides")).toBeInTheDocument();
     expect(screen.getByText(/name the file/i)).toHaveTextContent("ChIJ-test-1.png");
     expect(screen.getByText("Last error: Local Falcon returned HTTP 404")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Retry automatic retrieval" })).toBeEnabled();
