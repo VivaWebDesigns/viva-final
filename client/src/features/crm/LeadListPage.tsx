@@ -29,6 +29,8 @@ import { formatPhoneDisplay } from "@shared/phone";
 import { useAdminLang } from "@/i18n/LanguageContext";
 import RecycledLeadIconStack from "@/components/RecycledLeadIconStack";
 import LeadTagBadges from "@/components/LeadTagBadges";
+import SalesPriorityBadge from "@/components/SalesPriorityBadge";
+import type { SalesPrioritySnapshot } from "@shared/salesPriority";
 
 interface LeadWithRelations extends CrmLead {
   contact?: CrmContact | null;
@@ -36,6 +38,7 @@ interface LeadWithRelations extends CrmLead {
   status?: CrmLeadStatus | null;
   tags?: CrmTag[];
   lastUnassignedFromUser?: { id: string; name: string } | null;
+  salesPriority?: SalesPrioritySnapshot | null;
 }
 
 interface LeadsResponse {
@@ -554,6 +557,10 @@ export default function LeadListPage() {
                               {getLeadDisplayTitle(lead)}
                             </h3>
                             {getStatusBadge(lead)}
+                            <SalesPriorityBadge
+                              salesPriority={lead.salesPriority}
+                              testId={`badge-sales-priority-lead-${lead.id}`}
+                            />
                             <RecycledLeadIconStack
                               recycleCount={lead.recycleCount}
                               hungUpCount={lead.hungUpCount}

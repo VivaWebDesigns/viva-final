@@ -7,6 +7,8 @@ import {
 } from "@shared/schema";
 import { eq, ilike, or, desc, asc, sql, and, count, inArray } from "drizzle-orm";
 import { getTagsByLeadIds } from "../crm/storage";
+import { getLocalFalconPrioritiesByLeadIds } from "../crm/localFalconPriority";
+import type { SalesPrioritySnapshot } from "@shared/salesPriority";
 
 interface PaginationParams {
   page?: number;
@@ -197,7 +199,7 @@ export async function getOpportunitiesByStage(
     ? [...new Set(allOpps.map(o => o.assignedTo).filter(Boolean) as string[])]
     : [];
 
-  const [leadRows, contactRows, companyRows, assigneeRows, tagsByLeadId] = await Promise.all([
+  const [leadRows, contactRows, companyRows, assigneeRows, tagsByLeadId, prioritiesByLeadId] = await Promise.all([
     leadIds.length
       ? db.select({ id: crmLeads.id, recycleCount: crmLeads.recycleCount, hungUpCount: crmLeads.hungUpCount }).from(crmLeads).where(inArray(crmLeads.id, leadIds))
       : [],
@@ -211,10 +213,21 @@ export async function getOpportunitiesByStage(
       ? db.select({ id: user.id, name: user.name }).from(user).where(inArray(user.id, assigneeIds))
       : [],
     getTagsByLeadIds(leadIds),
+    getLocalFalconPrioritiesByLeadIds(leadIds),
   ]);
 
-  const leadRecycleMap: Record<string, { id: string; recycleCount: number; hungUpCount: number; tags: CrmTag[] }> = Object.fromEntries(
-    leadRows.map((lead) => [lead.id, { ...lead, tags: tagsByLeadId[lead.id] ?? [] }]),
+  const leadRecycleMap: Record<string, {
+    id: string;
+    recycleCount: number;
+    hungUpCount: number;
+    tags: CrmTag[];
+    salesPriority: SalesPrioritySnapshot | null;
+  }> = Object.fromEntries(
+    leadRows.map((lead) => [lead.id, {
+      ...lead,
+      tags: tagsByLeadId[lead.id] ?? [],
+      salesPriority: prioritiesByLeadId[lead.id] ?? null,
+    }]),
   );
   const contactMap: Record<string, { id: string; firstName: string; lastName: string | null; phone: string | null }> = Object.fromEntries(contactRows.map(c => [c.id, c]));
   const companyMap: Record<string, { id: string; name: string; city: string | null; industry: string | null }> = Object.fromEntries(companyRows.map(c => [c.id, c]));

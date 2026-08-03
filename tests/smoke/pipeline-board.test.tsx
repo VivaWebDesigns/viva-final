@@ -64,6 +64,10 @@ describe("PipelineBoardPage smoke", () => {
             recycleCount: 0,
             hungUpCount: 0,
             tags: [{ id: "tag-sab", name: "SAB", slug: "sab", color: "#7C3AED" }],
+            salesPriority: {
+              priority: 3,
+              reason: "No website and active paid-lead usage.",
+            },
           },
         },
       })),
@@ -72,5 +76,6 @@ describe("PipelineBoardPage smoke", () => {
     renderWithProviders(<PipelineBoardPage />, { route: "/admin/pipeline" });
 
     expect(await screen.findByTestId("badge-pipeline-tag-opp-1-sab")).toHaveTextContent("SAB");
+    expect(screen.getByTestId("badge-sales-priority-opportunity-opp-1")).toHaveTextContent("3");
   });
 });

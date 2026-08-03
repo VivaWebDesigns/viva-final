@@ -33,6 +33,7 @@ import { useAdminLang } from "@/i18n/LanguageContext";
 import { renderActivityContent, renderTaskTitle } from "@/lib/activityI18n";
 import { US_STATES } from "@/lib/usStates";
 import { BUSINESS_TRADES } from "@/features/crm/CreateLeadModal";
+import SalesPriorityBadge from "@/components/SalesPriorityBadge";
 
 type TaskWithContact = FollowupTask & {
   contact: { firstName: string; lastName: string | null; phone: string | null } | null;
@@ -776,7 +777,16 @@ export default function LeadDetailPage({ id }: { id: string }) {
                     Write-once snapshot from batch {lead.localFalcon.batch.batchId}
                   </p>
                 </div>
-                <Badge className="text-sm capitalize">{lead.localFalcon.profile.qualificationStatus}</Badge>
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <SalesPriorityBadge
+                    priority={lead.localFalcon.profile.tier}
+                    reason={lead.localFalcon.profile.pitchSummary}
+                    showLabel
+                    className="h-7 px-2.5 text-xs"
+                    testId="badge-sales-priority-lead-detail"
+                  />
+                  <Badge className="text-sm capitalize">{lead.localFalcon.profile.qualificationStatus}</Badge>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
@@ -810,6 +820,14 @@ export default function LeadDetailPage({ id }: { id: string }) {
                   <p className="text-xs text-gray-500">Keyword</p>
                   <p className="text-gray-900">{lead.localFalcon.profile.scanKeyword}</p>
                 </div>
+                {lead.localFalcon.profile.pitchSummary && (
+                  <div className="sm:col-span-2">
+                    <p className="text-xs text-gray-500">Sales priority reason</p>
+                    <p className="text-gray-900" data-testid="text-sales-priority-reason">
+                      {lead.localFalcon.profile.pitchSummary}
+                    </p>
+                  </div>
+                )}
                 <div className="sm:col-span-2 flex flex-wrap gap-3">
                   <a href={lead.localFalcon.profile.googleMapsUrl ?? "#"} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">Google Maps</a>
                   {lead.localFalcon.profile.reportUrl && <a href={lead.localFalcon.profile.reportUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">Local Falcon report</a>}

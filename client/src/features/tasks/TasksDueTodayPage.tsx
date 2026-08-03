@@ -21,6 +21,8 @@ import { renderTaskTitle, renderTaskNotes, getStageLabel } from "@/lib/activityI
 import { useAuth } from "@features/auth/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import LeadTagBadges from "@/components/LeadTagBadges";
+import SalesPriorityBadge from "@/components/SalesPriorityBadge";
+import type { SalesPrioritySnapshot } from "@shared/salesPriority";
 
 interface AutomationMeta {
   triggerStageSlug: string;
@@ -31,7 +33,14 @@ interface AutomationMeta {
 interface TaskWithContact extends FollowupTask {
   contact: { firstName: string; lastName: string | null; phone: string | null } | null;
   company: { name: string; industry: string | null; city: string | null } | null;
-  lead: { trade: string | null; city: string | null; recycleCount: number; hungUpCount: number; tags: CrmTag[] } | null;
+  lead: {
+    trade: string | null;
+    city: string | null;
+    recycleCount: number;
+    hungUpCount: number;
+    tags: CrmTag[];
+    salesPriority: SalesPrioritySnapshot | null;
+  } | null;
   automationMeta: AutomationMeta | null;
   opportunityStageSlug: string | null;
 }
@@ -100,6 +109,10 @@ function TaskRow({
           <p className="text-sm font-medium text-gray-900 leading-tight" data-testid={`text-task-title-${task.id}`}>
             {renderTitle(task)}
           </p>
+          <SalesPriorityBadge
+            salesPriority={task.lead?.salesPriority}
+            testId={`badge-sales-priority-task-${task.id}`}
+          />
           <span className="flex items-center gap-1 text-xs font-medium text-amber-500 whitespace-nowrap" data-testid={`text-due-date-${task.id}`}>
             <CalendarClock className="w-3 h-3" />
             {new Date(task.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}{task.followUpTime ? ` at ${formatTaskTimeDisplay(task.dueDate, task.followUpTime, task.followUpTimezone)}` : ""}
@@ -252,6 +265,11 @@ function CompletedTaskCard({
           <p className="text-sm font-medium text-gray-700 leading-tight line-clamp-2">
             {renderTitle(task)}
           </p>
+          <SalesPriorityBadge
+            salesPriority={task.lead?.salesPriority}
+            className="mt-1"
+            testId={`badge-sales-priority-completed-task-${task.id}`}
+          />
 
           <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1.5">
             {contactName && (

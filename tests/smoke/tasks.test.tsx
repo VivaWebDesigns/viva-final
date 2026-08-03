@@ -65,6 +65,10 @@ describe("TasksDueTodayPage smoke", () => {
             recycleCount: 0,
             hungUpCount: 0,
             tags: [{ id: "tag-sab", name: "SAB", slug: "sab", color: "#7C3AED" }],
+            salesPriority: {
+              priority: 2,
+              reason: "Strong need with moderate business activity.",
+            },
           },
           automationMeta: null,
           opportunityStageSlug: "new-lead",
@@ -79,5 +83,6 @@ describe("TasksDueTodayPage smoke", () => {
     expect(await screen.findByTestId("text-lead-trade-task-1")).toHaveTextContent("Plumbing");
     expect(screen.getByTestId("text-lead-city-task-1")).toHaveTextContent("Monroe");
     expect(screen.getByTestId("badge-task-tag-task-1-sab")).toHaveTextContent("SAB");
+    expect(screen.getByTestId("badge-sales-priority-task-task-1")).toHaveTextContent("2");
   });
 });

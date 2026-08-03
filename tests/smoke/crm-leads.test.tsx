@@ -65,6 +65,10 @@ describe("CRM LeadListPage smoke", () => {
             status: null,
             tags: [{ id: "tag-sab", name: "SAB", slug: "sab", color: "#7C3AED" }],
             lastUnassignedFromUser: null,
+            salesPriority: {
+              priority: 3,
+              reason: "No website and active paid-lead usage.",
+            },
           }],
           total: 1,
           page: 1,
@@ -78,6 +82,11 @@ describe("CRM LeadListPage smoke", () => {
     expect(await screen.findByTestId("text-lead-trade-lead-1")).toHaveTextContent("Plumbing");
     expect(screen.getByTestId("text-lead-city-lead-1")).toHaveTextContent("Monroe");
     expect(screen.getByTestId("badge-lead-tag-lead-1-sab")).toHaveTextContent("SAB");
+    expect(screen.getByTestId("badge-sales-priority-lead-lead-1")).toHaveTextContent("3");
+    expect(screen.getByTestId("badge-sales-priority-lead-lead-1")).toHaveAttribute(
+      "title",
+      expect.stringContaining("No website and active paid-lead usage."),
+    );
     expect(screen.getByTestId("select-tag-filter")).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId("select-tag-filter"));

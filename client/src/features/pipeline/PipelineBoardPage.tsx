@@ -12,11 +12,19 @@ import QuickTaskModal from "@/components/QuickTaskModal";
 import RecycledLeadIconStack from "@/components/RecycledLeadIconStack";
 import { useAdminLang } from "@/i18n/LanguageContext";
 import LeadTagBadges from "@/components/LeadTagBadges";
+import SalesPriorityBadge from "@/components/SalesPriorityBadge";
+import type { SalesPrioritySnapshot } from "@shared/salesPriority";
 
 type ContactSnap = { id: string; firstName: string; lastName: string | null; phone: string | null };
 type CompanySnap = { id: string; name: string; city: string | null; industry: string | null };
 type AssigneeSnap = { id: string; name: string };
-type LeadRecycleSnap = { id: string; recycleCount: number; hungUpCount: number; tags: CrmTag[] };
+type LeadRecycleSnap = {
+  id: string;
+  recycleCount: number;
+  hungUpCount: number;
+  tags: CrmTag[];
+  salesPriority: SalesPrioritySnapshot | null;
+};
 
 interface BoardData {
   stages: PipelineStage[];
@@ -107,6 +115,10 @@ function CardDisplay({
               </span>
             )}
           </div>
+          <SalesPriorityBadge
+            salesPriority={opp.leadId ? leadRecycleMap?.[opp.leadId]?.salesPriority : null}
+            testId={`badge-sales-priority-opportunity-${opp.id}`}
+          />
         </div>
 
         <div className="space-y-1">

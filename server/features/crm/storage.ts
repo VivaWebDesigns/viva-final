@@ -11,6 +11,8 @@ import {
   type InsertSmsMessage, type SmsMessage,
 } from "@shared/schema";
 import { eq, ilike, or, desc, asc, sql, and, count, inArray } from "drizzle-orm";
+import { getLocalFalconPrioritiesByLeadIds } from "./localFalconPriority";
+import type { SalesPrioritySnapshot } from "@shared/salesPriority";
 
 export type EnrichedLead = CrmLead & {
   status: CrmLeadStatus | null;
@@ -18,6 +20,7 @@ export type EnrichedLead = CrmLead & {
   company: CrmCompany | null;
   lastUnassignedFromUser: { id: string; name: string } | null;
   tags: CrmTag[];
+  salesPriority: SalesPrioritySnapshot | null;
 };
 
 interface PaginationParams {
@@ -558,7 +561,7 @@ export async function enrichLeads(leads: CrmLead[]): Promise<EnrichedLead[]> {
   const companyIds = [...new Set(leads.map(l => l.companyId).filter((id): id is string => id !== null))];
   const lastUnassignedFromIds = [...new Set(leads.map(l => l.lastUnassignedFrom).filter((id): id is string => id !== null))];
 
-  const [statuses, contacts, companies, lastUnassignedUsers, tagsByLeadId] = await Promise.all([
+  const [statuses, contacts, companies, lastUnassignedUsers, tagsByLeadId, prioritiesByLeadId] = await Promise.all([
     statusIds.length > 0 ? db.select().from(crmLeadStatuses).where(inArray(crmLeadStatuses.id, statusIds)) : [],
     contactIds.length > 0 ? db.select().from(crmContacts).where(inArray(crmContacts.id, contactIds)) : [],
     companyIds.length > 0 ? db.select().from(crmCompanies).where(inArray(crmCompanies.id, companyIds)) : [],
@@ -566,6 +569,7 @@ export async function enrichLeads(leads: CrmLead[]): Promise<EnrichedLead[]> {
       ? db.select({ id: user.id, name: user.name }).from(user).where(inArray(user.id, lastUnassignedFromIds))
       : [],
     getTagsByLeadIds(leads.map((lead) => lead.id)),
+    getLocalFalconPrioritiesByLeadIds(leads.map((lead) => lead.id)),
   ]);
 
   const statusMap = Object.fromEntries(statuses.map(s => [s.id, s]));
@@ -580,6 +584,7 @@ export async function enrichLeads(leads: CrmLead[]): Promise<EnrichedLead[]> {
     company: lead.companyId ? companyMap[lead.companyId] ?? null : null,
     lastUnassignedFromUser: lead.lastUnassignedFrom ? lastUnassignedUserMap[lead.lastUnassignedFrom] ?? null : null,
     tags: tagsByLeadId[lead.id] ?? [],
+    salesPriority: prioritiesByLeadId[lead.id] ?? null,
   }));
 }
 
