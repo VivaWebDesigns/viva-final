@@ -176,7 +176,12 @@ router.get(
       const snapshotImageUrl = record.profile.snapshotStorageKey
         ? await getSignedDownloadUrl(record.profile.snapshotStorageKey)
         : null;
-      const address = [record.profile.address, record.profile.city, record.profile.state, record.profile.zip]
+      const address = [
+        record.profile.address,
+        record.profile.scanCity ?? record.profile.city,
+        record.profile.scanState ?? record.profile.state,
+        record.profile.scanZip ?? record.profile.zip,
+      ]
         .filter(Boolean).join(", ").replace(/, ([A-Z]{2}), /, ", $1 ");
       res.json({
         reportId: accessRecord.id,
@@ -321,7 +326,12 @@ router.get(
       const snapshotImageUrl = record.profile.snapshotStorageKey
         ? await getSignedDownloadUrl(record.profile.snapshotStorageKey)
         : null;
-      const address = [record.profile.address, record.profile.city, record.profile.state, record.profile.zip]
+      const address = [
+        record.profile.address,
+        record.profile.scanCity ?? record.profile.city,
+        record.profile.scanState ?? record.profile.state,
+        record.profile.scanZip ?? record.profile.zip,
+      ]
         .filter(Boolean).join(", ").replace(/, ([A-Z]{2}), /, ", $1 ");
       res.json({
         leadId: req.params.leadId as string,
