@@ -1,4 +1,4 @@
-import { GoogleAuth } from "google-auth-library";
+import { GoogleAuth, OAuth2Client } from "google-auth-library";
 import {
   SAB_HEADERS,
   type SabCompanyUpdates,
@@ -26,12 +26,22 @@ type ServiceAccountCredentials = {
   project_id?: string;
 };
 
-function parseServiceAccountCredentials(raw: string): ServiceAccountCredentials {
+type OAuthClientCredentials = {
+  client_id: string;
+  client_secret: string;
+};
+
+function decodeCredentialsJson(raw: string) {
   const trimmed = raw.trim();
-  const decoded = trimmed.startsWith("{")
+  return trimmed.startsWith("{")
     ? trimmed
     : Buffer.from(trimmed, "base64").toString("utf8");
-  const credentials = JSON.parse(decoded) as Partial<ServiceAccountCredentials>;
+}
+
+function parseServiceAccountCredentials(raw: string): ServiceAccountCredentials {
+  const credentials = JSON.parse(
+    decodeCredentialsJson(raw),
+  ) as Partial<ServiceAccountCredentials>;
 
   if (!credentials.client_email || !credentials.private_key) {
     throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON is missing client_email or private_key");
@@ -40,22 +50,52 @@ function parseServiceAccountCredentials(raw: string): ServiceAccountCredentials 
   return credentials as ServiceAccountCredentials;
 }
 
+function parseOAuthClientCredentials(raw: string): OAuthClientCredentials {
+  const parsed = JSON.parse(decodeCredentialsJson(raw)) as {
+    installed?: Partial<OAuthClientCredentials>;
+    web?: Partial<OAuthClientCredentials>;
+  };
+  const credentials = parsed.installed || parsed.web;
+
+  if (!credentials?.client_id || !credentials.client_secret) {
+    throw new Error("GOOGLE_OAUTH_CLIENT_JSON is missing client_id or client_secret");
+  }
+
+  return credentials as OAuthClientCredentials;
+}
+
 function quoteSheetName(name: string): string {
   return `'${name.replace(/'/g, "''")}'`;
 }
 
 export class GoogleSheetsValuesClient implements SheetsValuesClient {
-  private readonly auth: GoogleAuth;
+  private readonly auth: GoogleAuth | OAuth2Client;
 
-  constructor(credentialsJson: string) {
-    this.auth = new GoogleAuth({
-      credentials: parseServiceAccountCredentials(credentialsJson),
-      scopes: [SHEETS_SCOPE],
-    });
+  constructor(credentialsJson: string, refreshToken?: string) {
+    if (refreshToken) {
+      const credentials = parseOAuthClientCredentials(credentialsJson);
+      const oauth = new OAuth2Client(
+        credentials.client_id,
+        credentials.client_secret,
+      );
+      oauth.setCredentials({ refresh_token: refreshToken });
+      this.auth = oauth;
+    } else {
+      this.auth = new GoogleAuth({
+        credentials: parseServiceAccountCredentials(credentialsJson),
+        scopes: [SHEETS_SCOPE],
+      });
+    }
+  }
+
+  private async getClient() {
+    return this.auth instanceof GoogleAuth
+      ? this.auth.getClient()
+      : this.auth;
   }
 
   async getValues(spreadsheetId: string, range: string): Promise<string[][]> {
-    const client = await this.auth.getClient();
+    const client = await this.getClient();
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${encodeURIComponent(range)}`;
     const response = await client.request<{ values?: Array<Array<string | number | boolean>> }>({
       url,
@@ -72,7 +112,7 @@ export class GoogleSheetsValuesClient implements SheetsValuesClient {
   ): Promise<void> {
     if (updates.length === 0) return;
 
-    const client = await this.auth.getClient();
+    const client = await this.getClient();
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values:batchUpdate`;
     await client.request({
       url,
@@ -279,15 +319,27 @@ export class SabSheetsRepository {
 }
 
 export function createSabSheetsRepositoryFromEnv() {
-  const credentials = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
   const spreadsheetId = process.env.SAB_SHEET_ID;
   const sheetName = process.env.SAB_SHEET_TAB || "SAB Workflow";
+  const oauthClient = process.env.GOOGLE_OAUTH_CLIENT_JSON;
+  const oauthRefreshToken = process.env.GOOGLE_OAUTH_REFRESH_TOKEN;
+  const serviceAccount = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
 
-  if (!credentials) throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON is not configured");
   if (!spreadsheetId) throw new Error("SAB_SHEET_ID is not configured");
 
+  let sheetsClient: GoogleSheetsValuesClient;
+  if (oauthClient && oauthRefreshToken) {
+    sheetsClient = new GoogleSheetsValuesClient(oauthClient, oauthRefreshToken);
+  } else if (serviceAccount) {
+    sheetsClient = new GoogleSheetsValuesClient(serviceAccount);
+  } else {
+    throw new Error(
+      "Google Sheets credentials are not configured; set OAuth client credentials and refresh token",
+    );
+  }
+
   return new SabSheetsRepository(
-    new GoogleSheetsValuesClient(credentials),
+    sheetsClient,
     spreadsheetId,
     sheetName,
   );
