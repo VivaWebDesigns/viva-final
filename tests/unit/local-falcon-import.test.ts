@@ -146,6 +146,46 @@ describe("parseLocalFalconPayload", () => {
     });
   });
 
+  it("accepts a verified scan-center market separately from the company address", () => {
+    const result = parseLocalFalconPayload(JSON.stringify({
+      ...payload,
+      prospects: [{
+        ...prospect,
+        scan_center: {
+          lat: 35.0397325,
+          lng: -80.848928,
+          city: "Charlotte",
+          state: "nc",
+          zip: "28277",
+        },
+      }],
+    }));
+
+    expect(result.prospects[0].scan_center).toEqual({
+      lat: 35.0397325,
+      lng: -80.848928,
+      city: "Charlotte",
+      state: "NC",
+      zip: "28277",
+    });
+  });
+
+  it("rejects scan-center coordinates outside valid latitude and longitude ranges", () => {
+    expect(() => parseLocalFalconPayload(JSON.stringify({
+      ...payload,
+      prospects: [{
+        ...prospect,
+        scan_center: {
+          lat: 95,
+          lng: -80.848928,
+          city: "Charlotte",
+          state: "NC",
+          zip: "28277",
+        },
+      }],
+    }))).toThrow(/scan_center.lat/i);
+  });
+
   it("rejects duplicate Place IDs inside one manifest", () => {
     expect(() => parseLocalFalconPayload(JSON.stringify({ ...payload, prospects: [prospect, prospect] })))
       .toThrow(/place_id is duplicated/i);

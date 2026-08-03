@@ -1,4 +1,4 @@
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { db } from "../../db";
 import {
   crmLeads,
@@ -82,8 +82,8 @@ const reportSelection = {
   placeId: localFalconProspectProfiles.placeId,
   businessName: localFalconProspectProfiles.companyName,
   keyword: localFalconProspectProfiles.scanKeyword,
-  marketCity: localFalconImportBatches.marketCity,
-  marketState: localFalconImportBatches.marketState,
+  marketCity: sql<string>`coalesce(${localFalconProspectProfiles.scanCity}, ${localFalconImportBatches.marketCity})`,
+  marketState: sql<string>`coalesce(${localFalconProspectProfiles.scanState}, ${localFalconImportBatches.marketState})`,
   radius: localFalconImportBatches.radiusMiles,
   gridSize: localFalconImportBatches.gridSize,
   scanDate: localFalconProspectProfiles.scanDate,

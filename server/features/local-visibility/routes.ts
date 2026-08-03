@@ -2,7 +2,7 @@ import { Router, type NextFunction, type Request, type Response } from "express"
 import multer from "multer";
 import crypto from "node:crypto";
 import sharp from "sharp";
-import { and, desc, eq, isNotNull } from "drizzle-orm";
+import { and, desc, eq, isNotNull, sql } from "drizzle-orm";
 import { requireRole } from "../auth/middleware";
 import { analyzeVisibilityScreenshots } from "./analysis";
 import { db } from "../../db";
@@ -56,8 +56,8 @@ router.get(
         reportId: localFalconProspectProfiles.id,
         leadId: crmLeads.id,
         businessName: localFalconProspectProfiles.companyName,
-        city: localFalconProspectProfiles.city,
-        state: localFalconProspectProfiles.state,
+        city: sql<string>`coalesce(${localFalconProspectProfiles.scanCity}, ${localFalconProspectProfiles.city})`,
+        state: sql<string>`coalesce(${localFalconProspectProfiles.scanState}, ${localFalconProspectProfiles.state})`,
         keyword: localFalconProspectProfiles.scanKeyword,
         scanDate: localFalconProspectProfiles.scanDate,
       }).from(localFalconProspectProfiles)
@@ -203,7 +203,7 @@ router.get(
           rating: record.profile.rating,
           reviewCount: String(record.profile.reviewCount),
           searchPhrase: record.profile.scanKeyword,
-          market: `${record.batch.marketCity}, ${record.batch.marketState}`,
+          market: `${record.profile.scanCity ?? record.batch.marketCity}, ${record.profile.scanState ?? record.batch.marketState}`,
           averagePosition: record.profile.arp,
           gridSize: record.batch.gridSize ?? "7 × 7",
           radius: record.batch.radiusMiles ?? "2.5",
@@ -347,7 +347,7 @@ router.get(
           rating: record.profile.rating,
           reviewCount: String(record.profile.reviewCount),
           searchPhrase: record.profile.scanKeyword,
-          market: `${record.batch.marketCity}, ${record.batch.marketState}`,
+          market: `${record.profile.scanCity ?? record.batch.marketCity}, ${record.profile.scanState ?? record.batch.marketState}`,
           averagePosition: record.profile.arp,
           gridSize: record.batch.gridSize ?? "7 × 7",
           radius: record.batch.radiusMiles ?? "2.5",

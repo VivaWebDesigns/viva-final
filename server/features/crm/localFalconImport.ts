@@ -25,6 +25,13 @@ import {
 const nullableText = z.string().trim().min(1).nullable();
 const nullableUrl = z.string().trim().url().nullable();
 const nullableAnalysis = z.array(z.string()).min(3).max(6).nullable().optional().default(null);
+const scanCenterSchema = z.object({
+  lat: z.coerce.number().finite().min(-90).max(90),
+  lng: z.coerce.number().finite().min(-180).max(180),
+  city: z.string().trim().min(1),
+  state: z.string().trim().regex(/^[A-Za-z]{2}$/).transform((value) => value.toUpperCase()),
+  zip: z.string().trim().min(1),
+}).strict();
 
 const batchSchema = z.object({
   batch_id: z.string().trim().min(1),
@@ -68,6 +75,7 @@ const prospectSchema = z.object({
   review_count: z.coerce.number().int().min(0),
   sales_priority: z.coerce.number().int().min(1).max(3),
   sales_priority_reason: z.string().trim().min(1).max(500),
+  scan_center: scanCenterSchema.optional(),
   heatmap_file: z.string().trim().min(1).optional(),
   qualification_status: z.literal("qualified"),
 }).strict().superRefine((value, ctx) => {
@@ -95,6 +103,14 @@ const payloadSchema = z.object({
 export type LocalFalconBatchInput = z.infer<typeof batchSchema>;
 export type LocalFalconProspectInput = z.infer<typeof prospectSchema>;
 export type LocalFalconPayload = z.infer<typeof payloadSchema>;
+
+function crmLocation(prospect: LocalFalconProspectInput) {
+  return prospect.scan_center ?? {
+    city: prospect.city,
+    state: prospect.state,
+    zip: prospect.zip,
+  };
+}
 
 export interface LocalFalconUploadedAsset {
   key: string;
@@ -409,6 +425,7 @@ export async function importLocalFalconPayload(
     const results: LocalFalconImportResult["importedLeads"] = [];
     for (const prospect of payload.prospects) {
       if (!allowedPlaceIds.has(prospect.place_id)) continue;
+      const location = crmLocation(prospect);
       const [duplicate] = await tx.select({ id: localFalconProspectProfiles.id })
         .from(localFalconProspectProfiles).where(eq(localFalconProspectProfiles.reportKey, prospect.report_key)).limit(1);
       if (duplicate) continue;
@@ -433,8 +450,22 @@ export async function importLocalFalconPayload(
           .where(eq(crmCompanies.id, existingScan.lead.companyId))
           .limit(1);
         if (!existingCompany) throw new Error(`Existing company was not found for ${prospect.company_name}`);
-        company = existingCompany;
-        lead = existingScan.lead;
+        if (prospect.scan_center) {
+          [company] = await tx.update(crmCompanies).set({
+            city: location.city,
+            state: location.state,
+            zip: location.zip,
+            updatedAt: new Date(),
+          }).where(eq(crmCompanies.id, existingCompany.id)).returning();
+          [lead] = await tx.update(crmLeads).set({
+            city: location.city,
+            state: location.state,
+            updatedAt: new Date(),
+          }).where(eq(crmLeads.id, existingScan.lead.id)).returning();
+        } else {
+          company = existingCompany;
+          lead = existingScan.lead;
+        }
         contactId = lead.contactId;
         const [existingOpportunity] = await tx.select().from(pipelineOpportunities)
           .where(eq(pipelineOpportunities.leadId, lead.id))
@@ -461,9 +492,9 @@ export async function importLocalFalconPayload(
           phone: prospect.phone ? normalizePhoneDigits(prospect.phone) : null,
           email: prospect.email,
           address: prospect.address,
-          city: prospect.city,
-          state: prospect.state,
-          zip: prospect.zip,
+          city: location.city,
+          state: location.state,
+          zip: location.zip,
           country: "US",
           industry: payload.batch.trade,
           preferredLanguage: "en",
@@ -493,8 +524,8 @@ export async function importLocalFalconPayload(
           title: prospect.company_name,
           source: "local_falcon",
           sourceLabel: "Local Falcon / Claude",
-          city: prospect.city,
-          state: prospect.state,
+          city: location.city,
+          state: location.state,
           trade: payload.batch.trade,
           notes: `Qualified Local Falcon prospect · ARP ${prospect.arp}`,
           assignedTo,
@@ -529,6 +560,11 @@ export async function importLocalFalconPayload(
         city: prospect.city,
         state: prospect.state,
         zip: prospect.zip,
+        scanCenterLat: prospect.scan_center ? String(prospect.scan_center.lat) : null,
+        scanCenterLng: prospect.scan_center ? String(prospect.scan_center.lng) : null,
+        scanCity: prospect.scan_center?.city ?? null,
+        scanState: prospect.scan_center?.state ?? null,
+        scanZip: prospect.scan_center?.zip ?? null,
         phone: prospect.phone ? normalizePhoneDigits(prospect.phone) : null,
         ownerName: prospect.owner_name,
         googleMapsUrl: prospect.google_maps_url,

@@ -444,7 +444,9 @@ router.post(
               rating: String(prospect.rating),
               reviewCount: String(prospect.review_count),
               searchPhrase: prospect.scan_keyword,
-              market: `${parsedPackage.payload.batch.market.city}, ${parsedPackage.payload.batch.market.state}`,
+              market: prospect.scan_center
+                ? `${prospect.scan_center.city}, ${prospect.scan_center.state}`
+                : `${parsedPackage.payload.batch.market.city}, ${parsedPackage.payload.batch.market.state}`,
               averagePosition: String(prospect.arp),
               gridSize: parsedPackage.payload.batch.scan_spec.grid_size,
               radius: String(parsedPackage.payload.batch.scan_spec.radius_miles),
