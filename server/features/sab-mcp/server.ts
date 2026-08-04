@@ -1,6 +1,8 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { type SabSheetsRepositoryFactory } from "./sheets";
+import { checkCrmPlaceIds } from "./crmDedup";
 import {
+  checkCrmPlaceIdsInputSchema,
   getSabBatchInputSchema,
   getSabCompanyInputSchema,
   getSabProgressInputSchema,
@@ -26,7 +28,7 @@ export function createSabMcpServer(
 ) {
   const server = new McpServer({
     name: "viva-sab-workflow",
-    version: "1.0.0",
+    version: "1.1.0",
   });
 
   server.registerTool("get_sab_schema", {
@@ -40,6 +42,14 @@ export function createSabMcpServer(
       statuses: SAB_STATUSES,
       qualification_statuses: SAB_QUALIFICATION_STATUSES,
     });
+  });
+
+  server.registerTool("check_crm_place_ids", {
+    description:
+      "Bulk-check discovered Google Place IDs against prior Local Falcon CRM prospect profiles using exact Place-ID equality. Use this immediately after building the discovery ledger and before audits. Do not substitute company-name, phone, website, address, or fuzzy matching.",
+    inputSchema: checkCrmPlaceIdsInputSchema,
+  }, async ({ place_ids }) => {
+    return jsonToolResult(await checkCrmPlaceIds(place_ids));
   });
 
   server.registerTool("get_sab_batch", {

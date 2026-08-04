@@ -133,4 +133,12 @@ export const getSabProgressInputSchema = {
   batch_id: batchId.optional().describe("Omit to return progress for every batch in the selected Workflow Sheet"),
 };
 
+export const checkCrmPlaceIdsInputSchema = {
+  place_ids: z.array(
+    z.string().trim().min(1).max(500),
+  ).min(1).max(2_000).describe(
+    "Google Place IDs discovered in the completed master scan. Matching is exact Place-ID equality only.",
+  ),
+};
+
 export type SabCompanyUpdates = z.infer<typeof sabCompanyUpdatesSchema>;
