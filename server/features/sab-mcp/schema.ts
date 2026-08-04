@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-export const SAB_BATCH_IDS = ["B01", "B02", "B03", "B04"] as const;
 export const SAB_STATUSES = [
   "assigned",
   "in_progress",
@@ -8,6 +7,11 @@ export const SAB_STATUSES = [
   "blocked",
   "qa_ready",
   "imported",
+] as const;
+export const SAB_QUALIFICATION_STATUSES = [
+  "qualified",
+  "disqualified",
+  "deferred",
 ] as const;
 
 export const SAB_HEADERS = [
@@ -56,6 +60,19 @@ export type SabRow = Record<SabHeader, string>;
 
 const nullableString = z.string().trim().max(20_000).nullable();
 const auditFindings = z.array(z.string().trim().min(1).max(1_000)).min(3).max(6);
+const workflowSheet = z.string().trim().min(1).max(2_000).describe(
+  "Exact Google Sheets URL or spreadsheet ID for this city run's SAB Workflow Sheet.",
+);
+const workflowSheetTab = z.string().trim().min(1).max(200).default("SAB Workflow").describe(
+  "Worksheet tab containing the SAB workflow table.",
+);
+const batchId = z.string().trim().min(1).max(100).describe(
+  "Batch ID assigned in this city run's Workflow Sheet, such as B01.",
+);
+const workflowSheetInputSchema = {
+  workflow_sheet: workflowSheet,
+  sheet_name: workflowSheetTab,
+};
 
 export const sabCompanyUpdatesSchema = z.object({
   status: z.enum(SAB_STATUSES).optional(),
@@ -75,8 +92,8 @@ export const sabCompanyUpdatesSchema = z.object({
   reviews_analysis: auditFindings.optional(),
   rating: z.number().min(0).max(5).nullable().optional(),
   review_count: z.number().int().min(0).nullable().optional(),
-  qualification_status: z.literal("qualified").optional().describe(
-    "CRM import gate. Set exactly to 'qualified' before marking a company complete.",
+  qualification_status: z.enum(SAB_QUALIFICATION_STATUSES).optional().describe(
+    "Final audit disposition. Use qualified, disqualified, or deferred before marking a company complete.",
   ),
   sales_priority: z.number().int().min(1).max(3).optional().describe(
     "Website-sales priority: 3 is strongest, 2 is viable, and 1 is low priority.",
@@ -87,15 +104,18 @@ export const sabCompanyUpdatesSchema = z.object({
 }).strict();
 
 export const getSabBatchInputSchema = {
-  batch_id: z.enum(SAB_BATCH_IDS).describe("Assigned SAB batch: B01, B02, B03, or B04"),
+  ...workflowSheetInputSchema,
+  batch_id: batchId,
   include_completed: z.boolean().default(false).describe("Include rows already marked complete, qa_ready, or imported"),
 };
 
 export const getSabCompanyInputSchema = {
+  ...workflowSheetInputSchema,
   place_id: z.string().trim().min(1).describe("Google Place ID from the SAB source sheet"),
 };
 
 export const saveSabCompanyInputSchema = {
+  ...workflowSheetInputSchema,
   place_id: z.string().trim().min(1).describe("Google Place ID from the SAB source sheet"),
   updates: sabCompanyUpdatesSchema.describe(
     "Only the company fields that should change. Audit arrays must contain 3–6 concise, relevant findings.",
@@ -103,12 +123,14 @@ export const saveSabCompanyInputSchema = {
 };
 
 export const markSabBlockedInputSchema = {
+  ...workflowSheetInputSchema,
   place_id: z.string().trim().min(1),
   reason: z.string().trim().min(1).max(2_000),
 };
 
 export const getSabProgressInputSchema = {
-  batch_id: z.enum(SAB_BATCH_IDS).optional().describe("Omit to return progress for all four batches"),
+  ...workflowSheetInputSchema,
+  batch_id: batchId.optional().describe("Omit to return progress for every batch in the selected Workflow Sheet"),
 };
 
 export type SabCompanyUpdates = z.infer<typeof sabCompanyUpdatesSchema>;

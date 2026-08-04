@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { auth } from "../auth/auth";
 import { db } from "../../db";
 import { user } from "@shared/schema";
-import { createSabSheetsRepositoryFromEnv } from "./sheets";
+import { createSabSheetsRepositoryFactoryFromEnv } from "./sheets";
 import { createSabMcpServer } from "./server";
 
 const ALLOWED_ROLES = new Set(["admin", "developer"]);
@@ -108,9 +108,9 @@ export function registerSabMcpRoutes(app: Express) {
     const actor = await authenticateMcpRequest(req, res);
     if (!actor || res.headersSent) return;
 
-    let repository;
+    let repositoryFactory;
     try {
-      repository = createSabSheetsRepositoryFromEnv();
+      repositoryFactory = createSabSheetsRepositoryFactoryFromEnv();
     } catch (error) {
       const message = error instanceof Error ? error.message : "SAB MCP is not configured";
       return res.status(503).json({
@@ -120,7 +120,7 @@ export function registerSabMcpRoutes(app: Express) {
       });
     }
 
-    const server = createSabMcpServer(repository, actor.email);
+    const server = createSabMcpServer(repositoryFactory, actor.email);
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
     });

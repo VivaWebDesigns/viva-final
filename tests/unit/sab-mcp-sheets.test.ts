@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { SAB_HEADERS } from "../../server/features/sab-mcp/schema";
+import {
+  getSabBatchInputSchema,
+  SAB_HEADERS,
+} from "../../server/features/sab-mcp/schema";
 import {
   SabSheetsRepository,
+  spreadsheetIdFromReference,
   type SheetsValuesClient,
 } from "../../server/features/sab-mcp/sheets";
 
@@ -69,6 +73,24 @@ function buildRepository(rows: string[][]) {
 }
 
 describe("SabSheetsRepository", () => {
+  it("accepts workflow Sheets by URL or raw spreadsheet ID", () => {
+    const spreadsheetId = "1AbCdEfGhIjKlMnOpQrStUvWxYz_1234567890";
+
+    expect(spreadsheetIdFromReference(spreadsheetId)).toBe(spreadsheetId);
+    expect(spreadsheetIdFromReference(
+      `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit#gid=0`,
+    )).toBe(spreadsheetId);
+    expect(() => spreadsheetIdFromReference(
+      `https://docs.google.com/document/d/${spreadsheetId}/edit`,
+    )).toThrow(/Google Sheets spreadsheet ID/);
+  });
+
+  it("allows run-specific batch IDs instead of limiting the connector to B01-B04", () => {
+    expect(getSabBatchInputSchema.batch_id.parse("Raleigh-Plumbing-B07")).toBe(
+      "Raleigh-Plumbing-B07",
+    );
+  });
+
   it("returns only unfinished companies for an assigned batch by default", async () => {
     const { repository } = buildRepository([
       row(),
@@ -144,7 +166,7 @@ describe("SabSheetsRepository", () => {
     )).rejects.toThrow(/reviews_analysis/);
   });
 
-  it("rejects complete status until the CRM qualification gate is set", async () => {
+  it("rejects complete status until a final qualification disposition is set", async () => {
     const { repository } = buildRepository([
       row({
         qualification_status: "",
@@ -156,6 +178,40 @@ describe("SabSheetsRepository", () => {
       { status: "complete" },
       "matt@vivawebdesigns.com",
     )).rejects.toThrow(/qualification_status/);
+  });
+
+  it("allows a fully audited disqualified company to close without CRM location filler", async () => {
+    const { repository } = buildRepository([
+      row({
+        address: "",
+        city: "",
+        state: "",
+        zip: "",
+        qualification_status: "disqualified",
+        research_notes: "Review activity is outside the allowed recency window.",
+      }),
+    ]);
+
+    await expect(repository.saveCompany(
+      "place-1",
+      { status: "complete" },
+      "matt@vivawebdesigns.com",
+    )).resolves.toMatchObject({ status: "complete" });
+  });
+
+  it("requires a reason when a company is disqualified or deferred", async () => {
+    const { repository } = buildRepository([
+      row({
+        qualification_status: "deferred",
+        research_notes: "",
+      }),
+    ]);
+
+    await expect(repository.saveCompany(
+      "place-1",
+      { status: "complete" },
+      "matt@vivawebdesigns.com",
+    )).rejects.toThrow(/qualification reason/);
   });
 
   it("reports progress by batch and status", async () => {

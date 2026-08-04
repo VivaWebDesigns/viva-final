@@ -8,6 +8,7 @@ import {
 
 const SHEETS_SCOPE = "https://www.googleapis.com/auth/spreadsheets";
 const COMPLETE_STATUSES = new Set(["complete", "qa_ready", "imported"]);
+const FINAL_QUALIFICATION_STATUSES = new Set(["qualified", "disqualified", "deferred"]);
 const NULLABLE_JSON_HEADERS = new Set<SabHeader>(["website_analysis"]);
 const JSON_HEADERS = new Set<SabHeader>(["website_analysis", "reviews_analysis"]);
 const BOOLEAN_HEADERS = new Set<SabHeader>(["has_website"]);
@@ -295,11 +296,23 @@ export class SabSheetsRepository {
   }
 
   private validateCompleteRow(row: SabRow) {
-    const missing = ["address", "city", "state", "zip", "reviews_analysis"]
+    const missing = ["reviews_analysis"]
       .filter((header) => !row[header as SabHeader]);
 
-    if (row.qualification_status !== "qualified") {
-      missing.push("qualification_status (must be 'qualified')");
+    if (!FINAL_QUALIFICATION_STATUSES.has(row.qualification_status)) {
+      missing.push("qualification_status (must be qualified, disqualified, or deferred)");
+    }
+
+    if (row.qualification_status === "qualified") {
+      missing.push(
+        ...["address", "city", "state", "zip"]
+          .filter((header) => !row[header as SabHeader]),
+      );
+    } else if (
+      FINAL_QUALIFICATION_STATUSES.has(row.qualification_status)
+      && !row.research_notes.trim()
+    ) {
+      missing.push("research_notes (qualification reason required)");
     }
 
     const reviews = parseJsonArray(row.reviews_analysis);
@@ -323,14 +336,39 @@ export class SabSheetsRepository {
   }
 }
 
-export function createSabSheetsRepositoryFromEnv() {
-  const spreadsheetId = process.env.SAB_SHEET_ID;
-  const sheetName = process.env.SAB_SHEET_TAB || "SAB Workflow";
+export function spreadsheetIdFromReference(reference: string) {
+  const trimmed = reference.trim();
+  const rawIdPattern = /^[A-Za-z0-9_-]{10,}$/;
+  if (rawIdPattern.test(trimmed)) return trimmed;
+
+  let url: URL;
+  try {
+    url = new URL(trimmed);
+  } catch {
+    throw new Error("workflow_sheet must be a Google Sheets URL or spreadsheet ID");
+  }
+
+  if (url.hostname !== "docs.google.com") {
+    throw new Error("workflow_sheet must use a docs.google.com Google Sheets URL");
+  }
+
+  const match = url.pathname.match(/^\/spreadsheets\/d\/([A-Za-z0-9_-]{10,})(?:\/|$)/);
+  if (!match) {
+    throw new Error("workflow_sheet URL does not contain a valid Google Sheets spreadsheet ID");
+  }
+
+  return match[1];
+}
+
+export type SabSheetsRepositoryFactory = (
+  workflowSheet: string,
+  sheetName: string,
+) => SabSheetsRepository;
+
+export function createSabSheetsRepositoryFactoryFromEnv(): SabSheetsRepositoryFactory {
   const oauthClient = process.env.GOOGLE_OAUTH_CLIENT_JSON;
   const oauthRefreshToken = process.env.GOOGLE_OAUTH_REFRESH_TOKEN;
   const serviceAccount = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
-
-  if (!spreadsheetId) throw new Error("SAB_SHEET_ID is not configured");
 
   let sheetsClient: GoogleSheetsValuesClient;
   if (oauthClient && oauthRefreshToken) {
@@ -343,9 +381,9 @@ export function createSabSheetsRepositoryFromEnv() {
     );
   }
 
-  return new SabSheetsRepository(
+  return (workflowSheet, sheetName) => new SabSheetsRepository(
     sheetsClient,
-    spreadsheetId,
+    spreadsheetIdFromReference(workflowSheet),
     sheetName,
   );
 }
