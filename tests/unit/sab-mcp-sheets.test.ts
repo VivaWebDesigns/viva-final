@@ -1,13 +1,16 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
+  createSabWorkflowInputSchema,
   getSabBatchInputSchema,
   SAB_HEADERS,
 } from "../../server/features/sab-mcp/schema";
 import {
+  GoogleSheetsValuesClient,
   SabSheetsRepository,
   spreadsheetIdFromReference,
   type SheetsValuesClient,
 } from "../../server/features/sab-mcp/sheets";
+import { z } from "zod";
 
 function columnIndex(name: string) {
   return [...name].reduce((value, character) => value * 26 + character.charCodeAt(0) - 64, 0) - 1;
@@ -85,6 +88,110 @@ describe("SabSheetsRepository", () => {
     )).toThrow(/Google Sheets spreadsheet ID/);
   });
 
+  it("validates a complete native-workflow creation roster", () => {
+    const parsed = z.object(createSabWorkflowInputSchema).parse({
+      title: "Charlotte Electricians SAB Workflow",
+      companies: [{
+        batch_id: "B01",
+        batch_position: 1,
+        company: "Example Electric",
+        place_id: "place-1",
+        arp: 12.5,
+        solv: 18.2,
+        found_in: 7,
+      }],
+    });
+
+    expect(parsed.companies).toHaveLength(1);
+    expect(parsed.companies[0].status).toBe("assigned");
+  });
+
+  it("creates and progress-validates a populated native Workflow Sheet", async () => {
+    const client = new GoogleSheetsValuesClient(
+      JSON.stringify({
+        installed: {
+          client_id: "test-client",
+          client_secret: "test-secret",
+        },
+      }),
+      "test-refresh-token",
+    );
+    let createdValues: Array<Array<string | number | boolean>> = [];
+    const request = vi.fn(async (options: {
+      url: string;
+      method: string;
+      data?: {
+        sheets?: Array<{
+          properties?: {
+            title?: string;
+          };
+          data?: Array<{
+            rowData?: Array<{
+              values?: Array<{
+                userEnteredValue?: Record<string, string | number | boolean>;
+              }>;
+            }>;
+          }>;
+        }>;
+      };
+    }) => {
+      if (
+        options.url === "https://sheets.googleapis.com/v4/spreadsheets"
+        && options.method === "POST"
+      ) {
+        createdValues = options.data?.sheets?.[0]?.data?.[0]?.rowData?.map((rowData) => (
+          rowData.values?.map((cell) => (
+            Object.values(cell.userEnteredValue ?? {})[0] ?? ""
+          )) ?? []
+        )) ?? [];
+        return {
+          data: {
+            spreadsheetId: "created-sheet-id",
+            spreadsheetUrl: "https://docs.google.com/spreadsheets/d/created-sheet-id/edit",
+          },
+        };
+      }
+      if (options.url.includes("/values/") && options.method === "GET") {
+        return { data: { values: createdValues } };
+      }
+      throw new Error(`Unexpected request: ${options.method} ${options.url}`);
+    });
+    (client as unknown as { auth: { request: typeof request } }).auth = { request };
+
+    const result = await client.createWorkflow(
+      "Charlotte Electricians SAB Workflow",
+      [{
+        batch_id: "B01",
+        batch_position: 1,
+        status: "assigned",
+        company: "Example Electric",
+        place_id: "place-1",
+        arp: 12.5,
+        solv: 18.2,
+        found_in: 7,
+      }],
+      "matt@vivawebdesigns.com",
+    );
+
+    expect(result).toEqual({
+      workflow_sheet: "https://docs.google.com/spreadsheets/d/created-sheet-id/edit",
+      spreadsheet_id: "created-sheet-id",
+      sheet_name: "SAB Workflow",
+      row_count: 1,
+      progress: {
+        B01: { total: 1, assigned: 1 },
+      },
+    });
+    const createCall = request.mock.calls.find(([options]) => (
+      options.url === "https://sheets.googleapis.com/v4/spreadsheets"
+    ))?.[0];
+    expect(createCall?.data?.sheets?.[0]).toMatchObject({
+      properties: { title: "SAB Workflow" },
+    });
+    expect(createdValues[0]).toEqual(Array.from(SAB_HEADERS));
+    expect(createdValues[1][SAB_HEADERS.indexOf("company")]).toBe("Example Electric");
+  });
+
   it("allows run-specific batch IDs instead of limiting the connector to B01-B04", () => {
     expect(getSabBatchInputSchema.batch_id.parse("Raleigh-Plumbing-B07")).toBe(
       "Raleigh-Plumbing-B07",
@@ -131,6 +238,107 @@ describe("SabSheetsRepository", () => {
     expect(client.updates).toHaveLength(5);
     expect((await repository.getCompany("place-1")).owner_name).toBe("Pat Owner");
     expect((await repository.getCompany("place-1")).updated_by).toBe("matt@vivawebdesigns.com");
+  });
+
+  it("adds scan history to legacy Sheets and updates current deliverable fields", async () => {
+    const legacyHeaders = SAB_HEADERS.filter((header) => header !== "scan_history");
+    const legacyRow = row({
+      arp: "22.4",
+      solv: "8.7",
+      found_in: "6",
+      center_type: "weighted_cell_centroid",
+      scan_center: "35.1000,-80.9000",
+      report_key: "master-report",
+      report_url: "https://example.com/master-report",
+      scan_date: "2026-08-01",
+      scan_keyword: "electrician near me",
+    });
+    const legacyValues = legacyHeaders.map((header) => (
+      legacyRow[SAB_HEADERS.indexOf(header)]
+    ));
+    const client = new FakeSheetsClient([Array.from(legacyHeaders), legacyValues]);
+    const repository = new SabSheetsRepository(client, "sheet-id", "SAB Workflow");
+
+    const result = await repository.saveScanResult(
+      "place-1",
+      {
+        scan_role: "deliverable",
+        scan_type: "standard",
+        arp: 14.2,
+        solv: 31.5,
+        found_in: 19,
+        scan_center: "35.2000,-80.8000",
+        report_key: "qualified-report",
+        report_url: "https://example.com/qualified-report",
+        center_type: "corroborated_address",
+        scan_date: "2026-08-05",
+        scan_keyword: "electrician near me",
+        competitors: ["Competitor One"],
+        notes: "Centered on a corroborated company address.",
+      },
+      "matt@vivawebdesigns.com",
+    );
+
+    expect(result).toMatchObject({
+      current_scan_updated: true,
+      scan_history_count: 2,
+    });
+    const company = await repository.getCompany("place-1");
+    expect(company.report_key).toBe("qualified-report");
+    expect(company.arp).toBe("14.2");
+    expect(company.competitors).toEqual(["Competitor One"]);
+    expect(company.scan_history).toEqual([
+      expect.objectContaining({
+        scan_type: "master",
+        report_key: "master-report",
+      }),
+      expect.objectContaining({
+        scan_type: "standard",
+        report_key: "qualified-report",
+      }),
+    ]);
+  });
+
+  it("retains auxiliary scans without replacing the current deliverable", async () => {
+    const { repository } = buildRepository([
+      row({
+        report_key: "current-deliverable",
+        report_url: "https://example.com/current-deliverable",
+      }),
+    ]);
+
+    const result = await repository.saveScanResult(
+      "place-1",
+      {
+        scan_role: "auxiliary",
+        scan_type: "scout",
+        arp: 30,
+        solv: 10,
+        found_in: 4,
+        scan_center: "35.3000,-80.7000",
+        report_key: "scout-report",
+        report_url: "https://example.com/scout-report",
+        center_type: "weighted_cell_centroid",
+        scan_date: "2026-08-05",
+        scan_keyword: "electrician near me",
+        competitors: [],
+      },
+      "matt@vivawebdesigns.com",
+    );
+
+    expect(result.current_scan_updated).toBe(false);
+    const company = await repository.getCompany("place-1");
+    expect(company.report_key).toBe("current-deliverable");
+    expect(company.scan_history).toEqual([
+      expect.objectContaining({
+        scan_type: "master",
+        report_key: "current-deliverable",
+      }),
+      expect.objectContaining({
+        scan_type: "scout",
+        report_key: "scout-report",
+      }),
+    ]);
   });
 
   it("allows administrative location filler when marking a company complete", async () => {

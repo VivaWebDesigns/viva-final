@@ -1,16 +1,25 @@
 import { GoogleAuth, OAuth2Client } from "google-auth-library";
 import {
   SAB_HEADERS,
+  SAB_REQUIRED_HEADERS,
   type SabCompanyUpdates,
   type SabHeader,
   type SabRow,
+  type SabScanResult,
+  type SabWorkflowRowInput,
 } from "./schema";
 
 const SHEETS_SCOPE = "https://www.googleapis.com/auth/spreadsheets";
+const DEFAULT_SHEET_NAME = "SAB Workflow";
 const COMPLETE_STATUSES = new Set(["complete", "qa_ready", "imported"]);
 const FINAL_QUALIFICATION_STATUSES = new Set(["qualified", "disqualified", "deferred"]);
 const NULLABLE_JSON_HEADERS = new Set<SabHeader>(["website_analysis"]);
-const JSON_HEADERS = new Set<SabHeader>(["website_analysis", "reviews_analysis"]);
+const JSON_HEADERS = new Set<SabHeader>([
+  "competitors",
+  "scan_history",
+  "website_analysis",
+  "reviews_analysis",
+]);
 const BOOLEAN_HEADERS = new Set<SabHeader>(["has_website"]);
 
 export interface SheetsValuesClient {
@@ -19,6 +28,20 @@ export interface SheetsValuesClient {
     spreadsheetId: string,
     updates: Array<{ range: string; value: string | number | boolean }>,
   ): Promise<void>;
+}
+
+export interface SabWorkflowCreator {
+  createWorkflow(
+    title: string,
+    rows: SabWorkflowRowInput[],
+    actorEmail: string,
+  ): Promise<{
+    workflow_sheet: string;
+    spreadsheet_id: string;
+    sheet_name: string;
+    row_count: number;
+    progress: Record<string, Record<string, number>>;
+  }>;
 }
 
 type ServiceAccountCredentials = {
@@ -69,10 +92,13 @@ function quoteSheetName(name: string): string {
   return `'${name.replace(/'/g, "''")}'`;
 }
 
-export class GoogleSheetsValuesClient implements SheetsValuesClient {
+export class GoogleSheetsValuesClient implements SheetsValuesClient, SabWorkflowCreator {
   private readonly auth: GoogleAuth | OAuth2Client;
 
-  constructor(credentialsJson: string, refreshToken?: string) {
+  constructor(
+    credentialsJson: string,
+    refreshToken?: string,
+  ) {
     if (refreshToken) {
       const credentials = parseOAuthClientCredentials(credentialsJson);
       const oauth = new OAuth2Client(
@@ -128,6 +154,105 @@ export class GoogleSheetsValuesClient implements SheetsValuesClient {
       },
     });
   }
+
+  async createWorkflow(
+    title: string,
+    rows: SabWorkflowRowInput[],
+    actorEmail: string,
+  ) {
+    validateWorkflowRows(rows);
+    const client = await this.getClient();
+    const timestamp = new Date().toISOString();
+    const completeRows = rows.map((row) => ({
+      ...row,
+      status: row.status || "assigned",
+      scan_history: [],
+      updated_at: timestamp,
+      updated_by: actorEmail,
+    }));
+    const tableValues = [
+      Array.from(SAB_HEADERS),
+      ...completeRows.map((row) => SAB_HEADERS.map((header) => (
+        serializeValue(header, row[header as keyof typeof row])
+      ))),
+    ];
+
+    const createResponse = await client.request<{
+      spreadsheetId: string;
+      spreadsheetUrl?: string;
+    }>({
+      url: "https://sheets.googleapis.com/v4/spreadsheets",
+      method: "POST",
+      params: {
+        fields: "spreadsheetId,spreadsheetUrl",
+      },
+      data: {
+        properties: { title },
+        sheets: [{
+          properties: {
+            title: DEFAULT_SHEET_NAME,
+            gridProperties: {
+              rowCount: Math.max(1_000, tableValues.length),
+              columnCount: SAB_HEADERS.length,
+            },
+          },
+          data: [{
+            startRow: 0,
+            startColumn: 0,
+            rowData: tableValues.map((values) => ({
+              values: values.map((value) => ({
+                userEnteredValue: sheetsCellValue(value),
+              })),
+            })),
+          }],
+        }],
+      },
+    });
+
+    const spreadsheetId = createResponse.data.spreadsheetId;
+    if (!spreadsheetId) throw new Error("Google Sheets did not return a spreadsheet ID");
+
+    const expectedLastColumn = columnName(SAB_HEADERS.length - 1);
+    const readback = await this.getValues(
+      spreadsheetId,
+      `${quoteSheetName(DEFAULT_SHEET_NAME)}!A1:${expectedLastColumn}${rows.length + 1}`,
+    );
+    const actualHeaders = readback[0] ?? [];
+    if (
+      actualHeaders.length !== SAB_HEADERS.length
+      || SAB_HEADERS.some((header, index) => actualHeaders[index] !== header)
+    ) {
+      throw new Error("Created Workflow Sheet failed exact header validation");
+    }
+    if (readback.length - 1 !== rows.length) {
+      throw new Error(
+        `Created Workflow Sheet failed roster validation: expected ${rows.length}, read ${readback.length - 1}`,
+      );
+    }
+
+    const repository = new SabSheetsRepository(
+      this,
+      spreadsheetId,
+      DEFAULT_SHEET_NAME,
+    );
+    const progress = await repository.getProgress();
+    const confirmedCount = Object.values(progress)
+      .reduce((sum, batch) => sum + (batch.total ?? 0), 0);
+    if (confirmedCount !== rows.length) {
+      throw new Error(
+        `Created Workflow Sheet failed progress validation: expected ${rows.length}, confirmed ${confirmedCount}`,
+      );
+    }
+
+    return {
+      workflow_sheet: createResponse.data.spreadsheetUrl
+        || `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`,
+      spreadsheet_id: spreadsheetId,
+      sheet_name: DEFAULT_SHEET_NAME,
+      row_count: rows.length,
+      progress,
+    };
+  }
 }
 
 function columnName(index: number): string {
@@ -141,6 +266,30 @@ function columnName(index: number): string {
   return result;
 }
 
+function sheetsCellValue(value: string | number | boolean) {
+  if (typeof value === "number") return { numberValue: value };
+  if (typeof value === "boolean") return { boolValue: value };
+  return { stringValue: value };
+}
+
+function validateWorkflowRows(rows: SabWorkflowRowInput[]) {
+  const placeIds = new Set<string>();
+  const batchPositions = new Set<string>();
+
+  for (const row of rows) {
+    if (placeIds.has(row.place_id)) {
+      throw new Error(`Duplicate place_id in Workflow Sheet roster: ${row.place_id}`);
+    }
+    placeIds.add(row.place_id);
+
+    const positionKey = `${row.batch_id}:${row.batch_position}`;
+    if (batchPositions.has(positionKey)) {
+      throw new Error(`Duplicate batch position in Workflow Sheet roster: ${positionKey}`);
+    }
+    batchPositions.add(positionKey);
+  }
+}
+
 function serializeValue(header: SabHeader, value: unknown): string | number | boolean {
   if (value === null || value === undefined) {
     return NULLABLE_JSON_HEADERS.has(header) ? "null" : "";
@@ -150,19 +299,27 @@ function serializeValue(header: SabHeader, value: unknown): string | number | bo
   return value as string | number | boolean;
 }
 
-function parseJsonArray(value: string): string[] | null {
-  if (!value || value === "null") return null;
+function parseJsonValue(value: string): unknown {
+  if (!value) return null;
   try {
-    const parsed = JSON.parse(value);
-    return Array.isArray(parsed) ? parsed.map(String) : null;
+    return JSON.parse(value);
   } catch {
     return null;
   }
 }
 
+function parseJsonArray(value: string): string[] | null {
+  const parsed = parseJsonValue(value);
+  return Array.isArray(parsed) ? parsed.map(String) : null;
+}
+
 function publicRow(row: SabRow) {
+  const competitors = parseJsonValue(row.competitors);
+  const scanHistory = parseJsonValue(row.scan_history);
   return {
     ...row,
+    competitors: Array.isArray(competitors) ? competitors.map(String) : row.competitors,
+    scan_history: Array.isArray(scanHistory) ? scanHistory : [],
     has_website: row.has_website
       ? row.has_website.trim().toLowerCase() === "true"
       : null,
@@ -192,7 +349,7 @@ export class SabSheetsRepository {
       `${quoteSheetName(this.sheetName)}!A:AZ`,
     );
     const headers = values[0] ?? [];
-    const missing = SAB_HEADERS.filter((header) => !headers.includes(header));
+    const missing = SAB_REQUIRED_HEADERS.filter((header) => !headers.includes(header));
     if (missing.length > 0) {
       throw new Error(`SAB sheet is missing required headers: ${missing.join(", ")}`);
     }
@@ -203,7 +360,10 @@ export class SabSheetsRepository {
     const rows = values.slice(1)
       .map((valuesRow, offset) => {
         const row = Object.fromEntries(
-          SAB_HEADERS.map((header) => [header, valuesRow[headerIndex.get(header)!] ?? ""]),
+          SAB_HEADERS.map((header) => {
+            const index = headerIndex.get(header) ?? -1;
+            return [header, index >= 0 ? valuesRow[index] ?? "" : ""];
+          }),
         ) as SabRow;
         return { rowNumber: offset + 2, row };
       })
@@ -272,6 +432,118 @@ export class SabSheetsRepository {
       status: updates.status ?? match.row.status,
       updated_at: timestamp,
       updated_fields: Object.keys(updates),
+    };
+  }
+
+  async saveScanResult(
+    placeId: string,
+    scanResult: SabScanResult,
+    actorEmail: string,
+  ) {
+    const { headers, headerIndex, rows } = await this.readTable();
+    const match = rows.find(({ row }) => row.place_id === placeId);
+    if (!match) throw new Error(`No SAB company found for place_id ${placeId}`);
+
+    let scanHistoryColumn = headerIndex.get("scan_history") ?? -1;
+    if (scanHistoryColumn < 0) {
+      scanHistoryColumn = headers.length;
+      await this.client.updateValues(this.spreadsheetId, [{
+        range: `${quoteSheetName(this.sheetName)}!${columnName(scanHistoryColumn)}1`,
+        value: "scan_history",
+      }]);
+    }
+
+    const timestamp = new Date().toISOString();
+    const parsedHistory = parseJsonValue(match.row.scan_history);
+    const history = Array.isArray(parsedHistory)
+      ? parsedHistory.filter((entry) => entry && typeof entry === "object")
+      : [];
+
+    if (
+      history.length === 0
+      && match.row.report_key
+      && match.row.report_key !== scanResult.report_key
+    ) {
+      history.push({
+        scan_role: "source",
+        scan_type: "master",
+        arp: match.row.arp || null,
+        solv: match.row.solv || null,
+        found_in: match.row.found_in || null,
+        scan_center: match.row.scan_center || null,
+        report_key: match.row.report_key,
+        report_url: match.row.report_url || null,
+        center_type: match.row.center_type || null,
+        scan_date: match.row.scan_date || null,
+        scan_keyword: match.row.scan_keyword || null,
+        competitors: parseJsonValue(match.row.competitors) || match.row.competitors || [],
+        saved_at: match.row.updated_at || null,
+        saved_by: match.row.updated_by || null,
+      });
+    }
+
+    const historyEntry = {
+      ...scanResult,
+      saved_at: timestamp,
+      saved_by: actorEmail,
+    };
+    const existingHistoryIndex = history.findIndex((entry) => (
+      (entry as { report_key?: unknown }).report_key === scanResult.report_key
+    ));
+    if (existingHistoryIndex >= 0) {
+      history[existingHistoryIndex] = {
+        ...historyEntry,
+        saved_at: (history[existingHistoryIndex] as { saved_at?: unknown }).saved_at || timestamp,
+      };
+    } else {
+      history.push(historyEntry);
+    }
+
+    const valuesToWrite: Partial<Record<SabHeader, unknown>> = {
+      scan_history: history,
+      updated_at: timestamp,
+      updated_by: actorEmail,
+    };
+    if (scanResult.scan_role === "deliverable") {
+      Object.assign(valuesToWrite, {
+        arp: scanResult.arp,
+        solv: scanResult.solv,
+        found_in: scanResult.found_in,
+        scan_center: scanResult.scan_center,
+        report_key: scanResult.report_key,
+        report_url: scanResult.report_url,
+        center_type: scanResult.center_type,
+        scan_date: scanResult.scan_date,
+        scan_keyword: scanResult.scan_keyword,
+        competitors: scanResult.competitors,
+      });
+    }
+
+    const cellUpdates = Object.entries(valuesToWrite).map(([key, value]) => {
+      const header = key as SabHeader;
+      const index = header === "scan_history"
+        ? scanHistoryColumn
+        : headerIndex.get(header);
+      if (index === undefined || index < 0) {
+        throw new Error(`SAB sheet cannot store scan field: ${key}`);
+      }
+      return {
+        range: `${quoteSheetName(this.sheetName)}!${columnName(index)}${match.rowNumber}`,
+        value: serializeValue(header, value),
+      };
+    });
+
+    await this.client.updateValues(this.spreadsheetId, cellUpdates);
+
+    return {
+      place_id: placeId,
+      company: match.row.company,
+      scan_role: scanResult.scan_role,
+      scan_type: scanResult.scan_type,
+      report_key: scanResult.report_key,
+      current_scan_updated: scanResult.scan_role === "deliverable",
+      scan_history_count: history.length,
+      updated_at: timestamp,
     };
   }
 
@@ -365,25 +637,38 @@ export type SabSheetsRepositoryFactory = (
   sheetName: string,
 ) => SabSheetsRepository;
 
-export function createSabSheetsRepositoryFactoryFromEnv(): SabSheetsRepositoryFactory {
+function createGoogleSheetsValuesClientFromEnv() {
   const oauthClient = process.env.GOOGLE_OAUTH_CLIENT_JSON;
   const oauthRefreshToken = process.env.GOOGLE_OAUTH_REFRESH_TOKEN;
   const serviceAccount = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
 
-  let sheetsClient: GoogleSheetsValuesClient;
   if (oauthClient && oauthRefreshToken) {
-    sheetsClient = new GoogleSheetsValuesClient(oauthClient, oauthRefreshToken);
-  } else if (serviceAccount) {
-    sheetsClient = new GoogleSheetsValuesClient(serviceAccount);
-  } else {
-    throw new Error(
-      "Google Sheets credentials are not configured; set OAuth client credentials and refresh token",
+    return new GoogleSheetsValuesClient(
+      oauthClient,
+      oauthRefreshToken,
     );
   }
+  if (serviceAccount) {
+    return new GoogleSheetsValuesClient(
+      serviceAccount,
+      undefined,
+    );
+  }
+  throw new Error(
+    "Google Sheets credentials are not configured; set OAuth client credentials and refresh token",
+  );
+}
+
+export function createSabSheetsRepositoryFactoryFromEnv(): SabSheetsRepositoryFactory {
+  const sheetsClient = createGoogleSheetsValuesClientFromEnv();
 
   return (workflowSheet, sheetName) => new SabSheetsRepository(
     sheetsClient,
     spreadsheetIdFromReference(workflowSheet),
     sheetName,
   );
+}
+
+export function createSabWorkflowCreatorFromEnv(): SabWorkflowCreator {
+  return createGoogleSheetsValuesClientFromEnv();
 }

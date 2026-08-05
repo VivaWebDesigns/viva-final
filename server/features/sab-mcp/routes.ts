@@ -5,7 +5,10 @@ import { eq } from "drizzle-orm";
 import { auth } from "../auth/auth";
 import { db } from "../../db";
 import { user } from "@shared/schema";
-import { createSabSheetsRepositoryFactoryFromEnv } from "./sheets";
+import {
+  createSabSheetsRepositoryFactoryFromEnv,
+  createSabWorkflowCreatorFromEnv,
+} from "./sheets";
 import { createSabMcpServer } from "./server";
 
 const ALLOWED_ROLES = new Set(["admin", "developer"]);
@@ -109,8 +112,10 @@ export function registerSabMcpRoutes(app: Express) {
     if (!actor || res.headersSent) return;
 
     let repositoryFactory;
+    let workflowCreator;
     try {
       repositoryFactory = createSabSheetsRepositoryFactoryFromEnv();
+      workflowCreator = createSabWorkflowCreatorFromEnv();
     } catch (error) {
       const message = error instanceof Error ? error.message : "SAB MCP is not configured";
       return res.status(503).json({
@@ -120,7 +125,7 @@ export function registerSabMcpRoutes(app: Express) {
       });
     }
 
-    const server = createSabMcpServer(repositoryFactory, actor.email);
+    const server = createSabMcpServer(repositoryFactory, workflowCreator, actor.email);
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
     });

@@ -1,8 +1,12 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { type SabSheetsRepositoryFactory } from "./sheets";
+import {
+  type SabSheetsRepositoryFactory,
+  type SabWorkflowCreator,
+} from "./sheets";
 import { checkCrmPlaceIds } from "./crmDedup";
 import {
   checkCrmPlaceIdsInputSchema,
+  createSabWorkflowInputSchema,
   getSabBatchInputSchema,
   getSabCompanyInputSchema,
   getSabProgressInputSchema,
@@ -11,6 +15,7 @@ import {
   SAB_QUALIFICATION_STATUSES,
   SAB_STATUSES,
   saveSabCompanyInputSchema,
+  saveSabScanResultInputSchema,
 } from "./schema";
 
 function jsonToolResult(value: unknown) {
@@ -24,11 +29,12 @@ function jsonToolResult(value: unknown) {
 
 export function createSabMcpServer(
   repositoryFactory: SabSheetsRepositoryFactory,
+  workflowCreator: SabWorkflowCreator,
   actorEmail: string,
 ) {
   const server = new McpServer({
     name: "viva-sab-workflow",
-    version: "1.1.0",
+    version: "1.2.0",
   });
 
   server.registerTool("get_sab_schema", {
@@ -50,6 +56,18 @@ export function createSabMcpServer(
     inputSchema: checkCrmPlaceIdsInputSchema,
   }, async ({ place_ids }) => {
     return jsonToolResult(await checkCrmPlaceIds(place_ids));
+  });
+
+  server.registerTool("create_sab_workflow", {
+    description:
+      "Create a populated native Google Sheet for a future city run in the connector's authenticated business Drive. The tool creates the tab as SAB Workflow, validates the exact canonical headers and every roster row before writing, writes the full roster once, and returns the exact Sheet URL, tab name, row count, and progress validation.",
+    inputSchema: createSabWorkflowInputSchema,
+  }, async ({ title, companies }) => {
+    return jsonToolResult(await workflowCreator.createWorkflow(
+      title,
+      companies,
+      actorEmail,
+    ));
   });
 
   server.registerTool("get_sab_batch", {
@@ -77,6 +95,19 @@ export function createSabMcpServer(
   }, async ({ workflow_sheet, sheet_name, place_id, updates }) => {
     const repository = repositoryFactory(workflow_sheet, sheet_name);
     return jsonToolResult(await repository.saveCompany(place_id, updates, actorEmail));
+  });
+
+  server.registerTool("save_sab_scan_result", {
+    description:
+      "Save one completed Local Falcon scan result by exact Place ID. Deliverable scans update the current ARP, SoLV, found-in, center, report, date, keyword, and competitors columns. Every deliverable or auxiliary scan is also retained in append-safe scan history so scout, fine, superseded, and final reports are not lost.",
+    inputSchema: saveSabScanResultInputSchema,
+  }, async ({ workflow_sheet, sheet_name, place_id, scan_result }) => {
+    const repository = repositoryFactory(workflow_sheet, sheet_name);
+    return jsonToolResult(await repository.saveScanResult(
+      place_id,
+      scan_result,
+      actorEmail,
+    ));
   });
 
   server.registerTool("mark_sab_blocked", {
