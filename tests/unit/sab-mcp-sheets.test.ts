@@ -3,6 +3,7 @@ import {
   createSabWorkflowInputSchema,
   getSabBatchInputSchema,
   SAB_HEADERS,
+  sabScanResultSchema,
 } from "../../server/features/sab-mcp/schema";
 import {
   GoogleSheetsValuesClient,
@@ -86,6 +87,24 @@ describe("SabSheetsRepository", () => {
     expect(() => spreadsheetIdFromReference(
       `https://docs.google.com/document/d/${spreadsheetId}/edit`,
     )).toThrow(/Google Sheets spreadsheet ID/);
+  });
+
+  it("requires only core scan fields and rejects competitors", () => {
+    const coreScan = {
+      scan_role: "deliverable",
+      arp: 14.2,
+      solv: 31.5,
+      report_key: "qualified-report",
+      report_url: "https://example.com/qualified-report",
+      scan_date: "2026-08-05",
+      scan_keyword: "electrician near me",
+    };
+
+    expect(sabScanResultSchema.parse(coreScan)).toEqual(coreScan);
+    expect(sabScanResultSchema.safeParse({
+      ...coreScan,
+      competitors: ["Competitor One"],
+    }).success).toBe(false);
   });
 
   it("validates a complete native-workflow creation roster", () => {
@@ -263,17 +282,12 @@ describe("SabSheetsRepository", () => {
       "place-1",
       {
         scan_role: "deliverable",
-        scan_type: "standard",
         arp: 14.2,
         solv: 31.5,
-        found_in: 19,
-        scan_center: "35.2000,-80.8000",
         report_key: "qualified-report",
         report_url: "https://example.com/qualified-report",
-        center_type: "corroborated_address",
         scan_date: "2026-08-05",
         scan_keyword: "electrician near me",
-        competitors: ["Competitor One"],
         notes: "Centered on a corroborated company address.",
       },
       "matt@vivawebdesigns.com",
@@ -286,17 +300,21 @@ describe("SabSheetsRepository", () => {
     const company = await repository.getCompany("place-1");
     expect(company.report_key).toBe("qualified-report");
     expect(company.arp).toBe("14.2");
-    expect(company.competitors).toEqual(["Competitor One"]);
+    expect(company.found_in).toBe("6");
+    expect(company.scan_center).toBe("35.1000,-80.9000");
+    expect(company.center_type).toBe("weighted_cell_centroid");
     expect(company.scan_history).toEqual([
       expect.objectContaining({
         scan_type: "master",
         report_key: "master-report",
       }),
       expect.objectContaining({
-        scan_type: "standard",
         report_key: "qualified-report",
       }),
     ]);
+    expect(company.scan_history).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ competitors: expect.anything() }),
+    ]));
   });
 
   it("retains auxiliary scans without replacing the current deliverable", async () => {
@@ -321,7 +339,6 @@ describe("SabSheetsRepository", () => {
         center_type: "weighted_cell_centroid",
         scan_date: "2026-08-05",
         scan_keyword: "electrician near me",
-        competitors: [],
       },
       "matt@vivawebdesigns.com",
     );

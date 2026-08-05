@@ -476,7 +476,6 @@ export class SabSheetsRepository {
         center_type: match.row.center_type || null,
         scan_date: match.row.scan_date || null,
         scan_keyword: match.row.scan_keyword || null,
-        competitors: parseJsonValue(match.row.competitors) || match.row.competitors || [],
         saved_at: match.row.updated_at || null,
         saved_by: match.row.updated_by || null,
       });
@@ -508,15 +507,14 @@ export class SabSheetsRepository {
       Object.assign(valuesToWrite, {
         arp: scanResult.arp,
         solv: scanResult.solv,
-        found_in: scanResult.found_in,
-        scan_center: scanResult.scan_center,
         report_key: scanResult.report_key,
         report_url: scanResult.report_url,
-        center_type: scanResult.center_type,
         scan_date: scanResult.scan_date,
         scan_keyword: scanResult.scan_keyword,
-        competitors: scanResult.competitors,
       });
+      if (scanResult.found_in !== undefined) valuesToWrite.found_in = scanResult.found_in;
+      if (scanResult.scan_center !== undefined) valuesToWrite.scan_center = scanResult.scan_center;
+      if (scanResult.center_type !== undefined) valuesToWrite.center_type = scanResult.center_type;
     }
 
     const cellUpdates = Object.entries(valuesToWrite).map(([key, value]) => {

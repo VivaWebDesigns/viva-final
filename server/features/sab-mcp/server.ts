@@ -99,7 +99,7 @@ export function createSabMcpServer(
 
   server.registerTool("save_sab_scan_result", {
     description:
-      "Save one completed Local Falcon scan result by exact Place ID. Deliverable scans update the current ARP, SoLV, found-in, center, report, date, keyword, and competitors columns. Every deliverable or auxiliary scan is also retained in append-safe scan history so scout, fine, superseded, and final reports are not lost.",
+      "Save one completed Local Falcon scan result by exact Place ID. Require only scan role, ARP, SoLV, report key, report URL, scan date, and scan keyword. Supply scan center, center type, scan type, and found-in only when already available. Deliverable scans update the current scan columns, while every deliverable or auxiliary scan is retained automatically in append-safe scan history.",
     inputSchema: saveSabScanResultInputSchema,
   }, async ({ workflow_sheet, sheet_name, place_id, scan_result }) => {
     const repository = repositoryFactory(workflow_sheet, sheet_name);

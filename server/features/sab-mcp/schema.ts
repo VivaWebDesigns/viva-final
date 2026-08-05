@@ -127,17 +127,16 @@ export const sabScanResultSchema = z.object({
   scan_role: z.enum(SAB_SCAN_ROLES).describe(
     "Use deliverable for the canonical qualified-company scan shown in the current scan columns. Use auxiliary for scout or fine scans retained only in scan history.",
   ),
-  scan_type: z.enum(SAB_SCAN_TYPES),
+  scan_type: z.enum(SAB_SCAN_TYPES).optional(),
   arp: z.number().min(0).nullable(),
   solv: z.number().min(0).max(100).nullable(),
-  found_in: z.number().int().min(0).nullable(),
-  scan_center: z.string().trim().min(1).max(1_000),
+  found_in: z.number().int().min(0).nullable().optional(),
+  scan_center: z.string().trim().min(1).max(1_000).optional(),
   report_key: z.string().trim().min(1).max(1_000),
   report_url: z.string().trim().url().max(2_000),
-  center_type: z.enum(SAB_CENTER_TYPES),
+  center_type: z.enum(SAB_CENTER_TYPES).optional(),
   scan_date: z.string().trim().min(1).max(100),
   scan_keyword: z.string().trim().min(1).max(500),
-  competitors: z.array(z.string().trim().min(1).max(1_000)).max(200).default([]),
   notes: nullableString.optional(),
 }).strict();
 
