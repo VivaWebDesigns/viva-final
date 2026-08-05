@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { strToU8, zipSync } from "fflate";
 import sharp from "sharp";
 import {
+  isExactStreetAddressMatch,
   isLocalFalconBatchFullyImported,
   parseLocalFalconPayload,
 } from "../../server/features/crm/localFalconImport";
@@ -129,6 +130,19 @@ describe("Local Falcon lead classifications", () => {
       label: "SAB",
       tagSlug: "sab",
     });
+  });
+});
+
+describe("Local Falcon fallback address matching", () => {
+  it("does not treat SAB or city-only placeholders as exact addresses", () => {
+    expect(isExactStreetAddressMatch("Service Area Business", "Service Area Business")).toBe(false);
+    expect(isExactStreetAddressMatch("Charlotte", "Charlotte")).toBe(false);
+    expect(isExactStreetAddressMatch("", "")).toBe(false);
+  });
+
+  it("still matches normalized street addresses", () => {
+    expect(isExactStreetAddressMatch(" 6904 The Plaza ", "6904  THE PLAZA")).toBe(true);
+    expect(isExactStreetAddressMatch("6904 The Plaza", "6905 The Plaza")).toBe(false);
   });
 });
 

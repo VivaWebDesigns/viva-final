@@ -217,6 +217,25 @@ function normalized(value: string | null | undefined): string {
   return (value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
 }
 
+export function isExactStreetAddressMatch(
+  left: string | null | undefined,
+  right: string | null | undefined,
+): boolean {
+  const normalizedLeft = normalized(left);
+  const normalizedRight = normalized(right);
+
+  // SAB imports use labels such as "Service Area Business" in the address
+  // field. Requiring a street number prevents those labels, blank values, and
+  // city-only placeholders from flagging every SAB in the same market.
+  return Boolean(
+    normalizedLeft &&
+    normalizedRight &&
+    /\d/.test(normalizedLeft) &&
+    /\d/.test(normalizedRight) &&
+    normalizedLeft === normalizedRight
+  );
+}
+
 function domain(value: string | null | undefined): string {
   if (!value) return "";
   try {
@@ -250,7 +269,7 @@ async function existingCompanyMatches(prospect: LocalFalconProspectInput): Promi
     const reasons: string[] = [];
     if (phone && normalizePhoneDigits(company.phone ?? "") === phone) reasons.push("normalized phone");
     if (websiteDomain && domain(company.website) === websiteDomain) reasons.push("website domain");
-    if (normalized(company.address) === normalized(prospect.address)) reasons.push("exact address");
+    if (isExactStreetAddressMatch(company.address, prospect.address)) reasons.push("exact address");
     if (
       normalized(company.city) === normalized(prospect.city) &&
       normalized(company.state) === normalized(prospect.state) &&
