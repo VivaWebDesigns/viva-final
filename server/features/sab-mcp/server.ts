@@ -5,6 +5,7 @@ import {
 } from "./sheets";
 import { checkCrmPlaceIds } from "./crmDedup";
 import { checkCrmPlaceIdsFromLocalFalconReport } from "./localFalconDedup";
+import { reverseGeocodeSabCenters } from "./reverseGeocode";
 import {
   checkCrmLocalFalconReportInputSchema,
   checkCrmPlaceIdsInputSchema,
@@ -13,6 +14,7 @@ import {
   getSabCompanyInputSchema,
   getSabProgressInputSchema,
   markSabBlockedInputSchema,
+  reverseGeocodeSabCentersInputSchema,
   SAB_HEADERS,
   SAB_QUALIFICATION_STATUSES,
   SAB_STATUSES,
@@ -36,7 +38,7 @@ export function createSabMcpServer(
 ) {
   const server = new McpServer({
     name: "viva-sab-workflow",
-    version: "1.3.0",
+    version: "1.4.0",
   });
 
   server.registerTool("get_sab_schema", {
@@ -68,6 +70,14 @@ export function createSabMcpServer(
     return jsonToolResult(
       await checkCrmPlaceIdsFromLocalFalconReport(report_key),
     );
+  });
+
+  server.registerTool("reverse_geocode_sab_centers", {
+    description:
+      "Reverse-geocode exact final SAB scan-center coordinates through the Google Maps Geocoding API. Returns city, state, ZIP, source metadata, and per-coordinate completeness without writing to the Workflow Sheet. Use this for SOP section 11; never substitute nearby-business searches or inferred ZIP centroids.",
+    inputSchema: reverseGeocodeSabCentersInputSchema,
+  }, async ({ centers }) => {
+    return jsonToolResult(await reverseGeocodeSabCenters(centers));
   });
 
   server.registerTool("create_sab_workflow", {

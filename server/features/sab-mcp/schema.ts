@@ -240,6 +240,19 @@ export const checkCrmLocalFalconReportInputSchema = {
   ),
 };
 
+export const reverseGeocodeSabCentersInputSchema = {
+  centers: z.array(z.object({
+    place_id: z.string().trim().min(1).max(500).describe(
+      "Google Place ID used only as the stable result identifier.",
+    ),
+    company: z.string().trim().min(1).max(1_000).optional(),
+    latitude: z.number().finite().min(-90).max(90),
+    longitude: z.number().finite().min(-180).max(180),
+  }).strict()).min(1).max(100).describe(
+    "Exact final scan-center coordinates to reverse-geocode. Results preserve the input order and Place IDs.",
+  ),
+};
+
 export type SabCompanyUpdates = z.infer<typeof sabCompanyUpdatesSchema>;
 export type SabScanResult = z.infer<typeof sabScanResultSchema>;
 export type SabWorkflowRowInput = z.infer<typeof sabWorkflowRowSchema>;
