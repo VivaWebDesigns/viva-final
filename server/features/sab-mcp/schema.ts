@@ -234,6 +234,12 @@ export const checkCrmPlaceIdsInputSchema = {
   ),
 };
 
+export const checkCrmLocalFalconReportInputSchema = {
+  report_key: z.string().trim().min(1).max(1_000).describe(
+    "Completed Local Falcon competitor report key. The connector fetches the report and extracts every discovered Google Place ID server-side.",
+  ),
+};
+
 export type SabCompanyUpdates = z.infer<typeof sabCompanyUpdatesSchema>;
 export type SabScanResult = z.infer<typeof sabScanResultSchema>;
 export type SabWorkflowRowInput = z.infer<typeof sabWorkflowRowSchema>;

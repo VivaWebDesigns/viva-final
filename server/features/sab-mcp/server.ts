@@ -4,7 +4,9 @@ import {
   type SabWorkflowCreator,
 } from "./sheets";
 import { checkCrmPlaceIds } from "./crmDedup";
+import { checkCrmPlaceIdsFromLocalFalconReport } from "./localFalconDedup";
 import {
+  checkCrmLocalFalconReportInputSchema,
   checkCrmPlaceIdsInputSchema,
   createSabWorkflowInputSchema,
   getSabBatchInputSchema,
@@ -34,7 +36,7 @@ export function createSabMcpServer(
 ) {
   const server = new McpServer({
     name: "viva-sab-workflow",
-    version: "1.2.0",
+    version: "1.3.0",
   });
 
   server.registerTool("get_sab_schema", {
@@ -56,6 +58,16 @@ export function createSabMcpServer(
     inputSchema: checkCrmPlaceIdsInputSchema,
   }, async ({ place_ids }) => {
     return jsonToolResult(await checkCrmPlaceIds(place_ids));
+  });
+
+  server.registerTool("check_crm_local_falcon_report", {
+    description:
+      "Fetch a completed Local Falcon competitor report by report key, extract every discovered Google Place ID server-side, and bulk-check them against prior CRM prospect profiles using exact Place-ID equality. Use this instead of manually copying a large competitor roster between connectors. This does not run a scan. The compact response omits the full unmatched-ID list but returns counts, a deterministic Place-ID checksum, and every CRM match.",
+    inputSchema: checkCrmLocalFalconReportInputSchema,
+  }, async ({ report_key }) => {
+    return jsonToolResult(
+      await checkCrmPlaceIdsFromLocalFalconReport(report_key),
+    );
   });
 
   server.registerTool("create_sab_workflow", {
