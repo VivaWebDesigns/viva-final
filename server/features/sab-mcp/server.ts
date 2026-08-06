@@ -90,7 +90,7 @@ export function createSabMcpServer(
 
   server.registerTool("save_sab_company", {
     description:
-      "Save approved research fields to the exact SAB Workflow Sheet for one company immediately after completing it. Website and review audits must contain 3–6 concise, relevant findings; review findings must preserve company trajectory. Set qualification_status to qualified, disqualified, or deferred before status complete, and put a disqualification or deferral reason in research_notes.",
+      "Save approved research fields to the exact SAB Workflow Sheet for one company immediately after completing it. Qualified and deferred records require complete website and review audits with 3–6 concise, relevant findings. A manually disqualified record may be marked complete without unfinished audits when research_notes contains the factual disqualification reason; never fabricate audit findings. Set qualification_status to qualified, disqualified, or deferred before status complete.",
     inputSchema: saveSabCompanyInputSchema,
   }, async ({ workflow_sheet, sheet_name, place_id, updates }) => {
     const repository = repositoryFactory(workflow_sheet, sheet_name);

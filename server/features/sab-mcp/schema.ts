@@ -113,14 +113,16 @@ export const sabCompanyUpdatesSchema = z.object({
   rating: z.number().min(0).max(5).nullable().optional(),
   review_count: z.number().int().min(0).nullable().optional(),
   qualification_status: z.enum(SAB_QUALIFICATION_STATUSES).optional().describe(
-    "Final audit disposition. Use qualified, disqualified, or deferred before marking a company complete.",
+    "Final disposition. Use qualified, disqualified, or deferred before marking a company complete. A reasoned manual disqualification may close without unfinished website or review audits.",
   ),
   sales_priority: z.number().int().min(1).max(3).optional().describe(
     "Website-sales priority: 3 is strongest, 2 is viable, and 1 is low priority.",
   ),
   sales_priority_reason: nullableString.optional(),
   blocker: nullableString.optional(),
-  research_notes: nullableString.optional(),
+  research_notes: nullableString.optional().describe(
+    "Concise research context. Required as a factual reason when qualification_status is disqualified or deferred.",
+  ),
 }).strict();
 
 export const sabScanResultSchema = z.object({

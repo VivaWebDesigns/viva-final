@@ -424,6 +424,43 @@ describe("SabSheetsRepository", () => {
     )).resolves.toMatchObject({ status: "complete" });
   });
 
+  it("allows a reasoned manual disqualification to close without unfinished audits", async () => {
+    const { repository } = buildRepository([
+      row({
+        has_website: "",
+        website: "",
+        service_page_count: "",
+        website_analysis: "",
+        reviews_analysis: "",
+        qualification_status: "disqualified",
+        research_notes: "Matt manually disqualified the company because its primary category does not match the run trade.",
+      }),
+    ]);
+
+    await expect(repository.saveCompany(
+      "place-1",
+      { status: "complete" },
+      "matt@vivawebdesigns.com",
+    )).resolves.toMatchObject({ status: "complete" });
+  });
+
+  it("requires a reason before a manual disqualification can skip unfinished audits", async () => {
+    const { repository } = buildRepository([
+      row({
+        website_analysis: "",
+        reviews_analysis: "",
+        qualification_status: "disqualified",
+        research_notes: "",
+      }),
+    ]);
+
+    await expect(repository.saveCompany(
+      "place-1",
+      { status: "complete" },
+      "matt@vivawebdesigns.com",
+    )).rejects.toThrow(/qualification reason/);
+  });
+
   it("requires a reason when a company is disqualified or deferred", async () => {
     const { repository } = buildRepository([
       row({

@@ -566,11 +566,17 @@ export class SabSheetsRepository {
   }
 
   private validateCompleteRow(row: SabRow) {
-    const missing = ["reviews_analysis"]
-      .filter((header) => !row[header as SabHeader]);
+    const missing: string[] = [];
 
     if (!FINAL_QUALIFICATION_STATUSES.has(row.qualification_status)) {
       missing.push("qualification_status (must be qualified, disqualified, or deferred)");
+    }
+
+    const isReasonedDisqualification = row.qualification_status === "disqualified"
+      && row.research_notes.trim().length > 0;
+
+    if (isReasonedDisqualification) {
+      return;
     }
 
     if (row.qualification_status === "qualified") {
