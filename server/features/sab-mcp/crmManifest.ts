@@ -3,7 +3,7 @@ import { parseLocalFalconPayload } from "../crm/localFalconImport";
 const prospectFields = {
   place_id: "non-empty string",
   company_name: "non-empty string",
-  address: "non-empty string",
+  address: "literal string \"Service Area Business\"; never include a hidden operating address",
   city: "non-empty string",
   state: "two-letter state code",
   zip: "non-empty string",
@@ -44,7 +44,7 @@ const prospectFields = {
 
 export const SAB_CRM_IMPORT_CONTRACT = {
   contract: "viva_local_falcon_crm_batch_json",
-  contract_version: "1.0",
+  contract_version: "1.1",
   source_of_truth: "production CRM Local Falcon import parser",
   strict: true,
   writes_data: false,
@@ -91,6 +91,7 @@ export const SAB_CRM_IMPORT_CONTRACT = {
     "website_url is required when has_website is true.",
     "website_url must be null when has_website is false.",
     "owner_name may be null; do not invent a name.",
+    "Every prospect address must be exactly \"Service Area Business\"; hidden operating addresses must never be exported.",
     "The contract and validator do not import or modify CRM data.",
   ],
 } as const;

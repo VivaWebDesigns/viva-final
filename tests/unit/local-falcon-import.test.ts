@@ -21,7 +21,7 @@ const heatmapPath = "heatmaps/ChIJ-test-1.png";
 const prospect = {
   place_id: "ChIJ-test-1",
   company_name: "Acme Roofing LLC",
-  address: "1 Main St",
+  address: "Service Area Business",
   city: "Monroe",
   state: "nc",
   zip: "28110",
@@ -225,6 +225,13 @@ describe("parseLocalFalconPayload", () => {
       ...payload,
       prospects: [{ ...prospect, qualification_status: "disqualified" }],
     }))).toThrow(/qualification_status/i);
+  });
+
+  it("rejects hidden operating addresses for SAB prospects", () => {
+    expect(() => parseLocalFalconPayload(JSON.stringify({
+      ...payload,
+      prospects: [{ ...prospect, address: "6226 Wild Meadow Trl" }],
+    }))).toThrow(/address/i);
   });
 
   it("requires each scan keyword to match its batch", () => {

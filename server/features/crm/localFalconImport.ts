@@ -25,6 +25,7 @@ import {
 const nullableText = z.string().trim().min(1).nullable();
 const nullableUrl = z.string().trim().url().nullable();
 const nullableAnalysis = z.array(z.string()).min(3).max(6).nullable().optional().default(null);
+export const SAB_ADDRESS_LABEL = "Service Area Business" as const;
 const scanCenterSchema = z.object({
   lat: z.coerce.number().finite().min(-90).max(90),
   lng: z.coerce.number().finite().min(-180).max(180),
@@ -51,7 +52,7 @@ const batchSchema = z.object({
 const prospectSchema = z.object({
   place_id: z.string().trim().min(1),
   company_name: z.string().trim().min(1),
-  address: z.string().trim().min(1),
+  address: z.literal(SAB_ADDRESS_LABEL),
   city: z.string().trim().min(1),
   state: z.string().trim().regex(/^[A-Za-z]{2}$/).transform((value) => value.toUpperCase()),
   zip: z.string().trim().min(1),
@@ -469,20 +470,22 @@ export async function importLocalFalconPayload(
           .where(eq(crmCompanies.id, existingScan.lead.companyId))
           .limit(1);
         if (!existingCompany) throw new Error(`Existing company was not found for ${prospect.company_name}`);
-        if (prospect.scan_center) {
-          [company] = await tx.update(crmCompanies).set({
+        [company] = await tx.update(crmCompanies).set({
+          address: SAB_ADDRESS_LABEL,
+          ...(prospect.scan_center ? {
             city: location.city,
             state: location.state,
             zip: location.zip,
-            updatedAt: new Date(),
-          }).where(eq(crmCompanies.id, existingCompany.id)).returning();
+          } : {}),
+          updatedAt: new Date(),
+        }).where(eq(crmCompanies.id, existingCompany.id)).returning();
+        if (prospect.scan_center) {
           [lead] = await tx.update(crmLeads).set({
             city: location.city,
             state: location.state,
             updatedAt: new Date(),
           }).where(eq(crmLeads.id, existingScan.lead.id)).returning();
         } else {
-          company = existingCompany;
           lead = existingScan.lead;
         }
         contactId = lead.contactId;
@@ -510,7 +513,7 @@ export async function importLocalFalconPayload(
           website: prospect.website_url,
           phone: prospect.phone ? normalizePhoneDigits(prospect.phone) : null,
           email: prospect.email,
-          address: prospect.address,
+          address: SAB_ADDRESS_LABEL,
           city: location.city,
           state: location.state,
           zip: location.zip,
@@ -575,7 +578,7 @@ export async function importLocalFalconPayload(
         leadId: lead.id,
         placeId: prospect.place_id,
         companyName: prospect.company_name,
-        address: prospect.address,
+        address: SAB_ADDRESS_LABEL,
         city: prospect.city,
         state: prospect.state,
         zip: prospect.zip,

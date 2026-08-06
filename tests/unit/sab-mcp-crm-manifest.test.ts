@@ -58,6 +58,7 @@ function validManifest() {
 describe("SAB CRM manifest contract", () => {
   it("exposes the strict production field contract without writing data", () => {
     expect(SAB_CRM_IMPORT_CONTRACT).toMatchObject({
+      contract_version: "1.1",
       strict: true,
       writes_data: false,
       top_level: {
@@ -101,6 +102,18 @@ describe("SAB CRM manifest contract", () => {
     expect(result.error_count).toBeGreaterThan(0);
     expect(result.errors.join(" ")).toContain("batch: Required");
     expect(result.errors.join(" ")).toContain("company_name");
+  });
+
+  it("rejects a hidden operating address in an SAB manifest", () => {
+    const manifest = validManifest();
+    manifest.prospects[0].address = "6226 Wild Meadow Trl";
+
+    const result = validateSabCrmManifest(JSON.stringify(manifest));
+
+    expect(result.valid).toBe(false);
+    if (result.valid) throw new Error("Expected invalid manifest");
+    expect(result.errors.join(" ")).toContain("Service Area Business");
+    expect(result.writes_performed).toBe(false);
   });
 
   it("enforces the connector input size without accepting blank manifests", () => {
