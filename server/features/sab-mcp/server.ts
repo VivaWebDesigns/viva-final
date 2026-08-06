@@ -7,6 +7,10 @@ import { checkCrmPlaceIds } from "./crmDedup";
 import { checkCrmPlaceIdsFromLocalFalconReport } from "./localFalconDedup";
 import { reverseGeocodeSabCenters } from "./reverseGeocode";
 import {
+  SAB_CRM_IMPORT_CONTRACT,
+  validateSabCrmManifest,
+} from "./crmManifest";
+import {
   checkCrmLocalFalconReportInputSchema,
   checkCrmPlaceIdsInputSchema,
   createSabWorkflowInputSchema,
@@ -20,6 +24,7 @@ import {
   SAB_STATUSES,
   saveSabCompanyInputSchema,
   saveSabScanResultInputSchema,
+  validateSabCrmManifestInputSchema,
 } from "./schema";
 
 function jsonToolResult(value: unknown) {
@@ -38,7 +43,7 @@ export function createSabMcpServer(
 ) {
   const server = new McpServer({
     name: "viva-sab-workflow",
-    version: "1.4.0",
+    version: "1.5.0",
   });
 
   server.registerTool("get_sab_schema", {
@@ -52,6 +57,22 @@ export function createSabMcpServer(
       statuses: SAB_STATUSES,
       qualification_statuses: SAB_QUALIFICATION_STATUSES,
     });
+  });
+
+  server.registerTool("get_sab_crm_import_contract", {
+    description:
+      "Return the authoritative strict CRM batch.json contract for SAB Local Falcon prospects. Use this before constructing the final JSON manifest. The contract comes from the production CRM import path, is not a Google Drive document, and does not import or modify data.",
+    inputSchema: {},
+  }, async () => {
+    return jsonToolResult(SAB_CRM_IMPORT_CONTRACT);
+  });
+
+  server.registerTool("validate_sab_crm_manifest", {
+    description:
+      "Validate a complete candidate SAB CRM batch.json payload against the production Local Falcon CRM parser. Returns compact validation errors and performs no import or write. Use after constructing the manifest and before requesting export approval.",
+    inputSchema: validateSabCrmManifestInputSchema,
+  }, async ({ manifest_json }) => {
+    return jsonToolResult(validateSabCrmManifest(manifest_json));
   });
 
   server.registerTool("check_crm_place_ids", {

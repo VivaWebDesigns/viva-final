@@ -253,6 +253,12 @@ export const reverseGeocodeSabCentersInputSchema = {
   ),
 };
 
+export const validateSabCrmManifestInputSchema = {
+  manifest_json: z.string().trim().min(2).max(2_000_000).describe(
+    "Complete candidate CRM batch.json payload as JSON text. This validates only and never imports or writes CRM records.",
+  ),
+};
+
 export type SabCompanyUpdates = z.infer<typeof sabCompanyUpdatesSchema>;
 export type SabScanResult = z.infer<typeof sabScanResultSchema>;
 export type SabWorkflowRowInput = z.infer<typeof sabWorkflowRowSchema>;
