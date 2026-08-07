@@ -65,7 +65,7 @@ describe("public contact form contract", () => {
     expect(contactHtml).toContain("Book a Google Meet");
     expect(contactHtml).toContain("Google Visibility Review");
     expect(contactHtml).toContain("Review the weak spots on your heat map");
-    expect(contactHtml).toContain("Book My Heat Map Review");
+    expect(contactHtml).toContain("Book My Video Call");
     expect(contactHtml).toContain('target="_blank" rel="noopener noreferrer"');
   });
 });
