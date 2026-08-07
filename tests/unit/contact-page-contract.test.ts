@@ -54,4 +54,16 @@ describe("public contact form contract", () => {
   it("keeps the contact card location concise", () => {
     expect(contactHtml).toContain("<dt>Based in</dt><dd>Charlotte, NC</dd>");
   });
+
+  it("offers the Calendly Google Meet booking option", () => {
+    const calendlyUrl = "https://calendly.com/vivawebdesigns/new-meeting";
+    const calendlyLinks = contactHtml.match(
+      new RegExp(`href="${calendlyUrl}"`, "g"),
+    );
+
+    expect(calendlyLinks).toHaveLength(3);
+    expect(contactHtml).toContain("Book a Google Meet");
+    expect(contactHtml).toContain("Meet face-to-face on Google Meet");
+    expect(contactHtml).toContain('target="_blank" rel="noopener noreferrer"');
+  });
 });
