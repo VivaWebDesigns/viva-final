@@ -803,10 +803,12 @@ router.get(
   "/lead-coverage/summary",
   requireRole("admin", "developer"),
   async (req, res) => {
+    const scope = req.query.scope === "all" ? "all" : "active";
+    const allTime = req.query.range === "all";
     const days = parseInt(req.query.days as string, 10) || 30;
     const from = typeof req.query.from === "string" ? req.query.from : undefined;
     const to = typeof req.query.to === "string" ? req.query.to : undefined;
-    const summary = await marketplaceStorage.getLeadCoverageSummary({ days, from, to });
+    const summary = await marketplaceStorage.getLeadCoverageSummary({ days, from, to, allTime, scope });
     return res.json(summary);
   }
 );

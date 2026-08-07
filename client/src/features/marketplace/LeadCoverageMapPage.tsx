@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "wouter";
 import { STALE } from "@/lib/queryClient";
 import {
   CalendarDays,
@@ -10,7 +11,8 @@ import {
   Users,
 } from "lucide-react";
 
-type RangeMode = "30" | "60" | "90" | "custom";
+type RangeMode = "all" | "30" | "60" | "90" | "custom";
+type LeadScope = "active" | "all";
 
 interface CoverageTrade {
   value: string;
@@ -32,15 +34,19 @@ interface CapturedCity {
 
 interface RecentLead {
   id: string;
-  sellerFullName: string;
+  title: string;
+  contactName: string | null;
   businessName: string | null;
   city: string | null;
   state: string | null;
   trade: string | null;
   tradeLabel: string;
-  convertedAt: string | null;
-  convertedByName: string | null;
-  crmLeadId: string | null;
+  createdAt: string | null;
+  assignedToName: string | null;
+  statusName: string | null;
+  statusSlug: string | null;
+  statusColor: string | null;
+  statusIsClosed: boolean;
 }
 
 interface CoverageMarket {
@@ -65,7 +71,8 @@ interface CoverageMarket {
 }
 
 interface CoverageSummary {
-  range: { from: string; to: string; days: number };
+  scope: LeadScope;
+  range: { from: string | null; to: string | null; days: number | null };
   targetState: string;
   targetTrades: CoverageTrade[];
   totals: {
@@ -99,7 +106,7 @@ function formatDateShort(value: string | null | undefined) {
 }
 
 function formatDateRange(range: CoverageMarket["dateRange"]) {
-  if (!range.from || !range.to) return "No converted leads";
+  if (!range.from || !range.to) return "No leads";
   if (formatDateShort(range.from) === formatDateShort(range.to)) return formatDateShort(range.from);
   return `${formatDateShort(range.from)} - ${formatDateShort(range.to)}`;
 }
@@ -144,22 +151,26 @@ function StatBlock({
 
 export default function LeadCoverageMapPage() {
   const today = useMemo(() => toDateInputValue(new Date()), []);
-  const [rangeMode, setRangeMode] = useState<RangeMode>("30");
+  const [rangeMode, setRangeMode] = useState<RangeMode>("all");
+  const [leadScope, setLeadScope] = useState<LeadScope>("active");
   const [customFrom, setCustomFrom] = useState(toDateInputValue(addDays(new Date(), -29)));
   const [customTo, setCustomTo] = useState(today);
   const [selectedMarketId, setSelectedMarketId] = useState("nc-charlotte");
 
   const rangeQuery = useMemo(() => {
     const params = new URLSearchParams();
+    params.set("scope", leadScope);
     if (rangeMode === "custom") {
       params.set("from", customFrom);
       params.set("to", customTo);
+    } else if (rangeMode === "all") {
+      params.set("range", "all");
     } else {
       params.set("days", rangeMode);
       params.set("to", today);
     }
     return params.toString();
-  }, [customFrom, customTo, rangeMode, today]);
+  }, [customFrom, customTo, leadScope, rangeMode, today]);
 
   const { data, error, isError, isLoading } = useQuery<CoverageSummary>({
     queryKey: [`/api/marketplace/lead-coverage/summary?${rangeQuery}`],
@@ -174,6 +185,7 @@ export default function LeadCoverageMapPage() {
     null;
 
   const maxMarketLeads = Math.max(1, ...markets.map((market) => market.totalLeads));
+  const leadScopeLabel = leadScope === "active" ? "Active leads" : "All leads";
 
   return (
     <div>
@@ -183,12 +195,31 @@ export default function LeadCoverageMapPage() {
             Lead Coverage Map
           </h1>
           <p className="mt-1 text-sm text-gray-500">
-            Converted Marketplace leads rolled into North Carolina target markets.
+            Carolinas CRM leads grouped into major target markets by city and trade.
           </p>
         </div>
         <div className="flex flex-col gap-2 lg:items-end">
+          <div className="flex items-center gap-1 rounded-lg bg-gray-100 p-1" data-testid="filter-lead-coverage-scope">
+            {[
+              ["active", "Active leads"],
+              ["all", "All leads"],
+            ].map(([scope, label]) => (
+              <button
+                key={scope}
+                type="button"
+                onClick={() => setLeadScope(scope as LeadScope)}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                  leadScope === scope ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
+                }`}
+                data-testid={`button-lead-coverage-scope-${scope}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           <div className="flex items-center gap-1 rounded-lg bg-gray-100 p-1" data-testid="filter-lead-coverage-range">
             {[
+              ["all", "All time"],
               ["30", "30d"],
               ["60", "60d"],
               ["90", "90d"],
@@ -244,7 +275,7 @@ export default function LeadCoverageMapPage() {
       ) : data ? (
         <>
           <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <StatBlock label="Converted leads" value={data.totals.totalLeads} icon={CheckCircle2} />
+            <StatBlock label={leadScopeLabel} value={data.totals.totalLeads} icon={CheckCircle2} />
             <StatBlock label="Markets active" value={`${data.totals.marketsWithCoverage}/${data.totals.targetMarkets}`} icon={MapPinned} />
             <StatBlock label="Avg trade coverage" value={`${data.totals.averageCoveragePercent}%`} icon={Target} />
             <StatBlock label="Outside targets" value={data.totals.outsideTargetLeads} icon={CircleDot} />
@@ -293,7 +324,7 @@ export default function LeadCoverageMapPage() {
                         className="absolute -translate-x-1/2 -translate-y-1/2 text-left"
                         style={{ left: `${market.pin.x}%`, top: `${market.pin.y}%` }}
                         data-testid={`button-market-pin-${market.id}`}
-                        aria-label={`${market.name}, ${market.state}: ${market.totalLeads} converted leads`}
+                        aria-label={`${market.name}, ${market.state}: ${market.totalLeads} ${leadScopeLabel.toLowerCase()}`}
                       >
                         <span
                           className={`flex items-center justify-center rounded-full border-2 border-white text-xs font-bold text-white shadow-lg ring-2 ${
@@ -332,7 +363,7 @@ export default function LeadCoverageMapPage() {
                   <div className="space-y-5 p-5">
                     <div className="grid grid-cols-2 gap-3 text-sm">
                       <div className="rounded-lg bg-gray-50 p-3">
-                        <p className="text-xs uppercase tracking-wide text-gray-500">Converted leads</p>
+                        <p className="text-xs uppercase tracking-wide text-gray-500">{leadScopeLabel}</p>
                         <p className="mt-1 text-xl font-bold text-gray-900">{selectedMarket.totalLeads}</p>
                       </div>
                       <div className="rounded-lg bg-gray-50 p-3">
@@ -344,10 +375,10 @@ export default function LeadCoverageMapPage() {
                     <div>
                       <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-900">
                         <Users className="h-4 w-4 text-[#0D9488]" />
-                        Converted reps
+                        Assigned reps
                       </div>
                       {selectedMarket.reps.length === 0 ? (
-                        <p className="text-sm text-gray-500">No converted leads in this range.</p>
+                        <p className="text-sm text-gray-500">No leads in this range.</p>
                       ) : (
                         <div className="space-y-2">
                           {selectedMarket.reps.map((rep) => (
@@ -390,7 +421,7 @@ export default function LeadCoverageMapPage() {
               <section className="rounded-lg border border-gray-200 bg-white" data-testid="card-market-trades">
                 <div className="border-b border-gray-100 px-5 py-4">
                   <h2 className="text-base font-semibold text-gray-900">Trade Breakdown</h2>
-                  <p className="text-xs text-gray-500">Exact trade values selected in the extension.</p>
+                  <p className="text-xs text-gray-500">CRM trade values normalized into the coverage categories.</p>
                 </div>
                 <div className="p-5">
                   {selectedMarket.trades.length === 0 ? (
@@ -440,8 +471,8 @@ export default function LeadCoverageMapPage() {
               <section className="rounded-lg border border-gray-200 bg-white xl:col-span-2" data-testid="card-market-recent-leads">
                 <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
                   <div>
-                    <h2 className="text-base font-semibold text-gray-900">Recent Converted Leads</h2>
-                    <p className="text-xs text-gray-500">Latest converted records for the selected market.</p>
+                    <h2 className="text-base font-semibold text-gray-900">Recent CRM Leads</h2>
+                    <p className="text-xs text-gray-500">Open any lead to view its full CRM record.</p>
                   </div>
                   <CalendarDays className="h-5 w-5 text-gray-400" />
                 </div>
@@ -450,28 +481,37 @@ export default function LeadCoverageMapPage() {
                     <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
                       <tr>
                         <th className="px-5 py-3 font-semibold">Lead</th>
+                        <th className="px-5 py-3 font-semibold">Status</th>
                         <th className="px-5 py-3 font-semibold">Trade</th>
                         <th className="px-5 py-3 font-semibold">Captured city</th>
-                        <th className="px-5 py-3 font-semibold">Converted rep</th>
-                        <th className="px-5 py-3 font-semibold">Converted</th>
+                        <th className="px-5 py-3 font-semibold">Assigned rep</th>
+                        <th className="px-5 py-3 font-semibold">Added</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       {selectedMarket.recentLeads.length === 0 ? (
                         <tr>
-                          <td colSpan={5} className="px-5 py-8 text-center text-sm text-gray-500">No converted leads for this market.</td>
+                          <td colSpan={6} className="px-5 py-8 text-center text-sm text-gray-500">No leads for this market.</td>
                         </tr>
                       ) : (
                         selectedMarket.recentLeads.map((lead) => (
                           <tr key={lead.id} className="hover:bg-gray-50/70">
                             <td className="px-5 py-3">
-                              <p className="font-medium text-gray-900">{lead.businessName || lead.sellerFullName}</p>
-                              <p className="text-xs text-gray-500">{lead.sellerFullName}</p>
+                              <Link href={`/admin/crm/leads/${lead.id}`} className="font-medium text-[#0D9488] hover:underline">
+                                {lead.businessName || lead.title}
+                              </Link>
+                              <p className="text-xs text-gray-500">{lead.contactName || lead.title}</p>
+                            </td>
+                            <td className="px-5 py-3 text-gray-700">
+                              <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-50 px-2 py-1 text-xs font-medium ring-1 ring-inset ring-gray-200">
+                                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: lead.statusColor || "#6B7280" }} />
+                                {lead.statusName || "No status"}
+                              </span>
                             </td>
                             <td className="px-5 py-3 text-gray-700">{lead.tradeLabel}</td>
                             <td className="px-5 py-3 text-gray-700">{[lead.city, lead.state].filter(Boolean).join(", ") || "Unknown"}</td>
-                            <td className="px-5 py-3 text-gray-700">{lead.convertedByName || "Unknown rep"}</td>
-                            <td className="px-5 py-3 text-gray-700">{formatDateShort(lead.convertedAt)}</td>
+                            <td className="px-5 py-3 text-gray-700">{lead.assignedToName || "Unassigned"}</td>
+                            <td className="px-5 py-3 text-gray-700">{formatDateShort(lead.createdAt)}</td>
                           </tr>
                         ))
                       )}
@@ -485,7 +525,7 @@ export default function LeadCoverageMapPage() {
                   <div className="px-5 py-4">
                     <h2 className="text-base font-semibold text-amber-900">Outside Target Markets</h2>
                     <p className="mt-1 text-sm text-amber-800">
-                      {data.outsideTargetMarkets.totalLeads} converted NC leads are outside the current target-market rollups.
+                      {data.outsideTargetMarkets.totalLeads} CRM leads are outside the current target-market rollups or need location details.
                     </p>
                     <div className="mt-3 flex flex-wrap gap-2">
                       {data.outsideTargetMarkets.capturedCities.map((city) => (

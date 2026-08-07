@@ -611,7 +611,7 @@ const NC_TARGET_MARKETS = [
     state: "NC",
     radiusMiles: 20,
     pin: { x: 36, y: 68 },
-    cities: ["Belmont", "Charlotte", "Concord", "Cornelius", "Davidson", "Gastonia", "Harrisburg", "Huntersville", "Indian Trail", "Matthews", "Mint Hill", "Stallings"],
+    cities: ["Belmont", "Charlotte", "Concord", "Cornelius", "Davidson", "Gastonia", "Harrisburg", "Huntersville", "Indian Trail", "Locust", "Marvin", "Matthews", "Mint Hill", "Monroe", "Stallings", "Unionville", "Waxhaw"],
   },
   {
     id: "nc-raleigh",
@@ -715,9 +715,37 @@ for (const market of NC_TARGET_MARKETS) {
   }
 }
 
+const CHARLOTTE_CROSS_BORDER_CITIES = ["Catawba", "Fort Mill", "Indian Land", "Rock Hill"];
+const charlotteMarket = NC_TARGET_MARKETS.find(market => market.id === "nc-charlotte");
+if (charlotteMarket) {
+  for (const city of CHARLOTTE_CROSS_BORDER_CITIES) {
+    NC_MARKET_BY_CITY.set(marketCityKey(city, "SC"), charlotteMarket);
+  }
+}
+
 function formatTradeLabel(value: string | null | undefined) {
   if (!value) return "Unknown";
   return ALL_EXTENSION_TRADES[value] ?? value.replace(/_/g, " ").replace(/\b\w/g, ch => ch.toUpperCase());
+}
+
+function normalizeTradeToken(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+const COVERAGE_TRADE_BY_LABEL = new Map(
+  Object.entries(ALL_EXTENSION_TRADES).map(([value, label]) => [normalizeTradeToken(label), value])
+);
+
+export function normalizeCoverageTrade(value: string | null | undefined) {
+  if (!value?.trim()) return null;
+  const token = normalizeTradeToken(value);
+  if (ALL_EXTENSION_TRADES[token]) return token;
+  return COVERAGE_TRADE_BY_LABEL.get(token) ?? token;
 }
 
 function toCoverageIsoDate(value: Date | string | null | undefined) {
@@ -729,15 +757,19 @@ function toCoverageIsoDate(value: Date | string | null | undefined) {
 
 type CoverageLeadRow = {
   id: string;
-  sellerFullName: string;
+  title: string;
+  contactName: string | null;
   businessName: string | null;
   city: string | null;
   state: string | null;
   trade: string | null;
-  convertedAt: Date | string | null;
-  crmLeadId: string | null;
-  convertedBy: string | null;
-  convertedByName: string | null;
+  createdAt: Date | string | null;
+  assignedTo: string | null;
+  assignedToName: string | null;
+  statusName: string | null;
+  statusSlug: string | null;
+  statusColor: string | null;
+  statusIsClosed: boolean;
 };
 
 type MutableCoverageMarket = {
@@ -754,15 +786,19 @@ type MutableCoverageMarket = {
   capturedCities: Map<string, { city: string; state: string; count: number }>;
   recentLeads: Array<{
     id: string;
-    sellerFullName: string;
+    title: string;
+    contactName: string | null;
     businessName: string | null;
     city: string | null;
     state: string | null;
     trade: string | null;
     tradeLabel: string;
-    convertedAt: string | null;
-    convertedByName: string | null;
-    crmLeadId: string | null;
+    createdAt: string | null;
+    assignedToName: string | null;
+    statusName: string | null;
+    statusSlug: string | null;
+    statusColor: string | null;
+    statusIsClosed: boolean;
   }>;
 };
 
@@ -813,7 +849,7 @@ function finalizeCoverageMarket(market: MutableCoverageMarket) {
     trades: [...market.trades.values()].sort((a, b) => b.count - a.count || a.label.localeCompare(b.label)),
     capturedCities: [...market.capturedCities.values()].sort((a, b) => b.count - a.count || a.city.localeCompare(b.city)),
     recentLeads: market.recentLeads
-      .sort((a, b) => String(b.convertedAt ?? "").localeCompare(String(a.convertedAt ?? "")))
+      .sort((a, b) => String(b.createdAt ?? "").localeCompare(String(a.createdAt ?? "")))
       .slice(0, 12),
   };
 }
@@ -821,32 +857,32 @@ function finalizeCoverageMarket(market: MutableCoverageMarket) {
 function addLeadToCoverageMarket(market: MutableCoverageMarket, row: CoverageLeadRow) {
   market.totalLeads += 1;
 
-  const convertedAtIso = toCoverageIsoDate(row.convertedAt);
-  if (convertedAtIso) {
-    if (!market.dateRange.from || convertedAtIso < market.dateRange.from) market.dateRange.from = convertedAtIso;
-    if (!market.dateRange.to || convertedAtIso > market.dateRange.to) market.dateRange.to = convertedAtIso;
+  const createdAtIso = toCoverageIsoDate(row.createdAt);
+  if (createdAtIso) {
+    if (!market.dateRange.from || createdAtIso < market.dateRange.from) market.dateRange.from = createdAtIso;
+    if (!market.dateRange.to || createdAtIso > market.dateRange.to) market.dateRange.to = createdAtIso;
   }
 
-  const repKey = row.convertedBy ?? "__unknown__";
+  const repKey = row.assignedTo ?? "__unassigned__";
   const rep = market.reps.get(repKey) ?? {
-    userId: row.convertedBy,
-    name: row.convertedByName ?? "Unknown rep",
+    userId: row.assignedTo,
+    name: row.assignedToName ?? "Unassigned",
     count: 0,
   };
   rep.count += 1;
   market.reps.set(repKey, rep);
 
-  const tradeValue = row.trade ?? "unknown";
+  const tradeValue = normalizeCoverageTrade(row.trade) ?? "unknown";
   const trade = market.trades.get(tradeValue) ?? {
     value: tradeValue,
-    label: formatTradeLabel(row.trade),
+    label: formatTradeLabel(tradeValue),
     count: 0,
   };
   trade.count += 1;
   market.trades.set(tradeValue, trade);
 
   const cityLabel = row.city?.trim() || "Unknown city";
-  const stateLabel = row.state?.trim().toUpperCase() || "NC";
+  const stateLabel = row.state?.trim().toUpperCase() || "Unknown";
   const cityKey = marketCityKey(cityLabel, stateLabel);
   const capturedCity = market.capturedCities.get(cityKey) ?? {
     city: cityLabel,
@@ -858,15 +894,19 @@ function addLeadToCoverageMarket(market: MutableCoverageMarket, row: CoverageLea
 
   market.recentLeads.push({
     id: row.id,
-    sellerFullName: row.sellerFullName,
+    title: row.title,
+    contactName: row.contactName,
     businessName: row.businessName,
     city: row.city,
     state: row.state,
     trade: row.trade,
-    tradeLabel: formatTradeLabel(row.trade),
-    convertedAt: convertedAtIso,
-    convertedByName: row.convertedByName,
-    crmLeadId: row.crmLeadId,
+    tradeLabel: formatTradeLabel(tradeValue),
+    createdAt: createdAtIso,
+    assignedToName: row.assignedToName,
+    statusName: row.statusName,
+    statusSlug: row.statusSlug,
+    statusColor: row.statusColor,
+    statusIsClosed: row.statusIsClosed,
   });
 }
 
@@ -885,29 +925,47 @@ type LeadGenWorkerRow = {
   avgQueueToConvertHours: number | null;
 };
 
-export async function getLeadCoverageSummary(options: number | { days?: number; from?: string; to?: string } = 30) {
-  const range = makeLeadGenRange(typeof options === "number" ? { days: options } : options);
+type LeadCoverageScope = "active" | "all";
+
+export async function getLeadCoverageSummary(
+  options: number | { days?: number; from?: string; to?: string; allTime?: boolean; scope?: LeadCoverageScope } = {
+    allTime: true,
+    scope: "active",
+  }
+) {
+  const normalizedOptions = typeof options === "number" ? { days: options } : options;
+  const scope: LeadCoverageScope = normalizedOptions.scope === "all" ? "all" : "active";
+  const range = normalizedOptions.allTime ? null : makeLeadGenRange(normalizedOptions);
+  const dateFilter = range
+    ? sql`AND l.created_at >= ${range.from} AND l.created_at < ${range.endExclusive}`
+    : sql``;
+  const statusFilter = scope === "active" ? sql`AND COALESCE(s.is_closed, false) = false` : sql``;
 
   const rows = await db.execute(sql`
     SELECT
-      m.id,
-      m.seller_full_name AS "sellerFullName",
-      m.business_name AS "businessName",
-      m.city,
-      m.state,
-      m.trade_guess AS "trade",
-      m.converted_at AS "convertedAt",
-      m.crm_lead_id AS "crmLeadId",
-      m.converted_by AS "convertedBy",
-      u.name AS "convertedByName"
-    FROM marketplace_pending_outreach m
-    LEFT JOIN "user" u ON u.id = m.converted_by
-    WHERE m.deleted_at IS NULL
-      AND m.message_status = 'converted'
-      AND m.converted_at >= ${range.from}
-      AND m.converted_at < ${range.endExclusive}
-      AND upper(coalesce(m.state, '')) = 'NC'
-    ORDER BY m.converted_at DESC
+      l.id,
+      l.title,
+      NULLIF(TRIM(CONCAT_WS(' ', ct.first_name, ct.last_name)), '') AS "contactName",
+      c.name AS "businessName",
+      COALESCE(NULLIF(TRIM(l.city), ''), NULLIF(TRIM(c.city), '')) AS city,
+      COALESCE(NULLIF(TRIM(l.state), ''), NULLIF(TRIM(c.state), '')) AS state,
+      COALESCE(NULLIF(TRIM(l.trade), ''), NULLIF(TRIM(c.industry), '')) AS trade,
+      l.created_at AS "createdAt",
+      l.assigned_to AS "assignedTo",
+      u.name AS "assignedToName",
+      s.name AS "statusName",
+      s.slug AS "statusSlug",
+      s.color AS "statusColor",
+      COALESCE(s.is_closed, false) AS "statusIsClosed"
+    FROM crm_leads l
+    LEFT JOIN crm_companies c ON c.id = l.company_id
+    LEFT JOIN crm_contacts ct ON ct.id = l.contact_id
+    LEFT JOIN crm_lead_statuses s ON s.id = l.status_id
+    LEFT JOIN "user" u ON u.id = l.assigned_to
+    WHERE 1 = 1
+      ${statusFilter}
+      ${dateFilter}
+    ORDER BY l.created_at DESC
   `);
 
   const markets = new Map<string, MutableCoverageMarket>();
@@ -949,7 +1007,10 @@ export async function getLeadCoverageSummary(options: number | { days?: number; 
     : 0;
 
   return {
-    range: { from: range.from.toISOString(), to: range.endExclusive.toISOString(), days: range.days },
+    scope,
+    range: range
+      ? { from: range.from.toISOString(), to: range.endExclusive.toISOString(), days: range.days }
+      : { from: null, to: null, days: null },
     targetState: "NC",
     targetTrades: PRIMARY_COVERAGE_TRADES,
     totals: {
