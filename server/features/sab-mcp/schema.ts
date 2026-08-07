@@ -240,6 +240,17 @@ export const checkCrmLocalFalconReportInputSchema = {
   ),
 };
 
+export const getSabRankedCellsInputSchema = {
+  report_key: z.string().trim().min(1).max(1_000).describe(
+    "Completed Local Falcon master scan report key. This tool reads the existing report and never runs a scan.",
+  ),
+  place_ids: z.array(
+    z.string().trim().min(1).max(500),
+  ).min(1).max(50).describe(
+    "Selected qualified-company Google Place IDs. The connector filters the completed master report server-side and returns only their ranked cells.",
+  ),
+};
+
 export const reverseGeocodeSabCentersInputSchema = {
   centers: z.array(z.object({
     place_id: z.string().trim().min(1).max(500).describe(

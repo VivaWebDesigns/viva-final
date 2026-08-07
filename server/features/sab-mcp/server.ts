@@ -5,6 +5,7 @@ import {
 } from "./sheets";
 import { checkCrmPlaceIds } from "./crmDedup";
 import { checkCrmPlaceIdsFromLocalFalconReport } from "./localFalconDedup";
+import { getSabRankedCells } from "./localFalconRankedCells";
 import { reverseGeocodeSabCenters } from "./reverseGeocode";
 import {
   SAB_CRM_IMPORT_CONTRACT,
@@ -17,6 +18,7 @@ import {
   getSabBatchInputSchema,
   getSabCompanyInputSchema,
   getSabProgressInputSchema,
+  getSabRankedCellsInputSchema,
   markSabBlockedInputSchema,
   reverseGeocodeSabCentersInputSchema,
   SAB_HEADERS,
@@ -43,7 +45,7 @@ export function createSabMcpServer(
 ) {
   const server = new McpServer({
     name: "viva-sab-workflow",
-    version: "1.5.0",
+    version: "1.6.0",
   });
 
   server.registerTool("get_sab_schema", {
@@ -91,6 +93,14 @@ export function createSabMcpServer(
     return jsonToolResult(
       await checkCrmPlaceIdsFromLocalFalconReport(report_key),
     );
+  });
+
+  server.registerTool("get_sab_ranked_cells", {
+    description:
+      "Read a completed Local Falcon master scan and return exact numeric ranked cells only for the requested qualified-company Place IDs. The connector filters the large report server-side, maps every returned coordinate to a 1-based north-to-south row and west-to-east column, separately counts imprecise or unranked placeholders such as 20+, and reports missing Place IDs. This is read-only and never runs or replaces a scan.",
+    inputSchema: getSabRankedCellsInputSchema,
+  }, async ({ report_key, place_ids }) => {
+    return jsonToolResult(await getSabRankedCells(report_key, place_ids));
   });
 
   server.registerTool("reverse_geocode_sab_centers", {
