@@ -73,7 +73,7 @@ export default function LeadListPage() {
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
   const [page, setPage] = useState(1);
   useEffect(() => { setPage(1); }, [search]);
-  const pageSize = 20;
+  const pageSize = 100;
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDialog, setBulkDialog] = useState<BulkAction | null>(null);
@@ -111,7 +111,7 @@ export default function LeadListPage() {
       if (tagFilter && tagFilter !== "all") params.set("tagId", tagFilter);
       if (assigneeFilter && assigneeFilter !== "all") params.set("assignedTo", assigneeFilter);
       params.set("page", String(page));
-      params.set("pageSize", String(pageSize));
+      params.set("limit", String(pageSize));
       const res = await fetch(`/api/crm/leads?${params}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch leads");
       return res.json();

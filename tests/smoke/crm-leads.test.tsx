@@ -32,13 +32,16 @@ describe("CRM LeadListPage smoke", () => {
 
   it("shows trade and city with company fallbacks", async () => {
     let requestedTagId: string | null = null;
+    let requestedLimit: string | null = null;
     server.use(
       http.get("/api/crm/leads/assignable-users", () => HttpResponse.json([])),
       http.get("/api/crm/tags", () => HttpResponse.json([
         { id: "tag-sab", name: "SAB", slug: "sab", color: "#7C3AED" },
       ])),
       http.get("/api/crm/leads", ({ request }) => {
-        requestedTagId = new URL(request.url).searchParams.get("tagId");
+        const searchParams = new URL(request.url).searchParams;
+        requestedTagId = searchParams.get("tagId");
+        requestedLimit = searchParams.get("limit");
         return HttpResponse.json({
           leads: [{
             id: "lead-1",
@@ -72,7 +75,7 @@ describe("CRM LeadListPage smoke", () => {
           }],
           total: 1,
           page: 1,
-          pageSize: 20,
+          pageSize: 100,
         });
       }),
     );
@@ -88,6 +91,7 @@ describe("CRM LeadListPage smoke", () => {
       expect.stringContaining("No website and active paid-lead usage."),
     );
     expect(screen.getByTestId("select-tag-filter")).toBeInTheDocument();
+    expect(requestedLimit).toBe("100");
 
     fireEvent.click(screen.getByTestId("select-tag-filter"));
     fireEvent.click(await screen.findByRole("option", { name: "SAB" }));
