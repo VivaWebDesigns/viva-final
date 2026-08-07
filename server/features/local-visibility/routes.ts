@@ -9,6 +9,7 @@ import { db } from "../../db";
 import { crmLeads, localFalconImportBatches, localFalconProspectProfiles } from "@shared/schema";
 import { deleteFile, getFileBuffer, getSignedDownloadUrl, uploadFile } from "../../services/storage";
 import {
+  formatLocalVisibilityReportAddress,
   getLocalFalconMapPresentation,
 } from "@shared/localVisibility";
 import {
@@ -176,13 +177,12 @@ router.get(
       const snapshotImageUrl = record.profile.snapshotStorageKey
         ? await getSignedDownloadUrl(record.profile.snapshotStorageKey)
         : null;
-      const address = [
-        record.profile.address,
-        record.profile.scanCity ?? record.profile.city,
-        record.profile.scanState ?? record.profile.state,
-        record.profile.scanZip ?? record.profile.zip,
-      ]
-        .filter(Boolean).join(", ").replace(/, ([A-Z]{2}), /, ", $1 ");
+      const address = formatLocalVisibilityReportAddress({
+        address: record.profile.address,
+        city: record.profile.scanCity ?? record.profile.city,
+        state: record.profile.scanState ?? record.profile.state,
+        zip: record.profile.scanZip ?? record.profile.zip,
+      });
       res.json({
         reportId: accessRecord.id,
         leadId: record.profile.leadId,
@@ -326,13 +326,12 @@ router.get(
       const snapshotImageUrl = record.profile.snapshotStorageKey
         ? await getSignedDownloadUrl(record.profile.snapshotStorageKey)
         : null;
-      const address = [
-        record.profile.address,
-        record.profile.scanCity ?? record.profile.city,
-        record.profile.scanState ?? record.profile.state,
-        record.profile.scanZip ?? record.profile.zip,
-      ]
-        .filter(Boolean).join(", ").replace(/, ([A-Z]{2}), /, ", $1 ");
+      const address = formatLocalVisibilityReportAddress({
+        address: record.profile.address,
+        city: record.profile.scanCity ?? record.profile.city,
+        state: record.profile.scanState ?? record.profile.state,
+        zip: record.profile.scanZip ?? record.profile.zip,
+      });
       res.json({
         leadId: req.params.leadId as string,
         reportUrl: record.profile.reportUrl,

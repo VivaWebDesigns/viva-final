@@ -1,6 +1,7 @@
 export const LOCAL_FALCON_AUTOMATED_MAP_ZOOM = 160;
 export const LOCAL_FALCON_CLOSE_RADIUS_MAP_ZOOM = 140;
 export const LOCAL_VISIBILITY_DEFAULT_MAP_ZOOM = 100;
+const SERVICE_AREA_BUSINESS_LABEL = "Service Area Business";
 
 export const LOCAL_VISIBILITY_CENTERED_MAP_POSITION = {
   x: 0,
@@ -23,6 +24,28 @@ export function getLocalFalconMapPresentation(
       : LOCAL_VISIBILITY_DEFAULT_MAP_ZOOM,
     mapPosition: LOCAL_VISIBILITY_CENTERED_MAP_POSITION,
   };
+}
+
+export function formatLocalVisibilityReportAddress({
+  address,
+  city,
+  state,
+  zip,
+}: {
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zip?: string | null;
+}): string {
+  const normalizedAddress = address?.trim() ?? "";
+  if (normalizedAddress.toLowerCase() === SERVICE_AREA_BUSINESS_LABEL.toLowerCase()) {
+    return SERVICE_AREA_BUSINESS_LABEL;
+  }
+
+  return [normalizedAddress, city?.trim(), state?.trim(), zip?.trim()]
+    .filter(Boolean)
+    .join(", ")
+    .replace(/, ([A-Z]{2}), /, ", $1 ");
 }
 
 export type LocalVisibilityReportSummary = {

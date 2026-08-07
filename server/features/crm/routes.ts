@@ -29,6 +29,7 @@ import {
   type IncomingPackageFile,
 } from "./localFalconPackage";
 import {
+  formatLocalVisibilityReportAddress,
   getLocalFalconMapPresentation,
 } from "@shared/localVisibility";
 import {
@@ -440,7 +441,12 @@ router.post(
             ),
             reportData: {
               businessName: prospect.company_name,
-              address: [prospect.address, prospect.city, prospect.state, prospect.zip].filter(Boolean).join(", "),
+              address: formatLocalVisibilityReportAddress({
+                address: prospect.address,
+                city: prospect.city,
+                state: prospect.state,
+                zip: prospect.zip,
+              }),
               rating: String(prospect.rating),
               reviewCount: String(prospect.review_count),
               searchPhrase: prospect.scan_keyword,

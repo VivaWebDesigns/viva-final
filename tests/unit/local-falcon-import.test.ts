@@ -16,6 +16,7 @@ import {
   LOCAL_FALCON_LEAD_CLASSIFICATIONS,
   getLocalFalconLeadClassification,
 } from "../../shared/leadClassification";
+import { formatLocalVisibilityReportAddress } from "../../shared/localVisibility";
 
 const heatmapPath = "heatmaps/ChIJ-test-1.png";
 const prospect = {
@@ -143,6 +144,26 @@ describe("Local Falcon fallback address matching", () => {
   it("still matches normalized street addresses", () => {
     expect(isExactStreetAddressMatch(" 6904 The Plaza ", "6904  THE PLAZA")).toBe(true);
     expect(isExactStreetAddressMatch("6904 The Plaza", "6905 The Plaza")).toBe(false);
+  });
+});
+
+describe("Local Visibility report address formatting", () => {
+  it("shows only the canonical label for service-area businesses", () => {
+    expect(formatLocalVisibilityReportAddress({
+      address: "Service Area Business",
+      city: "Fort Mill",
+      state: "SC",
+      zip: "29707",
+    })).toBe("Service Area Business");
+  });
+
+  it("keeps the full address for location-based businesses", () => {
+    expect(formatLocalVisibilityReportAddress({
+      address: "123 Main St",
+      city: "Fort Mill",
+      state: "SC",
+      zip: "29707",
+    })).toBe("123 Main St, Fort Mill, SC 29707");
   });
 });
 
