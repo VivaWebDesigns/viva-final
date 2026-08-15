@@ -8,15 +8,26 @@ const readSource = (relativePath: string) =>
 
 describe("privacy policy contract", () => {
   it("provides a public privacy policy route linked from the footer", () => {
-    const appSource = readSource("client/src/App.tsx");
-    const footerSource = readSource("client/src/components/Footer.tsx");
+    const routesSource = readSource("server/public-pages.ts");
+    const publicPages = [
+      "index.html",
+      "results.html",
+      "contact.html",
+      "scan.html",
+      "thanks.html",
+      "contact-thanks.html",
+    ];
 
-    expect(appSource).toContain('<Route path="/privacy-policy" component={PrivacyPolicy} />');
-    expect(footerSource).toContain('href="/privacy-policy"');
+    expect(routesSource).toContain('"/privacy-policy": "privacy-policy.html"');
+    publicPages.forEach((page) => {
+      expect(readSource(`client/public/${page}`)).toContain(
+        'href="/privacy-policy">Privacy Policy</a>',
+      );
+    });
   });
 
   it("includes the required mobile information disclosure", () => {
-    const policySource = readSource("client/src/components/PrivacyPolicyModal.tsx");
+    const policySource = readSource("client/public/privacy-policy.html");
 
     expect(policySource).toContain("4. Mobile Information and SMS Consent");
     expect(policySource).toContain(

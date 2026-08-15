@@ -1066,6 +1066,65 @@ select {
   text-align: center;
 }
 
+.legal-card {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 34px 24px;
+}
+
+.legal-card > header {
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--line);
+}
+
+.legal-card h1 {
+  margin: 0;
+  font-size: 34px;
+  line-height: 1.12;
+  font-weight: 500;
+}
+
+.legal-card .effective-date {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.legal-intro {
+  margin: 24px 0 0;
+  color: var(--muted);
+}
+
+.legal-section {
+  padding-top: 28px;
+}
+
+.legal-section h2 {
+  margin: 0 0 12px;
+  font-size: 21px;
+  line-height: 1.25;
+  font-weight: 500;
+}
+
+.legal-section p {
+  margin: 0 0 12px;
+  color: var(--muted);
+}
+
+.legal-section ul {
+  margin: 0;
+  padding-left: 22px;
+  color: var(--muted);
+}
+
+.legal-section li + li {
+  margin-top: 6px;
+}
+
+.legal-contact {
+  font-style: normal;
+}
+
 @media (min-width: 640px) {
   .hero-actions,
   .section-actions {

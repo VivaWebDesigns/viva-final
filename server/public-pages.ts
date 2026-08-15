@@ -3,6 +3,7 @@ import type { Express } from "express";
 export const cleanPublicPageFiles: Record<string, string> = {
   "/results": "results.html",
   "/contact": "contact.html",
+  "/privacy-policy": "privacy-policy.html",
   "/scan": "scan.html",
   "/thanks": "thanks.html",
   "/contact-thanks": "contact-thanks.html",
@@ -14,6 +15,8 @@ export const cleanPublicPageRedirects: Record<string, string> = {
   "/results/": "/results",
   "/contact.html": "/contact",
   "/contact/": "/contact",
+  "/privacy-policy.html": "/privacy-policy",
+  "/privacy-policy/": "/privacy-policy",
   "/scan.html": "/scan",
   "/scan/": "/scan",
   "/thanks.html": "/thanks",
