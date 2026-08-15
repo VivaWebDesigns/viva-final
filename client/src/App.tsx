@@ -19,6 +19,7 @@ const PaqueteEmpieza = lazy(() => import("@/pages/PaqueteEmpieza"));
 const PaqueteCrece = lazy(() => import("@/pages/PaqueteCrece"));
 const PaqueteDomina = lazy(() => import("@/pages/PaqueteDomina"));
 const Contacto = lazy(() => import("@/pages/Contacto"));
+const PrivacyPolicy = lazy(() => import("@/pages/PrivacyPolicy"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 const LoginPage = lazy(() => import("@features/auth/LoginPage"));
 const SetupPage = lazy(() => import("@features/auth/SetupPage"));
@@ -41,6 +42,7 @@ function MarketingRouter() {
         <Route path="/paquetes/crece" component={PaqueteCrece} />
         <Route path="/paquetes/domina" component={PaqueteDomina} />
         <Route path="/contacto" component={Contacto} />
+        <Route path="/privacy-policy" component={PrivacyPolicy} />
         <Route component={NotFound} />
       </Switch>
     </Suspense>

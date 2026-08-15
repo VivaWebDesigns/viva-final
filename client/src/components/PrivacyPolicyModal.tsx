@@ -15,15 +15,18 @@ function PolicySection({ title, children }: { title: string; children: React.Rea
   );
 }
 
-function PrivacyPolicyContent() {
+export function PrivacyPolicyContent({ standalone = false }: { standalone?: boolean }) {
   const company = "Viva Web Designs LLC";
   const email = "matt@vivawebdesigns.com";
   const phone = "(980) 475-4924";
-  const effective = "April 3, 2026";
+  const effective = "August 15, 2026";
+  const Heading = standalone ? "h1" : "h2";
 
   return (
     <div className="text-sm">
-      <h2 className="text-base font-bold text-gray-900 mb-1">Privacy Policy</h2>
+      <Heading className={standalone ? "text-3xl sm:text-4xl font-bold text-gray-900 mb-2" : "text-base font-bold text-gray-900 mb-1"}>
+        Privacy Policy
+      </Heading>
       <p className="text-xs text-gray-500 mb-6">Effective Date: {effective}</p>
 
       <p className="text-sm text-gray-700 leading-relaxed mb-8">
@@ -63,31 +66,40 @@ function PrivacyPolicyContent() {
         </p>
       </PolicySection>
 
-      <PolicySection title="4. Cookies and Tracking Technologies">
+      <PolicySection title="4. Mobile Information and SMS Consent">
+        <p>
+          No Mobile information will be shared with third parties/affiliates for marketing/promotional purposes. All the above categories exclude text messaging originator opt-in data and consent; this information will not be shared with any third parties. You can opt out at any time by replying <strong>STOP</strong>. Message and data rates may apply.
+        </p>
+        <p>
+          Message frequency varies. Reply <strong>HELP</strong> for help.
+        </p>
+      </PolicySection>
+
+      <PolicySection title="5. Cookies and Tracking Technologies">
         <p>
           Our website uses cookies and similar tracking technologies to enhance your browsing experience, analyze site traffic, and understand how visitors interact with our content. You can instruct your browser to refuse all cookies or to indicate when a cookie is being sent. However, some features of our website may not function properly without cookies.
         </p>
       </PolicySection>
 
-      <PolicySection title="5. Data Security">
+      <PolicySection title="6. Data Security">
         <p>
           We implement appropriate technical and organizational measures to protect your personal information against unauthorized access, alteration, disclosure, or destruction. However, no method of transmission over the internet or electronic storage is 100% secure, and we cannot guarantee absolute security.
         </p>
       </PolicySection>
 
-      <PolicySection title="6. Third-Party Links">
+      <PolicySection title="7. Third-Party Links">
         <p>
           Our website may contain links to third-party websites. We are not responsible for the privacy practices of those sites and encourage you to review their privacy policies before providing any personal information.
         </p>
       </PolicySection>
 
-      <PolicySection title="7. Children's Privacy">
+      <PolicySection title="8. Children's Privacy">
         <p>
           Our services are not directed to individuals under the age of 18. We do not knowingly collect personal information from children. If you believe a child has provided us with personal information, please contact us and we will take steps to delete it.
         </p>
       </PolicySection>
 
-      <PolicySection title="8. Your Rights">
+      <PolicySection title="9. Your Rights">
         <p>Depending on your location, you may have the right to:</p>
         <ul className="list-disc list-inside space-y-1 mt-2 ml-2">
           <li>Access the personal information we hold about you</li>
@@ -98,13 +110,13 @@ function PrivacyPolicyContent() {
         <p className="mt-3">To exercise any of these rights, contact us at {email}.</p>
       </PolicySection>
 
-      <PolicySection title="9. Changes to This Policy">
+      <PolicySection title="10. Changes to This Policy">
         <p>
           We may update this Privacy Policy from time to time. We will notify you of any significant changes by updating the effective date at the top of this page. Your continued use of our website after changes are posted constitutes your acceptance of the updated policy.
         </p>
       </PolicySection>
 
-      <PolicySection title="10. Communications">
+      <PolicySection title="11. Communications">
         <p>
           If you contact Viva Web Designs LLC through our website, forms, email, phone, or scheduling tools, we may contact you regarding your inquiry, requested services, appointments, project updates, or customer support.
         </p>
@@ -113,7 +125,7 @@ function PrivacyPolicyContent() {
         </p>
       </PolicySection>
 
-      <PolicySection title="11. Contact Us">
+      <PolicySection title="12. Contact Us">
         <p>If you have questions or concerns about this Privacy Policy, please contact us:</p>
         <div className="mt-2 ml-2 space-y-1">
           <p><strong>{company}</strong></p>

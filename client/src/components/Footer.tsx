@@ -3,7 +3,6 @@ import { Phone, Mail, MapPin, Clock } from "lucide-react";
 import { SiFacebook, SiInstagram, SiTiktok, SiWhatsapp } from "react-icons/si";
 import logoImg from "@assets/Viva_1772823591549.png";
 import { t } from "@/content";
-import { PrivacyPolicyModal } from "@/components/PrivacyPolicyModal";
 
 export default function Footer() {
   return (
@@ -73,7 +72,13 @@ export default function Footer() {
             <p className="text-gray-600 text-sm" data-testid="text-copyright">
               &copy; {new Date().getFullYear()} {t("global.company")}. {t("footer.copyright")}
             </p>
-            <PrivacyPolicyModal />
+            <Link
+              href="/privacy-policy"
+              className="text-gray-500 text-sm hover:text-white transition-colors duration-200"
+              data-testid="link-privacy-policy"
+            >
+              Privacy Policy
+            </Link>
           </div>
           <p className="text-gray-600 text-sm text-center sm:text-left" data-testid="text-footer-statement">
             {t("footer.statement")}
