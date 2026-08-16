@@ -20,9 +20,12 @@ describe("privacy policy contract", () => {
 
     expect(routesSource).toContain('"/privacy-policy": "privacy-policy.html"');
     publicPages.forEach((page) => {
-      expect(readSource(`client/public/${page}`)).toContain(
+      const pageSource = readSource(`client/public/${page}`);
+      expect(pageSource).toContain(
         'href="/privacy-policy">Privacy Policy</a>',
       );
+      expect(pageSource).toContain('<nav aria-label="Footer navigation">');
+      expect(pageSource).not.toContain("<h3>Site</h3>");
     });
   });
 
