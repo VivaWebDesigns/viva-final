@@ -14,6 +14,10 @@ export const contacts = pgTable("contacts", {
   trade: text("trade"),
   service: text("service"),
   message: text("message"),
+  smsConsent: boolean("sms_consent").notNull().default(false),
+  smsConsentAt: timestamp("sms_consent_at"),
+  smsConsentSource: text("sms_consent_source"),
+  smsConsentDisclosure: text("sms_consent_disclosure"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (t) => [
   index("contacts_created_idx").on(t.createdAt),
@@ -39,7 +43,12 @@ export const insertContactSchema = z.object({
 });
 
 // @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
-export type InsertContact = z.infer<typeof insertContactSchema>;
+export type InsertContact = z.infer<typeof insertContactSchema> & {
+  smsConsent?: boolean;
+  smsConsentAt?: Date | null;
+  smsConsentSource?: string | null;
+  smsConsentDisclosure?: string | null;
+};
 export type Contact = typeof contacts.$inferSelect;
 
 export const insertInquirySchema = z.object({

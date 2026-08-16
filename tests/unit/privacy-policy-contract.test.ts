@@ -41,5 +41,18 @@ describe("privacy policy contract", () => {
     );
     expect(policySource).toContain("Message frequency varies.");
     expect(policySource).toContain("Message and data rates may apply.");
+    expect(policySource).toContain(
+      "Providing a phone number or submitting a form does not by itself enroll you in text messages.",
+    );
+  });
+
+  it("accurately covers analytics, retention, collected scan data, and children", () => {
+    const policySource = readSource("client/public/privacy-policy.html");
+
+    expect(policySource).toContain("Google Analytics, deployed through Google Tag Manager");
+    expect(policySource).toContain("business address or Google Business Profile link");
+    expect(policySource).toContain("6. Data Retention");
+    expect(policySource).toContain("children under the age of 13");
+    expect(policySource).not.toContain("11. Communications");
   });
 });

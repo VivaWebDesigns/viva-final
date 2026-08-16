@@ -21,17 +21,31 @@ const routesSource = fs.readFileSync(
 );
 
 describe("public contact form contract", () => {
-  it("keeps the general contact form to four visible fields", () => {
+  it("keeps the general contact form concise and offers optional SMS consent", () => {
     expect(contactHtml).toContain('action="/contact-submit"');
     expect(contactHtml).toContain('name="name"');
     expect(contactHtml).toContain('name="email"');
     expect(contactHtml).toContain('name="phone"');
     expect(contactHtml).toContain('name="message"');
+    expect(contactHtml).toContain('name="smsConsent" type="checkbox" value="yes"');
+    expect(contactHtml).toContain("Consent is not a condition of purchase.");
+    expect(contactHtml).toContain('href="/privacy-policy"');
+    expect(contactHtml).not.toMatch(/name="smsConsent"[^>]+required/);
 
     expect(contactHtml).not.toContain('name="business"');
     expect(contactHtml).not.toContain('name="website"');
     expect(contactHtml).not.toContain('name="city"');
     expect(contactHtml).not.toContain('name="trade"');
+  });
+
+  it("records SMS consent only when it is affirmatively checked", () => {
+    const contactHandler = routesSource
+      .split('app.post("/contact-submit"')[1]
+      .split('app.post("/api/contacts"')[0];
+
+    expect(contactHandler).toContain('req.body.smsConsent === "yes"');
+    expect(contactHandler).toContain('smsConsentRecord(smsConsented, "contact_form")');
+    expect(contactHandler).toContain("Please enter a phone number or uncheck SMS consent.");
   });
 
   it("redirects general contact submissions to their own confirmation page", () => {

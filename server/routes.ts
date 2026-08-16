@@ -14,6 +14,9 @@ import { randomUUID } from "node:crypto";
 const CONTACT_NOTIFICATION_EMAIL =
   process.env.CONTACT_NOTIFICATION_EMAIL || "matt@vivawebdesigns.com";
 
+const SMS_CONSENT_DISCLOSURE =
+  "I agree to receive text messages from Viva Web Designs about my inquiry, requested services, appointments, and related updates. Message frequency varies. Message and data rates may apply. Reply STOP to opt out or HELP for help. Consent is not a condition of purchase. See our Privacy Policy.";
+
 const scanSubmitSchema = z.object({
   business: z.string().min(1, "Business name is required"),
   address: z.string().min(1, "Business address or Google Maps link is required"),
@@ -23,8 +26,24 @@ const scanSubmitSchema = z.object({
   email: z.string().min(1, "Email is required").email("Please enter a valid email address"),
   phone: z.string().optional(),
   message: z.string().optional(),
+  smsConsent: z.literal("yes").optional(),
   honeypot: z.string().optional(),
 });
+
+function smsConsentRecord(consented: boolean, source: string) {
+  return {
+    smsConsent: consented,
+    smsConsentAt: consented ? new Date() : null,
+    smsConsentSource: consented ? source : null,
+    smsConsentDisclosure: consented ? SMS_CONSENT_DISCLOSURE : null,
+  };
+}
+
+function smsConsentSummary(consented: boolean) {
+  return consented
+    ? "SMS consent: Granted through the website form"
+    : "SMS consent: Not granted";
+}
 
 function escapeHtml(value: unknown) {
   return String(value ?? "")
@@ -70,12 +89,17 @@ export async function registerRoutes(
       if (data.phone && !isValidUSPhone(normalizedPhone)) {
         return res.status(400).send("Invalid phone number. Please enter a 10-digit US number or leave it blank.");
       }
+      const smsConsented = data.smsConsent === "yes";
+      if (smsConsented && !normalizedPhone) {
+        return res.status(400).send("Please enter a phone number or uncheck SMS consent.");
+      }
 
       const attribution = utmAttributionSchema.parse(req.body);
       const message = [
         "Free visibility scan request",
         `Business address or Google Maps link: ${data.address}`,
         data.message ? `Notes: ${data.message}` : "",
+        smsConsentSummary(smsConsented),
       ].filter(Boolean).join("\n");
 
       const contact = await storage.createContact({
@@ -87,6 +111,7 @@ export async function registerRoutes(
         trade: data.service,
         service: data.service,
         message,
+        ...smsConsentRecord(smsConsented, "visibility_scan"),
       });
 
       await Promise.all([
@@ -125,6 +150,7 @@ export async function registerRoutes(
                 <tr><td><strong>Name</strong></td><td>${escapeHtml(data.name)}</td></tr>
                 <tr><td><strong>Email</strong></td><td>${escapeHtml(data.email)}</td></tr>
                 ${normalizedPhone ? `<tr><td><strong>Phone</strong></td><td>${escapeHtml(normalizedPhone)}</td></tr>` : ""}
+                <tr><td><strong>SMS Consent</strong></td><td>${smsConsented ? "Granted" : "Not granted"}</td></tr>
                 ${data.message ? `<tr><td><strong>Notes</strong></td><td>${escapeHtml(data.message)}</td></tr>` : ""}
               </table>
             `,
@@ -166,9 +192,16 @@ export async function registerRoutes(
         }
         data.phone = normalized;
       }
+      const smsConsented = req.body.smsConsent === "yes";
+      if (smsConsented && !data.phone) {
+        return res.status(400).send("Please enter a phone number or uncheck SMS consent.");
+      }
       const attribution = utmAttributionSchema.parse(req.body);
 
-      const contact = await storage.createContact(data);
+      const contact = await storage.createContact({
+        ...data,
+        ...smsConsentRecord(smsConsented, "contact_form"),
+      });
 
       await Promise.all([
         enqueueJob(
@@ -181,7 +214,7 @@ export async function registerRoutes(
               business: data.business ?? undefined,
               city: data.city ?? undefined,
               trade: data.trade ?? undefined,
-              message: data.message ?? undefined,
+              message: [data.message, smsConsentSummary(smsConsented)].filter(Boolean).join("\n\n"),
             },
             attribution,
             sourceType: "contact_form",
@@ -201,6 +234,7 @@ export async function registerRoutes(
                 <tr><td><strong>Name</strong></td><td>${escapeHtml(data.name)}</td></tr>
                 ${data.phone ? `<tr><td><strong>Phone</strong></td><td>${escapeHtml(data.phone)}</td></tr>` : ""}
                 ${data.email ? `<tr><td><strong>Email</strong></td><td>${escapeHtml(data.email)}</td></tr>` : ""}
+                <tr><td><strong>SMS Consent</strong></td><td>${smsConsented ? "Granted" : "Not granted"}</td></tr>
                 ${data.city ? `<tr><td><strong>City</strong></td><td>${escapeHtml(data.city)}</td></tr>` : ""}
                 ${data.trade ? `<tr><td><strong>Trade</strong></td><td>${escapeHtml(data.trade)}</td></tr>` : ""}
                 ${data.message ? `<tr><td><strong>Message</strong></td><td>${escapeHtml(data.message)}</td></tr>` : ""}

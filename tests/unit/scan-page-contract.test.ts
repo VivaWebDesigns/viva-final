@@ -22,12 +22,25 @@ describe("visibility scan page contract", () => {
       "email",
       "phone",
       "message",
+      "smsConsent",
       "honeypot",
     ]) {
+      const id = field === "honeypot"
+        ? "scan-honeypot"
+        : field === "smsConsent"
+          ? "scan-sms-consent"
+          : field;
       expect(scanHtml).toMatch(
-        new RegExp(`<(?:input|textarea)[^>]+id="${field === "honeypot" ? "scan-honeypot" : field}"[^>]+name="${field}"`),
+        new RegExp(`<(?:input|textarea)[^>]+id="${id}"[^>]+name="${field}"`),
       );
     }
+  });
+
+  it("offers optional SMS consent next to the scan submission", () => {
+    expect(scanHtml).toContain('name="smsConsent" type="checkbox" value="yes"');
+    expect(scanHtml).toContain("Consent is not a condition of purchase.");
+    expect(scanHtml).toContain('href="/privacy-policy"');
+    expect(scanHtml).not.toMatch(/name="smsConsent"[^>]+required/);
   });
 
   it("keeps required scan data required in the browser", () => {
