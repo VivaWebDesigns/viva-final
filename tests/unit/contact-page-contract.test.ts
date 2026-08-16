@@ -39,7 +39,10 @@ describe("public contact form contract", () => {
       .split('app.post("/contact-submit"')[1]
       .split('app.post("/api/contacts"')[0];
 
-    expect(contactHandler.match(/res\.redirect\(303, "\/contact-thanks"\)/g)).toHaveLength(2);
+    expect(contactHandler).toContain('res.redirect(303, "/contact-thanks")');
+    expect(contactHandler).toContain(
+      "res.redirect(303, `/contact-thanks?lead_type=contact&lead_event_id=${leadEventId}`)",
+    );
     expect(contactHandler).not.toContain('res.redirect(303, "/thanks")');
   });
 

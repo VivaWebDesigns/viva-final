@@ -8,6 +8,32 @@
     'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
     })(window,document,'script','dataLayer','GTM-W32XD49H');</script>
     <!-- End Google Tag Manager -->
+    <script>
+      (function(w) {
+        var params = new URLSearchParams(w.location.search);
+        var eventId = params.get("lead_event_id");
+        if (!eventId || params.get("lead_type") !== "contact") return;
+
+        var storageKey = "viva_lead_success:" + eventId;
+        try {
+          if (w.sessionStorage.getItem(storageKey)) return;
+          w.sessionStorage.setItem(storageKey, "1");
+        } catch (_) {}
+
+        w.dataLayer = w.dataLayer || [];
+        w.dataLayer.push({
+          event: "viva_lead_success",
+          lead_type: "contact",
+          form_name: "contact_form",
+          lead_event_id: eventId
+        });
+
+        params.delete("lead_type");
+        params.delete("lead_event_id");
+        var cleanUrl = w.location.pathname + (params.toString() ? "?" + params.toString() : "") + w.location.hash;
+        w.history.replaceState(null, "", cleanUrl);
+      })(window);
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex, follow">

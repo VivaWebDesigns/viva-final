@@ -9,6 +9,7 @@ import { initSocket } from "./features/chat/socket";
 import { normalizePhoneDigits, isValidUSPhone } from "@shared/phone";
 import { registerCleanPublicPageRedirects } from "./public-pages";
 import { registerSabMcpRoutes } from "./features/sab-mcp/routes";
+import { randomUUID } from "node:crypto";
 
 const CONTACT_NOTIFICATION_EMAIL =
   process.env.CONTACT_NOTIFICATION_EMAIL || "matt@vivawebdesigns.com";
@@ -135,7 +136,8 @@ export async function registerRoutes(
         console.error("[routes] scan-submit enqueue error (non-blocking):", err);
       });
 
-      res.redirect(303, "/thanks");
+      const leadEventId = randomUUID();
+      res.redirect(303, `/thanks?lead_type=scan&lead_event_id=${leadEventId}`);
     } catch (error) {
       if (error instanceof ZodError) {
         res.status(400).send("Invalid scan request. Please go back and check the required fields.");
@@ -212,7 +214,8 @@ export async function registerRoutes(
         console.error("[routes] contact-submit enqueue error (non-blocking):", err);
       });
 
-      res.redirect(303, "/contact-thanks");
+      const leadEventId = randomUUID();
+      res.redirect(303, `/contact-thanks?lead_type=contact&lead_event_id=${leadEventId}`);
     } catch (error) {
       if (error instanceof ZodError) {
         res.status(400).send("Invalid contact request. Please go back and check the required fields.");
