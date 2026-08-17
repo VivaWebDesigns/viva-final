@@ -179,7 +179,7 @@ function LocalFalconSnapshotCard({
   const snapshotFileUrl = reportSnapshotFileUrl(reportId, contextCompanyId);
   const copySnapshot = async () => {
     if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") {
-      toast({ title: "Image copying is not available", description: "Use Download WebP instead.", variant: "destructive" });
+      toast({ title: "Image copying is not available", description: "Use Download PNG instead.", variant: "destructive" });
       return;
     }
     try {
@@ -187,12 +187,12 @@ function LocalFalconSnapshotCard({
         if (!response.ok) throw new Error("Could not load the stored snapshot.");
         return response.blob();
       });
-      await navigator.clipboard.write([new ClipboardItem({ "image/webp": blobPromise })]);
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": blobPromise })]);
       toast({ title: "Image copied", description: "Paste it directly into your SMS or messaging app." });
     } catch (error) {
       toast({
         title: "Copy failed",
-        description: error instanceof Error ? error.message : "Use Download WebP instead.",
+        description: error instanceof Error ? error.message : "Use Download PNG instead.",
         variant: "destructive",
       });
     }
@@ -200,7 +200,7 @@ function LocalFalconSnapshotCard({
   const downloadSnapshot = () => {
     const link = document.createElement("a");
     link.href = snapshotFileUrl;
-    link.download = `${data?.data.businessName || "local-visibility"}-snapshot.webp`;
+    link.download = `${data?.data.businessName || "local-visibility"}-snapshot.png`;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -341,7 +341,7 @@ function LocalFalconSnapshotCard({
                 <ClipboardCopy className="mr-1.5 h-4 w-4" /> Copy image
               </Button>
               <Button variant="outline" onClick={downloadSnapshot}>
-                <Download className="mr-1.5 h-4 w-4" /> Download WebP
+                <Download className="mr-1.5 h-4 w-4" /> Download PNG
               </Button>
               {canManageSnapshot && (
                 <Button
