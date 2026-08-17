@@ -35,6 +35,18 @@ function contextCompanyId(req: Request): string | undefined {
   return typeof req.query.contextCompanyId === "string" ? req.query.contextCompanyId : undefined;
 }
 
+async function sendSnapshotAsWebp(res: Response, storageKey: string, filename: string) {
+  const file = await getFileBuffer(storageKey);
+  const buffer = file.mimeType === "image/webp"
+    ? file.buffer
+    : await sharp(file.buffer).webp({ lossless: true }).toBuffer();
+  res.setHeader("Content-Type", "image/webp");
+  res.setHeader("Content-Length", String(buffer.byteLength));
+  res.setHeader("Cache-Control", "private, max-age=300");
+  res.setHeader("Content-Disposition", `inline; filename="${filename}.webp"`);
+  res.send(buffer);
+}
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { files: 2, fileSize: MAX_SCREENSHOT_BYTES },
@@ -133,12 +145,7 @@ router.get(
         .where(eq(localFalconProspectProfiles.id, report.id))
         .limit(1);
       if (!record?.snapshotStorageKey) return res.status(404).json({ message: "Finished snapshot not found" });
-      const file = await getFileBuffer(record.snapshotStorageKey);
-      res.setHeader("Content-Type", file.mimeType);
-      res.setHeader("Content-Length", String(file.buffer.byteLength));
-      res.setHeader("Cache-Control", "private, max-age=300");
-      res.setHeader("Content-Disposition", `inline; filename="${report.id}-local-visibility-snapshot.png"`);
-      res.send(file.buffer);
+      await sendSnapshotAsWebp(res, record.snapshotStorageKey, `${report.id}-local-visibility-snapshot`);
     } catch (error: any) {
       res.status(error?.statusCode ?? 500).json({ message: error.message });
     }
@@ -291,12 +298,7 @@ router.get(
       if (req.authUser?.role === "sales_rep" && record.assignedTo !== req.authUser.id) {
         return res.status(403).json({ message: "This prospect is not assigned to you" });
       }
-      const file = await getFileBuffer(record.snapshotStorageKey);
-      res.setHeader("Content-Type", file.mimeType);
-      res.setHeader("Content-Length", String(file.buffer.byteLength));
-      res.setHeader("Cache-Control", "private, max-age=300");
-      res.setHeader("Content-Disposition", `inline; filename="${req.params.leadId}-local-visibility-snapshot.png"`);
-      res.send(file.buffer);
+      await sendSnapshotAsWebp(res, record.snapshotStorageKey, `${req.params.leadId}-local-visibility-snapshot`);
     } catch (error: any) {
       res.status(error?.statusCode ?? 500).json({ message: error.message });
     }
