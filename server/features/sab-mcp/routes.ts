@@ -181,6 +181,11 @@ export function registerSabMcpRoutes(app: Express) {
     type: "application/octet-stream",
     limit: "1mb",
   }), async (req, res) => {
+    if (req.is("application/octet-stream")) {
+      // The body is JSON despite the scanner's generic media type. Normalize it
+      // after parsing so the MCP SDK's content-type validation accepts it.
+      req.headers["content-type"] = "application/json";
+    }
     const isDiscoveryRequest = isSabMcpDiscoveryRequest(req.body);
     const hasBearerToken = typeof req.headers.authorization === "string"
       && req.headers.authorization.toLowerCase().startsWith("bearer ");
