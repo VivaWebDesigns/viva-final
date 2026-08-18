@@ -206,6 +206,20 @@ export function registerSabMcpRoutes(app: Express) {
       if (req.body?.method === "tools/call") {
         return res.status(200).json(sabMcpAuthRequiredResult(req));
       }
+      console.warn("[sab-mcp] unauthenticated non-discovery request", {
+        bodyType: Array.isArray(req.body)
+          ? "array"
+          : Buffer.isBuffer(req.body)
+            ? "buffer"
+            : typeof req.body,
+        method: req.body?.method ?? null,
+        contentType: req.get("content-type") || null,
+        contentEncoding: req.get("content-encoding") || null,
+        contentLength: req.get("content-length") || null,
+        topLevelKeys: req.body && typeof req.body === "object" && !Array.isArray(req.body)
+          ? Object.keys(req.body).slice(0, 10)
+          : [],
+      });
       return unauthorized(req, res);
     }
 
