@@ -3,6 +3,7 @@ import type { Request } from "express";
 import {
   includeRequiredSabMcpScopes,
   isSabMcpDiscoveryRequest,
+  isSabMcpEmptyProbe,
   sabMcpAuthRequiredResult,
 } from "../../server/features/sab-mcp/routes";
 
@@ -45,6 +46,13 @@ describe("SAB MCP OAuth metadata", () => {
       { method: "tools/list" },
       { method: "tools/call" },
     ])).toBe(false);
+  });
+
+  it("recognizes ChatGPT's zero-length connectivity probe", () => {
+    expect(isSabMcpEmptyProbe({}, "0")).toBe(true);
+    expect(isSabMcpEmptyProbe({}, undefined)).toBe(false);
+    expect(isSabMcpEmptyProbe({ method: "initialize" }, "0")).toBe(false);
+    expect(isSabMcpEmptyProbe([], "0")).toBe(false);
   });
 
   it("returns the ChatGPT tool-level OAuth challenge without running a tool", () => {

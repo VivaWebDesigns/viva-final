@@ -80,6 +80,14 @@ export function isSabMcpDiscoveryRequest(body: unknown) {
   return typeof method === "string" && method !== "tools/call";
 }
 
+export function isSabMcpEmptyProbe(body: unknown, contentLength: string | undefined) {
+  return contentLength === "0"
+    && !!body
+    && typeof body === "object"
+    && !Array.isArray(body)
+    && Object.keys(body).length === 0;
+}
+
 export function sabMcpAuthRequiredResult(req: Request) {
   return {
     jsonrpc: "2.0",
@@ -197,6 +205,12 @@ export function registerSabMcpRoutes(app: Express) {
         }
       }
     }
+    if (isSabMcpEmptyProbe(req.body, req.get("content-length"))) {
+      // ChatGPT sends a zero-length POST before the MCP handshake to test
+      // endpoint reachability. It is not a protected operation; returning 401
+      // here prevents the connector scanner from continuing to tools/list.
+      return res.status(204).end();
+    }
     const isDiscoveryRequest = isSabMcpDiscoveryRequest(req.body);
     const hasBearerToken = typeof req.headers.authorization === "string"
       && req.headers.authorization.toLowerCase().startsWith("bearer ");
@@ -206,20 +220,6 @@ export function registerSabMcpRoutes(app: Express) {
       if (req.body?.method === "tools/call") {
         return res.status(200).json(sabMcpAuthRequiredResult(req));
       }
-      console.warn("[sab-mcp] unauthenticated non-discovery request", {
-        bodyType: Array.isArray(req.body)
-          ? "array"
-          : Buffer.isBuffer(req.body)
-            ? "buffer"
-            : typeof req.body,
-        method: req.body?.method ?? null,
-        contentType: req.get("content-type") || null,
-        contentEncoding: req.get("content-encoding") || null,
-        contentLength: req.get("content-length") || null,
-        topLevelKeys: req.body && typeof req.body === "object" && !Array.isArray(req.body)
-          ? Object.keys(req.body).slice(0, 10)
-          : [],
-      });
       return unauthorized(req, res);
     }
 
