@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { includeRequiredSabMcpScopes } from "../../server/features/sab-mcp/routes";
+import type { Request } from "express";
+import {
+  includeRequiredSabMcpScopes,
+  isSabMcpDiscoveryRequest,
+  sabMcpAuthRequiredResult,
+} from "../../server/features/sab-mcp/routes";
 
 describe("SAB MCP OAuth metadata", () => {
   it("advertises the workflow scopes required by MCP requests", () => {
@@ -24,6 +29,33 @@ describe("SAB MCP OAuth metadata", () => {
       scopes_supported: ["openid", "sab:read", "sab:write"],
     })).toEqual({
       scopes_supported: ["openid", "sab:read", "sab:write"],
+    });
+  });
+
+  it("allows protocol discovery before the user links OAuth", () => {
+    expect(isSabMcpDiscoveryRequest({ method: "initialize" })).toBe(true);
+    expect(isSabMcpDiscoveryRequest({ method: "tools/list" })).toBe(true);
+    expect(isSabMcpDiscoveryRequest({ method: "tools/call" })).toBe(false);
+  });
+
+  it("returns the ChatGPT tool-level OAuth challenge without running a tool", () => {
+    const req = {
+      body: { id: 7, method: "tools/call" },
+      protocol: "https",
+      get: () => "vivawebdesigns.com",
+    } as unknown as Request;
+
+    expect(sabMcpAuthRequiredResult(req)).toMatchObject({
+      jsonrpc: "2.0",
+      id: 7,
+      result: {
+        isError: true,
+        _meta: {
+          "mcp/www_authenticate": [expect.stringContaining(
+            'resource_metadata="https://vivawebdesigns.com/.well-known/oauth-protected-resource"',
+          )],
+        },
+      },
     });
   });
 });

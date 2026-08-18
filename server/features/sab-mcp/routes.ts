@@ -13,6 +13,12 @@ import { createSabMcpServer } from "./server";
 
 const ALLOWED_ROLES = new Set(["admin", "developer"]);
 const REQUIRED_SAB_MCP_SCOPES = ["sab:read", "sab:write"] as const;
+const SAB_MCP_DISCOVERY_METHODS = new Set([
+  "initialize",
+  "notifications/initialized",
+  "ping",
+  "tools/list",
+]);
 
 export function includeRequiredSabMcpScopes(metadata: unknown) {
   if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
@@ -38,20 +44,60 @@ function oauthMetadataUrl(req: Request) {
   const configured = process.env.BETTER_AUTH_URL
     || (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : null);
   const origin = configured || `${req.protocol}://${req.get("host")}`;
-  return `${origin.replace(/\/$/, "")}/api/auth/.well-known/oauth-protected-resource`;
+  return `${origin.replace(/\/$/, "")}/.well-known/oauth-protected-resource`;
+}
+
+function oauthChallenge(
+  req: Request,
+  options: { error?: string; errorDescription?: string } = {},
+) {
+  const parts = [
+    `Bearer resource_metadata="${oauthMetadataUrl(req)}"`,
+    `scope="${REQUIRED_SAB_MCP_SCOPES.join(" ")}"`,
+  ];
+  if (options.error) parts.push(`error="${options.error}"`);
+  if (options.errorDescription) {
+    parts.push(`error_description="${options.errorDescription}"`);
+  }
+  return parts.join(", ");
 }
 
 function unauthorized(req: Request, res: Response) {
-  const metadata = oauthMetadataUrl(req);
   return res
     .status(401)
-    .set("WWW-Authenticate", `Bearer resource_metadata="${metadata}"`)
+    .set("WWW-Authenticate", oauthChallenge(req))
     .set("Access-Control-Expose-Headers", "WWW-Authenticate")
     .json({
       jsonrpc: "2.0",
       error: { code: -32003, message: "Unauthorized: authentication required" },
       id: null,
     });
+}
+
+export function isSabMcpDiscoveryRequest(body: unknown) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return false;
+  const method = (body as { method?: unknown }).method;
+  return typeof method === "string" && SAB_MCP_DISCOVERY_METHODS.has(method);
+}
+
+export function sabMcpAuthRequiredResult(req: Request) {
+  return {
+    jsonrpc: "2.0",
+    id: req.body?.id ?? null,
+    result: {
+      content: [{
+        type: "text",
+        text: "Authentication required: connect your Viva account to continue.",
+      }],
+      _meta: {
+        "mcp/www_authenticate": [oauthChallenge(req, {
+          error: "insufficient_scope",
+          errorDescription: "Viva SAB Workflow requires sab:read and sab:write access.",
+        })],
+      },
+      isError: true,
+    },
+  };
 }
 
 async function authenticateMcpRequest(req: Request, res: Response) {
@@ -129,8 +175,17 @@ export function registerSabMcpRoutes(app: Express) {
   });
 
   app.post("/mcp", async (req, res) => {
-    const actor = await authenticateMcpRequest(req, res);
-    if (!actor || res.headersSent) return;
+    const isDiscoveryRequest = isSabMcpDiscoveryRequest(req.body);
+    const hasBearerToken = typeof req.headers.authorization === "string"
+      && req.headers.authorization.toLowerCase().startsWith("bearer ");
+    const actor = hasBearerToken ? await authenticateMcpRequest(req, res) : null;
+    if (res.headersSent) return;
+    if (!actor && !isDiscoveryRequest) {
+      if (req.body?.method === "tools/call") {
+        return res.status(200).json(sabMcpAuthRequiredResult(req));
+      }
+      return unauthorized(req, res);
+    }
 
     let repositoryFactory;
     let workflowCreator;
@@ -146,7 +201,11 @@ export function registerSabMcpRoutes(app: Express) {
       });
     }
 
-    const server = createSabMcpServer(repositoryFactory, workflowCreator, actor.email);
+    const server = createSabMcpServer(
+      repositoryFactory,
+      workflowCreator,
+      actor?.email || "unauthenticated",
+    );
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
     });
