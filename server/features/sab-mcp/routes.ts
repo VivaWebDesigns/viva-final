@@ -12,6 +12,27 @@ import {
 import { createSabMcpServer } from "./server";
 
 const ALLOWED_ROLES = new Set(["admin", "developer"]);
+const REQUIRED_SAB_MCP_SCOPES = ["sab:read", "sab:write"] as const;
+
+export function includeRequiredSabMcpScopes(metadata: unknown) {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return metadata;
+  }
+
+  const currentScopes = Array.isArray((metadata as { scopes_supported?: unknown }).scopes_supported)
+    ? (metadata as { scopes_supported: unknown[] }).scopes_supported.filter(
+      (scope): scope is string => typeof scope === "string",
+    )
+    : [];
+
+  return {
+    ...metadata,
+    scopes_supported: [
+      ...currentScopes,
+      ...REQUIRED_SAB_MCP_SCOPES.filter((scope) => !currentScopes.includes(scope)),
+    ],
+  };
+}
 
 function oauthMetadataUrl(req: Request) {
   const configured = process.env.BETTER_AUTH_URL
@@ -94,7 +115,7 @@ export function registerSabMcpRoutes(app: Express) {
     res
       .set("Access-Control-Allow-Origin", "*")
       .set("Cache-Control", "public, max-age=300")
-      .json(metadata);
+      .json(includeRequiredSabMcpScopes(metadata));
   });
 
   app.get("/.well-known/oauth-protected-resource", async (req, res) => {
