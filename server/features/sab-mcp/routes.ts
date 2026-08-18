@@ -1,4 +1,4 @@
-import type { Express, Request, Response } from "express";
+import { json as jsonBodyParser, type Express, type Request, type Response } from "express";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { fromNodeHeaders } from "better-auth/node";
 import { eq } from "drizzle-orm";
@@ -174,7 +174,13 @@ export function registerSabMcpRoutes(app: Express) {
       .json(metadata);
   });
 
-  app.post("/mcp", async (req, res) => {
+  // OpenAI's connector scanner sends JSON-RPC payloads as
+  // application/octet-stream. The app-wide JSON middleware intentionally
+  // ignores that media type, so parse it only on the MCP endpoint.
+  app.post("/mcp", jsonBodyParser({
+    type: "application/octet-stream",
+    limit: "1mb",
+  }), async (req, res) => {
     const isDiscoveryRequest = isSabMcpDiscoveryRequest(req.body);
     const hasBearerToken = typeof req.headers.authorization === "string"
       && req.headers.authorization.toLowerCase().startsWith("bearer ");
@@ -184,14 +190,6 @@ export function registerSabMcpRoutes(app: Express) {
       if (req.body?.method === "tools/call") {
         return res.status(200).json(sabMcpAuthRequiredResult(req));
       }
-      console.warn("[sab-mcp] unauthenticated non-discovery request", {
-        bodyType: Array.isArray(req.body) ? "array" : typeof req.body,
-        method: req.body?.method ?? null,
-        contentType: req.get("content-type") || null,
-        topLevelKeys: req.body && typeof req.body === "object" && !Array.isArray(req.body)
-          ? Object.keys(req.body)
-          : [],
-      });
       return unauthorized(req, res);
     }
 
