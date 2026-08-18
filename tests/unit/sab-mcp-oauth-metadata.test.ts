@@ -35,7 +35,16 @@ describe("SAB MCP OAuth metadata", () => {
   it("allows protocol discovery before the user links OAuth", () => {
     expect(isSabMcpDiscoveryRequest({ method: "initialize" })).toBe(true);
     expect(isSabMcpDiscoveryRequest({ method: "tools/list" })).toBe(true);
+    expect(isSabMcpDiscoveryRequest({ method: "resources/list" })).toBe(true);
+    expect(isSabMcpDiscoveryRequest([
+      { method: "initialize" },
+      { method: "notifications/initialized" },
+    ])).toBe(true);
     expect(isSabMcpDiscoveryRequest({ method: "tools/call" })).toBe(false);
+    expect(isSabMcpDiscoveryRequest([
+      { method: "tools/list" },
+      { method: "tools/call" },
+    ])).toBe(false);
   });
 
   it("returns the ChatGPT tool-level OAuth challenge without running a tool", () => {

@@ -13,12 +13,6 @@ import { createSabMcpServer } from "./server";
 
 const ALLOWED_ROLES = new Set(["admin", "developer"]);
 const REQUIRED_SAB_MCP_SCOPES = ["sab:read", "sab:write"] as const;
-const SAB_MCP_DISCOVERY_METHODS = new Set([
-  "initialize",
-  "notifications/initialized",
-  "ping",
-  "tools/list",
-]);
 
 export function includeRequiredSabMcpScopes(metadata: unknown) {
   if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
@@ -75,9 +69,15 @@ function unauthorized(req: Request, res: Response) {
 }
 
 export function isSabMcpDiscoveryRequest(body: unknown) {
-  if (!body || typeof body !== "object" || Array.isArray(body)) return false;
+  if (Array.isArray(body)) {
+    return body.length > 0 && body.every(isSabMcpDiscoveryRequest);
+  }
+  if (!body || typeof body !== "object") return false;
   const method = (body as { method?: unknown }).method;
-  return typeof method === "string" && SAB_MCP_DISCOVERY_METHODS.has(method);
+  // This server exposes no resources or prompts. Every protocol method can be
+  // used for handshake/discovery except tools/call, which is the sole boundary
+  // where SAB data access or mutation can occur.
+  return typeof method === "string" && method !== "tools/call";
 }
 
 export function sabMcpAuthRequiredResult(req: Request) {
