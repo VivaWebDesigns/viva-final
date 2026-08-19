@@ -13,6 +13,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 import RichTextEditorField from "@/features/chat/RichTextEditorField";
 import { sanitizeHtml } from "@/features/chat/RichTextEditor";
 import {
@@ -72,6 +77,17 @@ interface AssignableUser {
   role: string;
 }
 
+interface ScanReportEmailPreview {
+  reportId: string;
+  recipient: string;
+  from: string;
+  replyTo: string;
+  subject: string;
+  message: string;
+  businessName: string;
+  snapshotPreviewUrl: string;
+}
+
 export default function LeadDetailPage({ id }: { id: string }) {
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -101,6 +117,12 @@ export default function LeadDetailPage({ id }: { id: string }) {
   const [editLangValue, setEditLangValue] = useState("");
   const [editingAssignee, setEditingAssignee] = useState(false);
   const [editAssigneeValue, setEditAssigneeValue] = useState("");
+  const [emailReportOpen, setEmailReportOpen] = useState(false);
+  const [emailReportPreview, setEmailReportPreview] = useState<ScanReportEmailPreview | null>(null);
+  const [emailReportRecipient, setEmailReportRecipient] = useState("");
+  const [emailReportSubject, setEmailReportSubject] = useState("");
+  const [emailReportMessage, setEmailReportMessage] = useState("");
+  const [emailReportRequestId, setEmailReportRequestId] = useState("");
 
   const { data: lead, isLoading: leadLoading, error: leadError } = useQuery<LeadDetail>({
     queryKey: ["/api/crm/leads", id],
@@ -225,6 +247,57 @@ export default function LeadDetailPage({ id }: { id: string }) {
       setNoteContent("");
       setNoteType("note");
       queryClient.invalidateQueries({ queryKey: ["/api/crm/leads", id, "notes"] });
+    },
+  });
+
+  const loadEmailReportPreview = useMutation({
+    mutationFn: async (reportId: string) => {
+      const res = await fetch(
+        `/api/crm/leads/${encodeURIComponent(id)}/scan-report-email-preview?reportId=${encodeURIComponent(reportId)}`,
+        { credentials: "include" },
+      );
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message || "Could not prepare the scan report email");
+      }
+      return res.json() as Promise<ScanReportEmailPreview>;
+    },
+    onSuccess: (preview) => {
+      setEmailReportPreview(preview);
+      setEmailReportRecipient(preview.recipient);
+      setEmailReportSubject(preview.subject);
+      setEmailReportMessage(preview.message);
+      setEmailReportRequestId(crypto.randomUUID());
+      setEmailReportOpen(true);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Could not prepare email", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const sendEmailReportMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/crm/leads/${encodeURIComponent(id)}/email-scan-report`, {
+        reportId: emailReportPreview!.reportId,
+        recipient: emailReportRecipient.trim(),
+        subject: emailReportSubject.trim(),
+        message: emailReportMessage.trim(),
+        requestId: emailReportRequestId,
+      });
+      return res.json();
+    },
+    onSuccess: (result) => {
+      setEmailReportOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/crm/leads", id, "notes"] });
+      toast({
+        title: result.duplicate ? "Already queued" : "Scan report queued",
+        description: result.duplicate
+          ? "That exact send request was already accepted, so a duplicate was not created."
+          : `The email to ${emailReportRecipient.trim()} is being delivered.`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Could not send report", description: error.message, variant: "destructive" });
     },
   });
 
@@ -778,6 +851,22 @@ export default function LeadDetailPage({ id }: { id: string }) {
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center justify-end gap-2">
+                  {authRole !== "lead_gen" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 gap-1.5 border-teal-200 text-teal-700 hover:bg-teal-50"
+                      onClick={() => loadEmailReportPreview.mutate(lead.localFalcon!.profile.id)}
+                      disabled={!lead.localFalcon.profile.snapshotStorageKey || loadEmailReportPreview.isPending}
+                      title={lead.localFalcon.profile.snapshotStorageKey ? "Email this finished scan report" : "Generate the finished PNG snapshot first"}
+                      data-testid="button-email-scan-report"
+                    >
+                      {loadEmailReportPreview.isPending
+                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        : <Mail className="h-3.5 w-3.5" />}
+                      Email report
+                    </Button>
+                  )}
                   <SalesPriorityBadge
                     priority={lead.localFalcon.profile.tier}
                     reason={lead.localFalcon.profile.pitchSummary}
@@ -1244,6 +1333,93 @@ export default function LeadDetailPage({ id }: { id: string }) {
         task={completingTask}
         leadTimezone={lead.timezone ?? null}
       />
+      <Dialog open={emailReportOpen} onOpenChange={(open) => !sendEmailReportMutation.isPending && setEmailReportOpen(open)}>
+        <DialogContent className="max-h-[94dvh] overflow-y-auto sm:max-w-2xl" data-testid="modal-email-scan-report">
+          <DialogHeader>
+            <DialogTitle>Email scan report</DialogTitle>
+            <DialogDescription>
+              Review the exact recipient and message before the finished PNG is published and queued for delivery.
+            </DialogDescription>
+          </DialogHeader>
+
+          {emailReportPreview && (
+            <div className="grid gap-5 sm:grid-cols-[1fr_190px]">
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="scan-report-recipient">To</Label>
+                  <Input
+                    id="scan-report-recipient"
+                    type="email"
+                    value={emailReportRecipient}
+                    onChange={(event) => setEmailReportRecipient(event.target.value)}
+                    placeholder="name@example.com"
+                    data-testid="input-scan-report-recipient"
+                  />
+                </div>
+                <div className="grid gap-3 rounded-lg border bg-slate-50 p-3 text-xs text-slate-600">
+                  <div><span className="font-medium text-slate-800">From:</span> {emailReportPreview.from}</div>
+                  <div><span className="font-medium text-slate-800">Replies go to:</span> {emailReportPreview.replyTo}</div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="scan-report-subject">Subject</Label>
+                  <Input
+                    id="scan-report-subject"
+                    value={emailReportSubject}
+                    onChange={(event) => setEmailReportSubject(event.target.value)}
+                    maxLength={200}
+                    data-testid="input-scan-report-subject"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="scan-report-message">Message</Label>
+                  <Textarea
+                    id="scan-report-message"
+                    value={emailReportMessage}
+                    onChange={(event) => setEmailReportMessage(event.target.value)}
+                    className="min-h-48"
+                    maxLength={5000}
+                    data-testid="textarea-scan-report-message"
+                  />
+                </div>
+              </div>
+              <div>
+                <p className="mb-2 text-xs font-medium text-slate-700">Report being sent</p>
+                <a href={emailReportPreview.snapshotPreviewUrl} target="_blank" rel="noopener noreferrer">
+                  <img
+                    src={emailReportPreview.snapshotPreviewUrl}
+                    alt={`Scan report for ${emailReportPreview.businessName}`}
+                    className="w-full rounded-lg border bg-white shadow-sm"
+                    data-testid="image-scan-report-preview"
+                  />
+                </a>
+                <p className="mt-2 text-xs text-slate-500">The email includes this image inline plus a fallback link.</p>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEmailReportOpen(false)} disabled={sendEmailReportMutation.isPending}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => sendEmailReportMutation.mutate()}
+              disabled={
+                sendEmailReportMutation.isPending ||
+                !emailReportRecipient.trim() ||
+                !emailReportSubject.trim() ||
+                !emailReportMessage.trim()
+              }
+              className="gap-2 bg-teal-700 hover:bg-teal-800"
+              data-testid="button-confirm-email-scan-report"
+            >
+              {sendEmailReportMutation.isPending
+                ? <Loader2 className="h-4 w-4 animate-spin" />
+                : <Send className="h-4 w-4" />}
+              {sendEmailReportMutation.isPending ? "Queuing..." : "Send report"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

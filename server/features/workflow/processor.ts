@@ -10,7 +10,9 @@
  *   - Success/failure recorded in provider snapshot for admin diagnostics
  */
 
-import type { WorkflowJob, UtmAttribution } from "@shared/schema";
+import { crmLeadNotes, type WorkflowJob, type UtmAttribution } from "@shared/schema";
+import { db } from "../../db";
+import { eq } from "drizzle-orm";
 import { ingestWebsiteFormSubmission } from "../crm/ingest";
 import { Resend } from "resend";
 import {
@@ -59,6 +61,12 @@ interface EmailNotificationPayload {
   replyTo?: string;
   subject: string;
   html: string;
+  text?: string;
+  noteId?: string;
+  category?: string;
+  reportId?: string;
+  imageUrl?: string;
+  requestId?: string;
 }
 
 // ── Processor entry point ─────────────────────────────────────────────
@@ -139,6 +147,11 @@ async function processEmailNotification(job: WorkflowJob): Promise<void> {
         ...(payload.replyTo ? { replyTo: payload.replyTo } : {}),
         subject: payload.subject,
         html: payload.html,
+        ...(payload.text ? { text: payload.text } : {}),
+        ...(payload.category === "scan_report" ? {
+          headers: { "List-Unsubscribe": `<mailto:${payload.replyTo || CONTACT_EMAIL_FROM}?subject=Unsubscribe>` },
+          tags: [{ name: "category", value: "scan_report" }],
+        } : {}),
       }),
       RESEND_TIMEOUT_MS,
       ctx,
@@ -159,6 +172,22 @@ async function processEmailNotification(job: WorkflowJob): Promise<void> {
 
     logProviderEvent(ctx, "success", { severity: "info", message: `id=${result.data?.id}` });
     recordSuccess("resend", "send_email");
+    if (payload.noteId) {
+      await db.update(crmLeadNotes).set({
+        content: `Scan report email sent to ${payload.to}`,
+        metadata: {
+          status: "sent",
+          provider: "resend",
+          providerMessageId: result.data?.id ?? null,
+          reportId: payload.reportId,
+          recipient: payload.to,
+          subject: payload.subject,
+          imageUrl: payload.imageUrl,
+          requestId: payload.requestId,
+          jobId: job.id,
+        },
+      }).where(eq(crmLeadNotes.id, payload.noteId));
+    }
   } catch (err: any) {
     if (!err.message?.startsWith("Resend error:")) {
       // Catch network/timeout errors not already logged
@@ -174,6 +203,24 @@ async function processEmailNotification(job: WorkflowJob): Promise<void> {
       recordFailure("resend", "send_email", err.message);
       const snap = getSnapshot("resend", "send_email");
       if (snap) warnIfThresholdReached(snap.consecutiveFailures, ctx);
+    }
+    if (payload.noteId) {
+      const exhausted = job.attempts >= job.maxAttempts;
+      await db.update(crmLeadNotes).set({
+        content: exhausted
+          ? `Scan report email failed for ${payload.to}`
+          : `Scan report email delivery will retry for ${payload.to}`,
+        metadata: {
+          status: exhausted ? "failed" : "retrying",
+          error: err.message,
+          reportId: payload.reportId,
+          recipient: payload.to,
+          subject: payload.subject,
+          imageUrl: payload.imageUrl,
+          requestId: payload.requestId,
+          jobId: job.id,
+        },
+      }).where(eq(crmLeadNotes.id, payload.noteId));
     }
     throw err;
   }

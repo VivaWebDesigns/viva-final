@@ -43,6 +43,7 @@ import {
 import { db } from "../../db";
 import { executeStageAutomations } from "../automations/trigger";
 import * as storageService from "../../services/storage";
+import { getScanReportEmailPreview, sendScanReportEmail } from "./scanReportEmail";
 
 async function cascadeCompanyNameToTitles(companyId: string, oldName: string, newName: string) {
   const leads = await db.select({ id: crmLeads.id, title: crmLeads.title })
@@ -149,6 +150,14 @@ const bulkStatusSchema = bulkIdsSchema.extend({
 const bulkTagsSchema = bulkIdsSchema.extend({
   tagIds: z.array(z.string()).min(1, "At least one tag required"),
 });
+
+const scanReportEmailSchema = z.object({
+  reportId: z.string().min(1),
+  recipient: z.string().trim().email(),
+  subject: z.string().trim().min(1).max(200),
+  message: z.string().trim().min(1).max(5_000),
+  requestId: z.string().uuid(),
+}).strict();
 
 const router = Router();
 
@@ -830,6 +839,48 @@ router.get("/leads/:id", requireRole("admin", "developer", "sales_rep", "lead_ge
   const [enriched] = await crmStorage.enrichLeads([lead]);
   const localFalcon = await getLocalFalconProfileForLead(id);
   res.json({ ...stripSensitiveLeadFields(enriched, req), localFalcon });
+});
+
+router.get("/leads/:id/scan-report-email-preview", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
+  try {
+    const leadId = req.params.id as string;
+    if (!(await assertLeadAccess(req, res, leadId))) return;
+    const reportId = z.string().min(1).parse(req.query.reportId);
+    res.json(await getScanReportEmailPreview(leadId, reportId, req.authUser!.email));
+  } catch (error: any) {
+    res.status(error?.statusCode ?? 400).json({ message: error.message });
+  }
+});
+
+router.post("/leads/:id/email-scan-report", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
+  try {
+    const leadId = req.params.id as string;
+    if (!(await assertLeadAccess(req, res, leadId))) return;
+    const input = scanReportEmailSchema.parse(req.body);
+    const configuredOrigin = process.env.PUBLIC_APP_URL?.trim().replace(/\/+$/, "");
+    const publicOrigin = configuredOrigin || `${req.protocol}://${req.get("host")}`;
+    const result = await sendScanReportEmail({
+      leadId,
+      ...input,
+      actorId: req.authUser!.id,
+      actorEmail: req.authUser!.email,
+      publicOrigin,
+    });
+    await logAudit({
+      userId: req.authUser!.id,
+      action: result.duplicate ? "scan_report_email_duplicate_ignored" : "scan_report_email_queued",
+      entity: "crm_lead",
+      entityId: leadId,
+      metadata: { reportId: input.reportId, recipient: input.recipient, jobId: result.jobId },
+      ipAddress: req.ip,
+    });
+    res.status(202).json({
+      message: result.duplicate ? "This scan report email was already queued" : "Scan report email queued",
+      ...result,
+    });
+  } catch (error: any) {
+    res.status(error?.statusCode ?? 400).json({ message: error.message });
+  }
 });
 
 router.put("/leads/:id", requireRole("admin", "developer", "sales_rep", "lead_gen"), async (req, res) => {

@@ -101,6 +101,26 @@ export async function uploadFile(
   return { key, url, originalName, mimeType, sizeBytes: buffer.byteLength };
 }
 
+export async function uploadImmutableFile(
+  buffer: Buffer,
+  key: string,
+  mimeType: string,
+): Promise<void> {
+  const { bucketName, configured } = getConfig();
+  if (!configured) throw storageNotConfiguredError();
+  if (!/^local-visibility-email\/[a-zA-Z0-9-]+\/[a-f0-9]{64}\.png$/.test(key)) {
+    throw new Error("Invalid immutable email asset key.");
+  }
+  await getS3Client()!.send(new PutObjectCommand({
+    Bucket: bucketName!,
+    Key: key,
+    Body: buffer,
+    ContentType: mimeType,
+    ContentDisposition: "inline",
+    CacheControl: "public, max-age=31536000, immutable",
+  }));
+}
+
 export async function deleteFile(key: string): Promise<void> {
   const { bucketName, configured } = getConfig();
   if (!configured) {
