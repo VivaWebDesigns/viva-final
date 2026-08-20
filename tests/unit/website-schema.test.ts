@@ -1,31 +1,14 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { vivaLocalBusinessSchema } from "../../client/src/components/JsonLd";
+import { vivaOrganizationSchema } from "../../client/src/components/JsonLd";
 
 const expectedAddress = {
   "@type": "PostalAddress",
-  streetAddress: "1628 Redcoat Dr",
   addressLocality: "Charlotte",
   addressRegion: "NC",
-  postalCode: "28211",
   addressCountry: "US",
 };
-
-const expectedHours = [
-  {
-    "@type": "OpeningHoursSpecification",
-    dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
-    opens: "08:00",
-    closes: "18:00",
-  },
-  {
-    "@type": "OpeningHoursSpecification",
-    dayOfWeek: "Saturday",
-    opens: "10:00",
-    closes: "16:00",
-  },
-];
 
 function getPublicHomepageSchema() {
   const projectRoot = path.resolve(import.meta.dirname, "../..");
@@ -42,25 +25,25 @@ const publicPageNames = [
   "scan.html",
   "contact-thanks.html",
   "thanks.html",
+  "privacy-policy.html",
 ];
 
 describe("Viva website schema", () => {
-  it("uses the full business address in both schema sources", () => {
-    expect(vivaLocalBusinessSchema.address).toEqual(expectedAddress);
+  it("identifies Viva as a Charlotte organization without publishing its street address", () => {
+    expect(vivaOrganizationSchema["@type"]).toBe("Organization");
+    expect(getPublicHomepageSchema()["@type"]).toBe("Organization");
+    expect(vivaOrganizationSchema.address).toEqual(expectedAddress);
     expect(getPublicHomepageSchema().address).toEqual(expectedAddress);
+    expect(JSON.stringify(vivaOrganizationSchema)).not.toContain("1628 Redcoat Dr");
+    expect(JSON.stringify(getPublicHomepageSchema())).not.toContain("1628 Redcoat Dr");
   });
 
-  it("uses weekday and Saturday business hours in both schema sources", () => {
-    expect(vivaLocalBusinessSchema.openingHoursSpecification).toEqual(expectedHours);
-    expect(getPublicHomepageSchema().openingHoursSpecification).toEqual(expectedHours);
-  });
-
-  it("shows the schema address and hours in every public page footer", () => {
+  it("shows the Charlotte base and business hours in every public page footer", () => {
     const projectRoot = path.resolve(import.meta.dirname, "../..");
     for (const pageName of publicPageNames) {
       const page = fs.readFileSync(path.join(projectRoot, "client/public", pageName), "utf8");
       const footer = page.split('<footer class="site-footer">')[1];
-      expect(footer, `${pageName} footer`).toContain("1628 Redcoat Dr, Charlotte, NC 28211");
+      expect(footer, `${pageName} footer`).toContain("Based in Charlotte, NC");
       expect(footer, `${pageName} weekday hours`).toContain("Mon&ndash;Fri: 8 AM&ndash;6 PM");
       expect(footer, `${pageName} Saturday hours`).toContain("Sat: 10 AM&ndash;4 PM");
       expect(footer, `${pageName} Sunday hours`).toContain("Sun: Closed");
