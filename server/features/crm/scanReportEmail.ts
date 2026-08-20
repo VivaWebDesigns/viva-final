@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import {
   crmCompanies,
   crmContacts,
@@ -73,6 +73,13 @@ async function loadReport(leadId: string, reportId: string) {
   if (!record) throw Object.assign(new Error("Scan report not found for this lead."), { statusCode: 404 });
   if (!record.report.snapshotStorageKey) {
     throw Object.assign(new Error("Generate the finished PNG snapshot before emailing this report."), { statusCode: 409 });
+  }
+  if (!record.contact?.email?.trim() && record.lead.companyId) {
+    const [primaryCompanyContact] = await db.select().from(crmContacts)
+      .where(eq(crmContacts.companyId, record.lead.companyId))
+      .orderBy(desc(crmContacts.isPrimary), desc(crmContacts.createdAt))
+      .limit(1);
+    if (primaryCompanyContact) return { ...record, contact: primaryCompanyContact };
   }
   return record;
 }
