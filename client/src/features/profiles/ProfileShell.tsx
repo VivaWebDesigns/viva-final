@@ -35,9 +35,10 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter
 } from "@/components/ui/dialog";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
@@ -147,6 +148,17 @@ interface LocalFalconSnapshot {
   data: LocalVisibilityReportData;
 }
 
+interface ScanReportEmailPreview {
+  reportId: string;
+  recipient: string;
+  from: string;
+  replyTo: string;
+  subject: string;
+  message: string;
+  businessName: string;
+  snapshotPreviewUrl: string;
+}
+
 function reportSnapshotFileUrl(reportId: string, contextCompanyId: string) {
   return `/api/local-visibility/reports/${encodeURIComponent(reportId)}/snapshot-file?contextCompanyId=${encodeURIComponent(contextCompanyId)}`;
 }
@@ -162,6 +174,13 @@ function LocalFalconSnapshotCard({
   const { toast } = useToast();
   const { role } = useAuth();
   const canManageSnapshot = role === "admin" || role === "developer";
+  const canEmailSnapshot = role === "admin" || role === "developer" || role === "sales_rep";
+  const [emailReportOpen, setEmailReportOpen] = useState(false);
+  const [emailReportPreview, setEmailReportPreview] = useState<ScanReportEmailPreview | null>(null);
+  const [emailReportRecipient, setEmailReportRecipient] = useState("");
+  const [emailReportSubject, setEmailReportSubject] = useState("");
+  const [emailReportMessage, setEmailReportMessage] = useState("");
+  const [emailReportRequestId, setEmailReportRequestId] = useState("");
   const { data, isLoading } = useQuery<LocalFalconSnapshot>({
     queryKey: ["/api/local-visibility/reports", reportId, contextCompanyId],
     queryFn: async () => {
@@ -229,6 +248,58 @@ function LocalFalconSnapshotCard({
     },
     onError: (error: Error) => {
       toast({ title: "Snapshot could not be saved", description: error.message, variant: "destructive" });
+    },
+  });
+  const loadEmailReportPreview = useMutation({
+    mutationFn: async () => {
+      if (!data) throw new Error("The scan report is still loading.");
+      const response = await fetch(
+        `/api/crm/leads/${encodeURIComponent(data.leadId)}/scan-report-email-preview?reportId=${encodeURIComponent(reportId)}`,
+        { credentials: "include" },
+      );
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.message || "Could not prepare the scan report email");
+      return body as ScanReportEmailPreview;
+    },
+    onSuccess: (preview) => {
+      setEmailReportPreview(preview);
+      setEmailReportRecipient(preview.recipient);
+      setEmailReportSubject(preview.subject);
+      setEmailReportMessage(preview.message);
+      setEmailReportRequestId(crypto.randomUUID());
+      setEmailReportOpen(true);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Could not prepare email", description: error.message, variant: "destructive" });
+    },
+  });
+  const sendEmailReport = useMutation({
+    mutationFn: async () => {
+      if (!data || !emailReportPreview) throw new Error("The scan report email is not ready.");
+      const response = await apiRequest(
+        "POST",
+        `/api/crm/leads/${encodeURIComponent(data.leadId)}/email-scan-report`,
+        {
+          reportId: emailReportPreview.reportId,
+          recipient: emailReportRecipient.trim(),
+          subject: emailReportSubject.trim(),
+          message: emailReportMessage.trim(),
+          requestId: emailReportRequestId,
+        },
+      );
+      return response.json();
+    },
+    onSuccess: (result) => {
+      setEmailReportOpen(false);
+      toast({
+        title: result.duplicate ? "Already queued" : "Scan report queued",
+        description: result.duplicate
+          ? "That exact send request was already accepted, so a duplicate was not created."
+          : `The email to ${emailReportRecipient.trim()} is being delivered.`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Could not send report", description: error.message, variant: "destructive" });
     },
   });
 
@@ -337,6 +408,19 @@ function LocalFalconSnapshotCard({
               />
             </a>
             <div className="flex flex-wrap gap-2">
+              {canEmailSnapshot && (
+                <Button
+                  onClick={() => loadEmailReportPreview.mutate()}
+                  disabled={loadEmailReportPreview.isPending}
+                  className="bg-teal-700 hover:bg-teal-800"
+                  data-testid="button-email-scan-report"
+                >
+                  {loadEmailReportPreview.isPending
+                    ? <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" />
+                    : <Mail className="mr-1.5 h-4 w-4" />}
+                  Email report
+                </Button>
+              )}
               <Button onClick={copySnapshot}>
                 <ClipboardCopy className="mr-1.5 h-4 w-4" /> Copy image
               </Button>
@@ -383,6 +467,93 @@ function LocalFalconSnapshotCard({
           </div>
         )}
       </CardContent>
+      <Dialog open={emailReportOpen} onOpenChange={(open) => !sendEmailReport.isPending && setEmailReportOpen(open)}>
+        <DialogContent className="max-h-[94dvh] overflow-y-auto sm:max-w-2xl" data-testid="modal-email-scan-report">
+          <DialogHeader>
+            <DialogTitle>Email scan report</DialogTitle>
+            <DialogDescription>
+              Review the exact recipient and message before the finished PNG is published and queued for delivery.
+            </DialogDescription>
+          </DialogHeader>
+
+          {emailReportPreview && (
+            <div className="grid gap-5 sm:grid-cols-[1fr_190px]">
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor={`scan-report-recipient-${reportId}`}>To</Label>
+                  <Input
+                    id={`scan-report-recipient-${reportId}`}
+                    type="email"
+                    value={emailReportRecipient}
+                    onChange={(event) => setEmailReportRecipient(event.target.value)}
+                    placeholder="name@example.com"
+                    data-testid="input-scan-report-recipient"
+                  />
+                </div>
+                <div className="grid gap-3 rounded-lg border bg-slate-50 p-3 text-xs text-slate-600">
+                  <div><span className="font-medium text-slate-800">From:</span> {emailReportPreview.from}</div>
+                  <div><span className="font-medium text-slate-800">Replies go to:</span> {emailReportPreview.replyTo}</div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor={`scan-report-subject-${reportId}`}>Subject</Label>
+                  <Input
+                    id={`scan-report-subject-${reportId}`}
+                    value={emailReportSubject}
+                    onChange={(event) => setEmailReportSubject(event.target.value)}
+                    maxLength={200}
+                    data-testid="input-scan-report-subject"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor={`scan-report-message-${reportId}`}>Message</Label>
+                  <Textarea
+                    id={`scan-report-message-${reportId}`}
+                    value={emailReportMessage}
+                    onChange={(event) => setEmailReportMessage(event.target.value)}
+                    className="min-h-64"
+                    maxLength={5000}
+                    data-testid="textarea-scan-report-message"
+                  />
+                </div>
+              </div>
+              <div>
+                <p className="mb-2 text-xs font-medium text-slate-700">Report being sent</p>
+                <a href={emailReportPreview.snapshotPreviewUrl} target="_blank" rel="noopener noreferrer">
+                  <img
+                    src={emailReportPreview.snapshotPreviewUrl}
+                    alt={`Scan report for ${emailReportPreview.businessName}`}
+                    className="w-full rounded-lg border bg-white shadow-sm"
+                    data-testid="image-scan-report-preview"
+                  />
+                </a>
+                <p className="mt-2 text-xs text-slate-500">The email includes this image inline plus a fallback link.</p>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEmailReportOpen(false)} disabled={sendEmailReport.isPending}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => sendEmailReport.mutate()}
+              disabled={
+                sendEmailReport.isPending ||
+                !emailReportRecipient.trim() ||
+                !emailReportSubject.trim() ||
+                !emailReportMessage.trim()
+              }
+              className="bg-teal-700 hover:bg-teal-800"
+              data-testid="button-confirm-email-scan-report"
+            >
+              {sendEmailReport.isPending
+                ? <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" />
+                : <Mail className="mr-1.5 h-4 w-4" />}
+              {sendEmailReport.isPending ? "Queuing..." : "Send report"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
