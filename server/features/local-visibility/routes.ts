@@ -44,25 +44,6 @@ const upload = multer({
   },
 });
 
-router.get("/public/email-assets/:reportId/:sha.png", async (req, res) => {
-  try {
-    const reportId = req.params.reportId as string;
-    const sha = req.params.sha as string;
-    if (!/^[a-zA-Z0-9-]+$/.test(reportId) || !/^[a-f0-9]{64}$/.test(sha)) {
-      return res.status(404).end();
-    }
-    const file = await getFileBuffer(`local-visibility-email/${reportId}/${sha}.png`);
-    res.setHeader("Content-Type", "image/png");
-    res.setHeader("Content-Length", String(file.buffer.byteLength));
-    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
-    res.setHeader("Content-Disposition", "inline");
-    res.send(file.buffer);
-  } catch (error: any) {
-    const missing = error?.name === "NoSuchKey" || error?.Code === "NoSuchKey" || error?.$metadata?.httpStatusCode === 404;
-    res.status(missing ? 404 : (error?.statusCode ?? 500)).end();
-  }
-});
-
 router.get(
   "/prospects",
   requireRole("admin", "developer"),

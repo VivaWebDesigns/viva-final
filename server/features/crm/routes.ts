@@ -857,14 +857,11 @@ router.post("/leads/:id/email-scan-report", requireRole("admin", "developer", "s
     const leadId = req.params.id as string;
     if (!(await assertLeadAccess(req, res, leadId))) return;
     const input = scanReportEmailSchema.parse(req.body);
-    const configuredOrigin = process.env.PUBLIC_APP_URL?.trim().replace(/\/+$/, "");
-    const publicOrigin = configuredOrigin || `${req.protocol}://${req.get("host")}`;
     const result = await sendScanReportEmail({
       leadId,
       ...input,
       actorId: req.authUser!.id,
       actorEmail: req.authUser!.email,
-      publicOrigin,
     });
     await logAudit({
       userId: req.authUser!.id,

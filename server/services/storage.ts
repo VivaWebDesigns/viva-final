@@ -11,6 +11,13 @@
  *   R2_SECRET_ACCESS_KEY - R2 API token (Secret Access Key)
  *   R2_BUCKET_NAME       - Bucket name in R2
  *   R2_PUBLIC_URL        - Public URL prefix (e.g. https://pub-xxx.r2.dev or custom domain)
+ *
+ * Published scan reports use a separate public R2 bucket. The endpoint and
+ * credentials fall back to the private R2 account credentials, while the
+ * bucket and public URL are intentionally required and separate:
+ *   REPORTS_R2_BUCKET_NAME
+ *   REPORTS_PUBLIC_URL   (e.g. https://reports.vivawebdesigns.com)
+ *   REPORTS_R2_ACCESS_KEY_ID / REPORTS_R2_SECRET_ACCESS_KEY (optional)
  */
 
 import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
@@ -66,6 +73,29 @@ function getS3Client() {
   });
 }
 
+function getReportsConfig() {
+  const base = getConfig();
+  const accessKeyId = firstEnv(["REPORTS_R2_ACCESS_KEY_ID", "REPORTS_R2_ACCESS_KEY"])
+    ?? base.accessKeyId;
+  const secretAccessKey = firstEnv(["REPORTS_R2_SECRET_ACCESS_KEY", "REPORTS_R2_SECRET_KEY"])
+    ?? base.secretAccessKey;
+  const endpoint = trimTrailingSlash(firstEnv(["REPORTS_R2_ENDPOINT"])) ?? base.endpoint;
+  const bucketName = firstEnv(["REPORTS_R2_BUCKET_NAME", "REPORTS_R2_BUCKET"]);
+  const publicUrl = trimTrailingSlash(firstEnv(["REPORTS_PUBLIC_URL"]));
+  const configured = !!(endpoint && accessKeyId && secretAccessKey && bucketName && publicUrl);
+  return { endpoint, accessKeyId, secretAccessKey, bucketName, publicUrl, configured };
+}
+
+function getReportsS3Client() {
+  const { endpoint, accessKeyId, secretAccessKey, configured } = getReportsConfig();
+  if (!configured) return null;
+  return new S3Client({
+    region: "auto",
+    endpoint,
+    credentials: { accessKeyId: accessKeyId!, secretAccessKey: secretAccessKey! },
+  });
+}
+
 function generateKey(originalName: string, folder = "uploads"): string {
   const ext = path.extname(originalName).toLowerCase();
   const uid = crypto.randomBytes(12).toString("hex");
@@ -101,17 +131,21 @@ export async function uploadFile(
   return { key, url, originalName, mimeType, sizeBytes: buffer.byteLength };
 }
 
-export async function uploadImmutableFile(
+export async function uploadPublishedReport(
   buffer: Buffer,
   key: string,
   mimeType: string,
-): Promise<void> {
-  const { bucketName, configured } = getConfig();
-  if (!configured) throw storageNotConfiguredError();
-  if (!/^local-visibility-email\/[a-zA-Z0-9-]+\/[a-f0-9]{64}\.png$/.test(key)) {
-    throw new Error("Invalid immutable email asset key.");
+): Promise<{ key: string; url: string }> {
+  const { bucketName, publicUrl, configured } = getReportsConfig();
+  if (!configured) {
+    const error = new Error("Published report storage is not configured. REPORTS_R2_BUCKET_NAME and REPORTS_PUBLIC_URL are required.");
+    (error as Error & { statusCode: number }).statusCode = 503;
+    throw error;
   }
-  await getS3Client()!.send(new PutObjectCommand({
+  if (!/^scans\/[a-zA-Z0-9-]+\/[a-f0-9]{64}\.png$/.test(key)) {
+    throw new Error("Invalid published report key.");
+  }
+  await getReportsS3Client()!.send(new PutObjectCommand({
     Bucket: bucketName!,
     Key: key,
     Body: buffer,
@@ -119,6 +153,7 @@ export async function uploadImmutableFile(
     ContentDisposition: "inline",
     CacheControl: "public, max-age=31536000, immutable",
   }));
+  return { key, url: `${publicUrl}/${key}` };
 }
 
 export async function deleteFile(key: string): Promise<void> {

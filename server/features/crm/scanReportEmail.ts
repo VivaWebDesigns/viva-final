@@ -9,7 +9,7 @@ import {
   workflowJobs,
 } from "@shared/schema";
 import { db } from "../../db";
-import { getFileBuffer, uploadImmutableFile } from "../../services/storage";
+import { getFileBuffer, uploadPublishedReport } from "../../services/storage";
 import { enqueueJob } from "../workflow/queue";
 
 const POSTAL_ADDRESS = "1628 Redcoat Dr, Charlotte, NC 28211";
@@ -34,7 +34,6 @@ interface SendScanReportInput {
   requestId: string;
   actorId: string;
   actorEmail: string;
-  publicOrigin: string;
 }
 
 function escapeHtml(value: string): string {
@@ -46,12 +45,14 @@ function escapeHtml(value: string): string {
     .replace(/'/g, "&#39;");
 }
 
-function senderEmail(): string {
-  return process.env.CONTACT_EMAIL_FROM?.trim() || "matt@vivawebdesigns.com";
+export function scanReportSenderEmail(): string {
+  return process.env.SCAN_REPORT_EMAIL_FROM?.trim()
+    || process.env.CONTACT_EMAIL_FROM?.trim()
+    || "matt@vivawebdesigns.com";
 }
 
 function actorReplyTo(actorEmail: string): string {
-  return /@vivawebdesigns\.com$/i.test(actorEmail) ? actorEmail : senderEmail();
+  return /@vivawebdesigns\.com$/i.test(actorEmail) ? actorEmail : scanReportSenderEmail();
 }
 
 async function loadReport(leadId: string, reportId: string) {
@@ -90,7 +91,7 @@ export async function getScanReportEmailPreview(
   return {
     reportId,
     recipient,
-    from: `Viva Web Designs <${senderEmail()}>`,
+    from: `Viva Web Designs <${scanReportSenderEmail()}>`,
     replyTo: actorReplyTo(actorEmail),
     subject: spanish
       ? `Así aparece ${businessName} en Google Maps`
@@ -144,9 +145,9 @@ export async function sendScanReportEmail(input: SendScanReportInput) {
   }
   const file = await getFileBuffer(record.report.snapshotStorageKey!);
   const sha = crypto.createHash("sha256").update(file.buffer).digest("hex");
-  const publishedKey = `local-visibility-email/${input.reportId}/${sha}.png`;
-  await uploadImmutableFile(file.buffer, publishedKey, "image/png");
-  const imageUrl = `${input.publicOrigin}/api/local-visibility/public/email-assets/${encodeURIComponent(input.reportId)}/${sha}.png`;
+  const publishedKey = `scans/${input.reportId}/${sha}.png`;
+  const published = await uploadPublishedReport(file.buffer, publishedKey, "image/png");
+  const imageUrl = published.url;
   const replyTo = actorReplyTo(input.actorEmail);
   const businessName = record.report.companyName || record.company?.name || record.lead.title;
 

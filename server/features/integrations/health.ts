@@ -106,7 +106,14 @@ export function checkOpenAIHealth(): ProviderHealth {
 
 export function checkR2Health(): ProviderHealth {
   const required = ["CLOUDFLARE_R2_ACCESS_KEY", "CLOUDFLARE_R2_SECRET_KEY", "CLOUDFLARE_R2_BUCKET", "CLOUDFLARE_R2_ENDPOINT"];
-  const optional = ["CLOUDFLARE_R2_PUBLIC_URL"];
+  const optional = [
+    "CLOUDFLARE_R2_PUBLIC_URL",
+    "REPORTS_R2_ENDPOINT",
+    "REPORTS_R2_ACCESS_KEY_ID",
+    "REPORTS_R2_SECRET_ACCESS_KEY",
+    "REPORTS_R2_BUCKET_NAME",
+    "REPORTS_PUBLIC_URL",
+  ];
   const all = [...required, ...optional];
   const { present, missing } = checkEnvVars(all);
   const reqCheck = checkEnvVars(required);
@@ -118,8 +125,8 @@ export function checkR2Health(): ProviderHealth {
     presentVars: present,
     status: deriveStatus(reqCheck.present, required),
     featureFlag: "planned",
-    notes: "Cloudflare R2 is the exclusive file storage provider. It will be used for file uploads, invoice storage, and chat attachments. R2 is S3-compatible — no separate S3 logic needed.",
-    usedBy: ["File Uploads (planned)", "Invoice Storage (planned)", "Chat Attachments (planned)"],
+    notes: "Cloudflare R2 stores private CRM files. Published scan-report images use a separate public bucket configured by REPORTS_R2_BUCKET_NAME and delivered through REPORTS_PUBLIC_URL.",
+    usedBy: ["CRM File Uploads", "Local Visibility Reports", "Published Scan Report Emails"],
   };
 }
 

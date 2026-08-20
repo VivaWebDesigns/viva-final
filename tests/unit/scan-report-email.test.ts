@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("../../server/db", () => ({ db: {} }));
 
-import { buildScanReportEmailHtml } from "../../server/features/crm/scanReportEmail";
+import { buildScanReportEmailHtml, scanReportSenderEmail } from "../../server/features/crm/scanReportEmail";
 
 describe("scan report email template", () => {
   it("renders the hosted report, fallback link, postal address, and opt-out", () => {
@@ -31,5 +31,13 @@ describe("scan report email template", () => {
     expect(html).not.toContain("<script>");
     expect(html).toContain("&lt;script&gt;");
     expect(html).toContain("Acme &lt;Roofing&gt; &quot;LLC&quot;");
+  });
+
+  it("uses a dedicated scan-report sender when configured", () => {
+    const previous = process.env.SCAN_REPORT_EMAIL_FROM;
+    process.env.SCAN_REPORT_EMAIL_FROM = "reports@vivawebdesigns.com";
+    expect(scanReportSenderEmail()).toBe("reports@vivawebdesigns.com");
+    if (previous === undefined) delete process.env.SCAN_REPORT_EMAIL_FROM;
+    else process.env.SCAN_REPORT_EMAIL_FROM = previous;
   });
 });
