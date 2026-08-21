@@ -180,6 +180,7 @@ function LocalFalconSnapshotCard({
   const [emailReportRecipient, setEmailReportRecipient] = useState("");
   const [emailReportSubject, setEmailReportSubject] = useState("");
   const [emailReportMessage, setEmailReportMessage] = useState("");
+  const [emailReportImagePlacement, setEmailReportImagePlacement] = useState<"after_intro" | "after_message">("after_message");
   const [emailReportRequestId, setEmailReportRequestId] = useState("");
   const { data, isLoading } = useQuery<LocalFalconSnapshot>({
     queryKey: ["/api/local-visibility/reports", reportId, contextCompanyId],
@@ -266,6 +267,7 @@ function LocalFalconSnapshotCard({
       setEmailReportRecipient(preview.recipient);
       setEmailReportSubject(preview.subject);
       setEmailReportMessage(preview.message);
+      setEmailReportImagePlacement("after_message");
       setEmailReportRequestId(crypto.randomUUID());
       setEmailReportOpen(true);
     },
@@ -284,6 +286,7 @@ function LocalFalconSnapshotCard({
           recipient: emailReportRecipient.trim(),
           subject: emailReportSubject.trim(),
           message: emailReportMessage.trim(),
+          imagePlacement: emailReportImagePlacement,
           requestId: emailReportRequestId,
         },
       );
@@ -493,6 +496,21 @@ function LocalFalconSnapshotCard({
                 <div className="grid gap-3 rounded-lg border bg-slate-50 p-3 text-xs text-slate-600">
                   <div><span className="font-medium text-slate-800">From:</span> {emailReportPreview.from}</div>
                   <div><span className="font-medium text-slate-800">Replies go to:</span> {emailReportPreview.replyTo}</div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Report placement</Label>
+                  <Select
+                    value={emailReportImagePlacement}
+                    onValueChange={(value: "after_intro" | "after_message") => setEmailReportImagePlacement(value)}
+                  >
+                    <SelectTrigger data-testid="select-scan-report-image-placement">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="after_intro">After the introduction</SelectItem>
+                      <SelectItem value="after_message">After the message</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor={`scan-report-subject-${reportId}`}>Subject</Label>

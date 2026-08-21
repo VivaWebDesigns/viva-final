@@ -8,7 +8,7 @@ describe("scan report email template", () => {
   it("renders the hosted report, fallback link, postal address, and opt-out", () => {
     const html = buildScanReportEmailHtml({
       message: "Hi Ana,\nSee your results.",
-      imageUrl: "https://vivawebdesigns.com/api/local-visibility/public/email-assets/report/abc.png",
+      imageUrl: "https://reports.vivawebdesigns.com/scans/report/abc.png",
       businessName: "Acme Roofing",
       replyTo: "matt@vivawebdesigns.com",
     });
@@ -18,6 +18,20 @@ describe("scan report email template", () => {
     expect(html).toContain("View the full report");
     expect(html).toContain("1628 Redcoat Dr, Charlotte, NC 28211");
     expect(html).toContain("Unsubscribe");
+  });
+
+  it("can place the scan after the first three message paragraphs", () => {
+    const imageUrl = "https://reports.vivawebdesigns.com/scans/report/abc.png";
+    const html = buildScanReportEmailHtml({
+      message: "Hi Mike,\n\nI’m Matt with Viva Web Designs.\n\nI came across Inspect-A-Deck and ran a scan.\n\nI found some significant visibility gaps.",
+      imageUrl,
+      businessName: "Inspect-A-Deck",
+      replyTo: "matt@vivawebdesigns.com",
+      imagePlacement: "after_intro",
+    });
+
+    expect(html.indexOf("I came across Inspect-A-Deck")).toBeLessThan(html.indexOf(imageUrl));
+    expect(html.indexOf(imageUrl)).toBeLessThan(html.indexOf("I found some significant visibility gaps"));
   });
 
   it("escapes editable CRM content before placing it in HTML", () => {

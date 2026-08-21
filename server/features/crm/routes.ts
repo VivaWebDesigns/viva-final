@@ -156,6 +156,7 @@ const scanReportEmailSchema = z.object({
   recipient: z.string().trim().email(),
   subject: z.string().trim().min(1).max(200),
   message: z.string().trim().min(1).max(5_000),
+  imagePlacement: z.enum(["after_intro", "after_message"]).default("after_message"),
   requestId: z.string().uuid(),
 }).strict();
 

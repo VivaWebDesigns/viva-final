@@ -31,6 +31,7 @@ interface SendScanReportInput {
   recipient: string;
   subject: string;
   message: string;
+  imagePlacement: "after_intro" | "after_message";
   requestId: string;
   actorId: string;
   actorEmail: string;
@@ -116,20 +117,27 @@ export function buildScanReportEmailHtml(input: {
   imageUrl: string;
   businessName: string;
   replyTo: string;
+  imagePlacement?: "after_intro" | "after_message";
 }): string {
-  const messageHtml = escapeHtml(input.message).replace(/\r?\n/g, "<br />");
+  const paragraphs = input.message.trim().split(/\r?\n\s*\r?\n/);
+  const paragraphHtml = paragraphs.map((paragraph) => escapeHtml(paragraph).replace(/\r?\n/g, "<br />"));
+  const insertAfterIntro = input.imagePlacement === "after_intro" && paragraphHtml.length > 3;
+  const introHtml = insertAfterIntro ? paragraphHtml.slice(0, 3).join("<br /><br />") : paragraphHtml.join("<br /><br />");
+  const remainingHtml = insertAfterIntro ? paragraphHtml.slice(3).join("<br /><br />") : "";
+  const imageRow = `<tr><td align="center" style="padding:0 20px 24px;">
+        <a href="${escapeHtml(input.imageUrl)}" target="_blank" style="text-decoration:none;">
+          <img src="${escapeHtml(input.imageUrl)}" alt="Google Maps visibility scan for ${escapeHtml(input.businessName)}" width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0;border-radius:8px;" />
+        </a>
+      </td></tr>`;
   return `<!doctype html>
 <html><body style="margin:0;background:#f5f7fa;color:#172033;font-family:Arial,sans-serif;">
   <div style="display:none;max-height:0;overflow:hidden;">Your Google Maps visibility scan from Viva Web Designs.</div>
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f5f7fa;"><tr><td align="center" style="padding:24px 12px;">
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;background:#ffffff;border-radius:12px;overflow:hidden;">
       <tr><td style="background:#0f766e;color:#ffffff;padding:22px 28px;font-size:22px;font-weight:700;">Viva Web Designs</td></tr>
-      <tr><td style="padding:28px;font-size:16px;line-height:1.65;">${messageHtml}</td></tr>
-      <tr><td align="center" style="padding:0 20px 28px;">
-        <a href="${escapeHtml(input.imageUrl)}" target="_blank" style="text-decoration:none;">
-          <img src="${escapeHtml(input.imageUrl)}" alt="Google Maps visibility scan for ${escapeHtml(input.businessName)}" width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0;border-radius:8px;" />
-        </a>
-      </td></tr>
+      <tr><td style="padding:28px${insertAfterIntro ? " 28px 18px" : ""};font-size:16px;line-height:1.65;">${introHtml}</td></tr>
+      ${imageRow}
+      ${remainingHtml ? `<tr><td style="padding:0 28px 28px;font-size:16px;line-height:1.65;">${remainingHtml}</td></tr>` : ""}
       <tr><td align="center" style="padding:0 28px 30px;"><a href="${escapeHtml(input.imageUrl)}" style="display:inline-block;background:#0f766e;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:7px;font-weight:700;">View the full report</a></td></tr>
       <tr><td style="border-top:1px solid #e5e7eb;padding:20px 28px;color:#6b7280;font-size:12px;line-height:1.55;">
         This is a business advertisement from Viva Web Designs.<br />${POSTAL_ADDRESS}<br />
@@ -169,6 +177,7 @@ export async function sendScanReportEmail(input: SendScanReportInput) {
       recipient: input.recipient,
       subject: input.subject,
       imageUrl,
+      imagePlacement: input.imagePlacement,
       requestId: input.requestId,
     },
   }).returning();
@@ -178,12 +187,19 @@ export async function sendScanReportEmail(input: SendScanReportInput) {
       to: input.recipient,
       replyTo,
       subject: input.subject,
-      html: buildScanReportEmailHtml({ message: input.message, imageUrl, businessName, replyTo }),
+      html: buildScanReportEmailHtml({
+        message: input.message,
+        imageUrl,
+        businessName,
+        replyTo,
+        imagePlacement: input.imagePlacement,
+      }),
       text: `${input.message}\n\nView the full report: ${imageUrl}\n\nViva Web Designs, ${POSTAL_ADDRESS}\nTo opt out, reply with Unsubscribe.`,
       noteId: note.id,
       category: "scan_report",
       reportId: input.reportId,
       imageUrl,
+      imagePlacement: input.imagePlacement,
       requestId: input.requestId,
     }, sourceId, "scan_report_email");
     await db.update(crmLeadNotes).set({
