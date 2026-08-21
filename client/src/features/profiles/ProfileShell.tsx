@@ -154,6 +154,7 @@ interface ScanReportEmailPreview {
   from: string;
   replyTo: string;
   subject: string;
+  preheader: string;
   message: string;
   businessName: string;
   snapshotPreviewUrl: string;
@@ -179,6 +180,7 @@ function LocalFalconSnapshotCard({
   const [emailReportPreview, setEmailReportPreview] = useState<ScanReportEmailPreview | null>(null);
   const [emailReportRecipient, setEmailReportRecipient] = useState("");
   const [emailReportSubject, setEmailReportSubject] = useState("");
+  const [emailReportPreheader, setEmailReportPreheader] = useState("");
   const [emailReportMessage, setEmailReportMessage] = useState("");
   const [emailReportImagePlacement, setEmailReportImagePlacement] = useState<"after_intro" | "after_message">("after_message");
   const [emailReportRequestId, setEmailReportRequestId] = useState("");
@@ -266,6 +268,7 @@ function LocalFalconSnapshotCard({
       setEmailReportPreview(preview);
       setEmailReportRecipient(preview.recipient);
       setEmailReportSubject(preview.subject);
+      setEmailReportPreheader(preview.preheader);
       setEmailReportMessage(preview.message);
       setEmailReportImagePlacement("after_message");
       setEmailReportRequestId(crypto.randomUUID());
@@ -285,6 +288,7 @@ function LocalFalconSnapshotCard({
           reportId: emailReportPreview.reportId,
           recipient: emailReportRecipient.trim(),
           subject: emailReportSubject.trim(),
+          preheader: emailReportPreheader.trim(),
           message: emailReportMessage.trim(),
           imagePlacement: emailReportImagePlacement,
           requestId: emailReportRequestId,
@@ -523,6 +527,16 @@ function LocalFalconSnapshotCard({
                   />
                 </div>
                 <div className="space-y-1.5">
+                  <Label htmlFor={`scan-report-preheader-${reportId}`}>Inbox preview</Label>
+                  <Input
+                    id={`scan-report-preheader-${reportId}`}
+                    value={emailReportPreheader}
+                    onChange={(event) => setEmailReportPreheader(event.target.value)}
+                    maxLength={200}
+                    data-testid="input-scan-report-preheader"
+                  />
+                </div>
+                <div className="space-y-1.5">
                   <Label htmlFor={`scan-report-message-${reportId}`}>Message</Label>
                   <Textarea
                     id={`scan-report-message-${reportId}`}
@@ -559,6 +573,7 @@ function LocalFalconSnapshotCard({
                 sendEmailReport.isPending ||
                 !emailReportRecipient.trim() ||
                 !emailReportSubject.trim() ||
+                !emailReportPreheader.trim() ||
                 !emailReportMessage.trim()
               }
               className="bg-teal-700 hover:bg-teal-800"

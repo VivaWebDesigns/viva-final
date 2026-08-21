@@ -20,6 +20,7 @@ export interface ScanReportEmailPreview {
   from: string;
   replyTo: string;
   subject: string;
+  preheader: string;
   message: string;
   businessName: string;
   snapshotPreviewUrl: string;
@@ -30,6 +31,7 @@ interface SendScanReportInput {
   reportId: string;
   recipient: string;
   subject: string;
+  preheader: string;
   message: string;
   imagePlacement: "after_intro" | "after_message";
   requestId: string;
@@ -103,7 +105,8 @@ export async function getScanReportEmailPreview(
     replyTo: actorReplyTo(actorEmail),
     subject: spanish
       ? `Así aparece ${businessName} en Google Maps`
-      : `How ${businessName} appears on Google Maps`,
+      : "Google Maps issues",
+    preheader: spanish ? "Tu análisis de Google Maps" : "Your Google Maps scan",
     message: spanish
       ? `Hola${greeting},\n\nPreparamos este análisis de visibilidad local para mostrar cómo aparece ${businessName} en Google Maps cuando los clientes buscan “${record.report.scanKeyword}”.\n\nSi deseas, puedo explicarte lo que muestran los resultados y las oportunidades que encontramos.`
       : `Hi,\n\nI’m Matt with Viva Web Designs here in Charlotte.\n\nI came across ${businessName} and ran a scan to see how the company is showing up in Google Maps when people around you search for your services.\n\nI found some pretty significant visibility gaps, so I thought you’d want to see the actual data.\n\nIf you’ve ever wondered why Google isn’t bringing in more calls, the scan below gives you a pretty good idea of what’s happening.\n\nIf it looks like something you’d want to improve, I can dig deeper into what’s behind it and we can jump on a quick video call. I can pull up the interactive scan and show you exactly who Google is ranking ahead of you from each area.\n\nJust reply here or call/text me.\n\nMatt`,
@@ -117,6 +120,7 @@ export function buildScanReportEmailHtml(input: {
   imageUrl: string;
   businessName: string;
   replyTo: string;
+  preheader?: string;
   imagePlacement?: "after_intro" | "after_message";
 }): string {
   const paragraphs = input.message.trim().split(/\r?\n\s*\r?\n/);
@@ -131,7 +135,7 @@ export function buildScanReportEmailHtml(input: {
       </td></tr>`;
   return `<!doctype html>
 <html><body style="margin:0;background:#f5f7fa;color:#172033;font-family:Arial,sans-serif;">
-  <div style="display:none;max-height:0;overflow:hidden;">Your Google Maps visibility scan from Viva Web Designs.</div>
+  <div style="display:none;max-height:0;overflow:hidden;">${escapeHtml(input.preheader || "Your Google Maps scan")}</div>
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f5f7fa;"><tr><td align="center" style="padding:24px 12px;">
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;background:#ffffff;border-radius:12px;overflow:hidden;">
       <tr><td style="background:#0f766e;color:#ffffff;padding:22px 28px;font-size:22px;font-weight:700;">Viva Web Designs</td></tr>
@@ -176,6 +180,7 @@ export async function sendScanReportEmail(input: SendScanReportInput) {
       reportId: input.reportId,
       recipient: input.recipient,
       subject: input.subject,
+      preheader: input.preheader,
       imageUrl,
       imagePlacement: input.imagePlacement,
       requestId: input.requestId,
@@ -192,6 +197,7 @@ export async function sendScanReportEmail(input: SendScanReportInput) {
         imageUrl,
         businessName,
         replyTo,
+        preheader: input.preheader,
         imagePlacement: input.imagePlacement,
       }),
       text: `${input.message}\n\nView the full report: ${imageUrl}\n\nViva Web Designs, ${POSTAL_ADDRESS}\nTo opt out, reply with Unsubscribe.`,
@@ -199,6 +205,7 @@ export async function sendScanReportEmail(input: SendScanReportInput) {
       category: "scan_report",
       reportId: input.reportId,
       imageUrl,
+      preheader: input.preheader,
       imagePlacement: input.imagePlacement,
       requestId: input.requestId,
     }, sourceId, "scan_report_email");

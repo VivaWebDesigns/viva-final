@@ -11,8 +11,10 @@ describe("scan report email template", () => {
       imageUrl: "https://reports.vivawebdesigns.com/scans/report/abc.png",
       businessName: "Acme Roofing",
       replyTo: "matt@vivawebdesigns.com",
+      preheader: "Your Google Maps scan",
     });
 
+    expect(html).toContain("Your Google Maps scan");
     expect(html).toContain("Hi Ana,<br />See your results.");
     expect(html).toContain('width="600"');
     expect(html).toContain("View the full report");
@@ -40,11 +42,13 @@ describe("scan report email template", () => {
       imageUrl: "https://vivawebdesigns.com/report.png",
       businessName: 'Acme <Roofing> "LLC"',
       replyTo: "matt@vivawebdesigns.com",
+      preheader: "Your <scan>",
     });
 
     expect(html).not.toContain("<script>");
     expect(html).toContain("&lt;script&gt;");
     expect(html).toContain("Acme &lt;Roofing&gt; &quot;LLC&quot;");
+    expect(html).toContain("Your &lt;scan&gt;");
   });
 
   it("uses a dedicated scan-report sender when configured", () => {
