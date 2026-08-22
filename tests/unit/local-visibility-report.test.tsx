@@ -2,7 +2,6 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import LocalVisibilityReportTemplate from "@features/local-visibility-report/LocalVisibilityReportTemplate";
 import { formatScanSettings, type LocalVisibilityReportData } from "@features/local-visibility-report/types";
-import { buildGoogleMapsVisibilityComparison, type LocalFalconCompetitorBusiness } from "@shared/localVisibility";
 
 const report: LocalVisibilityReportData = {
   businessName: "The Shower Glass",
@@ -68,87 +67,21 @@ describe("LocalVisibilityReportTemplate", () => {
     });
   });
 
-  it("replaces the explanatory footer with a compact Google Maps comparison when standings are available", () => {
-    const businesses: LocalFalconCompetitorBusiness[] = [
-      {
-        rank: 129,
-        place_id: "above",
-        name: "Stefans Pro Cleaning",
-        address_raw: "",
-        address: null,
-        city: null,
-        state: null,
-        zip: null,
-        lat: 0,
-        lng: 0,
-        arp: 20,
-        atrp: null,
-        atrp_capped: true,
-        solv: 2.04,
-        reviews: 6,
-        rating: 5,
-        is_subject: false,
+  it("preserves the approved report footer while comparison data remains dormant", () => {
+    render(<LocalVisibilityReportTemplate data={{
+      ...report,
+      googleMapsComparison: {
+        subjectRank: 130,
+        totalBusinesses: 148,
+        businessesAheadCount: 129,
+        rows: [],
       },
-      {
-        rank: 130,
-        place_id: "subject",
-        name: "YA cleaning service",
-        address_raw: "",
-        address: null,
-        city: null,
-        state: null,
-        zip: null,
-        lat: 0,
-        lng: 0,
-        arp: 20,
-        atrp: null,
-        atrp_capped: true,
-        solv: 0,
-        reviews: 19,
-        rating: 5,
-        is_subject: true,
-      },
-      {
-        rank: 131,
-        place_id: "below",
-        name: "Nearby Cleaning Co.",
-        address_raw: "",
-        address: null,
-        city: null,
-        state: null,
-        zip: null,
-        lat: 0,
-        lng: 0,
-        arp: 20,
-        atrp: null,
-        atrp_capped: true,
-        solv: 0,
-        reviews: 12,
-        rating: 4.8,
-        is_subject: false,
-      },
-    ];
-    const comparison = buildGoogleMapsVisibilityComparison({
-      subjectRank: 130,
-      totalBusinesses: 148,
-      businessesAheadCount: 129,
-      businesses,
-      subject: { name: "YA cleaning service", rating: 5, reviewCount: 19 },
-    });
+    }} />);
 
-    const { container } = render(
-      <LocalVisibilityReportTemplate
-        data={{ ...report, businessName: "YA cleaning service", googleMapsComparison: comparison }}
-      />,
-    );
-
-    expect(screen.getByText("How You Compare on Google Maps")).toBeInTheDocument();
-    expect(screen.getByText("Stefans Pro Cleaning")).toBeInTheDocument();
-    expect(screen.getByText("YA cleaning service", { selector: ".lvr-comparison-business strong" })).toBeInTheDocument();
-    expect(screen.getByText("Nearby Cleaning Co.")).toBeInTheDocument();
-    expect(screen.getByText("129 businesses appeared more prominently across this area scan.")).toBeInTheDocument();
-    expect(container.querySelectorAll(".lvr-comparison-row")).toHaveLength(3);
-    expect(container.querySelector(".lvr-comparison-row.is-subject")).toHaveTextContent("YA cleaning service");
-    expect(screen.queryByText("The center dot marks your business.")).not.toBeInTheDocument();
+    expect(screen.getByText("The center dot marks your business.")).toBeInTheDocument();
+    expect(screen.getByText("Each number is your Google Maps position from that location.")).toBeInTheDocument();
+    expect(screen.getByText("7 × 7 grid · 2.5-mile radius")).toBeInTheDocument();
+    expect(screen.queryByText("How You Compare on Google Maps")).not.toBeInTheDocument();
   });
+
 });
