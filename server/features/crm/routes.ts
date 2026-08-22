@@ -29,6 +29,7 @@ import {
   type IncomingPackageFile,
 } from "./localFalconPackage";
 import {
+  buildGoogleMapsVisibilityComparison,
   formatLocalVisibilityReportAddress,
   getLocalFalconMapPresentation,
 } from "@shared/localVisibility";
@@ -393,6 +394,7 @@ const localFalconPackageUpload = multer({
 
 const localFalconPackageFields = localFalconPackageUpload.fields([
   { name: "package", maxCount: 1 },
+  { name: "competitors", maxCount: 1 },
   { name: "heatmaps", maxCount: 200 },
   { name: "snapshots", maxCount: 200 },
 ]);
@@ -400,6 +402,7 @@ const localFalconPackageFields = localFalconPackageUpload.fields([
 function packageFiles(req: express.Request): {
   primary: IncomingPackageFile;
   supplemental: IncomingPackageFile[];
+  competitors?: IncomingPackageFile;
 } {
   const files = (req.files ?? {}) as Record<string, Express.Multer.File[]>;
   const primaryFile = files.package?.[0];
@@ -411,6 +414,13 @@ function packageFiles(req: express.Request): {
       originalName: file.originalname,
       mimeType: file.mimetype,
     })),
+    competitors: files.competitors?.[0]
+      ? {
+        buffer: files.competitors[0].buffer,
+        originalName: files.competitors[0].originalname,
+        mimeType: files.competitors[0].mimetype,
+      }
+      : undefined,
   };
 }
 
@@ -432,9 +442,9 @@ router.post(
   localFalconPackageFields,
   async (req, res) => {
     try {
-      const { primary, supplemental } = packageFiles(req);
-      const parsedPackage = await parseLocalFalconPackage(primary, supplemental, fetch);
-      const preview = await previewLocalFalconImport(parsedPackage.payload);
+      const { primary, supplemental, competitors } = packageFiles(req);
+      const parsedPackage = await parseLocalFalconPackage(primary, supplemental, fetch, competitors);
+      const preview = await previewLocalFalconImport(parsedPackage.payload, parsedPackage.competitors);
       res.json({
         ...preview,
         sourceMode: parsedPackage.sourceMode,
@@ -468,6 +478,19 @@ router.post(
               gridSize: parsedPackage.payload.batch.scan_spec.grid_size,
               radius: String(parsedPackage.payload.batch.scan_spec.radius_miles),
               heatmapImageUrl: heatmap.previewDataUrl,
+              googleMapsComparison: parsedPackage.competitors?.reports[prospect.report_key]
+                ? buildGoogleMapsVisibilityComparison({
+                  subjectRank: parsedPackage.competitors.reports[prospect.report_key].subject_rank,
+                  totalBusinesses: parsedPackage.competitors.reports[prospect.report_key].total_businesses,
+                  businessesAheadCount: parsedPackage.competitors.reports[prospect.report_key].businesses_ahead_count,
+                  businesses: parsedPackage.competitors.reports[prospect.report_key].businesses,
+                  subject: {
+                    name: prospect.company_name,
+                    rating: prospect.rating,
+                    reviewCount: prospect.review_count,
+                  },
+                })
+                : null,
             },
           };
         }),
@@ -495,9 +518,9 @@ router.post(
         z.string().regex(/^[a-f0-9]{64}$/),
       ).parse(JSON.parse(req.body.previewHeatmapChecksums || "{}"));
 
-      const { primary, supplemental } = packageFiles(req);
-      const parsedPackage = await parseLocalFalconPackage(primary, supplemental, fetch);
-      const preview = await previewLocalFalconImport(parsedPackage.payload);
+      const { primary, supplemental, competitors } = packageFiles(req);
+      const parsedPackage = await parseLocalFalconPackage(primary, supplemental, fetch, competitors);
+      const preview = await previewLocalFalconImport(parsedPackage.payload, parsedPackage.competitors);
       const approvedFlaggedSet = new Set(approvedFlagged);
       const selectedRows = preview.rows.filter(
         (row) =>
@@ -581,6 +604,7 @@ router.post(
         leadClassification,
         selectedPlaceIds,
         assetsByPlaceId,
+        parsedPackage.competitors,
       );
 
       const importedPlaceIds = new Set(result.importedLeads.map((lead) => lead.placeId));

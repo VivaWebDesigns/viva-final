@@ -9,6 +9,10 @@ import {
 } from "react-icons/fi";
 import { FaRegStar, FaStar } from "react-icons/fa";
 import type { LocalVisibilityReportData } from "./types";
+import type {
+  LocalVisibilityGoogleMapsComparison,
+  LocalVisibilityGoogleMapsComparisonRow,
+} from "@shared/localVisibility";
 import {
   formatScanSettings,
   LOCAL_VISIBILITY_REPORT_HEIGHT,
@@ -58,6 +62,76 @@ function Rating({ rating, reviewCount }: Pick<LocalVisibilityReportData, "rating
       </span>
       {reviews && <span className="lvr-review-count">({reviews})</span>}
     </div>
+  );
+}
+
+function ComparisonRating({ row }: { row: LocalVisibilityGoogleMapsComparisonRow }) {
+  const numericRating = Math.min(5, Math.max(0, row.rating || 0));
+  const filledStars = Math.round(numericRating);
+  return (
+    <div className="lvr-comparison-rating" aria-label={`${row.rating.toFixed(1)} out of 5 from ${row.reviewCount} reviews`}>
+      <strong>{row.rating.toFixed(1)}</strong>
+      <span aria-hidden="true">
+        {[0, 1, 2, 3, 4].map((index) =>
+          index < filledStars ? <FaStar key={index} /> : <FaRegStar key={index} />,
+        )}
+      </span>
+      <b>({row.reviewCount.toLocaleString()})</b>
+    </div>
+  );
+}
+
+function comparisonRelationship(row: LocalVisibilityGoogleMapsComparisonRow): string {
+  if (row.isSubject) return "Your business";
+  if (row.relationship === "above") return "Immediately above";
+  if (row.relationship === "below") return "Immediately below";
+  return "Google Maps result";
+}
+
+function GoogleMapsComparison({
+  comparison,
+  scanSettings,
+}: {
+  comparison: LocalVisibilityGoogleMapsComparison;
+  scanSettings: string;
+}) {
+  const ahead = comparison.businessesAheadCount;
+  const resultSummary = comparison.subjectRank === null
+    ? `Your business was not found among ${comparison.totalBusinesses ?? "the"} returned businesses.`
+    : `${ahead?.toLocaleString() ?? "No"} ${ahead === 1 ? "business appeared" : "businesses appeared"} more prominently across this area scan.`;
+
+  return (
+    <section className="lvr-comparison" aria-label="How you compare on Google Maps">
+      <header className="lvr-comparison-header">
+        <div>
+          <h4>How You Compare on Google Maps</h4>
+          <p>{scanSettings} · 20+ means outside Google’s top 20</p>
+        </div>
+        <span>Google Maps</span>
+      </header>
+      <div className="lvr-comparison-rows">
+        {comparison.rows.map((row, index) => (
+          <div
+            key={`${row.rank ?? "subject"}-${row.name}-${index}`}
+            className={`lvr-comparison-row${row.isSubject ? " is-subject" : ""}`}
+          >
+            <span className="lvr-comparison-rank">{row.rank ?? "—"}</span>
+            <div className="lvr-comparison-business">
+              <div>
+                <strong>{row.name}</strong>
+                <span>{comparisonRelationship(row)}</span>
+              </div>
+              <ComparisonRating row={row} />
+            </div>
+            <div className="lvr-comparison-visibility">
+              <span>Visible in Google’s top 3</span>
+              <strong>{row.topThreeVisibility === null ? "—" : `${row.topThreeVisibility.toFixed(2)}%`}</strong>
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="lvr-comparison-callout">{resultSummary}</p>
+    </section>
   );
 }
 
@@ -177,27 +251,36 @@ const LocalVisibilityReportTemplate = forwardRef<HTMLDivElement, Props>(function
           )}
         </figure>
 
-        <section className="lvr-explanation" aria-label="How to read the scan">
-          <div className="lvr-explanation-row">
-            <span className="lvr-explanation-icon" aria-hidden="true"><FiCrosshair /></span>
-            <p>
-              <strong>The center dot marks your business.</strong>
-              <span>The surrounding dots show how you rank in nearby areas.</span>
-            </p>
-          </div>
-          <div className="lvr-explanation-row">
-            <span className="lvr-explanation-icon" aria-hidden="true"><FiBarChart2 /></span>
-            <p>
-              <strong>Each number is your Google Maps position from that location.</strong>
-              <span><b>20+</b> means you did not appear in the top 20.</span>
-            </p>
-          </div>
-        </section>
+        {data.googleMapsComparison ? (
+          <GoogleMapsComparison
+            comparison={data.googleMapsComparison}
+            scanSettings={formatScanSettings(data)}
+          />
+        ) : (
+          <>
+            <section className="lvr-explanation" aria-label="How to read the scan">
+              <div className="lvr-explanation-row">
+                <span className="lvr-explanation-icon" aria-hidden="true"><FiCrosshair /></span>
+                <p>
+                  <strong>The center dot marks your business.</strong>
+                  <span>The surrounding dots show how you rank in nearby areas.</span>
+                </p>
+              </div>
+              <div className="lvr-explanation-row">
+                <span className="lvr-explanation-icon" aria-hidden="true"><FiBarChart2 /></span>
+                <p>
+                  <strong>Each number is your Google Maps position from that location.</strong>
+                  <span><b>20+</b> means you did not appear in the top 20.</span>
+                </p>
+              </div>
+            </section>
 
-        <section className="lvr-settings" aria-label="Scan settings">
-          <span className="lvr-explanation-icon" aria-hidden="true"><FiCrosshair /></span>
-          <span>{formatScanSettings(data)}</span>
-        </section>
+            <section className="lvr-settings" aria-label="Scan settings">
+              <span className="lvr-explanation-icon" aria-hidden="true"><FiCrosshair /></span>
+              <span>{formatScanSettings(data)}</span>
+            </section>
+          </>
+        )}
       </div>
 
       <footer className="lvr-footer">

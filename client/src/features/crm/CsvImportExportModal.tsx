@@ -132,6 +132,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
 
   const [entityType, setEntityType] = useState<"local_falcon" | "leads" | "contacts">(defaultEntity);
   const [file, setFile] = useState<File | null>(null);
+  const [competitorsFile, setCompetitorsFile] = useState<File | null>(null);
   const [heatmapFiles, setHeatmapFiles] = useState<File[]>([]);
   const [phase, setPhase] = useState<"idle" | "loading" | "preview" | "done">("idle");
   const [result, setResult] = useState<ImportResult | null>(null);
@@ -153,6 +154,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
 
   const clearImportState = () => {
     setFile(null);
+    setCompetitorsFile(null);
     setHeatmapFiles([]);
     setResult(null);
     setPreview(null);
@@ -169,6 +171,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
 
   const setPrimaryFile = (nextFile: File | null) => {
     setFile(nextFile);
+    setCompetitorsFile(null);
     setHeatmapFiles([]);
     setPreview(null);
     setResult(null);
@@ -188,10 +191,11 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
     );
     if (batch) {
       setPrimaryFile(batch);
+      setCompetitorsFile(files.find((candidate) => candidate.name.toLowerCase() === "competitors.json") ?? null);
       return;
     }
     if (files.some((candidate) => candidate.name.toLowerCase() === "competitors.json")) {
-      setImportError("competitors.json is no longer used. Choose batch.json or a scan ZIP.");
+      setImportError("Choose batch.json together with competitors.json.");
       return;
     }
     setImportError("Choose batch.json or one scan ZIP package.");
@@ -254,6 +258,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
     if (!file) throw new Error("Choose a package first");
     const form = new FormData();
     form.append("package", file);
+    if (competitorsFile) form.append("competitors", competitorsFile, competitorsFile.name);
     heatmapFiles.forEach((heatmap) => form.append("heatmaps", heatmap, heatmap.name));
     return form;
   };
@@ -473,6 +478,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
                     ref={packageInputRef}
                     type="file"
                     accept=".zip,.json,application/zip,application/json"
+                    multiple
                     className="hidden"
                     onChange={(event) => setLocalFalconPackageFiles(Array.from(event.target.files ?? []))}
                     data-testid="input-csv-file"
@@ -485,6 +491,11 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
                       <div><p className="font-medium">{file.name}</p><p className="text-xs text-slate-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p></div>
                     </div>
                   </div>
+                )}
+                {competitorsFile && (
+                  <p className="mt-2 text-xs text-slate-600">
+                    Competitor comparison: <span className="font-medium">{competitorsFile.name}</span>
+                  </p>
                 )}
                 {file && isJsonPackage && (
                   <div

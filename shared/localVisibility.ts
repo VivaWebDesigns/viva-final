@@ -84,6 +84,100 @@ export type LocalFalconCompetitorBusiness = {
   is_subject: boolean;
 };
 
+export type LocalVisibilityGoogleMapsComparisonRow = {
+  rank: number | null;
+  name: string;
+  rating: number;
+  reviewCount: number;
+  topThreeVisibility: number | null;
+  isSubject: boolean;
+  relationship: "above" | "subject" | "below" | "returned";
+};
+
+export type LocalVisibilityGoogleMapsComparison = {
+  subjectRank: number | null;
+  totalBusinesses: number | null;
+  businessesAheadCount: number | null;
+  rows: LocalVisibilityGoogleMapsComparisonRow[];
+};
+
+export function buildGoogleMapsVisibilityComparison({
+  subjectRank,
+  totalBusinesses,
+  businessesAheadCount,
+  businesses,
+  subject,
+}: {
+  subjectRank: number | null;
+  totalBusinesses: number | null;
+  businessesAheadCount: number | null;
+  businesses: LocalFalconCompetitorBusiness[];
+  subject: { name: string; rating: number; reviewCount: number };
+}): LocalVisibilityGoogleMapsComparison | null {
+  if (businesses.length === 0 && subjectRank === null) return null;
+
+  const subjectIndexFromRank = subjectRank === null ? -1 : subjectRank - 1;
+  const subjectIndex = businesses[subjectIndexFromRank]?.is_subject
+    ? subjectIndexFromRank
+    : businesses.findIndex((business) => business.is_subject);
+
+  if (subjectIndex >= 0) {
+    const start = Math.min(
+      Math.max(0, subjectIndex - 1),
+      Math.max(0, businesses.length - 3),
+    );
+    const rows = businesses.slice(start, start + 3).map((business, offset) => {
+      const index = start + offset;
+      return {
+        rank: business.rank,
+        name: business.name,
+        rating: business.rating,
+        reviewCount: business.reviews,
+        topThreeVisibility: business.solv,
+        isSubject: index === subjectIndex,
+        relationship: index < subjectIndex
+          ? "above" as const
+          : index > subjectIndex
+            ? "below" as const
+            : "subject" as const,
+      };
+    });
+    return {
+      subjectRank: subjectRank ?? businesses[subjectIndex].rank,
+      totalBusinesses: totalBusinesses ?? businesses.length,
+      businessesAheadCount: businessesAheadCount ?? businesses[subjectIndex].rank - 1,
+      rows,
+    };
+  }
+
+  const returnedRows = businesses.slice(0, 2).map((business) => ({
+    rank: business.rank,
+    name: business.name,
+    rating: business.rating,
+    reviewCount: business.reviews,
+    topThreeVisibility: business.solv,
+    isSubject: false,
+    relationship: "returned" as const,
+  }));
+  return {
+    subjectRank: null,
+    totalBusinesses: totalBusinesses ?? businesses.length,
+    businessesAheadCount: null,
+    rows: [
+      ...returnedRows,
+      {
+        rank: null,
+        name: subject.name,
+        rating: subject.rating,
+        reviewCount: subject.reviewCount,
+        topThreeVisibility: 0,
+        isSubject: true,
+        relationship: "subject",
+      },
+    ],
+  };
+}
+
 export type LocalVisibilityCompetitorBusiness = LocalFalconCompetitorBusiness & {
   sendableReport: LocalVisibilityReportSummary | null;
 };

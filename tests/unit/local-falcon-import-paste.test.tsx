@@ -69,7 +69,7 @@ describe("Local Falcon import clipboard", () => {
     expect(screen.getByTestId("button-start-import")).toBeDisabled();
   });
 
-  it("rejects the retired competitors sidecar", async () => {
+  it("asks for batch.json when competitors.json is selected by itself", async () => {
     renderModal();
 
     fireEvent.change(screen.getByTestId("input-csv-file"), {
@@ -79,7 +79,7 @@ describe("Local Falcon import clipboard", () => {
     });
 
     expect(await screen.findByText(
-      "competitors.json is no longer used. Choose batch.json or a scan ZIP.",
+      "Choose batch.json together with competitors.json.",
     )).toBeInTheDocument();
     expect(screen.getByTestId("button-start-import")).toBeDisabled();
   });

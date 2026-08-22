@@ -385,6 +385,30 @@ describe("parseLocalFalconPackage", () => {
     expect(result.competitors?.reports[prospect.report_key].subject_rank).toBe(2);
   });
 
+  it("loads competitors.json beside a direct batch.json manifest", async () => {
+    const heatmap = await readFile("tests/fixtures/local-visibility/carolina-custom-automation-heatmap.png");
+    const result = await parseLocalFalconPackage(
+      {
+        buffer: Buffer.from(JSON.stringify(payload)),
+        originalName: "batch.json",
+        mimeType: "application/json",
+      },
+      [{
+        buffer: heatmap,
+        originalName: `${prospect.place_id}.png`,
+        mimeType: "image/png",
+      }],
+      fetch,
+      {
+        buffer: Buffer.from(JSON.stringify(competitorSidecar)),
+        originalName: "competitors.json",
+        mimeType: "application/json",
+      },
+    );
+
+    expect(result.competitors?.reports[prospect.report_key].subject_rank).toBe(2);
+  });
+
   it("rejects ZIP heatmaps that are not referenced by the manifest", async () => {
     const heatmap = await readFile("tests/fixtures/local-visibility/carolina-custom-automation-heatmap.png");
     const zipped = zipSync({

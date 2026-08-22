@@ -88,7 +88,7 @@ function slugify(value: string) {
 }
 
 type FormFieldProps = {
-  id: keyof LocalVisibilityReportData;
+  id: ExtractableVisibilityField;
   label: string;
   value: string;
   error?: string;
@@ -225,12 +225,12 @@ export default function LocalVisibilityReportPage({ initialData }: LocalVisibili
   }, [measurePreview]);
 
   const updateField = (event: ChangeEvent<HTMLInputElement>) => {
-    const field = event.target.name as keyof LocalVisibilityReportData;
+    const field = event.target.name as ExtractableVisibilityField;
     const value = field === "gridSize" ? normalizeGridSize(event.target.value) : event.target.value;
     setData((current) => ({ ...current, [field]: value }));
     setErrors((current) => ({ ...current, [field]: undefined }));
     setReviewFields((current) => {
-      if (field === "heatmapImageUrl" || !current.has(field)) return current;
+      if (!current.has(field)) return current;
       const next = new Set(current);
       next.delete(field);
       return next;

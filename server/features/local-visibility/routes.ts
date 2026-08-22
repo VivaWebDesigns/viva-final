@@ -6,9 +6,15 @@ import { and, desc, eq, isNotNull, sql } from "drizzle-orm";
 import { requireRole } from "../auth/middleware";
 import { analyzeVisibilityScreenshots } from "./analysis";
 import { db } from "../../db";
-import { crmLeads, localFalconImportBatches, localFalconProspectProfiles } from "@shared/schema";
+import {
+  crmLeads,
+  localFalconCompetitorStandings,
+  localFalconImportBatches,
+  localFalconProspectProfiles,
+} from "@shared/schema";
 import { deleteFile, getFileBuffer, getSignedDownloadUrl, uploadFile } from "../../services/storage";
 import {
+  buildGoogleMapsVisibilityComparison,
   formatLocalVisibilityReportAddress,
   getLocalFalconMapPresentation,
 } from "@shared/localVisibility";
@@ -33,6 +39,27 @@ function viewerFor(req: Request): ReportViewer {
 
 function contextCompanyId(req: Request): string | undefined {
   return typeof req.query.contextCompanyId === "string" ? req.query.contextCompanyId : undefined;
+}
+
+async function getGoogleMapsComparison(
+  reportId: string,
+  subject: { name: string; rating: string; reviewCount: number },
+) {
+  const [standing] = await db.select().from(localFalconCompetitorStandings)
+    .where(eq(localFalconCompetitorStandings.reportId, reportId))
+    .limit(1);
+  if (!standing) return null;
+  return buildGoogleMapsVisibilityComparison({
+    subjectRank: standing.subjectRank,
+    totalBusinesses: standing.totalBusinesses,
+    businessesAheadCount: standing.businessesAheadCount,
+    businesses: standing.businesses,
+    subject: {
+      name: subject.name,
+      rating: Number(subject.rating),
+      reviewCount: subject.reviewCount,
+    },
+  });
 }
 
 const upload = multer({
@@ -177,6 +204,11 @@ router.get(
       const snapshotImageUrl = record.profile.snapshotStorageKey
         ? await getSignedDownloadUrl(record.profile.snapshotStorageKey)
         : null;
+      const googleMapsComparison = await getGoogleMapsComparison(accessRecord.id, {
+        name: record.profile.companyName ?? "Business",
+        rating: record.profile.rating,
+        reviewCount: record.profile.reviewCount,
+      });
       const address = formatLocalVisibilityReportAddress({
         address: record.profile.address,
         city: record.profile.scanCity ?? record.profile.city,
@@ -213,6 +245,7 @@ router.get(
           gridSize: record.batch.gridSize ?? "7 × 7",
           radius: record.batch.radiusMiles ?? "2.5",
           heatmapImageUrl,
+          googleMapsComparison,
         },
       });
     } catch (error: any) {
@@ -326,6 +359,11 @@ router.get(
       const snapshotImageUrl = record.profile.snapshotStorageKey
         ? await getSignedDownloadUrl(record.profile.snapshotStorageKey)
         : null;
+      const googleMapsComparison = await getGoogleMapsComparison(record.profile.id, {
+        name: record.profile.companyName ?? "Business",
+        rating: record.profile.rating,
+        reviewCount: record.profile.reviewCount,
+      });
       const address = formatLocalVisibilityReportAddress({
         address: record.profile.address,
         city: record.profile.scanCity ?? record.profile.city,
@@ -361,6 +399,7 @@ router.get(
           gridSize: record.batch.gridSize ?? "7 × 7",
           radius: record.batch.radiusMiles ?? "2.5",
           heatmapImageUrl,
+          googleMapsComparison,
         },
       });
     } catch (error: any) {
