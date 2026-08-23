@@ -153,6 +153,6 @@ describe("LocalVisibilityReportPage", () => {
     fireEvent.pointerDown(heatmapFrame, { pointerId: 1, clientX: 100, clientY: 100 });
     fireEvent.pointerMove(heatmapFrame, { pointerId: 1, clientX: 125, clientY: 90 });
     fireEvent.pointerUp(heatmapFrame, { pointerId: 1, clientX: 125, clientY: 90 });
-    expect(heatmap).toHaveStyle({ transform: "translate(50px, -20px) scale(1.25)" });
+    expect(heatmap).toHaveStyle({ transform: "translate(50px, -20.833333333333336px) scale(1.25)" });
   });
 });

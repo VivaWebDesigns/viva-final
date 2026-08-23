@@ -109,8 +109,8 @@ function FramedReportPreview({
   reportRef?: (element: HTMLDivElement | null) => void;
 }) {
   return (
-    <div className="h-[480px] w-[270px] overflow-hidden rounded-lg border bg-white shadow-sm" aria-label="Final report framing preview">
-      <div className="h-[1920px] w-[1080px] origin-top-left scale-[0.25] pointer-events-none">
+    <div className="h-[720px] w-[270px] overflow-hidden rounded-lg border bg-white shadow-sm" aria-label="Final report framing preview">
+      <div className="h-[2880px] w-[1080px] origin-top-left scale-[0.25] pointer-events-none">
         <LocalVisibilityReportTemplate
           ref={reportRef}
           data={data}
@@ -445,7 +445,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
               <>
                 <div className="rounded-md border bg-slate-50 p-3 text-sm text-slate-600">
                   <p className="font-semibold text-slate-900">Qualified Local Falcon prospects</p>
-                  <p className="mt-1">Choose the batch manifest or one scan ZIP. The CRM retrieves each official map automatically from its <code>report_key</code>.</p>
+                  <p className="mt-1">Choose one Scale-First Manifest v2 ZIP containing <code>batch.json</code> and <code>competitors.json</code>. The CRM retrieves each official map automatically from its <code>report_key</code>.</p>
                 </div>
                 <div
                   role="group"
@@ -460,7 +460,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
                 >
                   <ClipboardPaste className="mb-3 h-9 w-9 text-blue-600" />
                   <p className="font-semibold text-slate-900">Click this box, then press Ctrl+V or ⌘V</p>
-                  <p className="mt-1 text-sm text-slate-500">Paste batch JSON text, choose batch.json, or use one scan ZIP</p>
+                  <p className="mt-1 text-sm text-slate-500">Use one v2 scan ZIP, or choose batch.json and competitors.json together</p>
                   <Button
                     type="button"
                     variant="outline"
@@ -472,7 +472,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
                       packageInputRef.current?.click();
                     }}
                   >
-                    Choose batch JSON or ZIP
+                    Choose v2 JSON files or ZIP
                   </Button>
                   <Input
                     ref={packageInputRef}

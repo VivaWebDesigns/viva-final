@@ -67,21 +67,29 @@ describe("LocalVisibilityReportTemplate", () => {
     });
   });
 
-  it("preserves the approved report footer while comparison data remains dormant", () => {
+  it("renders the email-first 1080 × 2880 report with adjacent Google Maps context", () => {
     render(<LocalVisibilityReportTemplate data={{
       ...report,
       googleMapsComparison: {
         subjectRank: 130,
         totalBusinesses: 148,
         businessesAheadCount: 129,
-        rows: [],
+        rows: [
+          { rank: 129, name: "Stefans Pro Cleaning", rating: 5, reviewCount: 6, topThreeVisibility: 0, foundPoints: 1, totalPoints: 49, isSubject: false, relationship: "above" },
+          { rank: 130, name: "YA cleaning service", rating: 5, reviewCount: 19, topThreeVisibility: 0, foundPoints: 0, totalPoints: 49, isSubject: true, relationship: "subject" },
+          { rank: 131, name: "Queen Squad Pro Cleaning", rating: 4.9, reviewCount: 137, topThreeVisibility: 0, foundPoints: 0, totalPoints: 49, isSubject: false, relationship: "below" },
+        ],
       },
     }} />);
 
     expect(screen.getByText("The center dot marks your business.")).toBeInTheDocument();
     expect(screen.getByText("Each number is your Google Maps position from that location.")).toBeInTheDocument();
     expect(screen.getByText("7 × 7 grid · 2.5-mile radius")).toBeInTheDocument();
-    expect(screen.queryByText("How You Compare on Google Maps")).not.toBeInTheDocument();
+    expect(screen.getByText("How You Compare on Google Maps")).toBeInTheDocument();
+    expect(screen.getByText("Visibility across the 2.5-mile radius")).toBeInTheDocument();
+    expect(screen.getAllByText("0 of 49 points")).toHaveLength(2);
+    expect(screen.getByText("Ranked #130 of 148 businesses in this Google Maps area scan.")).toBeInTheDocument();
+    expect(screen.getByTestId("local-visibility-report-template")).toHaveAttribute("data-export-height", "2880");
   });
 
 });

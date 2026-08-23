@@ -137,3 +137,42 @@ final result: passed
 Current approved Local Visibility Snapshot export: 1080 × 1920 with a centered, edge-to-edge map crop.
 
 final result: passed
+
+---
+
+# Design QA — Local Visibility Snapshot v2
+
+## Reference and implementation
+
+- Approved reference: `/Users/matt/.codex/visualizations/2026/08/21/01a02598-cecd-7b02-b725-d525fb122115/viva-appended-google-maps-report-mockup-v2.png`
+- Actual component render: `/Users/matt/.codex/visualizations/2026/08/21/01a02598-cecd-7b02-b725-d525fb122115/local-visibility-v2-implementation-static.html`
+- Actual component segment captures:
+  - `/Users/matt/.codex/visualizations/2026/08/21/01a02598-cecd-7b02-b725-d525fb122115/quicklook-static/local-visibility-v2-implementation-static.html.png`
+  - `/Users/matt/.codex/visualizations/2026/08/21/01a02598-cecd-7b02-b725-d525fb122115/quicklook-static/local-visibility-v2-middle.html.png`
+  - `/Users/matt/.codex/visualizations/2026/08/21/01a02598-cecd-7b02-b725-d525fb122115/quicklook-static/local-visibility-v2-bottom.html.png`
+
+The implementation captures were rendered from the real React component and production CSS. Three vertical segments were used because the report is 1080 × 2880 and the local Quick Look renderer captures a square viewport.
+
+## Comparison results
+
+- Canvas is the approved 1080 × 2880 email-first size; legacy reports without comparison data remain 1080 × 1920.
+- Existing Viva header, colors, typography hierarchy, heatmap image, grid values, and map framing are preserved.
+- Header, summary cards, business card, heatmap, explanation, settings, comparison panel, and footer are all enlarged for email readability.
+- Average Google Maps Position remains `20+`; the area-scan rank appears only in the neutral comparison callout.
+- Comparison includes only the immediately higher business, the prospect, and the immediately lower business.
+- Company rows contain no category/address subtext. Long names fit at the approved width after the final typography adjustment.
+- Prospect point totals are neutral navy/gray, not red.
+- Header reads `Visibility across the 3-mile radius` for the QA fixture and is driven by the report's actual radius.
+- The scan image remains square at 1000 × 1000 inside the 1080-pixel canvas.
+- Footer remains fully contained inside the 2880-pixel export.
+
+## Functional verification
+
+- TypeScript check: passed.
+- Focused unit/smoke tests: 43 passed.
+- Production build: passed.
+- Export height and comparison copy are covered by component tests.
+
+## Final result
+
+`passed`

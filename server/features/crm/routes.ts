@@ -30,6 +30,7 @@ import {
 } from "./localFalconPackage";
 import {
   buildGoogleMapsVisibilityComparison,
+  formatLocalVisibilityAveragePosition,
   formatLocalVisibilityReportAddress,
   getLocalFalconMapPresentation,
 } from "@shared/localVisibility";
@@ -444,6 +445,9 @@ router.post(
     try {
       const { primary, supplemental, competitors } = packageFiles(req);
       const parsedPackage = await parseLocalFalconPackage(primary, supplemental, fetch, competitors);
+      if (!parsedPackage.competitors) {
+        throw new Error("Scale-First Manifest v2 requires competitors.json with the prospect and adjacent Google Maps businesses.");
+      }
       const preview = await previewLocalFalconImport(parsedPackage.payload, parsedPackage.competitors);
       res.json({
         ...preview,
@@ -474,7 +478,7 @@ router.post(
               market: prospect.scan_center
                 ? `${prospect.scan_center.city}, ${prospect.scan_center.state}`
                 : `${parsedPackage.payload.batch.market.city}, ${parsedPackage.payload.batch.market.state}`,
-              averagePosition: String(prospect.arp),
+              averagePosition: formatLocalVisibilityAveragePosition(prospect.arp),
               gridSize: parsedPackage.payload.batch.scan_spec.grid_size,
               radius: String(parsedPackage.payload.batch.scan_spec.radius_miles),
               heatmapImageUrl: heatmap.previewDataUrl,
@@ -484,6 +488,7 @@ router.post(
                   totalBusinesses: parsedPackage.competitors.reports[prospect.report_key].total_businesses,
                   businessesAheadCount: parsedPackage.competitors.reports[prospect.report_key].businesses_ahead_count,
                   businesses: parsedPackage.competitors.reports[prospect.report_key].businesses,
+                  gridSize: parsedPackage.competitors.reports[prospect.report_key].grid_size,
                   subject: {
                     name: prospect.company_name,
                     rating: prospect.rating,
@@ -520,6 +525,9 @@ router.post(
 
       const { primary, supplemental, competitors } = packageFiles(req);
       const parsedPackage = await parseLocalFalconPackage(primary, supplemental, fetch, competitors);
+      if (!parsedPackage.competitors) {
+        throw new Error("Scale-First Manifest v2 requires competitors.json with the prospect and adjacent Google Maps businesses.");
+      }
       const preview = await previewLocalFalconImport(parsedPackage.payload, parsedPackage.competitors);
       const approvedFlaggedSet = new Set(approvedFlagged);
       const selectedRows = preview.rows.filter(
@@ -554,8 +562,8 @@ router.post(
           throw new Error(`The finished snapshot is missing for ${row.companyName}. Review the preview and try again.`);
         }
         const metadata = await sharp(snapshot.buffer).metadata();
-        if (metadata.width !== 1080 || metadata.height !== 1920) {
-          throw new Error(`The finished snapshot for ${row.companyName} must be 1080 × 1920.`);
+        if (metadata.width !== 1080 || metadata.height !== 2880) {
+          throw new Error(`The finished snapshot for ${row.companyName} must be 1080 × 2880.`);
         }
       }
 

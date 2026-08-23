@@ -15,6 +15,7 @@ import {
 import { deleteFile, getFileBuffer, getSignedDownloadUrl, uploadFile } from "../../services/storage";
 import {
   buildGoogleMapsVisibilityComparison,
+  formatLocalVisibilityAveragePosition,
   formatLocalVisibilityReportAddress,
   getLocalFalconMapPresentation,
 } from "@shared/localVisibility";
@@ -54,6 +55,7 @@ async function getGoogleMapsComparison(
     totalBusinesses: standing.totalBusinesses,
     businessesAheadCount: standing.businessesAheadCount,
     businesses: standing.businesses,
+    gridSize: standing.gridSize,
     subject: {
       name: subject.name,
       rating: Number(subject.rating),
@@ -241,7 +243,7 @@ router.get(
           reviewCount: String(record.profile.reviewCount),
           searchPhrase: record.profile.scanKeyword,
           market: `${record.profile.scanCity ?? record.batch.marketCity}, ${record.profile.scanState ?? record.batch.marketState}`,
-          averagePosition: record.profile.arp,
+          averagePosition: formatLocalVisibilityAveragePosition(record.profile.arp),
           gridSize: record.batch.gridSize ?? "7 × 7",
           radius: record.batch.radiusMiles ?? "2.5",
           heatmapImageUrl,
@@ -266,8 +268,8 @@ router.post(
         return res.status(400).json({ message: "Upload the finished report as a PNG." });
       }
       const metadata = await sharp(snapshot.buffer).metadata();
-      if (metadata.width !== 1080 || metadata.height !== 1920) {
-        return res.status(400).json({ message: "The finished snapshot must be 1080 × 1920." });
+      if (metadata.width !== 1080 || ![1920, 2880].includes(metadata.height ?? 0)) {
+        return res.status(400).json({ message: "The finished snapshot must be 1080 × 1920 (legacy) or 1080 × 2880." });
       }
       const [record] = await db.select({
         id: localFalconProspectProfiles.id,
@@ -395,7 +397,7 @@ router.get(
           reviewCount: String(record.profile.reviewCount),
           searchPhrase: record.profile.scanKeyword,
           market: `${record.profile.scanCity ?? record.batch.marketCity}, ${record.profile.scanState ?? record.batch.marketState}`,
-          averagePosition: record.profile.arp,
+          averagePosition: formatLocalVisibilityAveragePosition(record.profile.arp),
           gridSize: record.batch.gridSize ?? "7 × 7",
           radius: record.batch.radiusMiles ?? "2.5",
           heatmapImageUrl,
@@ -420,8 +422,8 @@ router.post(
         return res.status(400).json({ message: "Upload the finished report as a PNG." });
       }
       const metadata = await sharp(snapshot.buffer).metadata();
-      if (metadata.width !== 1080 || metadata.height !== 1920) {
-        return res.status(400).json({ message: "The finished snapshot must be 1080 × 1920." });
+      if (metadata.width !== 1080 || ![1920, 2880].includes(metadata.height ?? 0)) {
+        return res.status(400).json({ message: "The finished snapshot must be 1080 × 1920 (legacy) or 1080 × 2880." });
       }
       const [record] = await db.select({
         id: localFalconProspectProfiles.id,

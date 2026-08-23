@@ -15,7 +15,16 @@ export type LocalVisibilityReportData = {
 };
 
 export const LOCAL_VISIBILITY_REPORT_WIDTH = 1080;
-export const LOCAL_VISIBILITY_REPORT_HEIGHT = 1920;
+export const LOCAL_VISIBILITY_REPORT_LEGACY_HEIGHT = 1920;
+export const LOCAL_VISIBILITY_REPORT_HEIGHT = 2880;
+
+export function getLocalVisibilityReportHeight(
+  data: Pick<LocalVisibilityReportData, "googleMapsComparison">,
+): number {
+  return data.googleMapsComparison
+    ? LOCAL_VISIBILITY_REPORT_HEIGHT
+    : LOCAL_VISIBILITY_REPORT_LEGACY_HEIGHT;
+}
 
 export type ExtractableVisibilityField = Exclude<
   keyof LocalVisibilityReportData,

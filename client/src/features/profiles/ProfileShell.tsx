@@ -464,7 +464,7 @@ function LocalFalconSnapshotCard({
           </div>
         )}
         {(!data.snapshotImageUrl || canManageSnapshot) && (
-          <div className="fixed left-[-10000px] top-0 h-[1920px] w-[1080px]" aria-hidden="true">
+          <div className="fixed left-[-10000px] top-0 w-[1080px]" aria-hidden="true">
             <LocalVisibilityReportTemplate
               ref={reportRef}
               data={data.data}

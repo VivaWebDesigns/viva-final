@@ -196,7 +196,7 @@ function readDirectJson(
     images.set(fallbackPath, image.buffer);
   }
   if (competitorsFile && path.basename(competitorsFile.originalName).toLowerCase() !== "competitors.json") {
-    throw new Error("The optional sidecar file must be named competitors.json");
+    throw new Error("The comparison sidecar file must be named competitors.json");
   }
   return {
     manifestText: primary.buffer.toString("utf8"),

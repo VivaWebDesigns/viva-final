@@ -48,6 +48,14 @@ export function formatLocalVisibilityReportAddress({
     .replace(/, ([A-Z]{2}), /, ", $1 ");
 }
 
+export function formatLocalVisibilityAveragePosition(value: string | number | null | undefined): string {
+  const text = String(value ?? "").trim();
+  if (!text) return "";
+  if (text === "20+") return text;
+  const numeric = Number(text);
+  return Number.isFinite(numeric) && numeric >= 20 ? "20+" : text;
+}
+
 export type LocalVisibilityReportSummary = {
   id: string;
   leadId: string;
@@ -68,17 +76,8 @@ export type LocalFalconCompetitorBusiness = {
   rank: number;
   place_id: string;
   name: string;
-  address_raw: string;
-  address: string | null;
-  city: string | null;
-  state: string | null;
-  zip: string | null;
-  lat: number;
-  lng: number;
-  arp: number;
-  atrp: number | null;
-  atrp_capped: boolean;
   solv: number;
+  found_points: number | null;
   reviews: number;
   rating: number;
   is_subject: boolean;
@@ -90,6 +89,8 @@ export type LocalVisibilityGoogleMapsComparisonRow = {
   rating: number;
   reviewCount: number;
   topThreeVisibility: number | null;
+  foundPoints: number | null;
+  totalPoints: number | null;
   isSubject: boolean;
   relationship: "above" | "subject" | "below" | "returned";
 };
@@ -106,12 +107,14 @@ export function buildGoogleMapsVisibilityComparison({
   totalBusinesses,
   businessesAheadCount,
   businesses,
+  gridSize,
   subject,
 }: {
   subjectRank: number | null;
   totalBusinesses: number | null;
   businessesAheadCount: number | null;
   businesses: LocalFalconCompetitorBusiness[];
+  gridSize: number | null;
   subject: { name: string; rating: number; reviewCount: number };
 }): LocalVisibilityGoogleMapsComparison | null {
   if (businesses.length === 0 && subjectRank === null) return null;
@@ -134,6 +137,8 @@ export function buildGoogleMapsVisibilityComparison({
         rating: business.rating,
         reviewCount: business.reviews,
         topThreeVisibility: business.solv,
+        foundPoints: business.found_points,
+        totalPoints: gridSize ? gridSize * gridSize : null,
         isSubject: index === subjectIndex,
         relationship: index < subjectIndex
           ? "above" as const
@@ -156,6 +161,8 @@ export function buildGoogleMapsVisibilityComparison({
     rating: business.rating,
     reviewCount: business.reviews,
     topThreeVisibility: business.solv,
+    foundPoints: business.found_points,
+    totalPoints: gridSize ? gridSize * gridSize : null,
     isSubject: false,
     relationship: "returned" as const,
   }));
@@ -171,6 +178,8 @@ export function buildGoogleMapsVisibilityComparison({
         rating: subject.rating,
         reviewCount: subject.reviewCount,
         topThreeVisibility: 0,
+        foundPoints: 0,
+        totalPoints: gridSize ? gridSize * gridSize : null,
         isSubject: true,
         relationship: "subject",
       },

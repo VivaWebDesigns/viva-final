@@ -16,7 +16,10 @@ import {
   LOCAL_FALCON_LEAD_CLASSIFICATIONS,
   getLocalFalconLeadClassification,
 } from "../../shared/leadClassification";
-import { formatLocalVisibilityReportAddress } from "../../shared/localVisibility";
+import {
+  formatLocalVisibilityAveragePosition,
+  formatLocalVisibilityReportAddress,
+} from "../../shared/localVisibility";
 
 const heatmapPath = "heatmaps/ChIJ-test-1.png";
 const prospect = {
@@ -164,6 +167,14 @@ describe("Local Visibility report address formatting", () => {
       state: "SC",
       zip: "29707",
     })).toBe("123 Main St, Fort Mill, SC 29707");
+  });
+});
+
+describe("Local Visibility ARP formatting", () => {
+  it("keeps weak average position values at the established 20+ ceiling", () => {
+    expect(formatLocalVisibilityAveragePosition(20)).toBe("20+");
+    expect(formatLocalVisibilityAveragePosition(130)).toBe("20+");
+    expect(formatLocalVisibilityAveragePosition("3.08")).toBe("3.08");
   });
 });
 
@@ -326,7 +337,7 @@ describe("Local Falcon batch idempotency", () => {
 });
 
 describe("parseLocalFalconCompetitorSidecar", () => {
-  it("accepts the full Local Falcon order and derives subject position from the array", () => {
+  it("accepts the legacy full Local Falcon order and immediately reduces it to adjacent rows", () => {
     const result = parseLocalFalconCompetitorSidecar(
       JSON.stringify(competitorSidecar),
       parseLocalFalconPayload(JSON.stringify(payload)),
@@ -334,7 +345,32 @@ describe("parseLocalFalconCompetitorSidecar", () => {
 
     expect(result.reports[prospect.report_key].businesses.map((business) => business.rank)).toEqual([1, 2]);
     expect(result.reports[prospect.report_key].subject_rank).toBe(2);
-    expect(result.reports[prospect.report_key].businesses[0].atrp_capped).toBe(true);
+    expect(result.version).toBe(2);
+    expect(result.reports[prospect.report_key].businesses[0]).not.toHaveProperty("address");
+    expect(result.reports[prospect.report_key].businesses[0].found_points).toBeNull();
+  });
+
+  it("accepts the compact v2 contract with exact found-point counts", () => {
+    const compact = structuredClone(competitorSidecar) as any;
+    compact.version = 2;
+    compact.reports[prospect.report_key].businesses = compact.reports[prospect.report_key].businesses.map((business: any, index: number) => ({
+      rank: business.rank,
+      place_id: business.place_id,
+      name: business.name,
+      solv: business.solv,
+      found_points: index === 0 ? 7 : 2,
+      reviews: business.reviews,
+      rating: business.rating,
+      is_subject: business.is_subject,
+    }));
+
+    const result = parseLocalFalconCompetitorSidecar(
+      JSON.stringify(compact),
+      parseLocalFalconPayload(JSON.stringify(payload)),
+    );
+
+    expect(result.reports[prospect.report_key].businesses).toHaveLength(2);
+    expect(result.reports[prospect.report_key].businesses[0].found_points).toBe(7);
   });
 
   it("rejects a sidecar whose business array has been re-sorted", () => {

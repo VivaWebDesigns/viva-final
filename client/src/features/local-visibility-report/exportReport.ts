@@ -1,12 +1,13 @@
 import { toBlob } from "html-to-image";
 import {
-  LOCAL_VISIBILITY_REPORT_HEIGHT,
+  LOCAL_VISIBILITY_REPORT_LEGACY_HEIGHT,
   LOCAL_VISIBILITY_REPORT_WIDTH,
 } from "./types";
 
 export async function renderLocalVisibilityReportBlob(element: HTMLDivElement | null): Promise<Blob> {
   if (!element) throw new Error("The report preview is not ready.");
   if (!element.isConnected) throw new Error("The report preview was closed before the image finished rendering.");
+  const exportHeight = Number(element.dataset.exportHeight) || LOCAL_VISIBILITY_REPORT_LEGACY_HEIGHT;
   await document.fonts?.ready;
   await Promise.all(Array.from(element.querySelectorAll("img")).map(async (image) => {
     if (typeof image.decode !== "function") return;
@@ -15,9 +16,9 @@ export async function renderLocalVisibilityReportBlob(element: HTMLDivElement | 
   }));
   const blob = await toBlob(element, {
     width: LOCAL_VISIBILITY_REPORT_WIDTH,
-    height: LOCAL_VISIBILITY_REPORT_HEIGHT,
+    height: exportHeight,
     canvasWidth: LOCAL_VISIBILITY_REPORT_WIDTH,
-    canvasHeight: LOCAL_VISIBILITY_REPORT_HEIGHT,
+    canvasHeight: exportHeight,
     pixelRatio: 1,
     backgroundColor: "#ffffff",
     cacheBust: true,
