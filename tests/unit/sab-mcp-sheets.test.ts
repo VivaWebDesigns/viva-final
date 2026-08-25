@@ -391,6 +391,60 @@ describe("SabSheetsRepository", () => {
     )).rejects.toThrow(/reviews_analysis/);
   });
 
+  it("allows Scale-First qa_ready without Audit-First audit fields", async () => {
+    const { repository } = buildRepository([
+      row({
+        workflow: "scale_first_v2",
+        contact_tag: "Email Ready",
+        email: "owner@example.com",
+        arp: "12.5",
+        solv: "18.2",
+        report_key: "abcdef123456",
+        report_url: "https://localrankingtracker.com/report/public-id",
+        scan_date: "2026-08-25",
+        scan_keyword: "plumber near me",
+        rating: "4.8",
+        review_count: "42",
+        service_page_count: "",
+        website_analysis: "",
+        reviews_analysis: "",
+        sales_priority: "",
+        sales_priority_reason: "",
+      }),
+    ]);
+
+    await expect(repository.saveCompany(
+      "place-1",
+      { status: "qa_ready" },
+      "matt@vivawebdesigns.com",
+    )).resolves.toMatchObject({ status: "qa_ready" });
+  });
+
+  it("enforces Scale-First contact, scan, and address privacy at qa_ready", async () => {
+    const { repository } = buildRepository([
+      row({
+        workflow: "scale_first_v2",
+        contact_tag: "Email Ready",
+        email: "",
+        address: "6226 Wild Meadow Trl",
+        arp: "12.5",
+        solv: "18.2",
+        report_key: "",
+        report_url: "https://localrankingtracker.com/report/public-id",
+        scan_date: "2026-08-25",
+        scan_keyword: "plumber near me",
+        rating: "4.8",
+        review_count: "42",
+      }),
+    ]);
+
+    await expect(repository.saveCompany(
+      "place-1",
+      { status: "qa_ready" },
+      "matt@vivawebdesigns.com",
+    )).rejects.toThrow(/address.*Service Area Business|email.*Email Ready|report_key/i);
+  });
+
   it("rejects complete status until a final qualification disposition is set", async () => {
     const { repository } = buildRepository([
       row({

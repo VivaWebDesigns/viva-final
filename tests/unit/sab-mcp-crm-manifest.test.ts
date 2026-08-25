@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   SAB_CRM_IMPORT_CONTRACT,
+  SCALE_FIRST_SAB_CRM_IMPORT_CONTRACT,
+  getSabCrmImportContract,
   validateSabCrmManifest,
 } from "../../server/features/sab-mcp/crmManifest";
 import { validateSabCrmManifestInputSchema } from "../../server/features/sab-mcp/schema";
@@ -55,6 +57,40 @@ function validManifest() {
   };
 }
 
+function validScaleFirstManifest(contactTag: "Email Ready" | "Needs Email" = "Email Ready") {
+  const legacy = validManifest();
+  const prospect = legacy.prospects[0];
+  return {
+    workflow: "scale_first_v2",
+    batch: legacy.batch,
+    prospects: [{
+      place_id: prospect.place_id,
+      company_name: prospect.company_name,
+      address: prospect.address,
+      city: prospect.city,
+      state: prospect.state,
+      zip: prospect.zip,
+      phone: prospect.phone,
+      owner_name: prospect.owner_name,
+      email: contactTag === "Email Ready" ? "owner@example.com" : null,
+      contact_tag: contactTag,
+      has_website: prospect.has_website,
+      website_url: prospect.website_url,
+      website_platform: prospect.website_platform,
+      report_key: prospect.report_key,
+      report_url: prospect.report_url,
+      scan_date: prospect.scan_date,
+      scan_keyword: prospect.scan_keyword,
+      arp: prospect.arp,
+      solv: prospect.solv,
+      rating: prospect.rating,
+      review_count: prospect.review_count,
+      scan_center: prospect.scan_center,
+      qualification_status: prospect.qualification_status,
+    }],
+  };
+}
+
 describe("SAB CRM manifest contract", () => {
   it("exposes the strict production field contract without writing data", () => {
     expect(SAB_CRM_IMPORT_CONTRACT).toMatchObject({
@@ -86,6 +122,81 @@ describe("SAB CRM manifest contract", () => {
       errors: [],
       writes_performed: false,
     });
+  });
+
+  it("preserves the unchanged Audit-First v1.1 parser and default contract", () => {
+    expect(getSabCrmImportContract("audit_first_v1_1")).toBe(SAB_CRM_IMPORT_CONTRACT);
+    expect(validateSabCrmManifest(JSON.stringify(validManifest())).valid).toBe(true);
+
+    const missingAuditField = validManifest();
+    delete (missingAuditField.prospects[0] as Partial<typeof missingAuditField.prospects[0]>).service_page_count;
+    const result = validateSabCrmManifest(JSON.stringify(missingAuditField));
+    expect(result.valid).toBe(false);
+    if (result.valid) throw new Error("Expected invalid Audit-First manifest");
+    expect(result.errors.join(" ")).toContain("service_page_count");
+  });
+
+  it("returns the explicitly requested Scale-First v2 contract", () => {
+    expect(getSabCrmImportContract("scale_first_v2")).toBe(SCALE_FIRST_SAB_CRM_IMPORT_CONTRACT);
+    expect(SCALE_FIRST_SAB_CRM_IMPORT_CONTRACT).toMatchObject({
+      contract_version: "2.0",
+      workflow: "scale_first_v2",
+      strict: true,
+      writes_data: false,
+      top_level: { allowed_keys: ["workflow", "batch", "prospects"] },
+    });
+  });
+
+  it.each(["Email Ready", "Needs Email"] as const)(
+    "accepts a valid Scale-First %s prospect without audit fields or writes",
+    (contactTag) => {
+      const result = validateSabCrmManifest(JSON.stringify(validScaleFirstManifest(contactTag)));
+      expect(result).toMatchObject({
+        valid: true,
+        contract_version: "2.0",
+        workflow: "scale_first_v2",
+        prospect_count: 1,
+        writes_performed: false,
+      });
+    },
+  );
+
+  it("does not infer Scale-First from missing Audit-First fields", () => {
+    const manifest = validScaleFirstManifest();
+    delete (manifest as Partial<typeof manifest>).workflow;
+
+    const result = validateSabCrmManifest(JSON.stringify(manifest));
+    expect(result.valid).toBe(false);
+    if (result.valid) throw new Error("Expected invalid manifest");
+    expect(result.errors.join(" ")).toContain("service_page_count");
+    expect(result.writes_performed).toBe(false);
+  });
+
+  it("rejects invalid Scale-First contact tags", () => {
+    const manifest = validScaleFirstManifest();
+    manifest.prospects[0].contact_tag = "Maybe Ready" as "Email Ready";
+    const result = validateSabCrmManifest(JSON.stringify(manifest));
+    expect(result.valid).toBe(false);
+    if (result.valid) throw new Error("Expected invalid manifest");
+    expect(result.errors.join(" ")).toContain("contact_tag");
+  });
+
+  it("rejects a missing exact Place ID in Scale-First", () => {
+    const manifest = validScaleFirstManifest();
+    delete (manifest.prospects[0] as Partial<typeof manifest.prospects[0]>).place_id;
+    const result = validateSabCrmManifest(JSON.stringify(manifest));
+    expect(result.valid).toBe(false);
+    if (result.valid) throw new Error("Expected invalid manifest");
+    expect(result.errors.join(" ")).toContain("place_id");
+  });
+
+  it("rejects a hidden street address in Scale-First", () => {
+    const manifest = validScaleFirstManifest();
+    manifest.prospects[0].address = "6226 Wild Meadow Trl";
+    const result = validateSabCrmManifest(JSON.stringify(manifest));
+    expect(result.valid).toBe(false);
+    if (result.valid) throw new Error("Expected invalid manifest");
+    expect(result.errors.join(" ")).toContain("Service Area Business");
   });
 
   it("returns compact parser errors for invalid or inferred shapes", () => {

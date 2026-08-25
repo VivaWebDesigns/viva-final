@@ -21,11 +21,16 @@ import {
   getLocalFalconLeadClassification,
   type LocalFalconLeadClassification,
 } from "@shared/leadClassification";
+import {
+  SAB_ADDRESS_LABEL,
+  SCALE_FIRST_CONTACT_TAGS,
+  SCALE_FIRST_WORKFLOW,
+  type ScaleFirstContactTag,
+} from "@shared/sabCrm";
 
 const nullableText = z.string().trim().min(1).nullable();
 const nullableUrl = z.string().trim().url().nullable();
 const nullableAnalysis = z.array(z.string()).min(3).max(6).nullable().optional().default(null);
-export const SAB_ADDRESS_LABEL = "Service Area Business" as const;
 const scanCenterSchema = z.object({
   lat: z.coerce.number().finite().min(-90).max(90),
   lng: z.coerce.number().finite().min(-180).max(180),
@@ -49,7 +54,7 @@ const batchSchema = z.object({
   }),
 }).strict();
 
-const prospectSchema = z.object({
+const auditFirstProspectSchema = z.object({
   place_id: z.string().trim().min(1),
   company_name: z.string().trim().min(1),
   address: z.literal(SAB_ADDRESS_LABEL),
@@ -96,14 +101,93 @@ const prospectSchema = z.object({
   }
 });
 
-const payloadSchema = z.object({
+const auditFirstPayloadSchema = z.object({
   batch: batchSchema,
-  prospects: z.array(prospectSchema).min(1).max(200),
+  prospects: z.array(auditFirstProspectSchema).min(1).max(200),
+}).strict();
+
+export function googleMapsUrlFromPlaceId(placeId: string): string {
+  const encodedPlaceId = encodeURIComponent(placeId);
+  return `https://www.google.com/maps/search/?api=1&query=${encodedPlaceId}&query_place_id=${encodedPlaceId}`;
+}
+
+const scaleFirstProspectSchema = z.object({
+  place_id: z.string().trim().min(1),
+  company_name: z.string().trim().min(1),
+  address: z.literal(SAB_ADDRESS_LABEL),
+  city: z.string().trim().min(1),
+  state: z.string().trim().regex(/^[A-Za-z]{2}$/).transform((value) => value.toUpperCase()),
+  zip: z.string().trim().min(1),
+  phone: nullableText,
+  owner_name: nullableText,
+  email: nullableText,
+  contact_tag: z.enum(SCALE_FIRST_CONTACT_TAGS),
+  google_maps_url: z.string().trim().url().optional(),
+  has_website: z.boolean(),
+  website_url: nullableUrl,
+  website_platform: z.string().nullable().optional().default(null),
+  report_key: z.string().trim().regex(/^[a-f0-9]{12,64}$/i, "Must be a Local Falcon report key"),
+  report_url: z.string().trim().url(),
+  scan_date: z.string().trim().min(1),
+  scan_keyword: z.string().trim().min(1),
+  arp: z.coerce.number().finite().min(0),
+  solv: z.coerce.number().finite().min(0).max(100),
+  rating: z.coerce.number().finite().min(0).max(5),
+  review_count: z.coerce.number().int().min(0),
+  scan_center: scanCenterSchema.optional(),
+  heatmap_file: z.string().trim().min(1).optional(),
+  qualification_status: z.literal("qualified"),
+}).strict().superRefine((value, ctx) => {
+  if (value.has_website && !value.website_url) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["website_url"], message: "Required when has_website is true" });
+  }
+  if (!value.has_website && value.website_url) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["website_url"], message: "Must be null when has_website is false" });
+  }
+  if (value.contact_tag === "Email Ready" && !value.email) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["email"], message: "Required when contact_tag is Email Ready" });
+  }
+  const normalizedPath = value.heatmap_file?.replace(/\\/g, "/");
+  if (normalizedPath && (!/^heatmaps\/[A-Za-z0-9._-]+\.(png|jpe?g|webp)$/i.test(normalizedPath) || normalizedPath.includes(".."))) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["heatmap_file"],
+      message: "Must reference a PNG, JPG, or WebP file directly inside heatmaps/",
+    });
+  }
+}).transform((value) => ({
+  ...value,
+  google_maps_url: value.google_maps_url ?? googleMapsUrlFromPlaceId(value.place_id),
+}));
+
+const scaleFirstPayloadSchema = z.object({
+  workflow: z.literal(SCALE_FIRST_WORKFLOW),
+  batch: batchSchema,
+  prospects: z.array(scaleFirstProspectSchema).min(1).max(200),
 }).strict();
 
 export type LocalFalconBatchInput = z.infer<typeof batchSchema>;
-export type LocalFalconProspectInput = z.infer<typeof prospectSchema>;
-export type LocalFalconPayload = z.infer<typeof payloadSchema>;
+export type AuditFirstProspectInput = z.infer<typeof auditFirstProspectSchema>;
+export type ScaleFirstProspectInput = z.infer<typeof scaleFirstProspectSchema>;
+export type LocalFalconProspectInput = AuditFirstProspectInput | ScaleFirstProspectInput;
+export type LocalFalconPayload = z.infer<typeof auditFirstPayloadSchema> | z.infer<typeof scaleFirstPayloadSchema>;
+
+export interface ScaleFirstContactRouting {
+  contactTag: ScaleFirstContactTag | null;
+  automatedEmailEligible: boolean;
+}
+
+export function getScaleFirstContactRouting(
+  prospect: LocalFalconProspectInput,
+): ScaleFirstContactRouting {
+  if (!("contact_tag" in prospect)) {
+    return { contactTag: null, automatedEmailEligible: false };
+  }
+  return {
+    contactTag: prospect.contact_tag,
+    automatedEmailEligible: prospect.contact_tag === "Email Ready",
+  };
+}
 
 function crmLocation(prospect: LocalFalconProspectInput) {
   return prospect.scan_center ?? {
@@ -189,7 +273,19 @@ export function parseLocalFalconPayload(text: string): LocalFalconPayload {
     throw new Error("batch.json must contain valid JSON");
   }
 
-  const parsed = payloadSchema.safeParse(raw);
+  const isScaleFirst = typeof raw === "object"
+    && raw !== null
+    && "workflow" in raw
+    && (raw as { workflow?: unknown }).workflow === SCALE_FIRST_WORKFLOW;
+  const hasUnknownWorkflow = typeof raw === "object"
+    && raw !== null
+    && "workflow" in raw
+    && (raw as { workflow?: unknown }).workflow !== SCALE_FIRST_WORKFLOW;
+  if (hasUnknownWorkflow) {
+    throw new Error(`workflow: Invalid discriminator; expected ${SCALE_FIRST_WORKFLOW}`);
+  }
+
+  const parsed = (isScaleFirst ? scaleFirstPayloadSchema : auditFirstPayloadSchema).safeParse(raw);
   if (!parsed.success) throw new Error(zodMessage(parsed.error));
   assertDate(parsed.data.batch.export_date, "batch.export_date");
 
@@ -372,6 +468,8 @@ export interface LocalFalconImportResult extends LocalFalconPreviewResult {
     companyId: string;
     placeId: string;
     createdNewLead: boolean;
+    contactTag?: ScaleFirstContactTag;
+    automatedEmailEligible?: boolean;
   }>;
 }
 
@@ -441,6 +539,21 @@ export async function importLocalFalconPayload(
     const selectedTag = classificationTags.find((tag) => tag.slug === selectedClassification.tagSlug);
     if (!selectedTag) throw new Error(`CRM tag '${selectedClassification.label}' is not configured`);
     const classificationTagIds = classificationTags.map((tag) => tag.id);
+    const contactRoutingTags: Array<typeof crmTags.$inferSelect> = [];
+    if ("workflow" in payload) {
+      for (const contactTag of SCALE_FIRST_CONTACT_TAGS) {
+        const [tag] = await tx.insert(crmTags).values({
+          name: contactTag,
+          slug: contactTag.toLowerCase().replace(/\s+/g, "-"),
+          color: contactTag === "Email Ready" ? "#16A34A" : "#D97706",
+        }).onConflictDoUpdate({
+          target: crmTags.slug,
+          set: { name: contactTag },
+        }).returning();
+        contactRoutingTags.push(tag);
+      }
+    }
+    const contactRoutingTagIds = contactRoutingTags.map((tag) => tag.id);
 
     const results: LocalFalconImportResult["importedLeads"] = [];
     for (const prospect of payload.prospects) {
@@ -573,6 +686,17 @@ export async function importLocalFalconPayload(
       ));
       await tx.insert(crmLeadTags).values({ leadId: lead.id, tagId: selectedTag.id });
 
+      const contactRouting = getScaleFirstContactRouting(prospect);
+      if (contactRouting.contactTag) {
+        const contactRoutingTag = contactRoutingTags.find((tag) => tag.name === contactRouting.contactTag);
+        if (!contactRoutingTag) throw new Error(`CRM tag '${contactRouting.contactTag}' is not configured`);
+        await tx.delete(crmLeadTags).where(and(
+          eq(crmLeadTags.leadId, lead.id),
+          inArray(crmLeadTags.tagId, contactRoutingTagIds),
+        ));
+        await tx.insert(crmLeadTags).values({ leadId: lead.id, tagId: contactRoutingTag.id });
+      }
+
       await tx.insert(localFalconProspectProfiles).values({
         batchRecordId: batch.id,
         leadId: lead.id,
@@ -593,9 +717,9 @@ export async function importLocalFalconPayload(
         hasWebsite: prospect.has_website,
         websiteUrl: prospect.website_url,
         websitePlatform: prospect.website_platform,
-        servicePageCount: prospect.service_page_count,
-        websiteAnalysis: prospect.website_analysis,
-        reviewsAnalysis: prospect.reviews_analysis,
+        servicePageCount: "service_page_count" in prospect ? prospect.service_page_count : null,
+        websiteAnalysis: "website_analysis" in prospect ? prospect.website_analysis : null,
+        reviewsAnalysis: "reviews_analysis" in prospect ? prospect.reviews_analysis : null,
         reportKey: prospect.report_key,
         reportUrl: prospect.report_url,
         scanDate: new Date(prospect.scan_date),
@@ -618,9 +742,9 @@ export async function importLocalFalconPayload(
         solv: String(prospect.solv),
         rating: String(prospect.rating),
         reviewCount: prospect.review_count,
-        tier: String(prospect.sales_priority),
-        pitchType: "website",
-        pitchSummary: prospect.sales_priority_reason,
+        tier: "sales_priority" in prospect ? String(prospect.sales_priority) : null,
+        pitchType: "sales_priority" in prospect ? "website" : null,
+        pitchSummary: "sales_priority_reason" in prospect ? prospect.sales_priority_reason : null,
       });
 
       results.push({
@@ -630,6 +754,10 @@ export async function importLocalFalconPayload(
         companyId: company.id,
         placeId: prospect.place_id,
         createdNewLead,
+        ...(contactRouting.contactTag ? {
+          contactTag: contactRouting.contactTag,
+          automatedEmailEligible: contactRouting.automatedEmailEligible,
+        } : {}),
       });
     }
     let competitorReportsImported = 0;

@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import { strToU8, zipSync } from "fflate";
 import sharp from "sharp";
 import {
+  getScaleFirstContactRouting,
+  googleMapsUrlFromPlaceId,
   isExactStreetAddressMatch,
   isLocalFalconBatchFullyImported,
   parseLocalFalconPayload,
@@ -287,6 +289,51 @@ describe("parseLocalFalconPayload", () => {
     expect(result.prospects[0].website_platform).toBe("Lovable");
     expect(result.prospects[0].website_analysis).toEqual(["One.", "Two.", "Three."]);
     expect(result.prospects[0].reviews_analysis).toBeNull();
+  });
+
+  it("derives a Scale-First Google Maps URL from the exact Place ID when omitted", () => {
+    const {
+      google_maps_url,
+      service_page_count,
+      sales_priority,
+      sales_priority_reason,
+      ...scaleProspect
+    } = prospect;
+    const result = parseLocalFalconPayload(JSON.stringify({
+      workflow: "scale_first_v2",
+      batch: payload.batch,
+      prospects: [{
+        ...scaleProspect,
+        contact_tag: "Email Ready",
+      }],
+    }));
+
+    expect(result.prospects[0].google_maps_url).toBe(googleMapsUrlFromPlaceId(prospect.place_id));
+    expect(result.prospects[0]).not.toHaveProperty("service_page_count");
+    expect(result.prospects[0]).not.toHaveProperty("sales_priority");
+  });
+
+  it("routes Scale-First automated-email eligibility strictly by contact tag", () => {
+    const { service_page_count, sales_priority, sales_priority_reason, ...scaleProspect } = prospect;
+    const emailReady = parseLocalFalconPayload(JSON.stringify({
+      workflow: "scale_first_v2",
+      batch: payload.batch,
+      prospects: [{ ...scaleProspect, contact_tag: "Email Ready" }],
+    }));
+    const needsEmail = parseLocalFalconPayload(JSON.stringify({
+      workflow: "scale_first_v2",
+      batch: payload.batch,
+      prospects: [{ ...scaleProspect, email: null, contact_tag: "Needs Email" }],
+    }));
+
+    expect(getScaleFirstContactRouting(emailReady.prospects[0])).toEqual({
+      contactTag: "Email Ready",
+      automatedEmailEligible: true,
+    });
+    expect(getScaleFirstContactRouting(needsEmail.prospects[0])).toEqual({
+      contactTag: "Needs Email",
+      automatedEmailEligible: false,
+    });
   });
 
   it("rejects analysis arrays outside the 3–6 element limit", () => {

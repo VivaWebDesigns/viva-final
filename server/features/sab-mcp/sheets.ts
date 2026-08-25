@@ -8,6 +8,11 @@ import {
   type SabScanResult,
   type SabWorkflowRowInput,
 } from "./schema";
+import {
+  SAB_ADDRESS_LABEL,
+  SCALE_FIRST_CONTACT_TAGS,
+  SCALE_FIRST_WORKFLOW,
+} from "@shared/sabCrm";
 
 const SHEETS_SCOPE = "https://www.googleapis.com/auth/spreadsheets";
 const DEFAULT_SHEET_NAME = "SAB Workflow";
@@ -404,7 +409,11 @@ export class SabSheetsRepository {
     } as SabRow;
 
     if (updates.status && COMPLETE_STATUSES.has(updates.status)) {
-      this.validateCompleteRow(merged);
+      if (merged.workflow === SCALE_FIRST_WORKFLOW) {
+        this.validateScaleFirstQaReadyRow(merged);
+      } else {
+        this.validateCompleteRow(merged);
+      }
     }
 
     const timestamp = new Date().toISOString();
@@ -608,6 +617,79 @@ export class SabSheetsRepository {
 
     if (missing.length > 0) {
       throw new Error(`Cannot mark company complete; missing or invalid: ${[...new Set(missing)].join(", ")}`);
+    }
+  }
+
+  private validateScaleFirstQaReadyRow(row: SabRow) {
+    const missing: string[] = [];
+    const requireValue = (header: SabHeader) => {
+      if (!row[header].trim()) missing.push(header);
+    };
+
+    for (const header of [
+      "batch_id",
+      "company",
+      "place_id",
+      "city",
+      "state",
+      "zip",
+      "report_key",
+      "report_url",
+      "scan_date",
+      "scan_keyword",
+      "arp",
+      "solv",
+      "rating",
+      "review_count",
+      "contact_tag",
+    ] as const) {
+      requireValue(header);
+    }
+
+    if (row.qualification_status !== "qualified") {
+      missing.push("qualification_status (must be qualified)");
+    }
+    if (row.address !== SAB_ADDRESS_LABEL) {
+      missing.push(`address (must be exactly ${SAB_ADDRESS_LABEL})`);
+    }
+    if (!SCALE_FIRST_CONTACT_TAGS.includes(row.contact_tag as typeof SCALE_FIRST_CONTACT_TAGS[number])) {
+      missing.push("contact_tag (must be Email Ready or Needs Email)");
+    }
+    if (row.contact_tag === "Email Ready" && !row.email.trim()) {
+      missing.push("email (required for Email Ready)");
+    }
+    if (row.state && !/^[A-Za-z]{2}$/.test(row.state)) {
+      missing.push("state (must be a two-letter state code)");
+    }
+    for (const [header, minimum, maximum] of [
+      ["arp", 0, Number.POSITIVE_INFINITY],
+      ["solv", 0, 100],
+      ["rating", 0, 5],
+      ["review_count", 0, Number.POSITIVE_INFINITY],
+    ] as const) {
+      if (!row[header]) continue;
+      const value = Number(row[header]);
+      if (!Number.isFinite(value) || value < minimum || value > maximum) {
+        missing.push(`${header} (invalid value)`);
+      }
+      if (header === "review_count" && !Number.isInteger(value)) {
+        missing.push("review_count (must be an integer)");
+      }
+    }
+    for (const header of ["report_url", "google_maps_url"] as const) {
+      if (!row[header]) continue;
+      try {
+        new URL(row[header]);
+      } catch {
+        missing.push(`${header} (must be a valid URL)`);
+      }
+    }
+    if (row.scan_date && Number.isNaN(new Date(row.scan_date).getTime())) {
+      missing.push("scan_date (must be a valid date)");
+    }
+
+    if (missing.length > 0) {
+      throw new Error(`Cannot mark Scale-First company qa_ready; missing or invalid: ${[...new Set(missing)].join(", ")}`);
     }
   }
 }

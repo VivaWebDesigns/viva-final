@@ -417,29 +417,33 @@ async function parseJsonPackage(
   const usedFallbackPaths = new Set<string>();
   const failures: LocalFalconImageFailure[] = [];
 
-  await forEachWithConcurrency(payload.prospects, LOCAL_FALCON_IMAGE_CONCURRENCY, async (prospect) => {
-    const fallbackPath = fallbackPathForProspect(prospect, images);
-    if (fallbackPath) {
-      const heatmap = await validateHeatmap(images.get(fallbackPath)!, fallbackPath);
-      heatmapsByPath.set(fallbackPath, heatmap);
-      heatmapsByPlaceId.set(prospect.place_id, heatmap);
-      usedFallbackPaths.add(fallbackPath);
-      return;
-    }
+  await forEachWithConcurrency<LocalFalconProspectInput>(
+    payload.prospects,
+    LOCAL_FALCON_IMAGE_CONCURRENCY,
+    async (prospect) => {
+      const fallbackPath = fallbackPathForProspect(prospect, images);
+      if (fallbackPath) {
+        const heatmap = await validateHeatmap(images.get(fallbackPath)!, fallbackPath);
+        heatmapsByPath.set(fallbackPath, heatmap);
+        heatmapsByPlaceId.set(prospect.place_id, heatmap);
+        usedFallbackPaths.add(fallbackPath);
+        return;
+      }
 
-    try {
-      const heatmap = await fetchOfficialMap(prospect, fetchImpl);
-      heatmapsByPath.set(heatmap.manifestPath, heatmap);
-      heatmapsByPlaceId.set(prospect.place_id, heatmap);
-    } catch (error) {
-      failures.push({
-        placeId: prospect.place_id,
-        companyName: prospect.company_name,
-        reportKey: prospect.report_key,
-        reason: error instanceof Error ? error.message : "Image retrieval failed",
-      });
-    }
-  });
+      try {
+        const heatmap = await fetchOfficialMap(prospect, fetchImpl);
+        heatmapsByPath.set(heatmap.manifestPath, heatmap);
+        heatmapsByPlaceId.set(prospect.place_id, heatmap);
+      } catch (error) {
+        failures.push({
+          placeId: prospect.place_id,
+          companyName: prospect.company_name,
+          reportKey: prospect.report_key,
+          reason: error instanceof Error ? error.message : "Image retrieval failed",
+        });
+      }
+    },
+  );
 
   for (const imagePath of images.keys()) {
     if (!usedFallbackPaths.has(imagePath)) throw new Error(`Unreferenced fallback image: ${imagePath}`);

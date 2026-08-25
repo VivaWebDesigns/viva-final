@@ -42,4 +42,34 @@ describe("SAB MCP tool discovery", () => {
       await server.close();
     }
   });
+
+  it("returns the explicitly requested Scale-First v2 CRM contract", async () => {
+    const server = createSabMcpServer(
+      (() => {
+        throw new Error("repository access is not expected during contract discovery");
+      }) as never,
+      { createWorkflow: async () => { throw new Error("workflow creation is not expected"); } },
+      "unauthenticated",
+    );
+    const client = new Client({ name: "sab-mcp-test", version: "1.0.0" });
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    await server.connect(serverTransport);
+    await client.connect(clientTransport);
+
+    try {
+      const result = await client.callTool({
+        name: "get_sab_crm_import_contract",
+        arguments: { workflow: "scale_first_v2" },
+      });
+      const content = result.content as Array<{ type: string; text: string }>;
+      expect(JSON.parse(content[0].text)).toMatchObject({
+        contract_version: "2.0",
+        workflow: "scale_first_v2",
+        writes_data: false,
+      });
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
 });

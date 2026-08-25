@@ -8,7 +8,7 @@ import { checkCrmPlaceIdsFromLocalFalconReport } from "./localFalconDedup";
 import { getSabRankedCells } from "./localFalconRankedCells";
 import { reverseGeocodeSabCenters } from "./reverseGeocode";
 import {
-  SAB_CRM_IMPORT_CONTRACT,
+  getSabCrmImportContract,
   validateSabCrmManifest,
 } from "./crmManifest";
 import {
@@ -16,6 +16,7 @@ import {
   checkCrmPlaceIdsInputSchema,
   createSabWorkflowInputSchema,
   getSabBatchInputSchema,
+  getSabCrmImportContractInputSchema,
   getSabCompanyInputSchema,
   getSabProgressInputSchema,
   getSabRankedCellsInputSchema,
@@ -80,10 +81,10 @@ export function createSabMcpServer(
 
   server.registerTool("get_sab_crm_import_contract", sabTool({
     description:
-      "Return the authoritative strict CRM batch.json contract for SAB Local Falcon prospects. Use this before constructing the final JSON manifest. The contract comes from the production CRM import path, is not a Google Drive document, and does not import or modify data.",
-    inputSchema: {},
-  }), async () => {
-    return jsonToolResult(SAB_CRM_IMPORT_CONTRACT);
+      "Return the requested authoritative strict CRM batch.json contract for SAB Local Falcon prospects. Explicitly request scale_first_v2 for Scale-First Manifest v2; the backward-compatible default is Audit-First v1.1. The contract comes from the production CRM import path and does not import or modify data.",
+    inputSchema: getSabCrmImportContractInputSchema,
+  }), async ({ workflow }) => {
+    return jsonToolResult(getSabCrmImportContract(workflow));
   });
 
   server.registerTool("validate_sab_crm_manifest", sabTool({

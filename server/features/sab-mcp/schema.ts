@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { SCALE_FIRST_CONTACT_TAGS, SCALE_FIRST_WORKFLOW } from "@shared/sabCrm";
 
 export const SAB_STATUSES = [
   "assigned",
@@ -70,12 +71,14 @@ export const SAB_HEADERS = [
   "updated_by",
   "sales_priority",
   "sales_priority_reason",
+  "workflow",
+  "contact_tag",
 ] as const;
 
 export type SabHeader = typeof SAB_HEADERS[number];
 export type SabRow = Record<SabHeader, string>;
 export const SAB_REQUIRED_HEADERS = SAB_HEADERS.filter(
-  (header) => header !== "scan_history",
+  (header) => !["scan_history", "workflow", "contact_tag"].includes(header),
 );
 
 const nullableString = z.string().trim().max(20_000).nullable();
@@ -119,6 +122,8 @@ export const sabCompanyUpdatesSchema = z.object({
     "Website-sales priority: 3 is strongest, 2 is viable, and 1 is low priority.",
   ),
   sales_priority_reason: nullableString.optional(),
+  workflow: z.literal(SCALE_FIRST_WORKFLOW).optional(),
+  contact_tag: z.enum(SCALE_FIRST_CONTACT_TAGS).nullable().optional(),
   blocker: nullableString.optional(),
   research_notes: nullableString.optional().describe(
     "Concise research context. Required as a factual reason when qualification_status is disqualified or deferred.",
@@ -179,6 +184,8 @@ export const sabWorkflowRowSchema = z.object({
   research_notes: nullableString.optional(),
   sales_priority: z.number().int().min(1).max(3).nullable().optional(),
   sales_priority_reason: nullableString.optional(),
+  workflow: z.literal(SCALE_FIRST_WORKFLOW).nullable().optional(),
+  contact_tag: z.enum(SCALE_FIRST_CONTACT_TAGS).nullable().optional(),
 }).strict();
 
 export const getSabBatchInputSchema = {
@@ -224,6 +231,12 @@ export const markSabBlockedInputSchema = {
 export const getSabProgressInputSchema = {
   ...workflowSheetInputSchema,
   batch_id: batchId.optional().describe("Omit to return progress for every batch in the selected Workflow Sheet"),
+};
+
+export const getSabCrmImportContractInputSchema = {
+  workflow: z.enum(["audit_first_v1_1", SCALE_FIRST_WORKFLOW]).default("audit_first_v1_1").describe(
+    "Explicit contract workflow. Use scale_first_v2 for Scale-First Manifest v2; omit only for the backward-compatible Audit-First v1.1 contract.",
+  ),
 };
 
 export const checkCrmPlaceIdsInputSchema = {
