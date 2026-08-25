@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "verdict",
+    "summary",
+    "problems",
+    "instructions_for_claude",
+    "approval_boundary",
+    "evidence_gaps"
+  ],
+  "properties": {
+    "verdict": {
+      "type": "string",
+      "enum": [
+        "continue",
+        "correct",
+        "reconcile",
+        "approval_required",
+        "user_ruling_required",
+        "complete"
+      ]
+    },
+    "summary": { "type": "string", "maxLength": 2000 },
+    "problems": {
+      "type": "array",
+      "maxItems": 30,
+      "items": { "type": "string", "maxLength": 2000 }
+    },
+    "instructions_for_claude": { "type": "string", "maxLength": 8000 },
+    "approval_boundary": { "type": "string", "maxLength": 2000 },
+    "evidence_gaps": {
+      "type": "array",
+      "maxItems": 30,
+      "items": { "type": "string", "maxLength": 2000 }
+    }
+  }
+}

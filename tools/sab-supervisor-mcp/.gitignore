@@ -1,0 +1,5 @@
+dist/
+node_modules/
+config.json
+swift/.build/
+*.log

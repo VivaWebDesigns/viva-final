@@ -1,0 +1,12 @@
+{
+  "codexPath": "/Applications/ChatGPT.app/Contents/Resources/codex",
+  "codexTimeoutMs": 120000,
+  "maxCodexOutputBytes": 524288,
+  "logDirectory": "~/.local/state/viva-sab-supervisor",
+  "watcher": {
+    "pollIntervalMs": 750,
+    "resumeTimeoutMs": 10000,
+    "maxRetries": 2,
+    "claudeExtensionId": "fcoeoabgfenejglbffodgkkbkcdhcgfn"
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "name": "@viva/sab-supervisor-mcp",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "sab-supervisor": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "npm run build:ts && npm run build:watcher",
+    "build:ts": "tsc -p tsconfig.json",
+    "build:watcher": "swift build -c release --package-path swift",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run test:ts && npm run test:watcher",
+    "test:ts": "vitest run",
+    "test:watcher": "swift run --package-path swift permission-core-tests",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "mcp": "node dist/cli.js mcp",
+    "watcher": "node dist/cli.js watcher",
+    "dry-run": "node dist/cli.js dry-run",
+    "all": "node dist/cli.js all"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.27",
+    "prettier": "^3.6.2",
+    "typescript": "^5.6.3",
+    "vitest": "^4.0.18"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
