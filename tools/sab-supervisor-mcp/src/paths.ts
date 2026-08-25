@@ -17,6 +17,16 @@ export const reviewSchemaPath = path.join(
   "assets",
   "review-result.schema.json",
 );
+export const scanReviewPromptPath = path.join(
+  packageRoot,
+  "prompts",
+  "scan-reviewer.md",
+);
+export const scanReviewSchemaPath = path.join(
+  packageRoot,
+  "assets",
+  "scan-review-result.schema.json",
+);
 export const swiftPackagePath = path.join(packageRoot, "swift");
 export const watcherAppName = "SAB Permission Watcher.app";
 export const watcherBundleIdentifier = "com.viva.sab-permission-watcher";

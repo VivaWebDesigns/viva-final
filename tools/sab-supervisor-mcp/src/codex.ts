@@ -32,6 +32,7 @@ function appendBounded(current: Buffer, next: Buffer, limit: number): Buffer {
 export async function executeCodex(
   prompt: string,
   config: SupervisorConfig,
+  outputSchemaPath: string = reviewSchemaPath,
   spawnCodex: SpawnCodex = defaultSpawn,
 ): Promise<CodexExecution> {
   const temporaryDirectory = await fs.mkdtemp(
@@ -51,7 +52,7 @@ export async function executeCodex(
     "--color",
     "never",
     "--output-schema",
-    reviewSchemaPath,
+    outputSchemaPath,
     "--output-last-message",
     resultPath,
     "-",

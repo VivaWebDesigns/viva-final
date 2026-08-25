@@ -2,10 +2,12 @@
 
 This standalone macOS utility has two deliberately separate components:
 
-- `review_sab_checkpoint`: an event-driven, read-only MCP tool that runs one isolated local `codex exec` review against the exact SOP and run state supplied in that call.
+- `register_sop_for_review`: stores one immutable, content-addressed copy of the exact private SOP revision Claude read through its authenticated connector.
+- `review_sab_checkpoint`: an event-driven, read-only MCP tool that runs one isolated local `codex exec` review against the registered SOP and run state supplied in that call.
+- `review_sab_scan_plan`: reviews an exact Local Falcon scan proposal and, when mechanically permitted by that registered SOP, returns a delegated structured authorization.
 - `sab-permission-watcher`: a native Swift Accessibility watcher that approves only confidently identified, routine Claude-in-Chrome public-site prompts.
 
-It does not import or modify Viva's production SAB MCP, write workflow data, execute paid actions, or retain run state between reviews.
+It does not import or modify Viva's production SAB MCP, write workflow data, launch scans itself, or retain run state between reviews. The only retained review inputs are immutable registered SOP revisions; each run still supplies its own concise durable state and rulings.
 
 ## Install
 
@@ -44,9 +46,17 @@ Add this server to Claude Desktop's MCP configuration, then restart Claude Deskt
 }
 ```
 
-Give Claude the fixed instruction in `prompts/claude-instruction.md`. That instruction is what causes Claude to invoke the reviewer before ending a meaningful checkpoint turn; the MCP server itself does not independently detect completed or paused Claude responses. Each call supplies exactly four run-local inputs: the exact controlling SOP link/file, Claude's latest checkpoint message, a concise durable run-state summary, and relevant explicit user rulings. The reviewer has no default SOP and no cross-call state.
+Give Claude the fixed instruction in `prompts/claude-instruction.md`. That instruction is what causes Claude to register the exact private SOP once, invoke the checkpoint reviewer before ending a meaningful checkpoint turn, and invoke the scan-plan reviewer before a paid Local Falcon stage. The MCP server itself does not independently detect completed or paused Claude responses.
+
+Claude reads the private document through its authenticated Drive connector and registers its source URL, title/version, Drive revision ID when available, and complete exact text. Registration returns a handle bound to the source identity, revision, and content hash. The same exact registration is idempotent; a different source, revision, or document content receives a different handle. Both reviewers resolve and verify that immutable local copy. No SOP, trade, market, keyword, workflow sheet, report, or run is configured as a default.
+
+Checkpoint calls then supply the registered handle, Claude's latest checkpoint message, a concise durable run-state summary, and relevant explicit user rulings. The reviewer has no cross-run state.
 
 After a review, Claude immediately follows `continue`, `correct`, or `reconcile` instructions and keeps working. It stops for the user only when the verdict is `user_ruling_required` or `approval_required`, and stops normally for `complete`.
+
+Before every paid Local Falcon stage, Claude submits the exact plan to `review_sab_scan_plan`. A `scan_approved` result contains the authorization ID, exact scans/Place IDs/centers/specifications, listed prerequisite save-location calls, mechanically reconciled credit total, applicable SOP rule, timestamp, and exclusions. Claude may immediately execute only that exact record. `correct` causes correction and resubmission; `user_ruling_required` stops for Matt. Eligibility failures, duplicates, unsupported centers/specifications, excess auxiliaries or recenters, ambiguous retries, material exceptions, changed master parameters, CRM export, and unrelated account changes or purchases are outside delegated authority.
+
+For initial observation runs, Claude displays the verdict, authorization ID, exact scans and credits, problems/corrections, and action taken. This affects only future runs started with the fixed instruction; it does not attach to or alter an already-running workflow.
 
 ## Accessibility authorization
 
@@ -81,7 +91,9 @@ For unattended use, run the reviewer from Claude's MCP configuration and run the
 
 Structured logs default to `~/.local/state/viva-sab-supervisor/`:
 
-- `reviews.jsonl`: review ID, outcome, timing, safe SOP origin/basename, and input sizes; it does not store checkpoint content or user rulings.
+- `reviews.jsonl`: review ID, outcome, timing, registered SOP handle/content hash, and input sizes; it does not store SOP text, checkpoint content, or user rulings.
+- `sops/content/` and `sops/registrations/`: mode-0600 immutable exact SOP copies and source/revision metadata, keyed by content and registration identity.
+- `scan-approvals.jsonl`: full structured scan-review result and exact authorization when approved; it omits complete SOP text, credentials, durable-state prose, and unrelated run data.
 - `watcher.jsonl`: timestamp, hostname, displayed permission type, action kind, selected semantic button, and result.
 - `screenshots/`: diagnostics only for prompts that could not be safely classified.
 
@@ -113,7 +125,7 @@ npm test
 npm run build
 ```
 
-The TypeScript suite uses mocked Codex executions for continue, correction, approval, reconciliation, timeout, and run/SOP isolation. Neutral fixture SOPs under `tests/fixtures/` verify that rules, state, and rulings are not carried between calls. The Swift suite covers both live prompt schemas, same-window tab context, multiple Chrome windows/tab groups/side-panel tasks, persistent/fallback approval, protected and unknown prompts, retry bounds, and deduplication. The packaging test builds the release app and verifies its `APPL` structure, executable, `Info.plist`, bundle identifier, and complete ad-hoc signature.
+The TypeScript suite uses mocked Codex executions for checkpoint verdicts, immutable private-SOP registration/revision isolation, delegated compliant scan approval, prerequisite saves, duplicate and eligibility gates, unsupported plans, excess auxiliaries/recenters, ambiguous retries, CRM export, exact credit reconciliation, audit details, and cross-run/SOP isolation. Neutral fixtures are never production defaults. The Swift suite covers both live prompt schemas, same-window tab context, multiple Chrome windows/tab groups/side-panel tasks, persistent/fallback approval, protected and unknown prompts, retry bounds, and deduplication. The packaging test builds the release app and verifies its `APPL` structure, executable, `Info.plist`, bundle identifier, and complete ad-hoc signature.
 
 Common failures:
 

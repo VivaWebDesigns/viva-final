@@ -31,9 +31,43 @@ describe("fixed Claude checkpoint instruction", () => {
     );
     expect(instruction).toContain("stop normally for `complete`");
     expect(instruction).toContain(
-      "Never treat the reviewer as approval for paid or consequential actions.",
+      "only a structured `scan_approved` record does",
     );
     expect(instruction).not.toContain("After calling the reviewer, stop");
+  });
+
+  it("registers one private SOP revision and reuses its handle", () => {
+    expect(instruction).toContain("call `register_sop_for_review` once");
+    expect(instruction).toContain("use it for every review");
+    expect(instruction).toContain("Register a changed SOP revision separately");
+  });
+
+  it("automatically executes only an exact scan_approved authorization", () => {
+    expect(instruction).toContain("call `review_sab_scan_plan`");
+    expect(instruction).toMatch(
+      /for `scan_approved`, immediately execute exactly the approved scans/,
+    );
+    expect(instruction).toContain(
+      "never add, change, retry, or broaden anything",
+    );
+    expect(instruction).toMatch(
+      /for `correct`, stop the paid stage, make the instructed corrections, and submit the corrected plan for review/,
+    );
+    expect(instruction).toMatch(
+      /for `user_ruling_required`, stop and ask Matt/,
+    );
+  });
+
+  it("shows observation-mode fields", () => {
+    for (const field of [
+      "supervisor verdict",
+      "approval ID",
+      "exact approved scans and credits",
+      "problems or corrections",
+      "action taken",
+    ]) {
+      expect(instruction).toContain(field);
+    }
   });
 
   it("does not wait on an authorized non-paid next step", () => {

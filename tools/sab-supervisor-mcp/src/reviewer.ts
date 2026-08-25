@@ -1,9 +1,9 @@
 import crypto from "node:crypto";
-import path from "node:path";
 import { loadConfig, type SupervisorConfig } from "./config.js";
 import { executeCodex } from "./codex.js";
 import { appendJsonLog } from "./logging.js";
 import { buildReviewPrompt } from "./prompt.js";
+import { resolveRegisteredSop } from "./sop-registry.js";
 import {
   checkpointInputSchema,
   reviewResultSchema,
@@ -30,15 +30,6 @@ export class ReviewExecutionError extends Error {
   }
 }
 
-function safeSopLabel(reference: string): string {
-  try {
-    const url = new URL(reference);
-    return `${url.protocol}//${url.hostname}`;
-  } catch {
-    return path.basename(reference);
-  }
-}
-
 export async function reviewSabCheckpoint(
   rawInput: unknown,
   dependencies: ReviewerDependencies = {},
@@ -47,7 +38,11 @@ export async function reviewSabCheckpoint(
   const config = dependencies.config || loadConfig();
   const execute = dependencies.execute || executeCodex;
   const reviewId = crypto.randomUUID();
-  const prompt = await buildReviewPrompt(input);
+  const { registration, exactText } = await resolveRegisteredSop(
+    input.registered_sop_handle,
+    config,
+  );
+  const prompt = await buildReviewPrompt(input, registration, exactText);
   let execution: CodexExecution;
 
   try {
@@ -57,7 +52,8 @@ export async function reviewSabCheckpoint(
       timestamp: new Date().toISOString(),
       review_id: reviewId,
       status: "spawn_error",
-      sop_reference: safeSopLabel(input.sop_path_or_url),
+      registered_sop_handle: input.registered_sop_handle,
+      sop_content_sha256: registration.content_sha256,
       checkpoint_chars: input.claude_message.length,
       durable_state_chars: input.run_context.length,
     });
@@ -73,7 +69,7 @@ export async function reviewSabCheckpoint(
       review_id: reviewId,
       status: "timeout",
       duration_ms: execution.durationMs,
-      sop_reference: safeSopLabel(input.sop_path_or_url),
+      registered_sop_handle: input.registered_sop_handle,
     });
     throw new ReviewExecutionError("Codex review timed out", {
       code: "codex_timeout",
@@ -90,7 +86,7 @@ export async function reviewSabCheckpoint(
       status: "codex_error",
       duration_ms: execution.durationMs,
       exit_code: execution.exitCode,
-      sop_reference: safeSopLabel(input.sop_path_or_url),
+      registered_sop_handle: input.registered_sop_handle,
     });
     throw new ReviewExecutionError("Codex review failed", {
       code: "codex_failed",
@@ -119,7 +115,8 @@ export async function reviewSabCheckpoint(
     verdict: result.verdict,
     duration_ms: execution.durationMs,
     exit_code: execution.exitCode,
-    sop_reference: safeSopLabel(input.sop_path_or_url),
+    registered_sop_handle: input.registered_sop_handle,
+    sop_content_sha256: registration.content_sha256,
     checkpoint_chars: input.claude_message.length,
     durable_state_chars: input.run_context.length,
     user_ruling_count: input.user_rulings.length,
