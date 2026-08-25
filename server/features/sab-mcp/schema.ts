@@ -77,9 +77,15 @@ export const SAB_HEADERS = [
 
 export type SabHeader = typeof SAB_HEADERS[number];
 export type SabRow = Record<SabHeader, string>;
-export const SAB_REQUIRED_HEADERS = SAB_HEADERS.filter(
+export const SAB_LEGACY_REQUIRED_HEADERS = SAB_HEADERS.filter(
   (header) => !["scan_history", "workflow", "contact_tag"].includes(header),
 );
+// Backward-compatible alias for existing connector consumers.
+export const SAB_REQUIRED_HEADERS = SAB_LEGACY_REQUIRED_HEADERS;
+export const SAB_SCALE_FIRST_UPGRADEABLE_HEADERS = [
+  "workflow",
+  "contact_tag",
+] as const satisfies readonly SabHeader[];
 
 const nullableString = z.string().trim().max(20_000).nullable();
 const auditFindings = z.array(z.string().trim().min(1).max(1_000)).min(3).max(6);
@@ -211,6 +217,10 @@ export const saveSabScanResultInputSchema = {
   ...workflowSheetInputSchema,
   place_id: z.string().trim().min(1).describe("Google Place ID from the SAB source sheet"),
   scan_result: sabScanResultSchema,
+};
+
+export const upgradeSabWorkflowSchemaInputSchema = {
+  ...workflowSheetInputSchema,
 };
 
 export const createSabWorkflowInputSchema = {

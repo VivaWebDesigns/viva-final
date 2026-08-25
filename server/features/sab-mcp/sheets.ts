@@ -1,7 +1,9 @@
 import { GoogleAuth, OAuth2Client } from "google-auth-library";
+import { createHash } from "node:crypto";
 import {
   SAB_HEADERS,
   SAB_REQUIRED_HEADERS,
+  SAB_SCALE_FIRST_UPGRADEABLE_HEADERS,
   type SabCompanyUpdates,
   type SabHeader,
   type SabRow,
@@ -95,6 +97,55 @@ function parseOAuthClientCredentials(raw: string): OAuthClientCredentials {
 
 function quoteSheetName(name: string): string {
   return `'${name.replace(/'/g, "''")}'`;
+}
+
+function placeIdSnapshot(values: string[][], placeIdColumn: number) {
+  const placeIds = values.slice(1)
+    .map((row) => row[placeIdColumn] ?? "")
+    .filter((placeId) => placeId.length > 0);
+  return {
+    rowCount: Math.max(0, values.length - 1),
+    placeIdCount: placeIds.length,
+    placeIdChecksum: createHash("sha256").update(placeIds.join("\n")).digest("hex"),
+  };
+}
+
+function validateUpgradeableSheetHeaders(headers: string[]) {
+  const positions = new Map<string, number[]>();
+  headers.forEach((header, index) => {
+    if (!header) return;
+    const indexes = positions.get(header) ?? [];
+    indexes.push(index);
+    positions.set(header, indexes);
+  });
+
+  const duplicates = [...positions.entries()]
+    .filter(([, indexes]) => indexes.length > 1)
+    .map(([header]) => header);
+  if (duplicates.length > 0) {
+    throw new Error(`SAB sheet has duplicate headers: ${duplicates.join(", ")}`);
+  }
+
+  const canonicalByNormalizedName = new Map(
+    SAB_HEADERS.map((header) => [header.toLowerCase(), header]),
+  );
+  const ambiguous = headers.filter((header) => {
+    if (!header) return false;
+    const canonical = canonicalByNormalizedName.get(header.trim().toLowerCase());
+    return canonical !== undefined && header !== canonical;
+  });
+  if (ambiguous.length > 0) {
+    throw new Error(
+      `SAB sheet has ambiguous canonical headers: ${ambiguous.map((header) => JSON.stringify(header)).join(", ")}`,
+    );
+  }
+
+  const missing = SAB_REQUIRED_HEADERS.filter((header) => !positions.has(header));
+  if (missing.length > 0) {
+    throw new Error(`SAB sheet is missing legacy/base required headers: ${missing.join(", ")}`);
+  }
+
+  return positions;
 }
 
 export class GoogleSheetsValuesClient implements SheetsValuesClient, SabWorkflowCreator {
@@ -377,6 +428,86 @@ export class SabSheetsRepository {
     return { headers, headerIndex, rows };
   }
 
+  async upgradeWorkflowSchema() {
+    const readValues = () => this.client.getValues(
+      this.spreadsheetId,
+      quoteSheetName(this.sheetName),
+    );
+    const beforeValues = await readValues();
+    const beforeHeaders = beforeValues[0] ?? [];
+    const beforePositions = validateUpgradeableSheetHeaders(beforeHeaders);
+    const placeIdColumn = beforePositions.get("place_id")?.[0];
+    if (placeIdColumn === undefined) {
+      throw new Error("SAB sheet is missing legacy/base required header: place_id");
+    }
+    const before = placeIdSnapshot(beforeValues, placeIdColumn);
+    const alreadyPresentHeaders = SAB_SCALE_FIRST_UPGRADEABLE_HEADERS.filter(
+      (header) => beforePositions.has(header),
+    );
+    const addedHeaders = SAB_SCALE_FIRST_UPGRADEABLE_HEADERS.filter(
+      (header) => !beforePositions.has(header),
+    );
+
+    if (addedHeaders.length > 0) {
+      const firstUnusedColumn = beforeValues.reduce(
+        (maximum, row) => Math.max(maximum, row.length),
+        0,
+      );
+      await this.client.updateValues(
+        this.spreadsheetId,
+        addedHeaders.map((header, offset) => ({
+          range: `${quoteSheetName(this.sheetName)}!${columnName(firstUnusedColumn + offset)}1`,
+          value: header,
+        })),
+      );
+    }
+
+    const afterValues = await readValues();
+    const afterHeaders = afterValues[0] ?? [];
+    const afterPositions = validateUpgradeableSheetHeaders(afterHeaders);
+    for (const header of SAB_SCALE_FIRST_UPGRADEABLE_HEADERS) {
+      if ((afterPositions.get(header)?.length ?? 0) !== 1) {
+        throw new Error(`SAB Workflow schema upgrade verification failed for header: ${header}`);
+      }
+    }
+    const afterPlaceIdColumn = afterPositions.get("place_id")?.[0];
+    if (afterPlaceIdColumn === undefined) {
+      throw new Error("SAB Workflow schema upgrade verification lost the place_id header");
+    }
+    const after = placeIdSnapshot(afterValues, afterPlaceIdColumn);
+    if (
+      before.rowCount !== after.rowCount
+      || before.placeIdCount !== after.placeIdCount
+      || before.placeIdChecksum !== after.placeIdChecksum
+    ) {
+      throw new Error("SAB Workflow schema upgrade verification detected changed rows or Place IDs");
+    }
+
+    return {
+      added_headers: Array.from(addedHeaders),
+      already_present_headers: Array.from(alreadyPresentHeaders),
+      changed: addedHeaders.length > 0,
+      before_row_count: before.rowCount,
+      after_row_count: after.rowCount,
+      before_place_id_count: before.placeIdCount,
+      after_place_id_count: after.placeIdCount,
+      before_place_id_checksum: before.placeIdChecksum,
+      after_place_id_checksum: after.placeIdChecksum,
+      final_header_positions: Object.fromEntries(
+        SAB_SCALE_FIRST_UPGRADEABLE_HEADERS.map((header) => {
+          const zeroBasedIndex = afterPositions.get(header)?.[0];
+          if (zeroBasedIndex === undefined) {
+            throw new Error(`SAB Workflow schema upgrade verification lost header: ${header}`);
+          }
+          return [header, {
+            column_number: zeroBasedIndex + 1,
+            column_letter: columnName(zeroBasedIndex),
+          }];
+        }),
+      ),
+    };
+  }
+
   async getBatch(batchId: string, includeCompleted = false) {
     const { rows } = await this.readTable();
     return rows
@@ -394,7 +525,7 @@ export class SabSheetsRepository {
   }
 
   async saveCompany(placeId: string, updates: SabCompanyUpdates, actorEmail: string) {
-    const { headers, headerIndex, rows } = await this.readTable();
+    const { headerIndex, rows } = await this.readTable();
     const match = rows.find(({ row }) => row.place_id === placeId);
     if (!match) throw new Error(`No SAB company found for place_id ${placeId}`);
 
@@ -426,7 +557,11 @@ export class SabSheetsRepository {
     const cellUpdates = Object.entries(valuesToWrite).map(([key, value]) => {
       const header = key as SabHeader;
       const index = headerIndex.get(header);
-      if (index === undefined) throw new Error(`Unsupported SAB field: ${key}`);
+      if (index === undefined || index < 0) {
+        throw new Error(
+          `SAB sheet is missing writable header "${key}". Run upgrade_sab_workflow_schema for this Workflow Sheet before saving.`,
+        );
+      }
       return {
         range: `${quoteSheetName(this.sheetName)}!${columnName(index)}${match.rowNumber}`,
         value: serializeValue(header, value),

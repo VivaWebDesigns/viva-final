@@ -3,6 +3,7 @@ import {
   createSabWorkflowInputSchema,
   getSabBatchInputSchema,
   SAB_HEADERS,
+  SAB_SCALE_FIRST_UPGRADEABLE_HEADERS,
   sabScanResultSchema,
 } from "../../server/features/sab-mcp/schema";
 import {
@@ -74,6 +75,15 @@ function buildRepository(rows: string[][]) {
     client,
     repository: new SabSheetsRepository(client, "sheet-id", "SAB Workflow"),
   };
+}
+
+function valuesForHeaders(headers: readonly string[], rows: string[][]) {
+  return [
+    Array.from(headers),
+    ...rows.map((sourceRow) => headers.map((header) => (
+      sourceRow[SAB_HEADERS.indexOf(header as typeof SAB_HEADERS[number])] ?? ""
+    ))),
+  ];
 }
 
 describe("SabSheetsRepository", () => {
@@ -257,6 +267,125 @@ describe("SabSheetsRepository", () => {
     expect(client.updates).toHaveLength(5);
     expect((await repository.getCompany("place-1")).owner_name).toBe("Pat Owner");
     expect((await repository.getCompany("place-1")).updated_by).toBe("matt@vivawebdesigns.com");
+  });
+
+  it("upgrades a legacy Sheet with exactly the two Scale-First headers without changing rows or Place IDs", async () => {
+    const legacyHeaders = SAB_HEADERS.filter(
+      (header) => !SAB_SCALE_FIRST_UPGRADEABLE_HEADERS.includes(
+        header as typeof SAB_SCALE_FIRST_UPGRADEABLE_HEADERS[number],
+      ),
+    );
+    const client = new FakeSheetsClient(valuesForHeaders(legacyHeaders, [
+      row(),
+      row({ place_id: "place-2", company: "Second Plumbing", batch_position: "2" }),
+    ]));
+    const originalRows = client.values.slice(1).map((sourceRow) => [...sourceRow]);
+    const repository = new SabSheetsRepository(client, "sheet-id", "SAB Workflow");
+
+    const result = await repository.upgradeWorkflowSchema();
+
+    expect(result).toMatchObject({
+      added_headers: ["workflow", "contact_tag"],
+      already_present_headers: [],
+      changed: true,
+      before_row_count: 2,
+      after_row_count: 2,
+      before_place_id_count: 2,
+      after_place_id_count: 2,
+      final_header_positions: {
+        workflow: { column_number: legacyHeaders.length + 1 },
+        contact_tag: { column_number: legacyHeaders.length + 2 },
+      },
+    });
+    expect(result.before_place_id_checksum).toMatch(/^[a-f0-9]{64}$/);
+    expect(result.after_place_id_checksum).toBe(result.before_place_id_checksum);
+    expect(client.updates.map(({ value }) => value)).toEqual(["workflow", "contact_tag"]);
+    expect(client.values.slice(1)).toEqual(originalRows);
+  });
+
+  it("adds only the missing header to a partially upgraded Sheet", async () => {
+    const partialHeaders = SAB_HEADERS.filter((header) => header !== "contact_tag");
+    const client = new FakeSheetsClient(valuesForHeaders(partialHeaders, [row()]));
+    const repository = new SabSheetsRepository(client, "sheet-id", "SAB Workflow");
+
+    await expect(repository.upgradeWorkflowSchema()).resolves.toMatchObject({
+      added_headers: ["contact_tag"],
+      already_present_headers: ["workflow"],
+      changed: true,
+    });
+    expect(client.updates.map(({ value }) => value)).toEqual(["contact_tag"]);
+  });
+
+  it("returns a verified no-op for a current Sheet", async () => {
+    const client = new FakeSheetsClient([Array.from(SAB_HEADERS), row()]);
+    const repository = new SabSheetsRepository(client, "sheet-id", "SAB Workflow");
+
+    await expect(repository.upgradeWorkflowSchema()).resolves.toMatchObject({
+      added_headers: [],
+      already_present_headers: ["workflow", "contact_tag"],
+      changed: false,
+      before_row_count: 1,
+      after_row_count: 1,
+      before_place_id_count: 1,
+      after_place_id_count: 1,
+    });
+    expect(client.updates).toEqual([]);
+  });
+
+  it("is idempotent across repeated upgrades", async () => {
+    const legacyHeaders = SAB_HEADERS.filter(
+      (header) => header !== "workflow" && header !== "contact_tag",
+    );
+    const client = new FakeSheetsClient(valuesForHeaders(legacyHeaders, [row()]));
+    const repository = new SabSheetsRepository(client, "sheet-id", "SAB Workflow");
+
+    await expect(repository.upgradeWorkflowSchema()).resolves.toMatchObject({ changed: true });
+    const updatesAfterFirstRun = [...client.updates];
+    await expect(repository.upgradeWorkflowSchema()).resolves.toMatchObject({
+      added_headers: [],
+      already_present_headers: ["workflow", "contact_tag"],
+      changed: false,
+    });
+    expect(client.updates).toEqual(updatesAfterFirstRun);
+  });
+
+  it("rejects duplicate or ambiguous headers without writing", async () => {
+    const duplicateClient = new FakeSheetsClient([
+      [...SAB_HEADERS, "workflow"],
+      row(),
+    ]);
+    const duplicateRepository = new SabSheetsRepository(
+      duplicateClient,
+      "sheet-id",
+      "SAB Workflow",
+    );
+    await expect(duplicateRepository.upgradeWorkflowSchema()).rejects.toThrow(/duplicate headers.*workflow/i);
+    expect(duplicateClient.updates).toEqual([]);
+
+    const ambiguousHeaders = SAB_HEADERS.map((header) => (
+      header === "workflow" ? " Workflow " : header
+    ));
+    const ambiguousClient = new FakeSheetsClient(valuesForHeaders(ambiguousHeaders, [row()]));
+    const ambiguousRepository = new SabSheetsRepository(
+      ambiguousClient,
+      "sheet-id",
+      "SAB Workflow",
+    );
+    await expect(ambiguousRepository.upgradeWorkflowSchema()).rejects.toThrow(/ambiguous canonical headers/i);
+    expect(ambiguousClient.updates).toEqual([]);
+  });
+
+  it("rejects a missing writable header with upgrade instructions and no malformed range", async () => {
+    const legacyHeaders = SAB_HEADERS.filter((header) => header !== "workflow");
+    const client = new FakeSheetsClient(valuesForHeaders(legacyHeaders, [row()]));
+    const repository = new SabSheetsRepository(client, "sheet-id", "SAB Workflow");
+
+    await expect(repository.saveCompany(
+      "place-1",
+      { workflow: "scale_first_v2" },
+      "matt@vivawebdesigns.com",
+    )).rejects.toThrow(/missing writable header "workflow".*upgrade_sab_workflow_schema/i);
+    expect(client.updates).toEqual([]);
   });
 
   it("adds scan history to legacy Sheets and updates current deliverable fields", async () => {

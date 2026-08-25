@@ -23,10 +23,13 @@ import {
   markSabBlockedInputSchema,
   reverseGeocodeSabCentersInputSchema,
   SAB_HEADERS,
+  SAB_LEGACY_REQUIRED_HEADERS,
   SAB_QUALIFICATION_STATUSES,
+  SAB_SCALE_FIRST_UPGRADEABLE_HEADERS,
   SAB_STATUSES,
   saveSabCompanyInputSchema,
   saveSabScanResultInputSchema,
+  upgradeSabWorkflowSchemaInputSchema,
   validateSabCrmManifestInputSchema,
 } from "./schema";
 
@@ -63,17 +66,20 @@ export function createSabMcpServer(
 ) {
   const server = new McpServer({
     name: "viva-sab-workflow",
-    version: "1.6.0",
+    version: "1.7.0",
   });
 
   server.registerTool("get_sab_schema", sabTool({
     description:
-      "Return the canonical Workflow Sheet tab name, required headers, and allowed statuses. Use this before creating a new city run's Workflow Sheet.",
+      "Return the complete canonical Workflow Sheet headers, the legacy/base headers required to read an existing Sheet, the upgradeable Scale-First headers, and allowed statuses.",
     inputSchema: {},
   }), async () => {
     return jsonToolResult({
       default_sheet_name: "SAB Workflow",
       required_headers: SAB_HEADERS,
+      canonical_headers: SAB_HEADERS,
+      legacy_base_required_headers: SAB_LEGACY_REQUIRED_HEADERS,
+      scale_first_upgradeable_headers: SAB_SCALE_FIRST_UPGRADEABLE_HEADERS,
       statuses: SAB_STATUSES,
       qualification_statuses: SAB_QUALIFICATION_STATUSES,
     });
@@ -157,6 +163,19 @@ export function createSabMcpServer(
   }), async ({ workflow_sheet, sheet_name, place_id }) => {
     const repository = repositoryFactory(workflow_sheet, sheet_name);
     return jsonToolResult(await repository.getCompany(place_id));
+  });
+
+  server.registerTool("upgrade_sab_workflow_schema", sabTool({
+    description:
+      "Backward-compatibly upgrade an existing SAB Workflow Sheet for Scale-First by appending only missing workflow and contact_tag headers, then verify row and Place-ID integrity. This is idempotent and does not change company rows or other tabs.",
+    inputSchema: upgradeSabWorkflowSchemaInputSchema,
+  }), async ({ workflow_sheet, sheet_name }) => {
+    const repository = repositoryFactory(workflow_sheet, sheet_name);
+    return jsonToolResult({
+      workflow_sheet,
+      sheet_name,
+      ...await repository.upgradeWorkflowSchema(),
+    });
   });
 
   server.registerTool("save_sab_company", sabTool({

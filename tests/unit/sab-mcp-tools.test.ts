@@ -24,8 +24,9 @@ describe("SAB MCP tool discovery", () => {
 
     try {
       const { tools } = await client.listTools();
-      expect(tools).toHaveLength(14);
+      expect(tools).toHaveLength(15);
       expect(tools.map((tool) => tool.name)).toContain("get_sab_schema");
+      expect(tools.map((tool) => tool.name)).toContain("upgrade_sab_workflow_schema");
       expect(tools[0]).toMatchObject({
         _meta: {
           securitySchemes: [
@@ -37,6 +38,33 @@ describe("SAB MCP tool discovery", () => {
         (tool._meta?.securitySchemes as Array<{ type?: string }> | undefined)?.[0]?.type
           === "oauth2"
       ))).toBe(true);
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
+
+  it("distinguishes canonical, legacy/base, and upgradeable headers in the schema", async () => {
+    const server = createSabMcpServer(
+      (() => {
+        throw new Error("repository access is not expected during schema discovery");
+      }) as never,
+      { createWorkflow: async () => { throw new Error("workflow creation is not expected"); } },
+      "unauthenticated",
+    );
+    const client = new Client({ name: "sab-mcp-test", version: "1.0.0" });
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    await server.connect(serverTransport);
+    await client.connect(clientTransport);
+
+    try {
+      const result = await client.callTool({ name: "get_sab_schema", arguments: {} });
+      const content = result.content as Array<{ type: string; text: string }>;
+      const schema = JSON.parse(content[0].text);
+      expect(schema.required_headers).toEqual(schema.canonical_headers);
+      expect(schema.legacy_base_required_headers).not.toContain("workflow");
+      expect(schema.legacy_base_required_headers).not.toContain("contact_tag");
+      expect(schema.scale_first_upgradeable_headers).toEqual(["workflow", "contact_tag"]);
     } finally {
       await client.close();
       await server.close();
