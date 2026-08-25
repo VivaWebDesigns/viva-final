@@ -20,11 +20,33 @@ function columnIndex(name: string) {
 
 class FakeSheetsClient implements SheetsValuesClient {
   updates: Array<{ range: string; value: string | number | boolean }> = [];
+  columnAppends: Array<{ sheetId: number; columnCount: number }> = [];
+  readonly tabs = new Map([
+    ["SAB Workflow", { sheetId: 101, columnCount: 0 }],
+    ["Other Tab", { sheetId: 202, columnCount: 17 }],
+  ]);
 
-  constructor(public values: string[][]) {}
+  constructor(public values: string[][], columnCapacity?: number) {
+    this.tabs.get("SAB Workflow")!.columnCount = columnCapacity
+      ?? values.reduce((maximum, row) => Math.max(maximum, row.length), 0);
+  }
 
   async getValues() {
     return this.values.map((row) => [...row]);
+  }
+
+  async getSheetGridProperties(_spreadsheetId: string, sheetName: string) {
+    const tab = this.tabs.get(sheetName);
+    if (!tab) throw new Error(`Unknown fake tab ${sheetName}`);
+    return { ...tab };
+  }
+
+  async appendColumns(_spreadsheetId: string, sheetId: number, columnCount: number) {
+    if (columnCount <= 0) return;
+    const tab = [...this.tabs.values()].find((candidate) => candidate.sheetId === sheetId);
+    if (!tab) throw new Error(`Unknown fake sheetId ${sheetId}`);
+    this.columnAppends.push({ sheetId, columnCount });
+    tab.columnCount += columnCount;
   }
 
   async updateValues(
@@ -37,6 +59,12 @@ class FakeSheetsClient implements SheetsValuesClient {
       if (!match) throw new Error(`Unexpected range ${update.range}`);
       const column = columnIndex(match[1]);
       const row = Number(match[2]) - 1;
+      const selectedTab = this.tabs.get("SAB Workflow")!;
+      if (column >= selectedTab.columnCount) {
+        throw new Error(
+          `Range (${update.range}) exceeds grid limits. Max columns: ${selectedTab.columnCount}`,
+        );
+      }
       this.values[row] ??= [];
       this.values[row][column] = String(update.value);
     }
@@ -97,6 +125,77 @@ describe("SabSheetsRepository", () => {
     expect(() => spreadsheetIdFromReference(
       `https://docs.google.com/document/d/${spreadsheetId}/edit`,
     )).toThrow(/Google Sheets spreadsheet ID/);
+  });
+
+  it("reads exact tab grid properties and appends columns through authenticated Sheets API calls", async () => {
+    const client = new GoogleSheetsValuesClient(
+      JSON.stringify({
+        installed: {
+          client_id: "test-client",
+          client_secret: "test-secret",
+        },
+      }),
+      "test-refresh-token",
+    );
+    const request = vi.fn(async (options: {
+      url: string;
+      method: string;
+      params?: Record<string, unknown>;
+      data?: Record<string, unknown>;
+    }) => {
+      if (options.method === "GET") {
+        return {
+          data: {
+            sheets: [
+              {
+                properties: {
+                  sheetId: 202,
+                  title: "Other Tab",
+                  gridProperties: { columnCount: 17 },
+                },
+              },
+              {
+                properties: {
+                  sheetId: 101,
+                  title: "SAB Workflow",
+                  gridProperties: { columnCount: 39 },
+                },
+              },
+            ],
+          },
+        };
+      }
+      return { data: {} };
+    });
+    (client as unknown as { auth: { request: typeof request } }).auth = { request };
+
+    await expect(client.getSheetGridProperties("sheet-id", "SAB Workflow")).resolves.toEqual({
+      sheetId: 101,
+      columnCount: 39,
+    });
+    await client.appendColumns("sheet-id", 101, 2);
+
+    expect(request).toHaveBeenNthCalledWith(1, {
+      url: "https://sheets.googleapis.com/v4/spreadsheets/sheet-id",
+      method: "GET",
+      params: {
+        includeGridData: false,
+        fields: "sheets.properties(sheetId,title,gridProperties)",
+      },
+    });
+    expect(request).toHaveBeenNthCalledWith(2, {
+      url: "https://sheets.googleapis.com/v4/spreadsheets/sheet-id:batchUpdate",
+      method: "POST",
+      data: {
+        requests: [{
+          appendDimension: {
+            sheetId: 101,
+            dimension: "COLUMNS",
+            length: 2,
+          },
+        }],
+      },
+    });
   });
 
   it("requires only core scan fields and rejects competitors", () => {
@@ -269,14 +368,14 @@ describe("SabSheetsRepository", () => {
     expect((await repository.getCompany("place-1")).updated_by).toBe("matt@vivawebdesigns.com");
   });
 
-  it("upgrades a legacy Sheet with exactly the two Scale-First headers without changing rows or Place IDs", async () => {
+  it("expands a 39-column legacy Sheet to 41 and adds both headers without changing rows or Place IDs", async () => {
     const legacyHeaders = SAB_HEADERS.filter(
       (header) => !SAB_SCALE_FIRST_UPGRADEABLE_HEADERS.includes(
         header as typeof SAB_SCALE_FIRST_UPGRADEABLE_HEADERS[number],
       ),
     );
     const client = new FakeSheetsClient(valuesForHeaders(legacyHeaders, [
-      row(),
+      row({ research_notes: '=CONCAT("kept", " formula")' }),
       row({ place_id: "place-2", company: "Second Plumbing", batch_position: "2" }),
     ]));
     const originalRows = client.values.slice(1).map((sourceRow) => [...sourceRow]);
@@ -292,6 +391,9 @@ describe("SabSheetsRepository", () => {
       after_row_count: 2,
       before_place_id_count: 2,
       after_place_id_count: 2,
+      before_column_capacity: 39,
+      after_column_capacity: 41,
+      columns_added: 2,
       final_header_positions: {
         workflow: { column_number: legacyHeaders.length + 1 },
         contact_tag: { column_number: legacyHeaders.length + 2 },
@@ -299,11 +401,12 @@ describe("SabSheetsRepository", () => {
     });
     expect(result.before_place_id_checksum).toMatch(/^[a-f0-9]{64}$/);
     expect(result.after_place_id_checksum).toBe(result.before_place_id_checksum);
+    expect(client.columnAppends).toEqual([{ sheetId: 101, columnCount: 2 }]);
     expect(client.updates.map(({ value }) => value)).toEqual(["workflow", "contact_tag"]);
     expect(client.values.slice(1)).toEqual(originalRows);
   });
 
-  it("adds only the missing header to a partially upgraded Sheet", async () => {
+  it("expands only as needed and adds the missing header to a partially upgraded Sheet", async () => {
     const partialHeaders = SAB_HEADERS.filter((header) => header !== "contact_tag");
     const client = new FakeSheetsClient(valuesForHeaders(partialHeaders, [row()]));
     const repository = new SabSheetsRepository(client, "sheet-id", "SAB Workflow");
@@ -312,8 +415,30 @@ describe("SabSheetsRepository", () => {
       added_headers: ["contact_tag"],
       already_present_headers: ["workflow"],
       changed: true,
+      before_column_capacity: 40,
+      after_column_capacity: 41,
+      columns_added: 1,
     });
+    expect(client.columnAppends).toEqual([{ sheetId: 101, columnCount: 1 }]);
     expect(client.updates.map(({ value }) => value)).toEqual(["contact_tag"]);
+  });
+
+  it("uses spare blank columns without resizing", async () => {
+    const legacyHeaders = SAB_HEADERS.filter(
+      (header) => header !== "workflow" && header !== "contact_tag",
+    );
+    const client = new FakeSheetsClient(valuesForHeaders(legacyHeaders, [row()]), 50);
+    const repository = new SabSheetsRepository(client, "sheet-id", "SAB Workflow");
+
+    await expect(repository.upgradeWorkflowSchema()).resolves.toMatchObject({
+      added_headers: ["workflow", "contact_tag"],
+      changed: true,
+      before_column_capacity: 50,
+      after_column_capacity: 50,
+      columns_added: 0,
+    });
+    expect(client.columnAppends).toEqual([]);
+    expect(client.updates.map(({ value }) => value)).toEqual(["workflow", "contact_tag"]);
   });
 
   it("returns a verified no-op for a current Sheet", async () => {
@@ -328,28 +453,38 @@ describe("SabSheetsRepository", () => {
       after_row_count: 1,
       before_place_id_count: 1,
       after_place_id_count: 1,
+      before_column_capacity: 41,
+      after_column_capacity: 41,
+      columns_added: 0,
     });
+    expect(client.columnAppends).toEqual([]);
     expect(client.updates).toEqual([]);
   });
 
-  it("is idempotent across repeated upgrades", async () => {
+  it("is safe and idempotent when retrying after capacity was already expanded", async () => {
     const legacyHeaders = SAB_HEADERS.filter(
       (header) => header !== "workflow" && header !== "contact_tag",
     );
-    const client = new FakeSheetsClient(valuesForHeaders(legacyHeaders, [row()]));
+    const client = new FakeSheetsClient(valuesForHeaders(legacyHeaders, [row()]), 41);
     const repository = new SabSheetsRepository(client, "sheet-id", "SAB Workflow");
 
-    await expect(repository.upgradeWorkflowSchema()).resolves.toMatchObject({ changed: true });
+    await expect(repository.upgradeWorkflowSchema()).resolves.toMatchObject({
+      changed: true,
+      before_column_capacity: 41,
+      after_column_capacity: 41,
+      columns_added: 0,
+    });
     const updatesAfterFirstRun = [...client.updates];
     await expect(repository.upgradeWorkflowSchema()).resolves.toMatchObject({
       added_headers: [],
       already_present_headers: ["workflow", "contact_tag"],
       changed: false,
     });
+    expect(client.columnAppends).toEqual([]);
     expect(client.updates).toEqual(updatesAfterFirstRun);
   });
 
-  it("rejects duplicate or ambiguous headers without writing", async () => {
+  it("rejects duplicate, ambiguous, or missing base headers before resizing or writing", async () => {
     const duplicateClient = new FakeSheetsClient([
       [...SAB_HEADERS, "workflow"],
       row(),
@@ -360,6 +495,7 @@ describe("SabSheetsRepository", () => {
       "SAB Workflow",
     );
     await expect(duplicateRepository.upgradeWorkflowSchema()).rejects.toThrow(/duplicate headers.*workflow/i);
+    expect(duplicateClient.columnAppends).toEqual([]);
     expect(duplicateClient.updates).toEqual([]);
 
     const ambiguousHeaders = SAB_HEADERS.map((header) => (
@@ -372,7 +508,36 @@ describe("SabSheetsRepository", () => {
       "SAB Workflow",
     );
     await expect(ambiguousRepository.upgradeWorkflowSchema()).rejects.toThrow(/ambiguous canonical headers/i);
+    expect(ambiguousClient.columnAppends).toEqual([]);
     expect(ambiguousClient.updates).toEqual([]);
+
+    const missingBaseHeaders = SAB_HEADERS.filter(
+      (header) => header !== "company" && header !== "workflow" && header !== "contact_tag",
+    );
+    const missingBaseClient = new FakeSheetsClient(valuesForHeaders(missingBaseHeaders, [row()]));
+    const missingBaseRepository = new SabSheetsRepository(
+      missingBaseClient,
+      "sheet-id",
+      "SAB Workflow",
+    );
+    await expect(missingBaseRepository.upgradeWorkflowSchema()).rejects.toThrow(/legacy\/base required headers.*company/i);
+    expect(missingBaseClient.columnAppends).toEqual([]);
+    expect(missingBaseClient.updates).toEqual([]);
+  });
+
+  it("expands only the selected tab", async () => {
+    const legacyHeaders = SAB_HEADERS.filter(
+      (header) => header !== "workflow" && header !== "contact_tag",
+    );
+    const client = new FakeSheetsClient(valuesForHeaders(legacyHeaders, [row()]));
+    const otherTabBefore = { ...client.tabs.get("Other Tab")! };
+    const repository = new SabSheetsRepository(client, "sheet-id", "SAB Workflow");
+
+    await repository.upgradeWorkflowSchema();
+
+    expect(client.columnAppends).toEqual([{ sheetId: 101, columnCount: 2 }]);
+    expect(client.tabs.get("SAB Workflow")?.columnCount).toBe(41);
+    expect(client.tabs.get("Other Tab")).toEqual(otherTabBefore);
   });
 
   it("rejects a missing writable header with upgrade instructions and no malformed range", async () => {
@@ -404,7 +569,7 @@ describe("SabSheetsRepository", () => {
     const legacyValues = legacyHeaders.map((header) => (
       legacyRow[SAB_HEADERS.indexOf(header)]
     ));
-    const client = new FakeSheetsClient([Array.from(legacyHeaders), legacyValues]);
+    const client = new FakeSheetsClient([Array.from(legacyHeaders), legacyValues], SAB_HEADERS.length);
     const repository = new SabSheetsRepository(client, "sheet-id", "SAB Workflow");
 
     const result = await repository.saveScanResult(

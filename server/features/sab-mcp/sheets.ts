@@ -31,6 +31,11 @@ const BOOLEAN_HEADERS = new Set<SabHeader>(["has_website"]);
 
 export interface SheetsValuesClient {
   getValues(spreadsheetId: string, range: string): Promise<string[][]>;
+  getSheetGridProperties(
+    spreadsheetId: string,
+    sheetName: string,
+  ): Promise<{ sheetId: number; columnCount: number }>;
+  appendColumns(spreadsheetId: string, sheetId: number, columnCount: number): Promise<void>;
   updateValues(
     spreadsheetId: string,
     updates: Array<{ range: string; value: string | number | boolean }>,
@@ -187,6 +192,54 @@ export class GoogleSheetsValuesClient implements SheetsValuesClient, SabWorkflow
     });
 
     return (response.data.values ?? []).map((row) => row.map((value) => String(value)));
+  }
+
+  async getSheetGridProperties(spreadsheetId: string, sheetName: string) {
+    const client = await this.getClient();
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}`;
+    const response = await client.request<{
+      sheets?: Array<{
+        properties?: {
+          sheetId?: number;
+          title?: string;
+          gridProperties?: { columnCount?: number };
+        };
+      }>;
+    }>({
+      url,
+      method: "GET",
+      params: {
+        includeGridData: false,
+        fields: "sheets.properties(sheetId,title,gridProperties)",
+      },
+    });
+    const properties = response.data.sheets
+      ?.map((sheet) => sheet.properties)
+      .find((sheet) => sheet?.title === sheetName);
+    const columnCount = properties?.gridProperties?.columnCount;
+    if (properties?.sheetId === undefined || columnCount === undefined) {
+      throw new Error(`Google Sheets did not return grid properties for tab ${JSON.stringify(sheetName)}`);
+    }
+    return { sheetId: properties.sheetId, columnCount };
+  }
+
+  async appendColumns(spreadsheetId: string, sheetId: number, columnCount: number) {
+    if (columnCount <= 0) return;
+    const client = await this.getClient();
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}:batchUpdate`;
+    await client.request({
+      url,
+      method: "POST",
+      data: {
+        requests: [{
+          appendDimension: {
+            sheetId,
+            dimension: "COLUMNS",
+            length: columnCount,
+          },
+        }],
+      },
+    });
   }
 
   async updateValues(
@@ -447,11 +500,22 @@ export class SabSheetsRepository {
     const addedHeaders = SAB_SCALE_FIRST_UPGRADEABLE_HEADERS.filter(
       (header) => !beforePositions.has(header),
     );
+    const firstUnusedColumn = beforeValues.reduce(
+      (maximum, row) => Math.max(maximum, row.length),
+      0,
+    );
+    const requiredColumnCapacity = firstUnusedColumn + addedHeaders.length;
+    const beforeGrid = await this.client.getSheetGridProperties(
+      this.spreadsheetId,
+      this.sheetName,
+    );
+    const columnsAdded = Math.max(0, requiredColumnCapacity - beforeGrid.columnCount);
 
     if (addedHeaders.length > 0) {
-      const firstUnusedColumn = beforeValues.reduce(
-        (maximum, row) => Math.max(maximum, row.length),
-        0,
+      await this.client.appendColumns(
+        this.spreadsheetId,
+        beforeGrid.sheetId,
+        columnsAdded,
       );
       await this.client.updateValues(
         this.spreadsheetId,
@@ -463,10 +527,25 @@ export class SabSheetsRepository {
     }
 
     const afterValues = await readValues();
+    const afterGrid = await this.client.getSheetGridProperties(
+      this.spreadsheetId,
+      this.sheetName,
+    );
     const afterHeaders = afterValues[0] ?? [];
     const afterPositions = validateUpgradeableSheetHeaders(afterHeaders);
+    const expectedHeaderPositions = new Map(
+      SAB_SCALE_FIRST_UPGRADEABLE_HEADERS.map((header) => {
+        const existingPosition = beforePositions.get(header)?.[0];
+        const addedOffset = addedHeaders.indexOf(header);
+        return [
+          header,
+          existingPosition ?? (firstUnusedColumn + addedOffset),
+        ];
+      }),
+    );
     for (const header of SAB_SCALE_FIRST_UPGRADEABLE_HEADERS) {
-      if ((afterPositions.get(header)?.length ?? 0) !== 1) {
+      const positions = afterPositions.get(header) ?? [];
+      if (positions.length !== 1 || positions[0] !== expectedHeaderPositions.get(header)) {
         throw new Error(`SAB Workflow schema upgrade verification failed for header: ${header}`);
       }
     }
@@ -482,6 +561,20 @@ export class SabSheetsRepository {
     ) {
       throw new Error("SAB Workflow schema upgrade verification detected changed rows or Place IDs");
     }
+    if (afterGrid.sheetId !== beforeGrid.sheetId) {
+      throw new Error("SAB Workflow schema upgrade verification detected a changed tab sheetId");
+    }
+    const expectedColumnCapacity = beforeGrid.columnCount + columnsAdded;
+    if (afterGrid.columnCount !== expectedColumnCapacity) {
+      throw new Error(
+        `SAB Workflow schema upgrade verification found unexpected column capacity: ${afterGrid.columnCount} !== ${expectedColumnCapacity}`,
+      );
+    }
+    if (afterGrid.columnCount < requiredColumnCapacity) {
+      throw new Error(
+        `SAB Workflow schema upgrade verification found insufficient column capacity: ${afterGrid.columnCount} < ${requiredColumnCapacity}`,
+      );
+    }
 
     return {
       added_headers: Array.from(addedHeaders),
@@ -493,6 +586,9 @@ export class SabSheetsRepository {
       after_place_id_count: after.placeIdCount,
       before_place_id_checksum: before.placeIdChecksum,
       after_place_id_checksum: after.placeIdChecksum,
+      before_column_capacity: beforeGrid.columnCount,
+      after_column_capacity: afterGrid.columnCount,
+      columns_added: columnsAdded,
       final_header_positions: Object.fromEntries(
         SAB_SCALE_FIRST_UPGRADEABLE_HEADERS.map((header) => {
           const zeroBasedIndex = afterPositions.get(header)?.[0];

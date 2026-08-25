@@ -66,7 +66,7 @@ export function createSabMcpServer(
 ) {
   const server = new McpServer({
     name: "viva-sab-workflow",
-    version: "1.7.0",
+    version: "1.7.1",
   });
 
   server.registerTool("get_sab_schema", sabTool({
@@ -167,7 +167,7 @@ export function createSabMcpServer(
 
   server.registerTool("upgrade_sab_workflow_schema", sabTool({
     description:
-      "Backward-compatibly upgrade an existing SAB Workflow Sheet for Scale-First by appending only missing workflow and contact_tag headers, then verify row and Place-ID integrity. This is idempotent and does not change company rows or other tabs.",
+      "Backward-compatibly upgrade an existing SAB Workflow Sheet for Scale-First by expanding only the selected tab when required, appending only missing workflow and contact_tag headers, then verifying row, Place-ID, header-position, and grid-capacity integrity. This is idempotent and does not change company rows or other tabs.",
     inputSchema: upgradeSabWorkflowSchemaInputSchema,
   }), async ({ workflow_sheet, sheet_name }) => {
     const repository = repositoryFactory(workflow_sheet, sheet_name);
