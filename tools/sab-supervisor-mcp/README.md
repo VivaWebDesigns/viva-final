@@ -16,7 +16,10 @@ cd /Users/matt/Projects/viva/tools/sab-supervisor-mcp
 npm ci
 cp config.example.json config.json
 npm run build
+node dist/cli.js install-service
 ```
+
+The build creates a minimal ad-hoc-signed `build/SAB Permission Watcher.app`. `install-service` copies that signed bundle to the stable runtime location `~/Applications/SAB Permission Watcher.app` and writes the LaunchAgent without starting it. Existing configuration and logs are preserved.
 
 `config.json` is optional and ignored by Git. Set `SAB_SUPERVISOR_CONFIG` to use a config elsewhere. The checked-in defaults target the installed Claude extension ID and use `codex` from `PATH`; the example uses the Codex binary bundled with the desktop app.
 
@@ -47,12 +50,15 @@ After a review, Claude immediately follows `continue`, `correct`, or `reconcile`
 
 ## Accessibility authorization
 
-1. Run `npm run dry-run` once so macOS can identify the helper.
-2. Open **System Settings → Privacy & Security → Accessibility**.
-3. Enable the terminal used for foreground operation. For the background service, add and enable `/Users/matt/Projects/viva/tools/sab-supervisor-mcp/swift/.build/release/sab-permission-watcher` if macOS requests it.
-4. Screen Recording is optional and is used only to capture a diagnostic screenshot when an unrecognized prompt fails closed.
+1. Complete `npm run build` and `node dist/cli.js install-service` first.
+2. Run `node dist/cli.js start` once. Before authorization it may exit with code 2, but the signed app will appear in Accessibility.
+3. Open **System Settings → Privacy & Security → Accessibility** and enable **SAB Permission Watcher**. If it is not already listed, click **+**, open your home `Applications` folder, and add `~/Applications/SAB Permission Watcher.app`.
+4. Run `node dist/cli.js start` again, then verify with `node dist/cli.js status`.
+5. Screen Recording is optional and is used only to capture a diagnostic screenshot when an unrecognized prompt fails closed.
 
-The watcher does not use screen coordinates.
+Do not add the raw executable under `swift/.build`; the LaunchAgent and foreground commands execute the signed app's `Contents/MacOS/sab-permission-watcher`. The watcher does not use screen coordinates.
+
+The bundle identifier and install path are stable. Rebuilding skips bundle replacement and signing when the executable and `Info.plist` are unchanged, and `install-service` likewise leaves an identical installed app untouched. A genuine watcher code change necessarily changes the signature, but does not change the bundle identifier or installed path.
 
 ## Operation
 
@@ -96,7 +102,7 @@ No hostname allowlist is used. Routine navigation, opening, reading, search, scr
 If Claude or Chrome changes these Accessibility labels or hierarchy, the watcher makes no click. It logs the mismatch, attempts a diagnostic screenshot, and posts a notification. `inspect` provides bounded troubleshooting signals:
 
 ```sh
-swift/.build/release/sab-permission-watcher inspect --debug
+"$HOME/Applications/SAB Permission Watcher.app/Contents/MacOS/sab-permission-watcher" inspect --debug
 ```
 
 ## Tests and troubleshooting
@@ -108,12 +114,12 @@ npm test
 npm run build
 ```
 
-The TypeScript suite uses mocked Codex executions for continue, correction, approval, reconciliation, timeout, and run/SOP isolation. Neutral fixture SOPs under `tests/fixtures/` verify that rules, state, and rulings are not carried between calls. The Swift suite covers routine, persistent/fallback approval, protected and unknown prompts, extension targeting, retry bounds, and deduplication.
+The TypeScript suite uses mocked Codex executions for continue, correction, approval, reconciliation, timeout, and run/SOP isolation. Neutral fixture SOPs under `tests/fixtures/` verify that rules, state, and rulings are not carried between calls. The Swift suite covers routine, persistent/fallback approval, protected and unknown prompts, extension targeting, retry bounds, and deduplication. The packaging test builds the release app and verifies its `APPL` structure, executable, `Info.plist`, bundle identifier, and complete ad-hoc signature.
 
 Common failures:
 
-- `Accessibility access is required`: enable the foreground terminal or release watcher binary in Accessibility settings, then restart it.
-- `Watcher binary is missing`: run `npm run build`.
+- `Accessibility access is required`: add and enable `~/Applications/SAB Permission Watcher.app` in Accessibility, then restart the service.
+- `Signed watcher app is missing`: run `npm run build`, followed by `node dist/cli.js install-service`.
 - `Codex could not be started`: set `codexPath` in `config.json` to the installed CLI.
 - `Codex review timed out`: increase `codexTimeoutMs` only if the exact supplied SOP is reachable and unusually slow to read.
 - No dry-run match: leave the Claude permission prompt visible, run the native `inspect` command above, and review `watcher.jsonl`; no fallback coordinate click exists.

@@ -5,9 +5,17 @@ import os from "node:os";
 import path from "node:path";
 import { loadConfig } from "./config.js";
 import { runMcpServer } from "./mcp.js";
-import { packageRoot, watcherBinaryPath } from "./paths.js";
+import {
+  builtWatcherAppPath,
+  builtWatcherBinaryPath,
+  installedWatcherAppPath,
+  installedWatcherBinaryPath,
+  packageRoot,
+} from "./paths.js";
 
 const serviceLabel = "com.viva.sab-permission-watcher";
+const launchServicesRegisterPath =
+  "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister";
 
 function watcherArguments(dryRun = false): string[] {
   const config = loadConfig();
@@ -28,16 +36,116 @@ function watcherArguments(dryRun = false): string[] {
   return args;
 }
 
-function requireWatcherBinary(): void {
-  if (!fs.existsSync(watcherBinaryPath)) {
+function verifyAppSignature(appPath: string): boolean {
+  return (
+    spawnSync(
+      "/usr/bin/codesign",
+      ["--verify", "--deep", "--strict", appPath],
+      { stdio: "ignore" },
+    ).status === 0
+  );
+}
+
+function requireBuiltWatcherApp(): void {
+  if (
+    !fs.existsSync(builtWatcherBinaryPath) ||
+    !verifyAppSignature(builtWatcherAppPath)
+  ) {
     throw new Error(
-      `Watcher binary is missing. Run: cd ${packageRoot} && npm run build`,
+      `Signed watcher app is missing. Run: cd ${packageRoot} && npm run build`,
     );
   }
 }
 
+function watcherBinaryPath(): string {
+  if (
+    fs.existsSync(installedWatcherBinaryPath) &&
+    verifyAppSignature(installedWatcherAppPath)
+  ) {
+    return installedWatcherBinaryPath;
+  }
+  requireBuiltWatcherApp();
+  return builtWatcherBinaryPath;
+}
+
+function filesEqual(left: string, right: string): boolean {
+  if (!fs.existsSync(left) || !fs.existsSync(right)) return false;
+  return fs.readFileSync(left).equals(fs.readFileSync(right));
+}
+
+function installedAppIsCurrent(): boolean {
+  return (
+    verifyAppSignature(installedWatcherAppPath) &&
+    filesEqual(builtWatcherBinaryPath, installedWatcherBinaryPath) &&
+    filesEqual(
+      path.join(builtWatcherAppPath, "Contents", "Info.plist"),
+      path.join(installedWatcherAppPath, "Contents", "Info.plist"),
+    )
+  );
+}
+
+function registerWatcherApp(): void {
+  const result = spawnSync(
+    launchServicesRegisterPath,
+    ["-f", installedWatcherAppPath],
+    { stdio: "inherit" },
+  );
+  if (result.status !== 0) {
+    throw new Error("Unable to register the watcher app with Launch Services");
+  }
+}
+
+function installWatcherApp(): void {
+  requireBuiltWatcherApp();
+  if (installedAppIsCurrent()) {
+    registerWatcherApp();
+    console.log(`Watcher app is already current: ${installedWatcherAppPath}`);
+    return;
+  }
+
+  fs.mkdirSync(path.dirname(installedWatcherAppPath), {
+    recursive: true,
+    mode: 0o755,
+  });
+  const stagingPath = path.join(
+    path.dirname(installedWatcherAppPath),
+    `.SAB Permission Watcher.app.installing-${process.pid}`,
+  );
+  const backupPath = path.join(
+    path.dirname(installedWatcherAppPath),
+    `.SAB Permission Watcher.app.backup-${process.pid}`,
+  );
+  fs.rmSync(stagingPath, { recursive: true, force: true });
+  fs.rmSync(backupPath, { recursive: true, force: true });
+  try {
+    fs.cpSync(builtWatcherAppPath, stagingPath, {
+      recursive: true,
+      preserveTimestamps: true,
+    });
+    if (!verifyAppSignature(stagingPath)) {
+      throw new Error("Copied watcher app failed code-signature verification");
+    }
+    if (fs.existsSync(installedWatcherAppPath)) {
+      fs.renameSync(installedWatcherAppPath, backupPath);
+    }
+    try {
+      fs.renameSync(stagingPath, installedWatcherAppPath);
+    } catch (error) {
+      if (fs.existsSync(backupPath)) {
+        fs.renameSync(backupPath, installedWatcherAppPath);
+      }
+      throw error;
+    }
+  } finally {
+    fs.rmSync(stagingPath, { recursive: true, force: true });
+    fs.rmSync(backupPath, { recursive: true, force: true });
+  }
+  registerWatcherApp();
+  console.log(`Installed watcher app: ${installedWatcherAppPath}`);
+}
+
 function spawnWatcher(dryRun = false, redirectForMcp = false): ChildProcess {
-  requireWatcherBinary();
+  const executablePath = watcherBinaryPath();
   if (redirectForMcp) {
     const config = loadConfig();
     fs.mkdirSync(config.logDirectory, { recursive: true, mode: 0o700 });
@@ -50,7 +158,7 @@ function spawnWatcher(dryRun = false, redirectForMcp = false): ChildProcess {
       "a",
     );
     try {
-      return spawn(watcherBinaryPath, watcherArguments(dryRun), {
+      return spawn(executablePath, watcherArguments(dryRun), {
         stdio: ["ignore", stdoutFd, stderrFd],
         shell: false,
       });
@@ -59,7 +167,7 @@ function spawnWatcher(dryRun = false, redirectForMcp = false): ChildProcess {
       fs.closeSync(stderrFd);
     }
   }
-  return spawn(watcherBinaryPath, watcherArguments(dryRun), {
+  return spawn(executablePath, watcherArguments(dryRun), {
     stdio: "inherit",
     shell: false,
   });
@@ -87,11 +195,11 @@ function plistEscape(value: string): string {
 }
 
 function installService(): void {
-  requireWatcherBinary();
+  installWatcherApp();
   const config = loadConfig();
   fs.mkdirSync(path.dirname(launchAgentPath()), { recursive: true });
   fs.mkdirSync(config.logDirectory, { recursive: true, mode: 0o700 });
-  const argumentsXml = [watcherBinaryPath, ...watcherArguments(false)]
+  const argumentsXml = [installedWatcherBinaryPath, ...watcherArguments(false)]
     .map((value) => `    <string>${plistEscape(value)}</string>`)
     .join("\n");
   const plist = `<?xml version="1.0" encoding="UTF-8"?>
@@ -116,15 +224,22 @@ ${argumentsXml}
 }
 
 function launchctl(args: string[], allowFailure = false): number {
-  const result = spawnSync("/bin/launchctl", args, { stdio: "inherit" });
+  const result = spawnSync("/bin/launchctl", args, {
+    encoding: "utf8",
+  });
   const status = result.status ?? 1;
+  if (status === 0 || !allowFailure) {
+    if (result.stdout) process.stdout.write(result.stdout);
+    if (result.stderr) process.stderr.write(result.stderr);
+  }
   if (status !== 0 && !allowFailure) process.exitCode = status;
   return status;
 }
 
 function startService(): void {
-  if (!fs.existsSync(launchAgentPath())) installService();
-  launchctl(["bootstrap", launchDomain(), launchAgentPath()], true);
+  stopService();
+  installService();
+  launchctl(["bootstrap", launchDomain(), launchAgentPath()]);
   launchctl(["kickstart", "-k", `${launchDomain()}/${serviceLabel}`]);
 }
 
@@ -160,9 +275,9 @@ async function main(): Promise<void> {
       return;
     }
     case "dry-run": {
-      requireWatcherBinary();
+      const executablePath = watcherBinaryPath();
       const result = spawnSync(
-        watcherBinaryPath,
+        executablePath,
         [...watcherArguments(true), "--once"],
         { stdio: "inherit" },
       );
@@ -182,6 +297,7 @@ async function main(): Promise<void> {
       return;
     }
     case "install-service":
+      stopService();
       installService();
       return;
     case "start":
