@@ -87,19 +87,18 @@ Structured logs default to `~/.local/state/viva-sab-supervisor/`:
 
 ## Real prompt inspection findings
 
-Inspection used a real benign Claude-in-Chrome navigation request to IANA's public example-domain documentation while Chrome was in manual approval mode. macOS Accessibility exposed:
+Inspection used benign Claude-in-Chrome navigation requests on previously unapproved public domains while Chrome was in manual approval mode. macOS Accessibility exposed two prompt schemas:
 
 - outer `AXWebArea`: `chrome-extension://fcoeoabgfenejglbffodgkkbkcdhcgfn/sidepanel.html?...`;
-- nested Claude task `AXWebArea`: `https://claude.ai/cic/task/...`;
-- disabled `AXButton`: `Navigating to https://www.iana.org/help/exam...`;
-- permission text beginning `Allow Claude to use the browser on` (Chrome split the hostname into another accessibility node);
-- enabled semantic buttons `Allow once`, `Always allow for this website`, and `Deny`.
+- nested Claude task `AXWebArea` under `https://claude.ai/cic/...`;
+- the original site prompt, with permission text beginning `Allow Claude to use the browser on`, a disabled action descriptor such as `Navigating to https://...`, and semantic `Allow once`, persistent-site approval, and `Deny` buttons;
+- the current tool prompt, with `Permission request: browser_batch` or a single routine browser tool, a semantic JSON payload, and enabled buttons whose accessible labels include shortcuts (`Deny 1` and `Allow once 2`).
 
-The watcher therefore requires the exact extension/task nesting, the permission phrase, an enabled `Allow once` and `Deny`, and a recognized disabled browser-action descriptor. It extracts the public hostname from the descriptor, checks any complete prompt hostname for agreement, and presses with `AXPress`. It prefers `Always allow for this website` plus known wording variants, otherwise `Allow once`. The live dry run detected `www.iana.org`; the live approval selected persistent site access and confirmed that Claude resumed. Claude's prior automatic-approval setting was restored after the inspection.
+The watcher requires the exact extension/task nesting and semantic approval controls. For the original schema it validates the action descriptor and hostname. For current prompts it parses the exposed JSON, requires only recognized routine browser actions, and associates tab-only read/interaction prompts with the public page in the same Chrome window. It scans every Chrome window and every matching side-panel task in each poll, presses only with `AXPress`, and prefers persistent site approval when available. The packaged LaunchAgent test approved a real navigation/read flow on a previously unapproved public domain and confirmed that Claude resumed.
 
 No hostname allowlist is used. Routine navigation, opening, reading, search, scrolling, inspection, viewing, clicking, and ordinary interaction on public hosts can be approved. Credential/login, OAuth/authorization, download/upload, purchase/payment/transfer, sensitive-information entry, submission/publishing, and destructive markers never classify as routine. Local and private hosts also fail closed.
 
-If Claude or Chrome changes these Accessibility labels or hierarchy, the watcher makes no click. It logs the mismatch, attempts a diagnostic screenshot, and posts a notification. `inspect` provides bounded troubleshooting signals:
+If Claude or Chrome changes these Accessibility labels or hierarchy, the watcher makes no click. Candidate Claude permission prompts that fail classification are logged as `candidate_rejected` with the semantic permission type and rejection reason; payload contents are not copied into the log. The watcher also attempts a diagnostic screenshot and posts a notification. `inspect` provides bounded troubleshooting signals:
 
 ```sh
 "$HOME/Applications/SAB Permission Watcher.app/Contents/MacOS/sab-permission-watcher" inspect --debug
@@ -114,7 +113,7 @@ npm test
 npm run build
 ```
 
-The TypeScript suite uses mocked Codex executions for continue, correction, approval, reconciliation, timeout, and run/SOP isolation. Neutral fixture SOPs under `tests/fixtures/` verify that rules, state, and rulings are not carried between calls. The Swift suite covers routine, persistent/fallback approval, protected and unknown prompts, extension targeting, retry bounds, and deduplication. The packaging test builds the release app and verifies its `APPL` structure, executable, `Info.plist`, bundle identifier, and complete ad-hoc signature.
+The TypeScript suite uses mocked Codex executions for continue, correction, approval, reconciliation, timeout, and run/SOP isolation. Neutral fixture SOPs under `tests/fixtures/` verify that rules, state, and rulings are not carried between calls. The Swift suite covers both live prompt schemas, same-window tab context, multiple Chrome windows/tab groups/side-panel tasks, persistent/fallback approval, protected and unknown prompts, retry bounds, and deduplication. The packaging test builds the release app and verifies its `APPL` structure, executable, `Info.plist`, bundle identifier, and complete ad-hoc signature.
 
 Common failures:
 

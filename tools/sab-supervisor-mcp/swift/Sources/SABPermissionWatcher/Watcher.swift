@@ -51,49 +51,50 @@ final class PermissionWatcher {
         for pid in AccessibilityReader.chromeProcessIdentifiers() {
             guard let root = AccessibilityReader.readChrome(pid: pid) else { continue }
             if options.debug { printDebugSignals(root.semantic) }
-            let detection = detector.detect(in: root.semantic)
-            switch detection {
-            case .none:
-                continue
-            case let .routine(match):
-                detectedCount += 1
-                activeFingerprints.insert(match.fingerprint)
-                handleRoutine(match, pid: pid, root: root)
-            case let .protected(hostname, permissionType, reason):
-                detectedCount += 1
-                let fingerprint = "protected|\(hostname)|\(permissionType)|\(reason)"
-                activeFingerprints.insert(fingerprint)
-                if !unknownFingerprints.contains(fingerprint) {
+            for detection in detector.detectAll(in: root.semantic) {
+                switch detection {
+                case .none:
+                    continue
+                case let .routine(match):
+                    detectedCount += 1
+                    activeFingerprints.insert(match.fingerprint)
+                    handleRoutine(match, pid: pid, root: root)
+                case let .protected(hostname, permissionType, reason):
+                    detectedCount += 1
+                    let fingerprint = "protected|\(hostname)|\(permissionType)|\(reason)"
+                    activeFingerprints.insert(fingerprint)
+                    if !unknownFingerprints.contains(fingerprint) {
+                        unknownFingerprints.insert(fingerprint)
+                        log(
+                            hostname: hostname,
+                            permissionType: permissionType,
+                            actionKind: "protected",
+                            button: "none",
+                            result: "not_approved",
+                            details: reason
+                        )
+                    }
+                case let .unknown(hostname, permissionType, reason):
+                    detectedCount += 1
+                    let fingerprint = "unknown|\(hostname)|\(permissionType)|\(reason)"
+                    activeFingerprints.insert(fingerprint)
+                    guard !unknownFingerprints.contains(fingerprint) else { continue }
                     unknownFingerprints.insert(fingerprint)
+                    let screenshot = captureFailureScreenshot(hostname: hostname, pid: pid)
                     log(
                         hostname: hostname,
                         permissionType: permissionType,
-                        actionKind: "protected",
+                        actionKind: "candidate",
                         button: "none",
-                        result: "not_approved",
-                        details: reason
+                        result: "candidate_rejected",
+                        details: reason,
+                        screenshot: screenshot
+                    )
+                    WatcherNotification.show(
+                        title: "Claude permission needs attention",
+                        message: "The watcher could not safely identify a prompt for \(hostname). No click was made."
                     )
                 }
-            case let .unknown(hostname, permissionType, reason):
-                detectedCount += 1
-                let fingerprint = "unknown|\(hostname)|\(permissionType)|\(reason)"
-                activeFingerprints.insert(fingerprint)
-                guard !unknownFingerprints.contains(fingerprint) else { continue }
-                unknownFingerprints.insert(fingerprint)
-                let screenshot = captureFailureScreenshot(hostname: hostname, pid: pid)
-                log(
-                    hostname: hostname,
-                    permissionType: permissionType,
-                    actionKind: "unknown",
-                    button: "none",
-                    result: "unrecognized",
-                    details: reason,
-                    screenshot: screenshot
-                )
-                WatcherNotification.show(
-                    title: "Claude permission needs attention",
-                    message: "The watcher could not safely identify a prompt for \(hostname). No click was made."
-                )
             }
         }
         tracker.clearAbsent(activeFingerprints: activeFingerprints)
@@ -179,7 +180,7 @@ final class PermissionWatcher {
             ) else { continue }
             let taskNodes = task.semantic.descendantsIncludingSelf()
             if taskNodes.contains(where: {
-                !$0.enabled && $0.displayedText == match.actionDescriptor
+                $0.displayedText == match.actionDescriptor
             }) {
                 continue
             }

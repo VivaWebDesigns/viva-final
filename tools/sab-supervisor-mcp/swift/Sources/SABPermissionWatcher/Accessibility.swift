@@ -48,8 +48,7 @@ enum AccessibilityReader {
             for taskRoot in taskRoots {
                 let nodes = taskRoot.descendantsIncludingSelf()
                 guard nodes.contains(where: {
-                    !$0.semantic.enabled
-                        && $0.semantic.displayedText == match.actionDescriptor
+                    $0.semantic.displayedText == match.actionDescriptor
                 }), let button = nodes.last(where: {
                     $0.semantic.role == "AXButton"
                         && $0.semantic.enabled

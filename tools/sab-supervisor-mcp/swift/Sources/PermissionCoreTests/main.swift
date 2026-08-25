@@ -32,6 +32,77 @@ func snapshot(
     return SemanticNode(role: "AXApplication", children: [sidePanel])
 }
 
+func batchSnapshot(
+    taskURL: String = "https://claude.ai/cic/task/neutral-batch-task",
+    hostname: String = "www.example.net",
+    actionNames: [String] = ["navigate", "get_page_text"],
+    buttons: [String] = ["Deny 1", "Allow once 2"],
+    wrapper: SemanticNode? = nil
+) -> SemanticNode {
+    let actions: [[String: Any]] = actionNames.enumerated().map { index, name in
+        var input: [String: Any] = ["tabId": 42]
+        if index == 0 { input["url"] = "https://\(hostname)/reference" }
+        return ["name": name, "input": input]
+    }
+    let payload = try! JSONSerialization.data(withJSONObject: ["actions": actions])
+    let payloadText = String(data: payload, encoding: .utf8)!
+    let task = SemanticNode(
+        role: "AXWebArea",
+        url: taskURL,
+        children: [
+            SemanticNode(
+                role: "AXGroup",
+                children: [
+                    SemanticNode(role: "AXGroup", label: "Permission request: browser_batch"),
+                    SemanticNode(role: "AXStaticText", label: payloadText),
+                ] + buttons.map { SemanticNode(role: "AXButton", label: $0) }
+            ),
+        ]
+    )
+    let sidePanel = SemanticNode(
+        role: "AXWebArea",
+        url: "chrome-extension://\(extensionID)/sidepanel.html?tabId=42",
+        children: [task]
+    )
+    return SemanticNode(role: "AXApplication", children: [wrapper ?? sidePanel])
+}
+
+func singleToolSnapshot(
+    toolName: String = "get_page_text",
+    pageURL: String = "https://www.example.edu/reference",
+    payload: [String: Any] = ["tabId": 42]
+) -> SemanticNode {
+    let payloadData = try! JSONSerialization.data(withJSONObject: payload)
+    let payloadText = String(data: payloadData, encoding: .utf8)!
+    let task = SemanticNode(
+        role: "AXWebArea",
+        url: "https://claude.ai/cic/task/single-tool-task",
+        children: [
+            SemanticNode(role: "AXGroup", label: "Permission request: \(toolName)"),
+            SemanticNode(role: "AXStaticText", label: payloadText),
+            SemanticNode(role: "AXButton", label: "Deny 1"),
+            SemanticNode(role: "AXButton", label: "Allow once 2"),
+        ]
+    )
+    let panel = SemanticNode(
+        role: "AXWebArea",
+        url: "chrome-extension://\(extensionID)/sidepanel.html?tabId=42",
+        children: [task]
+    )
+    return SemanticNode(
+        role: "AXApplication",
+        children: [
+            SemanticNode(
+                role: "AXWindow",
+                children: [
+                    SemanticNode(role: "AXWebArea", url: pageURL),
+                    panel,
+                ]
+            ),
+        ]
+    )
+}
+
 let detector = PromptDetector(extensionID: extensionID)
 
 if case let .routine(match) = detector.detect(in: snapshot()) {
@@ -51,6 +122,76 @@ if case let .routine(match) = detector.detect(
     expect(match.hostname == "example.org", "split prompt hostname from descriptor")
 } else {
     failures.append("real split accessibility prompt was not detected")
+}
+
+if case let .routine(match) = detector.detect(in: batchSnapshot()) {
+    expect(match.hostname == "www.example.net", "browser_batch hostname")
+    expect(
+        match.actionKind == "browser_batch:navigate,get_page_text",
+        "browser_batch action kinds"
+    )
+    expect(match.selectedButton == "Allow once 2", "shortcut-suffixed allow button")
+    expect(
+        match.actionDescriptor == "Permission request: browser_batch",
+        "browser_batch prompt identity"
+    )
+} else {
+    failures.append("real browser_batch permission prompt was not detected")
+}
+
+if case let .routine(match) = detector.detect(in: singleToolSnapshot()) {
+    expect(match.hostname == "www.example.edu", "single read uses same-window page hostname")
+    expect(match.actionKind == "get_page_text", "single read action kind")
+    expect(match.selectedButton == "Allow once 2", "single read allow button")
+} else {
+    failures.append("single get_page_text permission was not detected")
+}
+
+if case .protected = detector.detect(
+    in: singleToolSnapshot(pageURL: "http://localhost:8080/private")
+) {
+    // Expected local-page exclusion.
+} else {
+    failures.append("single read on local page was not protected")
+}
+
+if case .protected = detector.detect(
+    in: batchSnapshot(hostname: "accounts.example.net", actionNames: ["navigate", "authorize"])
+) {
+    // Expected protected classification before unsupported-action handling.
+} else {
+    failures.append("OAuth browser_batch was not protected")
+}
+
+for protectedAction in [
+    "download", "upload", "purchase", "enter_password", "delete", "type_sensitive_information",
+] {
+    if case .protected = detector.detect(
+        in: batchSnapshot(actionNames: ["navigate", protectedAction])
+    ) {
+        // Expected protected classification.
+    } else {
+        failures.append("protected browser_batch action was not protected: \(protectedAction)")
+    }
+}
+
+if case .protected = detector.detect(
+    in: singleToolSnapshot(
+        toolName: "click",
+        payload: ["tabId": 42, "selector": "button#submit-payment"]
+    )
+) {
+    // Expected protected semantic target.
+} else {
+    failures.append("protected single-tool click was not protected")
+}
+
+if case .unknown = detector.detect(
+    in: batchSnapshot(actionNames: ["navigate", "evaluate_script"])
+) {
+    // Expected fail-closed result.
+} else {
+    failures.append("unsupported browser_batch action did not fail closed")
 }
 
 if case let .routine(match) = detector.detect(
@@ -103,6 +244,37 @@ if case let .routine(match) = detector.detect(in: multiplePanels) {
     expect(match.hostname == "second.example.org", "multiple Claude panels")
 } else {
     failures.append("routine prompt in a later Claude panel was not detected")
+}
+
+let multipleWindowsAndGroups = SemanticNode(
+    role: "AXApplication",
+    children: [
+        SemanticNode(
+            role: "AXWindow",
+            children: [
+                SemanticNode(role: "AXTabGroup", children: [snapshot(prompt: "No permission here")]),
+            ]
+        ),
+        SemanticNode(
+            role: "AXWindow",
+            children: [
+                SemanticNode(
+                    role: "AXTabGroup",
+                    children: [batchSnapshot(
+                        taskURL: "https://claude.ai/cic/new/side-panel-instance",
+                        hostname: "docs.example.org"
+                    )]
+                ),
+            ]
+        ),
+    ]
+)
+let allWindowResults = detector.detectAll(in: multipleWindowsAndGroups)
+expect(allWindowResults.count == 1, "scan all Chrome windows and tab groups")
+if case let .routine(match) = allWindowResults.first {
+    expect(match.hostname == "docs.example.org", "later side-panel task instance")
+} else {
+    failures.append("later side-panel task instance was not detected")
 }
 
 if case .protected = detector.detect(

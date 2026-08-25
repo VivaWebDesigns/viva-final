@@ -28,34 +28,76 @@ public struct PromptDetector: Sendable {
         "inspecting", "clicking", "interacting", "viewing",
     ]
 
+    private let routineBatchActions = [
+        "navigate", "get_page_text", "get_tabs", "find", "search", "scroll",
+        "click", "hover", "wait", "screenshot",
+    ]
+
     public func detect(in root: SemanticNode) -> DetectionResult {
-        let extensionRoots = root.descendantsIncludingSelf().filter {
-            $0.role == "AXWebArea"
-                && $0.url.hasPrefix("chrome-extension://\(extensionID)/sidepanel.html")
-        }
-        for extensionRoot in extensionRoots {
-            let taskRoots = extensionRoot.descendantsIncludingSelf().filter {
-                $0.role == "AXWebArea"
-                    && ($0.url.hasPrefix("https://claude.ai/cic/task/")
-                        || $0.url.hasPrefix("https://claude.ai/cic/new"))
-            }
-            for taskRoot in taskRoots {
-                let result = detectTask(taskRoot)
-                if result != .none { return result }
-            }
-        }
-        return .none
+        detectAll(in: root).first ?? .none
     }
 
-    private func detectTask(_ taskRoot: SemanticNode) -> DetectionResult {
+    public func detectAll(in root: SemanticNode) -> [DetectionResult] {
+        var results: [DetectionResult] = []
+        let windows = root.descendantsIncludingSelf().filter { $0.role == "AXWindow" }
+        let scopes = windows.isEmpty ? [root] : windows
+        for scope in scopes {
+            let fallbackHostname = visiblePageHostname(in: scope)
+            let extensionRoots = scope.descendantsIncludingSelf().filter {
+                $0.role == "AXWebArea"
+                    && $0.url.hasPrefix("chrome-extension://\(extensionID)/sidepanel.html")
+            }
+            for extensionRoot in extensionRoots {
+                let taskRoots = extensionRoot.descendantsIncludingSelf().filter {
+                    $0.role == "AXWebArea"
+                        && isClaudeTaskURL($0.url)
+                }
+                for taskRoot in taskRoots {
+                    let result = detectTask(taskRoot, fallbackHostname: fallbackHostname)
+                    if result != .none { results.append(result) }
+                }
+            }
+        }
+        return results
+    }
+
+    private func detectTask(
+        _ taskRoot: SemanticNode,
+        fallbackHostname: String?
+    ) -> DetectionResult {
         let nodes = taskRoot.descendantsIncludingSelf()
         let permissionPrefix = "Allow Claude to use the browser on"
-        guard nodes.contains(where: {
-            $0.displayedText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let permissionMarker = nodes.map(\.displayedText).last(where: {
+            $0.trimmingCharacters(in: .whitespacesAndNewlines)
                 .hasPrefix(permissionPrefix)
-        }) else {
-            return .none
+        }) {
+            return detectLegacyTask(
+                taskRoot,
+                nodes: nodes,
+                permissionPrefix: permissionPrefix,
+                permissionMarker: permissionMarker
+            )
         }
+
+        guard let permissionMarker = nodes.map(\.displayedText).last(where: {
+            $0.trimmingCharacters(in: .whitespacesAndNewlines)
+                .hasPrefix("Permission request:")
+        }) else { return .none }
+
+        return detectPermissionRequest(
+            taskRoot,
+            nodes: nodes,
+            permissionMarker: permissionMarker,
+            fallbackHostname: fallbackHostname
+        )
+    }
+
+    private func detectLegacyTask(
+        _ taskRoot: SemanticNode,
+        nodes: [SemanticNode],
+        permissionPrefix: String,
+        permissionMarker: String
+    ) -> DetectionResult {
 
         let disabledDescriptors = nodes
             .filter { $0.role == "AXButton" && !$0.enabled }
@@ -86,10 +128,11 @@ public struct PromptDetector: Sendable {
         }
         let permissionType = "\(permissionPrefix) \(hostname)?"
 
-        let buttonLabels = Set(
-            nodes.filter { $0.role == "AXButton" && $0.enabled }.map(\.displayedText)
-        )
-        guard buttonLabels.contains("Allow once"), buttonLabels.contains("Deny") else {
+        let buttonLabels = nodes.filter { $0.role == "AXButton" && $0.enabled }
+            .map(\.displayedText)
+        guard approvalButton(prefix: "Allow once", in: buttonLabels) != nil,
+              approvalButton(prefix: "Deny", in: buttonLabels) != nil
+        else {
             return .unknown(
                 hostname: hostname,
                 permissionType: permissionType,
@@ -97,7 +140,9 @@ public struct PromptDetector: Sendable {
             )
         }
 
-        let selectedButton = alwaysLabels.first(where: buttonLabels.contains) ?? "Allow once"
+        let selectedButton = alwaysLabels.compactMap {
+            approvalButton(prefix: $0, in: buttonLabels)
+        }.first ?? approvalButton(prefix: "Allow once", in: buttonLabels)!
 
         let normalizedDescriptor = descriptor.lowercased()
         if let marker = protectedMarkers.first(where: normalizedDescriptor.contains) {
@@ -146,11 +191,235 @@ public struct PromptDetector: Sendable {
                 taskURL: taskRoot.url,
                 hostname: hostname,
                 permissionType: permissionType,
-                actionDescriptor: descriptor,
+                actionDescriptor: permissionMarker,
                 actionKind: actionKind,
                 selectedButton: selectedButton
             )
         )
+    }
+
+    private func detectPermissionRequest(
+        _ taskRoot: SemanticNode,
+        nodes: [SemanticNode],
+        permissionMarker: String,
+        fallbackHostname: String?
+    ) -> DetectionResult {
+        let permissionType = permissionMarker.trimmingCharacters(in: .whitespacesAndNewlines)
+        let toolName = permissionType.dropFirst("Permission request:".count)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let buttonLabels = nodes.filter { $0.role == "AXButton" && $0.enabled }
+            .map(\.displayedText)
+        guard let allowButton = approvalButton(prefix: "Allow once", in: buttonLabels),
+              approvalButton(prefix: "Deny", in: buttonLabels) != nil
+        else {
+            return .unknown(
+                hostname: "unknown",
+                permissionType: permissionType,
+                reason: "Candidate Claude permission prompt did not expose semantic Allow once and Deny buttons"
+            )
+        }
+        let selectedButton = alwaysLabels.compactMap {
+            approvalButton(prefix: $0, in: buttonLabels)
+        }.first ?? allowButton
+
+        if toolName != "browser_batch" {
+            return detectSinglePermissionRequest(
+                taskRoot,
+                nodes: nodes,
+                permissionMarker: permissionMarker,
+                permissionType: permissionType,
+                toolName: toolName,
+                allowButton: selectedButton,
+                fallbackHostname: fallbackHostname
+            )
+        }
+
+        guard let payloadText = nodes.map(\.displayedText).last(where: { batchPayload(from: $0) != nil }),
+              let actions = batchPayload(from: payloadText)
+        else {
+            return .unknown(
+                hostname: "unknown",
+                permissionType: permissionType,
+                reason: "Candidate browser_batch prompt did not expose a readable semantic JSON payload"
+            )
+        }
+
+        let normalizedPayload = payloadText.lowercased()
+        if let marker = protectedMarkers.first(where: normalizedPayload.contains) {
+            return .protected(
+                hostname: hostnames(in: actions).first ?? "unknown",
+                permissionType: permissionType,
+                reason: "Protected action marker in browser_batch payload: \(marker)"
+            )
+        }
+
+        let actionNames = actions.compactMap { $0["name"] as? String }
+        guard actionNames.count == actions.count, !actionNames.isEmpty else {
+            return .unknown(
+                hostname: hostnames(in: actions).first ?? "unknown",
+                permissionType: permissionType,
+                reason: "Candidate browser_batch payload contained an unnamed or empty action"
+            )
+        }
+        guard actionNames.allSatisfy({ routineBatchActions.contains($0) }) else {
+            let unsupported = actionNames.filter { !routineBatchActions.contains($0) }
+            return .unknown(
+                hostname: hostnames(in: actions).first ?? "unknown",
+                permissionType: permissionType,
+                reason: "Candidate browser_batch contained unsupported actions: \(unsupported.joined(separator: ", "))"
+            )
+        }
+
+        let hosts = Array(Set(hostnames(in: actions)))
+        guard hosts.count == 1, let hostname = hosts.first else {
+            return .unknown(
+                hostname: hosts.first ?? "unknown",
+                permissionType: permissionType,
+                reason: "Candidate browser_batch did not expose exactly one target hostname"
+            )
+        }
+        guard isPublicHostname(hostname) else {
+            return .protected(
+                hostname: hostname,
+                permissionType: permissionType,
+                reason: "Non-public or local hostname"
+            )
+        }
+
+        return .routine(
+            PromptMatch(
+                taskURL: taskRoot.url,
+                hostname: hostname,
+                permissionType: permissionType,
+                actionDescriptor: permissionMarker,
+                actionKind: "browser_batch:\(actionNames.joined(separator: ","))",
+                selectedButton: selectedButton
+            )
+        )
+    }
+
+    private func detectSinglePermissionRequest(
+        _ taskRoot: SemanticNode,
+        nodes: [SemanticNode],
+        permissionMarker: String,
+        permissionType: String,
+        toolName: String,
+        allowButton: String,
+        fallbackHostname: String?
+    ) -> DetectionResult {
+        guard routineBatchActions.contains(toolName) else {
+            return .unknown(
+                hostname: fallbackHostname ?? "unknown",
+                permissionType: permissionType,
+                reason: "Candidate Claude prompt requested unsupported tool \(toolName)"
+            )
+        }
+        guard let payloadText = nodes.map(\.displayedText).last(where: { jsonObject(from: $0) != nil }),
+              let payload = jsonObject(from: payloadText)
+        else {
+            return .unknown(
+                hostname: fallbackHostname ?? "unknown",
+                permissionType: permissionType,
+                reason: "Candidate \(toolName) prompt did not expose a readable semantic JSON payload"
+            )
+        }
+
+        let normalizedPayload = payloadText.lowercased()
+        if let marker = protectedMarkers.first(where: normalizedPayload.contains) {
+            return .protected(
+                hostname: hostname(in: payload) ?? fallbackHostname ?? "unknown",
+                permissionType: permissionType,
+                reason: "Protected action marker in \(toolName) payload: \(marker)"
+            )
+        }
+
+        guard let hostname = hostname(in: payload) ?? fallbackHostname else {
+            return .unknown(
+                hostname: "unknown",
+                permissionType: permissionType,
+                reason: "Candidate \(toolName) prompt could not be associated with one visible public page"
+            )
+        }
+        guard isPublicHostname(hostname) else {
+            return .protected(
+                hostname: hostname,
+                permissionType: permissionType,
+                reason: "Non-public or local hostname"
+            )
+        }
+
+        return .routine(
+            PromptMatch(
+                taskURL: taskRoot.url,
+                hostname: hostname,
+                permissionType: permissionType,
+                actionDescriptor: permissionMarker,
+                actionKind: toolName,
+                selectedButton: allowButton
+            )
+        )
+    }
+
+    private func approvalButton(prefix: String, in labels: [String]) -> String? {
+        labels.first { label in
+            let normalized = label.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard normalized.hasPrefix(prefix) else { return false }
+            let suffix = normalized.dropFirst(prefix.count)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            return suffix.isEmpty || suffix.allSatisfy(\.isNumber)
+        }
+    }
+
+    private func batchPayload(from text: String) -> [[String: Any]]? {
+        guard let data = text.data(using: .utf8),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let actions = object["actions"] as? [[String: Any]]
+        else { return nil }
+        return actions
+    }
+
+    private func jsonObject(from text: String) -> [String: Any]? {
+        guard let data = text.data(using: .utf8) else { return nil }
+        return try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+    }
+
+    private func hostname(in payload: [String: Any]) -> String? {
+        guard let rawURL = payload["url"] as? String,
+              let url = URL(string: rawURL),
+              ["http", "https"].contains(url.scheme?.lowercased() ?? "")
+        else { return nil }
+        return url.host?.lowercased()
+    }
+
+    private func hostnames(in actions: [[String: Any]]) -> [String] {
+        actions.compactMap { action in
+            guard let input = action["input"] as? [String: Any],
+                  let rawURL = input["url"] as? String,
+                  let url = URL(string: rawURL),
+                  ["http", "https"].contains(url.scheme?.lowercased() ?? ""),
+                  let host = url.host?.lowercased()
+            else { return nil }
+            return host
+        }
+    }
+
+    private func isClaudeTaskURL(_ rawURL: String) -> Bool {
+        guard let url = URL(string: rawURL),
+              url.scheme == "https",
+              url.host?.lowercased() == "claude.ai"
+        else { return false }
+        return url.path.hasPrefix("/cic/")
+    }
+
+    private func visiblePageHostname(in scope: SemanticNode) -> String? {
+        scope.descendantsIncludingSelf().compactMap { node -> String? in
+            guard node.role == "AXWebArea",
+                  let url = URL(string: node.url),
+                  ["http", "https"].contains(url.scheme?.lowercased() ?? ""),
+                  url.host?.lowercased() != "claude.ai"
+            else { return nil }
+            return url.host?.lowercased()
+        }.first
     }
 
     private func permissionHostname(from text: String) -> String? {
