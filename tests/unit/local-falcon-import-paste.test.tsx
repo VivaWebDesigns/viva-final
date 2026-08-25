@@ -325,6 +325,17 @@ describe("Local Falcon import clipboard", () => {
     expect(await screen.findByAltText("Uploaded Local Falcon ranking heatmap")).toHaveStyle({
       transform: "translate(0px, 0px) scale(1.6)",
     });
+    fireEvent.click(screen.getByRole("button", { name: "Magnify scan for Boda Plumbing, Inc." }));
+    expect(await screen.findByTestId("local-falcon-scan-magnifier")).toBeInTheDocument();
+    expect(screen.getByTestId("local-falcon-scan-magnifier-image")).toHaveAttribute(
+      "src",
+      "data:image/png;base64,aGVhdG1hcA==",
+    );
+    expect(screen.getByTestId("button-scan-zoom-fit")).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByTestId("button-scan-zoom-200"));
+    expect(screen.getByTestId("local-falcon-scan-magnifier-image")).toHaveStyle({ width: "200%" });
+    fireEvent.click(screen.getByTestId("button-close-scan-magnifier"));
+    expect(screen.queryByTestId("local-falcon-scan-magnifier")).not.toBeInTheDocument();
     expect(screen.getByTestId("select-local-falcon-lead-type")).toHaveTextContent("Choose SAB or Location Based");
     expect(screen.getByTestId("button-confirm-local-falcon-import")).toBeDisabled();
   });

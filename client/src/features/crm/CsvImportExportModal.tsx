@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import {
-  AlertCircle, Archive, CheckCircle2, ChevronDown, ClipboardPaste, Download, Flag, ImagePlus, SkipForward, Upload,
+  AlertCircle, Archive, CheckCircle2, ChevronDown, ClipboardPaste, Download, Flag, ImagePlus, SkipForward, Upload, ZoomIn,
 } from "lucide-react";
 import { useAdminLang } from "@/i18n/LanguageContext";
 import LocalVisibilityReportTemplate from "@features/local-visibility-report/LocalVisibilityReportTemplate";
@@ -125,13 +125,25 @@ function FramedReportPreview({
   data,
   mapPresentation,
   reportRef,
+  onInspect,
 }: {
   data: LocalVisibilityReportData;
   mapPresentation: LocalFalconPreviewRow["mapPresentation"];
   reportRef?: (element: HTMLDivElement | null) => void;
+  onInspect: () => void;
 }) {
   return (
-    <div className="h-[720px] w-[270px] overflow-hidden rounded-lg border bg-white shadow-sm" aria-label="Final report framing preview">
+    <div className="relative h-[720px] w-[270px] overflow-hidden rounded-lg border bg-white shadow-sm" aria-label="Final report framing preview">
+      <Button
+        type="button"
+        variant="secondary"
+        size="icon"
+        className="absolute right-2 top-2 z-10 h-9 w-9 border bg-white/95 shadow-md"
+        onClick={onInspect}
+        aria-label={`Magnify scan for ${data.businessName}`}
+      >
+        <ZoomIn className="h-4 w-4" />
+      </Button>
       <div className="h-[2880px] w-[1080px] origin-top-left scale-[0.25] pointer-events-none">
         <LocalVisibilityReportTemplate
           ref={reportRef}
@@ -141,6 +153,50 @@ function FramedReportPreview({
         />
       </div>
     </div>
+  );
+}
+
+function ScanMagnifierDialog({ row, onClose }: { row: LocalFalconPreviewRow; onClose: () => void }) {
+  const [zoom, setZoom] = useState<"fit" | "100" | "200">("fit");
+  const imageUrl = row.heatmapPreviewDataUrl ?? row.reportData.heatmapImageUrl;
+  const zoomWidth = zoom === "100" ? "100%" : zoom === "200" ? "200%" : undefined;
+
+  return (
+    <Dialog open onOpenChange={(nextOpen) => !nextOpen && onClose()}>
+      <DialogContent className="max-h-[94dvh] sm:max-w-5xl" data-testid="local-falcon-scan-magnifier">
+        <DialogHeader>
+          <DialogTitle>{row.companyName} scan</DialogTitle>
+          <DialogDescription>Inspect the original Local Falcon heatmap before confirming this prospect.</DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-wrap items-center gap-2" aria-label="Scan zoom controls">
+          {(["fit", "100", "200"] as const).map((level) => (
+            <Button
+              key={level}
+              type="button"
+              size="sm"
+              variant={zoom === level ? "default" : "outline"}
+              onClick={() => setZoom(level)}
+              aria-pressed={zoom === level}
+              data-testid={`button-scan-zoom-${level}`}
+            >
+              {level === "fit" ? "Fit" : `${level}%`}
+            </Button>
+          ))}
+        </div>
+        <div className="h-[72dvh] overflow-auto rounded-lg border bg-slate-100 p-3" data-testid="local-falcon-scan-magnifier-viewport">
+          <img
+            src={imageUrl}
+            alt={`Local Falcon scan for ${row.companyName}`}
+            className={zoom === "fit" ? "mx-auto block max-h-full max-w-full object-contain" : "mx-auto block max-w-none"}
+            style={zoomWidth ? { width: zoomWidth } : undefined}
+            data-testid="local-falcon-scan-magnifier-image"
+          />
+        </div>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onClose} data-testid="button-close-scan-magnifier">Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -169,6 +225,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
   const [pastedBatchId, setPastedBatchId] = useState<string | null>(null);
   const [pastedCompetitorBatchId, setPastedCompetitorBatchId] = useState<string | null>(null);
   const [pastedBatchRequiresCompetitors, setPastedBatchRequiresCompetitors] = useState(false);
+  const [magnifiedRow, setMagnifiedRow] = useState<LocalFalconPreviewRow | null>(null);
 
   const { data: assignableUsers = [] } = useQuery<AssignableUser[]>({
     queryKey: ["/api/crm/leads/assignable-users"],
@@ -195,6 +252,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
     setPastedBatchId(null);
     setPastedCompetitorBatchId(null);
     setPastedBatchRequiresCompetitors(false);
+    setMagnifiedRow(null);
     reportRefs.current.clear();
     setPhase("idle");
   };
@@ -470,6 +528,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && handleClose()}>
       <DialogContent className="max-h-[94dvh] overflow-y-auto sm:max-w-6xl" data-testid="csv-import-modal">
         <DialogHeader>
@@ -730,6 +789,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
                       <FramedReportPreview
                         data={row.reportData}
                         mapPresentation={row.mapPresentation}
+                        onInspect={() => setMagnifiedRow(row)}
                         reportRef={(element) => {
                           if (element) reportRefs.current.set(row.placeId, element);
                           else reportRefs.current.delete(row.placeId);
@@ -766,6 +826,8 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    {magnifiedRow && <ScanMagnifierDialog key={magnifiedRow.placeId} row={magnifiedRow} onClose={() => setMagnifiedRow(null)} />}
+    </>
   );
 }
 
