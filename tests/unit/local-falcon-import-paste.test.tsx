@@ -31,7 +31,7 @@ describe("Local Falcon import clipboard", () => {
       },
     });
 
-    expect(await screen.findByText("batch.json")).toBeInTheDocument();
+    expect(await screen.findByTestId("local-falcon-primary-file")).toHaveTextContent("batch.json");
     expect(screen.getByTestId("button-start-import")).toBeEnabled();
   });
 
@@ -49,9 +49,120 @@ describe("Local Falcon import clipboard", () => {
       },
     });
 
-    expect(await screen.findByText("batch.json")).toBeInTheDocument();
+    expect(await screen.findByTestId("local-falcon-primary-file")).toHaveTextContent("batch.json");
     expect(screen.queryByText(/paste the json manifest first/i)).not.toBeInTheDocument();
     expect(screen.getByTestId("button-start-import")).toBeEnabled();
+  });
+
+  it("retains sequential Scale-First batch and competitor pastes", async () => {
+    renderModal();
+    const zone = screen.getByTestId("local-falcon-package-dropzone");
+
+    fireEvent.paste(zone, {
+      clipboardData: {
+        files: [],
+        getData: () => JSON.stringify({ workflow: "scale_first_v2", batch: { batch_id: "charlotte-b01" }, prospects: [] }),
+      },
+    });
+    expect(await screen.findByText("Batch loaded. Copy competitors.json and paste it into the same box next.")).toBeInTheDocument();
+    expect(screen.getByTestId("button-start-import")).toBeDisabled();
+
+    fireEvent.paste(zone, {
+      clipboardData: { files: [], getData: () => JSON.stringify({ version: 2, batch_id: "charlotte-b01", reports: {} }) },
+    });
+    expect(await screen.findByTestId("local-falcon-competitors-file")).toHaveTextContent("competitors.json");
+    expect(screen.queryByText(/Batch loaded\. Copy competitors\.json/)).not.toBeInTheDocument();
+    expect(screen.getByTestId("button-start-import")).toBeEnabled();
+  });
+
+  it("accepts sequential competitor and Scale-First batch pastes in reverse order", async () => {
+    renderModal();
+    const zone = screen.getByTestId("local-falcon-package-dropzone");
+
+    fireEvent.paste(zone, {
+      clipboardData: { files: [], getData: () => JSON.stringify({ version: 2, batch_id: "charlotte-b01", reports: {} }) },
+    });
+    expect(await screen.findByTestId("local-falcon-competitors-file")).toHaveTextContent("competitors.json");
+    expect(screen.getByTestId("button-start-import")).toBeDisabled();
+
+    fireEvent.paste(zone, {
+      clipboardData: {
+        files: [],
+        getData: () => JSON.stringify({ workflow: "scale_first_v2", batch: { batch_id: "charlotte-b01" }, prospects: [] }),
+      },
+    });
+    expect(await screen.findByTestId("local-falcon-primary-file")).toHaveTextContent("batch.json");
+    expect(screen.getByTestId("button-start-import")).toBeEnabled();
+  });
+
+  it("submits sequential clipboard artifacts in the correct multipart fields", async () => {
+    let submittedPackage: File | null = null;
+    let submittedCompetitors: File | null = null;
+    server.use(
+      http.post("/api/crm/leads/import-local-falcon/preview", async ({ request }) => {
+        const form = await request.formData();
+        submittedPackage = form.get("package") as File | null;
+        submittedCompetitors = form.get("competitors") as File | null;
+        return HttpResponse.json({
+          batchId: "charlotte-b01",
+          market: { city: "Charlotte", state: "NC" },
+          trade: "tree service",
+          keyword: "tree service near me",
+          scanSpec: { grid_size: "7x7", radius_miles: 3 },
+          batchAlreadyImported: false,
+          newCount: 0,
+          variationCount: 0,
+          existingCount: 0,
+          flaggedCount: 0,
+          sourceMode: "local_falcon",
+          rows: [],
+        });
+      }),
+    );
+    renderModal();
+    const zone = screen.getByTestId("local-falcon-package-dropzone");
+    const batch = { workflow: "scale_first_v2", batch: { batch_id: "charlotte-b01" }, prospects: [] };
+    const competitors = { version: 2, batch_id: "charlotte-b01", reports: {} };
+
+    fireEvent.paste(zone, { clipboardData: { files: [], getData: () => JSON.stringify(batch) } });
+    fireEvent.paste(zone, { clipboardData: { files: [], getData: () => JSON.stringify(competitors) } });
+    fireEvent.click(screen.getByTestId("button-start-import"));
+
+    expect(await screen.findByTestId("local-falcon-import-preview")).toBeInTheDocument();
+    expect(submittedPackage?.name).toBe("batch.json");
+    expect(submittedCompetitors?.name).toBe("competitors.json");
+    expect(JSON.parse(await submittedPackage!.text())).toEqual(batch);
+    expect(JSON.parse(await submittedCompetitors!.text())).toEqual(competitors);
+  });
+
+  it("blocks mismatched sequential JSON artifacts until the matching sidecar is pasted", async () => {
+    renderModal();
+    const zone = screen.getByTestId("local-falcon-package-dropzone");
+    fireEvent.paste(zone, {
+      clipboardData: {
+        files: [],
+        getData: () => JSON.stringify({ workflow: "scale_first_v2", batch: { batch_id: "charlotte-b01" }, prospects: [] }),
+      },
+    });
+    fireEvent.paste(zone, {
+      clipboardData: { files: [], getData: () => JSON.stringify({ version: 2, batch_id: "wrong-batch", reports: {} }) },
+    });
+    expect(await screen.findByText("Batch ID mismatch: batch.json is charlotte-b01, but competitors.json is wrong-batch.")).toBeInTheDocument();
+    expect(screen.getByTestId("button-start-import")).toBeDisabled();
+
+    fireEvent.paste(zone, {
+      clipboardData: { files: [], getData: () => JSON.stringify({ version: 2, batch_id: "charlotte-b01", reports: {} }) },
+    });
+    expect(screen.queryByText(/Batch ID mismatch/)).not.toBeInTheDocument();
+    expect(screen.getByTestId("button-start-import")).toBeEnabled();
+  });
+
+  it("rejects valid JSON that is not a recognized Local Falcon artifact", async () => {
+    renderModal();
+    const zone = screen.getByTestId("local-falcon-package-dropzone");
+    fireEvent.paste(zone, { clipboardData: { files: [], getData: () => "{}" } });
+    expect(await screen.findByText("The pasted JSON is not a recognized batch.json or competitors.json artifact.")).toBeInTheDocument();
+    expect(screen.getByTestId("button-start-import")).toBeDisabled();
   });
 
   it("shows a useful error when pasted text is not JSON", async () => {

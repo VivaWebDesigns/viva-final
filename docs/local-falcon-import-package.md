@@ -1,6 +1,6 @@
 # Local Falcon prospect import
 
-The canonical handoff is `batch.json` plus an optional sibling
+The canonical Scale-First v2 handoff is `batch.json` plus its required sibling
 `competitors.json`. The CRM derives the official
 Local Falcon image URL from each prospect's `report_key`, retrieves the original
 image server-side, validates it, shows the exact report framing for approval,
@@ -10,8 +10,8 @@ No heatmap screenshot or ZIP is required during the normal import flow.
 
 ## Competitor sidecar
 
-`competitors.json` stores the full Local Falcon competitor list for each
-individual scan. Its `reports` object is keyed by the same immutable
+`competitors.json` stores the subject and its immediately adjacent ordinal
+competitors for each individual scan. Its `reports` object is keyed by the same immutable
 `report_key` used in `batch.json`.
 
 ```json
@@ -134,8 +134,9 @@ latitude/longitude, ARP, ATRP, `atrp_capped`, SoLV, reviews, rating, and
 ## CRM workflow
 
 1. Open **CRM → Leads → Import → Local Falcon**.
-2. Select `batch.json` and optional `competitors.json` together. Pasting the
-   batch JSON, dropping both files, or choosing a ZIP also works.
+2. Copy and paste `batch.json` and `competitors.json` into the import box one at
+   a time, in either order. Selecting or dropping both files together also works;
+   ZIP remains available as a fallback.
 3. Click **Review import**. The CRM retrieves the official maps automatically.
 4. Review duplicate checks and the exact final report framing for every included prospect.
 5. Explicitly approve any flagged possible duplicate.
@@ -153,10 +154,8 @@ in the Local Visibility Snapshot generator without OCR or re-entry.
 On the unified opportunity profile, one report displays without an extra
 selector. When multiple radius variations exist, the profile adds a scan
 variation selector. The **Competitors** tab automatically uses the selected
-scan variation. It shows the subject's true Local Falcon position, the number
-of businesses ahead, and the first three higher-ranked companies in preserved
-SoLV order. **Show all** reveals the complete set ahead of the subject,
-including cases where the subject ranks below the top ten.
+scan variation and shows the subject's true Local Falcon position with the
+immediately adjacent business above and below when available.
 
 For maps retrieved automatically from Local Falcon, the report applies the
 approved centered 160% presentation framing. This reproduces the close
