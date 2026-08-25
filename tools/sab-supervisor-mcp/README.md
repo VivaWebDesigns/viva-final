@@ -41,7 +41,9 @@ Add this server to Claude Desktop's MCP configuration, then restart Claude Deskt
 }
 ```
 
-Give Claude the fixed instruction in `prompts/claude-instruction.md`. Each call supplies exactly four run-local inputs: the exact controlling SOP link/file, Claude's latest checkpoint message, a concise durable run-state summary, and relevant explicit user rulings. The reviewer has no default SOP and no cross-call state.
+Give Claude the fixed instruction in `prompts/claude-instruction.md`. That instruction is what causes Claude to invoke the reviewer before ending a meaningful checkpoint turn; the MCP server itself does not independently detect completed or paused Claude responses. Each call supplies exactly four run-local inputs: the exact controlling SOP link/file, Claude's latest checkpoint message, a concise durable run-state summary, and relevant explicit user rulings. The reviewer has no default SOP and no cross-call state.
+
+After a review, Claude immediately follows `continue`, `correct`, or `reconcile` instructions and keeps working. It stops for the user only when the verdict is `user_ruling_required` or `approval_required`, and stops normally for `complete`.
 
 ## Accessibility authorization
 
