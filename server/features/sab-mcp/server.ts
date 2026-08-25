@@ -6,6 +6,7 @@ import {
 import { checkCrmPlaceIds } from "./crmDedup";
 import { checkCrmPlaceIdsFromLocalFalconReport } from "./localFalconDedup";
 import { getSabRankedCells } from "./localFalconRankedCells";
+import { buildSabCompetitorSidecar } from "./localFalconCompetitorSidecar";
 import { reverseGeocodeSabCenters } from "./reverseGeocode";
 import {
   getSabCrmImportContract,
@@ -13,6 +14,7 @@ import {
 } from "./crmManifest";
 import {
   checkCrmLocalFalconReportInputSchema,
+  buildSabCompetitorSidecarInputSchema,
   checkCrmPlaceIdsInputSchema,
   createSabWorkflowInputSchema,
   getSabBatchInputSchema,
@@ -66,7 +68,7 @@ export function createSabMcpServer(
 ) {
   const server = new McpServer({
     name: "viva-sab-workflow",
-    version: "1.7.1",
+    version: "1.8.0",
   });
 
   server.registerTool("get_sab_schema", sabTool({
@@ -125,6 +127,14 @@ export function createSabMcpServer(
     inputSchema: getSabRankedCellsInputSchema,
   }), async ({ report_key, place_ids }) => {
     return jsonToolResult(await getSabRankedCells(report_key, place_ids));
+  });
+
+  server.registerTool("build_sab_competitor_sidecar", sabTool({
+    description:
+      "Build a compact competitors.json v2 from the official completed Local Falcon reports referenced by an already validated Scale-First v2 batch.json. Reconciles exact report and subject identity, scan specification, keyword, and date server-side; returns only the subject and immediately adjacent ordinal competitors. This is read-only, runs no scans, and performs no Sheet, CRM, or account writes.",
+    inputSchema: buildSabCompetitorSidecarInputSchema,
+  }), async ({ manifest_json }) => {
+    return jsonToolResult(await buildSabCompetitorSidecar(manifest_json));
   });
 
   server.registerTool("reverse_geocode_sab_centers", sabTool({

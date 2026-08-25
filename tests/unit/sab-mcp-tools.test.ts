@@ -24,9 +24,10 @@ describe("SAB MCP tool discovery", () => {
 
     try {
       const { tools } = await client.listTools();
-      expect(tools).toHaveLength(15);
+      expect(tools).toHaveLength(16);
       expect(tools.map((tool) => tool.name)).toContain("get_sab_schema");
       expect(tools.map((tool) => tool.name)).toContain("upgrade_sab_workflow_schema");
+      expect(tools.map((tool) => tool.name)).toContain("build_sab_competitor_sidecar");
       expect(tools[0]).toMatchObject({
         _meta: {
           securitySchemes: [

@@ -172,13 +172,21 @@ function zodMessage(error: z.ZodError): string {
   return error.issues.map((issue) => `${issue.path.join(".") || "competitors.json"}: ${issue.message}`).join("; ");
 }
 
-function normalizedGridSize(value: string): number | null {
+export function validateLocalFalconCompetitorReportV2(
+  report: unknown,
+): LocalFalconCompetitorReport {
+  const parsed = compactReportSchema.safeParse(report);
+  if (!parsed.success) throw new Error(zodMessage(parsed.error));
+  return parsed.data;
+}
+
+export function normalizedGridSize(value: string): number | null {
   const match = value.match(/^\s*(\d+)\s*[x×]\s*(\d+)\s*$/i);
   if (!match || match[1] !== match[2]) return null;
   return Number(match[1]);
 }
 
-function isoDate(value: string | Date): string {
+export function isoDate(value: string | Date): string {
   return new Date(value).toISOString().slice(0, 10);
 }
 

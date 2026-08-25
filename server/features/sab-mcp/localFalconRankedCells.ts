@@ -26,7 +26,7 @@ const GRID_FIELDMASK = [
   "data_points.*.lng",
 ].join(",");
 
-type FetchLike = typeof fetch;
+export type LocalFalconFetch = typeof fetch;
 
 type LocalFalconDataPoint = {
   lat?: unknown;
@@ -53,7 +53,7 @@ type LocalFalconReportData = {
   data_points?: unknown;
 };
 
-type LocalFalconResponse = {
+export type LocalFalconResponse = {
   success?: unknown;
   message?: unknown;
   data?: LocalFalconReportData;
@@ -97,7 +97,7 @@ export type SabRankedCellsResult = {
   }>;
 };
 
-function localFalconApiKey() {
+export function localFalconApiKey() {
   const apiKey = process.env.LOCAL_FALCON_API_KEY?.trim();
   if (!apiKey) {
     throw new Error(
@@ -176,7 +176,7 @@ function nearestAxisIndex(value: number, axis: number[]) {
   return nearestIndex;
 }
 
-function normalizedRank(value: unknown): number | string | null {
+export function normalizedLocalFalconRank(value: unknown): number | string | null {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string" && value.trim()) {
     const clean = value.trim();
@@ -231,7 +231,7 @@ export function extractSabRankedCells(
 
     let impreciseOrUnrankedCellCount = 0;
     const rankedCells = business.data_points.flatMap((point: LocalFalconDataPoint) => {
-      const rank = normalizedRank(point?.rank);
+      const rank = normalizedLocalFalconRank(point?.rank);
       if (typeof rank !== "number") {
         impreciseOrUnrankedCellCount += 1;
         return [];
@@ -300,12 +300,12 @@ export function extractSabRankedCells(
   };
 }
 
-async function fetchLocalFalconReport(
+export async function fetchLocalFalconReport(
   endpoint: string,
   reportKey: string,
   fieldmask: string,
   apiKey: string,
-  fetchImpl: FetchLike,
+  fetchImpl: LocalFalconFetch,
 ) {
   const url = new URL(
     `${LOCAL_FALCON_API_BASE}/${endpoint}/${encodeURIComponent(reportKey)}${endpoint === "reports" ? "/" : ""}`,
@@ -335,7 +335,7 @@ export async function getSabRankedCells(
   placeIds: string[],
   options: {
     apiKey?: string;
-    fetchImpl?: FetchLike;
+    fetchImpl?: LocalFalconFetch;
   } = {},
 ): Promise<SabRankedCellsResult> {
   const apiKey = options.apiKey?.trim() || localFalconApiKey();
