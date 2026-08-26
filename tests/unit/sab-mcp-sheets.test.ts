@@ -1015,6 +1015,54 @@ describe("SabSheetsRepository", () => {
     ).resolves.toMatchObject({ status: "complete" });
   });
 
+  it("allows a reasoned Scale-First disqualification to close without qa_ready fields", async () => {
+    const { repository } = buildRepository([
+      row({
+        workflow: "scale_first_v2",
+        city: "",
+        state: "",
+        zip: "",
+        report_key: "",
+        report_url: "",
+        scan_date: "",
+        scan_keyword: "",
+        arp: "",
+        solv: "",
+        contact_tag: "",
+        qualification_status: "disqualified",
+        research_notes:
+          "Matt manually disqualified the company because its primary category does not match the run trade.",
+      }),
+    ]);
+
+    await expect(
+      repository.saveCompany(
+        "place-1",
+        { status: "complete" },
+        "matt@vivawebdesigns.com",
+      ),
+    ).resolves.toMatchObject({ status: "complete" });
+  });
+
+  it("does not allow a Scale-First disqualification to enter qa_ready", async () => {
+    const { repository } = buildRepository([
+      row({
+        workflow: "scale_first_v2",
+        qualification_status: "disqualified",
+        research_notes:
+          "Matt manually disqualified the company because its primary category does not match the run trade.",
+      }),
+    ]);
+
+    await expect(
+      repository.saveCompany(
+        "place-1",
+        { status: "qa_ready" },
+        "matt@vivawebdesigns.com",
+      ),
+    ).rejects.toThrow(/qualification_status \(must be qualified\)/);
+  });
+
   it("requires a reason before a manual disqualification can skip unfinished audits", async () => {
     const { repository } = buildRepository([
       row({

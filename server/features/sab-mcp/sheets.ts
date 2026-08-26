@@ -636,7 +636,14 @@ export class SabSheetsRepository {
     } as SabRow;
 
     if (updates.status && COMPLETE_STATUSES.has(updates.status)) {
-      if (merged.workflow === SCALE_FIRST_WORKFLOW) {
+      const isScaleFirstDisqualificationClosure =
+        merged.workflow === SCALE_FIRST_WORKFLOW &&
+        updates.status === "complete" &&
+        merged.qualification_status === "disqualified";
+      if (
+        merged.workflow === SCALE_FIRST_WORKFLOW &&
+        !isScaleFirstDisqualificationClosure
+      ) {
         this.validateScaleFirstQaReadyRow(merged);
       } else {
         this.validateCompleteRow(merged);
