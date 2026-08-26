@@ -22,18 +22,30 @@ describe("scan report email template", () => {
     expect(html).toContain("Unsubscribe");
   });
 
-  it("can place the scan after the first three message paragraphs", () => {
+  it("places the scan after the first three message paragraphs by default", () => {
     const imageUrl = "https://reports.vivawebdesigns.com/scans/report/abc.png";
     const html = buildScanReportEmailHtml({
       message: "Hi Mike,\n\nI’m Matt with Viva Web Designs.\n\nI came across Inspect-A-Deck and ran a scan.\n\nI found some significant visibility gaps.",
       imageUrl,
       businessName: "Inspect-A-Deck",
       replyTo: "matt@vivawebdesigns.com",
-      imagePlacement: "after_intro",
     });
 
     expect(html.indexOf("I came across Inspect-A-Deck")).toBeLessThan(html.indexOf(imageUrl));
     expect(html.indexOf(imageUrl)).toBeLessThan(html.indexOf("I found some significant visibility gaps"));
+  });
+
+  it("can place the scan after the full message when explicitly selected", () => {
+    const imageUrl = "https://reports.vivawebdesigns.com/scans/report/abc.png";
+    const html = buildScanReportEmailHtml({
+      message: "Hi Mike,\n\nI’m Matt with Viva Web Designs.\n\nI came across Inspect-A-Deck and ran a scan.\n\nI found some significant visibility gaps.",
+      imageUrl,
+      businessName: "Inspect-A-Deck",
+      replyTo: "matt@vivawebdesigns.com",
+      imagePlacement: "after_message",
+    });
+
+    expect(html.indexOf("I found some significant visibility gaps")).toBeLessThan(html.indexOf(imageUrl));
   });
 
   it("escapes editable CRM content before placing it in HTML", () => {

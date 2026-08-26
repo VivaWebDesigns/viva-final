@@ -160,7 +160,7 @@ const scanReportEmailSchema = z.object({
   subject: z.string().trim().min(1).max(200),
   preheader: z.string().trim().min(1).max(200).default("Your Google Maps scan"),
   message: z.string().trim().min(1).max(5_000),
-  imagePlacement: z.enum(["after_intro", "after_message"]).default("after_message"),
+  imagePlacement: z.enum(["after_intro", "after_message"]).default("after_intro"),
   requestId: z.string().uuid(),
 }).strict();
 

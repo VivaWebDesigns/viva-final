@@ -182,7 +182,7 @@ function LocalFalconSnapshotCard({
   const [emailReportSubject, setEmailReportSubject] = useState("");
   const [emailReportPreheader, setEmailReportPreheader] = useState("");
   const [emailReportMessage, setEmailReportMessage] = useState("");
-  const [emailReportImagePlacement, setEmailReportImagePlacement] = useState<"after_intro" | "after_message">("after_message");
+  const [emailReportImagePlacement, setEmailReportImagePlacement] = useState<"after_intro" | "after_message">("after_intro");
   const [emailReportRequestId, setEmailReportRequestId] = useState("");
   const { data, isLoading } = useQuery<LocalFalconSnapshot>({
     queryKey: ["/api/local-visibility/reports", reportId, contextCompanyId],
@@ -270,7 +270,7 @@ function LocalFalconSnapshotCard({
       setEmailReportSubject(preview.subject);
       setEmailReportPreheader(preview.preheader);
       setEmailReportMessage(preview.message);
-      setEmailReportImagePlacement("after_message");
+      setEmailReportImagePlacement("after_intro");
       setEmailReportRequestId(crypto.randomUUID());
       setEmailReportOpen(true);
     },

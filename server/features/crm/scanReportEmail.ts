@@ -125,7 +125,7 @@ export function buildScanReportEmailHtml(input: {
 }): string {
   const paragraphs = input.message.trim().split(/\r?\n\s*\r?\n/);
   const paragraphHtml = paragraphs.map((paragraph) => escapeHtml(paragraph).replace(/\r?\n/g, "<br />"));
-  const insertAfterIntro = input.imagePlacement === "after_intro" && paragraphHtml.length > 3;
+  const insertAfterIntro = (input.imagePlacement ?? "after_intro") === "after_intro" && paragraphHtml.length > 3;
   const introHtml = insertAfterIntro ? paragraphHtml.slice(0, 3).join("<br /><br />") : paragraphHtml.join("<br /><br />");
   const remainingHtml = insertAfterIntro ? paragraphHtml.slice(3).join("<br /><br />") : "";
   const imageRow = `<tr><td align="center" style="padding:0 20px 24px;">
