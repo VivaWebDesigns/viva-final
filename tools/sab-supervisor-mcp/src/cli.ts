@@ -12,6 +12,7 @@ import {
   installedWatcherBinaryPath,
   packageRoot,
 } from "./paths.js";
+import { analyzeUsage, formatUsageAnalysis } from "./usage-analysis.js";
 
 const serviceLabel = "com.viva.sab-permission-watcher";
 const launchServicesRegisterPath =
@@ -255,6 +256,17 @@ function uninstallService(): void {
   );
 }
 
+function dateArgument(args: string[], flag: string): Date | undefined {
+  const index = args.indexOf(flag);
+  if (index === -1) return undefined;
+  const raw = args[index + 1];
+  if (!raw) throw new Error(`${flag} requires an ISO-8601 timestamp`);
+  const value = new Date(raw);
+  if (Number.isNaN(value.getTime()))
+    throw new Error(`${flag} must be a valid ISO-8601 timestamp`);
+  return value;
+}
+
 async function main(): Promise<void> {
   const [command = "help", ...args] = process.argv.slice(2);
   switch (command) {
@@ -316,6 +328,17 @@ async function main(): Promise<void> {
     case "logs":
       console.log(loadConfig().logDirectory);
       return;
+    case "analyze-usage": {
+      const config = loadConfig();
+      const analysis = await analyzeUsage(config.logDirectory, {
+        since: dateArgument(args, "--since"),
+        until: dateArgument(args, "--until"),
+      });
+      if (args.includes("--json"))
+        console.log(JSON.stringify(analysis, null, 2));
+      else process.stdout.write(formatUsageAnalysis(analysis));
+      return;
+    }
     case "uninstall":
       uninstallService();
       return;
@@ -330,6 +353,8 @@ Commands:
   install-service  Install the watcher LaunchAgent
   start|stop|restart|status
   logs             Print the structured log directory
+  analyze-usage    Summarize reviewer tokens, cache use, timing, and verdicts
+                   [--since ISO-8601] [--until ISO-8601] [--json]
   uninstall        Disable and remove the watcher LaunchAgent`);
   }
 }

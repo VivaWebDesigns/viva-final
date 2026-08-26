@@ -43,6 +43,13 @@ function execution(result: ReviewResult): CodexExecution {
     timedOut: false,
     durationMs: 10,
     resultText: JSON.stringify(result),
+    usage: {
+      inputTokens: 1000,
+      cachedInputTokens: 750,
+      cacheWriteInputTokens: 0,
+      outputTokens: 100,
+      reasoningOutputTokens: 25,
+    },
   };
 }
 
@@ -113,6 +120,45 @@ describe("reviewSabCheckpoint", () => {
         },
       ),
     ).rejects.toBeInstanceOf(ReviewExecutionError);
+  });
+
+  it("logs token telemetry without storing review content", async () => {
+    const sop = await registerFixture("neutral-sop-a", "rev-a");
+    await reviewSabCheckpoint(
+      {
+        registered_sop_handle: sop.registered_sop_handle,
+        claude_message: "PRIVATE_CHECKPOINT_MARKER",
+        run_context: "PRIVATE_STATE_MARKER",
+        user_rulings: ["PRIVATE_RULING_MARKER"],
+      },
+      {
+        config,
+        execute: async () =>
+          execution({
+            verdict: "continue",
+            summary: "Continue",
+            problems: [],
+            instructions_for_claude: "Continue.",
+            approval_boundary: "none",
+            evidence_gaps: [],
+          }),
+      },
+    );
+    const logText = await fs.readFile(
+      path.join(testDirectory, "reviews.jsonl"),
+      "utf8",
+    );
+    const record = JSON.parse(logText.trim());
+    expect(record).toMatchObject({
+      token_usage_available: true,
+      input_tokens: 1000,
+      cached_input_tokens: 750,
+      output_tokens: 100,
+      reasoning_output_tokens: 25,
+    });
+    expect(logText).not.toContain("PRIVATE_CHECKPOINT_MARKER");
+    expect(logText).not.toContain("PRIVATE_STATE_MARKER");
+    expect(logText).not.toContain("PRIVATE_RULING_MARKER");
   });
 
   it("does not leak SOP, state, or rulings between calls", async () => {

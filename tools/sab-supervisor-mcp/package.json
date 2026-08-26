@@ -20,6 +20,7 @@
     "mcp": "node dist/cli.js mcp",
     "watcher": "node dist/cli.js watcher",
     "dry-run": "node dist/cli.js dry-run",
+    "analyze-usage": "node dist/cli.js analyze-usage",
     "all": "node dist/cli.js all"
   },
   "dependencies": {

@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { loadConfig, type SupervisorConfig } from "./config.js";
 import { executeCodex } from "./codex.js";
-import { appendJsonLog } from "./logging.js";
+import { appendJsonLog, codexTelemetryFields } from "./logging.js";
 import { scanReviewSchemaPath } from "./paths.js";
 import { buildScanReviewPrompt } from "./prompt.js";
 import { ReviewExecutionError } from "./reviewer.js";
@@ -61,10 +61,12 @@ async function audit(
   config: SupervisorConfig,
   input: ScanPlanInput,
   result: ScanReviewResult,
+  telemetry: Record<string, unknown>,
 ): Promise<void> {
   await appendJsonLog(config.logDirectory, "scan-approvals.jsonl", {
     timestamp: new Date().toISOString(),
     registered_sop_handle: input.registered_sop_handle,
+    ...telemetry,
     result,
   });
 }
@@ -75,6 +77,7 @@ export async function reviewSabScanPlan(
 ): Promise<ScanReviewResult> {
   const input = scanPlanInputSchema.parse(rawInput);
   const config = dependencies.config || loadConfig();
+  const reviewId = crypto.randomUUID();
   const { registration, exactText } = await resolveRegisteredSop(
     input.registered_sop_handle,
     config,
@@ -89,7 +92,20 @@ export async function reviewSabScanPlan(
         "Stop and obtain Matt's explicit ruling. Do not submit or retry any scan.",
       authorization: null,
     });
-    await audit(config, input, result);
+    await audit(config, input, result, {
+      review_id: reviewId,
+      status: "policy_blocked",
+      token_usage_available: false,
+      sop_content_sha256: registration.content_sha256,
+      sop_chars: exactText.length,
+      durable_state_chars: input.durable_run_state.length,
+      user_ruling_count: input.user_rulings.length,
+      scan_count: input.proposed_scans.length,
+      estimated_credits: input.proposed_scans.reduce(
+        (sum, scan) => sum + scan.estimated_credits,
+        0,
+      ),
+    });
     return result;
   }
 
@@ -102,18 +118,49 @@ export async function reviewSabScanPlan(
       scanReviewSchemaPath,
     );
   } catch (error) {
+    await appendJsonLog(config.logDirectory, "scan-approvals.jsonl", {
+      timestamp: new Date().toISOString(),
+      review_id: reviewId,
+      status: "spawn_error",
+      registered_sop_handle: input.registered_sop_handle,
+      sop_content_sha256: registration.content_sha256,
+      sop_chars: exactText.length,
+      prompt_chars: prompt.length,
+      scan_count: input.proposed_scans.length,
+    });
     throw new ReviewExecutionError("Codex could not be started", {
       code: "codex_spawn_failed",
       message: error instanceof Error ? error.message : String(error),
     });
   }
   if (execution.timedOut) {
+    await appendJsonLog(config.logDirectory, "scan-approvals.jsonl", {
+      timestamp: new Date().toISOString(),
+      review_id: reviewId,
+      status: "timeout",
+      registered_sop_handle: input.registered_sop_handle,
+      duration_ms: execution.durationMs,
+      prompt_chars: prompt.length,
+      scan_count: input.proposed_scans.length,
+      ...codexTelemetryFields(execution),
+    });
     throw new ReviewExecutionError("Codex scan review timed out", {
       code: "codex_timeout",
       timeout_ms: config.codexTimeoutMs,
     });
   }
   if (execution.exitCode !== 0 || !execution.resultText) {
+    await appendJsonLog(config.logDirectory, "scan-approvals.jsonl", {
+      timestamp: new Date().toISOString(),
+      review_id: reviewId,
+      status: "codex_error",
+      registered_sop_handle: input.registered_sop_handle,
+      duration_ms: execution.durationMs,
+      exit_code: execution.exitCode,
+      prompt_chars: prompt.length,
+      scan_count: input.proposed_scans.length,
+      ...codexTelemetryFields(execution),
+    });
     throw new ReviewExecutionError("Codex scan review failed", {
       code: "codex_failed",
       exit_code: execution.exitCode,
@@ -177,6 +224,28 @@ export async function reviewSabScanPlan(
       authorization: null,
     });
   }
-  await audit(config, input, result);
+  await audit(config, input, result, {
+    review_id: reviewId,
+    status: "complete",
+    verdict: result.verdict,
+    duration_ms: execution.durationMs,
+    exit_code: execution.exitCode,
+    sop_content_sha256: registration.content_sha256,
+    sop_chars: exactText.length,
+    prompt_chars: prompt.length,
+    durable_state_chars: input.durable_run_state.length,
+    user_ruling_chars: input.user_rulings.reduce(
+      (sum, ruling) => sum + ruling.length,
+      0,
+    ),
+    user_ruling_count: input.user_rulings.length,
+    scan_count: input.proposed_scans.length,
+    estimated_credits: input.proposed_scans.reduce(
+      (sum, scan) => sum + scan.estimated_credits,
+      0,
+    ),
+    problem_count: result.problems.length,
+    ...codexTelemetryFields(execution),
+  });
   return result;
 }

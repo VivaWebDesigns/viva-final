@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { loadConfig, type SupervisorConfig } from "./config.js";
 import { executeCodex } from "./codex.js";
-import { appendJsonLog } from "./logging.js";
+import { appendJsonLog, codexTelemetryFields } from "./logging.js";
 import { buildReviewPrompt } from "./prompt.js";
 import { resolveRegisteredSop } from "./sop-registry.js";
 import {
@@ -54,6 +54,8 @@ export async function reviewSabCheckpoint(
       status: "spawn_error",
       registered_sop_handle: input.registered_sop_handle,
       sop_content_sha256: registration.content_sha256,
+      sop_chars: exactText.length,
+      prompt_chars: prompt.length,
       checkpoint_chars: input.claude_message.length,
       durable_state_chars: input.run_context.length,
     });
@@ -70,6 +72,10 @@ export async function reviewSabCheckpoint(
       status: "timeout",
       duration_ms: execution.durationMs,
       registered_sop_handle: input.registered_sop_handle,
+      sop_content_sha256: registration.content_sha256,
+      sop_chars: exactText.length,
+      prompt_chars: prompt.length,
+      ...codexTelemetryFields(execution),
     });
     throw new ReviewExecutionError("Codex review timed out", {
       code: "codex_timeout",
@@ -87,6 +93,10 @@ export async function reviewSabCheckpoint(
       duration_ms: execution.durationMs,
       exit_code: execution.exitCode,
       registered_sop_handle: input.registered_sop_handle,
+      sop_content_sha256: registration.content_sha256,
+      sop_chars: exactText.length,
+      prompt_chars: prompt.length,
+      ...codexTelemetryFields(execution),
     });
     throw new ReviewExecutionError("Codex review failed", {
       code: "codex_failed",
@@ -117,11 +127,18 @@ export async function reviewSabCheckpoint(
     exit_code: execution.exitCode,
     registered_sop_handle: input.registered_sop_handle,
     sop_content_sha256: registration.content_sha256,
+    sop_chars: exactText.length,
+    prompt_chars: prompt.length,
     checkpoint_chars: input.claude_message.length,
     durable_state_chars: input.run_context.length,
+    user_ruling_chars: input.user_rulings.reduce(
+      (sum, ruling) => sum + ruling.length,
+      0,
+    ),
     user_ruling_count: input.user_rulings.length,
     problem_count: result.problems.length,
     evidence_gap_count: result.evidence_gaps.length,
+    ...codexTelemetryFields(execution),
   });
 
   return result;

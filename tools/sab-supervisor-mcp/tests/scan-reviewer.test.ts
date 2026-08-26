@@ -80,6 +80,13 @@ function execution(draft: ScanReviewDraft): CodexExecution {
     timedOut: false,
     durationMs: 5,
     resultText: JSON.stringify(draft),
+    usage: {
+      inputTokens: 2000,
+      cachedInputTokens: 1500,
+      cacheWriteInputTokens: 0,
+      outputTokens: 150,
+      reasoningOutputTokens: 30,
+    },
   };
 }
 
@@ -131,6 +138,13 @@ describe("delegated scan review", () => {
     const audit = JSON.parse(auditText.trim());
     expect(audit.result.authorization.approved_scans).toEqual([baseScan]);
     expect(audit.result.authorization.total_approved_credits).toBe(49);
+    expect(audit).toMatchObject({
+      token_usage_available: true,
+      input_tokens: 2000,
+      cached_input_tokens: 1500,
+      output_tokens: 150,
+      reasoning_output_tokens: 30,
+    });
     expect(auditText).not.toContain("Verified neutral state");
     expect(auditText).not.toContain("One recenter is permitted.");
   });

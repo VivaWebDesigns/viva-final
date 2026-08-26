@@ -85,17 +85,38 @@ node dist/cli.js stop
 node dist/cli.js restart
 node dist/cli.js status
 node dist/cli.js logs
+node dist/cli.js analyze-usage --since 2026-08-26T14:00:00Z
 ```
 
 For unattended use, run the reviewer from Claude's MCP configuration and run the watcher as the LaunchAgent. `all` is useful when one parent process must own both; watcher output is redirected so it cannot corrupt MCP stdio.
 
 Structured logs default to `~/.local/state/viva-sab-supervisor/`:
 
-- `reviews.jsonl`: review ID, outcome, timing, registered SOP handle/content hash, and input sizes; it does not store SOP text, checkpoint content, or user rulings.
+- `reviews.jsonl`: review ID, outcome, timing, registered SOP handle/content hash, input sizes, and Codex input/cached-input/output/reasoning token counts; it does not store SOP text, checkpoint content, or user rulings.
 - `sops/content/` and `sops/registrations/`: mode-0600 immutable exact SOP copies and source/revision metadata, keyed by content and registration identity.
 - `scan-approvals.jsonl`: full structured scan-review result and exact authorization when approved; it omits complete SOP text, credentials, durable-state prose, and unrelated run data.
 - `watcher.jsonl`: timestamp, hostname, displayed permission type, action kind, selected semantic button, and result.
 - `screenshots/`: diagnostics only for prompts that could not be safely classified.
+
+Codex token telemetry comes from the structured `turn.completed` event emitted by
+`codex exec --json`. If an older or incompatible CLI does not emit that event,
+the review still works and the log records `token_usage_available: false`.
+Telemetry never stores prompt or response content.
+
+After a run, summarize only its time window with:
+
+```sh
+node dist/cli.js analyze-usage \
+  --since 2026-08-26T14:00:00Z \
+  --until 2026-08-26T20:00:00Z
+```
+
+Add `--json` for a machine-readable report. The summary combines checkpoint and
+scan-plan reviews and reports token totals, cache rate, timing, prompt sizes,
+verdict distribution, the five highest-token reviews, and focused efficiency
+signals for frequent reviews, repeated correction/reconciliation, low cache
+reuse, and reviewer failures. Time-window analysis keeps the supervisor
+stateless and avoids adding another run identifier to Claude's required inputs.
 
 ## Real prompt inspection findings
 

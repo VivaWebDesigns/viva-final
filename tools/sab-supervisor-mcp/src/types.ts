@@ -139,4 +139,13 @@ export type CodexExecution = {
   timedOut: boolean;
   durationMs: number;
   resultText?: string;
+  usage?: CodexTokenUsage;
+};
+
+export type CodexTokenUsage = {
+  inputTokens: number;
+  cachedInputTokens: number;
+  cacheWriteInputTokens: number;
+  outputTokens: number;
+  reasoningOutputTokens: number;
 };

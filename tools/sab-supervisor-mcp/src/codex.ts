@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import type { SupervisorConfig } from "./config.js";
 import { reviewSchemaPath } from "./paths.js";
-import type { CodexExecution } from "./types.js";
+import type { CodexExecution, CodexTokenUsage } from "./types.js";
 
 export type SpawnCodex = (
   command: string,
@@ -29,6 +29,34 @@ function appendBounded(current: Buffer, next: Buffer, limit: number): Buffer {
   return Buffer.concat([current, next.subarray(0, limit - current.length)]);
 }
 
+export function parseCodexUsageEvent(
+  line: string,
+): CodexTokenUsage | undefined {
+  let event: unknown;
+  try {
+    event = JSON.parse(line);
+  } catch {
+    return undefined;
+  }
+  if (!event || typeof event !== "object") return undefined;
+  const record = event as Record<string, unknown>;
+  if (record.type !== "turn.completed") return undefined;
+  const rawUsage = record.usage;
+  if (!rawUsage || typeof rawUsage !== "object") return undefined;
+  const usage = rawUsage as Record<string, unknown>;
+  const read = (key: string): number => {
+    const value = usage[key];
+    return typeof value === "number" && Number.isFinite(value) ? value : 0;
+  };
+  return {
+    inputTokens: read("input_tokens"),
+    cachedInputTokens: read("cached_input_tokens"),
+    cacheWriteInputTokens: read("cache_write_input_tokens"),
+    outputTokens: read("output_tokens"),
+    reasoningOutputTokens: read("reasoning_output_tokens"),
+  };
+}
+
 export async function executeCodex(
   prompt: string,
   config: SupervisorConfig,
@@ -51,6 +79,7 @@ export async function executeCodex(
     "read-only",
     "--color",
     "never",
+    "--json",
     "--output-schema",
     outputSchemaPath,
     "--output-last-message",
@@ -62,6 +91,8 @@ export async function executeCodex(
   let stdout: Buffer<ArrayBufferLike> = Buffer.alloc(0);
   let stderr: Buffer<ArrayBufferLike> = Buffer.alloc(0);
   let timedOut = false;
+  let usage: CodexTokenUsage | undefined;
+  let pendingJsonLine = "";
   let child: ChildProcessWithoutNullStreams;
 
   try {
@@ -73,6 +104,10 @@ export async function executeCodex(
 
   child.stdout.on("data", (chunk: Buffer) => {
     stdout = appendBounded(stdout, chunk, config.maxCodexOutputBytes);
+    pendingJsonLine += chunk.toString("utf8");
+    const lines = pendingJsonLine.split("\n");
+    pendingJsonLine = lines.pop() || "";
+    for (const line of lines) usage = parseCodexUsageEvent(line) || usage;
   });
   child.stderr.on("data", (chunk: Buffer) => {
     stderr = appendBounded(stderr, chunk, config.maxCodexOutputBytes);
@@ -104,6 +139,7 @@ export async function executeCodex(
   }
 
   let resultText: string | undefined;
+  usage = parseCodexUsageEvent(pendingJsonLine) || usage;
   try {
     resultText = await fs.readFile(resultPath, "utf8");
   } catch {
@@ -119,5 +155,6 @@ export async function executeCodex(
     timedOut,
     durationMs: Date.now() - startedAt,
     resultText,
+    usage,
   };
 }
