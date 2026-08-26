@@ -122,14 +122,17 @@ stateless and avoids adding another run identifier to Claude's required inputs.
 
 ## Real prompt inspection findings
 
-Inspection used benign Claude-in-Chrome navigation requests on previously unapproved public domains while Chrome was in manual approval mode. macOS Accessibility exposed two prompt schemas:
+Inspection used benign Claude-in-Chrome navigation requests on previously unapproved public domains while Chrome was in manual approval mode. macOS Accessibility exposed these prompt schemas:
 
 - outer `AXWebArea`: `chrome-extension://fcoeoabgfenejglbffodgkkbkcdhcgfn/sidepanel.html?...`;
 - nested Claude task `AXWebArea` under `https://claude.ai/cic/...`;
 - the original site prompt, with permission text beginning `Allow Claude to use the browser on`, a disabled action descriptor such as `Navigating to https://...`, and semantic `Allow once`, persistent-site approval, and `Deny` buttons;
 - the current tool prompt, with `Permission request: browser_batch` or a single routine browser tool, a semantic JSON payload, and enabled buttons whose accessible labels include shortcuts (`Deny 1` and `Allow once 2`).
+- a separate extension permission window whose URL contains `mcpPermissionOnly=true`, text identifies one navigation hostname, and semantic buttons expose `Allow this action`, `Decline`, and `Always allow actions on this site`;
+- targetless `tabs_create_mcp` and `tabs_context_mcp` prompts used to create or inspect the isolated working tab;
+- `javascript_tool` page-title reads. Only exact read-only `document.title` or title-and-current-URL expressions are accepted; arbitrary scripts remain fail-closed.
 
-The watcher requires the exact extension/task nesting and semantic approval controls. For the original schema it validates the action descriptor and hostname. For current prompts it parses the exposed JSON, requires only recognized routine browser actions, and associates tab-only read/interaction prompts with the public page in the same Chrome window. It scans every Chrome window and every matching side-panel task in each poll, presses only with `AXPress`, and prefers persistent site approval when available. The packaged LaunchAgent test approved a real navigation/read flow on a previously unapproved public domain and confirmed that Claude resumed.
+The watcher requires the exact extension/task or permission-window structure and semantic approval controls. For site prompts it validates the action descriptor and public hostname. For tool prompts it parses the exposed JSON, requires only recognized routine browser actions, and associates tab-only read/interaction prompts with the public page in the same Chrome window. It scans every Chrome window and matching side-panel task in each poll, presses only with `AXPress`, and prefers persistent site approval when available. The packaged LaunchAgent test approved a real tab-create, navigation, persistent-site, title-read, and page-read flow on a previously unapproved public domain and confirmed that Claude resumed.
 
 No hostname allowlist is used. Routine navigation, opening, reading, search, scrolling, inspection, viewing, clicking, and ordinary interaction on public hosts can be approved. Credential/login, OAuth/authorization, download/upload, purchase/payment/transfer, sensitive-information entry, submission/publishing, and destructive markers never classify as routine. Local and private hosts also fail closed.
 
@@ -148,11 +151,12 @@ npm test
 npm run build
 ```
 
-The TypeScript suite uses mocked Codex executions for checkpoint verdicts, immutable private-SOP registration/revision isolation, delegated compliant scan approval, prerequisite saves, duplicate and eligibility gates, unsupported plans, excess auxiliaries/recenters, ambiguous retries, CRM export, exact credit reconciliation, audit details, and cross-run/SOP isolation. Neutral fixtures are never production defaults. The Swift suite covers both live prompt schemas, same-window tab context, multiple Chrome windows/tab groups/side-panel tasks, persistent/fallback approval, protected and unknown prompts, retry bounds, and deduplication. The packaging test builds the release app and verifies its `APPL` structure, executable, `Info.plist`, bundle identifier, and complete ad-hoc signature.
+The TypeScript suite uses mocked Codex executions for checkpoint verdicts, immutable private-SOP registration/revision isolation, delegated compliant scan approval, prerequisite saves, duplicate and eligibility gates, unsupported plans, excess auxiliaries/recenters, ambiguous retries, CRM export, exact credit reconciliation, audit details, and cross-run/SOP isolation. Neutral fixtures are never production defaults. The Swift suite covers the live prompt schemas, same-window tab context, separate permission windows, targetless tab tools, narrowly approved title reads, multiple Chrome windows/tab groups/side-panel tasks, persistent/fallback approval, protected and unknown prompts, retry bounds, and deduplication. The packaging test builds the release app and verifies its `APPL` structure, executable, `Info.plist`, bundle identifier, and complete ad-hoc signature.
 
 Common failures:
 
 - `Accessibility access is required`: add and enable `~/Applications/SAB Permission Watcher.app` in Accessibility, then restart the service.
+- Accessibility appears enabled after installing a changed watcher binary, but the service still exits with code 2: remove the stale `SAB Permission Watcher` Accessibility row, add the app again from `~/Applications`, and restart the service. Ad-hoc signatures change when the executable changes.
 - `Signed watcher app is missing`: run `npm run build`, followed by `node dist/cli.js install-service`.
 - `Codex could not be started`: set `codexPath` in `config.json` to the installed CLI.
 - `Codex review timed out`: increase `codexTimeoutMs` only if the exact supplied SOP is reachable and unusually slow to read.
