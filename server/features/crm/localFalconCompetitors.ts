@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { LocalFalconCompetitorBusiness } from "@shared/localVisibility";
-import type { LocalFalconPayload } from "./localFalconImport";
+import { getProspectScanSpec, type LocalFalconPayload } from "./localFalconImport";
 
 const reportKeySchema = z.string().trim().regex(/^[a-f0-9]{12,64}$/i, "Must be a Local Falcon report key");
 const nullableAddressPart = z.string().nullable();
@@ -235,7 +235,6 @@ export function parseLocalFalconCompetitorSidecar(text: string, payload: LocalFa
   if (sidecar.batch_id !== payload.batch.batch_id) throw new Error("competitors.json batch_id must match batch.json");
 
   const prospectsByReportKey = new Map(payload.prospects.map((prospect) => [prospect.report_key, prospect]));
-  const gridSize = normalizedGridSize(payload.batch.scan_spec.grid_size);
   for (const prospect of payload.prospects) {
     if (!sidecar.reports[prospect.report_key]) {
       throw new Error(`competitors.json is missing reports.${prospect.report_key} for ${prospect.company_name}`);
@@ -244,11 +243,13 @@ export function parseLocalFalconCompetitorSidecar(text: string, payload: LocalFa
   for (const [reportKey, report] of Object.entries(sidecar.reports)) {
     const prospect = prospectsByReportKey.get(reportKey);
     if (!prospect) throw new Error(`competitors.json reports.${reportKey} does not match a prospect report_key in batch.json`);
+    const scanSpec = getProspectScanSpec(payload, prospect);
+    const gridSize = normalizedGridSize(scanSpec.grid_size);
     if (report.subject_place_id !== prospect.place_id) throw new Error(`competitors.json reports.${reportKey}.subject_place_id must match batch.json`);
     if (report.keyword !== prospect.scan_keyword) throw new Error(`competitors.json reports.${reportKey}.keyword must match batch.json`);
-    if (gridSize !== null && report.grid_size !== gridSize) throw new Error(`competitors.json reports.${reportKey}.grid_size must match batch.json`);
-    if (Math.abs(report.radius_miles - payload.batch.scan_spec.radius_miles) > 0.0001) {
-      throw new Error(`competitors.json reports.${reportKey}.radius_miles must match batch.json`);
+    if (gridSize !== null && report.grid_size !== gridSize) throw new Error(`competitors.json reports.${reportKey}.grid_size must match the prospect's effective scan_spec`);
+    if (Math.abs(report.radius_miles - scanSpec.radius_miles) > 0.0001) {
+      throw new Error(`competitors.json reports.${reportKey}.radius_miles must match the prospect's effective scan_spec`);
     }
     if (report.scan_date !== isoDate(prospect.scan_date)) throw new Error(`competitors.json reports.${reportKey}.scan_date must match batch.json`);
   }

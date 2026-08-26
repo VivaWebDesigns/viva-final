@@ -93,17 +93,25 @@ const reportSelection = {
 };
 
 export async function getCompanyReportLibrary(companyId: string): Promise<LocalVisibilityReportLibrary> {
-  const ownRows = await db.select(reportSelection)
+  const ownRows = await db.select({
+    ...reportSelection,
+    radius: sql<string>`coalesce(${localFalconCompetitorStandings.radiusMiles}, ${localFalconImportBatches.radiusMiles})`,
+    gridSize: sql<string>`coalesce((${localFalconCompetitorStandings.gridSize}::text || 'x' || ${localFalconCompetitorStandings.gridSize}::text), ${localFalconImportBatches.gridSize})`,
+  })
     .from(localFalconProspectProfiles)
     .innerJoin(crmLeads, eq(localFalconProspectProfiles.leadId, crmLeads.id))
     .innerJoin(
       localFalconImportBatches,
       eq(localFalconProspectProfiles.batchRecordId, localFalconImportBatches.id),
     )
+    .leftJoin(
+      localFalconCompetitorStandings,
+      eq(localFalconCompetitorStandings.reportId, localFalconProspectProfiles.id),
+    )
     .where(eq(crmLeads.companyId, companyId))
     .orderBy(
       desc(localFalconProspectProfiles.scanDate),
-      asc(localFalconImportBatches.radiusMiles),
+      asc(sql`coalesce(${localFalconCompetitorStandings.radiusMiles}, ${localFalconImportBatches.radiusMiles})`),
     );
 
   return {

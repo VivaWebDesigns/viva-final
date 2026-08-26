@@ -187,10 +187,15 @@ router.get(
       const [record] = await db.select({
         profile: localFalconProspectProfiles,
         batch: localFalconImportBatches,
+        standing: localFalconCompetitorStandings,
       }).from(localFalconProspectProfiles)
         .innerJoin(
           localFalconImportBatches,
           eq(localFalconProspectProfiles.batchRecordId, localFalconImportBatches.id),
+        )
+        .leftJoin(
+          localFalconCompetitorStandings,
+          eq(localFalconCompetitorStandings.reportId, localFalconProspectProfiles.id),
         )
         .where(eq(localFalconProspectProfiles.id, accessRecord.id))
         .limit(1);
@@ -217,6 +222,10 @@ router.get(
         state: record.profile.scanState ?? record.profile.state,
         zip: record.profile.scanZip ?? record.profile.zip,
       });
+      const effectiveRadius = record.standing?.radiusMiles ?? record.batch.radiusMiles;
+      const effectiveGridSize = record.standing
+        ? `${record.standing.gridSize}x${record.standing.gridSize}`
+        : record.batch.gridSize;
       res.json({
         reportId: accessRecord.id,
         leadId: record.profile.leadId,
@@ -234,7 +243,7 @@ router.get(
         },
         mapPresentation: getLocalFalconMapPresentation(
           !!record.profile.heatmapSourceUrl,
-          record.batch.radiusMiles,
+          effectiveRadius,
         ),
         data: {
           businessName: record.profile.companyName ?? "",
@@ -244,8 +253,8 @@ router.get(
           searchPhrase: record.profile.scanKeyword,
           market: `${record.profile.scanCity ?? record.batch.marketCity}, ${record.profile.scanState ?? record.batch.marketState}`,
           averagePosition: formatLocalVisibilityAveragePosition(record.profile.arp),
-          gridSize: record.batch.gridSize ?? "7 × 7",
-          radius: record.batch.radiusMiles ?? "2.5",
+          gridSize: effectiveGridSize ?? "7 × 7",
+          radius: effectiveRadius ?? "2.5",
           heatmapImageUrl,
           googleMapsComparison,
         },
@@ -346,11 +355,14 @@ router.get(
       const [record] = await db.select({
         profile: localFalconProspectProfiles,
         batch: localFalconImportBatches,
+        standing: localFalconCompetitorStandings,
         assignedTo: crmLeads.assignedTo,
       }).from(localFalconProspectProfiles)
         .innerJoin(localFalconImportBatches, eq(localFalconProspectProfiles.batchRecordId, localFalconImportBatches.id))
+        .leftJoin(localFalconCompetitorStandings, eq(localFalconCompetitorStandings.reportId, localFalconProspectProfiles.id))
         .innerJoin(crmLeads, eq(localFalconProspectProfiles.leadId, crmLeads.id))
         .where(eq(localFalconProspectProfiles.leadId, req.params.leadId as string))
+        .orderBy(desc(localFalconProspectProfiles.scanDate))
         .limit(1);
       if (!record) return res.status(404).json({ message: "Local Falcon prospect not found" });
       if (req.authUser?.role === "sales_rep" && record.assignedTo !== req.authUser.id) {
@@ -372,6 +384,10 @@ router.get(
         state: record.profile.scanState ?? record.profile.state,
         zip: record.profile.scanZip ?? record.profile.zip,
       });
+      const effectiveRadius = record.standing?.radiusMiles ?? record.batch.radiusMiles;
+      const effectiveGridSize = record.standing
+        ? `${record.standing.gridSize}x${record.standing.gridSize}`
+        : record.batch.gridSize;
       res.json({
         leadId: req.params.leadId as string,
         reportUrl: record.profile.reportUrl,
@@ -388,7 +404,7 @@ router.get(
         },
         mapPresentation: getLocalFalconMapPresentation(
           !!record.profile.heatmapSourceUrl,
-          record.batch.radiusMiles,
+          effectiveRadius,
         ),
         data: {
           businessName: record.profile.companyName ?? "",
@@ -398,8 +414,8 @@ router.get(
           searchPhrase: record.profile.scanKeyword,
           market: `${record.profile.scanCity ?? record.batch.marketCity}, ${record.profile.scanState ?? record.batch.marketState}`,
           averagePosition: formatLocalVisibilityAveragePosition(record.profile.arp),
-          gridSize: record.batch.gridSize ?? "7 × 7",
-          radius: record.batch.radiusMiles ?? "2.5",
+          gridSize: effectiveGridSize ?? "7 × 7",
+          radius: effectiveRadius ?? "2.5",
           heatmapImageUrl,
           googleMapsComparison,
         },

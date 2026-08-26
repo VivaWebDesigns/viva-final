@@ -116,6 +116,15 @@ const scaleFirstProspectFields = {
   report_url: "verified canonical Local Falcon public report URL",
   scan_date: "valid date string",
   scan_keyword: "non-empty string matching batch.keyword",
+  scan_spec: {
+    required: false,
+    strict: true,
+    description: "optional canonical-report override; omit to inherit batch.scan_spec",
+    fields: {
+      grid_size: "grid such as 7x7",
+      radius_miles: "number > 0",
+    },
+  },
   arp: "number >= 0",
   solv: "number from 0 through 100",
   rating: "number from 0 through 5",
@@ -127,7 +136,7 @@ const scaleFirstProspectFields = {
 
 export const SCALE_FIRST_SAB_CRM_IMPORT_CONTRACT = {
   contract: "viva_local_falcon_crm_batch_json",
-  contract_version: "2.0",
+  contract_version: "2.1",
   workflow: SCALE_FIRST_WORKFLOW,
   discriminator: {
     field: "workflow",
@@ -164,6 +173,8 @@ export const SCALE_FIRST_SAB_CRM_IMPORT_CONTRACT = {
     "Every prospect Place ID must be unique inside the batch and CRM deduplication uses exact Place-ID equality.",
     "Every prospect report key must be unique inside the batch.",
     "Every prospect scan_keyword must exactly match batch.keyword.",
+    "Each prospect inherits batch.scan_spec unless it supplies an explicit scan_spec override.",
+    "Official reports and competitors.json rows must match each prospect's effective scan_spec.",
     "website_url is required when has_website is true.",
     "website_url must be null when has_website is false.",
     "Email Ready requires an email and is eligible for automated email routing.",

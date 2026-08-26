@@ -39,6 +39,11 @@ const scanCenterSchema = z.object({
   zip: z.string().trim().min(1),
 }).strict();
 
+const scanSpecSchema = z.object({
+  grid_size: z.string().trim().regex(/^\d+\s*[x×]\s*\d+$/i, "Use a grid size such as 7x7"),
+  radius_miles: z.coerce.number().finite().positive(),
+}).strict();
+
 const batchSchema = z.object({
   batch_id: z.string().trim().min(1),
   market: z.object({
@@ -48,10 +53,7 @@ const batchSchema = z.object({
   trade: z.string().trim().min(1),
   keyword: z.string().trim().min(1),
   export_date: z.string().trim().min(1),
-  scan_spec: z.object({
-    grid_size: z.string().trim().regex(/^\d+\s*[x×]\s*\d+$/i, "Use a grid size such as 7x7"),
-    radius_miles: z.coerce.number().finite().positive(),
-  }),
+  scan_spec: scanSpecSchema,
 }).strict();
 
 const auditFirstProspectSchema = z.object({
@@ -130,6 +132,7 @@ const scaleFirstProspectSchema = z.object({
   report_url: z.string().trim().url(),
   scan_date: z.string().trim().min(1),
   scan_keyword: z.string().trim().min(1),
+  scan_spec: scanSpecSchema.optional(),
   arp: z.coerce.number().finite().min(0),
   solv: z.coerce.number().finite().min(0).max(100),
   rating: z.coerce.number().finite().min(0).max(5),
@@ -167,10 +170,20 @@ const scaleFirstPayloadSchema = z.object({
 }).strict();
 
 export type LocalFalconBatchInput = z.infer<typeof batchSchema>;
+export type LocalFalconScanSpec = z.infer<typeof scanSpecSchema>;
 export type AuditFirstProspectInput = z.infer<typeof auditFirstProspectSchema>;
 export type ScaleFirstProspectInput = z.infer<typeof scaleFirstProspectSchema>;
 export type LocalFalconProspectInput = AuditFirstProspectInput | ScaleFirstProspectInput;
 export type LocalFalconPayload = z.infer<typeof auditFirstPayloadSchema> | z.infer<typeof scaleFirstPayloadSchema>;
+
+export function getProspectScanSpec(
+  payload: LocalFalconPayload,
+  prospect: LocalFalconProspectInput,
+): LocalFalconScanSpec {
+  return "scan_spec" in prospect && prospect.scan_spec
+    ? prospect.scan_spec
+    : payload.batch.scan_spec;
+}
 
 export interface ScaleFirstContactRouting {
   contactTag: ScaleFirstContactTag | null;
@@ -227,6 +240,7 @@ export interface ProspectPreview {
   companyName: string;
   address: string;
   heatmapFile: string;
+  scanSpec: LocalFalconScanSpec;
   outcome: "new" | "variation" | "existing" | "flagged";
   reason?: string;
   matches?: FallbackMatch[];
@@ -238,6 +252,7 @@ export interface LocalFalconPreviewResult {
   trade: string;
   keyword: string;
   scanSpec: LocalFalconBatchInput["scan_spec"];
+  scanSpecs: LocalFalconScanSpec[];
   batchAlreadyImported: boolean;
   newCount: number;
   variationCount: number;
@@ -416,6 +431,7 @@ export async function previewLocalFalconImport(
       companyName: prospect.company_name,
       address: prospect.address,
       heatmapFile: prospect.heatmap_file ?? "Official Local Falcon image",
+      scanSpec: getProspectScanSpec(payload, prospect),
     };
     const duplicateLeadId = existingByReport.get(prospect.report_key);
     if (duplicateLeadId) {
@@ -439,12 +455,18 @@ export async function previewLocalFalconImport(
     rows.push({ ...base, outcome: matches.length ? "flagged" : "new", matches: matches.length ? matches : undefined });
   }
 
+  const scanSpecs = [...new Map(payload.prospects.map((prospect) => {
+    const spec = getProspectScanSpec(payload, prospect);
+    return [`${spec.grid_size.toLowerCase().replace("×", "x")}:${spec.radius_miles}`, spec] as const;
+  })).values()];
+
   return {
     batchId: payload.batch.batch_id,
     market: payload.batch.market,
     trade: payload.batch.trade,
     keyword: payload.batch.keyword,
     scanSpec: payload.batch.scan_spec,
+    scanSpecs,
     batchAlreadyImported:
       isLocalFalconBatchFullyImported(existingBatch?.id, rows)
       && Object.keys(competitors?.reports ?? {}).length === 0,
@@ -813,9 +835,14 @@ export async function importLocalFalconPayload(
 }
 
 export async function getLocalFalconProfileForLead(leadId: string) {
-  const [result] = await db.select({ profile: localFalconProspectProfiles, batch: localFalconImportBatches })
+  const [result] = await db.select({
+    profile: localFalconProspectProfiles,
+    batch: localFalconImportBatches,
+    standing: localFalconCompetitorStandings,
+  })
     .from(localFalconProspectProfiles)
     .innerJoin(localFalconImportBatches, eq(localFalconProspectProfiles.batchRecordId, localFalconImportBatches.id))
+    .leftJoin(localFalconCompetitorStandings, eq(localFalconCompetitorStandings.reportId, localFalconProspectProfiles.id))
     .where(eq(localFalconProspectProfiles.leadId, leadId))
     .orderBy(desc(localFalconProspectProfiles.scanDate))
     .limit(1);

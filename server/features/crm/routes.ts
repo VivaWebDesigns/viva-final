@@ -17,6 +17,7 @@ import {
   importLeadsFromCSV, importContactsFromCSV,
 } from "./csvImportExport";
 import {
+  getProspectScanSpec,
   getLocalFalconProfileForLead,
   importLocalFalconPayload,
   previewLocalFalconImport,
@@ -462,7 +463,7 @@ router.post(
             heatmapSourceUrl: heatmap.sourceUrl ?? null,
             mapPresentation: getLocalFalconMapPresentation(
               !!heatmap.sourceUrl,
-              parsedPackage.payload.batch.scan_spec.radius_miles,
+              getProspectScanSpec(parsedPackage.payload, prospect).radius_miles,
             ),
             reportData: {
               businessName: prospect.company_name,
@@ -479,8 +480,8 @@ router.post(
                 ? `${prospect.scan_center.city}, ${prospect.scan_center.state}`
                 : `${parsedPackage.payload.batch.market.city}, ${parsedPackage.payload.batch.market.state}`,
               averagePosition: formatLocalVisibilityAveragePosition(prospect.arp),
-              gridSize: parsedPackage.payload.batch.scan_spec.grid_size,
-              radius: String(parsedPackage.payload.batch.scan_spec.radius_miles),
+              gridSize: getProspectScanSpec(parsedPackage.payload, prospect).grid_size,
+              radius: String(getProspectScanSpec(parsedPackage.payload, prospect).radius_miles),
               heatmapImageUrl: heatmap.previewDataUrl,
               googleMapsComparison: parsedPackage.competitors?.reports[prospect.report_key]
                 ? buildGoogleMapsVisibilityComparison({

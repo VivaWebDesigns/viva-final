@@ -92,7 +92,7 @@ describe("SAB MCP tool discovery", () => {
       });
       const content = result.content as Array<{ type: string; text: string }>;
       expect(JSON.parse(content[0].text)).toMatchObject({
-        contract_version: "2.0",
+        contract_version: "2.1",
         workflow: "scale_first_v2",
         writes_data: false,
       });

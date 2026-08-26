@@ -64,6 +64,7 @@ interface LocalFalconPreviewRow {
   companyName: string;
   address: string;
   heatmapFile: string;
+  scanSpec: { grid_size: string; radius_miles: number };
   heatmapPreviewDataUrl: string | null;
   heatmapSha256: string;
   heatmapSourceUrl: string | null;
@@ -83,6 +84,7 @@ interface LocalFalconPreview {
   trade: string;
   keyword: string;
   scanSpec: { grid_size: string; radius_miles: number };
+  scanSpecs: Array<{ grid_size: string; radius_miles: number }>;
   batchAlreadyImported: boolean;
   newCount: number;
   variationCount: number;
@@ -682,7 +684,12 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
         {phase === "preview" && preview && (
           <div className="space-y-5" data-testid="local-falcon-import-preview">
             <div className="flex flex-wrap items-start justify-between gap-3">
-              <div><p className="font-semibold">Batch {preview.batchId}</p><p className="text-sm text-slate-500">{preview.market.city}, {preview.market.state} · {preview.trade} · {preview.keyword} · {preview.scanSpec.grid_size} / {preview.scanSpec.radius_miles} miles</p></div>
+              <div>
+                <p className="font-semibold">Batch {preview.batchId}</p>
+                <p className="text-sm text-slate-500">
+                  {preview.market.city}, {preview.market.state} · {preview.trade} · {(preview.scanSpecs ?? [preview.scanSpec]).map((spec) => `${spec.grid_size} / ${spec.radius_miles} miles`).join("; ")}
+                </p>
+              </div>
               <div className="flex gap-2 text-center text-xs">
                 <Badge className="bg-green-100 text-green-700">{preview.newCount} new</Badge>
                 {preview.variationCount > 0 && (
@@ -761,6 +768,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
                           </Badge>
                         </div>
                         <p className="text-sm text-slate-500">{row.address}</p>
+                        <p className="text-xs font-medium text-slate-600">Canonical scan: {(row.scanSpec ?? preview.scanSpec).grid_size} / {(row.scanSpec ?? preview.scanSpec).radius_miles} miles</p>
                         {row.heatmapSourceUrl ? (
                           <a href={row.heatmapSourceUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline">
                             Official map retrieved automatically from Local Falcon

@@ -7,6 +7,7 @@ import {
   type LocalFalconCompetitorReport,
 } from "../crm/localFalconCompetitors";
 import {
+  getProspectScanSpec,
   parseLocalFalconPayload,
   type ScaleFirstProspectInput,
 } from "../crm/localFalconImport";
@@ -246,13 +247,14 @@ export async function buildSabCompetitorSidecar(
   if (!("workflow" in payload) || payload.workflow !== SCALE_FIRST_WORKFLOW) {
     throw new Error(`manifest_json must declare workflow = ${SCALE_FIRST_WORKFLOW}`);
   }
-  const gridSize = normalizedGridSize(payload.batch.scan_spec.grid_size);
-  if (gridSize === null) throw new Error("manifest_json batch.scan_spec.grid_size must be a square grid");
   const apiKey = options.apiKey?.trim() || localFalconApiKey();
   const fetchImpl = options.fetchImpl ?? fetch;
 
   const reconciled = await mapBounded(payload.prospects, REPORT_CONCURRENCY, async (prospect) => {
     try {
+      const scanSpec = getProspectScanSpec(payload, prospect);
+      const gridSize = normalizedGridSize(scanSpec.grid_size);
+      if (gridSize === null) throw new Error("manifest_json effective scan_spec.grid_size must be a square grid");
       const competitorPayload = await fetchLocalFalconReport(
         "competitor-reports",
         prospect.report_key,
@@ -270,7 +272,7 @@ export async function buildSabCompetitorSidecar(
       const report = extractReport(
         prospect,
         gridSize,
-        payload.batch.scan_spec.radius_miles,
+        scanSpec.radius_miles,
         competitorPayload,
         scanPayload,
       );

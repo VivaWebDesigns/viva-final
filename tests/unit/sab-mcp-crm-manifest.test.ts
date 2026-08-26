@@ -139,7 +139,7 @@ describe("SAB CRM manifest contract", () => {
   it("returns the explicitly requested Scale-First v2 contract", () => {
     expect(getSabCrmImportContract("scale_first_v2")).toBe(SCALE_FIRST_SAB_CRM_IMPORT_CONTRACT);
     expect(SCALE_FIRST_SAB_CRM_IMPORT_CONTRACT).toMatchObject({
-      contract_version: "2.0",
+      contract_version: "2.1",
       workflow: "scale_first_v2",
       strict: true,
       writes_data: false,
@@ -153,13 +153,31 @@ describe("SAB CRM manifest contract", () => {
       const result = validateSabCrmManifest(JSON.stringify(validScaleFirstManifest(contactTag)));
       expect(result).toMatchObject({
         valid: true,
-        contract_version: "2.0",
+        contract_version: "2.1",
         workflow: "scale_first_v2",
         prospect_count: 1,
         writes_performed: false,
       });
     },
   );
+
+  it("accepts a per-prospect 7x7/5-mile canonical scan override", () => {
+    const manifest = validScaleFirstManifest() as ReturnType<typeof validScaleFirstManifest> & {
+      prospects: Array<ReturnType<typeof validScaleFirstManifest>["prospects"][number] & {
+        scan_spec?: { grid_size: string; radius_miles: number };
+      }>;
+    };
+    manifest.prospects[0].scan_spec = { grid_size: "7x7", radius_miles: 5 };
+
+    expect(validateSabCrmManifest(JSON.stringify(manifest))).toMatchObject({
+      valid: true,
+      contract_version: "2.1",
+      workflow: "scale_first_v2",
+      prospect_count: 1,
+    });
+    expect(SCALE_FIRST_SAB_CRM_IMPORT_CONTRACT.top_level.prospects.item.fields)
+      .toHaveProperty("scan_spec");
+  });
 
   it("does not infer Scale-First from missing Audit-First fields", () => {
     const manifest = validScaleFirstManifest();

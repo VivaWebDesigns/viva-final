@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { strToU8, zipSync } from "fflate";
 import sharp from "sharp";
 import {
+  getProspectScanSpec,
   getScaleFirstContactRouting,
   googleMapsUrlFromPlaceId,
   isExactStreetAddressMatch,
@@ -336,6 +337,29 @@ describe("parseLocalFalconPayload", () => {
     });
   });
 
+  it("inherits the batch scan spec and accepts a 5-mile canonical override", () => {
+    const { service_page_count, sales_priority, sales_priority_reason, ...scaleProspect } = prospect;
+    const result = parseLocalFalconPayload(JSON.stringify({
+      workflow: "scale_first_v2",
+      batch: { ...payload.batch, scan_spec: { grid_size: "7x7", radius_miles: 3 } },
+      prospects: [
+        { ...scaleProspect, contact_tag: "Email Ready" },
+        {
+          ...scaleProspect,
+          place_id: "ChIJ-test-5-mile",
+          company_name: "Five Mile Roofing",
+          report_key: "abcdef123456780",
+          heatmap_file: "heatmaps/ChIJ-test-5-mile.png",
+          contact_tag: "Email Ready",
+          scan_spec: { grid_size: "7x7", radius_miles: 5 },
+        },
+      ],
+    }));
+
+    expect(getProspectScanSpec(result, result.prospects[0])).toEqual({ grid_size: "7x7", radius_miles: 3 });
+    expect(getProspectScanSpec(result, result.prospects[1])).toEqual({ grid_size: "7x7", radius_miles: 5 });
+  });
+
   it("rejects analysis arrays outside the 3–6 element limit", () => {
     expect(() => parseLocalFalconPayload(JSON.stringify({
       ...payload,
@@ -418,6 +442,25 @@ describe("parseLocalFalconCompetitorSidecar", () => {
 
     expect(result.reports[prospect.report_key].businesses).toHaveLength(2);
     expect(result.reports[prospect.report_key].businesses[0].found_points).toBe(7);
+  });
+
+  it("validates a sidecar against the prospect's 5-mile override instead of the batch default", () => {
+    const { service_page_count, sales_priority, sales_priority_reason, ...scaleProspect } = prospect;
+    const manifest = parseLocalFalconPayload(JSON.stringify({
+      workflow: "scale_first_v2",
+      batch: { ...payload.batch, scan_spec: { grid_size: "7x7", radius_miles: 3 } },
+      prospects: [{
+        ...scaleProspect,
+        contact_tag: "Email Ready",
+        scan_spec: { grid_size: "7x7", radius_miles: 5 },
+      }],
+    }));
+    const sidecar = structuredClone(competitorSidecar) as any;
+    sidecar.reports[prospect.report_key].grid_size = 7;
+    sidecar.reports[prospect.report_key].radius_miles = 5;
+
+    expect(parseLocalFalconCompetitorSidecar(JSON.stringify(sidecar), manifest)
+      .reports[prospect.report_key]).toMatchObject({ grid_size: 7, radius_miles: 5 });
   });
 
   it("rejects a sidecar whose business array has been re-sorted", () => {

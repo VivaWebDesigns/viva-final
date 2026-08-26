@@ -65,14 +65,18 @@ function business(placeId: string, name: string, ranks: unknown[] = [1, "4", "20
   };
 }
 
-function payloads(subject: Prospect, businesses: ReturnType<typeof business>[]) {
+function payloads(
+  subject: Prospect,
+  businesses: ReturnType<typeof business>[],
+  scanSpec: { gridSize: string; radius: string } = { gridSize: "3", radius: "2" },
+) {
   const common = {
     report_key: subject.report_key,
     date: "8/25/2026 1:15 PM",
     looker_date: "20260825",
     keyword: "roofer near me",
-    grid_size: "3",
-    radius: "2",
+    grid_size: scanSpec.gridSize,
+    radius: scanSpec.radius,
     measurement: "mi",
   };
   return {
@@ -134,6 +138,28 @@ describe("SAB competitor sidecar builder", () => {
     expect(selected.businesses[1].found_points).toBe(2);
     expect(selected.businesses[1].is_subject).toBe(true);
     expect(result.competitors_json).not.toMatch(/address|latitude|longitude|raw_result|ChIJ-extra/);
+  });
+
+  it("builds a mixed-spec sidecar from a prospect-level 7x7/5-mile override", async () => {
+    const subject = {
+      ...prospect("abcdef12345d", "ChIJ-five-mile", "Five Mile"),
+      scan_spec: { grid_size: "7x7", radius_miles: 5 },
+    };
+    const report = payloads(
+      subject,
+      [business(subject.place_id, subject.company_name)],
+      { gridSize: "7", radius: "5" },
+    );
+    const sidecar = parsedSidecar(await buildSabCompetitorSidecar(manifest([subject] as Prospect[]), {
+      apiKey: "secret",
+      fetchImpl: fetchFor(new Map([[subject.report_key, report]])) as typeof fetch,
+    }));
+
+    expect(sidecar.reports[subject.report_key]).toMatchObject({
+      grid_size: 7,
+      radius_miles: 5,
+      subject_place_id: subject.place_id,
+    });
   });
 
   it("returns only subject and below for first rank, and above and subject for last rank", async () => {
