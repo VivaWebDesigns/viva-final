@@ -401,6 +401,31 @@ export const analyzeSabMasterCentersInputSchema = {
     ),
 };
 
+export const evaluateSabAddressCandidateInputSchema = {
+  report_key: z
+    .string()
+    .trim()
+    .min(1)
+    .max(1_000)
+    .describe(
+      "Completed Local Falcon report key whose exact ranked cells must be used for the geographic-fit calculation.",
+    ),
+  place_id: z
+    .string()
+    .trim()
+    .min(1)
+    .max(500)
+    .describe("Exact survivor Google Place ID in the completed report."),
+  address_candidate: z
+    .string()
+    .trim()
+    .min(1)
+    .max(500)
+    .describe(
+      "Temporary independently discovered address candidate. It is geocoded in memory and is never returned, logged, or persisted by this tool.",
+    ),
+};
+
 export const enrichSabBusinessesInputSchema = {
   place_ids: z
     .array(z.string().trim().min(1).max(500))

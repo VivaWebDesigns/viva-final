@@ -13,6 +13,7 @@ import {
 } from "./localFalconMaster";
 import { enrichSabBusinesses } from "./dataForSeoBusiness";
 import { reverseGeocodeSabCenters } from "./reverseGeocode";
+import { evaluateSabAddressCandidate } from "./addressCandidate";
 import { getSabCrmImportContract, validateSabCrmManifest } from "./crmManifest";
 import {
   checkCrmLocalFalconReportInputSchema,
@@ -22,6 +23,7 @@ import {
   createSabWorkflowInputSchema,
   createSabWorkflowFromMasterReportInputSchema,
   enrichSabBusinessesInputSchema,
+  evaluateSabAddressCandidateInputSchema,
   getSabBatchInputSchema,
   getSabCrmImportContractInputSchema,
   getSabCompanyInputSchema,
@@ -77,7 +79,7 @@ export function createSabMcpServer(
 ) {
   const server = new McpServer({
     name: "viva-sab-workflow",
-    version: "1.9.1",
+    version: "1.10.0",
   });
 
   server.registerTool(
@@ -192,6 +194,24 @@ export function createSabMcpServer(
     async ({ report_key, place_ids }) => {
       return jsonToolResult(
         await analyzeSabMasterCenters(report_key, place_ids),
+      );
+    },
+  );
+
+  server.registerTool(
+    "evaluate_sab_address_candidate",
+    sabTool({
+      description:
+        "Privately evaluate one independently discovered address candidate against the exact ranked-cell geometry for the same Place ID in a completed Local Falcon report. Geocodes the candidate in memory and returns only coordinates, geocoder precision, ranked-cell checksum, and measured distances to the weighted centroid, nearest ranked cell, and best-rank cluster centroid. The raw address and raw cell array are never returned, logged, or persisted; this tool makes no final SOP fit decision, runs no scan, and performs no write.",
+      inputSchema: evaluateSabAddressCandidateInputSchema,
+    }),
+    async ({ report_key, place_id, address_candidate }) => {
+      return jsonToolResult(
+        await evaluateSabAddressCandidate(
+          report_key,
+          place_id,
+          address_candidate,
+        ),
       );
     },
   );

@@ -25,7 +25,7 @@ describe("SAB MCP tool discovery", () => {
 
     try {
       const { tools } = await client.listTools();
-      expect(tools).toHaveLength(19);
+      expect(tools).toHaveLength(20);
       expect(tools.map((tool) => tool.name)).toContain("get_sab_schema");
       expect(tools.map((tool) => tool.name)).toContain(
         "upgrade_sab_workflow_schema",
@@ -38,6 +38,9 @@ describe("SAB MCP tool discovery", () => {
       );
       expect(tools.map((tool) => tool.name)).toContain(
         "analyze_sab_master_centers",
+      );
+      expect(tools.map((tool) => tool.name)).toContain(
+        "evaluate_sab_address_candidate",
       );
       expect(tools.map((tool) => tool.name)).toContain("enrich_sab_businesses");
       expect(tools[0]).toMatchObject({
