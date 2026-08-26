@@ -4,6 +4,7 @@ import {
   getSabBatchInputSchema,
   SAB_HEADERS,
   SAB_SCALE_FIRST_UPGRADEABLE_HEADERS,
+  sabCompanyUpdatesSchema,
   sabScanResultSchema,
 } from "../../server/features/sab-mcp/schema";
 import {
@@ -15,7 +16,12 @@ import {
 import { z } from "zod";
 
 function columnIndex(name: string) {
-  return [...name].reduce((value, character) => value * 26 + character.charCodeAt(0) - 64, 0) - 1;
+  return (
+    [...name].reduce(
+      (value, character) => value * 26 + character.charCodeAt(0) - 64,
+      0,
+    ) - 1
+  );
 }
 
 class FakeSheetsClient implements SheetsValuesClient {
@@ -26,9 +32,13 @@ class FakeSheetsClient implements SheetsValuesClient {
     ["Other Tab", { sheetId: 202, columnCount: 17 }],
   ]);
 
-  constructor(public values: string[][], columnCapacity?: number) {
-    this.tabs.get("SAB Workflow")!.columnCount = columnCapacity
-      ?? values.reduce((maximum, row) => Math.max(maximum, row.length), 0);
+  constructor(
+    public values: string[][],
+    columnCapacity?: number,
+  ) {
+    this.tabs.get("SAB Workflow")!.columnCount =
+      columnCapacity ??
+      values.reduce((maximum, row) => Math.max(maximum, row.length), 0);
   }
 
   async getValues() {
@@ -41,9 +51,15 @@ class FakeSheetsClient implements SheetsValuesClient {
     return { ...tab };
   }
 
-  async appendColumns(_spreadsheetId: string, sheetId: number, columnCount: number) {
+  async appendColumns(
+    _spreadsheetId: string,
+    sheetId: number,
+    columnCount: number,
+  ) {
     if (columnCount <= 0) return;
-    const tab = [...this.tabs.values()].find((candidate) => candidate.sheetId === sheetId);
+    const tab = [...this.tabs.values()].find(
+      (candidate) => candidate.sheetId === sheetId,
+    );
     if (!tab) throw new Error(`Unknown fake sheetId ${sheetId}`);
     this.columnAppends.push({ sheetId, columnCount });
     tab.columnCount += columnCount;
@@ -71,30 +87,45 @@ class FakeSheetsClient implements SheetsValuesClient {
   }
 }
 
-function row(overrides: Partial<Record<typeof SAB_HEADERS[number], string>> = {}) {
-  const defaults: Record<typeof SAB_HEADERS[number], string> = Object.fromEntries(
-    SAB_HEADERS.map((header) => [header, ""]),
-  ) as Record<typeof SAB_HEADERS[number], string>;
+function row(
+  overrides: Partial<Record<(typeof SAB_HEADERS)[number], string>> = {},
+) {
+  const defaults: Record<(typeof SAB_HEADERS)[number], string> =
+    Object.fromEntries(SAB_HEADERS.map((header) => [header, ""])) as Record<
+      (typeof SAB_HEADERS)[number],
+      string
+    >;
 
-  return SAB_HEADERS.map((header) => ({
-    ...defaults,
-    batch_id: "B01",
-    batch_position: "1",
-    status: "assigned",
-    company: "Example Plumbing",
-    place_id: "place-1",
-    address: "Service Area Business",
-    city: "Charlotte",
-    state: "NC",
-    zip: "28202",
-    has_website: "TRUE",
-    website: "https://example.com",
-    service_page_count: "4",
-    website_analysis: JSON.stringify(["Finding 1", "Finding 2", "Finding 3"]),
-    reviews_analysis: JSON.stringify(["Trajectory", "Response behavior", "Job mix"]),
-    qualification_status: "qualified",
-    ...overrides,
-  })[header]);
+  return SAB_HEADERS.map(
+    (header) =>
+      ({
+        ...defaults,
+        batch_id: "B01",
+        batch_position: "1",
+        status: "assigned",
+        company: "Example Plumbing",
+        place_id: "place-1",
+        address: "Service Area Business",
+        city: "Charlotte",
+        state: "NC",
+        zip: "28202",
+        has_website: "TRUE",
+        website: "https://example.com",
+        service_page_count: "4",
+        website_analysis: JSON.stringify([
+          "Finding 1",
+          "Finding 2",
+          "Finding 3",
+        ]),
+        reviews_analysis: JSON.stringify([
+          "Trajectory",
+          "Response behavior",
+          "Job mix",
+        ]),
+        qualification_status: "qualified",
+        ...overrides,
+      })[header],
+  );
 }
 
 function buildRepository(rows: string[][]) {
@@ -108,23 +139,40 @@ function buildRepository(rows: string[][]) {
 function valuesForHeaders(headers: readonly string[], rows: string[][]) {
   return [
     Array.from(headers),
-    ...rows.map((sourceRow) => headers.map((header) => (
-      sourceRow[SAB_HEADERS.indexOf(header as typeof SAB_HEADERS[number])] ?? ""
-    ))),
+    ...rows.map((sourceRow) =>
+      headers.map(
+        (header) =>
+          sourceRow[
+            SAB_HEADERS.indexOf(header as (typeof SAB_HEADERS)[number])
+          ] ?? "",
+      ),
+    ),
   ];
 }
 
 describe("SabSheetsRepository", () => {
+  it("accepts an explicit null qualification status for clearing a premature disposition", () => {
+    expect(
+      sabCompanyUpdatesSchema.parse({ qualification_status: null }),
+    ).toEqual({
+      qualification_status: null,
+    });
+  });
+
   it("accepts workflow Sheets by URL or raw spreadsheet ID", () => {
     const spreadsheetId = "1AbCdEfGhIjKlMnOpQrStUvWxYz_1234567890";
 
     expect(spreadsheetIdFromReference(spreadsheetId)).toBe(spreadsheetId);
-    expect(spreadsheetIdFromReference(
-      `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit#gid=0`,
-    )).toBe(spreadsheetId);
-    expect(() => spreadsheetIdFromReference(
-      `https://docs.google.com/document/d/${spreadsheetId}/edit`,
-    )).toThrow(/Google Sheets spreadsheet ID/);
+    expect(
+      spreadsheetIdFromReference(
+        `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit#gid=0`,
+      ),
+    ).toBe(spreadsheetId);
+    expect(() =>
+      spreadsheetIdFromReference(
+        `https://docs.google.com/document/d/${spreadsheetId}/edit`,
+      ),
+    ).toThrow(/Google Sheets spreadsheet ID/);
   });
 
   it("reads exact tab grid properties and appends columns through authenticated Sheets API calls", async () => {
@@ -137,39 +185,45 @@ describe("SabSheetsRepository", () => {
       }),
       "test-refresh-token",
     );
-    const request = vi.fn(async (options: {
-      url: string;
-      method: string;
-      params?: Record<string, unknown>;
-      data?: Record<string, unknown>;
-    }) => {
-      if (options.method === "GET") {
-        return {
-          data: {
-            sheets: [
-              {
-                properties: {
-                  sheetId: 202,
-                  title: "Other Tab",
-                  gridProperties: { columnCount: 17 },
+    const request = vi.fn(
+      async (options: {
+        url: string;
+        method: string;
+        params?: Record<string, unknown>;
+        data?: Record<string, unknown>;
+      }) => {
+        if (options.method === "GET") {
+          return {
+            data: {
+              sheets: [
+                {
+                  properties: {
+                    sheetId: 202,
+                    title: "Other Tab",
+                    gridProperties: { columnCount: 17 },
+                  },
                 },
-              },
-              {
-                properties: {
-                  sheetId: 101,
-                  title: "SAB Workflow",
-                  gridProperties: { columnCount: 39 },
+                {
+                  properties: {
+                    sheetId: 101,
+                    title: "SAB Workflow",
+                    gridProperties: { columnCount: 39 },
+                  },
                 },
-              },
-            ],
-          },
-        };
-      }
-      return { data: {} };
-    });
-    (client as unknown as { auth: { request: typeof request } }).auth = { request };
+              ],
+            },
+          };
+        }
+        return { data: {} };
+      },
+    );
+    (client as unknown as { auth: { request: typeof request } }).auth = {
+      request,
+    };
 
-    await expect(client.getSheetGridProperties("sheet-id", "SAB Workflow")).resolves.toEqual({
+    await expect(
+      client.getSheetGridProperties("sheet-id", "SAB Workflow"),
+    ).resolves.toEqual({
       sheetId: 101,
       columnCount: 39,
     });
@@ -187,13 +241,15 @@ describe("SabSheetsRepository", () => {
       url: "https://sheets.googleapis.com/v4/spreadsheets/sheet-id:batchUpdate",
       method: "POST",
       data: {
-        requests: [{
-          appendDimension: {
-            sheetId: 101,
-            dimension: "COLUMNS",
-            length: 2,
+        requests: [
+          {
+            appendDimension: {
+              sheetId: 101,
+              dimension: "COLUMNS",
+              length: 2,
+            },
           },
-        }],
+        ],
       },
     });
   });
@@ -210,24 +266,28 @@ describe("SabSheetsRepository", () => {
     };
 
     expect(sabScanResultSchema.parse(coreScan)).toEqual(coreScan);
-    expect(sabScanResultSchema.safeParse({
-      ...coreScan,
-      competitors: ["Competitor One"],
-    }).success).toBe(false);
+    expect(
+      sabScanResultSchema.safeParse({
+        ...coreScan,
+        competitors: ["Competitor One"],
+      }).success,
+    ).toBe(false);
   });
 
   it("validates a complete native-workflow creation roster", () => {
     const parsed = z.object(createSabWorkflowInputSchema).parse({
       title: "Charlotte Electricians SAB Workflow",
-      companies: [{
-        batch_id: "B01",
-        batch_position: 1,
-        company: "Example Electric",
-        place_id: "place-1",
-        arp: 12.5,
-        solv: 18.2,
-        found_in: 7,
-      }],
+      companies: [
+        {
+          batch_id: "B01",
+          batch_position: 1,
+          company: "Example Electric",
+          place_id: "place-1",
+          arp: 12.5,
+          solv: 18.2,
+          found_in: 7,
+        },
+      ],
     });
 
     expect(parsed.companies).toHaveLength(1);
@@ -245,64 +305,74 @@ describe("SabSheetsRepository", () => {
       "test-refresh-token",
     );
     let createdValues: Array<Array<string | number | boolean>> = [];
-    const request = vi.fn(async (options: {
-      url: string;
-      method: string;
-      data?: {
-        sheets?: Array<{
-          properties?: {
-            title?: string;
-          };
-          data?: Array<{
-            rowData?: Array<{
-              values?: Array<{
-                userEnteredValue?: Record<string, string | number | boolean>;
+    const request = vi.fn(
+      async (options: {
+        url: string;
+        method: string;
+        data?: {
+          sheets?: Array<{
+            properties?: {
+              title?: string;
+            };
+            data?: Array<{
+              rowData?: Array<{
+                values?: Array<{
+                  userEnteredValue?: Record<string, string | number | boolean>;
+                }>;
               }>;
             }>;
           }>;
-        }>;
-      };
-    }) => {
-      if (
-        options.url === "https://sheets.googleapis.com/v4/spreadsheets"
-        && options.method === "POST"
-      ) {
-        createdValues = options.data?.sheets?.[0]?.data?.[0]?.rowData?.map((rowData) => (
-          rowData.values?.map((cell) => (
-            Object.values(cell.userEnteredValue ?? {})[0] ?? ""
-          )) ?? []
-        )) ?? [];
-        return {
-          data: {
-            spreadsheetId: "created-sheet-id",
-            spreadsheetUrl: "https://docs.google.com/spreadsheets/d/created-sheet-id/edit",
-          },
         };
-      }
-      if (options.url.includes("/values/") && options.method === "GET") {
-        return { data: { values: createdValues } };
-      }
-      throw new Error(`Unexpected request: ${options.method} ${options.url}`);
-    });
-    (client as unknown as { auth: { request: typeof request } }).auth = { request };
+      }) => {
+        if (
+          options.url === "https://sheets.googleapis.com/v4/spreadsheets" &&
+          options.method === "POST"
+        ) {
+          createdValues =
+            options.data?.sheets?.[0]?.data?.[0]?.rowData?.map(
+              (rowData) =>
+                rowData.values?.map(
+                  (cell) => Object.values(cell.userEnteredValue ?? {})[0] ?? "",
+                ) ?? [],
+            ) ?? [];
+          return {
+            data: {
+              spreadsheetId: "created-sheet-id",
+              spreadsheetUrl:
+                "https://docs.google.com/spreadsheets/d/created-sheet-id/edit",
+            },
+          };
+        }
+        if (options.url.includes("/values/") && options.method === "GET") {
+          return { data: { values: createdValues } };
+        }
+        throw new Error(`Unexpected request: ${options.method} ${options.url}`);
+      },
+    );
+    (client as unknown as { auth: { request: typeof request } }).auth = {
+      request,
+    };
 
     const result = await client.createWorkflow(
       "Charlotte Electricians SAB Workflow",
-      [{
-        batch_id: "B01",
-        batch_position: 1,
-        status: "assigned",
-        company: "Example Electric",
-        place_id: "place-1",
-        arp: 12.5,
-        solv: 18.2,
-        found_in: 7,
-      }],
+      [
+        {
+          batch_id: "B01",
+          batch_position: 1,
+          status: "assigned",
+          company: "Example Electric",
+          place_id: "place-1",
+          arp: 12.5,
+          solv: 18.2,
+          found_in: 7,
+        },
+      ],
       "matt@vivawebdesigns.com",
     );
 
     expect(result).toEqual({
-      workflow_sheet: "https://docs.google.com/spreadsheets/d/created-sheet-id/edit",
+      workflow_sheet:
+        "https://docs.google.com/spreadsheets/d/created-sheet-id/edit",
       spreadsheet_id: "created-sheet-id",
       sheet_name: "SAB Workflow",
       row_count: 1,
@@ -310,14 +380,17 @@ describe("SabSheetsRepository", () => {
         B01: { total: 1, assigned: 1 },
       },
     });
-    const createCall = request.mock.calls.find(([options]) => (
-      options.url === "https://sheets.googleapis.com/v4/spreadsheets"
-    ))?.[0];
+    const createCall = request.mock.calls.find(
+      ([options]) =>
+        options.url === "https://sheets.googleapis.com/v4/spreadsheets",
+    )?.[0];
     expect(createCall?.data?.sheets?.[0]).toMatchObject({
       properties: { title: "SAB Workflow" },
     });
     expect(createdValues[0]).toEqual(Array.from(SAB_HEADERS));
-    expect(createdValues[1][SAB_HEADERS.indexOf("company")]).toBe("Example Electric");
+    expect(createdValues[1][SAB_HEADERS.indexOf("company")]).toBe(
+      "Example Electric",
+    );
   });
 
   it("allows run-specific batch IDs instead of limiting the connector to B01-B04", () => {
@@ -346,7 +419,10 @@ describe("SabSheetsRepository", () => {
     expect(pending.map((company) => company.place_id)).toEqual(["place-1"]);
 
     const all = await repository.getBatch("B01", true);
-    expect(all.map((company) => company.place_id)).toEqual(["place-1", "place-2"]);
+    expect(all.map((company) => company.place_id)).toEqual([
+      "place-1",
+      "place-2",
+    ]);
   });
 
   it("updates only approved company cells and records the actor", async () => {
@@ -357,29 +433,54 @@ describe("SabSheetsRepository", () => {
       {
         owner_name: "Pat Owner",
         email: "pat@example.com",
-        reviews_analysis: ["Reviews are accelerating", "Owner responds consistently", "Residential work dominates"],
+        reviews_analysis: [
+          "Reviews are accelerating",
+          "Owner responds consistently",
+          "Residential work dominates",
+        ],
       },
       "matt@vivawebdesigns.com",
     );
 
-    expect(result.updated_fields).toEqual(["owner_name", "email", "reviews_analysis"]);
+    expect(result.updated_fields).toEqual([
+      "owner_name",
+      "email",
+      "reviews_analysis",
+    ]);
     expect(client.updates).toHaveLength(5);
-    expect((await repository.getCompany("place-1")).owner_name).toBe("Pat Owner");
-    expect((await repository.getCompany("place-1")).updated_by).toBe("matt@vivawebdesigns.com");
+    expect((await repository.getCompany("place-1")).owner_name).toBe(
+      "Pat Owner",
+    );
+    expect((await repository.getCompany("place-1")).updated_by).toBe(
+      "matt@vivawebdesigns.com",
+    );
   });
 
   it("expands a 39-column legacy Sheet to 41 and adds both headers without changing rows or Place IDs", async () => {
     const legacyHeaders = SAB_HEADERS.filter(
-      (header) => !SAB_SCALE_FIRST_UPGRADEABLE_HEADERS.includes(
-        header as typeof SAB_SCALE_FIRST_UPGRADEABLE_HEADERS[number],
-      ),
+      (header) =>
+        !SAB_SCALE_FIRST_UPGRADEABLE_HEADERS.includes(
+          header as (typeof SAB_SCALE_FIRST_UPGRADEABLE_HEADERS)[number],
+        ),
     );
-    const client = new FakeSheetsClient(valuesForHeaders(legacyHeaders, [
-      row({ research_notes: '=CONCAT("kept", " formula")' }),
-      row({ place_id: "place-2", company: "Second Plumbing", batch_position: "2" }),
-    ]));
-    const originalRows = client.values.slice(1).map((sourceRow) => [...sourceRow]);
-    const repository = new SabSheetsRepository(client, "sheet-id", "SAB Workflow");
+    const client = new FakeSheetsClient(
+      valuesForHeaders(legacyHeaders, [
+        row({ research_notes: '=CONCAT("kept", " formula")' }),
+        row({
+          place_id: "place-2",
+          company: "Second Plumbing",
+          batch_position: "2",
+        }),
+      ]),
+    );
+    const originalRows = client.values
+      .slice(1)
+      .map((sourceRow) => [...sourceRow]);
+    const repository = new SabSheetsRepository(
+      client,
+      "sheet-id",
+      "SAB Workflow",
+    );
 
     const result = await repository.upgradeWorkflowSchema();
 
@@ -400,16 +501,29 @@ describe("SabSheetsRepository", () => {
       },
     });
     expect(result.before_place_id_checksum).toMatch(/^[a-f0-9]{64}$/);
-    expect(result.after_place_id_checksum).toBe(result.before_place_id_checksum);
+    expect(result.after_place_id_checksum).toBe(
+      result.before_place_id_checksum,
+    );
     expect(client.columnAppends).toEqual([{ sheetId: 101, columnCount: 2 }]);
-    expect(client.updates.map(({ value }) => value)).toEqual(["workflow", "contact_tag"]);
+    expect(client.updates.map(({ value }) => value)).toEqual([
+      "workflow",
+      "contact_tag",
+    ]);
     expect(client.values.slice(1)).toEqual(originalRows);
   });
 
   it("expands only as needed and adds the missing header to a partially upgraded Sheet", async () => {
-    const partialHeaders = SAB_HEADERS.filter((header) => header !== "contact_tag");
-    const client = new FakeSheetsClient(valuesForHeaders(partialHeaders, [row()]));
-    const repository = new SabSheetsRepository(client, "sheet-id", "SAB Workflow");
+    const partialHeaders = SAB_HEADERS.filter(
+      (header) => header !== "contact_tag",
+    );
+    const client = new FakeSheetsClient(
+      valuesForHeaders(partialHeaders, [row()]),
+    );
+    const repository = new SabSheetsRepository(
+      client,
+      "sheet-id",
+      "SAB Workflow",
+    );
 
     await expect(repository.upgradeWorkflowSchema()).resolves.toMatchObject({
       added_headers: ["contact_tag"],
@@ -427,8 +541,15 @@ describe("SabSheetsRepository", () => {
     const legacyHeaders = SAB_HEADERS.filter(
       (header) => header !== "workflow" && header !== "contact_tag",
     );
-    const client = new FakeSheetsClient(valuesForHeaders(legacyHeaders, [row()]), 50);
-    const repository = new SabSheetsRepository(client, "sheet-id", "SAB Workflow");
+    const client = new FakeSheetsClient(
+      valuesForHeaders(legacyHeaders, [row()]),
+      50,
+    );
+    const repository = new SabSheetsRepository(
+      client,
+      "sheet-id",
+      "SAB Workflow",
+    );
 
     await expect(repository.upgradeWorkflowSchema()).resolves.toMatchObject({
       added_headers: ["workflow", "contact_tag"],
@@ -438,12 +559,19 @@ describe("SabSheetsRepository", () => {
       columns_added: 0,
     });
     expect(client.columnAppends).toEqual([]);
-    expect(client.updates.map(({ value }) => value)).toEqual(["workflow", "contact_tag"]);
+    expect(client.updates.map(({ value }) => value)).toEqual([
+      "workflow",
+      "contact_tag",
+    ]);
   });
 
   it("returns a verified no-op for a current Sheet", async () => {
     const client = new FakeSheetsClient([Array.from(SAB_HEADERS), row()]);
-    const repository = new SabSheetsRepository(client, "sheet-id", "SAB Workflow");
+    const repository = new SabSheetsRepository(
+      client,
+      "sheet-id",
+      "SAB Workflow",
+    );
 
     await expect(repository.upgradeWorkflowSchema()).resolves.toMatchObject({
       added_headers: [],
@@ -465,8 +593,15 @@ describe("SabSheetsRepository", () => {
     const legacyHeaders = SAB_HEADERS.filter(
       (header) => header !== "workflow" && header !== "contact_tag",
     );
-    const client = new FakeSheetsClient(valuesForHeaders(legacyHeaders, [row()]), 41);
-    const repository = new SabSheetsRepository(client, "sheet-id", "SAB Workflow");
+    const client = new FakeSheetsClient(
+      valuesForHeaders(legacyHeaders, [row()]),
+      41,
+    );
+    const repository = new SabSheetsRepository(
+      client,
+      "sheet-id",
+      "SAB Workflow",
+    );
 
     await expect(repository.upgradeWorkflowSchema()).resolves.toMatchObject({
       changed: true,
@@ -494,33 +629,46 @@ describe("SabSheetsRepository", () => {
       "sheet-id",
       "SAB Workflow",
     );
-    await expect(duplicateRepository.upgradeWorkflowSchema()).rejects.toThrow(/duplicate headers.*workflow/i);
+    await expect(duplicateRepository.upgradeWorkflowSchema()).rejects.toThrow(
+      /duplicate headers.*workflow/i,
+    );
     expect(duplicateClient.columnAppends).toEqual([]);
     expect(duplicateClient.updates).toEqual([]);
 
-    const ambiguousHeaders = SAB_HEADERS.map((header) => (
-      header === "workflow" ? " Workflow " : header
-    ));
-    const ambiguousClient = new FakeSheetsClient(valuesForHeaders(ambiguousHeaders, [row()]));
+    const ambiguousHeaders = SAB_HEADERS.map((header) =>
+      header === "workflow" ? " Workflow " : header,
+    );
+    const ambiguousClient = new FakeSheetsClient(
+      valuesForHeaders(ambiguousHeaders, [row()]),
+    );
     const ambiguousRepository = new SabSheetsRepository(
       ambiguousClient,
       "sheet-id",
       "SAB Workflow",
     );
-    await expect(ambiguousRepository.upgradeWorkflowSchema()).rejects.toThrow(/ambiguous canonical headers/i);
+    await expect(ambiguousRepository.upgradeWorkflowSchema()).rejects.toThrow(
+      /ambiguous canonical headers/i,
+    );
     expect(ambiguousClient.columnAppends).toEqual([]);
     expect(ambiguousClient.updates).toEqual([]);
 
     const missingBaseHeaders = SAB_HEADERS.filter(
-      (header) => header !== "company" && header !== "workflow" && header !== "contact_tag",
+      (header) =>
+        header !== "company" &&
+        header !== "workflow" &&
+        header !== "contact_tag",
     );
-    const missingBaseClient = new FakeSheetsClient(valuesForHeaders(missingBaseHeaders, [row()]));
+    const missingBaseClient = new FakeSheetsClient(
+      valuesForHeaders(missingBaseHeaders, [row()]),
+    );
     const missingBaseRepository = new SabSheetsRepository(
       missingBaseClient,
       "sheet-id",
       "SAB Workflow",
     );
-    await expect(missingBaseRepository.upgradeWorkflowSchema()).rejects.toThrow(/legacy\/base required headers.*company/i);
+    await expect(missingBaseRepository.upgradeWorkflowSchema()).rejects.toThrow(
+      /legacy\/base required headers.*company/i,
+    );
     expect(missingBaseClient.columnAppends).toEqual([]);
     expect(missingBaseClient.updates).toEqual([]);
   });
@@ -529,9 +677,15 @@ describe("SabSheetsRepository", () => {
     const legacyHeaders = SAB_HEADERS.filter(
       (header) => header !== "workflow" && header !== "contact_tag",
     );
-    const client = new FakeSheetsClient(valuesForHeaders(legacyHeaders, [row()]));
+    const client = new FakeSheetsClient(
+      valuesForHeaders(legacyHeaders, [row()]),
+    );
     const otherTabBefore = { ...client.tabs.get("Other Tab")! };
-    const repository = new SabSheetsRepository(client, "sheet-id", "SAB Workflow");
+    const repository = new SabSheetsRepository(
+      client,
+      "sheet-id",
+      "SAB Workflow",
+    );
 
     await repository.upgradeWorkflowSchema();
 
@@ -542,19 +696,31 @@ describe("SabSheetsRepository", () => {
 
   it("rejects a missing writable header with upgrade instructions and no malformed range", async () => {
     const legacyHeaders = SAB_HEADERS.filter((header) => header !== "workflow");
-    const client = new FakeSheetsClient(valuesForHeaders(legacyHeaders, [row()]));
-    const repository = new SabSheetsRepository(client, "sheet-id", "SAB Workflow");
+    const client = new FakeSheetsClient(
+      valuesForHeaders(legacyHeaders, [row()]),
+    );
+    const repository = new SabSheetsRepository(
+      client,
+      "sheet-id",
+      "SAB Workflow",
+    );
 
-    await expect(repository.saveCompany(
-      "place-1",
-      { workflow: "scale_first_v2" },
-      "matt@vivawebdesigns.com",
-    )).rejects.toThrow(/missing writable header "workflow".*upgrade_sab_workflow_schema/i);
+    await expect(
+      repository.saveCompany(
+        "place-1",
+        { workflow: "scale_first_v2" },
+        "matt@vivawebdesigns.com",
+      ),
+    ).rejects.toThrow(
+      /missing writable header "workflow".*upgrade_sab_workflow_schema/i,
+    );
     expect(client.updates).toEqual([]);
   });
 
   it("adds scan history to legacy Sheets and updates current deliverable fields", async () => {
-    const legacyHeaders = SAB_HEADERS.filter((header) => header !== "scan_history");
+    const legacyHeaders = SAB_HEADERS.filter(
+      (header) => header !== "scan_history",
+    );
     const legacyRow = row({
       arp: "22.4",
       solv: "8.7",
@@ -566,11 +732,18 @@ describe("SabSheetsRepository", () => {
       scan_date: "2026-08-01",
       scan_keyword: "electrician near me",
     });
-    const legacyValues = legacyHeaders.map((header) => (
-      legacyRow[SAB_HEADERS.indexOf(header)]
-    ));
-    const client = new FakeSheetsClient([Array.from(legacyHeaders), legacyValues], SAB_HEADERS.length);
-    const repository = new SabSheetsRepository(client, "sheet-id", "SAB Workflow");
+    const legacyValues = legacyHeaders.map(
+      (header) => legacyRow[SAB_HEADERS.indexOf(header)],
+    );
+    const client = new FakeSheetsClient(
+      [Array.from(legacyHeaders), legacyValues],
+      SAB_HEADERS.length,
+    );
+    const repository = new SabSheetsRepository(
+      client,
+      "sheet-id",
+      "SAB Workflow",
+    );
 
     const result = await repository.saveScanResult(
       "place-1",
@@ -606,9 +779,11 @@ describe("SabSheetsRepository", () => {
         report_key: "qualified-report",
       }),
     ]);
-    expect(company.scan_history).not.toEqual(expect.arrayContaining([
-      expect.objectContaining({ competitors: expect.anything() }),
-    ]));
+    expect(company.scan_history).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ competitors: expect.anything() }),
+      ]),
+    );
   });
 
   it("retains auxiliary scans without replacing the current deliverable", async () => {
@@ -660,15 +835,17 @@ describe("SabSheetsRepository", () => {
       }),
     ]);
 
-    await expect(repository.saveCompany(
-      "place-1",
-      {
-        address: "Service Area Business",
-        zip: "28202",
-        status: "complete",
-      },
-      "matt@vivawebdesigns.com",
-    )).resolves.toMatchObject({ status: "complete" });
+    await expect(
+      repository.saveCompany(
+        "place-1",
+        {
+          address: "Service Area Business",
+          zip: "28202",
+          status: "complete",
+        },
+        "matt@vivawebdesigns.com",
+      ),
+    ).resolves.toMatchObject({ status: "complete" });
   });
 
   it("rejects complete status when required audits are missing", async () => {
@@ -678,11 +855,13 @@ describe("SabSheetsRepository", () => {
       }),
     ]);
 
-    await expect(repository.saveCompany(
-      "place-1",
-      { status: "complete" },
-      "matt@vivawebdesigns.com",
-    )).rejects.toThrow(/reviews_analysis/);
+    await expect(
+      repository.saveCompany(
+        "place-1",
+        { status: "complete" },
+        "matt@vivawebdesigns.com",
+      ),
+    ).rejects.toThrow(/reviews_analysis/);
   });
 
   it("allows Scale-First qa_ready without Audit-First audit fields", async () => {
@@ -707,11 +886,13 @@ describe("SabSheetsRepository", () => {
       }),
     ]);
 
-    await expect(repository.saveCompany(
-      "place-1",
-      { status: "qa_ready" },
-      "matt@vivawebdesigns.com",
-    )).resolves.toMatchObject({ status: "qa_ready" });
+    await expect(
+      repository.saveCompany(
+        "place-1",
+        { status: "qa_ready" },
+        "matt@vivawebdesigns.com",
+      ),
+    ).resolves.toMatchObject({ status: "qa_ready" });
   });
 
   it("enforces Scale-First contact, scan, and address privacy at qa_ready", async () => {
@@ -732,11 +913,15 @@ describe("SabSheetsRepository", () => {
       }),
     ]);
 
-    await expect(repository.saveCompany(
-      "place-1",
-      { status: "qa_ready" },
-      "matt@vivawebdesigns.com",
-    )).rejects.toThrow(/address.*Service Area Business|email.*Email Ready|report_key/i);
+    await expect(
+      repository.saveCompany(
+        "place-1",
+        { status: "qa_ready" },
+        "matt@vivawebdesigns.com",
+      ),
+    ).rejects.toThrow(
+      /address.*Service Area Business|email.*Email Ready|report_key/i,
+    );
   });
 
   it("rejects complete status until a final qualification disposition is set", async () => {
@@ -746,11 +931,43 @@ describe("SabSheetsRepository", () => {
       }),
     ]);
 
-    await expect(repository.saveCompany(
-      "place-1",
-      { status: "complete" },
-      "matt@vivawebdesigns.com",
-    )).rejects.toThrow(/qualification_status/);
+    await expect(
+      repository.saveCompany(
+        "place-1",
+        { status: "complete" },
+        "matt@vivawebdesigns.com",
+      ),
+    ).rejects.toThrow(/qualification_status/);
+  });
+
+  it("clears a premature qualification disposition without changing in-progress status", async () => {
+    const { client, repository } = buildRepository([
+      row({
+        status: "in_progress",
+        qualification_status: "qualified",
+      }),
+    ]);
+
+    await expect(
+      repository.saveCompany(
+        "place-1",
+        { qualification_status: null },
+        "matt@vivawebdesigns.com",
+      ),
+    ).resolves.toMatchObject({
+      status: "in_progress",
+      updated_fields: ["qualification_status"],
+    });
+
+    expect(client.values[1][SAB_HEADERS.indexOf("qualification_status")]).toBe(
+      "",
+    );
+    expect(client.updates).toContainEqual(
+      expect.objectContaining({
+        range: expect.stringMatching(/![A-Z]+2$/),
+        value: "",
+      }),
+    );
   });
 
   it("allows a fully audited disqualified company to close without CRM location filler", async () => {
@@ -761,15 +978,18 @@ describe("SabSheetsRepository", () => {
         state: "",
         zip: "",
         qualification_status: "disqualified",
-        research_notes: "Review activity is outside the allowed recency window.",
+        research_notes:
+          "Review activity is outside the allowed recency window.",
       }),
     ]);
 
-    await expect(repository.saveCompany(
-      "place-1",
-      { status: "complete" },
-      "matt@vivawebdesigns.com",
-    )).resolves.toMatchObject({ status: "complete" });
+    await expect(
+      repository.saveCompany(
+        "place-1",
+        { status: "complete" },
+        "matt@vivawebdesigns.com",
+      ),
+    ).resolves.toMatchObject({ status: "complete" });
   });
 
   it("allows a reasoned manual disqualification to close without unfinished audits", async () => {
@@ -781,15 +1001,18 @@ describe("SabSheetsRepository", () => {
         website_analysis: "",
         reviews_analysis: "",
         qualification_status: "disqualified",
-        research_notes: "Matt manually disqualified the company because its primary category does not match the run trade.",
+        research_notes:
+          "Matt manually disqualified the company because its primary category does not match the run trade.",
       }),
     ]);
 
-    await expect(repository.saveCompany(
-      "place-1",
-      { status: "complete" },
-      "matt@vivawebdesigns.com",
-    )).resolves.toMatchObject({ status: "complete" });
+    await expect(
+      repository.saveCompany(
+        "place-1",
+        { status: "complete" },
+        "matt@vivawebdesigns.com",
+      ),
+    ).resolves.toMatchObject({ status: "complete" });
   });
 
   it("requires a reason before a manual disqualification can skip unfinished audits", async () => {
@@ -802,11 +1025,13 @@ describe("SabSheetsRepository", () => {
       }),
     ]);
 
-    await expect(repository.saveCompany(
-      "place-1",
-      { status: "complete" },
-      "matt@vivawebdesigns.com",
-    )).rejects.toThrow(/qualification reason/);
+    await expect(
+      repository.saveCompany(
+        "place-1",
+        { status: "complete" },
+        "matt@vivawebdesigns.com",
+      ),
+    ).rejects.toThrow(/qualification reason/);
   });
 
   it("requires a reason when a company is disqualified or deferred", async () => {
@@ -817,11 +1042,13 @@ describe("SabSheetsRepository", () => {
       }),
     ]);
 
-    await expect(repository.saveCompany(
-      "place-1",
-      { status: "complete" },
-      "matt@vivawebdesigns.com",
-    )).rejects.toThrow(/qualification reason/);
+    await expect(
+      repository.saveCompany(
+        "place-1",
+        { status: "complete" },
+        "matt@vivawebdesigns.com",
+      ),
+    ).rejects.toThrow(/qualification reason/);
   });
 
   it("reports progress by batch and status", async () => {

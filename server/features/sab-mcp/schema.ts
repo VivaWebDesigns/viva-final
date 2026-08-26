@@ -138,9 +138,10 @@ export const sabCompanyUpdatesSchema = z
     review_count: z.number().int().min(0).nullable().optional(),
     qualification_status: z
       .enum(SAB_QUALIFICATION_STATUSES)
+      .nullable()
       .optional()
       .describe(
-        "Final disposition. Use qualified, disqualified, or deferred before marking a company complete. A reasoned manual disqualification may close without unfinished website or review audits.",
+        "Final disposition. Use null to clear a premature disposition while work remains in progress. Use qualified, disqualified, or deferred before marking a company complete. A reasoned manual disqualification may close without unfinished website or review audits.",
       ),
     sales_priority: z
       .number()
