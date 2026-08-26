@@ -7,7 +7,7 @@ import {
   FiMapPin,
   FiSearch,
 } from "react-icons/fi";
-import { FaRegStar, FaStar } from "react-icons/fa";
+import { FaExclamation, FaRegStar, FaStar } from "react-icons/fa";
 import type { LocalVisibilityReportData } from "./types";
 import type {
   LocalVisibilityGoogleMapsComparison,
@@ -81,50 +81,51 @@ function ComparisonRating({ row }: { row: LocalVisibilityGoogleMapsComparisonRow
   );
 }
 
-function formatRadius(value: string): string {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return value.trim() || "SCAN";
-  return Number.isInteger(parsed) ? String(parsed) : String(parsed);
-}
-
 function GoogleMapsComparison({
   comparison,
-  radius,
 }: {
   comparison: LocalVisibilityGoogleMapsComparison;
-  radius: string;
 }) {
-  const resultSummary = comparison.subjectRank === null
-    ? `Your business was not found among ${comparison.totalBusinesses ?? "the"} businesses returned in this Google Maps area scan.`
-    : `Ranked #${comparison.subjectRank.toLocaleString()}${comparison.totalBusinesses === null ? "" : ` of ${comparison.totalBusinesses.toLocaleString()} businesses`} in this Google Maps area scan.`;
+  const subject = comparison.rows.find((row) => row.isSubject);
+  const peers = comparison.rows.filter((row) => !row.isSubject);
+  const rows = subject ? [peers[0], subject, peers[1]].filter(Boolean) : comparison.rows.slice(0, 3);
+  const totalPoints = comparison.rows.find((row) => row.totalPoints)?.totalPoints;
+  const headline = comparison.subjectRank === null
+    ? "Your business was not found in this scan"
+    : `You rank #${comparison.subjectRank.toLocaleString()}${comparison.totalBusinesses === null ? "" : ` of ${comparison.totalBusinesses.toLocaleString()}`} for visibility`;
+  const businessesAhead = comparison.businessesAheadCount
+    ?? (comparison.subjectRank === null ? null : Math.max(0, comparison.subjectRank - 1));
+  const takeaway = businessesAhead === null
+    ? "Your business had less visibility than the businesses returned in this scan."
+    : `For this search, ${businessesAhead.toLocaleString()} ${businessesAhead === 1 ? "business had" : "businesses had"} greater visibility across the scan area.`;
+
+  const relationshipLabel = (row: LocalVisibilityGoogleMapsComparisonRow) => {
+    if (row.isSubject) return "Your business";
+    if (row.relationship === "above") return "Rank above you";
+    if (row.relationship === "below") return "Rank below you";
+    return "Nearby result";
+  };
 
   return (
-    <section className="lvr-comparison" aria-label="How you compare on Google Maps">
+    <section className="lvr-comparison" aria-label="Google Maps visibility comparison">
       <header className="lvr-comparison-header">
-        <div>
-          <h4>How You Compare on Google Maps</h4>
-          <span aria-hidden="true" />
-        </div>
-        <p>Visibility across the {formatRadius(radius)}-mile radius</p>
+        <h4>{headline}</h4>
+        <p>Here’s how you compare with the businesses ranked around you.</p>
       </header>
-      <div className="lvr-comparison-rows">
-        {comparison.rows.map((row, index) => {
+      <div className="lvr-comparison-columns">
+        {rows.map((row, index) => {
           const visibility = row.foundPoints !== null && row.totalPoints
             ? (row.foundPoints / row.totalPoints) * 100
             : row.topThreeVisibility;
           return (
-            <div
+            <article
               key={`${row.rank ?? "subject"}-${row.name}-${index}`}
-              className={`lvr-comparison-row${row.isSubject ? " is-subject" : ""}`}
+              className={`lvr-comparison-column${row.isSubject ? " is-subject" : ""}`}
             >
+              <span className="lvr-comparison-relationship">{relationshipLabel(row)}</span>
               <span className="lvr-comparison-rank">{row.rank ?? "—"}</span>
-              <div className="lvr-comparison-business">
-                <div className="lvr-comparison-name">
-                  <strong>{row.name}</strong>
-                  {row.isSubject && <span>Your business</span>}
-                </div>
-                <ComparisonRating row={row} />
-              </div>
+              <strong className="lvr-comparison-name">{row.name}</strong>
+              <ComparisonRating row={row} />
               <div className="lvr-comparison-visibility">
                 {row.foundPoints !== null && row.totalPoints ? (
                   <strong>{row.foundPoints.toLocaleString()} of {row.totalPoints.toLocaleString()} points</strong>
@@ -133,14 +134,14 @@ function GoogleMapsComparison({
                 )}
                 <span>{visibility === null ? "Visibility unavailable" : `${visibility.toFixed(2)}% visibility`}</span>
               </div>
-            </div>
+            </article>
           );
         })}
       </div>
       <div className="lvr-comparison-callout">
-        <span aria-hidden="true">!</span>
-        <strong>{resultSummary}</strong>
-        {comparison.rows[0]?.totalPoints && <b>Based on {comparison.rows[0].totalPoints} search points</b>}
+        <span aria-hidden="true"><FaExclamation /></span>
+        <strong>{takeaway}</strong>
+        {totalPoints && <b>Based on {totalPoints} search points</b>}
       </div>
     </section>
   );
@@ -286,7 +287,7 @@ const LocalVisibilityReportTemplate = forwardRef<HTMLDivElement, Props>(function
         </section>
 
         {data.googleMapsComparison && (
-          <GoogleMapsComparison comparison={data.googleMapsComparison} radius={data.radius} />
+          <GoogleMapsComparison comparison={data.googleMapsComparison} />
         )}
       </div>
 

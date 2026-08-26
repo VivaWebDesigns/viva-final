@@ -85,10 +85,14 @@ describe("LocalVisibilityReportTemplate", () => {
     expect(screen.getByText("The center dot marks your business.")).toBeInTheDocument();
     expect(screen.getByText("Each number is your Google Maps position from that location.")).toBeInTheDocument();
     expect(screen.getByText("7 × 7 grid · 2.5-mile radius")).toBeInTheDocument();
-    expect(screen.getByText("How You Compare on Google Maps")).toBeInTheDocument();
-    expect(screen.getByText("Visibility across the 2.5-mile radius")).toBeInTheDocument();
+    expect(screen.getByText("You rank #130 of 148 for visibility")).toBeInTheDocument();
+    expect(screen.getByText("Here’s how you compare with the businesses ranked around you.")).toBeInTheDocument();
+    expect(screen.getByText("Rank above you")).toBeInTheDocument();
+    expect(screen.getByText("Your business")).toBeInTheDocument();
+    expect(screen.getByText("Rank below you")).toBeInTheDocument();
     expect(screen.getAllByText("0 of 49 points")).toHaveLength(2);
-    expect(screen.getByText("Ranked #130 of 148 businesses in this Google Maps area scan.")).toBeInTheDocument();
+    expect(screen.getByText("For this search, 129 businesses had greater visibility across the scan area.")).toBeInTheDocument();
+    expect(screen.getByText("Based on 49 search points")).toBeInTheDocument();
     expect(screen.getByTestId("local-visibility-report-template")).toHaveAttribute("data-export-height", "2880");
   });
 

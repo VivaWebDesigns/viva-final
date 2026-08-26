@@ -176,3 +176,34 @@ The implementation captures were rendered from the real React component and prod
 ## Final result
 
 `passed`
+
+---
+
+# Design QA — Local Visibility Comparison Option 3 — 2026-08-26
+
+## Reference and implementation
+
+- Selected reference: `/Users/matt/.codex/generated_images/01a03e0c-7b48-70a3-bf88-de406f53f256/exec-91bea158-b78e-4b7c-bda4-e1e2ea503189.png`
+- Browser-rendered implementation: `/Users/matt/.codex/visualizations/2026/08/26/01a03e0c-7b48-70a3-bf88-de406f53f256/implementation.png`
+- Side-by-side comparison: `/Users/matt/.codex/visualizations/2026/08/26/01a03e0c-7b48-70a3-bf88-de406f53f256/comparison.png`
+- QA fixture: Atlantic Tree Services, LLC; rank 64 of 69; 7 × 7 grid; 3-mile radius.
+
+## Comparison results
+
+- The heavy rounded comparison card has been replaced with the selected open, three-column layout.
+- The scan-settings divider is below `7 × 7 grid · 3-mile radius`, with no divider between the explanatory rows and scan settings.
+- Headline, subtitle, and bottom takeaway match the approved copy exactly and remain driven by live comparison data.
+- The immediately higher business, subject business, and immediately lower business are displayed left-to-right with ranks, reviews, scan-point totals, and visibility percentages.
+- Subject emphasis uses the existing Viva blue for the badge, rank, and metric rule; neighboring businesses remain neutral.
+- The comparison flows directly into the existing navy Viva footer without an enclosing border, radius, shadow, or dark callout block.
+- The 1080 × 2880 email export contract and legacy 1080 × 1920 report contract remain unchanged.
+
+## Functional verification
+
+- Focused component tests: passed (5 tests).
+- TypeScript check: passed.
+- Browser DOM verification: all approved copy and all three dynamic business columns are present.
+- Browser-rendered full report: no clipping or overflow; footer remains inside the export canvas.
+- Browser console errors: none observed.
+
+final result: passed
