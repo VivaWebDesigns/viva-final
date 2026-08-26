@@ -70,21 +70,33 @@ describe("fixed Claude checkpoint instruction", () => {
     );
   });
 
-  it("shows observation-mode fields", () => {
-    for (const field of [
-      "supervisor verdict",
-      "approval ID",
-      "exact approved scans and credits",
-      "problems or corrections",
-      "action taken",
-    ]) {
-      expect(instruction).toContain(field);
-    }
+  it("keeps non-stopping review loops private", () => {
+    expect(instruction).toContain(
+      "keep working without displaying the checkpoint, verdict, correction, reconciliation, or a request to continue to Matt",
+    );
+    expect(instruction).toContain(
+      "repeat this private review-and-correction loop",
+    );
+    expect(instruction).toContain(
+      "Do not turn those records into user-visible checkpoints",
+    );
+    expect(instruction).not.toContain(
+      "During the first supervisor-managed runs, display",
+    );
   });
 
   it("does not wait on an authorized non-paid next step", () => {
     expect(instruction).toContain(
       "Do not present a checkpoint to the user and wait if the reviewer has already authorized a non-paid next step.",
+    );
+  });
+
+  it("requires evidence before claiming a tool is unavailable", () => {
+    expect(instruction).toContain(
+      "First attempt the exact tool call when its required inputs are known",
+    );
+    expect(instruction).toContain(
+      "exact attempted tool name and exact returned error",
     );
   });
 });

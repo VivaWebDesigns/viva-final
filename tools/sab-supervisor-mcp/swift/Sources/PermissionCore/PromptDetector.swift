@@ -222,6 +222,17 @@ public struct PromptDetector: Sendable {
             approvalButton(prefix: $0, in: buttonLabels)
         }.first ?? allowButton
 
+        if toolName == "javascript_tool" {
+            return detectReadOnlyJavaScriptPermission(
+                taskRoot,
+                nodes: nodes,
+                permissionMarker: permissionMarker,
+                permissionType: permissionType,
+                allowButton: selectedButton,
+                fallbackHostname: fallbackHostname
+            )
+        }
+
         if toolName != "browser_batch" {
             return detectSinglePermissionRequest(
                 taskRoot,
@@ -294,6 +305,65 @@ public struct PromptDetector: Sendable {
                 actionDescriptor: permissionMarker,
                 actionKind: "browser_batch:\(actionNames.joined(separator: ","))",
                 selectedButton: selectedButton
+            )
+        )
+    }
+
+    private func detectReadOnlyJavaScriptPermission(
+        _ taskRoot: SemanticNode,
+        nodes: [SemanticNode],
+        permissionMarker: String,
+        permissionType: String,
+        allowButton: String,
+        fallbackHostname: String?
+    ) -> DetectionResult {
+        guard let payloadText = nodes.map(\.displayedText).last(where: {
+            guard let payload = jsonObject(from: $0) else { return false }
+            return payload["action"] as? String == "javascript_exec"
+        }), let payload = jsonObject(from: payloadText),
+              let script = payload["text"] as? String
+        else {
+            return .unknown(
+                hostname: fallbackHostname ?? "unknown",
+                permissionType: permissionType,
+                reason: "Candidate javascript_tool prompt did not expose a readable javascript_exec payload"
+            )
+        }
+
+        let normalizedScript = script.trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: CharacterSet(charactersIn: ";"))
+            .replacingOccurrences(of: #"\s+"#, with: "", options: .regularExpression)
+            .lowercased()
+        guard ["document.title", "window.document.title"].contains(normalizedScript) else {
+            return .unknown(
+                hostname: fallbackHostname ?? "unknown",
+                permissionType: permissionType,
+                reason: "Candidate javascript_tool script was not the approved read-only document.title expression"
+            )
+        }
+        guard let hostname = fallbackHostname else {
+            return .unknown(
+                hostname: "unknown",
+                permissionType: permissionType,
+                reason: "Candidate javascript_tool prompt could not be associated with one visible public page"
+            )
+        }
+        guard isPublicHostname(hostname) else {
+            return .protected(
+                hostname: hostname,
+                permissionType: permissionType,
+                reason: "Non-public or local hostname"
+            )
+        }
+
+        return .routine(
+            PromptMatch(
+                taskURL: taskRoot.url,
+                hostname: hostname,
+                permissionType: permissionType,
+                actionDescriptor: permissionMarker,
+                actionKind: "javascript_tool:document.title",
+                selectedButton: allowButton
             )
         )
     }

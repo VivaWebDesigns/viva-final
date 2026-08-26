@@ -103,6 +103,21 @@ func singleToolSnapshot(
     )
 }
 
+func javascriptSnapshot(
+    pageURL: String = "https://www.example.edu/reference",
+    script: String = "document.title"
+) -> SemanticNode {
+    singleToolSnapshot(
+        toolName: "javascript_tool",
+        pageURL: pageURL,
+        payload: [
+            "action": "javascript_exec",
+            "tabId": 42,
+            "text": script,
+        ]
+    )
+}
+
 let detector = PromptDetector(extensionID: extensionID)
 
 if case let .routine(match) = detector.detect(in: snapshot()) {
@@ -145,6 +160,30 @@ if case let .routine(match) = detector.detect(in: singleToolSnapshot()) {
     expect(match.selectedButton == "Allow once 2", "single read allow button")
 } else {
     failures.append("single get_page_text permission was not detected")
+}
+
+if case let .routine(match) = detector.detect(in: javascriptSnapshot()) {
+    expect(match.hostname == "www.example.edu", "page-title JavaScript hostname")
+    expect(
+        match.actionKind == "javascript_tool:document.title",
+        "page-title JavaScript action kind"
+    )
+    expect(match.selectedButton == "Allow once 2", "page-title JavaScript allow button")
+} else {
+    failures.append("read-only document.title JavaScript was not detected")
+}
+
+for script in [
+    "document.cookie",
+    "document.body.innerText",
+    "fetch('/private')",
+    "document.querySelector('button').click()",
+] {
+    if case .unknown = detector.detect(in: javascriptSnapshot(script: script)) {
+        // Arbitrary JavaScript remains fail-closed.
+    } else {
+        failures.append("non-whitelisted JavaScript did not fail closed: \(script)")
+    }
 }
 
 if case .protected = detector.detect(

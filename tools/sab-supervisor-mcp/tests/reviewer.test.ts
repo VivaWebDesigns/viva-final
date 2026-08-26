@@ -135,6 +135,43 @@ describe("reviewSabCheckpoint", () => {
     );
   });
 
+  it("reserves user rulings for genuine user-only decisions", async () => {
+    const prompts: string[] = [];
+    const sop = await registerFixture("neutral-sop-a", "rev-a");
+    await reviewSabCheckpoint(
+      {
+        registered_sop_handle: sop.registered_sop_handle,
+        claude_message: "A tool may be missing.",
+        run_context: "The claim has not been verified.",
+        user_rulings: [],
+      },
+      {
+        config,
+        execute: async (prompt) => {
+          prompts.push(prompt);
+          return execution({
+            verdict: "reconcile",
+            summary: "Verify the tool directly.",
+            problems: ["Tool availability is unsupported."],
+            instructions_for_claude: "Attempt the exact tool privately.",
+            approval_boundary: "none",
+            evidence_gaps: ["Exact tool result"],
+          });
+        },
+      },
+    );
+
+    expect(prompts[0]).toContain(
+      "`user_ruling_required` is reserved for a genuine business or policy choice",
+    );
+    expect(prompts[0]).toContain(
+      "exact attempted tool name and exact returned error",
+    );
+    expect(prompts[0]).toContain(
+      "Do not route that verification burden to Matt",
+    );
+  });
+
   it("returns a useful timeout error", async () => {
     const sop = await registerFixture("neutral-sop-a", "rev-a");
     await expect(
