@@ -52,7 +52,7 @@ Claude reads the private document through its authenticated Drive connector and 
 
 Checkpoint calls then supply the registered handle, Claude's latest checkpoint message, a concise durable run-state summary, and relevant explicit user rulings. The reviewer has no cross-run state.
 
-After a review, Claude immediately follows `continue`, `correct`, or `reconcile` instructions and keeps working. It stops for the user only when the verdict is `user_ruling_required` or `approval_required`, and stops normally for `complete`.
+After a review, Claude immediately follows `continue`, `correct`, or `reconcile` instructions and keeps working. It stops for the user only when the verdict is `user_ruling_required` or `approval_required`. `handoff_ready` confirms that an incomplete run has a necessary, verified continuation package; `complete` is reserved for the fully finished run objective. Payload size, a long checkpoint, or an unsupported context-limit guess does not justify a handoff.
 
 Before every paid Local Falcon stage, Claude submits the exact plan to `review_sab_scan_plan`. A `scan_approved` result contains the authorization ID, exact scans/Place IDs/centers/specifications, listed prerequisite save-location calls, mechanically reconciled credit total, applicable SOP rule, timestamp, and exclusions. Claude may immediately execute only that exact record. `correct` causes correction and resubmission; `user_ruling_required` stops for Matt. Eligibility failures, duplicates, unsupported centers/specifications, excess auxiliaries or recenters, ambiguous retries, material exceptions, changed master parameters, CRM export, and unrelated account changes or purchases are outside delegated authority.
 

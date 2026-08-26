@@ -6,6 +6,7 @@ export const verdictSchema = z.enum([
   "reconcile",
   "approval_required",
   "user_ruling_required",
+  "handoff_ready",
   "complete",
 ]);
 

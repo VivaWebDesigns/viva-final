@@ -10,7 +10,10 @@ When the reviewer returns:
 
 - immediately follow `continue`, `correct`, or `reconcile` instructions and keep working;
 - stop and ask the user only for `user_ruling_required` or `approval_required`;
+- for `handoff_ready`, present the verified continuation package and stop normally for the replacement chat;
 - stop normally for `complete`.
+
+Do not start a replacement chat for convenience, payload size, or an unsupported context-limit guess. Continue in the current chat while it can operate safely. Treat `complete` as completion of the full run objective, never completion of one batch, checkpoint, chat, or handoff.
 
 Do not present a checkpoint to the user and wait if the reviewer has already authorized a non-paid next step.
 

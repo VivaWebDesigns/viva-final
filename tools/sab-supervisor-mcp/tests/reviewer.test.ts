@@ -69,34 +69,71 @@ async function registerFixture(name: string, revision: string) {
 }
 
 describe("reviewSabCheckpoint", () => {
-  it.each(["continue", "correct", "approval_required", "reconcile"] as const)(
-    "returns the mocked %s verdict",
-    async (verdict) => {
-      const sop = await registerFixture("neutral-sop-a", "rev-a");
-      const result = await reviewSabCheckpoint(
-        {
-          registered_sop_handle: sop.registered_sop_handle,
-          claude_message: "Checkpoint complete.",
-          run_context: "Durable state confirms step A is saved.",
-          user_rulings: [],
+  it.each([
+    "continue",
+    "correct",
+    "approval_required",
+    "reconcile",
+    "handoff_ready",
+  ] as const)("returns the mocked %s verdict", async (verdict) => {
+    const sop = await registerFixture("neutral-sop-a", "rev-a");
+    const result = await reviewSabCheckpoint(
+      {
+        registered_sop_handle: sop.registered_sop_handle,
+        claude_message: "Checkpoint complete.",
+        run_context: "Durable state confirms step A is saved.",
+        user_rulings: [],
+      },
+      {
+        config,
+        execute: async () =>
+          execution({
+            verdict,
+            summary: "Neutral fixture result",
+            problems: verdict === "continue" ? [] : ["Specific issue"],
+            instructions_for_claude: "Perform only the next required step.",
+            approval_boundary:
+              verdict === "approval_required" ? "Exact paid action" : "none",
+            evidence_gaps: [],
+          }),
+      },
+    );
+    expect(result.verdict).toBe(verdict);
+  });
+
+  it("exposes separate handoff and full-run completion semantics to Codex", async () => {
+    const prompts: string[] = [];
+    const sop = await registerFixture("neutral-sop-a", "rev-a");
+    await reviewSabCheckpoint(
+      {
+        registered_sop_handle: sop.registered_sop_handle,
+        claude_message: "I prepared a continuation package.",
+        run_context: "The run objective remains incomplete.",
+        user_rulings: [],
+      },
+      {
+        config,
+        execute: async (prompt) => {
+          prompts.push(prompt);
+          return execution({
+            verdict: "handoff_ready",
+            summary: "Necessary handoff is ready.",
+            problems: [],
+            instructions_for_claude:
+              "Present the verified continuation package.",
+            approval_boundary: "none",
+            evidence_gaps: [],
+          });
         },
-        {
-          config,
-          execute: async () =>
-            execution({
-              verdict,
-              summary: "Neutral fixture result",
-              problems: verdict === "continue" ? [] : ["Specific issue"],
-              instructions_for_claude: "Perform only the next required step.",
-              approval_boundary:
-                verdict === "approval_required" ? "Exact paid action" : "none",
-              evidence_gaps: [],
-            }),
-        },
-      );
-      expect(result.verdict).toBe(verdict);
-    },
-  );
+      },
+    );
+
+    expect(prompts[0]).toContain("`handoff_ready` means the run is incomplete");
+    expect(prompts[0]).toContain("`complete` means the entire run objective");
+    expect(prompts[0]).toContain(
+      "must not be used merely because a checkpoint is long",
+    );
+  });
 
   it("returns a useful timeout error", async () => {
     const sop = await registerFixture("neutral-sop-a", "rev-a");

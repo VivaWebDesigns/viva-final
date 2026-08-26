@@ -14,10 +14,7 @@ export const SAB_QUALIFICATION_STATUSES = [
   "disqualified",
   "deferred",
 ] as const;
-export const SAB_SCAN_ROLES = [
-  "deliverable",
-  "auxiliary",
-] as const;
+export const SAB_SCAN_ROLES = ["deliverable", "auxiliary"] as const;
 export const SAB_SCAN_TYPES = [
   "standard",
   "scout",
@@ -75,7 +72,7 @@ export const SAB_HEADERS = [
   "contact_tag",
 ] as const;
 
-export type SabHeader = typeof SAB_HEADERS[number];
+export type SabHeader = (typeof SAB_HEADERS)[number];
 export type SabRow = Record<SabHeader, string>;
 export const SAB_LEGACY_REQUIRED_HEADERS = SAB_HEADERS.filter(
   (header) => !["scan_history", "workflow", "contact_tag"].includes(header),
@@ -88,126 +85,179 @@ export const SAB_SCALE_FIRST_UPGRADEABLE_HEADERS = [
 ] as const satisfies readonly SabHeader[];
 
 const nullableString = z.string().trim().max(20_000).nullable();
-const auditFindings = z.array(z.string().trim().min(1).max(1_000)).min(3).max(6);
-const workflowSheet = z.string().trim().min(1).max(2_000).describe(
-  "Exact Google Sheets URL or spreadsheet ID for this city run's SAB Workflow Sheet.",
-);
-const workflowSheetTab = z.string().trim().min(1).max(200).default("SAB Workflow").describe(
-  "Worksheet tab containing the SAB workflow table.",
-);
-const batchId = z.string().trim().min(1).max(100).describe(
-  "Batch ID assigned in this city run's Workflow Sheet, such as B01.",
-);
+const auditFindings = z
+  .array(z.string().trim().min(1).max(1_000))
+  .min(3)
+  .max(6);
+const workflowSheet = z
+  .string()
+  .trim()
+  .min(1)
+  .max(2_000)
+  .describe(
+    "Exact Google Sheets URL or spreadsheet ID for this city run's SAB Workflow Sheet.",
+  );
+const workflowSheetTab = z
+  .string()
+  .trim()
+  .min(1)
+  .max(200)
+  .default("SAB Workflow")
+  .describe("Worksheet tab containing the SAB workflow table.");
+const batchId = z
+  .string()
+  .trim()
+  .min(1)
+  .max(100)
+  .describe(
+    "Batch ID assigned in this city run's Workflow Sheet, such as B01.",
+  );
 const workflowSheetInputSchema = {
   workflow_sheet: workflowSheet,
   sheet_name: workflowSheetTab,
 };
 
-export const sabCompanyUpdatesSchema = z.object({
-  status: z.enum(SAB_STATUSES).optional(),
-  address: nullableString.optional(),
-  city: nullableString.optional(),
-  state: nullableString.optional(),
-  zip: nullableString.optional(),
-  phone: nullableString.optional(),
-  owner_name: nullableString.optional(),
-  email: nullableString.optional(),
-  website: nullableString.optional(),
-  google_maps_url: nullableString.optional(),
-  has_website: z.boolean().nullable().optional(),
-  website_platform: nullableString.optional(),
-  service_page_count: z.number().int().min(0).nullable().optional(),
-  website_analysis: auditFindings.nullable().optional(),
-  reviews_analysis: auditFindings.optional(),
-  rating: z.number().min(0).max(5).nullable().optional(),
-  review_count: z.number().int().min(0).nullable().optional(),
-  qualification_status: z.enum(SAB_QUALIFICATION_STATUSES).optional().describe(
-    "Final disposition. Use qualified, disqualified, or deferred before marking a company complete. A reasoned manual disqualification may close without unfinished website or review audits.",
-  ),
-  sales_priority: z.number().int().min(1).max(3).optional().describe(
-    "Website-sales priority: 3 is strongest, 2 is viable, and 1 is low priority.",
-  ),
-  sales_priority_reason: nullableString.optional(),
-  workflow: z.literal(SCALE_FIRST_WORKFLOW).optional(),
-  contact_tag: z.enum(SCALE_FIRST_CONTACT_TAGS).nullable().optional(),
-  blocker: nullableString.optional(),
-  research_notes: nullableString.optional().describe(
-    "Concise research context. Required as a factual reason when qualification_status is disqualified or deferred.",
-  ),
-}).strict();
+export const sabCompanyUpdatesSchema = z
+  .object({
+    status: z.enum(SAB_STATUSES).optional(),
+    address: nullableString.optional(),
+    city: nullableString.optional(),
+    state: nullableString.optional(),
+    zip: nullableString.optional(),
+    phone: nullableString.optional(),
+    owner_name: nullableString.optional(),
+    email: nullableString.optional(),
+    website: nullableString.optional(),
+    google_maps_url: nullableString.optional(),
+    has_website: z.boolean().nullable().optional(),
+    website_platform: nullableString.optional(),
+    service_page_count: z.number().int().min(0).nullable().optional(),
+    website_analysis: auditFindings.nullable().optional(),
+    reviews_analysis: auditFindings.optional(),
+    rating: z.number().min(0).max(5).nullable().optional(),
+    review_count: z.number().int().min(0).nullable().optional(),
+    qualification_status: z
+      .enum(SAB_QUALIFICATION_STATUSES)
+      .optional()
+      .describe(
+        "Final disposition. Use qualified, disqualified, or deferred before marking a company complete. A reasoned manual disqualification may close without unfinished website or review audits.",
+      ),
+    sales_priority: z
+      .number()
+      .int()
+      .min(1)
+      .max(3)
+      .optional()
+      .describe(
+        "Website-sales priority: 3 is strongest, 2 is viable, and 1 is low priority.",
+      ),
+    sales_priority_reason: nullableString.optional(),
+    workflow: z.literal(SCALE_FIRST_WORKFLOW).optional(),
+    contact_tag: z.enum(SCALE_FIRST_CONTACT_TAGS).nullable().optional(),
+    blocker: nullableString.optional(),
+    research_notes: nullableString
+      .optional()
+      .describe(
+        "Concise research context. Required as a factual reason when qualification_status is disqualified or deferred.",
+      ),
+  })
+  .strict();
 
-export const sabScanResultSchema = z.object({
-  scan_role: z.enum(SAB_SCAN_ROLES).describe(
-    "Use deliverable for the canonical qualified-company scan shown in the current scan columns. Use auxiliary for scout or fine scans retained only in scan history.",
-  ),
-  scan_type: z.enum(SAB_SCAN_TYPES).optional(),
-  arp: z.number().min(0).nullable(),
-  solv: z.number().min(0).max(100).nullable(),
-  found_in: z.number().int().min(0).nullable().optional(),
-  scan_center: z.string().trim().min(1).max(1_000).optional(),
-  report_key: z.string().trim().min(1).max(1_000),
-  report_url: z.string().trim().url().max(2_000),
-  center_type: z.enum(SAB_CENTER_TYPES).optional(),
-  scan_date: z.string().trim().min(1).max(100),
-  scan_keyword: z.string().trim().min(1).max(500),
-  notes: nullableString.optional(),
-}).strict();
+export const sabScanResultSchema = z
+  .object({
+    scan_role: z
+      .enum(SAB_SCAN_ROLES)
+      .describe(
+        "Use deliverable for the canonical qualified-company scan shown in the current scan columns. Use auxiliary for scout or fine scans retained only in scan history.",
+      ),
+    scan_type: z.enum(SAB_SCAN_TYPES).optional(),
+    arp: z.number().min(0).nullable(),
+    solv: z.number().min(0).max(100).nullable(),
+    found_in: z.number().int().min(0).nullable().optional(),
+    scan_center: z.string().trim().min(1).max(1_000).optional(),
+    report_key: z.string().trim().min(1).max(1_000),
+    report_url: z.string().trim().url().max(2_000),
+    center_type: z.enum(SAB_CENTER_TYPES).optional(),
+    scan_date: z.string().trim().min(1).max(100),
+    scan_keyword: z.string().trim().min(1).max(500),
+    notes: nullableString.optional(),
+  })
+  .strict();
 
-export const sabWorkflowRowSchema = z.object({
-  batch_id: batchId,
-  batch_position: z.number().int().min(1),
-  status: z.enum(SAB_STATUSES).default("assigned"),
-  company: z.string().trim().min(1).max(1_000),
-  place_id: z.string().trim().min(1).max(500),
-  arp: z.number().min(0).nullable().optional(),
-  solv: z.number().min(0).max(100).nullable().optional(),
-  found_in: z.number().int().min(0).nullable().optional(),
-  center_type: z.enum(SAB_CENTER_TYPES).nullable().optional(),
-  scan_center: nullableString.optional(),
-  report_key: nullableString.optional(),
-  report_url: z.string().trim().url().max(2_000).nullable().optional(),
-  scan_date: nullableString.optional(),
-  scan_keyword: nullableString.optional(),
-  competitors: z.array(z.string().trim().min(1).max(1_000)).max(200).optional(),
-  address: nullableString.optional(),
-  city: nullableString.optional(),
-  state: nullableString.optional(),
-  zip: nullableString.optional(),
-  phone: nullableString.optional(),
-  owner_name: nullableString.optional(),
-  email: nullableString.optional(),
-  website: nullableString.optional(),
-  google_maps_url: z.string().trim().url().max(2_000).nullable().optional(),
-  has_website: z.boolean().nullable().optional(),
-  website_platform: nullableString.optional(),
-  service_page_count: z.number().int().min(0).nullable().optional(),
-  website_analysis: auditFindings.nullable().optional(),
-  reviews_analysis: auditFindings.nullable().optional(),
-  rating: z.number().min(0).max(5).nullable().optional(),
-  review_count: z.number().int().min(0).nullable().optional(),
-  qualification_status: z.enum(SAB_QUALIFICATION_STATUSES).nullable().optional(),
-  blocker: nullableString.optional(),
-  research_notes: nullableString.optional(),
-  sales_priority: z.number().int().min(1).max(3).nullable().optional(),
-  sales_priority_reason: nullableString.optional(),
-  workflow: z.literal(SCALE_FIRST_WORKFLOW).nullable().optional(),
-  contact_tag: z.enum(SCALE_FIRST_CONTACT_TAGS).nullable().optional(),
-}).strict();
+export const sabWorkflowRowSchema = z
+  .object({
+    batch_id: batchId,
+    batch_position: z.number().int().min(1),
+    status: z.enum(SAB_STATUSES).default("assigned"),
+    company: z.string().trim().min(1).max(1_000),
+    place_id: z.string().trim().min(1).max(500),
+    arp: z.number().min(0).nullable().optional(),
+    solv: z.number().min(0).max(100).nullable().optional(),
+    found_in: z.number().int().min(0).nullable().optional(),
+    center_type: z.enum(SAB_CENTER_TYPES).nullable().optional(),
+    scan_center: nullableString.optional(),
+    report_key: nullableString.optional(),
+    report_url: z.string().trim().url().max(2_000).nullable().optional(),
+    scan_date: nullableString.optional(),
+    scan_keyword: nullableString.optional(),
+    competitors: z
+      .array(z.string().trim().min(1).max(1_000))
+      .max(200)
+      .optional(),
+    address: nullableString.optional(),
+    city: nullableString.optional(),
+    state: nullableString.optional(),
+    zip: nullableString.optional(),
+    phone: nullableString.optional(),
+    owner_name: nullableString.optional(),
+    email: nullableString.optional(),
+    website: nullableString.optional(),
+    google_maps_url: z.string().trim().url().max(2_000).nullable().optional(),
+    has_website: z.boolean().nullable().optional(),
+    website_platform: nullableString.optional(),
+    service_page_count: z.number().int().min(0).nullable().optional(),
+    website_analysis: auditFindings.nullable().optional(),
+    reviews_analysis: auditFindings.nullable().optional(),
+    rating: z.number().min(0).max(5).nullable().optional(),
+    review_count: z.number().int().min(0).nullable().optional(),
+    qualification_status: z
+      .enum(SAB_QUALIFICATION_STATUSES)
+      .nullable()
+      .optional(),
+    blocker: nullableString.optional(),
+    research_notes: nullableString.optional(),
+    sales_priority: z.number().int().min(1).max(3).nullable().optional(),
+    sales_priority_reason: nullableString.optional(),
+    workflow: z.literal(SCALE_FIRST_WORKFLOW).nullable().optional(),
+    contact_tag: z.enum(SCALE_FIRST_CONTACT_TAGS).nullable().optional(),
+  })
+  .strict();
 
 export const getSabBatchInputSchema = {
   ...workflowSheetInputSchema,
   batch_id: batchId,
-  include_completed: z.boolean().default(false).describe("Include rows already marked complete, qa_ready, or imported"),
+  include_completed: z
+    .boolean()
+    .default(false)
+    .describe("Include rows already marked complete, qa_ready, or imported"),
 };
 
 export const getSabCompanyInputSchema = {
   ...workflowSheetInputSchema,
-  place_id: z.string().trim().min(1).describe("Google Place ID from the SAB source sheet"),
+  place_id: z
+    .string()
+    .trim()
+    .min(1)
+    .describe("Google Place ID from the SAB source sheet"),
 };
 
 export const saveSabCompanyInputSchema = {
   ...workflowSheetInputSchema,
-  place_id: z.string().trim().min(1).describe("Google Place ID from the SAB source sheet"),
+  place_id: z
+    .string()
+    .trim()
+    .min(1)
+    .describe("Google Place ID from the SAB source sheet"),
   updates: sabCompanyUpdatesSchema.describe(
     "Only the company fields that should change. Audit arrays must contain 3–6 concise, relevant findings.",
   ),
@@ -215,7 +265,11 @@ export const saveSabCompanyInputSchema = {
 
 export const saveSabScanResultInputSchema = {
   ...workflowSheetInputSchema,
-  place_id: z.string().trim().min(1).describe("Google Place ID from the SAB source sheet"),
+  place_id: z
+    .string()
+    .trim()
+    .min(1)
+    .describe("Google Place ID from the SAB source sheet"),
   scan_result: sabScanResultSchema,
 };
 
@@ -224,12 +278,19 @@ export const upgradeSabWorkflowSchemaInputSchema = {
 };
 
 export const createSabWorkflowInputSchema = {
-  title: z.string().trim().min(1).max(200).describe(
-    "Google Sheet file title for the city run.",
-  ),
-  companies: z.array(sabWorkflowRowSchema).min(1).max(2_000).describe(
-    "The complete reconciled roster. The connector validates every row and writes the roster once.",
-  ),
+  title: z
+    .string()
+    .trim()
+    .min(1)
+    .max(200)
+    .describe("Google Sheet file title for the city run."),
+  companies: z
+    .array(sabWorkflowRowSchema)
+    .min(1)
+    .max(2_000)
+    .describe(
+      "The complete reconciled roster. The connector validates every row and writes the roster once.",
+    ),
 };
 
 export const markSabBlockedInputSchema = {
@@ -240,63 +301,170 @@ export const markSabBlockedInputSchema = {
 
 export const getSabProgressInputSchema = {
   ...workflowSheetInputSchema,
-  batch_id: batchId.optional().describe("Omit to return progress for every batch in the selected Workflow Sheet"),
+  batch_id: batchId
+    .optional()
+    .describe(
+      "Omit to return progress for every batch in the selected Workflow Sheet",
+    ),
 };
 
 export const getSabCrmImportContractInputSchema = {
-  workflow: z.enum(["audit_first_v1_1", SCALE_FIRST_WORKFLOW]).default("audit_first_v1_1").describe(
-    "Explicit contract workflow. Use scale_first_v2 for Scale-First Manifest v2; omit only for the backward-compatible Audit-First v1.1 contract.",
-  ),
+  workflow: z
+    .enum(["audit_first_v1_1", SCALE_FIRST_WORKFLOW])
+    .default("audit_first_v1_1")
+    .describe(
+      "Explicit contract workflow. Use scale_first_v2 for Scale-First Manifest v2; omit only for the backward-compatible Audit-First v1.1 contract.",
+    ),
 };
 
 export const checkCrmPlaceIdsInputSchema = {
-  place_ids: z.array(
-    z.string().trim().min(1).max(500),
-  ).min(1).max(2_000).describe(
-    "Google Place IDs discovered in the completed master scan. Matching is exact Place-ID equality only.",
-  ),
+  place_ids: z
+    .array(z.string().trim().min(1).max(500))
+    .min(1)
+    .max(2_000)
+    .describe(
+      "Google Place IDs discovered in the completed master scan. Matching is exact Place-ID equality only.",
+    ),
 };
 
 export const checkCrmLocalFalconReportInputSchema = {
-  report_key: z.string().trim().min(1).max(1_000).describe(
-    "Completed Local Falcon competitor report key. The connector fetches the report and extracts every discovered Google Place ID server-side.",
-  ),
+  report_key: z
+    .string()
+    .trim()
+    .min(1)
+    .max(1_000)
+    .describe(
+      "Completed Local Falcon competitor report key. The connector fetches the report and extracts every discovered Google Place ID server-side.",
+    ),
+};
+
+export const createSabWorkflowFromMasterReportInputSchema = {
+  title: z
+    .string()
+    .trim()
+    .min(1)
+    .max(200)
+    .describe("Google Sheet file title for this city run."),
+  report_key: z
+    .string()
+    .trim()
+    .min(1)
+    .max(1_000)
+    .describe(
+      "Completed Local Falcon master competitor report key. The connector builds the durable ledger server-side and never returns the full roster inline.",
+    ),
+  batch_size: z
+    .number()
+    .int()
+    .min(1)
+    .max(200)
+    .default(40)
+    .describe(
+      "Maximum companies per execution batch. Batching changes capacity only, not run identity or final manifest cardinality.",
+    ),
 };
 
 export const getSabRankedCellsInputSchema = {
-  report_key: z.string().trim().min(1).max(1_000).describe(
-    "Completed Local Falcon master scan report key. This tool reads the existing report and never runs a scan.",
-  ),
-  place_ids: z.array(
-    z.string().trim().min(1).max(500),
-  ).min(1).max(50).describe(
-    "Selected qualified-company Google Place IDs. The connector filters the completed master report server-side and returns only their ranked cells.",
-  ),
+  report_key: z
+    .string()
+    .trim()
+    .min(1)
+    .max(1_000)
+    .describe(
+      "Completed Local Falcon master scan report key. This tool reads the existing report and never runs a scan.",
+    ),
+  place_ids: z
+    .array(z.string().trim().min(1).max(500))
+    .min(1)
+    .max(50)
+    .describe(
+      "Selected qualified-company Google Place IDs. The connector filters the completed master report server-side and returns only their ranked cells.",
+    ),
+};
+
+export const analyzeSabMasterCentersInputSchema = {
+  report_key: z
+    .string()
+    .trim()
+    .min(1)
+    .max(1_000)
+    .describe(
+      "Completed Local Falcon master scan report key. This tool reads the existing report and never runs a scan.",
+    ),
+  place_ids: z
+    .array(z.string().trim().min(1).max(500))
+    .min(1)
+    .max(200)
+    .describe(
+      "Survivor Place IDs to analyze. The connector returns compact centering diagnostics and hashes, not raw ranked cells.",
+    ),
+};
+
+export const enrichSabBusinessesInputSchema = {
+  place_ids: z
+    .array(z.string().trim().min(1).max(500))
+    .min(1)
+    .max(50)
+    .describe(
+      "Survivor Google Place IDs. Duplicate inputs are collapsed before any provider request.",
+    ),
+  location_name: z
+    .string()
+    .trim()
+    .min(1)
+    .max(500)
+    .describe(
+      "DataForSEO location_name, for example Charlotte,North Carolina,United States.",
+    ),
+  language_code: z.string().trim().min(2).max(10).default("en"),
 };
 
 export const reverseGeocodeSabCentersInputSchema = {
-  centers: z.array(z.object({
-    place_id: z.string().trim().min(1).max(500).describe(
-      "Google Place ID used only as the stable result identifier.",
+  centers: z
+    .array(
+      z
+        .object({
+          place_id: z
+            .string()
+            .trim()
+            .min(1)
+            .max(500)
+            .describe(
+              "Google Place ID used only as the stable result identifier.",
+            ),
+          company: z.string().trim().min(1).max(1_000).optional(),
+          latitude: z.number().finite().min(-90).max(90),
+          longitude: z.number().finite().min(-180).max(180),
+        })
+        .strict(),
+    )
+    .min(1)
+    .max(100)
+    .describe(
+      "Exact final scan-center coordinates to reverse-geocode. Results preserve the input order and Place IDs.",
     ),
-    company: z.string().trim().min(1).max(1_000).optional(),
-    latitude: z.number().finite().min(-90).max(90),
-    longitude: z.number().finite().min(-180).max(180),
-  }).strict()).min(1).max(100).describe(
-    "Exact final scan-center coordinates to reverse-geocode. Results preserve the input order and Place IDs.",
-  ),
 };
 
 export const validateSabCrmManifestInputSchema = {
-  manifest_json: z.string().trim().min(2).max(2_000_000).describe(
-    "Complete candidate CRM batch.json payload as JSON text. This validates only and never imports or writes CRM records.",
-  ),
+  manifest_json: z
+    .string()
+    .trim()
+    .min(2)
+    .max(2_000_000)
+    .describe(
+      "Complete candidate CRM batch.json payload as JSON text. This validates only and never imports or writes CRM records.",
+    ),
 };
 
 export const buildSabCompetitorSidecarInputSchema = {
-  manifest_json: z.string().trim().min(2).max(2_000_000).describe(
-    "Complete, already validated Scale-First v2 batch.json payload. The connector reads existing official Local Falcon reports and performs no scans or writes.",
-  ),
+  manifest_json: z
+    .string()
+    .trim()
+    .min(2)
+    .max(2_000_000)
+    .describe(
+      "Complete, already validated Scale-First v2 batch.json payload. The connector reads existing official Local Falcon reports and performs no scans or writes.",
+    ),
 };
 
 export type SabCompanyUpdates = z.infer<typeof sabCompanyUpdatesSchema>;

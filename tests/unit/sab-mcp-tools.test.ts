@@ -17,17 +17,29 @@ describe("SAB MCP tool discovery", () => {
       "unauthenticated",
     );
     const client = new Client({ name: "sab-mcp-test", version: "1.0.0" });
-    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
 
     await server.connect(serverTransport);
     await client.connect(clientTransport);
 
     try {
       const { tools } = await client.listTools();
-      expect(tools).toHaveLength(16);
+      expect(tools).toHaveLength(19);
       expect(tools.map((tool) => tool.name)).toContain("get_sab_schema");
-      expect(tools.map((tool) => tool.name)).toContain("upgrade_sab_workflow_schema");
-      expect(tools.map((tool) => tool.name)).toContain("build_sab_competitor_sidecar");
+      expect(tools.map((tool) => tool.name)).toContain(
+        "upgrade_sab_workflow_schema",
+      );
+      expect(tools.map((tool) => tool.name)).toContain(
+        "build_sab_competitor_sidecar",
+      );
+      expect(tools.map((tool) => tool.name)).toContain(
+        "create_sab_workflow_from_master_report",
+      );
+      expect(tools.map((tool) => tool.name)).toContain(
+        "analyze_sab_master_centers",
+      );
+      expect(tools.map((tool) => tool.name)).toContain("enrich_sab_businesses");
       expect(tools[0]).toMatchObject({
         _meta: {
           securitySchemes: [
@@ -35,10 +47,15 @@ describe("SAB MCP tool discovery", () => {
           ],
         },
       });
-      expect(tools.every((tool) => (
-        (tool._meta?.securitySchemes as Array<{ type?: string }> | undefined)?.[0]?.type
-          === "oauth2"
-      ))).toBe(true);
+      expect(
+        tools.every(
+          (tool) =>
+            (
+              tool._meta?.securitySchemes as
+                Array<{ type?: string }> | undefined
+            )?.[0]?.type === "oauth2",
+        ),
+      ).toBe(true);
     } finally {
       await client.close();
       await server.close();
@@ -48,24 +65,37 @@ describe("SAB MCP tool discovery", () => {
   it("distinguishes canonical, legacy/base, and upgradeable headers in the schema", async () => {
     const server = createSabMcpServer(
       (() => {
-        throw new Error("repository access is not expected during schema discovery");
+        throw new Error(
+          "repository access is not expected during schema discovery",
+        );
       }) as never,
-      { createWorkflow: async () => { throw new Error("workflow creation is not expected"); } },
+      {
+        createWorkflow: async () => {
+          throw new Error("workflow creation is not expected");
+        },
+      },
       "unauthenticated",
     );
     const client = new Client({ name: "sab-mcp-test", version: "1.0.0" });
-    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
     await server.connect(serverTransport);
     await client.connect(clientTransport);
 
     try {
-      const result = await client.callTool({ name: "get_sab_schema", arguments: {} });
+      const result = await client.callTool({
+        name: "get_sab_schema",
+        arguments: {},
+      });
       const content = result.content as Array<{ type: string; text: string }>;
       const schema = JSON.parse(content[0].text);
       expect(schema.required_headers).toEqual(schema.canonical_headers);
       expect(schema.legacy_base_required_headers).not.toContain("workflow");
       expect(schema.legacy_base_required_headers).not.toContain("contact_tag");
-      expect(schema.scale_first_upgradeable_headers).toEqual(["workflow", "contact_tag"]);
+      expect(schema.scale_first_upgradeable_headers).toEqual([
+        "workflow",
+        "contact_tag",
+      ]);
     } finally {
       await client.close();
       await server.close();
@@ -75,13 +105,20 @@ describe("SAB MCP tool discovery", () => {
   it("returns the explicitly requested Scale-First v2 CRM contract", async () => {
     const server = createSabMcpServer(
       (() => {
-        throw new Error("repository access is not expected during contract discovery");
+        throw new Error(
+          "repository access is not expected during contract discovery",
+        );
       }) as never,
-      { createWorkflow: async () => { throw new Error("workflow creation is not expected"); } },
+      {
+        createWorkflow: async () => {
+          throw new Error("workflow creation is not expected");
+        },
+      },
       "unauthenticated",
     );
     const client = new Client({ name: "sab-mcp-test", version: "1.0.0" });
-    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
     await server.connect(serverTransport);
     await client.connect(clientTransport);
 

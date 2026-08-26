@@ -25,15 +25,27 @@ describe("fixed Claude checkpoint instruction", () => {
     },
   );
 
-  it("stops only for a user ruling, paid approval, or completion", () => {
+  it("stops only for a user ruling, paid approval, verified handoff, or completion", () => {
     expect(instruction).toMatch(
       /stop and ask the user only for `user_ruling_required` or `approval_required`/,
     );
     expect(instruction).toContain("stop normally for `complete`");
     expect(instruction).toContain(
+      "for `handoff_ready`, present the verified continuation package and stop normally",
+    );
+    expect(instruction).toContain(
       "only a structured `scan_approved` record does",
     );
     expect(instruction).not.toContain("After calling the reviewer, stop");
+  });
+
+  it("does not confuse a chat handoff with completion of the run", () => {
+    expect(instruction).toContain(
+      "Treat `complete` as completion of the full run objective",
+    );
+    expect(instruction).toContain(
+      "Do not start a replacement chat for convenience, payload size, or an unsupported context-limit guess.",
+    );
   });
 
   it("registers one private SOP revision and reuses its handle", () => {

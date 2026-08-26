@@ -19,6 +19,7 @@
         "reconcile",
         "approval_required",
         "user_ruling_required",
+        "handoff_ready",
         "complete"
       ]
     },
