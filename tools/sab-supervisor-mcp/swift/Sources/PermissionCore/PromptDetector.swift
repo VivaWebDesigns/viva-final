@@ -33,6 +33,10 @@ public struct PromptDetector: Sendable {
         "click", "hover", "wait", "screenshot",
     ]
 
+    private let routineTargetlessTools = [
+        "tabs_create_mcp", "tabs_context_mcp",
+    ]
+
     public func detect(in root: SemanticNode) -> DetectionResult {
         detectAll(in: root).first ?? .none
     }
@@ -48,6 +52,11 @@ public struct PromptDetector: Sendable {
                     && $0.url.hasPrefix("chrome-extension://\(extensionID)/sidepanel.html")
             }
             for extensionRoot in extensionRoots {
+                if extensionRoot.url.contains("mcpPermissionOnly=true") {
+                    let result = detectMcpPermissionOnly(extensionRoot)
+                    if result != .none { results.append(result) }
+                    continue
+                }
                 let taskRoots = extensionRoot.descendantsIncludingSelf().filter {
                     $0.role == "AXWebArea"
                         && isClaudeTaskURL($0.url)
@@ -59,6 +68,59 @@ public struct PromptDetector: Sendable {
             }
         }
         return results
+    }
+
+    private func detectMcpPermissionOnly(_ permissionRoot: SemanticNode) -> DetectionResult {
+        let nodes = permissionRoot.descendantsIncludingSelf()
+        let navigationPrefix = "Claude wants to navigate to:"
+        guard let actionDescriptor = nodes.map(\.displayedText).last(where: {
+            $0.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix(navigationPrefix)
+        }) else { return .none }
+
+        let rawHostname = actionDescriptor.trimmingCharacters(in: .whitespacesAndNewlines)
+            .dropFirst(navigationPrefix.count)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        guard !rawHostname.isEmpty, !rawHostname.contains("/") else {
+            return .unknown(
+                hostname: "unknown",
+                permissionType: "New permissions required",
+                reason: "The MCP permission window did not expose one hostname"
+            )
+        }
+        guard isPublicHostname(rawHostname) else {
+            return .protected(
+                hostname: rawHostname,
+                permissionType: "New permissions required",
+                reason: "Non-public or local hostname"
+            )
+        }
+
+        let buttonLabels = nodes.filter { $0.role == "AXButton" && $0.enabled }
+            .map(\.displayedText)
+        guard buttonLabels.contains(where: { $0 == "Allow this action" }),
+              buttonLabels.contains(where: { $0 == "Decline" }),
+              let persistentButton = buttonLabels.first(where: {
+                  $0.hasPrefix("Always allow actions on this site")
+              })
+        else {
+            return .unknown(
+                hostname: rawHostname,
+                permissionType: "New permissions required",
+                reason: "The MCP permission window did not expose the expected semantic approval controls"
+            )
+        }
+
+        return .routine(
+            PromptMatch(
+                taskURL: permissionRoot.url,
+                hostname: rawHostname,
+                permissionType: "New permissions required",
+                actionDescriptor: actionDescriptor,
+                actionKind: "mcp_navigate",
+                selectedButton: persistentButton
+            )
+        )
     }
 
     private func detectTask(
@@ -222,6 +284,19 @@ public struct PromptDetector: Sendable {
             approvalButton(prefix: $0, in: buttonLabels)
         }.first ?? allowButton
 
+        if routineTargetlessTools.contains(toolName) {
+            return .routine(
+                PromptMatch(
+                    taskURL: taskRoot.url,
+                    hostname: fallbackHostname ?? "browser-session",
+                    permissionType: permissionType,
+                    actionDescriptor: permissionMarker,
+                    actionKind: toolName,
+                    selectedButton: selectedButton
+                )
+            )
+        }
+
         if toolName == "javascript_tool" {
             return detectReadOnlyJavaScriptPermission(
                 taskRoot,
@@ -334,11 +409,17 @@ public struct PromptDetector: Sendable {
             .trimmingCharacters(in: CharacterSet(charactersIn: ";"))
             .replacingOccurrences(of: #"\s+"#, with: "", options: .regularExpression)
             .lowercased()
-        guard ["document.title", "window.document.title"].contains(normalizedScript) else {
+        let approvedExpressions = [
+            "document.title",
+            "window.document.title",
+            "({title:document.title,url:location.href})",
+            "({title:document.title,url:window.location.href})",
+        ]
+        guard approvedExpressions.contains(normalizedScript) else {
             return .unknown(
                 hostname: fallbackHostname ?? "unknown",
                 permissionType: permissionType,
-                reason: "Candidate javascript_tool script was not the approved read-only document.title expression"
+                reason: "Candidate javascript_tool script was not an approved read-only title expression"
             )
         }
         guard let hostname = fallbackHostname else {

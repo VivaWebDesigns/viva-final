@@ -177,7 +177,10 @@ final class PermissionWatcher {
                 in: current,
                 extensionID: options.extensionID,
                 taskURL: match.taskURL
-            ) else { continue }
+            ) else {
+                if match.taskURL.contains("mcpPermissionOnly=true") { return true }
+                continue
+            }
             let taskNodes = task.semantic.descendantsIncludingSelf()
             if taskNodes.contains(where: {
                 $0.displayedText == match.actionDescriptor

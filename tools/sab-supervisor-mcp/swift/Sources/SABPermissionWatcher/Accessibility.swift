@@ -42,7 +42,9 @@ enum AccessibilityReader {
                 && $0.semantic.url.hasPrefix("chrome-extension://\(extensionID)/sidepanel.html")
         }
         for extensionRoot in extensionRoots {
-            let taskRoots = extensionRoot.descendantsIncludingSelf().filter {
+            let taskRoots = extensionRoot.semantic.url == match.taskURL
+                ? [extensionRoot]
+                : extensionRoot.descendantsIncludingSelf().filter {
                 $0.semantic.role == "AXWebArea" && $0.semantic.url == match.taskURL
             }
             for taskRoot in taskRoots {
@@ -72,6 +74,7 @@ enum AccessibilityReader {
                 && $0.semantic.url.hasPrefix("chrome-extension://\(extensionID)/sidepanel.html")
         }
         for extensionRoot in extensionRoots {
+            if extensionRoot.semantic.url == taskURL { return extensionRoot }
             if let task = extensionRoot.descendantsIncludingSelf().first(where: {
                 $0.semantic.role == "AXWebArea" && $0.semantic.url == taskURL
             }) {

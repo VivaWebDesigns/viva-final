@@ -118,6 +118,37 @@ func javascriptSnapshot(
     )
 }
 
+func mcpPermissionOnlySnapshot(
+    hostname: String = "www.example.gov",
+    buttons: [String] = [
+        "Allow this action",
+        "Decline",
+        "Always allow actions on this site Browse, click, and type",
+    ]
+) -> SemanticNode {
+    SemanticNode(
+        role: "AXApplication",
+        children: [
+            SemanticNode(
+                role: "AXWindow",
+                children: [
+                    SemanticNode(
+                        role: "AXWebArea",
+                        url: "chrome-extension://\(extensionID)/sidepanel.html?mcpPermissionOnly=true&requestId=neutral",
+                        children: [
+                            SemanticNode(role: "AXHeading", label: "New permissions required"),
+                            SemanticNode(
+                                role: "AXStaticText",
+                                label: "Claude wants to navigate to: \(hostname)"
+                            ),
+                        ] + buttons.map { SemanticNode(role: "AXButton", label: $0) }
+                    ),
+                ]
+            ),
+        ]
+    )
+}
+
 let detector = PromptDetector(extensionID: extensionID)
 
 if case let .routine(match) = detector.detect(in: snapshot()) {
@@ -162,6 +193,17 @@ if case let .routine(match) = detector.detect(in: singleToolSnapshot()) {
     failures.append("single get_page_text permission was not detected")
 }
 
+for toolName in ["tabs_create_mcp", "tabs_context_mcp"] {
+    if case let .routine(match) = detector.detect(
+        in: singleToolSnapshot(toolName: toolName)
+    ) {
+        expect(match.actionKind == toolName, "targetless routine tool action kind: \(toolName)")
+        expect(match.selectedButton == "Allow once 2", "targetless routine tool button")
+    } else {
+        failures.append("targetless routine tool was not detected: \(toolName)")
+    }
+}
+
 if case let .routine(match) = detector.detect(in: javascriptSnapshot()) {
     expect(match.hostname == "www.example.edu", "page-title JavaScript hostname")
     expect(
@@ -171,6 +213,36 @@ if case let .routine(match) = detector.detect(in: javascriptSnapshot()) {
     expect(match.selectedButton == "Allow once 2", "page-title JavaScript allow button")
 } else {
     failures.append("read-only document.title JavaScript was not detected")
+}
+
+if case let .routine(match) = detector.detect(
+    in: javascriptSnapshot(script: "({title: document.title, url: location.href})")
+) {
+    expect(
+        match.actionKind == "javascript_tool:document.title",
+        "read-only title-and-URL JavaScript action kind"
+    )
+} else {
+    failures.append("read-only title-and-URL JavaScript was not detected")
+}
+
+if case let .routine(match) = detector.detect(in: mcpPermissionOnlySnapshot()) {
+    expect(match.hostname == "www.example.gov", "MCP permission hostname")
+    expect(match.actionKind == "mcp_navigate", "MCP permission action kind")
+    expect(
+        match.selectedButton == "Always allow actions on this site Browse, click, and type",
+        "MCP persistent approval preference"
+    )
+} else {
+    failures.append("MCP permission-only navigation was not detected")
+}
+
+if case .protected = detector.detect(
+    in: mcpPermissionOnlySnapshot(hostname: "localhost")
+) {
+    // Expected private-host exclusion.
+} else {
+    failures.append("MCP permission-only private host was not protected")
 }
 
 for script in [
