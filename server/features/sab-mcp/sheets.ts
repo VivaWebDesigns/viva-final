@@ -104,6 +104,13 @@ function quoteSheetName(name: string): string {
   return `'${name.replace(/'/g, "''")}'`;
 }
 
+function sameScanCenter(left: string, right: string) {
+  const parse = (value: string) => value.split(",").map((part) => Number(part.trim()));
+  const [leftLatitude, leftLongitude] = parse(left);
+  const [rightLatitude, rightLongitude] = parse(right);
+  return leftLatitude === rightLatitude && leftLongitude === rightLongitude;
+}
+
 function placeIdSnapshot(values: string[][], placeIdColumn: number) {
   const placeIds = values.slice(1)
     .map((row) => row[placeIdColumn] ?? "")
@@ -635,6 +642,42 @@ export class SabSheetsRepository {
       ),
     } as SabRow;
 
+    if (updates.scan_center && updates.center_type) {
+      const notes = merged.research_notes;
+      if (
+        updates.center_type === "corroborated_address"
+        && !(/\b(?:§\s*10\.4|corroborat(?:ed|ion))\b/i.test(notes) && /\bPASS(?:ED)?\b/i.test(notes))
+      ) {
+        throw new Error(
+          "Cannot save a corroborated_address center without a recorded §10.4 corroboration PASS in research_notes",
+        );
+      }
+      if (
+        updates.center_type === "weighted_cell_centroid"
+        && !(/\bcentroid\b/i.test(notes) && /\btrustworthy\b/i.test(notes))
+      ) {
+        throw new Error(
+          "Cannot save a weighted_cell_centroid center without a recorded trustworthy centroid finding in research_notes",
+        );
+      }
+      if (
+        updates.center_type === "scout_recentered"
+        && !(/\bscout\b/i.test(notes) && /\b(?:recenter(?:ed|ing)?|centroid)\b/i.test(notes))
+      ) {
+        throw new Error(
+          "Cannot save a scout_recentered center without recorded scout recentering evidence in research_notes",
+        );
+      }
+      if (
+        updates.center_type === "fine_scan_recentered"
+        && !(/\bfine(?:[- ]scan)?\b/i.test(notes) && /\b(?:recenter(?:ed|ing)?|centroid)\b/i.test(notes))
+      ) {
+        throw new Error(
+          "Cannot save a fine_scan_recentered center without recorded fine-scan recentering evidence in research_notes",
+        );
+      }
+    }
+
     if (updates.status && COMPLETE_STATUSES.has(updates.status)) {
       const isScaleFirstDisqualificationClosure =
         merged.workflow === SCALE_FIRST_WORKFLOW &&
@@ -705,6 +748,38 @@ export class SabSheetsRepository {
     const history = Array.isArray(parsedHistory)
       ? parsedHistory.filter((entry) => entry && typeof entry === "object")
       : [];
+
+    if (
+      scanResult.scan_role === "deliverable"
+      && !match.row.report_key
+      && match.row.scan_center
+      && match.row.center_type
+      && scanResult.scan_center
+      && scanResult.center_type
+    ) {
+      const plannedCenterAlreadyArchived = history.some((entry) => {
+        const candidate = entry as Record<string, unknown>;
+        return candidate.record_type === "center_plan"
+          && candidate.scan_center === match.row.scan_center
+          && candidate.center_type === match.row.center_type
+          && candidate.resolved_by_report_key === scanResult.report_key;
+      });
+      if (!plannedCenterAlreadyArchived) {
+        history.push({
+          record_type: "center_plan",
+          scan_center: match.row.scan_center,
+          center_type: match.row.center_type,
+          disposition:
+            sameScanCenter(scanResult.scan_center, match.row.scan_center)
+              && scanResult.center_type === match.row.center_type
+              ? "confirmed_by_scan"
+              : "superseded_by_scan",
+          resolved_by_report_key: scanResult.report_key,
+          saved_at: match.row.updated_at || null,
+          saved_by: match.row.updated_by || null,
+        });
+      }
+    }
 
     if (
       history.length === 0

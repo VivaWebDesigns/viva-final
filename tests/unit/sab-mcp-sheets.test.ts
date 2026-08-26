@@ -159,6 +159,29 @@ describe("SabSheetsRepository", () => {
     });
   });
 
+  it("accepts an atomic planned center pair without changing coordinate precision", () => {
+    const parsed = sabCompanyUpdatesSchema.parse({
+      scan_center: "35.0299948,-80.7058378",
+      center_type: "corroborated_address",
+    });
+
+    expect(parsed).toEqual({
+      scan_center: "35.0299948,-80.7058378",
+      center_type: "corroborated_address",
+    });
+    expect(() =>
+      sabCompanyUpdatesSchema.parse({
+        scan_center: "35.0299948,-80.7058378",
+      }),
+    ).toThrow(/must be supplied together/i);
+    expect(() =>
+      sabCompanyUpdatesSchema.parse({
+        scan_center: "95,-80.7058378",
+        center_type: "corroborated_address",
+      }),
+    ).toThrow(/latitude must be between/i);
+  });
+
   it("accepts workflow Sheets by URL or raw spreadsheet ID", () => {
     const spreadsheetId = "1AbCdEfGhIjKlMnOpQrStUvWxYz_1234567890";
 
@@ -454,6 +477,130 @@ describe("SabSheetsRepository", () => {
     expect((await repository.getCompany("place-1")).updated_by).toBe(
       "matt@vivawebdesigns.com",
     );
+  });
+
+  it("stores an evidenced planned center without creating a report or scan history", async () => {
+    const { repository } = buildRepository([row({ qualification_status: "" })]);
+
+    await repository.saveCompany(
+      "place-1",
+      {
+        research_notes:
+          "§10.4 corroboration PASS. ROOFTOP candidate agrees with the ranked-cell mass.",
+        scan_center: "35.0299948,-80.7058378",
+        center_type: "corroborated_address",
+      },
+      "matt@vivawebdesigns.com",
+    );
+
+    const company = await repository.getCompany("place-1");
+    expect(company.scan_center).toBe("35.0299948,-80.7058378");
+    expect(company.center_type).toBe("corroborated_address");
+    expect(company.report_key).toBe("");
+    expect(company.scan_history).toEqual([]);
+  });
+
+  it("rejects a planned center without matching durable evidence", async () => {
+    const { client, repository } = buildRepository([
+      row({ research_notes: "Contact verified." }),
+    ]);
+
+    await expect(
+      repository.saveCompany(
+        "place-1",
+        {
+          scan_center: "35.0299948,-80.7058378",
+          center_type: "corroborated_address",
+        },
+        "matt@vivawebdesigns.com",
+      ),
+    ).rejects.toThrow(/corroboration PASS/i);
+    expect(client.updates).toEqual([]);
+  });
+
+  it("archives a planned center as confirmed when the first deliverable is saved", async () => {
+    const { repository } = buildRepository([
+      row({
+        qualification_status: "",
+        research_notes: "§10.4 corroboration PASS with ROOFTOP precision.",
+        scan_center: "35.0299948,-80.7058378",
+        center_type: "corroborated_address",
+        updated_at: "2026-08-26T12:00:00.000Z",
+        updated_by: "planner@vivawebdesigns.com",
+      }),
+    ]);
+
+    const result = await repository.saveScanResult(
+      "place-1",
+      {
+        scan_role: "deliverable",
+        arp: 12.5,
+        solv: 4.2,
+        scan_center: "35.0299948, -80.7058378",
+        center_type: "corroborated_address",
+        report_key: "deliverable-report",
+        report_url: "https://example.com/deliverable-report",
+        scan_date: "2026-08-26",
+        scan_keyword: "deck builder near me",
+      },
+      "scanner@vivawebdesigns.com",
+    );
+
+    expect(result.scan_history_count).toBe(2);
+    const company = await repository.getCompany("place-1");
+    expect(company.report_key).toBe("deliverable-report");
+    expect(company.scan_history).toEqual([
+      expect.objectContaining({
+        record_type: "center_plan",
+        scan_center: "35.0299948,-80.7058378",
+        center_type: "corroborated_address",
+        disposition: "confirmed_by_scan",
+        resolved_by_report_key: "deliverable-report",
+        saved_by: "planner@vivawebdesigns.com",
+      }),
+      expect.objectContaining({ report_key: "deliverable-report" }),
+    ]);
+  });
+
+  it("preserves a differing planned center as superseded by the first deliverable", async () => {
+    const { repository } = buildRepository([
+      row({
+        qualification_status: "",
+        research_notes: "Trust decision: trustworthy weighted centroid.",
+        scan_center: "35.1000000,-80.9000000",
+        center_type: "weighted_cell_centroid",
+      }),
+    ]);
+
+    await repository.saveScanResult(
+      "place-1",
+      {
+        scan_role: "deliverable",
+        arp: 10,
+        solv: 5,
+        scan_center: "35.2000000,-80.8000000",
+        center_type: "scout_recentered",
+        report_key: "recentered-report",
+        report_url: "https://example.com/recentered-report",
+        scan_date: "2026-08-26",
+        scan_keyword: "deck builder near me",
+      },
+      "scanner@vivawebdesigns.com",
+    );
+
+    const company = await repository.getCompany("place-1");
+    expect(company.scan_center).toBe("35.2000000,-80.8000000");
+    expect(company.center_type).toBe("scout_recentered");
+    expect(company.scan_history).toEqual([
+      expect.objectContaining({
+        record_type: "center_plan",
+        scan_center: "35.1000000,-80.9000000",
+        center_type: "weighted_cell_centroid",
+        disposition: "superseded_by_scan",
+        resolved_by_report_key: "recentered-report",
+      }),
+      expect.objectContaining({ report_key: "recentered-report" }),
+    ]);
   });
 
   it("expands a 39-column legacy Sheet to 41 and adds both headers without changing rows or Place IDs", async () => {

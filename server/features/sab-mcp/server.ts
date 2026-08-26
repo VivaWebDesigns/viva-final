@@ -317,7 +317,7 @@ export function createSabMcpServer(
     "save_sab_company",
     sabTool({
       description:
-        "Save approved research fields to the exact SAB Workflow Sheet for one company immediately after completing it. Set qualification_status to null to clear a premature disposition while work remains in progress. Qualified and deferred records require complete website and review audits with 3–6 concise, relevant findings. A manually disqualified record may be marked complete without unfinished audits when research_notes contains the factual disqualification reason; never fabricate audit findings. Set qualification_status to qualified, disqualified, or deferred before status complete.",
+        "Save approved research fields to the exact SAB Workflow Sheet for one company immediately after completing it. scan_center and center_type may be saved together as a planned pre-scan center; they do not create a completed scan, report key, canonical report, or scan-history entry. Weighted-centroid and corroborated-address plans require matching durable evidence in research_notes. Set qualification_status to null to clear a premature disposition while work remains in progress. Qualified and deferred records require complete website and review audits with 3–6 concise, relevant findings. A manually disqualified record may be marked complete without unfinished audits when research_notes contains the factual disqualification reason; never fabricate audit findings. Set qualification_status to qualified, disqualified, or deferred before status complete.",
       inputSchema: saveSabCompanyInputSchema,
     }),
     async ({ workflow_sheet, sheet_name, place_id, updates }) => {

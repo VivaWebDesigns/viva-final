@@ -85,6 +85,35 @@ export const SAB_SCALE_FIRST_UPGRADEABLE_HEADERS = [
 ] as const satisfies readonly SabHeader[];
 
 const nullableString = z.string().trim().max(20_000).nullable();
+const sabScanCenterString = z
+  .string()
+  .trim()
+  .min(1)
+  .max(100)
+  .superRefine((value, ctx) => {
+    const match = value.match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
+    if (!match) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Expected scan center in exact 'latitude,longitude' format",
+      });
+      return;
+    }
+    const latitude = Number(match[1]);
+    const longitude = Number(match[2]);
+    if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Scan center latitude must be between -90 and 90",
+      });
+    }
+    if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Scan center longitude must be between -180 and 180",
+      });
+    }
+  });
 const auditFindings = z
   .array(z.string().trim().min(1).max(1_000))
   .min(3)
@@ -155,6 +184,19 @@ export const sabCompanyUpdatesSchema = z
     sales_priority_reason: nullableString.optional(),
     workflow: z.literal(SCALE_FIRST_WORKFLOW).optional(),
     contact_tag: z.enum(SCALE_FIRST_CONTACT_TAGS).nullable().optional(),
+    scan_center: sabScanCenterString
+      .nullable()
+      .optional()
+      .describe(
+        "Planned pre-scan center in exact latitude,longitude form. Supply center_type in the same call. This does not create a completed or canonical scan.",
+      ),
+    center_type: z
+      .enum(SAB_CENTER_TYPES)
+      .nullable()
+      .optional()
+      .describe(
+        "Planned pre-scan center type. Supply scan_center in the same call. Uses the same enum as save_sab_scan_result.",
+      ),
     blocker: nullableString.optional(),
     research_notes: nullableString
       .optional()
@@ -162,7 +204,36 @@ export const sabCompanyUpdatesSchema = z
         "Concise research context. Required as a factual reason when qualification_status is disqualified or deferred.",
       ),
   })
-  .strict();
+  .strict()
+  .superRefine((updates, ctx) => {
+    const hasScanCenter = Object.prototype.hasOwnProperty.call(
+      updates,
+      "scan_center",
+    );
+    const hasCenterType = Object.prototype.hasOwnProperty.call(
+      updates,
+      "center_type",
+    );
+    if (hasScanCenter !== hasCenterType) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: hasScanCenter ? ["center_type"] : ["scan_center"],
+        message: "scan_center and center_type must be supplied together",
+      });
+    }
+    if (
+      hasScanCenter &&
+      hasCenterType &&
+      (updates.scan_center === null) !== (updates.center_type === null)
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["scan_center"],
+        message:
+          "scan_center and center_type must both be values or both be null",
+      });
+    }
+  });
 
 export const sabScanResultSchema = z
   .object({
@@ -175,7 +246,7 @@ export const sabScanResultSchema = z
     arp: z.number().min(0).nullable(),
     solv: z.number().min(0).max(100).nullable(),
     found_in: z.number().int().min(0).nullable().optional(),
-    scan_center: z.string().trim().min(1).max(1_000).optional(),
+    scan_center: sabScanCenterString.optional(),
     report_key: z.string().trim().min(1).max(1_000),
     report_url: z.string().trim().url().max(2_000),
     center_type: z.enum(SAB_CENTER_TYPES).optional(),
