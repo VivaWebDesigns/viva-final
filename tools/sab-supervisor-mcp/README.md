@@ -66,7 +66,7 @@ For initial observation runs, Claude displays the verdict, authorization ID, exa
 2. Run `node dist/cli.js start` once. Before authorization it may exit with code 2, but the signed app will appear in Accessibility.
 3. Open **System Settings → Privacy & Security → Accessibility** and enable **SAB Permission Watcher**. If it is not already listed, click **+**, open your home `Applications` folder, and add `~/Applications/SAB Permission Watcher.app`.
 4. Run `node dist/cli.js start` again, then verify with `node dist/cli.js status`.
-5. Screen Recording is optional and is used only to capture a diagnostic screenshot when an unrecognized prompt fails closed.
+5. Screen Recording is optional and is used only to capture a diagnostic screenshot when an unrecognized prompt fails closed. The watcher checks existing authorization without requesting it; when access is absent, it skips the screenshot and never opens or triggers the macOS Screen Recording prompt.
 
 Do not add the raw executable under `swift/.build`; the LaunchAgent and foreground commands execute the signed app's `Contents/MacOS/sab-permission-watcher`. The watcher does not use screen coordinates.
 

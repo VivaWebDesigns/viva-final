@@ -31,6 +31,11 @@ enum StructuredLog {
 }
 enum ChromeScreenshot {
     static func capture(pid: pid_t, to path: URL) -> Bool {
+        // Screen capture is an optional diagnostic. Never trigger the macOS
+        // permission prompt from an unattended watcher; capture only when the
+        // user has already granted access in System Settings.
+        guard CGPreflightScreenCaptureAccess() else { return false }
+
         guard let info = (CGWindowListCopyWindowInfo(
             [.optionOnScreenOnly, .excludeDesktopElements],
             kCGNullWindowID
