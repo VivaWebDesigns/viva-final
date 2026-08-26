@@ -1,6 +1,8 @@
 import Foundation
 
 public struct PromptDetector: Sendable {
+    public static let toolUseLimitMessage = "Claude reached its tool-use limit for this turn."
+
     public let extensionID: String
 
     public init(extensionID: String) {
@@ -68,6 +70,49 @@ public struct PromptDetector: Sendable {
             }
         }
         return results
+    }
+
+    public func detectClaudeContinuations(in root: SemanticNode) -> [DetectionResult] {
+        continuationScopes(in: root).map { scope in
+            .routine(
+                PromptMatch(
+                    taskURL: continuationContextURL(in: scope),
+                    hostname: "claude-desktop",
+                    permissionType: Self.toolUseLimitMessage,
+                    actionDescriptor: Self.toolUseLimitMessage,
+                    actionKind: "tool_use_limit_continue",
+                    selectedButton: "Continue"
+                )
+            )
+        }
+    }
+
+    private func continuationScopes(in node: SemanticNode) -> [SemanticNode] {
+        let childMatches = node.children.flatMap { continuationScopes(in: $0) }
+        if !childMatches.isEmpty { return childMatches }
+
+        let descendants = node.descendantsIncludingSelf()
+        let hasExactMessage = descendants.contains {
+            $0.displayedText.trimmingCharacters(in: .whitespacesAndNewlines)
+                == Self.toolUseLimitMessage
+        }
+        let enabledButtons = descendants.filter { $0.role == "AXButton" && $0.enabled }
+        let buttons = enabledButtons.filter {
+            $0.displayedText.trimmingCharacters(in: .whitespacesAndNewlines) == "Continue"
+        }
+        let unsafeContainerRoles = ["AXApplication", "AXWindow", "AXWebArea"]
+        guard hasExactMessage,
+              enabledButtons.count == 1,
+              buttons.count == 1,
+              !unsafeContainerRoles.contains(node.role),
+              descendants.count <= 40
+        else { return [] }
+        return [node]
+    }
+
+    private func continuationContextURL(in scope: SemanticNode) -> String {
+        scope.descendantsIncludingSelf().map(\.url).first(where: { !$0.isEmpty })
+            ?? "claude-desktop://tool-use-limit"
     }
 
     private func detectMcpPermissionOnly(_ permissionRoot: SemanticNode) -> DetectionResult {

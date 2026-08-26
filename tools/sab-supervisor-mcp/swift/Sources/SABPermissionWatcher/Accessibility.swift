@@ -26,10 +26,43 @@ enum AccessibilityReader {
         ).map(\.processIdentifier)
     }
 
+    static func claudeProcessIdentifiers() -> [pid_t] {
+        NSRunningApplication.runningApplications(
+            withBundleIdentifier: "com.anthropic.claudefordesktop"
+        ).map(\.processIdentifier)
+    }
+
     static func readChrome(pid: pid_t, maxNodes: Int = 30_000) -> LiveNode? {
+        readApplication(pid: pid, maxNodes: maxNodes)
+    }
+
+    static func readApplication(pid: pid_t, maxNodes: Int = 30_000) -> LiveNode? {
         let application = AXUIElementCreateApplication(pid)
         var visited = 0
         return read(element: application, depth: 0, visited: &visited, maxNodes: maxNodes)
+    }
+
+    static func pressContinuationButton(in root: LiveNode, match: PromptMatch) -> AXError {
+        for scope in continuationScopes(in: root) {
+            let nodes = scope.descendantsIncludingSelf()
+            guard nodes.contains(where: {
+                $0.semantic.displayedText.trimmingCharacters(in: .whitespacesAndNewlines)
+                    == match.actionDescriptor
+            }) else { continue }
+            let enabledButtons = nodes.filter {
+                $0.semantic.role == "AXButton" && $0.semantic.enabled
+            }
+            let buttons = enabledButtons.filter {
+                $0.semantic.displayedText.trimmingCharacters(in: .whitespacesAndNewlines)
+                    == match.selectedButton
+            }
+            guard enabledButtons.count == 1,
+                  buttons.count == 1,
+                  let button = buttons.first
+            else { continue }
+            return AXUIElementPerformAction(button.element, kAXPressAction as CFString)
+        }
+        return .noValue
     }
 
     static func pressButton(
@@ -82,6 +115,31 @@ enum AccessibilityReader {
             }
         }
         return nil
+    }
+
+    private static func continuationScopes(in node: LiveNode) -> [LiveNode] {
+        let childMatches = node.children.flatMap { continuationScopes(in: $0) }
+        if !childMatches.isEmpty { return childMatches }
+
+        let descendants = node.descendantsIncludingSelf()
+        let hasExactMessage = descendants.contains {
+            $0.semantic.displayedText.trimmingCharacters(in: .whitespacesAndNewlines)
+                == PromptDetector.toolUseLimitMessage
+        }
+        let enabledButtons = descendants.filter {
+            $0.semantic.role == "AXButton" && $0.semantic.enabled
+        }
+        let buttons = enabledButtons.filter {
+            $0.semantic.displayedText.trimmingCharacters(in: .whitespacesAndNewlines) == "Continue"
+        }
+        let unsafeContainerRoles = ["AXApplication", "AXWindow", "AXWebArea"]
+        guard hasExactMessage,
+              enabledButtons.count == 1,
+              buttons.count == 1,
+              !unsafeContainerRoles.contains(node.semantic.role),
+              descendants.count <= 40
+        else { return [] }
+        return [node]
     }
 
     private static func read(

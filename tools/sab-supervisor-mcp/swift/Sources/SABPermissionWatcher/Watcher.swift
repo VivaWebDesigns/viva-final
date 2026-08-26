@@ -51,55 +51,82 @@ final class PermissionWatcher {
         for pid in AccessibilityReader.chromeProcessIdentifiers() {
             guard let root = AccessibilityReader.readChrome(pid: pid) else { continue }
             if options.debug { printDebugSignals(root.semantic) }
-            for detection in detector.detectAll(in: root.semantic) {
-                switch detection {
-                case .none:
-                    continue
-                case let .routine(match):
-                    detectedCount += 1
-                    activeFingerprints.insert(match.fingerprint)
-                    handleRoutine(match, pid: pid, root: root)
-                case let .protected(hostname, permissionType, reason):
-                    detectedCount += 1
-                    let fingerprint = "protected|\(hostname)|\(permissionType)|\(reason)"
-                    activeFingerprints.insert(fingerprint)
-                    if !unknownFingerprints.contains(fingerprint) {
-                        unknownFingerprints.insert(fingerprint)
-                        log(
-                            hostname: hostname,
-                            permissionType: permissionType,
-                            actionKind: "protected",
-                            button: "none",
-                            result: "not_approved",
-                            details: reason
-                        )
-                    }
-                case let .unknown(hostname, permissionType, reason):
-                    detectedCount += 1
-                    let fingerprint = "unknown|\(hostname)|\(permissionType)|\(reason)"
-                    activeFingerprints.insert(fingerprint)
-                    guard !unknownFingerprints.contains(fingerprint) else { continue }
-                    unknownFingerprints.insert(fingerprint)
-                    let screenshot = captureFailureScreenshot(hostname: hostname, pid: pid)
-                    log(
-                        hostname: hostname,
-                        permissionType: permissionType,
-                        actionKind: "candidate",
-                        button: "none",
-                        result: "candidate_rejected",
-                        details: reason,
-                        screenshot: screenshot
-                    )
-                    WatcherNotification.show(
-                        title: "Claude permission needs attention",
-                        message: "The watcher could not safely identify a prompt for \(hostname). No click was made."
-                    )
-                }
-            }
+            process(
+                detector.detectAll(in: root.semantic),
+                pid: pid,
+                root: root,
+                activeFingerprints: &activeFingerprints,
+                detectedCount: &detectedCount
+            )
+        }
+        for pid in AccessibilityReader.claudeProcessIdentifiers() {
+            guard let root = AccessibilityReader.readApplication(pid: pid) else { continue }
+            if options.debug { printDebugSignals(root.semantic) }
+            process(
+                detector.detectClaudeContinuations(in: root.semantic),
+                pid: pid,
+                root: root,
+                activeFingerprints: &activeFingerprints,
+                detectedCount: &detectedCount
+            )
         }
         tracker.clearAbsent(activeFingerprints: activeFingerprints)
         unknownFingerprints = unknownFingerprints.filter { activeFingerprints.contains($0) }
         return detectedCount
+    }
+
+    private func process(
+        _ detections: [DetectionResult],
+        pid: pid_t,
+        root: LiveNode,
+        activeFingerprints: inout Set<String>,
+        detectedCount: inout Int
+    ) {
+        for detection in detections {
+            switch detection {
+            case .none:
+                continue
+            case let .routine(match):
+                detectedCount += 1
+                activeFingerprints.insert(match.fingerprint)
+                handleRoutine(match, pid: pid, root: root)
+            case let .protected(hostname, permissionType, reason):
+                detectedCount += 1
+                let fingerprint = "protected|\(hostname)|\(permissionType)|\(reason)"
+                activeFingerprints.insert(fingerprint)
+                if !unknownFingerprints.contains(fingerprint) {
+                    unknownFingerprints.insert(fingerprint)
+                    log(
+                        hostname: hostname,
+                        permissionType: permissionType,
+                        actionKind: "protected",
+                        button: "none",
+                        result: "not_approved",
+                        details: reason
+                    )
+                }
+            case let .unknown(hostname, permissionType, reason):
+                detectedCount += 1
+                let fingerprint = "unknown|\(hostname)|\(permissionType)|\(reason)"
+                activeFingerprints.insert(fingerprint)
+                guard !unknownFingerprints.contains(fingerprint) else { continue }
+                unknownFingerprints.insert(fingerprint)
+                let screenshot = captureFailureScreenshot(hostname: hostname, pid: pid)
+                log(
+                    hostname: hostname,
+                    permissionType: permissionType,
+                    actionKind: "candidate",
+                    button: "none",
+                    result: "candidate_rejected",
+                    details: reason,
+                    screenshot: screenshot
+                )
+                WatcherNotification.show(
+                    title: "Claude permission needs attention",
+                    message: "The watcher could not safely identify a prompt for \(hostname). No click was made."
+                )
+            }
+        }
     }
 
     private func printDebugSignals(_ root: SemanticNode) {
@@ -111,6 +138,8 @@ final class PermissionWatcher {
                 || text.localizedCaseInsensitiveContains("allow once")
                 || text.localizedCaseInsensitiveContains("always allow")
                 || text.localizedCaseInsensitiveContains("navigating")
+                || text == PromptDetector.toolUseLimitMessage
+                || text == "Continue"
             {
                 print(
                     "AX_DEBUG role=\(node.role) enabled=\(node.enabled) label=\(text.debugDescription) url=\(node.url.debugDescription) actions=\(node.actions)"
@@ -137,11 +166,13 @@ final class PermissionWatcher {
             return
         }
         tracker.recordAttempt(match.fingerprint)
-        let pressResult = AccessibilityReader.pressButton(
-            in: root,
-            extensionID: options.extensionID,
-            match: match
-        )
+        let pressResult = match.actionKind == "tool_use_limit_continue"
+            ? AccessibilityReader.pressContinuationButton(in: root, match: match)
+            : AccessibilityReader.pressButton(
+                in: root,
+                extensionID: options.extensionID,
+                match: match
+            )
         guard pressResult == .success else {
             log(
                 hostname: match.hostname,
@@ -172,7 +203,18 @@ final class PermissionWatcher {
         let deadline = Date().addingTimeInterval(Double(options.resumeTimeoutMs) / 1000.0)
         while Date() < deadline {
             Thread.sleep(forTimeInterval: 0.35)
-            guard let current = AccessibilityReader.readChrome(pid: pid) else { continue }
+            guard let current = AccessibilityReader.readApplication(pid: pid) else { continue }
+            if match.actionKind == "tool_use_limit_continue" {
+                let stillPresent = detector.detectClaudeContinuations(in: current.semantic)
+                    .contains { detection in
+                        if case let .routine(candidate) = detection {
+                            return candidate.fingerprint == match.fingerprint
+                        }
+                        return false
+                    }
+                if !stillPresent { return true }
+                continue
+            }
             guard let task = AccessibilityReader.taskNode(
                 in: current,
                 extensionID: options.extensionID,

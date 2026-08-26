@@ -334,6 +334,81 @@ if case .unknown = detector.detect(in: snapshot(buttons: ["Continue"])) {
     failures.append("missing semantic buttons did not fail closed")
 }
 
+func continuationSnapshot(
+    message: String = PromptDetector.toolUseLimitMessage,
+    button: String = "Continue",
+    enabled: Bool = true
+) -> SemanticNode {
+    SemanticNode(
+        role: "AXApplication",
+        children: [
+            SemanticNode(
+                role: "AXWindow",
+                children: [
+                    SemanticNode(
+                        role: "AXWebArea",
+                        url: "https://claude.ai/chat/neutral",
+                        children: [
+                            SemanticNode(
+                                role: "AXGroup",
+                                children: [
+                                    SemanticNode(role: "AXStaticText", label: message),
+                                    SemanticNode(role: "AXButton", label: button, enabled: enabled),
+                                ]
+                            ),
+                        ]
+                    ),
+                ]
+            ),
+        ]
+    )
+}
+
+let continuationResults = detector.detectClaudeContinuations(in: continuationSnapshot())
+expect(continuationResults.count == 1, "exact tool-use limit continuation")
+if case let .routine(match) = continuationResults.first {
+    expect(match.actionKind == "tool_use_limit_continue", "continuation action kind")
+    expect(match.selectedButton == "Continue", "continuation semantic button")
+} else {
+    failures.append("exact tool-use limit notice was not routine")
+}
+
+expect(
+    detector.detectClaudeContinuations(
+        in: continuationSnapshot(message: "Claude paused for another reason.")
+    ).isEmpty,
+    "altered continuation message must fail closed"
+)
+expect(
+    detector.detectClaudeContinuations(in: continuationSnapshot(enabled: false)).isEmpty,
+    "disabled continuation button must fail closed"
+)
+
+let ambiguousContinuation = SemanticNode(
+    role: "AXGroup",
+    children: [
+        SemanticNode(role: "AXStaticText", label: PromptDetector.toolUseLimitMessage),
+        SemanticNode(role: "AXButton", label: "Continue"),
+        SemanticNode(role: "AXButton", label: "Cancel"),
+    ]
+)
+expect(
+    detector.detectClaudeContinuations(in: ambiguousContinuation).isEmpty,
+    "notice with another enabled action must fail closed"
+)
+
+let unrelatedContinue = SemanticNode(
+    role: "AXApplication",
+    children: [
+        SemanticNode(role: "AXStaticText", label: PromptDetector.toolUseLimitMessage),
+        SemanticNode(role: "AXButton", label: "Continue"),
+    ]
+)
+expect(
+    detector.detectClaudeContinuations(in: unrelatedContinue).isEmpty,
+    "message and generic Continue outside one bounded notice must be ignored"
+)
+
 expect(
     detector.detect(
         in: snapshot(extensionURL: "https://unrelated.example/sidepanel")
