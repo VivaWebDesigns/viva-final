@@ -7,15 +7,11 @@ import {
   FiMapPin,
   FiSearch,
 } from "react-icons/fi";
-import { FaExclamation, FaRegStar, FaStar } from "react-icons/fa";
+import { FaRegStar, FaStar } from "react-icons/fa";
 import type { LocalVisibilityReportData } from "./types";
-import type {
-  LocalVisibilityGoogleMapsComparison,
-  LocalVisibilityGoogleMapsComparisonRow,
-} from "@shared/localVisibility";
 import {
   formatScanSettings,
-  getLocalVisibilityReportHeight,
+  LOCAL_VISIBILITY_REPORT_HEIGHT,
   LOCAL_VISIBILITY_REPORT_WIDTH,
 } from "./types";
 import "./local-visibility-report.css";
@@ -65,95 +61,12 @@ function Rating({ rating, reviewCount }: Pick<LocalVisibilityReportData, "rating
   );
 }
 
-function ComparisonRating({ row }: { row: LocalVisibilityGoogleMapsComparisonRow }) {
-  const numericRating = Math.min(5, Math.max(0, row.rating || 0));
-  const filledStars = Math.round(numericRating);
-  return (
-    <div className="lvr-comparison-rating" aria-label={`${row.rating.toFixed(1)} out of 5 from ${row.reviewCount} reviews`}>
-      <strong>{row.rating.toFixed(1)}</strong>
-      <span aria-hidden="true">
-        {[0, 1, 2, 3, 4].map((index) =>
-          index < filledStars ? <FaStar key={index} /> : <FaRegStar key={index} />,
-        )}
-      </span>
-      <b>({row.reviewCount.toLocaleString()} {row.reviewCount === 1 ? "review" : "reviews"})</b>
-    </div>
-  );
-}
-
-function GoogleMapsComparison({
-  comparison,
-}: {
-  comparison: LocalVisibilityGoogleMapsComparison;
-}) {
-  const subject = comparison.rows.find((row) => row.isSubject);
-  const peers = comparison.rows.filter((row) => !row.isSubject);
-  const rows = subject ? [peers[0], subject, peers[1]].filter(Boolean) : comparison.rows.slice(0, 3);
-  const totalPoints = comparison.rows.find((row) => row.totalPoints)?.totalPoints;
-  const headline = comparison.subjectRank === null
-    ? "Your business was not found in this scan"
-    : `You rank #${comparison.subjectRank.toLocaleString()}${comparison.totalBusinesses === null ? "" : ` of ${comparison.totalBusinesses.toLocaleString()}`} for visibility`;
-  const businessesAhead = comparison.businessesAheadCount
-    ?? (comparison.subjectRank === null ? null : Math.max(0, comparison.subjectRank - 1));
-  const takeaway = businessesAhead === null
-    ? "Your business had less visibility than the businesses returned in this scan."
-    : `For this search, ${businessesAhead.toLocaleString()} ${businessesAhead === 1 ? "business had" : "businesses had"} greater visibility across the scan area.`;
-
-  const relationshipLabel = (row: LocalVisibilityGoogleMapsComparisonRow) => {
-    if (row.isSubject) return "Your business";
-    if (row.relationship === "above") return "Rank above you";
-    if (row.relationship === "below") return "Rank below you";
-    return "Nearby result";
-  };
-
-  return (
-    <section className="lvr-comparison" aria-label="Google Maps visibility comparison">
-      <header className="lvr-comparison-header">
-        <h4>{headline}</h4>
-        <p>Here’s how you compare with the businesses ranked around you.</p>
-      </header>
-      <div className="lvr-comparison-columns">
-        {rows.map((row, index) => {
-          const visibility = row.foundPoints !== null && row.totalPoints
-            ? (row.foundPoints / row.totalPoints) * 100
-            : row.topThreeVisibility;
-          return (
-            <article
-              key={`${row.rank ?? "subject"}-${row.name}-${index}`}
-              className={`lvr-comparison-column${row.isSubject ? " is-subject" : ""}`}
-            >
-              <span className="lvr-comparison-relationship">{relationshipLabel(row)}</span>
-              <span className="lvr-comparison-rank">{row.rank ?? "—"}</span>
-              <strong className="lvr-comparison-name">{row.name}</strong>
-              <ComparisonRating row={row} />
-              <div className="lvr-comparison-visibility">
-                {row.foundPoints !== null && row.totalPoints ? (
-                  <strong>{row.foundPoints.toLocaleString()} of {row.totalPoints.toLocaleString()} points</strong>
-                ) : (
-                  <strong>{visibility === null ? "—" : `${visibility.toFixed(2)}%`}</strong>
-                )}
-                <span>{visibility === null ? "Visibility unavailable" : `${visibility.toFixed(2)}% visibility`}</span>
-              </div>
-            </article>
-          );
-        })}
-      </div>
-      <div className="lvr-comparison-callout">
-        <span aria-hidden="true"><FaExclamation /></span>
-        <strong>{takeaway}</strong>
-        {totalPoints && <b>Based on {totalPoints} search points</b>}
-      </div>
-    </section>
-  );
-}
-
 const LocalVisibilityReportTemplate = forwardRef<HTMLDivElement, Props>(function LocalVisibilityReportTemplate(
   { data, mapZoom = 100, mapPosition = { x: 0, y: 0 }, onMapPositionChange },
   ref,
 ) {
   const dragStartRef = useRef<{ clientX: number; clientY: number; position: MapPosition } | null>(null);
   const [isDraggingMap, setIsDraggingMap] = useState(false);
-  const reportHeight = getLocalVisibilityReportHeight(data);
 
   const handleMapPointerDown = (event: PointerEvent<HTMLElement>) => {
     if (!data.heatmapImageUrl || !onMapPositionChange) return;
@@ -185,10 +98,10 @@ const LocalVisibilityReportTemplate = forwardRef<HTMLDivElement, Props>(function
   return (
     <div
       ref={ref}
-      className={`lvr-report${data.googleMapsComparison ? " has-comparison" : ""}`}
+      className="lvr-report"
       data-testid="local-visibility-report-template"
       data-export-width={LOCAL_VISIBILITY_REPORT_WIDTH}
-      data-export-height={reportHeight}
+      data-export-height={LOCAL_VISIBILITY_REPORT_HEIGHT}
     >
       <div className="lvr-report-body">
         <header className="lvr-header">
@@ -286,9 +199,6 @@ const LocalVisibilityReportTemplate = forwardRef<HTMLDivElement, Props>(function
           <span>{formatScanSettings(data)}</span>
         </section>
 
-        {data.googleMapsComparison && (
-          <GoogleMapsComparison comparison={data.googleMapsComparison} />
-        )}
       </div>
 
       <footer className="lvr-footer">

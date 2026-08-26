@@ -563,8 +563,8 @@ router.post(
           throw new Error(`The finished snapshot is missing for ${row.companyName}. Review the preview and try again.`);
         }
         const metadata = await sharp(snapshot.buffer).metadata();
-        if (metadata.width !== 1080 || metadata.height !== 2880) {
-          throw new Error(`The finished snapshot for ${row.companyName} must be 1080 × 2880.`);
+        if (metadata.width !== 1080 || metadata.height !== 1920) {
+          throw new Error(`The finished snapshot for ${row.companyName} must be 1080 × 1920.`);
         }
       }
 

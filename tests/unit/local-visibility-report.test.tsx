@@ -67,7 +67,7 @@ describe("LocalVisibilityReportTemplate", () => {
     });
   });
 
-  it("renders the email-first 1080 × 2880 report with adjacent Google Maps context", () => {
+  it("keeps comparison data dormant and preserves the approved 1080 × 1920 card", () => {
     render(<LocalVisibilityReportTemplate data={{
       ...report,
       googleMapsComparison: {
@@ -85,15 +85,11 @@ describe("LocalVisibilityReportTemplate", () => {
     expect(screen.getByText("The center dot marks your business.")).toBeInTheDocument();
     expect(screen.getByText("Each number is your Google Maps position from that location.")).toBeInTheDocument();
     expect(screen.getByText("7 × 7 grid · 2.5-mile radius")).toBeInTheDocument();
-    expect(screen.getByText("You rank #130 of 148 for visibility")).toBeInTheDocument();
-    expect(screen.getByText("Here’s how you compare with the businesses ranked around you.")).toBeInTheDocument();
-    expect(screen.getByText("Rank above you")).toBeInTheDocument();
-    expect(screen.getByText("Your business")).toBeInTheDocument();
-    expect(screen.getByText("Rank below you")).toBeInTheDocument();
-    expect(screen.getAllByText("0 of 49 points")).toHaveLength(2);
-    expect(screen.getByText("For this search, 129 businesses had greater visibility across the scan area.")).toBeInTheDocument();
-    expect(screen.getByText("Based on 49 search points")).toBeInTheDocument();
-    expect(screen.getByTestId("local-visibility-report-template")).toHaveAttribute("data-export-height", "2880");
+    expect(screen.queryByText("You rank #130 of 148 for visibility")).not.toBeInTheDocument();
+    expect(screen.queryByText("Rank above you")).not.toBeInTheDocument();
+    expect(screen.queryByText("Your business")).not.toBeInTheDocument();
+    expect(screen.queryByText("Rank below you")).not.toBeInTheDocument();
+    expect(screen.getByTestId("local-visibility-report-template")).toHaveAttribute("data-export-height", "1920");
   });
 
 });

@@ -135,7 +135,7 @@ function FramedReportPreview({
   onInspect: () => void;
 }) {
   return (
-    <div className="relative h-[720px] w-[270px] overflow-hidden rounded-lg border bg-white shadow-sm" aria-label="Final report framing preview">
+    <div className="relative h-[480px] w-[270px] overflow-hidden rounded-lg border bg-white shadow-sm" aria-label="Final report framing preview">
       <div
         className="pointer-events-auto absolute right-2 top-2 z-20"
         data-testid="local-falcon-scan-magnifier-trigger-position"
@@ -151,7 +151,7 @@ function FramedReportPreview({
           <ZoomIn className="h-4 w-4" />
         </Button>
       </div>
-      <div className="h-[2880px] w-[1080px] origin-top-left scale-[0.25] pointer-events-none">
+      <div className="h-[1920px] w-[1080px] origin-top-left scale-[0.25] pointer-events-none">
         <LocalVisibilityReportTemplate
           ref={reportRef}
           data={data}

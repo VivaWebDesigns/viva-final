@@ -277,8 +277,8 @@ router.post(
         return res.status(400).json({ message: "Upload the finished report as a PNG." });
       }
       const metadata = await sharp(snapshot.buffer).metadata();
-      if (metadata.width !== 1080 || ![1920, 2880].includes(metadata.height ?? 0)) {
-        return res.status(400).json({ message: "The finished snapshot must be 1080 × 1920 (legacy) or 1080 × 2880." });
+      if (metadata.width !== 1080 || metadata.height !== 1920) {
+        return res.status(400).json({ message: "The finished snapshot must be 1080 × 1920." });
       }
       const [record] = await db.select({
         id: localFalconProspectProfiles.id,
@@ -438,8 +438,8 @@ router.post(
         return res.status(400).json({ message: "Upload the finished report as a PNG." });
       }
       const metadata = await sharp(snapshot.buffer).metadata();
-      if (metadata.width !== 1080 || ![1920, 2880].includes(metadata.height ?? 0)) {
-        return res.status(400).json({ message: "The finished snapshot must be 1080 × 1920 (legacy) or 1080 × 2880." });
+      if (metadata.width !== 1080 || metadata.height !== 1920) {
+        return res.status(400).json({ message: "The finished snapshot must be 1080 × 1920." });
       }
       const [record] = await db.select({
         id: localFalconProspectProfiles.id,
