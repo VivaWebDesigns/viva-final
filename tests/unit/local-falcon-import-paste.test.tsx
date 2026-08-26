@@ -325,6 +325,12 @@ describe("Local Falcon import clipboard", () => {
     expect(await screen.findByAltText("Uploaded Local Falcon ranking heatmap")).toHaveStyle({
       transform: "translate(0px, 0px) scale(1.6)",
     });
+    expect(screen.getByTestId("local-falcon-scan-magnifier-trigger-position")).toHaveClass(
+      "absolute",
+      "right-2",
+      "top-2",
+      "z-20",
+    );
     fireEvent.click(screen.getByRole("button", { name: "Magnify scan for Boda Plumbing, Inc." }));
     expect(await screen.findByTestId("local-falcon-scan-magnifier")).toBeInTheDocument();
     expect(screen.getByTestId("local-falcon-scan-magnifier-image")).toHaveAttribute(

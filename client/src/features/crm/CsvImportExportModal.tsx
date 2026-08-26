@@ -136,16 +136,21 @@ function FramedReportPreview({
 }) {
   return (
     <div className="relative h-[720px] w-[270px] overflow-hidden rounded-lg border bg-white shadow-sm" aria-label="Final report framing preview">
-      <Button
-        type="button"
-        variant="secondary"
-        size="icon"
-        className="absolute right-2 top-2 z-10 h-9 w-9 border bg-white/95 shadow-md"
-        onClick={onInspect}
-        aria-label={`Magnify scan for ${data.businessName}`}
+      <div
+        className="pointer-events-auto absolute right-2 top-2 z-20"
+        data-testid="local-falcon-scan-magnifier-trigger-position"
       >
-        <ZoomIn className="h-4 w-4" />
-      </Button>
+        <Button
+          type="button"
+          variant="secondary"
+          size="icon"
+          className="h-9 w-9 border bg-white/95 shadow-md"
+          onClick={onInspect}
+          aria-label={`Magnify scan for ${data.businessName}`}
+        >
+          <ZoomIn className="h-4 w-4" />
+        </Button>
+      </div>
       <div className="h-[2880px] w-[1080px] origin-top-left scale-[0.25] pointer-events-none">
         <LocalVisibilityReportTemplate
           ref={reportRef}
