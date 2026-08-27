@@ -252,6 +252,54 @@ export const integrationRecords = pgTable("integration_records", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+export const googleIntegrationConnections = pgTable("google_integration_connections", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  provider: text("provider").notNull().unique(),
+  encryptedRefreshToken: text("encrypted_refresh_token").notNull(),
+  scopes: text("scopes").notNull(),
+  accountEmail: text("account_email"),
+  externalAccountId: text("external_account_id"),
+  propertyId: text("property_id"),
+  locationId: text("location_id"),
+  locationTitle: text("location_title"),
+  status: text("status").notNull().default("connected"),
+  lastSyncedAt: timestamp("last_synced_at"),
+  lastError: text("last_error"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (t) => [
+  index("google_integration_provider_idx").on(t.provider),
+  index("google_integration_status_idx").on(t.status),
+]);
+
+export const googleOAuthStates = pgTable("google_oauth_states", {
+  stateHash: varchar("state_hash").primaryKey(),
+  provider: text("provider").notNull(),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("google_oauth_state_expires_idx").on(t.expiresAt),
+]);
+
+export const googleBusinessReviews = pgTable("google_business_reviews", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  connectionId: varchar("connection_id").notNull().references(() => googleIntegrationConnections.id, { onDelete: "cascade" }),
+  googleReviewName: text("google_review_name").notNull().unique(),
+  locationId: text("location_id").notNull(),
+  reviewerName: text("reviewer_name"),
+  starRating: integer("star_rating").notNull(),
+  comment: text("comment"),
+  reviewCreatedAt: timestamp("review_created_at").notNull(),
+  reviewUpdatedAt: timestamp("review_updated_at"),
+  replyComment: text("reply_comment"),
+  replyUpdatedAt: timestamp("reply_updated_at"),
+  syncedAt: timestamp("synced_at").defaultNow().notNull(),
+}, (t) => [
+  index("google_business_review_location_idx").on(t.locationId, t.reviewCreatedAt),
+  index("google_business_review_connection_idx").on(t.connectionId, t.reviewCreatedAt),
+]);
+
 // ─── CRM Tables ──────────────────────────────────────────────────────
 
 export const crmCompanies = pgTable("crm_companies", {
@@ -963,6 +1011,9 @@ export const insertIntegrationRecordSchema = createInsertSchema(integrationRecor
 // @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
 export type InsertIntegrationRecord = z.infer<typeof insertIntegrationRecordSchema>;
 export type IntegrationRecord = typeof integrationRecords.$inferSelect;
+
+export type GoogleIntegrationConnection = typeof googleIntegrationConnections.$inferSelect;
+export type GoogleBusinessReview = typeof googleBusinessReviews.$inferSelect;
 
 export type User = typeof user.$inferSelect;
 export type Session = typeof session.$inferSelect;

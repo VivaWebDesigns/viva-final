@@ -12,6 +12,7 @@ export const es: AdminTranslations = {
     payments: "Pagos",
     notifications: "Notificaciones",
     reports: "Reportes",
+    analytics: "Analítica",
     visibilityReport: "Reporte de Visibilidad",
     activity: "Inteligencia de Actividad",
     leadGen: "Inteligencia de Lead Gen",

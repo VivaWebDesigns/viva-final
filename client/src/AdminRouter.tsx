@@ -17,6 +17,7 @@ const OnboardingListPage = lazy(() => import("@features/onboarding/OnboardingLis
 const OnboardingDetailPage = lazy(() => import("@features/onboarding/OnboardingDetailPage"));
 const OnboardingWizardPage = lazy(() => import("@features/onboarding/OnboardingWizardPage"));
 const ReportsPage = lazy(() => import("@features/reports/ReportsPage"));
+const AnalyticsPage = lazy(() => import("@features/business-analytics/AnalyticsPage"));
 const CrmActivityPage = lazy(() => import("@features/crm-activity/CrmActivityPage"));
 const TeamChatPage = lazy(() => import("@features/chat/TeamChatPage"));
 const AdminSettingsPage = lazy(() => import("@features/admin/pages/AdminSettingsPage"));
@@ -153,6 +154,11 @@ export default function AdminRouter() {
             <Route path="/admin/reports">
               <ProtectedRoute roles={["admin", "developer"]}>
                 <ReportsPage />
+              </ProtectedRoute>
+            </Route>
+            <Route path="/admin/analytics">
+              <ProtectedRoute roles={["admin", "developer"]}>
+                <AnalyticsPage />
               </ProtectedRoute>
             </Route>
             <Route path="/admin/activity">
