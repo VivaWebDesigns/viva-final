@@ -9,6 +9,7 @@ describe("scan report email template", () => {
     const html = buildScanReportEmailHtml({
       message: "Hi Ana,\nSee your results.",
       imageUrl: "https://reports.vivawebdesigns.com/scans/report/abc.png",
+      landingUrl: "https://vivawebdesigns.com/scan-report/secure-token",
       businessName: "Acme Roofing",
       replyTo: "matt@vivawebdesigns.com",
       preheader: "Your Google Maps scan",
@@ -18,6 +19,8 @@ describe("scan report email template", () => {
     expect(html).toContain("Hi Ana,<br />See your results.");
     expect(html).toContain('width="600"');
     expect(html).toContain("View the full report");
+    expect(html).toContain('href="https://vivawebdesigns.com/scan-report/secure-token"');
+    expect(html).toContain('src="https://reports.vivawebdesigns.com/scans/report/abc.png"');
     expect(html).toContain("1628 Redcoat Dr, Charlotte, NC 28211");
     expect(html).toContain("Unsubscribe");
   });
@@ -27,6 +30,7 @@ describe("scan report email template", () => {
     const html = buildScanReportEmailHtml({
       message: "Hi Mike,\n\nI’m Matt with Viva Web Designs.\n\nI came across Inspect-A-Deck and ran a scan.\n\nI found some significant visibility gaps.",
       imageUrl,
+      landingUrl: "https://vivawebdesigns.com/scan-report/secure-token",
       businessName: "Inspect-A-Deck",
       replyTo: "matt@vivawebdesigns.com",
     });
@@ -40,6 +44,7 @@ describe("scan report email template", () => {
     const html = buildScanReportEmailHtml({
       message: "Hi Mike,\n\nI’m Matt with Viva Web Designs.\n\nI came across Inspect-A-Deck and ran a scan.\n\nI found some significant visibility gaps.",
       imageUrl,
+      landingUrl: "https://vivawebdesigns.com/scan-report/secure-token",
       businessName: "Inspect-A-Deck",
       replyTo: "matt@vivawebdesigns.com",
       imagePlacement: "after_message",
@@ -52,6 +57,7 @@ describe("scan report email template", () => {
     const html = buildScanReportEmailHtml({
       message: '<script>alert("x")</script>',
       imageUrl: "https://vivawebdesigns.com/report.png",
+      landingUrl: "https://vivawebdesigns.com/scan-report/secure-token",
       businessName: 'Acme <Roofing> "LLC"',
       replyTo: "matt@vivawebdesigns.com",
       preheader: "Your <scan>",

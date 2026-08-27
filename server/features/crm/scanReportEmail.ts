@@ -6,11 +6,17 @@ import {
   crmLeadNotes,
   crmLeads,
   localFalconProspectProfiles,
+  scanReportDeliveries,
   workflowJobs,
 } from "@shared/schema";
 import { db } from "../../db";
 import { getFileBuffer, uploadPublishedReport } from "../../services/storage";
 import { enqueueJob } from "../workflow/queue";
+import {
+  createScanReportToken,
+  hashScanReportToken,
+  scanReportLandingUrl,
+} from "../../public-scan-report";
 
 const POSTAL_ADDRESS = "1628 Redcoat Dr, Charlotte, NC 28211";
 
@@ -118,6 +124,7 @@ export async function getScanReportEmailPreview(
 export function buildScanReportEmailHtml(input: {
   message: string;
   imageUrl: string;
+  landingUrl: string;
   businessName: string;
   replyTo: string;
   preheader?: string;
@@ -129,7 +136,7 @@ export function buildScanReportEmailHtml(input: {
   const introHtml = insertAfterIntro ? paragraphHtml.slice(0, 3).join("<br /><br />") : paragraphHtml.join("<br /><br />");
   const remainingHtml = insertAfterIntro ? paragraphHtml.slice(3).join("<br /><br />") : "";
   const imageRow = `<tr><td align="center" style="padding:0 20px 24px;">
-        <a href="${escapeHtml(input.imageUrl)}" target="_blank" style="text-decoration:none;">
+        <a href="${escapeHtml(input.landingUrl)}" target="_blank" style="text-decoration:none;">
           <img src="${escapeHtml(input.imageUrl)}" alt="Google Maps visibility scan for ${escapeHtml(input.businessName)}" width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0;border-radius:8px;" />
         </a>
       </td></tr>`;
@@ -142,7 +149,7 @@ export function buildScanReportEmailHtml(input: {
       <tr><td style="padding:28px${insertAfterIntro ? " 28px 18px" : ""};font-size:16px;line-height:1.65;">${introHtml}</td></tr>
       ${imageRow}
       ${remainingHtml ? `<tr><td style="padding:0 28px 28px;font-size:16px;line-height:1.65;">${remainingHtml}</td></tr>` : ""}
-      <tr><td align="center" style="padding:0 28px 30px;"><a href="${escapeHtml(input.imageUrl)}" style="display:inline-block;background:#0f766e;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:7px;font-weight:700;">View the full report</a></td></tr>
+      <tr><td align="center" style="padding:0 28px 30px;"><a href="${escapeHtml(input.landingUrl)}" style="display:inline-block;background:#0f766e;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:7px;font-weight:700;">View the full report</a></td></tr>
       <tr><td style="border-top:1px solid #e5e7eb;padding:20px 28px;color:#6b7280;font-size:12px;line-height:1.55;">
         This is a business advertisement from Viva Web Designs.<br />${POSTAL_ADDRESS}<br />
         To stop receiving marketing emails, reply to <a href="mailto:${escapeHtml(input.replyTo)}?subject=Unsubscribe">${escapeHtml(input.replyTo)}</a> with “Unsubscribe.”
@@ -167,8 +174,20 @@ export async function sendScanReportEmail(input: SendScanReportInput) {
   const publishedKey = `scans/${input.reportId}/${sha}.png`;
   const published = await uploadPublishedReport(file.buffer, publishedKey, "image/png");
   const imageUrl = published.url;
+  const publicToken = createScanReportToken();
+  const landingUrl = scanReportLandingUrl(publicToken);
   const replyTo = actorReplyTo(input.actorEmail);
   const businessName = record.report.companyName || record.company?.name || record.lead.title;
+
+  const [delivery] = await db.insert(scanReportDeliveries).values({
+    leadId: input.leadId,
+    reportId: input.reportId,
+    requestId: input.requestId,
+    publicTokenHash: hashScanReportToken(publicToken),
+    recipient: input.recipient,
+    imageUrl,
+    status: "queued",
+  }).returning();
 
   const [note] = await db.insert(crmLeadNotes).values({
     leadId: input.leadId,
@@ -182,29 +201,40 @@ export async function sendScanReportEmail(input: SendScanReportInput) {
       subject: input.subject,
       preheader: input.preheader,
       imageUrl,
+      landingUrl,
+      deliveryId: delivery.id,
       imagePlacement: input.imagePlacement,
       requestId: input.requestId,
     },
   }).returning();
 
+  await db.update(scanReportDeliveries).set({
+    noteId: note.id,
+    updatedAt: new Date(),
+  }).where(eq(scanReportDeliveries.id, delivery.id));
+
   try {
     const job = await enqueueJob("email_notification", {
       to: input.recipient,
+      from: scanReportSenderEmail(),
       replyTo,
       subject: input.subject,
       html: buildScanReportEmailHtml({
         message: input.message,
         imageUrl,
+        landingUrl,
         businessName,
         replyTo,
         preheader: input.preheader,
         imagePlacement: input.imagePlacement,
       }),
-      text: `${input.message}\n\nView the full report: ${imageUrl}\n\nViva Web Designs, ${POSTAL_ADDRESS}\nTo opt out, reply with Unsubscribe.`,
+      text: `${input.message}\n\nView the full report: ${landingUrl}\n\nViva Web Designs, ${POSTAL_ADDRESS}\nTo opt out, reply with Unsubscribe.`,
       noteId: note.id,
+      deliveryId: delivery.id,
       category: "scan_report",
       reportId: input.reportId,
       imageUrl,
+      landingUrl,
       preheader: input.preheader,
       imagePlacement: input.imagePlacement,
       requestId: input.requestId,
@@ -212,12 +242,16 @@ export async function sendScanReportEmail(input: SendScanReportInput) {
     await db.update(crmLeadNotes).set({
       metadata: { ...(note.metadata as object), jobId: job.id },
     }).where(eq(crmLeadNotes.id, note.id));
-    return { jobId: job.id, noteId: note.id, imageUrl, duplicate: false };
+    return { jobId: job.id, noteId: note.id, imageUrl, landingUrl, deliveryId: delivery.id, duplicate: false };
   } catch (error) {
     await db.update(crmLeadNotes).set({
       content: `Scan report email could not be queued for ${input.recipient}`,
       metadata: { ...(note.metadata as object), status: "failed" },
     }).where(eq(crmLeadNotes.id, note.id));
+    await db.update(scanReportDeliveries).set({
+      status: "failed",
+      updatedAt: new Date(),
+    }).where(eq(scanReportDeliveries.id, delivery.id));
     throw error;
   }
 }

@@ -10,7 +10,7 @@
  *   - Success/failure recorded in provider snapshot for admin diagnostics
  */
 
-import { crmLeadNotes, type WorkflowJob, type UtmAttribution } from "@shared/schema";
+import { crmLeadNotes, scanReportDeliveries, type WorkflowJob, type UtmAttribution } from "@shared/schema";
 import { db } from "../../db";
 import { eq } from "drizzle-orm";
 import { ingestWebsiteFormSubmission } from "../crm/ingest";
@@ -58,14 +58,17 @@ interface CrmIngestPayload {
 
 interface EmailNotificationPayload {
   to: string;
+  from?: string;
   replyTo?: string;
   subject: string;
   html: string;
   text?: string;
   noteId?: string;
+  deliveryId?: string;
   category?: string;
   reportId?: string;
   imageUrl?: string;
+  landingUrl?: string;
   requestId?: string;
 }
 
@@ -142,7 +145,7 @@ async function processEmailNotification(job: WorkflowJob): Promise<void> {
   try {
     const result = await withTimeout(
       async (_signal) => resend.emails.send({
-        from: `Viva Web Designs <${CONTACT_EMAIL_FROM}>`,
+        from: `Viva Web Designs <${payload.from || CONTACT_EMAIL_FROM}>`,
         to: payload.to,
         ...(payload.replyTo ? { replyTo: payload.replyTo } : {}),
         subject: payload.subject,
@@ -183,10 +186,19 @@ async function processEmailNotification(job: WorkflowJob): Promise<void> {
           recipient: payload.to,
           subject: payload.subject,
           imageUrl: payload.imageUrl,
+          landingUrl: payload.landingUrl,
+          deliveryId: payload.deliveryId,
           requestId: payload.requestId,
           jobId: job.id,
         },
       }).where(eq(crmLeadNotes.id, payload.noteId));
+    }
+    if (payload.deliveryId) {
+      await db.update(scanReportDeliveries).set({
+        status: "sent",
+        sentAt: new Date(),
+        updatedAt: new Date(),
+      }).where(eq(scanReportDeliveries.id, payload.deliveryId));
     }
   } catch (err: any) {
     if (!err.message?.startsWith("Resend error:")) {
@@ -217,10 +229,19 @@ async function processEmailNotification(job: WorkflowJob): Promise<void> {
           recipient: payload.to,
           subject: payload.subject,
           imageUrl: payload.imageUrl,
+          landingUrl: payload.landingUrl,
+          deliveryId: payload.deliveryId,
           requestId: payload.requestId,
           jobId: job.id,
         },
       }).where(eq(crmLeadNotes.id, payload.noteId));
+    }
+    if (payload.deliveryId) {
+      const exhausted = job.attempts >= job.maxAttempts;
+      await db.update(scanReportDeliveries).set({
+        status: exhausted ? "failed" : "retrying",
+        updatedAt: new Date(),
+      }).where(eq(scanReportDeliveries.id, payload.deliveryId));
     }
     throw err;
   }

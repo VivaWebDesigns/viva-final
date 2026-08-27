@@ -54,5 +54,7 @@ describe("privacy policy contract", () => {
     expect(policySource).toContain("6. Data Retention");
     expect(policySource).toContain("children under the age of 13");
     expect(policySource).not.toContain("11. Communications");
+    expect(policySource).toContain("Report Engagement Data");
+    expect(policySource).toContain("secure report-delivery tokens to Google Analytics");
   });
 });

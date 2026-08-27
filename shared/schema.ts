@@ -502,6 +502,46 @@ export const crmLeadNotes = pgTable("crm_lead_notes", {
   index("crm_lead_notes_created_idx").on(t.createdAt),
 ]);
 
+export const scanReportDeliveries = pgTable("scan_report_deliveries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  leadId: varchar("lead_id").notNull().references(() => crmLeads.id, { onDelete: "cascade" }),
+  reportId: varchar("report_id").notNull().references(() => localFalconProspectProfiles.id, { onDelete: "cascade" }),
+  noteId: varchar("note_id").references(() => crmLeadNotes.id, { onDelete: "set null" }),
+  requestId: varchar("request_id").notNull().unique(),
+  publicTokenHash: varchar("public_token_hash").notNull().unique(),
+  recipient: text("recipient").notNull(),
+  imageUrl: text("image_url").notNull(),
+  status: text("status").notNull().default("queued"),
+  sentAt: timestamp("sent_at"),
+  requestCount: integer("request_count").notNull().default(0),
+  lastRequestedAt: timestamp("last_requested_at"),
+  viewCount: integer("view_count").notNull().default(0),
+  firstViewedAt: timestamp("first_viewed_at"),
+  lastViewedAt: timestamp("last_viewed_at"),
+  ctaClickCount: integer("cta_click_count").notNull().default(0),
+  firstCtaClickedAt: timestamp("first_cta_clicked_at"),
+  lastCtaClickedAt: timestamp("last_cta_clicked_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (t) => [
+  index("scan_report_delivery_lead_idx").on(t.leadId, t.createdAt),
+  index("scan_report_delivery_report_idx").on(t.reportId),
+  index("scan_report_delivery_status_idx").on(t.status),
+]);
+
+export const scanReportEngagementEvents = pgTable("scan_report_engagement_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  deliveryId: varchar("delivery_id").notNull().references(() => scanReportDeliveries.id, { onDelete: "cascade" }),
+  clientEventId: varchar("client_event_id").notNull().unique(),
+  eventType: text("event_type").notNull(),
+  ctaType: text("cta_type"),
+  automated: boolean("automated").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("scan_report_event_delivery_idx").on(t.deliveryId, t.createdAt),
+  index("scan_report_event_type_idx").on(t.eventType, t.createdAt),
+]);
+
 export const CLIENT_NOTE_TYPES = ["general", "call", "meeting", "internal"] as const;
 export type ClientNoteType = typeof CLIENT_NOTE_TYPES[number];
 
@@ -864,6 +904,9 @@ export const insertCrmLeadNoteSchema = createInsertSchema(crmLeadNotes).omit({ i
 // @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
 export type InsertCrmLeadNote = z.infer<typeof insertCrmLeadNoteSchema>;
 export type CrmLeadNote = typeof crmLeadNotes.$inferSelect;
+
+export type ScanReportDelivery = typeof scanReportDeliveries.$inferSelect;
+export type ScanReportEngagementEvent = typeof scanReportEngagementEvents.$inferSelect;
 
 export const insertClientNoteSchema = createInsertSchema(clientNotes).omit({ id: true, createdAt: true });
 // @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless

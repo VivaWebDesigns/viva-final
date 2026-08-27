@@ -148,6 +148,7 @@ export default function LeadDetailPage({ id }: { id: string }) {
       return res.json();
     },
     enabled: !!lead,
+    refetchInterval: 30_000,
   });
 
   const { data: leadTags = [] } = useQuery<CrmTag[]>({
