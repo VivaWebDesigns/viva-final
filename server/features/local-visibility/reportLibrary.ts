@@ -2,7 +2,6 @@ import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { db } from "../../db";
 import {
   crmLeads,
-  localFalconCompetitorStandings,
   localFalconImportBatches,
   localFalconProspectProfiles,
   pipelineOpportunities,
@@ -84,8 +83,8 @@ const reportSelection = {
   keyword: localFalconProspectProfiles.scanKeyword,
   marketCity: sql<string>`coalesce(${localFalconProspectProfiles.scanCity}, ${localFalconImportBatches.marketCity})`,
   marketState: sql<string>`coalesce(${localFalconProspectProfiles.scanState}, ${localFalconImportBatches.marketState})`,
-  radius: localFalconImportBatches.radiusMiles,
-  gridSize: localFalconImportBatches.gridSize,
+  radius: sql<string>`coalesce(${localFalconProspectProfiles.scanRadiusMiles}, ${localFalconImportBatches.radiusMiles})`,
+  gridSize: sql<string>`coalesce(${localFalconProspectProfiles.scanGridSize}, ${localFalconImportBatches.gridSize})`,
   scanDate: localFalconProspectProfiles.scanDate,
   averagePosition: localFalconProspectProfiles.arp,
   reportUrl: localFalconProspectProfiles.reportUrl,
@@ -93,30 +92,21 @@ const reportSelection = {
 };
 
 export async function getCompanyReportLibrary(companyId: string): Promise<LocalVisibilityReportLibrary> {
-  const ownRows = await db.select({
-    ...reportSelection,
-    radius: sql<string>`coalesce(${localFalconCompetitorStandings.radiusMiles}, ${localFalconImportBatches.radiusMiles})`,
-    gridSize: sql<string>`coalesce((${localFalconCompetitorStandings.gridSize}::text || 'x' || ${localFalconCompetitorStandings.gridSize}::text), ${localFalconImportBatches.gridSize})`,
-  })
+  const ownRows = await db.select(reportSelection)
     .from(localFalconProspectProfiles)
     .innerJoin(crmLeads, eq(localFalconProspectProfiles.leadId, crmLeads.id))
     .innerJoin(
       localFalconImportBatches,
       eq(localFalconProspectProfiles.batchRecordId, localFalconImportBatches.id),
     )
-    .leftJoin(
-      localFalconCompetitorStandings,
-      eq(localFalconCompetitorStandings.reportId, localFalconProspectProfiles.id),
-    )
     .where(eq(crmLeads.companyId, companyId))
     .orderBy(
       desc(localFalconProspectProfiles.scanDate),
-      asc(sql`coalesce(${localFalconCompetitorStandings.radiusMiles}, ${localFalconImportBatches.radiusMiles})`),
+      asc(sql`coalesce(${localFalconProspectProfiles.scanRadiusMiles}, ${localFalconImportBatches.radiusMiles})`),
     );
 
   return {
     ownReports: ownRows.map(summarizeReport),
-    competitorGroups: [],
   };
 }
 
@@ -154,15 +144,5 @@ export async function canViewReport(
     .limit(1);
   if (matchingContextReport) return true;
 
-  const contextStandings = await db.select({
-    businesses: localFalconCompetitorStandings.businesses,
-  }).from(localFalconCompetitorStandings)
-    .innerJoin(
-      localFalconProspectProfiles,
-      eq(localFalconCompetitorStandings.reportId, localFalconProspectProfiles.id),
-    )
-    .innerJoin(crmLeads, eq(localFalconProspectProfiles.leadId, crmLeads.id))
-    .where(eq(crmLeads.companyId, contextCompanyId));
-  return contextStandings.some((standing) =>
-    standing.businesses.some((business) => business.place_id === report.placeId));
+  return false;
 }

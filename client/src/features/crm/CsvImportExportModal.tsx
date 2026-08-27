@@ -102,9 +102,7 @@ interface LocalFalconImageFailure {
 }
 
 type PastedLocalFalconJson = {
-  kind: "batch" | "competitors";
   batchId: string;
-  requiresCompetitors: boolean;
 };
 
 function classifyPastedLocalFalconJson(value: unknown): PastedLocalFalconJson | null {
@@ -113,12 +111,7 @@ function classifyPastedLocalFalconJson(value: unknown): PastedLocalFalconJson | 
   if (payload.batch && typeof payload.batch === "object" && !Array.isArray(payload.batch) && Array.isArray(payload.prospects)) {
     const batchId = (payload.batch as Record<string, unknown>).batch_id;
     if (typeof batchId !== "string" || !batchId.trim()) return null;
-    return { kind: "batch", batchId: batchId.trim(), requiresCompetitors: payload.workflow === "scale_first_v2" };
-  }
-  if (payload.reports && typeof payload.reports === "object" && !Array.isArray(payload.reports)) {
-    const batchId = payload.batch_id;
-    if (typeof batchId !== "string" || !batchId.trim()) return null;
-    return { kind: "competitors", batchId: batchId.trim(), requiresCompetitors: false };
+    return { batchId: batchId.trim() };
   }
   return null;
 }
@@ -217,7 +210,6 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
 
   const [entityType, setEntityType] = useState<"local_falcon" | "leads" | "contacts">(defaultEntity);
   const [file, setFile] = useState<File | null>(null);
-  const [competitorsFile, setCompetitorsFile] = useState<File | null>(null);
   const [heatmapFiles, setHeatmapFiles] = useState<File[]>([]);
   const [phase, setPhase] = useState<"idle" | "loading" | "preview" | "done">("idle");
   const [result, setResult] = useState<ImportResult | null>(null);
@@ -229,9 +221,6 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
   const [confirmedPreviews, setConfirmedPreviews] = useState<Set<string>>(new Set());
   const [imageFailures, setImageFailures] = useState<LocalFalconImageFailure[]>([]);
   const [isGeneratingSnapshots, setIsGeneratingSnapshots] = useState(false);
-  const [pastedBatchId, setPastedBatchId] = useState<string | null>(null);
-  const [pastedCompetitorBatchId, setPastedCompetitorBatchId] = useState<string | null>(null);
-  const [pastedBatchRequiresCompetitors, setPastedBatchRequiresCompetitors] = useState(false);
   const [magnifiedRow, setMagnifiedRow] = useState<LocalFalconPreviewRow | null>(null);
 
   const { data: assignableUsers = [] } = useQuery<AssignableUser[]>({
@@ -240,12 +229,9 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
   });
   const salesReps = assignableUsers.filter((user) => user.role === "sales_rep");
   const isJsonPackage = file?.name.toLowerCase().endsWith(".json") ?? false;
-  const pastedBatchMismatch = Boolean(pastedBatchId && pastedCompetitorBatchId && pastedBatchId !== pastedCompetitorBatchId);
-  const pastedSidecarMissing = Boolean(file && isJsonPackage && pastedBatchRequiresCompetitors && !competitorsFile);
 
   const clearImportState = () => {
     setFile(null);
-    setCompetitorsFile(null);
     setHeatmapFiles([]);
     setResult(null);
     setPreview(null);
@@ -256,9 +242,6 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
     setConfirmedPreviews(new Set());
     setImageFailures([]);
     setIsGeneratingSnapshots(false);
-    setPastedBatchId(null);
-    setPastedCompetitorBatchId(null);
-    setPastedBatchRequiresCompetitors(false);
     setMagnifiedRow(null);
     reportRefs.current.clear();
     setPhase("idle");
@@ -266,34 +249,27 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
 
   const setPrimaryFile = (nextFile: File | null) => {
     setFile(nextFile);
-    setCompetitorsFile(null);
     setHeatmapFiles([]);
     setPreview(null);
     setResult(null);
     setImportError(null);
     setImageFailures([]);
-    setPastedBatchId(null);
-    setPastedCompetitorBatchId(null);
-    setPastedBatchRequiresCompetitors(false);
   };
 
   const setLocalFalconPackageFiles = (files: File[]) => {
+    if (files.some((candidate) => candidate.name.toLowerCase() === "competitors.json")) {
+      setImportError("competitors.json is retired. Choose or paste batch.json only.");
+      return;
+    }
     const zip = files.find((candidate) => /\.zip$/i.test(candidate.name));
     if (zip) {
       setPrimaryFile(zip);
       return;
     }
 
-    const batch = files.find(
-      (candidate) => /\.json$/i.test(candidate.name) && candidate.name.toLowerCase() !== "competitors.json",
-    );
+    const batch = files.find((candidate) => /\.json$/i.test(candidate.name));
     if (batch) {
       setPrimaryFile(batch);
-      setCompetitorsFile(files.find((candidate) => candidate.name.toLowerCase() === "competitors.json") ?? null);
-      return;
-    }
-    if (files.some((candidate) => candidate.name.toLowerCase() === "competitors.json")) {
-      setImportError("Choose batch.json together with competitors.json.");
       return;
     }
     setImportError("Choose batch.json or one scan ZIP package.");
@@ -326,30 +302,18 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
       try {
         const artifact = classifyPastedLocalFalconJson(JSON.parse(jsonText));
         if (!artifact) {
-          setImportError("The pasted JSON is not a recognized batch.json or competitors.json artifact.");
+          setImportError("The pasted JSON is not a recognized batch.json artifact.");
           return;
         }
         event.preventDefault();
         event.stopPropagation();
-        const pastedFile = new File([jsonText], `${artifact.kind === "batch" ? "batch" : "competitors"}.json`, {
+        const pastedFile = new File([jsonText], "batch.json", {
           type: "application/json",
           lastModified: Date.now(),
         });
-        if (artifact.kind === "batch") {
-          setFile(pastedFile);
-          setHeatmapFiles([]);
-          setPastedBatchId(artifact.batchId);
-          setPastedBatchRequiresCompetitors(artifact.requiresCompetitors);
-          setImportError(pastedCompetitorBatchId && pastedCompetitorBatchId !== artifact.batchId
-            ? `Batch ID mismatch: batch.json is ${artifact.batchId}, but competitors.json is ${pastedCompetitorBatchId}.`
-            : null);
-        } else {
-          setCompetitorsFile(pastedFile);
-          setPastedCompetitorBatchId(artifact.batchId);
-          setImportError(pastedBatchId && pastedBatchId !== artifact.batchId
-            ? `Batch ID mismatch: batch.json is ${pastedBatchId}, but competitors.json is ${artifact.batchId}.`
-            : null);
-        }
+        setFile(pastedFile);
+        setHeatmapFiles([]);
+        setImportError(null);
         setPreview(null);
         setResult(null);
         setImageFailures([]);
@@ -378,7 +342,6 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
     if (!file) throw new Error("Choose a package first");
     const form = new FormData();
     form.append("package", file);
-    if (competitorsFile) form.append("competitors", competitorsFile, competitorsFile.name);
     heatmapFiles.forEach((heatmap) => form.append("heatmaps", heatmap, heatmap.name));
     return form;
   };
@@ -566,7 +529,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
               <>
                 <div className="rounded-md border bg-slate-50 p-3 text-sm text-slate-600">
                   <p className="font-semibold text-slate-900">Qualified Local Falcon prospects</p>
-                  <p className="mt-1">Paste the Scale-First Manifest v2 <code>batch.json</code> and <code>competitors.json</code> artifacts one at a time, or choose them together. The CRM retrieves each official map automatically from its <code>report_key</code>.</p>
+                  <p className="mt-1">Paste the Scale-First Manifest v2 <code>batch.json</code>. The CRM retrieves each official map automatically from its <code>report_key</code>.</p>
                 </div>
                 <div
                   role="group"
@@ -580,8 +543,8 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
                   data-testid="local-falcon-package-dropzone"
                 >
                   <ClipboardPaste className="mb-3 h-9 w-9 text-blue-600" />
-                  <p className="font-semibold text-slate-900">Copy and paste both JSON artifacts</p>
-                  <p className="mt-1 text-sm text-slate-500">Paste batch.json and competitors.json one at a time, in either order; choosing both files or one ZIP also works</p>
+                  <p className="font-semibold text-slate-900">Copy and paste batch.json</p>
+                  <p className="mt-1 text-sm text-slate-500">Paste the JSON artifact, or choose batch.json or a ZIP containing batch.json</p>
                   <Button
                     type="button"
                     variant="outline"
@@ -593,7 +556,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
                       packageInputRef.current?.click();
                     }}
                   >
-                    Choose v2 JSON files or ZIP
+                    Choose batch.json or ZIP
                   </Button>
                   <Input
                     ref={packageInputRef}
@@ -612,14 +575,6 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
                       <div><p className="font-medium" data-testid="local-falcon-primary-file">{file.name}</p><p className="text-xs text-slate-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p></div>
                     </div>
                   </div>
-                )}
-                {competitorsFile && (
-                  <p className="mt-2 text-xs text-slate-600">
-                    Competitor comparison: <span className="font-medium" data-testid="local-falcon-competitors-file">{competitorsFile.name}</span>
-                  </p>
-                )}
-                {pastedSidecarMissing && (
-                  <p className="mt-2 text-xs font-medium text-amber-700">Batch loaded. Copy competitors.json and paste it into the same box next.</p>
                 )}
                 {file && isJsonPackage && (
                   <div
@@ -834,7 +789,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
           ) : phase === "preview" ? (
             <><Button variant="outline" onClick={clearImportState} disabled={isGeneratingSnapshots}>Choose another package</Button><Button onClick={handleConfirmLocalFalcon} disabled={preview?.batchAlreadyImported || (includedRows.length > 0 && (!assignedTo || !leadClassification)) || !everyIncludedPreviewConfirmed || isGeneratingSnapshots} data-testid="button-confirm-local-falcon-import">{isGeneratingSnapshots ? "Generating snapshots…" : "Import reports"}</Button></>
           ) : (
-            <><Button variant="outline" onClick={handleClose} disabled={phase === "loading"}>Cancel</Button><Button onClick={handleImport} disabled={!file || phase === "loading" || pastedBatchMismatch || pastedSidecarMissing} data-testid="button-start-import">{phase === "loading" ? t.crm.importing : imageFailures.length > 0 && heatmapFiles.length === 0 ? "Retry automatic retrieval" : "Review import"}</Button></>
+            <><Button variant="outline" onClick={handleClose} disabled={phase === "loading"}>Cancel</Button><Button onClick={handleImport} disabled={!file || phase === "loading"} data-testid="button-start-import">{phase === "loading" ? t.crm.importing : imageFailures.length > 0 && heatmapFiles.length === 0 ? "Retry automatic retrieval" : "Review import"}</Button></>
           )}
         </DialogFooter>
       </DialogContent>

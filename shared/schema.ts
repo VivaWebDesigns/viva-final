@@ -474,6 +474,8 @@ export const localFalconProspectProfiles = pgTable("local_falcon_prospect_profil
   reportUrl: text("report_url"),
   scanDate: timestamp("scan_date").notNull(),
   scanKeyword: text("scan_keyword").notNull(),
+  scanGridSize: text("scan_grid_size"),
+  scanRadiusMiles: numeric("scan_radius_miles"),
   qualificationStatus: text("qualification_status").notNull().default("qualified"),
   heatmapFile: text("heatmap_file"),
   heatmapSourceUrl: text("heatmap_source_url"),

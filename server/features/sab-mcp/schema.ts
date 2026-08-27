@@ -618,17 +618,6 @@ export const validateSabCrmManifestInputSchema = {
     ),
 };
 
-export const buildSabCompetitorSidecarInputSchema = {
-  manifest_json: z
-    .string()
-    .trim()
-    .min(2)
-    .max(2_000_000)
-    .describe(
-      "Complete, already validated Scale-First v2 batch.json payload. The connector reads existing official Local Falcon reports and performs no scans or writes.",
-    ),
-};
-
 export type SabCompanyUpdates = z.infer<typeof sabCompanyUpdatesSchema>;
 export type SabScanResult = z.infer<typeof sabScanResultSchema>;
 export type SabVerifiedScanSpec = z.infer<typeof sabVerifiedScanSpecSchema>;

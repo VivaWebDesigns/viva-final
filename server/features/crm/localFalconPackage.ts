@@ -7,10 +7,6 @@ import {
   type LocalFalconPayload,
   type LocalFalconProspectInput,
 } from "./localFalconImport";
-import {
-  parseLocalFalconCompetitorSidecar,
-  type LocalFalconCompetitorSidecar,
-} from "./localFalconCompetitors";
 
 export const LOCAL_FALCON_PACKAGE_MAX_BYTES = 50 * 1024 * 1024;
 export const LOCAL_FALCON_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
@@ -70,7 +66,6 @@ class LocalFalconFetchAttemptError extends Error {
 
 export interface ParsedLocalFalconPackage {
   payload: LocalFalconPayload;
-  competitors: LocalFalconCompetitorSidecar | null;
   heatmapsByPath: Map<string, ValidatedHeatmap>;
   heatmapsByPlaceId: Map<string, ValidatedHeatmap>;
   sourceMode: "local_falcon" | "zip" | "fallback";
@@ -146,7 +141,6 @@ async function validateHeatmap(
 
 function readZip(primary: IncomingPackageFile): {
   manifestText: string;
-  competitorsText: string | null;
   images: Map<string, Buffer>;
 } {
   let entries: Record<string, Uint8Array>;
@@ -159,7 +153,6 @@ function readZip(primary: IncomingPackageFile): {
   let uncompressedBytes = 0;
   const images = new Map<string, Buffer>();
   let manifestText: string | null = null;
-  let competitorsText: string | null = null;
   for (const [rawName, bytes] of Object.entries(entries)) {
     const name = normalizeEntryPath(rawName);
     if (!name || name.endsWith("/") || isIgnoredEntry(name)) continue;
@@ -169,24 +162,19 @@ function readZip(primary: IncomingPackageFile): {
       manifestText = Buffer.from(bytes).toString("utf8");
       continue;
     }
-    if (name === "competitors.json") {
-      competitorsText = Buffer.from(bytes).toString("utf8");
-      continue;
-    }
     if (name.startsWith("heatmaps/")) {
       images.set(name, Buffer.from(bytes));
       continue;
     }
-    throw new Error(`Unexpected ZIP entry: ${name}. Only batch.json, competitors.json, and heatmaps/ are allowed`);
+    throw new Error(`Unexpected ZIP entry: ${name}. Only batch.json and heatmaps/ are allowed`);
   }
   if (!manifestText) throw new Error("The ZIP must contain batch.json at its root");
-  return { manifestText, competitorsText, images };
+  return { manifestText, images };
 }
 
 function readDirectJson(
   primary: IncomingPackageFile,
   supplementalImages: IncomingPackageFile[],
-  competitorsFile?: IncomingPackageFile,
 ) {
   const images = new Map<string, Buffer>();
   for (const image of supplementalImages) {
@@ -195,12 +183,8 @@ function readDirectJson(
     if (images.has(fallbackPath)) throw new Error(`Duplicate fallback image filename: ${name}`);
     images.set(fallbackPath, image.buffer);
   }
-  if (competitorsFile && path.basename(competitorsFile.originalName).toLowerCase() !== "competitors.json") {
-    throw new Error("The comparison sidecar file must be named competitors.json");
-  }
   return {
     manifestText: primary.buffer.toString("utf8"),
-    competitorsText: competitorsFile?.buffer.toString("utf8") ?? null,
     images,
   };
 }
@@ -372,13 +356,9 @@ async function forEachWithConcurrency<T>(
 
 async function parseZipPackage(
   manifestText: string,
-  competitorsText: string | null,
   images: Map<string, Buffer>,
 ): Promise<ParsedLocalFalconPackage> {
   const payload = parseLocalFalconPayload(manifestText);
-  const competitors = competitorsText
-    ? parseLocalFalconCompetitorSidecar(competitorsText, payload)
-    : null;
   const referencedPaths = new Set<string>();
   for (const [index, prospect] of payload.prospects.entries()) {
     if (!prospect.heatmap_file) throw new Error(`prospects.${index}.heatmap_file is required when using the ZIP fallback`);
@@ -399,19 +379,15 @@ async function parseZipPackage(
   for (const prospect of payload.prospects) {
     heatmapsByPlaceId.set(prospect.place_id, heatmapsByPath.get(normalizeEntryPath(prospect.heatmap_file!))!);
   }
-  return { payload, competitors, heatmapsByPath, heatmapsByPlaceId, sourceMode: "zip" };
+  return { payload, heatmapsByPath, heatmapsByPlaceId, sourceMode: "zip" };
 }
 
 async function parseJsonPackage(
   manifestText: string,
-  competitorsText: string | null,
   images: Map<string, Buffer>,
   fetchImpl: FetchLike,
 ): Promise<ParsedLocalFalconPackage> {
   const payload = parseLocalFalconPayload(manifestText);
-  const competitors = competitorsText
-    ? parseLocalFalconCompetitorSidecar(competitorsText, payload)
-    : null;
   const heatmapsByPath = new Map<string, ValidatedHeatmap>();
   const heatmapsByPlaceId = new Map<string, ValidatedHeatmap>();
   const usedFallbackPaths = new Set<string>();
@@ -452,7 +428,6 @@ async function parseJsonPackage(
 
   return {
     payload,
-    competitors,
     heatmapsByPath,
     heatmapsByPlaceId,
     sourceMode: usedFallbackPaths.size ? "fallback" : "local_falcon",
@@ -463,25 +438,23 @@ export async function parseLocalFalconPackage(
   primary: IncomingPackageFile,
   supplementalImages: IncomingPackageFile[] = [],
   fetchImpl: FetchLike = fetch,
-  competitorsFile?: IncomingPackageFile,
 ): Promise<ParsedLocalFalconPackage> {
   if (primary.buffer.byteLength > LOCAL_FALCON_PACKAGE_MAX_BYTES) throw new Error("The package exceeds the 50 MB limit");
   const isZip = primary.originalName.toLowerCase().endsWith(".zip") || primary.mimeType.includes("zip");
   const isJson = primary.originalName.toLowerCase().endsWith(".json") || primary.mimeType.includes("json");
   if (!isZip && !isJson) throw new Error("Upload a .zip package or canonical .json manifest");
-  if (isZip && (supplementalImages.length || competitorsFile)) {
-    throw new Error("A ZIP package already contains its sidecar and heatmaps; remove the separate files");
+  if (isZip && supplementalImages.length) {
+    throw new Error("A ZIP package already contains its heatmaps; remove the separate files");
   }
 
   if (isZip) {
-    const { manifestText, competitorsText, images } = readZip(primary);
-    if (images.size > 0) return parseZipPackage(manifestText, competitorsText, images);
-    return parseJsonPackage(manifestText, competitorsText, images, fetchImpl);
+    const { manifestText, images } = readZip(primary);
+    if (images.size > 0) return parseZipPackage(manifestText, images);
+    return parseJsonPackage(manifestText, images, fetchImpl);
   }
-  const { manifestText, competitorsText, images } = readDirectJson(
+  const { manifestText, images } = readDirectJson(
     primary,
     supplementalImages,
-    competitorsFile,
   );
-  return parseJsonPackage(manifestText, competitorsText, images, fetchImpl);
+  return parseJsonPackage(manifestText, images, fetchImpl);
 }

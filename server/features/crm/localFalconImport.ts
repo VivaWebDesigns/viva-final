@@ -9,13 +9,11 @@ import {
   crmLeads,
   crmLeadStatuses,
   crmTags,
-  localFalconCompetitorStandings,
   localFalconImportBatches,
   localFalconProspectProfiles,
   pipelineOpportunities,
   pipelineStages,
 } from "@shared/schema";
-import type { LocalFalconCompetitorSidecar } from "./localFalconCompetitors";
 import {
   LOCAL_FALCON_LEAD_CLASSIFICATIONS,
   getLocalFalconLeadClassification,
@@ -256,7 +254,6 @@ export interface LocalFalconPreviewResult {
   batchAlreadyImported: boolean;
   newCount: number;
   variationCount: number;
-  competitorReportsCount: number;
   existingCount: number;
   flaggedCount: number;
   rows: ProspectPreview[];
@@ -395,7 +392,6 @@ async function existingCompanyMatches(prospect: LocalFalconProspectInput): Promi
 
 export async function previewLocalFalconImport(
   payload: LocalFalconPayload,
-  competitors: LocalFalconCompetitorSidecar | null = null,
 ): Promise<LocalFalconPreviewResult> {
   const [existingBatch] = await db.select({ id: localFalconImportBatches.id })
     .from(localFalconImportBatches).where(eq(localFalconImportBatches.batchId, payload.batch.batch_id)).limit(1);
@@ -467,12 +463,9 @@ export async function previewLocalFalconImport(
     keyword: payload.batch.keyword,
     scanSpec: payload.batch.scan_spec,
     scanSpecs,
-    batchAlreadyImported:
-      isLocalFalconBatchFullyImported(existingBatch?.id, rows)
-      && Object.keys(competitors?.reports ?? {}).length === 0,
+    batchAlreadyImported: isLocalFalconBatchFullyImported(existingBatch?.id, rows),
     newCount: rows.filter((row) => row.outcome === "new").length,
     variationCount: rows.filter((row) => row.outcome === "variation").length,
-    competitorReportsCount: Object.keys(competitors?.reports ?? {}).length,
     existingCount: rows.filter((row) => row.outcome === "existing").length,
     flaggedCount: rows.filter((row) => row.outcome === "flagged").length,
     rows,
@@ -482,7 +475,6 @@ export async function previewLocalFalconImport(
 export interface LocalFalconImportResult extends LocalFalconPreviewResult {
   imported: number;
   leadsCreated: number;
-  competitorReportsImported: number;
   importedLeads: Array<{
     leadId: string;
     opportunityId: string;
@@ -502,9 +494,8 @@ export async function importLocalFalconPayload(
   leadClassification: LocalFalconLeadClassification,
   selectedPlaceIds: Set<string>,
   assetsByPlaceId: Map<string, LocalFalconUploadedAsset>,
-  competitors: LocalFalconCompetitorSidecar | null = null,
 ): Promise<LocalFalconImportResult> {
-  const preview = await previewLocalFalconImport(payload, competitors);
+  const preview = await previewLocalFalconImport(payload);
 
   const allowedPlaceIds = new Set(
     preview.rows.filter((row) =>
@@ -514,8 +505,8 @@ export async function importLocalFalconPayload(
     )
       .map((row) => row.placeId),
   );
-  if (allowedPlaceIds.size === 0 && !competitors) {
-    throw new Error("No new reports or competitor standings were selected for import");
+  if (allowedPlaceIds.size === 0) {
+    throw new Error("No new reports were selected for import");
   }
   for (const placeId of allowedPlaceIds) {
     if (!assetsByPlaceId.has(placeId)) throw new Error(`Heatmap upload is missing for Place ID ${placeId}`);
@@ -746,6 +737,8 @@ export async function importLocalFalconPayload(
         reportUrl: prospect.report_url,
         scanDate: new Date(prospect.scan_date),
         scanKeyword: prospect.scan_keyword,
+        scanGridSize: getProspectScanSpec(payload, prospect).grid_size,
+        scanRadiusMiles: String(getProspectScanSpec(payload, prospect).radius_miles),
         qualificationStatus: prospect.qualification_status,
         heatmapFile: prospect.heatmap_file ?? null,
         heatmapSourceUrl: asset.sourceUrl ?? null,
@@ -782,54 +775,14 @@ export async function importLocalFalconPayload(
         } : {}),
       });
     }
-    let competitorReportsImported = 0;
-    const sidecarReportKeys = Object.keys(competitors?.reports ?? {});
-    if (competitors && sidecarReportKeys.length > 0) {
-      const reportRows = await tx.select({
-        id: localFalconProspectProfiles.id,
-        reportKey: localFalconProspectProfiles.reportKey,
-      }).from(localFalconProspectProfiles)
-        .where(inArray(localFalconProspectProfiles.reportKey, sidecarReportKeys));
-      const reportIdByKey = new Map(reportRows.map((row) => [row.reportKey, row.id]));
-
-      for (const [reportKey, standing] of Object.entries(competitors.reports)) {
-        const reportId = reportIdByKey.get(reportKey);
-        if (!reportId) continue;
-        const values = {
-          reportId,
-          competitorReportKey: standing.competitor_report_key,
-          subjectPlaceId: standing.subject_place_id,
-          subjectName: standing.subject_name,
-          keyword: standing.keyword,
-          gridSize: standing.grid_size,
-          radiusMiles: String(standing.radius_miles),
-          scanDate: new Date(`${standing.scan_date}T12:00:00.000Z`),
-          subjectRank: standing.subject_rank,
-          totalBusinesses: standing.total_businesses,
-          businessesAheadCount: standing.businesses_ahead_count,
-          warnings: standing.warnings,
-          businesses: standing.businesses,
-          generatedAt: new Date(competitors.generated_at),
-          updatedAt: new Date(),
-        };
-        await tx.insert(localFalconCompetitorStandings).values(values)
-          .onConflictDoUpdate({
-            target: localFalconCompetitorStandings.reportId,
-            set: values,
-          });
-        competitorReportsImported += 1;
-      }
-    }
-
-    return { importedLeads: results, competitorReportsImported };
+    return { importedLeads: results };
   });
 
-  const { importedLeads, competitorReportsImported } = transactionResult;
+  const { importedLeads } = transactionResult;
   return {
     ...preview,
     imported: importedLeads.length,
     leadsCreated: importedLeads.filter((row) => row.createdNewLead).length,
-    competitorReportsImported,
     importedLeads,
   };
 }
@@ -838,11 +791,9 @@ export async function getLocalFalconProfileForLead(leadId: string) {
   const [result] = await db.select({
     profile: localFalconProspectProfiles,
     batch: localFalconImportBatches,
-    standing: localFalconCompetitorStandings,
   })
     .from(localFalconProspectProfiles)
     .innerJoin(localFalconImportBatches, eq(localFalconProspectProfiles.batchRecordId, localFalconImportBatches.id))
-    .leftJoin(localFalconCompetitorStandings, eq(localFalconCompetitorStandings.reportId, localFalconProspectProfiles.id))
     .where(eq(localFalconProspectProfiles.leadId, leadId))
     .orderBy(desc(localFalconProspectProfiles.scanDate))
     .limit(1);

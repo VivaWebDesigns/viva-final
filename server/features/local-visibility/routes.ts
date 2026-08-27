@@ -8,13 +8,11 @@ import { analyzeVisibilityScreenshots } from "./analysis";
 import { db } from "../../db";
 import {
   crmLeads,
-  localFalconCompetitorStandings,
   localFalconImportBatches,
   localFalconProspectProfiles,
 } from "@shared/schema";
 import { deleteFile, getFileBuffer, getSignedDownloadUrl, uploadFile } from "../../services/storage";
 import {
-  buildGoogleMapsVisibilityComparison,
   formatLocalVisibilityAveragePosition,
   formatLocalVisibilityReportAddress,
   getLocalFalconMapPresentation,
@@ -40,28 +38,6 @@ function viewerFor(req: Request): ReportViewer {
 
 function contextCompanyId(req: Request): string | undefined {
   return typeof req.query.contextCompanyId === "string" ? req.query.contextCompanyId : undefined;
-}
-
-async function getGoogleMapsComparison(
-  reportId: string,
-  subject: { name: string; rating: string; reviewCount: number },
-) {
-  const [standing] = await db.select().from(localFalconCompetitorStandings)
-    .where(eq(localFalconCompetitorStandings.reportId, reportId))
-    .limit(1);
-  if (!standing) return null;
-  return buildGoogleMapsVisibilityComparison({
-    subjectRank: standing.subjectRank,
-    totalBusinesses: standing.totalBusinesses,
-    businessesAheadCount: standing.businessesAheadCount,
-    businesses: standing.businesses,
-    gridSize: standing.gridSize,
-    subject: {
-      name: subject.name,
-      rating: Number(subject.rating),
-      reviewCount: subject.reviewCount,
-    },
-  });
 }
 
 const upload = multer({
@@ -187,15 +163,10 @@ router.get(
       const [record] = await db.select({
         profile: localFalconProspectProfiles,
         batch: localFalconImportBatches,
-        standing: localFalconCompetitorStandings,
       }).from(localFalconProspectProfiles)
         .innerJoin(
           localFalconImportBatches,
           eq(localFalconProspectProfiles.batchRecordId, localFalconImportBatches.id),
-        )
-        .leftJoin(
-          localFalconCompetitorStandings,
-          eq(localFalconCompetitorStandings.reportId, localFalconProspectProfiles.id),
         )
         .where(eq(localFalconProspectProfiles.id, accessRecord.id))
         .limit(1);
@@ -211,21 +182,14 @@ router.get(
       const snapshotImageUrl = record.profile.snapshotStorageKey
         ? await getSignedDownloadUrl(record.profile.snapshotStorageKey)
         : null;
-      const googleMapsComparison = await getGoogleMapsComparison(accessRecord.id, {
-        name: record.profile.companyName ?? "Business",
-        rating: record.profile.rating,
-        reviewCount: record.profile.reviewCount,
-      });
       const address = formatLocalVisibilityReportAddress({
         address: record.profile.address,
         city: record.profile.scanCity ?? record.profile.city,
         state: record.profile.scanState ?? record.profile.state,
         zip: record.profile.scanZip ?? record.profile.zip,
       });
-      const effectiveRadius = record.standing?.radiusMiles ?? record.batch.radiusMiles;
-      const effectiveGridSize = record.standing
-        ? `${record.standing.gridSize}x${record.standing.gridSize}`
-        : record.batch.gridSize;
+      const effectiveRadius = record.profile.scanRadiusMiles ?? record.batch.radiusMiles;
+      const effectiveGridSize = record.profile.scanGridSize ?? record.batch.gridSize;
       res.json({
         reportId: accessRecord.id,
         leadId: record.profile.leadId,
@@ -256,7 +220,6 @@ router.get(
           gridSize: effectiveGridSize ?? "7 × 7",
           radius: effectiveRadius ?? "2.5",
           heatmapImageUrl,
-          googleMapsComparison,
         },
       });
     } catch (error: any) {
@@ -355,11 +318,9 @@ router.get(
       const [record] = await db.select({
         profile: localFalconProspectProfiles,
         batch: localFalconImportBatches,
-        standing: localFalconCompetitorStandings,
         assignedTo: crmLeads.assignedTo,
       }).from(localFalconProspectProfiles)
         .innerJoin(localFalconImportBatches, eq(localFalconProspectProfiles.batchRecordId, localFalconImportBatches.id))
-        .leftJoin(localFalconCompetitorStandings, eq(localFalconCompetitorStandings.reportId, localFalconProspectProfiles.id))
         .innerJoin(crmLeads, eq(localFalconProspectProfiles.leadId, crmLeads.id))
         .where(eq(localFalconProspectProfiles.leadId, req.params.leadId as string))
         .orderBy(desc(localFalconProspectProfiles.scanDate))
@@ -373,21 +334,14 @@ router.get(
       const snapshotImageUrl = record.profile.snapshotStorageKey
         ? await getSignedDownloadUrl(record.profile.snapshotStorageKey)
         : null;
-      const googleMapsComparison = await getGoogleMapsComparison(record.profile.id, {
-        name: record.profile.companyName ?? "Business",
-        rating: record.profile.rating,
-        reviewCount: record.profile.reviewCount,
-      });
       const address = formatLocalVisibilityReportAddress({
         address: record.profile.address,
         city: record.profile.scanCity ?? record.profile.city,
         state: record.profile.scanState ?? record.profile.state,
         zip: record.profile.scanZip ?? record.profile.zip,
       });
-      const effectiveRadius = record.standing?.radiusMiles ?? record.batch.radiusMiles;
-      const effectiveGridSize = record.standing
-        ? `${record.standing.gridSize}x${record.standing.gridSize}`
-        : record.batch.gridSize;
+      const effectiveRadius = record.profile.scanRadiusMiles ?? record.batch.radiusMiles;
+      const effectiveGridSize = record.profile.scanGridSize ?? record.batch.gridSize;
       res.json({
         leadId: req.params.leadId as string,
         reportUrl: record.profile.reportUrl,
@@ -417,7 +371,6 @@ router.get(
           gridSize: effectiveGridSize ?? "7 × 7",
           radius: effectiveRadius ?? "2.5",
           heatmapImageUrl,
-          googleMapsComparison,
         },
       });
     } catch (error: any) {

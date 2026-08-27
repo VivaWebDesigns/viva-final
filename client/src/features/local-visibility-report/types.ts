@@ -1,5 +1,3 @@
-import type { LocalVisibilityGoogleMapsComparison } from "@shared/localVisibility";
-
 export type LocalVisibilityReportData = {
   businessName: string;
   address: string;
@@ -11,7 +9,6 @@ export type LocalVisibilityReportData = {
   gridSize: string;
   radius: string;
   heatmapImageUrl: string;
-  googleMapsComparison?: LocalVisibilityGoogleMapsComparison | null;
 };
 
 export const LOCAL_VISIBILITY_REPORT_WIDTH = 1080;
@@ -19,14 +16,14 @@ export const LOCAL_VISIBILITY_REPORT_HEIGHT = 1920;
 export const LOCAL_VISIBILITY_REPORT_LEGACY_HEIGHT = LOCAL_VISIBILITY_REPORT_HEIGHT;
 
 export function getLocalVisibilityReportHeight(
-  _data: Pick<LocalVisibilityReportData, "googleMapsComparison">,
+  _data: LocalVisibilityReportData,
 ): number {
   return LOCAL_VISIBILITY_REPORT_HEIGHT;
 }
 
 export type ExtractableVisibilityField = Exclude<
   keyof LocalVisibilityReportData,
-  "heatmapImageUrl" | "googleMapsComparison"
+  "heatmapImageUrl"
 >;
 
 export type VisibilityScreenshotAnalysis = {
@@ -48,7 +45,6 @@ export const DEFAULT_LOCAL_VISIBILITY_REPORT: LocalVisibilityReportData = {
   gridSize: "7 × 7",
   radius: "2.5",
   heatmapImageUrl: "",
-  googleMapsComparison: null,
 };
 
 export function normalizeGridSize(value: string): string {

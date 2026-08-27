@@ -6,7 +6,6 @@ import {
 import { checkCrmPlaceIds } from "./crmDedup";
 import { checkCrmPlaceIdsFromLocalFalconReport } from "./localFalconDedup";
 import { getSabRankedCells } from "./localFalconRankedCells";
-import { buildSabCompetitorSidecar } from "./localFalconCompetitorSidecar";
 import {
   analyzeSabMasterCenters,
   createSabWorkflowFromMasterReport,
@@ -19,7 +18,6 @@ import { runSabScanOnce } from "./localFalconScanSubmission";
 import { getSabCrmImportContract, validateSabCrmManifest } from "./crmManifest";
 import {
   checkCrmLocalFalconReportInputSchema,
-  buildSabCompetitorSidecarInputSchema,
   analyzeSabMasterCentersInputSchema,
   checkCrmPlaceIdsInputSchema,
   createSabWorkflowInputSchema,
@@ -247,18 +245,6 @@ export function createSabMcpServer(
       return jsonToolResult(
         await enrichSabBusinesses(place_ids, location_name, language_code),
       );
-    },
-  );
-
-  server.registerTool(
-    "build_sab_competitor_sidecar",
-    sabTool({
-      description:
-        "Build a compact competitors.json v2 from the official completed Local Falcon reports referenced by an already validated Scale-First v2 batch.json. Reconciles exact report and subject identity, scan specification, keyword, and date server-side; returns only the subject and immediately adjacent ordinal competitors. This is read-only, runs no scans, and performs no Sheet, CRM, or account writes.",
-      inputSchema: buildSabCompetitorSidecarInputSchema,
-    }),
-    async ({ manifest_json }) => {
-      return jsonToolResult(await buildSabCompetitorSidecar(manifest_json));
     },
   );
 

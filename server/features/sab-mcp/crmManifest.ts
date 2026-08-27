@@ -174,7 +174,7 @@ export const SCALE_FIRST_SAB_CRM_IMPORT_CONTRACT = {
     "Every prospect report key must be unique inside the batch.",
     "Every prospect scan_keyword must exactly match batch.keyword.",
     "Each prospect inherits batch.scan_spec unless it supplies an explicit scan_spec override.",
-    "Official reports and competitors.json rows must match each prospect's effective scan_spec.",
+    "Every official report must match its prospect's effective scan_spec.",
     "website_url is required when has_website is true.",
     "website_url must be null when has_website is false.",
     "Email Ready requires an email and is eligible for automated email routing.",
