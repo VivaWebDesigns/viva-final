@@ -14,6 +14,8 @@ import {
 import { enrichSabBusinesses } from "./dataForSeoBusiness";
 import { reverseGeocodeSabCenters } from "./reverseGeocode";
 import { evaluateSabAddressCandidate } from "./addressCandidate";
+import { verifySabScanHistoryRepairs } from "./scanHistoryReconciliation";
+import { runSabScanOnce } from "./localFalconScanSubmission";
 import { getSabCrmImportContract, validateSabCrmManifest } from "./crmManifest";
 import {
   checkCrmLocalFalconReportInputSchema,
@@ -31,6 +33,8 @@ import {
   getSabRankedCellsInputSchema,
   markSabBlockedInputSchema,
   reverseGeocodeSabCentersInputSchema,
+  reconcileSabScanHistoryInputSchema,
+  runSabScanOnceInputSchema,
   SAB_HEADERS,
   SAB_LEGACY_REQUIRED_HEADERS,
   SAB_QUALIFICATION_STATUSES,
@@ -79,7 +83,7 @@ export function createSabMcpServer(
 ) {
   const server = new McpServer({
     name: "viva-sab-workflow",
-    version: "1.10.1",
+    version: "1.11.0",
   });
 
   server.registerTool(
@@ -339,6 +343,39 @@ export function createSabMcpServer(
       const repository = repositoryFactory(workflow_sheet, sheet_name);
       return jsonToolResult(
         await repository.saveScanResult(place_id, scan_result, actorEmail),
+      );
+    },
+  );
+
+  server.registerTool(
+    "reconcile_sab_scan_history",
+    sabTool({
+      description:
+        "Repair only explicitly identified noncanonical SAB scan-history associations after an ambiguous or excess submission. The connector independently verifies each report's actual subject Place ID and exact scan specification against Local Falcon before writing, preserves row and Place-ID integrity, records an append-only reconciliation audit, and is idempotent. It cannot alter canonical report columns or invent scan results.",
+      inputSchema: reconcileSabScanHistoryInputSchema,
+    }),
+    async ({ workflow_sheet, sheet_name, repairs }) => {
+      const verified = await verifySabScanHistoryRepairs(repairs);
+      const repository = repositoryFactory(workflow_sheet, sheet_name);
+      return jsonToolResult({
+        workflow_sheet,
+        sheet_name,
+        ...(await repository.reconcileScanHistory(verified, actorEmail)),
+      });
+    },
+  );
+
+  server.registerTool(
+    "run_sab_scan_once",
+    sabTool({
+      description:
+        "Execute exactly one supervisor-authorized Local Falcon scan through the Viva connector's guarded path. Creates a durable idempotency reservation before any paid call, optionally saves the exact Place ID, submits exactly once with no automatic retry, verifies the complete echoed scan envelope, and immediately records the report key. A lost or mismatched response becomes an ambiguous durable stop that must be reconciled; calling the same authorization and exact scan again never launches a second scan.",
+      inputSchema: runSabScanOnceInputSchema,
+    }),
+    async ({ workflow_sheet, sheet_name, ...input }) => {
+      const repository = repositoryFactory(workflow_sheet, sheet_name);
+      return jsonToolResult(
+        await runSabScanOnce(input, repository, actorEmail),
       );
     },
   );

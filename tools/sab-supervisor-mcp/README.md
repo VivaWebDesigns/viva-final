@@ -46,7 +46,7 @@ Add this server to Claude Desktop's MCP configuration, then restart Claude Deskt
 }
 ```
 
-Give Claude the fixed instruction in `prompts/claude-instruction.md`. That instruction is what causes Claude to register the exact private SOP once, invoke the checkpoint reviewer before ending a meaningful checkpoint turn, and invoke the scan-plan reviewer before a paid Local Falcon stage. The MCP server itself does not independently detect completed or paused Claude responses.
+Give Claude the fixed instruction in `prompts/claude-instruction.md`. That instruction is what causes Claude to register the exact private SOP once, invoke the checkpoint reviewer before ending a meaningful checkpoint turn, invoke the scan-plan reviewer before a paid Local Falcon stage, and route every approved scan through Viva SAB Workflow's durable `run_sab_scan_once` guard. Claude must not call the direct Local Falcon save or scan tools after supervisor approval. The MCP server itself does not independently detect completed or paused Claude responses.
 
 Claude reads the private document through its authenticated Drive connector and registers its source URL, title/version, Drive revision ID when available, and complete exact text. Registration returns a handle bound to the source identity, revision, and content hash. The same exact registration is idempotent; a different source, revision, or document content receives a different handle. Both reviewers resolve and verify that immutable local copy. No SOP, trade, market, keyword, workflow sheet, report, or run is configured as a default.
 

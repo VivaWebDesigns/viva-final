@@ -114,6 +114,11 @@ const sabScanCenterString = z
       });
     }
   });
+
+const sabReportKey = z
+  .string()
+  .trim()
+  .regex(/^[a-f0-9]{12,64}$/i);
 const auditFindings = z
   .array(z.string().trim().min(1).max(1_000))
   .min(3)
@@ -345,6 +350,66 @@ export const saveSabScanResultInputSchema = {
   scan_result: sabScanResultSchema,
 };
 
+const sabVerifiedScanSpecSchema = z
+  .object({
+    scan_role: z.literal("auxiliary"),
+    scan_type: z.enum(["scout", "fine"]),
+    scan_center: sabScanCenterString,
+    grid_size: z.union([z.literal(7), z.literal(9)]),
+    radius: z.number().finite().min(0.1).max(100),
+    measurement: z.enum(["mi", "km"]),
+    keyword: z.string().trim().min(1).max(500),
+    platform: z.literal("google"),
+  })
+  .strict();
+
+const sabScanHistoryRepairSchema = z
+  .object({
+    report_key: sabReportKey,
+    expected_place_id: z.string().trim().min(1).max(500),
+    disposition: z.enum(["attach_verified_auxiliary", "void_excess_duplicate"]),
+    remove_from_place_ids: z
+      .array(z.string().trim().min(1).max(500))
+      .max(10)
+      .default([]),
+    authorization_id: z.string().uuid(),
+    reason: z.string().trim().min(1).max(2_000),
+    expected: sabVerifiedScanSpecSchema,
+  })
+  .strict();
+
+export const reconcileSabScanHistoryInputSchema = {
+  ...workflowSheetInputSchema,
+  repairs: z.array(sabScanHistoryRepairSchema).min(1).max(20),
+};
+
+export const runSabScanOnceInputSchema = {
+  ...workflowSheetInputSchema,
+  authorization_id: z.string().uuid(),
+  company_name: z.string().trim().min(1).max(1_000),
+  place_id: z.string().trim().min(1).max(500),
+  scan_role: z.enum(SAB_SCAN_ROLES),
+  scan_type: z.enum(SAB_SCAN_TYPES),
+  center: z
+    .object({
+      latitude: z.number().finite().min(-90).max(90),
+      longitude: z.number().finite().min(-180).max(180),
+    })
+    .strict(),
+  grid_size: z.union([z.literal(7), z.literal(9)]),
+  radius: z.number().finite().min(0.1).max(100),
+  measurement: z.enum(["mi", "km"]),
+  keyword: z.string().trim().min(1).max(500),
+  platform: z.literal("google"),
+  estimated_credits: z.number().int().positive(),
+  save_location_required: z.boolean(),
+  eligibility_gate_result: z.literal("passed"),
+  duplicate_report_result: z.literal("none"),
+  retry_after_ambiguous_submission: z.literal(false),
+  center_derivation: z.string().trim().min(1).max(5_000),
+  sop_routing_rule: z.string().trim().min(1).max(5_000),
+};
+
 export const upgradeSabWorkflowSchemaInputSchema = {
   ...workflowSheetInputSchema,
 };
@@ -566,4 +631,8 @@ export const buildSabCompetitorSidecarInputSchema = {
 
 export type SabCompanyUpdates = z.infer<typeof sabCompanyUpdatesSchema>;
 export type SabScanResult = z.infer<typeof sabScanResultSchema>;
+export type SabVerifiedScanSpec = z.infer<typeof sabVerifiedScanSpecSchema>;
+export type SabScanHistoryRepairInput = z.infer<
+  typeof sabScanHistoryRepairSchema
+>;
 export type SabWorkflowRowInput = z.infer<typeof sabWorkflowRowSchema>;

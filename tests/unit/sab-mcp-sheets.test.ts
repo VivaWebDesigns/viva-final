@@ -1246,6 +1246,161 @@ describe("SabSheetsRepository", () => {
     ).rejects.toThrow(/qualification reason/);
   });
 
+  it("reconciles verified auxiliary history without changing rows or Place IDs", async () => {
+    const falseAssociation = JSON.stringify([
+      {
+        scan_role: "auxiliary",
+        scan_type: "scout",
+        report_key: "c855cd48e82a5c4",
+      },
+    ]);
+    const { client, repository } = buildRepository([
+      row({
+        place_id: "kj-place",
+        company: "KJ",
+        scan_history: falseAssociation,
+      }),
+      row({ place_id: "vivid-place", company: "Vivid", batch_position: "2" }),
+    ]);
+    const actual = {
+      scan_center: "35.1,-80.9",
+      grid_size: 9,
+      radius: 6,
+      measurement: "mi",
+      keyword: "deck builder near me",
+      found_in: 12,
+      arp: 9.1,
+      solv: 4.2,
+      scan_date: "2026-08-26",
+      report_url: "https://www.localfalcon.com/reports/view/c855cd48e82a5c4",
+    };
+    const verified = {
+      report_key: "c855cd48e82a5c4",
+      expected_place_id: "vivid-place",
+      disposition: "attach_verified_auxiliary" as const,
+      remove_from_place_ids: ["kj-place"],
+      authorization_id: "e8f20e3a-5422-4fdf-a34b-21860cfbe6df",
+      reason: "Correct the provider association.",
+      expected: {
+        scan_role: "auxiliary" as const,
+        scan_type: "scout" as const,
+        scan_center: "35.1,-80.9",
+        grid_size: 9 as const,
+        radius: 6,
+        measurement: "mi" as const,
+        keyword: "deck builder near me",
+        platform: "google" as const,
+      },
+      actual,
+      reconciliation_id: "repair-vivid",
+    };
+
+    const result = await repository.reconcileScanHistory(
+      [verified],
+      "matt@vivawebdesigns.com",
+    );
+    expect(result).toMatchObject({
+      row_count_before: 2,
+      row_count_after: 2,
+      writes_performed: true,
+    });
+    expect(result.place_id_checksum_before).toBe(
+      result.place_id_checksum_after,
+    );
+    const historyColumn = SAB_HEADERS.indexOf("scan_history");
+    const kjHistory = JSON.parse(client.values[1][historyColumn]);
+    const vividHistory = JSON.parse(client.values[2][historyColumn]);
+    expect(kjHistory).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ report_key: "c855cd48e82a5c4" }),
+      ]),
+    );
+    expect(kjHistory).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ action: "removed_false_association" }),
+      ]),
+    );
+    expect(vividHistory).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ report_key: "c855cd48e82a5c4" }),
+        expect.objectContaining({ action: "attached_verified_auxiliary" }),
+      ]),
+    );
+
+    const second = await repository.reconcileScanHistory(
+      [verified],
+      "matt@vivawebdesigns.com",
+    );
+    expect(second.writes_performed).toBe(false);
+  });
+
+  it("prevents a voided excess report from being saved later", async () => {
+    const history = JSON.stringify([
+      {
+        record_type: "scan_reconciliation",
+        disposition: "void_excess_duplicate",
+        voided_report_key: "ece4b056cb33be8",
+      },
+    ]);
+    const { repository } = buildRepository([row({ scan_history: history })]);
+
+    await expect(
+      repository.saveScanResult(
+        "place-1",
+        {
+          scan_role: "auxiliary",
+          scan_type: "scout",
+          arp: null,
+          solv: null,
+          report_key: "ece4b056cb33be8",
+          report_url:
+            "https://www.localfalcon.com/reports/view/ece4b056cb33be8",
+          scan_date: null,
+          scan_keyword: "deck builder near me",
+        },
+        "matt@vivawebdesigns.com",
+      ),
+    ).rejects.toThrow("excess duplicate");
+  });
+
+  it("rejects a changed scan envelope under the same authorization", async () => {
+    const { repository } = buildRepository([row()]);
+    const reservation = {
+      idempotency_key: "exact-envelope",
+      authorization_id: "e8f20e3a-5422-4fdf-a34b-21860cfbe6df",
+      company_name: "Example Plumbing",
+      place_id: "place-1",
+      scan_role: "auxiliary" as const,
+      scan_type: "scout" as const,
+      scan_center: "35.1,-80.9",
+      grid_size: 9 as const,
+      radius: 6,
+      measurement: "mi" as const,
+      keyword: "deck builder near me",
+      platform: "google" as const,
+      estimated_credits: 81,
+      center_derivation: "Westward scout",
+      sop_routing_rule: "SOP section 10.5",
+    };
+    await repository.reserveScanSubmission(
+      reservation,
+      "matt@vivawebdesigns.com",
+    );
+
+    await expect(
+      repository.reserveScanSubmission(
+        {
+          ...reservation,
+          idempotency_key: "changed-envelope",
+          radius: 5,
+        },
+        "matt@vivawebdesigns.com",
+      ),
+    ).rejects.toThrow(
+      "changed parameters require a new supervisor authorization",
+    );
+  });
+
   it("reports progress by batch and status", async () => {
     const { repository } = buildRepository([
       row(),

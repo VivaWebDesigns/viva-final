@@ -15,11 +15,16 @@ import {
   SCALE_FIRST_CONTACT_TAGS,
   SCALE_FIRST_WORKFLOW,
 } from "@shared/sabCrm";
+import type { VerifiedSabScanHistoryRepair } from "./scanHistoryReconciliation";
 
 const SHEETS_SCOPE = "https://www.googleapis.com/auth/spreadsheets";
 const DEFAULT_SHEET_NAME = "SAB Workflow";
 const COMPLETE_STATUSES = new Set(["complete", "qa_ready", "imported"]);
-const FINAL_QUALIFICATION_STATUSES = new Set(["qualified", "disqualified", "deferred"]);
+const FINAL_QUALIFICATION_STATUSES = new Set([
+  "qualified",
+  "disqualified",
+  "deferred",
+]);
 const NULLABLE_JSON_HEADERS = new Set<SabHeader>(["website_analysis"]);
 const JSON_HEADERS = new Set<SabHeader>([
   "competitors",
@@ -35,7 +40,11 @@ export interface SheetsValuesClient {
     spreadsheetId: string,
     sheetName: string,
   ): Promise<{ sheetId: number; columnCount: number }>;
-  appendColumns(spreadsheetId: string, sheetId: number, columnCount: number): Promise<void>;
+  appendColumns(
+    spreadsheetId: string,
+    sheetId: number,
+    columnCount: number,
+  ): Promise<void>;
   updateValues(
     spreadsheetId: string,
     updates: Array<{ range: string; value: string | number | boolean }>,
@@ -56,6 +65,24 @@ export interface SabWorkflowCreator {
   }>;
 }
 
+export type SabScanSubmissionReservation = {
+  idempotency_key: string;
+  authorization_id: string;
+  company_name: string;
+  place_id: string;
+  scan_role: "deliverable" | "auxiliary";
+  scan_type: "standard" | "scout" | "fine" | "recenter";
+  scan_center: string;
+  grid_size: 7 | 9;
+  radius: number;
+  measurement: "mi" | "km";
+  keyword: string;
+  platform: "google";
+  estimated_credits: number;
+  center_derivation: string;
+  sop_routing_rule: string;
+};
+
 type ServiceAccountCredentials = {
   client_email: string;
   private_key: string;
@@ -74,13 +101,17 @@ function decodeCredentialsJson(raw: string) {
     : Buffer.from(trimmed, "base64").toString("utf8");
 }
 
-function parseServiceAccountCredentials(raw: string): ServiceAccountCredentials {
+function parseServiceAccountCredentials(
+  raw: string,
+): ServiceAccountCredentials {
   const credentials = JSON.parse(
     decodeCredentialsJson(raw),
   ) as Partial<ServiceAccountCredentials>;
 
   if (!credentials.client_email || !credentials.private_key) {
-    throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON is missing client_email or private_key");
+    throw new Error(
+      "GOOGLE_SERVICE_ACCOUNT_JSON is missing client_email or private_key",
+    );
   }
 
   return credentials as ServiceAccountCredentials;
@@ -94,7 +125,9 @@ function parseOAuthClientCredentials(raw: string): OAuthClientCredentials {
   const credentials = parsed.installed || parsed.web;
 
   if (!credentials?.client_id || !credentials.client_secret) {
-    throw new Error("GOOGLE_OAUTH_CLIENT_JSON is missing client_id or client_secret");
+    throw new Error(
+      "GOOGLE_OAUTH_CLIENT_JSON is missing client_id or client_secret",
+    );
   }
 
   return credentials as OAuthClientCredentials;
@@ -105,20 +138,24 @@ function quoteSheetName(name: string): string {
 }
 
 function sameScanCenter(left: string, right: string) {
-  const parse = (value: string) => value.split(",").map((part) => Number(part.trim()));
+  const parse = (value: string) =>
+    value.split(",").map((part) => Number(part.trim()));
   const [leftLatitude, leftLongitude] = parse(left);
   const [rightLatitude, rightLongitude] = parse(right);
   return leftLatitude === rightLatitude && leftLongitude === rightLongitude;
 }
 
 function placeIdSnapshot(values: string[][], placeIdColumn: number) {
-  const placeIds = values.slice(1)
+  const placeIds = values
+    .slice(1)
     .map((row) => row[placeIdColumn] ?? "")
     .filter((placeId) => placeId.length > 0);
   return {
     rowCount: Math.max(0, values.length - 1),
     placeIdCount: placeIds.length,
-    placeIdChecksum: createHash("sha256").update(placeIds.join("\n")).digest("hex"),
+    placeIdChecksum: createHash("sha256")
+      .update(placeIds.join("\n"))
+      .digest("hex"),
   };
 }
 
@@ -135,7 +172,9 @@ function validateUpgradeableSheetHeaders(headers: string[]) {
     .filter(([, indexes]) => indexes.length > 1)
     .map(([header]) => header);
   if (duplicates.length > 0) {
-    throw new Error(`SAB sheet has duplicate headers: ${duplicates.join(", ")}`);
+    throw new Error(
+      `SAB sheet has duplicate headers: ${duplicates.join(", ")}`,
+    );
   }
 
   const canonicalByNormalizedName = new Map(
@@ -143,7 +182,9 @@ function validateUpgradeableSheetHeaders(headers: string[]) {
   );
   const ambiguous = headers.filter((header) => {
     if (!header) return false;
-    const canonical = canonicalByNormalizedName.get(header.trim().toLowerCase());
+    const canonical = canonicalByNormalizedName.get(
+      header.trim().toLowerCase(),
+    );
     return canonical !== undefined && header !== canonical;
   });
   if (ambiguous.length > 0) {
@@ -152,21 +193,24 @@ function validateUpgradeableSheetHeaders(headers: string[]) {
     );
   }
 
-  const missing = SAB_REQUIRED_HEADERS.filter((header) => !positions.has(header));
+  const missing = SAB_REQUIRED_HEADERS.filter(
+    (header) => !positions.has(header),
+  );
   if (missing.length > 0) {
-    throw new Error(`SAB sheet is missing legacy/base required headers: ${missing.join(", ")}`);
+    throw new Error(
+      `SAB sheet is missing legacy/base required headers: ${missing.join(", ")}`,
+    );
   }
 
   return positions;
 }
 
-export class GoogleSheetsValuesClient implements SheetsValuesClient, SabWorkflowCreator {
+export class GoogleSheetsValuesClient
+  implements SheetsValuesClient, SabWorkflowCreator
+{
   private readonly auth: GoogleAuth | OAuth2Client;
 
-  constructor(
-    credentialsJson: string,
-    refreshToken?: string,
-  ) {
+  constructor(credentialsJson: string, refreshToken?: string) {
     if (refreshToken) {
       const credentials = parseOAuthClientCredentials(credentialsJson);
       const oauth = new OAuth2Client(
@@ -184,21 +228,23 @@ export class GoogleSheetsValuesClient implements SheetsValuesClient, SabWorkflow
   }
 
   private async getClient() {
-    return this.auth instanceof GoogleAuth
-      ? this.auth.getClient()
-      : this.auth;
+    return this.auth instanceof GoogleAuth ? this.auth.getClient() : this.auth;
   }
 
   async getValues(spreadsheetId: string, range: string): Promise<string[][]> {
     const client = await this.getClient();
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${encodeURIComponent(range)}`;
-    const response = await client.request<{ values?: Array<Array<string | number | boolean>> }>({
+    const response = await client.request<{
+      values?: Array<Array<string | number | boolean>>;
+    }>({
       url,
       method: "GET",
       params: { valueRenderOption: "FORMATTED_VALUE" },
     });
 
-    return (response.data.values ?? []).map((row) => row.map((value) => String(value)));
+    return (response.data.values ?? []).map((row) =>
+      row.map((value) => String(value)),
+    );
   }
 
   async getSheetGridProperties(spreadsheetId: string, sheetName: string) {
@@ -225,12 +271,18 @@ export class GoogleSheetsValuesClient implements SheetsValuesClient, SabWorkflow
       .find((sheet) => sheet?.title === sheetName);
     const columnCount = properties?.gridProperties?.columnCount;
     if (properties?.sheetId === undefined || columnCount === undefined) {
-      throw new Error(`Google Sheets did not return grid properties for tab ${JSON.stringify(sheetName)}`);
+      throw new Error(
+        `Google Sheets did not return grid properties for tab ${JSON.stringify(sheetName)}`,
+      );
     }
     return { sheetId: properties.sheetId, columnCount };
   }
 
-  async appendColumns(spreadsheetId: string, sheetId: number, columnCount: number) {
+  async appendColumns(
+    spreadsheetId: string,
+    sheetId: number,
+    columnCount: number,
+  ) {
     if (columnCount <= 0) return;
     const client = await this.getClient();
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}:batchUpdate`;
@@ -238,13 +290,15 @@ export class GoogleSheetsValuesClient implements SheetsValuesClient, SabWorkflow
       url,
       method: "POST",
       data: {
-        requests: [{
-          appendDimension: {
-            sheetId,
-            dimension: "COLUMNS",
-            length: columnCount,
+        requests: [
+          {
+            appendDimension: {
+              sheetId,
+              dimension: "COLUMNS",
+              length: columnCount,
+            },
           },
-        }],
+        ],
       },
     });
   }
@@ -288,9 +342,11 @@ export class GoogleSheetsValuesClient implements SheetsValuesClient, SabWorkflow
     }));
     const tableValues = [
       Array.from(SAB_HEADERS),
-      ...completeRows.map((row) => SAB_HEADERS.map((header) => (
-        serializeValue(header, row[header as keyof typeof row])
-      ))),
+      ...completeRows.map((row) =>
+        SAB_HEADERS.map((header) =>
+          serializeValue(header, row[header as keyof typeof row]),
+        ),
+      ),
     ];
 
     const createResponse = await client.request<{
@@ -304,29 +360,34 @@ export class GoogleSheetsValuesClient implements SheetsValuesClient, SabWorkflow
       },
       data: {
         properties: { title },
-        sheets: [{
-          properties: {
-            title: DEFAULT_SHEET_NAME,
-            gridProperties: {
-              rowCount: Math.max(1_000, tableValues.length),
-              columnCount: SAB_HEADERS.length,
+        sheets: [
+          {
+            properties: {
+              title: DEFAULT_SHEET_NAME,
+              gridProperties: {
+                rowCount: Math.max(1_000, tableValues.length),
+                columnCount: SAB_HEADERS.length,
+              },
             },
+            data: [
+              {
+                startRow: 0,
+                startColumn: 0,
+                rowData: tableValues.map((values) => ({
+                  values: values.map((value) => ({
+                    userEnteredValue: sheetsCellValue(value),
+                  })),
+                })),
+              },
+            ],
           },
-          data: [{
-            startRow: 0,
-            startColumn: 0,
-            rowData: tableValues.map((values) => ({
-              values: values.map((value) => ({
-                userEnteredValue: sheetsCellValue(value),
-              })),
-            })),
-          }],
-        }],
+        ],
       },
     });
 
     const spreadsheetId = createResponse.data.spreadsheetId;
-    if (!spreadsheetId) throw new Error("Google Sheets did not return a spreadsheet ID");
+    if (!spreadsheetId)
+      throw new Error("Google Sheets did not return a spreadsheet ID");
 
     const expectedLastColumn = columnName(SAB_HEADERS.length - 1);
     const readback = await this.getValues(
@@ -335,8 +396,8 @@ export class GoogleSheetsValuesClient implements SheetsValuesClient, SabWorkflow
     );
     const actualHeaders = readback[0] ?? [];
     if (
-      actualHeaders.length !== SAB_HEADERS.length
-      || SAB_HEADERS.some((header, index) => actualHeaders[index] !== header)
+      actualHeaders.length !== SAB_HEADERS.length ||
+      SAB_HEADERS.some((header, index) => actualHeaders[index] !== header)
     ) {
       throw new Error("Created Workflow Sheet failed exact header validation");
     }
@@ -352,8 +413,10 @@ export class GoogleSheetsValuesClient implements SheetsValuesClient, SabWorkflow
       DEFAULT_SHEET_NAME,
     );
     const progress = await repository.getProgress();
-    const confirmedCount = Object.values(progress)
-      .reduce((sum, batch) => sum + (batch.total ?? 0), 0);
+    const confirmedCount = Object.values(progress).reduce(
+      (sum, batch) => sum + (batch.total ?? 0),
+      0,
+    );
     if (confirmedCount !== rows.length) {
       throw new Error(
         `Created Workflow Sheet failed progress validation: expected ${rows.length}, confirmed ${confirmedCount}`,
@@ -361,8 +424,9 @@ export class GoogleSheetsValuesClient implements SheetsValuesClient, SabWorkflow
     }
 
     return {
-      workflow_sheet: createResponse.data.spreadsheetUrl
-        || `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`,
+      workflow_sheet:
+        createResponse.data.spreadsheetUrl ||
+        `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`,
       spreadsheet_id: spreadsheetId,
       sheet_name: DEFAULT_SHEET_NAME,
       row_count: rows.length,
@@ -394,19 +458,26 @@ function validateWorkflowRows(rows: SabWorkflowRowInput[]) {
 
   for (const row of rows) {
     if (placeIds.has(row.place_id)) {
-      throw new Error(`Duplicate place_id in Workflow Sheet roster: ${row.place_id}`);
+      throw new Error(
+        `Duplicate place_id in Workflow Sheet roster: ${row.place_id}`,
+      );
     }
     placeIds.add(row.place_id);
 
     const positionKey = `${row.batch_id}:${row.batch_position}`;
     if (batchPositions.has(positionKey)) {
-      throw new Error(`Duplicate batch position in Workflow Sheet roster: ${positionKey}`);
+      throw new Error(
+        `Duplicate batch position in Workflow Sheet roster: ${positionKey}`,
+      );
     }
     batchPositions.add(positionKey);
   }
 }
 
-function serializeValue(header: SabHeader, value: unknown): string | number | boolean {
+function serializeValue(
+  header: SabHeader,
+  value: unknown,
+): string | number | boolean {
   if (value === null || value === undefined) {
     return NULLABLE_JSON_HEADERS.has(header) ? "null" : "";
   }
@@ -434,12 +505,16 @@ function publicRow(row: SabRow) {
   const scanHistory = parseJsonValue(row.scan_history);
   return {
     ...row,
-    competitors: Array.isArray(competitors) ? competitors.map(String) : row.competitors,
+    competitors: Array.isArray(competitors)
+      ? competitors.map(String)
+      : row.competitors,
     scan_history: Array.isArray(scanHistory) ? scanHistory : [],
     has_website: row.has_website
       ? row.has_website.trim().toLowerCase() === "true"
       : null,
-    service_page_count: row.service_page_count ? Number(row.service_page_count) : null,
+    service_page_count: row.service_page_count
+      ? Number(row.service_page_count)
+      : null,
     website_analysis: parseJsonArray(row.website_analysis),
     reviews_analysis: parseJsonArray(row.reviews_analysis),
     rating: row.rating ? Number(row.rating) : null,
@@ -465,20 +540,25 @@ export class SabSheetsRepository {
       `${quoteSheetName(this.sheetName)}!A:AZ`,
     );
     const headers = values[0] ?? [];
-    const missing = SAB_REQUIRED_HEADERS.filter((header) => !headers.includes(header));
+    const missing = SAB_REQUIRED_HEADERS.filter(
+      (header) => !headers.includes(header),
+    );
     if (missing.length > 0) {
-      throw new Error(`SAB sheet is missing required headers: ${missing.join(", ")}`);
+      throw new Error(
+        `SAB sheet is missing required headers: ${missing.join(", ")}`,
+      );
     }
 
     const headerIndex = new Map(
       SAB_HEADERS.map((header) => [header, headers.indexOf(header)]),
     );
-    const rows = values.slice(1)
+    const rows = values
+      .slice(1)
       .map((valuesRow, offset) => {
         const row = Object.fromEntries(
           SAB_HEADERS.map((header) => {
             const index = headerIndex.get(header) ?? -1;
-            return [header, index >= 0 ? valuesRow[index] ?? "" : ""];
+            return [header, index >= 0 ? (valuesRow[index] ?? "") : ""];
           }),
         ) as SabRow;
         return { rowNumber: offset + 2, row };
@@ -488,17 +568,76 @@ export class SabSheetsRepository {
     return { headers, headerIndex, rows };
   }
 
+  private parsedScanHistory(row: SabRow): Array<Record<string, unknown>> {
+    const parsed = parseJsonValue(row.scan_history);
+    return Array.isArray(parsed)
+      ? parsed.filter(
+          (entry): entry is Record<string, unknown> =>
+            Boolean(entry) &&
+            typeof entry === "object" &&
+            !Array.isArray(entry),
+        )
+      : [];
+  }
+
+  private async ensureScanHistoryColumn(
+    headers: string[],
+    headerIndex: Map<SabHeader, number>,
+  ) {
+    const existing = headerIndex.get("scan_history") ?? -1;
+    if (existing >= 0) return existing;
+    const appended = headers.length;
+    await this.client.updateValues(this.spreadsheetId, [
+      {
+        range: `${quoteSheetName(this.sheetName)}!${columnName(appended)}1`,
+        value: "scan_history",
+      },
+    ]);
+    return appended;
+  }
+
+  private async writeScanHistories(
+    histories: Map<number, Array<Record<string, unknown>>>,
+    scanHistoryColumn: number,
+    headerIndex: Map<SabHeader, number>,
+    actorEmail: string,
+    timestamp: string,
+  ) {
+    const updatedAtColumn = headerIndex.get("updated_at") ?? -1;
+    const updatedByColumn = headerIndex.get("updated_by") ?? -1;
+    if (updatedAtColumn < 0 || updatedByColumn < 0) {
+      throw new Error("SAB sheet cannot store scan-history audit metadata.");
+    }
+    const updates = [...histories.entries()].flatMap(([rowNumber, history]) => [
+      {
+        range: `${quoteSheetName(this.sheetName)}!${columnName(scanHistoryColumn)}${rowNumber}`,
+        value: JSON.stringify(history),
+      },
+      {
+        range: `${quoteSheetName(this.sheetName)}!${columnName(updatedAtColumn)}${rowNumber}`,
+        value: timestamp,
+      },
+      {
+        range: `${quoteSheetName(this.sheetName)}!${columnName(updatedByColumn)}${rowNumber}`,
+        value: actorEmail,
+      },
+    ]);
+    if (updates.length > 0) {
+      await this.client.updateValues(this.spreadsheetId, updates);
+    }
+  }
+
   async upgradeWorkflowSchema() {
-    const readValues = () => this.client.getValues(
-      this.spreadsheetId,
-      quoteSheetName(this.sheetName),
-    );
+    const readValues = () =>
+      this.client.getValues(this.spreadsheetId, quoteSheetName(this.sheetName));
     const beforeValues = await readValues();
     const beforeHeaders = beforeValues[0] ?? [];
     const beforePositions = validateUpgradeableSheetHeaders(beforeHeaders);
     const placeIdColumn = beforePositions.get("place_id")?.[0];
     if (placeIdColumn === undefined) {
-      throw new Error("SAB sheet is missing legacy/base required header: place_id");
+      throw new Error(
+        "SAB sheet is missing legacy/base required header: place_id",
+      );
     }
     const before = placeIdSnapshot(beforeValues, placeIdColumn);
     const alreadyPresentHeaders = SAB_SCALE_FIRST_UPGRADEABLE_HEADERS.filter(
@@ -516,7 +655,10 @@ export class SabSheetsRepository {
       this.spreadsheetId,
       this.sheetName,
     );
-    const columnsAdded = Math.max(0, requiredColumnCapacity - beforeGrid.columnCount);
+    const columnsAdded = Math.max(
+      0,
+      requiredColumnCapacity - beforeGrid.columnCount,
+    );
 
     if (addedHeaders.length > 0) {
       await this.client.appendColumns(
@@ -544,32 +686,40 @@ export class SabSheetsRepository {
       SAB_SCALE_FIRST_UPGRADEABLE_HEADERS.map((header) => {
         const existingPosition = beforePositions.get(header)?.[0];
         const addedOffset = addedHeaders.indexOf(header);
-        return [
-          header,
-          existingPosition ?? (firstUnusedColumn + addedOffset),
-        ];
+        return [header, existingPosition ?? firstUnusedColumn + addedOffset];
       }),
     );
     for (const header of SAB_SCALE_FIRST_UPGRADEABLE_HEADERS) {
       const positions = afterPositions.get(header) ?? [];
-      if (positions.length !== 1 || positions[0] !== expectedHeaderPositions.get(header)) {
-        throw new Error(`SAB Workflow schema upgrade verification failed for header: ${header}`);
+      if (
+        positions.length !== 1 ||
+        positions[0] !== expectedHeaderPositions.get(header)
+      ) {
+        throw new Error(
+          `SAB Workflow schema upgrade verification failed for header: ${header}`,
+        );
       }
     }
     const afterPlaceIdColumn = afterPositions.get("place_id")?.[0];
     if (afterPlaceIdColumn === undefined) {
-      throw new Error("SAB Workflow schema upgrade verification lost the place_id header");
+      throw new Error(
+        "SAB Workflow schema upgrade verification lost the place_id header",
+      );
     }
     const after = placeIdSnapshot(afterValues, afterPlaceIdColumn);
     if (
-      before.rowCount !== after.rowCount
-      || before.placeIdCount !== after.placeIdCount
-      || before.placeIdChecksum !== after.placeIdChecksum
+      before.rowCount !== after.rowCount ||
+      before.placeIdCount !== after.placeIdCount ||
+      before.placeIdChecksum !== after.placeIdChecksum
     ) {
-      throw new Error("SAB Workflow schema upgrade verification detected changed rows or Place IDs");
+      throw new Error(
+        "SAB Workflow schema upgrade verification detected changed rows or Place IDs",
+      );
     }
     if (afterGrid.sheetId !== beforeGrid.sheetId) {
-      throw new Error("SAB Workflow schema upgrade verification detected a changed tab sheetId");
+      throw new Error(
+        "SAB Workflow schema upgrade verification detected a changed tab sheetId",
+      );
     }
     const expectedColumnCapacity = beforeGrid.columnCount + columnsAdded;
     if (afterGrid.columnCount !== expectedColumnCapacity) {
@@ -600,12 +750,17 @@ export class SabSheetsRepository {
         SAB_SCALE_FIRST_UPGRADEABLE_HEADERS.map((header) => {
           const zeroBasedIndex = afterPositions.get(header)?.[0];
           if (zeroBasedIndex === undefined) {
-            throw new Error(`SAB Workflow schema upgrade verification lost header: ${header}`);
+            throw new Error(
+              `SAB Workflow schema upgrade verification lost header: ${header}`,
+            );
           }
-          return [header, {
-            column_number: zeroBasedIndex + 1,
-            column_letter: columnName(zeroBasedIndex),
-          }];
+          return [
+            header,
+            {
+              column_number: zeroBasedIndex + 1,
+              column_letter: columnName(zeroBasedIndex),
+            },
+          ];
         }),
       ),
     };
@@ -615,8 +770,12 @@ export class SabSheetsRepository {
     const { rows } = await this.readTable();
     return rows
       .filter(({ row }) => row.batch_id === batchId)
-      .filter(({ row }) => includeCompleted || !COMPLETE_STATUSES.has(row.status))
-      .sort((a, b) => Number(a.row.batch_position) - Number(b.row.batch_position))
+      .filter(
+        ({ row }) => includeCompleted || !COMPLETE_STATUSES.has(row.status),
+      )
+      .sort(
+        (a, b) => Number(a.row.batch_position) - Number(b.row.batch_position),
+      )
       .map(({ row }) => publicRow(row));
   }
 
@@ -627,7 +786,11 @@ export class SabSheetsRepository {
     return publicRow(match.row);
   }
 
-  async saveCompany(placeId: string, updates: SabCompanyUpdates, actorEmail: string) {
+  async saveCompany(
+    placeId: string,
+    updates: SabCompanyUpdates,
+    actorEmail: string,
+  ) {
     const { headerIndex, rows } = await this.readTable();
     const match = rows.find(({ row }) => row.place_id === placeId);
     if (!match) throw new Error(`No SAB company found for place_id ${placeId}`);
@@ -645,32 +808,41 @@ export class SabSheetsRepository {
     if (updates.scan_center && updates.center_type) {
       const notes = merged.research_notes;
       if (
-        updates.center_type === "corroborated_address"
-        && !(/\b(?:§\s*10\.4|corroborat(?:ed|ion))\b/i.test(notes) && /\bPASS(?:ED)?\b/i.test(notes))
+        updates.center_type === "corroborated_address" &&
+        !(
+          /\b(?:§\s*10\.4|corroborat(?:ed|ion))\b/i.test(notes) &&
+          /\bPASS(?:ED)?\b/i.test(notes)
+        )
       ) {
         throw new Error(
           "Cannot save a corroborated_address center without a recorded §10.4 corroboration PASS in research_notes",
         );
       }
       if (
-        updates.center_type === "weighted_cell_centroid"
-        && !(/\bcentroid\b/i.test(notes) && /\btrustworthy\b/i.test(notes))
+        updates.center_type === "weighted_cell_centroid" &&
+        !(/\bcentroid\b/i.test(notes) && /\btrustworthy\b/i.test(notes))
       ) {
         throw new Error(
           "Cannot save a weighted_cell_centroid center without a recorded trustworthy centroid finding in research_notes",
         );
       }
       if (
-        updates.center_type === "scout_recentered"
-        && !(/\bscout\b/i.test(notes) && /\b(?:recenter(?:ed|ing)?|centroid)\b/i.test(notes))
+        updates.center_type === "scout_recentered" &&
+        !(
+          /\bscout\b/i.test(notes) &&
+          /\b(?:recenter(?:ed|ing)?|centroid)\b/i.test(notes)
+        )
       ) {
         throw new Error(
           "Cannot save a scout_recentered center without recorded scout recentering evidence in research_notes",
         );
       }
       if (
-        updates.center_type === "fine_scan_recentered"
-        && !(/\bfine(?:[- ]scan)?\b/i.test(notes) && /\b(?:recenter(?:ed|ing)?|centroid)\b/i.test(notes))
+        updates.center_type === "fine_scan_recentered" &&
+        !(
+          /\bfine(?:[- ]scan)?\b/i.test(notes) &&
+          /\b(?:recenter(?:ed|ing)?|centroid)\b/i.test(notes)
+        )
       ) {
         throw new Error(
           "Cannot save a fine_scan_recentered center without recorded fine-scan recentering evidence in research_notes",
@@ -725,6 +897,329 @@ export class SabSheetsRepository {
     };
   }
 
+  async reconcileScanHistory(
+    repairs: VerifiedSabScanHistoryRepair[],
+    actorEmail: string,
+  ) {
+    const { headers, headerIndex, rows } = await this.readTable();
+    const rowByPlaceId = new Map(rows.map((item) => [item.row.place_id, item]));
+    const histories = new Map(
+      rows.map((item) => [item.row.place_id, this.parsedScanHistory(item.row)]),
+    );
+    const changedPlaceIds = new Set<string>();
+    const timestamp = new Date().toISOString();
+
+    const appendAudit = (
+      placeId: string,
+      repair: VerifiedSabScanHistoryRepair,
+      action: string,
+    ) => {
+      const history = histories.get(placeId)!;
+      const exists = history.some(
+        (entry) =>
+          entry.record_type === "scan_reconciliation" &&
+          entry.reconciliation_id === repair.reconciliation_id &&
+          entry.action === action,
+      );
+      if (exists) return;
+      history.push({
+        record_type: "scan_reconciliation",
+        reconciliation_id: repair.reconciliation_id,
+        action,
+        disposition: repair.disposition,
+        verified_report_key: repair.report_key,
+        expected_place_id: repair.expected_place_id,
+        authorization_id: repair.authorization_id,
+        reason: repair.reason,
+        verified_scan_center: repair.actual.scan_center,
+        verified_grid_size: repair.actual.grid_size,
+        verified_radius: repair.actual.radius,
+        verified_measurement: repair.actual.measurement,
+        verified_keyword: repair.actual.keyword,
+        verified_at: timestamp,
+        verified_by: actorEmail,
+      });
+      changedPlaceIds.add(placeId);
+    };
+
+    for (const repair of repairs) {
+      const target = rowByPlaceId.get(repair.expected_place_id);
+      if (!target) {
+        throw new Error(
+          `No SAB company found for repair target place_id ${repair.expected_place_id}`,
+        );
+      }
+      for (const sourcePlaceId of repair.remove_from_place_ids) {
+        const source = rowByPlaceId.get(sourcePlaceId);
+        if (!source) {
+          throw new Error(
+            `No SAB company found for repair source place_id ${sourcePlaceId}`,
+          );
+        }
+        if (source.row.report_key === repair.report_key) {
+          throw new Error(
+            `Cannot detach canonical report_key ${repair.report_key}; this tool repairs noncanonical scan history only.`,
+          );
+        }
+        const history = histories.get(sourcePlaceId)!;
+        const filtered = history.filter(
+          (entry) => entry.report_key !== repair.report_key,
+        );
+        if (filtered.length !== history.length) {
+          histories.set(sourcePlaceId, filtered);
+          changedPlaceIds.add(sourcePlaceId);
+        }
+        appendAudit(sourcePlaceId, repair, "removed_false_association");
+      }
+
+      const associations = [...histories.entries()].flatMap(
+        ([placeId, history]) =>
+          history.some((entry) => entry.report_key === repair.report_key)
+            ? [placeId]
+            : [],
+      );
+      if (repair.disposition === "void_excess_duplicate") {
+        if (associations.length > 0) {
+          throw new Error(
+            `Cannot void report ${repair.report_key}; it remains associated with ${associations.join(", ")}.`,
+          );
+        }
+        const targetHistory = histories.get(repair.expected_place_id)!;
+        const alreadyVoided = targetHistory.some(
+          (entry) =>
+            entry.record_type === "scan_reconciliation" &&
+            entry.disposition === "void_excess_duplicate" &&
+            entry.voided_report_key === repair.report_key,
+        );
+        if (!alreadyVoided) {
+          targetHistory.push({
+            record_type: "scan_reconciliation",
+            reconciliation_id: repair.reconciliation_id,
+            action: "voided_excess_duplicate",
+            disposition: "void_excess_duplicate",
+            voided_report_key: repair.report_key,
+            expected_place_id: repair.expected_place_id,
+            authorization_id: repair.authorization_id,
+            reason: repair.reason,
+            verified_scan_center: repair.actual.scan_center,
+            verified_grid_size: repair.actual.grid_size,
+            verified_radius: repair.actual.radius,
+            verified_measurement: repair.actual.measurement,
+            verified_keyword: repair.actual.keyword,
+            verified_at: timestamp,
+            verified_by: actorEmail,
+          });
+          changedPlaceIds.add(repair.expected_place_id);
+        }
+        continue;
+      }
+
+      const unexpectedAssociations = associations.filter(
+        (placeId) => placeId !== repair.expected_place_id,
+      );
+      if (unexpectedAssociations.length > 0) {
+        throw new Error(
+          `Report ${repair.report_key} remains associated with the wrong row(s): ${unexpectedAssociations.join(", ")}.`,
+        );
+      }
+      if (associations.length === 0) {
+        histories.get(repair.expected_place_id)!.push({
+          scan_role: repair.expected.scan_role,
+          scan_type: repair.expected.scan_type,
+          arp: repair.actual.arp,
+          solv: repair.actual.solv,
+          found_in: repair.actual.found_in,
+          scan_center: repair.actual.scan_center,
+          report_key: repair.report_key,
+          report_url: repair.actual.report_url,
+          center_type: null,
+          scan_date: repair.actual.scan_date,
+          scan_keyword: repair.actual.keyword,
+          notes: `Server-verified auxiliary association repaired under authorization ${repair.authorization_id}.`,
+          saved_at: timestamp,
+          saved_by: actorEmail,
+        });
+        changedPlaceIds.add(repair.expected_place_id);
+      }
+      appendAudit(
+        repair.expected_place_id,
+        repair,
+        "attached_verified_auxiliary",
+      );
+    }
+
+    const scanHistoryColumn = await this.ensureScanHistoryColumn(
+      headers,
+      headerIndex,
+    );
+    const rowUpdates = new Map<number, Array<Record<string, unknown>>>();
+    for (const placeId of changedPlaceIds) {
+      rowUpdates.set(
+        rowByPlaceId.get(placeId)!.rowNumber,
+        histories.get(placeId)!,
+      );
+    }
+    await this.writeScanHistories(
+      rowUpdates,
+      scanHistoryColumn,
+      headerIndex,
+      actorEmail,
+      timestamp,
+    );
+
+    const after = await this.readTable();
+    const beforePlaceIds = rows.map(({ row }) => row.place_id).join("\n");
+    const afterPlaceIds = after.rows.map(({ row }) => row.place_id).join("\n");
+    const beforeChecksum = createHash("sha256")
+      .update(beforePlaceIds)
+      .digest("hex");
+    const afterChecksum = createHash("sha256")
+      .update(afterPlaceIds)
+      .digest("hex");
+    if (rows.length !== after.rows.length || beforeChecksum !== afterChecksum) {
+      throw new Error("Scan-history repair preservation verification failed.");
+    }
+
+    return {
+      changed: changedPlaceIds.size > 0,
+      repaired_report_count: repairs.length,
+      changed_place_ids: [...changedPlaceIds],
+      row_count_before: rows.length,
+      row_count_after: after.rows.length,
+      place_id_checksum_before: beforeChecksum,
+      place_id_checksum_after: afterChecksum,
+      writes_performed: changedPlaceIds.size > 0,
+    };
+  }
+
+  async reserveScanSubmission(
+    reservation: SabScanSubmissionReservation,
+    actorEmail: string,
+  ) {
+    const { headers, headerIndex, rows } = await this.readTable();
+    const target = rows.find(
+      ({ row }) => row.place_id === reservation.place_id,
+    );
+    if (!target) {
+      throw new Error(
+        `No SAB company found for place_id ${reservation.place_id}`,
+      );
+    }
+    const histories = rows.map((item) => ({
+      ...item,
+      history: this.parsedScanHistory(item.row),
+    }));
+    const existing = histories.flatMap(({ row, history }) =>
+      history.flatMap((entry) =>
+        entry.record_type === "scan_submission" &&
+        entry.idempotency_key === reservation.idempotency_key
+          ? [{ place_id: row.place_id, entry }]
+          : [],
+      ),
+    )[0];
+    if (existing) {
+      return {
+        created: false,
+        place_id: existing.place_id,
+        entry: existing.entry,
+      };
+    }
+    const changedEnvelope = histories.flatMap(({ row, history }) =>
+      history.flatMap((entry) =>
+        entry.record_type === "scan_submission" &&
+        entry.authorization_id === reservation.authorization_id &&
+        entry.place_id === reservation.place_id &&
+        entry.idempotency_key !== reservation.idempotency_key
+          ? [{ place_id: row.place_id, entry }]
+          : [],
+      ),
+    )[0];
+    if (changedEnvelope) {
+      throw new Error(
+        `Authorization ${reservation.authorization_id} already has a different durable scan envelope for ${reservation.place_id}; changed parameters require a new supervisor authorization.`,
+      );
+    }
+    const active = histories.flatMap(({ row, history }) =>
+      history.flatMap((entry) =>
+        entry.record_type === "scan_submission" &&
+        ["preparing_location", "submitting"].includes(
+          String(entry.submission_status),
+        )
+          ? [{ place_id: row.place_id, entry }]
+          : [],
+      ),
+    );
+    if (active.length > 0) {
+      throw new Error(
+        `Another SAB scan submission is unresolved for ${active[0].place_id}; no concurrent paid scan is permitted.`,
+      );
+    }
+
+    const timestamp = new Date().toISOString();
+    const history = this.parsedScanHistory(target.row);
+    const entry = {
+      record_type: "scan_submission",
+      submission_status: "preparing_location",
+      ...reservation,
+      created_at: timestamp,
+      created_by: actorEmail,
+    };
+    history.push(entry);
+    const scanHistoryColumn = await this.ensureScanHistoryColumn(
+      headers,
+      headerIndex,
+    );
+    await this.writeScanHistories(
+      new Map([[target.rowNumber, history]]),
+      scanHistoryColumn,
+      headerIndex,
+      actorEmail,
+      timestamp,
+    );
+    return { created: true, place_id: reservation.place_id, entry };
+  }
+
+  async updateScanSubmission(
+    placeId: string,
+    idempotencyKey: string,
+    updates: Record<string, unknown>,
+    actorEmail: string,
+  ) {
+    const { headers, headerIndex, rows } = await this.readTable();
+    const target = rows.find(({ row }) => row.place_id === placeId);
+    if (!target)
+      throw new Error(`No SAB company found for place_id ${placeId}`);
+    const history = this.parsedScanHistory(target.row);
+    const index = history.findIndex(
+      (entry) =>
+        entry.record_type === "scan_submission" &&
+        entry.idempotency_key === idempotencyKey,
+    );
+    if (index < 0)
+      throw new Error(
+        "No matching durable scan-submission reservation exists.",
+      );
+    const timestamp = new Date().toISOString();
+    history[index] = {
+      ...history[index],
+      ...updates,
+      updated_at: timestamp,
+      updated_by: actorEmail,
+    };
+    const scanHistoryColumn = await this.ensureScanHistoryColumn(
+      headers,
+      headerIndex,
+    );
+    await this.writeScanHistories(
+      new Map([[target.rowNumber, history]]),
+      scanHistoryColumn,
+      headerIndex,
+      actorEmail,
+      timestamp,
+    );
+    return history[index];
+  }
+
   async saveScanResult(
     placeId: string,
     scanResult: SabScanResult,
@@ -737,10 +1232,12 @@ export class SabSheetsRepository {
     let scanHistoryColumn = headerIndex.get("scan_history") ?? -1;
     if (scanHistoryColumn < 0) {
       scanHistoryColumn = headers.length;
-      await this.client.updateValues(this.spreadsheetId, [{
-        range: `${quoteSheetName(this.sheetName)}!${columnName(scanHistoryColumn)}1`,
-        value: "scan_history",
-      }]);
+      await this.client.updateValues(this.spreadsheetId, [
+        {
+          range: `${quoteSheetName(this.sheetName)}!${columnName(scanHistoryColumn)}1`,
+          value: "scan_history",
+        },
+      ]);
     }
 
     const timestamp = new Date().toISOString();
@@ -749,20 +1246,36 @@ export class SabSheetsRepository {
       ? parsedHistory.filter((entry) => entry && typeof entry === "object")
       : [];
 
+    const isVoided = history.some((entry) => {
+      const candidate = entry as Record<string, unknown>;
+      return (
+        candidate.record_type === "scan_reconciliation" &&
+        candidate.disposition === "void_excess_duplicate" &&
+        candidate.voided_report_key === scanResult.report_key
+      );
+    });
+    if (isVoided) {
+      throw new Error(
+        `Report ${scanResult.report_key} is recorded as an excess duplicate and cannot be saved as a scan result.`,
+      );
+    }
+
     if (
-      scanResult.scan_role === "deliverable"
-      && !match.row.report_key
-      && match.row.scan_center
-      && match.row.center_type
-      && scanResult.scan_center
-      && scanResult.center_type
+      scanResult.scan_role === "deliverable" &&
+      !match.row.report_key &&
+      match.row.scan_center &&
+      match.row.center_type &&
+      scanResult.scan_center &&
+      scanResult.center_type
     ) {
       const plannedCenterAlreadyArchived = history.some((entry) => {
         const candidate = entry as Record<string, unknown>;
-        return candidate.record_type === "center_plan"
-          && candidate.scan_center === match.row.scan_center
-          && candidate.center_type === match.row.center_type
-          && candidate.resolved_by_report_key === scanResult.report_key;
+        return (
+          candidate.record_type === "center_plan" &&
+          candidate.scan_center === match.row.scan_center &&
+          candidate.center_type === match.row.center_type &&
+          candidate.resolved_by_report_key === scanResult.report_key
+        );
       });
       if (!plannedCenterAlreadyArchived) {
         history.push({
@@ -770,8 +1283,8 @@ export class SabSheetsRepository {
           scan_center: match.row.scan_center,
           center_type: match.row.center_type,
           disposition:
-            sameScanCenter(scanResult.scan_center, match.row.scan_center)
-              && scanResult.center_type === match.row.center_type
+            sameScanCenter(scanResult.scan_center, match.row.scan_center) &&
+            scanResult.center_type === match.row.center_type
               ? "confirmed_by_scan"
               : "superseded_by_scan",
           resolved_by_report_key: scanResult.report_key,
@@ -782,9 +1295,9 @@ export class SabSheetsRepository {
     }
 
     if (
-      history.length === 0
-      && match.row.report_key
-      && match.row.report_key !== scanResult.report_key
+      history.length === 0 &&
+      match.row.report_key &&
+      match.row.report_key !== scanResult.report_key
     ) {
       history.push({
         scan_role: "source",
@@ -808,13 +1321,17 @@ export class SabSheetsRepository {
       saved_at: timestamp,
       saved_by: actorEmail,
     };
-    const existingHistoryIndex = history.findIndex((entry) => (
-      (entry as { report_key?: unknown }).report_key === scanResult.report_key
-    ));
+    const existingHistoryIndex = history.findIndex(
+      (entry) =>
+        (entry as { report_key?: unknown }).report_key ===
+        scanResult.report_key,
+    );
     if (existingHistoryIndex >= 0) {
       history[existingHistoryIndex] = {
         ...historyEntry,
-        saved_at: (history[existingHistoryIndex] as { saved_at?: unknown }).saved_at || timestamp,
+        saved_at:
+          (history[existingHistoryIndex] as { saved_at?: unknown }).saved_at ||
+          timestamp,
       };
     } else {
       history.push(historyEntry);
@@ -834,16 +1351,18 @@ export class SabSheetsRepository {
         scan_date: scanResult.scan_date,
         scan_keyword: scanResult.scan_keyword,
       });
-      if (scanResult.found_in !== undefined) valuesToWrite.found_in = scanResult.found_in;
-      if (scanResult.scan_center !== undefined) valuesToWrite.scan_center = scanResult.scan_center;
-      if (scanResult.center_type !== undefined) valuesToWrite.center_type = scanResult.center_type;
+      if (scanResult.found_in !== undefined)
+        valuesToWrite.found_in = scanResult.found_in;
+      if (scanResult.scan_center !== undefined)
+        valuesToWrite.scan_center = scanResult.scan_center;
+      if (scanResult.center_type !== undefined)
+        valuesToWrite.center_type = scanResult.center_type;
     }
 
     const cellUpdates = Object.entries(valuesToWrite).map(([key, value]) => {
       const header = key as SabHeader;
-      const index = header === "scan_history"
-        ? scanHistoryColumn
-        : headerIndex.get(header);
+      const index =
+        header === "scan_history" ? scanHistoryColumn : headerIndex.get(header);
       if (index === undefined || index < 0) {
         throw new Error(`SAB sheet cannot store scan field: ${key}`);
       }
@@ -868,34 +1387,46 @@ export class SabSheetsRepository {
   }
 
   async markBlocked(placeId: string, reason: string, actorEmail: string) {
-    return this.saveCompany(placeId, { status: "blocked", blocker: reason }, actorEmail);
+    return this.saveCompany(
+      placeId,
+      { status: "blocked", blocker: reason },
+      actorEmail,
+    );
   }
 
   async getProgress(batchId?: string) {
     const { rows } = await this.readTable();
-    const selected = rows.filter(({ row }) => !batchId || row.batch_id === batchId);
+    const selected = rows.filter(
+      ({ row }) => !batchId || row.batch_id === batchId,
+    );
     const grouped = new Map<string, Record<string, number>>();
 
     for (const { row } of selected) {
       const batch = row.batch_id || "unassigned";
       const current = grouped.get(batch) ?? { total: 0 };
       current.total += 1;
-      current[row.status || "blank"] = (current[row.status || "blank"] ?? 0) + 1;
+      current[row.status || "blank"] =
+        (current[row.status || "blank"] ?? 0) + 1;
       grouped.set(batch, current);
     }
 
-    return Object.fromEntries([...grouped.entries()].sort(([a], [b]) => a.localeCompare(b)));
+    return Object.fromEntries(
+      [...grouped.entries()].sort(([a], [b]) => a.localeCompare(b)),
+    );
   }
 
   private validateCompleteRow(row: SabRow) {
     const missing: string[] = [];
 
     if (!FINAL_QUALIFICATION_STATUSES.has(row.qualification_status)) {
-      missing.push("qualification_status (must be qualified, disqualified, or deferred)");
+      missing.push(
+        "qualification_status (must be qualified, disqualified, or deferred)",
+      );
     }
 
-    const isReasonedDisqualification = row.qualification_status === "disqualified"
-      && row.research_notes.trim().length > 0;
+    const isReasonedDisqualification =
+      row.qualification_status === "disqualified" &&
+      row.research_notes.trim().length > 0;
 
     if (isReasonedDisqualification) {
       return;
@@ -903,12 +1434,13 @@ export class SabSheetsRepository {
 
     if (row.qualification_status === "qualified") {
       missing.push(
-        ...["address", "city", "state", "zip"]
-          .filter((header) => !row[header as SabHeader]),
+        ...["address", "city", "state", "zip"].filter(
+          (header) => !row[header as SabHeader],
+        ),
       );
     } else if (
-      FINAL_QUALIFICATION_STATUSES.has(row.qualification_status)
-      && !row.research_notes.trim()
+      FINAL_QUALIFICATION_STATUSES.has(row.qualification_status) &&
+      !row.research_notes.trim()
     ) {
       missing.push("research_notes (qualification reason required)");
     }
@@ -929,7 +1461,9 @@ export class SabSheetsRepository {
     }
 
     if (missing.length > 0) {
-      throw new Error(`Cannot mark company complete; missing or invalid: ${[...new Set(missing)].join(", ")}`);
+      throw new Error(
+        `Cannot mark company complete; missing or invalid: ${[...new Set(missing)].join(", ")}`,
+      );
     }
   }
 
@@ -965,7 +1499,11 @@ export class SabSheetsRepository {
     if (row.address !== SAB_ADDRESS_LABEL) {
       missing.push(`address (must be exactly ${SAB_ADDRESS_LABEL})`);
     }
-    if (!SCALE_FIRST_CONTACT_TAGS.includes(row.contact_tag as typeof SCALE_FIRST_CONTACT_TAGS[number])) {
+    if (
+      !SCALE_FIRST_CONTACT_TAGS.includes(
+        row.contact_tag as (typeof SCALE_FIRST_CONTACT_TAGS)[number],
+      )
+    ) {
       missing.push("contact_tag (must be Email Ready or Needs Email)");
     }
     if (row.contact_tag === "Email Ready" && !row.email.trim()) {
@@ -1002,7 +1540,9 @@ export class SabSheetsRepository {
     }
 
     if (missing.length > 0) {
-      throw new Error(`Cannot mark Scale-First company qa_ready; missing or invalid: ${[...new Set(missing)].join(", ")}`);
+      throw new Error(
+        `Cannot mark Scale-First company qa_ready; missing or invalid: ${[...new Set(missing)].join(", ")}`,
+      );
     }
   }
 }
@@ -1016,16 +1556,24 @@ export function spreadsheetIdFromReference(reference: string) {
   try {
     url = new URL(trimmed);
   } catch {
-    throw new Error("workflow_sheet must be a Google Sheets URL or spreadsheet ID");
+    throw new Error(
+      "workflow_sheet must be a Google Sheets URL or spreadsheet ID",
+    );
   }
 
   if (url.hostname !== "docs.google.com") {
-    throw new Error("workflow_sheet must use a docs.google.com Google Sheets URL");
+    throw new Error(
+      "workflow_sheet must use a docs.google.com Google Sheets URL",
+    );
   }
 
-  const match = url.pathname.match(/^\/spreadsheets\/d\/([A-Za-z0-9_-]{10,})(?:\/|$)/);
+  const match = url.pathname.match(
+    /^\/spreadsheets\/d\/([A-Za-z0-9_-]{10,})(?:\/|$)/,
+  );
   if (!match) {
-    throw new Error("workflow_sheet URL does not contain a valid Google Sheets spreadsheet ID");
+    throw new Error(
+      "workflow_sheet URL does not contain a valid Google Sheets spreadsheet ID",
+    );
   }
 
   return match[1];
@@ -1042,16 +1590,10 @@ function createGoogleSheetsValuesClientFromEnv() {
   const serviceAccount = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
 
   if (oauthClient && oauthRefreshToken) {
-    return new GoogleSheetsValuesClient(
-      oauthClient,
-      oauthRefreshToken,
-    );
+    return new GoogleSheetsValuesClient(oauthClient, oauthRefreshToken);
   }
   if (serviceAccount) {
-    return new GoogleSheetsValuesClient(
-      serviceAccount,
-      undefined,
-    );
+    return new GoogleSheetsValuesClient(serviceAccount, undefined);
   }
   throw new Error(
     "Google Sheets credentials are not configured; set OAuth client credentials and refresh token",
@@ -1061,11 +1603,12 @@ function createGoogleSheetsValuesClientFromEnv() {
 export function createSabSheetsRepositoryFactoryFromEnv(): SabSheetsRepositoryFactory {
   const sheetsClient = createGoogleSheetsValuesClientFromEnv();
 
-  return (workflowSheet, sheetName) => new SabSheetsRepository(
-    sheetsClient,
-    spreadsheetIdFromReference(workflowSheet),
-    sheetName,
-  );
+  return (workflowSheet, sheetName) =>
+    new SabSheetsRepository(
+      sheetsClient,
+      spreadsheetIdFromReference(workflowSheet),
+      sheetName,
+    );
 }
 
 export function createSabWorkflowCreatorFromEnv(): SabWorkflowCreator {

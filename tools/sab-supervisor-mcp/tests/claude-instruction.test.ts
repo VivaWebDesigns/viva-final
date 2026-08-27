@@ -57,7 +57,13 @@ describe("fixed Claude checkpoint instruction", () => {
   it("automatically executes only an exact scan_approved authorization", () => {
     expect(instruction).toContain("call `review_sab_scan_plan`");
     expect(instruction).toMatch(
-      /for `scan_approved`, immediately execute exactly the approved scans/,
+      /for `scan_approved`, immediately execute each exact approved scan only through Viva SAB Workflow's `run_sab_scan_once`/,
+    );
+    expect(instruction).toContain(
+      "Do not call `runLocalFalconScan` or `saveLocalFalconBusinessLocationToAccount` directly.",
+    );
+    expect(instruction).toContain(
+      "If it returns `ambiguous_response`, `location_unverified`, or another manual-reconciliation stop, do not retry",
     );
     expect(instruction).toContain(
       "never add, change, retry, or broaden anything",

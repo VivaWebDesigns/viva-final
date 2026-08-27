@@ -22,7 +22,7 @@ Do not claim that a named tool is unavailable, missing, stale, or unusable merel
 
 Before every paid Local Falcon scan stage, call `review_sab_scan_plan` with the same registered SOP handle, concise verified durable state, every exact proposed scan field, and relevant explicit rulings. When it returns:
 
-- for `scan_approved`, immediately execute exactly the approved scans and explicitly listed prerequisite `saveLocalFalconBusinessLocationToAccount` actions without asking Matt; never add, change, retry, or broaden anything in the authorization;
+- for `scan_approved`, immediately execute each exact approved scan only through Viva SAB Workflow's `run_sab_scan_once`; pass the approval ID, exact approved envelope, prerequisite-save requirement, and approval evidence unchanged. Do not call `runLocalFalconScan` or `saveLocalFalconBusinessLocationToAccount` directly. The guarded tool durably reserves the scan, performs any approved exact-Place-ID save prerequisite, submits once, and records the returned key; never add, change, retry, or broaden anything in the authorization. If it returns `ambiguous_response`, `location_unverified`, or another manual-reconciliation stop, do not retry and submit that durable state to `review_sab_checkpoint`;
 - for `correct`, stop the paid stage, make the instructed corrections, and submit the corrected plan for review;
 - for `user_ruling_required`, stop and ask Matt.
 
