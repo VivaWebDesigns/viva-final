@@ -66,6 +66,19 @@ function acceptedResponseWithParameterEnvelope() {
   );
 }
 
+function savedLocationResponse(placeId = "kj-place", platform = "google") {
+  return new Response(
+    JSON.stringify({
+      code: 200,
+      success: true,
+      message: "Your location has been successfully added",
+      parameters: { platform, place_id: placeId },
+      data: [],
+    }),
+    { status: 200, headers: { "content-type": "application/json" } },
+  );
+}
+
 function repository() {
   let entry: Record<string, unknown> | undefined;
   return {
@@ -142,6 +155,61 @@ describe("guarded SAB scan submission", () => {
       }),
       "matt@viva",
     );
+  });
+
+  it("saves and verifies the exact location using Local Falcon's documented parameter envelope", async () => {
+    const repo = repository();
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(savedLocationResponse())
+      .mockResolvedValueOnce(exactResponse());
+
+    const result = await runSabScanOnce(
+      { ...input, save_location_required: true },
+      repo as never,
+      "matt@viva",
+      { apiKey: "test-key", fetchImpl: fetchImpl as never },
+    );
+
+    expect(result).toMatchObject({
+      submission_status: "submitted",
+      scans_executed: true,
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    const saveRequest = fetchImpl.mock.calls[0];
+    expect(saveRequest[0]).toBe("https://api.localfalcon.com/v2/locations/add");
+    expect(String(saveRequest[1]?.body)).toContain("platform=google");
+    expect(String(saveRequest[1]?.body)).toContain("place_id=kj-place");
+    expect(repo.updateScanSubmission).toHaveBeenCalledWith(
+      "kj-place",
+      expect.any(String),
+      expect.objectContaining({
+        location_status: "verified",
+        location_place_id: "kj-place",
+      }),
+      "matt@viva",
+    );
+  });
+
+  it("returns the exact location-verification error and does not launch a scan", async () => {
+    const repo = repository();
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValue(savedLocationResponse("different-place"));
+
+    const result = await runSabScanOnce(
+      { ...input, save_location_required: true },
+      repo as never,
+      "matt@viva",
+      { apiKey: "test-key", fetchImpl: fetchImpl as never },
+    );
+
+    expect(result).toMatchObject({
+      submission_status: "location_unverified",
+      scans_executed: false,
+      error: expect.stringContaining('"place_id":"different-place"'),
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
   it("durably stops after a lost response and never retries", async () => {

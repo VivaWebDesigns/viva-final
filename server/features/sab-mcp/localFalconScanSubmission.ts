@@ -234,15 +234,34 @@ export async function runSabScanOnce(
       try {
         const location = await postLocalFalcon(
           "/v2/locations/add",
-          new URLSearchParams({ api_key: apiKey, place_id: input.place_id }),
+          new URLSearchParams({
+            api_key: apiKey,
+            platform: input.platform,
+            place_id: input.place_id,
+          }),
           apiKey,
           fetchImpl,
         );
         const data = responseData(location);
-        const echoedPlaceId = cleanString(data.place_id ?? location.place_id);
-        if (location.success !== true || echoedPlaceId !== input.place_id) {
+        const parameters = responseParameters(location);
+        const echoedPlaceId = cleanString(
+          parameters?.place_id ?? data.place_id ?? location.place_id,
+        );
+        const echoedPlatform = cleanString(
+          parameters?.platform ?? data.platform ?? location.platform,
+        )?.toLowerCase();
+        if (
+          location.success !== true ||
+          echoedPlaceId !== input.place_id ||
+          echoedPlatform !== input.platform
+        ) {
           throw new Error(
-            "Local Falcon did not confirm the exact saved Place ID.",
+            `Local Falcon did not confirm the exact saved location: ${JSON.stringify(
+              {
+                place_id: echoedPlaceId,
+                platform: echoedPlatform ?? null,
+              },
+            )}.`,
           );
         }
         await repository.updateScanSubmission(
@@ -252,18 +271,21 @@ export async function runSabScanOnce(
           actorEmail,
         );
       } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
         await repository.updateScanSubmission(
           input.place_id,
           key,
           {
             submission_status: "location_unverified",
-            error: error instanceof Error ? error.message : String(error),
+            error: errorMessage,
           },
           actorEmail,
         );
         return {
           idempotency_key: key,
           submission_status: "location_unverified",
+          error: errorMessage,
           scans_executed: false,
           writes_performed: true,
           stopped_for_manual_reconciliation: true,
