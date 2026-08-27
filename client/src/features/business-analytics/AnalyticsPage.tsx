@@ -437,8 +437,10 @@ export default function AnalyticsPage() {
       >
         {!businessConnected ? (
           <EmptyState>Connect Google Business Profile to retrieve reviews.</EmptyState>
+        ) : status?.businessProfile?.status === "approval_required" ? (
+          <EmptyState>Google Business Profile API approval is pending. Reviews will load automatically after Google enables the project quota.</EmptyState>
         ) : locationsError ? (
-          <EmptyState>Google Business Profile access is not ready: {(locationsError as Error).message}</EmptyState>
+          <EmptyState>Google Business Profile access is temporarily unavailable. Please try again shortly.</EmptyState>
         ) : (
           <div className="space-y-6">
             {locations.length > 0 && (
@@ -463,8 +465,10 @@ export default function AnalyticsPage() {
 
             {reviewsLoading ? (
               <div className="h-52 animate-pulse rounded-xl bg-gray-100" />
+            ) : status?.businessProfile?.status === "approval_required" ? (
+              <EmptyState>Google Business Profile API approval is pending. Reviews will load automatically after Google enables the project quota.</EmptyState>
             ) : reviewsError ? (
-              <EmptyState>Reviews could not be loaded: {(reviewsError as Error).message}</EmptyState>
+              <EmptyState>Reviews could not be loaded right now. Please try again shortly.</EmptyState>
             ) : reviewsData ? (
               <>
                 {reviewsData.syncError && <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">Showing stored reviews. Google refresh error: {reviewsData.syncError}</div>}
@@ -514,8 +518,6 @@ export default function AnalyticsPage() {
                   </div>
                 </div>
               </>
-            ) : status?.businessProfile?.status === "approval_required" ? (
-              <EmptyState>Google Business Profile API approval is required before locations and reviews can load.</EmptyState>
             ) : (
               <EmptyState>Choose a Business Profile location to begin review synchronization.</EmptyState>
             )}
@@ -530,4 +532,3 @@ export default function AnalyticsPage() {
     </div>
   );
 }
-
