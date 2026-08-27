@@ -163,6 +163,13 @@ public struct PromptDetector: Sendable {
         ]
     }
 
+    public func hasClaudeWorkingSignal(in root: SemanticNode) -> Bool {
+        root.descendantsIncludingSelf().contains { node in
+            let text = normalizedWhitespace(node.displayedText)
+            return ["Claude is responding", "Working on it", "Stop response"].contains(text)
+        }
+    }
+
     private func continuationScopes(in node: SemanticNode) -> [SemanticNode] {
         let childMatches = node.children.flatMap { continuationScopes(in: $0) }
         if !childMatches.isEmpty { return childMatches }

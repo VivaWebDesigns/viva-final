@@ -238,6 +238,11 @@ final class PermissionWatcher {
             Thread.sleep(forTimeInterval: 0.35)
             guard let current = AccessibilityReader.readApplication(pid: pid) else { continue }
             if match.taskURL.hasPrefix("claude-desktop://") {
+                if match.actionKind == "tool_use_limit_continue",
+                   detector.hasClaudeWorkingSignal(in: current.semantic)
+                {
+                    return true
+                }
                 if AccessibilityReader.visibleTextControlCount(
                     in: current,
                     label: match.selectedButton
@@ -247,6 +252,7 @@ final class PermissionWatcher {
                 continue
             }
             if match.actionKind == "tool_use_limit_continue" {
+                if detector.hasClaudeWorkingSignal(in: current.semantic) { return true }
                 let stillPresent = detector.detectClaudeContinuations(in: current.semantic)
                     .contains { detection in
                         if case let .routine(candidate) = detection {

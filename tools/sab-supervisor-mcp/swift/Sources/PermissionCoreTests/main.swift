@@ -510,6 +510,34 @@ if case let .routine(match) = visualSupervisor.first {
 }
 
 expect(
+    detector.hasClaudeWorkingSignal(
+        in: SemanticNode(
+            role: "AXGroup",
+            children: [SemanticNode(role: "AXStaticText", label: "Claude is responding")]
+        )
+    ),
+    "Claude responding state confirms continuation"
+)
+expect(
+    detector.hasClaudeWorkingSignal(
+        in: SemanticNode(
+            role: "AXGroup",
+            children: [SemanticNode(role: "AXButton", label: "Stop response")]
+        )
+    ),
+    "stop-response control confirms continuation"
+)
+expect(
+    !detector.hasClaudeWorkingSignal(
+        in: SemanticNode(
+            role: "AXGroup",
+            children: [SemanticNode(role: "AXStaticText", label: "Claude finished the response")]
+        )
+    ),
+    "finished response is not a continuation confirmation"
+)
+
+expect(
     detector.detect(
         in: snapshot(extensionURL: "https://unrelated.example/sidepanel")
     ) == .none,
