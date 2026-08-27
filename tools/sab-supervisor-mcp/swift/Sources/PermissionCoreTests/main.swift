@@ -337,7 +337,8 @@ if case .unknown = detector.detect(in: snapshot(buttons: ["Continue"])) {
 func continuationSnapshot(
     message: String = PromptDetector.toolUseLimitMessage,
     button: String = "Continue",
-    enabled: Bool = true
+    enabled: Bool = true,
+    earlierButtons: [String] = []
 ) -> SemanticNode {
     SemanticNode(
         role: "AXApplication",
@@ -351,12 +352,40 @@ func continuationSnapshot(
                         children: [
                             SemanticNode(
                                 role: "AXGroup",
-                                children: [
+                                children: earlierButtons.map {
+                                    SemanticNode(role: "AXButton", label: $0)
+                                } + [
                                     SemanticNode(role: "AXStaticText", label: message),
                                     SemanticNode(role: "AXButton", label: button, enabled: enabled),
                                 ]
                             ),
                         ]
+                    ),
+                ]
+            ),
+        ]
+    )
+}
+
+func supervisorPermissionSnapshot(
+    toolTitle: String = "Review SAB checkpoint",
+    serverName: String = PromptDetector.supervisorServerName,
+    buttons: [String] = ["Deny", "Always allow", "Allow once"]
+) -> SemanticNode {
+    SemanticNode(
+        role: "AXApplication",
+        children: [
+            SemanticNode(
+                role: "AXWindow",
+                children: [
+                    SemanticNode(
+                        role: "AXGroup",
+                        children: [
+                            SemanticNode(
+                                role: "AXStaticText",
+                                label: "Claude wants to use \(toolTitle) from \(serverName)"
+                            ),
+                        ] + buttons.map { SemanticNode(role: "AXButton", label: $0) }
                     ),
                 ]
             ),
@@ -383,6 +412,14 @@ expect(
     detector.detectClaudeContinuations(in: continuationSnapshot(enabled: false)).isEmpty,
     "disabled continuation button must fail closed"
 )
+expect(
+    detector.detectClaudeContinuations(
+        in: continuationSnapshot(
+            earlierButtons: (1...120).map { "Earlier response action \($0)" }
+        )
+    ).count == 1,
+    "exact adjacent continuation must survive a dense completed-response container"
+)
 
 let ambiguousContinuation = SemanticNode(
     role: "AXGroup",
@@ -408,6 +445,69 @@ expect(
     detector.detectClaudeContinuations(in: unrelatedContinue).isEmpty,
     "message and generic Continue outside one bounded notice must be ignored"
 )
+
+for title in PromptDetector.supervisorToolTitles {
+    let results = detector.detectClaudeSupervisorPermissions(
+        in: supervisorPermissionSnapshot(toolTitle: title)
+    )
+    expect(results.count == 1, "allowlisted supervisor permission: \(title)")
+    if case let .routine(match) = results.first {
+        expect(match.hostname == PromptDetector.supervisorServerName, "supervisor server")
+        expect(match.selectedButton == "Always allow", "persistent supervisor approval")
+    } else {
+        failures.append("allowlisted supervisor permission was not routine: \(title)")
+    }
+}
+
+expect(
+    detector.detectClaudeSupervisorPermissions(
+        in: supervisorPermissionSnapshot(toolTitle: "Delete all SAB data")
+    ).isEmpty,
+    "unlisted supervisor tool must fail closed"
+)
+expect(
+    detector.detectClaudeSupervisorPermissions(
+        in: supervisorPermissionSnapshot(serverName: "untrusted-supervisor")
+    ).isEmpty,
+    "wrong supervisor server must fail closed"
+)
+expect(
+    detector.detectClaudeSupervisorPermissions(
+        in: supervisorPermissionSnapshot(buttons: ["Deny", "Allow once"])
+    ).isEmpty,
+    "supervisor permission without persistent approval must fail closed"
+)
+
+let visualContinuation = detector.detectVisualClaudePrompt(
+    recognizedText: "Run output\n\(PromptDetector.toolUseLimitMessage)\nContinue",
+    controlLabels: ["Earlier response action", "Continue", "Show message actions"]
+)
+expect(visualContinuation.count == 1, "visually verified dense continuation")
+if case let .routine(match) = visualContinuation.first {
+    expect(match.taskURL == "claude-desktop://tool-use-limit", "visual continuation URL")
+} else {
+    failures.append("visual continuation was not routine")
+}
+
+expect(
+    detector.detectVisualClaudePrompt(
+        recognizedText: "A generic Continue instruction",
+        controlLabels: ["Continue"]
+    ).isEmpty,
+    "visual continuation without exact notice must fail closed"
+)
+
+let visualSupervisor = detector.detectVisualClaudePrompt(
+    recognizedText:
+        "Claude wants to use Review and authorize SAB scan plan from viva-sab-local-supervisor",
+    controlLabels: ["Deny", "Always allow", "Allow once"]
+)
+expect(visualSupervisor.count == 1, "visually verified supervisor permission")
+if case let .routine(match) = visualSupervisor.first {
+    expect(match.selectedButton == "Always allow", "visual supervisor persistent approval")
+} else {
+    failures.append("visual supervisor permission was not routine")
+}
 
 expect(
     detector.detect(

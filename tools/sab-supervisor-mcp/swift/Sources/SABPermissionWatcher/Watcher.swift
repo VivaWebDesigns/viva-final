@@ -63,7 +63,7 @@ final class PermissionWatcher {
             guard let root = AccessibilityReader.readApplication(pid: pid) else { continue }
             if options.debug { printDebugSignals(root.semantic) }
             process(
-                detector.detectClaudeContinuations(in: root.semantic),
+                claudeDetections(root: root, pid: pid),
                 pid: pid,
                 root: root,
                 activeFingerprints: &activeFingerprints,
@@ -73,6 +73,23 @@ final class PermissionWatcher {
         tracker.clearAbsent(activeFingerprints: activeFingerprints)
         unknownFingerprints = unknownFingerprints.filter { activeFingerprints.contains($0) }
         return detectedCount
+    }
+
+    private func claudeDetections(root: LiveNode, pid: pid_t) -> [DetectionResult] {
+        let semantic = detector.detectClaudeContinuations(in: root.semantic)
+            + detector.detectClaudeSupervisorPermissions(in: root.semantic)
+        if !semantic.isEmpty { return semantic }
+
+        let controlLabels = root.semantic.descendantsIncludingSelf().filter {
+            $0.enabled && ["AXButton", "AXStaticText"].contains($0.role)
+        }.map { $0.displayedText.trimmingCharacters(in: .whitespacesAndNewlines) }
+        guard controlLabels.contains("Continue") || controlLabels.contains("Always allow"),
+              let recognizedText = ClaudeVisualText.recognize(pid: pid)
+        else { return [] }
+        return detector.detectVisualClaudePrompt(
+            recognizedText: recognizedText,
+            controlLabels: controlLabels
+        )
     }
 
     private func process(
@@ -132,17 +149,23 @@ final class PermissionWatcher {
     private func printDebugSignals(_ root: SemanticNode) {
         for node in root.descendantsIncludingSelf() {
             let text = node.displayedText
+            let containsContinue = node.descendantsIncludingSelf().contains {
+                $0.displayedText.trimmingCharacters(in: .whitespacesAndNewlines) == "Continue"
+            }
             if node.url.contains("claude")
                 || node.url.contains("chrome-extension")
                 || text.localizedCaseInsensitiveContains("allow claude")
                 || text.localizedCaseInsensitiveContains("allow once")
                 || text.localizedCaseInsensitiveContains("always allow")
+                || text.localizedCaseInsensitiveContains("claude wants to use")
+                || text.localizedCaseInsensitiveContains("tool-use limit")
                 || text.localizedCaseInsensitiveContains("navigating")
                 || text == PromptDetector.toolUseLimitMessage
                 || text == "Continue"
+                || containsContinue
             {
                 print(
-                    "AX_DEBUG role=\(node.role) enabled=\(node.enabled) label=\(text.debugDescription) url=\(node.url.debugDescription) actions=\(node.actions)"
+                    "AX_DEBUG role=\(node.role) enabled=\(node.enabled) label=\(text.debugDescription) url=\(node.url.debugDescription) actions=\(node.actions) children=\(node.children.count)"
                 )
             }
         }
@@ -166,13 +189,23 @@ final class PermissionWatcher {
             return
         }
         tracker.recordAttempt(match.fingerprint)
-        let pressResult = match.actionKind == "tool_use_limit_continue"
-            ? AccessibilityReader.pressContinuationButton(in: root, match: match)
-            : AccessibilityReader.pressButton(
+        let pressResult: AXError
+        if match.taskURL.hasPrefix("claude-desktop://") {
+            pressResult = AccessibilityReader.activateVisualTextControl(
+                in: root,
+                label: match.selectedButton
+            )
+        } else if match.actionKind == "tool_use_limit_continue" {
+            pressResult = AccessibilityReader.pressContinuationButton(in: root, match: match)
+        } else if match.actionKind.hasPrefix("supervisor_mcp:") {
+            pressResult = AccessibilityReader.pressClaudePermissionButton(in: root, match: match)
+        } else {
+            pressResult = AccessibilityReader.pressButton(
                 in: root,
                 extensionID: options.extensionID,
                 match: match
             )
+        }
         guard pressResult == .success else {
             log(
                 hostname: match.hostname,
@@ -204,8 +237,28 @@ final class PermissionWatcher {
         while Date() < deadline {
             Thread.sleep(forTimeInterval: 0.35)
             guard let current = AccessibilityReader.readApplication(pid: pid) else { continue }
+            if match.taskURL.hasPrefix("claude-desktop://") {
+                if AccessibilityReader.visibleTextControlCount(
+                    in: current,
+                    label: match.selectedButton
+                ) == 0 {
+                    return true
+                }
+                continue
+            }
             if match.actionKind == "tool_use_limit_continue" {
                 let stillPresent = detector.detectClaudeContinuations(in: current.semantic)
+                    .contains { detection in
+                        if case let .routine(candidate) = detection {
+                            return candidate.fingerprint == match.fingerprint
+                        }
+                        return false
+                    }
+                if !stillPresent { return true }
+                continue
+            }
+            if match.actionKind.hasPrefix("supervisor_mcp:") {
+                let stillPresent = detector.detectClaudeSupervisorPermissions(in: current.semantic)
                     .contains { detection in
                         if case let .routine(candidate) = detection {
                             return candidate.fingerprint == match.fingerprint

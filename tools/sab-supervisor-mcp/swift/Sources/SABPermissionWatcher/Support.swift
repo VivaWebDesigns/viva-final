@@ -1,6 +1,7 @@
 import AppKit
 import CoreGraphics
 import Foundation
+import Vision
 
 enum StructuredLog {
     static func append(directory: URL, fileName: String, record: [String: Any]) {
@@ -65,6 +66,33 @@ enum ChromeScreenshot {
               let height = bounds["Height"] as? Double
         else { return 0 }
         return width * height
+    }
+}
+
+enum ClaudeVisualText {
+    static func recognize(pid: pid_t) -> String? {
+        guard CGPreflightScreenCaptureAccess() else { return nil }
+        let path = FileManager.default.temporaryDirectory.appendingPathComponent(
+            "viva-sab-visual-\(UUID().uuidString).png"
+        )
+        defer { try? FileManager.default.removeItem(at: path) }
+        guard ChromeScreenshot.capture(pid: pid, to: path),
+              let image = NSImage(contentsOf: path),
+              let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil)
+        else { return nil }
+
+        let request = VNRecognizeTextRequest()
+        request.recognitionLevel = .accurate
+        request.usesLanguageCorrection = false
+        request.minimumTextHeight = 0.008
+        do {
+            try VNImageRequestHandler(cgImage: cgImage).perform([request])
+        } catch {
+            return nil
+        }
+        return (request.results ?? []).compactMap {
+            $0.topCandidates(1).first?.string
+        }.joined(separator: "\n")
     }
 }
 

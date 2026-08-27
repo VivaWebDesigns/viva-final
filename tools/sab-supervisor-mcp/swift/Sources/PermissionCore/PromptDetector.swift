@@ -2,6 +2,12 @@ import Foundation
 
 public struct PromptDetector: Sendable {
     public static let toolUseLimitMessage = "Claude reached its tool-use limit for this turn."
+    public static let supervisorServerName = "viva-sab-local-supervisor"
+    public static let supervisorToolTitles = [
+        "Register private SAB SOP",
+        "Review SAB checkpoint",
+        "Review and authorize SAB scan plan",
+    ]
 
     public let extensionID: String
 
@@ -87,6 +93,76 @@ public struct PromptDetector: Sendable {
         }
     }
 
+    public func detectClaudeSupervisorPermissions(in root: SemanticNode) -> [DetectionResult] {
+        supervisorPermissionScopes(in: root).compactMap { scope in
+            let visibleText = normalizedWhitespace(
+                scope.descendantsIncludingSelf().map(\.displayedText)
+                    .filter { !$0.isEmpty }.joined(separator: " ")
+            )
+            guard let toolTitle = Self.supervisorToolTitles.first(where: {
+                visibleText.contains(supervisorPermissionPrompt(toolTitle: $0))
+            }) else { return nil }
+
+            return .routine(
+                PromptMatch(
+                    taskURL: continuationContextURL(in: scope),
+                    hostname: Self.supervisorServerName,
+                    permissionType: "Claude native MCP permission",
+                    actionDescriptor: supervisorPermissionPrompt(toolTitle: toolTitle),
+                    actionKind: "supervisor_mcp:\(toolTitle)",
+                    selectedButton: "Always allow"
+                )
+            )
+        }
+    }
+
+    public func detectVisualClaudePrompt(
+        recognizedText: String,
+        controlLabels: [String]
+    ) -> [DetectionResult] {
+        let visibleText = normalizedWhitespace(recognizedText)
+        let normalizedControls = controlLabels.map(normalizedWhitespace)
+        if visibleText.contains(Self.toolUseLimitMessage),
+           normalizedControls.filter({ $0 == "Continue" }).count == 1,
+           !normalizedControls.contains(where: { ["Cancel", "Deny"].contains($0) })
+        {
+            return [
+                .routine(
+                    PromptMatch(
+                        taskURL: "claude-desktop://tool-use-limit",
+                        hostname: "claude-desktop",
+                        permissionType: Self.toolUseLimitMessage,
+                        actionDescriptor: Self.toolUseLimitMessage,
+                        actionKind: "tool_use_limit_continue",
+                        selectedButton: "Continue"
+                    )
+                ),
+            ]
+        }
+
+        let matchingTools = Self.supervisorToolTitles.filter {
+            visibleText.contains(supervisorPermissionPrompt(toolTitle: $0))
+        }
+        guard matchingTools.count == 1,
+              normalizedControls.filter({ $0 == "Deny" }).count == 1,
+              normalizedControls.filter({ $0 == "Always allow" }).count == 1,
+              normalizedControls.filter({ $0 == "Allow once" }).count == 1,
+              let toolTitle = matchingTools.first
+        else { return [] }
+        return [
+            .routine(
+                PromptMatch(
+                    taskURL: "claude-desktop://supervisor-permission",
+                    hostname: Self.supervisorServerName,
+                    permissionType: "Claude native MCP permission",
+                    actionDescriptor: supervisorPermissionPrompt(toolTitle: toolTitle),
+                    actionKind: "supervisor_mcp:\(toolTitle)",
+                    selectedButton: "Always allow"
+                )
+            ),
+        ]
+    }
+
     private func continuationScopes(in node: SemanticNode) -> [SemanticNode] {
         let childMatches = node.children.flatMap { continuationScopes(in: $0) }
         if !childMatches.isEmpty { return childMatches }
@@ -96,18 +172,70 @@ public struct PromptDetector: Sendable {
             $0.displayedText.trimmingCharacters(in: .whitespacesAndNewlines)
                 == Self.toolUseLimitMessage
         }
-        let enabledButtons = descendants.filter { $0.role == "AXButton" && $0.enabled }
-        let buttons = enabledButtons.filter {
-            $0.displayedText.trimmingCharacters(in: .whitespacesAndNewlines) == "Continue"
+        let buttons = descendants.filter {
+            $0.role == "AXButton" && $0.enabled
+                && $0.displayedText.trimmingCharacters(in: .whitespacesAndNewlines) == "Continue"
+        }
+        let messageIndexes = descendants.indices.filter {
+            descendants[$0].displayedText.trimmingCharacters(in: .whitespacesAndNewlines)
+                == Self.toolUseLimitMessage
+        }
+        let buttonIndexes = descendants.indices.filter {
+            descendants[$0].role == "AXButton" && descendants[$0].enabled
+                && descendants[$0].displayedText.trimmingCharacters(in: .whitespacesAndNewlines)
+                    == "Continue"
+        }
+        let hasAdjacentPair = messageIndexes.contains { messageIndex in
+            buttonIndexes.contains { buttonIndex in buttonIndex == messageIndex + 1 }
+        }
+        let hasConflictingAction = descendants.contains {
+            $0.role == "AXButton" && $0.enabled
+                && ["Cancel", "Deny"].contains(
+                    $0.displayedText.trimmingCharacters(in: .whitespacesAndNewlines)
+                )
         }
         let unsafeContainerRoles = ["AXApplication", "AXWindow", "AXWebArea"]
         guard hasExactMessage,
-              enabledButtons.count == 1,
               buttons.count == 1,
+              hasAdjacentPair,
+              !hasConflictingAction,
               !unsafeContainerRoles.contains(node.role),
-              descendants.count <= 40
+              descendants.count <= 500
         else { return [] }
         return [node]
+    }
+
+    private func supervisorPermissionScopes(in node: SemanticNode) -> [SemanticNode] {
+        let childMatches = node.children.flatMap { supervisorPermissionScopes(in: $0) }
+        if !childMatches.isEmpty { return childMatches }
+
+        let descendants = node.descendantsIncludingSelf()
+        let visibleText = normalizedWhitespace(
+            descendants.map(\.displayedText).filter { !$0.isEmpty }.joined(separator: " ")
+        )
+        let matchingTools = Self.supervisorToolTitles.filter {
+            visibleText.contains(supervisorPermissionPrompt(toolTitle: $0))
+        }
+        let enabledButtonLabels = descendants.filter {
+            $0.role == "AXButton" && $0.enabled
+        }.map { normalizedWhitespace($0.displayedText) }
+        let unsafeContainerRoles = ["AXApplication", "AXWindow", "AXWebArea"]
+        guard matchingTools.count == 1,
+              enabledButtonLabels.filter({ $0 == "Deny" }).count == 1,
+              enabledButtonLabels.filter({ $0 == "Always allow" }).count == 1,
+              enabledButtonLabels.filter({ $0 == "Allow once" }).count == 1,
+              !unsafeContainerRoles.contains(node.role),
+              descendants.count <= 80
+        else { return [] }
+        return [node]
+    }
+
+    private func supervisorPermissionPrompt(toolTitle: String) -> String {
+        "Claude wants to use \(toolTitle) from \(Self.supervisorServerName)"
+    }
+
+    private func normalizedWhitespace(_ value: String) -> String {
+        value.split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
     }
 
     private func continuationContextURL(in scope: SemanticNode) -> String {
