@@ -43,6 +43,29 @@ function exactResponse(placeId = "kj-place") {
   );
 }
 
+function acceptedResponseWithParameterEnvelope() {
+  return new Response(
+    JSON.stringify({
+      success: true,
+      parameters: {
+        place_id: "kj-place",
+        keyword: "deck builder near me",
+        lat: "35.1",
+        lng: "-80.9",
+        grid_size: "9",
+        distance: "6",
+        measurement: "mi",
+        platform: "google",
+      },
+      data: {
+        report_key: "4826693261fc566",
+        status: "pending",
+      },
+    }),
+    { status: 200, headers: { "content-type": "application/json" } },
+  );
+}
+
 function repository() {
   let entry: Record<string, unknown> | undefined;
   return {
@@ -93,6 +116,34 @@ describe("guarded SAB scan submission", () => {
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
+  it("accepts an eager pending response whose exact envelope is in parameters", async () => {
+    const repo = repository();
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValue(acceptedResponseWithParameterEnvelope());
+
+    await expect(
+      runSabScanOnce(input, repo as never, "matt@viva", {
+        apiKey: "test-key",
+        fetchImpl: fetchImpl as never,
+      }),
+    ).resolves.toMatchObject({
+      submission_status: "submitted",
+      report_key: "4826693261fc566",
+      provider_status: "pending",
+      scans_executed: true,
+    });
+    expect(repo.updateScanSubmission).toHaveBeenLastCalledWith(
+      "kj-place",
+      expect.any(String),
+      expect.objectContaining({
+        submission_status: "submitted",
+        report_key: "4826693261fc566",
+      }),
+      "matt@viva",
+    );
+  });
+
   it("durably stops after a lost response and never retries", async () => {
     const repo = repository();
     const fetchImpl = vi.fn().mockRejectedValue(new Error("connection lost"));
@@ -128,12 +179,16 @@ describe("guarded SAB scan submission", () => {
 
     expect(result).toMatchObject({
       submission_status: "ambiguous_response",
+      report_key: "4826693261fc566",
       retry_permitted: false,
     });
     expect(repo.updateScanSubmission).toHaveBeenLastCalledWith(
       "kj-place",
       expect.any(String),
-      expect.objectContaining({ submission_status: "ambiguous_response" }),
+      expect.objectContaining({
+        submission_status: "ambiguous_response",
+        report_key: "4826693261fc566",
+      }),
       "matt@viva",
     );
   });

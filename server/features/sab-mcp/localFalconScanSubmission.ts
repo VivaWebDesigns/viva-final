@@ -48,6 +48,14 @@ function responseData(payload: JsonRecord) {
     : payload;
 }
 
+function responseParameters(payload: JsonRecord) {
+  return payload.parameters &&
+    typeof payload.parameters === "object" &&
+    !Array.isArray(payload.parameters)
+    ? (payload.parameters as JsonRecord)
+    : null;
+}
+
 function responseMessage(payload: JsonRecord) {
   return (
     cleanString(payload.message) ?? cleanString(responseData(payload).message)
@@ -105,27 +113,51 @@ async function postLocalFalcon(
 
 function assertExactEcho(payload: JsonRecord, input: RunSabScanOnceInput) {
   const data = responseData(payload);
+  const parameters = responseParameters(payload);
+  const echo = (source: JsonRecord | null, parameterEnvelope = false) => ({
+    place_id: cleanString(source?.place_id),
+    latitude: numberValue(source?.lat ?? source?.latitude),
+    longitude: numberValue(source?.lng ?? source?.longitude),
+    grid_size: numberValue(source?.grid_size),
+    radius: numberValue(
+      source?.radius ?? (parameterEnvelope ? source?.distance : undefined),
+    ),
+    measurement: cleanString(source?.measurement)?.toLowerCase() ?? null,
+    keyword: cleanString(source?.keyword),
+    platform: cleanString(source?.platform)?.toLowerCase() ?? null,
+  });
+  const parameterEcho = echo(parameters, true);
+  const dataEcho = echo(data);
   const actual = {
-    place_id: cleanString(data.place_id),
-    latitude: numberValue(data.lat ?? data.latitude),
-    longitude: numberValue(data.lng ?? data.longitude),
-    grid_size: numberValue(data.grid_size),
-    radius: numberValue(data.radius),
-    measurement: cleanString(data.measurement)?.toLowerCase() ?? null,
-    keyword: cleanString(data.keyword),
-    platform: cleanString(data.platform)?.toLowerCase() ?? null,
+    place_id: parameterEcho.place_id ?? dataEcho.place_id,
+    latitude: parameterEcho.latitude ?? dataEcho.latitude,
+    longitude: parameterEcho.longitude ?? dataEcho.longitude,
+    grid_size: parameterEcho.grid_size ?? dataEcho.grid_size,
+    radius: parameterEcho.radius ?? dataEcho.radius,
+    measurement: parameterEcho.measurement ?? dataEcho.measurement,
+    keyword: parameterEcho.keyword ?? dataEcho.keyword,
+    platform: parameterEcho.platform ?? dataEcho.platform,
   };
+  const mismatched = (candidate: typeof actual, requireComplete: boolean) =>
+    (requireComplete &&
+      Object.values(candidate).some((value) => value === null)) ||
+    (candidate.place_id !== null && candidate.place_id !== input.place_id) ||
+    (candidate.latitude !== null &&
+      Math.abs(candidate.latitude - input.center.latitude) >
+        CENTER_TOLERANCE) ||
+    (candidate.longitude !== null &&
+      Math.abs(candidate.longitude - input.center.longitude) >
+        CENTER_TOLERANCE) ||
+    (candidate.grid_size !== null && candidate.grid_size !== input.grid_size) ||
+    (candidate.radius !== null && candidate.radius !== input.radius) ||
+    (candidate.measurement !== null &&
+      candidate.measurement !== input.measurement) ||
+    (candidate.keyword !== null && candidate.keyword !== input.keyword) ||
+    (candidate.platform !== null && candidate.platform !== input.platform);
   const mismatch =
-    actual.place_id !== input.place_id ||
-    actual.latitude === null ||
-    Math.abs(actual.latitude - input.center.latitude) > CENTER_TOLERANCE ||
-    actual.longitude === null ||
-    Math.abs(actual.longitude - input.center.longitude) > CENTER_TOLERANCE ||
-    actual.grid_size !== input.grid_size ||
-    actual.radius !== input.radius ||
-    actual.measurement !== input.measurement ||
-    actual.keyword !== input.keyword ||
-    actual.platform !== input.platform;
+    mismatched(actual, true) ||
+    mismatched(parameterEcho, false) ||
+    mismatched(dataEcho, false);
   if (mismatch) {
     throw new Error(
       `Local Falcon scan response did not echo the exact authorized parameters: ${JSON.stringify(actual)}.`,
@@ -249,6 +281,8 @@ export async function runSabScanOnce(
       actorEmail,
     );
 
+    let observedReportKey: string | null = null;
+    let observedProviderStatus: string | null = null;
     try {
       const payload = await postLocalFalcon(
         "/v2/run-scan/",
@@ -268,6 +302,8 @@ export async function runSabScanOnce(
         fetchImpl,
       );
       const reportKey = reportKeyFrom(payload);
+      observedReportKey = reportKey;
+      observedProviderStatus = cleanString(responseData(payload).status);
       if (payload.success !== true || !reportKey) {
         throw new Error(
           responseMessage(payload) ??
@@ -281,7 +317,7 @@ export async function runSabScanOnce(
         {
           submission_status: "submitted",
           report_key: reportKey,
-          provider_status: cleanString(responseData(payload).status),
+          provider_status: observedProviderStatus,
           submitted_at: new Date().toISOString(),
         },
         actorEmail,
@@ -299,18 +335,25 @@ export async function runSabScanOnce(
         stopped_for_manual_reconciliation: false,
       };
     } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       await repository.updateScanSubmission(
         input.place_id,
         key,
         {
           submission_status: "ambiguous_response",
-          error: error instanceof Error ? error.message : String(error),
+          report_key: observedReportKey,
+          provider_status: observedProviderStatus,
+          error: errorMessage,
         },
         actorEmail,
       );
       return {
         idempotency_key: key,
         submission_status: "ambiguous_response",
+        report_key: observedReportKey,
+        provider_status: observedProviderStatus,
+        error: errorMessage,
         scans_executed: "unknown",
         writes_performed: true,
         retry_permitted: false,
