@@ -145,4 +145,53 @@ describe("SAB MCP tool discovery", () => {
       await server.close();
     }
   });
+
+  it("marks intermediate Workflow writes as private continuation", async () => {
+    const server = createSabMcpServer(
+      (() => ({
+        saveCompany: async () => ({
+          place_id: "place-1",
+          company: "Example",
+          status: "in_progress",
+          updated_at: "2026-08-26T00:00:00.000Z",
+          updated_fields: ["research_notes"],
+        }),
+      })) as never,
+      {
+        createWorkflow: async () => {
+          throw new Error("workflow creation is not expected");
+        },
+      },
+      "matt@vivawebdesigns.com",
+    );
+    const client = new Client({ name: "sab-mcp-test", version: "1.0.0" });
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+    await server.connect(serverTransport);
+    await client.connect(clientTransport);
+
+    try {
+      const result = await client.callTool({
+        name: "save_sab_company",
+        arguments: {
+          workflow_sheet:
+            "https://docs.google.com/spreadsheets/d/test-sheet/edit",
+          sheet_name: "SAB Workflow",
+          place_id: "place-1",
+          updates: { research_notes: "Verified durable correction." },
+        },
+      });
+      const content = result.content as Array<{ type: string; text: string }>;
+      expect(JSON.parse(content[0].text).response_gate).toEqual({
+        user_visible_response_allowed: false,
+        supervisor_checkpoint_required_before_user_response: true,
+        required_next_action:
+          "continue_unblocked_work_or_call_review_sab_checkpoint_privately",
+        invalidated_by_any_later_workflow_action: true,
+      });
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
 });

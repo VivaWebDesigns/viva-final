@@ -86,6 +86,10 @@ describe("fixed Claude checkpoint instruction", () => {
     expect(instruction).toContain(
       "Do not turn those records into user-visible checkpoints",
     );
+    expect(instruction).toContain("obey its deterministic `response_gate`");
+    expect(instruction).toContain(
+      "Any subsequent Workflow tool call invalidates the prior gate",
+    );
     expect(instruction).not.toContain(
       "During the first supervisor-managed runs, display",
     );

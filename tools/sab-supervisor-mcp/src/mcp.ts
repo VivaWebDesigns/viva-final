@@ -9,7 +9,7 @@ import { proposedScanSchema } from "./types.js";
 export function createSupervisorMcpServer(): McpServer {
   const server = new McpServer({
     name: "viva-sab-local-supervisor",
-    version: "1.0.0",
+    version: "1.1.0",
   });
 
   server.registerTool(
@@ -57,7 +57,7 @@ export function createSupervisorMcpServer(): McpServer {
     {
       title: "Review SAB checkpoint",
       description:
-        "Read the exact immutable registered SOP and review Claude's latest checkpoint against only that run's durable state and explicit rulings. Returns next-step instructions; paid Local Falcon delegation is handled only by review_sab_scan_plan.",
+        "Read the exact immutable registered SOP and review Claude's latest checkpoint against only that run's durable state and explicit rulings. Returns next-step instructions plus a deterministic response gate; Claude may respond to Matt only when user_visible_response_allowed is true. Paid Local Falcon delegation is handled only by review_sab_scan_plan.",
       inputSchema: {
         registered_sop_handle: z
           .string()
@@ -102,7 +102,7 @@ export function createSupervisorMcpServer(): McpServer {
     {
       title: "Review and authorize SAB scan plan",
       description:
-        "Review an exact proposed Local Falcon scan plan under the registered SOP. A scan_approved result is delegated standing authority to execute only its exact scans and listed save-location prerequisites without repeated user approval.",
+        "Review an exact proposed Local Falcon scan plan under the registered SOP. Returns a deterministic response gate. A scan_approved result is delegated standing authority to execute only its exact scans and listed save-location prerequisites without repeated user approval and is not a user-visible stopping point.",
       inputSchema: {
         registered_sop_handle: z
           .string()

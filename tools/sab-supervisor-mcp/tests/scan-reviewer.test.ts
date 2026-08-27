@@ -122,6 +122,12 @@ describe("delegated scan review", () => {
   it("approves a compliant exact plan, includes save prerequisite, reconciles credits, and audits it", async () => {
     const result = await review();
     expect(result.verdict).toBe("scan_approved");
+    expect(result.response_gate).toMatchObject({
+      user_visible_response_allowed: false,
+      must_continue_privately: true,
+      required_next_action:
+        "execute_exact_authorization_privately_then_checkpoint",
+    });
     expect(result.authorization?.approved_scans).toEqual([baseScan]);
     expect(result.authorization?.prerequisite_save_location_actions).toEqual([
       {
@@ -176,6 +182,7 @@ describe("delegated scan review", () => {
         return approve();
       });
       expect(result.verdict).toBe("user_ruling_required");
+      expect(result.response_gate.user_visible_response_allowed).toBe(true);
       expect(result.authorization).toBeNull();
       expect(invoked).toBe(false);
     },

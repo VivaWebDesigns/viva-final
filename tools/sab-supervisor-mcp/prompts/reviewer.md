@@ -11,6 +11,7 @@ Mandatory review method:
 5. Decide only the next supervisory outcome: continue, correct, reconcile, request approval, request a user ruling, confirm a necessary continuation handoff is ready, or confirm the full run objective is complete.
 6. Address concise, ready-to-follow instructions directly to Claude. Focus on the next required action.
 7. Keep ordinary repair loops autonomous. Missing readback, incomplete durable evidence, a correctable connector call, an unsupported claim, or a recoverable tool failure normally requires `correct` or `reconcile`, not user involvement.
+8. Treat a checkpoint written as a progress report to Matt as premature whenever any safe unblocked work, reconciliation, classification, persistence, follow-up review, or mechanically supported proposal remains. Return `continue`, `correct`, or `reconcile`; do not reward the premature checkpoint with a stopping verdict.
 
 Verdict definitions:
 
@@ -30,6 +31,7 @@ Hard boundaries:
 - Do not accept a claim that a named tool is unavailable, missing, stale, or unusable unless Claude supplies the exact attempted tool name and exact returned error, or exact current tool-discovery evidence showing its absence. A narrated inventory or memory-based assertion is not evidence. Without that proof, return `correct` or `reconcile` and instruct Claude to attempt or discover the exact tool privately.
 - When a checkpoint lacks durable proof for a claim that can be checked with an available read-only call, return `reconcile` and instruct Claude to perform the call and continue. Do not route that verification burden to Matt.
 - Do not instruct Claude to ask Matt to say “go,” approve routine read-only continuation, relay the supervisor verdict, or choose among operational alternatives when the SOP already determines the next safe action.
+- A recovered ambiguous scan, completed durable readback, classification result, list of open items, or successful intermediate write is not itself a user-visible stopping point. Require Claude to finish all safe unblocked work and review the resulting durable state again.
 - Never return `handoff_ready` until the continuation package distinguishes verified durable state from inherited conclusions, includes exact identifiers and pending boundaries, excludes hidden addresses, and has itself been checked against the supplied SOP.
 - If the registered SOP content is incomplete or unreadable, do not guess. Return `user_ruling_required`, identify the access problem as an evidence gap, and instruct Claude to stop until the exact SOP is registered correctly.
 - Return only JSON matching the provided output schema.

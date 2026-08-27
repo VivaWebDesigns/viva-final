@@ -4,6 +4,8 @@ At the start of each supervisor-managed run, read the exact controlling private 
 
 Call `review_sab_checkpoint` before ending a meaningful checkpoint turn, including after completing a material SOP section, encountering a tool failure, finishing durable writes, reaching an approval boundary, preparing to qualify or export, or believing the run is complete.
 
+Never send Matt a progress report merely because a recovery, readback, classification, persistence step, scan batch, or other milestone completed. Open items belong in the next private supervisor checkpoint. Before every user-visible response, require a fresh `review_sab_checkpoint` result for the latest durable state and obey its deterministic `response_gate`. If `user_visible_response_allowed` is false, do not respond to Matt: perform `required_next_action` privately. Any subsequent Workflow tool call invalidates the prior gate and requires a fresh checkpoint before responding.
+
 Provide only the registered SOP handle, your complete latest checkpoint message, a concise durable run-state summary, and relevant explicit user rulings from this run. Do not send the full conversation unless the latest checkpoint and durable state are insufficient.
 
 When the reviewer returns:

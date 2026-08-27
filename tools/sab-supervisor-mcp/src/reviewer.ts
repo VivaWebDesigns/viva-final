@@ -4,12 +4,14 @@ import { executeCodex } from "./codex.js";
 import { appendJsonLog, codexTelemetryFields } from "./logging.js";
 import { buildReviewPrompt } from "./prompt.js";
 import { resolveRegisteredSop } from "./sop-registry.js";
+import { checkpointResponseGate } from "./response-gate.js";
 import {
   checkpointInputSchema,
   reviewResultSchema,
   type CheckpointInput,
   type CodexExecution,
   type ReviewResult,
+  type SupervisedReviewResult,
 } from "./types.js";
 
 export type ReviewerDependencies = {
@@ -33,7 +35,7 @@ export class ReviewExecutionError extends Error {
 export async function reviewSabCheckpoint(
   rawInput: unknown,
   dependencies: ReviewerDependencies = {},
-): Promise<ReviewResult> {
+): Promise<SupervisedReviewResult> {
   const input: CheckpointInput = checkpointInputSchema.parse(rawInput);
   const config = dependencies.config || loadConfig();
   const execute = dependencies.execute || executeCodex;
@@ -118,11 +120,18 @@ export async function reviewSabCheckpoint(
   }
   const result = reviewResultSchema.parse(parsed);
 
+  const supervisedResult: SupervisedReviewResult = {
+    ...result,
+    review_id: reviewId,
+    response_gate: checkpointResponseGate(reviewId, result.verdict),
+  };
+
   await appendJsonLog(config.logDirectory, "reviews.jsonl", {
     timestamp: new Date().toISOString(),
     review_id: reviewId,
     status: "complete",
     verdict: result.verdict,
+    response_gate: supervisedResult.response_gate,
     duration_ms: execution.durationMs,
     exit_code: execution.exitCode,
     registered_sop_handle: input.registered_sop_handle,
@@ -141,5 +150,5 @@ export async function reviewSabCheckpoint(
     ...codexTelemetryFields(execution),
   });
 
-  return result;
+  return supervisedResult;
 }

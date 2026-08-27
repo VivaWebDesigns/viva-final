@@ -31,6 +31,10 @@ export const reviewResultSchema = z.object({
 
 export type CheckpointInput = z.infer<typeof checkpointInputSchema>;
 export type ReviewResult = z.infer<typeof reviewResultSchema>;
+export type SupervisedReviewResult = ReviewResult & {
+  review_id: string;
+  response_gate: import("./response-gate.js").SupervisorResponseGate;
+};
 
 export const registerSopInputSchema = z.object({
   source_url: z.string().trim().url().max(4096),
@@ -132,6 +136,10 @@ export type ProposedScan = z.infer<typeof proposedScanSchema>;
 export type ScanPlanInput = z.infer<typeof scanPlanInputSchema>;
 export type ScanReviewDraft = z.infer<typeof scanReviewDraftSchema>;
 export type ScanReviewResult = z.infer<typeof scanReviewResultSchema>;
+export type SupervisedScanReviewResult = ScanReviewResult & {
+  review_id: string;
+  response_gate: import("./response-gate.js").SupervisorResponseGate;
+};
 
 export type CodexExecution = {
   exitCode: number | null;

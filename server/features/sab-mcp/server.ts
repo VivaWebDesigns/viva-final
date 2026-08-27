@@ -57,6 +57,21 @@ function jsonToolResult(value: unknown) {
   };
 }
 
+function privateWorkflowResult(value: unknown, requiredNextAction: string) {
+  const payload = {
+    ...(value && typeof value === "object" && !Array.isArray(value)
+      ? value
+      : { result: value }),
+    response_gate: {
+      user_visible_response_allowed: false,
+      supervisor_checkpoint_required_before_user_response: true,
+      required_next_action: requiredNextAction,
+      invalidated_by_any_later_workflow_action: true,
+    },
+  };
+  return jsonToolResult(payload);
+}
+
 export const SAB_MCP_SECURITY_SCHEMES = [
   {
     type: "oauth2" as const,
@@ -83,7 +98,7 @@ export function createSabMcpServer(
 ) {
   const server = new McpServer({
     name: "viva-sab-workflow",
-    version: "1.11.0",
+    version: "1.11.1",
   });
 
   server.registerTool(
@@ -164,7 +179,7 @@ export function createSabMcpServer(
       inputSchema: createSabWorkflowFromMasterReportInputSchema,
     }),
     async ({ title, report_key, batch_size }) => {
-      return jsonToolResult(
+      return privateWorkflowResult(
         await createSabWorkflowFromMasterReport(
           title,
           report_key,
@@ -172,6 +187,7 @@ export function createSabMcpServer(
           workflowCreator,
           actorEmail,
         ),
+        "continue_unblocked_work_or_call_review_sab_checkpoint_privately",
       );
     },
   );
@@ -266,8 +282,9 @@ export function createSabMcpServer(
       inputSchema: createSabWorkflowInputSchema,
     }),
     async ({ title, companies }) => {
-      return jsonToolResult(
+      return privateWorkflowResult(
         await workflowCreator.createWorkflow(title, companies, actorEmail),
+        "continue_unblocked_work_or_call_review_sab_checkpoint_privately",
       );
     },
   );
@@ -309,11 +326,14 @@ export function createSabMcpServer(
     }),
     async ({ workflow_sheet, sheet_name }) => {
       const repository = repositoryFactory(workflow_sheet, sheet_name);
-      return jsonToolResult({
-        workflow_sheet,
-        sheet_name,
-        ...(await repository.upgradeWorkflowSchema()),
-      });
+      return privateWorkflowResult(
+        {
+          workflow_sheet,
+          sheet_name,
+          ...(await repository.upgradeWorkflowSchema()),
+        },
+        "continue_unblocked_work_or_call_review_sab_checkpoint_privately",
+      );
     },
   );
 
@@ -326,8 +346,9 @@ export function createSabMcpServer(
     }),
     async ({ workflow_sheet, sheet_name, place_id, updates }) => {
       const repository = repositoryFactory(workflow_sheet, sheet_name);
-      return jsonToolResult(
+      return privateWorkflowResult(
         await repository.saveCompany(place_id, updates, actorEmail),
+        "continue_unblocked_work_or_call_review_sab_checkpoint_privately",
       );
     },
   );
@@ -341,8 +362,9 @@ export function createSabMcpServer(
     }),
     async ({ workflow_sheet, sheet_name, place_id, scan_result }) => {
       const repository = repositoryFactory(workflow_sheet, sheet_name);
-      return jsonToolResult(
+      return privateWorkflowResult(
         await repository.saveScanResult(place_id, scan_result, actorEmail),
+        "continue_scan_validation_and_persistence_then_call_review_sab_checkpoint_privately",
       );
     },
   );
@@ -357,11 +379,14 @@ export function createSabMcpServer(
     async ({ workflow_sheet, sheet_name, repairs }) => {
       const verified = await verifySabScanHistoryRepairs(repairs);
       const repository = repositoryFactory(workflow_sheet, sheet_name);
-      return jsonToolResult({
-        workflow_sheet,
-        sheet_name,
-        ...(await repository.reconcileScanHistory(verified, actorEmail)),
-      });
+      return privateWorkflowResult(
+        {
+          workflow_sheet,
+          sheet_name,
+          ...(await repository.reconcileScanHistory(verified, actorEmail)),
+        },
+        "verify_repaired_durable_state_then_call_review_sab_checkpoint_privately",
+      );
     },
   );
 
@@ -374,8 +399,13 @@ export function createSabMcpServer(
     }),
     async ({ workflow_sheet, sheet_name, ...input }) => {
       const repository = repositoryFactory(workflow_sheet, sheet_name);
-      return jsonToolResult(
-        await runSabScanOnce(input, repository, actorEmail),
+      const result = await runSabScanOnce(input, repository, actorEmail);
+      const status = String(result.submission_status ?? "unknown");
+      return privateWorkflowResult(
+        result,
+        ["ambiguous_response", "location_unverified"].includes(status)
+          ? "do_not_retry_reconcile_durable_state_then_call_review_sab_checkpoint_privately"
+          : "continue_exact_authorized_plan_or_call_review_sab_checkpoint_privately",
       );
     },
   );
@@ -389,8 +419,9 @@ export function createSabMcpServer(
     }),
     async ({ workflow_sheet, sheet_name, place_id, reason }) => {
       const repository = repositoryFactory(workflow_sheet, sheet_name);
-      return jsonToolResult(
+      return privateWorkflowResult(
         await repository.markBlocked(place_id, reason, actorEmail),
+        "continue_unblocked_work_or_call_review_sab_checkpoint_privately",
       );
     },
   );

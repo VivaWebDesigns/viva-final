@@ -6,6 +6,7 @@ import { scanReviewSchemaPath } from "./paths.js";
 import { buildScanReviewPrompt } from "./prompt.js";
 import { ReviewExecutionError } from "./reviewer.js";
 import { resolveRegisteredSop } from "./sop-registry.js";
+import { scanResponseGate } from "./response-gate.js";
 import {
   scanPlanInputSchema,
   scanReviewDraftSchema,
@@ -13,6 +14,7 @@ import {
   type CodexExecution,
   type ScanPlanInput,
   type ScanReviewResult,
+  type SupervisedScanReviewResult,
 } from "./types.js";
 
 export type ScanReviewerDependencies = {
@@ -74,7 +76,7 @@ async function audit(
 export async function reviewSabScanPlan(
   rawInput: unknown,
   dependencies: ScanReviewerDependencies = {},
-): Promise<ScanReviewResult> {
+): Promise<SupervisedScanReviewResult> {
   const input = scanPlanInputSchema.parse(rawInput);
   const config = dependencies.config || loadConfig();
   const reviewId = crypto.randomUUID();
@@ -92,7 +94,12 @@ export async function reviewSabScanPlan(
         "Stop and obtain Matt's explicit ruling. Do not submit or retry any scan.",
       authorization: null,
     });
-    await audit(config, input, result, {
+    const supervisedResult: SupervisedScanReviewResult = {
+      ...result,
+      review_id: reviewId,
+      response_gate: scanResponseGate(reviewId, result.verdict),
+    };
+    await audit(config, input, supervisedResult, {
       review_id: reviewId,
       status: "policy_blocked",
       token_usage_available: false,
@@ -106,7 +113,7 @@ export async function reviewSabScanPlan(
         0,
       ),
     });
-    return result;
+    return supervisedResult;
   }
 
   const prompt = await buildScanReviewPrompt(input, registration, exactText);
@@ -224,7 +231,12 @@ export async function reviewSabScanPlan(
       authorization: null,
     });
   }
-  await audit(config, input, result, {
+  const supervisedResult: SupervisedScanReviewResult = {
+    ...result,
+    review_id: reviewId,
+    response_gate: scanResponseGate(reviewId, result.verdict),
+  };
+  await audit(config, input, supervisedResult, {
     review_id: reviewId,
     status: "complete",
     verdict: result.verdict,
@@ -247,5 +259,5 @@ export async function reviewSabScanPlan(
     problem_count: result.problems.length,
     ...codexTelemetryFields(execution),
   });
-  return result;
+  return supervisedResult;
 }

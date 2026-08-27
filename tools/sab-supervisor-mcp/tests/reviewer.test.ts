@@ -99,6 +99,47 @@ describe("reviewSabCheckpoint", () => {
       },
     );
     expect(result.verdict).toBe(verdict);
+    expect(result.response_gate.user_visible_response_allowed).toBe(
+      ["approval_required", "handoff_ready"].includes(verdict),
+    );
+    expect(result.response_gate.must_continue_privately).toBe(
+      !["approval_required", "handoff_ready"].includes(verdict),
+    );
+    expect(result.response_gate.review_id).toBe(result.review_id);
+  });
+
+  it("keeps a recovered scan with open work private", async () => {
+    const sop = await registerFixture("neutral-sop-a", "rev-a");
+    const result = await reviewSabCheckpoint(
+      {
+        registered_sop_handle: sop.registered_sop_handle,
+        claude_message:
+          "Recovered the ambiguous paid scan. Thirteen scans and several classifications remain open.",
+        run_context:
+          "The report is durable and verified; safe unblocked workflow work remains.",
+        user_rulings: [],
+      },
+      {
+        config,
+        execute: async () =>
+          execution({
+            verdict: "continue",
+            summary: "Recovery is an intermediate milestone.",
+            problems: [],
+            instructions_for_claude: "Continue all safe unblocked work.",
+            approval_boundary: "none",
+            evidence_gaps: [],
+          }),
+      },
+    );
+
+    expect(result.response_gate).toMatchObject({
+      stopping_verdict: false,
+      user_visible_response_allowed: false,
+      must_continue_privately: true,
+      required_next_action: "continue_unblocked_work_privately",
+      fresh_review_required_after_any_further_workflow_action: true,
+    });
   });
 
   it("exposes separate handoff and full-run completion semantics to Codex", async () => {
