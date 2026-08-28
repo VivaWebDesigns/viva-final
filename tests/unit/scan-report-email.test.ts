@@ -16,6 +16,8 @@ describe("scan report email template", () => {
     });
 
     expect(html).toContain("Your Google Maps scan");
+    expect(html).toContain("display:none!important;max-height:0;max-width:0;overflow:hidden;opacity:0;color:transparent");
+    expect(html).toContain("Your Google Maps scan&#847; &zwnj; &nbsp;");
     expect(html).toContain("Hi Ana,<br />See your results.");
     expect(html).toContain('width="600"');
     expect(html).toContain("View the full report");

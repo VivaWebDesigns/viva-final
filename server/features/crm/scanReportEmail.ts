@@ -19,6 +19,7 @@ import {
 } from "../../public-scan-report";
 
 const POSTAL_ADDRESS = "1628 Redcoat Dr, Charlotte, NC 28211";
+const PREHEADER_PADDING = "&#847; &zwnj; &nbsp; ".repeat(30);
 
 export interface ScanReportEmailPreview {
   reportId: string;
@@ -142,7 +143,7 @@ export function buildScanReportEmailHtml(input: {
       </td></tr>`;
   return `<!doctype html>
 <html><body style="margin:0;background:#f5f7fa;color:#172033;font-family:Arial,sans-serif;">
-  <div style="display:none;max-height:0;overflow:hidden;">${escapeHtml(input.preheader || "Your Google Maps scan")}</div>
+  <div style="display:none!important;max-height:0;max-width:0;overflow:hidden;opacity:0;color:transparent;font-size:1px;line-height:1px;mso-hide:all;">${escapeHtml(input.preheader || "Your Google Maps scan")}${PREHEADER_PADDING}</div>
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f5f7fa;"><tr><td align="center" style="padding:24px 12px;">
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;background:#ffffff;border-radius:12px;overflow:hidden;">
       <tr><td style="background:#0f766e;color:#ffffff;padding:22px 28px;font-size:22px;font-weight:700;">Viva Web Designs</td></tr>
