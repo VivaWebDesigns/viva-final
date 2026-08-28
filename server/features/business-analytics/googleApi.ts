@@ -17,6 +17,36 @@ interface GaReportResponse {
   metadata?: { currencyCode?: string; timeZone?: string };
 }
 
+export const LANDING_PAGE_DIMENSION_FILTER = {
+  andGroup: {
+    expressions: [
+      {
+        notExpression: {
+          filter: {
+            fieldName: "landingPagePlusQueryString",
+            stringFilter: { matchType: "CONTAINS", value: "gtm_debug", caseSensitive: false },
+          },
+        },
+      },
+      {
+        notExpression: {
+          filter: {
+            fieldName: "landingPagePlusQueryString",
+            stringFilter: { matchType: "FULL_REGEXP", value: "^(\\(not set\\))?$", caseSensitive: false },
+          },
+        },
+      },
+    ],
+  },
+};
+
+export const LANDING_PAGE_METRIC_FILTER = {
+  filter: {
+    fieldName: "screenPageViews",
+    numericFilter: { operation: "GREATER_THAN", value: { int64Value: "0" } },
+  },
+};
+
 function numberValue(value: string | undefined): number {
   const parsed = Number(value ?? 0);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -29,6 +59,7 @@ async function runGaReport(
     dimensions?: string[];
     metrics: string[];
     dimensionFilter?: unknown;
+    metricFilter?: unknown;
     limit?: number;
     orderMetric?: string;
   },
@@ -42,6 +73,7 @@ async function runGaReport(
       dimensions: input.dimensions?.map((name) => ({ name })) ?? [],
       metrics: input.metrics.map((name) => ({ name })),
       ...(input.dimensionFilter ? { dimensionFilter: input.dimensionFilter } : {}),
+      ...(input.metricFilter ? { metricFilter: input.metricFilter } : {}),
       ...(input.limit ? { limit: String(input.limit) } : {}),
       ...(input.orderMetric ? {
         orderBys: [{ metric: { metricName: input.orderMetric }, desc: true }],
@@ -87,6 +119,8 @@ export async function getGoogleAnalyticsDashboard(
     runGaReport(connection, days, {
       dimensions: ["landingPagePlusQueryString"],
       metrics: ["sessions", "activeUsers", "screenPageViews"],
+      dimensionFilter: LANDING_PAGE_DIMENSION_FILTER,
+      metricFilter: LANDING_PAGE_METRIC_FILTER,
       orderMetric: "sessions",
       limit: 10,
     }),
@@ -262,4 +296,3 @@ export async function fetchGoogleBusinessReviews(
     replyUpdatedAt: review.reviewReply?.updateTime ? new Date(review.reviewReply.updateTime) : null,
   }));
 }
-
