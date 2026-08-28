@@ -83,6 +83,7 @@ describe("public contact form contract", () => {
     expect(contactHtml).toContain("Google Visibility Review");
     expect(contactHtml).toContain("Review the weak spots on your heat map");
     expect(contactHtml).toContain("Book My Video Call");
+    expect(contactHtml).toContain("matt-visibility-review-20260828-v4.webp?v=20260828-upright-v4");
     expect(contactHtml).toContain('target="_blank" rel="noopener noreferrer"');
   });
 });
