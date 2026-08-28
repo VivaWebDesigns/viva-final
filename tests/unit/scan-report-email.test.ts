@@ -2,7 +2,11 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("../../server/db", () => ({ db: {} }));
 
-import { buildScanReportEmailHtml, scanReportSenderEmail } from "../../server/features/crm/scanReportEmail";
+import {
+  DEFAULT_SCAN_REPORT_PREHEADER,
+  buildScanReportEmailHtml,
+  scanReportSenderEmail,
+} from "../../server/features/crm/scanReportEmail";
 
 describe("scan report email template", () => {
   it("renders the hosted report, fallback link, postal address, and opt-out", () => {
@@ -12,12 +16,12 @@ describe("scan report email template", () => {
       landingUrl: "https://vivawebdesigns.com/scan-report/secure-token",
       businessName: "Acme Roofing",
       replyTo: "matt@vivawebdesigns.com",
-      preheader: "Your Google Maps scan",
+      preheader: DEFAULT_SCAN_REPORT_PREHEADER,
     });
 
-    expect(html).toContain("Your Google Maps scan");
+    expect(html).toContain(DEFAULT_SCAN_REPORT_PREHEADER);
     expect(html).toContain("display:none!important;max-height:0;max-width:0;overflow:hidden;opacity:0;color:transparent");
-    expect(html).toContain("Your Google Maps scan&#847; &zwnj; &nbsp;");
+    expect(html).toContain(`${DEFAULT_SCAN_REPORT_PREHEADER}&#847; &zwnj; &nbsp;`);
     expect(html).toContain("Hi Ana,<br />See your results.");
     expect(html).toContain('width="600"');
     expect(html).toContain("View the full report");

@@ -20,6 +20,7 @@ import {
 
 const POSTAL_ADDRESS = "1628 Redcoat Dr, Charlotte, NC 28211";
 const PREHEADER_PADDING = "&#847; &zwnj; &nbsp; ".repeat(30);
+export const DEFAULT_SCAN_REPORT_PREHEADER = "Your Google Maps scan is ready — see how your business appears across nearby searches.";
 
 export interface ScanReportEmailPreview {
   reportId: string;
@@ -113,7 +114,7 @@ export async function getScanReportEmailPreview(
     subject: spanish
       ? `Así aparece ${businessName} en Google Maps`
       : "Google Maps issues",
-    preheader: spanish ? "Tu análisis de Google Maps" : "Your Google Maps scan",
+    preheader: spanish ? "Tu análisis de Google Maps" : DEFAULT_SCAN_REPORT_PREHEADER,
     message: spanish
       ? `Hola${greeting},\n\nPreparamos este análisis de visibilidad local para mostrar cómo aparece ${businessName} en Google Maps cuando los clientes buscan “${record.report.scanKeyword}”.\n\nSi deseas, puedo explicarte lo que muestran los resultados y las oportunidades que encontramos.`
       : `Hi,\n\nI’m Matt with Viva Web Designs here in Charlotte.\n\nI came across ${businessName} and ran a scan to see how the company is showing up in Google Maps when people around you search for your services.\n\nI found some pretty significant visibility gaps, so I thought you’d want to see the actual data.\n\nIf you’ve ever wondered why Google isn’t bringing in more calls, the scan below gives you a pretty good idea of what’s happening.\n\nIf it looks like something you’d want to improve, I can dig deeper into what’s behind it and we can jump on a quick video call. I can pull up the interactive scan and show you exactly who Google is ranking ahead of you from each area.\n\nJust reply here or call/text me.\n\nMatt`,
@@ -143,7 +144,7 @@ export function buildScanReportEmailHtml(input: {
       </td></tr>`;
   return `<!doctype html>
 <html><body style="margin:0;background:#f5f7fa;color:#172033;font-family:Arial,sans-serif;">
-  <div style="display:none!important;max-height:0;max-width:0;overflow:hidden;opacity:0;color:transparent;font-size:1px;line-height:1px;mso-hide:all;">${escapeHtml(input.preheader || "Your Google Maps scan")}${PREHEADER_PADDING}</div>
+  <div style="display:none!important;max-height:0;max-width:0;overflow:hidden;opacity:0;color:transparent;font-size:1px;line-height:1px;mso-hide:all;">${escapeHtml(input.preheader || DEFAULT_SCAN_REPORT_PREHEADER)}${PREHEADER_PADDING}</div>
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f5f7fa;"><tr><td align="center" style="padding:24px 12px;">
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;background:#ffffff;border-radius:12px;overflow:hidden;">
       <tr><td style="background:#0f766e;color:#ffffff;padding:22px 28px;font-size:22px;font-weight:700;">Viva Web Designs</td></tr>

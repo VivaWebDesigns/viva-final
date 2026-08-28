@@ -45,7 +45,11 @@ import {
 import { db } from "../../db";
 import { executeStageAutomations } from "../automations/trigger";
 import * as storageService from "../../services/storage";
-import { getScanReportEmailPreview, sendScanReportEmail } from "./scanReportEmail";
+import {
+  DEFAULT_SCAN_REPORT_PREHEADER,
+  getScanReportEmailPreview,
+  sendScanReportEmail,
+} from "./scanReportEmail";
 
 async function cascadeCompanyNameToTitles(companyId: string, oldName: string, newName: string) {
   const leads = await db.select({ id: crmLeads.id, title: crmLeads.title })
@@ -157,7 +161,7 @@ const scanReportEmailSchema = z.object({
   reportId: z.string().min(1),
   recipient: z.string().trim().email(),
   subject: z.string().trim().min(1).max(200),
-  preheader: z.string().trim().min(1).max(200).default("Your Google Maps scan"),
+  preheader: z.string().trim().min(1).max(200).default(DEFAULT_SCAN_REPORT_PREHEADER),
   message: z.string().trim().min(1).max(5_000),
   imagePlacement: z.enum(["after_intro", "after_message"]).default("after_intro"),
   requestId: z.string().uuid(),
