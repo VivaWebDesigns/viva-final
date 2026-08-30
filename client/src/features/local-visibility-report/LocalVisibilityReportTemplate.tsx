@@ -146,6 +146,7 @@ const LocalVisibilityReportTemplate = forwardRef<HTMLDivElement, Props>(function
           <div className="lvr-business-arp" aria-label="Average Google Maps Position">
             <span>Average Google Maps Position</span>
             <strong>{data.averagePosition || "—"}</strong>
+            <small>All scanned points (ATRP)</small>
           </div>
         </section>
 

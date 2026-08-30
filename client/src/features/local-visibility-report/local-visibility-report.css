@@ -85,6 +85,13 @@
   padding: 18px 22px;
 }
 
+.lvr-business-arp small {
+  display: block;
+  font-size: 14px;
+  line-height: 1.2;
+  color: var(--lvr-muted);
+}
+
 .lvr-icon-circle,
 .lvr-business-icon {
   display: grid;

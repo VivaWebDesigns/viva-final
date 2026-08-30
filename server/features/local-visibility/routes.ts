@@ -216,7 +216,7 @@ router.get(
           reviewCount: String(record.profile.reviewCount),
           searchPhrase: record.profile.scanKeyword,
           market: `${record.profile.scanCity ?? record.batch.marketCity}, ${record.profile.scanState ?? record.batch.marketState}`,
-          averagePosition: formatLocalVisibilityAveragePosition(record.profile.arp),
+          averagePosition: formatLocalVisibilityAveragePosition(record.profile.atrp),
           gridSize: effectiveGridSize ?? "7 × 7",
           radius: effectiveRadius ?? "2.5",
           heatmapImageUrl,
@@ -235,6 +235,9 @@ router.post(
   async (req, res) => {
     let uploadedKey: string | null = null;
     try {
+      if (req.body.reportMetric !== "ATRP") {
+        return res.status(409).json({ message: "Reload the report before regenerating its all-point ATRP snapshot." });
+      }
       const snapshot = req.file;
       if (!snapshot || snapshot.mimetype !== "image/png") {
         return res.status(400).json({ message: "Upload the finished report as a PNG." });
@@ -367,7 +370,7 @@ router.get(
           reviewCount: String(record.profile.reviewCount),
           searchPhrase: record.profile.scanKeyword,
           market: `${record.profile.scanCity ?? record.batch.marketCity}, ${record.profile.scanState ?? record.batch.marketState}`,
-          averagePosition: formatLocalVisibilityAveragePosition(record.profile.arp),
+          averagePosition: formatLocalVisibilityAveragePosition(record.profile.atrp),
           gridSize: effectiveGridSize ?? "7 × 7",
           radius: effectiveRadius ?? "2.5",
           heatmapImageUrl,
@@ -386,6 +389,9 @@ router.post(
   async (req, res) => {
     let uploadedKey: string | null = null;
     try {
+      if (req.body.reportMetric !== "ATRP") {
+        return res.status(409).json({ message: "Reload the report before regenerating its all-point ATRP snapshot." });
+      }
       const snapshot = req.file;
       if (!snapshot || snapshot.mimetype !== "image/png") {
         return res.status(400).json({ message: "Upload the finished report as a PNG." });

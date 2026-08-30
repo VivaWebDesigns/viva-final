@@ -5,6 +5,7 @@ export type LocalVisibilityReportData = {
   reviewCount: string;
   searchPhrase: string;
   market: string;
+  /** Local Falcon ATRP across every scanned point, never visible-only ARP. */
   averagePosition: string;
   gridSize: string;
   radius: string;

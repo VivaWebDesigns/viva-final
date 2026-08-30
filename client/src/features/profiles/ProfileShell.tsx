@@ -232,6 +232,7 @@ function LocalFalconSnapshotCard({
       const blob = await renderLocalVisibilityReportBlob(reportRef.current);
       const form = new FormData();
       form.append("snapshot", blob, `${reportId}-local-visibility-snapshot.png`);
+      form.append("reportMetric", "ATRP");
       const response = await fetch(`/api/local-visibility/reports/${encodeURIComponent(reportId)}/snapshot`, {
         method: "POST",
         credentials: "include",
@@ -319,7 +320,7 @@ function LocalFalconSnapshotCard({
         <div>
           <CardTitle className="text-base">Local Visibility Snapshot</CardTitle>
           <p className="mt-1 text-sm text-gray-500">
-            Local Falcon · {data.data.searchPhrase} · {data.data.market} · ARP {data.data.averagePosition}
+            Local Falcon · {data.data.searchPhrase} · {data.data.market} · ATRP {data.data.averagePosition || "—"}
           </p>
         </div>
       </CardHeader>

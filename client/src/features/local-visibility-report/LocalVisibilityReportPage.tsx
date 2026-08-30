@@ -48,8 +48,8 @@ function validateReport(data: LocalVisibilityReportData): FieldErrors {
   if (!data.heatmapImageUrl) errors.heatmapImageUrl = "Upload a heatmap image.";
 
   const averagePosition = Number(data.averagePosition);
-  if (!data.averagePosition.trim() || !Number.isFinite(averagePosition) || averagePosition <= 0) {
-    errors.averagePosition = "Enter a position greater than 0.";
+  if (data.averagePosition.trim() !== "20+" && (!data.averagePosition.trim() || !Number.isFinite(averagePosition) || averagePosition < 1)) {
+    errors.averagePosition = "Enter an ATRP of at least 1, or 20+.";
   }
 
   if (data.rating.trim()) {
@@ -708,7 +708,7 @@ export default function LocalVisibilityReportPage({ initialData }: LocalVisibili
                 <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#0b67b2]">Scan</p>
                 <FormField id="searchPhrase" label="Search phrase" value={data.searchPhrase} error={errors.searchPhrase} needsReview={reviewFields.has("searchPhrase")} placeholder="frameless shower glass near me" onChange={updateField} />
                 <FormField id="market" label="Market" value={data.market} error={errors.market} needsReview={reviewFields.has("market")} placeholder="Charlotte, NC" onChange={updateField} />
-                <FormField id="averagePosition" label="Average Google Maps position" value={data.averagePosition} error={errors.averagePosition} needsReview={reviewFields.has("averagePosition")} type="number" min="0.1" step="0.01" placeholder="3.96" onChange={updateField} />
+                <FormField id="averagePosition" label="Average Google Maps position (ATRP — all points)" value={data.averagePosition} error={errors.averagePosition} needsReview={reviewFields.has("averagePosition")} placeholder="20.63 or 20+" onChange={updateField} />
                 <div className="grid grid-cols-2 gap-3">
                   <FormField id="gridSize" label="Grid size" value={data.gridSize} error={errors.gridSize} needsReview={reviewFields.has("gridSize")} placeholder="7 × 7" onChange={updateField} />
                   <FormField id="radius" label="Radius (miles)" value={data.radius} error={errors.radius} needsReview={reviewFields.has("radius")} type="number" min="0.1" step="0.1" placeholder="2.5" onChange={updateField} />

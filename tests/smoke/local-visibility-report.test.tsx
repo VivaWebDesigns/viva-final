@@ -89,6 +89,14 @@ describe("LocalVisibilityReportPage", () => {
     await expect(clipboardItem.items["image/png"]).resolves.toBe(reportBlob);
   });
 
+  it("allows the displayed 20+ ATRP value without blocking report generation", () => {
+    render(<LocalVisibilityReportPage initialData={{ ...completeReport, averagePosition: "20+" }} />);
+    const generateButton = screen.getByTestId("button-generate-preview");
+    fireEvent.submit(generateButton.closest("form") as HTMLFormElement);
+    expect(screen.getByTestId("button-download-report")).toBeEnabled();
+    expect(screen.getByLabelText("Average Google Maps position (ATRP — all points)")).toHaveValue("20+");
+  });
+
   it("autofills fields and assigns the heatmap after two screenshots are added", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue({
       ok: true,
@@ -122,7 +130,7 @@ describe("LocalVisibilityReportPage", () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
     expect(await screen.findByTestId("smart-paste-success")).toBeInTheDocument();
     expect(screen.getByLabelText("Business name")).toHaveValue("The Shower Glass");
-    expect(screen.getByLabelText("Average Google Maps position")).toHaveValue(3.96);
+    expect(screen.getByLabelText("Average Google Maps position (ATRP — all points)")).toHaveValue("3.96");
     expect(screen.getByLabelText("Grid size")).toHaveValue("7 × 7");
     expect(screen.getByLabelText("Radius (miles)")).toHaveValue(8);
     expect(screen.getByText("Check this extracted value.")).toBeInTheDocument();

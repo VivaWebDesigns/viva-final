@@ -110,11 +110,18 @@ describe("Local Visibility report address formatting", () => {
   });
 });
 
-describe("Local Visibility ARP formatting", () => {
+describe("Local Visibility ATRP formatting", () => {
   it("keeps weak average position values at the established 20+ ceiling", () => {
     expect(formatLocalVisibilityAveragePosition(20)).toBe("20+");
     expect(formatLocalVisibilityAveragePosition(130)).toBe("20+");
     expect(formatLocalVisibilityAveragePosition("3.08")).toBe("3.08");
+  });
+});
+
+describe("Local Falcon ATRP payload compatibility", () => {
+  it("retains optional all-point ATRP separately from the original ARP", () => {
+    const parsed = parseLocalFalconPayload(JSON.stringify({ ...payload, prospects: [{ ...prospect, atrp: 19.73 }] }));
+    expect(parsed.prospects[0]).toMatchObject({ arp: 8.2, atrp: 19.73 });
   });
 });
 
@@ -242,11 +249,13 @@ describe("parseLocalFalconPayload", () => {
       batch: payload.batch,
       prospects: [{
         ...scaleProspect,
+        atrp: 19.73,
         contact_tag: "Email Ready",
       }],
     }));
 
     expect(result.prospects[0].google_maps_url).toBe(googleMapsUrlFromPlaceId(prospect.place_id));
+    expect(result.prospects[0]).toMatchObject({ arp: 8.2, atrp: 19.73 });
     expect(result.prospects[0]).not.toHaveProperty("service_page_count");
     expect(result.prospects[0]).not.toHaveProperty("sales_priority");
   });

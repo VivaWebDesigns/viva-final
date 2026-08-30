@@ -23,6 +23,7 @@ const prospectFields = {
   scan_date: "valid date string",
   scan_keyword: "non-empty string matching batch.keyword",
   arp: "number >= 0",
+  atrp: "optional number >= 1; CRM retrieves authoritative ATRP from report_key for the all-point report average. ARP remains unchanged for scan selection.",
   solv: "number from 0 through 100",
   rating: "number from 0 through 5",
   review_count: "integer >= 0",
@@ -132,6 +133,7 @@ const scaleFirstProspectFields = {
   scan_center: prospectFields.scan_center,
   heatmap_file: prospectFields.heatmap_file,
   qualification_status: prospectFields.qualification_status,
+  atrp: prospectFields.atrp,
 } as const;
 
 export const SCALE_FIRST_SAB_CRM_IMPORT_CONTRACT = {

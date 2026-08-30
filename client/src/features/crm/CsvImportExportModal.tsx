@@ -402,6 +402,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
     setIsGeneratingSnapshots(true);
     try {
       const form = buildPackageForm();
+      form.append("reportMetric", "ATRP");
       if (assignedTo) form.append("assignedTo", assignedTo);
       form.append("leadClassification", leadClassification);
       form.append("approvedFlaggedPlaceIds", JSON.stringify([...approvedFlagged]));

@@ -43,7 +43,7 @@ describe("LocalVisibilityReportTemplate", () => {
     const { container } = render(<LocalVisibilityReportTemplate data={report} />);
     const content = container.textContent ?? "";
 
-    expect(content).not.toMatch(/\bATRP\b/);
+    expect(content).toContain("All scanned points (ATRP)");
     expect(content).not.toMatch(/\bSoLV\b/i);
     expect(content).not.toMatch(/square miles|mi²|mi2/i);
   });
@@ -52,7 +52,7 @@ describe("LocalVisibilityReportTemplate", () => {
     expect(formatScanSettings({ gridSize: "9x9", radius: "3" })).toBe("9 × 9 grid · 3-mile radius");
   });
 
-  it("preserves ARP precision and applies map zoom and position", () => {
+  it("preserves ATRP precision and applies map zoom and position", () => {
     render(
       <LocalVisibilityReportTemplate
         data={{ ...report, averagePosition: "3.08" }}

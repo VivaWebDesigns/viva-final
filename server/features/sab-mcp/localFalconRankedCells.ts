@@ -59,6 +59,7 @@ type LocalFalconReportData = {
   measurement?: unknown;
   platform?: unknown;
   arp?: unknown;
+  atrp?: unknown;
   solv?: unknown;
   found_in?: unknown;
   points?: unknown;

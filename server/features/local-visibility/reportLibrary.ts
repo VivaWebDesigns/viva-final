@@ -10,6 +10,7 @@ import type {
   LocalVisibilityReportLibrary,
   LocalVisibilityReportSummary,
 } from "@shared/localVisibility";
+import { formatLocalVisibilityAveragePosition } from "@shared/localVisibility";
 
 export type ReportViewer = {
   id: string;
@@ -49,7 +50,7 @@ type ReportRow = {
   radius: string | null;
   gridSize: string | null;
   scanDate: Date;
-  averagePosition: string;
+  averagePosition: string | null;
   reportUrl: string | null;
   snapshotStorageKey: string | null;
 };
@@ -66,7 +67,7 @@ function summarizeReport(row: ReportRow): LocalVisibilityReportSummary {
     radius: row.radius ?? "",
     gridSize: row.gridSize ?? "",
     scanDate: row.scanDate.toISOString(),
-    averagePosition: row.averagePosition,
+    averagePosition: formatLocalVisibilityAveragePosition(row.averagePosition),
     reportUrl: row.reportUrl,
     hasSnapshot: Boolean(row.snapshotStorageKey),
   };
@@ -86,7 +87,7 @@ const reportSelection = {
   radius: sql<string>`coalesce(${localFalconProspectProfiles.scanRadiusMiles}, ${localFalconImportBatches.radiusMiles})`,
   gridSize: sql<string>`coalesce(${localFalconProspectProfiles.scanGridSize}, ${localFalconImportBatches.gridSize})`,
   scanDate: localFalconProspectProfiles.scanDate,
-  averagePosition: localFalconProspectProfiles.arp,
+  averagePosition: localFalconProspectProfiles.atrp,
   reportUrl: localFalconProspectProfiles.reportUrl,
   snapshotStorageKey: localFalconProspectProfiles.snapshotStorageKey,
 };

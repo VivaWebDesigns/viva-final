@@ -58,8 +58,8 @@ const EXTRACTION_INSTRUCTIONS = `You extract Local Falcon scan data for a local 
 You will receive exactly two numbered screenshots. One is normally a compact "Scan Report" summary and the other is the ranking heatmap. Identify their zero-based image indexes and extract fields only from visible evidence.
 
 Rules:
-- averagePosition must come from ARP (Average Rank Position). Never use ATRP or SoLV.
-- Preserve every visible ARP decimal digit exactly; for example, return 3.08 as "3.08", never "3.0".
+- averagePosition must come from ATRP (Average Total Rank Position), covering all scanned points. Never use visible-only ARP or SoLV. If ATRP is absent, return null and flag averagePosition for review.
+- Preserve every visible ATRP decimal digit exactly; for example, return 20.63 as "20.63", never "20.6".
 - Ignore square-mile coverage entirely.
 - gridSize must use the format "N × N".
 - radius must contain only the numeric mile value, with no unit.
@@ -93,10 +93,10 @@ function normalizeAveragePosition(value: string | null): string | null {
   return Number.isFinite(numeric) && numeric > 0 && numeric <= 30 ? normalized : null;
 }
 
-function extractLabeledArp(text: string): string | null {
+function extractLabeledAtrp(text: string): string | null {
   return normalizeAveragePosition(matchValue(
     text,
-    /(?:^|\s)ARP\b[^0-9]{0,14}([0-9]{1,2}(?:\s*[.,]\s*[0-9](?:\s*[0-9])?)?)\b/i,
+    /(?:^|\s)ATRP\b[^0-9]{0,14}([0-9]{1,2}(?:\s*[.,]\s*[0-9](?:\s*[0-9])?)?)\b/i,
   ));
 }
 
@@ -127,7 +127,7 @@ function reportLikelihood(text: string): number {
 export function parseVisibilityScanText(
   text: string,
   metricText = "",
-  arpTileText = "",
+  metricTileText = "",
 ): Pick<VisibilityScreenshotAnalysis, "fields" | "lowConfidenceFields"> {
   const lines = text.split(/\r?\n/).map(cleanOcrLine).filter(Boolean);
   const joined = lines.join("\n");
@@ -148,12 +148,8 @@ export function parseVisibilityScanText(
   const ratingReviewMatch = joined.match(/(?:^|\n)\s*([0-5](?:\.\d)?)\s+[^\n]*?\((\d{1,6})\)/m);
   const compactRatingReviewMatch = joined.match(/(?:^|\n)\s*([0-5])\s*([0-9])\s+[^\n]*?\((\d{1,6})\)/m);
   const independentReviewMatch = joined.match(/[\[(]\s*(\d{1,6})(?:\s*(?:\)|\]))?/m);
-  const labeledAveragePosition = extractLabeledArp(`${joined}\n${metricText}\n${arpTileText}`);
-  const tileAveragePosition = normalizeAveragePosition(matchValue(
-    arpTileText,
-    /\b([0-9]{1,2}\s*[.,]\s*[0-9](?:\s*[0-9])?)\b/,
-  ));
-  const averagePosition = labeledAveragePosition || tileAveragePosition;
+  // Never infer the metric from an unlabeled tile: that tile can contain ARP.
+  const averagePosition = extractLabeledAtrp(`${joined}\n${metricText}\n${metricTileText}`);
   const gridMatch = joined.match(/(\d+)\s*[x×]\s*(\d+)\s*grid/i);
   const radius = matchValue(joined, /(?:a|an)?\s*([0-9]+(?:\.\d+)?)\s*mi(?:le)?\s*radius/i);
   const marketMatch = address?.match(/,\s*([^,]+),\s*([A-Z]{2})\s*\d{5}(?:-\d{4})?$/i);
@@ -174,7 +170,7 @@ export function parseVisibilityScanText(
   const lowConfidenceFields: VisibilityScreenshotAnalysis["lowConfidenceFields"] = [];
   if (businessName) lowConfidenceFields.push("businessName");
   if (market) lowConfidenceFields.push("market");
-  if (!labeledAveragePosition && tileAveragePosition) lowConfidenceFields.push("averagePosition");
+  if (!averagePosition) lowConfidenceFields.push("averagePosition");
   return { fields, lowConfidenceFields };
 }
 
@@ -206,8 +202,7 @@ async function recognizeReportDetails(
   const businessText = await recognizeCrop(0, 0.36, 1, 0.36);
   const ratingText = await recognizeCrop(0.14, 0.42, 0.58, 0.24);
   const metricText = await recognizeCrop(0.12, 0.67, 0.72, 0.2);
-  const arpTileText = await recognizeCrop(0.275, 0.7, 0.12, 0.115);
-  return parseVisibilityScanText(`${fullText}\n${businessText}\n${ratingText}`, metricText, arpTileText);
+  return parseVisibilityScanText(`${fullText}\n${businessText}\n${ratingText}`, metricText);
 }
 
 async function analyzeWithLocalOcr(

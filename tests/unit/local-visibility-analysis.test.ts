@@ -55,7 +55,7 @@ describe("local visibility screenshot analysis", () => {
     expect(Buffer.from(result.heatmapImageDataUrl!.split(",")[1], "base64")).toEqual(heatmap);
   });
 
-  it("parses the visible Local Falcon summary fields and uses ARP", () => {
+  it("parses the visible Local Falcon summary fields and uses ATRP, not ARP", () => {
     const result = parseVisibilityScanText(`
       Scan Report
       Searching "frameless shower glass near me" on Google Maps for:
@@ -71,13 +71,13 @@ describe("local visibility screenshot analysis", () => {
       rating: "5.0",
       reviewCount: "40",
       market: "Charlotte, NC",
-      averagePosition: "3.96",
+      averagePosition: "7.25",
       gridSize: "7 × 7",
       radius: "8.0",
     });
   });
 
-  it("extracts reviews independently and never substitutes SoLV for ARP", () => {
+  it("extracts reviews independently and never substitutes ARP or SoLV for ATRP", () => {
     const result = parseVisibilityScanText(
       `
         Scan Report
@@ -101,13 +101,13 @@ describe("local visibility screenshot analysis", () => {
     });
   });
 
-  it("preserves both ARP decimal digits when OCR spaces them apart", () => {
+  it("preserves both ATRP decimal digits when OCR spaces them apart", () => {
     const result = parseVisibilityScanText(
       "Scan Report\nCarolina Custom Automation",
-      "ARP 3.0 8   ATRP 5.12   SoLV 64.20",
+      "ARP 3.08   ATRP 5.1 2   SoLV 64.20",
     );
 
-    expect(result.fields.averagePosition).toBe("3.08");
+    expect(result.fields.averagePosition).toBe("5.12");
   });
 
   it("leaves average position blank when only SoLV is visible", () => {
@@ -119,11 +119,11 @@ describe("local visibility screenshot analysis", () => {
     expect(result.fields.averagePosition).toBeNull();
   });
 
-  it("rejects a partial integer from the dedicated ARP crop", () => {
+  it("never substitutes a visible ARP or an unlabeled crop when ATRP is absent", () => {
     const result = parseVisibilityScanText(
       "Scan Report\nCarolina Custom Automation\nSoLV 89.80",
-      "ATRP 1.71 SoLV 89.80",
-      "7",
+      "ARP 3.00 SoLV 2.04",
+      "3.00",
     );
 
     expect(result.fields.averagePosition).toBeNull();

@@ -34,6 +34,7 @@ import {
   formatLocalVisibilityReportAddress,
   getLocalFalconMapPresentation,
 } from "@shared/localVisibility";
+import { hydrateReportAtrp } from "../local-visibility/metrics";
 import {
   LOCAL_FALCON_LEAD_CLASSIFICATION_VALUES,
   type LocalFalconLeadClassification,
@@ -440,6 +441,7 @@ router.post(
     try {
       const { primary, supplemental } = packageFiles(req);
       const parsedPackage = await parseLocalFalconPackage(primary, supplemental, fetch);
+      await hydrateReportAtrp(parsedPackage.payload.prospects);
       const preview = await previewLocalFalconImport(parsedPackage.payload);
       res.json({
         ...preview,
@@ -470,7 +472,7 @@ router.post(
               market: prospect.scan_center
                 ? `${prospect.scan_center.city}, ${prospect.scan_center.state}`
                 : `${parsedPackage.payload.batch.market.city}, ${parsedPackage.payload.batch.market.state}`,
-              averagePosition: formatLocalVisibilityAveragePosition(prospect.arp),
+              averagePosition: formatLocalVisibilityAveragePosition(prospect.atrp),
               gridSize: getProspectScanSpec(parsedPackage.payload, prospect).grid_size,
               radius: String(getProspectScanSpec(parsedPackage.payload, prospect).radius_miles),
               heatmapImageUrl: heatmap.previewDataUrl,
@@ -491,6 +493,9 @@ router.post(
   async (req, res) => {
     const uploadedKeys: string[] = [];
     try {
+      if (req.body.reportMetric !== "ATRP") {
+        return res.status(409).json({ message: "Reload and review the import using the all-point ATRP report before confirming." });
+      }
       const assignedTo = z.string().optional().default("").parse(req.body.assignedTo);
       const leadClassification = z.enum(LOCAL_FALCON_LEAD_CLASSIFICATION_VALUES).parse(
         req.body.leadClassification,
@@ -503,6 +508,7 @@ router.post(
 
       const { primary, supplemental } = packageFiles(req);
       const parsedPackage = await parseLocalFalconPackage(primary, supplemental, fetch);
+      await hydrateReportAtrp(parsedPackage.payload.prospects);
       const preview = await previewLocalFalconImport(parsedPackage.payload);
       const approvedFlaggedSet = new Set(approvedFlagged);
       const selectedRows = preview.rows.filter(
