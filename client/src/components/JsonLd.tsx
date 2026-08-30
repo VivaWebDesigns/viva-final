@@ -8,7 +8,7 @@ export const vivaOrganizationSchema = {
   description:
     "Digital marketing agency for contractors. Professional websites, local SEO, and Google positioning.",
   url: "https://vivawebdesigns.com",
-  telephone: "+1-980-475-4924",
+  telephone: "+1-704-222-7067",
   email: "matt@vivawebdesigns.com",
   image: "https://vivawebdesigns.com/logo.png",
   address: {

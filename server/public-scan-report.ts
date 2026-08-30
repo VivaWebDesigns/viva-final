@@ -200,7 +200,7 @@ export function buildScanReportLandingPage(input: {
     </style>
   </head>
   <body>
-    <header class="topbar"><div class="shell topbar-inner"><a class="brand" href="/">V<span>I</span>VA Web Designs</a><a class="top-link" href="tel:+19804754924">(980) 475-4924</a></div></header>
+    <header class="topbar"><div class="shell topbar-inner"><a class="brand" href="/">V<span>I</span>VA Web Designs</a><a class="top-link" href="tel:+17042227067">(704) 222-7067</a></div></header>
     <main class="shell">
       <section class="intro">
         <p class="eyebrow">Your Local Visibility Snapshot</p>
