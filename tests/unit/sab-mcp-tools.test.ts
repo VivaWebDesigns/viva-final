@@ -47,6 +47,11 @@ describe("SAB MCP tool discovery", () => {
         "reconcile_sab_scan_history",
       );
       expect(tools.map((tool) => tool.name)).toContain("run_sab_scan_once");
+      for (const name of ["save_sab_company", "save_sab_scan_result"]) {
+        const tool = tools.find((candidate) => candidate.name === name)!;
+        expect(JSON.stringify(tool.inputSchema)).toContain("ranked_peak_recentered");
+        expect(JSON.stringify(tool.inputSchema)).toContain("does not authorize a scan");
+      }
       expect(tools[0]).toMatchObject({
         _meta: {
           securitySchemes: [
@@ -102,6 +107,10 @@ describe("SAB MCP tool discovery", () => {
       expect(schema.scale_first_upgradeable_headers).toEqual([
         "workflow",
         "contact_tag",
+      ]);
+      expect(schema.center_types).toEqual([
+        "weighted_cell_centroid", "corroborated_address", "scout_recentered",
+        "fine_scan_recentered", "ranked_peak_recentered",
       ]);
     } finally {
       await client.close();

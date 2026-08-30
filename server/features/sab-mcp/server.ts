@@ -34,6 +34,8 @@ import {
   reconcileSabScanHistoryInputSchema,
   runSabScanOnceInputSchema,
   SAB_HEADERS,
+  SAB_CENTER_TYPES,
+  SAB_RANKED_PEAK_CENTER_DESCRIPTION,
   SAB_LEGACY_REQUIRED_HEADERS,
   SAB_QUALIFICATION_STATUSES,
   SAB_SCALE_FIRST_UPGRADEABLE_HEADERS,
@@ -96,14 +98,14 @@ export function createSabMcpServer(
 ) {
   const server = new McpServer({
     name: "viva-sab-workflow",
-    version: "1.11.1",
+    version: "1.11.2",
   });
 
   server.registerTool(
     "get_sab_schema",
     sabTool({
       description:
-        "Return the complete canonical Workflow Sheet headers, the legacy/base headers required to read an existing Sheet, the upgradeable Scale-First headers, and allowed statuses.",
+        "Return the complete canonical Workflow Sheet headers, the legacy/base headers required to read an existing Sheet, the upgradeable Scale-First headers, allowed statuses, and center types.",
       inputSchema: {},
     }),
     async () => {
@@ -115,6 +117,8 @@ export function createSabMcpServer(
         scale_first_upgradeable_headers: SAB_SCALE_FIRST_UPGRADEABLE_HEADERS,
         statuses: SAB_STATUSES,
         qualification_statuses: SAB_QUALIFICATION_STATUSES,
+        center_types: SAB_CENTER_TYPES,
+        ranked_peak_center_description: SAB_RANKED_PEAK_CENTER_DESCRIPTION,
       });
     },
   );

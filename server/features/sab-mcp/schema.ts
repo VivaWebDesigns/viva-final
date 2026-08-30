@@ -26,7 +26,11 @@ export const SAB_CENTER_TYPES = [
   "corroborated_address",
   "scout_recentered",
   "fine_scan_recentered",
+  "ranked_peak_recentered",
 ] as const;
+
+export const SAB_RANKED_PEAK_CENTER_DESCRIPTION =
+  "ranked_peak_recentered: a center selected from the exact best-ranked pin or qualifying compact peak cluster of a completed scan, rather than from the whole-field weighted centroid. Record the source report and peak evidence in research_notes; this label does not authorize a scan or extra recenter.";
 
 export const SAB_HEADERS = [
   "batch_id",
@@ -200,7 +204,7 @@ export const sabCompanyUpdatesSchema = z
       .nullable()
       .optional()
       .describe(
-        "Planned pre-scan center type. Supply scan_center in the same call. Uses the same enum as save_sab_scan_result.",
+        `Center type. Supply scan_center in the same call. Uses the same enum as save_sab_scan_result. ${SAB_RANKED_PEAK_CENTER_DESCRIPTION}`,
       ),
     blocker: nullableString.optional(),
     research_notes: nullableString
@@ -254,7 +258,7 @@ export const sabScanResultSchema = z
     scan_center: sabScanCenterString.optional(),
     report_key: z.string().trim().min(1).max(1_000),
     report_url: z.string().trim().url().max(2_000),
-    center_type: z.enum(SAB_CENTER_TYPES).optional(),
+    center_type: z.enum(SAB_CENTER_TYPES).optional().describe(SAB_RANKED_PEAK_CENTER_DESCRIPTION),
     scan_date: z.string().trim().min(1).max(100),
     scan_keyword: z.string().trim().min(1).max(500),
     notes: nullableString.optional(),

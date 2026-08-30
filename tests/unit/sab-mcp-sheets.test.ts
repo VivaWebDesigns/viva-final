@@ -6,6 +6,7 @@ import {
   SAB_SCALE_FIRST_UPGRADEABLE_HEADERS,
   sabCompanyUpdatesSchema,
   sabScanResultSchema,
+  sabWorkflowRowSchema,
 } from "../../server/features/sab-mcp/schema";
 import {
   GoogleSheetsValuesClient,
@@ -151,6 +152,58 @@ function valuesForHeaders(headers: readonly string[], rows: string[][]) {
 }
 
 describe("SabSheetsRepository", () => {
+  it("accepts ranked-peak centers across both writers and workflow row validation", () => {
+    const pair = { scan_center: "34.998114639235,-80.561507914342", center_type: "ranked_peak_recentered" };
+    expect(sabCompanyUpdatesSchema.parse(pair)).toEqual(pair);
+    expect(sabScanResultSchema.parse({
+      ...pair, scan_role: "deliverable", scan_type: "recenter", arp: 17.55, solv: 0,
+      report_key: "c6af45b39fd0bfd", report_url: "https://example.com/report",
+      scan_date: "2026-08-30", scan_keyword: "deck builder near me",
+    })).toMatchObject(pair);
+    expect(sabWorkflowRowSchema.parse({
+      ...pair, batch_id: "B01", batch_position: 1, company: "Example", place_id: "place-1",
+    })).toMatchObject(pair);
+    expect(() => sabCompanyUpdatesSchema.parse({ center_type: pair.center_type })).toThrow(/supplied together/);
+    expect(() => sabCompanyUpdatesSchema.parse({ ...pair, center_type: null })).toThrow(/both be values or both be null/);
+    expect(() => sabCompanyUpdatesSchema.parse({ ...pair, center_type: "deliverable_recentered" })).toThrow();
+  });
+
+  it("corrects a stale center type without changing coordinates, metrics, or scan history", async () => {
+    const history = [{ report_key: "c6af45b39fd0bfd", center_type: "scout_recentered", notes: "Original record preserved" }];
+    const { repository } = buildRepository([row({
+      scan_center: "34.998114639235,-80.561507914342", center_type: "scout_recentered",
+      report_key: "c6af45b39fd0bfd", arp: "17.55", solv: "0", found_in: "20",
+      scan_history: JSON.stringify(history), status: "qa_ready",
+      research_notes: "Authorized second recenter to the best-ranked pin (3,2) of completed deliverable f9aa0fea8eccc42. Rank 8. Existing center unchanged.",
+    })]);
+    const before = await repository.getCompany("place-1");
+    await repository.saveCompany("place-1", sabCompanyUpdatesSchema.parse({
+      scan_center: before.scan_center, center_type: "ranked_peak_recentered",
+    }), "matt@vivawebdesigns.com");
+    const after = await repository.getCompany("place-1");
+    expect(after).toMatchObject({
+      ...before, center_type: "ranked_peak_recentered",
+      updated_at: expect.any(String), updated_by: "matt@vivawebdesigns.com",
+    });
+    expect(after.scan_history).toEqual(history);
+  });
+
+  it("preserves a ranked-peak plan when saving its deliverable result", async () => {
+    const pair = { scan_center: "34.998114639235,-80.561507914342", center_type: "ranked_peak_recentered" as const };
+    const { repository } = buildRepository([row({ ...pair, research_notes: "Completed scan peak selected under Matt's ruling." })]);
+    await repository.saveScanResult("place-1", sabScanResultSchema.parse({
+      ...pair, scan_role: "deliverable", scan_type: "recenter", arp: 17.55, solv: 0,
+      report_key: "c6af45b39fd0bfd", report_url: "https://example.com/report",
+      scan_date: "2026-08-30", scan_keyword: "deck builder near me",
+    }), "matt@vivawebdesigns.com");
+    const saved = await repository.getCompany("place-1");
+    expect(saved).toMatchObject(pair);
+    expect(saved.scan_history).toEqual([
+      expect.objectContaining({ ...pair, record_type: "center_plan", disposition: "confirmed_by_scan" }),
+      expect.objectContaining({ ...pair, report_key: "c6af45b39fd0bfd" }),
+    ]);
+  });
+
   it("accepts an explicit null qualification status for clearing a premature disposition", () => {
     expect(
       sabCompanyUpdatesSchema.parse({ qualification_status: null }),
