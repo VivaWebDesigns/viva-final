@@ -34,6 +34,7 @@ interface LeadFilters extends PaginationParams {
   source?: string;
   assignedTo?: string;
   tagId?: string;
+  tagIds?: string[];
   fromWebsiteForm?: boolean;
 }
 
@@ -42,7 +43,7 @@ interface SearchParams extends PaginationParams {
 }
 
 export async function getLeads(filters: LeadFilters = {}) {
-  const { search, statusId, source, assignedTo, tagId, fromWebsiteForm, page = 1, limit = 50 } = filters;
+  const { search, statusId, source, assignedTo, tagId, tagIds = [], fromWebsiteForm, page = 1, limit = 50 } = filters;
   const offset = (page - 1) * limit;
   const conditions = [];
 
@@ -56,12 +57,13 @@ export async function getLeads(filters: LeadFilters = {}) {
   }
   if (statusId) conditions.push(eq(crmLeads.statusId, statusId));
   if (source) conditions.push(eq(crmLeads.source, source));
-  if (tagId) {
+  // Keep the legacy single-tag filter, and require every selected tag (AND).
+  for (const selectedTagId of new Set([...tagIds, ...(tagId ? [tagId] : [])])) {
     conditions.push(inArray(
       crmLeads.id,
       db.select({ leadId: crmLeadTags.leadId })
         .from(crmLeadTags)
-        .where(eq(crmLeadTags.tagId, tagId)),
+        .where(eq(crmLeadTags.tagId, selectedTagId)),
     ));
   }
   if (assignedTo === "__unassigned__") {

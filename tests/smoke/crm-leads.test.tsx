@@ -31,16 +31,17 @@ describe("CRM LeadListPage smoke", () => {
   });
 
   it("shows trade and city with company fallbacks", async () => {
-    let requestedTagId: string | null = null;
+    let requestedTagIds: string[] = [];
     let requestedLimit: string | null = null;
     server.use(
       http.get("/api/crm/leads/assignable-users", () => HttpResponse.json([])),
       http.get("/api/crm/tags", () => HttpResponse.json([
         { id: "tag-sab", name: "SAB", slug: "sab", color: "#7C3AED" },
+        { id: "tag-email", name: "Email Ready", slug: "email-ready", color: "#16A34A" },
       ])),
       http.get("/api/crm/leads", ({ request }) => {
         const searchParams = new URL(request.url).searchParams;
-        requestedTagId = searchParams.get("tagId");
+        requestedTagIds = searchParams.getAll("tagIds");
         requestedLimit = searchParams.get("limit");
         return HttpResponse.json({
           leads: [{
@@ -93,8 +94,18 @@ describe("CRM LeadListPage smoke", () => {
     expect(screen.getByTestId("select-tag-filter")).toBeInTheDocument();
     expect(requestedLimit).toBe("100");
 
-    fireEvent.click(screen.getByTestId("select-tag-filter"));
-    fireEvent.click(await screen.findByRole("option", { name: "SAB" }));
-    await waitFor(() => expect(requestedTagId).toBe("tag-sab"));
+    fireEvent.pointerDown(screen.getByTestId("select-tag-filter"), { button: 0, ctrlKey: false });
+    fireEvent.click(await screen.findByRole("menuitemcheckbox", { name: "SAB" }));
+    await waitFor(() => expect(requestedTagIds).toEqual(["tag-sab"]));
+    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: "Email Ready" }));
+    await waitFor(() => expect(requestedTagIds).toEqual(["tag-email", "tag-sab"]));
+    expect(screen.getByRole("menuitemcheckbox", { name: "SAB" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("menuitemcheckbox", { name: "Email Ready" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByTestId("select-tag-filter")).toHaveTextContent("SAB + Email Ready");
+    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: "SAB" }));
+    await waitFor(() => expect(requestedTagIds).toEqual(["tag-email"]));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Clear tag filters" }));
+    await waitFor(() => expect(requestedTagIds).toEqual([]));
+    expect(screen.getByTestId("select-tag-filter")).toHaveTextContent("All tags");
   });
 });

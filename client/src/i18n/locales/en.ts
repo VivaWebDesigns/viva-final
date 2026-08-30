@@ -160,6 +160,8 @@ export const en = {
     allStatuses: "All statuses",
     allSources: "All sources",
     allTags: "All tags",
+    matchAllTags: "Match all selected tags",
+    clearTagFilters: "Clear tag filters",
     source: "Source",
     status: "Status",
     assigned: "Assigned",

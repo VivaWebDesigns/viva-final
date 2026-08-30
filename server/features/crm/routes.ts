@@ -202,7 +202,12 @@ async function assertLeadAccess(
 
 router.get("/leads", requireRole("admin", "developer", "sales_rep", "lead_gen"), async (req, res) => {
   try {
-    const { search, statusId, source, assignedTo, tagId, fromWebsiteForm, page, limit } = req.query;
+    const { search, statusId, source, assignedTo, tagId, tagIds, fromWebsiteForm, page, limit } = req.query;
+    const parsedTags = z.object({
+      tagId: z.string().min(1).optional(),
+      tagIds: z.union([z.string().min(1), z.array(z.string().min(1)).max(100)]).optional(),
+    }).safeParse({ tagId, tagIds });
+    if (!parsedTags.success) return res.status(400).json({ message: "Invalid tag filters" });
     // Restricted roles can only see their own leads — ignore any client-supplied filter.
     const resolvedAssignedTo = isRestricted(req)
       ? req.authUser!.id
@@ -212,7 +217,8 @@ router.get("/leads", requireRole("admin", "developer", "sales_rep", "lead_gen"),
       statusId: statusId as string | undefined,
       source: source as string | undefined,
       assignedTo: resolvedAssignedTo,
-      tagId: tagId as string | undefined,
+      tagId: parsedTags.data.tagId,
+      tagIds: typeof parsedTags.data.tagIds === "string" ? [parsedTags.data.tagIds] : parsedTags.data.tagIds,
       fromWebsiteForm: fromWebsiteForm === "true" ? true : fromWebsiteForm === "false" ? false : undefined,
       page: page ? parseInt(page as string, 10) : undefined,
       limit: limit ? parseInt(limit as string, 10) : undefined,

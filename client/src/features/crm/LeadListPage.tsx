@@ -5,7 +5,7 @@ import { STALE, queryClient, apiRequest } from "@/lib/queryClient";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Search, ChevronLeft, ChevronRight, Globe, Phone, Mail,
+  Search, ChevronDown, ChevronLeft, ChevronRight, Globe, Phone, Mail,
   X, Trash2, UserCheck, CircleDot, Tag, Tags, AlertTriangle, Users, Upload, UserPlus, UserCircle, MapPin,
 } from "lucide-react";
 import { CsvImportModal, CsvExportDropdown } from "./CsvImportExportModal";
@@ -18,6 +18,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
+  DropdownMenuCheckboxItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
@@ -69,7 +73,7 @@ export default function LeadListPage() {
   const search = useDebounce(rawSearch, 300);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
-  const [tagFilter, setTagFilter] = useState<string>("all");
+  const [tagFilters, setTagFilters] = useState<string[]>([]);
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
   const [page, setPage] = useState(1);
   useEffect(() => { setPage(1); }, [search]);
@@ -100,7 +104,7 @@ export default function LeadListPage() {
   });
 
   const { data: leadsData, isLoading } = useQuery<LeadsResponse>({
-    queryKey: ["/api/crm/leads", search, statusFilter, sourceFilter, assigneeFilter, tagFilter, page],
+    queryKey: ["/api/crm/leads", search, statusFilter, sourceFilter, assigneeFilter, tagFilters, page],
     staleTime: STALE.FAST,
     refetchOnWindowFocus: true,
     queryFn: async () => {
@@ -108,7 +112,7 @@ export default function LeadListPage() {
       if (search) params.set("search", search);
       if (statusFilter && statusFilter !== "all") params.set("statusId", statusFilter);
       if (sourceFilter && sourceFilter !== "all") params.set("source", sourceFilter);
-      if (tagFilter && tagFilter !== "all") params.set("tagId", tagFilter);
+      tagFilters.forEach((id) => params.append("tagIds", id));
       if (assigneeFilter && assigneeFilter !== "all") params.set("assignedTo", assigneeFilter);
       params.set("page", String(page));
       params.set("limit", String(pageSize));
@@ -376,17 +380,36 @@ export default function LeadListPage() {
               <SelectItem value="other">Other</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={tagFilter} onValueChange={(v) => { setTagFilter(v); setPage(1); }}>
-            <SelectTrigger className="w-full lg:w-44" data-testid="select-tag-filter">
-              <SelectValue placeholder={t.crm.allTags} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t.crm.allTags}</SelectItem>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="w-full lg:w-60 justify-between font-normal" data-testid="select-tag-filter">
+                <span className="truncate">
+                  {tagFilters.length ? allTags.filter((tag) => tagFilters.includes(tag.id)).map((tag) => tag.name).join(" + ") : t.crm.allTags}
+                </span>
+                <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-60">
+              <DropdownMenuLabel>{t.crm.matchAllTags}</DropdownMenuLabel>
+              <DropdownMenuSeparator />
               {allTags.map((tag) => (
-                <SelectItem key={tag.id} value={tag.id}>{tag.name}</SelectItem>
+                <DropdownMenuCheckboxItem
+                  key={tag.id}
+                  checked={tagFilters.includes(tag.id)}
+                  onSelect={(event) => event.preventDefault()}
+                  onCheckedChange={(checked) => {
+                    setTagFilters((current) => checked ? [...new Set([...current, tag.id])].sort() : current.filter((id) => id !== tag.id));
+                    setPage(1);
+                    setSelectedIds(new Set());
+                  }}
+                >{tag.name}</DropdownMenuCheckboxItem>
               ))}
-            </SelectContent>
-          </Select>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem disabled={!tagFilters.length} onSelect={() => { setTagFilters([]); setPage(1); setSelectedIds(new Set()); }}>
+                {t.crm.clearTagFilters}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </Card>
 

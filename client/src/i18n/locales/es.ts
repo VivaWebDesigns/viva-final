@@ -162,6 +162,8 @@ export const es: AdminTranslations = {
     allStatuses: "Todos los estados",
     allSources: "Todas las fuentes",
     allTags: "Todas las etiquetas",
+    matchAllTags: "Coincidir con todas las etiquetas",
+    clearTagFilters: "Borrar filtros de etiquetas",
     source: "Fuente",
     status: "Estado",
     assigned: "Asignado",
