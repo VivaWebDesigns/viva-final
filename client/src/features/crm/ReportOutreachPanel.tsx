@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import CompleteTaskModal from "@/components/CompleteTaskModal";
-import { REPORT_DISPOSITION_LABELS } from "@shared/reportOutreach";
+import { REPORT_DISPOSITION_LABELS, REPORT_OUTREACH_SEGMENT_LABELS, type ReportOutreachSegment } from "@shared/reportOutreach";
 import type { FollowupTask } from "@shared/schema";
 
 export function ReportOutreachPanel({ leadId }: { leadId: string }) {
@@ -11,6 +11,8 @@ export function ReportOutreachPanel({ leadId }: { leadId: string }) {
   const { data, error } = useQuery<{
     sentCount: number; lastSentAt: string | null; disposition: string | null;
     pending: boolean; task: FollowupTask | null; blockedReason: string | null;
+    viewCount: number; ctaClickCount: number; lastEngagedAt: string | null;
+    segment: ReportOutreachSegment; needsAttention: boolean;
   }>({ queryKey: [`/api/crm/leads/${leadId}/report-outreach`], refetchInterval: query => query.state.data?.pending ? 2000 : 30000 });
   const previous = useRef<string>();
   useEffect(() => {
@@ -30,6 +32,11 @@ export function ReportOutreachPanel({ leadId }: { leadId: string }) {
     <p className="font-semibold">Report outreach · {data.sentCount > 2 ? `${data.sentCount} historical sends (limit: 2)` : `${data.sentCount} of 2 sent`}{data.pending ? " · Email queued" : ""}</p>
     {data.lastSentAt && <p>Last sent: {new Date(data.lastSentAt).toLocaleString()}</p>}
     <p>{data.disposition ? REPORT_DISPOSITION_LABELS[data.disposition] ?? data.disposition : "Send the first report to start outreach."}</p>
+    {data.sentCount > 0 && <p className={`mt-1 font-medium ${data.segment === "engaged" ? "text-amber-800" : "text-slate-700"}`}>
+      {REPORT_OUTREACH_SEGMENT_LABELS[data.segment]}
+      {data.viewCount > 0 ? ` · ${data.viewCount} report view${data.viewCount === 1 ? "" : "s"}` : ""}
+      {data.ctaClickCount > 0 ? ` · ${data.ctaClickCount} action click${data.ctaClickCount === 1 ? "" : "s"}` : ""}
+    </p>}
     {data.task && !data.task.completed && <p className="mt-1">Next: {data.task.title} · Due {new Date(data.task.dueDate).toLocaleDateString("en-US", { timeZone: "UTC" })}</p>}
     <p className="mt-1 text-slate-600">Check your inbox before following up. Replies and opt-outs must be recorded here; inbox replies are not detected automatically.</p>
     {data.task && <Button className="mt-2" size="sm" variant="outline" onClick={() => setCompleting(true)}>Record reply / outreach outcome</Button>}

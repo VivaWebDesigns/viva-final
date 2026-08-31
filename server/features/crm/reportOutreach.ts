@@ -4,7 +4,8 @@ import {
   crmLeads, crmLeadNotes, followupTasks, pipelineOpportunities, pipelineStages,
   pipelineActivities, scanReportDeliveries, type FollowupTask,
 } from "@shared/schema";
-import { reportBusinessDate, REPORT_OUTREACH_TASKS, REPORT_OUTREACH_OUTCOMES } from "@shared/reportOutreach";
+import { classifyReportOutreach, reportBusinessDate, REPORT_OUTREACH_TASKS, REPORT_OUTREACH_OUTCOMES,
+  type ReportOutreachSegment } from "@shared/reportOutreach";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -12,22 +13,35 @@ export interface ReportOutreachState {
   reportEmailCount: number;
   lastReportEmailedAt: Date | null;
   reportOutreachDisposition: string | null;
+  reportViewCount: number;
+  reportCtaClickCount: number;
+  reportLastEngagedAt: Date | null;
+  reportNextTaskDueAt: Date | null;
+  reportOutreachSegment: ReportOutreachSegment;
+  reportNeedsAttention: boolean;
 }
 
 /** Uses existing delivery + activity records; no parallel counters to drift or migrate. */
-export async function getReportOutreachStates(leadIds: string[], executor: Tx | typeof db = db): Promise<Map<string, ReportOutreachState>> {
+export async function getReportOutreachStates(leadIds: string[], executor: Tx | typeof db = db, includeTasks = false): Promise<Map<string, ReportOutreachState>> {
   const states = new Map<string, ReportOutreachState>(leadIds.map(id => [id, {
     reportEmailCount: 0, lastReportEmailedAt: null, reportOutreachDisposition: null,
+    reportViewCount: 0, reportCtaClickCount: 0, reportLastEngagedAt: null, reportNextTaskDueAt: null,
+    reportOutreachSegment: "not_started", reportNeedsAttention: false,
   }]));
   if (!leadIds.length) return states;
   const deliveries = await executor.select({
     leadId: scanReportDeliveries.leadId,
     count: sql<number>`count(*)::int`,
     lastSentAt: sql<string>`max(${scanReportDeliveries.sentAt})`,
+    viewCount: sql<number>`coalesce(sum(${scanReportDeliveries.viewCount}), 0)::int`,
+    ctaClickCount: sql<number>`coalesce(sum(${scanReportDeliveries.ctaClickCount}), 0)::int`,
+    lastEngagedAt: sql<string | null>`max(greatest(${scanReportDeliveries.lastViewedAt}, ${scanReportDeliveries.lastCtaClickedAt}))`,
   }).from(scanReportDeliveries).where(and(inArray(scanReportDeliveries.leadId, leadIds), isNotNull(scanReportDeliveries.sentAt)))
     .groupBy(scanReportDeliveries.leadId);
   for (const row of deliveries) states.set(row.leadId, {
-    reportEmailCount: row.count, lastReportEmailedAt: new Date(row.lastSentAt), reportOutreachDisposition: "active",
+    ...states.get(row.leadId)!, reportEmailCount: row.count, lastReportEmailedAt: new Date(row.lastSentAt),
+    reportOutreachDisposition: "active", reportViewCount: row.viewCount, reportCtaClickCount: row.ctaClickCount,
+    reportLastEngagedAt: row.lastEngagedAt ? new Date(row.lastEngagedAt) : null,
   });
   const notes = await executor.select({ leadId: crmLeadNotes.leadId, metadata: crmLeadNotes.metadata }).from(crmLeadNotes)
     .where(and(inArray(crmLeadNotes.leadId, leadIds), sql`${crmLeadNotes.metadata}->>'reportOutreachDisposition' is not null`))
@@ -37,6 +51,19 @@ export async function getReportOutreachStates(leadIds: string[], executor: Tx | 
     if (seen.has(note.leadId)) continue;
     seen.add(note.leadId);
     states.get(note.leadId)!.reportOutreachDisposition = (note.metadata as { reportOutreachDisposition: string }).reportOutreachDisposition;
+  }
+  if (includeTasks) {
+    const tasks = await executor.select({ leadId: followupTasks.leadId, dueDate: followupTasks.dueDate })
+      .from(followupTasks).where(and(inArray(followupTasks.leadId, leadIds), eq(followupTasks.completed, false),
+        inArray(followupTasks.taskType, [...REPORT_OUTREACH_TASKS]))).orderBy(followupTasks.dueDate);
+    for (const task of tasks) {
+      if (task.leadId && !states.get(task.leadId)!.reportNextTaskDueAt) states.get(task.leadId)!.reportNextTaskDueAt = task.dueDate;
+    }
+  }
+  for (const state of states.values()) {
+    const classified = classifyReportOutreach(state);
+    state.reportOutreachSegment = classified.segment;
+    state.reportNeedsAttention = classified.needsAttention;
   }
   return states;
 }
@@ -147,7 +174,7 @@ export async function recordReportEmailSent(deliveryId: string, now = new Date()
         ? "Check your inbox first. If there is no reply, open this lead and use Email Report to send email 2 of 2. Successful sending completes this task automatically. Do not resend after an opt-out or bounce."
         : "Check your inbox before completing. If unanswered after five business days, choose No response to pause outreach. Do not send a third email.",
       taskType: count === 1 ? "report_email_followup" : "report_email_review",
-      dueDate: reportBusinessDate(now, count === 1 ? 3 : 5),
+      dueDate: reportBusinessDate(now, count === 1 ? 7 : 5),
       leadId: lead.id, opportunityId: opportunity.id, companyId: lead.companyId,
       contactId: lead.contactId, assignedTo: opportunity.assignedTo ?? lead.assignedTo,
     });

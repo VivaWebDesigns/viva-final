@@ -108,4 +108,28 @@ describe("CRM LeadListPage smoke", () => {
     await waitFor(() => expect(requestedTagIds).toEqual([]));
     expect(screen.getByTestId("select-tag-filter")).toHaveTextContent("All tags");
   });
+
+  it("shows engaged report leads and filters the full list by attention segment", async () => {
+    let requestedOutreach: string | null = null;
+    server.use(
+      http.get("/api/crm/leads/assignable-users", () => HttpResponse.json([])),
+      http.get("/api/crm/tags", () => HttpResponse.json([])),
+      http.get("/api/crm/leads", ({ request }) => {
+        requestedOutreach = new URL(request.url).searchParams.get("reportOutreach");
+        return HttpResponse.json({ leads: [{
+          id: "engaged-1", title: "Engaged Roofing", companyId: null, contactId: null, statusId: null,
+          value: null, source: "local_falcon", fromWebsiteForm: false, assignedTo: "u1", trade: "roofing",
+          city: "Charlotte", recycleCount: 0, hungUpCount: 0, createdAt: "2026-08-31T12:00:00Z",
+          company: null, contact: null, status: null, tags: [], lastUnassignedFromUser: null, salesPriority: null,
+          reportEmailCount: 1, reportOutreachDisposition: "active", reportViewCount: 2, reportCtaClickCount: 1,
+          reportOutreachSegment: "engaged", reportNeedsAttention: true,
+        }], total: 1, page: 1, pageSize: 100 });
+      }),
+    );
+    renderWithProviders(<LeadListPage />, { route: "/admin/crm/leads" });
+    expect(await screen.findByTestId("badge-report-outreach-engaged-1")).toHaveTextContent("Clicked report — personal touch");
+    expect(screen.getByTestId("report-emails-engaged-1")).toHaveTextContent("1 of 2");
+    fireEvent.click(screen.getByTestId("button-report-needs-attention"));
+    await waitFor(() => expect(requestedOutreach).toBe("needs_attention"));
+  });
 });

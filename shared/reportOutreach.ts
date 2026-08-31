@@ -23,6 +23,59 @@ export const REPORT_DISPOSITION_LABELS: Record<string, string> = {
   not_interested: "Not interested — stopped",
 };
 
+export const REPORT_OUTREACH_FILTERS = [
+  "report_any", "needs_attention", "one_sent", "two_sent", "engaged",
+  "awaiting_response", "no_engagement", "stopped",
+] as const;
+export type ReportOutreachFilter = typeof REPORT_OUTREACH_FILTERS[number];
+
+export const REPORT_OUTREACH_SEGMENTS = [
+  "not_started", "send_email_two", "engaged", "awaiting_response",
+  "no_engagement", "stopped", "responded",
+] as const;
+export type ReportOutreachSegment = typeof REPORT_OUTREACH_SEGMENTS[number];
+
+export const REPORT_OUTREACH_SEGMENT_LABELS: Record<ReportOutreachSegment, string> = {
+  not_started: "Report not sent",
+  send_email_two: "Email 2 scheduled",
+  engaged: "Engaged — personal touch",
+  awaiting_response: "Awaiting response",
+  no_engagement: "No engagement",
+  stopped: "Outreach stopped",
+  responded: "Responded",
+};
+
+export interface ReportOutreachSummary {
+  reportEmailCount: number;
+  lastReportEmailedAt: Date | string | null;
+  reportOutreachDisposition: string | null;
+  reportViewCount: number;
+  reportCtaClickCount: number;
+  reportLastEngagedAt: Date | string | null;
+  reportNextTaskDueAt?: Date | string | null;
+}
+
+export function classifyReportOutreach(summary: ReportOutreachSummary, now = new Date()): {
+  segment: ReportOutreachSegment;
+  needsAttention: boolean;
+} {
+  const disposition = summary.reportOutreachDisposition;
+  if (disposition === "replied") return { segment: "responded", needsAttention: false };
+  if (["opted_out", "bounced", "not_interested"].includes(disposition ?? "")) return { segment: "stopped", needsAttention: false };
+  if (disposition === "no_response") return { segment: "no_engagement", needsAttention: false };
+  if (summary.reportEmailCount === 0) return { segment: "not_started", needsAttention: false };
+  const engaged = summary.reportViewCount > 0 || summary.reportCtaClickCount > 0;
+  if (engaged) return { segment: "engaged", needsAttention: true };
+  const due = summary.reportNextTaskDueAt
+    ? new Date(summary.reportNextTaskDueAt)
+    : summary.lastReportEmailedAt
+      ? reportBusinessDate(new Date(summary.lastReportEmailedAt), summary.reportEmailCount === 1 ? 7 : 5)
+      : null;
+  const overdue = !!due && reportBusinessDate(now, 0).getTime() >= due.getTime();
+  if (summary.reportEmailCount === 1) return { segment: "send_email_two", needsAttention: overdue };
+  return { segment: overdue ? "no_engagement" : "awaiting_response", needsAttention: false };
+}
+
 /** Date-only task deadlines in the business's Eastern timezone; skips weekends. */
 export function reportBusinessDate(now: Date, days: number): Date {
   const parts = new Intl.DateTimeFormat("en-US", {

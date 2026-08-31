@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getTableName } from "drizzle-orm";
-import { reportBusinessDate, reportSendBlockedReason, isReportOutreachTask } from "@shared/reportOutreach";
+import { classifyReportOutreach, reportBusinessDate, reportSendBlockedReason, isReportOutreachTask } from "@shared/reportOutreach";
 
 const mockDb = vi.hoisted(() => ({ transaction: vi.fn() }));
 vi.mock("../../server/db", () => ({ db: mockDb }));
@@ -47,7 +47,7 @@ const history = (count = 1, disposition = "active", lastSentAt = "2020-01-01") =
 beforeEach(() => vi.clearAllMocks());
 
 describe("report outreach dates and safeguards", () => {
-  it("uses three business days, skipping weekends", () => {
+  it("calculates business-day deadlines, skipping weekends", () => {
     expect(reportBusinessDate(new Date("2026-08-28T15:00:00Z"), 3).toISOString()).toBe("2026-09-02T00:00:00.000Z");
   });
   it("uses the Eastern business date, including across DST", () => {
@@ -64,6 +64,34 @@ describe("report outreach dates and safeguards", () => {
     expect(isReportOutreachTask("call")).toBe(false);
     expect(isReportOutreachTask("report_email_followup")).toBe(true);
   });
+  const summary = (overrides: Record<string, unknown> = {}) => ({
+    reportEmailCount: 1, lastReportEmailedAt: "2026-08-20T12:00:00Z", reportOutreachDisposition: "active",
+    reportViewCount: 0, reportCtaClickCount: 0, reportLastEngagedAt: null, reportNextTaskDueAt: "2026-09-01T00:00:00Z",
+    ...overrides,
+  });
+  it("prioritizes real report engagement over ordinary send count", () => {
+    expect(classifyReportOutreach(summary({ reportViewCount: 1 }), new Date("2026-08-25")))
+      .toEqual({ segment: "engaged", needsAttention: true });
+    expect(classifyReportOutreach(summary({ reportCtaClickCount: 1 }), new Date("2026-08-25")))
+      .toEqual({ segment: "engaged", needsAttention: true });
+  });
+  it("marks an overdue second email as needing attention", () => {
+    expect(classifyReportOutreach(summary(), new Date("2026-09-01T12:00:00Z")))
+      .toEqual({ segment: "send_email_two", needsAttention: true });
+    expect(classifyReportOutreach(summary(), new Date("2026-08-31T12:00:00Z")))
+      .toEqual({ segment: "send_email_two", needsAttention: false });
+  });
+  it("separates the final waiting window from no engagement", () => {
+    expect(classifyReportOutreach(summary({ reportEmailCount: 2, reportNextTaskDueAt: "2026-09-05" }), new Date("2026-09-01")))
+      .toEqual({ segment: "awaiting_response", needsAttention: false });
+    expect(classifyReportOutreach(summary({ reportEmailCount: 2, reportNextTaskDueAt: "2026-09-01" }), new Date("2026-09-01T12:00:00Z")))
+      .toEqual({ segment: "no_engagement", needsAttention: false });
+  });
+  it("keeps responded and stopped outreach out of attention queues", () => {
+    expect(classifyReportOutreach(summary({ reportOutreachDisposition: "replied", reportViewCount: 2 })).segment).toBe("responded");
+    expect(classifyReportOutreach(summary({ reportOutreachDisposition: "opted_out", reportViewCount: 2 })).segment).toBe("stopped");
+    expect(classifyReportOutreach(summary({ reportOutreachDisposition: "no_response" })).segment).toBe("no_engagement");
+  });
 });
 
 describe("successful report delivery workflow", () => {
@@ -74,7 +102,7 @@ describe("successful report delivery workflow", () => {
     expect(writes.find(w => w.table === "pipeline_opportunities")?.values.stageId).toBe("emailed");
     expect(writes.filter(w => w.table === "followup_tasks" && w.operation === "update")).toHaveLength(1);
     expect(writes.find(w => w.table === "followup_tasks" && w.operation === "insert")?.values).toMatchObject({
-      taskType: "report_email_followup", dueDate: new Date("2026-09-03T00:00:00Z"), assignedTo: "rep-1",
+      taskType: "report_email_followup", dueDate: new Date("2026-09-09T00:00:00Z"), assignedTo: "rep-1",
     });
   });
   it("keeps the stage after email two and schedules the five-business-day review", async () => {

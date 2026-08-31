@@ -5,6 +5,7 @@ import sharp from "sharp";
 import { z } from "zod";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { REPORT_OUTREACH_TASKS, reportSendBlockedReason } from "@shared/reportOutreach";
+import { REPORT_OUTREACH_FILTERS } from "@shared/reportOutreach";
 import { getReportOutreachState, getReportOutreachStates } from "./reportOutreach";
 import { requireRole } from "../auth/middleware";
 import { logAudit } from "../audit/service";
@@ -208,12 +209,14 @@ async function assertLeadAccess(
 
 router.get("/leads", requireRole("admin", "developer", "sales_rep", "lead_gen"), async (req, res) => {
   try {
-    const { search, statusId, source, assignedTo, tagId, tagIds, fromWebsiteForm, page, limit } = req.query;
+    const { search, statusId, source, assignedTo, tagId, tagIds, fromWebsiteForm, reportOutreach, page, limit } = req.query;
     const parsedTags = z.object({
       tagId: z.string().min(1).optional(),
       tagIds: z.union([z.string().min(1), z.array(z.string().min(1)).max(100)]).optional(),
     }).safeParse({ tagId, tagIds });
     if (!parsedTags.success) return res.status(400).json({ message: "Invalid tag filters" });
+    const parsedOutreach = z.enum(REPORT_OUTREACH_FILTERS).optional().safeParse(reportOutreach);
+    if (!parsedOutreach.success) return res.status(400).json({ message: "Invalid report outreach filter" });
     // Restricted roles can only see their own leads — ignore any client-supplied filter.
     const resolvedAssignedTo = isRestricted(req)
       ? req.authUser!.id
@@ -226,11 +229,12 @@ router.get("/leads", requireRole("admin", "developer", "sales_rep", "lead_gen"),
       tagId: parsedTags.data.tagId,
       tagIds: typeof parsedTags.data.tagIds === "string" ? [parsedTags.data.tagIds] : parsedTags.data.tagIds,
       fromWebsiteForm: fromWebsiteForm === "true" ? true : fromWebsiteForm === "false" ? false : undefined,
+      reportOutreach: parsedOutreach.data,
       page: page ? parseInt(page as string, 10) : undefined,
       limit: limit ? parseInt(limit as string, 10) : undefined,
     });
     const [outreach, enriched] = await Promise.all([
-      getReportOutreachStates(result.items.map(lead => lead.id)), crmStorage.enrichLeads(result.items),
+      getReportOutreachStates(result.items.map(lead => lead.id), db, true), crmStorage.enrichLeads(result.items),
     ]);
     const leads = enriched.map(l => ({
       ...stripSensitiveLeadFields(l, req), ...outreach.get(l.id),
@@ -886,13 +890,16 @@ router.get("/leads/:id/report-outreach", requireRole("admin", "developer", "sale
   try {
     const leadId = req.params.id as string;
     if (!(await assertLeadAccess(req, res, leadId))) return;
-    const state = await getReportOutreachState(leadId);
+    const state = (await getReportOutreachStates([leadId], db, true)).get(leadId)!;
     const tasks = await db.select().from(followupTasks).where(and(eq(followupTasks.leadId, leadId),
       inArray(followupTasks.taskType, [...REPORT_OUTREACH_TASKS]))).orderBy(desc(followupTasks.createdAt));
     const pending = await db.select({ id: scanReportDeliveries.id }).from(scanReportDeliveries)
       .where(and(eq(scanReportDeliveries.leadId, leadId), inArray(scanReportDeliveries.status, ["queued", "retrying"])));
     res.json({ sentCount: state.reportEmailCount, lastSentAt: state.lastReportEmailedAt,
       disposition: state.reportOutreachDisposition,
+      viewCount: state.reportViewCount, ctaClickCount: state.reportCtaClickCount,
+      lastEngagedAt: state.reportLastEngagedAt, segment: state.reportOutreachSegment,
+      needsAttention: state.reportNeedsAttention,
       task: tasks.find(task => !task.completed) ?? (state.reportOutreachDisposition === "no_response" ? tasks[0] : null) ?? null,
       pending: pending.length > 0,
       blockedReason: reportSendBlockedReason(state.reportEmailCount, state.reportOutreachDisposition) });

@@ -3,6 +3,7 @@ import { normalizePhoneDigits } from "@shared/phone";
 import {
   crmCompanies, crmContacts, crmLeadStatuses, crmLeads, crmLeadNotes,
   crmTags, crmLeadTags, pipelineOpportunities, pipelineStages, pipelineActivities, followupTasks, user,
+  scanReportDeliveries,
   onboardingRecords, clientNotes, automationExecutionLogs, smsMessages, marketplacePendingOutreach,
   type InsertCrmCompany, type InsertCrmContact, type InsertCrmLeadStatus,
   type InsertCrmLead, type InsertCrmLeadNote, type InsertCrmTag,
@@ -13,6 +14,7 @@ import {
 import { eq, ilike, or, desc, asc, sql, and, count, inArray } from "drizzle-orm";
 import { getLocalFalconPrioritiesByLeadIds } from "./localFalconPriority";
 import type { SalesPrioritySnapshot } from "@shared/salesPriority";
+import type { ReportOutreachFilter } from "@shared/reportOutreach";
 
 export type EnrichedLead = CrmLead & {
   status: CrmLeadStatus | null;
@@ -36,6 +38,7 @@ interface LeadFilters extends PaginationParams {
   tagId?: string;
   tagIds?: string[];
   fromWebsiteForm?: boolean;
+  reportOutreach?: ReportOutreachFilter;
 }
 
 interface SearchParams extends PaginationParams {
@@ -43,7 +46,7 @@ interface SearchParams extends PaginationParams {
 }
 
 export async function getLeads(filters: LeadFilters = {}) {
-  const { search, statusId, source, assignedTo, tagId, tagIds = [], fromWebsiteForm, page = 1, limit = 50 } = filters;
+  const { search, statusId, source, assignedTo, tagId, tagIds = [], fromWebsiteForm, reportOutreach, page = 1, limit = 50 } = filters;
   const offset = (page - 1) * limit;
   const conditions = [];
 
@@ -82,12 +85,31 @@ export async function getLeads(filters: LeadFilters = {}) {
   }
   if (fromWebsiteForm !== undefined) conditions.push(eq(crmLeads.fromWebsiteForm, fromWebsiteForm));
 
+  const sentCount = sql`(SELECT count(*) FROM ${scanReportDeliveries} d WHERE d.lead_id = ${crmLeads.id} AND d.sent_at IS NOT NULL)`;
+  const engaged = sql`EXISTS (SELECT 1 FROM ${scanReportDeliveries} d WHERE d.lead_id = ${crmLeads.id} AND d.sent_at IS NOT NULL AND (d.view_count > 0 OR d.cta_click_count > 0))`;
+  const disposition = sql`coalesce((SELECT n.metadata->>'reportOutreachDisposition' FROM ${crmLeadNotes} n WHERE n.lead_id = ${crmLeads.id} AND n.metadata->>'reportOutreachDisposition' IS NOT NULL ORDER BY n.created_at DESC, n.id DESC LIMIT 1), 'active')`;
+  const easternToday = sql`(CURRENT_TIMESTAMP AT TIME ZONE 'America/New_York')::date`;
+  const followupDue = sql`EXISTS (SELECT 1 FROM ${followupTasks} t WHERE t.lead_id = ${crmLeads.id} AND t.completed = false AND t.task_type = 'report_email_followup' AND t.due_date <= ${easternToday})`;
+  const openReview = sql`EXISTS (SELECT 1 FROM ${followupTasks} t WHERE t.lead_id = ${crmLeads.id} AND t.completed = false AND t.task_type = 'report_email_review')`;
+  const reviewDue = sql`EXISTS (SELECT 1 FROM ${followupTasks} t WHERE t.lead_id = ${crmLeads.id} AND t.completed = false AND t.task_type = 'report_email_review' AND t.due_date <= ${easternToday})`;
+  if (reportOutreach === "report_any") conditions.push(sql`${sentCount} > 0`);
+  if (reportOutreach === "one_sent") conditions.push(sql`${sentCount} = 1`);
+  if (reportOutreach === "two_sent") conditions.push(sql`${sentCount} >= 2`);
+  if (reportOutreach === "engaged") conditions.push(sql`${disposition} = 'active' AND ${engaged}`);
+  if (reportOutreach === "needs_attention") conditions.push(sql`${disposition} = 'active' AND (${engaged} OR (${sentCount} = 1 AND ${followupDue}))`);
+  if (reportOutreach === "awaiting_response") conditions.push(sql`${disposition} = 'active' AND ${sentCount} >= 2 AND NOT ${engaged} AND ${openReview} AND NOT ${reviewDue}`);
+  if (reportOutreach === "no_engagement") conditions.push(sql`(${disposition} = 'no_response') OR (${disposition} = 'active' AND ${sentCount} >= 2 AND NOT ${engaged} AND (${reviewDue} OR NOT ${openReview}))`);
+  if (reportOutreach === "stopped") conditions.push(sql`${disposition} IN ('opted_out', 'bounced', 'not_interested')`);
+
   const where = conditions.length > 0 ? and(...conditions) : undefined;
 
+  const sort = reportOutreach === "needs_attention"
+    ? [sql`CASE WHEN ${engaged} THEN 0 ELSE 1 END`, desc(crmLeads.createdAt)]
+    : [desc(crmLeads.createdAt)];
   const [items, totalResult] = await Promise.all([
     where
-      ? db.select().from(crmLeads).where(where).orderBy(desc(crmLeads.createdAt)).limit(limit).offset(offset)
-      : db.select().from(crmLeads).orderBy(desc(crmLeads.createdAt)).limit(limit).offset(offset),
+      ? db.select().from(crmLeads).where(where).orderBy(...sort).limit(limit).offset(offset)
+      : db.select().from(crmLeads).orderBy(...sort).limit(limit).offset(offset),
     where
       ? db.select({ total: count() }).from(crmLeads).where(where)
       : db.select({ total: count() }).from(crmLeads),

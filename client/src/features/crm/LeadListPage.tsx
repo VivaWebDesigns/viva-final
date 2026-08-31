@@ -31,6 +31,7 @@ import { cn } from "@/lib/utils";
 import type { CrmLead, CrmLeadStatus, CrmContact, CrmCompany, CrmTag } from "@shared/schema";
 import { formatPhoneDisplay } from "@shared/phone";
 import { REPORT_DISPOSITION_LABELS } from "@shared/reportOutreach";
+import { REPORT_OUTREACH_SEGMENT_LABELS, type ReportOutreachFilter, type ReportOutreachSegment } from "@shared/reportOutreach";
 import { useAdminLang } from "@/i18n/LanguageContext";
 import RecycledLeadIconStack from "@/components/RecycledLeadIconStack";
 import LeadTagBadges from "@/components/LeadTagBadges";
@@ -40,6 +41,12 @@ import type { SalesPrioritySnapshot } from "@shared/salesPriority";
 interface LeadWithRelations extends CrmLead {
   reportEmailCount?: number;
   reportOutreachDisposition?: string | null;
+  reportViewCount?: number;
+  reportCtaClickCount?: number;
+  reportLastEngagedAt?: string | null;
+  reportNextTaskDueAt?: string | null;
+  reportOutreachSegment?: ReportOutreachSegment;
+  reportNeedsAttention?: boolean;
   contact?: CrmContact | null;
   company?: CrmCompany | null;
   status?: CrmLeadStatus | null;
@@ -78,6 +85,7 @@ export default function LeadListPage() {
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [tagFilters, setTagFilters] = useState<string[]>([]);
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
+  const [reportOutreachFilter, setReportOutreachFilter] = useState<ReportOutreachFilter | "all">("all");
   const [page, setPage] = useState(1);
   useEffect(() => { setPage(1); }, [search]);
   const pageSize = 100;
@@ -107,7 +115,7 @@ export default function LeadListPage() {
   });
 
   const { data: leadsData, isLoading } = useQuery<LeadsResponse>({
-    queryKey: ["/api/crm/leads", search, statusFilter, sourceFilter, assigneeFilter, tagFilters, page],
+    queryKey: ["/api/crm/leads", search, statusFilter, sourceFilter, assigneeFilter, reportOutreachFilter, tagFilters, page],
     staleTime: STALE.FAST,
     refetchOnWindowFocus: true,
     queryFn: async () => {
@@ -117,6 +125,7 @@ export default function LeadListPage() {
       if (sourceFilter && sourceFilter !== "all") params.set("source", sourceFilter);
       tagFilters.forEach((id) => params.append("tagIds", id));
       if (assigneeFilter && assigneeFilter !== "all") params.set("assignedTo", assigneeFilter);
+      if (reportOutreachFilter !== "all") params.set("reportOutreach", reportOutreachFilter);
       params.set("page", String(page));
       params.set("limit", String(pageSize));
       const res = await fetch(`/api/crm/leads?${params}`, { credentials: "include" });
@@ -282,6 +291,27 @@ export default function LeadListPage() {
     return name ? name.charAt(0).toUpperCase() : null;
   };
 
+  const getReportOutreachBadge = (lead: LeadWithRelations) => {
+    const segment = lead.reportOutreachSegment;
+    if (!segment || segment === "not_started") return null;
+    let label = REPORT_OUTREACH_SEGMENT_LABELS[segment];
+    let className = "bg-cyan-100 text-cyan-800 border-cyan-200";
+    if (segment === "engaged") {
+      label = (lead.reportCtaClickCount ?? 0) > 0 ? "Clicked report — personal touch" : "Viewed report — personal touch";
+      className = "bg-amber-100 text-amber-900 border-amber-300";
+    } else if (segment === "send_email_two" && lead.reportNeedsAttention) {
+      label = "Email 2 due";
+      className = "bg-orange-100 text-orange-900 border-orange-300";
+    } else if (segment === "no_engagement") {
+      className = "bg-slate-100 text-slate-700 border-slate-300";
+    } else if (segment === "stopped") {
+      className = "bg-red-50 text-red-700 border-red-200";
+    } else if (segment === "responded") {
+      className = "bg-emerald-100 text-emerald-800 border-emerald-300";
+    }
+    return <Badge variant="outline" className={`text-xs ${className}`} data-testid={`badge-report-outreach-${lead.id}`}>{label}</Badge>;
+  };
+
   const toggleTagId = (id: string) =>
     setBulkTagIds(prev => prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]);
 
@@ -330,8 +360,8 @@ export default function LeadListPage() {
       <CreateLeadModal open={showCreateModal} onClose={() => setShowCreateModal(false)} />
 
       <Card className="mb-4">
-        <div className="p-4 flex flex-col gap-3 lg:flex-row">
-          <div className="relative flex-1">
+        <div className="p-4 flex flex-col gap-3 lg:flex-row lg:flex-wrap">
+          <div className="relative flex-1 lg:min-w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <Input
               value={rawSearch}
@@ -383,6 +413,31 @@ export default function LeadListPage() {
               <SelectItem value="other">Other</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={reportOutreachFilter} onValueChange={(v) => { setReportOutreachFilter(v as ReportOutreachFilter | "all"); setPage(1); setSelectedIds(new Set()); }}>
+            <SelectTrigger className="w-full lg:w-56" data-testid="select-report-outreach-filter" aria-label="Report outreach filter">
+              <SelectValue placeholder="Report outreach" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Report outreach: All</SelectItem>
+              <SelectItem value="report_any">All report outreach</SelectItem>
+              <SelectItem value="needs_attention">Needs attention</SelectItem>
+              <SelectItem value="one_sent">1 of 2 sent</SelectItem>
+              <SelectItem value="two_sent">2 of 2 sent</SelectItem>
+              <SelectItem value="engaged">Viewed/clicked — personal touch</SelectItem>
+              <SelectItem value="awaiting_response">Awaiting response</SelectItem>
+              <SelectItem value="no_engagement">No engagement</SelectItem>
+              <SelectItem value="stopped">Stopped</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button
+            type="button"
+            variant={reportOutreachFilter === "needs_attention" ? "default" : "outline"}
+            className="w-full lg:w-auto"
+            onClick={() => { setReportOutreachFilter(reportOutreachFilter === "needs_attention" ? "all" : "needs_attention"); setPage(1); setSelectedIds(new Set()); }}
+            data-testid="button-report-needs-attention"
+          >
+            <AlertTriangle className="mr-1.5 h-4 w-4" /> Needs attention
+          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="w-full lg:w-60 justify-between font-normal" data-testid="select-tag-filter">
@@ -583,6 +638,7 @@ export default function LeadListPage() {
                               {getLeadDisplayTitle(lead)}
                             </h3>
                             {getStatusBadge(lead)}
+                            {getReportOutreachBadge(lead)}
                             <SalesPriorityBadge
                               salesPriority={lead.salesPriority}
                               testId={`badge-sales-priority-lead-${lead.id}`}
@@ -612,6 +668,10 @@ export default function LeadListPage() {
                               {(lead.reportEmailCount ?? 0) > 2 ? `${lead.reportEmailCount} historical report emails sent` : `${lead.reportEmailCount} of 2 report emails sent`}
                               {lead.reportOutreachDisposition && lead.reportOutreachDisposition !== "active"
                                 ? ` · ${REPORT_DISPOSITION_LABELS[lead.reportOutreachDisposition] ?? lead.reportOutreachDisposition}` : ""}
+                            </span>}
+                            {((lead.reportViewCount ?? 0) > 0 || (lead.reportCtaClickCount ?? 0) > 0) && <span className="font-medium text-amber-700">
+                              {lead.reportViewCount ?? 0} report view{lead.reportViewCount === 1 ? "" : "s"}
+                              {(lead.reportCtaClickCount ?? 0) > 0 ? ` · ${lead.reportCtaClickCount} action click${lead.reportCtaClickCount === 1 ? "" : "s"}` : ""}
                             </span>}
                             <span data-testid={`text-lead-contact-${lead.id}`}>
                               {getContactName(lead)}
