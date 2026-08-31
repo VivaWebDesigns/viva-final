@@ -83,6 +83,15 @@ export type LocalFalconCompetitorBusiness = {
   is_subject: boolean;
 };
 
+export type LocalFalconCrmOnlyEvidence = {
+  leadId: string;
+  placeId: string;
+  contactTag: string;
+  scanKeyword: string;
+  marketReference: import("./sabCrm").SabMarketReference;
+};
+
 export type LocalVisibilityReportLibrary = {
   ownReports: LocalVisibilityReportSummary[];
+  crmOnlyProspects?: LocalFalconCrmOnlyEvidence[];
 };

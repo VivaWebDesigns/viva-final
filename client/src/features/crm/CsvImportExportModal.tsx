@@ -64,15 +64,17 @@ interface LocalFalconPreviewRow {
   companyName: string;
   address: string;
   heatmapFile: string;
-  scanSpec: { grid_size: string; radius_miles: number };
+  scanSpec: { grid_size: string; radius_miles: number } | null;
+  prospectOutcome?: "deliverable" | "no_visibility_core_found";
+  marketReference?: { city: string; state: string; zip: string };
   heatmapPreviewDataUrl: string | null;
-  heatmapSha256: string;
+  heatmapSha256: string | null;
   heatmapSourceUrl: string | null;
   mapPresentation: {
     mapZoom: number;
     mapPosition: { x: number; y: number };
   };
-  reportData: LocalVisibilityReportData;
+  reportData: LocalVisibilityReportData | null;
   outcome: "new" | "variation" | "existing" | "flagged";
   reason?: string;
   matches?: Array<{ companyName: string; reasons: string[] }>;
@@ -158,7 +160,7 @@ function FramedReportPreview({
 
 function ScanMagnifierDialog({ row, onClose }: { row: LocalFalconPreviewRow; onClose: () => void }) {
   const [zoom, setZoom] = useState<"fit" | "100" | "200">("fit");
-  const imageUrl = row.heatmapPreviewDataUrl ?? row.reportData.heatmapImageUrl;
+  const imageUrl = row.heatmapPreviewDataUrl ?? row.reportData?.heatmapImageUrl;
   const zoomWidth = zoom === "100" ? "100%" : zoom === "200" ? "200%" : undefined;
 
   return (
@@ -407,15 +409,18 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
       form.append("leadClassification", leadClassification);
       form.append("approvedFlaggedPlaceIds", JSON.stringify([...approvedFlagged]));
       form.append("previewHeatmapChecksums", JSON.stringify(Object.fromEntries(
-        preview.rows.map((row) => [row.placeId, row.heatmapSha256]),
+        preview.rows.filter((row) => row.prospectOutcome !== "no_visibility_core_found").map((row) => [row.placeId, row.heatmapSha256]),
       )));
+      form.append("confirmedCrmOnlyPlaceIds", JSON.stringify(preview.rows
+        .filter((row) => row.prospectOutcome === "no_visibility_core_found" && confirmedPreviews.has(row.placeId))
+        .map((row) => row.placeId)));
       const selectedRows = preview.rows.filter(
         (row) =>
           row.outcome === "new"
           || row.outcome === "variation"
           || (row.outcome === "flagged" && approvedFlagged.has(row.placeId)),
       );
-      for (const row of selectedRows) {
+      for (const row of selectedRows.filter((row) => row.prospectOutcome !== "no_visibility_core_found")) {
         const blob = await renderLocalVisibilityReportBlob(reportRefs.current.get(row.placeId) ?? null);
         form.append("snapshots", blob, `${row.placeId}.png`);
       }
@@ -530,7 +535,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
               <>
                 <div className="rounded-md border bg-slate-50 p-3 text-sm text-slate-600">
                   <p className="font-semibold text-slate-900">Qualified Local Falcon prospects</p>
-                  <p className="mt-1">Paste the Scale-First Manifest v2 <code>batch.json</code>. The CRM retrieves each official map automatically from its <code>report_key</code>.</p>
+                  <p className="mt-1">Paste the Scale-First Manifest v2 <code>batch.json</code>. The CRM retrieves deliverable maps from their <code>report_key</code>. CRM-only no-visibility leads have a labelled market reference and no report.</p>
                 </div>
                 <div
                   role="group"
@@ -707,9 +712,9 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
                   data-testid="checkbox-confirm-all-local-falcon-previews"
                 />
                 <span>
-                  Confirm all {includedRows.length} included reports
+                  Confirm all {includedRows.length} included leads and reports
                   <span className="mt-0.5 block text-xs font-normal text-blue-800">
-                    I reviewed every included image and confirmed it belongs to the listed company with all 49 grid dots visible.
+                    I reviewed each deliverable image and its full grid, and each CRM-only market reference. CRM-only leads have no validated business center or report.
                   </span>
                 </span>
               </label>
@@ -729,7 +734,9 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
                           </Badge>
                         </div>
                         <p className="text-sm text-slate-500">{row.address}</p>
-                        <p className="text-xs font-medium text-slate-600">Canonical scan: {(row.scanSpec ?? preview.scanSpec).grid_size} / {(row.scanSpec ?? preview.scanSpec).radius_miles} miles</p>
+                        {row.prospectOutcome === "no_visibility_core_found" ? (
+                          <p className="text-sm text-amber-800">CRM only — no top-20 visibility. Market reference only: {row.marketReference?.city}, {row.marketReference?.state} {row.marketReference?.zip}. No validated business location, prospect-facing report, or automatic scan outreach.</p>
+                        ) : <p className="text-xs font-medium text-slate-600">Canonical scan: {(row.scanSpec ?? preview.scanSpec).grid_size} / {(row.scanSpec ?? preview.scanSpec).radius_miles} miles</p>}
                         {row.heatmapSourceUrl ? (
                           <a href={row.heatmapSourceUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline">
                             Official map retrieved automatically from Local Falcon
@@ -751,11 +758,13 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
                               onCheckedChange={(value) => toggleSet(setConfirmedPreviews, row.placeId, value === true)}
                               data-testid={`checkbox-confirm-local-falcon-preview-${row.row}`}
                             />
-                            <span>I confirmed the image belongs to this company and all 49 grid dots are visible in the framed report.</span>
+                            <span>{row.prospectOutcome === "no_visibility_core_found"
+                              ? "I reviewed this CRM-only lead and understand its market reference is not a validated business location or report."
+                              : "I confirmed the image belongs to this company and all grid dots are visible in the framed report."}</span>
                           </label>
                         ) : null}
                       </div>
-                      <FramedReportPreview
+                      {row.reportData && <FramedReportPreview
                         data={row.reportData}
                         mapPresentation={row.mapPresentation}
                         onInspect={() => setMagnifiedRow(row)}
@@ -763,7 +772,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
                           if (element) reportRefs.current.set(row.placeId, element);
                           else reportRefs.current.delete(row.placeId);
                         }}
-                      />
+                      />}
                     </div>
                   </div>
                 );
@@ -788,7 +797,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
           {phase === "done" ? (
             <><Button variant="outline" onClick={clearImportState}>Import more</Button><Button onClick={handleClose}>Done</Button></>
           ) : phase === "preview" ? (
-            <><Button variant="outline" onClick={clearImportState} disabled={isGeneratingSnapshots}>Choose another package</Button><Button onClick={handleConfirmLocalFalcon} disabled={preview?.batchAlreadyImported || (includedRows.length > 0 && (!assignedTo || !leadClassification)) || !everyIncludedPreviewConfirmed || isGeneratingSnapshots} data-testid="button-confirm-local-falcon-import">{isGeneratingSnapshots ? "Generating snapshots…" : "Import reports"}</Button></>
+            <><Button variant="outline" onClick={clearImportState} disabled={isGeneratingSnapshots}>Choose another package</Button><Button onClick={handleConfirmLocalFalcon} disabled={preview?.batchAlreadyImported || (includedRows.length > 0 && (!assignedTo || !leadClassification)) || !everyIncludedPreviewConfirmed || isGeneratingSnapshots} data-testid="button-confirm-local-falcon-import">{isGeneratingSnapshots ? "Preparing import…" : "Confirm import"}</Button></>
           ) : (
             <><Button variant="outline" onClick={handleClose} disabled={phase === "loading"}>Cancel</Button><Button onClick={handleImport} disabled={!file || phase === "loading"} data-testid="button-start-import">{phase === "loading" ? t.crm.importing : imageFailures.length > 0 && heatmapFiles.length === 0 ? "Retry automatic retrieval" : "Review import"}</Button></>
           )}

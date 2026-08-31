@@ -1,203 +1,40 @@
 # Local Falcon prospect import
 
-The canonical Scale-First v2 handoff is `batch.json` plus its required sibling
-`competitors.json`. The CRM derives the official
-Local Falcon image URL from each prospect's `report_key`, retrieves the original
-image server-side, validates it, shows the exact report framing for approval,
-and stores the confirmed bytes in R2.
+The current Scale-First handoff is exactly one `batch.json` with `workflow: "scale_first_v2"`. Export every eligible qualified lead in the run, including Workflow Sheet rows at both `complete` and `qa_ready`, across all execution batches. Never send a competitor sidecar. The current parser contract is version 2.2 and permits up to 2,000 prospects; older Audit-First payloads remain a separate compatibility path.
 
-No heatmap screenshot or ZIP is required during the normal import flow.
+## Authoritative export
 
-## Competitor sidecar
+Use `build_sab_run_manifest` after the structured eligibility, contact, scan decision, and canonical-specification records are complete. The tool fails closed on missing or conflicting evidence and returns one manifest, its checksum, and complete/qa-ready/CRM-only counts. It does not import anything. Notes and prior-run rulings never establish eligibility or a validated center.
 
-`competitors.json` stores the subject and its immediately adjacent ordinal
-competitors for each individual scan. Its `reports` object is keyed by the same immutable
-`report_key` used in `batch.json`.
+- Identity and deduplication use exact Google Place-ID equality. Every Place ID appears once in the manifest; every non-null canonical report key is unique. A later authorized report variation reuses the existing CRM lead.
+- `address` must be exactly `Service Area Business`. Never export a hidden operating address. Owner and phone may be null when unavailable; `Email Ready` requires verified email, while `Needs Email` requires verified phone and null email.
+- `scan_keyword` must match the batch keyword. Each deliverable carries its verified effective 7×7/3-mile or 7×7/5-mile specification; do not infer radius from the batch default.
+- `has_website` must be known. `website_url` is required when true and null when false.
+- `report_url` must be the observed, verified Local Falcon `public_url`. A public link may contain an additional identifier that cannot be derived from `report_key`; never construct a replacement public URL.
+- Raw `arp` remains separate from all-point `atrp`. Prospect-facing **Average Google Maps Position** uses authoritative ATRP only. Missing ATRP is retrieved from the exact canonical report during preview and confirmation; there is no ARP fallback.
 
-```json
-{
-  "version": 1,
-  "batch_id": "MONROE-NC-PLUMBING-20260722-01",
-  "generated_at": "2026-07-22T14:30:00-04:00",
-  "ranking_source": "local_falcon",
-  "reports": {
-    "279b8ac00c7ec41": {
-      "competitor_report_key": "abcdef123456789",
-      "subject_place_id": "ChIJoRG1v646VIgRPb7BV5C7Rf4",
-      "subject_name": "Boda Plumbing, Inc.",
-      "keyword": "plumber near me",
-      "grid_size": 7,
-      "radius_miles": 2.5,
-      "scan_date": "2026-07-14",
-      "subject_rank": 4,
-      "total_businesses": 28,
-      "businesses_ahead_count": 3,
-      "warnings": [],
-      "businesses": []
-    }
-  }
-}
-```
+## Two permitted outcomes
 
-The `businesses` array contains the complete normalized response, not a top-10
-subset. Each entry includes rank, Place ID, name, address fields,
-latitude/longitude, ARP, ATRP, `atrp_capped`, SoLV, reviews, rating, and
-`is_subject`.
+A **deliverable** includes the verified canonical report key, public URL, date, raw ARP, SoLV, effective scan specification, and validated scan center. The CRM retrieves the official map from its fixed image host, validates the returned image, and displays the final report for review. The original image bytes remain unchanged; report framing is presentation only.
 
-- Preserve Local Falcon's business array exactly; never re-sort it. `rank` is
-  the one-based array position.
-- Place ID is the identity key. Business names are display-only.
-- When Local Falcon returns ATRP as `20+`, store `atrp: null` and
-  `atrp_capped: true`.
-- `subject_rank` comes from the subject's array position, not its found-in/data
-  point count. If the subject is missing, rank and businesses-ahead count are
-  `null`, while the full returned list is retained.
-- A retrieval failure uses an empty business array, nullable totals/ranks, and
-  an explanatory warning.
-- The list can contain out-of-city or otherwise noisy businesses. It is scan
-  evidence for sales context, not a vetted market-share claim.
-- Two same-keyword radius variations are separate report entries because each
-  has its own `report_key`.
-- Competitor ranking metrics are always visible. Copy/download/open actions are
-  available only when that competitor Place ID was also independently scanned
-  and imported in the same batch.
+A **`no_visibility_core_found`** lead is CRM-only. Its structured decision must establish zero exact top-20 pins in a completed valid auxiliary. Its required `market_reference` has kind `market_reference_only`, source `auxiliary_scan_reverse_geocode`, coordinates, city/state/ZIP, and the observed auxiliary report key and public URL. These identify operational market evidence, not a validated business location or prospect-facing report. Root city/state/ZIP must match that labelled reference.
 
-## Canonical manifest
+CRM-only report keys/URLs, scan date/specification, raw ARP, ATRP, SoLV, validated scan center, and heatmap path must be omitted or null. The importer stores market provenance separately, leaves CRM business location blank, generates no report or snapshot, and does not trigger automatic scan outreach—even when the contact tag is `Email Ready`.
 
-```json
-{
-  "batch": {
-    "batch_id": "MONROE-NC-PLUMBING-20260722-01",
-    "market": {
-      "city": "Monroe",
-      "state": "NC"
-    },
-    "trade": "plumbing",
-    "keyword": "plumber near me",
-    "export_date": "2026-07-22",
-    "scan_spec": {
-      "grid_size": "7x7",
-      "radius_miles": 2.5
-    }
-  },
-  "prospects": [
-    {
-      "place_id": "ChIJoRG1v646VIgRPb7BV5C7Rf4",
-      "company_name": "Boda Plumbing, Inc.",
-      "address": "1909 Tower Industrial Dr",
-      "city": "Monroe",
-      "state": "NC",
-      "zip": "28110",
-      "phone": "+17042919097",
-      "owner_name": "Dave Boda",
-      "google_maps_url": "https://www.google.com/maps/place/?q=place_id:ChIJoRG1v646VIgRPb7BV5C7Rf4",
-      "has_website": true,
-      "website_url": "https://bodaplumbing.com/",
-      "service_page_count": 0,
-      "report_key": "279b8ac00c7ec41",
-      "report_url": "https://localrankingtracker.com/scan-report/279b8ac00c7ec41/4f93067a53a7fa5/",
-      "scan_date": "2026-07-14",
-      "scan_keyword": "plumber near me",
-      "arp": 4.45,
-      "rating": 5.0,
-      "review_count": 60,
-      "qualification_status": "qualified"
-    }
-  ]
-}
-```
+## Review and final confirmation
 
-## Contract rules
+1. Open **CRM → Leads → Import → Local Falcon**, then paste, select, or drop the single `batch.json`.
+2. Click **Review import**. Review each exact-Place-ID duplicate result and explicitly approve any flagged possible match that should be imported.
+3. For each deliverable, confirm the company/image pairing, actual scan specification, and full-grid visibility. For each CRM-only lead, confirm that the displayed location is market-reference information only and that no report is promised.
+4. Select the lead type and active appointment setter, then confirm all included rows and click **Confirm import**. Reviewing or exporting a manifest alone never performs the import.
+5. Check the final imported, skipped, and error counts. Reconcile any conflict before reporting the run imported.
 
-- Only `qualification_status: "qualified"` may enter the CRM.
-- `scan_keyword` must match the batch keyword.
-- Every Place ID must be unique inside the manifest.
-- Every `report_key` must be unique inside the manifest and across imported
-  reports. It is the immutable report identifier and the only input used to
-  derive the official image URL.
-- A Place ID may appear again in a later batch for another radius variation.
-  The importer attaches that report to the existing company, lead, and
-  opportunity instead of creating duplicate CRM records.
-- `report_url` must be the verified Local Falcon `public_url`. Current public
-  report links use `localrankingtracker.com` and include a second identifier
-  that cannot be derived from `report_key`.
-- The importer accepts only a successful PNG, JPG, or WebP response from the
-  fixed Local Falcon image host. Redirects, oversized files, invalid images, and
-  incomplete map dimensions are rejected.
-- The original retrieved bytes are checksummed and stored unchanged. The report
-  generator owns presentation framing; the importer never crops, resizes, or
-  reconstructs the stored evidence asset.
-- `website_url` is required when `has_website` is true and must be `null` when false.
-- Phone and owner may be `null` when unavailable.
-- Setter assignment is CRM operational data and is selected during confirmation; it does not belong in the manifest.
+The CRM rechecks duplicate identities and confirmed image checksums during import. It persists the original deliverable image and reviewed snapshot, or the separate CRM-only provenance record. Contact tags and assignment are retained. CRM-only leads remain available for manual follow-up; a later authorized deliverable attaches to the same lead.
 
-## CRM workflow
+## Optional image fallback
 
-1. Open **CRM → Leads → Import → Local Falcon**.
-2. Copy and paste `batch.json` and `competitors.json` into the import box one at
-   a time, in either order. Selecting or dropping both files together also works;
-   ZIP remains available as a fallback.
-3. Click **Review import**. The CRM retrieves the official maps automatically.
-4. Review duplicate checks and the exact final report framing for every included prospect.
-5. Explicitly approve any flagged possible duplicate.
-6. Confirm the company/image pairing and full-grid visibility.
-7. Select the appointment setter.
-8. Confirm the import.
+If an official deliverable map cannot be retrieved, provide an original PNG, JPG, or WebP named with the exact Place ID and review it again. The interface also allows explicit image overrides before retrieval. No image is required or accepted for a CRM-only lead.
 
-For a new company, the CRM stores the original heatmap in R2, creates the
-assigned lead and opportunity in **New Lead**, and creates the assigned
-**Contact lead** task. A later radius variation stores another report on the
-same CRM records without creating another lead, opportunity, task, or
-assignment notification. Sales reps can load every assigned report directly
-in the Local Visibility Snapshot generator without OCR or re-entry.
+A ZIP fallback may contain only `batch.json` and its referenced images directly inside `heatmaps/`. When a ZIP contains images, each deliverable must specify `heatmap_file`; every referenced file must exist, each path must be unique, and no unreferenced image is allowed. CRM-only rows have no image path. A JSON-only ZIP uses normal official-image retrieval. Existing package and image size limits still apply; a competitor sidecar is rejected.
 
-On the unified opportunity profile, one report displays without an extra
-selector. When multiple radius variations exist, the profile adds a scan
-variation selector. The **Competitors** tab automatically uses the selected
-scan variation and shows the subject's true Local Falcon position with the
-immediately adjacent business above and below when available.
-
-For maps retrieved automatically from Local Falcon, the report applies the
-approved centered 160% presentation framing. This reproduces the close
-perimeter crop used by the manual report workflow while leaving the original
-R2 evidence bytes unchanged. The import preview and **Load from prospect** use
-the same framing values.
-
-## Image fallback
-
-If Local Falcon cannot supply an official map, the import stays on the same
-screen and identifies the affected prospect. Only then does the CRM show a
-fallback image uploader. Name each original PNG, JPG, or WebP with the
-prospect's Place ID and review the import again.
-
-Example:
-
-```text
-ChIJBVJ_i_OJgWkRT9fe4f3IpK0.png
-```
-
-The fallback is not displayed during a healthy JSON import.
-
-## ZIP fallback
-
-ZIP remains supported for an outage or a fully self-contained archive. In that
-mode, every prospect must include `heatmap_file`, and matching is validated in
-both directions.
-
-```text
-monroe-nc-plumbing-20260722.zip
-├── batch.json
-├── competitors.json
-└── heatmaps/
-    └── ChIJBVJ_i_OJgWkRT9fe4f3IpK0.png
-```
-
-```json
-{
-  "place_id": "ChIJBVJ_i_OJgWkRT9fe4f3IpK0",
-  "heatmap_file": "heatmaps/ChIJBVJ_i_OJgWkRT9fe4f3IpK0.png"
-}
-```
-
-Every referenced file must exist, no file may be unreferenced, and each path
-may be used only once.
+This file documents the implementation contract. Deployment and live verification must be reported separately; a documentation or code change does not establish that production is running it.

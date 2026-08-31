@@ -3,6 +3,7 @@ import { db } from "../../db";
 import {
   crmLeads,
   localFalconImportBatches,
+  localFalconCrmOnlyProspects,
   localFalconProspectProfiles,
   pipelineOpportunities,
 } from "@shared/schema";
@@ -10,6 +11,7 @@ import type {
   LocalVisibilityReportLibrary,
   LocalVisibilityReportSummary,
 } from "@shared/localVisibility";
+import { CRM_ONLY_LOCAL_FALCON_SOURCE } from "@shared/sabCrm";
 import { formatLocalVisibilityAveragePosition } from "@shared/localVisibility";
 
 export type ReportViewer = {
@@ -106,8 +108,19 @@ export async function getCompanyReportLibrary(companyId: string): Promise<LocalV
       asc(sql`coalesce(${localFalconProspectProfiles.scanRadiusMiles}, ${localFalconImportBatches.radiusMiles})`),
     );
 
+  const crmOnlyRows = await db.select({
+    leadId: localFalconCrmOnlyProspects.leadId,
+    placeId: localFalconCrmOnlyProspects.placeId,
+    contactTag: localFalconCrmOnlyProspects.contactTag,
+    scanKeyword: localFalconCrmOnlyProspects.scanKeyword,
+    marketReference: localFalconCrmOnlyProspects.marketReference,
+  }).from(localFalconCrmOnlyProspects)
+    .innerJoin(crmLeads, eq(localFalconCrmOnlyProspects.leadId, crmLeads.id))
+    .where(and(eq(crmLeads.companyId, companyId), eq(crmLeads.source, CRM_ONLY_LOCAL_FALCON_SOURCE)));
+  const leadsWithReports = new Set(ownRows.map((row) => row.leadId));
   return {
     ownReports: ownRows.map(summarizeReport),
+    crmOnlyProspects: crmOnlyRows.filter((row) => !leadsWithReports.has(row.leadId)),
   };
 }
 

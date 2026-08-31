@@ -4,6 +4,10 @@ import {
   SAB_HEADERS,
   SAB_REQUIRED_HEADERS,
   SAB_SCALE_FIRST_UPGRADEABLE_HEADERS,
+  sabDecisionStateSchema,
+  sabEligibilityStateSchema,
+  sabEffectiveScanSpecSchema,
+  sabMarketReferenceSchema,
   type SabCompanyUpdates,
   type SabHeader,
   type SabRow,
@@ -16,6 +20,7 @@ import {
   SCALE_FIRST_WORKFLOW,
 } from "@shared/sabCrm";
 import type { VerifiedSabScanHistoryRepair } from "./scanHistoryReconciliation";
+import type { SabRunState } from "./runState";
 
 const SHEETS_SCOPE = "https://www.googleapis.com/auth/spreadsheets";
 const DEFAULT_SHEET_NAME = "SAB Workflow";
@@ -31,10 +36,15 @@ const JSON_HEADERS = new Set<SabHeader>([
   "scan_history",
   "website_analysis",
   "reviews_analysis",
+  "market_reference",
+  "decision_state",
+  "eligibility_state",
+  "scan_spec",
 ]);
 const BOOLEAN_HEADERS = new Set<SabHeader>(["has_website"]);
 
 export interface SheetsValuesClient {
+  ensureStateSheet?(spreadsheetId: string, sheetName: string): Promise<void>;
   getValues(spreadsheetId: string, range: string): Promise<string[][]>;
   getSheetGridProperties(
     spreadsheetId: string,
@@ -229,6 +239,18 @@ export class GoogleSheetsValuesClient
 
   private async getClient() {
     return this.auth instanceof GoogleAuth ? this.auth.getClient() : this.auth;
+  }
+
+  async ensureStateSheet(spreadsheetId: string, sheetName: string) {
+    const client = await this.getClient();
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}`;
+    const response = await client.request<{sheets?: Array<{properties?: {title?: string}}>}>(
+      {url, method: "GET", params: {fields: "sheets.properties.title"}},
+    );
+    if (response.data.sheets?.some(sheet => sheet.properties?.title === sheetName)) return;
+    await client.request({url: `${url}:batchUpdate`, method: "POST", data: {
+      requests: [{addSheet: {properties: {title: sheetName, gridProperties: {rowCount: 2000, columnCount: 5}}}}],
+    }});
   }
 
   async getValues(spreadsheetId: string, range: string): Promise<string[][]> {
@@ -509,6 +531,10 @@ function publicRow(row: SabRow) {
       ? competitors.map(String)
       : row.competitors,
     scan_history: Array.isArray(scanHistory) ? scanHistory : [],
+    decision_state: parseJsonValue(row.decision_state),
+    eligibility_state: parseJsonValue(row.eligibility_state),
+    market_reference: parseJsonValue(row.market_reference),
+    scan_spec: parseJsonValue(row.scan_spec),
     has_website: row.has_website
       ? row.has_website.trim().toLowerCase() === "true"
       : null,
@@ -529,6 +555,63 @@ export class SabSheetsRepository {
     private readonly spreadsheetId: string,
     private readonly sheetName: string,
   ) {}
+
+  private get runStateTab() { return `${this.sheetName} Run State`; }
+
+  async assertOneActiveRun(runId: string) {
+    let values: string[][];
+    try { values = await this.client.getValues(this.spreadsheetId, `${quoteSheetName(this.runStateTab)}!A:E`); }
+    catch (error) {
+      if (/Unable to parse range|not found|Unknown fake tab/i.test(String(error))) return;
+      throw error;
+    }
+    if (values.some(row => row[0] && row[0] !== runId)) throw new Error("This Workflow Sheet already belongs to another run. Use its authoritative run state; a new run requires a new sheet, never an approval reset.");
+  }
+
+  async getRunState(runId: string): Promise<SabRunState | null> {
+    // Reading an uninitialized run must not create a tab or silently assume approval.
+    let values: string[][];
+    try { values = await this.client.getValues(this.spreadsheetId, `${quoteSheetName(this.runStateTab)}!A:E`); }
+    catch (error) {
+      if (/Unable to parse range|not found|Unknown fake tab/i.test(String(error))) return null;
+      throw error;
+    }
+    const rows = values.filter(row => row[0] === runId);
+    if (!rows.length) return null;
+    const version = Math.max(...rows.map(row => Number(row[1])));
+    const chunks = rows.filter(row => Number(row[1]) === version).sort((a,b) => Number(a[2])-Number(b[2]));
+    if (chunks.some((row,index) => Number(row[2]) !== index)) throw new Error("Run-state chunks are incomplete; no paid submission permitted");
+    const state = JSON.parse(chunks.map(row => row[3]).join("")) as SabRunState;
+    if (state.run_id !== runId || state.version !== version || state.schema_version !== 1) throw new Error("Run-state identity/version mismatch");
+    return state;
+  }
+
+  async saveRunState(state: SabRunState, expectedVersion: number | null, actorEmail: string) {
+    if (!this.client.ensureStateSheet) throw new Error("Durable run-state storage is unavailable; paid submission disabled");
+    await this.assertOneActiveRun(state.run_id);
+    await this.client.ensureStateSheet(this.spreadsheetId, this.runStateTab);
+    const previous = await this.getRunState(state.run_id);
+    if ((previous?.version ?? null) !== expectedVersion) throw new Error("Run state changed; reconcile before retrying transition");
+    const values = await this.client.getValues(this.spreadsheetId, `${quoteSheetName(this.runStateTab)}!A:E`);
+    const json = JSON.stringify(state);
+    const chunks = json.match(/[\s\S]{1,40000}/g) ?? [];
+    const existingIndexes = values.flatMap((row,index) => row[0] === state.run_id ? [index] : []);
+    const start = values.length;
+    const updates = chunks.flatMap((chunk,index) => {
+      const rowNumber = (existingIndexes[index] ?? start + Math.max(0,index-existingIndexes.length)) + 1;
+      return [state.run_id,state.version,index,chunk,actorEmail].map((value,column) => ({range:`${quoteSheetName(this.runStateTab)}!${columnName(column)}${rowNumber}`,value}));
+    });
+    for (const index of existingIndexes.slice(chunks.length)) {
+      for (let column=0;column<5;column++) updates.push({range:`${quoteSheetName(this.runStateTab)}!${columnName(column)}${index+1}`,value:""});
+    }
+    await this.client.updateValues(this.spreadsheetId, updates);
+  }
+
+  async getScanSubmission(placeId: string, key: string) {
+    const {rows} = await this.readTable();
+    const row = rows.find(item => item.row.place_id === placeId)?.row;
+    return row ? this.parsedScanHistory(row).find(entry => entry.record_type === "scan_submission" && entry.idempotency_key === key) ?? null : null;
+  }
 
   private async readTable(): Promise<{
     headers: string[];
@@ -786,6 +869,19 @@ export class SabSheetsRepository {
     return publicRow(match.row);
   }
 
+  async getExportCandidates() {
+    const {rows} = await this.readTable();
+    const eligible = rows.filter(({row}) => row.workflow === SCALE_FIRST_WORKFLOW &&
+      row.qualification_status === "qualified" && ["complete", "qa_ready"].includes(row.status));
+    const ids = new Set<string>();
+    for (const {row} of eligible) {
+      if (ids.has(row.place_id)) throw new Error("Duplicate Place ID in qualified export population");
+      ids.add(row.place_id);
+      this.validateScaleFirstQaReadyRow(row);
+    }
+    return eligible.map(({row}) => publicRow(row));
+  }
+
   async saveCompany(
     placeId: string,
     updates: SabCompanyUpdates,
@@ -806,47 +902,14 @@ export class SabSheetsRepository {
     } as SabRow;
 
     if (updates.scan_center && updates.center_type) {
-      const notes = merged.research_notes;
-      if (
-        updates.center_type === "corroborated_address" &&
-        !(
-          /\b(?:§\s*10\.4|corroborat(?:ed|ion))\b/i.test(notes) &&
-          /\bPASS(?:ED)?\b/i.test(notes)
-        )
-      ) {
-        throw new Error(
-          "Cannot save a corroborated_address center without a recorded §10.4 corroboration PASS in research_notes",
-        );
+      const state = sabDecisionStateSchema.safeParse(parseJsonValue(merged.decision_state));
+      if (!state.success || state.data.center_type !== updates.center_type ||
+          !state.data.proposed_center || !sameScanCenter(state.data.proposed_center, updates.scan_center) ||
+          !["planned", "validated"].includes(state.data.centering_status)) {
+        throw new Error("Cannot save center without matching structured decision_state evidence; research_notes do not authorize a center");
       }
-      if (
-        updates.center_type === "weighted_cell_centroid" &&
-        !(/\bcentroid\b/i.test(notes) && /\btrustworthy\b/i.test(notes))
-      ) {
-        throw new Error(
-          "Cannot save a weighted_cell_centroid center without a recorded trustworthy centroid finding in research_notes",
-        );
-      }
-      if (
-        updates.center_type === "scout_recentered" &&
-        !(
-          /\bscout\b/i.test(notes) &&
-          /\b(?:recenter(?:ed|ing)?|centroid)\b/i.test(notes)
-        )
-      ) {
-        throw new Error(
-          "Cannot save a scout_recentered center without recorded scout recentering evidence in research_notes",
-        );
-      }
-      if (
-        updates.center_type === "fine_scan_recentered" &&
-        !(
-          /\bfine(?:[- ]scan)?\b/i.test(notes) &&
-          /\b(?:recenter(?:ed|ing)?|centroid)\b/i.test(notes)
-        )
-      ) {
-        throw new Error(
-          "Cannot save a fine_scan_recentered center without recorded fine-scan recentering evidence in research_notes",
-        );
+      if (updates.center_type === "master_edge_offset" && state.data.centering_status === "validated") {
+        throw new Error("master_edge_offset is an auxiliary launch point, never a validated deliverable center");
       }
     }
 
@@ -854,13 +917,16 @@ export class SabSheetsRepository {
       const isScaleFirstDisqualificationClosure =
         merged.workflow === SCALE_FIRST_WORKFLOW &&
         updates.status === "complete" &&
-        merged.qualification_status === "disqualified";
+        ["disqualified", "deferred"].includes(merged.qualification_status);
+      if (isScaleFirstDisqualificationClosure && !merged.qualification_reason.trim()) {
+        throw new Error("Structured qualification_reason is required for disqualified or deferred closure");
+      }
       if (
         merged.workflow === SCALE_FIRST_WORKFLOW &&
         !isScaleFirstDisqualificationClosure
       ) {
         this.validateScaleFirstQaReadyRow(merged);
-      } else {
+      } else if (!isScaleFirstDisqualificationClosure) {
         this.validateCompleteRow(merged);
       }
     }
@@ -1136,7 +1202,7 @@ export class SabSheetsRepository {
     )[0];
     if (changedEnvelope) {
       throw new Error(
-        `Authorization ${reservation.authorization_id} already has a different durable scan envelope for ${reservation.place_id}; changed parameters require a new supervisor authorization.`,
+        `Authorization ${reservation.authorization_id} already has a different durable scan envelope for ${reservation.place_id}; changed parameters require a new orchestrator batch authorization.`,
       );
     }
     const active = histories.flatMap(({ row, history }) =>
@@ -1224,6 +1290,7 @@ export class SabSheetsRepository {
     placeId: string,
     scanResult: SabScanResult,
     actorEmail: string,
+    options: { historyOnly?: boolean } = {},
   ) {
     const { headers, headerIndex, rows } = await this.readTable();
     const match = rows.find(({ row }) => row.place_id === placeId);
@@ -1323,8 +1390,8 @@ export class SabSheetsRepository {
     };
     const existingHistoryIndex = history.findIndex(
       (entry) =>
-        (entry as { report_key?: unknown }).report_key ===
-        scanResult.report_key,
+        !(entry as { record_type?: unknown }).record_type &&
+        (entry as { report_key?: unknown }).report_key === scanResult.report_key,
     );
     if (existingHistoryIndex >= 0) {
       history[existingHistoryIndex] = {
@@ -1342,7 +1409,8 @@ export class SabSheetsRepository {
       updated_at: timestamp,
       updated_by: actorEmail,
     };
-    if (scanResult.scan_role === "deliverable") {
+    if (scanResult.scan_role === "deliverable" && !options.historyOnly) {
+      if (scanResult.center_type === "master_edge_offset") throw new Error("An auxiliary offset cannot be a deliverable center");
       Object.assign(valuesToWrite, {
         arp: scanResult.arp,
         solv: scanResult.solv,
@@ -1357,6 +1425,8 @@ export class SabSheetsRepository {
         valuesToWrite.scan_center = scanResult.scan_center;
       if (scanResult.center_type !== undefined)
         valuesToWrite.center_type = scanResult.center_type;
+      if (scanResult.scan_spec !== undefined) valuesToWrite.scan_spec = scanResult.scan_spec;
+      if ((headerIndex.get("outcome") ?? -1) >= 0) valuesToWrite.outcome = "deliverable";
     }
 
     const cellUpdates = Object.entries(valuesToWrite).map(([key, value]) => {
@@ -1380,7 +1450,7 @@ export class SabSheetsRepository {
       scan_role: scanResult.scan_role,
       scan_type: scanResult.scan_type,
       report_key: scanResult.report_key,
-      current_scan_updated: scanResult.scan_role === "deliverable",
+      current_scan_updated: scanResult.scan_role === "deliverable" && !options.historyOnly,
       scan_history_count: history.length,
       updated_at: timestamp,
     };
@@ -1473,6 +1543,7 @@ export class SabSheetsRepository {
       if (!row[header].trim()) missing.push(header);
     };
 
+    const crmOnly = row.outcome === "no_visibility_core_found";
     for (const header of [
       "batch_id",
       "company",
@@ -1480,12 +1551,7 @@ export class SabSheetsRepository {
       "city",
       "state",
       "zip",
-      "report_key",
-      "report_url",
-      "scan_date",
       "scan_keyword",
-      "arp",
-      "solv",
       "rating",
       "review_count",
       "contact_tag",
@@ -1493,6 +1559,29 @@ export class SabSheetsRepository {
       requireValue(header);
     }
 
+    if (crmOnly) {
+      const market = sabMarketReferenceSchema.safeParse(parseJsonValue(row.market_reference));
+      const decision = sabDecisionStateSchema.safeParse(parseJsonValue(row.decision_state));
+      if (!market.success) missing.push("market_reference (verified auxiliary market reference required)");
+      else if (["city", "state", "zip"].some(key => row[key as SabHeader] !== market.data[key as "city"|"state"|"zip"])) {
+        missing.push("city/state/zip must match labelled market_reference");
+      }
+      if (!decision.success || decision.data.outcome !== "no_visibility_core_found" ||
+          decision.data.centering_status !== "market_reference_only" || decision.data.evidence?.exact_top20_count !== 0 ||
+          (market.success && decision.data.source_report_key !== market.data.auxiliary_report_key)) {
+        missing.push("decision_state (completed no-visibility auxiliary evidence required)");
+      }
+      for (const header of ["report_key", "report_url", "scan_date", "arp", "solv", "scan_center", "center_type", "scan_spec"] as const) {
+        if (row[header].trim()) missing.push(`${header} (must be empty for CRM-only no-visibility lead)`);
+      }
+    } else {
+      for (const header of ["report_key", "report_url", "scan_date", "arp", "solv", "scan_center", "center_type"] as const) requireValue(header);
+      const state = sabDecisionStateSchema.safeParse(parseJsonValue(row.decision_state));
+      if (row.outcome !== "deliverable" || !state.success || state.data.centering_status !== "validated" || state.data.outcome !== "deliverable" || row.market_reference.trim() || state.data.source_report_key !== row.report_key || state.data.proposed_center !== row.scan_center || state.data.center_type !== row.center_type) missing.push("decision_state (validated canonical report and center required)");
+      if (!sabEffectiveScanSpecSchema.safeParse(parseJsonValue(row.scan_spec)).success) missing.push("scan_spec (actual canonical radius required)");
+    }
+
+    if (!sabEligibilityStateSchema.safeParse(parseJsonValue(row.eligibility_state)).success) missing.push("eligibility_state (verified general eligibility and contacts required)");
     if (row.qualification_status !== "qualified") {
       missing.push("qualification_status (must be qualified)");
     }
@@ -1509,14 +1598,18 @@ export class SabSheetsRepository {
     if (row.contact_tag === "Email Ready" && !row.email.trim()) {
       missing.push("email (required for Email Ready)");
     }
+    if (row.contact_tag === "Needs Email" && (!row.phone.trim() || row.email.trim())) {
+      missing.push("Needs Email requires a verified phone and no email");
+    }
+    if (!row.phone.trim() && !row.email.trim()) missing.push("at least one verified contact method");
     if (row.state && !/^[A-Za-z]{2}$/.test(row.state)) {
       missing.push("state (must be a two-letter state code)");
     }
     for (const [header, minimum, maximum] of [
       ["arp", 0, Number.POSITIVE_INFINITY],
       ["solv", 0, 100],
-      ["rating", 0, 5],
-      ["review_count", 0, Number.POSITIVE_INFINITY],
+      ["rating", 4.5, 5],
+      ["review_count", 1, Number.POSITIVE_INFINITY],
     ] as const) {
       if (!row[header]) continue;
       const value = Number(row[header]);

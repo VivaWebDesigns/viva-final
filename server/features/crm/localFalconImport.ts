@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../../db";
 import { normalizePhoneDigits } from "@shared/phone";
 import {
@@ -10,6 +10,7 @@ import {
   crmLeadStatuses,
   crmTags,
   localFalconImportBatches,
+  localFalconCrmOnlyProspects,
   localFalconProspectProfiles,
   pipelineOpportunities,
   pipelineStages,
@@ -21,6 +22,8 @@ import {
 } from "@shared/leadClassification";
 import {
   SAB_ADDRESS_LABEL,
+  NO_VISIBILITY_OUTCOME,
+  CRM_ONLY_LOCAL_FALCON_SOURCE,
   SCALE_FIRST_CONTACT_TAGS,
   SCALE_FIRST_WORKFLOW,
   type ScaleFirstContactTag,
@@ -112,7 +115,7 @@ export function googleMapsUrlFromPlaceId(placeId: string): string {
   return `https://www.google.com/maps/search/?api=1&query=${encodedPlaceId}&query_place_id=${encodedPlaceId}`;
 }
 
-const scaleFirstProspectSchema = z.object({
+const scaleFirstProspectBaseSchema = z.object({
   place_id: z.string().trim().min(1),
   company_name: z.string().trim().min(1),
   address: z.literal(SAB_ADDRESS_LABEL),
@@ -140,7 +143,47 @@ const scaleFirstProspectSchema = z.object({
   scan_center: scanCenterSchema.optional(),
   heatmap_file: z.string().trim().min(1).optional(),
   qualification_status: z.literal("qualified"),
-}).strict().superRefine((value, ctx) => {
+}).strict();
+
+export const sabMarketReferenceSchema = z.object({
+  kind: z.literal("market_reference_only"),
+  source: z.literal("auxiliary_scan_reverse_geocode"),
+  latitude: z.number().finite().min(-90).max(90),
+  longitude: z.number().finite().min(-180).max(180),
+  city: z.string().trim().min(1),
+  state: z.string().trim().regex(/^[A-Za-z]{2}$/).transform((value) => value.toUpperCase()),
+  zip: z.string().trim().min(1),
+  auxiliary_report_key: z.string().trim().regex(/^[a-f0-9]{12,64}$/i),
+  auxiliary_report_url: z.string().trim().url(),
+}).strict();
+
+const noVisibilityProspectSchema = scaleFirstProspectBaseSchema.extend({
+  outcome: z.literal(NO_VISIBILITY_OUTCOME),
+  market_reference: sabMarketReferenceSchema,
+  report_key: z.null().optional(),
+  report_url: z.null().optional(),
+  scan_date: z.null().optional(),
+  scan_spec: z.null().optional(),
+  arp: z.null().optional(),
+  atrp: z.null().optional(),
+  solv: z.null().optional(),
+  scan_center: z.null().optional(),
+  heatmap_file: z.null().optional(),
+}).strict();
+
+const scaleFirstProspectSchema = z.preprocess(
+  (value) => typeof value === "object" && value !== null && !("outcome" in value)
+    ? { ...value, outcome: "deliverable" }
+    : value,
+  z.discriminatedUnion("outcome", [
+    scaleFirstProspectBaseSchema.extend({ outcome: z.literal("deliverable") }),
+    noVisibilityProspectSchema,
+  ]),
+).superRefine((value, ctx) => {
+  if (value.outcome === NO_VISIBILITY_OUTCOME
+    && (value.city !== value.market_reference.city || value.state !== value.market_reference.state || value.zip !== value.market_reference.zip)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["market_reference"], message: "CRM-only city/state/zip must match the explicitly labelled market reference, not an asserted business center" });
+  }
   if (value.has_website && !value.website_url) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["website_url"], message: "Required when has_website is true" });
   }
@@ -149,6 +192,9 @@ const scaleFirstProspectSchema = z.object({
   }
   if (value.contact_tag === "Email Ready" && !value.email) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["email"], message: "Required when contact_tag is Email Ready" });
+  }
+  if (value.contact_tag === "Needs Email" && (!value.phone || value.email)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["contact_tag"], message: "Needs Email requires a verified phone and null email" });
   }
   const normalizedPath = value.heatmap_file?.replace(/\\/g, "/");
   if (normalizedPath && (!/^heatmaps\/[A-Za-z0-9._-]+\.(png|jpe?g|webp)$/i.test(normalizedPath) || normalizedPath.includes(".."))) {
@@ -166,15 +212,25 @@ const scaleFirstProspectSchema = z.object({
 const scaleFirstPayloadSchema = z.object({
   workflow: z.literal(SCALE_FIRST_WORKFLOW),
   batch: batchSchema,
-  prospects: z.array(scaleFirstProspectSchema).min(1).max(200),
+  prospects: z.array(scaleFirstProspectSchema).min(1).max(2000),
 }).strict();
 
 export type LocalFalconBatchInput = z.infer<typeof batchSchema>;
 export type LocalFalconScanSpec = z.infer<typeof scanSpecSchema>;
 export type AuditFirstProspectInput = z.infer<typeof auditFirstProspectSchema>;
+export type NoVisibilityProspectInput = z.infer<typeof noVisibilityProspectSchema> & { google_maps_url: string };
 export type ScaleFirstProspectInput = z.infer<typeof scaleFirstProspectSchema>;
 export type LocalFalconProspectInput = AuditFirstProspectInput | ScaleFirstProspectInput;
 export type LocalFalconPayload = z.infer<typeof auditFirstPayloadSchema> | z.infer<typeof scaleFirstPayloadSchema>;
+
+export function isNoVisibilityProspect(prospect: LocalFalconProspectInput): prospect is NoVisibilityProspectInput {
+  return "outcome" in prospect && prospect.outcome === NO_VISIBILITY_OUTCOME;
+}
+
+export type DeliverableProspectInput = Exclude<LocalFalconProspectInput, NoVisibilityProspectInput>;
+export function isDeliverableProspect(prospect: LocalFalconProspectInput): prospect is DeliverableProspectInput {
+  return !isNoVisibilityProspect(prospect);
+}
 
 export function getProspectScanSpec(
   payload: LocalFalconPayload,
@@ -198,11 +254,12 @@ export function getScaleFirstContactRouting(
   }
   return {
     contactTag: prospect.contact_tag,
-    automatedEmailEligible: prospect.contact_tag === "Email Ready",
+    automatedEmailEligible: !isNoVisibilityProspect(prospect) && prospect.contact_tag === "Email Ready",
   };
 }
 
 function crmLocation(prospect: LocalFalconProspectInput) {
+  if (isNoVisibilityProspect(prospect)) return { city: null, state: null, zip: null };
   return prospect.scan_center ?? {
     city: prospect.city,
     state: prospect.state,
@@ -240,7 +297,9 @@ export interface ProspectPreview {
   companyName: string;
   address: string;
   heatmapFile: string;
-  scanSpec: LocalFalconScanSpec;
+  scanSpec: LocalFalconScanSpec | null;
+  prospectOutcome?: "deliverable" | typeof NO_VISIBILITY_OUTCOME;
+  marketReference?: NoVisibilityProspectInput["market_reference"];
   outcome: "new" | "variation" | "existing" | "flagged";
   reason?: string;
   matches?: FallbackMatch[];
@@ -307,17 +366,17 @@ export function parseLocalFalconPayload(text: string): LocalFalconPayload {
   const reportKeys = new Set<string>();
   const heatmapFiles = new Set<string>();
   for (const [index, prospect] of parsed.data.prospects.entries()) {
-    assertDate(prospect.scan_date, `prospects.${index}.scan_date`);
+    if (prospect.scan_date) assertDate(prospect.scan_date, `prospects.${index}.scan_date`);
     if (prospect.scan_keyword !== parsed.data.batch.keyword) {
       throw new Error(`prospects.${index}.scan_keyword must match batch.keyword`);
     }
     if (placeIds.has(prospect.place_id)) throw new Error(`prospects.${index}.place_id is duplicated inside the batch`);
-    if (reportKeys.has(prospect.report_key)) throw new Error(`prospects.${index}.report_key is duplicated inside the batch`);
+    if (prospect.report_key && reportKeys.has(prospect.report_key)) throw new Error(`prospects.${index}.report_key is duplicated inside the batch`);
     if (prospect.heatmap_file && heatmapFiles.has(prospect.heatmap_file)) {
       throw new Error(`prospects.${index}.heatmap_file is referenced more than once`);
     }
     placeIds.add(prospect.place_id);
-    reportKeys.add(prospect.report_key);
+    if (prospect.report_key) reportKeys.add(prospect.report_key);
     if (prospect.heatmap_file) heatmapFiles.add(prospect.heatmap_file);
   }
 
@@ -398,8 +457,8 @@ export async function previewLocalFalconImport(
   const [existingBatch] = await db.select({ id: localFalconImportBatches.id })
     .from(localFalconImportBatches).where(eq(localFalconImportBatches.batchId, payload.batch.batch_id)).limit(1);
   const placeIds = payload.prospects.map((prospect) => prospect.place_id);
-  const reportKeys = payload.prospects.map((prospect) => prospect.report_key);
-  const [existingPlaceProfiles, existingReportProfiles] = await Promise.all([
+  const reportKeys = payload.prospects.filter(isDeliverableProspect).map((prospect) => prospect.report_key);
+  const [existingPlaceProfiles, existingReportProfiles, existingCrmOnly] = await Promise.all([
     db.select({
       placeId: localFalconProspectProfiles.placeId,
       leadId: localFalconProspectProfiles.leadId,
@@ -407,14 +466,16 @@ export async function previewLocalFalconImport(
     }).from(localFalconProspectProfiles)
       .where(inArray(localFalconProspectProfiles.placeId, placeIds))
       .orderBy(desc(localFalconProspectProfiles.createdAt)),
-    db.select({
+    reportKeys.length ? db.select({
       reportKey: localFalconProspectProfiles.reportKey,
       leadId: localFalconProspectProfiles.leadId,
     }).from(localFalconProspectProfiles)
-      .where(inArray(localFalconProspectProfiles.reportKey, reportKeys)),
+      .where(inArray(localFalconProspectProfiles.reportKey, reportKeys)) : Promise.resolve([]),
+    db.select({ placeId: localFalconCrmOnlyProspects.placeId, leadId: localFalconCrmOnlyProspects.leadId, companyName: localFalconCrmOnlyProspects.companyName })
+      .from(localFalconCrmOnlyProspects).where(inArray(localFalconCrmOnlyProspects.placeId, placeIds)),
   ]);
   const existingByPlace = new Map<string, { leadId: string; companyName: string | null }>();
-  for (const row of existingPlaceProfiles) {
+  for (const row of [...existingPlaceProfiles, ...existingCrmOnly]) {
     if (!existingByPlace.has(row.placeId)) {
       existingByPlace.set(row.placeId, { leadId: row.leadId, companyName: row.companyName });
     }
@@ -428,10 +489,12 @@ export async function previewLocalFalconImport(
       placeId: prospect.place_id,
       companyName: prospect.company_name,
       address: prospect.address,
-      heatmapFile: prospect.heatmap_file ?? "Official Local Falcon image",
-      scanSpec: getProspectScanSpec(payload, prospect),
+      heatmapFile: isNoVisibilityProspect(prospect) ? "CRM only — no prospect-facing report" : prospect.heatmap_file ?? "Official Local Falcon image",
+      scanSpec: isNoVisibilityProspect(prospect) ? null : getProspectScanSpec(payload, prospect),
+      prospectOutcome: isNoVisibilityProspect(prospect) ? NO_VISIBILITY_OUTCOME : "deliverable" as const,
+      ...(isNoVisibilityProspect(prospect) ? { marketReference: prospect.market_reference } : {}),
     };
-    const duplicateLeadId = existingByReport.get(prospect.report_key);
+    const duplicateLeadId = prospect.report_key ? existingByReport.get(prospect.report_key) : undefined;
     if (duplicateLeadId) {
       rows.push({
         ...base,
@@ -444,8 +507,10 @@ export async function previewLocalFalconImport(
     if (existingBusiness) {
       rows.push({
         ...base,
-        outcome: "variation",
-        reason: `New scan variation for ${existingBusiness.companyName ?? prospect.company_name}; the existing CRM record will be reused`,
+        outcome: isNoVisibilityProspect(prospect) ? "existing" : "variation",
+        reason: isNoVisibilityProspect(prospect)
+          ? `Exact Place ID already belongs to lead ${existingBusiness.leadId}; no duplicate CRM-only lead will be created`
+          : `New scan variation for ${existingBusiness.companyName ?? prospect.company_name}; the existing CRM record will be reused`,
       });
       continue;
     }
@@ -453,7 +518,7 @@ export async function previewLocalFalconImport(
     rows.push({ ...base, outcome: matches.length ? "flagged" : "new", matches: matches.length ? matches : undefined });
   }
 
-  const scanSpecs = [...new Map(payload.prospects.map((prospect) => {
+  const scanSpecs = [...new Map(payload.prospects.filter(isDeliverableProspect).map((prospect) => {
     const spec = getProspectScanSpec(payload, prospect);
     return [`${spec.grid_size.toLowerCase().replace("×", "x")}:${spec.radius_miles}`, spec] as const;
   })).values()];
@@ -484,6 +549,7 @@ export interface LocalFalconImportResult extends LocalFalconPreviewResult {
     companyId: string;
     placeId: string;
     createdNewLead: boolean;
+    prospectOutcome: "deliverable" | typeof NO_VISIBILITY_OUTCOME;
     contactTag?: ScaleFirstContactTag;
     automatedEmailEligible?: boolean;
   }>;
@@ -508,13 +574,20 @@ export async function importLocalFalconPayload(
       .map((row) => row.placeId),
   );
   if (allowedPlaceIds.size === 0) {
-    throw new Error("No new reports were selected for import");
+    throw new Error("No new leads or reports were selected for import");
   }
-  for (const placeId of allowedPlaceIds) {
-    if (!assetsByPlaceId.has(placeId)) throw new Error(`Heatmap upload is missing for Place ID ${placeId}`);
+  for (const prospect of payload.prospects.filter(isDeliverableProspect)) {
+    if (allowedPlaceIds.has(prospect.place_id) && !assetsByPlaceId.has(prospect.place_id)) {
+      throw new Error(`Heatmap upload is missing for Place ID ${prospect.place_id}`);
+    }
   }
 
   const transactionResult = await db.transaction(async (tx) => {
+    // Serialize exact-Place-ID imports across both evidence tables; a second
+    // concurrent import rechecks the committed row before it creates a lead.
+    for (const placeId of [...allowedPlaceIds].sort()) {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${placeId}, 0))`);
+    }
     const [existingBatch] = await tx.select().from(localFalconImportBatches)
       .where(eq(localFalconImportBatches.batchId, payload.batch.batch_id)).limit(1);
     let batch = existingBatch;
@@ -574,18 +647,25 @@ export async function importLocalFalconPayload(
     for (const prospect of payload.prospects) {
       if (!allowedPlaceIds.has(prospect.place_id)) continue;
       const location = crmLocation(prospect);
-      const [duplicate] = await tx.select({ id: localFalconProspectProfiles.id })
-        .from(localFalconProspectProfiles).where(eq(localFalconProspectProfiles.reportKey, prospect.report_key)).limit(1);
-      if (duplicate) continue;
-      const asset = assetsByPlaceId.get(prospect.place_id)!;
+      if (isDeliverableProspect(prospect)) {
+        const [duplicate] = await tx.select({ id: localFalconProspectProfiles.id })
+          .from(localFalconProspectProfiles).where(eq(localFalconProspectProfiles.reportKey, prospect.report_key)).limit(1);
+        if (duplicate) continue;
+      }
 
-      const [existingScan] = await tx.select({
+      const [existingScanProfile] = await tx.select({
         lead: crmLeads,
       }).from(localFalconProspectProfiles)
         .innerJoin(crmLeads, eq(localFalconProspectProfiles.leadId, crmLeads.id))
         .where(eq(localFalconProspectProfiles.placeId, prospect.place_id))
         .orderBy(desc(localFalconProspectProfiles.createdAt))
         .limit(1);
+      const [existingCrmOnly] = await tx.select({ lead: crmLeads })
+        .from(localFalconCrmOnlyProspects)
+        .innerJoin(crmLeads, eq(localFalconCrmOnlyProspects.leadId, crmLeads.id))
+        .where(eq(localFalconCrmOnlyProspects.placeId, prospect.place_id)).limit(1);
+      const existingScan = existingScanProfile ?? existingCrmOnly;
+      if (isNoVisibilityProspect(prospect) && existingScan) continue;
 
       let company: typeof crmCompanies.$inferSelect;
       let lead: typeof crmLeads.$inferSelect;
@@ -607,8 +687,10 @@ export async function importLocalFalconPayload(
           } : {}),
           updatedAt: new Date(),
         }).where(eq(crmCompanies.id, existingCompany.id)).returning();
-        if (prospect.scan_center) {
+        if (prospect.scan_center || existingScan.lead.source === CRM_ONLY_LOCAL_FALCON_SOURCE) {
           [lead] = await tx.update(crmLeads).set({
+            source: "local_falcon",
+            sourceLabel: "Local Falcon / Codex",
             city: location.city,
             state: location.state,
             updatedAt: new Date(),
@@ -631,7 +713,7 @@ export async function importLocalFalconPayload(
             stageId: stage.id,
             status: "open",
             sourceLeadTitle: prospect.company_name,
-            notes: `Local Falcon report ${prospect.report_key}`,
+            notes: isNoVisibilityProspect(prospect) ? "CRM-only no-visibility lead; no prospect-facing report" : `Local Falcon report ${prospect.report_key}`,
             assignedTo: lead.assignedTo ?? assignedTo,
           }).returning();
         }
@@ -672,12 +754,14 @@ export async function importLocalFalconPayload(
           contactId,
           statusId: status.id,
           title: prospect.company_name,
-          source: "local_falcon",
-          sourceLabel: "Local Falcon / Claude",
+          source: isNoVisibilityProspect(prospect) ? CRM_ONLY_LOCAL_FALCON_SOURCE : "local_falcon",
+          sourceLabel: isNoVisibilityProspect(prospect) ? "Local Falcon / CRM only — no visibility" : "Local Falcon / Codex",
           city: location.city,
           state: location.state,
           trade: payload.batch.trade,
-          notes: `Qualified Local Falcon prospect · ARP ${prospect.arp}`,
+          notes: isNoVisibilityProspect(prospect)
+            ? `Qualified CRM-only prospect. Market reference only: ${prospect.market_reference.city}, ${prospect.market_reference.state} ${prospect.market_reference.zip}. No validated business center or prospect-facing report; scan outreach is disabled.`
+            : `Qualified Local Falcon prospect · raw ARP ${prospect.arp}`,
           assignedTo,
         }).returning();
 
@@ -689,7 +773,7 @@ export async function importLocalFalconPayload(
           stageId: stage.id,
           status: "open",
           sourceLeadTitle: prospect.company_name,
-          notes: `Local Falcon report ${prospect.report_key}`,
+          notes: isNoVisibilityProspect(prospect) ? "CRM-only no-visibility lead; no prospect-facing report" : `Local Falcon report ${prospect.report_key}`,
           assignedTo,
         }).returning();
         createdNewLead = true;
@@ -712,60 +796,77 @@ export async function importLocalFalconPayload(
         await tx.insert(crmLeadTags).values({ leadId: lead.id, tagId: contactRoutingTag.id });
       }
 
-      await tx.insert(localFalconProspectProfiles).values({
-        batchRecordId: batch.id,
-        leadId: lead.id,
-        placeId: prospect.place_id,
-        companyName: prospect.company_name,
-        address: SAB_ADDRESS_LABEL,
-        city: prospect.city,
-        state: prospect.state,
-        zip: prospect.zip,
-        scanCenterLat: prospect.scan_center ? String(prospect.scan_center.lat) : null,
-        scanCenterLng: prospect.scan_center ? String(prospect.scan_center.lng) : null,
-        scanCity: prospect.scan_center?.city ?? null,
-        scanState: prospect.scan_center?.state ?? null,
-        scanZip: prospect.scan_center?.zip ?? null,
-        phone: prospect.phone ? normalizePhoneDigits(prospect.phone) : null,
-        ownerName: prospect.owner_name,
-        googleMapsUrl: prospect.google_maps_url,
-        hasWebsite: prospect.has_website,
-        websiteUrl: prospect.website_url,
-        websitePlatform: prospect.website_platform,
-        servicePageCount: "service_page_count" in prospect ? prospect.service_page_count : null,
-        websiteAnalysis: "website_analysis" in prospect ? prospect.website_analysis : null,
-        reviewsAnalysis: "reviews_analysis" in prospect ? prospect.reviews_analysis : null,
-        reportKey: prospect.report_key,
-        reportUrl: prospect.report_url,
-        scanDate: new Date(prospect.scan_date),
-        scanKeyword: prospect.scan_keyword,
-        scanGridSize: getProspectScanSpec(payload, prospect).grid_size,
-        scanRadiusMiles: String(getProspectScanSpec(payload, prospect).radius_miles),
-        qualificationStatus: prospect.qualification_status,
-        heatmapFile: prospect.heatmap_file ?? null,
-        heatmapSourceUrl: asset.sourceUrl ?? null,
-        heatmapStorageKey: asset.key,
-        heatmapOriginalName: asset.originalName,
-        heatmapMimeType: asset.mimeType,
-        heatmapSizeBytes: asset.sizeBytes,
-        heatmapSha256: asset.sha256,
-        snapshotStorageKey: asset.snapshot.key,
-        snapshotOriginalName: asset.snapshot.originalName,
-        snapshotMimeType: asset.snapshot.mimeType,
-        snapshotSizeBytes: asset.snapshot.sizeBytes,
-        snapshotSha256: asset.snapshot.sha256,
-        snapshotGeneratedAt: new Date(),
-        arp: String(prospect.arp),
-        atrp: prospect.atrp == null ? null : String(prospect.atrp),
-        solv: String(prospect.solv),
-        rating: String(prospect.rating),
-        reviewCount: prospect.review_count,
-        tier: "sales_priority" in prospect ? String(prospect.sales_priority) : null,
-        pitchType: "sales_priority" in prospect ? "website" : null,
-        pitchSummary: "sales_priority_reason" in prospect ? prospect.sales_priority_reason : null,
-      });
+      if (isNoVisibilityProspect(prospect)) {
+        await tx.insert(localFalconCrmOnlyProspects).values({
+          batchRecordId: batch.id,
+          leadId: lead.id,
+          placeId: prospect.place_id,
+          companyName: prospect.company_name,
+          outcome: NO_VISIBILITY_OUTCOME,
+          marketReference: prospect.market_reference,
+          contactTag: prospect.contact_tag,
+          qualificationStatus: prospect.qualification_status,
+          scanKeyword: prospect.scan_keyword,
+          googleMapsUrl: prospect.google_maps_url,
+        });
+      } else {
+        const asset = assetsByPlaceId.get(prospect.place_id)!;
+        await tx.insert(localFalconProspectProfiles).values({
+          batchRecordId: batch.id,
+          leadId: lead.id,
+          placeId: prospect.place_id,
+          companyName: prospect.company_name,
+          address: SAB_ADDRESS_LABEL,
+          city: prospect.city,
+          state: prospect.state,
+          zip: prospect.zip,
+          scanCenterLat: prospect.scan_center ? String(prospect.scan_center.lat) : null,
+          scanCenterLng: prospect.scan_center ? String(prospect.scan_center.lng) : null,
+          scanCity: prospect.scan_center?.city ?? null,
+          scanState: prospect.scan_center?.state ?? null,
+          scanZip: prospect.scan_center?.zip ?? null,
+          phone: prospect.phone ? normalizePhoneDigits(prospect.phone) : null,
+          ownerName: prospect.owner_name,
+          googleMapsUrl: prospect.google_maps_url,
+          hasWebsite: prospect.has_website,
+          websiteUrl: prospect.website_url,
+          websitePlatform: prospect.website_platform,
+          servicePageCount: "service_page_count" in prospect ? prospect.service_page_count : null,
+          websiteAnalysis: "website_analysis" in prospect ? prospect.website_analysis : null,
+          reviewsAnalysis: "reviews_analysis" in prospect ? prospect.reviews_analysis : null,
+          reportKey: prospect.report_key,
+          reportUrl: prospect.report_url,
+          scanDate: new Date(prospect.scan_date),
+          scanKeyword: prospect.scan_keyword,
+          scanGridSize: getProspectScanSpec(payload, prospect).grid_size,
+          scanRadiusMiles: String(getProspectScanSpec(payload, prospect).radius_miles),
+          qualificationStatus: prospect.qualification_status,
+          heatmapFile: prospect.heatmap_file ?? null,
+          heatmapSourceUrl: asset.sourceUrl ?? null,
+          heatmapStorageKey: asset.key,
+          heatmapOriginalName: asset.originalName,
+          heatmapMimeType: asset.mimeType,
+          heatmapSizeBytes: asset.sizeBytes,
+          heatmapSha256: asset.sha256,
+          snapshotStorageKey: asset.snapshot.key,
+          snapshotOriginalName: asset.snapshot.originalName,
+          snapshotMimeType: asset.snapshot.mimeType,
+          snapshotSizeBytes: asset.snapshot.sizeBytes,
+          snapshotSha256: asset.snapshot.sha256,
+          snapshotGeneratedAt: new Date(),
+          arp: String(prospect.arp),
+          atrp: prospect.atrp == null ? null : String(prospect.atrp),
+          solv: String(prospect.solv),
+          rating: String(prospect.rating),
+          reviewCount: prospect.review_count,
+          tier: "sales_priority" in prospect ? String(prospect.sales_priority) : null,
+          pitchType: "sales_priority" in prospect ? "website" : null,
+          pitchSummary: "sales_priority_reason" in prospect ? prospect.sales_priority_reason : null,
+        });
+      }
 
       results.push({
+        prospectOutcome: isNoVisibilityProspect(prospect) ? NO_VISIBILITY_OUTCOME : "deliverable",
         leadId: lead.id,
         opportunityId: opportunity.id,
         contactId,
@@ -801,4 +902,10 @@ export async function getLocalFalconProfileForLead(leadId: string) {
     .orderBy(desc(localFalconProspectProfiles.scanDate))
     .limit(1);
   return result ?? null;
+}
+
+export async function getLocalFalconCrmOnlyForLead(leadId: string) {
+  const [record] = await db.select().from(localFalconCrmOnlyProspects)
+    .where(eq(localFalconCrmOnlyProspects.leadId, leadId)).limit(1);
+  return record ?? null;
 }

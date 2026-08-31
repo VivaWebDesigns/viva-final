@@ -18,6 +18,7 @@ const gridPoints = [
 ];
 
 const competitorPayload = {
+  code: 200,
   success: true,
   data: {
     report_key: "report-123",
@@ -48,6 +49,7 @@ const competitorPayload = {
 };
 
 const gridPayload = {
+  code: 200,
   success: true,
   data: {
     report_key: "report-123",
@@ -72,7 +74,7 @@ describe("SAB Local Falcon ranked-cell extraction", () => {
     expect(extractSabRankedCells(
       competitorPayload,
       gridPayload,
-      "fallback",
+      "report-123",
       ["ChIJ-one", "ChIJ-missing"],
     )).toMatchObject({
       report_key: "report-123",
@@ -142,6 +144,51 @@ describe("SAB Local Falcon ranked-cell extraction", () => {
         rank: 7,
       }],
     }]);
+  });
+
+
+  it("excludes imprecise, nonpositive, noninteger and above20 ranks from centering", () => {
+    const ranks = [1, "20", 21, "21", "20+", 0, -1, 4.5];
+    const payload = { ...competitorPayload, data: { ...competitorPayload.data, businesses: [{ place_id: "exact", data_points: ranks.map((rank, i) => ({ ...gridPoints[i], rank })) }] } };
+    expect(extractSabRankedCells(payload, gridPayload, "report-123", ["exact"]).businesses[0]).toMatchObject({ ranked_cell_count: 2, imprecise_or_unranked_cell_count: 6 });
+  });
+
+  it("returns only a provider-supplied secure public report URL", () => {
+    const public_url = "https://localrankingtracker.com/scan-report/report-123/public-token/";
+    expect(extractSabRankedCells(competitorPayload, { ...gridPayload, data: { ...gridPayload.data, public_url } }, "report-123", ["ChIJ-one"]).public_url).toBe(public_url);
+    expect(extractSabRankedCells(competitorPayload, gridPayload, "report-123", ["ChIJ-one"]).public_url).toBeNull();
+    expect(extractSabRankedCells(competitorPayload, { ...gridPayload, data: { ...gridPayload.data, public_url: "javascript:alert(1)" } }, "report-123", ["ChIJ-one"]).public_url).toBeNull();
+  });
+
+  it("keeps all-point ATRP distinct from raw ARP", () => {
+    const result = extractSabRankedCells(competitorPayload, { ...gridPayload, data: { ...gridPayload.data, arp: 4, atrp: 13, solv: 10 } }, "report-123", ["ChIJ-one"]);
+    expect(result).toMatchObject({ arp: 4, atrp: 13, solv: 10 });
+  });
+
+  it("rejects a grid with all axes but one duplicate and one missing coordinate", () => {
+    const data_points = [...gridPoints.slice(0, 8), gridPoints[0]];
+    expect(() => extractSabRankedCells(competitorPayload, { ...gridPayload, data: { ...gridPayload.data, data_points } }, "report-123", ["ChIJ-one"])).toThrow("not an exact");
+  });
+
+  it("rejects off-grid ranked coordinates and duplicate ranked positions", () => {
+    for (const data_points of [[{ lat: "45", lng: "-80.8", rank: 2 }], [{ ...gridPoints[0], rank: 1 }, { ...gridPoints[0], rank: 2 }]]) {
+      const payload = { ...competitorPayload, data: { ...competitorPayload.data, businesses: [{ place_id: "exact", data_points }] } };
+      expect(() => extractSabRankedCells(payload, gridPayload, "report-123", ["exact"])).toThrow();
+    }
+  });
+
+  it("requires exact report identity and authoritative completion before analyzing", () => {
+    expect(() => extractSabRankedCells(competitorPayload, gridPayload, "wrong-report", ["ChIJ-one"])).toThrow("exact requested report key");
+    for (const payload of [
+      { ...gridPayload, code: 202, data: { ...gridPayload.data, status: "processing" } },
+      { ...gridPayload, code: 200, data: { ...gridPayload.data, status: "processing" } },
+      { ...gridPayload, code: undefined },
+    ]) expect(() => extractSabRankedCells(competitorPayload, payload, "report-123", ["ChIJ-one"])).toThrow("completion is not verified");
+  });
+
+  it("does not accept HTTP202 as a successful completed report", async () => {
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ ...gridPayload, code: 202 }), { status: 202 }));
+    await expect(getSabRankedCells("report-123", ["ChIJ-one"], { apiKey: "secret", fetchImpl })).rejects.toThrow("not complete (HTTP 202)");
   });
 
   it("rejects incomplete grid geometry instead of assigning proxy cells", () => {

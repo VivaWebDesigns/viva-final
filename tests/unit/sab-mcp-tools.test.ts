@@ -25,7 +25,7 @@ describe("SAB MCP tool discovery", () => {
 
     try {
       const { tools } = await client.listTools();
-      expect(tools).toHaveLength(21);
+      expect(tools).toHaveLength(29);
       expect(tools.map((tool) => tool.name)).toContain("get_sab_schema");
       expect(tools.map((tool) => tool.name)).toContain(
         "upgrade_sab_workflow_schema",
@@ -50,7 +50,7 @@ describe("SAB MCP tool discovery", () => {
       for (const name of ["save_sab_company", "save_sab_scan_result"]) {
         const tool = tools.find((candidate) => candidate.name === name)!;
         expect(JSON.stringify(tool.inputSchema)).toContain("ranked_peak_recentered");
-        expect(JSON.stringify(tool.inputSchema)).toContain("does not authorize a scan");
+        expect(JSON.stringify(tool.inputSchema)).toContain("Neither label authorizes spending");
       }
       expect(tools[0]).toMatchObject({
         _meta: {
@@ -106,11 +106,11 @@ describe("SAB MCP tool discovery", () => {
       expect(schema.legacy_base_required_headers).not.toContain("contact_tag");
       expect(schema.scale_first_upgradeable_headers).toEqual([
         "workflow",
-        "contact_tag",
+        "contact_tag", "outcome", "market_reference", "decision_state", "qualification_reason", "eligibility_state", "scan_spec",
       ]);
       expect(schema.center_types).toEqual([
         "weighted_cell_centroid", "corroborated_address", "scout_recentered",
-        "fine_scan_recentered", "ranked_peak_recentered",
+        "fine_scan_recentered", "ranked_peak_recentered", "master_edge_offset",
       ]);
     } finally {
       await client.close();
@@ -145,7 +145,7 @@ describe("SAB MCP tool discovery", () => {
       });
       const content = result.content as Array<{ type: string; text: string }>;
       expect(JSON.parse(content[0].text)).toMatchObject({
-        contract_version: "2.1",
+        contract_version: "2.2",
         workflow: "scale_first_v2",
         writes_data: false,
       });
@@ -155,7 +155,7 @@ describe("SAB MCP tool discovery", () => {
     }
   });
 
-  it("marks intermediate Workflow writes as private continuation", async () => {
+  it("returns ordinary write receipts without a separate supervisor gate", async () => {
     const server = createSabMcpServer(
       (() => ({
         saveCompany: async () => ({
@@ -191,12 +191,12 @@ describe("SAB MCP tool discovery", () => {
         },
       });
       const content = result.content as Array<{ type: string; text: string }>;
-      expect(JSON.parse(content[0].text).response_gate).toEqual({
-        user_visible_response_allowed: false,
-        supervisor_checkpoint_required_before_user_response: true,
-        required_next_action:
-          "continue_unblocked_work_or_call_review_sab_checkpoint_privately",
-        invalidated_by_any_later_workflow_action: true,
+      const receipt = JSON.parse(content[0].text);
+      expect(receipt.response_gate).toBeUndefined();
+      expect(receipt.write_receipt).toEqual({
+        recorded: true,
+        next_action: "continue_from_receipt; read_back_once_at_critical_stage_end",
+        stage_end_readback_required: true,
       });
     } finally {
       await client.close();

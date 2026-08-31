@@ -442,6 +442,25 @@ export const localFalconImportBatches = pgTable("local_falcon_import_batches", {
   index("lf_import_batches_market_idx").on(t.marketState, t.marketCity),
 ]);
 
+// CRM-only evidence is intentionally separate from customer-facing scan reports.
+export const localFalconCrmOnlyProspects = pgTable("local_falcon_crm_only_prospects", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  batchRecordId: varchar("batch_record_id").notNull().references(() => localFalconImportBatches.id),
+  leadId: varchar("lead_id").notNull().references(() => crmLeads.id, { onDelete: "cascade" }),
+  placeId: text("place_id").notNull().unique(),
+  companyName: text("company_name").notNull(),
+  outcome: text("outcome").notNull().default("no_visibility_core_found"),
+  marketReference: jsonb("market_reference").$type<import("./sabCrm").SabMarketReference>().notNull(),
+  contactTag: text("contact_tag").notNull(),
+  qualificationStatus: text("qualification_status").notNull().default("qualified"),
+  scanKeyword: text("scan_keyword").notNull(),
+  googleMapsUrl: text("google_maps_url").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("lf_crm_only_lead_idx").on(t.leadId),
+  index("lf_crm_only_batch_idx").on(t.batchRecordId),
+]);
+
 export const localFalconProspectProfiles = pgTable("local_falcon_prospect_profiles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   batchRecordId: varchar("batch_record_id").notNull().references(() => localFalconImportBatches.id),

@@ -411,4 +411,48 @@ describe("Local Falcon import clipboard", () => {
     expect(firstReport).not.toBeChecked();
     expect(secondReport).not.toBeChecked();
   });
+
+  it("requires review of CRM-only references and confirms without generating a report or snapshot", async () => {
+    let confirmedForm: FormData | undefined;
+    server.use(
+      http.get("/api/crm/leads/assignable-users", () => HttpResponse.json([
+        { id: "setter", name: "Test Setter", email: "setter@example.com", role: "sales_rep" },
+      ])),
+      http.post("/api/crm/leads/import-local-falcon/preview", () => HttpResponse.json({
+        batchId: "test", market: { city: "Test Market", state: "NC" }, trade: "plumbing", keyword: "plumber",
+        scanSpec: { grid_size: "7x7", radius_miles: 3 }, scanSpecs: [], batchAlreadyImported: false,
+        newCount: 1, existingCount: 0, flaggedCount: 0, sourceMode: "local_falcon", rows: [{
+          row: 1, placeId: "ChIJ-crm-only", companyName: "Test prospect", address: "Service Area Business",
+          prospectOutcome: "no_visibility_core_found", marketReference: { city: "Test Market", state: "NC", zip: "28000" },
+          scanSpec: null, heatmapFile: "CRM only — no prospect-facing report", heatmapPreviewDataUrl: null,
+          heatmapSha256: null, heatmapSourceUrl: null, mapPresentation: null, reportData: null, outcome: "new",
+        }],
+      })),
+      http.post("/api/crm/leads/import-local-falcon/confirm", async ({ request }) => {
+        confirmedForm = await request.formData();
+        return HttpResponse.json({ imported: 1, existingCount: 0, flaggedCount: 0, automationErrors: 0 });
+      }),
+    );
+    renderWithProviders(<CsvImportModal open onClose={() => undefined} />);
+    fireEvent.paste(screen.getByTestId("local-falcon-package-dropzone"), {
+      clipboardData: { files: [], getData: () => '{"batch":{"batch_id":"test"},"prospects":[]}' },
+    });
+    fireEvent.click(screen.getByTestId("button-start-import"));
+    expect(await screen.findByText(/CRM only — no top-20 visibility/)).toHaveTextContent("Market reference only: Test Market, NC 28000");
+    expect(screen.queryByAltText("Uploaded Local Falcon ranking heatmap")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Canonical scan:/)).not.toBeInTheDocument();
+    expect(screen.getByTestId("button-confirm-local-falcon-import")).toBeDisabled();
+    fireEvent.keyDown(screen.getByTestId("select-local-falcon-lead-type"), { key: " " });
+    fireEvent.click(await screen.findByRole("option", { name: "SAB", exact: true }));
+    fireEvent.keyDown(screen.getByTestId("select-local-falcon-assignee"), { key: " " });
+    fireEvent.click(await screen.findByRole("option", { name: /Test Setter/ }));
+    expect(screen.getByTestId("button-confirm-local-falcon-import")).toBeDisabled();
+    fireEvent.click(screen.getByTestId("checkbox-confirm-local-falcon-preview-1"));
+    fireEvent.click(screen.getByTestId("button-confirm-local-falcon-import"));
+    expect(await screen.findByText("Import completed successfully.")).toBeInTheDocument();
+    expect(confirmedForm?.getAll("snapshots")).toEqual([]);
+    expect(confirmedForm?.get("previewHeatmapChecksums")).toBe("{}");
+    expect(confirmedForm?.get("confirmedCrmOnlyPlaceIds")).toBe('["ChIJ-crm-only"]');
+  });
+
 });

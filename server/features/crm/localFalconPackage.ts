@@ -4,8 +4,9 @@ import sharp from "sharp";
 import { unzipSync } from "fflate";
 import {
   parseLocalFalconPayload,
+  isDeliverableProspect,
+  type DeliverableProspectInput,
   type LocalFalconPayload,
-  type LocalFalconProspectInput,
 } from "./localFalconImport";
 
 export const LOCAL_FALCON_PACKAGE_MAX_BYTES = 50 * 1024 * 1024;
@@ -189,7 +190,7 @@ function readDirectJson(
   };
 }
 
-function fallbackPathForProspect(prospect: LocalFalconProspectInput, images: Map<string, Buffer>): string | null {
+function fallbackPathForProspect(prospect: DeliverableProspectInput, images: Map<string, Buffer>): string | null {
   if (prospect.heatmap_file) {
     const referenced = normalizeEntryPath(prospect.heatmap_file);
     if (images.has(referenced)) return referenced;
@@ -229,7 +230,7 @@ function errorMessage(error: unknown, fallback = "network request failed"): stri
 }
 
 function logOfficialMapFailure(details: {
-  prospect: LocalFalconProspectInput;
+  prospect: DeliverableProspectInput;
   attempt: number;
   durationMs: number;
   error: LocalFalconFetchAttemptError;
@@ -250,7 +251,7 @@ function logOfficialMapFailure(details: {
 }
 
 async function fetchOfficialMapAttempt(
-  prospect: LocalFalconProspectInput,
+  prospect: DeliverableProspectInput,
   fetchImpl: FetchLike,
 ): Promise<ValidatedHeatmap> {
   const sourceUrl = `${LOCAL_FALCON_IMAGE_ORIGIN}/image/${encodeURIComponent(prospect.report_key)}`;
@@ -306,7 +307,7 @@ async function fetchOfficialMapAttempt(
 }
 
 async function fetchOfficialMap(
-  prospect: LocalFalconProspectInput,
+  prospect: DeliverableProspectInput,
   fetchImpl: FetchLike,
 ): Promise<ValidatedHeatmap> {
   for (let attempt = 1; attempt <= LOCAL_FALCON_IMAGE_MAX_ATTEMPTS; attempt += 1) {
@@ -361,6 +362,7 @@ async function parseZipPackage(
   const payload = parseLocalFalconPayload(manifestText);
   const referencedPaths = new Set<string>();
   for (const [index, prospect] of payload.prospects.entries()) {
+    if (!isDeliverableProspect(prospect)) continue;
     if (!prospect.heatmap_file) throw new Error(`prospects.${index}.heatmap_file is required when using the ZIP fallback`);
     referencedPaths.add(normalizeEntryPath(prospect.heatmap_file));
   }
@@ -376,7 +378,7 @@ async function parseZipPackage(
     heatmapsByPath.set(imagePath, await validateHeatmap(buffer, imagePath));
   }
   const heatmapsByPlaceId = new Map<string, ValidatedHeatmap>();
-  for (const prospect of payload.prospects) {
+  for (const prospect of payload.prospects.filter(isDeliverableProspect)) {
     heatmapsByPlaceId.set(prospect.place_id, heatmapsByPath.get(normalizeEntryPath(prospect.heatmap_file!))!);
   }
   return { payload, heatmapsByPath, heatmapsByPlaceId, sourceMode: "zip" };
@@ -393,8 +395,8 @@ async function parseJsonPackage(
   const usedFallbackPaths = new Set<string>();
   const failures: LocalFalconImageFailure[] = [];
 
-  await forEachWithConcurrency<LocalFalconProspectInput>(
-    payload.prospects,
+  await forEachWithConcurrency<DeliverableProspectInput>(
+    payload.prospects.filter(isDeliverableProspect),
     LOCAL_FALCON_IMAGE_CONCURRENCY,
     async (prospect) => {
       const fallbackPath = fallbackPathForProspect(prospect, images);

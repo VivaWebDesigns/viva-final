@@ -112,7 +112,7 @@ describe("SAB server-side master ledger", () => {
 });
 
 describe("SAB compact master centering", () => {
-  it("computes the SOP centroid, spread, clusters, two-ring edge flag, and hash", () => {
+  it("computes the SOP centroid, spread, clusters, actual-boundary flag, and hash", () => {
     const analysis = summarizeSabCenter(
       [
         { row: 3, column: 3, latitude: 35.2, longitude: -80.9, rank: 2 },
@@ -135,6 +135,10 @@ describe("SAB compact master centering", () => {
       ranked_cells_returned: false,
     });
     expect(analysis?.ranked_cells_sha256).toMatch(/^[a-f0-9]{64}$/);
+  });
+
+  it("trusts a single interior point without the retired five-pin or two-ring rules", () => {
+    expect(summarizeSabCenter([{ row: 2, column: 2, latitude: 0, longitude: 0, rank: 20 }], 9)).toMatchObject({ baseline_centroid_trustworthy: true, edge_flagged: false, bounded_interior_evidence: true });
   });
 
   it("returns compact diagnostics without raw ranked cells", async () => {
@@ -198,6 +202,6 @@ describe("SAB compact master centering", () => {
       ranked_cells_returned: false,
     });
     expect(JSON.stringify(result)).not.toContain('ranked_cells"');
-    expect(JSON.stringify(result)).not.toContain('"latitude":35.2');
+    expect(result.businesses[0].analysis?.edge_rule).toBe("actual_outer_boundary_top20_occupation");
   });
 });

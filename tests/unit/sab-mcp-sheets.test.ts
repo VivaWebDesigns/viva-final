@@ -179,10 +179,11 @@ describe("SabSheetsRepository", () => {
     const before = await repository.getCompany("place-1");
     await repository.saveCompany("place-1", sabCompanyUpdatesSchema.parse({
       scan_center: before.scan_center, center_type: "ranked_peak_recentered",
+      decision_state: { source_report_key: "c6af45b39fd0bfd", rule_id: "S04", evidence_hash: "a".repeat(64), centering_status: "planned", proposed_center: before.scan_center, center_type: "ranked_peak_recentered" },
     }), "matt@vivawebdesigns.com");
     const after = await repository.getCompany("place-1");
     expect(after).toMatchObject({
-      ...before, center_type: "ranked_peak_recentered",
+      ...before, center_type: "ranked_peak_recentered", decision_state: expect.objectContaining({rule_id:"S04"}),
       updated_at: expect.any(String), updated_by: "matt@vivawebdesigns.com",
     });
     expect(after.scan_history).toEqual(history);
@@ -538,8 +539,8 @@ describe("SabSheetsRepository", () => {
     await repository.saveCompany(
       "place-1",
       {
-        research_notes:
-          "§10.4 corroboration PASS. ROOFTOP candidate agrees with the ranked-cell mass.",
+        research_notes: "Supporting contact history.",
+        decision_state: { source_report_key:"abcdef123456",rule_id:"S01",evidence_hash:"a".repeat(64),centering_status:"planned",routine_recenter_count:0,proposed_center:"35.0299948,-80.7058378",center_type:"corroborated_address" },
         scan_center: "35.0299948,-80.7058378",
         center_type: "corroborated_address",
       },
@@ -567,7 +568,7 @@ describe("SabSheetsRepository", () => {
         },
         "matt@vivawebdesigns.com",
       ),
-    ).rejects.toThrow(/corroboration PASS/i);
+    ).rejects.toThrow(/structured decision_state/i);
     expect(client.updates).toEqual([]);
   });
 
@@ -656,7 +657,7 @@ describe("SabSheetsRepository", () => {
     ]);
   });
 
-  it("expands a 39-column legacy Sheet to 41 and adds both headers without changing rows or Place IDs", async () => {
+  it("expands a legacy Sheet and adds all current structured headers without changing rows or Place IDs", async () => {
     const legacyHeaders = SAB_HEADERS.filter(
       (header) =>
         !SAB_SCALE_FIRST_UPGRADEABLE_HEADERS.includes(
@@ -685,7 +686,7 @@ describe("SabSheetsRepository", () => {
     const result = await repository.upgradeWorkflowSchema();
 
     expect(result).toMatchObject({
-      added_headers: ["workflow", "contact_tag"],
+      added_headers: Array.from(SAB_SCALE_FIRST_UPGRADEABLE_HEADERS),
       already_present_headers: [],
       changed: true,
       before_row_count: 2,
@@ -693,8 +694,8 @@ describe("SabSheetsRepository", () => {
       before_place_id_count: 2,
       after_place_id_count: 2,
       before_column_capacity: 39,
-      after_column_capacity: 41,
-      columns_added: 2,
+      after_column_capacity: SAB_HEADERS.length,
+      columns_added: SAB_SCALE_FIRST_UPGRADEABLE_HEADERS.length,
       final_header_positions: {
         workflow: { column_number: legacyHeaders.length + 1 },
         contact_tag: { column_number: legacyHeaders.length + 2 },
@@ -704,11 +705,8 @@ describe("SabSheetsRepository", () => {
     expect(result.after_place_id_checksum).toBe(
       result.before_place_id_checksum,
     );
-    expect(client.columnAppends).toEqual([{ sheetId: 101, columnCount: 2 }]);
-    expect(client.updates.map(({ value }) => value)).toEqual([
-      "workflow",
-      "contact_tag",
-    ]);
+    expect(client.columnAppends).toEqual([{ sheetId: 101, columnCount: SAB_SCALE_FIRST_UPGRADEABLE_HEADERS.length }]);
+    expect(client.updates.map(({ value }) => value)).toEqual(Array.from(SAB_SCALE_FIRST_UPGRADEABLE_HEADERS));
     expect(client.values.slice(1)).toEqual(originalRows);
   });
 
@@ -727,10 +725,10 @@ describe("SabSheetsRepository", () => {
 
     await expect(repository.upgradeWorkflowSchema()).resolves.toMatchObject({
       added_headers: ["contact_tag"],
-      already_present_headers: ["workflow"],
+      already_present_headers: SAB_SCALE_FIRST_UPGRADEABLE_HEADERS.filter(header => header !== "contact_tag"),
       changed: true,
-      before_column_capacity: 40,
-      after_column_capacity: 41,
+      before_column_capacity: SAB_HEADERS.length - 1,
+      after_column_capacity: SAB_HEADERS.length,
       columns_added: 1,
     });
     expect(client.columnAppends).toEqual([{ sheetId: 101, columnCount: 1 }]);
@@ -775,14 +773,14 @@ describe("SabSheetsRepository", () => {
 
     await expect(repository.upgradeWorkflowSchema()).resolves.toMatchObject({
       added_headers: [],
-      already_present_headers: ["workflow", "contact_tag"],
+      already_present_headers: Array.from(SAB_SCALE_FIRST_UPGRADEABLE_HEADERS),
       changed: false,
       before_row_count: 1,
       after_row_count: 1,
       before_place_id_count: 1,
       after_place_id_count: 1,
-      before_column_capacity: 41,
-      after_column_capacity: 41,
+      before_column_capacity: SAB_HEADERS.length,
+      after_column_capacity: SAB_HEADERS.length,
       columns_added: 0,
     });
     expect(client.columnAppends).toEqual([]);
@@ -795,7 +793,7 @@ describe("SabSheetsRepository", () => {
     );
     const client = new FakeSheetsClient(
       valuesForHeaders(legacyHeaders, [row()]),
-      41,
+      SAB_HEADERS.length,
     );
     const repository = new SabSheetsRepository(
       client,
@@ -805,14 +803,14 @@ describe("SabSheetsRepository", () => {
 
     await expect(repository.upgradeWorkflowSchema()).resolves.toMatchObject({
       changed: true,
-      before_column_capacity: 41,
-      after_column_capacity: 41,
+      before_column_capacity: SAB_HEADERS.length,
+      after_column_capacity: SAB_HEADERS.length,
       columns_added: 0,
     });
     const updatesAfterFirstRun = [...client.updates];
     await expect(repository.upgradeWorkflowSchema()).resolves.toMatchObject({
       added_headers: [],
-      already_present_headers: ["workflow", "contact_tag"],
+      already_present_headers: Array.from(SAB_SCALE_FIRST_UPGRADEABLE_HEADERS),
       changed: false,
     });
     expect(client.columnAppends).toEqual([]);
@@ -890,7 +888,7 @@ describe("SabSheetsRepository", () => {
     await repository.upgradeWorkflowSchema();
 
     expect(client.columnAppends).toEqual([{ sheetId: 101, columnCount: 2 }]);
-    expect(client.tabs.get("SAB Workflow")?.columnCount).toBe(41);
+    expect(client.tabs.get("SAB Workflow")?.columnCount).toBe(SAB_HEADERS.length);
     expect(client.tabs.get("Other Tab")).toEqual(otherTabBefore);
   });
 
@@ -1070,6 +1068,10 @@ describe("SabSheetsRepository", () => {
         workflow: "scale_first_v2",
         contact_tag: "Email Ready",
         email: "owner@example.com",
+        outcome: "deliverable", scan_center:"35,-80",center_type:"weighted_cell_centroid",
+        scan_spec: JSON.stringify({grid_size:"7x7",radius_miles:3}),
+        decision_state: JSON.stringify({source_report_key:"abcdef123456",rule_id:"S05",evidence_hash:"a".repeat(64),centering_status:"validated",outcome:"deliverable",proposed_center:"35,-80",center_type:"weighted_cell_centroid"}),
+        eligibility_state: JSON.stringify({sab_confirmed:true,trade_match:true,franchise_excluded:true,crm_dedup_checked:true,contact_verified:true,evidence_references:["verification-receipt"]}),
         arp: "12.5",
         solv: "18.2",
         report_key: "abcdef123456",
@@ -1201,8 +1203,8 @@ describe("SabSheetsRepository", () => {
         website_analysis: "",
         reviews_analysis: "",
         qualification_status: "disqualified",
-        research_notes:
-          "Matt manually disqualified the company because its primary category does not match the run trade.",
+        qualification_reason: "primary_category_trade_mismatch",
+        research_notes: "Supporting history.",
       }),
     ]);
 
@@ -1230,8 +1232,8 @@ describe("SabSheetsRepository", () => {
         solv: "",
         contact_tag: "",
         qualification_status: "disqualified",
-        research_notes:
-          "Matt manually disqualified the company because its primary category does not match the run trade.",
+        qualification_reason: "primary_category_trade_mismatch",
+        research_notes: "Supporting history.",
       }),
     ]);
 
@@ -1249,8 +1251,8 @@ describe("SabSheetsRepository", () => {
       row({
         workflow: "scale_first_v2",
         qualification_status: "disqualified",
-        research_notes:
-          "Matt manually disqualified the company because its primary category does not match the run trade.",
+        qualification_reason: "primary_category_trade_mismatch",
+        research_notes: "Supporting history.",
       }),
     ]);
 
@@ -1450,7 +1452,7 @@ describe("SabSheetsRepository", () => {
         "matt@vivawebdesigns.com",
       ),
     ).rejects.toThrow(
-      "changed parameters require a new supervisor authorization",
+      "changed parameters require a new orchestrator batch authorization",
     );
   });
 
@@ -1465,5 +1467,179 @@ describe("SabSheetsRepository", () => {
       B01: { total: 2, assigned: 1, complete: 1 },
       B02: { total: 1, blocked: 1 },
     });
+  });
+});
+
+class FakeRunStateSheetsClient extends FakeSheetsClient {
+  stateValues: string[][] | null = null;
+  stateSheetCreates = 0;
+  async ensureStateSheet() {
+    if (!this.stateValues) { this.stateValues = []; this.stateSheetCreates++; }
+  }
+  override async getValues(_spreadsheetId?: string, range?: string) {
+    if (range?.includes("SAB Workflow Run State")) {
+      if (!this.stateValues) throw new Error("Unknown fake tab SAB Workflow Run State");
+      return this.stateValues.map(value => [...value]);
+    }
+    return super.getValues();
+  }
+  override async updateValues(spreadsheetId: string, updates: Array<{ range: string; value: string | number | boolean }>) {
+    const workflowUpdates = updates.filter(update => !update.range.includes("SAB Workflow Run State"));
+    if (workflowUpdates.length) await super.updateValues(spreadsheetId, workflowUpdates);
+    for (const update of updates.filter(update => update.range.includes("SAB Workflow Run State"))) {
+      const match = update.range.match(/!([A-Z]+)(\d+)$/)!;
+      if (!this.stateValues) throw new Error("State sheet must exist before writing");
+      const rowIndex = Number(match[2]) - 1;
+      this.stateValues[rowIndex] ??= [];
+      this.stateValues[rowIndex][columnIndex(match[1])] = String(update.value);
+      this.updates.push(update);
+    }
+  }
+}
+
+const initialStoredRun = () => ({
+  schema_version: 1 as const, version: 1, run_id: "run-1", orchestrator_id: "codex-orchestrator",
+  authorization_reference: "User approved this bounded run", testing_mode: true, testing_ended: null,
+  credit_limit: 200, committed_credits: 0, batches: [],
+});
+function runStorage() {
+  const client = new FakeRunStateSheetsClient([Array.from(SAB_HEADERS)]);
+  return { client, repository: new SabSheetsRepository(client, "sheet-id", "SAB Workflow") };
+}
+
+describe("SAB durable run-state sheet storage", () => {
+  it("does not create state or assume authorization during an uninitialized read", async () => {
+    const { client, repository } = runStorage();
+    await expect(repository.getRunState("run-1")).resolves.toBeNull();
+    await expect(repository.assertOneActiveRun("run-1")).resolves.toBeUndefined();
+    expect(client.stateSheetCreates).toBe(0);
+    expect(client.updates).toEqual([]);
+  });
+
+  it("round-trips multiple chunks and clears obsolete chunks when state shrinks", async () => {
+    const { client, repository } = runStorage();
+    const state = { ...initialStoredRun(), authorization_reference: "verified authorization history\n".repeat(4000) };
+    await repository.saveRunState(state, null, "actor@example.com");
+    expect(client.stateValues!.length).toBeGreaterThan(2);
+    expect(client.stateValues!.every(chunk => chunk[3].length <= 40000)).toBe(true);
+    await expect(repository.getRunState(state.run_id)).resolves.toEqual(state);
+    const next = { ...initialStoredRun(), version: 2, committed_credits: 49 };
+    await repository.saveRunState(next, 1, "actor@example.com");
+    await expect(repository.getRunState(state.run_id)).resolves.toEqual(next);
+    expect(client.stateValues!.filter(chunk => chunk[0])).toHaveLength(1);
+    expect(client.stateValues!.slice(1).every(chunk => chunk.every(value => value === ""))).toBe(true);
+  });
+
+  it.each(["missing_middle", "missing_tail", "duplicate_index", "nonnumeric_index", "corrupt_json"])("fails closed on %s chunk corruption", async corruption => {
+    const { client, repository } = runStorage();
+    await repository.saveRunState({ ...initialStoredRun(), authorization_reference: "x".repeat(90000) }, null, "actor@example.com");
+    if (corruption === "missing_middle") client.stateValues!.splice(1, 1);
+    if (corruption === "missing_tail") client.stateValues!.pop();
+    if (corruption === "duplicate_index") client.stateValues![1][2] = "0";
+    if (corruption === "nonnumeric_index") client.stateValues![1][2] = "invalid";
+    if (corruption === "corrupt_json") client.stateValues![0][3] = "not-json";
+    await expect(repository.getRunState("run-1")).rejects.toThrow();
+  });
+
+  it.each([
+    { run_id: "other-run" }, { version: 2 }, { schema_version: 2 },
+  ])("rejects mismatched stored identity/version: %j", async invalid => {
+    const { client, repository } = runStorage();
+    client.stateValues = [["run-1", "1", "0", JSON.stringify({ ...initialStoredRun(), ...invalid }), "actor@example.com"]];
+    await expect(repository.getRunState("run-1")).rejects.toThrow("identity/version mismatch");
+  });
+
+  it("does not fall back to an older authorization after a partial newer write", async () => {
+    const { client, repository } = runStorage();
+    client.stateValues = [
+      ["run-1", "1", "0", JSON.stringify(initialStoredRun()), "actor@example.com"],
+      ["run-1", "2", "1", '{"run_id":"run-1"', "actor@example.com"],
+    ];
+    await expect(repository.getRunState("run-1")).rejects.toThrow("chunks are incomplete");
+  });
+
+  it("rejects stale expected versions without overwriting the persisted approval state", async () => {
+    const { client, repository } = runStorage();
+    const state = initialStoredRun();
+    await repository.saveRunState(state, null, "actor@example.com");
+    const written = client.updates.length;
+    await expect(repository.saveRunState({ ...state, version: 2, testing_mode: false }, null, "actor@example.com")).rejects.toThrow("Run state changed");
+    expect(client.updates).toHaveLength(written);
+    await expect(repository.getRunState("run-1")).resolves.toEqual(state);
+  });
+
+  it("allows the same authoritative run but rejects a second run on that sheet", async () => {
+    const { repository } = runStorage();
+    await repository.saveRunState(initialStoredRun(), null, "actor@example.com");
+    await expect(repository.assertOneActiveRun("run-1")).resolves.toBeUndefined();
+    await expect(repository.assertOneActiveRun("run-2")).rejects.toThrow("another run");
+    await expect(repository.saveRunState({ ...initialStoredRun(), run_id: "run-2" }, null, "actor@example.com")).rejects.toThrow("another run");
+  });
+});
+
+const crmOnlyDecision = () => ({
+  source_report_key: "abcdef123456", rule_id: "S03", evidence_hash: "a".repeat(64),
+  centering_status: "market_reference_only", outcome: "no_visibility_core_found", evidence: { exact_top20_count: 0 },
+});
+const crmOnlyMarket = () => ({
+  kind: "market_reference_only", source: "auxiliary_scan_reverse_geocode", latitude: 35, longitude: -80,
+  city: "Charlotte", state: "NC", zip: "28202", auxiliary_report_key: "abcdef123456",
+  auxiliary_report_url: "https://localrankingtracker.com/scan-report/abcdef123456/public/",
+});
+function crmOnlyRow(overrides: Parameters<typeof row>[0] = {}) {
+  return row({
+    workflow: "scale_first_v2", outcome: "no_visibility_core_found", scan_keyword: "plumber near me",
+    contact_tag: "Needs Email", phone: "+17045550123", email: "", rating: "4.8", review_count: "42",
+    report_key: "", report_url: "", scan_date: "", arp: "", solv: "", scan_center: "", center_type: "", scan_spec: "",
+    decision_state: JSON.stringify(crmOnlyDecision()), market_reference: JSON.stringify(crmOnlyMarket()),
+    eligibility_state: JSON.stringify({ sab_confirmed: true, trade_match: true, franchise_excluded: true, crm_dedup_checked: true, contact_verified: true, evidence_references: ["verified-source-receipt"] }),
+    ...overrides,
+  });
+}
+
+describe("SAB scan-history receipts and CRM-only QA", () => {
+  it("preserves a submission receipt when the result shares its report key, including repeated history-only saves", async () => {
+    const receipt = { record_type: "scan_submission", idempotency_key: "durable-idempotency-key", authorization_id: "authorized-batch", report_key: "abcdef123456", submission_status: "submitted", submitted_at: "2026-08-31T10:00:00Z" };
+    const { repository } = buildRepository([row({ scan_history: JSON.stringify([receipt]), report_key: "abcdef111111", report_url: "https://localrankingtracker.com/existing/", scan_center: "35,-80", center_type: "weighted_cell_centroid", arp: "6", solv: "15" })]);
+    const result = sabScanResultSchema.parse({ scan_role: "deliverable", scan_type: "recenter", scan_center: "35.1,-80.1", center_type: "ranked_peak_recentered", arp: 9, solv: 10, report_key: "abcdef123456", report_url: "https://localrankingtracker.com/new/", scan_date: "2026-08-31", scan_keyword: "plumber near me" });
+    for (let attempt = 0; attempt < 2; attempt++) await repository.saveScanResult("place-1", result, "actor@example.com", { historyOnly: true });
+    const saved = await repository.getCompany("place-1");
+    expect(saved.scan_history).toHaveLength(2);
+    expect(saved.scan_history).toContainEqual(receipt);
+    expect(await repository.getScanSubmission("place-1", "durable-idempotency-key")).toEqual(receipt);
+    expect(saved).toMatchObject({ report_key: "abcdef111111", report_url: "https://localrankingtracker.com/existing/", scan_center: "35,-80", center_type: "weighted_cell_centroid", arp: "6", solv: "15" });
+  });
+
+  it.each(["qa_ready", "complete"] as const)("accepts qualified no-visibility leads at %s with a labelled market reference and no canonical business report", async status => {
+    const { repository } = buildRepository([crmOnlyRow()]);
+    await expect(repository.saveCompany("place-1", { status }, "actor@example.com")).resolves.toMatchObject({ status });
+    const saved = await repository.getCompany("place-1");
+    expect(saved).toMatchObject({ outcome: "no_visibility_core_found", report_key: "", scan_center: "", market_reference: crmOnlyMarket() });
+  });
+
+  it.each([undefined, null, "0", 1, 20])("rejects no-visibility claims without numeric zero exact top20 proof (%s)", async count => {
+    const { repository } = buildRepository([crmOnlyRow({ decision_state: JSON.stringify({ ...crmOnlyDecision(), evidence: { exact_top20_count: count } }) })]);
+    await expect(repository.saveCompany("place-1", { status: "qa_ready" }, "actor@example.com")).rejects.toThrow("no-visibility auxiliary evidence required");
+  });
+
+  it.each(["report_key", "report_url", "scan_date", "arp", "solv", "scan_center", "center_type", "scan_spec"] as const)("rejects a fabricated canonical %s on a CRM-only lead", async header => {
+    const values = { report_key: "abcdef123456", report_url: "https://localrankingtracker.com/fabricated/", scan_date: "2026-08-31", arp: "21", solv: "0", scan_center: "35,-80", center_type: "auxiliary_centroid", scan_spec: JSON.stringify({ grid_size: "7x7", radius_miles: 3 }) };
+    const { repository } = buildRepository([crmOnlyRow({ [header]: values[header] })]);
+    await expect(repository.saveCompany("place-1", { status: "qa_ready" }, "actor@example.com")).rejects.toThrow(`${header} (must be empty`);
+  });
+
+  it("rejects a fabricated validated decision center even when canonical cells are empty", async () => {
+    const { repository } = buildRepository([crmOnlyRow({ decision_state: JSON.stringify({ ...crmOnlyDecision(), centering_status: "validated", proposed_center: "35,-80", center_type: "weighted_cell_centroid" }) })]);
+    await expect(repository.saveCompany("place-1", { status: "qa_ready" }, "actor@example.com")).rejects.toThrow("no-visibility auxiliary evidence required");
+  });
+
+  it("rejects a market reference from a different auxiliary or a mismatched market location", async () => {
+    for (const override of [
+      { market_reference: JSON.stringify({ ...crmOnlyMarket(), auxiliary_report_key: "abcdef999999" }) },
+      { city: "Different city" },
+    ]) {
+      const { repository } = buildRepository([crmOnlyRow(override)]);
+      await expect(repository.saveCompany("place-1", { status: "qa_ready" }, "actor@example.com")).rejects.toThrow();
+    }
   });
 });

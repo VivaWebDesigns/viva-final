@@ -1,6 +1,7 @@
 import { desc, eq, inArray } from "drizzle-orm";
 import {
   localFalconImportBatches,
+  localFalconCrmOnlyProspects,
   localFalconProspectProfiles,
 } from "@shared/schema";
 import { db } from "../../db";
@@ -10,14 +11,15 @@ export type CrmPlaceIdMatch = {
   lead_id: string;
   company_name: string | null;
   batch_id: string;
-  report_key: string;
+  report_key: string | null;
   report_url: string | null;
-  scan_date: string;
+  scan_date: string | null;
+  outcome?: "no_visibility_core_found";
 };
 
 export type CrmPlaceIdCheckResult = {
   criterion: "exact_place_id_equals";
-  source: "local_falcon_prospect_profiles.place_id";
+  source: "local_falcon_prospect_profiles.place_id + local_falcon_crm_only_prospects.place_id";
   requested_count: number;
   unique_place_id_count: number;
   matched_place_id_count: number;
@@ -28,7 +30,7 @@ export type CrmPlaceIdCheckResult = {
 };
 
 type CrmPlaceIdMatchRow = Omit<CrmPlaceIdMatch, "scan_date"> & {
-  scan_date: Date;
+  scan_date: Date | null;
 };
 
 export function buildCrmPlaceIdCheckResult(
@@ -41,7 +43,7 @@ export function buildCrmPlaceIdCheckResult(
     .filter((row) => requestedSet.has(row.place_id))
     .map((row) => ({
       ...row,
-      scan_date: row.scan_date.toISOString(),
+      scan_date: row.scan_date?.toISOString() ?? null,
     }));
   const matchedPlaceIdSet = new Set(matches.map((row) => row.place_id));
   const matchedPlaceIds = uniquePlaceIds.filter((placeId) => matchedPlaceIdSet.has(placeId));
@@ -49,7 +51,7 @@ export function buildCrmPlaceIdCheckResult(
 
   return {
     criterion: "exact_place_id_equals",
-    source: "local_falcon_prospect_profiles.place_id",
+    source: "local_falcon_prospect_profiles.place_id + local_falcon_crm_only_prospects.place_id",
     requested_count: requestedPlaceIds.length,
     unique_place_id_count: uniquePlaceIds.length,
     matched_place_id_count: matchedPlaceIds.length,
@@ -82,5 +84,15 @@ export async function checkCrmPlaceIds(
     .where(inArray(localFalconProspectProfiles.placeId, uniquePlaceIds))
     .orderBy(desc(localFalconProspectProfiles.createdAt));
 
-  return buildCrmPlaceIdCheckResult(requestedPlaceIds, rows);
+  const crmOnlyRows = await db.select({
+    place_id: localFalconCrmOnlyProspects.placeId,
+    lead_id: localFalconCrmOnlyProspects.leadId,
+    company_name: localFalconCrmOnlyProspects.companyName,
+    batch_id: localFalconImportBatches.batchId,
+  }).from(localFalconCrmOnlyProspects)
+    .innerJoin(localFalconImportBatches, eq(localFalconCrmOnlyProspects.batchRecordId, localFalconImportBatches.id))
+    .where(inArray(localFalconCrmOnlyProspects.placeId, uniquePlaceIds));
+  return buildCrmPlaceIdCheckResult(requestedPlaceIds, [...rows, ...crmOnlyRows.map((row) => ({
+    ...row, report_key: null, report_url: null, scan_date: null, outcome: "no_visibility_core_found" as const,
+  }))]);
 }

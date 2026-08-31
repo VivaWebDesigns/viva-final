@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { exactSabTop20Cells, summarizeSabMasterEvidence } from "./scanPolicy";
 import { SAB_ADDRESS_LABEL } from "@shared/sabCrm";
 import { checkCrmPlaceIds, type CrmPlaceIdCheckResult } from "./crmDedup";
 import {
@@ -167,6 +168,7 @@ function filteredRow(
     rating,
     review_count: reviews === null ? null : Math.max(0, Math.trunc(reviews)),
     qualification_status: disqualification ? "disqualified" : null,
+    qualification_reason: disqualification,
     blocker: unresolved,
     research_notes: masterNote(reportKey, primary, categories, decision),
   };
@@ -276,34 +278,8 @@ function rankedCellHash(cells: SabRankedCell[]) {
     .digest("hex");
 }
 
-function clusters(cells: SabRankedCell[]) {
-  const remaining = new Map(
-    cells.map((cell) => [`${cell.row}:${cell.column}`, cell]),
-  );
-  const sizes: number[] = [];
-  while (remaining.size) {
-    const [firstKey] = remaining.keys();
-    remaining.delete(firstKey);
-    const queue = [firstKey];
-    let size = 0;
-    while (queue.length) {
-      const key = queue.shift()!;
-      size += 1;
-      const [row, column] = key.split(":").map(Number);
-      for (let rowDelta = -1; rowDelta <= 1; rowDelta += 1) {
-        for (let columnDelta = -1; columnDelta <= 1; columnDelta += 1) {
-          if (rowDelta === 0 && columnDelta === 0) continue;
-          const neighbor = `${row + rowDelta}:${column + columnDelta}`;
-          if (remaining.delete(neighbor)) queue.push(neighbor);
-        }
-      }
-    }
-    sizes.push(size);
-  }
-  return sizes.sort((a, b) => b - a);
-}
-
-export function summarizeSabCenter(cells: SabRankedCell[], gridSize: number) {
+export function summarizeSabCenter(cellsInput: SabRankedCell[], gridSize: number, center?: { latitude: number; longitude: number }) {
+  const cells = exactSabTop20Cells(cellsInput);
   if (!cells.length) return null;
   const totalWeight = cells.reduce((sum, cell) => sum + 1 / cell.rank, 0);
   const latitude =
@@ -316,13 +292,8 @@ export function summarizeSabCenter(cells: SabRankedCell[], gridSize: number) {
   const columns = [...new Set(cells.map(({ column }) => column))].sort(
     (a, b) => a - b,
   );
-  const componentSizes = clusters(cells);
-  const edgeFlagged = cells.some(
-    ({ row, column }) =>
-      row <= 2 || column <= 2 || row >= gridSize - 1 || column >= gridSize - 1,
-  );
+  const master = summarizeSabMasterEvidence(cells, gridSize, center)!;
   const spreadInBothAxes = rows.length > 1 && columns.length > 1;
-  const coherentCluster = componentSizes.length === 1;
   return {
     ranked_cell_count: cells.length,
     best_rank: Math.min(...cells.map(({ rank }) => rank)),
@@ -337,14 +308,9 @@ export function summarizeSabCenter(cells: SabRankedCell[], gridSize: number) {
       maximum: columns.at(-1)!,
       unique_count: columns.length,
     },
-    edge_flagged: edgeFlagged,
-    edge_rule: "outermost_two_rings" as const,
-    cluster_count: componentSizes.length,
-    cluster_sizes: componentSizes,
+    ...master,
     spread_in_both_axes: spreadInBothAxes,
-    one_coherent_cluster: coherentCluster,
-    baseline_centroid_trustworthy:
-      cells.length >= 5 && !edgeFlagged && spreadInBothAxes && coherentCluster,
+    one_coherent_cluster: master.cluster_count === 1,
     ranked_cells_sha256: rankedCellHash(cells),
     ranked_cells_returned: false,
   };
@@ -362,6 +328,8 @@ export async function analyzeSabMasterCenters(
   return {
     report_key: ranked.report_key,
     source: ranked.source,
+    completion_verified: ranked.completion_verified,
+    completion_status: ranked.completion_status,
     scan_executed: false,
     keyword: ranked.keyword,
     grid: ranked.grid,
@@ -374,7 +342,7 @@ export async function analyzeSabMasterCenters(
       name: business.name,
       imprecise_or_unranked_cell_count:
         business.imprecise_or_unranked_cell_count,
-      analysis: summarizeSabCenter(business.ranked_cells, ranked.grid.size),
+      analysis: summarizeSabCenter(business.ranked_cells, ranked.grid.size, ranked.grid.center),
     })),
   };
 }

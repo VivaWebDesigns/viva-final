@@ -70,7 +70,7 @@ function validScaleFirstManifest(contactTag: "Email Ready" | "Needs Email" = "Em
       city: prospect.city,
       state: prospect.state,
       zip: prospect.zip,
-      phone: prospect.phone,
+      phone: contactTag === "Needs Email" ? "7045550111" : prospect.phone,
       owner_name: prospect.owner_name,
       email: contactTag === "Email Ready" ? "owner@example.com" : null,
       contact_tag: contactTag,
@@ -139,7 +139,7 @@ describe("SAB CRM manifest contract", () => {
   it("returns the explicitly requested Scale-First v2 contract", () => {
     expect(getSabCrmImportContract("scale_first_v2")).toBe(SCALE_FIRST_SAB_CRM_IMPORT_CONTRACT);
     expect(SCALE_FIRST_SAB_CRM_IMPORT_CONTRACT).toMatchObject({
-      contract_version: "2.1",
+      contract_version: "2.2",
       workflow: "scale_first_v2",
       strict: true,
       writes_data: false,
@@ -153,7 +153,7 @@ describe("SAB CRM manifest contract", () => {
       const result = validateSabCrmManifest(JSON.stringify(validScaleFirstManifest(contactTag)));
       expect(result).toMatchObject({
         valid: true,
-        contract_version: "2.1",
+        contract_version: "2.2",
         workflow: "scale_first_v2",
         prospect_count: 1,
         writes_performed: false,
@@ -171,7 +171,7 @@ describe("SAB CRM manifest contract", () => {
 
     expect(validateSabCrmManifest(JSON.stringify(manifest))).toMatchObject({
       valid: true,
-      contract_version: "2.1",
+      contract_version: "2.2",
       workflow: "scale_first_v2",
       prospect_count: 1,
     });

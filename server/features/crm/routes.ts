@@ -18,7 +18,10 @@ import {
 } from "./csvImportExport";
 import {
   getProspectScanSpec,
+  isDeliverableProspect,
+  isNoVisibilityProspect,
   getLocalFalconProfileForLead,
+  getLocalFalconCrmOnlyForLead,
   importLocalFalconPayload,
   previewLocalFalconImport,
   type LocalFalconUploadedAsset,
@@ -401,13 +404,13 @@ router.post(
 
 const localFalconPackageUpload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: LOCAL_FALCON_PACKAGE_MAX_BYTES, files: 402 },
+  limits: { fileSize: LOCAL_FALCON_PACKAGE_MAX_BYTES, files: 4001 },
 });
 
 const localFalconPackageFields = localFalconPackageUpload.fields([
   { name: "package", maxCount: 1 },
-  { name: "heatmaps", maxCount: 200 },
-  { name: "snapshots", maxCount: 200 },
+  { name: "heatmaps", maxCount: 2000 },
+  { name: "snapshots", maxCount: 2000 },
 ]);
 
 function packageFiles(req: express.Request): {
@@ -447,13 +450,17 @@ router.post(
     try {
       const { primary, supplemental } = packageFiles(req);
       const parsedPackage = await parseLocalFalconPackage(primary, supplemental, fetch);
-      await hydrateReportAtrp(parsedPackage.payload.prospects);
+      await hydrateReportAtrp(parsedPackage.payload.prospects.filter(isDeliverableProspect));
       const preview = await previewLocalFalconImport(parsedPackage.payload);
       res.json({
         ...preview,
         sourceMode: parsedPackage.sourceMode,
         rows: preview.rows.map((row) => {
           const prospect = parsedPackage.payload.prospects.find((candidate) => candidate.place_id === row.placeId)!;
+          if (isNoVisibilityProspect(prospect)) return {
+            ...row, heatmapPreviewDataUrl: null, heatmapSha256: null, heatmapSourceUrl: null,
+            mapPresentation: null, reportData: null,
+          };
           const heatmap = parsedPackage.heatmapsByPlaceId.get(row.placeId)!;
           return {
             ...row,
@@ -514,9 +521,10 @@ router.post(
 
       const { primary, supplemental } = packageFiles(req);
       const parsedPackage = await parseLocalFalconPackage(primary, supplemental, fetch);
-      await hydrateReportAtrp(parsedPackage.payload.prospects);
+      await hydrateReportAtrp(parsedPackage.payload.prospects.filter(isDeliverableProspect));
       const preview = await previewLocalFalconImport(parsedPackage.payload);
       const approvedFlaggedSet = new Set(approvedFlagged);
+      const confirmedCrmOnly = new Set(z.array(z.string()).parse(JSON.parse(req.body.confirmedCrmOnlyPlaceIds || "[]")));
       const selectedRows = preview.rows.filter(
         (row) =>
           row.outcome === "new"
@@ -524,7 +532,10 @@ router.post(
           || (row.outcome === "flagged" && approvedFlaggedSet.has(row.placeId)),
       );
       if (selectedRows.length === 0) {
-        throw new Error("No new scan reports were selected for import");
+        throw new Error("No new leads or scan reports were selected for import");
+      }
+      for (const row of selectedRows.filter((row) => row.prospectOutcome === "no_visibility_core_found")) {
+        if (!confirmedCrmOnly.has(row.placeId)) throw new Error(`Review and confirm the CRM-only market reference for ${row.companyName} before importing.`);
       }
       if (selectedRows.length > 0) {
         const assignableUsers = await crmStorage.getAssignableUsers();
@@ -538,7 +549,7 @@ router.post(
           snapshot,
         ]),
       );
-      for (const row of selectedRows) {
+      for (const row of selectedRows.filter((row) => row.prospectOutcome !== "no_visibility_core_found")) {
         const confirmedChecksum = previewHeatmapChecksums[row.placeId];
         const currentChecksum = parsedPackage.heatmapsByPlaceId.get(row.placeId)?.sha256;
         if (!confirmedChecksum || confirmedChecksum !== currentChecksum) {
@@ -555,7 +566,7 @@ router.post(
       }
 
       const assetsByPlaceId = new Map<string, LocalFalconUploadedAsset>();
-      for (const row of selectedRows) {
+      for (const row of selectedRows.filter((row) => row.prospectOutcome !== "no_visibility_core_found")) {
         const heatmap = parsedPackage.heatmapsByPlaceId.get(row.placeId);
         if (!heatmap) throw new Error(`Heatmap missing for ${row.companyName}`);
         const upload = await storageService.uploadFile(
@@ -616,7 +627,8 @@ router.post(
       let tasksCreated = 0;
       let automationErrors = 0;
       for (const imported of result.importedLeads) {
-        if (!imported.createdNewLead) continue;
+        // CRM-only leads retain manual follow-up but never trigger automatic scan outreach.
+        if (!imported.createdNewLead || imported.prospectOutcome === "no_visibility_core_found") continue;
         const automation = await executeStageAutomations({
           opportunityId: imported.opportunityId,
           leadId: imported.leadId,
@@ -858,7 +870,8 @@ router.get("/leads/:id", requireRole("admin", "developer", "sales_rep", "lead_ge
   }
   const [enriched] = await crmStorage.enrichLeads([lead]);
   const localFalcon = await getLocalFalconProfileForLead(id);
-  res.json({ ...stripSensitiveLeadFields(enriched, req), localFalcon });
+  const localFalconCrmOnly = await getLocalFalconCrmOnlyForLead(id);
+  res.json({ ...stripSensitiveLeadFields(enriched, req), localFalcon, localFalconCrmOnly });
 });
 
 router.get("/leads/:id/scan-report-email-preview", requireRole("admin", "developer", "sales_rep"), async (req, res) => {

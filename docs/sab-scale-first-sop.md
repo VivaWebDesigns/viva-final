@@ -1,0 +1,76 @@
+# Local Falcon SAB Scale-First SOP v3.0
+
+Consolidated replacement • Testing mode • Numeric policy approval pending
+
+This procedure replaces the previous SOP in full. It applies general rules only. Earlier amendments, research-note wording and past case rulings do not establish current policy. No new paid run is authorized by this revision. Production use requires the matching connector and CRM schema to be deployed and verified; that release verification is separate from this document.
+
+## 1. Ownership, authorization and testing
+
+One Codex orchestrator owns the run, delegates bounded work and reconciles results. There is no separate supervisor or nested review loop. Workers receive the exact run ID, Workflow Sheet, assigned Place IDs, stage, permitted tools and stop condition. They cannot expand scope, change policy or authorize spending.
+
+Use the guarded connector. Initialize one run per Workflow Sheet with the orchestrator identity, authorization reference and credit ceiling. Record each exact batch plan before submission: Place ID, role, type, center, grid, radius, units, keyword, platform, credits and whether saving the location is authorized. Preserve exact Place-ID deduplication, idempotency and durable submission receipts. No direct paid API calls, automatic retries, approval resets or guessed completion. An ambiguous response stops the affected run until reconciled without resubmission.
+
+TESTING STOP: Matt approves the initial batch. After every scan batch completes, verify and persist its results, then STOP before submitting any further scans. Present six columns: Company | Local Falcon report URL | Scan specification | Result | Proposed next step and reason | Specific SOP rule. Wait for Matt’s review and explicit approval of the next exact plan. No approval is inferred from silence or an earlier batch. These pauses remain until Matt explicitly ends testing mode; budgets, exceptions and final CRM import confirmation still apply.
+
+When Matt disagrees, classify the issue: agent error means the current rule was applied incorrectly; a flawed SOP rule needs a proposed general correction and approval. Correct the appropriate layer. Never silently turn a case-specific decision into general policy.
+
+## 2. Discovery, qualification and focused research
+
+Matt supplies the completed master discovery report, market, trade, exact keyword, run authorization and credit budget. The assistant does not launch the master scan. Create the complete ledger server-side with one row per discovered Place ID. Retain every final disposition and reconcile counts/checksum; no lead may disappear. Set workflow to scale_first_v2. Upgrade older Sheets to the current structured schema before writing new fields.
+
+Deduplicate against both deliverable and CRM-only records by exact Place-ID equality before enrichment or scans; never substitute fuzzy name, phone, website or address matching. Confirm SAB only from address:false; discard any returned public street address. Require at least one Google review and rating ≥4.5. Apply the run’s primary-category trade match and exclude national/multistate franchises; local multi-location ownership alone is not an exclusion. Unknown eligibility is unresolved, not a pass.
+
+Use compact DataForSEO Business Info enrichment with keyword place_id:<exact ID>, the correct market/language and exact returned-ID verification. Retain request/cost receipts; a zero-cost response with no task is not completed enrichment. Limit research to contact, trade/franchise relevance and optional address corroboration. No website audit, review audit, Secretary of State search or sales-priority scoring.
+
+For contact discovery, search the full GBP name unquoted plus email; allow the page to render for about five seconds and inspect visible AI answers/snippets before targeted page checks. Use phone fallback and relevant social About pages. Accept email only from a company-controlled source or an independently attributable listing; a free-mail address needs exact business-phone agreement. Never guess addresses, send test email or infer owners. Save verified sources. Email Ready requires verified email; Needs Email requires verified phone and no email. Without either verified contact, do not scan or export.
+
+## 3. Evidence, privacy and center definitions
+
+Structured run state, eligibility_state, decision_state, qualification_reason and outcome are authoritative. Record source report, evidence hash, rule IDs, selected coordinates, derivation, validation status, next action and recenter count. Notes support history only. Use ordinary write receipts during work and one critical stage-end readback of the affected structured records; repeat evidence inspection only when a conflict, missing receipt or changed state appears.
+
+Verify completed provider status, exact report key/subject, scan specification and complete grid geometry before decisions. Use server-side extraction and compact diagnostics. Exact ranked evidence means integer ranks 1–20; ranks above 20, 20+ and unknown/unranked placeholders never enter centering, cluster, coverage or peak calculations. Keep raw ARP and all-point ATRP distinct.
+
+An optional independently discovered address is a temporary candidate, never a fact to publish. Verify its identity and evaluate it against the complete ranked distribution, centroid and strongest cluster; proximity to one stray pin is insufficient. Retain the existing approximately three-mile distribution-fit limit and truthful geocoder precision. Persist only source type, identity method, fit result/distances and accepted coordinates. Hidden street addresses must not enter Sheets, manifests, CRM, notes or chat. CRM address is exactly Service Area Business.
+
+Adjacent cells share an edge or corner (eight neighbors). A dominant peak is at least three ranks better than the median exact pin. Form best+2 contiguous clusters containing a globally best pin. Choose greatest total 1/rank weight, then nearest cluster centroid to the prior center, then northernmost and westernmost cell. Among tied best pins, choose nearest prior center, then row and column.
+
+Peak targeting applies to the first post-auxiliary deliverable and every recenter. Use the selected peak cluster’s 1/rank centroid when dominant. Otherwise a whole-field centroid is allowed only if it does not move away from the selected best pin and remains within one diagonal cell of the chosen cluster on the proposed 7×7/3-mile grid (√2 miles). If either check fails, use the selected best pin. A recenter must produce verified movement toward that peak; never submit the unchanged center as a recenter.
+
+## 4. Scan decision table
+
+Precedence: authorization/privacy and valid evidence first; apply the current stage only. On auxiliaries, exclusion precedes visibility disposition. On deliverables, saturation precedes margin/recenter evaluation. Canonical selection follows the completed comparison. Testing approval always gates the next paid batch. Standard deliverable: Google 7×7/3 miles. Routine auxiliaries: scout 9×9/6 miles or justified fine scan 7×7/1.5 miles. Permit one auxiliary and one routine recenter per lead; additional attempts need an explicit exception.
+
+| Rule / stage | Evidence | Required action |
+| --- | --- | --- |
+| S01 — Master | One connected exact top-20 interior cluster; outermost boundary empty. | Use its 1/rank centroid. A bounded point source is sufficient; edge proximity alone does not require a scout. |
+| S01 — Truncated master | Exact top-20 evidence touches the actual outer boundary. | Scout from a server-calculated three-mile offset from the weighted centroid toward the nearest occupied edge. Adjacent-edge ties use a normalized diagonal, not three miles per axis. Store master_edge_offset. Unresolved opposing ties or absent evidence require resolution; do not guess. |
+| S01 — Sparse interior | Two to four disconnected interior pins; no accepted corroborated address. | Use one 7×7/1.5-mile fine scan at their weighted centroid when the full spread is ≤3 miles. If farther apart, target the deterministic best pin and hold the other islands for an explicit exception. |
+| S02 — Wide-scout exclusion | Completed 9×9/6-mile auxiliary: top-20 coverage ≥75%, raw ARP ≤4 AND SoLV ≥60. | Exclude as existing_visibility_too_strong. All three tests must pass. Missing metrics needed to resolve exclusion require evidence review. |
+| S03 / S04 — Auxiliary | Completed valid auxiliary, after S02. | Any exact rank 1–20 confirms visibility: plan a peak-targeted 7×7/3-mile deliverable. Scout boundary occupation does not block it. Zero exact top-20 pins alone produces no_visibility_core_found and CRM-only handling. |
+| S06 — Saturation first | Strong rankings without meaningful falloff, with no displaced dominant peak; 49 ranked cells alone are insufficient. | The numeric proposal below is pending. Stop for policy review until approved. Once approved, saturation alone permits a same-center 7×7/5-mile comparison without a recenter exception; testing approval still applies. |
+| S05 — Deliverable margin | Global best pin on boundary, or a maintained/improving outward path. | A qualifying path has ≥3 adjacent pins, starts in a best+2 cluster containing a global best pin, moves strictly closer to the boundary each step, never worsens in rank and reaches it. Two adjacent boundary pins within best+5 alone do not prove failure. Ordinary falloff is acceptable. |
+| S04 / S07 — Recenter | S05 fails, or a dominant peak lies outside the central 3×3. | Permit one peak-targeted routine recenter. Further attempts require an explicit exception. If no supported movement exists, resolve evidence rather than submitting another scan. |
+| S08 — Canonical comparison | Completed same-center 7×7/3-mile and 7×7/5-mile reports; identical keyword/platform. | Select five miles only when raw ARP increases AND SoLV decreases. Otherwise retain three miles. Preserve both reports and persist the selected report’s actual radius, center and metrics. |
+| S09 — Five-mile exclusion | No approved separate threshold. | Disabled. Do not borrow the 9×9/6-mile exclusion or compare business strength across different scan specifications. |
+
+master_edge_offset is an auxiliary launch coordinate, never a validated business/deliverable center. ranked_peak_recentered was already supported; retain it for an evidenced peak-derived center. A planned center or saved report key alone is not validation. Corroborated-address and fine-scan routes must carry their own structured source/fit evidence and exact authorized specification; they cannot bypass S02–S09.
+
+## 5. Records, one-file export and import
+
+Deliverable outcome: persist the validated canonical report, actual 7×7 radius, center/derivation, scan date, keyword and verified provider public URL. Reverse-geocode that validated center for city/state/ZIP; do not infer ZIPs or derive public URLs from report keys. Preserve raw ARP for S08. Prospect-facing Average Google Maps Position always uses all-point ATRP, including unranked points as supplied/verified by the provider; never substitute raw ARP. Keep SoLV separate.
+
+CRM-only outcome: after a valid auxiliary has zero exact top-20 pins, retain its source report/evidence and reverse-geocode the auxiliary scan center solely as market_reference_only. Store source=auxiliary_scan_reverse_geocode, coordinates, city/state/ZIP and the actual auxiliary report key/public URL. These describe the searched market, not a validated business center. The record has no deliverable report, report date, ARP/ATRP/SoLV, validated center or heatmap. Missing reference geography requires resolution without guessing. Verified contacts and all other qualification rules still apply.
+
+Before export, finish the full run reconciliation. Every discovered Place ID has a structured disposition. Build exactly one batch.json through build_sab_run_manifest containing every eligible qualified row at complete OR qa_ready across all execution batches, including CRM-only leads. Do not filter only qa_ready. Exclude disqualified, deferred, blocked, imported and unqualified records. Validate the entire manifest against the current scale_first_v2 contract, exact uniqueness, contact tags and recorded scan specifications. No competitors.json or competitor sidecar.
+
+Import preview retrieves and verifies official unaltered heatmap bytes only for deliverables, and clearly labels CRM-only entries as having no validated scan/report. Prospect reports remain prospect-only, 1080×1920, with the approved framing and unchanged official map evidence. CRM-only entries create no fabricated visibility report or automatic report outreach. Matt reviews the complete preview, duplicate decisions, company/map pairings and CRM-only labels, selects the operational assignee and explicitly confirms final CRM import. Export is not import authorization.
+
+## 6. Stage handoff and unresolved policy
+
+A handoff contains the exact run/Sheet, assigned Place IDs, structured stage and next action, source report references, receipt/evidence hashes, credit commitment, current testing approval/stop, any explicit exception and remaining blockers. Do not reopen verified sources routinely or paste raw grids/hidden addresses. Mark agent error separately from a proposed policy correction.
+
+Pre-finalization checklist: ledger counts reconcile; eligibility/contact evidence is structured; scans and authorizations match; submission receipts and history remain intact; canonical outcome/specification or CRM-only reference is valid; one manifest includes all eligible complete and qa_ready rows; final import confirmation is still required; testing mode is unchanged unless Matt explicitly ended it.
+
+Pending approval — saturation definition: all 49 points exact top-20, median rank ≤3, outer-ring median no more than two positions worse than the central-3×3 median, and no displaced dominant peak. This is a proposal, not an active numeric rule.
+
+Pending approval — separate 7×7/5-mile exclusion: propose all three tests together: at least 45/49 exact top-20 pins, raw ARP ≤3 and SoLV ≥75%. This is disabled unless Matt approves the general threshold. It neither changes S08 nor permits comparisons of company strength across scan specifications.

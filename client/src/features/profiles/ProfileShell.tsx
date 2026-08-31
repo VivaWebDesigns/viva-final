@@ -1,3 +1,4 @@
+import CrmOnlyEvidenceCard from "./CrmOnlyEvidenceCard";
 /**
  * Unified Profile Shell
  *
@@ -2940,6 +2941,9 @@ function ProfileShellInner({
               contacts={identity.contacts}
             />
           </div>
+          {reportLibrary?.crmOnlyProspects?.map((evidence) => (
+            <CrmOnlyEvidenceCard key={evidence.leadId} evidence={evidence} />
+          ))}
           {reportLibrary && reportLibrary.ownReports.length > 0 && (
             <OriginalCompanyReports companyId={companyId} reports={reportLibrary.ownReports} />
           )}

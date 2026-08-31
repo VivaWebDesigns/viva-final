@@ -26,7 +26,7 @@ describe("SAB CRM Place ID deduplication", () => {
 
     expect(result).toMatchObject({
       criterion: "exact_place_id_equals",
-      source: "local_falcon_prospect_profiles.place_id",
+      source: "local_falcon_prospect_profiles.place_id + local_falcon_crm_only_prospects.place_id",
       requested_count: 3,
       unique_place_id_count: 2,
       matched_place_id_count: 1,

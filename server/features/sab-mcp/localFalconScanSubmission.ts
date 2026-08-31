@@ -4,6 +4,13 @@ import type {
   SabScanSubmissionReservation,
   SabSheetsRepository,
 } from "./sheets";
+import {
+  claimSabRunScan,
+  inSabRunStateQueue,
+  normalizeSabScanPlan,
+  recordSabRunSubmission,
+  type SabRunStateRepository,
+} from "./runState";
 
 const LOCAL_FALCON_API_BASE = "https://api.localfalcon.com";
 const LOCAL_FALCON_TIMEOUT_MS = 45_000;
@@ -15,6 +22,8 @@ export type RunSabScanOnceInput = Omit<
   SabScanSubmissionReservation,
   "idempotency_key" | "scan_center"
 > & {
+  /** Optional only to retrieve a legacy idempotent receipt; new scans require it. */
+  run_id?: string;
   center: { latitude: number; longitude: number };
   save_location_required: boolean;
   eligibility_gate_result: "passed";
@@ -25,11 +34,11 @@ export type RunSabScanOnceInput = Omit<
 type ScanSubmissionRepository = Pick<
   SabSheetsRepository,
   "reserveScanSubmission" | "updateScanSubmission"
->;
+> & SabRunStateRepository & {
+  getScanSubmission(placeId: string, idempotencyKey: string): Promise<Record<string, unknown> | null>;
+};
 
 type JsonRecord = Record<string, unknown>;
-
-let submissionQueue: Promise<void> = Promise.resolve();
 
 function cleanString(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
@@ -165,35 +174,53 @@ function assertExactEcho(payload: JsonRecord, input: RunSabScanOnceInput) {
   }
 }
 
-async function inSubmissionQueue<T>(work: () => Promise<T>) {
-  const prior = submissionQueue;
-  let release!: () => void;
-  submissionQueue = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  await prior;
-  try {
-    return await work();
-  } finally {
-    release();
-  }
-}
-
 export async function runSabScanOnce(
   input: RunSabScanOnceInput,
   repository: ScanSubmissionRepository,
   actorEmail: string,
   options: { apiKey?: string; fetchImpl?: FetchLike } = {},
 ) {
-  return inSubmissionQueue(async () => {
+  return inSabRunStateQueue(async () => {
     if (input.estimated_credits !== input.grid_size * input.grid_size) {
       throw new Error(
         `Estimated credits must equal grid point count (${input.grid_size * input.grid_size}).`,
       );
     }
+    const key = idempotencyKey(input);
+    // An existing receipt is always readable, including while a human review is
+    // pending. This path must never reserve again or contact the paid endpoint.
+    const existing = await repository.getScanSubmission(input.place_id, key);
+    const existingReceipt = (entry: Record<string, unknown>) => {
+      const status = cleanString(entry.submission_status) ?? "unknown";
+      return {
+        idempotency_key: key,
+        submission_status: status,
+        report_key: cleanString(entry.report_key),
+        scans_executed: false,
+        writes_performed: false,
+        deduplicated: status === "submitted",
+        stopped_for_manual_reconciliation: status !== "submitted",
+      };
+    };
+    if (existing) return existingReceipt(existing);
+    if (!input.run_id?.trim()) throw new Error("New paid scans require an initialized structured run and exact stored batch authorization.");
+    if (input.eligibility_gate_result !== "passed" || input.duplicate_report_result !== "none" || input.retry_after_ambiguous_submission !== false) {
+      throw new Error("Eligibility and exact duplicate checks must pass; ambiguous paid submissions cannot be retried.");
+    }
+    const state = await repository.getRunState(input.run_id);
+    if (!state || state.run_id !== input.run_id) throw new Error("No matching authorized structured run exists.");
     const apiKey = options.apiKey?.trim() || localFalconApiKey();
     const fetchImpl = options.fetchImpl ?? fetch;
-    const key = idempotencyKey(input);
+    // Match and claim the exact plan before any side effect; a caller UUID alone
+    // is never spending authorization. Claims are not refunded on ambiguity.
+    input = { ...input, ...normalizeSabScanPlan(input) };
+    const claimed = claimSabRunScan(state, input.authorization_id, input, key);
+    await repository.saveRunState(claimed, state.version, actorEmail);
+    const recordRunResult = async (result: Parameters<typeof recordSabRunSubmission>[2]) => {
+      const latest = await repository.getRunState(input.run_id!);
+      if (!latest) throw new Error("Structured run disappeared after submission; manual reconciliation is required.");
+      await repository.saveRunState(recordSabRunSubmission(latest, key, result), latest.version, actorEmail);
+    };
     const scanCenter = `${input.center.latitude},${input.center.longitude}`;
     const reservation: SabScanSubmissionReservation = {
       idempotency_key: key,
@@ -217,17 +244,7 @@ export async function runSabScanOnce(
       actorEmail,
     );
     if (!reserved.created) {
-      const existingEntry = reserved.entry as Record<string, unknown>;
-      const status = cleanString(existingEntry.submission_status) ?? "unknown";
-      return {
-        idempotency_key: key,
-        submission_status: status,
-        report_key: cleanString(existingEntry.report_key),
-        scans_executed: false,
-        writes_performed: false,
-        deduplicated: status === "submitted",
-        stopped_for_manual_reconciliation: status !== "submitted",
-      };
+      return existingReceipt(reserved.entry as Record<string, unknown>);
     }
 
     if (input.save_location_required) {
@@ -282,6 +299,7 @@ export async function runSabScanOnce(
           },
           actorEmail,
         );
+        await recordRunResult({ submission_status: "location_unverified" });
         return {
           idempotency_key: key,
           submission_status: "location_unverified",
@@ -344,6 +362,7 @@ export async function runSabScanOnce(
         },
         actorEmail,
       );
+      await recordRunResult({ submission_status: "submitted", report_key: reportKey });
       return {
         idempotency_key: key,
         authorization_id: input.authorization_id,
@@ -370,6 +389,7 @@ export async function runSabScanOnce(
         },
         actorEmail,
       );
+      await recordRunResult({ submission_status: "ambiguous_response", report_key: observedReportKey });
       return {
         idempotency_key: key,
         submission_status: "ambiguous_response",

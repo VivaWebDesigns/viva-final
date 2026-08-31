@@ -1,10 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import { runSabScanOnce } from "../../server/features/sab-mcp/localFalconScanSubmission";
+import { authorizeSabScanBatch, createSabRunState, completeSabRunReports } from "../../server/features/sab-mcp/runState";
 
 const input = {
+  run_id: "test-run",
   authorization_id: "e8f20e3a-5422-4fdf-a34b-21860cfbe6df",
-  company_name: "KJ Home Improvement",
-  place_id: "kj-place",
+  company_name: "Example service provider",
+  place_id: "test-place",
   scan_role: "auxiliary" as const,
   scan_type: "scout" as const,
   center: { latitude: 35.1, longitude: -80.9 },
@@ -22,7 +24,7 @@ const input = {
   sop_routing_rule: "SOP section 10.5",
 };
 
-function exactResponse(placeId = "kj-place") {
+function exactResponse(placeId = "test-place") {
   return new Response(
     JSON.stringify({
       success: true,
@@ -48,7 +50,7 @@ function acceptedResponseWithParameterEnvelope() {
     JSON.stringify({
       success: true,
       parameters: {
-        place_id: "kj-place",
+        place_id: "test-place",
         keyword: "deck builder near me",
         lat: "35.1",
         lng: "-80.9",
@@ -66,7 +68,7 @@ function acceptedResponseWithParameterEnvelope() {
   );
 }
 
-function savedLocationResponse(placeId = "kj-place", platform = "google") {
+function savedLocationResponse(placeId = "test-place", platform = "google") {
   return new Response(
     JSON.stringify({
       code: 200,
@@ -79,14 +81,23 @@ function savedLocationResponse(placeId = "kj-place", platform = "google") {
   );
 }
 
-function repository() {
+function repository(plan = input) {
   let entry: Record<string, unknown> | undefined;
+  let state = authorizeSabScanBatch(createSabRunState({
+    run_id: input.run_id, orchestrator_id: "orchestrator", authorization_reference: "explicit-run-approval", credit_limit: 162,
+  }), { authorization_id: input.authorization_id, orchestrator_id: "orchestrator", authorization_reference: "initial-plan", scans: [plan], matt_initial_approval: { approved_by: "Matt", approval_reference: "initial-exact-plan-approval" } });
   return {
+    getScanSubmission: vi.fn(async (_placeId: string, key: string) => entry?.idempotency_key === key ? entry : null),
+    getRunState: vi.fn(async () => structuredClone(state)),
+    saveRunState: vi.fn(async (next: typeof state, expectedVersion: number) => {
+      if (expectedVersion !== state.version) throw new Error("Concurrent run state change.");
+      state = structuredClone(next);
+    }),
     reserveScanSubmission: vi.fn(
       async (reservation: Record<string, unknown>) => {
-        if (entry) return { created: false, place_id: "kj-place", entry };
+        if (entry) return { created: false, place_id: "test-place", entry };
         entry = { ...reservation, submission_status: "preparing_location" };
-        return { created: true, place_id: "kj-place", entry };
+        return { created: true, place_id: "test-place", entry };
       },
     ),
     updateScanSubmission: vi.fn(
@@ -147,7 +158,7 @@ describe("guarded SAB scan submission", () => {
       scans_executed: true,
     });
     expect(repo.updateScanSubmission).toHaveBeenLastCalledWith(
-      "kj-place",
+      "test-place",
       expect.any(String),
       expect.objectContaining({
         submission_status: "submitted",
@@ -158,7 +169,7 @@ describe("guarded SAB scan submission", () => {
   });
 
   it("saves and verifies the exact location using Local Falcon's documented parameter envelope", async () => {
-    const repo = repository();
+    const repo = repository({ ...input, save_location_required: true });
     const fetchImpl = vi
       .fn()
       .mockResolvedValueOnce(savedLocationResponse())
@@ -179,20 +190,20 @@ describe("guarded SAB scan submission", () => {
     const saveRequest = fetchImpl.mock.calls[0];
     expect(saveRequest[0]).toBe("https://api.localfalcon.com/v2/locations/add");
     expect(String(saveRequest[1]?.body)).toContain("platform=google");
-    expect(String(saveRequest[1]?.body)).toContain("place_id=kj-place");
+    expect(String(saveRequest[1]?.body)).toContain("place_id=test-place");
     expect(repo.updateScanSubmission).toHaveBeenCalledWith(
-      "kj-place",
+      "test-place",
       expect.any(String),
       expect.objectContaining({
         location_status: "verified",
-        location_place_id: "kj-place",
+        location_place_id: "test-place",
       }),
       "matt@viva",
     );
   });
 
   it("returns the exact location-verification error and does not launch a scan", async () => {
-    const repo = repository();
+    const repo = repository({ ...input, save_location_required: true });
     const fetchImpl = vi
       .fn()
       .mockResolvedValue(savedLocationResponse("different-place"));
@@ -251,7 +262,7 @@ describe("guarded SAB scan submission", () => {
       retry_permitted: false,
     });
     expect(repo.updateScanSubmission).toHaveBeenLastCalledWith(
-      "kj-place",
+      "test-place",
       expect.any(String),
       expect.objectContaining({
         submission_status: "ambiguous_response",
@@ -259,5 +270,59 @@ describe("guarded SAB scan submission", () => {
       }),
       "matt@viva",
     );
+  });
+
+  it("rejects arbitrary authorization UUIDs and changed exact envelopes before reserving or spending", async () => {
+    for (const changed of [
+      { authorization_id: "another-uuid" },
+      { radius: 5 },
+      { center: { latitude: 35.11, longitude: -80.9 } },
+      { keyword: "another keyword" },
+      { save_location_required: true },
+    ]) {
+      const repo = repository();
+      const fetchImpl = vi.fn();
+      await expect(runSabScanOnce({ ...input, ...changed }, repo as never, "actor", { apiKey: "test", fetchImpl }))
+        .rejects.toThrow(/authorization|envelope/);
+      expect(repo.reserveScanSubmission).not.toHaveBeenCalled();
+      expect(repo.saveRunState).not.toHaveBeenCalled();
+      expect(fetchImpl).not.toHaveBeenCalled();
+    }
+  });
+
+  it("requires structured run state for new submissions, but still reads legacy receipts", async () => {
+    const repo = repository();
+    const fetchImpl = vi.fn().mockResolvedValue(exactResponse());
+    await expect(runSabScanOnce({ ...input, run_id: undefined }, repo as never, "actor", { apiKey: "test", fetchImpl }))
+      .rejects.toThrow(/structured run/);
+    await runSabScanOnce(input, repo as never, "actor", { apiKey: "test", fetchImpl });
+    await expect(runSabScanOnce({ ...input, run_id: undefined }, repo as never, "actor", { apiKey: "test", fetchImpl }))
+      .resolves.toMatchObject({ deduplicated: true, scans_executed: false });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it("retains receipt access during the mandatory review pause without submitting again", async () => {
+    const repo = repository();
+    const fetchImpl = vi.fn().mockResolvedValue(exactResponse());
+    await runSabScanOnce(input, repo as never, "actor", { apiKey: "test", fetchImpl });
+    const state = await repo.getRunState();
+    await repo.saveRunState(completeSabRunReports(state, ["4826693261fc566"]), state.version);
+    await expect(runSabScanOnce(input, repo as never, "actor", { apiKey: "test", fetchImpl }))
+      .resolves.toMatchObject({ deduplicated: true, scans_executed: false });
+    await expect(runSabScanOnce({ ...input, authorization_id: "new-batch" }, repo as never, "actor", { apiKey: "test", fetchImpl }))
+      .rejects.toThrow(/review/);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it("persists the credit claim before reservation or provider calls and stops after a failed reservation", async () => {
+    const repo = repository();
+    const fetchImpl = vi.fn();
+    repo.reserveScanSubmission.mockRejectedValueOnce(new Error("reservation failed"));
+    await expect(runSabScanOnce(input, repo as never, "actor", { apiKey: "test", fetchImpl }))
+      .rejects.toThrow("reservation failed");
+    expect((await repo.getRunState()).committed_credits).toBe(81);
+    await expect(runSabScanOnce(input, repo as never, "actor", { apiKey: "test", fetchImpl }))
+      .rejects.toThrow(/already claimed/);
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 });

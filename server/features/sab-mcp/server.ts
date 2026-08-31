@@ -1,3 +1,4 @@
+import { registerSabOrchestrationTools } from "./orchestration";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
   type SabSheetsRepositoryFactory,
@@ -57,19 +58,11 @@ function jsonToolResult(value: unknown) {
   };
 }
 
-function privateWorkflowResult(value: unknown, requiredNextAction: string) {
-  const payload = {
-    ...(value && typeof value === "object" && !Array.isArray(value)
-      ? value
-      : { result: value }),
-    response_gate: {
-      user_visible_response_allowed: false,
-      supervisor_checkpoint_required_before_user_response: true,
-      required_next_action: requiredNextAction,
-      invalidated_by_any_later_workflow_action: true,
-    },
-  };
-  return jsonToolResult(payload);
+function workflowWriteReceipt(value: unknown, nextAction: string) {
+  return jsonToolResult({
+    ...(value && typeof value === "object" && !Array.isArray(value) ? value : { result: value }),
+    write_receipt: { recorded: true, next_action: nextAction, stage_end_readback_required: true },
+  });
 }
 
 export const SAB_MCP_SECURITY_SCHEMES = [
@@ -98,7 +91,7 @@ export function createSabMcpServer(
 ) {
   const server = new McpServer({
     name: "viva-sab-workflow",
-    version: "1.11.2",
+    version: "2.0.0",
   });
 
   server.registerTool(
@@ -151,7 +144,7 @@ export function createSabMcpServer(
     "check_crm_place_ids",
     sabTool({
       description:
-        "Bulk-check discovered Google Place IDs against prior Local Falcon CRM prospect profiles using exact Place-ID equality. Use this immediately after building the discovery ledger and before audits. Do not substitute company-name, phone, website, address, or fuzzy matching.",
+        "Bulk-check discovered Google Place IDs against prior Local Falcon deliverable and CRM-only prospect records using exact Place-ID equality. Use this immediately after building the discovery ledger and before enrichment or paid scans. Do not substitute company-name, phone, website, address, or fuzzy matching.",
       inputSchema: checkCrmPlaceIdsInputSchema,
     }),
     async ({ place_ids }) => {
@@ -181,7 +174,7 @@ export function createSabMcpServer(
       inputSchema: createSabWorkflowFromMasterReportInputSchema,
     }),
     async ({ title, report_key, batch_size }) => {
-      return privateWorkflowResult(
+      return workflowWriteReceipt(
         await createSabWorkflowFromMasterReport(
           title,
           report_key,
@@ -189,7 +182,7 @@ export function createSabMcpServer(
           workflowCreator,
           actorEmail,
         ),
-        "continue_unblocked_work_or_call_review_sab_checkpoint_privately",
+        "continue_from_receipt; read_back_once_at_critical_stage_end",
       );
     },
   );
@@ -210,7 +203,7 @@ export function createSabMcpServer(
     "analyze_sab_master_centers",
     sabTool({
       description:
-        "Compute compact SOP centering diagnostics server-side for selected Place IDs in a completed master report: 1/rank centroid, ranked-cell count and hash, row/column spread, outer-two-ring edge flag, cluster structure, and baseline trust decision. Omits raw ranked cells and never runs a scan. Use get_sab_ranked_cells only for an exception or targeted verification.",
+        "Compute compact SOP centering diagnostics server-side for selected Place IDs in a completed master report: 1/rank centroid, ranked-cell count and hash, row/column spread, actual boundary truncation versus bounded interior sources, deterministic clusters, peak diagnostics and normalized adjacent-edge offsets. Omits raw ranked cells and never runs a scan. Use get_sab_ranked_cells only for an exception or targeted verification.",
       inputSchema: analyzeSabMasterCentersInputSchema,
     }),
     async ({ report_key, place_ids }) => {
@@ -272,9 +265,9 @@ export function createSabMcpServer(
       inputSchema: createSabWorkflowInputSchema,
     }),
     async ({ title, companies }) => {
-      return privateWorkflowResult(
+      return workflowWriteReceipt(
         await workflowCreator.createWorkflow(title, companies, actorEmail),
-        "continue_unblocked_work_or_call_review_sab_checkpoint_privately",
+        "continue_from_receipt; read_back_once_at_critical_stage_end",
       );
     },
   );
@@ -311,18 +304,18 @@ export function createSabMcpServer(
     "upgrade_sab_workflow_schema",
     sabTool({
       description:
-        "Backward-compatibly upgrade an existing SAB Workflow Sheet for Scale-First by expanding only the selected tab when required, appending only missing workflow and contact_tag headers, then verifying row, Place-ID, header-position, and grid-capacity integrity. This is idempotent and does not change company rows or other tabs.",
+        "Backward-compatibly upgrade an existing SAB Workflow Sheet for Scale-First by expanding only the selected tab when required, appending only missing current Scale-First structured state headers, then verifying row, Place-ID, header-position, and grid-capacity integrity. This is idempotent and does not change company rows or other tabs.",
       inputSchema: upgradeSabWorkflowSchemaInputSchema,
     }),
     async ({ workflow_sheet, sheet_name }) => {
       const repository = repositoryFactory(workflow_sheet, sheet_name);
-      return privateWorkflowResult(
+      return workflowWriteReceipt(
         {
           workflow_sheet,
           sheet_name,
           ...(await repository.upgradeWorkflowSchema()),
         },
-        "continue_unblocked_work_or_call_review_sab_checkpoint_privately",
+        "continue_from_receipt; read_back_once_at_critical_stage_end",
       );
     },
   );
@@ -331,14 +324,14 @@ export function createSabMcpServer(
     "save_sab_company",
     sabTool({
       description:
-        "Save approved research fields to the exact SAB Workflow Sheet for one company immediately after completing it. scan_center and center_type may be saved together as a planned pre-scan center; they do not create a completed scan, report key, canonical report, or scan-history entry. Weighted-centroid and corroborated-address plans require matching durable evidence in research_notes. Set qualification_status to null to clear a premature disposition while work remains in progress. Qualified and deferred records require complete website and review audits with 3–6 concise, relevant findings. A manually disqualified record may be marked complete without unfinished audits when research_notes contains the factual disqualification reason; never fabricate audit findings. Set qualification_status to qualified, disqualified, or deferred before status complete.",
+        "Persist one exact Place-ID record and return an ordinary write receipt. Structured eligibility_state, decision_state, qualification_reason and outcome are authoritative; research_notes are history only. Planned centers require matching structured evidence and do not establish a report or spending authorization. Scale-First requires no website/review audits or sales priority. Qualified complete and qa_ready records must satisfy the full deliverable or CRM-only contract; deferred/disqualified closure requires a structured reason. Read back once at the critical stage end.",
       inputSchema: saveSabCompanyInputSchema,
     }),
     async ({ workflow_sheet, sheet_name, place_id, updates }) => {
       const repository = repositoryFactory(workflow_sheet, sheet_name);
-      return privateWorkflowResult(
+      return workflowWriteReceipt(
         await repository.saveCompany(place_id, updates, actorEmail),
-        "continue_unblocked_work_or_call_review_sab_checkpoint_privately",
+        "continue_from_receipt; read_back_once_at_critical_stage_end",
       );
     },
   );
@@ -352,9 +345,9 @@ export function createSabMcpServer(
     }),
     async ({ workflow_sheet, sheet_name, place_id, scan_result }) => {
       const repository = repositoryFactory(workflow_sheet, sheet_name);
-      return privateWorkflowResult(
+      return workflowWriteReceipt(
         await repository.saveScanResult(place_id, scan_result, actorEmail),
-        "continue_scan_validation_and_persistence_then_call_review_sab_checkpoint_privately",
+        "analyze_completed_report; review_completed_batch_with_Matt_before_further_scans",
       );
     },
   );
@@ -369,13 +362,13 @@ export function createSabMcpServer(
     async ({ workflow_sheet, sheet_name, repairs }) => {
       const verified = await verifySabScanHistoryRepairs(repairs);
       const repository = repositoryFactory(workflow_sheet, sheet_name);
-      return privateWorkflowResult(
+      return workflowWriteReceipt(
         {
           workflow_sheet,
           sheet_name,
           ...(await repository.reconcileScanHistory(verified, actorEmail)),
         },
-        "verify_repaired_durable_state_then_call_review_sab_checkpoint_privately",
+        "read_back_repaired_stage; reconcile_run_claim_before_further_scans",
       );
     },
   );
@@ -384,18 +377,18 @@ export function createSabMcpServer(
     "run_sab_scan_once",
     sabTool({
       description:
-        "Execute exactly one supervisor-authorized Local Falcon scan through the Viva connector's guarded path. Creates a durable idempotency reservation before any paid call, optionally saves the exact Place ID, submits exactly once with no automatic retry, verifies the complete echoed scan envelope, and immediately records the report key. A lost or mismatched response becomes an ambiguous durable stop that must be reconciled; calling the same authorization and exact scan again never launches a second scan.",
+        "Execute exactly one run-state-authorized Local Falcon scan owned by the single Codex orchestrator through the Viva connector's guarded path. Requires an exact approved batch in run_id, enforces testing pauses and credit limits, and creates a durable idempotency reservation before any paid call, optionally saves the exact Place ID, submits exactly once with no automatic retry, verifies the complete echoed scan envelope, and immediately records the report key. A lost or mismatched response becomes an ambiguous durable stop that must be reconciled; calling the same authorization and exact scan again never launches a second scan.",
       inputSchema: runSabScanOnceInputSchema,
     }),
     async ({ workflow_sheet, sheet_name, ...input }) => {
       const repository = repositoryFactory(workflow_sheet, sheet_name);
       const result = await runSabScanOnce(input, repository, actorEmail);
       const status = String(result.submission_status ?? "unknown");
-      return privateWorkflowResult(
+      return workflowWriteReceipt(
         result,
         ["ambiguous_response", "location_unverified"].includes(status)
-          ? "do_not_retry_reconcile_durable_state_then_call_review_sab_checkpoint_privately"
-          : "continue_exact_authorized_plan_or_call_review_sab_checkpoint_privately",
+          ? "stop; reconcile_ambiguous_submission_and_run_claim_without_resubmitting"
+          : "finish_only_this_exact_authorized_batch; review_completed_batch_with_Matt",
       );
     },
   );
@@ -404,14 +397,14 @@ export function createSabMcpServer(
     "mark_sab_blocked",
     sabTool({
       description:
-        "Mark a company blocked with a concrete reason. Location precision is not a blocker: use the existing city/state, a reasonable ZIP, and 'Service Area Business' when the address is blank.",
+        "Mark a company blocked with a concrete reason. Never guess a city, state or ZIP. Resolve deliverable location from the validated center, or clearly label auxiliary market-reference information for CRM-only outcomes. Keep address 'Service Area Business'.",
       inputSchema: markSabBlockedInputSchema,
     }),
     async ({ workflow_sheet, sheet_name, place_id, reason }) => {
       const repository = repositoryFactory(workflow_sheet, sheet_name);
-      return privateWorkflowResult(
+      return workflowWriteReceipt(
         await repository.markBlocked(place_id, reason, actorEmail),
-        "continue_unblocked_work_or_call_review_sab_checkpoint_privately",
+        "continue_from_receipt; read_back_once_at_critical_stage_end",
       );
     },
   );
@@ -429,5 +422,6 @@ export function createSabMcpServer(
     },
   );
 
+  registerSabOrchestrationTools(server, repositoryFactory, actorEmail);
   return server;
 }

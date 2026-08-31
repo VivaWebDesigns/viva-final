@@ -2,6 +2,7 @@ const LOCAL_FALCON_API_BASE = "https://api.localfalcon.com/v1";
 const LOCAL_FALCON_TIMEOUT_MS = 90_000;
 const COMPETITOR_FIELDMASK = [
   "report_key",
+  "status",
   "keyword",
   "lat",
   "lng",
@@ -16,7 +17,9 @@ const COMPETITOR_FIELDMASK = [
 ].join(",");
 const GRID_FIELDMASK = [
   "report_key",
+  "status",
   "date",
+  "public_url",
   "keyword",
   "place_id",
   "lat",
@@ -26,6 +29,7 @@ const GRID_FIELDMASK = [
   "measurement",
   "platform",
   "arp",
+  "atrp",
   "solv",
   "found_in",
   "points",
@@ -48,8 +52,10 @@ type LocalFalconBusiness = {
 };
 
 type LocalFalconReportData = {
+  status?: unknown;
   report_key?: unknown;
   date?: unknown;
+  public_url?: unknown;
   keyword?: unknown;
   place_id?: unknown;
   lat?: unknown;
@@ -68,6 +74,8 @@ type LocalFalconReportData = {
 };
 
 export type LocalFalconResponse = {
+  code?: unknown;
+  http_status?: number;
   success?: unknown;
   message?: unknown;
   data?: LocalFalconReportData;
@@ -85,11 +93,15 @@ export type SabRankedCellsResult = {
   report_key: string;
   report_subject_place_id: string | null;
   scan_date: string | null;
+  public_url: string | null;
   source: "local_falcon_completed_master_report";
   scan_executed: false;
+  completion_verified: true;
+  completion_status: "complete";
   keyword: string | null;
   platform: string | null;
   arp: number | null;
+  atrp: number | null;
   solv: number | null;
   found_in: number | null;
   grid: {
@@ -158,6 +170,15 @@ function cleanString(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
+function publicReportUrl(value: unknown) {
+  const text = cleanString(value);
+  if (!text) return null;
+  try {
+    const url = new URL(text);
+    return url.protocol === "https:" && !url.username && !url.password ? url.toString() : null;
+  } catch { return null; }
+}
+
 function optionalNumber(value: unknown) {
   if (value === null || value === undefined || value === false || value === "")
     return null;
@@ -183,7 +204,8 @@ function numericAxes(dataPoints: unknown, gridSize: number) {
     ...new Set(coordinates.map(({ longitude }) => longitude)),
   ].sort((a, b) => a - b);
 
-  if (latitudes.length !== gridSize || longitudes.length !== gridSize) {
+  const uniquePairs = new Set(coordinates.map(point => `${point.latitude}:${point.longitude}`));
+  if (latitudes.length !== gridSize || longitudes.length !== gridSize || coordinates.length !== gridSize ** 2 || uniquePairs.size !== gridSize ** 2) {
     throw new Error(
       `Local Falcon grid geometry is not an exact ${gridSize}x${gridSize} coordinate matrix.`,
     );
@@ -202,6 +224,7 @@ function nearestAxisIndex(value: number, axis: number[]) {
       nearestIndex = index;
     }
   });
+  if (nearestDistance > 0.000001) throw new Error("Local Falcon ranked coordinate is outside the exact scan grid.");
   return nearestIndex;
 }
 
@@ -229,6 +252,20 @@ export function extractSabRankedCells(
   if (gridPayload.success !== true || !gridPayload.data) {
     throw new Error(responseMessage(gridPayload));
   }
+
+  for (const payload of [competitorPayload, gridPayload]) {
+    // The provider defines HTTP 200 as a completed report and HTTP/code 202
+    // with status=processing as incomplete; completed reports omit status.
+    // https://docs.localfalcon.com/openapi.yaml /v1/reports/{report_key}/
+    const code = optionalNumber(payload.code);
+    const status = cleanString(payload.data?.status);
+    if ((payload.http_status ?? code) !== 200 || (code !== null && code !== 200) || status) {
+      throw new Error("Local Falcon report completion is not verified; processing or unknown report status cannot advance the run.");
+    }
+  }
+  const competitorKey = cleanString(competitorPayload.data.report_key);
+  const gridKey = cleanString(gridPayload.data.report_key);
+  if (competitorKey !== requestedReportKey || gridKey !== requestedReportKey) throw new Error("Local Falcon report identities do not match the exact requested report key.");
 
   const businesses = competitorPayload.data.businesses;
   if (!Array.isArray(businesses)) {
@@ -269,10 +306,11 @@ export function extractSabRankedCells(
     }
 
     let impreciseOrUnrankedCellCount = 0;
+    const seenRankedPositions = new Set<string>();
     const rankedCells = business.data_points.flatMap(
       (point: LocalFalconDataPoint) => {
         const rank = normalizedLocalFalconRank(point?.rank);
-        if (typeof rank !== "number") {
+        if (typeof rank !== "number" || !Number.isInteger(rank) || rank < 1 || rank > 20) {
           impreciseOrUnrankedCellCount += 1;
           return [];
         }
@@ -284,10 +322,15 @@ export function extractSabRankedCells(
           point?.lng,
           `ranked-cell longitude for ${placeId}`,
         );
+        const row = nearestAxisIndex(latitude, axes.latitudes) + 1;
+        const column = nearestAxisIndex(longitude, axes.longitudes) + 1;
+        const position = `${row}:${column}`;
+        if (seenRankedPositions.has(position)) throw new Error(`Duplicate ranked scan position for ${placeId}.`);
+        seenRankedPositions.add(position);
         return [
           {
-            row: nearestAxisIndex(latitude, axes.latitudes) + 1,
-            column: nearestAxisIndex(longitude, axes.longitudes) + 1,
+            row,
+            column,
             latitude,
             longitude,
             rank,
@@ -322,8 +365,11 @@ export function extractSabRankedCells(
     report_key: reportKey,
     report_subject_place_id: cleanString(gridPayload.data.place_id),
     scan_date: cleanString(gridPayload.data.date),
+    public_url: publicReportUrl(gridPayload.data.public_url),
     source: "local_falcon_completed_master_report",
     scan_executed: false,
+    completion_verified: true,
+    completion_status: "complete",
     keyword: cleanString(
       competitorPayload.data.keyword ?? gridPayload.data.keyword,
     ),
@@ -331,6 +377,7 @@ export function extractSabRankedCells(
       competitorPayload.data.platform ?? gridPayload.data.platform,
     ),
     arp: optionalNumber(gridPayload.data.arp),
+    atrp: optionalNumber(gridPayload.data.atrp),
     solv: optionalNumber(gridPayload.data.solv),
     found_in: optionalNumber(gridPayload.data.found_in),
     grid: {
@@ -392,7 +439,8 @@ export async function fetchLocalFalconReport(
       `Local Falcon ${endpoint} request failed with HTTP ${response.status}.`,
     );
   }
-  return (await response.json()) as LocalFalconResponse;
+  if (response.status !== 200) throw new Error(`Local Falcon ${endpoint} report is not complete (HTTP ${response.status}).`);
+  return { ...(await response.json() as LocalFalconResponse), http_status: response.status };
 }
 
 export async function getSabRankedCells(

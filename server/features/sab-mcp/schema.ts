@@ -27,10 +27,11 @@ export const SAB_CENTER_TYPES = [
   "scout_recentered",
   "fine_scan_recentered",
   "ranked_peak_recentered",
+  "master_edge_offset",
 ] as const;
 
 export const SAB_RANKED_PEAK_CENTER_DESCRIPTION =
-  "ranked_peak_recentered: a center selected from the exact best-ranked pin or qualifying compact peak cluster of a completed scan, rather than from the whole-field weighted centroid. Record the source report and peak evidence in research_notes; this label does not authorize a scan or extra recenter.";
+  "ranked_peak_recentered: an evidenced best-pin or compact peak-cluster center from a completed scan. Persist the source report, rule and selected coordinates in decision_state; notes are history only. master_edge_offset is an auxiliary launch point, never a validated deliverable center. Neither label authorizes spending.";
 
 export const SAB_HEADERS = [
   "batch_id",
@@ -74,18 +75,30 @@ export const SAB_HEADERS = [
   "sales_priority_reason",
   "workflow",
   "contact_tag",
+  "outcome",
+  "market_reference",
+  "decision_state",
+  "qualification_reason",
+  "eligibility_state",
+  "scan_spec",
 ] as const;
 
 export type SabHeader = (typeof SAB_HEADERS)[number];
 export type SabRow = Record<SabHeader, string>;
 export const SAB_LEGACY_REQUIRED_HEADERS = SAB_HEADERS.filter(
-  (header) => !["scan_history", "workflow", "contact_tag"].includes(header),
+  (header) => !["scan_history", "workflow", "contact_tag", "outcome", "market_reference", "decision_state", "qualification_reason", "eligibility_state", "scan_spec"].includes(header),
 );
 // Backward-compatible alias for existing connector consumers.
 export const SAB_REQUIRED_HEADERS = SAB_LEGACY_REQUIRED_HEADERS;
 export const SAB_SCALE_FIRST_UPGRADEABLE_HEADERS = [
   "workflow",
   "contact_tag",
+  "outcome",
+  "market_reference",
+  "decision_state",
+  "qualification_reason",
+  "eligibility_state",
+  "scan_spec",
 ] as const satisfies readonly SabHeader[];
 
 const nullableString = z.string().trim().max(20_000).nullable();
@@ -155,8 +168,54 @@ const workflowSheetInputSchema = {
   sheet_name: workflowSheetTab,
 };
 
+export const sabDecisionStateSchema = z.object({
+  source_report_key: sabReportKey,
+  rule_id: z.string().trim().min(1).max(100),
+  evidence_hash: z.string().regex(/^[a-f0-9]{64}$/i),
+  center_type: z.enum(SAB_CENTER_TYPES).optional(),
+  proposed_center: sabScanCenterString.optional(),
+  centering_status: z.enum(["planned", "validated", "failed", "market_reference_only"]),
+  outcome: z.enum(["deliverable", "no_visibility_core_found", "existing_visibility_too_strong", "deferred"]).optional(),
+  routine_recenter_count: z.number().int().min(0).default(0),
+  evidence: z.record(z.unknown()).optional(),
+}).strict();
+
+export const sabMarketReferenceSchema = z.object({
+  kind: z.literal("market_reference_only"),
+  source: z.literal("auxiliary_scan_reverse_geocode"),
+  latitude: z.number().finite().min(-90).max(90),
+  longitude: z.number().finite().min(-180).max(180),
+  city: z.string().trim().min(1),
+  state: z.string().regex(/^[A-Za-z]{2}$/),
+  zip: z.string().trim().min(1),
+  auxiliary_report_key: sabReportKey,
+  auxiliary_report_url: z.string().url(),
+}).strict();
+
+export const sabEffectiveScanSpecSchema = z.object({
+  grid_size: z.literal("7x7"),
+  radius_miles: z.union([z.literal(3), z.literal(5)]),
+}).strict();
+
+export const sabEligibilityStateSchema = z.object({
+  sab_confirmed: z.literal(true), trade_match: z.literal(true), franchise_excluded: z.literal(true),
+  crm_dedup_checked: z.literal(true), contact_verified: z.literal(true),
+  evidence_references: z.array(z.string().trim().min(1).max(2000)).min(1).max(20),
+}).strict();
+
+const structuredCompanyFields = {
+  outcome: z.enum(["deliverable", "no_visibility_core_found"]).nullable().optional(),
+  market_reference: sabMarketReferenceSchema.nullable().optional(),
+  decision_state: sabDecisionStateSchema.nullable().optional(),
+  qualification_reason: nullableString.optional(),
+  eligibility_state: sabEligibilityStateSchema.nullable().optional(),
+  scan_spec: sabEffectiveScanSpecSchema.nullable().optional(),
+};
+
 export const sabCompanyUpdatesSchema = z
   .object({
+    ...structuredCompanyFields,
+    scan_keyword: nullableString.optional(),
     status: z.enum(SAB_STATUSES).optional(),
     address: nullableString.optional(),
     city: nullableString.optional(),
@@ -179,7 +238,7 @@ export const sabCompanyUpdatesSchema = z
       .nullable()
       .optional()
       .describe(
-        "Final disposition. Use null to clear a premature disposition while work remains in progress. Use qualified, disqualified, or deferred before marking a company complete. A reasoned manual disqualification may close without unfinished website or review audits.",
+        "Final disposition. Use null to clear a premature disposition while work remains in progress. Use qualified, disqualified, or deferred before marking a company complete. Scale-First has no audit requirement; disqualified/deferred closure requires structured qualification_reason.",
       ),
     sales_priority: z
       .number()
@@ -210,7 +269,7 @@ export const sabCompanyUpdatesSchema = z
     research_notes: nullableString
       .optional()
       .describe(
-        "Concise research context. Required as a factual reason when qualification_status is disqualified or deferred.",
+        "Supporting history only; never establishes current decision, qualification, center or approval state. Use structured decision_state and qualification_reason.",
       ),
   })
   .strict()
@@ -261,12 +320,15 @@ export const sabScanResultSchema = z
     center_type: z.enum(SAB_CENTER_TYPES).optional().describe(SAB_RANKED_PEAK_CENTER_DESCRIPTION),
     scan_date: z.string().trim().min(1).max(100),
     scan_keyword: z.string().trim().min(1).max(500),
+    scan_spec: sabEffectiveScanSpecSchema.optional(),
+    atrp: z.number().min(1).nullable().optional(),
     notes: nullableString.optional(),
   })
   .strict();
 
 export const sabWorkflowRowSchema = z
   .object({
+    ...structuredCompanyFields,
     batch_id: batchId,
     batch_position: z.number().int().min(1),
     status: z.enum(SAB_STATUSES).default("assigned"),
@@ -340,7 +402,7 @@ export const saveSabCompanyInputSchema = {
     .min(1)
     .describe("Google Place ID from the SAB source sheet"),
   updates: sabCompanyUpdatesSchema.describe(
-    "Only the company fields that should change. Audit arrays must contain 3–6 concise, relevant findings.",
+    "Only the fields that should change. Scale-First uses structured decisions and eligibility; legacy audit fields are not required.",
   ),
 };
 
@@ -389,6 +451,7 @@ export const reconcileSabScanHistoryInputSchema = {
 
 export const runSabScanOnceInputSchema = {
   ...workflowSheetInputSchema,
+  run_id: z.string().trim().min(1).max(200).optional().describe("Required for every new paid submission; omission is allowed only to retrieve an existing idempotent receipt."),
   authorization_id: z.string().uuid(),
   company_name: z.string().trim().min(1).max(1_000),
   place_id: z.string().trim().min(1).max(500),
