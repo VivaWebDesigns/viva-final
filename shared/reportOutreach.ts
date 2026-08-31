@@ -1,4 +1,9 @@
-export const REPORT_OUTREACH_TASKS = ["report_email_followup", "report_email_review"] as const;
+export const REPORT_INITIAL_TASK_TITLE = "Send first visibility report email";
+export const REPORT_INITIAL_TASK_NOTES = "Open the lead's visibility snapshot, review the recipient and message, then click Email report.";
+export const REPORT_PERSONAL_FOLLOWUP_TITLE = "Personal follow-up — visibility report viewed";
+export const REPORT_PERSONAL_FOLLOWUP_NOTES = "This prospect viewed or clicked the visibility report. Check your inbox, then use a personal call, text, or email instead of sending another automated report.";
+
+export const REPORT_OUTREACH_TASKS = ["report_email_followup", "report_email_review", "report_personal_followup"] as const;
 
 export function isReportOutreachTask(taskType?: string | null): boolean {
   return REPORT_OUTREACH_TASKS.includes(taskType as typeof REPORT_OUTREACH_TASKS[number]);

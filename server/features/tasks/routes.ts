@@ -4,7 +4,7 @@ import { eq, and, sql } from "drizzle-orm";
 import { requireAuth, requireRole } from "../auth/middleware";
 import { logAudit } from "../audit/service";
 import * as taskStorage from "./storage";
-import { isReportOutreachTask, REPORT_OUTREACH_FILTERS } from "@shared/reportOutreach";
+import { isReportOutreachTask, REPORT_OUTREACH_FILTERS, REPORT_OUTREACH_TASKS } from "@shared/reportOutreach";
 import { completeReportOutreachTask } from "../crm/reportOutreach";
 import { addLeadNote } from "../crm/storage";
 import { addActivity, bulkAssignOpportunitiesByLeadIds, getStages, moveOpportunity } from "../pipeline/storage";
@@ -148,7 +148,7 @@ router.post("/", requireRole("admin", "developer", "sales_rep"), async (req, res
           .where(and(
             eq(followupTasks.opportunityId, validated.opportunityId),
             eq(followupTasks.completed, false),
-            sql`coalesce(${followupTasks.taskType}, '') not in ('report_email_followup', 'report_email_review')`,
+            sql`coalesce(${followupTasks.taskType}, '') not in (${sql.join(REPORT_OUTREACH_TASKS.map(type => sql`${type}`), sql`, `)})`,
           ))
           .returning({ id: followupTasks.id });
         if (closed.length > 0) {

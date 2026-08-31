@@ -1,4 +1,10 @@
 import type { AdminTranslations } from "@/i18n/locales/en";
+import {
+  REPORT_INITIAL_TASK_NOTES,
+  REPORT_INITIAL_TASK_TITLE,
+  REPORT_PERSONAL_FOLLOWUP_NOTES,
+  REPORT_PERSONAL_FOLLOWUP_TITLE,
+} from "@shared/reportOutreach";
 
 export const STAGE_NAME_TO_SLUG: Record<string, string> = {
   "New Lead":       "new-lead",
@@ -87,6 +93,8 @@ const RECORD_DEMO_OUTCOME = "Record demo outcome";
 const TASK_TITLE_MAP: Array<[string, (t: AdminTranslations) => string]> = [
   [FOLLOW_UP_ON_PAYMENT, (t) => t.tasks.followUpOnPayment ?? FOLLOW_UP_ON_PAYMENT],
   [CONTACT_LEAD,         (t) => t.tasks.contactLead ?? CONTACT_LEAD],
+  [REPORT_INITIAL_TASK_TITLE, (t) => t.tasks.sendFirstReportEmail ?? REPORT_INITIAL_TASK_TITLE],
+  [REPORT_PERSONAL_FOLLOWUP_TITLE, (t) => t.tasks.personalReportFollowup ?? REPORT_PERSONAL_FOLLOWUP_TITLE],
   [SCHEDULE_DEMO,        (t) => t.tasks.scheduleDemo ?? SCHEDULE_DEMO],
   [RECORD_DEMO_OUTCOME,  (t) => t.tasks.recordDemoOutcome ?? RECORD_DEMO_OUTCOME],
 ];
@@ -103,6 +111,14 @@ export function renderTaskTitle(task: { title: string }, t: AdminTranslations): 
 }
 
 const TASK_NOTES_MAP: Array<[string, (t: AdminTranslations) => string]> = [
+  [
+    REPORT_INITIAL_TASK_NOTES,
+    (t) => t.tasks.sendFirstReportEmailNotes,
+  ],
+  [
+    REPORT_PERSONAL_FOLLOWUP_NOTES,
+    (t) => t.tasks.personalReportFollowupNotes,
+  ],
   [
     "Reach out to the lead for the first time to introduce Viva Web Designs and qualify their interest.",
     (t) => t.tasks.contactLeadNotes,

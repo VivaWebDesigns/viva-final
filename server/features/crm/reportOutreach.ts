@@ -4,7 +4,7 @@ import {
   crmLeads, crmLeadNotes, followupTasks, pipelineOpportunities, pipelineStages,
   pipelineActivities, scanReportDeliveries, type FollowupTask,
 } from "@shared/schema";
-import { classifyReportOutreach, reportBusinessDate, REPORT_OUTREACH_TASKS, REPORT_OUTREACH_OUTCOMES,
+import { classifyReportOutreach, reportBusinessDate, REPORT_INITIAL_TASK_TITLE, REPORT_OUTREACH_TASKS, REPORT_OUTREACH_OUTCOMES,
   type ReportOutreachSegment } from "@shared/reportOutreach";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -164,7 +164,7 @@ export async function recordReportEmailSent(deliveryId: string, now = new Date()
       eq(followupTasks.leadId, lead.id), eq(followupTasks.completed, false),
     ));
     for (const task of oldTasks) {
-      if (task.title === "Contact lead" || REPORT_OUTREACH_TASKS.includes(task.taskType as typeof REPORT_OUTREACH_TASKS[number])) {
+      if (["Contact lead", REPORT_INITIAL_TASK_TITLE].includes(task.title) || REPORT_OUTREACH_TASKS.includes(task.taskType as typeof REPORT_OUTREACH_TASKS[number])) {
         await tx.update(followupTasks).set({ completed: true, completedAt: now }).where(eq(followupTasks.id, task.id));
       }
     }

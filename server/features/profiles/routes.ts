@@ -28,6 +28,7 @@ import {
 } from "./service";
 import { sendProfileError, ProfileLinkageError, ProfileNotFoundError } from "./errors";
 import type { MappedLead, UnifiedProfileDto } from "./dto";
+import { isReportOutreachTask } from "@shared/reportOutreach";
 import {
   mapLeadNoteToTimelineEvent,
   mapClientNoteToTimelineEvent,
@@ -879,7 +880,7 @@ router.put(
       if (!existing) return res.status(404).json({ message: "Task not found" });
 
       const nowCompleted = !existing.completed;
-      if (["report_email_followup", "report_email_review"].includes(existing.taskType ?? "")) {
+      if (isReportOutreachTask(existing.taskType)) {
         return res.status(400).json({ message: "Use the report outreach outcome form to complete this task." });
       }
       const outcome = req.body?.outcome as string | undefined;

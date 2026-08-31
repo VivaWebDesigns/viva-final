@@ -1,15 +1,16 @@
 import { db } from "../../db";
 import { stageAutomationTemplates } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
+import { REPORT_INITIAL_TASK_NOTES, REPORT_INITIAL_TASK_TITLE } from "@shared/reportOutreach";
 
 const DEFAULT_TEMPLATES = [
   {
     triggerStageSlug: "new-lead",
-    title: "Contact lead",
-    description: "Reach out to the lead for the first time to introduce Viva Web Designs and qualify their interest.",
+    title: REPORT_INITIAL_TASK_TITLE,
+    description: REPORT_INITIAL_TASK_NOTES,
     dueOffsetDays: 0,
     priority: "high" as const,
-    taskType: "call",
+    taskType: "email",
     sortOrder: 0,
   },
   {

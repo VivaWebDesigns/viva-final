@@ -786,7 +786,11 @@ const NOTE_TYPE_COLORS: Record<string, string> = {
 };
 
 const TASK_TYPE_COLORS: Record<string, string> = {
+  email: "bg-cyan-100 text-cyan-700",
   follow_up: "bg-blue-100 text-blue-700",
+  report_email_followup: "bg-cyan-100 text-cyan-700",
+  report_email_review: "bg-amber-100 text-amber-700",
+  report_personal_followup: "bg-violet-100 text-violet-700",
   onboarding: "bg-emerald-100 text-emerald-700",
   billing: "bg-purple-100 text-purple-700",
   general: "bg-gray-100 text-gray-700",

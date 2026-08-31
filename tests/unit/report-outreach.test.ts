@@ -63,6 +63,7 @@ describe("report outreach dates and safeguards", () => {
     }
     expect(isReportOutreachTask("call")).toBe(false);
     expect(isReportOutreachTask("report_email_followup")).toBe(true);
+    expect(isReportOutreachTask("report_personal_followup")).toBe(true);
   });
   const summary = (overrides: Record<string, unknown> = {}) => ({
     reportEmailCount: 1, lastReportEmailedAt: "2026-08-20T12:00:00Z", reportOutreachDisposition: "active",
