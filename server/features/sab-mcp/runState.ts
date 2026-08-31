@@ -268,6 +268,27 @@ export function recordSabRunSubmission(state: SabRunState, key: string, result: 
   return next;
 }
 
+/** Recover an existing ambiguous claim only after the caller has independently
+ * verified that one exact provider report matches its immutable plan. */
+export function reconcileSabAmbiguousSubmission(state: SabRunState, input: {
+  authorization_id: string;
+  place_id: string;
+  report_key: string;
+}): SabRunState {
+  const next=structuredClone(state);
+  const batch=next.batches.find(candidate=>candidate.authorization_id===required(input.authorization_id,"Batch authorization ID"));
+  const scan=batch?.scans.find(candidate=>candidate.plan.place_id===required(input.place_id,"Exact Place ID"));
+  if(!batch || !scan || batch.status!=="blocked" || scan.submission_status!=="ambiguous_response" || !scan.idempotency_key) {
+    throw new Error("No matching blocked ambiguous scan claim is available for guarded recovery.");
+  }
+  scan.submission_status="submitted";
+  scan.report_key=required(input.report_key,"Verified provider report key");
+  scan.completion_verified=false;
+  batch.status=batch.scans.every(candidate=>candidate.submission_status==="submitted") ? "awaiting_completion" : "authorized";
+  next.version++;
+  return next;
+}
+
 /** The caller must verify completion from provider data, never from research notes. */
 export function completeSabRunReports(state: SabRunState, completedReportKeys: string[]): SabRunState {
   const next = structuredClone(state);

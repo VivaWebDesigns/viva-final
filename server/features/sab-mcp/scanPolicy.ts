@@ -176,6 +176,7 @@ export function selectSabPeakTarget(cellsInput: SabRankedCell[], grid: SabScanGr
     selected_cluster_size: selected.cells.length,
     selected_cluster_weight: selected.weight,
     selected_peak: { row: peak.row, column: peak.column, rank: peak.rank },
+    displaced_peak: displaced,
     displaced_dominant_peak: dominant && displaced,
     movement_miles: movement,
     moves_toward_peak: distance(target, peak) <= distance(grid.center, peak) + 1e-8,
@@ -338,6 +339,7 @@ export function analyzeSabScanPolicy(input: SabScanPolicyInput): SabScanDecision
         : "Disconnected sparse interior evidence needs one fine scan at its weighted centroid.",
       spread > 3 ? {latitude:bestPin.latitude,longitude:bestPin.longitude} : centroid(cells), "master_centroid");
     }
+    if (master && master.cluster_count > 1) return decision("evidence_review_required", ["S01"], "If disconnected master-scan clusters do not match an existing deterministic route, hold the company for evidence review; do not invent a center or launch a scan.");
     return decision("evidence_review_required", ["S01"], "Master evidence is absent, unresolved, or has opposing-edge ambiguity; no arbitrary center is selected.");
   }
   // Exclusion qualification is independent of centering. During testing it
@@ -368,10 +370,14 @@ export function analyzeSabScanPolicy(input: SabScanPolicyInput): SabScanDecision
   if (saturationCandidate) return decision("center_validated", ["S06"], "The testing saturation definition is satisfied without a displaced dominant peak; saturation alone does not require recentering.", grid.center);
   const margin = evaluateSabCoherentMargin(cells, grid.size);
   evidence.margin = margin;
-  if (margin.failed || peak!.displaced_dominant_peak) {
+  const weakOffCenterPeak = peak!.displaced_peak && !peak!.dominant;
+  evidence.weak_off_center_peak = weakOffCenterPeak;
+  if (margin.failed || peak!.displaced_dominant_peak || weakOffCenterPeak) {
     if ((input.routineRecenterCount ?? 0) >= 1 && !input.additionalRecenterApproved) return decision("additional_recenter_exception_required", ["S04", "S05", "S07"], "One routine recenter has already been used; another requires an explicit exception.", peak!.target, "ranked_peak_recentered");
     if (peak!.movement_miles < 1e-6) return decision("evidence_review_required", ["S04", "S05"], "The failed margin has no verified movement toward the selected peak; do not resubmit an identical center.");
-    return decision("recenter", ["S04", "S05", "S07"], "Coherent outward strength or a displaced dominant peak supports the permitted peak-first recenter.", peak!.target, "ranked_peak_recentered");
+    return decision("recenter", ["S04", "S05", "S07"], weakOffCenterPeak
+      ? "The selected peak is outside the central 3×3. Weak statistical dominance does not validate an off-center result; use the permitted peak-first recenter."
+      : "Coherent outward strength or a displaced dominant peak supports the permitted peak-first recenter.", peak!.target, "ranked_peak_recentered");
   }
   return decision("center_validated", ["S05", "S09"], "The footprint has ordinary falloff without coherent outward strength or a displaced dominant peak.", grid.center);
 }

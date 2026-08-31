@@ -892,7 +892,7 @@ export class SabSheetsRepository {
     placeId: string,
     updates: SabCompanyUpdates,
     actorEmail: string,
-    options: {exclusionReviewApproved?: boolean; corroborationRecorded?: boolean; corroborationAnalysisVerified?: boolean} = {},
+    options: {exclusionReviewApproved?: boolean; exclusionReviewDeclined?: boolean; exclusionDecisionContinued?: boolean; corroborationRecorded?: boolean; corroborationAnalysisVerified?: boolean} = {},
   ) {
     const { headerIndex, rows } = await this.readTable();
     const match = rows.find(({ row }) => row.place_id === placeId);
@@ -960,9 +960,34 @@ export class SabSheetsRepository {
           approved.data.evidence?.next_action !== "high_visibility_excluded") {
         throw new Error("Explicit exclusion approval must finalize the existing pending report and evidence with Matt's reference; stale or unrelated approval is not valid");
       }
+    } else if (options.exclusionReviewDeclined) {
+      const previous = sabDecisionStateSchema.safeParse(priorDecision);
+      const declined = sabDecisionStateSchema.safeParse(nextDecision);
+      const nextAction = declined.success ? declined.data.evidence?.next_action : null;
+      if (!previous.success || previous.data.exclusion_review?.status !== "pending" || !declined.success ||
+          declined.data.exclusion_review?.status !== "declined" ||
+          declined.data.source_report_key !== previous.data.source_report_key || declined.data.evidence_hash !== previous.data.evidence_hash ||
+          !["plan_deliverable", "comparison_ready"].includes(String(nextAction)) || merged.status !== "in_progress" || merged.blocker ||
+          merged.qualification_status !== match.row.qualification_status || merged.qualification_reason !== match.row.qualification_reason ||
+          (nextAction === "plan_deliverable" && (declined.data.centering_status !== "planned" || !declined.data.proposed_center || !declined.data.center_type)) ||
+          (nextAction === "comparison_ready" && declined.data.centering_status !== "validated")) {
+        throw new Error("Explicit exclusion decline must resume the matching pending S02 or S09 evidence with Matt's exact reference");
+      }
+    } else if (options.exclusionDecisionContinued) {
+      const previous=sabDecisionStateSchema.safeParse(priorDecision),continued=sabDecisionStateSchema.safeParse(nextDecision);
+      const history=continued.success && Array.isArray(continued.data.evidence?.exclusion_decision_history)
+        ? continued.data.evidence.exclusion_decision_history : [];
+      const review=previous.success?previous.data.exclusion_review:undefined;
+      const preserved=review && history.some(entry=>entry && typeof entry==="object" &&
+        (entry as Record<string,unknown>).status===review.status && (entry as Record<string,unknown>).report_key===review.report_key &&
+        (entry as Record<string,unknown>).evidence_hash===review.evidence_hash && (entry as Record<string,unknown>).declined_by===review.declined_by &&
+        (entry as Record<string,unknown>).decline_reference===review.decline_reference);
+      if(!previous.success || previous.data.exclusion_review?.status!=="declined" || !continued.success || continued.data.exclusion_review || !preserved) {
+        throw new Error("A supported post-decline transition must preserve the exact declined exclusion as structured history");
+      }
     } else {
-      if (nextReview?.status === "approved" && JSON.stringify(nextReview) !== JSON.stringify(priorReview)) {
-        throw new Error("Only the explicit Matt exclusion-review tool may record an approved exclusion");
+      if (["approved", "declined"].includes(String(nextReview?.status)) && JSON.stringify(nextReview) !== JSON.stringify(priorReview)) {
+        throw new Error("Only the explicit Matt exclusion-review tools may record an exclusion decision");
       }
       if (priorPending) {
         if (JSON.stringify(priorDecision) !== JSON.stringify(nextDecision) || merged.status !== "blocked" ||
@@ -977,8 +1002,8 @@ export class SabSheetsRepository {
           throw new Error("A pending high-visibility exclusion must retain matching structured evidence and blocked status without final disqualification");
         }
       }
-      if (priorReview && (priorReview as {status?:unknown}).status === "approved" && JSON.stringify(priorDecision) !== JSON.stringify(nextDecision)) {
-        throw new Error("Generic writes cannot replace approved exclusion evidence or its review reference");
+      if (priorReview && ["approved", "declined"].includes(String((priorReview as {status?:unknown}).status)) && JSON.stringify(priorDecision) !== JSON.stringify(nextDecision)) {
+        throw new Error("Generic writes cannot replace decided exclusion evidence or its review reference");
       }
     }
     const finalHighVisibility = merged.qualification_reason === "existing_visibility_too_strong" &&
@@ -988,6 +1013,10 @@ export class SabSheetsRepository {
       if (!approved.success || approved.data.exclusion_review?.status !== "approved") {
         throw new Error("Final high-visibility disqualification requires Matt's explicit approval bound to the current report and evidence");
       }
+    }
+
+    if (updates.qualification_status === "qualified" && match.row.qualification_status !== "qualified") {
+      this.validateScaleFirstQaReadyRow(merged);
     }
 
     if (updates.scan_center && updates.center_type) {

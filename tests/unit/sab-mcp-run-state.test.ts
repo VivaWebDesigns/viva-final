@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   authorizeSabScanBatch, claimSabRunScan, completeSabRunReports, createSabRunState,
-  endSabTestingMode, recordSabRunSubmission, sabScanPlanFingerprint,
+  endSabTestingMode, reconcileSabAmbiguousSubmission, recordSabRunSubmission, sabScanPlanFingerprint,
   type SabScanPlan, type SabRunState,
 } from "../../server/features/sab-mcp/runState";
 
@@ -99,6 +99,9 @@ describe("structured SAB run authorization", () => {
     expect(ambiguous.committed_credits).toBe(130);
     expect(ambiguous.batches[1].status).toBe("blocked");
     expect(() => claimSabRunScan(ambiguous, "second", plan, "another-key")).toThrow(/authorization/);
+    const recovered=reconcileSabAmbiguousSubmission(ambiguous,{authorization_id:"second",place_id:plan.place_id,report_key:"verified-existing-report"});
+    expect(recovered).toMatchObject({committed_credits:130,batches:[{}, {status:"awaiting_completion",scans:[{submission_status:"submitted",report_key:"verified-existing-report",idempotency_key:"second-key"}]}]});
+    expect(()=>reconcileSabAmbiguousSubmission(recovered,{authorization_id:"second",place_id:plan.place_id,report_key:"another"})).toThrow(/ambiguous scan claim/);
     expect(() => authorizeSabScanBatch(state, { ...batch("overspend", [scan]), matt_review: { ...approved, reviewed_batch_id: "first" }, exception: { ...approved, reason: "second auxiliary" } })).toThrow(/credits/);
   });
 

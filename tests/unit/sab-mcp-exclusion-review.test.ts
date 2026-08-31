@@ -8,9 +8,11 @@ const pending={source_report_key:reportKey,evidence_hash:hash,rule_id:"S02",cent
 const approved={...pending,outcome:"existing_visibility_too_strong" as const,
   exclusion_review:{...pending.exclusion_review,status:"approved" as const,approved_by:"Matt" as const,approval_reference:"explicit-checkpoint-review"},evidence:{next_action:"high_visibility_excluded"}};
 const finalUpdate={decision_state:approved,qualification_status:"disqualified" as const,qualification_reason:"existing_visibility_too_strong",status:"complete" as const};
+const declined={...pending,centering_status:"planned" as const,proposed_center:"35,-80",center_type:"ranked_peak_recentered" as const,
+  exclusion_review:{...pending.exclusion_review,status:"declined" as const,declined_by:"Matt" as const,decline_reference:"explicit-checkpoint-decline"},evidence:{next_action:"plan_deliverable"}};
 function fixture(overrides:Record<string,string>={}) {
   const values=[Array.from(SAB_HEADERS),SAB_HEADERS.map(header=>({
-    place_id:"test-place",company:"Test lead",workflow:"scale_first_v2",status:"blocked",qualification_status:"qualified",decision_state:JSON.stringify(pending),
+    place_id:"test-place",company:"Test lead",workflow:"scale_first_v2",status:"blocked",qualification_status:"",decision_state:JSON.stringify(pending),
     ...overrides,
   } as Record<string,string>)[header]??"")];
   const client={getValues:vi.fn(async()=>values.map(row=>[...row])),updateValues:vi.fn(async(_sheet:string,updates:Array<{range:string;value:unknown}>)=>{
@@ -60,7 +62,7 @@ describe("Matt checkpoint exclusion approval",()=>{
     const {repo}=fixture();
     await repo.saveCompany("test-place",{phone:"5555550100",research_notes:"Supporting contact verification only"},"actor");
     const row=await repo.getCompany("test-place");
-    expect(row).toMatchObject({phone:"5555550100",status:"blocked",qualification_status:"qualified",decision_state:pending});
+    expect(row).toMatchObject({phone:"5555550100",status:"blocked",qualification_status:"",decision_state:pending});
   });
 
   it("rejects stale or mismatched explicit approval even with the privileged transition option",async()=>{
@@ -82,6 +84,20 @@ describe("Matt checkpoint exclusion approval",()=>{
     await repo.saveCompany("test-place",{phone:"5555550100"},"actor");
     await expect(repo.saveCompany("test-place",{decision_state:pending},"actor")).rejects.toThrow(/approved exclusion|pending high-visibility/);
     await expect(repo.saveCompany("test-place",{decision_state:{...approved,exclusion_review:{...approved.exclusion_review,approval_reference:"rewritten"}}},"actor")).rejects.toThrow(/explicit Matt/);
+  });
+
+  it("resumes only the exact pending evidence through the explicit decline transition",async()=>{
+    expect(sabDecisionStateSchema.safeParse(declined).success).toBe(true);
+    const {repo}=fixture();
+    await repo.saveCompany("test-place",{decision_state:declined,status:"in_progress",blocker:null},"actor",{exclusionReviewDeclined:true});
+    expect(await repo.getCompany("test-place")).toMatchObject({status:"in_progress",qualification_status:"",decision_state:declined});
+    await expect(repo.saveCompany("test-place",{decision_state:{...declined,exclusion_review:{...declined.exclusion_review,decline_reference:"rewritten"}}},"actor")).rejects.toThrow(/explicit Matt|decided exclusion/);
+    const continued={...declined,source_report_key:"bbbbbbbbbbbb",evidence_hash:"b".repeat(64),exclusion_review:undefined,
+      evidence:{next_action:"center_validated",exclusion_decision_history:[declined.exclusion_review]}};
+    await repo.saveCompany("test-place",{decision_state:continued},"actor",{exclusionDecisionContinued:true});
+    expect((await repo.getCompany("test-place")).decision_state.evidence.exclusion_decision_history).toEqual([declined.exclusion_review]);
+    const stale=fixture();
+    await expect(stale.repo.saveCompany("test-place",{decision_state:{...declined,evidence_hash:"b".repeat(64),exclusion_review:{...declined.exclusion_review,evidence_hash:"b".repeat(64)}},status:"in_progress",blocker:null},"actor",{exclusionReviewDeclined:true})).rejects.toThrow(/matching pending|explicit exclusion decline/i);
   });
 
   it("prevents new final high-visibility disqualification without a checkpoint even without a prior pending state",async()=>{

@@ -1224,6 +1224,13 @@ describe("SabSheetsRepository", () => {
     );
   });
 
+  it("does not allow pre-scan eligibility to be promoted to final qualification before an outcome",async()=>{
+    const eligibility={sab_confirmed:true,trade_match:true,franchise_excluded:true,crm_dedup_checked:true,contact_verified:true,evidence_references:["verified-prescan-evidence"]};
+    const {repository}=buildRepository([row({workflow:"scale_first_v2",status:"in_progress",qualification_status:"",eligibility_state:JSON.stringify(eligibility),outcome:"",decision_state:"",report_key:""})]);
+    await expect(repository.saveCompany("place-1",{qualification_status:"qualified"},"actor@example.com")).rejects.toThrow(/validated canonical report|completed no-visibility auxiliary evidence/);
+    expect((await repository.getCompany("place-1")).qualification_status).toBe("");
+  });
+
   it("allows a fully audited disqualified company to close without CRM location filler", async () => {
     const { repository } = buildRepository([
       row({

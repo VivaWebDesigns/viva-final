@@ -7,7 +7,7 @@ import { getSabRankedCells } from "./localFalconRankedCells";
 import { analyzeSabScanPolicy, selectSabCanonicalScan } from "./scanPolicy";
 import { reverseGeocodeSabCenters } from "./reverseGeocode";
 import { buildSabRunManifest } from "./exportManifest";
-import { createSabRunState, authorizeSabScanBatch, completeSabRunReports, endSabTestingMode, inSabRunStateQueue, sabScanPlanFingerprint, type SabRunState, type SabScanPlan } from "./runState";
+import { createSabRunState, authorizeSabScanBatch, completeSabRunReports, endSabTestingMode, inSabRunStateQueue, reconcileSabAmbiguousSubmission, sabScanPlanFingerprint, type SabRunState, type SabScanPlan } from "./runState";
 import { SAB_CENTER_TYPES, runSabScanOnceInputSchema, type SabCompanyUpdates, type SabScanResult } from "./schema";
 import { corroborationAllowsAuxiliary, sabAddressCorroborationSchema, type SabAddressCorroboration } from "./addressCorroboration";
 import { evaluateSabAddressCandidate } from "./addressCandidate";
@@ -42,6 +42,10 @@ function sameCenter(value: unknown, center: { latitude: number; longitude: numbe
 }
 function decisionState(row: Company): DecisionState | null {
   return row.decision_state as DecisionState | null;
+}
+function exclusionDecisionHistory(decision:DecisionState|null) {
+  const prior=Array.isArray(decision?.evidence?.exclusion_decision_history) ? decision.evidence.exclusion_decision_history : [];
+  return decision?.exclusion_review?.status==="declined" ? [...prior,decision.exclusion_review] : prior;
 }
 function isDeliverableCenter(value: unknown): value is typeof SAB_CENTER_TYPES[number] {
   return typeof value === "string" && SAB_CENTER_TYPES.includes(value as never) && value !== "master_edge_offset";
@@ -93,10 +97,20 @@ function assertPaidEligibility(row: Company) {
     if(!profile.success || sabBusinessProfileIssues(profile.data,row.place_id,typeof row.phone==="string"?row.phone:null).length) throw new Error("Resolve the structured enrichment identity or phone conflict before paid scans");
   }
   const eligibility = (row as Company & { eligibility_state?: Record<string, unknown> }).eligibility_state;
-  if (row.workflow !== SCALE_FIRST_WORKFLOW || row.address !== SAB_ADDRESS_LABEL || row.qualification_status !== "qualified" ||
+  const qualificationStatus=row.qualification_status || null;
+  if (row.workflow !== SCALE_FIRST_WORKFLOW || row.address !== SAB_ADDRESS_LABEL ||
+      ["disqualified", "deferred"].includes(String(qualificationStatus)) ||
       typeof row.rating !== "number" || !Number.isFinite(row.rating) || row.rating < 4.5 || row.rating > 5 ||
       typeof row.review_count !== "number" || !Number.isSafeInteger(row.review_count) || row.review_count < 1 ||
-      row.outcome === "no_visibility_core_found") throw new Error("Paid scans require an eligible qualified SAB with rating >=4.5 and at least one review");
+      row.outcome === "no_visibility_core_found") throw new Error("Paid scans require structured pre-scan eligibility for an active SAB with rating >=4.5 and at least one review");
+  if (qualificationStatus === "qualified") {
+    const finalDecision = decisionState(row);
+    if (row.outcome !== "deliverable" || !row.report_key || finalDecision?.centering_status !== "validated" || finalDecision.outcome !== "deliverable") {
+      throw new Error("qualification_status cannot authorize spending; a qualified value is valid only after a completed deliverable");
+    }
+  } else if (qualificationStatus !== null) {
+    throw new Error("Keep qualification_status null while scan work is in progress");
+  }
   if (!eligibility || ["sab_confirmed", "trade_match", "franchise_excluded", "crm_dedup_checked", "contact_verified"].some(key => eligibility[key] !== true) ||
       !Array.isArray(eligibility.evidence_references) || !eligibility.evidence_references.length ||
       eligibility.evidence_references.some(reference => typeof reference !== "string" || !reference.trim())) throw new Error("Structured SAB, trade, franchise, exact CRM deduplication and contact evidence must be verified before spending");
@@ -185,6 +199,7 @@ export async function analyzeAndRecordSabReport(repository: SabSheetsRepository,
     ...(corroboration ? {address_corroboration:corroboration} : {}),
     ...(noVisibility ? { outcome: "no_visibility_core_found" as const } : validated ? { outcome: "deliverable" as const } : {}),
     evidence: {...decision.evidence, next_action: decision.action, reason: decision.reason, grid: report.grid,
+      ...(exclusionDecisionHistory(previous).length ? {exclusion_decision_history:exclusionDecisionHistory(previous)} : {}),
       ...(comparisonValidation ? {center_validation:comparisonValidation} : validated && report.grid.radius === 3 && center && centerType
         ? {center_validation:{report_key:report.report_key,evidence_hash:hash,proposed_center:center,center_type:centerType}} : {}),
       ...(isFiveMile ? {comparison_report_key:report.report_key,centering_evaluated:false} : {}),
@@ -215,7 +230,8 @@ export async function analyzeAndRecordSabReport(repository: SabSheetsRepository,
     const canonicalThree = validated && report.grid.size === 7 && report.grid.radius === 3 && report.grid.measurement === "mi";
     await repository.saveScanResult(input.place_id, reportResult(report, ownedScan.plan.scan_role, ownedScan.plan.scan_type, validated ? centerType : undefined), actorEmail, {historyOnly: !canonicalThree});
   }
-  await repository.saveCompany(input.place_id, updates, actorEmail,{corroborationAnalysisVerified:true});
+  await repository.saveCompany(input.place_id, updates, actorEmail,{corroborationAnalysisVerified:true,
+    ...(previous?.exclusion_review?.status==="declined" ? {exclusionDecisionContinued:true} : {})});
   return {report_key: report.report_key, report_url: reportUrl(report), place_id: input.place_id,
     scan_specification: `${report.grid.size}×${report.grid.size}/${report.grid.radius} ${report.grid.measurement}`,
     raw_arp: report.arp, all_point_atrp: report.atrp, solv: report.solv, ...decision, evidence_hash: hash};
@@ -235,6 +251,24 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
     const state=createSabRunState(args);await repo.saveRunState(state,null,actorEmail);return state;
   }));
   add("get_sab_run_state","Read authoritative run stages, exact authorizations, committed credits and testing review status. Notes are supporting history.",run,async args=>requireRun(factory(args.workflow_sheet,args.sheet_name),args.run_id));
+  add("reconcile_sab_ambiguous_submission","Recover one existing ambiguous paid submission without resubmitting or resetting the run. Verify a supplied provider report against the stored exact Place ID, center, keyword, platform and scan specification, bind it to the original durable claim, and preserve committed credits. Performs no paid call.",{
+    ...run,orchestrator_id:z.string().min(1),authorization_id:z.string().uuid(),place_id:z.string().min(1),report_key:z.string().regex(/^[a-f0-9]{12,64}$/i),
+  },async args=>inSabRunStateQueue(async()=>{
+    const repo=factory(args.workflow_sheet,args.sheet_name),state=await requireRun(repo,args.run_id);
+    if(args.orchestrator_id!==state.orchestrator_id) throw new Error("Only this run's orchestrator may reconcile an ambiguous submission");
+    const batch=state.batches.find(candidate=>candidate.authorization_id===args.authorization_id);
+    const scan=batch?.scans.find(candidate=>candidate.plan.place_id===args.place_id);
+    if(!scan || scan.submission_status!=="ambiguous_response" || !scan.idempotency_key) throw new Error("No matching ambiguous durable claim exists");
+    const report=await getSabRankedCells(args.report_key,[args.place_id]);
+    assertExactReport(report,args.report_key,args.place_id,scan.plan.scan_role);
+    assertReportPlan(report,scan.plan);
+    await repo.updateScanSubmission(args.place_id,scan.idempotency_key,{submission_status:"submitted",report_key:args.report_key,
+      recovery:"verified_existing_report",reconciled_at:new Date().toISOString()},actorEmail);
+    const next=reconcileSabAmbiguousSubmission(state,args);
+    await repo.saveRunState(next,state.version,actorEmail);
+    return {run_id:args.run_id,authorization_id:args.authorization_id,place_id:args.place_id,report_key:args.report_key,
+      submission_status:"submitted",recovered_existing_claim:true,scans_submitted:0,credits_added:0,next_batch_status:next.batches.find(candidate=>candidate.authorization_id===args.authorization_id)?.status};
+  }));
   add("authorize_sab_scan_batch","Record the orchestrator's exact SOP-compliant batch plan. Testing requires Matt's initial approval or review of the completed previous batch, bound to this plan. Preserve exception and credit limits. This does not submit scans.",{
     ...run,orchestrator_id:z.string().min(1),authorization_id:z.string().uuid(),authorization_reference:z.string().min(1),scans:z.array(plan).min(1).max(100),
     matt_initial_approval:matt.optional(),matt_review:matt.extend({reviewed_batch_id:z.string().uuid()}).optional(),exception:matt.extend({reason:z.string().min(1)}).optional(),
@@ -360,6 +394,47 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
     if(verified?.exclusion_review?.status!=="approved" || verified.evidence_hash!==args.evidence_hash) throw new Error("Exclusion approval readback failed; reconcile before continuing");
     return {place_id:args.place_id,report_key:args.report_key,exclusion_finalized:true,paid_scans_submitted:0,next_batch_still_requires_approval:state.testing_mode};
   }));
+  add("decline_sab_exclusion","Record Matt's explicit decline of an exact pending S02 or S09 high-visibility proposal after its completed batch checkpoint. Resume only the deterministic follow-up already supported by that evidence; never submit a scan, invalidate a validated center or change general policy.",{
+    ...run,orchestrator_id:z.string().min(1),place_id:z.string().min(1),report_key:z.string().regex(/^[a-f0-9]{12,64}$/i),
+    evidence_hash:z.string().regex(/^[a-f0-9]{64}$/i),decision:matt,
+  },async args=>inSabRunStateQueue(async()=>{
+    const repo=factory(args.workflow_sheet,args.sheet_name),state=await requireRun(repo,args.run_id);
+    if(args.orchestrator_id!==state.orchestrator_id) throw new Error("Only this run's orchestrator may record Matt's exclusion decline");
+    const row=await repo.getCompany(args.place_id),decision=decisionState(row);
+    const scans=state.batches.flatMap(batch=>batch.scans).filter(scan=>scan.plan.place_id===args.place_id && scan.submission_status==="submitted");
+    const scan=scans.at(-1);
+    if(!scan?.completion_verified || scan.report_key!==args.report_key) throw new Error("Complete the latest scan's batch checkpoint before declining its exclusion");
+    const review=decision?.exclusion_review;
+    if(!decision || !review || decision.source_report_key!==args.report_key || decision.evidence_hash!==args.evidence_hash ||
+       review.report_key!==args.report_key || review.evidence_hash!==args.evidence_hash) {
+      throw new Error("Exclusion decline must match the current report and evidence hash");
+    }
+    if(review.status==="declined") return {place_id:args.place_id,report_key:args.report_key,exclusion_declined:true,already_declined:true,paid_scans_submitted:0};
+    if(review.status!=="pending" || decision.evidence?.next_action!=="high_visibility_exclusion_pending_review") throw new Error("No matching pending exclusion exists");
+    const exclusion=decision.evidence.exclusion as Record<string,unknown>|undefined;
+    const specification=exclusion?.specification;
+    let resumed:DecisionState;
+    if(specification==="9x9_6mi") {
+      const peak=decision.evidence.peak as {target?:{latitude?:unknown;longitude?:unknown};targeting_method?:unknown}|undefined;
+      const latitude=peak?.target?.latitude,longitude=peak?.target?.longitude;
+      if(typeof latitude!=="number" || !Number.isFinite(latitude) || typeof longitude!=="number" || !Number.isFinite(longitude)) {
+        throw new Error("The declined S02 proposal lacks a deterministic peak target; hold for evidence review");
+      }
+      resumed={...decision,centering_status:"planned",proposed_center:centerText({latitude,longitude}),
+        center_type:peak?.targeting_method==="whole_field_centroid"?"scout_recentered":"ranked_peak_recentered",
+        exclusion_review:{status:"declined",report_key:args.report_key,evidence_hash:args.evidence_hash,declined_by:"Matt",decline_reference:args.decision.approval_reference},
+        evidence:{...decision.evidence,next_action:"plan_deliverable",exclusion:{...exclusion,final_disposition:false,requires_matt_review:false,decision:"declined"}}};
+    } else if(specification==="7x7_5mi") {
+      if(decision.centering_status!=="validated" || !decision.evidence.center_validation) throw new Error("A declined S09 proposal must retain the validated three-mile center");
+      resumed={...decision,
+        exclusion_review:{status:"declined",report_key:args.report_key,evidence_hash:args.evidence_hash,declined_by:"Matt",decline_reference:args.decision.approval_reference},
+        evidence:{...decision.evidence,next_action:"comparison_ready",centering_evaluated:false,exclusion:{...exclusion,final_disposition:false,requires_matt_review:false,decision:"declined"}}};
+    } else throw new Error("Only exact S02 or S09 high-visibility proposals support this transition");
+    await repo.saveCompany(args.place_id,{decision_state:resumed,status:"in_progress",blocker:null},actorEmail,{exclusionReviewDeclined:true});
+    const verified=decisionState(await repo.getCompany(args.place_id));
+    if(verified?.exclusion_review?.status!=="declined" || verified.evidence_hash!==args.evidence_hash) throw new Error("Exclusion decline readback failed; reconcile before continuing");
+    return {place_id:args.place_id,report_key:args.report_key,exclusion_declined:true,resumed_action:resumed.evidence?.next_action,paid_scans_submitted:0,next_batch_still_requires_approval:state.testing_mode};
+  }));
   add("end_sab_testing_mode","End testing review pauses only on Matt's explicit instruction. Run budgets, exact plans, exceptions and final CRM confirmation remain mandatory.",{
     ...run,approval:matt,
   },async args=>inSabRunStateQueue(async()=>{
@@ -371,7 +446,7 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
   },async args=>inSabRunStateQueue(async()=>{
     const repo=factory(args.workflow_sheet,args.sheet_name),state=await requireRun(repo,args.run_id);
     const row=await repo.getCompany(args.place_id),decision=decisionState(row);
-    if (decision?.exclusion_review || !["comparison_ready","center_validated"].includes(String(decision?.evidence?.next_action))) throw new Error("Resolve the comparison's exclusion or evidence/policy review before canonical selection; preserved center validation is not disposition approval");
+    if ((decision?.exclusion_review && decision.exclusion_review.status!=="declined") || !["comparison_ready","center_validated"].includes(String(decision?.evidence?.next_action))) throw new Error("Resolve the comparison's exclusion or evidence/policy review before canonical selection; preserved center validation is not disposition approval");
     const reports=await Promise.all([args.three_mile_report_key,args.five_mile_report_key].map(key=>getSabRankedCells(key,[args.place_id])));
     const [three,five]=reports;
     for (const [index, report] of reports.entries()) {
@@ -394,12 +469,14 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
       await repo.saveScanResult(args.place_id,reportResult(report,"deliverable",scan.plan.scan_type,decision.center_type),actorEmail,{historyOnly:true});
     }
     await repo.saveScanResult(args.place_id,reportResult(selected,"deliverable",scanForReport(state,selected.report_key,args.place_id)!.plan.scan_type,decision.center_type),actorEmail);
-    await repo.saveCompany(args.place_id,{decision_state:{...decision,source_report_key:selected.report_key,evidence_hash:evidenceHash(selected),rule_id:"S08",outcome:"deliverable",evidence:{
+    const {exclusion_review:declinedReview,...continuedDecision}=decision;
+    await repo.saveCompany(args.place_id,{decision_state:{...continuedDecision,source_report_key:selected.report_key,evidence_hash:evidenceHash(selected),rule_id:"S08",outcome:"deliverable",evidence:{
       next_action:"center_validated",grid:selected.grid,raw_arp:selected.arp,all_point_atrp:selected.atrp,solv:selected.solv,
       center_validation_source_report_key:validation.report_key,center_validation:validation,
+      ...(declinedReview?.status==="declined" ? {exclusion_decision_history:[...exclusionDecisionHistory(decision)]} : {}),
       canonical_selection:{...selection,three_mile_report_key:three.report_key,five_mile_report_key:five.report_key,selected_report_key:selected.report_key,
         three_mile:{raw_arp:three.arp,solv:three.solv,all_point_atrp:three.atrp},five_mile:{raw_arp:five.arp,solv:five.solv,all_point_atrp:five.atrp}},
-    }}},actorEmail);
+    }}},actorEmail,{exclusionDecisionContinued:declinedReview?.status==="declined"});
     const verified=await repo.getCompany(args.place_id);
     if (verified.report_key!==selected.report_key || !sameCenter(verified.scan_center,selected.grid.center) || (verified.scan_spec as {radius_miles?:number}|null)?.radius_miles!==selection.selected_radius_miles) throw new Error("Canonical stage readback failed; stop and reconcile before export");
     return {...selection,selected_report_key:selected.report_key,selected_report_url:reportUrl(selected),all_point_atrp:selected.atrp,raw_arp:selected.arp,three_mile_report_key:three.report_key,five_mile_report_key:five.report_key,preserve_both_reports:true,canonical_persisted:true};

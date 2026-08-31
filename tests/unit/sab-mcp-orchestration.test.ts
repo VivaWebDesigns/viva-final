@@ -36,7 +36,7 @@ function report(key=key3,scan=plan,overrides:Record<string,unknown>={}) {
 }
 function repository(state=submitted(),overrides:Record<string,unknown>={}) {
   let storedState=structuredClone(state);
-  let row:Record<string,any>={company:"Test lead",place_id:"place",workflow:"scale_first_v2",address:"Service Area Business",qualification_status:"qualified",rating:4.8,review_count:1,
+  let row:Record<string,any>={company:"Test lead",place_id:"place",workflow:"scale_first_v2",address:"Service Area Business",qualification_status:null,rating:4.8,review_count:1,
     email:"verified@example.test",phone:null,contact_tag:"Email Ready",outcome:null,report_key:null,scan_center:"35,-80",center_type:"weighted_cell_centroid",
     eligibility_state:{sab_confirmed:true,trade_match:true,franchise_excluded:true,crm_dedup_checked:true,contact_verified:true,evidence_references:["verified-evidence"]},
     decision_state:{source_report_key:"cccccccccccc",evidence_hash:"a".repeat(64),rule_id:"S01",centering_status:"planned",proposed_center:"35,-80",center_type:"weighted_cell_centroid",routine_recenter_count:0,evidence:{next_action:"plan_deliverable",grid:{radius:3}}},...overrides};
@@ -45,7 +45,8 @@ function repository(state=submitted(),overrides:Record<string,unknown>={}) {
     getRunState:vi.fn(async()=>structuredClone(storedState)),
     getCompany:vi.fn(async()=>structuredClone(row)),
     saveRunState:vi.fn(async(next:SabRunState,version:number)=>{expect(version).toBe(storedState.version);storedState=structuredClone(next);}),
-    saveCompany:vi.fn(async(_place:string,updates:Record<string,unknown>,_actor?:string,_options?:{exclusionReviewApproved?:boolean;corroborationRecorded?:boolean;corroborationAnalysisVerified?:boolean})=>{row={...row,...structuredClone(updates)};return {writes_performed:true};}),
+    updateScanSubmission:vi.fn(async(_place:string,_key:string,updates:Record<string,unknown>)=>structuredClone(updates)),
+    saveCompany:vi.fn(async(_place:string,updates:Record<string,unknown>,_actor?:string,_options?:{exclusionReviewApproved?:boolean;exclusionReviewDeclined?:boolean;exclusionDecisionContinued?:boolean;corroborationRecorded?:boolean;corroborationAnalysisVerified?:boolean})=>{row={...row,...structuredClone(updates)};return {writes_performed:true};}),
     saveScanResult:vi.fn(async(_place:string,value:Record<string,unknown>,_actor:string,options?:{historyOnly?:boolean})=>{
       if(!options?.historyOnly && value.scan_role==="deliverable") row={...row,...structuredClone(value)};
       return {report_key:value.report_key,current_scan_updated:!options?.historyOnly};
@@ -126,6 +127,9 @@ describe("SAB orchestration integration",()=>{
     await expect(tools(missing).invoke("authorize_sab_scan_batch",{...args,scans:[plan]})).rejects.toThrow(/Structured SAB/);
     const valid=repository(initialize());
     await expect(tools(valid).invoke("authorize_sab_scan_batch",{...args,scans:[plan]})).resolves.toMatchObject({scan_approved:true,paid_scans_submitted:0});
+    expect((await valid.getCompany()).qualification_status).toBeNull();
+    const premature=repository(initialize(),{qualification_status:"qualified"});
+    await expect(tools(premature).invoke("authorize_sab_scan_batch",{...args,scans:[plan]})).rejects.toThrow(/qualification_status cannot authorize spending/);
   });
 
   it("allows only the exact structured routine fine specification and retains OAuth metadata",async()=>{
@@ -220,6 +224,20 @@ describe("SAB orchestration integration",()=>{
     await expect(api.invoke("authorize_sab_scan_batch",{...args,duplicate_report_checks:undefined})).rejects.toThrow();
     await expect(api.invoke("authorize_sab_scan_batch",{...args,duplicate_report_checks:[{scan:{...plan,center:{latitude:35.01,longitude:-80}},result:"none",evidence_reference:"old-check",checked_at:"2026-08-31T14:00:00.000Z"}]})).rejects.toThrow(/exact proposed scan envelope/);
     expect(repo.saveRunState).not.toHaveBeenCalled();
+  });
+
+  it("recovers an exact ambiguous provider report without another paid submission or run reset",async()=>{
+    const authorized=authorizeSabScanBatch(initialize(),{authorization_id:"11111111-1111-4111-8111-111111111111",orchestrator_id:"owner",authorization_reference:"plan",scans:[plan],matt_initial_approval:approved});
+    const claimed=claimSabRunScan(authorized,"11111111-1111-4111-8111-111111111111",plan,"ambiguous-idempotency");
+    const ambiguous=recordSabRunSubmission(claimed,"ambiguous-idempotency",{submission_status:"ambiguous_response"});
+    const repo=repository(ambiguous),api=tools(repo);
+    vi.mocked(getSabRankedCells).mockResolvedValue(report() as never);
+    const recovered=await api.invoke("reconcile_sab_ambiguous_submission",{orchestrator_id:"owner",authorization_id:"11111111-1111-4111-8111-111111111111",place_id:"place",report_key:key3});
+    expect(recovered).toMatchObject({submission_status:"submitted",recovered_existing_claim:true,scans_submitted:0,credits_added:0,next_batch_status:"awaiting_completion"});
+    expect(repo.saveScanResult).not.toHaveBeenCalled();
+    expect((await repo.getRunState()).committed_credits).toBe(49);
+    vi.mocked(getSabRankedCells).mockResolvedValue(report(key5,{...plan,center:{latitude:35.1,longitude:-80}}) as never);
+    await expect(api.invoke("reconcile_sab_ambiguous_submission",{orchestrator_id:"owner",authorization_id:"11111111-1111-4111-8111-111111111111",place_id:"place",report_key:key5})).rejects.toThrow(/ambiguous durable claim/);
   });
 
   it("does not spend while a returned provider phone conflicts with the selected verified contact",async()=>{
@@ -342,7 +360,7 @@ describe("SAB orchestration integration",()=>{
     const api=tools(repo);
     const analyzed=await api.invoke("analyze_sab_scan",{report_key:scanKey,place_id:"place",stage:scan.scan_role});
     expect(analyzed.action).toBe("high_visibility_exclusion_pending_review");
-    expect(await repo.getCompany()).toMatchObject({qualification_status:"qualified",status:"blocked",decision_state:{exclusion_review:{status:"pending",report_key:scanKey}}});
+    expect(await repo.getCompany()).toMatchObject({qualification_status:null,status:"blocked",decision_state:{exclusion_review:{status:"pending",report_key:scanKey}}});
     const args={orchestrator_id:"owner",place_id:"place",report_key:scanKey,evidence_hash:analyzed.evidence_hash,approval:approved};
     await expect(api.invoke("approve_sab_exclusion",args)).rejects.toThrow(/batch checkpoint/);
     const checkpoint=await api.invoke("review_sab_completed_batch",{});
@@ -366,6 +384,33 @@ describe("SAB orchestration integration",()=>{
     const writes=repo.saveCompany.mock.calls.length;
     await expect(api.invoke("approve_sab_exclusion",args)).resolves.toMatchObject({already_approved:true});
     expect(repo.saveCompany.mock.calls).toHaveLength(writes);
+  });
+
+  it.each([5,6])("declines an exact %s-mile exclusion proposal and resumes only its deterministic path",async(radius)=>{
+    const scan:SabScanPlan=radius===5?{...plan,radius:5}:{...plan,scan_role:"auxiliary",scan_type:"scout",grid_size:9,radius:6,estimated_credits:81};
+    const scanKey=radius===5?key5:key3;
+    let repo:ReturnType<typeof repository>;
+    if(radius===5) {
+      const prior=repository();vi.mocked(getSabRankedCells).mockResolvedValue(report() as never);
+      await tools(prior).invoke("review_sab_completed_batch",{});
+      repo=repository(submitted(scan,key5,await prior.getRunState(),"22222222-2222-4222-8222-222222222222"),await prior.getCompany());
+    } else repo=repository(submitted(scan));
+    const cells=Array.from({length:scan.grid_size**2},(_,i)=>({row:Math.floor(i/scan.grid_size)+1,column:i%scan.grid_size+1,latitude:35+((scan.grid_size-1)/2-Math.floor(i/scan.grid_size))*.01,longitude:-80+((i%scan.grid_size)-(scan.grid_size-1)/2)*.01,rank:2}));
+    const scanned=report(scanKey,scan,{arp:3,atrp:7,solv:75,businesses:[{place_id:"place",ranked_cells:cells}]});
+    vi.mocked(getSabRankedCells).mockResolvedValue(scanned as never);
+    const api=tools(repo),checkpoint=await api.invoke("review_sab_completed_batch",{}),evidenceHash=checkpoint.table[0]&&((await repo.getCompany()).decision_state.evidence_hash);
+    const declined=await api.invoke("decline_sab_exclusion",{orchestrator_id:"owner",place_id:"place",report_key:scanKey,evidence_hash:evidenceHash,decision:approved});
+    expect(declined).toMatchObject({exclusion_declined:true,paid_scans_submitted:0,next_batch_still_requires_approval:true,resumed_action:radius===5?"comparison_ready":"plan_deliverable"});
+    const row=await repo.getCompany();
+    expect(row).toMatchObject({qualification_status:null,status:"in_progress",blocker:null,decision_state:{exclusion_review:{status:"declined",declined_by:"Matt"},centering_status:radius===5?"validated":"planned",evidence:{next_action:radius===5?"comparison_ready":"plan_deliverable"}}});
+    expect(repo.saveCompany.mock.calls.at(-1)?.[3]).toEqual({exclusionReviewDeclined:true});
+    if(radius===5) {
+      expect(row).toMatchObject({report_key:key3,scan_center:"35,-80",decision_state:{proposed_center:"35,-80",evidence:{center_validation:{report_key:key3},centering_evaluated:false}}});
+      vi.mocked(getSabRankedCells).mockImplementation(async key=>(key===key3?report():scanned) as never);
+      await expect(api.invoke("select_sab_canonical_report",{place_id:"place",three_mile_report_key:key3,five_mile_report_key:key5})).resolves.toMatchObject({canonical_persisted:true});
+      expect(repo.saveCompany.mock.calls.at(-1)?.[3]).toEqual({exclusionDecisionContinued:true});
+      expect((await repo.getCompany()).decision_state.evidence.exclusion_decision_history).toContainEqual(expect.objectContaining({status:"declined",report_key:key5}));
+    }
   });
 
 });

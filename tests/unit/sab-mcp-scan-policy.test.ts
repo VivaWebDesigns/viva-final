@@ -50,6 +50,11 @@ describe("SAB master bounded and truncated evidence", () => {
   it("leaves opposing-edge ambiguity for evidence review", () => {
     expect(analyzeSabScanPolicy({ stage: "master", grid: grid(), cells: [cell(1, 4, 2), cell(7, 4, 2)] }).action).toBe("evidence_review_required");
   });
+  it("holds disconnected master clusters that have no deterministic route", () => {
+    const result=analyzeSabScanPolicy({stage:"master",grid:grid(),cells:[cell(2,2,4),cell(2,3,5),cell(5,5,7),cell(5,6,8),cell(6,5,9)]});
+    expect(result).toMatchObject({action:"evidence_review_required",proposed_center:null});
+    expect(result.reason).toBe("If disconnected master-scan clusters do not match an existing deterministic route, hold the company for evidence review; do not invent a center or launch a scan.");
+  });
   it("ignores ranks above 20 and rejects a zero offset", () => {
     expect(summarizeSabMasterEvidence([cell(1, 1, 21), cell(2, 2, 20)], 7)?.baseline_centroid_trustworthy).toBe(true);
     expect(() => offsetSabCenter({ latitude: 0, longitude: 0 }, 0, 0)).toThrow();
@@ -103,6 +108,13 @@ describe("SAB deterministic peak targeting and recenter limits", () => {
     expect(analyzeSabScanPolicy(input).action).toBe("recenter");
     expect(analyzeSabScanPolicy({ ...input, routineRecenterCount: 1 }).action).toBe("additional_recenter_exception_required");
     expect(analyzeSabScanPolicy({ ...input, routineRecenterCount: 1, additionalRecenterApproved: true }).action).toBe("recenter");
+  });
+  it("does not validate a weak off-center selected peak",()=>{
+    const cells=[cell(2,6,3),cell(4,4,5),cell(4,3,5),cell(5,4,5)];
+    const result=analyzeSabScanPolicy({stage:"deliverable",grid:grid(),cells});
+    expect(result.evidence).toMatchObject({peak:{dominant:false,displaced_peak:true},weak_off_center_peak:true});
+    expect(result.action).not.toBe("center_validated");
+    expect(["recenter","evidence_review_required"]).toContain(result.action);
   });
 });
 

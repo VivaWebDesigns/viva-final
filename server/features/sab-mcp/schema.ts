@@ -172,17 +172,28 @@ const workflowSheetInputSchema = {
 };
 
 export const sabExclusionReviewSchema = z.object({
-  status: z.enum(["pending", "approved"]),
+  status: z.enum(["pending", "approved", "declined"]),
   report_key: sabReportKey,
   evidence_hash: z.string().regex(/^[a-f0-9]{64}$/i),
   approval_reference: z.string().trim().min(1).max(2000).optional(),
   approved_by: z.literal("Matt").optional(),
+  decline_reference: z.string().trim().min(1).max(2000).optional(),
+  declined_by: z.literal("Matt").optional(),
 }).strict().superRefine((review, context) => {
   if (review.status === "approved" && (!review.approval_reference || review.approved_by !== "Matt")) {
     context.addIssue({code:z.ZodIssueCode.custom,path:["approval_reference"],message:"An exclusion requires Matt's explicit approval reference"});
   }
-  if (review.status === "pending" && (review.approval_reference !== undefined || review.approved_by !== undefined)) {
+  if (review.status === "declined" && (!review.decline_reference || review.declined_by !== "Matt")) {
+    context.addIssue({code:z.ZodIssueCode.custom,path:["decline_reference"],message:"An exclusion decline requires Matt's explicit decision reference"});
+  }
+  if (review.status === "pending" && (review.approval_reference !== undefined || review.approved_by !== undefined || review.decline_reference !== undefined || review.declined_by !== undefined)) {
     context.addIssue({code:z.ZodIssueCode.custom,path:["status"],message:"A pending exclusion must not imply that Matt has approved it"});
+  }
+  if (review.status === "approved" && (review.decline_reference !== undefined || review.declined_by !== undefined)) {
+    context.addIssue({code:z.ZodIssueCode.custom,path:["status"],message:"An approved exclusion cannot also be declined"});
+  }
+  if (review.status === "declined" && (review.approval_reference !== undefined || review.approved_by !== undefined)) {
+    context.addIssue({code:z.ZodIssueCode.custom,path:["status"],message:"A declined exclusion cannot also be approved"});
   }
 });
 
@@ -247,7 +258,7 @@ const structuredCompanyFields = {
   market_reference: sabMarketReferenceSchema.nullable().optional(),
   decision_state: sabDecisionStateSchema.nullable().optional(),
   qualification_reason: nullableString.optional(),
-  eligibility_state: sabEligibilityStateSchema.nullable().optional(),
+  eligibility_state: sabEligibilityStateSchema.nullable().optional().describe("Structured pre-scan eligibility. It authorizes guarded planning only when complete; it never establishes final qualification."),
   scan_spec: sabEffectiveScanSpecSchema.nullable().optional(),
 };
 
@@ -277,7 +288,7 @@ export const sabCompanyUpdatesSchema = z
       .nullable()
       .optional()
       .describe(
-        "Final disposition. Use null to clear a premature disposition while work remains in progress. Use qualified, disqualified, or deferred before marking a company complete. Scale-First has no audit requirement; disqualified/deferred closure requires structured qualification_reason.",
+        "Final disposition, separate from pre-scan eligibility. Keep null while scan work remains in progress. Use qualified only after a valid deliverable or completed no_visibility_core_found path; use disqualified or deferred for a reasoned final disposition.",
       ),
     sales_priority: z
       .number()
