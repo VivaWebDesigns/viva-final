@@ -1,6 +1,6 @@
 # Local Falcon prospect import
 
-The current Scale-First handoff is exactly one `batch.json` with `workflow: "scale_first_v2"`. Export every eligible qualified lead in the run, including Workflow Sheet rows at both `complete` and `qa_ready`, across all execution batches. Never send a competitor sidecar. The current parser contract is version 2.2 and permits up to 2,000 prospects; older Audit-First payloads remain a separate compatibility path.
+The current Scale-First handoff is exactly one `batch.json` with `workflow: "scale_first_v2"`. Export every eligible qualified lead in the run, including Workflow Sheet rows at both `complete` and `qa_ready`, across all execution batches. Never send a competitor sidecar. The current parser contract is version 2.3 and permits up to 2,000 prospects; older Audit-First payloads remain a separate compatibility path.
 
 ## Authoritative export
 
@@ -12,6 +12,9 @@ Use `build_sab_run_manifest` after the structured eligibility, contact, scan dec
 - `has_website` must be known. `website_url` is required when true and null when false.
 - `report_url` must be the observed, verified Local Falcon `public_url`. A public link may contain an additional identifier that cannot be derived from `report_key`; never construct a replacement public URL.
 - Raw `arp` remains separate from all-point `atrp`. Prospect-facing **Average Google Maps Position** uses authoritative ATRP only. Missing ATRP is retrieved from the exact canonical report during preview and confirmation; there is no ARP fallback.
+- Preserve compact returned enrichment in optional `business_profile`, with `source: "dataforseo_my_business_info_live"` and the exact matched business fields. New enrichment must retain the returned profile; omission remains accepted for legacy records. It includes categories/IDs, compact services, description, claim status and source phone, never a raw address or unrestricted provider payload. Resolve any source-phone conflict through structured `phone_resolution` identifying the selected verified phone and its evidence before export.
+
+Confirmed imports retain this profile as typed `sab_business_profile` provenance in the existing lead-note metadata. Both deliverable and CRM-only profile readers retrieve it by exact Place ID. This is enrichment history; note wording never establishes eligibility or scan decisions. No database migration is required. Existing Workflow Sheets need the normal schema upgrade before using the new `business_profile` column; the repair does not upgrade live Sheets automatically.
 
 ## Two permitted outcomes
 

@@ -39,6 +39,13 @@ export type SabRunBatch = {
   review: (SabMattApproval & { reviewed_batch_id: string; approved_plan_digest: string }) | null;
   initial_approval: (SabMattApproval & { approved_plan_digest: string }) | null;
   exception: (SabMattApproval & { reason: string }) | null;
+  /** Required by new guarded authorizations; optional to read legacy receipts. */
+  duplicate_report_checks?: Array<{
+    scan: SabScanPlan;
+    result: "none";
+    evidence_reference: string;
+    checked_at: string;
+  }>;
 };
 
 export type SabRunState = {

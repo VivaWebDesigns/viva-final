@@ -2,17 +2,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { analyzeAndRecordSabReport, registerSabOrchestrationTools } from "../../server/features/sab-mcp/orchestration";
 import { getSabRankedCells } from "../../server/features/sab-mcp/localFalconRankedCells";
 import { reverseGeocodeSabCenters } from "../../server/features/sab-mcp/reverseGeocode";
+import { buildSabRunManifest } from "../../server/features/sab-mcp/exportManifest";
+import { evaluateSabAddressCandidate } from "../../server/features/sab-mcp/addressCandidate";
 import { authorizeSabScanBatch, claimSabRunScan, completeSabRunReports, createSabRunState, recordSabRunSubmission, type SabRunState, type SabScanPlan } from "../../server/features/sab-mcp/runState";
 import { z } from "zod";
 
 vi.mock("../../server/features/sab-mcp/localFalconRankedCells", () => ({getSabRankedCells: vi.fn()}));
 vi.mock("../../server/features/sab-mcp/reverseGeocode", () => ({reverseGeocodeSabCenters: vi.fn()}));
+vi.mock("../../server/features/sab-mcp/addressCandidate", () => ({evaluateSabAddressCandidate: vi.fn()}));
 const approved = {approved_by: "Matt" as const, approval_reference: "explicit-plan-approval"};
 const plan: SabScanPlan = {
   place_id: "place", scan_role: "deliverable", scan_type: "standard", center: {latitude:35,longitude:-80},
   grid_size:7,radius:3,measurement:"mi",keyword:"service",platform:"google",estimated_credits:49,save_location_required:false,
 };
 const key3="aaaaaaaaaaaa",key5="bbbbbbbbbbbb";
+const researchedNoCandidate={source_report_key:"cccccccccccc",evidence_hash:"a".repeat(64),status:"no_candidate" as const,research_complete:true,evidence_references:["completed-business-source-search"],source_type:"official website and attributable listing",identity_method:"exact business phone",fit_rationale:"Completed corroboration research produced no address candidate"};
 function initialize() {
   return createSabRunState({run_id:"run",orchestrator_id:"owner",authorization_reference:"run-approval",credit_limit:500});
 }
@@ -41,7 +45,7 @@ function repository(state=submitted(),overrides:Record<string,unknown>={}) {
     getRunState:vi.fn(async()=>structuredClone(storedState)),
     getCompany:vi.fn(async()=>structuredClone(row)),
     saveRunState:vi.fn(async(next:SabRunState,version:number)=>{expect(version).toBe(storedState.version);storedState=structuredClone(next);}),
-    saveCompany:vi.fn(async(_place:string,updates:Record<string,unknown>,_actor?:string,_options?:{exclusionReviewApproved?:boolean})=>{row={...row,...structuredClone(updates)};return {writes_performed:true};}),
+    saveCompany:vi.fn(async(_place:string,updates:Record<string,unknown>,_actor?:string,_options?:{exclusionReviewApproved?:boolean;corroborationRecorded?:boolean;corroborationAnalysisVerified?:boolean})=>{row={...row,...structuredClone(updates)};return {writes_performed:true};}),
     saveScanResult:vi.fn(async(_place:string,value:Record<string,unknown>,_actor:string,options?:{historyOnly?:boolean})=>{
       if(!options?.historyOnly && value.scan_role==="deliverable") row={...row,...structuredClone(value)};
       return {report_key:value.report_key,current_scan_updated:!options?.historyOnly};
@@ -53,7 +57,8 @@ function tools(repo:ReturnType<typeof repository>) {
   const server={registerTool:(name:string,definition:any,handler:any)=>{handlers[name]={schema:definition.inputSchema,handler};}};
   registerSabOrchestrationTools(server as never,(()=>repo) as never,"actor");
   return {invoke:async(name:string,args:Record<string,unknown>)=>{
-    const value=await handlers[name].handler(z.object(handlers[name].schema).parse({workflow_sheet:"sheet",sheet_name:"SAB Workflow",run_id:"run",...args}));
+    const checks=name==="authorize_sab_scan_batch" && !Object.hasOwn(args,"duplicate_report_checks") ? {duplicate_report_checks:(args.scans as SabScanPlan[]).map(scan=>({scan,result:"none",evidence_reference:"verified-report-inventory",checked_at:"2026-08-31T14:00:00.000Z"}))} : {};
+    const value=await handlers[name].handler(z.object(handlers[name].schema).parse({...checks,workflow_sheet:"sheet",sheet_name:"SAB Workflow",run_id:"run",...args}));
     return JSON.parse(value.content[0].text);
   },handlers};
 }
@@ -115,7 +120,7 @@ describe("SAB orchestration integration",()=>{
   it("rejects mismatched next actions and unverified eligibility even for the same coordinates",async()=>{
     const args={orchestrator_id:"owner",authorization_id:"22222222-2222-4222-8222-222222222222",authorization_reference:"plan",scans:[{...plan,scan_role:"auxiliary",scan_type:"scout",grid_size:9,radius:6,estimated_credits:81}],matt_initial_approval:approved};
     const repo=repository(initialize());
-    await expect(tools(repo).invoke("authorize_sab_scan_batch",args)).rejects.toThrow(/next action/);
+    await expect(tools(repo).invoke("authorize_sab_scan_batch",args)).rejects.toThrow(/next action|corroboration/);
     expect(repo.saveRunState).not.toHaveBeenCalled();
     const missing=repository(initialize(),{eligibility_state:{sab_confirmed:true}});
     await expect(tools(missing).invoke("authorize_sab_scan_batch",{...args,scans:[plan]})).rejects.toThrow(/Structured SAB/);
@@ -126,11 +131,11 @@ describe("SAB orchestration integration",()=>{
   it("allows only the exact structured routine fine specification and retains OAuth metadata",async()=>{
     const row=repository(initialize());
     const initial=await row.getCompany();
-    const repo=repository(initialize(),{decision_state:{...initial.decision_state,evidence:{next_action:"plan_auxiliary",auxiliary_scan_spec:{scan_type:"fine",grid_size:7,radius:1.5,measurement:"mi"}}}});
+    const repo=repository(initialize(),{decision_state:{...initial.decision_state,address_corroboration:researchedNoCandidate,evidence:{next_action:"plan_auxiliary",auxiliary_scan_spec:{scan_type:"fine",grid_size:7,radius:1.5,measurement:"mi"}}}});
     const fine={...plan,scan_role:"auxiliary",scan_type:"fine",radius:1.5};
     const args={orchestrator_id:"owner",authorization_id:"22222222-2222-4222-8222-222222222222",authorization_reference:"plan",scans:[fine],matt_initial_approval:approved};
     await expect(tools(repo).invoke("authorize_sab_scan_batch",args)).resolves.toMatchObject({scan_approved:true});
-    const wrong=repository(initialize(),{decision_state:{...initial.decision_state,evidence:{next_action:"plan_auxiliary"}}});
+    const wrong=repository(initialize(),{decision_state:{...initial.decision_state,address_corroboration:researchedNoCandidate,evidence:{next_action:"plan_auxiliary"}}});
     await expect(tools(wrong).invoke("authorize_sab_scan_batch",args)).rejects.toThrow(/next action/);
     const registration=vi.fn();
     registerSabOrchestrationTools({registerTool:registration} as never,(()=>repo) as never,"actor");
@@ -163,7 +168,7 @@ describe("SAB orchestration integration",()=>{
     const threeState=completeSabRunReports(submitted(),[key3]);
     const fivePlan={...plan,radius:5};
     const state=completeSabRunReports(submitted(fivePlan,key5,threeState,"22222222-2222-4222-8222-222222222222"),[key5]);
-    const repo=repository(state,{report_key:key3,decision_state:{source_report_key:key5,evidence_hash:"a".repeat(64),rule_id:"S05",centering_status:"validated",proposed_center:"35,-80",center_type:"weighted_cell_centroid",routine_recenter_count:0,evidence:{next_action:"center_validated"}}});
+    const repo=repository(state,{report_key:key3,decision_state:{source_report_key:key5,evidence_hash:"a".repeat(64),rule_id:"S08",centering_status:"validated",proposed_center:"35,-80",center_type:"weighted_cell_centroid",routine_recenter_count:0,evidence:{next_action:"comparison_ready",center_validation:{report_key:key3,evidence_hash:"c".repeat(64),proposed_center:"35,-80",center_type:"weighted_cell_centroid"}}}});
     vi.mocked(getSabRankedCells).mockImplementation(async key=>(key===key3?report():report(key5,fivePlan,{arp:fiveArp,solv:fiveSolv,atrp:20})) as never);
     const result=await tools(repo).invoke("select_sab_canonical_report",{place_id:"place",three_mile_report_key:key3,five_mile_report_key:key5});
     expect(result).toMatchObject({selected_radius_miles:selected,canonical_persisted:true});
@@ -200,27 +205,164 @@ describe("SAB orchestration integration",()=>{
     await expect(tools(repo).invoke("authorize_sab_scan_batch",{orchestrator_id:"owner",authorization_id:"22222222-2222-4222-8222-222222222222",authorization_reference:"next",scans:[{...plan,radius:5}]})).rejects.toThrow(/Matt approval/);
   });
 
+  it("permits one optional nonsaturated comparison with exact report-check evidence and preserves Matt's batch gate",async()=>{
+    const repo=repository();vi.mocked(getSabRankedCells).mockResolvedValue(report() as never);
+    await tools(repo).invoke("review_sab_completed_batch",{});
+    const args={orchestrator_id:"owner",authorization_id:"22222222-2222-4222-8222-222222222222",authorization_reference:"comparison-plan",scans:[{...plan,radius:5}]};
+    await expect(tools(repo).invoke("authorize_sab_scan_batch",args)).rejects.toThrow(/Matt approval/);
+    await expect(tools(repo).invoke("authorize_sab_scan_batch",{...args,matt_review:{...approved,reviewed_batch_id:"11111111-1111-4111-8111-111111111111"}})).resolves.toMatchObject({scan_approved:true});
+    expect((await repo.getRunState()).batches.at(-1)?.duplicate_report_checks?.[0]).toMatchObject({scan:{radius:5,center:plan.center},result:"none",evidence_reference:"verified-report-inventory"});
+  });
+
+  it("does not accept missing or differently centered duplicate-report checks",async()=>{
+    const repo=repository(initialize()),api=tools(repo);
+    const args={orchestrator_id:"owner",authorization_id:"22222222-2222-4222-8222-222222222222",authorization_reference:"plan",scans:[plan],matt_initial_approval:approved};
+    await expect(api.invoke("authorize_sab_scan_batch",{...args,duplicate_report_checks:undefined})).rejects.toThrow();
+    await expect(api.invoke("authorize_sab_scan_batch",{...args,duplicate_report_checks:[{scan:{...plan,center:{latitude:35.01,longitude:-80}},result:"none",evidence_reference:"old-check",checked_at:"2026-08-31T14:00:00.000Z"}]})).rejects.toThrow(/exact proposed scan envelope/);
+    expect(repo.saveRunState).not.toHaveBeenCalled();
+  });
+
+  it("does not spend while a returned provider phone conflicts with the selected verified contact",async()=>{
+    const repo=repository(initialize(),{phone:"5555550101",business_profile:{source:"dataforseo_my_business_info_live",place_id:"place",phone:"5555550102"}});
+    await expect(tools(repo).invoke("authorize_sab_scan_batch",{orchestrator_id:"owner",authorization_id:"11111111-1111-4111-8111-111111111111",authorization_reference:"plan",scans:[plan],matt_initial_approval:approved})).rejects.toThrow(/phone conflict/);
+    expect(repo.saveRunState).not.toHaveBeenCalled();
+  });
+
+  it.each([{cells:[]},{cells:[{row:1,column:4,latitude:35.05,longitude:-80,rank:1},{row:4,column:4,latitude:35,longitude:-80,rank:9}]}])("never recenters or invalidates a three-mile center from a five-mile comparison's footprint",async({cells})=>{
+    const initial=repository();vi.mocked(getSabRankedCells).mockResolvedValue(report() as never);
+    await tools(initial).invoke("review_sab_completed_batch",{});
+    const threeState=await initial.getRunState(),threeRow=await initial.getCompany(),fivePlan={...plan,radius:5};
+    const repo=repository(submitted(fivePlan,key5,threeState,"22222222-2222-4222-8222-222222222222"),threeRow);
+    const five=report(key5,fivePlan,{arp:6,atrp:20,solv:5,businesses:[{place_id:"place",ranked_cells:cells}]});
+    vi.mocked(getSabRankedCells).mockResolvedValue(five as never);
+    const checkpoint=await tools(repo).invoke("review_sab_completed_batch",{});
+    expect(checkpoint.table[0].result.classification).toBe("comparison_ready");
+    const row=await repo.getCompany();
+    expect(row.report_key).toBe(key3);
+    expect(row.decision_state).toMatchObject({centering_status:"validated",routine_recenter_count:0,proposed_center:"35,-80",evidence:{centering_evaluated:false,center_validation:{report_key:key3}}});
+    vi.mocked(getSabRankedCells).mockImplementation(async key=>(key===key3?report():five) as never);
+    await expect(tools(repo).invoke("select_sab_canonical_report",{place_id:"place",three_mile_report_key:key3,five_mile_report_key:key5})).resolves.toMatchObject({selected_radius_miles:5,raw_arp_increased:true,solv_decreased:true});
+    expect((await repo.getCompany()).decision_state.evidence.center_validation.report_key).toBe(key3);
+  });
+
+  it("blocks a repeated comparison even with an exception and never accepts a five-mile recenter",async()=>{
+    const initial=repository();vi.mocked(getSabRankedCells).mockResolvedValue(report() as never);
+    await tools(initial).invoke("review_sab_completed_batch",{});
+    const fivePlan={...plan,radius:5},state=completeSabRunReports(submitted(fivePlan,key5,await initial.getRunState(),"22222222-2222-4222-8222-222222222222"),[key5]);
+    const row=await initial.getCompany();row.decision_state.source_report_key=key5;
+    const repo=repository(state,row),args={orchestrator_id:"owner",authorization_id:"33333333-3333-4333-8333-333333333333",authorization_reference:"again",scans:[fivePlan],matt_review:{...approved,reviewed_batch_id:"22222222-2222-4222-8222-222222222222"},exception:{...approved,reason:"try again"}};
+    await expect(tools(repo).invoke("authorize_sab_scan_batch",args)).rejects.toThrow(/Only one five-mile/);
+    await expect(tools(repo).invoke("authorize_sab_scan_batch",{...args,scans:[{...fivePlan,scan_type:"recenter"}]})).rejects.toThrow(/never a recenter/);
+    expect(repo.saveRunState).not.toHaveBeenCalled();
+  });
+
+  it("preserves accepted three-mile centering while missing five-mile exclusion metrics require evidence review",async()=>{
+    const initial=repository();vi.mocked(getSabRankedCells).mockResolvedValue(report() as never);
+    await tools(initial).invoke("review_sab_completed_batch",{});
+    const fivePlan={...plan,radius:5},repo=repository(submitted(fivePlan,key5,await initial.getRunState(),"22222222-2222-4222-8222-222222222222"),await initial.getCompany());
+    const cells=Array.from({length:49},(_,i)=>({row:Math.floor(i/7)+1,column:i%7+1,latitude:35+(3-Math.floor(i/7))*.01,longitude:-80+((i%7)-3)*.01,rank:2}));
+    vi.mocked(getSabRankedCells).mockResolvedValue(report(key5,fivePlan,{arp:null,solv:80,businesses:[{place_id:"place",ranked_cells:cells}]}) as never);
+    const result=await tools(repo).invoke("review_sab_completed_batch",{});
+    expect(result.table[0].result.classification).toBe("evidence_review_required");
+    expect(await repo.getCompany()).toMatchObject({status:"blocked",blocker:"five_mile_comparison_review_required",report_key:key3,decision_state:{centering_status:"validated",proposed_center:"35,-80",center_type:"weighted_cell_centroid",evidence:{centering_evaluated:false,center_validation:{report_key:key3}}}});
+    const writes=repo.saveScanResult.mock.calls.length;
+    await expect(tools(repo).invoke("select_sab_canonical_report",{place_id:"place",three_mile_report_key:key3,five_mile_report_key:key5})).rejects.toThrow(/exclusion or evidence/);
+    expect(repo.saveScanResult.mock.calls).toHaveLength(writes);
+  });
+
+  it("requires corroboration for unresolved master evidence and records completed no-candidate research before an auxiliary",async()=>{
+    const repo=repository(initialize());
+    const master=report("cccccccccccc",plan,{businesses:[{place_id:"place",ranked_cells:[{row:1,column:4,latitude:35.05,longitude:-80,rank:5}]}]});
+    vi.mocked(getSabRankedCells).mockResolvedValue(master as never);
+    const api=tools(repo),source={run_id:"run",report_key:"cccccccccccc",place_id:"place",stage:"master"};
+    expect(await api.invoke("analyze_sab_scan",source)).toMatchObject({action:"address_corroboration_required"});
+    expect(await repo.getCompany()).toMatchObject({status:"blocked",blocker:"address_corroboration_required"});
+    const args={orchestrator_id:"owner",place_id:"place",report_key:"cccccccccccc",result:"no_candidate",research_complete:true,evidence_references:["official-website-contact-search"],source_type:"company-controlled source",identity_method:"exact business phone",fit_rationale:"Completed research found no independently identified address candidate"};
+    await expect(api.invoke("record_sab_address_corroboration",{...args,research_complete:false})).rejects.toThrow(/completed research/);
+    const result=await api.invoke("record_sab_address_corroboration",args);
+    expect(result).toMatchObject({action:"plan_auxiliary",address_corroboration:{status:"no_candidate"}});
+    expect(await repo.getCompany()).toMatchObject({status:"in_progress",blocker:null});
+    expect(repo.saveCompany.mock.calls.some(call=>call[3]?.corroborationRecorded===true)).toBe(true);
+    expect(repo.saveCompany.mock.calls.at(-1)?.[3]).toEqual({corroborationAnalysisVerified:true});
+    const scout={...plan,center:result.proposed_center,scan_role:"auxiliary",scan_type:"scout",grid_size:9,radius:6,estimated_credits:81};
+    await expect(api.invoke("authorize_sab_scan_batch",{orchestrator_id:"owner",authorization_id:"11111111-1111-4111-8111-111111111111",authorization_reference:"scout",scans:[scout],matt_initial_approval:approved})).resolves.toMatchObject({scan_approved:true});
+  });
+
+  it.each(["incomplete","technical_failure"])("holds %s address evaluation without leaking the candidate or permitting a no-candidate relabel",async(status)=>{
+    const repo=repository(initialize());
+    vi.mocked(getSabRankedCells).mockResolvedValue(report("cccccccccccc",plan,{businesses:[{place_id:"place",ranked_cells:[{row:1,column:4,latitude:35.05,longitude:-80,rank:5}]}]}) as never);
+    const api=tools(repo);await api.invoke("analyze_sab_scan",{report_key:"cccccccccccc",place_id:"place",stage:"master"});
+    const args={orchestrator_id:"owner",place_id:"place",report_key:"cccccccccccc",result:"candidate",candidate_address:"PRIVATE-CANDIDATE-DO-NOT-PERSIST",fit_decision:"accepted",research_complete:true,evidence_references:["verified-company-source"],source_type:"official source",identity_method:"exact phone",fit_rationale:"Evaluate complete distribution"};
+    if(status==="technical_failure") vi.mocked(evaluateSabAddressCandidate).mockRejectedValueOnce(new Error("PRIVATE-CANDIDATE-DO-NOT-PERSIST provider timeout"));
+    else vi.mocked(evaluateSabAddressCandidate).mockResolvedValueOnce({status:"incomplete",candidate_coordinates:{latitude:35,longitude:-80},geocoder:{location_type:"APPROXIMATE",partial_match:true},distances_miles:{weighted_centroid:1,nearest_ranked_cell:1,best_rank_cluster_centroid:1}} as never);
+    const result=await api.invoke("record_sab_address_corroboration",args);
+    expect(result).toMatchObject({action:"address_corroboration_incomplete",address_corroboration:{status}});
+    expect(JSON.stringify(repo.saveCompany.mock.calls)+JSON.stringify(result)).not.toContain(args.candidate_address);
+    const {candidate_address,fit_decision,...noCandidate}=args;
+    await expect(api.invoke("record_sab_address_corroboration",{...noCandidate,result:"no_candidate"})).rejects.toThrow(/relabelling/);
+    const row=await repo.getCompany();
+    row.decision_state={...row.decision_state,centering_status:"planned",proposed_center:"35,-80",evidence:{next_action:"plan_auxiliary"}};
+    const blocked=repository(initialize(),row);
+    await expect(tools(blocked).invoke("authorize_sab_scan_batch",{orchestrator_id:"owner",authorization_id:"11111111-1111-4111-8111-111111111111",authorization_reference:"bad-fallback",scans:[{...plan,scan_role:"auxiliary",scan_type:"scout",grid_size:9,radius:6,estimated_credits:81}],matt_initial_approval:approved,exception:{...approved,reason:"cannot bypass failure"}})).rejects.toThrow(/technical failure/);
+  });
+
+  it("preserves the orchestrator complete-distribution fit judgment without adding strict distance gates",async()=>{
+    for(const fits of [true,false]) {
+      const repo=repository(initialize());
+      vi.mocked(getSabRankedCells).mockResolvedValue(report("cccccccccccc",plan,{businesses:[{place_id:"place",ranked_cells:[{row:1,column:4,latitude:35.05,longitude:-80,rank:5}]}]}) as never);
+      const api=tools(repo);await api.invoke("analyze_sab_scan",{report_key:"cccccccccccc",place_id:"place",stage:"master"});
+      vi.mocked(evaluateSabAddressCandidate).mockResolvedValueOnce({status:"complete",candidate_coordinates:{latitude:35.02,longitude:-80},geocoder:{location_type:"ROOFTOP",partial_match:false},distances_miles:{weighted_centroid:fits?3.01:5,nearest_ranked_cell:0.1,best_rank_cluster_centroid:fits?2.9:6}} as never);
+      const result=await api.invoke("record_sab_address_corroboration",{orchestrator_id:"owner",place_id:"place",report_key:"cccccccccccc",result:"candidate",candidate_address:"PRIVATE-CANDIDATE",fit_decision:fits?"accepted":"rejected",research_complete:true,evidence_references:["verified-company-source"],source_type:"official source",identity_method:"exact phone",fit_rationale:fits?"Complete distribution and shape agree with the approximate three-mile guidance":"An isolated pin agrees but the full distribution contradicts this candidate"});
+      expect(result).toMatchObject({action:fits?"plan_deliverable":"plan_auxiliary",address_corroboration:{status:fits?"accepted":"rejected"}});
+      if(fits) {
+        expect(await repo.getCompany()).toMatchObject({center_type:"corroborated_address",scan_center:"35.02,-80"});
+        await expect(api.invoke("authorize_sab_scan_batch",{orchestrator_id:"owner",authorization_id:"11111111-1111-4111-8111-111111111111",authorization_reference:"accepted-center",scans:[{...plan,center:result.proposed_center}],matt_initial_approval:approved})).resolves.toMatchObject({scan_approved:true});
+      }
+    }
+  });
+
+  it("rejects a temporary address copied into persisted corroboration descriptions",async()=>{
+    const repo=repository(initialize());
+    const args={orchestrator_id:"owner",place_id:"place",report_key:"cccccccccccc",result:"candidate",candidate_address:"PRIVATE-CANDIDATE",fit_decision:"accepted",research_complete:true,evidence_references:["verified-source"],source_type:"official source",identity_method:"exact phone",fit_rationale:"PRIVATE-CANDIDATE is the address"};
+    await expect(tools(repo).invoke("record_sab_address_corroboration",args)).rejects.toThrow(/temporary hidden address/);
+    expect(evaluateSabAddressCandidate).not.toHaveBeenCalled();expect(repo.saveCompany).not.toHaveBeenCalled();
+  });
+
   it.each([5,6])("holds a qualifying %s-mile exclusion until exact evidence receives Matt approval",async(radius)=>{
     const scan:SabScanPlan=radius===5?{...plan,radius:5}:{...plan,scan_role:"auxiliary",scan_type:"scout",grid_size:9,radius:6,estimated_credits:81};
-    const repo=repository(submitted(scan));
+    const scanKey=radius===5?key5:key3;
+    let repo:ReturnType<typeof repository>;
+    if(radius===5) {
+      const prior=repository();vi.mocked(getSabRankedCells).mockResolvedValue(report() as never);
+      await tools(prior).invoke("review_sab_completed_batch",{});
+      repo=repository(submitted(scan,key5,await prior.getRunState(),"22222222-2222-4222-8222-222222222222"),await prior.getCompany());
+    } else repo=repository(submitted(scan));
     const cells=Array.from({length:scan.grid_size**2},(_,i)=>({row:Math.floor(i/scan.grid_size)+1,column:i%scan.grid_size+1,latitude:35+((scan.grid_size-1)/2-Math.floor(i/scan.grid_size))*.01,longitude:-80+((i%scan.grid_size)-(scan.grid_size-1)/2)*.01,rank:2}));
-    vi.mocked(getSabRankedCells).mockResolvedValue(report(key3,scan,{arp:3,atrp:7,solv:75,businesses:[{place_id:"place",ranked_cells:cells}]}) as never);
+    vi.mocked(getSabRankedCells).mockResolvedValue(report(scanKey,scan,{arp:3,atrp:7,solv:75,businesses:[{place_id:"place",ranked_cells:cells}]}) as never);
     const api=tools(repo);
-    const analyzed=await api.invoke("analyze_sab_scan",{report_key:key3,place_id:"place",stage:scan.scan_role});
+    const analyzed=await api.invoke("analyze_sab_scan",{report_key:scanKey,place_id:"place",stage:scan.scan_role});
     expect(analyzed.action).toBe("high_visibility_exclusion_pending_review");
-    expect(await repo.getCompany()).toMatchObject({qualification_status:"qualified",status:"blocked",decision_state:{exclusion_review:{status:"pending",report_key:key3}}});
-    const args={orchestrator_id:"owner",place_id:"place",report_key:key3,evidence_hash:analyzed.evidence_hash,approval:approved};
+    expect(await repo.getCompany()).toMatchObject({qualification_status:"qualified",status:"blocked",decision_state:{exclusion_review:{status:"pending",report_key:scanKey}}});
+    const args={orchestrator_id:"owner",place_id:"place",report_key:scanKey,evidence_hash:analyzed.evidence_hash,approval:approved};
     await expect(api.invoke("approve_sab_exclusion",args)).rejects.toThrow(/batch checkpoint/);
     const checkpoint=await api.invoke("review_sab_completed_batch",{});
     expect(checkpoint.exclusion_approval_required).toBe(true);
     expect(checkpoint.table[0].result).toMatchObject({classification:"high_visibility_exclusion_pending_review",measured_values:{raw_arp:3,all_point_atrp:7,solv:75}});
+    if(radius===5) {
+      const held=await repo.getCompany();
+      expect(held).toMatchObject({report_key:key3,scan_center:"35,-80",center_type:"weighted_cell_centroid",decision_state:{centering_status:"validated",proposed_center:"35,-80",center_type:"weighted_cell_centroid",evidence:{centering_evaluated:false,center_validation:{report_key:key3}}}});
+      const writes=repo.saveScanResult.mock.calls.length;
+      await expect(api.invoke("select_sab_canonical_report",{place_id:"place",three_mile_report_key:key3,five_mile_report_key:key5})).rejects.toThrow(/exclusion or evidence/);
+      expect(repo.saveScanResult.mock.calls).toHaveLength(writes);
+      await expect(buildSabRunManifest({getExportCandidates:async()=>[{...held,status:"complete"}]} as never,{batch_id:"test",market:{city:"Test Market",state:"NC"},trade:"service",keyword:"service",export_date:"2026-08-31",scan_spec:{grid_size:"7x7",radius_miles:3}})).rejects.toThrow(/No eligible qualified/);
+    }
     await expect(api.invoke("approve_sab_exclusion",{...args,evidence_hash:"f".repeat(64)})).rejects.toThrow(/evidence hash/);
     await expect(api.invoke("approve_sab_exclusion",{...args,orchestrator_id:"worker"})).rejects.toThrow(/orchestrator/);
     await expect(api.invoke("approve_sab_exclusion",{...args,approval:{approved_by:"Worker",approval_reference:"not Matt"}})).rejects.toThrow();
     expect(await api.invoke("approve_sab_exclusion",args)).toMatchObject({exclusion_finalized:true,paid_scans_submitted:0,next_batch_still_requires_approval:true});
     expect(await repo.getCompany()).toMatchObject({qualification_status:"disqualified",status:"complete",qualification_reason:"existing_visibility_too_strong",decision_state:{exclusion_review:{status:"approved",approved_by:"Matt"}}});
     expect(repo.saveCompany.mock.calls.at(-1)?.[3]).toEqual({exclusionReviewApproved:true});
-    expect((await repo.getRunState()).batches[0].status).toBe("awaiting_review");
+    expect((await repo.getRunState()).batches.at(-1)?.status).toBe("awaiting_review");
     const writes=repo.saveCompany.mock.calls.length;
     await expect(api.invoke("approve_sab_exclusion",args)).resolves.toMatchObject({already_approved:true});
     expect(repo.saveCompany.mock.calls).toHaveLength(writes);

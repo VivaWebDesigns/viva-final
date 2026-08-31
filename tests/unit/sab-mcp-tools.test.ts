@@ -25,7 +25,8 @@ describe("SAB MCP tool discovery", () => {
 
     try {
       const { tools } = await client.listTools();
-      expect(tools).toHaveLength(30);
+      expect(tools).toHaveLength(31);
+      expect(tools.map((tool) => tool.name)).toContain("record_sab_address_corroboration");
       expect(tools.map((tool) => tool.name)).toContain("get_sab_schema");
       expect(tools.map((tool) => tool.name)).toContain(
         "upgrade_sab_workflow_schema",
@@ -106,7 +107,7 @@ describe("SAB MCP tool discovery", () => {
       expect(schema.legacy_base_required_headers).not.toContain("contact_tag");
       expect(schema.scale_first_upgradeable_headers).toEqual([
         "workflow",
-        "contact_tag", "outcome", "market_reference", "decision_state", "qualification_reason", "eligibility_state", "scan_spec",
+        "contact_tag", "outcome", "market_reference", "decision_state", "qualification_reason", "eligibility_state", "scan_spec", "business_profile",
       ]);
       expect(schema.center_types).toEqual([
         "weighted_cell_centroid", "corroborated_address", "scout_recentered",
@@ -145,7 +146,7 @@ describe("SAB MCP tool discovery", () => {
       });
       const content = result.content as Array<{ type: string; text: string }>;
       expect(JSON.parse(content[0].text)).toMatchObject({
-        contract_version: "2.2",
+        contract_version: "2.3",
         workflow: "scale_first_v2",
         writes_data: false,
       });

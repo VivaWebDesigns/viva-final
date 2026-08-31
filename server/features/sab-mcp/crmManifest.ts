@@ -99,6 +99,18 @@ export const SAB_CRM_IMPORT_CONTRACT = {
 } as const;
 
 const scaleFirstProspectFields = {
+  business_profile: {
+    required: false,
+    description: "Optional strict compact DataForSEO enrichment history for either outcome; may be null for legacy records. Never a qualification decision, verified email source, or validated business/scan center. Hidden street addresses and raw provider arrays are forbidden.",
+    source: "dataforseo_my_business_info_live",
+    place_id: "required; must exactly match prospect.place_id",
+    optional_fields: ["name", "cid", "phone", "website", "rating", "review_count", "primary_category", "categories", "service_count", "service_names", "omitted_service_count", "description", "is_claimed", "latitude", "longitude", "place_topics", "phone_resolution"],
+    categories: "array of {name, id}; id may be null",
+    service_names: "compact list, at most 20; preserve service_count and omitted_service_count when returned",
+    place_topics: "compact list, at most 20",
+    phone_resolution: "When returned phone conflicts with selected verified prospect.phone: {selected_phone, evidence_references:[non-empty reference]}; selected_phone must match the prospect phone after digits-only normalization",
+    storage: "Workflow business_profile JSON; manifest business_profile; confirmed CRM import stores typed crm_lead_notes.metadata enrichment provenance for both outcomes. No new report, qualification or scan is created from this profile.",
+  },
   place_id: "required exact Google Place ID; non-empty string",
   company_name: "non-empty string",
   address: "literal string \"Service Area Business\"; never include a hidden operating address",
@@ -154,7 +166,7 @@ const scaleFirstProspectFields = {
 
 export const SCALE_FIRST_SAB_CRM_IMPORT_CONTRACT = {
   contract: "viva_local_falcon_crm_batch_json",
-  contract_version: "2.2",
+  contract_version: "2.3",
   workflow: SCALE_FIRST_WORKFLOW,
   discriminator: {
     field: "workflow",

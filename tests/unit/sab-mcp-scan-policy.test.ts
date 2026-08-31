@@ -1,25 +1,37 @@
 import { describe, expect, it } from "vitest";
 import { analyzeSabScanPolicy, evaluateSabCoherentMargin, offsetSabCenter, selectSabCanonicalScan, selectSabPeakTarget, summarizeSabMasterEvidence, summarizeSabAllPointRanks, type SabScanGrid } from "../../server/features/sab-mcp/scanPolicy";
+import type { SabAddressCorroboration } from "../../server/features/sab-mcp/addressCorroboration";
 import type { SabRankedCell } from "../../server/features/sab-mcp/localFalconRankedCells";
 
 const grid = (size = 7, radius = 3): SabScanGrid => ({ size, radius, point_count: size ** 2, center: { latitude: 0, longitude: 0 }, measurement: "mi" });
 const cell = (row: number, column: number, rank: number, size = 7, radius = 3): SabRankedCell => ({ row, column, rank, latitude: ((size + 1) / 2 - row) * (2 * radius / (size - 1)) / 69.09, longitude: (column - (size + 1) / 2) * (2 * radius / (size - 1)) / 69.09 });
 const field = (rank: (r: number, c: number) => number, size = 7, radius = 3) => Array.from({ length: size ** 2 }, (_, i) => cell(Math.floor(i / size) + 1, i % size + 1, rank(Math.floor(i / size) + 1, i % size + 1), size, radius));
 
+const researchedNoCandidate:SabAddressCorroboration = {source_report_key:"aaaaaaaaaaaa",evidence_hash:"a".repeat(64),status:"no_candidate",research_complete:true,evidence_references:["official-contact-and-attributable-listing-search"],source_type:"business-controlled sources",identity_method:"exact business identity",fit_rationale:"Completed research produced no independently verifiable address candidate"};
+
 describe("SAB master bounded and truncated evidence", () => {
   it("accepts one bounded near-edge point with a complete empty margin", () => {
     expect(analyzeSabScanPolicy({ stage: "master", grid: grid(), cells: [cell(2, 2, 12)] })).toMatchObject({ action: "plan_deliverable", rule_ids: ["S01"], center_source: "master_centroid" });
   });
+  it("requires corroboration before unresolved auxiliaries, while an approved bounded source needs no address research",()=>{
+    const input={stage:"master" as const,grid:grid(),cells:[cell(1,4,12)]};
+    expect(analyzeSabScanPolicy(input).action).toBe("address_corroboration_required");
+    for(const status of ["incomplete","technical_failure"] as const) {
+      expect(analyzeSabScanPolicy({...input,addressCorroboration:{...researchedNoCandidate,status}}).action).toBe("address_corroboration_incomplete");
+    }
+    const rejected={...researchedNoCandidate,status:"rejected" as const};
+    expect(analyzeSabScanPolicy({stage:"master",grid:grid(),cells:[cell(2,2,12)],addressCorroboration:rejected})).toMatchObject({action:"plan_deliverable",proposed_center:{latitude:cell(2,2,12).latitude,longitude:cell(2,2,12).longitude}});
+  });
   it("retains a routine fine scan for disconnected sparse interior evidence", () => {
-    const nearby = analyzeSabScanPolicy({stage:"master",grid:grid(),cells:[cell(4,3,12),cell(4,5,12)]});
+    const nearby = analyzeSabScanPolicy({stage:"master",addressCorroboration:researchedNoCandidate,grid:grid(),cells:[cell(4,3,12),cell(4,5,12)]});
     expect(nearby).toMatchObject({action:"plan_auxiliary",center_source:"master_centroid",evidence:{auxiliary_scan_spec:{scan_type:"fine",grid_size:7,radius:1.5,measurement:"mi"},remaining_islands_require_exception:false}});
     expect(nearby.proposed_center!.longitude).toBeCloseTo(0);
-    const distant = analyzeSabScanPolicy({stage:"master",grid:grid(),cells:[cell(2,2,9),cell(6,6,12)]});
+    const distant = analyzeSabScanPolicy({stage:"master",addressCorroboration:researchedNoCandidate,grid:grid(),cells:[cell(2,2,9),cell(6,6,12)]});
     expect(distant).toMatchObject({action:"plan_auxiliary",evidence:{remaining_islands_require_exception:true}});
     expect(distant.proposed_center).toEqual({latitude:cell(2,2,9).latitude,longitude:cell(2,2,9).longitude});
   });
   it("normalizes adjacent-edge ties to a three-mile diagonal", () => {
-    const result = analyzeSabScanPolicy({ stage: "master", grid: grid(), cells: [cell(1, 4, 2), cell(4, 7, 2)] });
+    const result = analyzeSabScanPolicy({ stage: "master", addressCorroboration:researchedNoCandidate, grid: grid(), cells: [cell(1, 4, 2), cell(4, 7, 2)] });
     expect(result).toMatchObject({ action: "plan_auxiliary", center_source: "master_edge_offset" });
     const point = result.proposed_center!;
     const anchor = (result.evidence.master as { offset_anchor: { latitude: number; longitude: number } }).offset_anchor;
@@ -30,7 +42,7 @@ describe("SAB master bounded and truncated evidence", () => {
     expect(miles).toBeLessThan(4);
   });
   it("anchors an offset at the evidence centroid, not the old master center", () => {
-    const result = analyzeSabScanPolicy({ stage: "master", grid: grid(), cells: [cell(1, 1, 2)] });
+    const result = analyzeSabScanPolicy({ stage: "master", addressCorroboration:researchedNoCandidate, grid: grid(), cells: [cell(1, 1, 2)] });
     expect(result.proposed_center!.latitude).toBeGreaterThan(cell(1, 1, 2).latitude);
     expect(result.proposed_center!.longitude).toBeLessThan(cell(1, 1, 2).longitude);
     expect(result.evidence.master).toMatchObject({ selected_edges: ["north", "west"], offset_anchor: { latitude: cell(1, 1, 2).latitude, longitude: cell(1, 1, 2).longitude } });
@@ -126,6 +138,11 @@ describe("SAB coherent margin and saturation precedence", () => {
 });
 
 describe("SAB strict canonical comparison", () => {
+  it("classifies a non-excluded five-mile variation for comparison even when it has no pins or its best pin is on the boundary",()=>{
+    for(const cells of [[],[cell(1,4,1,7,5),cell(4,4,9,7,5)]]) {
+      expect(analyzeSabScanPolicy({stage:"deliverable",grid:grid(7,5),cells,rawArp:6,solv:5,testingPolicyActive:true})).toMatchObject({action:"comparison_ready",rule_ids:["S08"],proposed_center:grid(7,5).center});
+    }
+  });
   it.each([
     [6, 19, 5], [5, 19, 3], [6, 20, 3], [4, 19, 3], [6, 21, 3],
   ])("selects 5mi only with increased raw ARP and decreased SoLV (%s,%s)", (rawArp, solv, expected) => {
@@ -197,7 +214,7 @@ describe("SAB provisional exact-specification testing exclusions", () => {
   });
   it("uses rawARP rather than ATRP for exclusion", () => {
     const result = analyzeSabScanPolicy({ stage: "deliverable", grid: grid(7, 5), cells: field(() => 2, 7, 5), rawArp: 3.1, atrp: 1, solv: 100, testingPolicyActive: true });
-    expect(result.action).toBe("center_validated");
+    expect(result.action).toBe("comparison_ready");
     expect(result.evidence.exclusion).toMatchObject({ qualifies: false });
   });
   it("keeps a displaced dominant peak visible without adding a fourth exclusion condition or validating a center", () => {

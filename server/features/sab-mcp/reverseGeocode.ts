@@ -1,6 +1,10 @@
 const GOOGLE_GEOCODING_API_URL =
   "https://maps.googleapis.com/maps/api/geocode/json";
 const GOOGLE_GEOCODING_TIMEOUT_MS = 15_000;
+const GOOGLE_GEOCODING_STATUSES = new Set([
+  "OK", "ZERO_RESULTS", "OVER_DAILY_LIMIT", "OVER_QUERY_LIMIT",
+  "REQUEST_DENIED", "INVALID_REQUEST", "UNKNOWN_ERROR",
+]);
 
 type FetchLike = typeof fetch;
 
@@ -26,7 +30,6 @@ type GoogleGeocodingResult = {
 };
 
 type GoogleGeocodingResponse = {
-  error_message?: unknown;
   results?: unknown;
   status?: unknown;
 };
@@ -48,7 +51,8 @@ export type SabReverseGeocodeResult = {
   state: string | null;
   zip: string | null;
   county: string | null;
-  formatted_address: string | null;
+  // Retained for response compatibility; street-level address text is private.
+  formatted_address: null;
   geocoder_place_id: string | null;
   geocoder_latitude: number | null;
   geocoder_longitude: number | null;
@@ -98,7 +102,9 @@ function cleanTypes(value: unknown) {
 
 function addressComponents(result: GoogleGeocodingResult) {
   return Array.isArray(result.address_components)
-    ? result.address_components as GoogleAddressComponent[]
+    ? result.address_components.filter((entry) =>
+      entry !== null && typeof entry === "object" && !Array.isArray(entry)
+    ) as GoogleAddressComponent[]
     : [];
 }
 
@@ -226,10 +232,30 @@ async function reverseGeocodeOne(
     );
   }
 
-  const payload = await response.json() as GoogleGeocodingResponse;
-  const googleStatus = cleanString(payload.status) ?? "UNKNOWN";
+  let payload: GoogleGeocodingResponse;
+  try {
+    const parsed: unknown = await response.json();
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      throw new Error("Invalid geocoder response");
+    }
+    payload = parsed as GoogleGeocodingResponse;
+  } catch {
+    return errorResult(
+      center,
+      "INVALID_RESPONSE",
+      "Google reverse-geocoding returned an unreadable response.",
+    );
+  }
+  // Provider diagnostics can echo request data. Return only known status codes
+  // and connector-owned messages, never provider bodies or exception text.
+  const rawStatus = cleanString(payload.status);
+  const googleStatus = rawStatus && GOOGLE_GEOCODING_STATUSES.has(rawStatus)
+    ? rawStatus
+    : "UNKNOWN";
   const results = Array.isArray(payload.results)
-    ? payload.results as GoogleGeocodingResult[]
+    ? payload.results.filter((entry) =>
+      entry !== null && typeof entry === "object" && !Array.isArray(entry)
+    ) as GoogleGeocodingResult[]
     : [];
   const bestResult = selectBestResult(results);
 
@@ -237,8 +263,7 @@ async function reverseGeocodeOne(
     return errorResult(
       center,
       googleStatus,
-      cleanString(payload.error_message) ??
-        "Google did not return a reverse-geocoding result for this coordinate.",
+      "Google did not return a usable reverse-geocoding result for this coordinate.",
     );
   }
 
@@ -263,7 +288,7 @@ async function reverseGeocodeOne(
     state,
     zip,
     county: addressComponent(bestResult, "administrative_area_level_2"),
-    formatted_address: cleanString(bestResult.formatted_address),
+    formatted_address: null,
     geocoder_place_id: cleanString(bestResult.place_id),
     geocoder_latitude: resultLatitude,
     geocoder_longitude: resultLongitude,

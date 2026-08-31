@@ -152,6 +152,58 @@ function valuesForHeaders(headers: readonly string[], rows: string[][]) {
 }
 
 describe("SabSheetsRepository", () => {
+  it("protects corroboration evidence and technical holds from generic writes while permitting verified resolution", async () => {
+    const source_report_key = "abcdef123456", evidence_hash = "a".repeat(64);
+    const failure = { source_report_key, evidence_hash, status: "technical_failure" as const,
+      research_complete: true, evidence_references: ["https://example.com/contact"], source_type: "company website",
+      identity_method: "exact verified business phone", fit_rationale: "Geocoder unavailable" };
+    const decision = { source_report_key, evidence_hash, rule_id: "S01", centering_status: "failed" as const,
+      routine_recenter_count: 0, address_corroboration: failure, evidence: { next_action: "address_corroboration_incomplete" } };
+    const { repository } = buildRepository([row({ status: "blocked", blocker: "address_corroboration_incomplete", decision_state: JSON.stringify(decision) })]);
+    for (const patch of [
+      { status: "in_progress" }, { blocker: null }, { decision_state: { ...decision, address_corroboration: undefined } },
+      { decision_state: { ...decision, address_corroboration: { ...failure, status: "no_candidate" } } },
+      { decision_state: { ...decision, centering_status: "planned", proposed_center: "35,-80", evidence: { next_action: "plan_auxiliary" } } },
+    ]) await expect(repository.saveCompany("place-1", sabCompanyUpdatesSchema.parse(patch), "worker@example.com")).rejects.toThrow(/corroboration/);
+    await expect(repository.saveCompany("place-1", { phone: "7045550111", decision_state: decision }, "worker@example.com")).resolves.toMatchObject({ status: "blocked" });
+    await expect(repository.saveCompany("place-1", { decision_state: { ...decision, address_corroboration: { ...failure, status: "no_candidate" } } }, "actor@example.com", { corroborationRecorded: true })).rejects.toThrow(/technical failure/);
+    const accepted = { ...failure, status: "accepted" as const, candidate_coordinates: { latitude: 35, longitude: -80 },
+      geocoder: { location_type: "ROOFTOP", partial_match: false }, distances_miles: { weighted_centroid: 1, nearest_ranked_cell: 0.5, best_rank_cluster_centroid: 1 } };
+    await repository.saveCompany("place-1", { decision_state: { ...decision, address_corroboration: accepted } }, "actor@example.com", { corroborationRecorded: true });
+    await repository.saveCompany("place-1", { status: "in_progress", blocker: null, decision_state: { ...decision,
+      address_corroboration: accepted, centering_status: "planned", proposed_center: "35,-80", evidence: { next_action: "plan_deliverable" } } }, "actor@example.com", { corroborationAnalysisVerified: true });
+    expect(await repository.getCompany("place-1")).toMatchObject({ status: "in_progress", blocker: "", decision_state: { address_corroboration: accepted } });
+  });
+
+  it("allows only verified analysis to invalidate stale corroboration and never invent a replacement", async () => {
+    const base = { source_report_key: "abcdef123456", evidence_hash: "a".repeat(64), rule_id: "S01", centering_status: "failed" as const, routine_recenter_count: 0,
+      evidence: { next_action: "address_corroboration_incomplete" } };
+    const address_corroboration = { source_report_key: base.source_report_key, evidence_hash: base.evidence_hash, status: "incomplete" as const,
+      research_complete: true, evidence_references: ["https://example.com/contact"], source_type: "website", identity_method: "phone", fit_rationale: "Partial geocode" };
+    const { repository } = buildRepository([row({ status: "blocked", blocker: "address_corroboration_incomplete", decision_state: JSON.stringify({ ...base, address_corroboration }) })]);
+    await expect(repository.saveCompany("place-1", { decision_state: base }, "actor@example.com", { corroborationAnalysisVerified: true })).rejects.toThrow(/invalidate/);
+    await expect(repository.saveCompany("place-1", { decision_state: { ...base, address_corroboration, evidence: { next_action: "plan_auxiliary" } } }, "actor@example.com", { corroborationAnalysisVerified: true })).rejects.toThrow(/paid auxiliary/);
+    const changed = { ...base, evidence_hash: "b".repeat(64), evidence: { next_action: "address_corroboration_required" } };
+    await repository.saveCompany("place-1", { decision_state: changed }, "actor@example.com", { corroborationAnalysisVerified: true });
+    expect((await repository.getCompany("place-1")).decision_state).not.toHaveProperty("address_corroboration");
+    await expect(repository.saveCompany("place-1", { decision_state: { ...changed, address_corroboration: { ...address_corroboration, evidence_hash: changed.evidence_hash } } }, "actor@example.com"))
+      .rejects.toThrow(/dedicated corroboration/);
+  });
+
+  it("round-trips compact enrichment and warns about phone conflicts without overwriting the selected contact", async () => {
+    const { repository } = buildRepository([row({ phone: "7045550111" })]);
+    const business_profile = { source: "dataforseo_my_business_info_live", place_id: "place-1", phone: "7045550222",
+      primary_category: "Plumber", categories: [{ name: "Plumber", id: "plumber" }], service_names: ["Drain repair"], is_claimed: false };
+    const receipt = await repository.saveCompany("place-1", sabCompanyUpdatesSchema.parse({ business_profile }), "actor@example.com");
+    expect(receipt.business_profile_review_required).toEqual([expect.stringMatching(/phone conflicts/)]);
+    expect(await repository.getCompany("place-1")).toMatchObject({ phone: "7045550111", business_profile });
+    await expect(repository.saveCompany("place-1", sabCompanyUpdatesSchema.parse({ business_profile: { ...business_profile, place_id: "wrong" } }), "actor@example.com"))
+      .rejects.toThrow(/Place ID/);
+    const resolved = await repository.saveCompany("place-1", sabCompanyUpdatesSchema.parse({ business_profile: { ...business_profile,
+      phone_resolution: { selected_phone: "7045550111", evidence_references: ["https://example.com/contact"] } } }), "actor@example.com");
+    expect(resolved.business_profile_review_required).toEqual([]);
+  });
+
   it("accepts ranked-peak centers across both writers and workflow row validation", () => {
     const pair = { scan_center: "34.998114639235,-80.561507914342", center_type: "ranked_peak_recentered" };
     expect(sabCompanyUpdatesSchema.parse(pair)).toEqual(pair);

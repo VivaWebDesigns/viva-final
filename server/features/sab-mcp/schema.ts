@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { SCALE_FIRST_CONTACT_TAGS, SCALE_FIRST_WORKFLOW } from "@shared/sabCrm";
+import { sabAddressCorroborationSchema } from "./addressCorroboration";
+import { SCALE_FIRST_CONTACT_TAGS, SCALE_FIRST_WORKFLOW, sabBusinessProfileSchema } from "@shared/sabCrm";
 
 export const SAB_STATUSES = [
   "assigned",
@@ -81,12 +82,13 @@ export const SAB_HEADERS = [
   "qualification_reason",
   "eligibility_state",
   "scan_spec",
+  "business_profile",
 ] as const;
 
 export type SabHeader = (typeof SAB_HEADERS)[number];
 export type SabRow = Record<SabHeader, string>;
 export const SAB_LEGACY_REQUIRED_HEADERS = SAB_HEADERS.filter(
-  (header) => !["scan_history", "workflow", "contact_tag", "outcome", "market_reference", "decision_state", "qualification_reason", "eligibility_state", "scan_spec"].includes(header),
+  (header) => !["scan_history", "workflow", "contact_tag", "outcome", "market_reference", "decision_state", "qualification_reason", "eligibility_state", "scan_spec", "business_profile"].includes(header),
 );
 // Backward-compatible alias for existing connector consumers.
 export const SAB_REQUIRED_HEADERS = SAB_LEGACY_REQUIRED_HEADERS;
@@ -99,6 +101,7 @@ export const SAB_SCALE_FIRST_UPGRADEABLE_HEADERS = [
   "qualification_reason",
   "eligibility_state",
   "scan_spec",
+  "business_profile",
 ] as const satisfies readonly SabHeader[];
 
 const nullableString = z.string().trim().max(20_000).nullable();
@@ -200,6 +203,7 @@ export const sabDecisionStateSchema = z.object({
   outcome: z.enum(["deliverable", "no_visibility_core_found", "existing_visibility_too_strong", "deferred"]).optional(),
   routine_recenter_count: z.number().int().min(0).default(0),
   exclusion_review: sabExclusionReviewSchema.optional(),
+  address_corroboration: sabAddressCorroborationSchema.optional(),
   evidence: z.record(z.unknown()).optional(),
 }).strict().superRefine((state, context) => {
   const review=state.exclusion_review;
@@ -238,6 +242,7 @@ export const sabEligibilityStateSchema = z.object({
 }).strict();
 
 const structuredCompanyFields = {
+  business_profile: sabBusinessProfileSchema.nullable().optional().describe("Compact exact-Place-ID DataForSEO enrichment history. Preserve returned categories, services, is_claimed and phone; never include a hidden street address. Provider coordinates are not a validated scan center. Resolve source-phone conflicts with explicit phone_resolution evidence; profile prose never establishes eligibility."),
   outcome: z.enum(["deliverable", "no_visibility_core_found"]).nullable().optional(),
   market_reference: sabMarketReferenceSchema.nullable().optional(),
   decision_state: sabDecisionStateSchema.nullable().optional(),

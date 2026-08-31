@@ -48,6 +48,17 @@ function build(rows: Row[]) {
 }
 
 describe("one consolidated SAB run manifest", () => {
+  it("exports structured compact enrichment for both outcomes while preserving contact conflict gates", async () => {
+    const rows = [deliverable(), crmOnly()].map(row => ({ ...row, business_profile: {
+      source: "dataforseo_my_business_info_live", place_id: row.place_id, phone: "704-555-0111",
+      primary_category: "Plumber", categories: [{ name: "Plumber", id: "plumber" }], service_names: ["Drain repair"], is_claimed: false,
+    } }));
+    const manifest = JSON.parse((await build(rows)).manifest_json);
+    expect(manifest.prospects.map((prospect: any) => prospect.business_profile)).toEqual(rows.map(row => row.business_profile));
+    await expect(build([{ ...rows[0], phone: "7045550999" }])).rejects.toThrow(/phone conflicts/);
+    await expect(build([{ ...rows[0], business_profile: { ...rows[0].business_profile, place_id: "wrong" } }])).rejects.toThrow(/Place ID/);
+  });
+
   it("omits pending exclusions even when an alternate repository returns them as qualified final rows", async () => {
     const pending = deliverable({place_id:"pending-exclusion",status:"qa_ready",decision_state:{
       ...(deliverable().decision_state as object),

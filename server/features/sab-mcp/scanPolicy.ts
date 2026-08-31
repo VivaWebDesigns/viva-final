@@ -1,4 +1,5 @@
 import type { SabRankedCell } from "./localFalconRankedCells";
+import type { SabAddressCorroboration } from "./addressCorroboration";
 
 export type SabCoordinate = { latitude: number; longitude: number };
 export type SabScanGrid = {
@@ -18,17 +19,19 @@ export type SabScanPolicyInput = {
   routineRecenterCount?: number;
   additionalRecenterApproved?: boolean;
   testingPolicyActive?: boolean;
+  addressCorroboration?: SabAddressCorroboration;
 };
 export type SabScanDecision = {
   rule_ids: string[];
   action: "plan_deliverable" | "plan_auxiliary" | "no_visibility_core_found" |
     "high_visibility_excluded" | "high_visibility_exclusion_pending_review" | "same_center_five_mile_comparison" |
     "recenter" | "additional_recenter_exception_required" | "center_validated" |
-    "policy_review_required" | "evidence_review_required";
+    "policy_review_required" | "evidence_review_required" | "comparison_ready" |
+    "address_corroboration_required" | "address_corroboration_incomplete";
   reason: string;
   proposed_center: SabCoordinate | null;
   center_source: "master_centroid" | "master_edge_offset" | "auxiliary_centroid" |
-    "ranked_peak_recentered" | null;
+    "ranked_peak_recentered" | "corroborated_address" | null;
   evidence: Record<string, unknown>;
 };
 
@@ -317,7 +320,13 @@ export function analyzeSabScanPolicy(input: SabScanPolicyInput): SabScanDecision
   if (input.stage === "master") {
     const master = summarizeSabMasterEvidence(cells, grid.size, grid.center);
     evidence.master = master;
+    const corroboration = input.addressCorroboration;
+    if (corroboration?.status === "accepted" && corroboration.candidate_coordinates) return decision("plan_deliverable", ["S01"], "An independently identified address was evaluated against the complete exact ranked distribution and accepted with its measured geographic fit.", corroboration.candidate_coordinates, "corroborated_address");
     if (master?.baseline_centroid_trustworthy) return decision("plan_deliverable", ["S01"], "A coherent interior footprint has a complete empty outer margin; pin count and edge proximity do not require a scout.", centroid(cells), "master_centroid");
+    if (master && (master.proposed_offset_center || (!master.edge_flagged && cells.length > 1 && cells.length < 5))) {
+      if (corroboration?.status === "incomplete" || corroboration?.status === "technical_failure") return decision("address_corroboration_incomplete", ["S01"], "Address evaluation is incomplete or failed technically. Hold this company; this is not failed corroboration and never authorizes a paid auxiliary.");
+      if (!corroboration || !["no_candidate", "rejected"].includes(corroboration.status) || (corroboration.status === "no_candidate" && !corroboration.research_complete)) return decision("address_corroboration_required", ["S01"], "The initial center is unresolved. Complete address corroboration before proposing an auxiliary; record an evaluated rejection or evidenced completed research with no candidate.");
+    }
     if (master?.proposed_offset_center) return decision("plan_auxiliary", ["S01"], "Actual outer-boundary evidence is truncated; use the server-calculated normalized three-mile offset.", master.proposed_offset_center, "master_edge_offset");
     if (master && !master.edge_flagged && cells.length > 1 && cells.length < 5) {
       const spread = Math.max(...cells.flatMap(a => cells.map(b => distance(a,b))));
@@ -345,6 +354,12 @@ export function analyzeSabScanPolicy(input: SabScanPolicyInput): SabScanDecision
   if (input.stage === "auxiliary") {
     if (!cells.length) return decision("no_visibility_core_found", ["S03"], "A completed valid auxiliary has zero exact rank 1–20 pins; use the CRM-only market-reference path.");
     return decision("plan_deliverable", ["S03", "S04"], "At least one exact rank 1–20 pin confirms visibility. Scout boundary occupation does not veto the peak-first deliverable.", peak!.target, peak!.targeting_method !== "whole_field_centroid" ? "ranked_peak_recentered" : "auxiliary_centroid");
+  }
+  // A five-mile comparison never revalidates or recenters the accepted
+  // three-mile center. The orchestrator separately verifies that prerequisite.
+  if (fiveMileSpec) {
+    if (exclusionQualifies && !testingPolicyActive) return decision("policy_review_required", ["S09"], "The five-mile scan meets the exclusion definition approved for testing only; do not silently apply or discard that policy outside testing.");
+    return decision("comparison_ready", ["S08"], "The same-center five-mile variation is ready for strict raw-ARP/SoLV canonical comparison. Preserve the three-mile center validation; this variation is not a centering test.", grid.center);
   }
   if (!cells.length) return decision("evidence_review_required", ["S05"], "A deliverable without exact top20 pins cannot establish a validated visibility center; reconcile with auxiliary evidence.");
   // S06 precedes S05/S07: saturation alone must not consume a recenter.

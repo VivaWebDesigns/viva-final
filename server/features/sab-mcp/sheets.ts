@@ -19,6 +19,8 @@ import {
   SAB_ADDRESS_LABEL,
   SCALE_FIRST_CONTACT_TAGS,
   SCALE_FIRST_WORKFLOW,
+  sabBusinessProfileSchema,
+  sabBusinessProfileIssues,
 } from "@shared/sabCrm";
 import type { VerifiedSabScanHistoryRepair } from "./scanHistoryReconciliation";
 import type { SabRunState } from "./runState";
@@ -41,6 +43,7 @@ const JSON_HEADERS = new Set<SabHeader>([
   "decision_state",
   "eligibility_state",
   "scan_spec",
+  "business_profile",
 ]);
 const BOOLEAN_HEADERS = new Set<SabHeader>(["has_website"]);
 
@@ -536,6 +539,7 @@ function publicRow(row: SabRow) {
     eligibility_state: parseJsonValue(row.eligibility_state),
     market_reference: parseJsonValue(row.market_reference),
     scan_spec: parseJsonValue(row.scan_spec),
+    business_profile: parseJsonValue(row.business_profile),
     has_website: row.has_website
       ? row.has_website.trim().toLowerCase() === "true"
       : null,
@@ -888,7 +892,7 @@ export class SabSheetsRepository {
     placeId: string,
     updates: SabCompanyUpdates,
     actorEmail: string,
-    options: {exclusionReviewApproved?: boolean} = {},
+    options: {exclusionReviewApproved?: boolean; corroborationRecorded?: boolean; corroborationAnalysisVerified?: boolean} = {},
   ) {
     const { headerIndex, rows } = await this.readTable();
     const match = rows.find(({ row }) => row.place_id === placeId);
@@ -905,7 +909,43 @@ export class SabSheetsRepository {
     } as SabRow;
 
     const priorDecision = parseJsonValue(match.row.decision_state);
+    const profile = merged.business_profile.trim() ? sabBusinessProfileSchema.parse(parseJsonValue(merged.business_profile)) : null;
+    if (profile && profile.place_id !== placeId) throw new Error("business_profile Place ID must exactly match the workflow row");
     const nextDecision = parseJsonValue(merged.decision_state);
+    const previousState = priorDecision as Record<string, any> | null;
+    const nextState = nextDecision as Record<string, any> | null;
+    const priorCorroboration = previousState?.address_corroboration ?? null;
+    const nextCorroboration = nextState?.address_corroboration ?? null;
+    const corroborationChanged = JSON.stringify(priorCorroboration) !== JSON.stringify(nextCorroboration);
+    const technicalHold = ["incomplete", "technical_failure"].includes(priorCorroboration?.status);
+    const corroborationHold = technicalHold || ["address_corroboration_required", "address_corroboration_incomplete"].includes(match.row.blocker) ||
+      ["address_corroboration_required", "address_corroboration_incomplete"].includes(previousState?.evidence?.next_action);
+    if (options.corroborationRecorded) {
+      const recorded = sabDecisionStateSchema.safeParse(nextDecision);
+      if (!recorded.success || !recorded.data.address_corroboration ||
+          recorded.data.source_report_key !== previousState?.source_report_key || recorded.data.evidence_hash !== previousState?.evidence_hash ||
+          recorded.data.address_corroboration.source_report_key !== recorded.data.source_report_key ||
+          recorded.data.address_corroboration.evidence_hash !== recorded.data.evidence_hash ||
+          (technicalHold && recorded.data.address_corroboration.status === "no_candidate")) {
+        throw new Error("Recorded corroboration must match the current exact evidence; a technical failure cannot be relabelled as no candidate");
+      }
+    } else if (options.corroborationAnalysisVerified) {
+      // Verified analysis can drop stale evidence, but cannot fabricate or
+      // relabel a geographic-fit result in place of the private evaluator.
+      const sourceChanged = previousState?.source_report_key !== nextState?.source_report_key || previousState?.evidence_hash !== nextState?.evidence_hash;
+      if (corroborationChanged && !(priorCorroboration && !nextCorroboration && sourceChanged)) {
+        throw new Error("Verified analysis may only preserve corroboration or invalidate it after changed source evidence");
+      }
+      if (technicalHold && !sourceChanged && nextState?.evidence?.next_action === "plan_auxiliary") {
+        throw new Error("Incomplete address evaluation cannot become paid auxiliary permission");
+      }
+    } else {
+      if (corroborationChanged) throw new Error("Only the dedicated corroboration tool may create, replace or remove address corroboration evidence");
+      if (corroborationHold && (JSON.stringify(priorDecision) !== JSON.stringify(nextDecision) ||
+          merged.status !== match.row.status || merged.blocker !== match.row.blocker)) {
+        throw new Error("Address corroboration hold requires verified evaluation or source analysis; generic writes cannot release its status, blocker or decision");
+      }
+    }
     const priorReview = (priorDecision as {exclusion_review?: unknown} | null)?.exclusion_review;
     const nextReview = (nextDecision as {exclusion_review?: {status?: unknown}} | null)?.exclusion_review;
     const priorPending = hasSabExclusionReviewHold(priorDecision);
@@ -1009,6 +1049,7 @@ export class SabSheetsRepository {
       status: updates.status ?? match.row.status,
       updated_at: timestamp,
       updated_fields: Object.keys(updates),
+      ...(profile ? { business_profile_review_required: sabBusinessProfileIssues(profile, placeId, merged.phone) } : {}),
     };
   }
 
@@ -1631,6 +1672,11 @@ export class SabSheetsRepository {
     }
 
     if (!sabEligibilityStateSchema.safeParse(parseJsonValue(row.eligibility_state)).success) missing.push("eligibility_state (verified general eligibility and contacts required)");
+    if (row.business_profile.trim()) {
+      const profile = sabBusinessProfileSchema.safeParse(parseJsonValue(row.business_profile));
+      if (!profile.success) missing.push("business_profile (invalid compact enrichment)");
+      else missing.push(...sabBusinessProfileIssues(profile.data, row.place_id, row.phone));
+    }
     if (row.qualification_status !== "qualified") {
       missing.push("qualification_status (must be qualified)");
     }

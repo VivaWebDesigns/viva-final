@@ -7,6 +7,7 @@ import {
   crmContacts,
   crmLeadTags,
   crmLeads,
+  crmLeadNotes,
   crmLeadStatuses,
   crmTags,
   localFalconImportBatches,
@@ -26,6 +27,9 @@ import {
   CRM_ONLY_LOCAL_FALCON_SOURCE,
   SCALE_FIRST_CONTACT_TAGS,
   SCALE_FIRST_WORKFLOW,
+  sabBusinessProfileSchema,
+  sabBusinessProfileIssues,
+  type SabBusinessProfile,
   type ScaleFirstContactTag,
 } from "@shared/sabCrm";
 
@@ -116,6 +120,7 @@ export function googleMapsUrlFromPlaceId(placeId: string): string {
 }
 
 const scaleFirstProspectBaseSchema = z.object({
+  business_profile: sabBusinessProfileSchema.nullable().optional(),
   place_id: z.string().trim().min(1),
   company_name: z.string().trim().min(1),
   address: z.literal(SAB_ADDRESS_LABEL),
@@ -180,6 +185,11 @@ const scaleFirstProspectSchema = z.preprocess(
     noVisibilityProspectSchema,
   ]),
 ).superRefine((value, ctx) => {
+  if (value.business_profile) {
+    for (const message of sabBusinessProfileIssues(value.business_profile, value.place_id, value.phone)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["business_profile"], message });
+    }
+  }
   if (value.outcome === NO_VISIBILITY_OUTCOME
     && (value.city !== value.market_reference.city || value.state !== value.market_reference.state || value.zip !== value.market_reference.zip)) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["market_reference"], message: "CRM-only city/state/zip must match the explicitly labelled market reference, not an asserted business center" });
@@ -865,6 +875,24 @@ export async function importLocalFalconPayload(
         });
       }
 
+      if ("business_profile" in prospect && prospect.business_profile) {
+        // Structured import provenance only. Run qualification and scan decisions
+        // remain in their dedicated state; note wording never establishes them.
+        await tx.insert(crmLeadNotes).values({
+          leadId: lead.id,
+          userId: importedBy,
+          type: "system",
+          content: "Compact business enrichment retained with this confirmed import.",
+          metadata: {
+            kind: "sab_business_profile",
+            version: 1,
+            place_id: prospect.place_id,
+            batch_id: payload.batch.batch_id,
+            business_profile: prospect.business_profile,
+          },
+        });
+      }
+
       results.push({
         prospectOutcome: isNoVisibilityProspect(prospect) ? NO_VISIBILITY_OUTCOME : "deliverable",
         leadId: lead.id,
@@ -901,11 +929,26 @@ export async function getLocalFalconProfileForLead(leadId: string) {
     .where(eq(localFalconProspectProfiles.leadId, leadId))
     .orderBy(desc(localFalconProspectProfiles.scanDate))
     .limit(1);
-  return result ?? null;
+  return result ? { ...result, businessProfile: await getSabBusinessProfileForLead(leadId, result.profile.placeId) } : null;
+}
+
+/** Typed enrichment history for both report-bearing and CRM-only exact Place IDs. */
+export async function getSabBusinessProfileForLead(leadId: string, placeId: string): Promise<SabBusinessProfile | null> {
+  const entries = await db.select({ metadata: crmLeadNotes.metadata }).from(crmLeadNotes)
+    .where(and(eq(crmLeadNotes.leadId, leadId), sql`${crmLeadNotes.metadata}->>'kind' = 'sab_business_profile'`,
+      sql`${crmLeadNotes.metadata}->>'place_id' = ${placeId}`))
+    .orderBy(desc(crmLeadNotes.createdAt));
+  for (const entry of entries) {
+    const metadata = entry.metadata as { version?: unknown; business_profile?: unknown } | null;
+    if (metadata?.version !== 1) continue;
+    const parsed = sabBusinessProfileSchema.safeParse(metadata.business_profile);
+    if (parsed.success && parsed.data.place_id === placeId) return parsed.data;
+  }
+  return null;
 }
 
 export async function getLocalFalconCrmOnlyForLead(leadId: string) {
   const [record] = await db.select().from(localFalconCrmOnlyProspects)
     .where(eq(localFalconCrmOnlyProspects.leadId, leadId)).limit(1);
-  return record ?? null;
+  return record ? { ...record, businessProfile: await getSabBusinessProfileForLead(leadId, record.placeId) } : null;
 }

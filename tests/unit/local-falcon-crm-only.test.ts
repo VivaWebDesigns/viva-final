@@ -6,6 +6,7 @@ import { db } from "../../server/db";
 import {
   getScaleFirstContactRouting, importLocalFalconPayload, isDeliverableProspect,
   parseLocalFalconPayload, previewLocalFalconImport,
+  getSabBusinessProfileForLead,
   type LocalFalconUploadedAsset,
 } from "../../server/features/crm/localFalconImport";
 import { parseLocalFalconPackage } from "../../server/features/crm/localFalconPackage";
@@ -157,6 +158,42 @@ describe("CRM-only no-visibility contract and package", () => {
 });
 
 describe("CRM-only persistence and exact deduplication", () => {
+  it("preserves compact enrichment as retrievable typed import history for both outcomes without creating extra reports", async () => {
+    const businessProfile = (place_id: string) => ({
+      source: "dataforseo_my_business_info_live", place_id, phone: "704-555-0123", cid: "123456",
+      primary_category: "Plumber", categories: [{ name: "Plumber", id: "plumber" }],
+      service_count: 22, service_names: ["Drain repair"], omitted_service_count: 21,
+      description: "Repairs residential plumbing", is_claimed: false, place_topics: ["drains"],
+    });
+    const prospects = [crmOnly, deliverable].map(prospect => ({ ...prospect, phone: "7045550123", business_profile: businessProfile(prospect.place_id) }));
+    const result = await importLocalFalconPayload(parse(prospects), "actor", "setter", "sab", new Set(), new Map([[deliverable.place_id, asset]]));
+    expect(records.crm_lead_notes).toHaveLength(2);
+    for (const [index, prospect] of prospects.entries()) {
+      expect(records.crm_lead_notes[index]).toMatchObject({ leadId: result.importedLeads[index].leadId, type: "system",
+        metadata: { kind: "sab_business_profile", version: 1, place_id: prospect.place_id, batch_id: "test-batch", business_profile: prospect.business_profile } });
+      expect(await getSabBusinessProfileForLead(result.importedLeads[index].leadId, prospect.place_id)).toEqual(prospect.business_profile);
+      expect(records.crm_companies[index].phone).toBe("7045550123");
+    }
+    expect(await getSabBusinessProfileForLead(result.importedLeads[0].leadId, "different-exact-place-id")).toBeNull();
+    expect(records.local_falcon_prospect_profiles).toHaveLength(1);
+    expect(records.local_falcon_crm_only_prospects).toHaveLength(1);
+    await expect(importLocalFalconPayload(parse(prospects), "actor", "setter", "sab", new Set(), new Map([[deliverable.place_id, asset]])))
+      .rejects.toThrow(/No new leads or reports/);
+    expect(records.crm_lead_notes).toHaveLength(2); // Retrying an imported batch does not duplicate provenance.
+  });
+
+  it("rejects mismatched enrichment identities and unresolved source-phone conflicts without replacing verified contact", () => {
+    const profile = { source: "dataforseo_my_business_info_live", place_id: crmOnly.place_id, phone: "7045550123" };
+    expect(() => parse([{ ...crmOnly, phone: "7045550111", business_profile: profile }])).toThrow(/phone conflicts/);
+    expect(() => parse([{ ...crmOnly, business_profile: profile }])).toThrow(/returned provider phone/);
+    expect(() => parse([{ ...crmOnly, phone: profile.phone, business_profile: { ...profile, place_id: "wrong-place" } }])).toThrow(/Place ID/);
+    expect(() => parse([{ ...crmOnly, phone: profile.phone, business_profile: { ...profile, raw_address: "private" } }])).toThrow();
+    const resolved = parse([{ ...crmOnly, phone: "7045550111", business_profile: { ...profile,
+      phone_resolution: { selected_phone: "704-555-0111", evidence_references: ["https://example.com/contact"] } } }]);
+    expect(resolved.prospects[0]).toMatchObject({ phone: "7045550111", business_profile: { phone: "7045550123" } });
+    expect(parse().prospects[0]).not.toHaveProperty("business_profile"); // Older manifests remain accepted.
+  });
+
   it("imports a mixed batch with just one real report and no fabricated business location", async () => {
     const result = await importLocalFalconPayload(parse([crmOnly, deliverable]), "actor", "setter", "sab", new Set(), new Map([[deliverable.place_id, asset]]));
     expect(result).toMatchObject({ imported: 2, leadsCreated: 2 });

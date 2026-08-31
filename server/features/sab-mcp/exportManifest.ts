@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { SAB_ADDRESS_LABEL, SCALE_FIRST_WORKFLOW, NO_VISIBILITY_OUTCOME } from "@shared/sabCrm";
+import { SAB_ADDRESS_LABEL, SCALE_FIRST_WORKFLOW, NO_VISIBILITY_OUTCOME, sabBusinessProfileSchema, sabBusinessProfileIssues } from "@shared/sabCrm";
 import { parseLocalFalconPayload, sabMarketReferenceSchema } from "../crm/localFalconImport";
 import { sabDecisionStateSchema, sabEffectiveScanSpecSchema, sabEligibilityStateSchema, hasSabExclusionReviewHold } from "./schema";
 import type { SabSheetsRepository } from "./sheets";
@@ -31,6 +31,11 @@ function exportProspect(row: ExportCandidate) {
   if (!sabEligibilityStateSchema.safeParse(row.eligibility_state).success) throw new Error(`Record verified eligibility_state and contact evidence for ${row.place_id} before export`);
   if (row.address !== SAB_ADDRESS_LABEL) throw new Error(`SAB address privacy must be verified before export: ${row.place_id}`);
   if (typeof row.has_website !== "boolean") throw new Error(`Record verified has_website for ${row.place_id} before export`);
+  const profile = present(row.business_profile) ? sabBusinessProfileSchema.parse(row.business_profile) : undefined;
+  if (profile) {
+    const issues = sabBusinessProfileIssues(profile, row.place_id, row.phone);
+    if (issues.length) throw new Error(issues.join("; "));
+  }
   const common = {
     place_id: row.place_id,
     company_name: row.company,
@@ -50,6 +55,7 @@ function exportProspect(row: ExportCandidate) {
     rating: row.rating,
     review_count: row.review_count,
     qualification_status: "qualified",
+    ...(profile ? { business_profile: profile } : {}),
   };
   const state = sabDecisionStateSchema.safeParse(row.decision_state);
   if (!state.success) throw new Error(`Record valid structured decision_state for ${row.place_id} before export`);

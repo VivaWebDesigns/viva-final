@@ -91,7 +91,7 @@ export function createSabMcpServer(
 ) {
   const server = new McpServer({
     name: "viva-sab-workflow",
-    version: "2.0.0",
+    version: "2.1.0",
   });
 
   server.registerTool(
@@ -203,7 +203,7 @@ export function createSabMcpServer(
     "analyze_sab_master_centers",
     sabTool({
       description:
-        "Compute compact SOP centering diagnostics server-side for selected Place IDs in a completed master report: 1/rank centroid, ranked-cell count and hash, row/column spread, actual boundary truncation versus bounded interior sources, deterministic clusters, peak diagnostics and normalized adjacent-edge offsets. Omits raw ranked cells and never runs a scan. Use get_sab_ranked_cells only for an exception or targeted verification.",
+        "Compute compact SOP centering diagnostics server-side for selected Place IDs in a completed master report: 1/rank centroid, ranked-cell count and hash, row/column spread, actual boundary truncation versus bounded interior sources, deterministic clusters, peak diagnostics and normalized adjacent-edge offsets. Reconcile every requested Place ID against found and missing IDs before planning; missing identity or incomplete extraction holds the affected company and cannot justify a paid auxiliary. Omits raw ranked cells and never runs a scan. Use get_sab_ranked_cells only for an exception or targeted verification.",
       inputSchema: analyzeSabMasterCentersInputSchema,
     }),
     async ({ report_key, place_ids }) => {
@@ -217,7 +217,7 @@ export function createSabMcpServer(
     "evaluate_sab_address_candidate",
     sabTool({
       description:
-        "Privately evaluate one independently discovered address candidate against the exact ranked-cell geometry for the same Place ID in a completed Local Falcon report. Geocodes the candidate in memory and returns only coordinates, geocoder precision, ranked-cell checksum, and measured distances to the weighted centroid, nearest ranked cell, and best-rank cluster centroid. The raw address and raw cell array are never returned, logged, or persisted; this tool makes no final SOP fit decision, runs no scan, and performs no write.",
+        "Privately evaluate one independently discovered address candidate against the exact ranked-cell geometry for the same Place ID in a completed Local Falcon report. Geocodes the candidate in memory and returns only coordinates, geocoder precision, ranked-cell checksum, and measured distances to the weighted centroid, nearest ranked cell, and best-rank cluster centroid. Address corroboration is required before an auxiliary for an unreliable initial center unless an approved centering rule already resolves it. An unavailable tool, partial geocode, missing Place ID, or unresolved evidence holds the affected company; it is not failed corroboration and does not authorize a paid auxiliary. The raw address and raw cell array are never returned, logged, or persisted; this tool makes no final SOP fit decision, runs no scan, and performs no write. For an authoritative disposition use record_sab_address_corroboration, which performs this evaluation and stores safe structured state; a read-only evaluation alone does not release an auxiliary hold.",
       inputSchema: evaluateSabAddressCandidateInputSchema,
     }),
     async ({ report_key, place_id, address_candidate }) => {
@@ -249,7 +249,7 @@ export function createSabMcpServer(
     "reverse_geocode_sab_centers",
     sabTool({
       description:
-        "Reverse-geocode exact final SAB scan-center coordinates through the Google Maps Geocoding API. Returns city, state, ZIP, source metadata, and per-coordinate completeness without writing to the Workflow Sheet. Use this for SOP section 11; never substitute nearby-business searches or inferred ZIP centroids.",
+        "Reverse-geocode exact validated deliverable-center coordinates, or exact auxiliary-center coordinates for a no-visibility CRM-only record labelled market_reference_only, through the Google Maps Geocoding API. Returns city, state, ZIP, geocoder precision, and per-coordinate completeness without writing to the Workflow Sheet. Suppresses formatted street addresses and provider error text. Only complete results may establish market geography; incomplete or failed results hold the affected record. An auxiliary market reference never becomes a validated business center. Never substitute nearby-business searches or inferred ZIP centroids.",
       inputSchema: reverseGeocodeSabCentersInputSchema,
     }),
     async ({ centers }) => {

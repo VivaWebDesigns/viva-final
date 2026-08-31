@@ -104,7 +104,7 @@ describe("SAB exact-coordinate reverse geocoding", () => {
         state: "NC",
         zip: "28277",
         county: "Mecklenburg County",
-        formatted_address: "Charlotte, NC 28277, USA",
+        formatted_address: null,
         google_status: "OK",
         error: null,
       }],
@@ -143,6 +143,51 @@ describe("SAB exact-coordinate reverse geocoding", () => {
       state: "NC",
       zip: "28277",
     });
+  });
+
+  it("withholds street addresses while retaining exact-coordinate market and precision evidence", async () => {
+    const privateAddress = "914 Private Test Lane, Charlotte, NC 28277";
+    const baseResult = googleResult();
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
+      status: "OK",
+      results: [googleResult({
+        formatted_address: privateAddress,
+        address_components: [
+          ...baseResult.address_components,
+          { long_name: "914", short_name: "914", types: ["street_number"] },
+          { long_name: "Private Test Lane", short_name: "Private Test Ln", types: ["route"] },
+        ],
+        geometry: {
+          location: { lat: 35.01847, lng: -80.80001 },
+          location_type: "ROOFTOP",
+        },
+        types: ["street_address"],
+      })],
+    })));
+
+    const result = await reverseGeocodeSabCenters([{
+      place_id: "ChIJ-company",
+      latitude: 35.018472,
+      longitude: -80.8,
+    }], {
+      apiKey: "test-key",
+      fetchImpl: fetchImpl as typeof fetch,
+    });
+
+    expect(result.results[0]).toMatchObject({
+      status: "complete",
+      city: "Charlotte",
+      state: "NC",
+      zip: "28277",
+      formatted_address: null,
+      geocoder_latitude: 35.01847,
+      geocoder_longitude: -80.80001,
+      location_type: "ROOFTOP",
+      result_types: ["street_address"],
+    });
+    expect(result.results[0].geocoder_distance_meters).toBeLessThan(5);
+    expect(JSON.stringify(result)).not.toContain("Private Test");
+    expect(JSON.stringify(result)).not.toContain("914");
   });
 
   it("returns an incomplete result instead of inventing a missing city or ZIP", async () => {
@@ -229,6 +274,59 @@ describe("SAB exact-coordinate reverse geocoding", () => {
       google_status: "NETWORK_ERROR",
       error: "Google reverse-geocoding request could not be completed.",
     });
+    expect(JSON.stringify(result)).not.toContain("secret-key");
+  });
+
+  it.each(["REQUEST_DENIED", "914 Private Test Lane; key=secret-key"])(
+    "does not expose provider error messages or unrecognized status text (%s)",
+    async (status) => {
+      const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
+        status,
+        error_message: "Rejected 914 Private Test Lane for key=secret-key",
+        results: [],
+      })));
+      const result = await reverseGeocodeSabCenters([{
+        place_id: "ChIJ-company",
+        latitude: 35.018472,
+        longitude: -80.8,
+      }], {
+        apiKey: "secret-key",
+        fetchImpl: fetchImpl as typeof fetch,
+      });
+
+      expect(result.results[0]).toMatchObject({
+        status: "error",
+        google_status: status === "REQUEST_DENIED" ? status : "UNKNOWN",
+        formatted_address: null,
+      });
+      expect(JSON.stringify(result)).not.toContain("Private Test Lane");
+      expect(JSON.stringify(result)).not.toContain("secret-key");
+    },
+  );
+
+  it("isolates an unreadable provider response without exposing its body or blocking other coordinates", async () => {
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce(new Response("914 Private Test Lane; key=secret-key"))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ status: "OK", results: [googleResult()] })));
+
+    const result = await reverseGeocodeSabCenters([
+      { place_id: "ChIJ-unreadable", latitude: 35.018472, longitude: -80.8 },
+      { place_id: "ChIJ-complete", latitude: 35.018472, longitude: -80.8 },
+    ], {
+      apiKey: "secret-key",
+      fetchImpl: fetchImpl as typeof fetch,
+    });
+
+    expect(result).toMatchObject({
+      requested_count: 2,
+      complete_count: 1,
+      error_count: 1,
+      results: [
+        { place_id: "ChIJ-unreadable", status: "error", google_status: "INVALID_RESPONSE" },
+        { place_id: "ChIJ-complete", status: "complete" },
+      ],
+    });
+    expect(JSON.stringify(result)).not.toContain("Private Test Lane");
     expect(JSON.stringify(result)).not.toContain("secret-key");
   });
 });
