@@ -48,6 +48,18 @@ function build(rows: Row[]) {
 }
 
 describe("one consolidated SAB run manifest", () => {
+  it("omits pending exclusions even when an alternate repository returns them as qualified final rows", async () => {
+    const pending = deliverable({place_id:"pending-exclusion",status:"qa_ready",decision_state:{
+      ...(deliverable().decision_state as object),
+      evidence:{next_action:"high_visibility_exclusion_pending_review"},
+      exclusion_review:{status:"pending",report_key:key,evidence_hash:"a".repeat(64)},
+    }});
+    const result=await build([deliverable(),pending]);
+    expect(result).toMatchObject({eligible_count:1,exported_count:1,from_qa_ready:0});
+    expect(JSON.parse(result.manifest_json).prospects.map((row:any)=>row.place_id)).toEqual(["ChIJ-deliverable"]);
+    await expect(build([pending])).rejects.toThrow(/No eligible/);
+  });
+
   it("exports all complete and qa_ready rows across execution batches into exactly one mixed batch.json", async () => {
     const rows = [deliverable(), crmOnly(), deliverable({ batch_id: "B04", place_id: "ChIJ-another", report_key: "abcdef123456787",
       decision_state: { ...(deliverable().decision_state as object), source_report_key: "abcdef123456787" },

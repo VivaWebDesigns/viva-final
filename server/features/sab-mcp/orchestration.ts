@@ -30,7 +30,7 @@ function reportUrl(report: RankedReport) {
   return report.public_url;
 }
 function evidenceHash(report: RankedReport) {
-  return createHash("sha256").update(JSON.stringify({report_key: report.report_key, grid: report.grid, cells: report.businesses[0].ranked_cells, arp: report.arp, atrp: report.atrp, solv: report.solv})).digest("hex");
+  return createHash("sha256").update(JSON.stringify({report_key: report.report_key, grid: report.grid, cells: report.businesses[0].all_point_rank_cells ?? report.businesses[0].ranked_cells, arp: report.arp, atrp: report.atrp, solv: report.solv})).digest("hex");
 }
 const centerText = (center: { latitude: number; longitude: number }) => `${center.latitude},${center.longitude}`;
 function sameCenter(value: unknown, center: { latitude: number; longitude: number }) {
@@ -117,11 +117,23 @@ export async function analyzeAndRecordSabReport(repository: SabSheetsRepository,
   const row = await repository.getCompany(input.place_id);
   const previous = decisionState(row);
   const recenters = submitted.filter(scan => scan.plan.scan_type === "recenter").length;
-  // Numeric saturation policy is still pending approval. No caller boolean or
-  // research-note language can turn a proposed general rule into live policy.
-  const decision = analyzeSabScanPolicy({stage: input.stage, cells: report.businesses[0].ranked_cells, grid: report.grid,
-    rawArp: report.arp, solv: report.solv, routineRecenterCount: recenters, saturationPolicyApproved: false});
+  // Matt approved these definitions for testing only. Structured run state,
+  // never a caller flag or research note, controls their scope.
+  const decision = analyzeSabScanPolicy({stage: input.stage, cells: report.businesses[0].all_point_rank_cells ?? report.businesses[0].ranked_cells, grid: report.grid,
+    rawArp: report.arp, atrp: report.atrp, solv: report.solv, routineRecenterCount: recenters, testingPolicyActive: state.testing_mode});
   const hash = evidenceHash(report);
+  // Policy classification is not approval to finalize an exclusion.
+  if (decision.action === "high_visibility_excluded") {
+    decision.action = "high_visibility_exclusion_pending_review";
+    decision.evidence.exclusion = {...(decision.evidence.exclusion as Record<string,unknown>),final_disposition:false,requires_matt_review:true};
+  }
+  const pendingExclusion = decision.action === "high_visibility_exclusion_pending_review";
+  if (previous?.exclusion_review?.status === "approved" && previous.source_report_key === report.report_key && previous.evidence_hash === hash) {
+    return {report_key: report.report_key, report_url: reportUrl(report), place_id: input.place_id,
+      scan_specification: `${report.grid.size}×${report.grid.size}/${report.grid.radius} ${report.grid.measurement}`,
+      raw_arp: report.arp, all_point_atrp: report.atrp, solv: report.solv, ...decision,
+      evidence: previous.evidence ?? decision.evidence, action: "high_visibility_excluded" as const, reason: "Matt approved this exact report's exclusion at its completed batch checkpoint.", evidence_hash: hash};
+  }
   const noVisibility = decision.action === "no_visibility_core_found";
   const validated = ["center_validated", "same_center_five_mile_comparison"].includes(decision.action);
   let centerType: typeof SAB_CENTER_TYPES[number] | undefined;
@@ -138,6 +150,7 @@ export async function analyzeAndRecordSabReport(repository: SabSheetsRepository,
   const updates: SabCompanyUpdates = {decision_state: {
     source_report_key: report.report_key, rule_id: decision.rule_ids.join(","), evidence_hash: hash,
     centering_status: noVisibility ? "market_reference_only" : validated ? "validated" : center ? "planned" : "failed",
+    ...(pendingExclusion ? {exclusion_review: {status: "pending" as const, report_key: report.report_key, evidence_hash: hash}} : {}),
     routine_recenter_count: recenters, ...(center && centerType ? { proposed_center: center, center_type: centerType } : {}),
     ...(noVisibility ? { outcome: "no_visibility_core_found" as const } : validated ? { outcome: "deliverable" as const } : {}),
     evidence: {...decision.evidence, next_action: decision.action, reason: decision.reason, grid: report.grid},
@@ -156,7 +169,7 @@ export async function analyzeAndRecordSabReport(repository: SabSheetsRepository,
       market_reference: {kind: "market_reference_only", source: "auxiliary_scan_reverse_geocode", ...report.grid.center,
         city: market.city, state: market.state, zip: market.zip, auxiliary_report_key: report.report_key, auxiliary_report_url: reportUrl(report)}});
   }
-  if (decision.action === "high_visibility_excluded") Object.assign(updates, {qualification_status: "disqualified", qualification_reason: "existing_visibility_too_strong", status: "complete"});
+  if (pendingExclusion) Object.assign(updates, {status: "blocked", blocker: "high_visibility_exclusion_pending_matt_review"});
   // An additional recenter is an exception hold, not a change to eligibility.
   if (decision.action === "additional_recenter_exception_required") Object.assign(updates, {blocker: "additional_recenter_requires_explicit_exception"});
   if (ownedScan) {
@@ -199,7 +212,7 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
   add("analyze_sab_scan","Read exact completed report cells server-side, apply SOP decision precedence and persist structured decision evidence. Returns compact evidence only, not raw cells. Does not authorize or launch scans.",{
     ...run,report_key:z.string().regex(/^[a-f0-9]{12,64}$/i),place_id:z.string().min(1),stage:z.enum(["master","auxiliary","deliverable"]),
   },async args=>inSabRunStateQueue(async()=>analyzeAndRecordSabReport(factory(args.workflow_sheet,args.sheet_name),args,actorEmail)));
-  add("review_sab_completed_batch","Verify every submitted report and return the required testing-review table. When complete, STOP: no next scan batch until Matt explicitly approves it. This is a human review handoff, not a separate supervisor.",run,async args=>inSabRunStateQueue(async()=>{
+  add("review_sab_completed_batch","Verify every submitted report and return the required testing-review table. Show report URLs, measured values, classifications and next steps. STOP until Matt approves further scans or each proposed exclusion. This is a human review handoff, not a separate supervisor.",run,async args=>inSabRunStateQueue(async()=>{
     const repo=factory(args.workflow_sheet,args.sheet_name),state=await requireRun(repo,args.run_id),batch=state.batches.at(-1);
     if(!batch) throw new Error("No submitted scan batch");
     const table=[];
@@ -217,11 +230,38 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
       const row=await repo.getCompany(scan.plan.place_id);
       if (decisionState(row)?.evidence_hash !== decision.evidence_hash || decisionState(row)?.source_report_key !== scan.report_key) throw new Error("Critical stage readback did not retain the verified decision evidence");
       table.push({company:row.company,report_url:reportUrl(reports[index]),scan_specification:decision.scan_specification,
-        result:decision.action,proposed_next_step_and_reason:decision.reason,sop_rule:decision.rule_ids.join(", ")});
+        result:{classification:decision.action,measured_values:{
+          exact_top20_count:decision.evidence.exact_top20_count,point_count:decision.evidence.point_count,
+          top20_coverage:decision.evidence.coverage,raw_arp:decision.raw_arp,all_point_atrp:decision.all_point_atrp,solv:decision.solv,
+          saturation:decision.evidence.saturation ?? null,centering:decision.evidence.peak ?? null,exclusion:decision.evidence.exclusion ?? null,
+        }},proposed_next_step_and_reason:decision.reason,sop_rule:decision.rule_ids.join(", ")});
     }
     const next=completeSabRunReports(state,batch.scans.map(s=>s.report_key!));await repo.saveRunState(next,state.version,actorEmail);
     return {table,testing_mode:next.testing_mode,stop_before_further_scans:next.testing_mode,matt_review_required:next.testing_mode,
-      review_instruction:"If Matt disagrees, distinguish an agent execution error from a flawed general SOP rule. Never promote a case-specific ruling into policy."};
+      exclusion_approval_required:table.some(row=>row.result.classification === "high_visibility_exclusion_pending_review"),
+      review_instruction:"Wait for Matt before further scans or finalizing exclusions. If Matt disagrees, distinguish an agent execution error from a flawed general SOP rule. Never promote a case-specific ruling into policy."};
+  }));
+  add("approve_sab_exclusion","Finalize only Matt's explicitly approved exclusion from a completed batch checkpoint. Bind approval to exact Place ID, report and evidence hash; this never approves further scans or changes general policy.",{
+    ...run,orchestrator_id:z.string().min(1),place_id:z.string().min(1),report_key:z.string().regex(/^[a-f0-9]{12,64}$/i),
+    evidence_hash:z.string().regex(/^[a-f0-9]{64}$/i),approval:matt,
+  },async args=>inSabRunStateQueue(async()=>{
+    const repo=factory(args.workflow_sheet,args.sheet_name),state=await requireRun(repo,args.run_id);
+    if(args.orchestrator_id!==state.orchestrator_id) throw new Error("Only this run's orchestrator may record Matt's exclusion approval");
+    const row=await repo.getCompany(args.place_id),decision=decisionState(row);
+    const scans=state.batches.flatMap(batch=>batch.scans).filter(scan=>scan.plan.place_id===args.place_id && scan.submission_status==="submitted");
+    const scan=scans.at(-1);
+    if(!scan?.completion_verified || scan.report_key!==args.report_key) throw new Error("Complete the latest scan's batch checkpoint before approving its exclusion");
+    if(!decision || decision.source_report_key!==args.report_key || decision.evidence_hash!==args.evidence_hash ||
+       !decision.exclusion_review || decision.exclusion_review.report_key!==args.report_key || decision.exclusion_review.evidence_hash!==args.evidence_hash) throw new Error("Exclusion approval must match the current report and evidence hash");
+    if(decision.exclusion_review.status==="approved") return {place_id:args.place_id,report_key:args.report_key,exclusion_finalized:true,already_approved:true,paid_scans_submitted:0};
+    if(decision.exclusion_review.status!=="pending" || decision.evidence?.next_action!=="high_visibility_exclusion_pending_review") throw new Error("No matching pending exclusion exists");
+    await repo.saveCompany(args.place_id,{decision_state:{...decision,outcome:"existing_visibility_too_strong",
+      exclusion_review:{status:"approved",report_key:args.report_key,evidence_hash:args.evidence_hash,...args.approval},
+      evidence:{...decision.evidence,next_action:"high_visibility_excluded",exclusion:{...(decision.evidence?.exclusion as Record<string,unknown> ?? {}),final_disposition:true,requires_matt_review:false}}},qualification_status:"disqualified",
+      qualification_reason:"existing_visibility_too_strong",status:"complete",blocker:null},actorEmail,{exclusionReviewApproved:true});
+    const verified=decisionState(await repo.getCompany(args.place_id));
+    if(verified?.exclusion_review?.status!=="approved" || verified.evidence_hash!==args.evidence_hash) throw new Error("Exclusion approval readback failed; reconcile before continuing");
+    return {place_id:args.place_id,report_key:args.report_key,exclusion_finalized:true,paid_scans_submitted:0,next_batch_still_requires_approval:state.testing_mode};
   }));
   add("end_sab_testing_mode","End testing review pauses only on Matt's explicit instruction. Run budgets, exact plans, exceptions and final CRM confirmation remain mandatory.",{
     ...run,approval:matt,

@@ -324,7 +324,7 @@ export function createSabMcpServer(
     "save_sab_company",
     sabTool({
       description:
-        "Persist one exact Place-ID record and return an ordinary write receipt. Structured eligibility_state, decision_state, qualification_reason and outcome are authoritative; research_notes are history only. Planned centers require matching structured evidence and do not establish a report or spending authorization. Scale-First requires no website/review audits or sales priority. Qualified complete and qa_ready records must satisfy the full deliverable or CRM-only contract; deferred/disqualified closure requires a structured reason. Read back once at the critical stage end.",
+        "Persist one exact Place-ID record and return an ordinary write receipt. Structured eligibility_state, decision_state, qualification_reason and outcome are authoritative; research_notes are history only. Planned centers require matching structured evidence and do not establish a report or spending authorization. Scale-First requires no website/review audits or sales priority. Qualified complete and qa_ready records must satisfy the full deliverable or CRM-only contract; deferred/disqualified closure requires a structured reason; a proposed high-visibility exclusion remains blocked until approve_sab_exclusion records Matt’s approval of its exact evidence. Read back once at the critical stage end.",
       inputSchema: saveSabCompanyInputSchema,
     }),
     async ({ workflow_sheet, sheet_name, place_id, updates }) => {

@@ -8,6 +8,7 @@ import {
   sabEligibilityStateSchema,
   sabEffectiveScanSpecSchema,
   sabMarketReferenceSchema,
+  hasSabExclusionReviewHold,
   type SabCompanyUpdates,
   type SabHeader,
   type SabRow,
@@ -872,7 +873,8 @@ export class SabSheetsRepository {
   async getExportCandidates() {
     const {rows} = await this.readTable();
     const eligible = rows.filter(({row}) => row.workflow === SCALE_FIRST_WORKFLOW &&
-      row.qualification_status === "qualified" && ["complete", "qa_ready"].includes(row.status));
+      row.qualification_status === "qualified" && ["complete", "qa_ready"].includes(row.status) &&
+      !hasSabExclusionReviewHold(parseJsonValue(row.decision_state)));
     const ids = new Set<string>();
     for (const {row} of eligible) {
       if (ids.has(row.place_id)) throw new Error("Duplicate Place ID in qualified export population");
@@ -886,6 +888,7 @@ export class SabSheetsRepository {
     placeId: string,
     updates: SabCompanyUpdates,
     actorEmail: string,
+    options: {exclusionReviewApproved?: boolean} = {},
   ) {
     const { headerIndex, rows } = await this.readTable();
     const match = rows.find(({ row }) => row.place_id === placeId);
@@ -900,6 +903,52 @@ export class SabSheetsRepository {
         ]),
       ),
     } as SabRow;
+
+    const priorDecision = parseJsonValue(match.row.decision_state);
+    const nextDecision = parseJsonValue(merged.decision_state);
+    const priorReview = (priorDecision as {exclusion_review?: unknown} | null)?.exclusion_review;
+    const nextReview = (nextDecision as {exclusion_review?: {status?: unknown}} | null)?.exclusion_review;
+    const priorPending = hasSabExclusionReviewHold(priorDecision);
+    const nextPending = hasSabExclusionReviewHold(nextDecision);
+    if (options.exclusionReviewApproved) {
+      const previous = sabDecisionStateSchema.safeParse(priorDecision);
+      const approved = sabDecisionStateSchema.safeParse(nextDecision);
+      if (!previous.success || previous.data.exclusion_review?.status !== "pending" || !approved.success ||
+          approved.data.exclusion_review?.status !== "approved" ||
+          approved.data.source_report_key !== previous.data.source_report_key || approved.data.evidence_hash !== previous.data.evidence_hash ||
+          merged.qualification_status !== "disqualified" || merged.qualification_reason !== "existing_visibility_too_strong" || merged.status !== "complete" ||
+          approved.data.evidence?.next_action !== "high_visibility_excluded") {
+        throw new Error("Explicit exclusion approval must finalize the existing pending report and evidence with Matt's reference; stale or unrelated approval is not valid");
+      }
+    } else {
+      if (nextReview?.status === "approved" && JSON.stringify(nextReview) !== JSON.stringify(priorReview)) {
+        throw new Error("Only the explicit Matt exclusion-review tool may record an approved exclusion");
+      }
+      if (priorPending) {
+        if (JSON.stringify(priorDecision) !== JSON.stringify(nextDecision) || merged.status !== "blocked" ||
+            merged.qualification_status !== match.row.qualification_status || merged.qualification_reason !== match.row.qualification_reason ||
+            merged.outcome !== match.row.outcome) {
+          throw new Error("Pending high-visibility exclusion requires Matt review; generic writes cannot replace the decision, change disposition, or release its blocked status");
+        }
+      }
+      if (nextPending) {
+        const pending = sabDecisionStateSchema.safeParse(nextDecision);
+        if (!pending.success || pending.data.exclusion_review?.status !== "pending" || merged.status !== "blocked" || merged.qualification_status === "disqualified") {
+          throw new Error("A pending high-visibility exclusion must retain matching structured evidence and blocked status without final disqualification");
+        }
+      }
+      if (priorReview && (priorReview as {status?:unknown}).status === "approved" && JSON.stringify(priorDecision) !== JSON.stringify(nextDecision)) {
+        throw new Error("Generic writes cannot replace approved exclusion evidence or its review reference");
+      }
+    }
+    const finalHighVisibility = merged.qualification_reason === "existing_visibility_too_strong" &&
+      (merged.qualification_status === "disqualified" || COMPLETE_STATUSES.has(merged.status));
+    if (finalHighVisibility) {
+      const approved = sabDecisionStateSchema.safeParse(nextDecision);
+      if (!approved.success || approved.data.exclusion_review?.status !== "approved") {
+        throw new Error("Final high-visibility disqualification requires Matt's explicit approval bound to the current report and evidence");
+      }
+    }
 
     if (updates.scan_center && updates.center_type) {
       const state = sabDecisionStateSchema.safeParse(parseJsonValue(merged.decision_state));

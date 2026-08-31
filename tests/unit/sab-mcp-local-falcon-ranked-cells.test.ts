@@ -131,7 +131,7 @@ describe("SAB Local Falcon ranked-cell extraction", () => {
     expect(fetchImpl.mock.calls.some(([url]) =>
       String(url).includes("/reports/report-123/")
     )).toBe(true);
-    expect(result.businesses).toEqual([{
+    expect(result.businesses).toMatchObject([{
       place_id: "ChIJ-two",
       name: "Two Roofing",
       ranked_cell_count: 1,
@@ -151,6 +151,16 @@ describe("SAB Local Falcon ranked-cell extraction", () => {
     const ranks = [1, "20", 21, "21", "20+", 0, -1, 4.5];
     const payload = { ...competitorPayload, data: { ...competitorPayload.data, businesses: [{ place_id: "exact", data_points: ranks.map((rank, i) => ({ ...gridPoints[i], rank })) }] } };
     expect(extractSabRankedCells(payload, gridPayload, "report-123", ["exact"]).businesses[0]).toMatchObject({ ranked_cell_count: 2, imprecise_or_unranked_cell_count: 6 });
+  });
+
+  it("preserves numeric above20 observations for complete all-point medians without adding them to centering", () => {
+    const data_points = [{ ...gridPoints[0], rank: 3 }, { ...gridPoints[1], rank: 47 }, { ...gridPoints[2], rank: "32" }, { ...gridPoints[3], rank: "20+" }, { ...gridPoints[4], rank: false }];
+    const payload = { ...competitorPayload, data: { ...competitorPayload.data, businesses: [{ place_id: "exact", data_points }] } };
+    const result = extractSabRankedCells(payload, gridPayload, "report-123", ["exact"]).businesses[0];
+    expect(result.ranked_cells).toHaveLength(1);
+    expect(result.ranked_cells[0].rank).toBe(3);
+    expect(result.all_point_rank_cells).toHaveLength(9);
+    expect(result.all_point_rank_cells.map(point => point.rank)).toEqual([3, 47, 32, 21, 21, 21, 21, 21, 21]);
   });
 
   it("returns only a provider-supplied secure public report URL", () => {

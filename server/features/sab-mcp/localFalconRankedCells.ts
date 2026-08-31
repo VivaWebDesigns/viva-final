@@ -126,6 +126,7 @@ export type SabRankedCellsResult = {
     ranked_cell_count: number;
     imprecise_or_unranked_cell_count: number;
     ranked_cells: SabRankedCell[];
+    all_point_rank_cells: SabRankedCell[];
   }>;
 };
 
@@ -306,38 +307,24 @@ export function extractSabRankedCells(
     }
 
     let impreciseOrUnrankedCellCount = 0;
-    const seenRankedPositions = new Set<string>();
-    const rankedCells = business.data_points.flatMap(
-      (point: LocalFalconDataPoint) => {
-        const rank = normalizedLocalFalconRank(point?.rank);
-        if (typeof rank !== "number" || !Number.isInteger(rank) || rank < 1 || rank > 20) {
-          impreciseOrUnrankedCellCount += 1;
-          return [];
-        }
-        const latitude = requiredNumber(
-          point?.lat,
-          `ranked-cell latitude for ${placeId}`,
-        );
-        const longitude = requiredNumber(
-          point?.lng,
-          `ranked-cell longitude for ${placeId}`,
-        );
-        const row = nearestAxisIndex(latitude, axes.latitudes) + 1;
-        const column = nearestAxisIndex(longitude, axes.longitudes) + 1;
-        const position = `${row}:${column}`;
-        if (seenRankedPositions.has(position)) throw new Error(`Duplicate ranked scan position for ${placeId}.`);
-        seenRankedPositions.add(position);
-        return [
-          {
-            row,
-            column,
-            latitude,
-            longitude,
-            rank,
-          },
-        ];
-      },
-    );
+    const observations = new Map<string, SabRankedCell>();
+    for (const point of business.data_points as LocalFalconDataPoint[]) {
+      const value = normalizedLocalFalconRank(point?.rank);
+      const exactTop20 = typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 20;
+      if (!exactTop20) impreciseOrUnrankedCellCount += 1;
+      const latitude = requiredNumber(point?.lat, `ranked-cell latitude for ${placeId}`);
+      const longitude = requiredNumber(point?.lng, `ranked-cell longitude for ${placeId}`);
+      const row = nearestAxisIndex(latitude, axes.latitudes) + 1;
+      const column = nearestAxisIndex(longitude, axes.longitudes) + 1;
+      const position = `${row}:${column}`;
+      if (observations.has(position)) throw new Error(`Duplicate ranked scan position for ${placeId}.`);
+      // Preserve numeric ranks >20 for all-point medians, but never centering.
+      const rank = exactTop20 || (typeof value === "number" && Number.isFinite(value) && value > 20) ? value as number : 21;
+      observations.set(position, { row, column, latitude, longitude, rank });
+    }
+    const allPointRankCells = axes.latitudes.flatMap((latitude, rowIndex) => axes.longitudes.map((longitude, columnIndex) =>
+      observations.get(`${rowIndex + 1}:${columnIndex + 1}`) ?? { row: rowIndex + 1, column: columnIndex + 1, latitude, longitude, rank: 21 }));
+    const rankedCells = allPointRankCells.filter(cell => Number.isInteger(cell.rank) && cell.rank >= 1 && cell.rank <= 20);
 
     return [
       {
@@ -346,6 +333,7 @@ export function extractSabRankedCells(
         ranked_cell_count: rankedCells.length,
         imprecise_or_unranked_cell_count: impreciseOrUnrankedCellCount,
         ranked_cells: rankedCells,
+        all_point_rank_cells: allPointRankCells,
       },
     ];
   });

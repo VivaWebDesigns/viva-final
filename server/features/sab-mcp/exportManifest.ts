@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { SAB_ADDRESS_LABEL, SCALE_FIRST_WORKFLOW, NO_VISIBILITY_OUTCOME } from "@shared/sabCrm";
 import { parseLocalFalconPayload, sabMarketReferenceSchema } from "../crm/localFalconImport";
-import { sabDecisionStateSchema, sabEffectiveScanSpecSchema, sabEligibilityStateSchema } from "./schema";
+import { sabDecisionStateSchema, sabEffectiveScanSpecSchema, sabEligibilityStateSchema, hasSabExclusionReviewHold } from "./schema";
 import type { SabSheetsRepository } from "./sheets";
 
 export type SabExportBatch = {
@@ -24,6 +24,7 @@ function requiredMetric(value: unknown, field: string, placeId: string): number 
 }
 
 function exportProspect(row: ExportCandidate) {
+  if (hasSabExclusionReviewHold(row.decision_state)) throw new Error(`Pending high-visibility exclusion review cannot be exported: ${row.place_id}`);
   if (row.workflow !== SCALE_FIRST_WORKFLOW || row.qualification_status !== "qualified" || !["complete", "qa_ready"].includes(row.status)) {
     throw new Error(`Ineligible row returned in qualified export population: ${row.place_id}`);
   }
@@ -98,7 +99,9 @@ export async function buildSabRunManifest(
   repository: Pick<SabSheetsRepository, "getExportCandidates">,
   batch: SabExportBatch,
 ) {
-  const rows = await repository.getExportCandidates();
+  // Defense in depth: a hand-edited disposition or alternate repository must
+  // not turn an unresolved exclusion into an outreach-ready prospect.
+  const rows = (await repository.getExportCandidates()).filter(row => !hasSabExclusionReviewHold(row.decision_state));
   if (!rows.length) throw new Error("No eligible qualified complete or qa_ready leads to export");
   const manifest = parseLocalFalconPayload(JSON.stringify({
     workflow: SCALE_FIRST_WORKFLOW,

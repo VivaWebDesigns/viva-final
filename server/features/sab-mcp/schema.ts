@@ -168,6 +168,28 @@ const workflowSheetInputSchema = {
   sheet_name: workflowSheetTab,
 };
 
+export const sabExclusionReviewSchema = z.object({
+  status: z.enum(["pending", "approved"]),
+  report_key: sabReportKey,
+  evidence_hash: z.string().regex(/^[a-f0-9]{64}$/i),
+  approval_reference: z.string().trim().min(1).max(2000).optional(),
+  approved_by: z.literal("Matt").optional(),
+}).strict().superRefine((review, context) => {
+  if (review.status === "approved" && (!review.approval_reference || review.approved_by !== "Matt")) {
+    context.addIssue({code:z.ZodIssueCode.custom,path:["approval_reference"],message:"An exclusion requires Matt's explicit approval reference"});
+  }
+  if (review.status === "pending" && (review.approval_reference !== undefined || review.approved_by !== undefined)) {
+    context.addIssue({code:z.ZodIssueCode.custom,path:["status"],message:"A pending exclusion must not imply that Matt has approved it"});
+  }
+});
+
+/** Inspect the hold markers even when a hand-edited sheet has malformed state. */
+export function hasSabExclusionReviewHold(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const state = value as Record<string, any>;
+  return state.exclusion_review?.status === "pending" || state.evidence?.next_action === "high_visibility_exclusion_pending_review";
+}
+
 export const sabDecisionStateSchema = z.object({
   source_report_key: sabReportKey,
   rule_id: z.string().trim().min(1).max(100),
@@ -177,8 +199,20 @@ export const sabDecisionStateSchema = z.object({
   centering_status: z.enum(["planned", "validated", "failed", "market_reference_only"]),
   outcome: z.enum(["deliverable", "no_visibility_core_found", "existing_visibility_too_strong", "deferred"]).optional(),
   routine_recenter_count: z.number().int().min(0).default(0),
+  exclusion_review: sabExclusionReviewSchema.optional(),
   evidence: z.record(z.unknown()).optional(),
-}).strict();
+}).strict().superRefine((state, context) => {
+  const review=state.exclusion_review;
+  if (review && (review.report_key !== state.source_report_key || review.evidence_hash !== state.evidence_hash)) {
+    context.addIssue({code:z.ZodIssueCode.custom,path:["exclusion_review"],message:"Exclusion approval must match this exact source report and evidence hash"});
+  }
+  if (state.evidence?.next_action === "high_visibility_exclusion_pending_review" && review?.status !== "pending") {
+    context.addIssue({code:z.ZodIssueCode.custom,path:["exclusion_review"],message:"A pending exclusion decision requires its matching pending review"});
+  }
+  if ((state.evidence?.next_action === "high_visibility_excluded" || state.outcome === "existing_visibility_too_strong") && review?.status !== "approved") {
+    context.addIssue({code:z.ZodIssueCode.custom,path:["exclusion_review"],message:"A final high-visibility exclusion requires Matt's approved review"});
+  }
+});
 
 export const sabMarketReferenceSchema = z.object({
   kind: z.literal("market_reference_only"),
