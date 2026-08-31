@@ -3,7 +3,9 @@ import multer from "multer";
 import crypto from "node:crypto";
 import sharp from "sharp";
 import { z } from "zod";
-import { eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
+import { REPORT_OUTREACH_TASKS, reportSendBlockedReason } from "@shared/reportOutreach";
+import { getReportOutreachState, getReportOutreachStates } from "./reportOutreach";
 import { requireRole } from "../auth/middleware";
 import { logAudit } from "../audit/service";
 import { notifyLeadAssignment } from "../notifications/triggers";
@@ -45,6 +47,7 @@ import {
 import {
   insertCrmCompanySchema, insertCrmContactSchema, insertCrmLeadSchema,
   insertCrmLeadNoteSchema, insertCrmTagSchema, crmLeads, pipelineOpportunities,
+  followupTasks, scanReportDeliveries,
 } from "@shared/schema";
 import { db } from "../../db";
 import { executeStageAutomations } from "../automations/trigger";
@@ -226,7 +229,12 @@ router.get("/leads", requireRole("admin", "developer", "sales_rep", "lead_gen"),
       page: page ? parseInt(page as string, 10) : undefined,
       limit: limit ? parseInt(limit as string, 10) : undefined,
     });
-    const leads = (await crmStorage.enrichLeads(result.items)).map(l => stripSensitiveLeadFields(l, req));
+    const [outreach, enriched] = await Promise.all([
+      getReportOutreachStates(result.items.map(lead => lead.id)), crmStorage.enrichLeads(result.items),
+    ]);
+    const leads = enriched.map(l => ({
+      ...stripSensitiveLeadFields(l, req), ...outreach.get(l.id),
+    }));
     res.json({ leads, total: result.total, page: result.page, pageSize: result.limit });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
@@ -872,6 +880,23 @@ router.get("/leads/:id", requireRole("admin", "developer", "sales_rep", "lead_ge
   const localFalcon = await getLocalFalconProfileForLead(id);
   const localFalconCrmOnly = await getLocalFalconCrmOnlyForLead(id);
   res.json({ ...stripSensitiveLeadFields(enriched, req), localFalcon, localFalconCrmOnly });
+});
+
+router.get("/leads/:id/report-outreach", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
+  try {
+    const leadId = req.params.id as string;
+    if (!(await assertLeadAccess(req, res, leadId))) return;
+    const state = await getReportOutreachState(leadId);
+    const tasks = await db.select().from(followupTasks).where(and(eq(followupTasks.leadId, leadId),
+      inArray(followupTasks.taskType, [...REPORT_OUTREACH_TASKS]))).orderBy(desc(followupTasks.createdAt));
+    const pending = await db.select({ id: scanReportDeliveries.id }).from(scanReportDeliveries)
+      .where(and(eq(scanReportDeliveries.leadId, leadId), inArray(scanReportDeliveries.status, ["queued", "retrying"])));
+    res.json({ sentCount: state.reportEmailCount, lastSentAt: state.lastReportEmailedAt,
+      disposition: state.reportOutreachDisposition,
+      task: tasks.find(task => !task.completed) ?? (state.reportOutreachDisposition === "no_response" ? tasks[0] : null) ?? null,
+      pending: pending.length > 0,
+      blockedReason: reportSendBlockedReason(state.reportEmailCount, state.reportOutreachDisposition) });
+  } catch (error: any) { res.status(400).json({ message: error.message }); }
 });
 
 router.get("/leads/:id/scan-report-email-preview", requireRole("admin", "developer", "sales_rep"), async (req, res) => {

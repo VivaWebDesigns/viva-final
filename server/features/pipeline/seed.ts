@@ -1,4 +1,6 @@
 import * as pipelineStorage from "./storage";
+import { db } from "../../db";
+import { ensureReportEmailedStage } from "../crm/reportOutreach";
 
 const DEFAULT_STAGES = [
   { name: "New Lead",       slug: "new-lead",       color: "#3B82F6", sortOrder: 0, isDefault: true,  isClosed: false },
@@ -14,5 +16,6 @@ export async function seedPipelineStages() {
   for (const stage of DEFAULT_STAGES) {
     await pipelineStorage.upsertStage(stage);
   }
-  return { count: DEFAULT_STAGES.length };
+  await db.transaction(ensureReportEmailedStage);
+  return { count: DEFAULT_STAGES.length + 1 };
 }

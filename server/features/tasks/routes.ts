@@ -1,9 +1,11 @@
 import { Router } from "express";
 import { z } from "zod";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { requireAuth, requireRole } from "../auth/middleware";
 import { logAudit } from "../audit/service";
 import * as taskStorage from "./storage";
+import { isReportOutreachTask } from "@shared/reportOutreach";
+import { completeReportOutreachTask } from "../crm/reportOutreach";
 import { addLeadNote } from "../crm/storage";
 import { addActivity, bulkAssignOpportunitiesByLeadIds, getStages, moveOpportunity } from "../pipeline/storage";
 import { db } from "../../db";
@@ -129,6 +131,7 @@ router.post("/", requireRole("admin", "developer", "sales_rep"), async (req, res
           .where(and(
             eq(followupTasks.opportunityId, validated.opportunityId),
             eq(followupTasks.completed, false),
+            sql`coalesce(${followupTasks.taskType}, '') not in ('report_email_followup', 'report_email_review')`,
           ))
           .returning({ id: followupTasks.id });
         if (closed.length > 0) {
@@ -199,6 +202,7 @@ const ALLOWED_OUTCOMES = [
   "Interested", "Uncertain", "Not interested",
   "Bad number", "Appointment set",
   "Payment received", "Still waiting", "Won't pay",
+  "No response", "Opted out", "Email bounced",
 ] as const;
 
 const OUTCOME_VALUE_TO_KEY: Record<string, string> = {
@@ -416,6 +420,18 @@ router.put("/:id/complete", requireRole("admin", "developer", "sales_rep"), asyn
     const body = completeTaskSchema.parse(req.body);
     const existingTask = await taskStorage.getTaskById(req.params.id as string);
     if (!existingTask) return res.status(404).json({ message: "Task not found" });
+    if (isReportOutreachTask(existingTask.taskType)) {
+      if (req.authUser?.role === "sales_rep" && existingTask.assignedTo !== req.authUser.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      const completed = await completeReportOutreachTask(existingTask, body ?? {}, req.authUser!.id);
+      await logAudit({ userId: req.authUser!.id, action: "update", entity: "followup_task", entityId: completed.id,
+        metadata: { action: "completed", outcome: body?.outcome }, ipAddress: req.ip });
+      return res.json(completed);
+    }
+    if (["No response", "Opted out", "Email bounced"].includes(body?.outcome ?? "")) {
+      return res.status(400).json({ message: "Use the report outreach task to record this outcome." });
+    }
     if (existingTask.completed) return res.json(existingTask);
 
     const task = await taskStorage.completeTask(req.params.id as string, body ?? undefined);
@@ -573,6 +589,10 @@ router.put("/:id/complete", requireRole("admin", "developer", "sales_rep"), asyn
 router.put("/:id", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
     const validated = updateTaskSchema.parse(req.body);
+    if (validated.completed !== undefined) {
+      const existing = await taskStorage.getTaskById(req.params.id as string);
+      if (isReportOutreachTask(existing?.taskType)) return res.status(400).json({ message: "Use the report outreach outcome form to complete this task." });
+    }
     const data: Record<string, unknown> = { ...validated };
     if (validated.dueDate) data.dueDate = parseDueDate(validated.dueDate);
     if (validated.completed === true) data.completedAt = new Date();

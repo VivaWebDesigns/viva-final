@@ -379,6 +379,7 @@ export const en = {
     dropHere: "Drop here",
     stageNames: {
       "new-lead": "New Lead",
+      "report-emailed": "Report Emailed",
       "contacted": "Contacted",
       "demo-scheduled": "Demo Scheduled",
       "demo-completed": "Demo Completed",
@@ -633,6 +634,9 @@ export const en = {
     preview: "Preview",
     outcomes: {
       noAnswer: "No answer",
+      noResponse: "No response — pause outreach",
+      optedOut: "Opted out — stop emails",
+      emailBounced: "Email bounced — stop emails",
       leftVoicemail: "Left voicemail",
       spokeWithLead: "Spoke with lead",
       hungUp: "Hung up",

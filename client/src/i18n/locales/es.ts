@@ -381,6 +381,7 @@ export const es: AdminTranslations = {
     dropHere: "Soltar aquí",
     stageNames: {
       "new-lead": "Nuevo Prospecto",
+      "report-emailed": "Informe enviado",
       "contacted": "Contactado",
       "demo-scheduled": "Demo Programada",
       "demo-completed": "Demo Completada",
@@ -635,6 +636,9 @@ export const es: AdminTranslations = {
     preview: "Vista previa",
     outcomes: {
       noAnswer: "Sin respuesta",
+      noResponse: "Sin respuesta — pausar contacto",
+      optedOut: "No desea correos — detener envíos",
+      emailBounced: "Correo rebotado — detener envíos",
       leftVoicemail: "Dejó buzón de voz",
       spokeWithLead: "Habló con el prospecto",
       hungUp: "Colgó",

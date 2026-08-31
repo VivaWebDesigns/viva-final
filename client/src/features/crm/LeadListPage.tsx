@@ -30,6 +30,7 @@ import { useAuth } from "@features/auth/useAuth";
 import { cn } from "@/lib/utils";
 import type { CrmLead, CrmLeadStatus, CrmContact, CrmCompany, CrmTag } from "@shared/schema";
 import { formatPhoneDisplay } from "@shared/phone";
+import { REPORT_DISPOSITION_LABELS } from "@shared/reportOutreach";
 import { useAdminLang } from "@/i18n/LanguageContext";
 import RecycledLeadIconStack from "@/components/RecycledLeadIconStack";
 import LeadTagBadges from "@/components/LeadTagBadges";
@@ -37,6 +38,8 @@ import SalesPriorityBadge from "@/components/SalesPriorityBadge";
 import type { SalesPrioritySnapshot } from "@shared/salesPriority";
 
 interface LeadWithRelations extends CrmLead {
+  reportEmailCount?: number;
+  reportOutreachDisposition?: string | null;
   contact?: CrmContact | null;
   company?: CrmCompany | null;
   status?: CrmLeadStatus | null;
@@ -605,6 +608,11 @@ export default function LeadListPage() {
                             )}
                           </div>
                           <div className="flex items-center gap-4 mt-1.5 text-xs text-gray-500 flex-wrap">
+                            {(lead.reportEmailCount ?? 0) > 0 && <span className="text-cyan-700" data-testid={`report-emails-${lead.id}`}>
+                              {(lead.reportEmailCount ?? 0) > 2 ? `${lead.reportEmailCount} historical report emails sent` : `${lead.reportEmailCount} of 2 report emails sent`}
+                              {lead.reportOutreachDisposition && lead.reportOutreachDisposition !== "active"
+                                ? ` · ${REPORT_DISPOSITION_LABELS[lead.reportOutreachDisposition] ?? lead.reportOutreachDisposition}` : ""}
+                            </span>}
                             <span data-testid={`text-lead-contact-${lead.id}`}>
                               {getContactName(lead)}
                             </span>

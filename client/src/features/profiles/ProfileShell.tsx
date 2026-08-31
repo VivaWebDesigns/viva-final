@@ -1,4 +1,5 @@
 import CrmOnlyEvidenceCard from "./CrmOnlyEvidenceCard";
+import { ReportOutreachPanel } from "../crm/ReportOutreachPanel";
 /**
  * Unified Profile Shell
  *
@@ -150,6 +151,8 @@ interface LocalFalconSnapshot {
 }
 
 interface ScanReportEmailPreview {
+  sentCount: number;
+  blockedReason: string | null;
   reportId: string;
   recipient: string;
   from: string;
@@ -300,6 +303,7 @@ function LocalFalconSnapshotCard({
     },
     onSuccess: (result) => {
       setEmailReportOpen(false);
+      queryClient.invalidateQueries({ queryKey: [`/api/crm/leads/${data?.leadId}/report-outreach`] });
       toast({
         title: result.duplicate ? "Already queued" : "Scan report queued",
         description: result.duplicate
@@ -326,6 +330,7 @@ function LocalFalconSnapshotCard({
         </div>
       </CardHeader>
       <CardContent>
+        {canEmailSnapshot && data.leadId && <ReportOutreachPanel leadId={data.leadId} />}
         <div className="mb-5 grid max-w-4xl grid-cols-1 gap-3 md:grid-cols-3" data-testid="local-falcon-qualification">
           <div
             className={`flex items-center gap-3 rounded-xl border-l-4 p-4 shadow-sm ${
@@ -488,6 +493,9 @@ function LocalFalconSnapshotCard({
           {emailReportPreview && (
             <div className="grid gap-5 sm:grid-cols-[1fr_190px]">
               <div className="space-y-4">
+                <p className="rounded bg-cyan-50 p-2 text-sm" role="status">
+                  {emailReportPreview.blockedReason || `Email ${emailReportPreview.sentCount + 1} of 2. Check for a reply or opt-out before sending.`}
+                </p>
                 <div className="space-y-1.5">
                   <Label htmlFor={`scan-report-recipient-${reportId}`}>To</Label>
                   <Input
@@ -572,7 +580,7 @@ function LocalFalconSnapshotCard({
             <Button
               onClick={() => sendEmailReport.mutate()}
               disabled={
-                sendEmailReport.isPending ||
+                sendEmailReport.isPending || !!emailReportPreview?.blockedReason ||
                 !emailReportRecipient.trim() ||
                 !emailReportSubject.trim() ||
                 !emailReportPreheader.trim() ||

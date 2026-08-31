@@ -879,6 +879,9 @@ router.put(
       if (!existing) return res.status(404).json({ message: "Task not found" });
 
       const nowCompleted = !existing.completed;
+      if (["report_email_followup", "report_email_review"].includes(existing.taskType ?? "")) {
+        return res.status(400).json({ message: "Use the report outreach outcome form to complete this task." });
+      }
       const outcome = req.body?.outcome as string | undefined;
       const completionNote = req.body?.completionNote as string | undefined;
 

@@ -11,6 +11,8 @@
  */
 
 import { crmLeadNotes, scanReportDeliveries, type WorkflowJob, type UtmAttribution } from "@shared/schema";
+import { getReportOutreachState, recordReportEmailSent } from "../crm/reportOutreach";
+import { reportSendBlockedReason } from "@shared/reportOutreach";
 import { db } from "../../db";
 import { eq } from "drizzle-orm";
 import { ingestWebsiteFormSubmission } from "../crm/ingest";
@@ -142,6 +144,24 @@ async function processEmailNotification(job: WorkflowJob): Promise<void> {
 
   const resend = new Resend(process.env.RESEND_API_KEY);
 
+  if (payload.category === "scan_report" && payload.deliveryId) {
+    const [delivery] = await db.select().from(scanReportDeliveries).where(eq(scanReportDeliveries.id, payload.deliveryId));
+    if (delivery?.sentAt) {
+      await recordReportEmailSent(delivery.id);
+      return;
+    }
+    if (delivery) {
+      const state = await getReportOutreachState(delivery.leadId);
+      const reason = reportSendBlockedReason(state.reportEmailCount, state.reportOutreachDisposition);
+      if (reason) {
+        await db.update(scanReportDeliveries).set({ status: "cancelled", updatedAt: new Date() }).where(eq(scanReportDeliveries.id, delivery.id));
+        if (payload.noteId) await db.update(crmLeadNotes).set({ content: `Report email cancelled: ${reason}`, metadata: { status: "cancelled", deliveryId: delivery.id } }).where(eq(crmLeadNotes.id, payload.noteId));
+        return;
+      }
+    }
+  }
+
+  let providerAccepted = false;
   try {
     const result = await withTimeout(
       async (_signal) => resend.emails.send({
@@ -155,7 +175,7 @@ async function processEmailNotification(job: WorkflowJob): Promise<void> {
           headers: { "List-Unsubscribe": `<mailto:${payload.replyTo || CONTACT_EMAIL_FROM}?subject=Unsubscribe>` },
           tags: [{ name: "category", value: "scan_report" }],
         } : {}),
-      }),
+      }, { idempotencyKey: `workflow-email/${job.id}` }),
       RESEND_TIMEOUT_MS,
       ctx,
     );
@@ -173,6 +193,7 @@ async function processEmailNotification(job: WorkflowJob): Promise<void> {
       throw new Error(`Resend error: ${result.error.message ?? JSON.stringify(result.error)}`);
     }
 
+    providerAccepted = true;
     logProviderEvent(ctx, "success", { severity: "info", message: `id=${result.data?.id}` });
     recordSuccess("resend", "send_email");
     if (payload.noteId) {
@@ -199,8 +220,12 @@ async function processEmailNotification(job: WorkflowJob): Promise<void> {
         sentAt: new Date(),
         updatedAt: new Date(),
       }).where(eq(scanReportDeliveries.id, payload.deliveryId));
+      await recordReportEmailSent(payload.deliveryId);
     }
   } catch (err: any) {
+    // Do not turn an accepted send into a failed delivery if CRM bookkeeping fails.
+    // Retrying uses the provider idempotency key, or skips sending once sentAt exists.
+    if (providerAccepted) throw err;
     if (!err.message?.startsWith("Resend error:")) {
       // Catch network/timeout errors not already logged
       const isTimeout = err.message?.startsWith("PROVIDER_TIMEOUT");

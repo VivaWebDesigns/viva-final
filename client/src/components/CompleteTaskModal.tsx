@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAdminLang } from "@/i18n/LanguageContext";
 import { renderTaskTitle } from "@/lib/activityI18n";
 import { resolveRepTimezone } from "@/lib/timezone";
+import { isReportOutreachTask, REPORT_OUTREACH_OUTCOMES } from "@shared/reportOutreach";
 import {
   TIME_SLOTS,
   formatTimeSlot,
@@ -16,6 +17,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -71,6 +73,7 @@ interface CompleteTaskModalProps {
     opportunityId?: string | null;
     contactId?: string | null;
     companyId?: string | null;
+    taskType?: string | null;
   } | null;
   leadTimezone?: string | null;
   opportunityId?: string | null;
@@ -124,6 +127,7 @@ export default function CompleteTaskModal({
   const effCompanyId = task?.companyId ?? null;
 
   const isAppointmentSet = outcome === "Appointment set";
+  const isReportTask = isReportOutreachTask(task?.taskType);
 
   useEffect(() => {
     if (open) {
@@ -154,6 +158,10 @@ export default function CompleteTaskModal({
   const invalidateTaskQueries = () => {
     queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
     queryClient.invalidateQueries({ queryKey: ["/api/tasks/due-today"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/tasks/completed-history"] });
+    if (isReportTask) {
+      queryClient.invalidateQueries({ predicate: q => String(q.queryKey[0]).startsWith("/api/profiles") || String(q.queryKey[0]).endsWith("/report-outreach") });
+    }
     queryClient.invalidateQueries({
       predicate: (query) =>
         Array.isArray(query.queryKey) &&
@@ -205,7 +213,7 @@ export default function CompleteTaskModal({
         });
       }
 
-      if (!hideFollowUp && followUp !== "none") {
+      if (!isReportTask && !hideFollowUp && followUp !== "none") {
         const dateStr = followUp === "custom"
           ? customDate
           : calcDueDateString(followUp);
@@ -246,9 +254,11 @@ export default function CompleteTaskModal({
     },
   });
 
-  const isNewLead = outcomeMode === "new-lead";
-  const baseOutcomeKeys = isNewLead ? NEW_LEAD_OUTCOME_KEYS : OUTCOME_KEYS;
-  const baseOutcomeLabels = isNewLead ? NEW_LEAD_OUTCOME_LABELS : OUTCOME_LABELS;
+  const isNewLead = !isReportTask && outcomeMode === "new-lead";
+  const reportLabels = Object.fromEntries(Object.entries(REPORT_OUTREACH_OUTCOMES)
+    .filter(([key]) => key !== "noResponse" || task?.taskType === "report_email_review"));
+  const baseOutcomeKeys = isReportTask ? Object.keys(reportLabels) : isNewLead ? NEW_LEAD_OUTCOME_KEYS : OUTCOME_KEYS;
+  const baseOutcomeLabels = isReportTask ? reportLabels : isNewLead ? NEW_LEAD_OUTCOME_LABELS : OUTCOME_LABELS;
   const activeOutcomeKeys = excludeOutcomes.length
     ? baseOutcomeKeys.filter((k) => !excludeOutcomes.includes(k))
     : baseOutcomeKeys;
@@ -259,7 +269,7 @@ export default function CompleteTaskModal({
   const isHungUp = isNewLead && outcome === "Hung up";
 
   const customDateValid = followUp !== "custom" || customDate !== "";
-  const followUpRequired = !isNewLead && !hideFollowUp && REQUIRES_FOLLOW_UP.has(outcome);
+  const followUpRequired = !isReportTask && !isNewLead && !hideFollowUp && REQUIRES_FOLLOW_UP.has(outcome);
   const followUpMissing = followUpRequired && followUp === "none";
 
   const demoFieldsValid = !isAppointmentSet || (
@@ -292,6 +302,7 @@ export default function CompleteTaskModal({
           <DialogTitle data-testid="text-complete-task-title">
             {t.tasks.completeTask}
           </DialogTitle>
+          <DialogDescription>{isReportTask ? "Record the prospect’s response or pause report outreach." : "Record the outcome of this task."}</DialogDescription>
           {displayTitle && (
             <p className="text-sm text-gray-500 truncate mt-1" data-testid="text-completing-task-name">
               {renderTaskTitle({ title: displayTitle }, t)}
@@ -302,6 +313,11 @@ export default function CompleteTaskModal({
         <div className="space-y-4 py-2 overflow-y-auto flex-1 min-h-0">
           <div className="space-y-2">
             <Label>{t.tasks.outcome}</Label>
+            {isReportTask && <p className="text-sm text-slate-600">
+              Check your inbox first. To send email 2 of 2, open the lead and use Email Report; sending completes the task automatically.
+              Record a reply, opt-out, or bounce here. No Response pauses outreach after the final five-business-day wait.
+            </p>}
+            {isReportTask && effLeadId && <a className="block text-sm text-teal-700 underline" href={`/admin/crm/leads/${effLeadId}`}>Open lead to email the report</a>}
             <Select value={outcome} onValueChange={setOutcome}>
               <SelectTrigger data-testid="select-outcome">
                 <SelectValue placeholder={t.tasks.selectOutcome} />
@@ -401,7 +417,7 @@ export default function CompleteTaskModal({
             </div>
           )}
 
-          {!isNewLead && !hideFollowUp && !isAppointmentSet && (
+          {!isReportTask && !isNewLead && !hideFollowUp && !isAppointmentSet && (
             <div className="space-y-2">
               <Label>{t.tasks.nextFollowUp}</Label>
               <RadioGroup value={followUp} onValueChange={(v) => setFollowUp(v as FollowUpOption)}>

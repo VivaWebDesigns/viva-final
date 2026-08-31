@@ -1,5 +1,7 @@
 import crypto from "node:crypto";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
+import { reportSendBlockedReason } from "@shared/reportOutreach";
+import { getReportOutreachState } from "./reportOutreach";
 import {
   crmCompanies,
   crmContacts,
@@ -11,7 +13,6 @@ import {
 } from "@shared/schema";
 import { db } from "../../db";
 import { getFileBuffer, uploadPublishedReport } from "../../services/storage";
-import { enqueueJob } from "../workflow/queue";
 import {
   createScanReportToken,
   hashScanReportToken,
@@ -32,6 +33,8 @@ export interface ScanReportEmailPreview {
   message: string;
   businessName: string;
   snapshotPreviewUrl: string;
+  sentCount: number;
+  blockedReason: string | null;
 }
 
 interface SendScanReportInput {
@@ -101,6 +104,7 @@ export async function getScanReportEmailPreview(
   actorEmail: string,
 ): Promise<ScanReportEmailPreview> {
   const record = await loadReport(leadId, reportId);
+  const outreach = await getReportOutreachState(leadId);
   const spanish = (record.contact?.preferredLanguage ?? record.company?.preferredLanguage) === "es";
   const firstName = record.contact?.firstName?.trim();
   const businessName = record.report.companyName || record.company?.name || record.lead.title;
@@ -108,14 +112,20 @@ export async function getScanReportEmailPreview(
   const greeting = firstName ? ` ${firstName}` : "";
   return {
     reportId,
+    sentCount: outreach.reportEmailCount,
+    blockedReason: reportSendBlockedReason(outreach.reportEmailCount, outreach.reportOutreachDisposition),
     recipient,
     from: `Viva Web Designs <${scanReportSenderEmail()}>`,
     replyTo: actorReplyTo(actorEmail),
-    subject: spanish
+    subject: outreach.reportEmailCount === 1 ? (spanish ? `Seguimiento: ${businessName} en Google Maps` : `Your Google Maps visibility report — ${businessName}`) : spanish
       ? `Así aparece ${businessName} en Google Maps`
       : "Google Maps issues",
     preheader: spanish ? "Tu análisis de Google Maps" : DEFAULT_SCAN_REPORT_PREHEADER,
-    message: spanish
+    message: outreach.reportEmailCount === 1
+      ? (spanish
+        ? `Hola${greeting},\n\nQuería dar seguimiento al análisis de visibilidad de ${businessName} que te envié. El informe muestra cómo aparece tu negocio en distintas zonas para “${record.report.scanKeyword}”.\n\nIncluyo el mismo informe para que puedas revisarlo. ¿Te gustaría que te explique los resultados en una breve llamada?\n\nMatt`
+        : `Hi${greeting},\n\nFollowing up on the visibility report I sent for ${businessName}. It shows how your business appears across nearby searches for “${record.report.scanKeyword}”.\n\nI’ve included the same report so it’s easy to revisit. Would a quick walkthrough of the results be useful?\n\nMatt`)
+      : spanish
       ? `Hola${greeting},\n\nPreparamos este análisis de visibilidad local para mostrar cómo aparece ${businessName} en Google Maps cuando los clientes buscan “${record.report.scanKeyword}”.\n\nSi deseas, puedo explicarte lo que muestran los resultados y las oportunidades que encontramos.`
       : `Hi,\n\nI’m Matt with Viva Web Designs here in Charlotte.\n\nI came across ${businessName} and ran a scan to see how the company is showing up in Google Maps when people around you search for your services.\n\nI found some pretty significant visibility gaps, so I thought you’d want to see the actual data.\n\nIf you’ve ever wondered why Google isn’t bringing in more calls, the scan below gives you a pretty good idea of what’s happening.\n\nIf it looks like something you’d want to improve, I can dig deeper into what’s behind it and we can jump on a quick video call. I can pull up the interactive scan and show you exactly who Google is ranking ahead of you from each area.\n\nJust reply here or call/text me.\n\nMatt`,
     businessName,
@@ -171,6 +181,9 @@ export async function sendScanReportEmail(input: SendScanReportInput) {
   if (existingJob) {
     return { jobId: existingJob.id, noteId: null, imageUrl: null, duplicate: true };
   }
+  const beforeUpload = await getReportOutreachState(input.leadId);
+  const preflightBlocked = reportSendBlockedReason(beforeUpload.reportEmailCount, beforeUpload.reportOutreachDisposition);
+  if (preflightBlocked) throw Object.assign(new Error(preflightBlocked), { statusCode: 409 });
   const file = await getFileBuffer(record.report.snapshotStorageKey!);
   const sha = crypto.createHash("sha256").update(file.buffer).digest("hex");
   const publishedKey = `scans/${input.reportId}/${sha}.png`;
@@ -181,42 +194,56 @@ export async function sendScanReportEmail(input: SendScanReportInput) {
   const replyTo = actorReplyTo(input.actorEmail);
   const businessName = record.report.companyName || record.company?.name || record.lead.title;
 
-  const [delivery] = await db.insert(scanReportDeliveries).values({
-    leadId: input.leadId,
-    reportId: input.reportId,
-    requestId: input.requestId,
-    publicTokenHash: hashScanReportToken(publicToken),
-    recipient: input.recipient,
-    imageUrl,
-    status: "queued",
-  }).returning();
+  // Reserve a send and its outbox job atomically. Parallel clicks cannot exceed two emails.
+  return db.transaction(async tx => {
+    const [lead] = await tx.select().from(crmLeads).where(eq(crmLeads.id, input.leadId)).for("update");
+    const [duplicateJob] = await tx.select({ id: workflowJobs.id }).from(workflowJobs)
+      .where(and(eq(workflowJobs.type, "email_notification"), eq(workflowJobs.sourceId, sourceId))).limit(1);
+    if (duplicateJob) return { jobId: duplicateJob.id, noteId: null, imageUrl: null, duplicate: true };
+    const outreach = await getReportOutreachState(lead.id, tx);
+    const blocked = reportSendBlockedReason(outreach.reportEmailCount, outreach.reportOutreachDisposition);
+    if (blocked) throw Object.assign(new Error(blocked), { statusCode: 409 });
+    const pending = await tx.select({ id: scanReportDeliveries.id }).from(scanReportDeliveries)
+      .where(and(eq(scanReportDeliveries.leadId, lead.id), inArray(scanReportDeliveries.status, ["queued", "retrying"])));
+    if (pending.length) throw Object.assign(new Error("A report email is already queued. Wait for delivery before sending another."), { statusCode: 409 });
 
-  const [note] = await db.insert(crmLeadNotes).values({
-    leadId: input.leadId,
-    userId: input.actorId,
-    type: "email",
-    content: `Scan report email queued for ${input.recipient}`,
-    metadata: {
-      status: "queued",
+    const [delivery] = await tx.insert(scanReportDeliveries).values({
+      leadId: input.leadId,
       reportId: input.reportId,
-      recipient: input.recipient,
-      subject: input.subject,
-      preheader: input.preheader,
-      imageUrl,
-      landingUrl,
-      deliveryId: delivery.id,
-      imagePlacement: input.imagePlacement,
       requestId: input.requestId,
-    },
-  }).returning();
+      publicTokenHash: hashScanReportToken(publicToken),
+      recipient: input.recipient,
+      imageUrl,
+      status: "queued",
+    }).returning();
 
-  await db.update(scanReportDeliveries).set({
-    noteId: note.id,
-    updatedAt: new Date(),
-  }).where(eq(scanReportDeliveries.id, delivery.id));
+    const [note] = await tx.insert(crmLeadNotes).values({
+      leadId: input.leadId,
+      userId: input.actorId,
+      type: "email",
+      content: `Scan report email queued for ${input.recipient}`,
+      metadata: {
+        status: "queued",
+        reportId: input.reportId,
+        recipient: input.recipient,
+        subject: input.subject,
+        preheader: input.preheader,
+        imageUrl,
+        landingUrl,
+        deliveryId: delivery.id,
+        imagePlacement: input.imagePlacement,
+        requestId: input.requestId,
+      },
+    }).returning();
 
-  try {
-    const job = await enqueueJob("email_notification", {
+    await tx.update(scanReportDeliveries).set({
+      noteId: note.id,
+      updatedAt: new Date(),
+    }).where(eq(scanReportDeliveries.id, delivery.id));
+
+    const [job] = await tx.insert(workflowJobs).values({
+      type: "email_notification", status: "pending", sourceId, sourceType: "scan_report_email",
+      attempts: 0, maxAttempts: 3, nextRunAt: new Date(), payload: {
       to: input.recipient,
       from: scanReportSenderEmail(),
       replyTo,
@@ -240,20 +267,10 @@ export async function sendScanReportEmail(input: SendScanReportInput) {
       preheader: input.preheader,
       imagePlacement: input.imagePlacement,
       requestId: input.requestId,
-    }, sourceId, "scan_report_email");
-    await db.update(crmLeadNotes).set({
+    }}).returning();
+    await tx.update(crmLeadNotes).set({
       metadata: { ...(note.metadata as object), jobId: job.id },
     }).where(eq(crmLeadNotes.id, note.id));
     return { jobId: job.id, noteId: note.id, imageUrl, landingUrl, deliveryId: delivery.id, duplicate: false };
-  } catch (error) {
-    await db.update(crmLeadNotes).set({
-      content: `Scan report email could not be queued for ${input.recipient}`,
-      metadata: { ...(note.metadata as object), status: "failed" },
-    }).where(eq(crmLeadNotes.id, note.id));
-    await db.update(scanReportDeliveries).set({
-      status: "failed",
-      updatedAt: new Date(),
-    }).where(eq(scanReportDeliveries.id, delivery.id));
-    throw error;
-  }
+  });
 }

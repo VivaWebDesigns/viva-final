@@ -1,4 +1,5 @@
 import { db } from "../../db";
+import { stopReportOutreachForStage } from "../crm/reportOutreach";
 import {
   pipelineStages, pipelineOpportunities, pipelineActivities,
   crmLeads, crmCompanies, crmContacts, crmLeadNotes, user, followupTasks,
@@ -304,6 +305,7 @@ export async function moveOpportunity(
     },
   });
 
+  if (opportunity.leadId) await stopReportOutreachForStage(opportunity.leadId, newStage.slug);
   return { opportunity, activity };
 }
 
