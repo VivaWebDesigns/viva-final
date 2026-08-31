@@ -4,7 +4,7 @@ import { eq, and, sql } from "drizzle-orm";
 import { requireAuth, requireRole } from "../auth/middleware";
 import { logAudit } from "../audit/service";
 import * as taskStorage from "./storage";
-import { isReportOutreachTask } from "@shared/reportOutreach";
+import { isReportOutreachTask, REPORT_OUTREACH_FILTERS } from "@shared/reportOutreach";
 import { completeReportOutreachTask } from "../crm/reportOutreach";
 import { addLeadNote } from "../crm/storage";
 import { addActivity, bulkAssignOpportunitiesByLeadIds, getStages, moveOpportunity } from "../pipeline/storage";
@@ -77,10 +77,19 @@ const updateTaskSchema = z.object({
 router.get("/due-today", requireRole("admin", "sales_rep", "developer"), async (req, res) => {
   try {
     const ownerId = scopedTaskOwnerId(req);
+    const parsedFilters = z.object({
+      tagIds: z.union([z.string().min(1), z.array(z.string().min(1)).max(100)]).optional(),
+      reportOutreach: z.enum(REPORT_OUTREACH_FILTERS).optional(),
+    }).safeParse({ tagIds: req.query.tagIds, reportOutreach: req.query.reportOutreach });
+    if (!parsedFilters.success) return res.status(400).json({ message: "Invalid lead filters" });
+    const filters = {
+      tagIds: typeof parsedFilters.data.tagIds === "string" ? [parsedFilters.data.tagIds] : parsedFilters.data.tagIds,
+      reportOutreach: parsedFilters.data.reportOutreach,
+    };
     const [dueTodayTasks, overdueTasks, upcomingTasks] = await Promise.all([
-      taskStorage.getTasksDueToday(ownerId),
-      taskStorage.getOverdueTasks(ownerId),
-      taskStorage.getUpcomingTasks(ownerId),
+      taskStorage.getTasksDueToday(ownerId, filters),
+      taskStorage.getOverdueTasks(ownerId, filters),
+      taskStorage.getUpcomingTasks(ownerId, filters),
     ]);
     res.json({ dueToday: dueTodayTasks, overdue: overdueTasks, upcoming: upcomingTasks });
   } catch (err: any) {
@@ -91,7 +100,15 @@ router.get("/due-today", requireRole("admin", "sales_rep", "developer"), async (
 router.get("/completed-history", requireRole("admin", "sales_rep", "developer"), async (req, res) => {
   try {
     const limit = Math.min(Number(req.query.limit) || 50, 200);
-    const tasks = await taskStorage.getCompletedTaskHistory(limit, scopedTaskOwnerId(req));
+    const parsedFilters = z.object({
+      tagIds: z.union([z.string().min(1), z.array(z.string().min(1)).max(100)]).optional(),
+      reportOutreach: z.enum(REPORT_OUTREACH_FILTERS).optional(),
+    }).safeParse({ tagIds: req.query.tagIds, reportOutreach: req.query.reportOutreach });
+    if (!parsedFilters.success) return res.status(400).json({ message: "Invalid lead filters" });
+    const tasks = await taskStorage.getCompletedTaskHistory(limit, scopedTaskOwnerId(req), {
+      tagIds: typeof parsedFilters.data.tagIds === "string" ? [parsedFilters.data.tagIds] : parsedFilters.data.tagIds,
+      reportOutreach: parsedFilters.data.reportOutreach,
+    });
     res.json(tasks);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";

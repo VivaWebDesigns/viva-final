@@ -13,6 +13,8 @@ No emails are sent automatically on task deadlines. Replies, opt-outs, and bounc
 
 The leads list includes server-side Report outreach filters, so results cover the full lead population rather than only the visible page. **Needs attention** prioritizes real report viewers/clickers, followed by overdue second emails. Separate views are available for 1 of 2 sent, 2 of 2 sent, engaged, awaiting response, no engagement, and stopped outreach. A report view means the tracked hosted report was loaded; it is not an inferred email open.
 
+The Sales Pipeline board/list and Tasks page expose the same report-outreach views. They also use the CRM lead tag selector; when multiple tags are selected, the linked lead must have every selected tag. Pipeline stage columns and task due-date groups remain intact while filters are active.
+
 ## Persistence and deployment
 
 - No schema migration or new columns. Existing `scan_report_deliveries.sent_at` records supply the count and last-send date, including historical sends. Delivery status is provider acceptance, not proof of inbox delivery.

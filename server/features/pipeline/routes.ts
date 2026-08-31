@@ -10,6 +10,8 @@ import { appendHistorySafe } from "../history/service";
 import { getTagsByLeadIds, upsertLeadStatus, updateLead } from "../crm/storage";
 import { z } from "zod";
 import { executeStageAutomations } from "../automations/trigger";
+import { REPORT_OUTREACH_FILTERS } from "@shared/reportOutreach";
+import { getReportOutreachStates } from "../crm/reportOutreach";
 
 const updateStageSchema = z.object({
   name: z.string().min(1).optional(),
@@ -112,7 +114,12 @@ router.delete("/stages/:id", requireRole("admin"), async (req, res) => {
 
 router.get("/opportunities", requireRole("admin", "developer", "sales_rep", "lead_gen"), async (req, res) => {
   try {
-    const { search, stageId, assignedTo, status, page, limit } = req.query;
+    const { search, stageId, assignedTo, status, tagIds, reportOutreach, page, limit } = req.query;
+    const parsedFilters = z.object({
+      tagIds: z.union([z.string().min(1), z.array(z.string().min(1)).max(100)]).optional(),
+      reportOutreach: z.enum(REPORT_OUTREACH_FILTERS).optional(),
+    }).safeParse({ tagIds, reportOutreach });
+    if (!parsedFilters.success) return res.status(400).json({ message: "Invalid lead filters" });
     const resolvedAssignedTo = isRestricted(req)
       ? req.authUser!.id
       : (assignedTo as string | undefined);
@@ -121,6 +128,8 @@ router.get("/opportunities", requireRole("admin", "developer", "sales_rep", "lea
       stageId: stageId as string | undefined,
       assignedTo: resolvedAssignedTo,
       status: status as string | undefined,
+      tagIds: typeof parsedFilters.data.tagIds === "string" ? [parsedFilters.data.tagIds] : parsedFilters.data.tagIds,
+      reportOutreach: parsedFilters.data.reportOutreach,
       page: page ? parseInt(page as string, 10) : undefined,
       limit: limit ? parseInt(limit as string, 10) : undefined,
     });
@@ -128,15 +137,19 @@ router.get("/opportunities", requireRole("admin", "developer", "sales_rep", "lea
     const companyIds = [...new Set(result.items.map((o: { companyId?: string | null }) => o.companyId).filter((id): id is string => !!id))];
     const contactIds = [...new Set(result.items.map((o: { contactId?: string | null }) => o.contactId).filter((id): id is string => !!id))];
     const leadIds = [...new Set(result.items.map((o: { leadId?: string | null }) => o.leadId).filter((id): id is string => !!id))];
-    const [companies, contacts, leadTagMap] = await Promise.all([
+    const [companies, contacts, leadTagMap, reportOutreachMap] = await Promise.all([
       companyIds.length > 0 ? db.select().from(crmCompanies).where(inArray(crmCompanies.id, companyIds as string[])) : [],
       contactIds.length > 0 ? db.select().from(crmContacts).where(inArray(crmContacts.id, contactIds as string[])) : [],
       getTagsByLeadIds(leadIds),
+      getReportOutreachStates(leadIds, db, true),
     ]);
     const companyMap = Object.fromEntries(companies.map(c => [c.id, { name: c.name }]));
     const contactMap = Object.fromEntries(contacts.map(c => [c.id, { firstName: c.firstName, lastName: c.lastName }]));
 
-    res.json({ ...result, companyMap, contactMap, leadTagMap });
+    res.json({
+      ...result, companyMap, contactMap, leadTagMap,
+      reportOutreachMap: Object.fromEntries(reportOutreachMap),
+    });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
@@ -149,9 +162,16 @@ router.get("/opportunities/board", requireRole("admin", "developer", "sales_rep"
     // ?includeArchived=false hides won/lost opportunities from the board.
     // Default true for backward compatibility — existing board shows all stages.
     const includeArchived = req.query.includeArchived !== "false";
+    const parsedFilters = z.object({
+      tagIds: z.union([z.string().min(1), z.array(z.string().min(1)).max(100)]).optional(),
+      reportOutreach: z.enum(REPORT_OUTREACH_FILTERS).optional(),
+    }).safeParse({ tagIds: req.query.tagIds, reportOutreach: req.query.reportOutreach });
+    if (!parsedFilters.success) return res.status(400).json({ message: "Invalid lead filters" });
     const result = await pipelineStorage.getOpportunitiesByStage(userId, {
       includeArchived,
       includeAssigneeMap: req.authUser?.role === "admin",
+      tagIds: typeof parsedFilters.data.tagIds === "string" ? [parsedFilters.data.tagIds] : parsedFilters.data.tagIds,
+      reportOutreach: parsedFilters.data.reportOutreach,
     });
     res.json(result);
   } catch (error: any) {

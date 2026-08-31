@@ -15,6 +15,7 @@ import { eq, ilike, or, desc, asc, sql, and, count, inArray } from "drizzle-orm"
 import { getLocalFalconPrioritiesByLeadIds } from "./localFalconPriority";
 import type { SalesPrioritySnapshot } from "@shared/salesPriority";
 import type { ReportOutreachFilter } from "@shared/reportOutreach";
+import { buildSharedLeadFilterCondition } from "./leadFilters";
 
 export type EnrichedLead = CrmLead & {
   status: CrmLeadStatus | null;
@@ -60,15 +61,11 @@ export async function getLeads(filters: LeadFilters = {}) {
   }
   if (statusId) conditions.push(eq(crmLeads.statusId, statusId));
   if (source) conditions.push(eq(crmLeads.source, source));
-  // Keep the legacy single-tag filter, and require every selected tag (AND).
-  for (const selectedTagId of new Set([...tagIds, ...(tagId ? [tagId] : [])])) {
-    conditions.push(inArray(
-      crmLeads.id,
-      db.select({ leadId: crmLeadTags.leadId })
-        .from(crmLeadTags)
-        .where(eq(crmLeadTags.tagId, selectedTagId)),
-    ));
-  }
+  const sharedFilter = buildSharedLeadFilterCondition(crmLeads.id, {
+    tagIds: [...tagIds, ...(tagId ? [tagId] : [])],
+    reportOutreach,
+  });
+  if (sharedFilter) conditions.push(sharedFilter);
   if (assignedTo === "__unassigned__") {
     conditions.push(sql`(
       ${crmLeads.assignedTo} IS NULL
@@ -87,19 +84,6 @@ export async function getLeads(filters: LeadFilters = {}) {
 
   const sentCount = sql`(SELECT count(*) FROM ${scanReportDeliveries} d WHERE d.lead_id = ${crmLeads.id} AND d.sent_at IS NOT NULL)`;
   const engaged = sql`EXISTS (SELECT 1 FROM ${scanReportDeliveries} d WHERE d.lead_id = ${crmLeads.id} AND d.sent_at IS NOT NULL AND (d.view_count > 0 OR d.cta_click_count > 0))`;
-  const disposition = sql`coalesce((SELECT n.metadata->>'reportOutreachDisposition' FROM ${crmLeadNotes} n WHERE n.lead_id = ${crmLeads.id} AND n.metadata->>'reportOutreachDisposition' IS NOT NULL ORDER BY n.created_at DESC, n.id DESC LIMIT 1), 'active')`;
-  const easternToday = sql`(CURRENT_TIMESTAMP AT TIME ZONE 'America/New_York')::date`;
-  const followupDue = sql`EXISTS (SELECT 1 FROM ${followupTasks} t WHERE t.lead_id = ${crmLeads.id} AND t.completed = false AND t.task_type = 'report_email_followup' AND t.due_date <= ${easternToday})`;
-  const openReview = sql`EXISTS (SELECT 1 FROM ${followupTasks} t WHERE t.lead_id = ${crmLeads.id} AND t.completed = false AND t.task_type = 'report_email_review')`;
-  const reviewDue = sql`EXISTS (SELECT 1 FROM ${followupTasks} t WHERE t.lead_id = ${crmLeads.id} AND t.completed = false AND t.task_type = 'report_email_review' AND t.due_date <= ${easternToday})`;
-  if (reportOutreach === "report_any") conditions.push(sql`${sentCount} > 0`);
-  if (reportOutreach === "one_sent") conditions.push(sql`${sentCount} = 1`);
-  if (reportOutreach === "two_sent") conditions.push(sql`${sentCount} >= 2`);
-  if (reportOutreach === "engaged") conditions.push(sql`${disposition} = 'active' AND ${engaged}`);
-  if (reportOutreach === "needs_attention") conditions.push(sql`${disposition} = 'active' AND (${engaged} OR (${sentCount} = 1 AND ${followupDue}))`);
-  if (reportOutreach === "awaiting_response") conditions.push(sql`${disposition} = 'active' AND ${sentCount} >= 2 AND NOT ${engaged} AND ${openReview} AND NOT ${reviewDue}`);
-  if (reportOutreach === "no_engagement") conditions.push(sql`(${disposition} = 'no_response') OR (${disposition} = 'active' AND ${sentCount} >= 2 AND NOT ${engaged} AND (${reviewDue} OR NOT ${openReview}))`);
-  if (reportOutreach === "stopped") conditions.push(sql`${disposition} IN ('opted_out', 'bounced', 'not_interested')`);
 
   const where = conditions.length > 0 ? and(...conditions) : undefined;
 

@@ -10,6 +10,9 @@ import { eq, ilike, or, desc, asc, sql, and, count, inArray } from "drizzle-orm"
 import { getTagsByLeadIds } from "../crm/storage";
 import { getLocalFalconPrioritiesByLeadIds } from "../crm/localFalconPriority";
 import type { SalesPrioritySnapshot } from "@shared/salesPriority";
+import type { ReportOutreachFilter } from "@shared/reportOutreach";
+import { buildSharedLeadFilterCondition } from "../crm/leadFilters";
+import { getReportOutreachStates, type ReportOutreachState } from "../crm/reportOutreach";
 
 interface PaginationParams {
   page?: number;
@@ -21,6 +24,8 @@ interface OpportunityFilters extends PaginationParams {
   stageId?: string;
   assignedTo?: string;
   status?: string;
+  tagIds?: string[];
+  reportOutreach?: ReportOutreachFilter;
 }
 
 export async function getStages(): Promise<PipelineStage[]> {
@@ -64,7 +69,7 @@ export async function upsertStage(data: InsertPipelineStage): Promise<PipelineSt
 }
 
 export async function getOpportunities(filters: OpportunityFilters = {}) {
-  const { search, stageId, assignedTo, status, page = 1, limit = 50 } = filters;
+  const { search, stageId, assignedTo, status, tagIds = [], reportOutreach, page = 1, limit = 50 } = filters;
   const offset = (page - 1) * limit;
   const conditions = [];
 
@@ -80,6 +85,8 @@ export async function getOpportunities(filters: OpportunityFilters = {}) {
   if (stageId) conditions.push(eq(pipelineOpportunities.stageId, stageId));
   if (assignedTo) conditions.push(eq(pipelineOpportunities.assignedTo, assignedTo));
   if (status) conditions.push(eq(pipelineOpportunities.status, status));
+  const sharedFilter = buildSharedLeadFilterCondition(pipelineOpportunities.leadId, { tagIds, reportOutreach });
+  if (sharedFilter) conditions.push(sharedFilter);
 
   const where = conditions.length > 0 ? and(...conditions) : undefined;
 
@@ -114,16 +121,22 @@ const BOARD_CARD_COLUMNS = {
 
 export async function getOpportunitiesByStage(
   userId?: string,
-  options: { includeArchived?: boolean; includeAssigneeMap?: boolean } = {},
+  options: {
+    includeArchived?: boolean;
+    includeAssigneeMap?: boolean;
+    tagIds?: string[];
+    reportOutreach?: ReportOutreachFilter;
+  } = {},
 ) {
-  const { includeArchived = true, includeAssigneeMap = false } = options;
+  const { includeArchived = true, includeAssigneeMap = false, tagIds = [], reportOutreach } = options;
   const stages = await getStages();
 
   // Build WHERE clause from userId + optional status filter.
   const userCond    = userId ? eq(pipelineOpportunities.assignedTo, userId) : undefined;
   const statusCond  = includeArchived ? undefined : eq(pipelineOpportunities.status, "open");
-  const where       = userCond && statusCond ? and(userCond, statusCond)
-                    : statusCond ?? userCond;
+  const sharedFilter = buildSharedLeadFilterCondition(pipelineOpportunities.leadId, { tagIds, reportOutreach });
+  const queryConditions = [userCond, statusCond, sharedFilter].filter(Boolean);
+  const where = queryConditions.length ? and(...queryConditions) : undefined;
 
   const allOpps = (
     where
@@ -200,7 +213,7 @@ export async function getOpportunitiesByStage(
     ? [...new Set(allOpps.map(o => o.assignedTo).filter(Boolean) as string[])]
     : [];
 
-  const [leadRows, contactRows, companyRows, assigneeRows, tagsByLeadId, prioritiesByLeadId] = await Promise.all([
+  const [leadRows, contactRows, companyRows, assigneeRows, tagsByLeadId, prioritiesByLeadId, outreachByLeadId] = await Promise.all([
     leadIds.length
       ? db.select({ id: crmLeads.id, recycleCount: crmLeads.recycleCount, hungUpCount: crmLeads.hungUpCount }).from(crmLeads).where(inArray(crmLeads.id, leadIds))
       : [],
@@ -215,6 +228,7 @@ export async function getOpportunitiesByStage(
       : [],
     getTagsByLeadIds(leadIds),
     getLocalFalconPrioritiesByLeadIds(leadIds),
+    getReportOutreachStates(leadIds, db, true),
   ]);
 
   const leadRecycleMap: Record<string, {
@@ -223,11 +237,13 @@ export async function getOpportunitiesByStage(
     hungUpCount: number;
     tags: CrmTag[];
     salesPriority: SalesPrioritySnapshot | null;
+    outreach: ReportOutreachState;
   }> = Object.fromEntries(
     leadRows.map((lead) => [lead.id, {
       ...lead,
       tags: tagsByLeadId[lead.id] ?? [],
       salesPriority: prioritiesByLeadId[lead.id] ?? null,
+      outreach: outreachByLeadId.get(lead.id)!,
     }]),
   );
   const contactMap: Record<string, { id: string; firstName: string; lastName: string | null; phone: string | null }> = Object.fromEntries(contactRows.map(c => [c.id, c]));

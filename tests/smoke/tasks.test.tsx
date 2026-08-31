@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
-import { screen }                                        from "@testing-library/react";
+import { fireEvent, screen, waitFor }                    from "@testing-library/react";
 import { http, HttpResponse }                            from "msw";
 import { renderWithProviders }                           from "../helpers/renderWithProviders";
 import { server }                                       from "../helpers/server";
@@ -84,5 +84,31 @@ describe("TasksDueTodayPage smoke", () => {
     expect(screen.getByTestId("text-lead-city-task-1")).toHaveTextContent("Monroe");
     expect(screen.getByTestId("badge-task-tag-task-1-sab")).toHaveTextContent("SAB");
     expect(screen.getByTestId("badge-sales-priority-task-task-1")).toHaveTextContent("2");
+  });
+
+  it("filters task date groups by report outreach and lead tags", async () => {
+    let requestedOutreach: string | null = null;
+    let requestedTags: string[] = [];
+    server.use(
+      http.get("/api/crm/tags", () => HttpResponse.json([
+        { id: "tag-email", name: "Email Ready", slug: "email-ready", color: "#16A34A" },
+      ])),
+      http.get("/api/tasks/due-today", ({ request }) => {
+        const params = new URL(request.url).searchParams;
+        requestedOutreach = params.get("reportOutreach");
+        requestedTags = params.getAll("tagIds");
+        return HttpResponse.json({ dueToday: [], overdue: [], upcoming: [] });
+      }),
+      http.get("/api/tasks/completed-history", () => HttpResponse.json([])),
+    );
+    renderWithProviders(<TasksDueTodayPage />, { route: "/admin/tasks" });
+
+    fireEvent.keyDown(await screen.findByTestId("tasks-report-outreach-filter"), { key: " " });
+    fireEvent.click(await screen.findByRole("option", { name: "1 of 2 sent" }));
+    await waitFor(() => expect(requestedOutreach).toBe("one_sent"));
+
+    fireEvent.pointerDown(screen.getByTestId("tasks-tag-filter"), { button: 0 });
+    fireEvent.click(await screen.findByRole("menuitemcheckbox", { name: "Email Ready" }));
+    await waitFor(() => expect(requestedTags).toEqual(["tag-email"]));
   });
 });

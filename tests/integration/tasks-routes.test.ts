@@ -117,9 +117,9 @@ describe("task route owner scoping", () => {
     const res = await request(buildApp(), "GET", "/tasks/due-today");
 
     expect(res.status).toBe(200);
-    expect(mockGetTasksDueToday).toHaveBeenCalledWith("rep-1");
-    expect(mockGetOverdueTasks).toHaveBeenCalledWith("rep-1");
-    expect(mockGetUpcomingTasks).toHaveBeenCalledWith("rep-1");
+    expect(mockGetTasksDueToday).toHaveBeenCalledWith("rep-1", { tagIds: undefined, reportOutreach: undefined });
+    expect(mockGetOverdueTasks).toHaveBeenCalledWith("rep-1", { tagIds: undefined, reportOutreach: undefined });
+    expect(mockGetUpcomingTasks).toHaveBeenCalledWith("rep-1", { tagIds: undefined, reportOutreach: undefined });
   });
 
   it("leaves admin task buckets unscoped", async () => {
@@ -127,9 +127,9 @@ describe("task route owner scoping", () => {
     const res = await request(buildApp(), "GET", "/tasks/due-today");
 
     expect(res.status).toBe(200);
-    expect(mockGetTasksDueToday).toHaveBeenCalledWith(undefined);
-    expect(mockGetOverdueTasks).toHaveBeenCalledWith(undefined);
-    expect(mockGetUpcomingTasks).toHaveBeenCalledWith(undefined);
+    expect(mockGetTasksDueToday).toHaveBeenCalledWith(undefined, { tagIds: undefined, reportOutreach: undefined });
+    expect(mockGetOverdueTasks).toHaveBeenCalledWith(undefined, { tagIds: undefined, reportOutreach: undefined });
+    expect(mockGetUpcomingTasks).toHaveBeenCalledWith(undefined, { tagIds: undefined, reportOutreach: undefined });
   });
 
   it("scopes completed task history to the current sales rep", async () => {
@@ -137,7 +137,18 @@ describe("task route owner scoping", () => {
     const res = await request(buildApp(), "GET", "/tasks/completed-history?limit=25");
 
     expect(res.status).toBe(200);
-    expect(mockGetCompletedTaskHistory).toHaveBeenCalledWith(25, "rep-1");
+    expect(mockGetCompletedTaskHistory).toHaveBeenCalledWith(25, "rep-1", { tagIds: undefined, reportOutreach: undefined });
+  });
+
+  it("passes report outreach and multi-tag filters to every task bucket", async () => {
+    mockGetSession.mockResolvedValue(makeSession("admin", "admin-1"));
+    const res = await request(buildApp(), "GET", "/tasks/due-today?reportOutreach=needs_attention&tagIds=tag-a&tagIds=tag-b");
+
+    expect(res.status).toBe(200);
+    const filters = { reportOutreach: "needs_attention", tagIds: ["tag-a", "tag-b"] };
+    expect(mockGetTasksDueToday).toHaveBeenCalledWith(undefined, filters);
+    expect(mockGetOverdueTasks).toHaveBeenCalledWith(undefined, filters);
+    expect(mockGetUpcomingTasks).toHaveBeenCalledWith(undefined, filters);
   });
 
   it("scopes lead and opportunity task lists to the current sales rep", async () => {

@@ -4,10 +4,13 @@ import {
   pipelineOpportunities, pipelineStages,
   type InsertFollowupTask, type FollowupTask, type CrmTag,
 } from "@shared/schema";
-import { eq, and, gte, lte, lt, desc, asc, inArray, isNull, or } from "drizzle-orm";
+import { eq, and, gte, lte, lt, desc, asc, inArray, isNull, or, type SQL } from "drizzle-orm";
 import { getTagsByLeadIds } from "../crm/storage";
 import { getLocalFalconPrioritiesByLeadIds } from "../crm/localFalconPriority";
 import type { SalesPrioritySnapshot } from "@shared/salesPriority";
+import type { ReportOutreachSegment } from "@shared/reportOutreach";
+import { buildSharedLeadFilterCondition, type SharedLeadFilters } from "../crm/leadFilters";
+import { getReportOutreachStates } from "../crm/reportOutreach";
 
 export interface TaskAutomationMeta {
   triggerStageSlug: string;
@@ -25,6 +28,11 @@ export type TaskWithContact = FollowupTask & {
     hungUpCount: number;
     tags: CrmTag[];
     salesPriority: SalesPrioritySnapshot | null;
+    reportEmailCount: number;
+    reportViewCount: number;
+    reportCtaClickCount: number;
+    reportOutreachSegment: ReportOutreachSegment;
+    reportNeedsAttention: boolean;
   } | null;
   automationMeta: TaskAutomationMeta | null;
   opportunityStageSlug: string | null;
@@ -109,7 +117,20 @@ function scopedTaskOwnerCondition(ownerId?: string) {
   );
 }
 
-export async function getTasksDueToday(ownerId?: string): Promise<TaskWithContact[]> {
+function taskLeadFilterCondition(filters: SharedLeadFilters): SQL | undefined {
+  if (!filters.reportOutreach && !filters.tagIds?.length) return undefined;
+  const leadCondition = buildSharedLeadFilterCondition(crmLeads.id, filters)!;
+  const matchingLeadIds = db.select({ id: crmLeads.id }).from(crmLeads).where(leadCondition);
+  const matchingOpportunityIds = db.select({ id: pipelineOpportunities.id })
+    .from(pipelineOpportunities)
+    .where(inArray(pipelineOpportunities.leadId, matchingLeadIds));
+  return or(
+    inArray(followupTasks.leadId, matchingLeadIds),
+    inArray(followupTasks.opportunityId, matchingOpportunityIds),
+  );
+}
+
+export async function getTasksDueToday(ownerId?: string, filters: SharedLeadFilters = {}): Promise<TaskWithContact[]> {
   const { start, end } = todayRange();
   const ownerCond = scopedTaskOwnerCondition(ownerId);
   const conditions = [
@@ -118,13 +139,15 @@ export async function getTasksDueToday(ownerId?: string): Promise<TaskWithContac
     lte(followupTasks.dueDate, end),
   ];
   if (ownerCond) conditions.push(ownerCond);
+  const leadFilter = taskLeadFilterCondition(filters);
+  if (leadFilter) conditions.push(leadFilter);
   const tasks = await db.select().from(followupTasks)
     .where(and(...conditions))
     .orderBy(asc(followupTasks.dueDate));
   return enrichTasks(await excludeSupersededAutomationTasks(tasks));
 }
 
-export async function getOverdueTasks(ownerId?: string): Promise<TaskWithContact[]> {
+export async function getOverdueTasks(ownerId?: string, filters: SharedLeadFilters = {}): Promise<TaskWithContact[]> {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const ownerCond = scopedTaskOwnerCondition(ownerId);
@@ -133,6 +156,8 @@ export async function getOverdueTasks(ownerId?: string): Promise<TaskWithContact
     lt(followupTasks.dueDate, today),
   ];
   if (ownerCond) conditions.push(ownerCond);
+  const leadFilter = taskLeadFilterCondition(filters);
+  if (leadFilter) conditions.push(leadFilter);
   const tasks = await db.select().from(followupTasks)
     .where(and(...conditions))
     .orderBy(asc(followupTasks.dueDate));
@@ -165,7 +190,7 @@ export async function getTasksForContact(contactId: string): Promise<FollowupTas
     .orderBy(asc(followupTasks.dueDate));
 }
 
-export async function getUpcomingTasks(ownerId?: string): Promise<TaskWithContact[]> {
+export async function getUpcomingTasks(ownerId?: string, filters: SharedLeadFilters = {}): Promise<TaskWithContact[]> {
   const { end } = todayRange();
   const ownerCond = scopedTaskOwnerCondition(ownerId);
   const conditions = [
@@ -173,6 +198,8 @@ export async function getUpcomingTasks(ownerId?: string): Promise<TaskWithContac
     gte(followupTasks.dueDate, new Date(end.getTime() + 1)),
   ];
   if (ownerCond) conditions.push(ownerCond);
+  const leadFilter = taskLeadFilterCondition(filters);
+  if (leadFilter) conditions.push(leadFilter);
   const tasks = await db.select().from(followupTasks)
     .where(and(...conditions))
     .orderBy(asc(followupTasks.dueDate));
@@ -233,10 +260,12 @@ export async function deleteTask(id: string): Promise<void> {
   await db.delete(followupTasks).where(eq(followupTasks.id, id));
 }
 
-export async function getCompletedTaskHistory(limit = 50, ownerId?: string): Promise<TaskWithContact[]> {
+export async function getCompletedTaskHistory(limit = 50, ownerId?: string, filters: SharedLeadFilters = {}): Promise<TaskWithContact[]> {
   const ownerCond = scopedTaskOwnerCondition(ownerId);
   const conditions = [eq(followupTasks.completed, true)];
   if (ownerCond) conditions.push(ownerCond);
+  const leadFilter = taskLeadFilterCondition(filters);
+  if (leadFilter) conditions.push(leadFilter);
   const tasks = await db.select().from(followupTasks)
     .where(and(...conditions))
     .orderBy(desc(followupTasks.completedAt))
@@ -374,7 +403,7 @@ async function enrichTasks(tasks: FollowupTask[]): Promise<TaskWithContact[]> {
     ...directLeadIds,
     ...oppStageRows.map((row) => row.leadId).filter(Boolean) as string[],
   ])];
-  const [leads, tagsByLeadId, prioritiesByLeadId] = await Promise.all([
+  const [leads, tagsByLeadId, prioritiesByLeadId, outreachByLeadId] = await Promise.all([
     leadIds.length
       ? db.select({
           id: crmLeads.id,
@@ -388,6 +417,7 @@ async function enrichTasks(tasks: FollowupTask[]): Promise<TaskWithContact[]> {
       : Promise.resolve([]),
     getTagsByLeadIds(leadIds),
     getLocalFalconPrioritiesByLeadIds(leadIds),
+    getReportOutreachStates(leadIds, db, true),
   ]);
 
   const contactMap = Object.fromEntries(contacts.map(c => [c.id, c]));
@@ -433,8 +463,16 @@ async function enrichTasks(tasks: FollowupTask[]): Promise<TaskWithContact[]> {
     const hungUpCount = leadRow?.hungUpCount ?? 0;
     const tags = effectiveLeadId ? tagsByLeadId[effectiveLeadId] ?? [] : [];
     const salesPriority = effectiveLeadId ? prioritiesByLeadId[effectiveLeadId] ?? null : null;
-    const lead: TaskWithContact["lead"] = rawTrade || rawCity || recycleCount > 0 || hungUpCount > 0 || tags.length > 0 || salesPriority
-      ? { trade: rawTrade, city: rawCity, recycleCount, hungUpCount, tags, salesPriority }
+    const outreach = effectiveLeadId ? outreachByLeadId.get(effectiveLeadId) : null;
+    const lead: TaskWithContact["lead"] = leadRow || outreach
+      ? {
+          trade: rawTrade, city: rawCity, recycleCount, hungUpCount, tags, salesPriority,
+          reportEmailCount: outreach?.reportEmailCount ?? 0,
+          reportViewCount: outreach?.reportViewCount ?? 0,
+          reportCtaClickCount: outreach?.reportCtaClickCount ?? 0,
+          reportOutreachSegment: outreach?.reportOutreachSegment ?? "not_started",
+          reportNeedsAttention: outreach?.reportNeedsAttention ?? false,
+        }
       : null;
     const automationMeta = automationMetaMap.get(task.id) ?? null;
     const opportunityStageSlug = task.opportunityId ? oppStageMap[task.opportunityId] ?? null : null;

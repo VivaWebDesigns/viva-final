@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
-import { screen }                                        from "@testing-library/react";
+import { fireEvent, screen, waitFor }                    from "@testing-library/react";
 import { http, HttpResponse }                            from "msw";
 import { renderWithProviders }                           from "../helpers/renderWithProviders";
 import { server }                                       from "../helpers/server";
@@ -68,6 +68,13 @@ describe("PipelineBoardPage smoke", () => {
               priority: 3,
               reason: "No website and active paid-lead usage.",
             },
+            outreach: {
+              reportEmailCount: 2,
+              reportViewCount: 1,
+              reportCtaClickCount: 0,
+              reportOutreachSegment: "engaged",
+              reportNeedsAttention: true,
+            },
           },
         },
       })),
@@ -77,5 +84,32 @@ describe("PipelineBoardPage smoke", () => {
 
     expect(await screen.findByTestId("badge-pipeline-tag-opp-1-sab")).toHaveTextContent("SAB");
     expect(screen.getByTestId("badge-sales-priority-opportunity-opp-1")).toHaveTextContent("3");
+    expect(screen.getByTestId("badge-report-outreach-opportunity-opp-1-count")).toHaveTextContent("2 of 2 sent");
+    expect(screen.getByTestId("badge-report-outreach-opportunity-opp-1")).toHaveTextContent("Viewed report — personal touch");
+  });
+
+  it("filters the board by report outreach and all selected lead tags", async () => {
+    let requestedOutreach: string | null = null;
+    let requestedTags: string[] = [];
+    server.use(
+      http.get("/api/crm/tags", () => HttpResponse.json([
+        { id: "tag-sab", name: "SAB", slug: "sab", color: "#7C3AED" },
+      ])),
+      http.get("/api/pipeline/opportunities/board", ({ request }) => {
+        const params = new URL(request.url).searchParams;
+        requestedOutreach = params.get("reportOutreach");
+        requestedTags = params.getAll("tagIds");
+        return HttpResponse.json({ stages: [], board: {}, contactMap: {}, companyMap: {}, leadRecycleMap: {} });
+      }),
+    );
+    renderWithProviders(<PipelineBoardPage />, { route: "/admin/pipeline" });
+
+    fireEvent.keyDown(await screen.findByTestId("pipeline-board-report-outreach-filter"), { key: " " });
+    fireEvent.click(await screen.findByRole("option", { name: "Needs attention" }));
+    await waitFor(() => expect(requestedOutreach).toBe("needs_attention"));
+
+    fireEvent.pointerDown(screen.getByTestId("pipeline-board-tag-filter"), { button: 0 });
+    fireEvent.click(await screen.findByRole("menuitemcheckbox", { name: "SAB" }));
+    await waitFor(() => expect(requestedTags).toEqual(["tag-sab"]));
   });
 });

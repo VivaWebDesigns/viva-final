@@ -14,6 +14,8 @@ import { useAdminLang } from "@/i18n/LanguageContext";
 import LeadTagBadges from "@/components/LeadTagBadges";
 import SalesPriorityBadge from "@/components/SalesPriorityBadge";
 import type { SalesPrioritySnapshot } from "@shared/salesPriority";
+import type { ReportOutreachFilter, ReportOutreachSegment } from "@shared/reportOutreach";
+import { ReportOutreachAndTagFilters, ReportOutreachBadge } from "@features/crm/ReportOutreachControls";
 
 type ContactSnap = { id: string; firstName: string; lastName: string | null; phone: string | null };
 type CompanySnap = { id: string; name: string; city: string | null; industry: string | null };
@@ -24,6 +26,13 @@ type LeadRecycleSnap = {
   hungUpCount: number;
   tags: CrmTag[];
   salesPriority: SalesPrioritySnapshot | null;
+  outreach: {
+    reportEmailCount: number;
+    reportViewCount: number;
+    reportCtaClickCount: number;
+    reportOutreachSegment: ReportOutreachSegment;
+    reportNeedsAttention: boolean;
+  };
 };
 
 interface BoardData {
@@ -122,6 +131,10 @@ function CardDisplay({
         </div>
 
         <div className="space-y-1">
+          <ReportOutreachBadge
+            state={opp.leadId ? leadRecycleMap?.[opp.leadId]?.outreach : null}
+            testId={`badge-report-outreach-opportunity-${opp.id}`}
+          />
           {contact?.phone && (
             <div className="flex flex-col gap-0.5">
               <span
@@ -310,9 +323,15 @@ function StageColumn({
 export default function PipelineBoardPage() {
   const { t } = useAdminLang();
   const [taskOpp, setTaskOpp] = useState<PipelineOpportunity | null>(null);
+  const [reportOutreachFilter, setReportOutreachFilter] = useState<ReportOutreachFilter | "all">("all");
+  const [tagFilters, setTagFilters] = useState<string[]>([]);
+  const params = new URLSearchParams();
+  if (reportOutreachFilter !== "all") params.set("reportOutreach", reportOutreachFilter);
+  tagFilters.forEach((id) => params.append("tagIds", id));
+  const query = params.toString();
 
   const { data, isLoading } = useQuery<BoardData>({
-    queryKey: ["/api/pipeline/opportunities/board"],
+    queryKey: ["/api/pipeline/opportunities/board", query ? `?${query}` : ""],
     staleTime: STALE.FAST,
     refetchOnWindowFocus: true,
   });
@@ -358,6 +377,16 @@ export default function PipelineBoardPage() {
               </Button>
             </Link>
           </div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 mb-4 flex-shrink-0">
+          <ReportOutreachAndTagFilters
+            reportOutreach={reportOutreachFilter}
+            onReportOutreachChange={setReportOutreachFilter}
+            tagIds={tagFilters}
+            onTagIdsChange={setTagFilters}
+            testIdPrefix="pipeline-board"
+          />
         </div>
 
         <div className="flex-1 relative">

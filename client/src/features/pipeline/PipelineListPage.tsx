@@ -14,6 +14,8 @@ import {
 import type { CrmTag, PipelineStage, PipelineOpportunity } from "@shared/schema";
 import { useAdminLang } from "@/i18n/LanguageContext";
 import LeadTagBadges from "@/components/LeadTagBadges";
+import type { ReportOutreachFilter } from "@shared/reportOutreach";
+import { ReportOutreachAndTagFilters, ReportOutreachBadge, type OutreachBadgeState } from "@features/crm/ReportOutreachControls";
 
 interface ContactSnap { firstName: string; lastName?: string | null }
 interface CompanySnap { name: string }
@@ -26,6 +28,7 @@ interface OppsResponse {
   companyMap?: Record<string, CompanySnap>;
   contactMap?: Record<string, ContactSnap>;
   leadTagMap?: Record<string, CrmTag[]>;
+  reportOutreachMap?: Record<string, OutreachBadgeState>;
 }
 
 function buildOppDisplayTitle(
@@ -48,6 +51,8 @@ export default function PipelineListPage() {
   const search = useDebounce(rawSearch, 300);
   const [stageFilter, setStageFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [reportOutreachFilter, setReportOutreachFilter] = useState<ReportOutreachFilter | "all">("all");
+  const [tagFilters, setTagFilters] = useState<string[]>([]);
   const [page, setPage] = useState(1);
   useEffect(() => { setPage(1); }, [search]);
 
@@ -55,6 +60,8 @@ export default function PipelineListPage() {
   if (search) params.set("search", search);
   if (stageFilter) params.set("stageId", stageFilter);
   if (statusFilter) params.set("status", statusFilter);
+  if (reportOutreachFilter !== "all") params.set("reportOutreach", reportOutreachFilter);
+  tagFilters.forEach((id) => params.append("tagIds", id));
   params.set("page", String(page));
   params.set("limit", "25");
 
@@ -123,6 +130,13 @@ export default function PipelineListPage() {
             <SelectItem value="lost">{t.pipeline.closeLost.split("—")[1]?.trim() || "Lost"}</SelectItem>
           </SelectContent>
         </Select>
+        <ReportOutreachAndTagFilters
+          reportOutreach={reportOutreachFilter}
+          onReportOutreachChange={(value) => { setReportOutreachFilter(value); setPage(1); }}
+          tagIds={tagFilters}
+          onTagIdsChange={(ids) => { setTagFilters(ids); setPage(1); }}
+          testIdPrefix="pipeline-list"
+        />
       </div>
 
       {isLoading ? (
@@ -144,13 +158,17 @@ export default function PipelineListPage() {
                 <Card className="hover:shadow-md transition-shadow cursor-pointer" data-testid={`row-opportunity-${opp.id}`}>
                   <CardContent className="p-4 flex items-center gap-4">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <p className="font-medium text-gray-900 truncate" data-testid={`text-opp-title-${opp.id}`}>
                           {buildOppDisplayTitle(opp, data?.companyMap, data?.contactMap)}
                         </p>
                         <LeadTagBadges
                           tags={opp.leadId ? data?.leadTagMap?.[opp.leadId] : undefined}
                           testIdPrefix={`badge-pipeline-list-tag-${opp.id}`}
+                        />
+                        <ReportOutreachBadge
+                          state={opp.leadId ? data?.reportOutreachMap?.[opp.leadId] : null}
+                          testId={`badge-report-outreach-pipeline-list-${opp.id}`}
                         />
                       </div>
                       {opp.sourceLeadTitle && opp.sourceLeadTitle !== opp.title && (

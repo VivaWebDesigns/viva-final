@@ -23,6 +23,8 @@ import { useToast } from "@/hooks/use-toast";
 import LeadTagBadges from "@/components/LeadTagBadges";
 import SalesPriorityBadge from "@/components/SalesPriorityBadge";
 import type { SalesPrioritySnapshot } from "@shared/salesPriority";
+import type { ReportOutreachFilter, ReportOutreachSegment } from "@shared/reportOutreach";
+import { ReportOutreachAndTagFilters, ReportOutreachBadge } from "@features/crm/ReportOutreachControls";
 
 interface AutomationMeta {
   triggerStageSlug: string;
@@ -40,6 +42,11 @@ interface TaskWithContact extends FollowupTask {
     hungUpCount: number;
     tags: CrmTag[];
     salesPriority: SalesPrioritySnapshot | null;
+    reportEmailCount: number;
+    reportViewCount: number;
+    reportCtaClickCount: number;
+    reportOutreachSegment: ReportOutreachSegment;
+    reportNeedsAttention: boolean;
   } | null;
   automationMeta: AutomationMeta | null;
   opportunityStageSlug: string | null;
@@ -112,6 +119,10 @@ function TaskRow({
           <SalesPriorityBadge
             salesPriority={task.lead?.salesPriority}
             testId={`badge-sales-priority-task-${task.id}`}
+          />
+          <ReportOutreachBadge
+            state={task.lead}
+            testId={`badge-report-outreach-task-${task.id}`}
           />
           <span className="flex items-center gap-1 text-xs font-medium text-amber-500 whitespace-nowrap" data-testid={`text-due-date-${task.id}`}>
             <CalendarClock className="w-3 h-3" />
@@ -270,6 +281,10 @@ function CompletedTaskCard({
             className="mt-1"
             testId={`badge-sales-priority-completed-task-${task.id}`}
           />
+          <ReportOutreachBadge
+            state={task.lead}
+            testId={`badge-report-outreach-completed-task-${task.id}`}
+          />
 
           <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1.5">
             {contactName && (
@@ -373,6 +388,12 @@ export default function TasksDueTodayPage() {
   const [paymentSentPendingStageId, setPaymentSentPendingStageId] = useState<string | null>(null);
   const afterDemoCompletedCallbackRef = useRef<(() => void) | null>(null);
   const [paymentFollowupTask, setPaymentFollowupTask] = useState<TaskWithContact | null>(null);
+  const [reportOutreachFilter, setReportOutreachFilter] = useState<ReportOutreachFilter | "all">("all");
+  const [tagFilters, setTagFilters] = useState<string[]>([]);
+  const filterParams = new URLSearchParams();
+  if (reportOutreachFilter !== "all") filterParams.set("reportOutreach", reportOutreachFilter);
+  tagFilters.forEach((id) => filterParams.append("tagIds", id));
+  const filterQuery = filterParams.toString();
 
   const invalidateTaskCaches = useCallback((task?: TaskWithContact | null) => {
     queryClient.invalidateQueries({ queryKey: ["/api/tasks/due-today"] });
@@ -430,13 +451,13 @@ export default function TasksDueTodayPage() {
   });
 
   const { data, isLoading } = useQuery<DueTodayData>({
-    queryKey: ["/api/tasks/due-today"],
+    queryKey: ["/api/tasks/due-today", filterQuery ? `?${filterQuery}` : ""],
     staleTime: STALE.FAST,
     refetchOnWindowFocus: true,
   });
 
   const { data: completedTasks, isLoading: isLoadingHistory } = useQuery<TaskWithContact[]>({
-    queryKey: ["/api/tasks/completed-history"],
+    queryKey: ["/api/tasks/completed-history", filterQuery ? `?${filterQuery}` : ""],
     staleTime: STALE.FAST,
     refetchOnWindowFocus: true,
   });
@@ -485,6 +506,16 @@ export default function TasksDueTodayPage() {
             {t.tasks.allActiveTasks}
           </p>
         </div>
+      </div>
+
+      <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 mb-4">
+        <ReportOutreachAndTagFilters
+          reportOutreach={reportOutreachFilter}
+          onReportOutreachChange={setReportOutreachFilter}
+          tagIds={tagFilters}
+          onTagIdsChange={setTagFilters}
+          testIdPrefix="tasks"
+        />
       </div>
 
       <Tabs defaultValue="open" className="w-full">
