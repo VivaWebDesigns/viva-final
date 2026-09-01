@@ -245,14 +245,19 @@ export function summarizeSabMasterEvidence(cellsInput: SabRankedCell[], gridSize
 /** S05: ordinary rank falloff is allowed. Failure requires a globally best
  * boundary pin, or a monotonic outward path of at least three top20 pins
  * starting at a best+2 peak-cluster pin, ending at the boundary, with no worse
- * rank along the path. Two neighboring boundary pins alone are never a path.
+ * rank along the path. A path is directional visibility extension rather than
+ * centering failure when the global best is unique and in the central 3x3.
+ * Two neighboring boundary pins alone are never a path.
  */
 export function evaluateSabCoherentMargin(cellsInput: SabRankedCell[], size: number) {
   const cells = exactSabTop20Cells(cellsInput);
   if (!cells.length) return { failed: false, reason: "no_exact_top20_pins", outward_path: [] as string[] };
   const best = Math.min(...cells.map(cell => cell.rank));
-  const peakBoundary = cells.find(cell => cell.rank === best && boundary(cell, size));
+  const bestPins = cells.filter(cell => cell.rank === best);
+  const peakBoundary = bestPins.find(cell => boundary(cell, size));
   if (peakBoundary) return { failed: true, reason: "global_best_on_boundary", outward_path: [positionKey(peakBoundary)] };
+  const middle = (size + 1) / 2;
+  const uniqueCentralBest = bestPins.length === 1 && Math.abs(bestPins[0].row - middle) <= 1 && Math.abs(bestPins[0].column - middle) <= 1;
   const map = new Map(cells.map(cell => [positionKey(cell), cell]));
   const edgeDistance = (cell: SabRankedCell) => Math.min(cell.row - 1, cell.column - 1, size - cell.row, size - cell.column);
   const peakCells = sabRankedClusters(cells.filter(cell => cell.rank <= best + 2))
@@ -262,7 +267,9 @@ export function evaluateSabCoherentMargin(cellsInput: SabRankedCell[], size: num
     while (queue.length) {
       const path = queue.shift()!;
       const last = path.at(-1)!;
-      if (path.length >= 3 && boundary(last, size)) return { failed: true, reason: "maintained_or_improved_outward_path", outward_path: path.map(positionKey) };
+      if (path.length >= 3 && boundary(last, size)) return uniqueCentralBest
+        ? { failed: false, reason: "directional_visibility_extension_from_centered_unique_best", outward_path: path.map(positionKey) }
+        : { failed: true, reason: "maintained_or_improved_outward_path", outward_path: path.map(positionKey) };
       for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
         const next = map.get(`${last.row + dr}:${last.column + dc}`);
         if (next && next.rank <= last.rank && edgeDistance(next) < edgeDistance(last)) queue.push([...path, next]);

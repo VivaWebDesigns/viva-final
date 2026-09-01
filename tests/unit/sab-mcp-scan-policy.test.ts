@@ -122,8 +122,20 @@ describe("SAB coherent margin and saturation precedence", () => {
   it("does not mistake two adjacent boundary pins within best+5 for failure", () => {
     expect(evaluateSabCoherentMargin([cell(4, 4, 1), cell(3, 4, 3), cell(2, 4, 5), cell(1, 4, 6), cell(1, 5, 6)], 7).failed).toBe(false);
   });
-  it("detects maintained outward strength and an actual best boundary peak", () => {
-    expect(evaluateSabCoherentMargin([cell(4, 4, 1), cell(3, 4, 2), cell(2, 4, 2), cell(1, 4, 2)], 7)).toMatchObject({ failed: true, reason: "maintained_or_improved_outward_path" });
+  it("records a path from a unique central best as directional extension", () => {
+    const cells = [cell(4, 4, 1), cell(3, 5, 3), cell(3, 6, 3), cell(2, 7, 3)];
+    expect(evaluateSabCoherentMargin(cells, 7)).toMatchObject({
+      failed: false,
+      reason: "directional_visibility_extension_from_centered_unique_best",
+      outward_path: ["3:5", "3:6", "2:7"],
+    });
+    expect(analyzeSabScanPolicy({ stage: "deliverable", grid: grid(), cells }).action).toBe("center_validated");
+  });
+  it("still detects a qualifying path when the global best is not uniquely central", () => {
+    const cells = [cell(4, 4, 1), cell(2, 2, 1), cell(3, 3, 3), cell(3, 4, 3), cell(3, 5, 3), cell(3, 6, 3), cell(2, 7, 3)];
+    expect(evaluateSabCoherentMargin(cells, 7)).toMatchObject({ failed: true, reason: "maintained_or_improved_outward_path" });
+  });
+  it("still detects an actual best boundary peak", () => {
     expect(evaluateSabCoherentMargin([cell(4, 4, 2), cell(1, 4, 1)], 7).failed).toBe(true);
   });
   it("enables the approved saturation definition only during testing, before any recenter", () => {
