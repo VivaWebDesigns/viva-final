@@ -2,6 +2,8 @@ import type { Express } from "express";
 
 export const cleanPublicPageFiles: Record<string, string> = {
   "/results": "results.html",
+  "/results/glass-and-door-pro": "results.html",
+  "/results/carolina-custom-automation": "results.html",
   "/contact": "contact.html",
   "/privacy-policy": "privacy-policy.html",
   "/scan": "scan.html",

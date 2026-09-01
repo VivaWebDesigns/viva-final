@@ -1942,6 +1942,98 @@ select {
   overflow: hidden;
 }
 
+.results-case-panel[hidden],
+html[data-results-case="glass-and-door-pro"] [data-results-case-panel="carolina-custom-automation"],
+html[data-results-case="carolina-custom-automation"] [data-results-case-panel="glass-and-door-pro"] {
+  display: none !important;
+}
+
+.results-case-picker {
+  padding: 18px 0;
+  border-bottom: 1px solid rgba(41, 224, 248, 0.16);
+  background: #061a3d;
+  color: #ffffff;
+}
+
+.results-case-picker-label {
+  margin: 0 0 10px;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em !important;
+  text-transform: uppercase;
+}
+
+.results-case-picker-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.results-case-choice {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+  padding: 14px 42px 14px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.055);
+  color: #ffffff;
+  text-decoration: none;
+  transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
+}
+
+.results-case-choice:hover {
+  border-color: rgba(41, 224, 248, 0.55);
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.results-case-choice:focus-visible {
+  outline: 3px solid #29e0f8;
+  outline-offset: 3px;
+}
+
+.results-case-choice[aria-current="page"] {
+  border-color: #29e0f8;
+  background: rgba(15, 101, 158, 0.44);
+  box-shadow: inset 3px 0 0 #29e0f8;
+}
+
+.results-case-choice[aria-current="page"]::after {
+  position: absolute;
+  top: 13px;
+  right: 13px;
+  color: #29e0f8;
+  content: "Viewing";
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.results-case-choice-kicker {
+  color: #29e0f8;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.results-case-choice strong {
+  margin-top: 3px;
+  color: #ffffff;
+  font-size: 16px;
+  line-height: 1.25;
+}
+
+.results-case-choice small {
+  margin-top: 5px;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 .results-case-study h1,
 .results-case-study h2,
 .results-case-study h3,
@@ -2597,6 +2689,22 @@ select {
   font-size: 14px;
 }
 
+.results-outcome-card h2 {
+  max-width: 820px;
+  margin: 0;
+  color: var(--results-ink);
+  font-size: clamp(30px, 7vw, 42px);
+  line-height: 1.18;
+}
+
+.results-outcome-card > div > p:not(.results-eyebrow) {
+  max-width: 790px;
+  margin: 20px 0 0;
+  color: var(--muted);
+  font-size: 17px;
+  line-height: 1.7;
+}
+
 .results-final-cta {
   padding: 78px 0;
   background: #061a3d;
@@ -2631,6 +2739,10 @@ select {
 }
 
 @media (min-width: 640px) {
+  .results-case-picker-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .results-snapshot-header {
     flex-direction: row;
     align-items: flex-start;
@@ -2652,6 +2764,23 @@ select {
 }
 
 @media (min-width: 820px) {
+  .results-case-picker {
+    padding: 22px 0;
+  }
+
+  .results-case-picker-grid {
+    gap: 14px;
+  }
+
+  .results-case-choice {
+    min-height: 92px;
+    padding: 16px 120px 16px 20px;
+  }
+
+  .results-case-choice:hover {
+    transform: translateY(-1px);
+  }
+
   .results-case-hero {
     min-height: 650px;
     padding: 86px 0;

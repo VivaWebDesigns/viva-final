@@ -26,8 +26,15 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=20260707-viva-favicon">
     <link rel="manifest" href="/site.webmanifest?v=20260707-viva-favicon">
     <link rel="preload" as="image" href="/img/glass-door-pro-before.jpeg">
-    <link rel="stylesheet" href="/css/site.css?v=20260713-results-case-study">
+    <script>
+      var requestedResultsCase = new URLSearchParams(location.search).get("case");
+      document.documentElement.dataset.resultsCase = requestedResultsCase === "carolina-custom-automation" || location.pathname.indexOf("carolina-custom-automation") !== -1
+        ? "carolina-custom-automation"
+        : "glass-and-door-pro";
+    </script>
+    <link rel="stylesheet" href="/css/site.css?v=20260901-client-results-selector">
     <script defer src="/js/site.js"></script>
+    <script defer src="/js/results-case-studies.js?v=20260901-client-results-selector"></script>
   </head>
   <body>
     <!-- Google Tag Manager (noscript) -->
@@ -67,6 +74,25 @@
     </header>
 
     <main id="main" class="results-case-study">
+      <section class="results-case-picker" aria-label="Featured client results">
+        <div class="container">
+          <p class="results-case-picker-label">Choose a client case study</p>
+          <nav class="results-case-picker-grid" aria-label="Client case studies">
+            <a class="results-case-choice" data-results-case-link="glass-and-door-pro" href="/results/glass-and-door-pro" aria-current="page">
+              <span class="results-case-choice-kicker">Glass &amp; door services</span>
+              <strong>Glass and Door Pro</strong>
+              <small>2&ndash;3 calls per week <span aria-hidden="true">&rarr;</span> 3&ndash;6 calls per day</small>
+            </a>
+            <a class="results-case-choice" data-results-case-link="carolina-custom-automation" href="/results/carolina-custom-automation">
+              <span class="results-case-choice-kicker">Home automation</span>
+              <strong>Carolina Custom Automation</strong>
+              <small>No regular Google inquiries <span aria-hidden="true">&rarr;</span> calls and emails daily</small>
+            </a>
+          </nav>
+        </div>
+      </section>
+
+      <div class="results-case-panel" data-results-case-panel="glass-and-door-pro">
       <section class="results-case-hero">
         <div class="container results-case-hero-grid">
           <div class="results-case-hero-copy">
@@ -262,6 +288,204 @@
           </div>
         </div>
       </section>
+      </div>
+
+      <div class="results-case-panel" data-results-case-panel="carolina-custom-automation">
+        <section class="results-case-hero">
+          <div class="container results-case-hero-grid">
+            <div class="results-case-hero-copy">
+              <p class="results-eyebrow">Real client case study</p>
+              <h1>From No Google Leads to <span>Calls &amp; Emails Every Day</span></h1>
+              <p class="results-hero-summary">Carolina Custom Automation began with weak visibility from its original rural Clover location. After Viva built its website and optimized its Google Business Profile, the company moved to the denser, more competitive Fort Mill market&mdash;and still achieved dramatically stronger rankings.</p>
+              <div class="results-hero-actions">
+                <a class="button button-primary" href="/scan">Get My Free Visibility Scan</a>
+                <a class="results-text-link" href="#carolina-case-study">See the Full Case Study <span aria-hidden="true">&darr;</span></a>
+              </div>
+            </div>
+
+            <article class="results-snapshot" aria-label="Carolina Custom Automation results snapshot">
+              <div class="results-snapshot-header">
+                <div>
+                  <span class="results-snapshot-label">Viva case study</span>
+                  <h2>Carolina Custom Automation</h2>
+                  <p>Fort Mill, South Carolina</p>
+                </div>
+                <span class="results-status">Measured Growth</span>
+              </div>
+              <div class="results-snapshot-stats">
+                <div class="snapshot-stat">
+                  <span>Before</span>
+                  <strong>No inquiries</strong>
+                  <small>regularly from Google</small>
+                </div>
+                <div class="snapshot-stat snapshot-stat-featured">
+                  <span>After</span>
+                  <strong>Daily leads</strong>
+                  <small>calls and emails</small>
+                </div>
+                <div class="snapshot-stat">
+                  <span>Latest scan</span>
+                  <strong>5-mile radius</strong>
+                  <small>larger market tested</small>
+                </div>
+              </div>
+              <div class="radius-visual" aria-hidden="true">
+                <span class="radius-ring radius-ring-one"></span>
+                <span class="radius-ring radius-ring-two"></span>
+                <span class="radius-ring radius-ring-three"></span>
+                <span class="radius-center"></span>
+                <span class="radius-dot radius-dot-one"></span>
+                <span class="radius-dot radius-dot-two"></span>
+                <span class="radius-dot radius-dot-three"></span>
+                <span class="radius-dot radius-dot-four"></span>
+                <strong>3 &rarr; 5-mile scan radius</strong>
+              </div>
+              <p class="results-snapshot-note">Actual ranking maps shown below</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="results-section results-starting" id="carolina-case-study">
+          <div class="container results-two-column">
+            <div class="results-narrative">
+              <p class="results-eyebrow">The starting point</p>
+              <h2>A Strong Service That Google Was Barely Surfacing</h2>
+              <p>Carolina Custom Automation installs smart-home and automation systems, but its original online presence was not producing regular calls or emails from Google.</p>
+              <p>The first 3-mile scan was taken around the company's former rural Clover location. Visibility was inconsistent, with rankings weakening sharply across much of the measured area.</p>
+              <p>After the new website and Google Business Profile work, the company moved to Fort Mill&mdash;a more populated market with more nearby competitors.</p>
+            </div>
+            <aside class="results-problem-card">
+              <span class="results-card-label">Before Viva</span>
+              <ul>
+                <li><span class="results-icon"><img src="/img/icons/map-pin.svg" alt="" width="24" height="24"></span><strong>Inconsistent visibility across the original 3-mile scan</strong></li>
+                <li><span class="results-icon"><img src="/img/icons/scan-search.svg" alt="" width="24" height="24"></span><strong>Competing from a rural market with limited reach</strong></li>
+                <li><span class="results-icon"><img src="/img/icons/phone-call.svg" alt="" width="24" height="24"></span><strong>No regular calls or emails coming from Google</strong></li>
+              </ul>
+            </aside>
+          </div>
+        </section>
+
+        <section class="results-section results-work">
+          <div class="container">
+            <div class="results-section-header">
+              <p class="results-eyebrow">The work</p>
+              <h2>We Built a Stronger Local-Search Foundation</h2>
+              <p>The goal was to make the company's services easier for both customers and Google to understand, then strengthen its visibility as the business entered a larger Fort Mill market.</p>
+            </div>
+            <div class="results-work-grid">
+              <article class="results-work-card">
+                <span class="results-work-number">01</span>
+                <span class="results-icon"><img src="/img/icons/monitor.svg" alt="" width="24" height="24"></span>
+                <h3>Built the Website</h3>
+                <p>Created a professional website that clearly explains the company's home-automation services and gives prospective customers a direct way to call or email.</p>
+              </article>
+              <article class="results-work-card">
+                <span class="results-work-number">02</span>
+                <span class="results-icon"><img src="/img/icons/wrench.svg" alt="" width="24" height="24"></span>
+                <h3>Structured the Services</h3>
+                <p>Organized the website around the actual services customers search for so Google could better understand the company's relevance.</p>
+              </article>
+              <article class="results-work-card">
+                <span class="results-work-number">03</span>
+                <span class="results-icon"><img src="/img/icons/map-pin.svg" alt="" width="24" height="24"></span>
+                <h3>Optimized the Google Profile</h3>
+                <p>Strengthened the Google Business Profile and aligned it with the website as the company established its presence in Fort Mill.</p>
+              </article>
+              <article class="results-work-card">
+                <span class="results-work-number">04</span>
+                <span class="results-icon"><img src="/img/icons/chart-up.svg" alt="" width="24" height="24"></span>
+                <h3>Expanded the Measurement</h3>
+                <p>Repeated the scan after the move, then increased the radius from 3 to 5 miles to test how far the improved visibility held.</p>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section class="results-section results-ranking" id="carolina-heatmaps">
+          <div class="container">
+            <div class="results-section-header">
+              <p class="results-eyebrow">The ranking data</p>
+              <h2>A Tougher Market. A Much Stronger Result.</h2>
+              <p>The business changed locations between the first and second scans, so this is not a same-address comparison. The later scans show how Carolina Custom Automation performed after entering the denser Fort Mill market.</p>
+            </div>
+
+            <article class="results-map-card">
+              <div class="results-map-image">
+                <img src="/img/carolina-custom-automation-original-clover-3-mile-20260901.png" alt="Original 3-mile ranking scan from Carolina Custom Automation's former Clover location showing inconsistent local rankings" width="728" height="722" loading="lazy">
+              </div>
+              <div class="results-map-copy">
+                <span class="results-data-label results-data-label-before">Original Clover scan</span>
+                <h3>Limited Visibility Across the Original 3 Miles</h3>
+                <p>The original scan around the rural Clover location showed a small pocket of strength, but rankings weakened quickly across much of the area. Many points ranked between 7 and 20+, limiting how often nearby customers would see the company first.</p>
+                <p class="results-takeaway"><strong>Takeaway:</strong> The business had little dependable reach and was not receiving regular Google inquiries.</p>
+              </div>
+            </article>
+
+            <div class="results-timeline" aria-label="Sixty days later and after the move to Fort Mill">
+              <span></span><strong>60 Days Later + Fort Mill Move</strong><span></span>
+            </div>
+
+            <article class="results-map-card results-map-card-reverse">
+              <div class="results-map-image">
+                <img src="/img/carolina-custom-automation-60-days-fort-mill-3-mile-20260901.png" alt="60-day 3-mile ranking scan from Carolina Custom Automation's Fort Mill location showing predominantly number-one rankings" width="634" height="648" loading="lazy">
+              </div>
+              <div class="results-map-copy">
+                <span class="results-data-label">60 days later</span>
+                <h3>Dominant Rankings Across the Fort Mill Core</h3>
+                <p>After the website and Google Business Profile work, the company moved into Fort Mill. Despite the larger population and more competitive business environment, the 3-mile scan showed number-one rankings across nearly the entire measured area.</p>
+                <p class="results-takeaway"><strong>Takeaway:</strong> Visibility improved dramatically even though the company entered a tougher market.</p>
+              </div>
+            </article>
+
+            <article class="results-map-card">
+              <div class="results-map-image">
+                <img src="/img/carolina-custom-automation-latest-fort-mill-5-mile-20260901.png" alt="Latest 5-mile ranking scan for Carolina Custom Automation showing strong rankings across Fort Mill and surrounding areas" width="636" height="655" loading="lazy">
+              </div>
+              <div class="results-map-copy">
+                <span class="results-data-label">Newest 5-mile scan</span>
+                <h3>Strong Visibility Across a Larger Market</h3>
+                <p>The newest scan expanded the radius from 3 to 5 miles. Carolina Custom Automation continued ranking at or near the top across Fort Mill and surrounding areas, with expected competition increasing toward the outer northern edge.</p>
+                <p class="results-takeaway"><strong>Takeaway:</strong> The strong core rankings held as the measured market expanded.</p>
+              </div>
+            </article>
+
+            <div class="results-transparency">
+              <strong>About this comparison</strong>
+              <p>The business moved from rural Clover to Fort Mill between the original and later scans, so location and competitor density changed. The maps document stronger visibility after the move, but they are not a controlled same-location comparison. Results vary by market, competition, business history and starting condition.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="results-section results-impact">
+          <div class="container">
+            <div class="results-impact-header">
+              <p class="results-eyebrow">What the rankings meant</p>
+              <h2>Google Began Producing Real Opportunities</h2>
+              <p>The visibility gains translated into what matters most: Carolina Custom Automation now receives calls and emails from Google every day, something that was not happening before the website and profile work.</p>
+            </div>
+            <div class="results-impact-stats">
+              <div><strong>None</strong><span>Regular Google inquiries<br>before Viva</span></div>
+              <div class="results-impact-featured"><strong>Daily</strong><span>Calls and emails<br>from Google</span></div>
+              <div><strong>5 miles</strong><span>Latest measured<br>scan radius</span></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="results-section results-testimonial">
+          <div class="container">
+            <div class="results-quote-card results-outcome-card">
+              <div>
+                <p class="results-eyebrow">The business outcome</p>
+                <h2>Daily Calls and Emails Now Come Through Google</h2>
+                <p>According to the business owner, Carolina Custom Automation is now receiving calls and emails from Google every day. Before Viva rebuilt the company's online foundation, those Google-driven inquiries were not coming in regularly.</p>
+                <div class="results-quote-attribution">
+                  <p><strong>Van</strong><span>Owner, Carolina Custom Automation</span></p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
 
       <section class="results-final-cta">
         <div class="container">

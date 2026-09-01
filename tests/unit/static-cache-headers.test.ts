@@ -103,6 +103,8 @@ describe("HTML shell cache policy", () => {
 describe("Clean public page routes", () => {
   it.each([
     ["/results", "results page"],
+    ["/results/glass-and-door-pro", "results page"],
+    ["/results/carolina-custom-automation", "results page"],
     ["/contact", "contact page"],
     ["/scan", "scan page"],
     ["/thanks", "thanks page"],
