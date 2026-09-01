@@ -7,7 +7,7 @@ import { getSabRankedCells } from "./localFalconRankedCells";
 import { analyzeSabScanPolicy, selectSabCanonicalScan } from "./scanPolicy";
 import { reverseGeocodeSabCenters } from "./reverseGeocode";
 import { buildSabRunManifest } from "./exportManifest";
-import { approveSabTerminalDeferral, createSabRunState, authorizeSabScanBatch, completeSabRunReports, endSabTestingMode, inSabRunStateQueue, reconcileSabAmbiguousSubmission, sabScanPlanFingerprint, type SabRunState, type SabScanPlan } from "./runState";
+import { approveSabTerminalDeferral, createSabRunState, authorizeSabScanBatch, completeSabRunReports, endSabTestingMode, inSabRunStateQueue, reconcileSabAmbiguousSubmission, recordSabRunSubmission, sabScanPlanFingerprint, type SabRunState, type SabScanPlan } from "./runState";
 import { SAB_CENTER_TYPES, runSabScanOnceInputSchema, type SabCompanyUpdates, type SabScanResult } from "./schema";
 import { corroborationAllowsAuxiliary, sabAddressCorroborationSchema, type SabAddressCorroboration } from "./addressCorroboration";
 import { evaluateSabAddressCandidate, evaluateSabCoordinatesAgainstCells } from "./addressCandidate";
@@ -311,16 +311,25 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
     if(args.orchestrator_id!==state.orchestrator_id) throw new Error("Only this run's orchestrator may reconcile an ambiguous submission");
     const batch=state.batches.find(candidate=>candidate.authorization_id===args.authorization_id);
     const scan=batch?.scans.find(candidate=>candidate.plan.place_id===args.place_id);
-    if(!scan || scan.submission_status!=="ambiguous_response" || !scan.idempotency_key) throw new Error("No matching ambiguous durable claim exists");
+    if(!scan?.idempotency_key) throw new Error("No matching ambiguous durable claim exists");
+    const receipt=await repo.getScanSubmission(args.place_id,scan.idempotency_key);
+    const receiptStatus=typeof receipt?.submission_status==="string" ? receipt.submission_status.trim() : "";
+    const receiptReportKey=typeof receipt?.report_key==="string" ? receipt.report_key.trim() : "";
+    const postProviderReservedClaim=scan.submission_status==="reserved" && batch?.status==="authorized" &&
+      (receiptStatus==="submitting" || (receiptStatus==="submitted" && receiptReportKey===args.report_key));
+    if(scan.submission_status!=="ambiguous_response" && !postProviderReservedClaim) throw new Error("No matching ambiguous durable claim exists");
     const report=await getSabRankedCells(args.report_key,[args.place_id]);
     assertExactReport(report,args.report_key,args.place_id,scan.plan.scan_role);
     assertReportPlan(report,scan.plan);
     await repo.updateScanSubmission(args.place_id,scan.idempotency_key,{submission_status:"submitted",report_key:args.report_key,
       recovery:"verified_existing_report",reconciled_at:new Date().toISOString()},actorEmail);
-    const next=reconcileSabAmbiguousSubmission(state,args);
+    const next=postProviderReservedClaim
+      ? recordSabRunSubmission(state,scan.idempotency_key,{submission_status:"submitted",report_key:args.report_key})
+      : reconcileSabAmbiguousSubmission(state,args);
     await repo.saveRunState(next,state.version,actorEmail);
     return {run_id:args.run_id,authorization_id:args.authorization_id,place_id:args.place_id,report_key:args.report_key,
-      submission_status:"submitted",recovered_existing_claim:true,scans_submitted:0,credits_added:0,next_batch_status:next.batches.find(candidate=>candidate.authorization_id===args.authorization_id)?.status};
+      submission_status:"submitted",recovered_existing_claim:true,recovery_source:postProviderReservedClaim?"verified_post_provider_reserved_claim":"ambiguous_response",
+      scans_submitted:0,credits_added:0,next_batch_status:next.batches.find(candidate=>candidate.authorization_id===args.authorization_id)?.status};
   }));
   add("authorize_sab_scan_batch","Record the orchestrator's exact SOP-compliant batch plan. Testing requires Matt's initial approval or review of the completed previous batch, bound to this plan. Preserve exception and credit limits. This does not submit scans.",{
     ...run,orchestrator_id:z.string().min(1),authorization_id:z.string().uuid(),authorization_reference:z.string().min(1),scans:z.array(plan).min(1).max(100),

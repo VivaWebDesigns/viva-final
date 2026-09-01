@@ -57,6 +57,7 @@ function repository(state=submitted(),overrides:Record<string,unknown>={}) {
     getRunCompletionRows:vi.fn(async()=>[structuredClone(row)]),
     getExportCandidates:vi.fn(async()=>row.qualification_status==="qualified"?[structuredClone(row)]:[]),
     getCompany:vi.fn(async()=>structuredClone(row)),
+    getScanSubmission:vi.fn(async()=>null),
     saveRunState:vi.fn(async(next:SabRunState,version:number)=>{expect(version).toBe(storedState.version);storedState=structuredClone(next);}),
     updateScanSubmission:vi.fn(async(_place:string,_key:string,updates:Record<string,unknown>)=>structuredClone(updates)),
     saveCompany:vi.fn(async(_place:string,updates:Record<string,unknown>,_actor?:string,_options?:{exclusionReviewApproved?:boolean;exclusionReviewDeclined?:boolean;exclusionDecisionContinued?:boolean;corroborationRecorded?:boolean;corroborationAnalysisVerified?:boolean})=>{row={...row,...structuredClone(updates)};return {writes_performed:true};}),
@@ -274,6 +275,18 @@ describe("SAB orchestration integration",()=>{
     expect((await repo.getRunState()).committed_credits).toBe(49);
     vi.mocked(getSabRankedCells).mockResolvedValue(report(key5,{...plan,center:{latitude:35.1,longitude:-80}}) as never);
     await expect(api.invoke("reconcile_sab_ambiguous_submission",{orchestrator_id:"owner",authorization_id:"11111111-1111-4111-8111-111111111111",place_id:"place",report_key:key5})).rejects.toThrow(/ambiguous durable claim/);
+  });
+
+  it("recovers an exact report from a post-provider reserved claim without another paid submission",async()=>{
+    const authorized=authorizeSabScanBatch(initialize(),{authorization_id:"11111111-1111-4111-8111-111111111111",orchestrator_id:"owner",authorization_reference:"plan",scans:[plan],matt_initial_approval:approved});
+    const reserved=claimSabRunScan(authorized,"11111111-1111-4111-8111-111111111111",plan,"stuck-idempotency");
+    const repo=repository(reserved),api=tools(repo);
+    repo.getScanSubmission.mockResolvedValue({submission_status:"submitting",submit_started_at:"2026-09-01T21:54:00.000Z"});
+    vi.mocked(getSabRankedCells).mockResolvedValue(report() as never);
+    const recovered=await api.invoke("reconcile_sab_ambiguous_submission",{orchestrator_id:"owner",authorization_id:"11111111-1111-4111-8111-111111111111",place_id:"place",report_key:key3});
+    expect(recovered).toMatchObject({submission_status:"submitted",recovered_existing_claim:true,recovery_source:"verified_post_provider_reserved_claim",scans_submitted:0,credits_added:0,next_batch_status:"awaiting_completion"});
+    expect(repo.updateScanSubmission).toHaveBeenCalledWith("place","stuck-idempotency",expect.objectContaining({submission_status:"submitted",report_key:key3,recovery:"verified_existing_report"}),"actor");
+    expect((await repo.getRunState()).committed_credits).toBe(49);
   });
 
   it("does not spend while a returned provider phone conflicts with the selected verified contact",async()=>{
