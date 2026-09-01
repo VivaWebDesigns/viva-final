@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createHash } from "node:crypto";
 import { analyzeAndRecordSabReport, registerSabOrchestrationTools } from "../../server/features/sab-mcp/orchestration";
 import { getSabRankedCells } from "../../server/features/sab-mcp/localFalconRankedCells";
 import { reverseGeocodeSabCenters } from "../../server/features/sab-mcp/reverseGeocode";
@@ -33,6 +34,16 @@ function report(key=key3,scan=plan,overrides:Record<string,unknown>={}) {
     missing_place_id_count:0,found_place_id_count:1,grid:{size:scan.grid_size,point_count:scan.grid_size**2,radius:scan.radius,measurement:scan.measurement,center:scan.center},
     businesses:[{place_id:scan.place_id,evidence_source:"competitor_roster",ranked_cell_count:1,imprecise_or_unranked_cell_count:48,ranked_cells:[{row:4,column:4,latitude:35,longitude:-80,rank:5}],all_point_rank_cells:[{row:4,column:4,latitude:35,longitude:-80,rank:5}]}],...overrides,
   };
+}
+function currentEvidenceHash(value:ReturnType<typeof report>) {
+  return createHash("sha256").update(JSON.stringify({report_key:value.report_key,grid:value.grid,cells:value.businesses[0].all_point_rank_cells ?? value.businesses[0].ranked_cells,arp:value.arp,atrp:value.atrp,solv:value.solv})).digest("hex");
+}
+function legacyEvidenceHash(value:ReturnType<typeof report>) {
+  return createHash("sha256").update(value.businesses[0].ranked_cells
+    .filter(cell=>Number.isInteger(cell.rank) && cell.rank>=1 && cell.rank<=20)
+    .map(cell=>[cell.row,cell.column,cell.rank,cell.latitude,cell.longitude].join(","))
+    .sort().join("\n"))
+    .digest("hex");
 }
 function repository(state=submitted(),overrides:Record<string,unknown>={}) {
   let storedState=structuredClone(state);
@@ -342,6 +353,30 @@ describe("SAB orchestration integration",()=>{
     row.decision_state={...row.decision_state,centering_status:"planned",proposed_center:"35,-80",evidence:{next_action:"plan_auxiliary"}};
     const blocked=repository(initialize(),row);
     await expect(tools(blocked).invoke("authorize_sab_scan_batch",{orchestrator_id:"owner",authorization_id:"11111111-1111-4111-8111-111111111111",authorization_reference:"bad-fallback",scans:[{...plan,scan_role:"auxiliary",scan_type:"scout",grid_size:9,radius:6,estimated_credits:81}],matt_initial_approval:approved,exception:{...approved,reason:"cannot bypass failure"}})).rejects.toThrow(/technical failure/);
+  });
+
+  it.each(["accepted","rejected","no_candidate"] as const)("recovers %s corroboration from an exactly verified legacy ranked-cell hash",async(status)=>{
+    const master=report("cccccccccccc",plan,{businesses:[{place_id:"place",evidence_source:"competitor_roster",ranked_cell_count:1,imprecise_or_unranked_cell_count:48,ranked_cells:[{row:1,column:4,latitude:35.05,longitude:-80,rank:5}],all_point_rank_cells:Array.from({length:49},(_,index)=>({row:Math.floor(index/7)+1,column:index%7+1,latitude:35.05-Math.floor(index/7)*.01,longitude:-80+(index%7)*.01,rank:index===3?5:21}))}]});
+    const legacyHash=legacyEvidenceHash(master),currentHash=currentEvidenceHash(master);
+    expect(legacyHash).not.toBe(currentHash);
+    const technicalFailure={source_report_key:master.report_key,evidence_hash:legacyHash,status:"technical_failure" as const,research_complete:true,evidence_references:["verified-company-source"],source_type:"official source",identity_method:"exact phone",fit_rationale:"Prior writer failure"};
+    const repo=repository(initialize(),{status:"blocked",blocker:"address_corroboration_incomplete",decision_state:{source_report_key:master.report_key,evidence_hash:legacyHash,rule_id:"S01",centering_status:"failed",routine_recenter_count:0,evidence:{next_action:"address_corroboration_incomplete"},address_corroboration:technicalFailure}});
+    vi.mocked(getSabRankedCells).mockResolvedValue(master as never);
+    if(status!=="no_candidate") vi.mocked(evaluateSabAddressCandidate).mockResolvedValueOnce({status:"complete",candidate_coordinates:{latitude:35.02,longitude:-80},geocoder:{location_type:"ROOFTOP",partial_match:false},distances_miles:{weighted_centroid:1,nearest_ranked_cell:.5,best_rank_cluster_centroid:1}} as never);
+    const common={orchestrator_id:"owner",place_id:"place",report_key:master.report_key,research_complete:true,evidence_references:["verified-company-source"],source_type:"official source",identity_method:"exact phone",fit_rationale:"Freshly verified recovery"};
+    const input=status==="no_candidate"?{...common,result:"no_candidate"}:{...common,result:"candidate",candidate_address:"PRIVATE-CANDIDATE",fit_decision:status};
+    const result=await tools(repo).invoke("record_sab_address_corroboration",input);
+    expect(result.address_corroboration).toMatchObject({status,evidence_hash:currentHash});
+    expect(await repo.getCompany()).toMatchObject({status:"in_progress",blocker:null,decision_state:{evidence_hash:currentHash,address_corroboration:{status,evidence_hash:currentHash}}});
+  });
+
+  it("rejects an unverified corroboration hash mismatch without converting it to a technical failure",async()=>{
+    const master=report("cccccccccccc",plan,{businesses:[{place_id:"place",evidence_source:"competitor_roster",ranked_cell_count:1,imprecise_or_unranked_cell_count:48,ranked_cells:[{row:1,column:4,latitude:35.05,longitude:-80,rank:5}],all_point_rank_cells:[{row:1,column:4,latitude:35.05,longitude:-80,rank:5}]}]});
+    const mismatch="f".repeat(64),technicalFailure={source_report_key:master.report_key,evidence_hash:mismatch,status:"technical_failure" as const,research_complete:true,evidence_references:["verified-company-source"],source_type:"official source",identity_method:"exact phone",fit_rationale:"Prior writer failure"};
+    const repo=repository(initialize(),{status:"blocked",blocker:"address_corroboration_incomplete",decision_state:{source_report_key:master.report_key,evidence_hash:mismatch,rule_id:"S01",centering_status:"failed",routine_recenter_count:0,evidence:{next_action:"address_corroboration_incomplete"},address_corroboration:technicalFailure}});
+    vi.mocked(getSabRankedCells).mockResolvedValue(master as never);
+    await expect(tools(repo).invoke("record_sab_address_corroboration",{orchestrator_id:"owner",place_id:"place",report_key:master.report_key,result:"no_candidate",research_complete:true,evidence_references:["verified-company-source"],source_type:"official source",identity_method:"exact phone",fit_rationale:"Freshly verified recovery"})).rejects.toThrow(/hash compatibility verification failed/);
+    expect(repo.saveCompany).not.toHaveBeenCalled();
   });
 
   it("preserves the orchestrator complete-distribution fit judgment without adding strict distance gates",async()=>{

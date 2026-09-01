@@ -34,6 +34,14 @@ function reportUrl(report: RankedReport) {
 function evidenceHash(report: RankedReport) {
   return createHash("sha256").update(JSON.stringify({report_key: report.report_key, grid: report.grid, cells: report.businesses[0].all_point_rank_cells ?? report.businesses[0].ranked_cells, arp: report.arp, atrp: report.atrp, solv: report.solv})).digest("hex");
 }
+function legacyRankedCellEvidenceHash(report: RankedReport) {
+  return createHash("sha256").update(report.businesses[0].ranked_cells
+    .filter(cell => Number.isInteger(cell.rank) && cell.rank >= 1 && cell.rank <= 20)
+    .map(cell => [cell.row,cell.column,cell.rank,cell.latitude,cell.longitude].join(","))
+    .sort()
+    .join("\n"))
+    .digest("hex");
+}
 const centerText = (center: { latitude: number; longitude: number }) => `${center.latitude},${center.longitude}`;
 function sameCenter(value: unknown, center: { latitude: number; longitude: number }) {
   if (typeof value !== "string") return false;
@@ -359,12 +367,22 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
     if(args.result==="no_candidate" && previous.address_corroboration?.status === "incomplete") throw new Error("Resolve the incomplete candidate evaluation; a known partial candidate cannot be relabelled as no candidate");
     const base={source_report_key:args.report_key,evidence_hash:previous.evidence_hash,evidence_references:args.evidence_references,
       source_type:args.source_type,identity_method:args.identity_method,fit_rationale:args.fit_rationale,research_complete:args.research_complete};
-    let evidence:SabAddressCorroboration,report:RankedReport|undefined;
+    let evidence:SabAddressCorroboration={...base,status:"technical_failure",fit_rationale:"Address or ranked-evidence evaluation could not be completed. Resolve the technical issue; no paid fallback is authorized."},report:RankedReport|undefined;
     try {
       report=await getSabRankedCells(args.report_key,[args.place_id]);assertExactReport(report,args.report_key,args.place_id,"master");
-      if(evidenceHash(report)!==previous.evidence_hash) throw new Error("Changed evidence");
-      if(args.result==="no_candidate") evidence={...base,status:"no_candidate"};
-      else {
+    } catch {
+      // Do not include provider errors, request URLs or the temporary address.
+      evidence={...base,status:"technical_failure",fit_rationale:"Address or ranked-evidence evaluation could not be completed. Resolve the technical issue; no paid fallback is authorized."};
+      report=undefined;
+    }
+    if(report) {
+      const currentHash=evidenceHash(report),legacyHash=legacyRankedCellEvidenceHash(report);
+      if(previous.evidence_hash!==currentHash && previous.evidence_hash!==legacyHash) {
+        throw new Error("Address corroboration hash compatibility verification failed: the stored evidence hash matches neither the current full-report hash nor the verified legacy ranked-cell hash");
+      }
+      const verifiedBase={...base,evidence_hash:currentHash};
+      if(args.result==="no_candidate") evidence={...verifiedBase,status:"no_candidate"};
+      else try {
         const evaluated=await evaluateSabAddressCandidate(args.report_key,args.place_id,args.candidate_address,{rankedCells:async()=>report!});
         const complete=evaluated.status==="complete" && !evaluated.geocoder.partial_match;
         const unmistakableContradiction=args.fit_decision==="accepted" && complete &&
@@ -372,19 +390,20 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
         // Preserve orchestrator judgment near the approximate threshold, but
         // never accept a candidate beyond every complete-distribution
         // reference. That is an objective contradiction, not a shape tie.
-        evidence={...base,...(unmistakableContradiction?{fit_rationale:"Server rejected the proposed acceptance because every complete-distribution reference exceeded the established three-mile fit limit."}:{}),
+        evidence={...verifiedBase,...(unmistakableContradiction?{fit_rationale:"Server rejected the proposed acceptance because every complete-distribution reference exceeded the established three-mile fit limit."}:{}),
           status:!complete?"incomplete":unmistakableContradiction?"rejected":args.fit_decision,
           candidate_coordinates:evaluated.candidate_coordinates,geocoder:{location_type:evaluated.geocoder.location_type,partial_match:evaluated.geocoder.partial_match},
           distances_miles:evaluated.distances_miles};
+      } catch {
+        // Preserve the legacy hash on a provider/evaluator failure so a later
+        // retry must re-verify the same report before migration.
+        evidence={...base,status:"technical_failure",fit_rationale:"Address or ranked-evidence evaluation could not be completed. Resolve the technical issue; no paid fallback is authorized."};
+        report=undefined;
       }
-    } catch {
-      // Do not include provider errors, request URLs or the temporary address.
-      evidence={...base,status:"technical_failure",fit_rationale:"Address or ranked-evidence evaluation could not be completed. Resolve the technical issue; no paid fallback is authorized."};
-      report=undefined;
     }
     evidence=sabAddressCorroborationSchema.parse(evidence);
     const incomplete=["incomplete","technical_failure"].includes(evidence.status);
-    await repo.saveCompany(args.place_id,{decision_state:{...previous,address_corroboration:evidence,
+    await repo.saveCompany(args.place_id,{decision_state:{...previous,evidence_hash:evidence.evidence_hash,address_corroboration:evidence,
       ...(incomplete?{centering_status:"failed" as const,evidence:{...previous.evidence,next_action:"address_corroboration_incomplete"}}:{})},
       ...(incomplete?{status:"blocked" as const,blocker:"address_corroboration_incomplete"}:{})},actorEmail,{corroborationRecorded:true});
     if(!report) return {place_id:args.place_id,address_corroboration:evidence,action:"address_corroboration_incomplete",paid_scans_submitted:0};
