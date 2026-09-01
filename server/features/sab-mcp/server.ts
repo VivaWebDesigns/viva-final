@@ -16,6 +16,7 @@ import { reverseGeocodeSabCenters } from "./reverseGeocode";
 import { evaluateSabAddressCandidate } from "./addressCandidate";
 import { verifySabScanHistoryRepairs } from "./scanHistoryReconciliation";
 import { runSabScanOnce } from "./localFalconScanSubmission";
+import { preflightSabLocalFalconBatch } from "./localFalconPreflight";
 import { getSabCrmImportContract, validateSabCrmManifest } from "./crmManifest";
 import {
   checkCrmLocalFalconReportInputSchema,
@@ -33,6 +34,7 @@ import {
   markSabBlockedInputSchema,
   reverseGeocodeSabCentersInputSchema,
   reconcileSabScanHistoryInputSchema,
+  preflightSabLocalFalconBatchInputSchema,
   runSabScanOnceInputSchema,
   SAB_HEADERS,
   SAB_CENTER_TYPES,
@@ -91,7 +93,7 @@ export function createSabMcpServer(
 ) {
   const server = new McpServer({
     name: "viva-sab-workflow",
-    version: "2.2.0",
+    version: "2.3.0",
   });
 
   server.registerTool(
@@ -371,6 +373,16 @@ export function createSabMcpServer(
         "read_back_repaired_stage; reconcile_run_claim_before_further_scans",
       );
     },
+  );
+
+  server.registerTool(
+    "preflight_sab_local_falcon_batch",
+    sabTool({
+      description:
+        "Perform the routine read-only Local Falcon preflight for an exact proposed scan batch. Reads the live usable-credit balance, all saved locations, and pending/completed provider report history; matches exact Place ID, keyword, platform, grid, radius, measurement, and center; then returns save-location prerequisites and duplicate-report check records ready for guarded batch authorization. It never saves a location, submits a scan, reserves credits, writes workflow state, or charges the provider. Use this instead of browser history and credit checks.",
+      inputSchema: preflightSabLocalFalconBatchInputSchema,
+    }),
+    async ({ scans }) => jsonToolResult(await preflightSabLocalFalconBatch(scans)),
   );
 
   server.registerTool(

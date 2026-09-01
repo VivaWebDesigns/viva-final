@@ -588,6 +588,32 @@ export const runSabScanOnceInputSchema = {
   sop_routing_rule: z.string().trim().min(1).max(5_000),
 };
 
+const sabLocalFalconPreflightScanSchema = z
+  .object(runSabScanOnceInputSchema)
+  .pick({
+    place_id: true,
+    scan_role: true,
+    scan_type: true,
+    center: true,
+    grid_size: true,
+    radius: true,
+    measurement: true,
+    keyword: true,
+    platform: true,
+    estimated_credits: true,
+  })
+  .strict();
+
+export const preflightSabLocalFalconBatchInputSchema = {
+  scans: z
+    .array(sabLocalFalconPreflightScanSchema)
+    .min(1)
+    .max(100)
+    .describe(
+      "Exact proposed Local Falcon scan envelopes. This read-only check derives saved-location prerequisites, exact provider-history duplicates, and current usable credits without submitting scans.",
+    ),
+};
+
 export const upgradeSabWorkflowSchemaInputSchema = {
   ...workflowSheetInputSchema,
 };

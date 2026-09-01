@@ -313,7 +313,7 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
     ...run,orchestrator_id:z.string().min(1),authorization_id:z.string().uuid(),authorization_reference:z.string().min(1),scans:z.array(plan).min(1).max(100),
     matt_initial_approval:matt.optional(),matt_review:matt.extend({reviewed_batch_id:z.string().uuid()}).optional(),exception:matt.extend({reason:z.string().min(1)}).optional(),
     duplicate_report_checks:z.array(z.object({scan:plan,result:z.literal("none"),evidence_reference:z.string().trim().min(1).max(2000),checked_at:z.string().datetime()}).strict()).min(1).max(100)
-      .describe("Recorded read-only check for equivalent pending/completed reports, one per exact scan envelope. This is separate from CRM deduplication and does not claim an automated provider search."),
+      .describe("Plan-bound evidence returned by preflight_sab_local_falcon_batch after an automated read-only search for equivalent pending/completed provider reports. One check is required per exact scan envelope; this remains separate from CRM deduplication."),
   },async args=>inSabRunStateQueue(async()=>{
     const repo=factory(args.workflow_sheet,args.sheet_name),state=await requireRun(repo,args.run_id);
     const checks=args.duplicate_report_checks as NonNullable<SabRunState["batches"][number]["duplicate_report_checks"]>;

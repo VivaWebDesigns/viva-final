@@ -25,7 +25,7 @@ describe("SAB MCP tool discovery", () => {
 
     try {
       const { tools } = await client.listTools();
-      expect(tools).toHaveLength(33);
+      expect(tools).toHaveLength(34);
       expect(tools.map((tool) => tool.name)).toContain("record_sab_address_corroboration");
       expect(tools.map((tool) => tool.name)).toContain("reconcile_sab_ambiguous_submission");
       expect(tools.map((tool) => tool.name)).toContain("decline_sab_exclusion");
@@ -50,6 +50,9 @@ describe("SAB MCP tool discovery", () => {
         "reconcile_sab_scan_history",
       );
       expect(tools.map((tool) => tool.name)).toContain("run_sab_scan_once");
+      expect(tools.map((tool) => tool.name)).toContain(
+        "preflight_sab_local_falcon_batch",
+      );
       for (const name of ["save_sab_company", "save_sab_scan_result"]) {
         const tool = tools.find((candidate) => candidate.name === name)!;
         expect(JSON.stringify(tool.inputSchema)).toContain("ranked_peak_recentered");
