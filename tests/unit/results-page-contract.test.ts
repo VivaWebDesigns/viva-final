@@ -33,9 +33,10 @@ describe("client results page", () => {
     expect(resultsHtml).toContain("not a controlled same-location comparison");
   });
 
-  it("states the reported business outcome without inventing a lead count", () => {
-    expect(resultsHtml).toContain("calls and emails from Google every day");
+  it("states the reported lead count and owner quote", () => {
+    expect(resultsHtml).toContain("10&ndash;14 Google leads per week");
     expect(resultsHtml).toContain("No regular Google inquiries");
-    expect(resultsHtml).not.toContain("calls per day</strong><span>Carolina Custom Automation");
+    expect(resultsHtml).toContain("We&rsquo;ve had a 5 star Google Business Profile and website for over 5 years and just now started getting Google leads.");
+    expect(resultsHtml).toContain("van-carolina-custom-automation-avatar-20260901-v1.webp");
   });
 });

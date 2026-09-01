@@ -6,7 +6,7 @@
     },
     "carolina-custom-automation": {
       title: "Carolina Custom Automation Case Study | Viva Web Designs",
-      description: "See how Carolina Custom Automation gained dominant Fort Mill Google Maps visibility and began receiving calls and emails from Google every day."
+      description: "See how Carolina Custom Automation gained dominant Fort Mill Google Maps visibility and began receiving 10-14 Google leads per week."
     }
   };
 
