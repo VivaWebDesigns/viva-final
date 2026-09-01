@@ -10,7 +10,7 @@ import { buildSabRunManifest } from "./exportManifest";
 import { createSabRunState, authorizeSabScanBatch, completeSabRunReports, endSabTestingMode, inSabRunStateQueue, reconcileSabAmbiguousSubmission, sabScanPlanFingerprint, type SabRunState, type SabScanPlan } from "./runState";
 import { SAB_CENTER_TYPES, runSabScanOnceInputSchema, type SabCompanyUpdates, type SabScanResult } from "./schema";
 import { corroborationAllowsAuxiliary, sabAddressCorroborationSchema, type SabAddressCorroboration } from "./addressCorroboration";
-import { evaluateSabAddressCandidate } from "./addressCandidate";
+import { evaluateSabAddressCandidate, evaluateSabCoordinatesAgainstCells } from "./addressCandidate";
 
 const common = {workflow_sheet:z.string().min(1),sheet_name:z.string().min(1).default("SAB Workflow")};
 const run = {...common,run_id:z.string().min(1).max(200)};
@@ -128,7 +128,11 @@ function assertDecisionPlan(row: Company, scan: SabScanPlan, hasException: boole
   const decision = decisionState(row), evidence = decision?.evidence;
   if (!decision || !sameCenter(decision.proposed_center, scan.center) || !["planned", "validated"].includes(decision.centering_status)) throw new Error("Scan center must match persisted structured decision evidence");
   const action = evidence?.next_action;
-  if (scan.scan_role === "auxiliary" && !corroborationAllowsAuxiliary(decision.address_corroboration,decision.source_report_key,decision.evidence_hash)) {
+  const correction = evidence?.corroboration_correction as Record<string, unknown> | undefined;
+  const correctedAuxiliary = correction?.status === "corrected_rejected" && correction.source_report_key === decision.source_report_key &&
+    correction.evidence_hash === decision.evidence_hash && correction.classification === "agent_error" &&
+    typeof correction.invalidated_deliverable_report_key === "string" && Number(correction.nearest_ranked_cell_miles) > 3;
+  if (scan.scan_role === "auxiliary" && !corroborationAllowsAuxiliary(decision.address_corroboration,decision.source_report_key,decision.evidence_hash) && !correctedAuxiliary) {
     throw new Error("Complete structured address corroboration before an unresolved auxiliary; incomplete evaluation or a technical failure cannot authorize paid fallback");
   }
   const miles = scan.measurement === "mi";
@@ -149,22 +153,50 @@ export async function analyzeAndRecordSabReport(repository: SabSheetsRepository,
   assertExactReport(report, input.report_key, input.place_id, input.stage);
   const submitted = state.batches.flatMap(batch => batch.scans).filter(scan => scan.plan.place_id === input.place_id && scan.submission_status === "submitted");
   const ownedScan = scanForReport(state, input.report_key, input.place_id);
+  const row = await repository.getCompany(input.place_id);
+  const previous = decisionState(row);
+  let corroborationCorrection: Record<string, unknown> | undefined;
   if (input.stage === "master") {
-    if (submitted.length) throw new Error("Master analysis cannot overwrite newer submitted scan evidence");
+    if (submitted.length) {
+      const latest = submitted.at(-1)!;
+      const eligibilityReferences = ((row as Company & {eligibility_state?:{evidence_references?:unknown}}).eligibility_state?.evidence_references ?? []) as unknown[];
+      const guardedRecovery = latest.completion_verified && latest.plan.scan_role === "deliverable" && latest.report_key &&
+        previous?.source_report_key === latest.report_key && previous.centering_status === "failed" &&
+        previous.evidence?.next_action === "evidence_review_required" && previous.evidence?.exact_top20_count === 0 &&
+        !row.report_key && row.center_type === "corroborated_address" && sameCenter(row.scan_center,latest.plan.center) &&
+        eligibilityReferences.some(reference => typeof reference === "string" && reference.includes(input.report_key));
+      if (!guardedRecovery) throw new Error("Master analysis cannot overwrite newer submitted scan evidence");
+      const failed = await getSabRankedCells(latest.report_key!,[input.place_id]);
+      assertReportPlan(failed,latest.plan);
+      const failedCells = failed.businesses[0].all_point_rank_cells ?? failed.businesses[0].ranked_cells;
+      if (failedCells.some(cell => Number.isInteger(cell.rank) && cell.rank >= 1 && cell.rank <= 20)) throw new Error("Guarded master recovery requires an exact zero-top20 failed deliverable");
+      const masterCells = report.businesses[0].ranked_cells;
+      const distances = evaluateSabCoordinatesAgainstCells(masterCells,report.grid.size,latest.plan.center);
+      if (Math.min(distances.weighted_centroid,distances.nearest_ranked_cell,distances.best_rank_cluster_centroid) <= 3) {
+        throw new Error("The prior center is not an unmistakable three-mile corroboration contradiction; keep it in evidence review");
+      }
+      corroborationCorrection = {status:"corrected_rejected",classification:"agent_error",source_report_key:report.report_key,
+        evidence_hash:evidenceHash(report),invalidated_deliverable_report_key:latest.report_key,original_center:centerText(latest.plan.center),
+        weighted_centroid_miles:distances.weighted_centroid,nearest_ranked_cell_miles:distances.nearest_ranked_cell,
+        best_rank_cluster_centroid_miles:distances.best_rank_cluster_centroid,
+        original_corroboration_detail_available:false,reason:"The accepted center contradicted every complete-distribution reference by more than the established three-mile fit limit; preserve the completed report as noncanonical history and restore the deterministic master route."};
+    }
   } else {
     if (!ownedScan || ownedScan.plan.scan_role !== input.stage || submitted.at(-1)?.report_key !== input.report_key) throw new Error("Analyze the latest submitted report from this exact run; stale or unrelated reports cannot replace its state");
     assertReportPlan(report, ownedScan.plan);
   }
-  const row = await repository.getCompany(input.place_id);
-  const previous = decisionState(row);
   const recenters = submitted.filter(scan => scan.plan.scan_type === "recenter").length;
   // Matt approved these definitions for testing only. Structured run state,
   // never a caller flag or research note, controls their scope.
   const hash = evidenceHash(report);
-  const corroboration = previous?.address_corroboration?.source_report_key === report.report_key && previous.address_corroboration.evidence_hash === hash
+  const activeCorroboration = previous?.address_corroboration?.source_report_key === report.report_key && previous.address_corroboration.evidence_hash === hash
     ? previous.address_corroboration : undefined;
+  const policyCorroboration = corroborationCorrection ? ({status:"rejected"} as SabAddressCorroboration) : activeCorroboration;
   const decision = analyzeSabScanPolicy({stage: input.stage, cells: report.businesses[0].all_point_rank_cells ?? report.businesses[0].ranked_cells, grid: report.grid,
-    rawArp: report.arp, atrp: report.atrp, solv: report.solv, routineRecenterCount: recenters, testingPolicyActive: state.testing_mode,addressCorroboration:corroboration});
+    rawArp: report.arp, atrp: report.atrp, solv: report.solv, routineRecenterCount: recenters, testingPolicyActive: state.testing_mode,addressCorroboration:policyCorroboration});
+  if (corroborationCorrection && (decision.action !== "plan_auxiliary" || decision.center_source !== "master_edge_offset")) {
+    throw new Error("Corrected corroboration did not restore the deterministic truncated-master auxiliary route");
+  }
   // Policy classification is not approval to finalize an exclusion.
   if (decision.action === "high_visibility_excluded") {
     decision.action = "high_visibility_exclusion_pending_review";
@@ -202,13 +234,14 @@ export async function analyzeAndRecordSabReport(repository: SabSheetsRepository,
     centering_status: noVisibility ? "market_reference_only" : validated ? "validated" : center ? "planned" : "failed",
     ...(pendingExclusion ? {exclusion_review: {status: "pending" as const, report_key: report.report_key, evidence_hash: hash}} : {}),
     routine_recenter_count: recenters, ...(center && centerType ? { proposed_center: center, center_type: centerType } : {}),
-    ...(corroboration ? {address_corroboration:corroboration} : {}),
+    ...(previous?.address_corroboration ? {address_corroboration:previous.address_corroboration} : {}),
     ...(noVisibility ? { outcome: "no_visibility_core_found" as const } : validated ? { outcome: "deliverable" as const } : {}),
     evidence: {...decision.evidence, next_action: decision.action, reason: decision.reason, grid: report.grid,
       ...(exclusionDecisionHistory(previous).length ? {exclusion_decision_history:exclusionDecisionHistory(previous)} : {}),
       ...(comparisonValidation ? {center_validation:comparisonValidation} : validated && report.grid.radius === 3 && center && centerType
         ? {center_validation:{report_key:report.report_key,evidence_hash:hash,proposed_center:center,center_type:centerType}} : {}),
       ...(isFiveMile ? {comparison_report_key:report.report_key,centering_evaluated:false} : {}),
+      ...(corroborationCorrection ? {corroboration_correction:corroborationCorrection} : {}),
     },
   }};
   if (validated) Object.assign(updates, {outcome: "deliverable", market_reference: null});
@@ -288,7 +321,11 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
       if(!checks.some(check=>sabScanPlanFingerprint(check.scan)===sabScanPlanFingerprint(scan))) throw new Error("Duplicate-report evidence does not match the exact proposed scan envelope");
       const row = await repo.getCompany(scan.place_id);
       const latest = state.batches.flatMap(batch => batch.scans).filter(candidate => candidate.plan.place_id === scan.place_id && candidate.submission_status === "submitted").at(-1);
-      if (latest && decisionState(row)?.source_report_key !== latest.report_key) throw new Error("A paid plan cannot use a stale source decision after newer scan evidence exists");
+      const currentDecision=decisionState(row),correction=currentDecision?.evidence?.corroboration_correction as Record<string,unknown>|undefined;
+      const correctedLatest=latest && correction?.status==="corrected_rejected" && correction.classification==="agent_error" &&
+        correction.invalidated_deliverable_report_key===latest.report_key && correction.source_report_key===currentDecision?.source_report_key &&
+        correction.evidence_hash===currentDecision?.evidence_hash;
+      if (latest && currentDecision?.source_report_key !== latest.report_key && !correctedLatest) throw new Error("A paid plan cannot use a stale source decision after newer scan evidence exists");
       if (scan.scan_role === "deliverable" && scan.grid_size === 7 && scan.radius === 5 && scan.measurement === "mi") {
         if (scan.scan_type !== "standard") throw new Error("A five-mile variation is a comparison, never a recenter");
         const prior = state.batches.flatMap(batch=>batch.scans).filter(candidate=>candidate.plan.place_id===scan.place_id);
@@ -329,9 +366,13 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
       else {
         const evaluated=await evaluateSabAddressCandidate(args.report_key,args.place_id,args.candidate_address,{rankedCells:async()=>report!});
         const complete=evaluated.status==="complete" && !evaluated.geocoder.partial_match;
-        // The original approximate three-mile guidance is a complete-
-        // distribution/shape judgment, not two new strict distance gates.
-        evidence={...base,status:!complete?"incomplete":args.fit_decision,
+        const unmistakableContradiction=args.fit_decision==="accepted" && complete &&
+          Math.min(evaluated.distances_miles.weighted_centroid,evaluated.distances_miles.nearest_ranked_cell,evaluated.distances_miles.best_rank_cluster_centroid)>3;
+        // Preserve orchestrator judgment near the approximate threshold, but
+        // never accept a candidate beyond every complete-distribution
+        // reference. That is an objective contradiction, not a shape tie.
+        evidence={...base,...(unmistakableContradiction?{fit_rationale:"Server rejected the proposed acceptance because every complete-distribution reference exceeded the established three-mile fit limit."}:{}),
+          status:!complete?"incomplete":unmistakableContradiction?"rejected":args.fit_decision,
           candidate_coordinates:evaluated.candidate_coordinates,geocoder:{location_type:evaluated.geocoder.location_type,partial_match:evaluated.geocoder.partial_match},
           distances_miles:evaluated.distances_miles};
       }

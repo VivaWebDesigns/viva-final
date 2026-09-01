@@ -9,7 +9,7 @@ import { z } from "zod";
 
 vi.mock("../../server/features/sab-mcp/localFalconRankedCells", () => ({getSabRankedCells: vi.fn()}));
 vi.mock("../../server/features/sab-mcp/reverseGeocode", () => ({reverseGeocodeSabCenters: vi.fn()}));
-vi.mock("../../server/features/sab-mcp/addressCandidate", () => ({evaluateSabAddressCandidate: vi.fn()}));
+vi.mock("../../server/features/sab-mcp/addressCandidate", async importOriginal => ({...(await importOriginal<typeof import("../../server/features/sab-mcp/addressCandidate")>()),evaluateSabAddressCandidate: vi.fn()}));
 const approved = {approved_by: "Matt" as const, approval_reference: "explicit-plan-approval"};
 const plan: SabScanPlan = {
   place_id: "place", scan_role: "deliverable", scan_type: "standard", center: {latitude:35,longitude:-80},
@@ -350,6 +350,35 @@ describe("SAB orchestration integration",()=>{
         await expect(api.invoke("authorize_sab_scan_batch",{orchestrator_id:"owner",authorization_id:"11111111-1111-4111-8111-111111111111",authorization_reference:"accepted-center",scans:[{...plan,center:result.proposed_center}],matt_initial_approval:approved})).resolves.toMatchObject({scan_approved:true});
       }
     }
+  });
+
+  it("server-rejects an accepted address that exceeds the established fit limit from every distribution reference",async()=>{
+    const repo=repository(initialize());
+    vi.mocked(getSabRankedCells).mockResolvedValue(report("cccccccccccc",plan,{businesses:[{place_id:"place",evidence_source:"competitor_roster",ranked_cell_count:1,imprecise_or_unranked_cell_count:48,ranked_cells:[{row:1,column:4,latitude:35.05,longitude:-80,rank:5}],all_point_rank_cells:[{row:1,column:4,latitude:35.05,longitude:-80,rank:5}]}]}) as never);
+    const api=tools(repo);await api.invoke("analyze_sab_scan",{report_key:"cccccccccccc",place_id:"place",stage:"master"});
+    vi.mocked(evaluateSabAddressCandidate).mockResolvedValueOnce({status:"complete",candidate_coordinates:{latitude:36,longitude:-79},geocoder:{location_type:"ROOFTOP",partial_match:false},distances_miles:{weighted_centroid:12,nearest_ranked_cell:11,best_rank_cluster_centroid:13}} as never);
+    const result=await api.invoke("record_sab_address_corroboration",{orchestrator_id:"owner",place_id:"place",report_key:"cccccccccccc",result:"candidate",candidate_address:"PRIVATE-CANDIDATE",fit_decision:"accepted",research_complete:true,evidence_references:["verified-company-source"],source_type:"official source",identity_method:"exact phone",fit_rationale:"Proposed accepted fit"});
+    expect(result).toMatchObject({action:"plan_auxiliary",address_corroboration:{status:"rejected"}});
+    expect(result.address_corroboration.fit_rationale).toMatch(/every complete-distribution reference/);
+  });
+
+  it("recovers a zero-visibility wrong-center deliverable through the deterministic master-edge route",async()=>{
+    const state=completeSabRunReports(submitted(),[key3]);
+    const repo=repository(state,{center_type:"corroborated_address",scan_center:"35,-80",report_key:null,
+      eligibility_state:{sab_confirmed:true,trade_match:true,franchise_excluded:true,crm_dedup_checked:true,contact_verified:true,evidence_references:["https://www.localfalcon.com/reports/view/cccccccccccc"]},
+      decision_state:{source_report_key:key3,rule_id:"S05",evidence_hash:"b".repeat(64),centering_status:"failed",routine_recenter_count:0,evidence:{next_action:"evidence_review_required",exact_top20_count:0}}});
+    const master={...report("cccccccccccc",plan),grid:{size:21,point_count:441,radius:12,measurement:"mi",center:{latitude:34,longitude:-81}},
+      businesses:[{place_id:"place",evidence_source:"competitor_roster",ranked_cell_count:3,imprecise_or_unranked_cell_count:438,
+        ranked_cells:[{row:10,column:1,latitude:34,longitude:-81.2,rank:10},{row:11,column:1,latitude:33.99,longitude:-81.2,rank:11},{row:11,column:2,latitude:33.99,longitude:-81.18,rank:12}],
+        all_point_rank_cells:[{row:10,column:1,latitude:34,longitude:-81.2,rank:10},{row:11,column:1,latitude:33.99,longitude:-81.2,rank:11},{row:11,column:2,latitude:33.99,longitude:-81.18,rank:12}]}]};
+    const failed=report(key3,plan,{arp:21,atrp:21,solv:0,found_in:0,businesses:[{place_id:"place",evidence_source:"competitor_roster",ranked_cell_count:0,imprecise_or_unranked_cell_count:49,ranked_cells:[],all_point_rank_cells:Array.from({length:49},(_,i)=>({row:Math.floor(i/7)+1,column:i%7+1,latitude:35,longitude:-80,rank:21}))}]});
+    vi.mocked(getSabRankedCells).mockResolvedValueOnce(master as never).mockResolvedValueOnce(failed as never);
+    const result=await tools(repo).invoke("analyze_sab_scan",{report_key:"cccccccccccc",place_id:"place",stage:"master"});
+    expect(result).toMatchObject({action:"plan_auxiliary",center_source:"master_edge_offset"});
+    const saved=(await repo.getCompany()).decision_state;
+    expect(saved).toMatchObject({source_report_key:"cccccccccccc",centering_status:"planned",center_type:"master_edge_offset",evidence:{next_action:"plan_auxiliary",corroboration_correction:{status:"corrected_rejected",classification:"agent_error",invalidated_deliverable_report_key:key3}}});
+    const nextPlan={...plan,scan_role:"auxiliary" as const,scan_type:"scout" as const,grid_size:9 as const,radius:6,estimated_credits:81,center:result.proposed_center};
+    await expect(tools(repo).invoke("authorize_sab_scan_batch",{orchestrator_id:"owner",authorization_id:"22222222-2222-4222-8222-222222222222",authorization_reference:"recovered-route",scans:[nextPlan],matt_review:{...approved,reviewed_batch_id:state.batches[0].authorization_id}})).resolves.toMatchObject({scan_approved:true});
   });
 
   it("rejects a temporary address copied into persisted corroboration descriptions",async()=>{

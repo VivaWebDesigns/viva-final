@@ -161,6 +161,21 @@ function bestRankCluster(cells: SabRankedCell[]) {
   };
 }
 
+export function evaluateSabCoordinatesAgainstCells(
+  cells: SabRankedCell[],
+  gridSize: number,
+  coordinates: { latitude: number; longitude: number },
+) {
+  if (!cells.length) throw new Error("Exact ranked cells are required for geographic-fit evaluation.");
+  const summary = summarizeSabCenter(cells, gridSize)!;
+  const bestCluster = bestRankCluster(cells);
+  return {
+    weighted_centroid: distanceMiles(coordinates.latitude, coordinates.longitude, summary.centroid.latitude, summary.centroid.longitude),
+    nearest_ranked_cell: Math.min(...cells.map(cell => distanceMiles(coordinates.latitude, coordinates.longitude, cell.latitude, cell.longitude))),
+    best_rank_cluster_centroid: distanceMiles(coordinates.latitude, coordinates.longitude, bestCluster.centroid.latitude, bestCluster.centroid.longitude),
+  };
+}
+
 async function forwardGeocode(
   addressCandidate: string,
   apiKey: string,
@@ -250,31 +265,7 @@ export async function evaluateSabAddressCandidate(
   );
   const summary = summarizeSabCenter(business.ranked_cells, ranked.grid.size)!;
   const bestCluster = bestRankCluster(business.ranked_cells);
-  const nearestCellDistance = Math.min(
-    ...business.ranked_cells.map((cell) =>
-      distanceMiles(
-        geocode.latitude,
-        geocode.longitude,
-        cell.latitude,
-        cell.longitude,
-      ),
-    ),
-  );
-  const distances = {
-    weighted_centroid: distanceMiles(
-      geocode.latitude,
-      geocode.longitude,
-      summary.centroid.latitude,
-      summary.centroid.longitude,
-    ),
-    nearest_ranked_cell: nearestCellDistance,
-    best_rank_cluster_centroid: distanceMiles(
-      geocode.latitude,
-      geocode.longitude,
-      bestCluster.centroid.latitude,
-      bestCluster.centroid.longitude,
-    ),
-  };
+  const distances = evaluateSabCoordinatesAgainstCells(business.ranked_cells, ranked.grid.size, geocode);
   const defaultThresholdMiles = 3;
 
   return {
