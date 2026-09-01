@@ -356,7 +356,7 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
     if(args.result==="no_candidate" && (!args.research_complete || args.candidate_address || args.fit_decision)) throw new Error("No-candidate disposition requires completed research and no unevaluated candidate");
     if(args.result==="candidate" && (!args.candidate_address || !args.fit_decision)) throw new Error("A candidate requires an ephemeral address and the orchestrator's complete-distribution fit decision");
     if(args.candidate_address && JSON.stringify([args.evidence_references,args.source_type,args.identity_method,args.fit_rationale]).includes(args.candidate_address)) throw new Error("Keep the temporary hidden address out of persistent source and fit descriptions");
-    if(args.result==="no_candidate" && ["incomplete","technical_failure"].includes(previous.address_corroboration?.status ?? "")) throw new Error("Resolve the incomplete candidate evaluation; relabelling its technical failure as no candidate cannot authorize an auxiliary");
+    if(args.result==="no_candidate" && previous.address_corroboration?.status === "incomplete") throw new Error("Resolve the incomplete candidate evaluation; a known partial candidate cannot be relabelled as no candidate");
     const base={source_report_key:args.report_key,evidence_hash:previous.evidence_hash,evidence_references:args.evidence_references,
       source_type:args.source_type,identity_method:args.identity_method,fit_rationale:args.fit_rationale,research_complete:args.research_complete};
     let evidence:SabAddressCorroboration,report:RankedReport|undefined;

@@ -166,7 +166,7 @@ describe("SabSheetsRepository", () => {
       { decision_state: { ...decision, centering_status: "planned", proposed_center: "35,-80", evidence: { next_action: "plan_auxiliary" } } },
     ]) await expect(repository.saveCompany("place-1", sabCompanyUpdatesSchema.parse(patch), "worker@example.com")).rejects.toThrow(/corroboration/);
     await expect(repository.saveCompany("place-1", { phone: "7045550111", decision_state: decision }, "worker@example.com")).resolves.toMatchObject({ status: "blocked" });
-    await expect(repository.saveCompany("place-1", { decision_state: { ...decision, address_corroboration: { ...failure, status: "no_candidate" } } }, "actor@example.com", { corroborationRecorded: true })).rejects.toThrow(/technical failure/);
+    await expect(repository.saveCompany("place-1", { decision_state: { ...decision, address_corroboration: { ...failure, status: "no_candidate" } } }, "actor@example.com", { corroborationRecorded: true })).resolves.toMatchObject({ status: "blocked" });
     const accepted = { ...failure, status: "accepted" as const, candidate_coordinates: { latitude: 35, longitude: -80 },
       geocoder: { location_type: "ROOFTOP", partial_match: false }, distances_miles: { weighted_centroid: 1, nearest_ranked_cell: 0.5, best_rank_cluster_centroid: 1 } };
     await repository.saveCompany("place-1", { decision_state: { ...decision, address_corroboration: accepted } }, "actor@example.com", { corroborationRecorded: true });

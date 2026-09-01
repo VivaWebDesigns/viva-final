@@ -319,7 +319,7 @@ describe("SAB orchestration integration",()=>{
     await expect(api.invoke("authorize_sab_scan_batch",{orchestrator_id:"owner",authorization_id:"11111111-1111-4111-8111-111111111111",authorization_reference:"scout",scans:[scout],matt_initial_approval:approved})).resolves.toMatchObject({scan_approved:true});
   });
 
-  it.each(["incomplete","technical_failure"])("holds %s address evaluation without leaking the candidate or permitting a no-candidate relabel",async(status)=>{
+  it.each(["incomplete","technical_failure"])("holds %s address evaluation without leaking the candidate and recovers only a technical writer failure",async(status)=>{
     const repo=repository(initialize());
     vi.mocked(getSabRankedCells).mockResolvedValue(report("cccccccccccc",plan,{businesses:[{place_id:"place",ranked_cells:[{row:1,column:4,latitude:35.05,longitude:-80,rank:5}]}]}) as never);
     const api=tools(repo);await api.invoke("analyze_sab_scan",{report_key:"cccccccccccc",place_id:"place",stage:"master"});
@@ -330,7 +330,14 @@ describe("SAB orchestration integration",()=>{
     expect(result).toMatchObject({action:"address_corroboration_incomplete",address_corroboration:{status}});
     expect(JSON.stringify(repo.saveCompany.mock.calls)+JSON.stringify(result)).not.toContain(args.candidate_address);
     const {candidate_address,fit_decision,...noCandidate}=args;
-    await expect(api.invoke("record_sab_address_corroboration",{...noCandidate,result:"no_candidate"})).rejects.toThrow(/relabelling/);
+    if(status==="technical_failure") {
+      await expect(api.invoke("record_sab_address_corroboration",{...noCandidate,result:"no_candidate"})).resolves.toMatchObject({
+        action:"plan_auxiliary",address_corroboration:{status:"no_candidate"},paid_scans_submitted:0,
+      });
+      expect(await repo.getCompany()).toMatchObject({status:"in_progress",blocker:null});
+      return;
+    }
+    await expect(api.invoke("record_sab_address_corroboration",{...noCandidate,result:"no_candidate"})).rejects.toThrow(/incomplete candidate/);
     const row=await repo.getCompany();
     row.decision_state={...row.decision_state,centering_status:"planned",proposed_center:"35,-80",evidence:{next_action:"plan_auxiliary"}};
     const blocked=repository(initialize(),row);

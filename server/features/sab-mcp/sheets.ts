@@ -918,6 +918,7 @@ export class SabSheetsRepository {
     const nextCorroboration = nextState?.address_corroboration ?? null;
     const corroborationChanged = JSON.stringify(priorCorroboration) !== JSON.stringify(nextCorroboration);
     const technicalHold = ["incomplete", "technical_failure"].includes(priorCorroboration?.status);
+    const incompleteCandidateHold = priorCorroboration?.status === "incomplete";
     const corroborationHold = technicalHold || ["address_corroboration_required", "address_corroboration_incomplete"].includes(match.row.blocker) ||
       ["address_corroboration_required", "address_corroboration_incomplete"].includes(previousState?.evidence?.next_action);
     if (options.corroborationRecorded) {
@@ -926,8 +927,8 @@ export class SabSheetsRepository {
           recorded.data.source_report_key !== previousState?.source_report_key || recorded.data.evidence_hash !== previousState?.evidence_hash ||
           recorded.data.address_corroboration.source_report_key !== recorded.data.source_report_key ||
           recorded.data.address_corroboration.evidence_hash !== recorded.data.evidence_hash ||
-          (technicalHold && recorded.data.address_corroboration.status === "no_candidate")) {
-        throw new Error("Recorded corroboration must match the current exact evidence; a technical failure cannot be relabelled as no candidate");
+          (incompleteCandidateHold && recorded.data.address_corroboration.status === "no_candidate")) {
+        throw new Error("Recorded corroboration must match the current exact evidence; an incomplete known candidate cannot be relabelled as no candidate");
       }
     } else if (options.corroborationAnalysisVerified) {
       // Verified analysis can drop stale evidence, but cannot fabricate or
