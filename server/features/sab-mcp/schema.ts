@@ -574,6 +574,16 @@ export const runSabScanOnceInputSchema = {
   eligibility_gate_result: z.literal("passed"),
   duplicate_report_result: z.literal("none"),
   retry_after_ambiguous_submission: z.literal(false),
+  pre_provider_recovery: z
+    .object({
+      approved_by: z.literal("Matt"),
+      approval_reference: z.string().trim().min(1).max(5_000),
+    })
+    .strict()
+    .optional()
+    .describe(
+      "Explicit Matt authorization to resume the same exact durable claim only when its receipt is still preparing_location. This preserves the existing idempotency key and credit reservation and never creates a new claim.",
+    ),
   center_derivation: z.string().trim().min(1).max(5_000),
   sop_routing_rule: z.string().trim().min(1).max(5_000),
 };

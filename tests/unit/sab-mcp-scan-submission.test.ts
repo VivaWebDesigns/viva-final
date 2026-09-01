@@ -325,4 +325,147 @@ describe("guarded SAB scan submission", () => {
       .rejects.toThrow(/already claimed/);
     expect(fetchImpl).not.toHaveBeenCalled();
   });
+
+  it("resumes an explicitly approved exact pre-provider claim without reserving credits again", async () => {
+    const repo = repository();
+    const fetchImpl = vi.fn().mockResolvedValue(exactResponse());
+    repo.updateScanSubmission.mockRejectedValueOnce(
+      new Error("sheet quota after reservation"),
+    );
+
+    await expect(
+      runSabScanOnce(input, repo as never, "actor", {
+        apiKey: "test",
+        fetchImpl,
+      }),
+    ).rejects.toThrow("sheet quota after reservation");
+    const reservedState = await repo.getRunState();
+    expect(reservedState.committed_credits).toBe(81);
+    expect(repo.reserveScanSubmission).toHaveBeenCalledTimes(1);
+    expect(fetchImpl).not.toHaveBeenCalled();
+
+    await expect(
+      runSabScanOnce(input, repo as never, "actor", {
+        apiKey: "test",
+        fetchImpl,
+      }),
+    ).resolves.toMatchObject({
+      submission_status: "preparing_location",
+      scans_executed: false,
+      stopped_for_manual_reconciliation: true,
+    });
+    expect(fetchImpl).not.toHaveBeenCalled();
+
+    await expect(
+      runSabScanOnce(
+        {
+          ...input,
+          pre_provider_recovery: {
+            approved_by: "Matt",
+            approval_reference: "Approved exact stranded-claim recovery.",
+          },
+        },
+        repo as never,
+        "actor",
+        { apiKey: "test", fetchImpl },
+      ),
+    ).resolves.toMatchObject({
+      submission_status: "submitted",
+      report_key: "4826693261fc566",
+      scans_executed: true,
+    });
+
+    expect((await repo.getRunState()).committed_credits).toBe(81);
+    expect(repo.reserveScanSubmission).toHaveBeenCalledTimes(1);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(repo.updateScanSubmission).toHaveBeenCalledWith(
+      "test-place",
+      expect.any(String),
+      expect.objectContaining({
+        recovery: "approved_pre_provider_resume",
+        recovery_approved_by: "Matt",
+        recovery_authorization_reference:
+          "Approved exact stranded-claim recovery.",
+      }),
+      "actor",
+    );
+  });
+
+  it("rejects recovery when the exact durable pre-provider envelope does not match", async () => {
+    const repo = repository();
+    const fetchImpl = vi.fn();
+    repo.updateScanSubmission.mockRejectedValueOnce(
+      new Error("sheet quota after reservation"),
+    );
+    await expect(
+      runSabScanOnce(input, repo as never, "actor", {
+        apiKey: "test",
+        fetchImpl,
+      }),
+    ).rejects.toThrow("sheet quota after reservation");
+
+    await expect(
+      runSabScanOnce(
+        {
+          ...input,
+          radius: 5,
+          estimated_credits: 81,
+          pre_provider_recovery: {
+            approved_by: "Matt",
+            approval_reference: "Approved exact stranded-claim recovery.",
+          },
+        },
+        repo as never,
+        "actor",
+        { apiKey: "test", fetchImpl },
+      ),
+    ).rejects.toThrow(/No exact preparing_location receipt/);
+
+    expect((await repo.getRunState()).committed_credits).toBe(81);
+    expect(repo.reserveScanSubmission).toHaveBeenCalledTimes(1);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("reuses an already verified saved-location receipt during pre-provider recovery", async () => {
+    const recoveryInput = { ...input, save_location_required: true };
+    const repo = repository(recoveryInput);
+    const originalUpdate = repo.updateScanSubmission.getMockImplementation()!;
+    repo.updateScanSubmission
+      .mockImplementationOnce(originalUpdate)
+      .mockRejectedValueOnce(new Error("sheet quota before submitting"));
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(savedLocationResponse())
+      .mockResolvedValueOnce(exactResponse());
+
+    await expect(
+      runSabScanOnce(recoveryInput, repo as never, "actor", {
+        apiKey: "test",
+        fetchImpl,
+      }),
+    ).rejects.toThrow("sheet quota before submitting");
+
+    await expect(
+      runSabScanOnce(
+        {
+          ...recoveryInput,
+          pre_provider_recovery: {
+            approved_by: "Matt",
+            approval_reference: "Approved exact stranded-claim recovery.",
+          },
+        },
+        repo as never,
+        "actor",
+        { apiKey: "test", fetchImpl },
+      ),
+    ).resolves.toMatchObject({ submission_status: "submitted" });
+
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(fetchImpl.mock.calls.map(([url]) => url)).toEqual([
+      "https://api.localfalcon.com/v2/locations/add",
+      "https://api.localfalcon.com/v2/run-scan/",
+    ]);
+    expect((await repo.getRunState()).committed_credits).toBe(81);
+    expect(repo.reserveScanSubmission).toHaveBeenCalledTimes(1);
+  });
 });

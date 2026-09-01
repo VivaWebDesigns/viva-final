@@ -9,6 +9,7 @@ import {
   inSabRunStateQueue,
   normalizeSabScanPlan,
   recordSabRunSubmission,
+  sabScanPlanFingerprint,
   type SabRunStateRepository,
 } from "./runState";
 
@@ -29,6 +30,10 @@ export type RunSabScanOnceInput = Omit<
   eligibility_gate_result: "passed";
   duplicate_report_result: "none";
   retry_after_ambiguous_submission: false;
+  pre_provider_recovery?: {
+    approved_by: "Matt";
+    approval_reference: string;
+  };
 };
 
 type ScanSubmissionRepository = Pick<
@@ -202,10 +207,28 @@ export async function runSabScanOnce(
         stopped_for_manual_reconciliation: status !== "submitted",
       };
     };
-    if (existing) return existingReceipt(existing);
+    const existingStatus = existing
+      ? cleanString(existing.submission_status) ?? "unknown"
+      : null;
+    if (existing && existingStatus !== "preparing_location") {
+      if (input.pre_provider_recovery) {
+        throw new Error(
+          "Pre-provider recovery is allowed only for an exact preparing_location receipt.",
+        );
+      }
+      return existingReceipt(existing);
+    }
+    if (existing && !input.pre_provider_recovery) {
+      return existingReceipt(existing);
+    }
     if (!input.run_id?.trim()) throw new Error("New paid scans require an initialized structured run and exact stored batch authorization.");
     if (input.eligibility_gate_result !== "passed" || input.duplicate_report_result !== "none" || input.retry_after_ambiguous_submission !== false) {
       throw new Error("Eligibility and exact duplicate checks must pass; ambiguous paid submissions cannot be retried.");
+    }
+    if (!existing && input.pre_provider_recovery) {
+      throw new Error(
+        "No exact preparing_location receipt exists for guarded pre-provider recovery.",
+      );
     }
     const state = await repository.getRunState(input.run_id);
     if (!state || state.run_id !== input.run_id) throw new Error("No matching authorized structured run exists.");
@@ -214,8 +237,71 @@ export async function runSabScanOnce(
     // Match and claim the exact plan before any side effect; a caller UUID alone
     // is never spending authorization. Claims are not refunded on ambiguity.
     input = { ...input, ...normalizeSabScanPlan(input) };
-    const claimed = claimSabRunScan(state, input.authorization_id, input, key);
-    await repository.saveRunState(claimed, state.version, actorEmail);
+    const recoveringPreProviderClaim = Boolean(existing);
+    const existingLocationStatus = cleanString(existing?.location_status);
+    const existingLocationPlaceId = cleanString(existing?.location_place_id);
+    const locationAlreadyVerified =
+      recoveringPreProviderClaim &&
+      existingLocationStatus === "verified" &&
+      existingLocationPlaceId === input.place_id;
+    if (recoveringPreProviderClaim) {
+      const currentBatch = state.batches.at(-1);
+      const fingerprint = sabScanPlanFingerprint(input);
+      const claimedScan = currentBatch?.scans.find(
+        (candidate) => candidate.fingerprint === fingerprint,
+      );
+      const exactReservation =
+        cleanString(existing?.authorization_id) === input.authorization_id &&
+        cleanString(existing?.company_name) === input.company_name &&
+        cleanString(existing?.place_id) === input.place_id &&
+        cleanString(existing?.scan_role) === input.scan_role &&
+        cleanString(existing?.scan_type) === input.scan_type &&
+        cleanString(existing?.scan_center) ===
+          `${input.center.latitude},${input.center.longitude}` &&
+        numberValue(existing?.grid_size) === input.grid_size &&
+        numberValue(existing?.radius) === input.radius &&
+        cleanString(existing?.measurement) === input.measurement &&
+        cleanString(existing?.keyword) === input.keyword &&
+        cleanString(existing?.platform)?.toLowerCase() === input.platform &&
+        numberValue(existing?.estimated_credits) === input.estimated_credits &&
+        cleanString(existing?.center_derivation) === input.center_derivation &&
+        cleanString(existing?.sop_routing_rule) === input.sop_routing_rule &&
+        !cleanString(existing?.report_key) &&
+        !cleanString(existing?.submit_started_at) &&
+        (existingLocationStatus !== "verified" || locationAlreadyVerified);
+      if (
+        currentBatch?.authorization_id !== input.authorization_id ||
+        currentBatch.status !== "authorized" ||
+        !claimedScan ||
+        claimedScan.submission_status !== "reserved" ||
+        claimedScan.idempotency_key !== key ||
+        !exactReservation
+      ) {
+        throw new Error(
+          "Pre-provider recovery does not match the exact active reserved claim and durable receipt.",
+        );
+      }
+      await repository.updateScanSubmission(
+        input.place_id,
+        key,
+        {
+          recovery: "approved_pre_provider_resume",
+          recovery_approved_by: input.pre_provider_recovery!.approved_by,
+          recovery_authorization_reference:
+            input.pre_provider_recovery!.approval_reference,
+          recovery_resumed_at: new Date().toISOString(),
+        },
+        actorEmail,
+      );
+    } else {
+      const claimed = claimSabRunScan(
+        state,
+        input.authorization_id,
+        input,
+        key,
+      );
+      await repository.saveRunState(claimed, state.version, actorEmail);
+    }
     const recordRunResult = async (result: Parameters<typeof recordSabRunSubmission>[2]) => {
       const latest = await repository.getRunState(input.run_id!);
       if (!latest) throw new Error("Structured run disappeared after submission; manual reconciliation is required.");
@@ -239,15 +325,17 @@ export async function runSabScanOnce(
       center_derivation: input.center_derivation,
       sop_routing_rule: input.sop_routing_rule,
     };
-    const reserved = await repository.reserveScanSubmission(
-      reservation,
-      actorEmail,
-    );
-    if (!reserved.created) {
-      return existingReceipt(reserved.entry as Record<string, unknown>);
+    if (!recoveringPreProviderClaim) {
+      const reserved = await repository.reserveScanSubmission(
+        reservation,
+        actorEmail,
+      );
+      if (!reserved.created) {
+        return existingReceipt(reserved.entry as Record<string, unknown>);
+      }
     }
 
-    if (input.save_location_required) {
+    if (input.save_location_required && !locationAlreadyVerified) {
       try {
         const location = await postLocalFalcon(
           "/v2/locations/add",
