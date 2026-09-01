@@ -123,16 +123,31 @@ function exportProspect(row: ExportCandidate, runState: SabRunState) {
 
 /** One complete manifest across execution batches, never a qa_ready-only slice. */
 export async function buildSabRunManifest(
-  repository: Pick<SabSheetsRepository, "getExportCandidates" | "getRunState">,
+  repository: Pick<SabSheetsRepository, "getExportCandidates" | "getRunCompletionRows" | "getRunState">,
   batch: SabExportBatch,
   runId: string,
 ) {
+  const runState = await repository.getRunState(runId);
+  if (!runState) throw new Error("Read the authoritative initialized run before manifest construction");
+  const completionRows = await repository.getRunCompletionRows();
+  const terminalDeferrals = runState.terminal_deferrals ?? {};
+  const unresolved = completionRows.filter((row) => {
+    if (hasSabExclusionReviewHold(row.decision_state)) return true;
+    if (row.qualification_status === "disqualified" && ["complete", "imported"].includes(row.status)) return false;
+    if (row.qualification_status === "qualified" && ["complete", "qa_ready", "imported"].includes(row.status)) return false;
+    if (row.qualification_status === "deferred" && row.status === "complete" && terminalDeferrals[row.place_id]) return false;
+    return true;
+  });
+  if (unresolved.length) {
+    const details = unresolved.map((row) =>
+      `${row.company || row.place_id} (${row.place_id}; status=${row.status || "blank"}; qualification=${row.qualification_status || "blank"}; blocker=${row.blocker || "none"})`,
+    );
+    throw new Error(`Run completion gate blocked: ${unresolved.length} survivor(s) remain unresolved. Deferred is a recovery queue unless Matt explicitly approves a named terminal deferral. ${details.join(" | ")}`);
+  }
   // Defense in depth: a hand-edited disposition or alternate repository must
   // not turn an unresolved exclusion into an outreach-ready prospect.
   const rows = (await repository.getExportCandidates()).filter(row => !hasSabExclusionReviewHold(row.decision_state));
   if (!rows.length) throw new Error("No eligible qualified complete or qa_ready leads to export");
-  const runState = await repository.getRunState(runId);
-  if (!runState) throw new Error("Read the authoritative initialized run before manifest construction");
   const manifest = parseLocalFalconPayload(JSON.stringify({
     workflow: SCALE_FIRST_WORKFLOW,
     batch,

@@ -25,7 +25,8 @@ describe("SAB MCP tool discovery", () => {
 
     try {
       const { tools } = await client.listTools();
-      expect(tools).toHaveLength(34);
+      expect(tools).toHaveLength(35);
+      expect(tools.map((tool) => tool.name)).toContain("approve_sab_terminal_deferral");
       expect(tools.map((tool) => tool.name)).toContain("record_sab_address_corroboration");
       expect(tools.map((tool) => tool.name)).toContain("reconcile_sab_ambiguous_submission");
       expect(tools.map((tool) => tool.name)).toContain("decline_sab_exclusion");

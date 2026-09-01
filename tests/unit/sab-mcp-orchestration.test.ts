@@ -54,6 +54,8 @@ function repository(state=submitted(),overrides:Record<string,unknown>={}) {
   return {
     assertOneActiveRun:vi.fn(async()=>{}),
     getRunState:vi.fn(async()=>structuredClone(storedState)),
+    getRunCompletionRows:vi.fn(async()=>[structuredClone(row)]),
+    getExportCandidates:vi.fn(async()=>row.qualification_status==="qualified"?[structuredClone(row)]:[]),
     getCompany:vi.fn(async()=>structuredClone(row)),
     saveRunState:vi.fn(async(next:SabRunState,version:number)=>{expect(version).toBe(storedState.version);storedState=structuredClone(next);}),
     updateScanSubmission:vi.fn(async(_place:string,_key:string,updates:Record<string,unknown>)=>structuredClone(updates)),
@@ -178,6 +180,16 @@ describe("SAB orchestration integration",()=>{
     repo.assertOneActiveRun.mockRejectedValue(new Error("Another run already exists"));
     await expect(tools(repo).invoke("initialize_sab_run",{orchestrator_id:"owner",authorization_reference:"run",credit_limit:500})).rejects.toThrow(/Another run/);
     expect(repo.saveRunState).not.toHaveBeenCalled();
+  });
+
+  it("requires Matt and the run orchestrator for a named terminal deferral",async()=>{
+    const repo=repository(initialize(),{status:"blocked",blocker:"centering_recovery",qualification_status:null});
+    const args={orchestrator_id:"owner",place_id:"place",reason:"Matt explicitly ended recovery for this company",approval:approved};
+    await expect(tools(repo).invoke("approve_sab_terminal_deferral",{...args,orchestrator_id:"worker"})).rejects.toThrow(/orchestrator/);
+    await expect(tools(repo).invoke("approve_sab_terminal_deferral",{...args,approval:{approved_by:"Worker",approval_reference:"no"}})).rejects.toThrow();
+    await expect(tools(repo).invoke("approve_sab_terminal_deferral",args)).resolves.toMatchObject({terminal_deferral:true,approved_by:"Matt",paid_scans_submitted:0});
+    expect(await repo.getCompany()).toMatchObject({qualification_status:"deferred",status:"complete",blocker:null});
+    expect((await repo.getRunState()).terminal_deferrals.place).toMatchObject({approved_by:"Matt",reason:args.reason});
   });
 
   it("records no-visibility market context and keyword without inventing a validated center or canonical report",async()=>{
@@ -514,7 +526,7 @@ describe("SAB orchestration integration",()=>{
       const writes=repo.saveScanResult.mock.calls.length;
       await expect(api.invoke("select_sab_canonical_report",{place_id:"place",three_mile_report_key:key3,five_mile_report_key:key5})).rejects.toThrow(/exclusion or evidence/);
       expect(repo.saveScanResult.mock.calls).toHaveLength(writes);
-      await expect(buildSabRunManifest({getExportCandidates:async()=>[{...held,status:"complete"}]} as never,{batch_id:"test",market:{city:"Test Market",state:"NC"},trade:"service",keyword:"service",export_date:"2026-08-31",scan_spec:{grid_size:"7x7",radius_miles:3}},"run")).rejects.toThrow(/No eligible qualified/);
+      await expect(buildSabRunManifest({getExportCandidates:async()=>[{...held,status:"complete"}],getRunCompletionRows:async()=>[{...held,status:"complete"}],getRunState:async()=>await repo.getRunState()} as never,{batch_id:"test",market:{city:"Test Market",state:"NC"},trade:"service",keyword:"service",export_date:"2026-08-31",scan_spec:{grid_size:"7x7",radius_miles:3}},"run")).rejects.toThrow(/completion gate|No eligible qualified/);
     }
     await expect(api.invoke("approve_sab_exclusion",{...args,evidence_hash:"f".repeat(64)})).rejects.toThrow(/evidence hash/);
     await expect(api.invoke("approve_sab_exclusion",{...args,orchestrator_id:"worker"})).rejects.toThrow(/orchestrator/);

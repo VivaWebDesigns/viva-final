@@ -63,6 +63,11 @@ export type SabRunState = {
   credit_limit: number;
   committed_credits: number;
   batches: SabRunBatch[];
+  /** A deferred survivor is terminal only when Matt explicitly names it here. */
+  terminal_deferrals?: Record<string, SabMattApproval & {
+    reason: string;
+    approved_at: string;
+  }>;
 };
 
 export interface SabRunStateRepository {
@@ -154,8 +159,27 @@ export function createSabRunState(input: {
       ? { ...approval(input.public_business_phone_search_authorization), scope: "verified_public_business_phone_exact_search_only" }
       : null,
     credit_limit: input.credit_limit, committed_credits: 0,
-    testing_mode: true, testing_ended: null, batches: [],
+    testing_mode: true, testing_ended: null, batches: [], terminal_deferrals: {},
   };
+}
+
+export function approveSabTerminalDeferral(state: SabRunState, input: {
+  place_id: string;
+  reason: string;
+  approval: SabMattApproval;
+}): SabRunState {
+  const placeId = required(input.place_id, "Exact Place ID");
+  const approved = approval(input.approval);
+  const reason = required(input.reason, "Terminal deferral reason");
+  const next = structuredClone(state);
+  next.version++;
+  next.terminal_deferrals ??= {};
+  next.terminal_deferrals[placeId] = {
+    ...approved,
+    reason,
+    approved_at: new Date().toISOString(),
+  };
+  return next;
 }
 
 export function authorizeSabScanBatch(state: SabRunState, input: {

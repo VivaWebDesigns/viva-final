@@ -60,10 +60,11 @@ function crmOnly(overrides: Partial<Row> = {}): Row {
     ...overrides,
   });
 }
-function build(rows: Row[], phoneAuthorized = true) {
+function build(rows: Row[], phoneAuthorized = true, completionRows: Row[] = rows, terminalDeferrals: Record<string, any> = {}) {
   const state = createSabRunState({ run_id: "run", orchestrator_id: "owner", authorization_reference: "run", credit_limit: 500,
     ...(phoneAuthorized ? { public_business_phone_search_authorization: { approved_by: "Matt" as const, approval_reference: "intake grouped phone-search approval" } } : {}) });
-  return buildSabRunManifest({ getExportCandidates: vi.fn(async () => rows), getRunState: vi.fn(async () => state) }, batch, "run");
+  state.terminal_deferrals = terminalDeferrals;
+  return buildSabRunManifest({ getExportCandidates: vi.fn(async () => rows), getRunCompletionRows: vi.fn(async () => completionRows), getRunState: vi.fn(async () => state) }, batch, "run");
 }
 
 describe("one consolidated SAB run manifest", () => {
@@ -78,16 +79,23 @@ describe("one consolidated SAB run manifest", () => {
     await expect(build([{ ...rows[0], business_profile: { ...rows[0].business_profile, place_id: "wrong" } }])).rejects.toThrow(/Place ID/);
   });
 
-  it("omits pending exclusions even when an alternate repository returns them as qualified final rows", async () => {
+  it("blocks pending exclusions even when an alternate repository returns other qualified final rows", async () => {
     const pending = deliverable({place_id:"pending-exclusion",status:"qa_ready",decision_state:{
       ...(deliverable().decision_state as object),
       evidence:{next_action:"high_visibility_exclusion_pending_review"},
       exclusion_review:{status:"pending",report_key:key,evidence_hash:"a".repeat(64)},
     }});
-    const result=await build([deliverable(),pending]);
-    expect(result).toMatchObject({eligible_count:1,exported_count:1,from_qa_ready:0});
-    expect(JSON.parse(result.manifest_json).prospects.map((row:any)=>row.place_id)).toEqual(["ChIJ-deliverable"]);
-    await expect(build([pending])).rejects.toThrow(/No eligible/);
+    await expect(build([deliverable()],true,[deliverable(),pending])).rejects.toThrow(/completion gate.*pending-exclusion/i);
+  });
+
+  it("blocks unresolved and ordinary deferred survivors but permits Matt's named terminal deferral", async () => {
+    const qualified=deliverable();
+    const blocked=deliverable({company:"Blocked survivor",place_id:"blocked",status:"blocked",qualification_status:null});
+    await expect(build([qualified],true,[qualified,blocked])).rejects.toThrow(/Blocked survivor.*status=blocked/i);
+    const deferred=deliverable({company:"Deferred survivor",place_id:"deferred",status:"complete",qualification_status:"deferred"});
+    await expect(build([qualified],true,[qualified,deferred])).rejects.toThrow(/Deferred survivor.*qualification=deferred/i);
+    const result=await build([qualified],true,[qualified,deferred],{deferred:{approved_by:"Matt",approval_reference:"named approval",reason:"owner ended recovery",approved_at:"2026-09-01T12:00:00.000Z"}});
+    expect(result).toMatchObject({eligible_count:1,exported_count:1});
   });
 
   it("exports all complete and qa_ready rows across execution batches into exactly one mixed batch.json", async () => {
@@ -117,7 +125,7 @@ describe("one consolidated SAB run manifest", () => {
   it("rejects empty, ineligible and exact-Place-ID duplicate populations rather than quietly dropping rows", async () => {
     await expect(build([])).rejects.toThrow(/No eligible/);
     for (const overrides of [{ status: "blocked" }, { workflow: "audit_first_v1_1" }, { qualification_status: "deferred" }]) {
-      await expect(build([deliverable(overrides)])).rejects.toThrow(/Ineligible/);
+      await expect(build([deliverable(overrides)])).rejects.toThrow(/completion gate|Ineligible/);
     }
     await expect(build([deliverable(), crmOnly({ place_id: "ChIJ-deliverable" })])).rejects.toThrow(/place_id is duplicated/);
   });

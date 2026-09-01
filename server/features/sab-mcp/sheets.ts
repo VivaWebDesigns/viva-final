@@ -888,6 +888,12 @@ export class SabSheetsRepository {
     return eligible.map(({row}) => publicRow(row));
   }
 
+  /** Complete run population used by the export completion gate. */
+  async getRunCompletionRows() {
+    const { rows } = await this.readTable();
+    return rows.map(({ row }) => publicRow(row));
+  }
+
   async saveCompany(
     placeId: string,
     updates: SabCompanyUpdates,

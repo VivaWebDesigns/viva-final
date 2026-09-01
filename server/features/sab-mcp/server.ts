@@ -93,7 +93,7 @@ export function createSabMcpServer(
 ) {
   const server = new McpServer({
     name: "viva-sab-workflow",
-    version: "2.3.0",
+    version: "2.3.1",
   });
 
   server.registerTool(

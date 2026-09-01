@@ -7,7 +7,7 @@ import { getSabRankedCells } from "./localFalconRankedCells";
 import { analyzeSabScanPolicy, selectSabCanonicalScan } from "./scanPolicy";
 import { reverseGeocodeSabCenters } from "./reverseGeocode";
 import { buildSabRunManifest } from "./exportManifest";
-import { createSabRunState, authorizeSabScanBatch, completeSabRunReports, endSabTestingMode, inSabRunStateQueue, reconcileSabAmbiguousSubmission, sabScanPlanFingerprint, type SabRunState, type SabScanPlan } from "./runState";
+import { approveSabTerminalDeferral, createSabRunState, authorizeSabScanBatch, completeSabRunReports, endSabTestingMode, inSabRunStateQueue, reconcileSabAmbiguousSubmission, sabScanPlanFingerprint, type SabRunState, type SabScanPlan } from "./runState";
 import { SAB_CENTER_TYPES, runSabScanOnceInputSchema, type SabCompanyUpdates, type SabScanResult } from "./schema";
 import { corroborationAllowsAuxiliary, sabAddressCorroborationSchema, type SabAddressCorroboration } from "./addressCorroboration";
 import { evaluateSabAddressCandidate, evaluateSabCoordinatesAgainstCells } from "./addressCandidate";
@@ -561,6 +561,24 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
     const repo=factory(args.workflow_sheet,args.sheet_name),state=await requireRun(repo,args.run_id),next=endSabTestingMode(state,args.approval);
     await repo.saveRunState(next,state.version,actorEmail);return next;
   }));
+  add("approve_sab_terminal_deferral","Record Matt's explicit decision to abandon one named unresolved survivor as a terminal deferral. This is the only deferred state that satisfies the run-completion gate. It submits no scan, performs no import and establishes no general policy.",{
+    ...run,orchestrator_id:z.string().min(1),place_id:z.string().min(1),reason:z.string().trim().min(1).max(2000),approval:matt,
+  },async args=>inSabRunStateQueue(async()=>{
+    const repo=factory(args.workflow_sheet,args.sheet_name),state=await requireRun(repo,args.run_id);
+    if(args.orchestrator_id!==state.orchestrator_id) throw new Error("Only this run's orchestrator may record Matt's terminal deferral");
+    const row=await repo.getCompany(args.place_id);
+    if(row.qualification_status==="qualified" || row.qualification_status==="disqualified" || row.status==="imported") {
+      throw new Error("A qualified, disqualified or imported company cannot be converted to a terminal deferral");
+    }
+    const next=approveSabTerminalDeferral(state,{place_id:args.place_id,reason:args.reason,approval:args.approval});
+    await repo.saveRunState(next,state.version,actorEmail);
+    await repo.saveCompany(args.place_id,{qualification_status:"deferred",qualification_reason:args.reason,status:"complete",blocker:null},actorEmail);
+    const verifiedState=await repo.getRunState(args.run_id),verified=await repo.getCompany(args.place_id);
+    if(!verifiedState?.terminal_deferrals?.[args.place_id] || verified.qualification_status!=="deferred" || verified.status!=="complete") {
+      throw new Error("Terminal deferral readback failed; run completion remains blocked");
+    }
+    return {place_id:args.place_id,terminal_deferral:true,approved_by:"Matt",reason:args.reason,paid_scans_submitted:0,import_performed:false};
+  }));
   add("select_sab_canonical_report","Verify paired same-center 7×7/3mi and 5mi reports. Persist 5mi ONLY when raw ARP increases AND SoLV decreases; retain both in history and use all-point ATRP for prospects.",{
     ...run,place_id:z.string().min(1),three_mile_report_key:z.string().min(1),five_mile_report_key:z.string().min(1),
   },async args=>inSabRunStateQueue(async()=>{
@@ -601,7 +619,7 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
     if (verified.report_key!==selected.report_key || !sameCenter(verified.scan_center,selected.grid.center) || (verified.scan_spec as {radius_miles?:number}|null)?.radius_miles!==selection.selected_radius_miles) throw new Error("Canonical stage readback failed; stop and reconcile before export");
     return {...selection,selected_report_key:selected.report_key,selected_report_url:reportUrl(selected),all_point_atrp:selected.atrp,raw_arp:selected.arp,three_mile_report_key:three.report_key,five_mile_report_key:five.report_key,preserve_both_reports:true,canonical_persisted:true};
   }));
-  add("build_sab_run_manifest","Build exactly one validated batch.json from every qualified complete AND qa_ready row across the run. Fails closed unless each prospect has structured verified-email evidence or complete contact-path exhaustion; Needs Email also requires the run-wide public-business-phone search authorization. Includes CRM-only no-visibility leads, excludes competitors, and does not import or send outreach.",{
+  add("build_sab_run_manifest","Build exactly one validated batch.json from every qualified complete AND qa_ready row across the run. Fails closed while any survivor remains assigned, in progress, blocked or deferred without Matt's named terminal-deferral approval. Also requires structured verified-email evidence or complete contact-path exhaustion; Needs Email requires the run-wide public-business-phone search authorization. Includes CRM-only no-visibility leads, excludes competitors, and does not import or send outreach.",{
     ...run,batch:z.object({batch_id:z.string().min(1),market:z.object({city:z.string().min(1),state:z.string().regex(/^[A-Za-z]{2}$/)}),trade:z.string().min(1),keyword:z.string().min(1),export_date:z.string().min(1),scan_spec:z.object({grid_size:z.literal("7x7"),radius_miles:z.literal(3)})}),
   },async args=>buildSabRunManifest(factory(args.workflow_sheet,args.sheet_name),args.batch,args.run_id));
 }

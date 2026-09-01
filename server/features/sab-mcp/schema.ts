@@ -339,7 +339,7 @@ export const sabCompanyUpdatesSchema = z
       .nullable()
       .optional()
       .describe(
-        "Final disposition, separate from pre-scan eligibility. Keep null while scan work remains in progress. Use qualified only after a valid deliverable or completed no_visibility_core_found path; use disqualified or deferred for a reasoned final disposition.",
+        "Disposition, separate from pre-scan eligibility. Keep null while scan work remains in progress. Use qualified only after a valid deliverable or completed no_visibility_core_found path; use disqualified for a deterministic final failure. Deferred is a nonterminal recovery queue and cannot satisfy run completion unless Matt explicitly approves that named company as a terminal deferral.",
       ),
     sales_priority: z
       .number()
