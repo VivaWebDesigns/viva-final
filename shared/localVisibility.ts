@@ -48,6 +48,32 @@ export function formatLocalVisibilityReportAddress({
     .replace(/, ([A-Z]{2}), /, ", $1 ");
 }
 
+export function resolveLocalVisibilityMarket({
+  scanCity,
+  scanState,
+  prospectCity,
+  prospectState,
+  batchCity,
+  batchState,
+}: {
+  scanCity?: string | null;
+  scanState?: string | null;
+  prospectCity?: string | null;
+  prospectState?: string | null;
+  batchCity?: string | null;
+  batchState?: string | null;
+}): { city: string; state: string; label: string } {
+  const candidates = [
+    [scanCity, scanState],
+    [prospectCity, prospectState],
+    [batchCity, batchState],
+  ] as const;
+  const selected = candidates.find(([city, state]) => city?.trim() && state?.trim());
+  const city = selected?.[0]?.trim() ?? "";
+  const state = selected?.[1]?.trim() ?? "";
+  return { city, state, label: [city, state].filter(Boolean).join(", ") };
+}
+
 export function formatLocalVisibilityAveragePosition(value: string | number | null | undefined): string {
   const text = String(value ?? "").trim();
   if (!text) return "";

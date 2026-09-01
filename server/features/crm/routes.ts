@@ -39,6 +39,7 @@ import {
   formatLocalVisibilityAveragePosition,
   formatLocalVisibilityReportAddress,
   getLocalFalconMapPresentation,
+  resolveLocalVisibilityMarket,
 } from "@shared/localVisibility";
 import { hydrateReportAtrp } from "../local-visibility/metrics";
 import {
@@ -494,9 +495,14 @@ router.post(
               rating: String(prospect.rating),
               reviewCount: String(prospect.review_count),
               searchPhrase: prospect.scan_keyword,
-              market: prospect.scan_center
-                ? `${prospect.scan_center.city}, ${prospect.scan_center.state}`
-                : `${parsedPackage.payload.batch.market.city}, ${parsedPackage.payload.batch.market.state}`,
+              market: resolveLocalVisibilityMarket({
+                scanCity: prospect.scan_center?.city,
+                scanState: prospect.scan_center?.state,
+                prospectCity: prospect.city,
+                prospectState: prospect.state,
+                batchCity: parsedPackage.payload.batch.market.city,
+                batchState: parsedPackage.payload.batch.market.state,
+              }).label,
               averagePosition: formatLocalVisibilityAveragePosition(prospect.atrp),
               gridSize: getProspectScanSpec(parsedPackage.payload, prospect).grid_size,
               radius: String(getProspectScanSpec(parsedPackage.payload, prospect).radius_miles),
