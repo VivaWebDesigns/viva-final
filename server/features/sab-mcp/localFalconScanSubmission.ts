@@ -268,7 +268,23 @@ export async function runSabScanOnce(
     // Match and claim the exact plan before any side effect; a caller UUID alone
     // is never spending authorization. Claims are not refunded on ambiguity.
     input = { ...input, ...normalizeSabScanPlan(input) };
-    const recoveringPreProviderClaim = Boolean(existing);
+    const currentBatch = state.batches.at(-1);
+    const fingerprint = sabScanPlanFingerprint(input);
+    const currentClaim = currentBatch?.scans.find(
+      (candidate) => candidate.fingerprint === fingerprint,
+    );
+    // A run-state reservation is written before the Sheet-backed submission
+    // receipt. If that second write is throttled, the exact reserved claim and
+    // idempotency key prove that no provider work could have started because
+    // every provider action occurs only after reserveScanSubmission succeeds.
+    const recoveringRunStateOnlyClaim =
+      !existing &&
+      currentBatch?.authorization_id === input.authorization_id &&
+      currentBatch.status === "authorized" &&
+      currentClaim?.submission_status === "reserved" &&
+      currentClaim.idempotency_key === key;
+    const recoveringPreProviderClaim =
+      Boolean(existing) || recoveringRunStateOnlyClaim;
     const existingLocationStatus = cleanString(existing?.location_status);
     const existingLocationPlaceId = cleanString(existing?.location_place_id);
     const locationAlreadyVerified =
@@ -276,13 +292,12 @@ export async function runSabScanOnce(
       existingLocationStatus === "verified" &&
       existingLocationPlaceId === input.place_id;
     if (recoveringPreProviderClaim) {
-      const currentBatch = state.batches.at(-1);
-      const fingerprint = sabScanPlanFingerprint(input);
       const claimedScan = currentBatch?.scans.find(
         (candidate) => candidate.fingerprint === fingerprint,
       );
       const exactReservation =
-        cleanString(existing?.authorization_id) === input.authorization_id &&
+        recoveringRunStateOnlyClaim ||
+        (cleanString(existing?.authorization_id) === input.authorization_id &&
         cleanString(existing?.company_name) === input.company_name &&
         cleanString(existing?.place_id) === input.place_id &&
         cleanString(existing?.scan_role) === input.scan_role &&
@@ -301,7 +316,7 @@ export async function runSabScanOnce(
         (recoveringSubmittingClaim
           ? Boolean(cleanString(existing?.submit_started_at))
           : !cleanString(existing?.submit_started_at)) &&
-        (existingLocationStatus !== "verified" || locationAlreadyVerified);
+        (existingLocationStatus !== "verified" || locationAlreadyVerified));
       if (
         currentBatch?.authorization_id !== input.authorization_id ||
         currentBatch.status !== "authorized" ||
@@ -338,7 +353,7 @@ export async function runSabScanOnce(
             },
         actorEmail,
       );
-    } else {
+    } else if (!recoveringRunStateOnlyClaim) {
       const claimed = claimSabRunScan(
         state,
         input.authorization_id,
@@ -370,7 +385,7 @@ export async function runSabScanOnce(
       center_derivation: input.center_derivation,
       sop_routing_rule: input.sop_routing_rule,
     };
-    if (!recoveringPreProviderClaim) {
+    if (!existing) {
       const reserved = await repository.reserveScanSubmission(
         reservation,
         actorEmail,
@@ -378,6 +393,20 @@ export async function runSabScanOnce(
       if (!reserved.created) {
         return existingReceipt(reserved.entry as Record<string, unknown>);
       }
+    }
+
+    if (recoveringRunStateOnlyClaim) {
+      await repository.updateScanSubmission(
+        input.place_id,
+        key,
+        {
+          recovery: "automatic_run_state_only_pre_provider_resume",
+          recovery_basis:
+            "exact_active_reserved_claim_with_no_submission_receipt",
+          recovery_resumed_at: new Date().toISOString(),
+        },
+        actorEmail,
+      );
     }
 
     if (input.save_location_required && !locationAlreadyVerified) {

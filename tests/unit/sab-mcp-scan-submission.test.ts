@@ -314,16 +314,38 @@ describe("guarded SAB scan submission", () => {
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
-  it("persists the credit claim before reservation or provider calls and stops after a failed reservation", async () => {
+  it("resumes an exact run-state-only claim after the submission reservation write fails", async () => {
     const repo = repository();
-    const fetchImpl = vi.fn();
-    repo.reserveScanSubmission.mockRejectedValueOnce(new Error("reservation failed"));
+    const fetchImpl = vi.fn().mockResolvedValue(exactResponse());
+    repo.reserveScanSubmission
+      .mockRejectedValueOnce(new Error("reservation failed"))
+      .mockResolvedValueOnce({
+        created: true,
+        place_id: "test-place",
+        entry: {},
+      });
     await expect(runSabScanOnce(input, repo as never, "actor", { apiKey: "test", fetchImpl }))
       .rejects.toThrow("reservation failed");
     expect((await repo.getRunState()).committed_credits).toBe(81);
     await expect(runSabScanOnce(input, repo as never, "actor", { apiKey: "test", fetchImpl }))
-      .rejects.toThrow(/already claimed/);
-    expect(fetchImpl).not.toHaveBeenCalled();
+      .resolves.toMatchObject({
+        submission_status: "submitted",
+        report_key: "4826693261fc566",
+        scans_executed: true,
+      });
+    expect((await repo.getRunState()).committed_credits).toBe(81);
+    expect(repo.reserveScanSubmission).toHaveBeenCalledTimes(2);
+    expect(repo.updateScanSubmission).toHaveBeenCalledWith(
+      "test-place",
+      expect.any(String),
+      expect.objectContaining({
+        recovery: "automatic_run_state_only_pre_provider_resume",
+        recovery_basis:
+          "exact_active_reserved_claim_with_no_submission_receipt",
+      }),
+      "actor",
+    );
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
   it("automatically resumes an exact pre-provider claim without reserving credits again", async () => {
