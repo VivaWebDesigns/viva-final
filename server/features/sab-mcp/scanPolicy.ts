@@ -455,9 +455,14 @@ export function analyzeSabScanPolicy(input: SabScanPolicyInput): SabScanDecision
   if (margin.failed || supportedOffCenterPeak) {
     if ((input.routineRecenterCount ?? 0) >= 1 && !input.additionalRecenterApproved) return decision("additional_recenter_exception_required", ["S04", "S05", "S07"], "One routine recenter has already been used; another requires an explicit exception.", peak!.target, "ranked_peak_recentered");
     if (peak!.movement_miles < 1e-6) return decision("evidence_review_required", ["S04", "S05"], "The failed margin has no verified movement toward the selected peak; do not resubmit an identical center.");
-    return decision("recenter", ["S04", "S05", "S07"], weakOffCenterPeak
-      ? "The selected peak is outside a central area without a coherent exact top-20 cluster; use the existing permitted peak-first route."
-      : "Coherent outward strength or an off-center peak with complete neighborhood support justifies the permitted peak-first recenter.", peak!.target, "ranked_peak_recentered");
+    const reason = margin.failed && unsupportedOffCenterPeak
+      ? "S05 independently fails through qualifying boundary evidence. The off-center peak failed neighborhood support and supplies no recenter authority; use only the S05-supported target."
+      : margin.failed
+        ? "S05 independently fails through qualifying boundary evidence and supports the permitted peak-targeted recenter."
+        : weakOffCenterPeak
+          ? "The selected peak is outside a central area without a coherent exact top-20 cluster; use the existing permitted peak-first route."
+          : "The off-center peak passes all three neighborhood-support conditions and supports the permitted peak-targeted recenter.";
+    return decision("recenter", ["S04", "S05", "S07"], reason, peak!.target, "ranked_peak_recentered");
   }
   if (unsupportedOffCenterPeak) return decision("center_validated", ["S04", "S05", "S09"], "The off-center peak failed at least one required central-contrast, neighborhood-median or exact top-20 support condition; retain the existing center as unsupported_off_center_peak.", grid.center);
   return decision("center_validated", ["S05", "S09"], "The footprint has ordinary falloff without coherent outward strength or a supported off-center peak.", grid.center);

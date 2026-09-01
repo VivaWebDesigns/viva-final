@@ -105,7 +105,7 @@ describe("SAB deterministic peak targeting and recenter limits", () => {
   it("permits one routine recenter and requires an explicit exception thereafter", () => {
     const cells = [cell(1, 4, 1), cell(4, 4, 7), cell(5, 4, 9)];
     const input = { stage: "deliverable" as const, grid: grid(), cells };
-    expect(analyzeSabScanPolicy(input).action).toBe("recenter");
+    expect(analyzeSabScanPolicy(input)).toMatchObject({action:"recenter",reason:expect.stringContaining("S05 independently fails")});
     expect(analyzeSabScanPolicy({ ...input, routineRecenterCount: 1 }).action).toBe("additional_recenter_exception_required");
     expect(analyzeSabScanPolicy({ ...input, routineRecenterCount: 1, additionalRecenterApproved: true }).action).toBe("recenter");
   });
