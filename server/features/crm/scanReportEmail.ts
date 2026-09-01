@@ -19,7 +19,7 @@ import {
   scanReportLandingUrl,
 } from "../../public-scan-report";
 
-const POSTAL_ADDRESS = "1628 Redcoat Dr, Charlotte, NC 28211";
+const POSTAL_ADDRESS = "227 W 4th St<br />1st Floor #3127<br />Charlotte, NC 28202";
 const PREHEADER_PADDING = "&#847; &zwnj; &nbsp; ".repeat(30);
 export const DEFAULT_SCAN_REPORT_PREHEADER = "Your Google Maps scan is ready — see how your business appears across nearby searches.";
 

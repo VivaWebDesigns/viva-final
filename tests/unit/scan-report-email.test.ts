@@ -27,7 +27,7 @@ describe("scan report email template", () => {
     expect(html).toContain("View the full report");
     expect(html).toContain('href="https://vivawebdesigns.com/scan-report/secure-token"');
     expect(html).toContain('src="https://reports.vivawebdesigns.com/scans/report/abc.png"');
-    expect(html).toContain("1628 Redcoat Dr, Charlotte, NC 28211");
+    expect(html).toContain("227 W 4th St<br />1st Floor #3127<br />Charlotte, NC 28202");
     expect(html).toContain("Unsubscribe");
   });
 
