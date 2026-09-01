@@ -187,6 +187,15 @@ describe("SabSheetsRepository", () => {
     await expect(repository.saveCompany("place-1", { decision_state: migrated }, "actor@example.com", { corroborationRecorded: true })).rejects.toThrow(/current exact evidence/);
     await expect(repository.saveCompany("place-1", { decision_state: migrated }, "actor@example.com", { corroborationRecorded: true, legacyHashCompatibilityVerified: true })).resolves.toMatchObject({ status: "blocked" });
     expect(await repository.getCompany("place-1")).toMatchObject({ decision_state: { evidence_hash: currentHash, address_corroboration: { evidence_hash: currentHash } } });
+
+    const withoutPriorCorroboration = { ...decision, address_corroboration: undefined };
+    const accepted = { ...failure, evidence_hash: currentHash, status: "accepted" as const,
+      candidate_coordinates: { latitude: 35, longitude: -80 }, geocoder: { location_type: "ROOFTOP", partial_match: false },
+      distances_miles: { weighted_centroid: 1, nearest_ranked_cell: 0.5, best_rank_cluster_centroid: 1 } };
+    const migratedWithoutPriorCorroboration = { ...withoutPriorCorroboration, evidence_hash: currentHash, address_corroboration: accepted };
+    const { repository: legacyMasterRepository } = buildRepository([row({ decision_state: JSON.stringify(withoutPriorCorroboration) })]);
+    await expect(legacyMasterRepository.saveCompany("place-1", { decision_state: migratedWithoutPriorCorroboration }, "actor@example.com",
+      { corroborationRecorded: true, legacyHashCompatibilityVerified: true })).resolves.toMatchObject({ place_id: "place-1" });
   });
 
   it("allows only an explicitly verified post-deliverable S01 recovery transition", async () => {

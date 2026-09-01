@@ -382,6 +382,24 @@ describe("SAB orchestration integration",()=>{
     expect(await repo.getCompany()).toMatchObject({status:"in_progress",blocker:null,decision_state:{evidence_hash:currentHash,address_corroboration:{status,evidence_hash:currentHash}}});
   });
 
+  it("recovers accepted corroboration from a verified legacy master hash without prior corroboration state",async()=>{
+    const master=report("cccccccccccc",plan,{businesses:[{place_id:"place",evidence_source:"competitor_roster",ranked_cell_count:3,imprecise_or_unranked_cell_count:46,
+      ranked_cells:[{row:3,column:3,latitude:35.03,longitude:-80.03,rank:7},{row:3,column:4,latitude:35.03,longitude:-80.02,rank:5},{row:4,column:4,latitude:35.02,longitude:-80.02,rank:6}],
+      all_point_rank_cells:Array.from({length:49},(_,index)=>({row:Math.floor(index/7)+1,column:index%7+1,latitude:35.05-Math.floor(index/7)*.01,longitude:-80.05+(index%7)*.01,rank:[16,17,24].includes(index)?[7,5,6][[16,17,24].indexOf(index)]:21}))}]});
+    const legacyHash=legacyEvidenceHash(master),currentHash=currentEvidenceHash(master);
+    const repo=repository(initialize(),{status:"in_progress",blocker:"",decision_state:{source_report_key:master.report_key,evidence_hash:legacyHash,
+      rule_id:"S01",centering_status:"failed",routine_recenter_count:0,evidence:{next_action:"address_corroboration_required"}}});
+    vi.mocked(getSabRankedCells).mockResolvedValue(master as never);
+    vi.mocked(evaluateSabAddressCandidate).mockResolvedValueOnce({status:"complete",candidate_coordinates:{latitude:35.02,longitude:-80.02},
+      geocoder:{location_type:"ROOFTOP",partial_match:false},distances_miles:{weighted_centroid:1.36,nearest_ranked_cell:1.36,best_rank_cluster_centroid:1.36}} as never);
+    const result=await tools(repo).invoke("record_sab_address_corroboration",{orchestrator_id:"owner",place_id:"place",report_key:master.report_key,
+      result:"candidate",candidate_address:"PRIVATE-CANDIDATE",fit_decision:"accepted",research_complete:true,evidence_references:["verified-company-source"],
+      source_type:"independent sources",identity_method:"exact current profile and owner activity",fit_rationale:"Complete non-phone identity and distribution fit"});
+    expect(result).toMatchObject({action:"plan_deliverable",address_corroboration:{status:"accepted",evidence_hash:currentHash}});
+    expect(await repo.getCompany()).toMatchObject({status:"in_progress",blocker:"",center_type:"corroborated_address",
+      decision_state:{evidence_hash:currentHash,address_corroboration:{status:"accepted",evidence_hash:currentHash}}});
+  });
+
   it("rejects an unverified corroboration hash mismatch without converting it to a technical failure",async()=>{
     const master=report("cccccccccccc",plan,{businesses:[{place_id:"place",evidence_source:"competitor_roster",ranked_cell_count:1,imprecise_or_unranked_cell_count:48,ranked_cells:[{row:1,column:4,latitude:35.05,longitude:-80,rank:5}],all_point_rank_cells:[{row:1,column:4,latitude:35.05,longitude:-80,rank:5}]}]});
     const mismatch="f".repeat(64),technicalFailure={source_report_key:master.report_key,evidence_hash:mismatch,status:"technical_failure" as const,research_complete:true,evidence_references:["verified-company-source"],source_type:"official source",identity_method:"exact phone",fit_rationale:"Prior writer failure"};

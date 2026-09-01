@@ -944,7 +944,7 @@ export class SabSheetsRepository {
     } else if (options.corroborationRecorded) {
       const recorded = sabDecisionStateSchema.safeParse(nextDecision);
       const verifiedLegacyMigration = options.legacyHashCompatibilityVerified &&
-        previousState?.evidence_hash === priorCorroboration?.evidence_hash &&
+        (!priorCorroboration || previousState?.evidence_hash === priorCorroboration.evidence_hash) &&
         recorded.success && recorded.data.evidence_hash !== previousState?.evidence_hash;
       if (!recorded.success || !recorded.data.address_corroboration ||
           recorded.data.source_report_key !== previousState?.source_report_key ||
