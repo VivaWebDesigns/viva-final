@@ -87,7 +87,7 @@ describe("SAB completed auxiliary outcomes", () => {
 
 describe("SAB deterministic peak targeting and recenter limits", () => {
   it("moves toward a strong displaced peak rather than the opposite whole-field centroid", () => {
-    const cells = [cell(2, 6, 1), cell(3, 5, 2), ...field(() => 9).filter(p => p.column <= 3)];
+    const cells = [cell(2, 6, 1), cell(2, 5, 2), ...field(() => 9).filter(p => p.column <= 3)];
     const peak = selectSabPeakTarget(cells, grid())!;
     expect(peak.dominant).toBe(true);
     expect(peak.target.longitude).toBeGreaterThan(0);
@@ -109,12 +109,32 @@ describe("SAB deterministic peak targeting and recenter limits", () => {
     expect(analyzeSabScanPolicy({ ...input, routineRecenterCount: 1 }).action).toBe("additional_recenter_exception_required");
     expect(analyzeSabScanPolicy({ ...input, routineRecenterCount: 1, additionalRecenterApproved: true }).action).toBe("recenter");
   });
-  it("does not validate a weak off-center selected peak",()=>{
+  it("keeps the existing non-dominant off-center recenter guard",()=>{
     const cells=[cell(2,6,3),cell(4,4,5),cell(4,3,5),cell(5,4,5)];
     const result=analyzeSabScanPolicy({stage:"deliverable",grid:grid(),cells});
-    expect(result.evidence).toMatchObject({peak:{dominant:false,displaced_peak:true},weak_off_center_peak:true});
-    expect(result.action).not.toBe("center_validated");
-    expect(["recenter","evidence_review_required"]).toContain(result.action);
+    expect(result).toMatchObject({action:"recenter"});
+    expect(result.evidence).toMatchObject({peak:{dominant:false,displaced_peak:true,central_3x3_best_rank:5,displaced_peak_central_contrast:2},weak_off_center_peak:true,unsupported_off_center_peak:false});
+  });
+  it("reproduces the weak Vivid Edge footprint and retains its existing center",()=>{
+    const cells=[
+      cell(2,3,20),cell(2,6,20),cell(3,2,19),cell(3,3,18),cell(3,4,18),cell(3,5,17),
+      cell(3,6,14),cell(4,2,20),cell(4,3,16),cell(4,4,19),cell(4,5,18),cell(4,6,16),
+      cell(5,3,16),cell(5,4,18),cell(5,5,18),cell(6,4,18),cell(6,5,18),cell(7,6,20),
+    ];
+    const result=analyzeSabScanPolicy({stage:"deliverable",grid:grid(),cells,rawArp:17.94,atrp:19.88,solv:0});
+    expect(result).toMatchObject({action:"center_validated",rule_ids:["S04","S05","S09"],proposed_center:grid().center});
+    expect(result.evidence).toMatchObject({exact_top20_count:18,peak:{best_rank:14,median_rank:18,dominant:true,statistically_dominant_displaced_peak:true,central_3x3_best_rank:16,displaced_peak_central_contrast:2,displaced_peak_has_centering_support:false,displaced_dominant_peak:false},weak_off_center_peak:false,unsupported_off_center_peak:true});
+    expect(result.reason).toContain("weak field");
+  });
+  it("still recenters a displaced peak with the required contrast over central evidence",()=>{
+    const cells=[cell(2,6,1),cell(3,6,2),cell(4,4,5),cell(4,3,6),cell(5,4,6)];
+    const result=analyzeSabScanPolicy({stage:"deliverable",grid:grid(),cells});
+    expect(result).toMatchObject({action:"recenter",evidence:{peak:{central_3x3_best_rank:5,displaced_peak_central_contrast:4,displaced_peak_has_centering_support:true,displaced_dominant_peak:true}}});
+  });
+  it("keeps the exact three-rank contrast boundary eligible for Precision's exception route",()=>{
+    const cells=[cell(6,4,3),cell(6,3,5),cell(5,3,6),cell(5,4,6),cell(4,4,11)];
+    const result=analyzeSabScanPolicy({stage:"deliverable",grid:grid(),cells,routineRecenterCount:1});
+    expect(result).toMatchObject({action:"additional_recenter_exception_required",evidence:{peak:{best_rank:3,central_3x3_best_rank:6,displaced_peak_central_contrast:3,displaced_peak_has_centering_support:true,displaced_dominant_peak:true}}});
   });
 });
 

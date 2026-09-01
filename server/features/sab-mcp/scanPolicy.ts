@@ -143,6 +143,9 @@ export function selectSabPeakTarget(cellsInput: SabRankedCell[], grid: SabScanGr
   const best = Math.min(...cells.map(cell => cell.rank));
   const rankedMedian = median(cells.map(cell => cell.rank))!;
   const dominant = rankedMedian - best >= 3;
+  const middle = (grid.size + 1) / 2;
+  const centralCells = cells.filter(cell => Math.abs(cell.row - middle) <= 1 && Math.abs(cell.column - middle) <= 1);
+  const centralBest = centralCells.length ? Math.min(...centralCells.map(cell => cell.rank)) : null;
   const candidates = sabRankedClusters(cells.filter(cell => cell.rank <= best + 2))
     .filter(component => component.some(cell => cell.rank === best))
     .map(component => ({
@@ -166,7 +169,13 @@ export function selectSabPeakTarget(cellsInput: SabRankedCell[], grid: SabScanGr
     targetingMethod = "selected_peak_pin";
   }
   const movement = distance(grid.center, target);
-  const displaced = Math.max(Math.abs(peak.row - (grid.size + 1) / 2), Math.abs(peak.column - (grid.size + 1) / 2)) > 1;
+  const displaced = Math.max(Math.abs(peak.row - middle), Math.abs(peak.column - middle)) > 1;
+  // A displaced pocket must be materially stronger than the current central
+  // area, not merely better than a weak field-wide median. Reuse the existing
+  // three-rank dominance margin; absence of a central exact pin supplies no
+  // counterevidence to the displaced peak.
+  const centralContrast = centralBest === null ? null : centralBest - best;
+  const displacedPeakHasCenteringSupport = displaced && (centralBest === null || (centralContrast !== null && centralContrast >= 3));
   return {
     target,
     targeting_method: targetingMethod,
@@ -177,7 +186,11 @@ export function selectSabPeakTarget(cellsInput: SabRankedCell[], grid: SabScanGr
     selected_cluster_weight: selected.weight,
     selected_peak: { row: peak.row, column: peak.column, rank: peak.rank },
     displaced_peak: displaced,
-    displaced_dominant_peak: dominant && displaced,
+    statistically_dominant_displaced_peak: dominant && displaced,
+    central_3x3_best_rank: centralBest,
+    displaced_peak_central_contrast: centralContrast,
+    displaced_peak_has_centering_support: displacedPeakHasCenteringSupport,
+    displaced_dominant_peak: dominant && displacedPeakHasCenteringSupport,
     movement_miles: movement,
     moves_toward_peak: distance(target, peak) <= distance(grid.center, peak) + 1e-8,
     peak_at_or_adjacent_to_proposed_center: Math.min(...selected.cells.map(cell => distance(cell, target))) <= maxAdjacentDistance,
@@ -378,7 +391,9 @@ export function analyzeSabScanPolicy(input: SabScanPolicyInput): SabScanDecision
   const margin = evaluateSabCoherentMargin(cells, grid.size);
   evidence.margin = margin;
   const weakOffCenterPeak = peak!.displaced_peak && !peak!.dominant;
+  const unsupportedOffCenterPeak = peak!.displaced_peak && peak!.dominant && !peak!.displaced_peak_has_centering_support;
   evidence.weak_off_center_peak = weakOffCenterPeak;
+  evidence.unsupported_off_center_peak = unsupportedOffCenterPeak;
   if (margin.failed || peak!.displaced_dominant_peak || weakOffCenterPeak) {
     if ((input.routineRecenterCount ?? 0) >= 1 && !input.additionalRecenterApproved) return decision("additional_recenter_exception_required", ["S04", "S05", "S07"], "One routine recenter has already been used; another requires an explicit exception.", peak!.target, "ranked_peak_recentered");
     if (peak!.movement_miles < 1e-6) return decision("evidence_review_required", ["S04", "S05"], "The failed margin has no verified movement toward the selected peak; do not resubmit an identical center.");
@@ -386,6 +401,7 @@ export function analyzeSabScanPolicy(input: SabScanPolicyInput): SabScanDecision
       ? "The selected peak is outside the central 3×3. Weak statistical dominance does not validate an off-center result; use the permitted peak-first recenter."
       : "Coherent outward strength or a displaced dominant peak supports the permitted peak-first recenter.", peak!.target, "ranked_peak_recentered");
   }
+  if (unsupportedOffCenterPeak) return decision("center_validated", ["S04", "S05", "S09"], "The off-center peak does not beat the best central 3×3 evidence by the required three-rank margin. Relative strength within a weak field is insufficient to justify recentering; retain the validated center.", grid.center);
   return decision("center_validated", ["S05", "S09"], "The footprint has ordinary falloff without coherent outward strength or a displaced dominant peak.", grid.center);
 }
 
