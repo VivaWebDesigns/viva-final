@@ -33,6 +33,11 @@ export type RunSabScanOnceInput = Omit<
   pre_provider_recovery?: {
     approved_by: "Matt";
     approval_reference: string;
+    exact_history_check?: {
+      evidence_reference: string;
+      checked_at: string;
+      result: "none";
+    };
   };
 };
 
@@ -210,10 +215,13 @@ export async function runSabScanOnce(
     const existingStatus = existing
       ? cleanString(existing.submission_status) ?? "unknown"
       : null;
-    if (existing && existingStatus !== "preparing_location") {
+    const recoveringSubmittingClaim = existingStatus === "submitting";
+    const recoverableExistingStatus =
+      existingStatus === "preparing_location" || recoveringSubmittingClaim;
+    if (existing && !recoverableExistingStatus) {
       if (input.pre_provider_recovery) {
         throw new Error(
-          "Pre-provider recovery is allowed only for an exact preparing_location receipt.",
+          "Same-claim recovery is allowed only for an exact preparing_location or submitting receipt.",
         );
       }
       return existingReceipt(existing);
@@ -227,8 +235,27 @@ export async function runSabScanOnce(
     }
     if (!existing && input.pre_provider_recovery) {
       throw new Error(
-        "No exact preparing_location receipt exists for guarded pre-provider recovery.",
+        "No exact recoverable receipt exists for guarded same-claim recovery.",
       );
+    }
+    if (recoveringSubmittingClaim && input.pre_provider_recovery) {
+      const historyCheck = input.pre_provider_recovery.exact_history_check;
+      const checkedAt = historyCheck
+        ? Date.parse(historyCheck.checked_at)
+        : Number.NaN;
+      const checkAgeMs = Date.now() - checkedAt;
+      if (
+        !historyCheck ||
+        historyCheck.result !== "none" ||
+        !historyCheck.evidence_reference.trim() ||
+        !Number.isFinite(checkedAt) ||
+        checkAgeMs < -60_000 ||
+        checkAgeMs > 10 * 60_000
+      ) {
+        throw new Error(
+          "A fresh exact-envelope provider-history check with no matching report is required to recover a submitting claim.",
+        );
+      }
     }
     const state = await repository.getRunState(input.run_id);
     if (!state || state.run_id !== input.run_id) throw new Error("No matching authorized structured run exists.");
@@ -267,7 +294,9 @@ export async function runSabScanOnce(
         cleanString(existing?.center_derivation) === input.center_derivation &&
         cleanString(existing?.sop_routing_rule) === input.sop_routing_rule &&
         !cleanString(existing?.report_key) &&
-        !cleanString(existing?.submit_started_at) &&
+        (recoveringSubmittingClaim
+          ? Boolean(cleanString(existing?.submit_started_at))
+          : !cleanString(existing?.submit_started_at)) &&
         (existingLocationStatus !== "verified" || locationAlreadyVerified);
       if (
         currentBatch?.authorization_id !== input.authorization_id ||
@@ -285,10 +314,21 @@ export async function runSabScanOnce(
         input.place_id,
         key,
         {
-          recovery: "approved_pre_provider_resume",
+          recovery: recoveringSubmittingClaim
+            ? "approved_same_claim_resume_after_exact_history_check"
+            : "approved_pre_provider_resume",
           recovery_approved_by: input.pre_provider_recovery!.approved_by,
           recovery_authorization_reference:
             input.pre_provider_recovery!.approval_reference,
+          ...(recoveringSubmittingClaim
+            ? {
+                recovery_history_evidence_reference:
+                  input.pre_provider_recovery!.exact_history_check!
+                    .evidence_reference,
+                recovery_history_checked_at:
+                  input.pre_provider_recovery!.exact_history_check!.checked_at,
+              }
+            : {}),
           recovery_resumed_at: new Date().toISOString(),
         },
         actorEmail,

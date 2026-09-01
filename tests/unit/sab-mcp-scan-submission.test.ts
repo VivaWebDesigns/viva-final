@@ -419,7 +419,7 @@ describe("guarded SAB scan submission", () => {
         "actor",
         { apiKey: "test", fetchImpl },
       ),
-    ).rejects.toThrow(/No exact preparing_location receipt/);
+    ).rejects.toThrow(/No exact recoverable receipt/);
 
     expect((await repo.getRunState()).committed_credits).toBe(81);
     expect(repo.reserveScanSubmission).toHaveBeenCalledTimes(1);
@@ -467,5 +467,60 @@ describe("guarded SAB scan submission", () => {
     ]);
     expect((await repo.getRunState()).committed_credits).toBe(81);
     expect(repo.reserveScanSubmission).toHaveBeenCalledTimes(1);
+  });
+
+  it("recovers the same submitting claim after a fresh exact-history no-match check", async () => {
+    const repo = repository();
+    const originalUpdate = repo.updateScanSubmission.getMockImplementation()!;
+    repo.updateScanSubmission
+      .mockImplementationOnce(originalUpdate)
+      .mockRejectedValueOnce(new Error("transport closed during provider call"));
+    const failedFetch = vi.fn().mockRejectedValue(new Error("connection lost"));
+
+    await expect(
+      runSabScanOnce(input, repo as never, "actor", {
+        apiKey: "test",
+        fetchImpl: failedFetch as never,
+      }),
+    ).rejects.toThrow("transport closed during provider call");
+
+    const fetchImpl = vi.fn().mockResolvedValue(exactResponse());
+    await expect(
+      runSabScanOnce(
+        {
+          ...input,
+          pre_provider_recovery: {
+            approved_by: "Matt",
+            approval_reference: "Approved same-claim recovery.",
+            exact_history_check: {
+              evidence_reference: "viva-local-falcon-preflight:test",
+              checked_at: new Date().toISOString(),
+              result: "none",
+            },
+          },
+        },
+        repo as never,
+        "actor",
+        { apiKey: "test", fetchImpl: fetchImpl as never },
+      ),
+    ).resolves.toMatchObject({
+      submission_status: "submitted",
+      report_key: "4826693261fc566",
+      scans_executed: true,
+    });
+
+    expect((await repo.getRunState()).committed_credits).toBe(81);
+    expect(repo.reserveScanSubmission).toHaveBeenCalledTimes(1);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(repo.updateScanSubmission).toHaveBeenCalledWith(
+      "test-place",
+      expect.any(String),
+      expect.objectContaining({
+        recovery: "approved_same_claim_resume_after_exact_history_check",
+        recovery_history_evidence_reference:
+          "viva-local-falcon-preflight:test",
+      }),
+      "actor",
+    );
   });
 });

@@ -578,11 +578,19 @@ export const runSabScanOnceInputSchema = {
     .object({
       approved_by: z.literal("Matt"),
       approval_reference: z.string().trim().min(1).max(5_000),
+      exact_history_check: z
+        .object({
+          evidence_reference: z.string().trim().min(1).max(2_000),
+          checked_at: z.string().datetime(),
+          result: z.literal("none"),
+        })
+        .strict()
+        .optional(),
     })
     .strict()
     .optional()
     .describe(
-      "Explicit Matt authorization to resume the same exact durable claim only when its receipt is still preparing_location. This preserves the existing idempotency key and credit reservation and never creates a new claim.",
+      "Explicit Matt authorization to resume the same exact durable claim without reserving again. A submitting receipt additionally requires a fresh exact-envelope provider-history check showing no matching report.",
     ),
   center_derivation: z.string().trim().min(1).max(5_000),
   sop_routing_rule: z.string().trim().min(1).max(5_000),
