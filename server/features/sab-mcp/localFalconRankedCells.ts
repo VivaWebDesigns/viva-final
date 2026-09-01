@@ -123,6 +123,7 @@ export type SabRankedCellsResult = {
   businesses: Array<{
     place_id: string;
     name: string | null;
+    evidence_source: "competitor_roster" | "report_subject_absent_from_competitor_roster";
     ranked_cell_count: number;
     imprecise_or_unranked_cell_count: number;
     ranked_cells: SabRankedCell[];
@@ -297,9 +298,29 @@ export function extractSabRankedCells(
     }
   }
 
-  const selectedBusinesses = requested.flatMap((placeId) => {
+  const reportSubjectPlaceId = cleanString(gridPayload.data.place_id);
+  const selectedBusinesses = requested.flatMap<SabRankedCellsResult["businesses"][number]>((placeId): SabRankedCellsResult["businesses"] => {
     const business = businessByPlaceId.get(placeId);
-    if (!business) return [];
+    if (!business) {
+      // A completed scan can identify its exact subject in the grid response
+      // while omitting that subject from the competitor roster when it has no
+      // ranked positions. Preserve the omission as evidence and represent the
+      // subject as unranked at every point so policy can evaluate the existing
+      // report without inventing visibility or resubmitting the scan.
+      if (placeId !== reportSubjectPlaceId) return [];
+      const allPointRankCells = axes.latitudes.flatMap((latitude, rowIndex) => axes.longitudes.map((longitude, columnIndex) => ({
+        row: rowIndex + 1, column: columnIndex + 1, latitude, longitude, rank: 21,
+      })));
+      return [{
+        place_id: placeId,
+        name: null,
+        evidence_source: "report_subject_absent_from_competitor_roster" as const,
+        ranked_cell_count: 0,
+        imprecise_or_unranked_cell_count: axes.pointCount,
+        ranked_cells: [],
+        all_point_rank_cells: allPointRankCells,
+      }];
+    }
     if (!Array.isArray(business.data_points)) {
       throw new Error(
         `Local Falcon competitor report did not include data points for Place ID ${placeId}.`,
@@ -330,6 +351,7 @@ export function extractSabRankedCells(
       {
         place_id: placeId,
         name: cleanString(business.name),
+        evidence_source: "competitor_roster" as const,
         ranked_cell_count: rankedCells.length,
         imprecise_or_unranked_cell_count: impreciseOrUnrankedCellCount,
         ranked_cells: rankedCells,
@@ -339,7 +361,7 @@ export function extractSabRankedCells(
   });
 
   const foundPlaceIds = new Set(
-    selectedBusinesses.map(({ place_id }) => place_id),
+    selectedBusinesses.filter(({ evidence_source }) => evidence_source === "competitor_roster").map(({ place_id }) => place_id),
   );
   const missingPlaceIds = requested.filter(
     (placeId) => !foundPlaceIds.has(placeId),
@@ -351,7 +373,7 @@ export function extractSabRankedCells(
 
   return {
     report_key: reportKey,
-    report_subject_place_id: cleanString(gridPayload.data.place_id),
+    report_subject_place_id: reportSubjectPlaceId,
     scan_date: cleanString(gridPayload.data.date),
     public_url: publicReportUrl(gridPayload.data.public_url),
     source: "local_falcon_completed_master_report",
@@ -393,7 +415,7 @@ export function extractSabRankedCells(
       column_orientation: "west_to_east",
     },
     requested_place_id_count: requested.length,
-    found_place_id_count: selectedBusinesses.length,
+    found_place_id_count: foundPlaceIds.size,
     missing_place_id_count: missingPlaceIds.length,
     missing_place_ids: missingPlaceIds,
     businesses: selectedBusinesses,

@@ -52,7 +52,13 @@ function isDeliverableCenter(value: unknown): value is typeof SAB_CENTER_TYPES[n
 }
 function assertExactReport(report: RankedReport, key: string, placeId: string, stage: string) {
   if (report.completion_verified !== true || report.completion_status !== "complete") throw new Error("Report completion has not been verified from provider evidence");
-  if (report.report_key !== key || report.missing_place_id_count || report.found_place_id_count !== 1 || report.businesses[0]?.place_id !== placeId) {
+  const business = report.businesses[0];
+  const exactRosterMatch = report.missing_place_id_count === 0 && report.found_place_id_count === 1 && business?.place_id === placeId && business.evidence_source !== "report_subject_absent_from_competitor_roster";
+  const exactUnrankedSubject = stage !== "master" && report.report_subject_place_id === placeId && report.missing_place_id_count === 1 &&
+    report.missing_place_ids.length === 1 && report.missing_place_ids[0] === placeId && report.found_place_id_count === 0 &&
+    business?.place_id === placeId && business.evidence_source === "report_subject_absent_from_competitor_roster" &&
+    business.ranked_cell_count === 0 && business.ranked_cells.length === 0 && business.all_point_rank_cells.length === report.grid.point_count;
+  if (report.report_key !== key || (!exactRosterMatch && !exactUnrankedSubject)) {
     throw new Error("Completed report must contain the exact requested report key and Place ID");
   }
   if (stage !== "master" && report.report_subject_place_id !== placeId) throw new Error("Completed report subject does not match exact Place ID");

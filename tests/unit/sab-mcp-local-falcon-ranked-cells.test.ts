@@ -97,6 +97,7 @@ describe("SAB Local Falcon ranked-cell extraction", () => {
       businesses: [{
         place_id: "ChIJ-one",
         name: "One Roofing",
+        evidence_source: "competitor_roster",
         ranked_cell_count: 2,
         imprecise_or_unranked_cell_count: 1,
         ranked_cells: [
@@ -105,6 +106,30 @@ describe("SAB Local Falcon ranked-cell extraction", () => {
         ],
       }],
     });
+  });
+
+  it("represents an exact report subject omitted from the competitor roster as all-point unranked evidence", () => {
+    const result = extractSabRankedCells(
+      competitorPayload,
+      {...gridPayload, data: {...gridPayload.data, place_id: "ChIJ-missing"}},
+      "report-123",
+      ["ChIJ-missing"],
+    );
+    expect(result).toMatchObject({
+      report_subject_place_id: "ChIJ-missing",
+      found_place_id_count: 0,
+      missing_place_id_count: 1,
+      missing_place_ids: ["ChIJ-missing"],
+    });
+    expect(result.businesses[0]).toMatchObject({
+      place_id: "ChIJ-missing",
+      evidence_source: "report_subject_absent_from_competitor_roster",
+      ranked_cell_count: 0,
+      imprecise_or_unranked_cell_count: 9,
+      ranked_cells: [],
+    });
+    expect(result.businesses[0].all_point_rank_cells).toHaveLength(9);
+    expect(result.businesses[0].all_point_rank_cells.every(cell => cell.rank === 21)).toBe(true);
   });
 
   it("fetches the scan grid and full competitor report server-side, then returns only requested companies", async () => {

@@ -31,7 +31,7 @@ function report(key=key3,scan=plan,overrides:Record<string,unknown>={}) {
     report_key:key,public_url:`https://example.test/public/${key}`,completion_status:"complete",completion_verified:true,report_subject_place_id:scan.place_id,
     keyword:scan.keyword,platform:scan.platform,scan_date:"2026-08-31",arp:5,atrp:19,solv:10,found_in:1,
     missing_place_id_count:0,found_place_id_count:1,grid:{size:scan.grid_size,point_count:scan.grid_size**2,radius:scan.radius,measurement:scan.measurement,center:scan.center},
-    businesses:[{place_id:scan.place_id,ranked_cells:[{row:4,column:4,latitude:35,longitude:-80,rank:5}]}],...overrides,
+    businesses:[{place_id:scan.place_id,evidence_source:"competitor_roster",ranked_cell_count:1,imprecise_or_unranked_cell_count:48,ranked_cells:[{row:4,column:4,latitude:35,longitude:-80,rank:5}],all_point_rank_cells:[{row:4,column:4,latitude:35,longitude:-80,rank:5}]}],...overrides,
   };
 }
 function repository(state=submitted(),overrides:Record<string,unknown>={}) {
@@ -84,6 +84,19 @@ describe("SAB orchestration integration",()=>{
       expect(repo.saveScanResult).not.toHaveBeenCalled();
       expect(repo.saveCompany).not.toHaveBeenCalled();
     }
+  });
+
+  it("routes an exact completed deliverable subject absent from the competitor roster to S05 evidence review",async()=>{
+    const repo=repository();
+    const allPointRankCells=Array.from({length:49},(_,i)=>({row:Math.floor(i/7)+1,column:i%7+1,latitude:35+(3-Math.floor(i/7))*.01,longitude:-80+((i%7)-3)*.01,rank:21}));
+    vi.mocked(getSabRankedCells).mockResolvedValue(report(key3,plan,{
+      arp:null,atrp:null,solv:0,found_in:0,found_place_id_count:0,missing_place_id_count:1,missing_place_ids:["place"],
+      businesses:[{place_id:"place",name:null,evidence_source:"report_subject_absent_from_competitor_roster",ranked_cell_count:0,imprecise_or_unranked_cell_count:49,ranked_cells:[],all_point_rank_cells:allPointRankCells}],
+    }) as never);
+    const result=await analyzeAndRecordSabReport(repo as never,{run_id:"run",report_key:key3,place_id:"place",stage:"deliverable"},"actor");
+    expect(result).toMatchObject({action:"evidence_review_required",rule_ids:["S05"]});
+    expect(result.evidence).toMatchObject({exact_top20_count:0,point_count:49});
+    expect(repo.saveScanResult).toHaveBeenCalledTimes(1);
   });
 
   it("derives recenter counts and approved testing scope from the run, never caller flags",async()=>{
