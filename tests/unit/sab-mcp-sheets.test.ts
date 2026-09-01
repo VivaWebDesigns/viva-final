@@ -175,6 +175,20 @@ describe("SabSheetsRepository", () => {
     expect(await repository.getCompany("place-1")).toMatchObject({ status: "in_progress", blocker: "", decision_state: { address_corroboration: accepted } });
   });
 
+  it("allows an explicitly verified legacy corroboration hash migration and rejects an unverified one", async () => {
+    const source_report_key = "abcdef123456", legacyHash = "a".repeat(64), currentHash = "b".repeat(64);
+    const failure = { source_report_key, evidence_hash: legacyHash, status: "technical_failure" as const,
+      research_complete: true, evidence_references: ["https://example.com/contact"], source_type: "company website",
+      identity_method: "exact verified business phone", fit_rationale: "Prior writer failure" };
+    const decision = { source_report_key, evidence_hash: legacyHash, rule_id: "S01", centering_status: "failed" as const,
+      routine_recenter_count: 0, address_corroboration: failure, evidence: { next_action: "address_corroboration_incomplete" } };
+    const migrated = { ...decision, evidence_hash: currentHash, address_corroboration: { ...failure, evidence_hash: currentHash, status: "no_candidate" as const } };
+    const { repository } = buildRepository([row({ status: "blocked", blocker: "address_corroboration_incomplete", decision_state: JSON.stringify(decision) })]);
+    await expect(repository.saveCompany("place-1", { decision_state: migrated }, "actor@example.com", { corroborationRecorded: true })).rejects.toThrow(/current exact evidence/);
+    await expect(repository.saveCompany("place-1", { decision_state: migrated }, "actor@example.com", { corroborationRecorded: true, legacyHashCompatibilityVerified: true })).resolves.toMatchObject({ status: "blocked" });
+    expect(await repository.getCompany("place-1")).toMatchObject({ decision_state: { evidence_hash: currentHash, address_corroboration: { evidence_hash: currentHash } } });
+  });
+
   it("allows only verified analysis to invalidate stale corroboration and never invent a replacement", async () => {
     const base = { source_report_key: "abcdef123456", evidence_hash: "a".repeat(64), rule_id: "S01", centering_status: "failed" as const, routine_recenter_count: 0,
       evidence: { next_action: "address_corroboration_incomplete" } };

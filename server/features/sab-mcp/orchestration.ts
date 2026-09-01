@@ -367,7 +367,7 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
     if(args.result==="no_candidate" && previous.address_corroboration?.status === "incomplete") throw new Error("Resolve the incomplete candidate evaluation; a known partial candidate cannot be relabelled as no candidate");
     const base={source_report_key:args.report_key,evidence_hash:previous.evidence_hash,evidence_references:args.evidence_references,
       source_type:args.source_type,identity_method:args.identity_method,fit_rationale:args.fit_rationale,research_complete:args.research_complete};
-    let evidence:SabAddressCorroboration={...base,status:"technical_failure",fit_rationale:"Address or ranked-evidence evaluation could not be completed. Resolve the technical issue; no paid fallback is authorized."},report:RankedReport|undefined;
+    let evidence:SabAddressCorroboration={...base,status:"technical_failure",fit_rationale:"Address or ranked-evidence evaluation could not be completed. Resolve the technical issue; no paid fallback is authorized."},report:RankedReport|undefined,legacyHashCompatibilityVerified=false;
     try {
       report=await getSabRankedCells(args.report_key,[args.place_id]);assertExactReport(report,args.report_key,args.place_id,"master");
     } catch {
@@ -380,6 +380,7 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
       if(previous.evidence_hash!==currentHash && previous.evidence_hash!==legacyHash) {
         throw new Error("Address corroboration hash compatibility verification failed: the stored evidence hash matches neither the current full-report hash nor the verified legacy ranked-cell hash");
       }
+      legacyHashCompatibilityVerified=previous.evidence_hash===legacyHash && previous.evidence_hash!==currentHash;
       const verifiedBase={...base,evidence_hash:currentHash};
       if(args.result==="no_candidate") evidence={...verifiedBase,status:"no_candidate"};
       else try {
@@ -405,7 +406,7 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
     const incomplete=["incomplete","technical_failure"].includes(evidence.status);
     await repo.saveCompany(args.place_id,{decision_state:{...previous,evidence_hash:evidence.evidence_hash,address_corroboration:evidence,
       ...(incomplete?{centering_status:"failed" as const,evidence:{...previous.evidence,next_action:"address_corroboration_incomplete"}}:{})},
-      ...(incomplete?{status:"blocked" as const,blocker:"address_corroboration_incomplete"}:{})},actorEmail,{corroborationRecorded:true});
+      ...(incomplete?{status:"blocked" as const,blocker:"address_corroboration_incomplete"}:{})},actorEmail,{corroborationRecorded:true,legacyHashCompatibilityVerified});
     if(!report) return {place_id:args.place_id,address_corroboration:evidence,action:"address_corroboration_incomplete",paid_scans_submitted:0};
     const decision=await analyzeAndRecordSabReport(repo,{run_id:args.run_id,report_key:args.report_key,place_id:args.place_id,stage:"master"},actorEmail,{report,state});
     return {...decision,address_corroboration:evidence,paid_scans_submitted:0};

@@ -892,7 +892,7 @@ export class SabSheetsRepository {
     placeId: string,
     updates: SabCompanyUpdates,
     actorEmail: string,
-    options: {exclusionReviewApproved?: boolean; exclusionReviewDeclined?: boolean; exclusionDecisionContinued?: boolean; corroborationRecorded?: boolean; corroborationAnalysisVerified?: boolean} = {},
+    options: {exclusionReviewApproved?: boolean; exclusionReviewDeclined?: boolean; exclusionDecisionContinued?: boolean; corroborationRecorded?: boolean; corroborationAnalysisVerified?: boolean; legacyHashCompatibilityVerified?: boolean} = {},
   ) {
     const { headerIndex, rows } = await this.readTable();
     const match = rows.find(({ row }) => row.place_id === placeId);
@@ -923,8 +923,12 @@ export class SabSheetsRepository {
       ["address_corroboration_required", "address_corroboration_incomplete"].includes(previousState?.evidence?.next_action);
     if (options.corroborationRecorded) {
       const recorded = sabDecisionStateSchema.safeParse(nextDecision);
+      const verifiedLegacyMigration = options.legacyHashCompatibilityVerified &&
+        previousState?.evidence_hash === priorCorroboration?.evidence_hash &&
+        recorded.success && recorded.data.evidence_hash !== previousState?.evidence_hash;
       if (!recorded.success || !recorded.data.address_corroboration ||
-          recorded.data.source_report_key !== previousState?.source_report_key || recorded.data.evidence_hash !== previousState?.evidence_hash ||
+          recorded.data.source_report_key !== previousState?.source_report_key ||
+          (recorded.data.evidence_hash !== previousState?.evidence_hash && !verifiedLegacyMigration) ||
           recorded.data.address_corroboration.source_report_key !== recorded.data.source_report_key ||
           recorded.data.address_corroboration.evidence_hash !== recorded.data.evidence_hash ||
           (incompleteCandidateHold && recorded.data.address_corroboration.status === "no_candidate")) {
