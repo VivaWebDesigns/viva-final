@@ -382,7 +382,7 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
       const completedNoCandidate = args.result==="no_candidate" && !args.candidate_address && !args.fit_decision && args.research_complete;
       if(!reuseAccepted && !completedNoCandidate) throw new Error("Post-deliverable S01 recovery requires completed no-candidate corroboration or reuse of the existing accepted corroborated candidate");
       if(!previous || previous.exclusion_review || previous.address_corroboration?.status==="incomplete" ||
-          previous.source_report_key!==args.intervening_deliverable_report_key || row.report_key!==args.intervening_deliverable_report_key ||
+          previous.source_report_key!==args.intervening_deliverable_report_key || (row.report_key && row.report_key!==args.intervening_deliverable_report_key) ||
           previous.centering_status!=="failed" || previous.evidence?.exact_top20_count!==0) {
         throw new Error("Post-deliverable S01 recovery must begin from the exact current failed zero-visibility deliverable decision");
       }

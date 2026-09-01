@@ -496,7 +496,7 @@ describe("SAB orchestration integration",()=>{
       evidence_references:["verified-company-source"],source_type:"company-controlled website",identity_method:"exact phone",
       fit_rationale:"Complete distribution fit accepted",candidate_coordinates:{latitude:35,longitude:-80},
       geocoder:{location_type:"ROOFTOP",partial_match:false},distances_miles:{weighted_centroid:1,nearest_ranked_cell:0,best_rank_cluster_centroid:1}};
-    const repo=repository(state,{report_key:key3,center_type:"corroborated_address",scan_center:"35,-80",status:"blocked",blocker:"evidence_review_required",
+    const repo=repository(state,{report_key:null,center_type:"corroborated_address",scan_center:"35,-80",status:"blocked",blocker:"evidence_review_required",
       decision_state:{source_report_key:key3,rule_id:"S05",evidence_hash:deliverableHash,centering_status:"failed",routine_recenter_count:0,
         address_corroboration:accepted,evidence:{next_action:"evidence_review_required",exact_top20_count:0}}});
     vi.mocked(getSabRankedCells).mockResolvedValueOnce(master as never).mockResolvedValueOnce(failed as never);
