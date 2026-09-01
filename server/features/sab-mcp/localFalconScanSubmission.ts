@@ -226,7 +226,11 @@ export async function runSabScanOnce(
       }
       return existingReceipt(existing);
     }
-    if (existing && !input.pre_provider_recovery) {
+    // A preparing_location receipt proves the paid scan request never started:
+    // the exact claim is already reserved and submit_started_at is still empty.
+    // Resume that unchanged claim automatically. Once submission has started,
+    // retain the explicit approval and provider-history safeguards below.
+    if (existing && recoveringSubmittingClaim && !input.pre_provider_recovery) {
       return existingReceipt(existing);
     }
     if (!input.run_id?.trim()) throw new Error("New paid scans require an initialized structured run and exact stored batch authorization.");
@@ -313,24 +317,25 @@ export async function runSabScanOnce(
       await repository.updateScanSubmission(
         input.place_id,
         key,
-        {
-          recovery: recoveringSubmittingClaim
-            ? "approved_same_claim_resume_after_exact_history_check"
-            : "approved_pre_provider_resume",
-          recovery_approved_by: input.pre_provider_recovery!.approved_by,
-          recovery_authorization_reference:
-            input.pre_provider_recovery!.approval_reference,
-          ...(recoveringSubmittingClaim
-            ? {
-                recovery_history_evidence_reference:
-                  input.pre_provider_recovery!.exact_history_check!
-                    .evidence_reference,
-                recovery_history_checked_at:
-                  input.pre_provider_recovery!.exact_history_check!.checked_at,
-              }
-            : {}),
-          recovery_resumed_at: new Date().toISOString(),
-        },
+        recoveringSubmittingClaim
+          ? {
+              recovery: "approved_same_claim_resume_after_exact_history_check",
+              recovery_approved_by: input.pre_provider_recovery!.approved_by,
+              recovery_authorization_reference:
+                input.pre_provider_recovery!.approval_reference,
+              recovery_history_evidence_reference:
+                input.pre_provider_recovery!.exact_history_check!
+                  .evidence_reference,
+              recovery_history_checked_at:
+                input.pre_provider_recovery!.exact_history_check!.checked_at,
+              recovery_resumed_at: new Date().toISOString(),
+            }
+          : {
+              recovery: "automatic_pre_provider_resume",
+              recovery_basis:
+                "exact_reserved_claim_with_no_submit_started_at",
+              recovery_resumed_at: new Date().toISOString(),
+            },
         actorEmail,
       );
     } else {

@@ -590,7 +590,7 @@ export const runSabScanOnceInputSchema = {
     .strict()
     .optional()
     .describe(
-      "Explicit Matt authorization to resume the same exact durable claim without reserving again. A submitting receipt additionally requires a fresh exact-envelope provider-history check showing no matching report.",
+      "Explicit Matt authorization to resume a submitting same-claim receipt after a fresh exact-envelope provider-history check shows no matching report. A preparing_location receipt with no submit_started_at resumes automatically and does not require this field.",
     ),
   center_derivation: z.string().trim().min(1).max(5_000),
   sop_routing_rule: z.string().trim().min(1).max(5_000),

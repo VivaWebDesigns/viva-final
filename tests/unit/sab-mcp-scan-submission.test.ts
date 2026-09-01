@@ -326,7 +326,7 @@ describe("guarded SAB scan submission", () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  it("resumes an explicitly approved exact pre-provider claim without reserving credits again", async () => {
+  it("automatically resumes an exact pre-provider claim without reserving credits again", async () => {
     const repo = repository();
     const fetchImpl = vi.fn().mockResolvedValue(exactResponse());
     repo.updateScanSubmission.mockRejectedValueOnce(
@@ -350,26 +350,6 @@ describe("guarded SAB scan submission", () => {
         fetchImpl,
       }),
     ).resolves.toMatchObject({
-      submission_status: "preparing_location",
-      scans_executed: false,
-      stopped_for_manual_reconciliation: true,
-    });
-    expect(fetchImpl).not.toHaveBeenCalled();
-
-    await expect(
-      runSabScanOnce(
-        {
-          ...input,
-          pre_provider_recovery: {
-            approved_by: "Matt",
-            approval_reference: "Approved exact stranded-claim recovery.",
-          },
-        },
-        repo as never,
-        "actor",
-        { apiKey: "test", fetchImpl },
-      ),
-    ).resolves.toMatchObject({
       submission_status: "submitted",
       report_key: "4826693261fc566",
       scans_executed: true,
@@ -382,10 +362,8 @@ describe("guarded SAB scan submission", () => {
       "test-place",
       expect.any(String),
       expect.objectContaining({
-        recovery: "approved_pre_provider_resume",
-        recovery_approved_by: "Matt",
-        recovery_authorization_reference:
-          "Approved exact stranded-claim recovery.",
+        recovery: "automatic_pre_provider_resume",
+        recovery_basis: "exact_reserved_claim_with_no_submit_started_at",
       }),
       "actor",
     );
@@ -446,18 +424,10 @@ describe("guarded SAB scan submission", () => {
     ).rejects.toThrow("sheet quota before submitting");
 
     await expect(
-      runSabScanOnce(
-        {
-          ...recoveryInput,
-          pre_provider_recovery: {
-            approved_by: "Matt",
-            approval_reference: "Approved exact stranded-claim recovery.",
-          },
-        },
-        repo as never,
-        "actor",
-        { apiKey: "test", fetchImpl },
-      ),
+      runSabScanOnce(recoveryInput, repo as never, "actor", {
+        apiKey: "test",
+        fetchImpl,
+      }),
     ).resolves.toMatchObject({ submission_status: "submitted" });
 
     expect(fetchImpl).toHaveBeenCalledTimes(2);
