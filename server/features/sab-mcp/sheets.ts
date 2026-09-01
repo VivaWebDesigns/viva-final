@@ -1700,7 +1700,18 @@ export class SabSheetsRepository {
       if (!sabEffectiveScanSpecSchema.safeParse(parseJsonValue(row.scan_spec)).success) missing.push("scan_spec (actual canonical radius required)");
     }
 
-    if (!sabEligibilityStateSchema.safeParse(parseJsonValue(row.eligibility_state)).success) missing.push("eligibility_state (verified general eligibility and contacts required)");
+    const eligibility = sabEligibilityStateSchema.safeParse(parseJsonValue(row.eligibility_state));
+    if (!eligibility.success) missing.push("eligibility_state (verified general eligibility and contacts required)");
+    else {
+      const research = eligibility.data.contact_research;
+      if (!research) missing.push("contact_research (structured verified-email or exhaustion evidence required)");
+      else if (row.contact_tag === "Email Ready" && (research.result !== "verified_email" ||
+        !research.accepted_evidence.some(evidence => evidence.email.toLowerCase() === row.email.trim().toLowerCase()))) {
+        missing.push("contact_research (accepted evidence must match Email Ready address)");
+      } else if (row.contact_tag === "Needs Email" && research.result !== "exhausted") {
+        missing.push("contact_research (Needs Email requires completed path exhaustion)");
+      }
+    }
     if (row.business_profile.trim()) {
       const profile = sabBusinessProfileSchema.safeParse(parseJsonValue(row.business_profile));
       if (!profile.success) missing.push("business_profile (invalid compact enrichment)");

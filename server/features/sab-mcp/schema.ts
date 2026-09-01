@@ -246,10 +246,61 @@ export const sabEffectiveScanSpecSchema = z.object({
   radius_miles: z.union([z.literal(3), z.literal(5)]),
 }).strict();
 
+const sabContactResearchPathSchema = z.object({
+  status: z.enum(["completed", "not_required_verified_earlier"]),
+  sources_inspected: z.array(z.string().trim().min(1).max(2000)).max(20),
+}).strict().superRefine((value, ctx) => {
+  if (value.status === "completed" && value.sources_inspected.length === 0) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "A completed contact-research path requires inspected-source evidence" });
+  }
+  if (value.status === "not_required_verified_earlier" && value.sources_inspected.length > 0) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "A path stopped after earlier verification cannot claim inspected sources" });
+  }
+});
+
+export const sabContactResearchSchema = z.object({
+  exact_name_search: sabContactResearchPathSchema,
+  exact_phone_fallback: sabContactResearchPathSchema,
+  company_controlled_inspection: sabContactResearchPathSchema,
+  accepted_evidence: z.array(z.object({
+    email: z.string().trim().email(),
+    verification_gate: z.string().trim().min(1).max(1000),
+    sources: z.array(z.string().trim().min(1).max(2000)).min(1).max(20),
+  }).strict()).max(10),
+  rejected_candidates: z.array(z.object({
+    email: z.string().trim().email(),
+    reason: z.string().trim().min(1).max(2000),
+    sources: z.array(z.string().trim().min(1).max(2000)).min(1).max(20),
+  }).strict()).max(50),
+  result: z.enum(["verified_email", "exhausted"]),
+  completed_at: z.string().datetime(),
+  exhaustion_completed_at: z.string().datetime().nullable(),
+  no_unverified_email_retained: z.literal(true),
+  orchestrator_reconciled: z.literal(true),
+}).strict().superRefine((value, ctx) => {
+  const paths = [value.exact_name_search, value.exact_phone_fallback, value.company_controlled_inspection];
+  if (value.exact_name_search.status !== "completed") {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["exact_name_search"], message: "Exact-name search is always required" });
+  }
+  if (value.result === "verified_email") {
+    if (value.accepted_evidence.length === 0) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["accepted_evidence"], message: "Verified email requires accepted evidence" });
+    if (value.exhaustion_completed_at !== null) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["exhaustion_completed_at"], message: "Verified email is not an exhaustion result" });
+    const firstStopped = paths.findIndex(path => path.status === "not_required_verified_earlier");
+    if (firstStopped >= 0 && paths.slice(firstStopped).some(path => path.status !== "not_required_verified_earlier")) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Later contact paths cannot resume after verified-email early stop" });
+    }
+  } else {
+    if (paths.some(path => path.status !== "completed")) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Exhaustion requires every contact-research path to be completed" });
+    if (value.accepted_evidence.length > 0) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["accepted_evidence"], message: "Exhausted contact research cannot retain accepted email evidence" });
+    if (value.exhaustion_completed_at === null) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["exhaustion_completed_at"], message: "Exhaustion requires its final timestamp" });
+  }
+});
+
 export const sabEligibilityStateSchema = z.object({
   sab_confirmed: z.literal(true), trade_match: z.literal(true), franchise_excluded: z.literal(true),
   crm_dedup_checked: z.literal(true), contact_verified: z.literal(true),
   evidence_references: z.array(z.string().trim().min(1).max(2000)).min(1).max(20),
+  contact_research: sabContactResearchSchema.optional(),
 }).strict();
 
 const structuredCompanyFields = {
@@ -258,7 +309,7 @@ const structuredCompanyFields = {
   market_reference: sabMarketReferenceSchema.nullable().optional(),
   decision_state: sabDecisionStateSchema.nullable().optional(),
   qualification_reason: nullableString.optional(),
-  eligibility_state: sabEligibilityStateSchema.nullable().optional().describe("Structured pre-scan eligibility. It authorizes guarded planning only when complete; it never establishes final qualification."),
+  eligibility_state: sabEligibilityStateSchema.nullable().optional().describe("Structured pre-scan eligibility. It authorizes guarded planning only when complete; it never establishes final qualification. Before complete or qa_ready, add contact_research with matching accepted-email evidence or full path exhaustion; rejected candidates require reasons and no unverified email may remain."),
   scan_spec: sabEffectiveScanSpecSchema.nullable().optional(),
 };
 

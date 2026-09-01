@@ -1123,7 +1123,7 @@ describe("SabSheetsRepository", () => {
         outcome: "deliverable", scan_center:"35,-80",center_type:"weighted_cell_centroid",
         scan_spec: JSON.stringify({grid_size:"7x7",radius_miles:3}),
         decision_state: JSON.stringify({source_report_key:"abcdef123456",rule_id:"S05",evidence_hash:"a".repeat(64),centering_status:"validated",outcome:"deliverable",proposed_center:"35,-80",center_type:"weighted_cell_centroid"}),
-        eligibility_state: JSON.stringify({sab_confirmed:true,trade_match:true,franchise_excluded:true,crm_dedup_checked:true,contact_verified:true,evidence_references:["verification-receipt"]}),
+        eligibility_state: JSON.stringify({sab_confirmed:true,trade_match:true,franchise_excluded:true,crm_dedup_checked:true,contact_verified:true,evidence_references:["verification-receipt"],contact_research:{"exact_name_search":{"status":"completed","sources_inspected":["google:exact-name-email"]},"exact_phone_fallback":{"status":"not_required_verified_earlier","sources_inspected":[]},"company_controlled_inspection":{"status":"not_required_verified_earlier","sources_inspected":[]},"accepted_evidence":[{"email":"owner@example.com","verification_gate":"website domain","sources":["https://example.com/contact"]}],"rejected_candidates":[],"result":"verified_email","completed_at":"2026-08-31T20:00:00.000Z","exhaustion_completed_at":null,"no_unverified_email_retained":true,"orchestrator_reconciled":true}}),
         arp: "12.5",
         solv: "18.2",
         report_key: "abcdef123456",
@@ -1651,7 +1651,7 @@ function crmOnlyRow(overrides: Parameters<typeof row>[0] = {}) {
     contact_tag: "Needs Email", phone: "+17045550123", email: "", rating: "4.8", review_count: "42",
     report_key: "", report_url: "", scan_date: "", arp: "", solv: "", scan_center: "", center_type: "", scan_spec: "",
     decision_state: JSON.stringify(crmOnlyDecision()), market_reference: JSON.stringify(crmOnlyMarket()),
-    eligibility_state: JSON.stringify({ sab_confirmed: true, trade_match: true, franchise_excluded: true, crm_dedup_checked: true, contact_verified: true, evidence_references: ["verified-source-receipt"] }),
+    eligibility_state: JSON.stringify({ sab_confirmed: true, trade_match: true, franchise_excluded: true, crm_dedup_checked: true, contact_verified: true, evidence_references: ["verified-source-receipt"], contact_research: {"exact_name_search":{"status":"completed","sources_inspected":["google:exact-name-email"]},"exact_phone_fallback":{"status":"completed","sources_inspected":["google:exact-public-business-phone"]},"company_controlled_inspection":{"status":"completed","sources_inspected":["https://example.com/contact"]},"accepted_evidence":[],"rejected_candidates":[],"result":"exhausted","completed_at":"2026-08-31T20:00:00.000Z","exhaustion_completed_at":"2026-08-31T20:00:00.000Z","no_unverified_email_retained":true,"orchestrator_reconciled":true} }),
     ...overrides,
   });
 }

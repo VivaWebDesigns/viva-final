@@ -4,7 +4,7 @@ The current Scale-First handoff is exactly one `batch.json` with `workflow: "sca
 
 ## Authoritative export
 
-Use `build_sab_run_manifest` after the structured eligibility, contact, scan decision, and canonical-specification records are complete. The tool fails closed on missing or conflicting evidence and returns one manifest, its checksum, and complete/qa-ready/CRM-only counts. It does not import anything. Notes and prior-run rulings never establish eligibility or a validated center.
+Use `build_sab_run_manifest` with the exact initialized run ID after the structured eligibility, contact, scan decision, and canonical-specification records are complete. The tool fails closed on missing or conflicting evidence, including a `Needs Email` label without completed exact-name, run-authorized exact-phone, and company-controlled research evidence, and returns one manifest, its checksum, and complete/qa-ready/CRM-only counts. It does not import anything. Notes and prior-run rulings never establish eligibility or a validated center.
 
 - Identity and deduplication use exact Google Place-ID equality. Every Place ID appears once in the manifest; every non-null canonical report key is unique. A later authorized report variation reuses the existing CRM lead.
 - `address` must be exactly `Service Area Business`. Never export a hidden operating address. Owner and phone may be null when unavailable; `Email Ready` requires verified email, while `Needs Email` requires verified phone and null email.

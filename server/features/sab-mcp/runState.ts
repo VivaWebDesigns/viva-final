@@ -54,6 +54,10 @@ export type SabRunState = {
   run_id: string;
   orchestrator_id: string;
   authorization_reference: string;
+  /** One grouped intake authorization; absent means exact-phone search remains held. */
+  public_business_phone_search_authorization?: (SabMattApproval & {
+    scope: "verified_public_business_phone_exact_search_only";
+  }) | null;
   testing_mode: boolean;
   testing_ended: SabMattApproval | null;
   credit_limit: number;
@@ -138,6 +142,7 @@ export function createSabRunState(input: {
   orchestrator_id: string;
   authorization_reference: string;
   credit_limit: number;
+  public_business_phone_search_authorization?: SabMattApproval | null;
 }): SabRunState {
   if (!Number.isSafeInteger(input.credit_limit) || input.credit_limit <= 0) throw new Error("A positive run credit limit is required.");
   return {
@@ -145,6 +150,9 @@ export function createSabRunState(input: {
     run_id: required(input.run_id, "Run ID"),
     orchestrator_id: required(input.orchestrator_id, "Codex orchestrator ID"),
     authorization_reference: required(input.authorization_reference, "Run authorization reference"),
+    public_business_phone_search_authorization: input.public_business_phone_search_authorization
+      ? { ...approval(input.public_business_phone_search_authorization), scope: "verified_public_business_phone_exact_search_only" }
+      : null,
     credit_limit: input.credit_limit, committed_credits: 0,
     testing_mode: true, testing_ended: null, batches: [],
   };

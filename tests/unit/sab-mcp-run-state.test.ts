@@ -25,7 +25,11 @@ function completed(state: SabRunState, authorizationId = "first", plan = scan, k
 
 describe("structured SAB run authorization", () => {
   it("starts testing mode enabled and requires a real run authorization and spending limit", () => {
-    expect(run()).toMatchObject({ testing_mode: true, committed_credits: 0, batches: [] });
+    expect(run()).toMatchObject({ testing_mode: true, committed_credits: 0, batches: [], public_business_phone_search_authorization: null });
+    expect(createSabRunState({ run_id: "phone", orchestrator_id: "owner", authorization_reference: "run", credit_limit: 100,
+      public_business_phone_search_authorization: approved })).toMatchObject({ public_business_phone_search_authorization: {
+        ...approved, scope: "verified_public_business_phone_exact_search_only",
+      } });
     expect(() => createSabRunState({ run_id: "run", orchestrator_id: "owner", authorization_reference: "", credit_limit: 100 })).toThrow(/authorization/);
     expect(() => run(0)).toThrow(/credit/);
     expect(() => authorizeSabScanBatch(run(), { ...batch(), matt_initial_approval: undefined })).toThrow(/Matt/);

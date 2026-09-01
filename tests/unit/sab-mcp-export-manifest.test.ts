@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { buildSabRunManifest, type SabExportBatch } from "../../server/features/sab-mcp/exportManifest";
 import { SAB_HEADERS } from "../../server/features/sab-mcp/schema";
 import type { SabSheetsRepository } from "../../server/features/sab-mcp/sheets";
+import { createSabRunState } from "../../server/features/sab-mcp/runState";
 
 type Row = Awaited<ReturnType<SabSheetsRepository["getExportCandidates"]>>[number];
 const batch: SabExportBatch = {
@@ -15,6 +16,22 @@ const market = {
   city: "Test Market", state: "NC", zip: "28000", auxiliary_report_key: "abcdef123456788",
   auxiliary_report_url: "https://www.localfalcon.com/reports/view/abcdef123456788",
 };
+const verifiedResearch = {
+  exact_name_search: { status: "completed", sources_inspected: ["google:exact-name-email"] },
+  exact_phone_fallback: { status: "not_required_verified_earlier", sources_inspected: [] },
+  company_controlled_inspection: { status: "not_required_verified_earlier", sources_inspected: [] },
+  accepted_evidence: [{ email: "contact@example.com", verification_gate: "verified company website domain", sources: ["https://example.com/contact"] }],
+  rejected_candidates: [], result: "verified_email", completed_at: "2026-08-31T20:00:00.000Z", exhaustion_completed_at: null,
+  no_unverified_email_retained: true, orchestrator_reconciled: true,
+} as const;
+const exhaustedResearch = {
+  exact_name_search: { status: "completed", sources_inspected: ["google:exact-name-email"] },
+  exact_phone_fallback: { status: "completed", sources_inspected: ["google:exact-public-business-phone"] },
+  company_controlled_inspection: { status: "completed", sources_inspected: ["https://example.com/contact"] },
+  accepted_evidence: [], rejected_candidates: [{ email: "wrong@example.net", reason: "domain and phone did not match", sources: ["google:snippet"] }],
+  result: "exhausted", completed_at: "2026-08-31T20:05:00.000Z", exhaustion_completed_at: "2026-08-31T20:05:00.000Z",
+  no_unverified_email_retained: true, orchestrator_reconciled: true,
+} as const;
 function deliverable(overrides: Partial<Row> = {}): Row {
   return {
     ...Object.fromEntries(SAB_HEADERS.map((header) => [header, ""])),
@@ -27,7 +44,7 @@ function deliverable(overrides: Partial<Row> = {}): Row {
     scan_spec: { grid_size: "7x7", radius_miles: 5 }, market_reference: null,
     decision_state: { source_report_key: key, rule_id: "S05", evidence_hash: "a".repeat(64), centering_status: "validated",
       outcome: "deliverable", center_type: "ranked_peak_recentered", proposed_center: "35,-80", routine_recenter_count: 0 },
-    eligibility_state: { sab_confirmed: true, trade_match: true, franchise_excluded: true, crm_dedup_checked: true, contact_verified: true, evidence_references: ["verified-source"] },
+    eligibility_state: { sab_confirmed: true, trade_match: true, franchise_excluded: true, crm_dedup_checked: true, contact_verified: true, evidence_references: ["verified-source"], contact_research: verifiedResearch },
     scan_history: [{ report_key: key, atrp: 20.6, scan_role: "deliverable" }], competitors: [],
     website_analysis: null, reviews_analysis: null, sales_priority: null, service_page_count: null,
     ...overrides,
@@ -43,8 +60,10 @@ function crmOnly(overrides: Partial<Row> = {}): Row {
     ...overrides,
   });
 }
-function build(rows: Row[]) {
-  return buildSabRunManifest({ getExportCandidates: vi.fn(async () => rows) }, batch);
+function build(rows: Row[], phoneAuthorized = true) {
+  const state = createSabRunState({ run_id: "run", orchestrator_id: "owner", authorization_reference: "run", credit_limit: 500,
+    ...(phoneAuthorized ? { public_business_phone_search_authorization: { approved_by: "Matt" as const, approval_reference: "intake grouped phone-search approval" } } : {}) });
+  return buildSabRunManifest({ getExportCandidates: vi.fn(async () => rows), getRunState: vi.fn(async () => state) }, batch, "run");
 }
 
 describe("one consolidated SAB run manifest", () => {
@@ -143,10 +162,20 @@ describe("one consolidated SAB run manifest", () => {
     await expect(build([deliverable({ solv: "" })])).rejects.toThrow(/solv/);
     await expect(build([deliverable({ has_website: null })])).rejects.toThrow(/has_website/);
     await expect(build([deliverable({ address: "123 Private Street" })])).rejects.toThrow(/privacy/);
-    await expect(build([crmOnly({ email: "" })])).rejects.toThrow(/email/);
-    await expect(build([crmOnly({ contact_tag: "Needs Email", email: "", phone: "" })])).rejects.toThrow(/verified phone/);
-    await expect(build([crmOnly({ contact_tag: "Needs Email" })])).rejects.toThrow(/null email/);
-    const accepted = JSON.parse((await build([crmOnly({ contact_tag: "Needs Email", email: "" })])).manifest_json);
+    await expect(build([crmOnly({ email: "" })])).rejects.toThrow(/Email|email/);
+    const needsEmailEligibility = { ...(deliverable().eligibility_state as object), contact_research: exhaustedResearch };
+    await expect(build([crmOnly({ contact_tag: "Needs Email", email: "", phone: "", eligibility_state: needsEmailEligibility })])).rejects.toThrow(/verified phone/);
+    await expect(build([crmOnly({ contact_tag: "Needs Email", eligibility_state: needsEmailEligibility })])).rejects.toThrow(/null email/);
+    const accepted = JSON.parse((await build([crmOnly({ contact_tag: "Needs Email", email: "", eligibility_state: needsEmailEligibility })])).manifest_json);
     expect(accepted.prospects[0]).toMatchObject({ contact_tag: "Needs Email", email: null, phone: "7045550111" });
+  });
+
+  it("blocks manifest construction until structured contact research is reconciled", async () => {
+    const base = deliverable();
+    await expect(build([{ ...base, eligibility_state: { ...(base.eligibility_state as object), contact_research: undefined } }])).rejects.toThrow(/Contact research is incomplete/);
+    await expect(build([deliverable({ email: "different@example.com" })])).rejects.toThrow(/matching accepted structured verification evidence/);
+    const needsEmailEligibility = { ...(base.eligibility_state as object), contact_research: exhaustedResearch };
+    const needsEmail = crmOnly({ contact_tag: "Needs Email", email: "", eligibility_state: needsEmailEligibility });
+    await expect(build([needsEmail], false)).rejects.toThrow(/run-wide verified public-business-phone search authorization/);
   });
 });

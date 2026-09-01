@@ -282,8 +282,9 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
     const definition = {description,inputSchema,securitySchemes,_meta:{securitySchemes}};
     server.registerTool(name,definition,async args=>result(await handler(args)));
   }
-  add("initialize_sab_run","Initialize persistent single-orchestrator state with testing mode ON and an explicit authorized credit ceiling. Never launches scans.",{
+  add("initialize_sab_run","Initialize persistent single-orchestrator state with testing mode ON, an explicit authorized credit ceiling, and optional grouped authorization for exact-phone searches using verified publicly listed business numbers only. Absence holds that research fallback without blocking other free paths. Never launches scans.",{
     ...run,orchestrator_id:z.string().min(1),authorization_reference:z.string().min(1),credit_limit:z.number().int().positive(),
+    public_business_phone_search_authorization:matt.optional(),
   },async args=>inSabRunStateQueue(async()=>{
     const repo=factory(args.workflow_sheet,args.sheet_name);if(await repo.getRunState(args.run_id)) throw new Error("Run already exists; read it instead of resetting approvals");
     await repo.assertOneActiveRun(args.run_id);
@@ -528,7 +529,7 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
     if (verified.report_key!==selected.report_key || !sameCenter(verified.scan_center,selected.grid.center) || (verified.scan_spec as {radius_miles?:number}|null)?.radius_miles!==selection.selected_radius_miles) throw new Error("Canonical stage readback failed; stop and reconcile before export");
     return {...selection,selected_report_key:selected.report_key,selected_report_url:reportUrl(selected),all_point_atrp:selected.atrp,raw_arp:selected.arp,three_mile_report_key:three.report_key,five_mile_report_key:five.report_key,preserve_both_reports:true,canonical_persisted:true};
   }));
-  add("build_sab_run_manifest","Build exactly one validated batch.json from every qualified complete AND qa_ready row across the run. Includes CRM-only no-visibility leads, excludes competitors, and does not import or send outreach.",{
-    ...common,batch:z.object({batch_id:z.string().min(1),market:z.object({city:z.string().min(1),state:z.string().regex(/^[A-Za-z]{2}$/)}),trade:z.string().min(1),keyword:z.string().min(1),export_date:z.string().min(1),scan_spec:z.object({grid_size:z.literal("7x7"),radius_miles:z.literal(3)})}),
-  },async args=>buildSabRunManifest(factory(args.workflow_sheet,args.sheet_name),args.batch));
+  add("build_sab_run_manifest","Build exactly one validated batch.json from every qualified complete AND qa_ready row across the run. Fails closed unless each prospect has structured verified-email evidence or complete contact-path exhaustion; Needs Email also requires the run-wide public-business-phone search authorization. Includes CRM-only no-visibility leads, excludes competitors, and does not import or send outreach.",{
+    ...run,batch:z.object({batch_id:z.string().min(1),market:z.object({city:z.string().min(1),state:z.string().regex(/^[A-Za-z]{2}$/)}),trade:z.string().min(1),keyword:z.string().min(1),export_date:z.string().min(1),scan_spec:z.object({grid_size:z.literal("7x7"),radius_miles:z.literal(3)})}),
+  },async args=>buildSabRunManifest(factory(args.workflow_sheet,args.sheet_name),args.batch,args.run_id));
 }

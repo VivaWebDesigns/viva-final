@@ -414,7 +414,7 @@ describe("SAB orchestration integration",()=>{
       const writes=repo.saveScanResult.mock.calls.length;
       await expect(api.invoke("select_sab_canonical_report",{place_id:"place",three_mile_report_key:key3,five_mile_report_key:key5})).rejects.toThrow(/exclusion or evidence/);
       expect(repo.saveScanResult.mock.calls).toHaveLength(writes);
-      await expect(buildSabRunManifest({getExportCandidates:async()=>[{...held,status:"complete"}]} as never,{batch_id:"test",market:{city:"Test Market",state:"NC"},trade:"service",keyword:"service",export_date:"2026-08-31",scan_spec:{grid_size:"7x7",radius_miles:3}})).rejects.toThrow(/No eligible qualified/);
+      await expect(buildSabRunManifest({getExportCandidates:async()=>[{...held,status:"complete"}]} as never,{batch_id:"test",market:{city:"Test Market",state:"NC"},trade:"service",keyword:"service",export_date:"2026-08-31",scan_spec:{grid_size:"7x7",radius_miles:3}},"run")).rejects.toThrow(/No eligible qualified/);
     }
     await expect(api.invoke("approve_sab_exclusion",{...args,evidence_hash:"f".repeat(64)})).rejects.toThrow(/evidence hash/);
     await expect(api.invoke("approve_sab_exclusion",{...args,orchestrator_id:"worker"})).rejects.toThrow(/orchestrator/);

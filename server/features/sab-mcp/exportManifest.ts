@@ -3,6 +3,7 @@ import { SAB_ADDRESS_LABEL, SCALE_FIRST_WORKFLOW, NO_VISIBILITY_OUTCOME, sabBusi
 import { parseLocalFalconPayload, sabMarketReferenceSchema } from "../crm/localFalconImport";
 import { sabDecisionStateSchema, sabEffectiveScanSpecSchema, sabEligibilityStateSchema, hasSabExclusionReviewHold } from "./schema";
 import type { SabSheetsRepository } from "./sheets";
+import type { SabRunState } from "./runState";
 
 export type SabExportBatch = {
   batch_id: string;
@@ -23,12 +24,32 @@ function requiredMetric(value: unknown, field: string, placeId: string): number 
   return Number(value);
 }
 
-function exportProspect(row: ExportCandidate) {
+function assertContactResearch(row: ExportCandidate, runState: SabRunState) {
+  const eligibility = sabEligibilityStateSchema.parse(row.eligibility_state);
+  const research = eligibility.contact_research;
+  if (!research) throw new Error(`Contact research is incomplete for ${row.place_id}; structured path evidence is required before manifest construction`);
+  if (research.exact_phone_fallback.status === "completed" && !runState.public_business_phone_search_authorization) {
+    throw new Error(`Exact-phone contact research for ${row.place_id} requires the run-wide verified public-business-phone search authorization`);
+  }
+  if (row.contact_tag === "Email Ready") {
+    const email = typeof row.email === "string" ? row.email.trim().toLowerCase() : "";
+    if (research.result !== "verified_email" || !email || !research.accepted_evidence.some(evidence => evidence.email.toLowerCase() === email)) {
+      throw new Error(`Email Ready requires matching accepted structured verification evidence for ${row.place_id}`);
+    }
+  } else if (row.contact_tag === "Needs Email") {
+    if (research.result !== "exhausted" || research.exact_phone_fallback.status !== "completed") {
+      throw new Error(`Needs Email requires documented exhaustion of exact-name, authorized exact-phone, and company-controlled research for ${row.place_id}`);
+    }
+  }
+}
+
+function exportProspect(row: ExportCandidate, runState: SabRunState) {
   if (hasSabExclusionReviewHold(row.decision_state)) throw new Error(`Pending high-visibility exclusion review cannot be exported: ${row.place_id}`);
   if (row.workflow !== SCALE_FIRST_WORKFLOW || row.qualification_status !== "qualified" || !["complete", "qa_ready"].includes(row.status)) {
     throw new Error(`Ineligible row returned in qualified export population: ${row.place_id}`);
   }
   if (!sabEligibilityStateSchema.safeParse(row.eligibility_state).success) throw new Error(`Record verified eligibility_state and contact evidence for ${row.place_id} before export`);
+  assertContactResearch(row, runState);
   if (row.address !== SAB_ADDRESS_LABEL) throw new Error(`SAB address privacy must be verified before export: ${row.place_id}`);
   if (typeof row.has_website !== "boolean") throw new Error(`Record verified has_website for ${row.place_id} before export`);
   const profile = present(row.business_profile) ? sabBusinessProfileSchema.parse(row.business_profile) : undefined;
@@ -102,17 +123,20 @@ function exportProspect(row: ExportCandidate) {
 
 /** One complete manifest across execution batches, never a qa_ready-only slice. */
 export async function buildSabRunManifest(
-  repository: Pick<SabSheetsRepository, "getExportCandidates">,
+  repository: Pick<SabSheetsRepository, "getExportCandidates" | "getRunState">,
   batch: SabExportBatch,
+  runId: string,
 ) {
   // Defense in depth: a hand-edited disposition or alternate repository must
   // not turn an unresolved exclusion into an outreach-ready prospect.
   const rows = (await repository.getExportCandidates()).filter(row => !hasSabExclusionReviewHold(row.decision_state));
   if (!rows.length) throw new Error("No eligible qualified complete or qa_ready leads to export");
+  const runState = await repository.getRunState(runId);
+  if (!runState) throw new Error("Read the authoritative initialized run before manifest construction");
   const manifest = parseLocalFalconPayload(JSON.stringify({
     workflow: SCALE_FIRST_WORKFLOW,
     batch,
-    prospects: rows.map(exportProspect),
+    prospects: rows.map(row => exportProspect(row, runState)),
   }));
   const manifestJson = JSON.stringify(manifest, null, 2);
   return {
