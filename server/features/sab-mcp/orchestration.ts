@@ -141,7 +141,12 @@ function assertDecisionPlan(row: Company, scan: SabScanPlan, hasException: boole
     correction.evidence_hash === decision.evidence_hash && correction.classification === "agent_error" &&
     typeof correction.invalidated_deliverable_report_key === "string" && Number(correction.nearest_ranked_cell_miles) > 3;
   if (scan.scan_role === "auxiliary" && !corroborationAllowsAuxiliary(decision.address_corroboration,decision.source_report_key,decision.evidence_hash) && !correctedAuxiliary) {
-    throw new Error("Complete structured address corroboration before an unresolved auxiliary; incomplete evaluation or a technical failure cannot authorize paid fallback");
+    const acceptedRecovery = evidence?.post_deliverable_accepted_corroboration_recovery as Record<string, unknown> | undefined;
+    const recoveredAcceptedAuxiliary = decision.address_corroboration?.status === "accepted" &&
+      acceptedRecovery?.status === "verified" && acceptedRecovery.master_report_key === decision.source_report_key &&
+      acceptedRecovery.master_evidence_hash === decision.evidence_hash &&
+      acceptedRecovery.accepted_candidate_reused === true && acceptedRecovery.deliverable_exact_top20_count === 0;
+    if (!recoveredAcceptedAuxiliary) throw new Error("Complete structured address corroboration before an unresolved auxiliary; incomplete evaluation or a technical failure cannot authorize paid fallback");
   }
   const miles = scan.measurement === "mi";
   const selectedAuxiliary = evidence?.auxiliary_scan_spec as { scan_type?: string; grid_size?: number; radius?: number; measurement?: string } | undefined;
@@ -332,6 +337,7 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
       const latest = state.batches.flatMap(batch => batch.scans).filter(candidate => candidate.plan.place_id === scan.place_id && candidate.submission_status === "submitted").at(-1);
       const currentDecision=decisionState(row),correction=currentDecision?.evidence?.corroboration_correction as Record<string,unknown>|undefined;
       const recovery=currentDecision?.evidence?.post_deliverable_s01_recovery as Record<string,unknown>|undefined;
+      const acceptedRecovery=currentDecision?.evidence?.post_deliverable_accepted_corroboration_recovery as Record<string,unknown>|undefined;
       const correctedLatest=latest && correction?.status==="corrected_rejected" && correction.classification==="agent_error" &&
         correction.invalidated_deliverable_report_key===latest.report_key && correction.source_report_key===currentDecision?.source_report_key &&
         correction.evidence_hash===currentDecision?.evidence_hash;
@@ -339,7 +345,13 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
         recovery.master_report_key===currentDecision?.source_report_key && recovery.master_evidence_hash===currentDecision?.evidence_hash &&
         recovery.completed_corroboration==="no_candidate" && recovery.master_centroid_trustworthy===true &&
         currentDecision?.address_corroboration?.status==="no_candidate";
-      if (latest && currentDecision?.source_report_key !== latest.report_key && !correctedLatest && !recoveredLatest) throw new Error("A paid plan cannot use a stale source decision after newer scan evidence exists");
+      const recoveredAcceptedLatest=latest && acceptedRecovery?.status==="verified" &&
+        acceptedRecovery.intervening_deliverable_report_key===latest.report_key &&
+        acceptedRecovery.master_report_key===currentDecision?.source_report_key &&
+        acceptedRecovery.master_evidence_hash===currentDecision?.evidence_hash &&
+        acceptedRecovery.deliverable_exact_top20_count===0 && acceptedRecovery.accepted_candidate_reused===true &&
+        currentDecision?.address_corroboration?.status==="accepted";
+      if (latest && currentDecision?.source_report_key !== latest.report_key && !correctedLatest && !recoveredLatest && !recoveredAcceptedLatest) throw new Error("A paid plan cannot use a stale source decision after newer scan evidence exists");
       if (scan.scan_role === "deliverable" && scan.grid_size === 7 && scan.radius === 5 && scan.measurement === "mi") {
         if (scan.scan_type !== "standard") throw new Error("A five-mile variation is a comparison, never a recenter");
         const prior = state.batches.flatMap(batch=>batch.scans).filter(candidate=>candidate.plan.place_id===scan.place_id);
@@ -356,7 +368,7 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
   add("analyze_sab_scan","Read exact completed report cells server-side, apply SOP decision precedence and persist structured decision evidence. Returns compact evidence only, not raw cells. Does not authorize or launch scans.",{
     ...run,report_key:z.string().regex(/^[a-f0-9]{12,64}$/i),place_id:z.string().min(1),stage:z.enum(["master","auxiliary","deliverable"]),
   },async args=>inSabRunStateQueue(async()=>analyzeAndRecordSabReport(factory(args.workflow_sheet,args.sheet_name),args,actorEmail)));
-  add("record_sab_address_corroboration","Record required address corroboration before an unresolved master-center auxiliary. A temporary candidate is geocoded privately against the exact completed report; persist only identity/fit evidence and coordinates, never the address. No-candidate requires completed genuine research with sources. A guarded post-deliverable S01 recovery may name the exact intervening deliverable; it verifies both reports, zero deliverable visibility, trustworthy master geometry and terminal evidence ordering before creating a plan. Incomplete geocoding or technical failure holds this company and never becomes paid auxiliary permission. Does not submit scans.",{
+  add("record_sab_address_corroboration","Record required address corroboration before an unresolved master-center auxiliary. A temporary candidate is geocoded privately against the exact completed report; persist only identity/fit evidence and coordinates, never the address. No-candidate requires completed genuine research with sources. A guarded post-deliverable S01 recovery may name the exact intervening deliverable; it verifies both reports, zero deliverable visibility, terminal evidence ordering, and either a trustworthy no-candidate master-centroid plan or reuse of the existing accepted corroborated candidate for one wide auxiliary. Incomplete geocoding or technical failure holds this company and never becomes paid auxiliary permission. Does not submit scans.",{
     ...run,orchestrator_id:z.string().min(1),place_id:z.string().min(1),report_key:z.string().regex(/^[a-f0-9]{12,64}$/i),
     intervening_deliverable_report_key:z.string().regex(/^[a-f0-9]{12,64}$/i).optional(),
     research_complete:z.boolean(),evidence_references:z.array(z.string().trim().min(1).max(2000)).min(1).max(20),
@@ -366,7 +378,9 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
     const repo=factory(args.workflow_sheet,args.sheet_name),state=await requireRun(repo,args.run_id),row=await repo.getCompany(args.place_id),previous=decisionState(row);
     if(args.orchestrator_id!==state.orchestrator_id) throw new Error("Only the run's orchestrator may record a corroboration disposition");
     if(args.intervening_deliverable_report_key) {
-      if(args.result!=="no_candidate" || !args.research_complete || args.candidate_address || args.fit_decision) throw new Error("Post-deliverable S01 recovery requires completed no-candidate corroboration");
+      const reuseAccepted = args.result==="candidate" && args.fit_decision==="accepted" && !args.candidate_address && args.research_complete;
+      const completedNoCandidate = args.result==="no_candidate" && !args.candidate_address && !args.fit_decision && args.research_complete;
+      if(!reuseAccepted && !completedNoCandidate) throw new Error("Post-deliverable S01 recovery requires completed no-candidate corroboration or reuse of the existing accepted corroborated candidate");
       if(!previous || previous.exclusion_review || previous.address_corroboration?.status==="incomplete" ||
           previous.source_report_key!==args.intervening_deliverable_report_key || row.report_key!==args.intervening_deliverable_report_key ||
           previous.centering_status!=="failed" || previous.evidence?.exact_top20_count!==0) {
@@ -388,6 +402,29 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
       const deliverableTop20=deliverableCells.filter(cell=>Number.isInteger(cell.rank) && cell.rank>=1 && cell.rank<=20).length;
       if(deliverableCells.length!==deliverable.grid.point_count || deliverableTop20!==0) throw new Error("Post-deliverable S01 recovery requires a complete exact zero-top20 deliverable");
       const masterHash=evidenceHash(master);
+      if(reuseAccepted) {
+        const corroboration=previous.address_corroboration;
+        if(!corroboration || corroboration.status!=="accepted" || !corroboration.candidate_coordinates ||
+            corroboration.source_report_key!==args.report_key || corroboration.evidence_hash!==masterHash) {
+          throw new Error("Accepted-candidate recovery requires the exact previously verified master corroboration evidence");
+        }
+        const center=centerText(corroboration.candidate_coordinates);
+        const recovery={status:"verified",master_report_key:args.report_key,master_evidence_hash:masterHash,
+          intervening_deliverable_report_key:args.intervening_deliverable_report_key,deliverable_evidence_hash:deliverableHash,
+          deliverable_exact_top20_count:deliverableTop20,accepted_candidate_reused:true,auxiliary_scan_spec:{scan_type:"scout",grid_size:9,radius:6,measurement:"mi"}};
+        const next:DecisionState={source_report_key:args.report_key,rule_id:"S01,S03",evidence_hash:masterHash,
+          centering_status:"planned",routine_recenter_count:scans.filter(scan=>scan.plan.scan_type==="recenter").length,
+          proposed_center:center,center_type:"corroborated_address",address_corroboration:corroboration,
+          evidence:{next_action:"plan_auxiliary",reason:"The accepted corroborated candidate remains authoritative after the same-center deliverable returned zero exact top-20 pins. Use one 9×9/6-mile scout at that accepted center to resolve visibility without discarding or relabelling the accepted evidence.",grid:master.grid,
+            post_deliverable_accepted_corroboration_recovery:recovery}};
+        await repo.saveCompany(args.place_id,{decision_state:next,status:"in_progress",blocker:null},actorEmail,{postDeliverableAcceptedCorroborationRecoveryVerified:true});
+        return {report_key:master.report_key,report_url:reportUrl(master),place_id:args.place_id,
+          scan_specification:`${master.grid.size}×${master.grid.size}/${master.grid.radius} ${master.grid.measurement}`,
+          raw_arp:master.arp,all_point_atrp:master.atrp,solv:master.solv,action:"plan_auxiliary",rule_ids:["S01","S03"],
+          reason:next.evidence?.reason,proposed_center:corroboration.candidate_coordinates,center_source:"corroborated_address",
+          evidence:{auxiliary_scan_spec:recovery.auxiliary_scan_spec},evidence_hash:masterHash,address_corroboration:corroboration,
+          post_deliverable_accepted_corroboration_recovery:recovery,paid_scans_submitted:0};
+      }
       const corroboration=sabAddressCorroborationSchema.parse({source_report_key:args.report_key,evidence_hash:masterHash,status:"no_candidate",
         research_complete:true,evidence_references:args.evidence_references,source_type:args.source_type,identity_method:args.identity_method,fit_rationale:args.fit_rationale});
       const decision=analyzeSabScanPolicy({stage:"master",cells:master.businesses[0].all_point_rank_cells ?? master.businesses[0].ranked_cells,

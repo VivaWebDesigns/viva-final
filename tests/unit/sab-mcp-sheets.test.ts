@@ -221,6 +221,29 @@ describe("SabSheetsRepository", () => {
       address_corroboration: { status: "no_candidate" }, evidence: { post_deliverable_s01_recovery: { status: "verified" } } } });
   });
 
+  it("allows only a verified accepted-candidate post-deliverable auxiliary transition", async () => {
+    const deliverable = "aaaaaaaaaaaa", master = "cccccccccccc", deliverableHash = "a".repeat(64), masterHash = "c".repeat(64);
+    const accepted = { source_report_key: master, evidence_hash: masterHash, status: "accepted" as const, research_complete: true,
+      evidence_references: ["verified-company-source"], source_type: "company-controlled website", identity_method: "exact phone",
+      fit_rationale: "Complete distribution fit accepted", candidate_coordinates: { latitude: 35, longitude: -80 },
+      geocoder: { location_type: "ROOFTOP", partial_match: false }, distances_miles: { weighted_centroid: 1, nearest_ranked_cell: 0, best_rank_cluster_centroid: 1 } };
+    const previous = { source_report_key: deliverable, evidence_hash: deliverableHash, rule_id: "S05", centering_status: "failed" as const,
+      routine_recenter_count: 0, address_corroboration: accepted, evidence: { next_action: "evidence_review_required", exact_top20_count: 0 } };
+    const recovery = { status: "verified", master_report_key: master, master_evidence_hash: masterHash,
+      intervening_deliverable_report_key: deliverable, deliverable_evidence_hash: deliverableHash, deliverable_exact_top20_count: 0,
+      accepted_candidate_reused: true, auxiliary_scan_spec: { scan_type: "scout", grid_size: 9, radius: 6, measurement: "mi" } };
+    const next = { source_report_key: master, evidence_hash: masterHash, rule_id: "S01,S03", centering_status: "planned" as const,
+      proposed_center: "35,-80", center_type: "corroborated_address" as const, routine_recenter_count: 0, address_corroboration: accepted,
+      evidence: { next_action: "plan_auxiliary", post_deliverable_accepted_corroboration_recovery: recovery } };
+    const { repository } = buildRepository([row({ report_key: deliverable, status: "blocked", decision_state: JSON.stringify(previous) })]);
+    await expect(repository.saveCompany("place-1", { decision_state: next, status: "in_progress", blocker: null }, "actor@example.com"))
+      .rejects.toThrow(/dedicated corroboration/);
+    await expect(repository.saveCompany("place-1", { decision_state: { ...next, proposed_center: "35.1,-80" }, status: "in_progress", blocker: null },
+      "actor@example.com", { postDeliverableAcceptedCorroborationRecoveryVerified: true })).rejects.toThrow(/Accepted-candidate recovery/);
+    await expect(repository.saveCompany("place-1", { decision_state: next, status: "in_progress", blocker: null }, "actor@example.com",
+      { postDeliverableAcceptedCorroborationRecoveryVerified: true })).resolves.toMatchObject({ status: "in_progress" });
+  });
+
   it("allows only verified analysis to invalidate stale corroboration and never invent a replacement", async () => {
     const base = { source_report_key: "abcdef123456", evidence_hash: "a".repeat(64), rule_id: "S01", centering_status: "failed" as const, routine_recenter_count: 0,
       evidence: { next_action: "address_corroboration_incomplete" } };

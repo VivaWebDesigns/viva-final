@@ -482,6 +482,37 @@ describe("SAB orchestration integration",()=>{
       .rejects.toThrow(/Explicit Matt approval/);
   });
 
+  it("reuses an accepted corroborated candidate for one wide auxiliary after an exact zero-visibility deliverable",async()=>{
+    const state=completeSabRunReports(submitted(),[key3]);
+    const master={...report("cccccccccccc",plan),grid:{size:21,point_count:441,radius:12,measurement:"mi",center:{latitude:35.1,longitude:-80.75}},
+      businesses:[{place_id:"place",evidence_source:"competitor_roster",ranked_cell_count:2,imprecise_or_unranked_cell_count:439,
+        ranked_cells:[{row:10,column:11,latitude:35.01,longitude:-80.01,rank:18},{row:11,column:11,latitude:35,longitude:-80,rank:20}],
+        all_point_rank_cells:[{row:10,column:11,latitude:35.01,longitude:-80.01,rank:18},{row:11,column:11,latitude:35,longitude:-80,rank:20}]}]};
+    const failed=report(key3,plan,{arp:21,atrp:21,solv:0,found_in:0,
+      businesses:[{place_id:"place",evidence_source:"competitor_roster",ranked_cell_count:0,imprecise_or_unranked_cell_count:49,ranked_cells:[],
+        all_point_rank_cells:Array.from({length:49},(_,i)=>({row:Math.floor(i/7)+1,column:i%7+1,latitude:35,longitude:-80,rank:21}))}]});
+    const masterHash=currentEvidenceHash(master as ReturnType<typeof report>),deliverableHash=currentEvidenceHash(failed as ReturnType<typeof report>);
+    const accepted={source_report_key:"cccccccccccc",evidence_hash:masterHash,status:"accepted" as const,research_complete:true,
+      evidence_references:["verified-company-source"],source_type:"company-controlled website",identity_method:"exact phone",
+      fit_rationale:"Complete distribution fit accepted",candidate_coordinates:{latitude:35,longitude:-80},
+      geocoder:{location_type:"ROOFTOP",partial_match:false},distances_miles:{weighted_centroid:1,nearest_ranked_cell:0,best_rank_cluster_centroid:1}};
+    const repo=repository(state,{report_key:key3,center_type:"corroborated_address",scan_center:"35,-80",status:"blocked",blocker:"evidence_review_required",
+      decision_state:{source_report_key:key3,rule_id:"S05",evidence_hash:deliverableHash,centering_status:"failed",routine_recenter_count:0,
+        address_corroboration:accepted,evidence:{next_action:"evidence_review_required",exact_top20_count:0}}});
+    vi.mocked(getSabRankedCells).mockResolvedValueOnce(master as never).mockResolvedValueOnce(failed as never);
+    const api=tools(repo),result=await api.invoke("record_sab_address_corroboration",{orchestrator_id:"owner",place_id:"place",report_key:"cccccccccccc",
+      intervening_deliverable_report_key:key3,result:"candidate",fit_decision:"accepted",research_complete:true,
+      evidence_references:accepted.evidence_references,source_type:accepted.source_type,identity_method:accepted.identity_method,fit_rationale:accepted.fit_rationale});
+    expect(result).toMatchObject({action:"plan_auxiliary",center_source:"corroborated_address",proposed_center:{latitude:35,longitude:-80},paid_scans_submitted:0,
+      address_corroboration:{status:"accepted"},post_deliverable_accepted_corroboration_recovery:{status:"verified",accepted_candidate_reused:true,deliverable_exact_top20_count:0}});
+    expect(await repo.getCompany()).toMatchObject({status:"in_progress",blocker:null,decision_state:{source_report_key:"cccccccccccc",centering_status:"planned",
+      center_type:"corroborated_address",proposed_center:"35,-80",address_corroboration:{status:"accepted"},evidence:{next_action:"plan_auxiliary"}}});
+    const nextPlan={...plan,scan_role:"auxiliary" as const,scan_type:"scout" as const,grid_size:9 as const,radius:6,estimated_credits:81};
+    await expect(api.invoke("authorize_sab_scan_batch",{orchestrator_id:"owner",authorization_id:"44444444-4444-4444-8444-444444444444",
+      authorization_reference:"accepted-candidate-scout",scans:[nextPlan],matt_review:{...approved,reviewed_batch_id:state.batches[0].authorization_id}}))
+      .resolves.toMatchObject({scan_approved:true});
+  });
+
   it("fails closed when any post-deliverable S01 recovery invariant is missing",async()=>{
     const baseState=completeSabRunReports(submitted(),[key3]);
     const zero=report(key3,plan,{arp:21,atrp:21,solv:0,found_in:0,

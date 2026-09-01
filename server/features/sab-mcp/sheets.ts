@@ -898,7 +898,7 @@ export class SabSheetsRepository {
     placeId: string,
     updates: SabCompanyUpdates,
     actorEmail: string,
-    options: {exclusionReviewApproved?: boolean; exclusionReviewDeclined?: boolean; exclusionDecisionContinued?: boolean; corroborationRecorded?: boolean; corroborationAnalysisVerified?: boolean; legacyHashCompatibilityVerified?: boolean; postDeliverableS01RecoveryVerified?: boolean} = {},
+    options: {exclusionReviewApproved?: boolean; exclusionReviewDeclined?: boolean; exclusionDecisionContinued?: boolean; corroborationRecorded?: boolean; corroborationAnalysisVerified?: boolean; legacyHashCompatibilityVerified?: boolean; postDeliverableS01RecoveryVerified?: boolean; postDeliverableAcceptedCorroborationRecoveryVerified?: boolean} = {},
   ) {
     const { headerIndex, rows } = await this.readTable();
     const match = rows.find(({ row }) => row.place_id === placeId);
@@ -927,7 +927,24 @@ export class SabSheetsRepository {
     const incompleteCandidateHold = priorCorroboration?.status === "incomplete";
     const corroborationHold = technicalHold || ["address_corroboration_required", "address_corroboration_incomplete"].includes(match.row.blocker) ||
       ["address_corroboration_required", "address_corroboration_incomplete"].includes(previousState?.evidence?.next_action);
-    if (options.postDeliverableS01RecoveryVerified) {
+    if (options.postDeliverableAcceptedCorroborationRecoveryVerified) {
+      const recovered = sabDecisionStateSchema.safeParse(nextDecision);
+      const audit = recovered.success ? recovered.data.evidence?.post_deliverable_accepted_corroboration_recovery as Record<string, unknown> | undefined : undefined;
+      const auxiliary = audit?.auxiliary_scan_spec as Record<string, unknown> | undefined;
+      if (!recovered.success || recovered.data.address_corroboration?.status !== "accepted" ||
+          !recovered.data.address_corroboration.candidate_coordinates || recovered.data.centering_status !== "planned" ||
+          recovered.data.center_type !== "corroborated_address" || !recovered.data.proposed_center ||
+          recovered.data.evidence?.next_action !== "plan_auxiliary" || audit?.status !== "verified" ||
+          audit.master_report_key !== recovered.data.source_report_key || audit.master_evidence_hash !== recovered.data.evidence_hash ||
+          audit.intervening_deliverable_report_key !== previousState?.source_report_key || audit.deliverable_evidence_hash !== previousState?.evidence_hash ||
+          audit.deliverable_exact_top20_count !== 0 || audit.accepted_candidate_reused !== true ||
+          auxiliary?.scan_type !== "scout" || auxiliary.grid_size !== 9 || auxiliary.radius !== 6 || auxiliary.measurement !== "mi" ||
+          recovered.data.address_corroboration.source_report_key !== recovered.data.source_report_key ||
+          recovered.data.address_corroboration.evidence_hash !== recovered.data.evidence_hash ||
+          `${recovered.data.address_corroboration.candidate_coordinates.latitude},${recovered.data.address_corroboration.candidate_coordinates.longitude}` !== recovered.data.proposed_center) {
+        throw new Error("Accepted-candidate recovery must preserve exact verified master corroboration and plan one same-center 9×9/6-mile auxiliary after the exact zero-top20 deliverable");
+      }
+    } else if (options.postDeliverableS01RecoveryVerified) {
       const recovered = sabDecisionStateSchema.safeParse(nextDecision);
       const audit = recovered.success ? recovered.data.evidence?.post_deliverable_s01_recovery as Record<string, unknown> | undefined : undefined;
       if (!recovered.success || !recovered.data.address_corroboration || recovered.data.address_corroboration.status !== "no_candidate" ||
@@ -965,6 +982,11 @@ export class SabSheetsRepository {
         throw new Error("Incomplete address evaluation cannot become paid auxiliary permission");
       }
     } else {
+      const priorAcceptedRecovery = previousState?.evidence?.post_deliverable_accepted_corroboration_recovery;
+      const nextAcceptedRecovery = nextState?.evidence?.post_deliverable_accepted_corroboration_recovery;
+      if (JSON.stringify(priorAcceptedRecovery) !== JSON.stringify(nextAcceptedRecovery)) {
+        throw new Error("Only the dedicated corroboration tool may create or replace accepted-candidate recovery evidence");
+      }
       if (corroborationChanged) throw new Error("Only the dedicated corroboration tool may create, replace or remove address corroboration evidence");
       if (corroborationHold && (JSON.stringify(priorDecision) !== JSON.stringify(nextDecision) ||
           merged.status !== match.row.status || merged.blocker !== match.row.blocker)) {
