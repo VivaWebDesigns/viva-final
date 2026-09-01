@@ -45,6 +45,7 @@ export const SAB_TESTING_SATURATION_POLICY = Object.freeze({
   maximum_outer_minus_central_median: 2,
   unranked_median_sentinel: 21,
   forbid_displaced_dominant_peak: true,
+  forbid_supported_off_center_peak: true,
   testing_only: true,
 });
 export const SAB_FIVE_MILE_EXCLUSION_POLICY = Object.freeze({
@@ -69,6 +70,34 @@ function median(values: number[]) {
   const middle = Math.floor(sorted.length / 2);
   return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
 }
+const UNRANKED_MEDIAN_SENTINEL = 21;
+
+function computationalRank(value: number | undefined) {
+  return typeof value === "number" && Number.isFinite(value) &&
+    ((Number.isInteger(value) && value >= 1 && value <= 20) || value > 20)
+    ? value
+    : UNRANKED_MEDIAN_SENTINEL;
+}
+
+function threeByThreeNeighborhood(cells: SabRankedCell[], row: number, column: number, gridSize: number) {
+  const byPosition = new Map(cells.map(cell => [positionKey(cell), cell.rank]));
+  const positions = Array.from({ length: 9 }, (_, index) => ({
+    row: row + Math.floor(index / 3) - 1,
+    column: column + index % 3 - 1,
+  }));
+  const complete = positions.every(point => point.row >= 1 && point.column >= 1 && point.row <= gridSize && point.column <= gridSize);
+  const observed = positions.filter(point => point.row >= 1 && point.column >= 1 && point.row <= gridSize && point.column <= gridSize);
+  const ranks = observed.map(point => computationalRank(byPosition.get(`${point.row}:${point.column}`)));
+  return {
+    complete,
+    median_rank: complete ? median(ranks) : null,
+    exact_top20_count: observed.filter(point => {
+      const rank = byPosition.get(`${point.row}:${point.column}`);
+      return Number.isInteger(rank) && rank! >= 1 && rank! <= 20;
+    }).length,
+    point_count: observed.length,
+  };
+}
 /** All-point medians include every matrix position. Unknown, imprecise,
  * missing and nonpositive ranks use 21; available numeric ranks >20 retain
  * their actual value. The sentinel is for medians only, never top20 evidence.
@@ -79,8 +108,7 @@ export function summarizeSabAllPointRanks(cells: SabRankedCell[], gridSize: numb
     const row = Math.floor(index / gridSize) + 1;
     const column = index % gridSize + 1;
     const value = byPosition.get(`${row}:${column}`);
-    const rank = typeof value === "number" && Number.isFinite(value) &&
-      ((Number.isInteger(value) && value >= 1 && value <= 20) || value > 20) ? value : 21;
+    const rank = computationalRank(value);
     return { row, column, rank };
   });
   const middle = (gridSize + 1) / 2;
@@ -93,7 +121,7 @@ export function summarizeSabAllPointRanks(cells: SabRankedCell[], gridSize: numb
     all_point_count: points.length,
     outer_ring_point_count: outer.length,
     central_3x3_point_count: central.length,
-    unranked_median_sentinel: 21,
+    unranked_median_sentinel: UNRANKED_MEDIAN_SENTINEL,
     numeric_above20_values_preserved: true,
   };
 }
@@ -146,6 +174,7 @@ export function selectSabPeakTarget(cellsInput: SabRankedCell[], grid: SabScanGr
   const middle = (grid.size + 1) / 2;
   const centralCells = cells.filter(cell => Math.abs(cell.row - middle) <= 1 && Math.abs(cell.column - middle) <= 1);
   const centralBest = centralCells.length ? Math.min(...centralCells.map(cell => cell.rank)) : null;
+  const centralCoherentCluster = sabRankedClusters(centralCells).some(component => component.length >= 2);
   const candidates = sabRankedClusters(cells.filter(cell => cell.rank <= best + 2))
     .filter(component => component.some(cell => cell.rank === best))
     .map(component => ({
@@ -170,12 +199,22 @@ export function selectSabPeakTarget(cellsInput: SabRankedCell[], grid: SabScanGr
   }
   const movement = distance(grid.center, target);
   const displaced = Math.max(Math.abs(peak.row - middle), Math.abs(peak.column - middle)) > 1;
-  // A displaced pocket must be materially stronger than the current central
-  // area, not merely better than a weak field-wide median. Reuse the existing
-  // three-rank dominance margin; absence of a central exact pin supplies no
-  // counterevidence to the displaced peak.
+  const centralNeighborhood = threeByThreeNeighborhood(cellsInput, middle, middle, grid.size);
+  const candidateNeighborhood = threeByThreeNeighborhood(cellsInput, peak.row, peak.column, grid.size);
+  // When the current center has coherent exact top-20 visibility, every
+  // off-center peak must pass all three neighborhood checks. Boundary peaks
+  // retain the existing higher-priority boundary route because their 3x3 is
+  // not fully observed. Isolated central point sources retain their existing
+  // deterministic routes.
   const centralContrast = centralBest === null ? null : centralBest - best;
-  const displacedPeakHasCenteringSupport = displaced && (centralBest === null || (centralContrast !== null && centralContrast >= 3));
+  const neighborhoodSafeguardApplies = displaced && centralCoherentCluster && candidateNeighborhood.complete;
+  const threeRankContrastPasses = centralContrast !== null && centralContrast >= 3;
+  const candidateMedianImproves = candidateNeighborhood.median_rank !== null && centralNeighborhood.median_rank !== null &&
+    candidateNeighborhood.median_rank < centralNeighborhood.median_rank;
+  const candidateTop20SupportPasses = candidateNeighborhood.exact_top20_count >= centralNeighborhood.exact_top20_count;
+  const allNeighborhoodConditionsPass = threeRankContrastPasses && candidateMedianImproves && candidateTop20SupportPasses;
+  const neighborhoodSupportPasses = !neighborhoodSafeguardApplies || allNeighborhoodConditionsPass;
+  const displacedPeakHasCenteringSupport = displaced && neighborhoodSupportPasses;
   return {
     target,
     targeting_method: targetingMethod,
@@ -189,6 +228,24 @@ export function selectSabPeakTarget(cellsInput: SabRankedCell[], grid: SabScanGr
     statistically_dominant_displaced_peak: dominant && displaced,
     central_3x3_best_rank: centralBest,
     displaced_peak_central_contrast: centralContrast,
+    central_3x3_coherent_cluster: centralCoherentCluster,
+    coherent_cluster_definition: "at_least_two_exact_top20_cells_8_neighbors" as const,
+    neighborhood_support: {
+      applies: neighborhoodSafeguardApplies,
+      candidate_3x3_complete: candidateNeighborhood.complete,
+      computational_unranked_sentinel: UNRANKED_MEDIAN_SENTINEL,
+      sentinel_persisted_as_observed_rank: false,
+      three_rank_contrast_passes: threeRankContrastPasses,
+      candidate_3x3_median_rank: candidateNeighborhood.median_rank,
+      central_3x3_median_rank: centralNeighborhood.median_rank,
+      candidate_median_improves: candidateMedianImproves,
+      candidate_3x3_exact_top20_count: candidateNeighborhood.exact_top20_count,
+      central_3x3_exact_top20_count: centralNeighborhood.exact_top20_count,
+      candidate_top20_support_passes: candidateTop20SupportPasses,
+      all_conditions_pass: neighborhoodSafeguardApplies ? allNeighborhoodConditionsPass : null,
+      support_source: neighborhoodSafeguardApplies ? "three_condition_neighborhood" :
+        candidateNeighborhood.complete ? "existing_point_source_route" : "existing_boundary_route",
+    },
     displaced_peak_has_centering_support: displacedPeakHasCenteringSupport,
     displaced_dominant_peak: dominant && displacedPeakHasCenteringSupport,
     movement_miles: movement,
@@ -309,7 +366,7 @@ export function analyzeSabScanPolicy(input: SabScanPolicyInput): SabScanDecision
   const cells = exactSabTop20Cells(input.cells);
   const grid = input.grid;
   const mileGrid = ["mi", "mile", "miles"].includes(grid.measurement.toLowerCase());
-  const peak = selectSabPeakTarget(cells, grid);
+  const peak = selectSabPeakTarget(input.cells, grid);
   const allPointRanks = summarizeSabAllPointRanks(input.cells, grid.size);
   const testingPolicyActive = input.testingPolicyActive === true;
   const validExclusionMetrics = typeof input.rawArp === "number" && Number.isFinite(input.rawArp) && input.rawArp >= 1 &&
@@ -323,7 +380,7 @@ export function analyzeSabScanPolicy(input: SabScanPolicyInput): SabScanDecision
   const exclusionEnabled = wideScoutSpec || (fiveMileSpec && testingPolicyActive);
   const saturationCandidate = grid.size === 7 && cells.length >= 45 && allPointRanks.all_point_median_rank !== null && allPointRanks.all_point_median_rank <= 3 &&
     allPointRanks.outer_ring_median_rank !== null && allPointRanks.central_3x3_median_rank !== null &&
-    allPointRanks.outer_ring_median_rank <= allPointRanks.central_3x3_median_rank + 2 && !peak?.displaced_dominant_peak;
+    allPointRanks.outer_ring_median_rank <= allPointRanks.central_3x3_median_rank + 2 && !peak?.displaced_peak_has_centering_support;
   const evidence: Record<string, unknown> = {
     exact_top20_count: cells.length, point_count: grid.point_count, coverage: cells.length / grid.point_count,
     raw_arp: input.rawArp ?? null, atrp: input.atrp ?? null, solv: input.solv ?? null,
@@ -335,7 +392,7 @@ export function analyzeSabScanPolicy(input: SabScanPolicyInput): SabScanDecision
       specification_matches: exclusionSpec, coverage_qualifies: exclusionCoverage, valid_metrics: validExclusionMetrics,
       qualifies: exclusionQualifies, policy_active: exclusionEnabled, final_disposition: exclusionQualifies && exclusionEnabled && !testingPolicyActive,
       requires_matt_review: testingPolicyActive && exclusionQualifies,
-      centering_classification: peak?.displaced_dominant_peak ? "failed_displaced_dominant_peak" : "not_validated_by_exclusion", },
+      centering_classification: peak?.displaced_peak_has_centering_support ? "failed_supported_off_center_peak" : "not_validated_by_exclusion", },
   };
   const decision = (action: SabScanDecision["action"], rules: string[], reason: string, proposed_center: SabCoordinate | null = null, center_source: SabScanDecision["center_source"] = null): SabScanDecision => ({ action, rule_ids: rules, reason, proposed_center, center_source, evidence });
   if (input.stage === "master") {
@@ -368,8 +425,8 @@ export function analyzeSabScanPolicy(input: SabScanPolicyInput): SabScanDecision
   if (exclusionEnabled && exclusionCoverage && !validExclusionMetrics) return decision("evidence_review_required", [wideScoutSpec ? "S02" : "S09"], "This scan can meet the exclusion; valid raw ARP and SoLV are required before deciding its next step.");
   if (exclusionEnabled && exclusionQualifies) {
     const rule = wideScoutSpec ? "S02" : "S09";
-    if (testingPolicyActive) return decision("high_visibility_exclusion_pending_review", [rule], peak?.displaced_dominant_peak
-      ? "The scan meets its exact-specification exclusion thresholds, but has a displaced dominant peak. Matt must review both findings; exclusion does not validate its center."
+    if (testingPolicyActive) return decision("high_visibility_exclusion_pending_review", [rule], peak?.displaced_peak_has_centering_support
+      ? "The scan meets its exact-specification exclusion thresholds, but has a supported off-center peak. Matt must review both findings; exclusion does not validate its center."
       : "The scan meets its exact-specification high-visibility thresholds. Hold for Matt's review; no exclusion or center validation is finalized.");
     return decision("high_visibility_excluded", [rule], "The 9x9/6-mile scout meets all three established high-visibility criteria.");
   }
@@ -386,23 +443,24 @@ export function analyzeSabScanPolicy(input: SabScanPolicyInput): SabScanDecision
   if (!cells.length) return decision("evidence_review_required", ["S05"], "A deliverable without exact top20 pins cannot establish a validated visibility center; reconcile with auxiliary evidence.");
   // S06 precedes S05/S07: saturation alone must not consume a recenter.
   if (saturationCandidate && !testingPolicyActive) return decision("policy_review_required", ["S06"], "The scan meets the saturation definition approved for testing only; activation outside testing requires explicit policy approval.");
-  if (saturationCandidate && mileGrid && grid.size === 7 && grid.radius === 3) return decision("same_center_five_mile_comparison", ["S06", "S08"], "At least 45 exact top20 pins, strong all-point median and limited outer falloff establish saturation without a displaced dominant peak; compare 7x7/5mi at the same center.", grid.center);
-  if (saturationCandidate) return decision("center_validated", ["S06"], "The testing saturation definition is satisfied without a displaced dominant peak; saturation alone does not require recentering.", grid.center);
+  if (saturationCandidate && mileGrid && grid.size === 7 && grid.radius === 3) return decision("same_center_five_mile_comparison", ["S06", "S08"], "At least 45 exact top20 pins, strong all-point median and limited outer falloff establish saturation without a supported off-center peak; compare 7x7/5mi at the same center.", grid.center);
+  if (saturationCandidate) return decision("center_validated", ["S06"], "The testing saturation definition is satisfied without a supported off-center peak; saturation alone does not require recentering.", grid.center);
   const margin = evaluateSabCoherentMargin(cells, grid.size);
   evidence.margin = margin;
-  const weakOffCenterPeak = peak!.displaced_peak && !peak!.dominant;
-  const unsupportedOffCenterPeak = peak!.displaced_peak && peak!.dominant && !peak!.displaced_peak_has_centering_support;
+  const unsupportedOffCenterPeak = peak!.displaced_peak && !peak!.displaced_peak_has_centering_support;
+  const weakOffCenterPeak = peak!.displaced_peak && !peak!.dominant && !unsupportedOffCenterPeak;
+  const supportedOffCenterPeak = peak!.displaced_peak && peak!.displaced_peak_has_centering_support;
   evidence.weak_off_center_peak = weakOffCenterPeak;
   evidence.unsupported_off_center_peak = unsupportedOffCenterPeak;
-  if (margin.failed || peak!.displaced_dominant_peak || weakOffCenterPeak) {
+  if (margin.failed || supportedOffCenterPeak) {
     if ((input.routineRecenterCount ?? 0) >= 1 && !input.additionalRecenterApproved) return decision("additional_recenter_exception_required", ["S04", "S05", "S07"], "One routine recenter has already been used; another requires an explicit exception.", peak!.target, "ranked_peak_recentered");
     if (peak!.movement_miles < 1e-6) return decision("evidence_review_required", ["S04", "S05"], "The failed margin has no verified movement toward the selected peak; do not resubmit an identical center.");
     return decision("recenter", ["S04", "S05", "S07"], weakOffCenterPeak
-      ? "The selected peak is outside the central 3×3. Weak statistical dominance does not validate an off-center result; use the permitted peak-first recenter."
-      : "Coherent outward strength or a displaced dominant peak supports the permitted peak-first recenter.", peak!.target, "ranked_peak_recentered");
+      ? "The selected peak is outside a central area without a coherent exact top-20 cluster; use the existing permitted peak-first route."
+      : "Coherent outward strength or an off-center peak with complete neighborhood support justifies the permitted peak-first recenter.", peak!.target, "ranked_peak_recentered");
   }
-  if (unsupportedOffCenterPeak) return decision("center_validated", ["S04", "S05", "S09"], "The off-center peak does not beat the best central 3×3 evidence by the required three-rank margin. Relative strength within a weak field is insufficient to justify recentering; retain the validated center.", grid.center);
-  return decision("center_validated", ["S05", "S09"], "The footprint has ordinary falloff without coherent outward strength or a displaced dominant peak.", grid.center);
+  if (unsupportedOffCenterPeak) return decision("center_validated", ["S04", "S05", "S09"], "The off-center peak failed at least one required central-contrast, neighborhood-median or exact top-20 support condition; retain the existing center as unsupported_off_center_peak.", grid.center);
+  return decision("center_validated", ["S05", "S09"], "The footprint has ordinary falloff without coherent outward strength or a supported off-center peak.", grid.center);
 }
 
 export function selectSabCanonicalScan(input: { threeMile: { rawArp: number; solv: number }; fiveMile: { rawArp: number; solv: number } }) {
