@@ -331,10 +331,15 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
       const row = await repo.getCompany(scan.place_id);
       const latest = state.batches.flatMap(batch => batch.scans).filter(candidate => candidate.plan.place_id === scan.place_id && candidate.submission_status === "submitted").at(-1);
       const currentDecision=decisionState(row),correction=currentDecision?.evidence?.corroboration_correction as Record<string,unknown>|undefined;
+      const recovery=currentDecision?.evidence?.post_deliverable_s01_recovery as Record<string,unknown>|undefined;
       const correctedLatest=latest && correction?.status==="corrected_rejected" && correction.classification==="agent_error" &&
         correction.invalidated_deliverable_report_key===latest.report_key && correction.source_report_key===currentDecision?.source_report_key &&
         correction.evidence_hash===currentDecision?.evidence_hash;
-      if (latest && currentDecision?.source_report_key !== latest.report_key && !correctedLatest) throw new Error("A paid plan cannot use a stale source decision after newer scan evidence exists");
+      const recoveredLatest=latest && recovery?.status==="verified" && recovery.intervening_deliverable_report_key===latest.report_key &&
+        recovery.master_report_key===currentDecision?.source_report_key && recovery.master_evidence_hash===currentDecision?.evidence_hash &&
+        recovery.completed_corroboration==="no_candidate" && recovery.master_centroid_trustworthy===true &&
+        currentDecision?.address_corroboration?.status==="no_candidate";
+      if (latest && currentDecision?.source_report_key !== latest.report_key && !correctedLatest && !recoveredLatest) throw new Error("A paid plan cannot use a stale source decision after newer scan evidence exists");
       if (scan.scan_role === "deliverable" && scan.grid_size === 7 && scan.radius === 5 && scan.measurement === "mi") {
         if (scan.scan_type !== "standard") throw new Error("A five-mile variation is a comparison, never a recenter");
         const prior = state.batches.flatMap(batch=>batch.scans).filter(candidate=>candidate.plan.place_id===scan.place_id);
@@ -351,14 +356,61 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
   add("analyze_sab_scan","Read exact completed report cells server-side, apply SOP decision precedence and persist structured decision evidence. Returns compact evidence only, not raw cells. Does not authorize or launch scans.",{
     ...run,report_key:z.string().regex(/^[a-f0-9]{12,64}$/i),place_id:z.string().min(1),stage:z.enum(["master","auxiliary","deliverable"]),
   },async args=>inSabRunStateQueue(async()=>analyzeAndRecordSabReport(factory(args.workflow_sheet,args.sheet_name),args,actorEmail)));
-  add("record_sab_address_corroboration","Record required address corroboration before an unresolved master-center auxiliary. A temporary candidate is geocoded privately against the exact completed report; persist only identity/fit evidence and coordinates, never the address. No-candidate requires completed genuine research with sources. Incomplete geocoding or technical failure holds this company and never becomes paid auxiliary permission. An accepted complete-distribution fit may establish the deliverable center. Does not submit scans.",{
+  add("record_sab_address_corroboration","Record required address corroboration before an unresolved master-center auxiliary. A temporary candidate is geocoded privately against the exact completed report; persist only identity/fit evidence and coordinates, never the address. No-candidate requires completed genuine research with sources. A guarded post-deliverable S01 recovery may name the exact intervening deliverable; it verifies both reports, zero deliverable visibility, trustworthy master geometry and terminal evidence ordering before creating a plan. Incomplete geocoding or technical failure holds this company and never becomes paid auxiliary permission. Does not submit scans.",{
     ...run,orchestrator_id:z.string().min(1),place_id:z.string().min(1),report_key:z.string().regex(/^[a-f0-9]{12,64}$/i),
+    intervening_deliverable_report_key:z.string().regex(/^[a-f0-9]{12,64}$/i).optional(),
     research_complete:z.boolean(),evidence_references:z.array(z.string().trim().min(1).max(2000)).min(1).max(20),
     source_type:z.string().trim().min(1).max(200),identity_method:z.string().trim().min(1).max(500),fit_rationale:z.string().trim().min(1).max(2000),
     result:z.enum(["no_candidate","candidate"]),candidate_address:z.string().trim().min(1).max(2000).optional(),fit_decision:z.enum(["accepted","rejected"]).optional(),
   },async args=>inSabRunStateQueue(async()=>{
     const repo=factory(args.workflow_sheet,args.sheet_name),state=await requireRun(repo,args.run_id),row=await repo.getCompany(args.place_id),previous=decisionState(row);
     if(args.orchestrator_id!==state.orchestrator_id) throw new Error("Only the run's orchestrator may record a corroboration disposition");
+    if(args.intervening_deliverable_report_key) {
+      if(args.result!=="no_candidate" || !args.research_complete || args.candidate_address || args.fit_decision) throw new Error("Post-deliverable S01 recovery requires completed no-candidate corroboration");
+      if(!previous || previous.exclusion_review || previous.address_corroboration?.status==="incomplete" ||
+          previous.source_report_key!==args.intervening_deliverable_report_key || row.report_key!==args.intervening_deliverable_report_key ||
+          previous.centering_status!=="failed" || previous.evidence?.exact_top20_count!==0) {
+        throw new Error("Post-deliverable S01 recovery must begin from the exact current failed zero-visibility deliverable decision");
+      }
+      const scans=state.batches.flatMap(batch=>batch.scans).filter(scan=>scan.plan.place_id===args.place_id);
+      const intervening=scans.find(scan=>scan.report_key===args.intervening_deliverable_report_key);
+      if(!intervening || scans.at(-1)!==intervening || intervening.submission_status!=="submitted" || !intervening.completion_verified ||
+          intervening.plan.scan_role!=="deliverable") throw new Error("The exact intervening deliverable must be the terminal completed scan with no later claim");
+      const [master,deliverable]=await Promise.all([
+        getSabRankedCells(args.report_key,[args.place_id]),
+        getSabRankedCells(args.intervening_deliverable_report_key,[args.place_id]),
+      ]);
+      assertExactReport(master,args.report_key,args.place_id,"master");
+      assertReportPlan(deliverable,intervening.plan);
+      const deliverableHash=evidenceHash(deliverable);
+      if(previous.evidence_hash!==deliverableHash) throw new Error("No later evidence may supersede the exact intervening deliverable");
+      const deliverableCells=deliverable.businesses[0].all_point_rank_cells ?? deliverable.businesses[0].ranked_cells;
+      const deliverableTop20=deliverableCells.filter(cell=>Number.isInteger(cell.rank) && cell.rank>=1 && cell.rank<=20).length;
+      if(deliverableCells.length!==deliverable.grid.point_count || deliverableTop20!==0) throw new Error("Post-deliverable S01 recovery requires a complete exact zero-top20 deliverable");
+      const masterHash=evidenceHash(master);
+      const corroboration=sabAddressCorroborationSchema.parse({source_report_key:args.report_key,evidence_hash:masterHash,status:"no_candidate",
+        research_complete:true,evidence_references:args.evidence_references,source_type:args.source_type,identity_method:args.identity_method,fit_rationale:args.fit_rationale});
+      const decision=analyzeSabScanPolicy({stage:"master",cells:master.businesses[0].all_point_rank_cells ?? master.businesses[0].ranked_cells,
+        grid:master.grid,rawArp:master.arp,atrp:master.atrp,solv:master.solv,routineRecenterCount:scans.filter(scan=>scan.plan.scan_type==="recenter").length,
+        testingPolicyActive:state.testing_mode,addressCorroboration:corroboration});
+      if(decision.action!=="plan_deliverable" || decision.center_source!=="master_centroid" || !decision.proposed_center ||
+          (decision.evidence.master as {baseline_centroid_trustworthy?:boolean}|undefined)?.baseline_centroid_trustworthy!==true) {
+        throw new Error("The exact master report no longer supports a trustworthy S01 centroid plan");
+      }
+      const center=centerText(decision.proposed_center);
+      const recovery={status:"verified",master_report_key:args.report_key,master_evidence_hash:masterHash,
+        intervening_deliverable_report_key:args.intervening_deliverable_report_key,deliverable_evidence_hash:deliverableHash,
+        deliverable_exact_top20_count:deliverableTop20,master_centroid_trustworthy:true,completed_corroboration:"no_candidate"};
+      const next:DecisionState={source_report_key:args.report_key,rule_id:decision.rule_ids.join(","),evidence_hash:masterHash,
+        centering_status:"planned",routine_recenter_count:scans.filter(scan=>scan.plan.scan_type==="recenter").length,
+        proposed_center:center,center_type:"weighted_cell_centroid",address_corroboration:corroboration,
+        evidence:{...decision.evidence,next_action:decision.action,reason:decision.reason,grid:master.grid,post_deliverable_s01_recovery:recovery}};
+      await repo.saveCompany(args.place_id,{decision_state:next,status:"in_progress",blocker:null},actorEmail,{postDeliverableS01RecoveryVerified:true});
+      return {report_key:master.report_key,report_url:reportUrl(master),place_id:args.place_id,
+        scan_specification:`${master.grid.size}×${master.grid.size}/${master.grid.radius} ${master.grid.measurement}`,
+        raw_arp:master.arp,all_point_atrp:master.atrp,solv:master.solv,...decision,evidence_hash:masterHash,
+        address_corroboration:corroboration,post_deliverable_s01_recovery:recovery,paid_scans_submitted:0};
+    }
     if(!previous || previous.source_report_key!==args.report_key || previous.exclusion_review) throw new Error("Corroboration must reference the current reconciled master decision without an exclusion hold");
     if(state.batches.some(batch=>batch.scans.some(scan=>scan.plan.place_id===args.place_id))) throw new Error("Address corroboration cannot replace an already authorized or submitted scan plan");
     if(args.result==="no_candidate" && (!args.research_complete || args.candidate_address || args.fit_decision)) throw new Error("No-candidate disposition requires completed research and no unevaluated candidate");

@@ -892,7 +892,7 @@ export class SabSheetsRepository {
     placeId: string,
     updates: SabCompanyUpdates,
     actorEmail: string,
-    options: {exclusionReviewApproved?: boolean; exclusionReviewDeclined?: boolean; exclusionDecisionContinued?: boolean; corroborationRecorded?: boolean; corroborationAnalysisVerified?: boolean; legacyHashCompatibilityVerified?: boolean} = {},
+    options: {exclusionReviewApproved?: boolean; exclusionReviewDeclined?: boolean; exclusionDecisionContinued?: boolean; corroborationRecorded?: boolean; corroborationAnalysisVerified?: boolean; legacyHashCompatibilityVerified?: boolean; postDeliverableS01RecoveryVerified?: boolean} = {},
   ) {
     const { headerIndex, rows } = await this.readTable();
     const match = rows.find(({ row }) => row.place_id === placeId);
@@ -921,7 +921,21 @@ export class SabSheetsRepository {
     const incompleteCandidateHold = priorCorroboration?.status === "incomplete";
     const corroborationHold = technicalHold || ["address_corroboration_required", "address_corroboration_incomplete"].includes(match.row.blocker) ||
       ["address_corroboration_required", "address_corroboration_incomplete"].includes(previousState?.evidence?.next_action);
-    if (options.corroborationRecorded) {
+    if (options.postDeliverableS01RecoveryVerified) {
+      const recovered = sabDecisionStateSchema.safeParse(nextDecision);
+      const audit = recovered.success ? recovered.data.evidence?.post_deliverable_s01_recovery as Record<string, unknown> | undefined : undefined;
+      if (!recovered.success || !recovered.data.address_corroboration || recovered.data.address_corroboration.status !== "no_candidate" ||
+          recovered.data.address_corroboration.research_complete !== true || recovered.data.centering_status !== "planned" ||
+          recovered.data.center_type !== "weighted_cell_centroid" || !recovered.data.proposed_center ||
+          recovered.data.evidence?.next_action !== "plan_deliverable" || audit?.status !== "verified" ||
+          audit.master_report_key !== recovered.data.source_report_key || audit.master_evidence_hash !== recovered.data.evidence_hash ||
+          audit.intervening_deliverable_report_key !== previousState?.source_report_key || audit.deliverable_evidence_hash !== previousState?.evidence_hash ||
+          audit.deliverable_exact_top20_count !== 0 || audit.master_centroid_trustworthy !== true || audit.completed_corroboration !== "no_candidate" ||
+          recovered.data.address_corroboration.source_report_key !== recovered.data.source_report_key ||
+          recovered.data.address_corroboration.evidence_hash !== recovered.data.evidence_hash || incompleteCandidateHold) {
+        throw new Error("Post-deliverable S01 recovery must preserve exact verified report evidence, completed no-candidate corroboration and a trustworthy master-centroid plan");
+      }
+    } else if (options.corroborationRecorded) {
       const recorded = sabDecisionStateSchema.safeParse(nextDecision);
       const verifiedLegacyMigration = options.legacyHashCompatibilityVerified &&
         previousState?.evidence_hash === priorCorroboration?.evidence_hash &&
