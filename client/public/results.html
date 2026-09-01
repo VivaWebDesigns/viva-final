@@ -27,10 +27,7 @@
     <link rel="manifest" href="/site.webmanifest?v=20260707-viva-favicon">
     <link rel="preload" as="image" href="/img/glass-door-pro-before.jpeg">
     <script>
-      var requestedResultsCase = new URLSearchParams(location.search).get("case");
-      document.documentElement.dataset.resultsCase = requestedResultsCase === "carolina-custom-automation" || location.pathname.indexOf("carolina-custom-automation") !== -1
-        ? "carolina-custom-automation"
-        : "glass-and-door-pro";
+      document.documentElement.dataset.resultsCase = "glass-and-door-pro";
     </script>
     <link rel="stylesheet" href="/css/site.css?v=20260901-client-results-selector">
     <script defer src="/js/site.js"></script>
@@ -74,7 +71,8 @@
     </header>
 
     <main id="main" class="results-case-study">
-      <section class="results-case-picker" aria-label="Featured client results">
+      <!-- Temporarily hidden until the Carolina Custom Automation case study is ready to publish. -->
+      <section class="results-case-picker" aria-label="Featured client results" hidden>
         <div class="container">
           <p class="results-case-picker-label">Choose a client case study</p>
           <nav class="results-case-picker-grid" aria-label="Client case studies">

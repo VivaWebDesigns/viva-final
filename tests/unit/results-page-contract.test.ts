@@ -10,9 +10,11 @@ const resultsHtml = fs.readFileSync(
 );
 
 describe("client results page", () => {
-  it("provides a dedicated URL and selector entry for each case study", () => {
+  it("preserves each case study while keeping the client selector unpublished", () => {
     expect(cleanPublicPageFiles["/results/glass-and-door-pro"]).toBe("results.html");
     expect(cleanPublicPageFiles["/results/carolina-custom-automation"]).toBe("results.html");
+    expect(resultsHtml).toContain('document.documentElement.dataset.resultsCase = "glass-and-door-pro"');
+    expect(resultsHtml).toContain('class="results-case-picker" aria-label="Featured client results" hidden');
     expect(resultsHtml).toContain('data-results-case-link="glass-and-door-pro"');
     expect(resultsHtml).toContain('data-results-case-link="carolina-custom-automation"');
     expect(resultsHtml).toContain('data-results-case-panel="glass-and-door-pro"');
