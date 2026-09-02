@@ -315,27 +315,6 @@ function LocalFalconSnapshotCard({
       toast({ title: "Could not send report", description: error.message, variant: "destructive" });
     },
   });
-  const sendCarolinaTestReport = useMutation({
-    mutationFn: async () => {
-      if (!data) throw new Error("The scan report is still loading.");
-      const response = await apiRequest(
-        "POST",
-        `/api/crm/leads/${encodeURIComponent(data.leadId)}/one-time-report-test`,
-        {},
-      );
-      return response.json();
-    },
-    onSuccess: (result) => {
-      toast({
-        title: result.duplicate ? "Test already queued" : "Test report queued",
-        description: "The one-time test is being sent to m.carney.og@gmail.com.",
-      });
-    },
-    onError: (error: Error) => {
-      toast({ title: "Could not send test report", description: error.message, variant: "destructive" });
-    },
-  });
-
   if (isLoading) return <Skeleton className="h-64 w-full" />;
   if (!data) return null;
 
@@ -453,19 +432,6 @@ function LocalFalconSnapshotCard({
                     ? <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" />
                     : <Mail className="mr-1.5 h-4 w-4" />}
                   Email report
-                </Button>
-              )}
-              {data.leadId === "73eec4df-4ae9-4357-8842-2c0125c76e54" && (
-                <Button
-                  variant="outline"
-                  onClick={() => sendCarolinaTestReport.mutate()}
-                  disabled={sendCarolinaTestReport.isPending}
-                  data-testid="button-send-carolina-test-report"
-                >
-                  {sendCarolinaTestReport.isPending
-                    ? <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" />
-                    : <Mail className="mr-1.5 h-4 w-4" />}
-                  {sendCarolinaTestReport.isPending ? "Queuing test…" : "Send one-time test"}
                 </Button>
               )}
               <Button onClick={copySnapshot}>

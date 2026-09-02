@@ -65,7 +65,6 @@ import * as storageService from "../../services/storage";
 import {
   DEFAULT_SCAN_REPORT_PREHEADER,
   getScanReportEmailPreview,
-  sendOneTimeScanReportTestEmail,
   sendScanReportEmail,
 } from "./scanReportEmail";
 
@@ -1080,41 +1079,6 @@ router.post("/leads/:id/email-scan-report", requireRole("admin", "developer", "s
       message: result.duplicate ? "This scan report email was already queued" : "Scan report email queued",
       ...result,
     });
-  } catch (error: any) {
-    res.status(error?.statusCode ?? 400).json({ message: error.message });
-  }
-});
-
-const CAROLINA_CUSTOM_AUTOMATION_TEST = {
-  leadId: "73eec4df-4ae9-4357-8842-2c0125c76e54",
-  reportId: "11e4499a-4e1a-4926-a612-5dc0547c99a2",
-  recipient: "m.carney.og@gmail.com",
-  requestId: "carolina-custom-automation-2026-09-02",
-} as const;
-
-router.post("/leads/:id/one-time-report-test", requireRole("admin"), async (req, res) => {
-  try {
-    const leadId = req.params.id as string;
-    if (leadId !== CAROLINA_CUSTOM_AUTOMATION_TEST.leadId) {
-      return res.status(404).json({ message: "One-time test is not available for this lead" });
-    }
-    const result = await sendOneTimeScanReportTestEmail({
-      ...CAROLINA_CUSTOM_AUTOMATION_TEST,
-      actorEmail: req.authUser!.email,
-    });
-    await logAudit({
-      userId: req.authUser!.id,
-      action: result.duplicate ? "scan_report_test_duplicate_ignored" : "scan_report_test_queued",
-      entity: "crm_lead",
-      entityId: leadId,
-      metadata: {
-        reportId: CAROLINA_CUSTOM_AUTOMATION_TEST.reportId,
-        recipient: CAROLINA_CUSTOM_AUTOMATION_TEST.recipient,
-        jobId: result.jobId,
-      },
-      ipAddress: req.ip,
-    });
-    res.status(202).json({ message: result.duplicate ? "Test already queued" : "Test email queued", ...result });
   } catch (error: any) {
     res.status(error?.statusCode ?? 400).json({ message: error.message });
   }
