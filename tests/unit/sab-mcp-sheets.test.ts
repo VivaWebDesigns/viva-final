@@ -1666,8 +1666,9 @@ class FakeRunStateSheetsClient extends FakeSheetsClient {
 
 const initialStoredRun = () => ({
   schema_version: 1 as const, version: 1, run_id: "run-1", orchestrator_id: "codex-orchestrator",
-  authorization_reference: "User approved this bounded run", testing_mode: true, testing_ended: null,
-  credit_limit: 200, committed_credits: 0, batches: [],
+  authorization_reference: "User approved this bounded run",
+  public_business_phone_search_authorization:null,sop_revision:null,
+  credit_limit: 200, committed_credits: 0, batches: [],terminal_deferrals:{},latest_manifest:null,
 });
 function runStorage() {
   const client = new FakeRunStateSheetsClient([Array.from(SAB_HEADERS)]);
@@ -1730,7 +1731,7 @@ describe("SAB durable run-state sheet storage", () => {
     const state = initialStoredRun();
     await repository.saveRunState(state, null, "actor@example.com");
     const written = client.updates.length;
-    await expect(repository.saveRunState({ ...state, version: 2, testing_mode: false }, null, "actor@example.com")).rejects.toThrow("Run state changed");
+    await expect(repository.saveRunState({ ...state, version: 2, committed_credits: 49 }, null, "actor@example.com")).rejects.toThrow("Run state changed");
     expect(client.updates).toHaveLength(written);
     await expect(repository.getRunState("run-1")).resolves.toEqual(state);
   });

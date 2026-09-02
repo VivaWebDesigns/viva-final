@@ -71,7 +71,7 @@ describe("SAB completed auxiliary outcomes", () => {
   });
   it("applies all three wide scout exclusion criteria only to 9x9/6mi", () => {
     const cells = field(() => 3, 9, 6).slice(0, 61);
-    expect(analyzeSabScanPolicy({ stage: "auxiliary", grid: grid(9, 6), cells, rawArp: 4, solv: 60 }).action).toBe("high_visibility_excluded");
+    expect(analyzeSabScanPolicy({ stage: "auxiliary", grid: grid(9, 6), cells, rawArp: 4, solv: 60 }).action).toBe("high_visibility_exclusion_pending_review");
     expect(analyzeSabScanPolicy({ stage: "auxiliary", grid: grid(9, 6), cells: cells.slice(0, 60), rawArp: 4, solv: 60 }).action).toBe("plan_deliverable");
     expect(analyzeSabScanPolicy({ stage: "auxiliary", grid: grid(9, 6), cells, rawArp: 4.01, solv: 60 }).action).toBe("plan_deliverable");
     expect(analyzeSabScanPolicy({ stage: "auxiliary", grid: grid(9, 6), cells, rawArp: 4, solv: 59.99 }).action).toBe("plan_deliverable");
@@ -179,33 +179,32 @@ describe("SAB coherent margin and saturation precedence", () => {
   it("still detects an actual best boundary peak", () => {
     expect(evaluateSabCoherentMargin([cell(4, 4, 2), cell(1, 4, 1)], 7).failed).toBe(true);
   });
-  it("enables the approved saturation definition only during testing, before any recenter", () => {
+  it("applies the saturation definition before any recenter", () => {
     const input = { stage: "deliverable" as const, grid: grid(), cells: field(() => 2) };
-    expect(analyzeSabScanPolicy(input).action).toBe("policy_review_required");
-    expect(analyzeSabScanPolicy({ ...input, testingPolicyActive: true })).toMatchObject({ action: "same_center_five_mile_comparison", proposed_center: grid().center });
+    expect(analyzeSabScanPolicy(input)).toMatchObject({ action: "same_center_five_mile_comparison", proposed_center: grid().center });
   });
   it("does not call all49 ranked weak pins saturation", () => {
-    const result = analyzeSabScanPolicy({ stage: "deliverable", grid: grid(), cells: field(() => 14), testingPolicyActive: true });
+    const result = analyzeSabScanPolicy({ stage: "deliverable", grid: grid(), cells: field(() => 14) });
     expect(result.evidence.saturation).toMatchObject({ candidate: false });
     expect(result.action).not.toBe("same_center_five_mile_comparison");
   });
   it("does not treat a populated grid with meaningful falloff as saturated", () => {
     const cells = field((r, c) => 2 * Math.max(Math.abs(r - 4), Math.abs(c - 4)) + 1);
-    const result = analyzeSabScanPolicy({ stage: "deliverable", grid: grid(), cells, testingPolicyActive: true });
+    const result = analyzeSabScanPolicy({ stage: "deliverable", grid: grid(), cells });
     expect(result.evidence.saturation).toMatchObject({ candidate: false, outer_median: 7, central_median: 3 });
     expect(result.action).toBe("center_validated");
   });
-  it("does not activate the five-mile testing definition outside testing", () => {
+  it("holds a qualifying five-mile exclusion for exact owner review", () => {
     const result = analyzeSabScanPolicy({ stage: "deliverable", grid: grid(7, 5), cells: field(() => 1, 7, 5), rawArp: 1, solv: 100 });
-    expect(result.action).toBe("policy_review_required");
-    expect(result.evidence.five_mile_exclusion_enabled).toBe(false);
+    expect(result.action).toBe("high_visibility_exclusion_pending_review");
+    expect(result.evidence.exclusion).toMatchObject({policy_active:true,requires_matt_review:true,final_disposition:false});
   });
 });
 
 describe("SAB strict canonical comparison", () => {
   it("classifies a non-excluded five-mile variation for comparison even when it has no pins or its best pin is on the boundary",()=>{
     for(const cells of [[],[cell(1,4,1,7,5),cell(4,4,9,7,5)]]) {
-      expect(analyzeSabScanPolicy({stage:"deliverable",grid:grid(7,5),cells,rawArp:6,solv:5,testingPolicyActive:true})).toMatchObject({action:"comparison_ready",rule_ids:["S08"],proposed_center:grid(7,5).center});
+      expect(analyzeSabScanPolicy({stage:"deliverable",grid:grid(7,5),cells,rawArp:6,solv:5})).toMatchObject({action:"comparison_ready",rule_ids:["S08"],proposed_center:grid(7,5).center});
     }
   });
   it.each([
@@ -219,16 +218,16 @@ describe("SAB strict canonical comparison", () => {
 });
 
 
-describe("SAB approved all-point testing saturation", () => {
+describe("SAB all-point saturation", () => {
   it.each([[45, true], [44, false]])("uses the exact 45-of-49 coverage boundary (%i)", (count, candidate) => {
-    const result = analyzeSabScanPolicy({ stage: "deliverable", grid: grid(), cells: field(() => 2).slice(0, count), testingPolicyActive: true });
+    const result = analyzeSabScanPolicy({ stage: "deliverable", grid: grid(), cells: field(() => 2).slice(0, count) });
     expect(result.evidence).toMatchObject({ exact_top20_count: count, all_point_count: 49, all_point_median_rank: 2, outer_ring_point_count: 24, central_3x3_point_count: 9, saturation: { candidate } });
     if (candidate) expect(result.action).toBe("same_center_five_mile_comparison");
     else expect(result.action).not.toBe("same_center_five_mile_comparison");
   });
   it("includes missing pins in all49 median rather than taking the median of45 ranked pins", () => {
     const cells = field(() => 4).slice(0, 45).map((point, index) => ({ ...point, rank: index < 24 ? 3 : 4 }));
-    const result = analyzeSabScanPolicy({ stage: "deliverable", grid: grid(), cells, testingPolicyActive: true });
+    const result = analyzeSabScanPolicy({ stage: "deliverable", grid: grid(), cells });
     expect(result.evidence).toMatchObject({ all_point_median_rank: 4, peak: { median_rank: 3 }, saturation: { candidate: false } });
   });
   it("includes the four unranked outer cells in the24-cell boundary median", () => {
@@ -237,7 +236,7 @@ describe("SAB approved all-point testing saturation", () => {
       if (r === 1 || c === 1 || r === 7 || c === 7) return outerIndex++ < 11 ? 3 : 7;
       return 1;
     }).filter(point => !(point.row === 7 && point.column >= 4));
-    const result = analyzeSabScanPolicy({ stage: "deliverable", grid: grid(), cells, testingPolicyActive: true });
+    const result = analyzeSabScanPolicy({ stage: "deliverable", grid: grid(), cells });
     expect(result.evidence).toMatchObject({ exact_top20_count: 45, all_point_median_rank: 1, outer_ring_median_rank: 7, central_3x3_median_rank: 1, saturation: { candidate: false } });
   });
   it("includes missing central cells and retains actual numeric ranks above20", () => {
@@ -248,57 +247,57 @@ describe("SAB approved all-point testing saturation", () => {
     expect(summarizeSabAllPointRanks(sparse, 7)).toMatchObject({ all_point_median_rank: 21, central_3x3_median_rank: 7, outer_ring_median_rank: 21, unranked_median_sentinel: 21 });
   });
   it.each([[3, true], [4, false]])("uses a maximum all-point median of3 (%i)", (rank, candidate) => {
-    const result = analyzeSabScanPolicy({ stage: "deliverable", grid: grid(), cells: field(() => rank), testingPolicyActive: true });
+    const result = analyzeSabScanPolicy({ stage: "deliverable", grid: grid(), cells: field(() => rank) });
     expect(result.evidence.saturation).toMatchObject({ candidate });
   });
   it.each([[3, true], [4, false]])("requires boundary median no worse than central median+2 (%i)", (outerRank, candidate) => {
     const cells = field((r, c) => r === 1 || c === 1 || r === 7 || c === 7 ? outerRank : 1);
-    const result = analyzeSabScanPolicy({ stage: "deliverable", grid: grid(), cells, testingPolicyActive: true });
+    const result = analyzeSabScanPolicy({ stage: "deliverable", grid: grid(), cells });
     expect(result.evidence.saturation).toMatchObject({ candidate, central_median: 1, outer_median: outerRank });
   });
   it("does not allow a displaced dominant peak to pass saturation", () => {
     const cells = field((r, c) => r === 2 && c === 6 ? 1 : 5);
-    const result = analyzeSabScanPolicy({ stage: "deliverable", grid: grid(), cells, testingPolicyActive: true });
+    const result = analyzeSabScanPolicy({ stage: "deliverable", grid: grid(), cells });
     expect(result.evidence).toMatchObject({ displaced_dominant_peak: false, peak:{statistically_dominant_displaced_peak:true,neighborhood_support:{candidate_median_improves:false}}, unsupported_off_center_peak:true, saturation: { candidate: false } });
     expect(result.action).toBe("center_validated");
   });
 });
 
-describe("SAB provisional exact-specification testing exclusions", () => {
+describe("SAB provisional exact-specification exclusions", () => {
   it("returns a review proposal, full measured evidence and no validated center at the five-mile thresholds", () => {
-    const result = analyzeSabScanPolicy({ stage: "deliverable", grid: grid(7, 5), cells: field(() => 2, 7, 5).slice(0, 45), rawArp: 3, atrp: 9, solv: 75, testingPolicyActive: true });
+    const result = analyzeSabScanPolicy({ stage: "deliverable", grid: grid(7, 5), cells: field(() => 2, 7, 5).slice(0, 45), rawArp: 3, atrp: 9, solv: 75 });
     expect(result).toMatchObject({ action: "high_visibility_exclusion_pending_review", rule_ids: ["S09"], proposed_center: null, center_source: null });
     expect(result.evidence).toMatchObject({ exact_top20_count: 45, coverage: 45 / 49, all_point_median_rank: 2, outer_ring_median_rank: 2, central_3x3_median_rank: 2, raw_arp: 3, atrp: 9, solv: 75, displaced_dominant_peak: false, exclusion: { qualifies: true, final_disposition: false, requires_matt_review: true, centering_classification: "not_validated_by_exclusion" } });
   });
   it.each([
     { count: 44, rawArp: 3, solv: 75 }, { count: 45, rawArp: 3.01, solv: 75 }, { count: 45, rawArp: 3, solv: 74.99 },
   ])("requires all three conditions independently (%j)", values => {
-    const result = analyzeSabScanPolicy({ stage: "deliverable", grid: grid(7, 5), cells: field(() => 2, 7, 5).slice(0, values.count), rawArp: values.rawArp, solv: values.solv, testingPolicyActive: true });
+    const result = analyzeSabScanPolicy({ stage: "deliverable", grid: grid(7, 5), cells: field(() => 2, 7, 5).slice(0, values.count), rawArp: values.rawArp, solv: values.solv });
     expect(result.action).not.toBe("high_visibility_exclusion_pending_review");
     expect(result.evidence.exclusion).toMatchObject({ qualifies: false });
   });
   it("uses rawARP rather than ATRP for exclusion", () => {
-    const result = analyzeSabScanPolicy({ stage: "deliverable", grid: grid(7, 5), cells: field(() => 2, 7, 5), rawArp: 3.1, atrp: 1, solv: 100, testingPolicyActive: true });
+    const result = analyzeSabScanPolicy({ stage: "deliverable", grid: grid(7, 5), cells: field(() => 2, 7, 5), rawArp: 3.1, atrp: 1, solv: 100 });
     expect(result.action).toBe("comparison_ready");
     expect(result.evidence.exclusion).toMatchObject({ qualifies: false });
   });
   it("keeps a displaced dominant peak visible without adding a fourth exclusion condition or validating a center", () => {
-    const result = analyzeSabScanPolicy({ stage: "deliverable", grid: grid(7, 5), cells: field((r, c) => r === 2 && c === 6 ? 1 : 4, 7, 5), rawArp: 3, solv: 75, testingPolicyActive: true });
+    const result = analyzeSabScanPolicy({ stage: "deliverable", grid: grid(7, 5), cells: field((r, c) => r === 2 && c === 6 ? 1 : 4, 7, 5), rawArp: 3, solv: 75 });
     expect(result).toMatchObject({ action: "high_visibility_exclusion_pending_review", proposed_center: null, center_source: null });
     expect(result.evidence).toMatchObject({ displaced_dominant_peak: false, peak:{statistically_dominant_displaced_peak:true,neighborhood_support:{candidate_median_improves:false}}, saturation: { candidate: false }, exclusion: { qualifies: true, final_disposition: false, centering_classification: "not_validated_by_exclusion" } });
     expect(result.reason).toContain("high-visibility thresholds");
   });
-  it("also keeps the existing9x9/6mi exclusion provisional throughout testing", () => {
-    const result = analyzeSabScanPolicy({ stage: "auxiliary", grid: grid(9, 6), cells: field(() => 3, 9, 6).slice(0, 61), rawArp: 4, solv: 60, testingPolicyActive: true });
+  it("also keeps the existing9x9/6mi exclusion provisional", () => {
+    const result = analyzeSabScanPolicy({ stage: "auxiliary", grid: grid(9, 6), cells: field(() => 3, 9, 6).slice(0, 61), rawArp: 4, solv: 60 });
     expect(result).toMatchObject({ action: "high_visibility_exclusion_pending_review", rule_ids: ["S02"], proposed_center: null, center_source: null, evidence: { all_point_count: 81, outer_ring_point_count: 32, central_3x3_point_count: 9, exclusion: { final_disposition: false, requires_matt_review: true } } });
   });
   it.each([{ size: 7, radius: 3 }, { size: 9, radius: 5 }, { size: 9, radius: 6 }])("does not use the five-mile threshold on another deliverable specification (%j)", spec => {
-    const result = analyzeSabScanPolicy({ stage: "deliverable", grid: grid(spec.size, spec.radius), cells: field(() => 2, spec.size, spec.radius), rawArp: 3, solv: 75, testingPolicyActive: true });
+    const result = analyzeSabScanPolicy({ stage: "deliverable", grid: grid(spec.size, spec.radius), cells: field(() => 2, spec.size, spec.radius), rawArp: 3, solv: 75 });
     expect(result.action).not.toBe("high_visibility_exclusion_pending_review");
     expect(result.evidence.exclusion).toMatchObject({ specification_matches: false });
   });
   it("requires measured exclusion metrics when coverage can qualify", () => {
-    const result = analyzeSabScanPolicy({ stage: "deliverable", grid: grid(7, 5), cells: field(() => 2, 7, 5), testingPolicyActive: true });
+    const result = analyzeSabScanPolicy({ stage: "deliverable", grid: grid(7, 5), cells: field(() => 2, 7, 5) });
     expect(result.action).toBe("evidence_review_required");
     expect(result.evidence.exclusion).toMatchObject({ valid_metrics: false });
   });

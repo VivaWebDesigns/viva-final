@@ -34,10 +34,8 @@ export type SabRunBatch = {
   authorization_id: string;
   plan_digest: string;
   authorization_reference: string;
-  status: "authorized" | "awaiting_completion" | "awaiting_review" | "completed" | "blocked";
+  status: "authorized" | "awaiting_completion" | "completed" | "blocked";
   scans: SabRunScan[];
-  review: (SabMattApproval & { reviewed_batch_id: string; approved_plan_digest: string }) | null;
-  initial_approval: (SabMattApproval & { approved_plan_digest: string }) | null;
   exception: (SabMattApproval & { reason: string }) | null;
   /** Required by new guarded authorizations; optional to read legacy receipts. */
   duplicate_report_checks?: Array<{
@@ -58,8 +56,6 @@ export type SabRunState = {
   public_business_phone_search_authorization?: (SabMattApproval & {
     scope: "verified_public_business_phone_exact_search_only";
   }) | null;
-  testing_mode: boolean;
-  testing_ended: SabMattApproval | null;
   /** Current governing SOP revision. Compare Drive metadata to this pin and
    * reread the document only when the revision changes. */
   sop_revision?: {
@@ -189,7 +185,38 @@ export function createSabRunState(input: {
       pinned_at: new Date().toISOString(),
     } : null,
     credit_limit: input.credit_limit, committed_credits: 0,
-    testing_mode: true, testing_ended: null, batches: [], terminal_deferrals: {}, latest_manifest: null,
+    batches: [], terminal_deferrals: {}, latest_manifest: null,
+  };
+}
+
+/** Retain only the current run-state contract when reading older persisted
+ * objects. Unknown top-level and batch fields are discarded, and unknown
+ * nonblocking batch statuses normalize to completed.
+ */
+export function normalizeSabRunState(input: unknown): SabRunState {
+  const source = structuredClone(input) as SabRunState;
+  const statuses = new Set<SabRunBatch["status"]>(["authorized", "awaiting_completion", "completed", "blocked"]);
+  return {
+    schema_version: source.schema_version,
+    version: source.version,
+    run_id: source.run_id,
+    orchestrator_id: source.orchestrator_id,
+    authorization_reference: source.authorization_reference,
+    public_business_phone_search_authorization: source.public_business_phone_search_authorization ?? null,
+    sop_revision: source.sop_revision ?? null,
+    credit_limit: source.credit_limit,
+    committed_credits: source.committed_credits,
+    batches: (source.batches ?? []).map(batch => ({
+      authorization_id: batch.authorization_id,
+      plan_digest: batch.plan_digest,
+      authorization_reference: batch.authorization_reference,
+      status: statuses.has(batch.status) ? batch.status : "completed",
+      scans: batch.scans,
+      exception: batch.exception ?? null,
+      ...(batch.duplicate_report_checks ? {duplicate_report_checks:batch.duplicate_report_checks} : {}),
+    })),
+    terminal_deferrals: source.terminal_deferrals ?? {},
+    latest_manifest: source.latest_manifest ?? null,
   };
 }
 
@@ -232,8 +259,6 @@ export function authorizeSabScanBatch(state: SabRunState, input: {
   orchestrator_id: string;
   authorization_reference: string;
   scans: SabScanPlan[];
-  matt_initial_approval?: SabMattApproval;
-  matt_review?: SabMattApproval & { reviewed_batch_id: string };
   exception?: SabMattApproval & { reason: string };
 }): SabRunState {
   if (input.orchestrator_id !== state.orchestrator_id) throw new Error("Only this run's Codex orchestrator may authorize its scan plan.");
@@ -241,24 +266,16 @@ export function authorizeSabScanBatch(state: SabRunState, input: {
   if (state.batches.some((batch) => batch.authorization_id === authorizationId)) throw new Error("Batch authorization IDs cannot be reused or edited.");
   if (!input.scans.length) throw new Error("An exact nonempty scan plan is required.");
   const previous = state.batches.at(-1);
-  if (previous && !["awaiting_review", "completed"].includes(previous.status)) {
+  if (previous && previous.status !== "completed") {
     throw new Error("The preceding scan batch must finish and be verified before another batch can be authorized.");
   }
   const plans = input.scans.map(normalizeSabScanPlan);
+  if (plans.length > 15) throw new Error("A paid execution batch may contain at most 15 scans.");
   const fingerprints = plans.map(sabScanPlanFingerprint);
   if (new Set(fingerprints).size !== fingerprints.length || new Set(plans.map((scan) => scan.place_id)).size !== plans.length) {
     throw new Error("Authorize at most one exact scan per Place ID in a batch; no duplicate plans.");
   }
   const planDigest = createHash("sha256").update(JSON.stringify([...fingerprints].sort())).digest("hex");
-  let review: SabRunBatch["review"] = null;
-  const initialApproval = !previous && state.testing_mode
-    ? { ...approval(input.matt_initial_approval), approved_plan_digest: planDigest }
-    : null;
-  if (previous && state.testing_mode) {
-    const approved = approval(input.matt_review);
-    if (input.matt_review?.reviewed_batch_id !== previous.authorization_id) throw new Error("Matt's review must identify the immediately completed batch.");
-    review = { ...approved, reviewed_batch_id: previous.authorization_id, approved_plan_digest: planDigest };
-  }
   const previousPlans = state.batches.flatMap((batch) => batch.scans.map((scan) => scan.plan));
   const requiresException = plans.some((plan) => {
     const priorLeadPlans = previousPlans.filter((prior) => prior.place_id === plan.place_id);
@@ -296,7 +313,7 @@ export function authorizeSabScanBatch(state: SabRunState, input: {
   next.batches.push({
     authorization_id: authorizationId, plan_digest: planDigest,
     authorization_reference: required(input.authorization_reference, "Batch authorization reference"),
-    status: "authorized", review, initial_approval: initialApproval, exception,
+    status: "authorized", exception,
     scans: plans.map((plan, index) => ({
       fingerprint: fingerprints[index], plan, idempotency_key: null,
       submission_status: "planned", report_key: null, completion_verified: false,
@@ -309,7 +326,7 @@ export function authorizeSabScanBatch(state: SabRunState, input: {
 export function claimSabRunScan(state: SabRunState, authorizationId: string, plan: SabScanPlan, key: string): SabRunState {
   const current = state.batches.at(-1);
   if (!current || current.authorization_id !== authorizationId || current.status !== "authorized") {
-    throw new Error("No active stored batch authorization; testing review or batch completion may be pending.");
+    throw new Error("No active stored batch authorization; batch completion or reconciliation may be pending.");
   }
   const fingerprint = sabScanPlanFingerprint(plan);
   const scan = current.scans.find((candidate) => candidate.fingerprint === fingerprint);
@@ -370,7 +387,7 @@ export function reconcileSabAmbiguousSubmission(state: SabRunState, input: {
 export function completeSabRunReports(state: SabRunState, completedReportKeys: string[]): SabRunState {
   const next = structuredClone(state);
   const batch = next.batches.at(-1);
-  if (!batch || !["authorized", "awaiting_completion", "awaiting_review", "completed"].includes(batch.status)) throw new Error("No unblocked batch is available for completion verification.");
+  if (!batch || !["authorized", "awaiting_completion", "completed"].includes(batch.status)) throw new Error("No unblocked batch is available for completion verification.");
   if (!completedReportKeys.length) throw new Error("Verified completed report keys are required.");
   for (const key of completedReportKeys) {
     const scan = batch.scans.find((candidate) => candidate.report_key === key && candidate.submission_status === "submitted");
@@ -378,15 +395,6 @@ export function completeSabRunReports(state: SabRunState, completedReportKeys: s
     scan.completion_verified = true;
   }
   next.version++;
-  if (batch.scans.every((scan) => scan.completion_verified)) batch.status = state.testing_mode ? "awaiting_review" : "completed";
-  return next;
-}
-
-export function endSabTestingMode(state: SabRunState, approved: SabMattApproval): SabRunState {
-  const next = structuredClone(state);
-  next.testing_ended = approval(approved);
-  next.testing_mode = false;
-  next.version++;
-  if (next.batches.at(-1)?.status === "awaiting_review") next.batches.at(-1)!.status = "completed";
+  if (batch.scans.every((scan) => scan.completion_verified)) batch.status = "completed";
   return next;
 }

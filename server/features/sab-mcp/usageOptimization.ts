@@ -102,6 +102,6 @@ export function auditSabContactRows(rows: PublicSabRow[], runState: SabRunState)
 export function isNormalModeException(action: unknown) {
   return typeof action === "string" && (
     action.includes("required") || action.includes("pending_review") ||
-    action === "evidence_review_required" || action === "policy_review_required"
+    action === "evidence_review_required"
   );
 }

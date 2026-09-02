@@ -362,14 +362,14 @@ export function createSabMcpServer(
     "save_sab_scan_result",
     sabTool({
       description:
-        "Save one completed Local Falcon scan result by exact Place ID. Require only scan role, ARP, SoLV, report key, report URL, scan date, and scan keyword. Supply scan center, center type, scan type, and found-in only when already available. Deliverable scans update the current scan columns, while every deliverable or auxiliary scan is retained automatically in append-safe scan history. Outside testing mode, continue routine deterministic work without a narrative checkpoint.",
+        "Save one completed Local Falcon scan result by exact Place ID. Require only scan role, ARP, SoLV, report key, report URL, scan date, and scan keyword. Supply scan center, center type, scan type, and found-in only when already available. Deliverable scans update the current scan columns, while every deliverable or auxiliary scan is retained automatically in append-safe scan history. Continue routine deterministic work without a narrative checkpoint.",
       inputSchema: saveSabScanResultInputSchema,
     }),
     async ({ workflow_sheet, sheet_name, place_id, scan_result }) => {
       const repository = repositoryFactory(workflow_sheet, sheet_name);
       return workflowWriteReceipt(
         await repository.saveScanResult(place_id, scan_result, actorEmail),
-        "analyze_completed_report; use_run_testing_mode_to_decide_whether_human_review_is_required",
+        "analyze_completed_report; continue_autonomously_unless_a_genuine_exception_requires_review",
       );
     },
   );
@@ -409,7 +409,7 @@ export function createSabMcpServer(
     "run_sab_scan_once",
     sabTool({
       description:
-        "Execute exactly one run-state-authorized Local Falcon scan owned by the single Codex orchestrator through the Viva connector's guarded path. Requires an exact approved batch in run_id, enforces testing pauses and credit limits, and creates a durable idempotency reservation before any paid call, optionally saves the exact Place ID, submits exactly once with no automatic retry, verifies the complete echoed scan envelope, and immediately records the report key. An exact preparing_location claim with no submit_started_at resumes automatically under its existing authorization, idempotency key, envelope, and credit reservation. A lost, mismatched, or post-start response remains an ambiguous durable stop; recovering a submitting claim requires explicit Matt approval and a fresh exact-envelope history check showing no matching report. All other repeated calls remain read-only receipts.",
+        "Execute exactly one run-state-authorized Local Falcon scan owned by the single Codex orchestrator through the Viva connector's guarded path. Requires an exact authorized batch of at most 15 scans, enforces credit limits, and creates a durable idempotency reservation before any paid call, optionally saves the exact Place ID, submits exactly once with no automatic retry, verifies the complete echoed scan envelope, and immediately records the report key. An exact preparing_location claim with no submit_started_at resumes automatically under its existing authorization, idempotency key, envelope, and credit reservation. A lost, mismatched, or post-start response remains an ambiguous durable stop; recovering a submitting claim requires explicit Matt approval and a fresh exact-envelope history check showing no matching report. All other repeated calls remain read-only receipts.",
       inputSchema: runSabScanOnceInputSchema,
     }),
     async ({ workflow_sheet, sheet_name, ...input }) => {
@@ -420,7 +420,7 @@ export function createSabMcpServer(
         result,
         ["ambiguous_response", "location_unverified"].includes(status)
           ? "stop; reconcile_ambiguous_submission_and_run_claim_without_resubmitting"
-          : "finish_only_this_exact_authorized_batch; review_only_if_run_testing_mode_or_a_genuine_exception_requires_it",
+          : "finish_only_this_exact_authorized_batch; review_only_if_a_genuine_exception_requires_it",
       );
     },
   );

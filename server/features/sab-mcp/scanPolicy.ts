@@ -18,7 +18,6 @@ export type SabScanPolicyInput = {
   solv?: number | null;
   routineRecenterCount?: number;
   additionalRecenterApproved?: boolean;
-  testingPolicyActive?: boolean;
   addressCorroboration?: SabAddressCorroboration;
 };
 export type SabScanDecision = {
@@ -26,7 +25,7 @@ export type SabScanDecision = {
   action: "plan_deliverable" | "plan_auxiliary" | "no_visibility_core_found" |
     "high_visibility_excluded" | "high_visibility_exclusion_pending_review" | "same_center_five_mile_comparison" |
     "recenter" | "additional_recenter_exception_required" | "center_validated" |
-    "policy_review_required" | "evidence_review_required" | "comparison_ready" |
+    "evidence_review_required" | "comparison_ready" |
     "address_corroboration_required" | "address_corroboration_incomplete";
   reason: string;
   proposed_center: SabCoordinate | null;
@@ -35,9 +34,7 @@ export type SabScanDecision = {
   evidence: Record<string, unknown>;
 };
 
-// Approved for the monitored testing period only. The caller must derive
-// testingPolicyActive from authoritative run state, never notes or a default.
-export const SAB_TESTING_SATURATION_POLICY = Object.freeze({
+export const SAB_SATURATION_POLICY = Object.freeze({
   grid_size: 7,
   point_count: 49,
   minimum_exact_top20_count: 45,
@@ -46,11 +43,10 @@ export const SAB_TESTING_SATURATION_POLICY = Object.freeze({
   unranked_median_sentinel: 21,
   forbid_displaced_dominant_peak: true,
   forbid_supported_off_center_peak: true,
-  testing_only: true,
 });
 export const SAB_FIVE_MILE_EXCLUSION_POLICY = Object.freeze({
   grid_size: 7, radius_miles: 5, minimum_exact_top20_count: 45,
-  maximum_raw_arp: 3, minimum_solv: 75, testing_only: true,
+  maximum_raw_arp: 3, minimum_solv: 75,
 });
 export const SAB_WIDE_SCOUT_EXCLUSION_POLICY = Object.freeze({
   grid_size: 9, radius_miles: 6, minimum_coverage: 0.75, maximum_raw_arp: 4, minimum_solv: 60,
@@ -368,7 +364,6 @@ export function analyzeSabScanPolicy(input: SabScanPolicyInput): SabScanDecision
   const mileGrid = ["mi", "mile", "miles"].includes(grid.measurement.toLowerCase());
   const peak = selectSabPeakTarget(input.cells, grid);
   const allPointRanks = summarizeSabAllPointRanks(input.cells, grid.size);
-  const testingPolicyActive = input.testingPolicyActive === true;
   const validExclusionMetrics = typeof input.rawArp === "number" && Number.isFinite(input.rawArp) && input.rawArp >= 1 &&
     typeof input.solv === "number" && Number.isFinite(input.solv) && input.solv >= 0 && input.solv <= 100;
   const wideScoutSpec = input.stage === "auxiliary" && mileGrid && grid.size === 9 && grid.radius === 6;
@@ -377,7 +372,6 @@ export function analyzeSabScanPolicy(input: SabScanPolicyInput): SabScanDecision
   const exclusionCoverage = wideScoutSpec ? cells.length / grid.point_count >= 0.75 : fiveMileSpec && cells.length >= 45;
   const exclusionQualifies = exclusionSpec && exclusionCoverage && validExclusionMetrics &&
     input.rawArp! <= (wideScoutSpec ? 4 : 3) && input.solv! >= (wideScoutSpec ? 60 : 75);
-  const exclusionEnabled = wideScoutSpec || (fiveMileSpec && testingPolicyActive);
   const saturationCandidate = grid.size === 7 && cells.length >= 45 && allPointRanks.all_point_median_rank !== null && allPointRanks.all_point_median_rank <= 3 &&
     allPointRanks.outer_ring_median_rank !== null && allPointRanks.central_3x3_median_rank !== null &&
     allPointRanks.outer_ring_median_rank <= allPointRanks.central_3x3_median_rank + 2 && !peak?.displaced_peak_has_centering_support;
@@ -385,13 +379,12 @@ export function analyzeSabScanPolicy(input: SabScanPolicyInput): SabScanDecision
     exact_top20_count: cells.length, point_count: grid.point_count, coverage: cells.length / grid.point_count,
     raw_arp: input.rawArp ?? null, atrp: input.atrp ?? null, solv: input.solv ?? null,
     ...allPointRanks, peak, displaced_dominant_peak: peak?.displaced_dominant_peak ?? false,
-    testing_policy_active: testingPolicyActive, five_mile_exclusion_enabled: testingPolicyActive,
-    saturation: { candidate: saturationCandidate, policy_active: testingPolicyActive, all_point_median: allPointRanks.all_point_median_rank,
-      outer_median: allPointRanks.outer_ring_median_rank, central_median: allPointRanks.central_3x3_median_rank, policy: SAB_TESTING_SATURATION_POLICY },
+    saturation: { candidate: saturationCandidate, policy_active: true, all_point_median: allPointRanks.all_point_median_rank,
+      outer_median: allPointRanks.outer_ring_median_rank, central_median: allPointRanks.central_3x3_median_rank, policy: SAB_SATURATION_POLICY },
     exclusion: { specification: wideScoutSpec ? "9x9_6mi" : fiveMileSpec ? "7x7_5mi" : null,
       specification_matches: exclusionSpec, coverage_qualifies: exclusionCoverage, valid_metrics: validExclusionMetrics,
-      qualifies: exclusionQualifies, policy_active: exclusionEnabled, final_disposition: exclusionQualifies && exclusionEnabled && !testingPolicyActive,
-      requires_matt_review: testingPolicyActive && exclusionQualifies,
+      qualifies: exclusionQualifies, policy_active: exclusionSpec, final_disposition: false,
+      requires_matt_review: exclusionQualifies,
       centering_classification: peak?.displaced_peak_has_centering_support ? "failed_supported_off_center_peak" : "not_validated_by_exclusion", },
   };
   const decision = (action: SabScanDecision["action"], rules: string[], reason: string, proposed_center: SabCoordinate | null = null, center_source: SabScanDecision["center_source"] = null): SabScanDecision => ({ action, rule_ids: rules, reason, proposed_center, center_source, evidence });
@@ -419,16 +412,14 @@ export function analyzeSabScanPolicy(input: SabScanPolicyInput): SabScanDecision
     if (master && master.cluster_count > 1) return decision("evidence_review_required", ["S01"], "If disconnected master-scan clusters do not match an existing deterministic route, hold the company for evidence review; do not invent a center or launch a scan.");
     return decision("evidence_review_required", ["S01"], "Master evidence is absent, unresolved, or has opposing-edge ambiguity; no arbitrary center is selected.");
   }
-  // Exclusion qualification is independent of centering. During testing it
-  // only creates a review proposal, with explicit displaced-peak evidence and
-  // no center validation, recenter authorization, or final disqualification.
-  if (exclusionEnabled && exclusionCoverage && !validExclusionMetrics) return decision("evidence_review_required", [wideScoutSpec ? "S02" : "S09"], "This scan can meet the exclusion; valid raw ARP and SoLV are required before deciding its next step.");
-  if (exclusionEnabled && exclusionQualifies) {
+  // Exclusion qualification is independent of centering and always creates a
+  // review proposal; it never validates a center or finalizes disposition.
+  if (exclusionSpec && exclusionCoverage && !validExclusionMetrics) return decision("evidence_review_required", [wideScoutSpec ? "S02" : "S09"], "This scan can meet the exclusion; valid raw ARP and SoLV are required before deciding its next step.");
+  if (exclusionQualifies) {
     const rule = wideScoutSpec ? "S02" : "S09";
-    if (testingPolicyActive) return decision("high_visibility_exclusion_pending_review", [rule], peak?.displaced_peak_has_centering_support
+    return decision("high_visibility_exclusion_pending_review", [rule], peak?.displaced_peak_has_centering_support
       ? "The scan meets its exact-specification exclusion thresholds, but has a supported off-center peak. Matt must review both findings; exclusion does not validate its center."
       : "The scan meets its exact-specification high-visibility thresholds. Hold for Matt's review; no exclusion or center validation is finalized.");
-    return decision("high_visibility_excluded", [rule], "The 9x9/6-mile scout meets all three established high-visibility criteria.");
   }
   if (input.stage === "auxiliary") {
     if (!cells.length) return decision("no_visibility_core_found", ["S03"], "A completed valid auxiliary has zero exact rank 1–20 pins; use the CRM-only market-reference path.");
@@ -437,14 +428,12 @@ export function analyzeSabScanPolicy(input: SabScanPolicyInput): SabScanDecision
   // A five-mile comparison never revalidates or recenters the accepted
   // three-mile center. The orchestrator separately verifies that prerequisite.
   if (fiveMileSpec) {
-    if (exclusionQualifies && !testingPolicyActive) return decision("policy_review_required", ["S09"], "The five-mile scan meets the exclusion definition approved for testing only; do not silently apply or discard that policy outside testing.");
     return decision("comparison_ready", ["S08"], "The same-center five-mile variation is ready for strict raw-ARP/SoLV canonical comparison. Preserve the three-mile center validation; this variation is not a centering test.", grid.center);
   }
   if (!cells.length) return decision("evidence_review_required", ["S05"], "A deliverable without exact top20 pins cannot establish a validated visibility center; reconcile with auxiliary evidence.");
   // S06 precedes S05/S07: saturation alone must not consume a recenter.
-  if (saturationCandidate && !testingPolicyActive) return decision("policy_review_required", ["S06"], "The scan meets the saturation definition approved for testing only; activation outside testing requires explicit policy approval.");
   if (saturationCandidate && mileGrid && grid.size === 7 && grid.radius === 3) return decision("same_center_five_mile_comparison", ["S06", "S08"], "At least 45 exact top20 pins, strong all-point median and limited outer falloff establish saturation without a supported off-center peak; compare 7x7/5mi at the same center.", grid.center);
-  if (saturationCandidate) return decision("center_validated", ["S06"], "The testing saturation definition is satisfied without a supported off-center peak; saturation alone does not require recentering.", grid.center);
+  if (saturationCandidate) return decision("center_validated", ["S06"], "The saturation definition is satisfied without a supported off-center peak; saturation alone does not require recentering.", grid.center);
   const margin = evaluateSabCoherentMargin(cells, grid.size);
   evidence.margin = margin;
   const unsupportedOffCenterPeak = peak!.displaced_peak && !peak!.displaced_peak_has_centering_support;

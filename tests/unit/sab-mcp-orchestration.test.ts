@@ -22,9 +22,7 @@ function initialize() {
   return createSabRunState({run_id:"run",orchestrator_id:"owner",authorization_reference:"run-approval",credit_limit:500});
 }
 function submitted(scan=plan,key=key3,state=initialize(),authorizationId="11111111-1111-4111-8111-111111111111") {
-  const previous=state.batches.at(-1);
-  const next=authorizeSabScanBatch(state,{authorization_id:authorizationId,orchestrator_id:"owner",authorization_reference:"plan",scans:[scan],
-    matt_initial_approval:approved,...(previous?{matt_review:{...approved,reviewed_batch_id:previous.authorization_id}}:{})});
+  const next=authorizeSabScanBatch(state,{authorization_id:authorizationId,orchestrator_id:"owner",authorization_reference:"plan",scans:[scan]});
   return recordSabRunSubmission(claimSabRunScan(next,authorizationId,scan,`${key}-idempotency`),`${key}-idempotency`,{submission_status:"submitted",report_key:key});
 }
 function report(key=key3,scan=plan,overrides:Record<string,unknown>={}) {
@@ -113,7 +111,7 @@ describe("SAB orchestration integration",()=>{
     expect(repo.saveScanResult).toHaveBeenCalledTimes(1);
   });
 
-  it("derives recenter counts and approved testing scope from the run, never caller flags",async()=>{
+  it("derives recenter counts and active saturation policy from authoritative evidence",async()=>{
     const recenter={...plan,scan_type:"recenter" as const};
     const repo=repository(submitted(recenter));
     const cells=Array.from({length:49},(_,i)=>({row:Math.floor(i/7)+1,column:i%7+1,latitude:35+(3-Math.floor(i/7))*.01,longitude:-80+((i%7)-3)*.01,rank:1}));
@@ -125,21 +123,20 @@ describe("SAB orchestration integration",()=>{
     expect(tools(repo).handlers.analyze_sab_scan.schema).not.toHaveProperty("saturation_policy_approved");
   });
 
-  it("reuses one provider read, persists the decision, verifies readback and then pauses for Matt",async()=>{
+  it("reuses one provider read, persists the decision, verifies readback and continues autonomously",async()=>{
     const repo=repository();vi.mocked(getSabRankedCells).mockResolvedValue(report() as never);
     const result=await tools(repo).invoke("review_sab_completed_batch",{});
     expect(getSabRankedCells).toHaveBeenCalledTimes(1);
-    expect(result).toMatchObject({testing_mode:true,stop_before_further_scans:true,matt_review_required:true});
-    expect(result.table[0]).toMatchObject({company:"Test lead",result:{classification:"center_validated",measured_values:{exact_top20_count:1,point_count:49,raw_arp:5,all_point_atrp:19,solv:10}},sop_rule:"S05, S09"});
-    expect((await repo.getRunState()).batches[0].status).toBe("awaiting_review");
+    expect(result).toMatchObject({stop_before_further_scans:false,matt_review_required:false});
+    expect(result.scan_results[0]).toMatchObject({company:"Test lead",result:{classification:"center_validated",measured_values:{exact_top20_count:1,point_count:49,raw_arp:5,all_point_atrp:19,solv:10}},sop_rule:"S05, S09"});
+    expect((await repo.getRunState()).batches[0].status).toBe("completed");
     expect(repo.saveCompany.mock.invocationCallOrder[0]).toBeLessThan(repo.saveRunState.mock.invocationCallOrder[0]);
   });
 
-  it("returns concise scan results and genuine exceptions without pausing after testing mode ends",async()=>{
-    const state=submitted();state.testing_mode=false;
-    const repo=repository(state);vi.mocked(getSabRankedCells).mockResolvedValue(report() as never);
+  it("returns concise scan results and genuine exceptions without a routine pause",async()=>{
+    const repo=repository(submitted());vi.mocked(getSabRankedCells).mockResolvedValue(report() as never);
     const response=await tools(repo).invoke("review_sab_completed_batch",{});
-    expect(response).toMatchObject({testing_mode:false,stop_before_further_scans:false,matt_review_required:false,
+    expect(response).toMatchObject({stop_before_further_scans:false,matt_review_required:false,
       batch_summary:{report_count:1,classification_counts:{center_validated:1},exception_count:0},exceptions:[],
       scan_results:[{company:"Test lead",report_url:`https://example.test/public/${key3}`,scan_specification:"7×7/3 mi",
         result:{classification:"center_validated"},proposed_next_step_and_reason:expect.any(String),sop_rule:"S05, S09"}],
@@ -286,34 +283,32 @@ describe("SAB orchestration integration",()=>{
     await expect(analyzeAndRecordSabReport(repo as never,{run_id:"run",report_key:key5,place_id:"place",stage:"deliverable"},"actor")).rejects.toThrow(/latest submitted/);
     expect(repo.saveCompany).not.toHaveBeenCalled();
   });
-  it("does not promote testing definitions to permanent policy through caller flags",async()=>{
-    const state=submitted();state.testing_mode=false;
-    const repo=repository(state);
+  it("applies the permanent saturation definition without caller flags",async()=>{
+    const repo=repository(submitted());
     const cells=Array.from({length:49},(_,i)=>({row:Math.floor(i/7)+1,column:i%7+1,latitude:35+(3-Math.floor(i/7))*.01,longitude:-80+((i%7)-3)*.01,rank:2}));
     vi.mocked(getSabRankedCells).mockResolvedValue(report(key3,plan,{businesses:[{place_id:"place",ranked_cells:cells}]}) as never);
-    const result=await analyzeAndRecordSabReport(repo as never,{run_id:"run",report_key:key3,place_id:"place",stage:"deliverable",testingPolicyActive:true} as never,"actor");
-    expect(result.action).toBe("policy_review_required");
-    expect(repo.saveScanResult.mock.calls[0][3]).toEqual({historyOnly:true});
+    const result=await analyzeAndRecordSabReport(repo as never,{run_id:"run",report_key:key3,place_id:"place",stage:"deliverable"},"actor");
+    expect(result.action).toBe("same_center_five_mile_comparison");
+    expect(repo.saveScanResult.mock.calls[0][3]).toEqual({historyOnly:false});
   });
 
-  it("shows 45/49 saturation and all-point medians in the checkpoint, keeping ARP and ATRP distinct",async()=>{
+  it("shows 45/49 saturation and all-point medians in the batch summary, keeping ARP and ATRP distinct",async()=>{
     const repo=repository();
     const all=Array.from({length:49},(_,i)=>({row:Math.floor(i/7)+1,column:i%7+1,latitude:35+(3-Math.floor(i/7))*.01,longitude:-80+((i%7)-3)*.01,rank:i<4?21:2}));
     vi.mocked(getSabRankedCells).mockResolvedValue(report(key3,plan,{arp:2,atrp:3.55,solv:80,businesses:[{place_id:"place",ranked_cells:all.filter(c=>c.rank<=20),all_point_rank_cells:all}]}) as never);
     const result=await tools(repo).invoke("review_sab_completed_batch",{});
-    expect(result.table[0]).toMatchObject({report_url:`https://example.test/public/${key3}`,scan_specification:"7×7/3 mi",
+    expect(result.scan_results[0]).toMatchObject({report_url:`https://example.test/public/${key3}`,scan_specification:"7×7/3 mi",
       result:{classification:"same_center_five_mile_comparison",measured_values:{exact_top20_count:45,point_count:49,raw_arp:2,all_point_atrp:3.55,solv:80}}});
-    expect(result.table[0].result.measured_values.saturation).toMatchObject({all_point_median:2,outer_median:2,central_median:2});
-    expect(result.stop_before_further_scans).toBe(true);
-    await expect(tools(repo).invoke("authorize_sab_scan_batch",{orchestrator_id:"owner",authorization_id:"22222222-2222-4222-8222-222222222222",authorization_reference:"next",scans:[{...plan,radius:5}]})).rejects.toThrow(/Matt approval/);
+    expect(result.scan_results[0].result.measured_values.saturation).toMatchObject({all_point_median:2,outer_median:2,central_median:2});
+    expect(result.stop_before_further_scans).toBe(false);
+    await expect(tools(repo).invoke("authorize_sab_scan_batch",{orchestrator_id:"owner",authorization_id:"22222222-2222-4222-8222-222222222222",authorization_reference:"next",scans:[{...plan,radius:5}]})).resolves.toMatchObject({scan_approved:true});
   });
 
-  it("permits one optional nonsaturated comparison with exact report-check evidence and preserves Matt's batch gate",async()=>{
+  it("permits one optional nonsaturated comparison with exact report-check evidence",async()=>{
     const repo=repository();vi.mocked(getSabRankedCells).mockResolvedValue(report() as never);
     await tools(repo).invoke("review_sab_completed_batch",{});
     const args={orchestrator_id:"owner",authorization_id:"22222222-2222-4222-8222-222222222222",authorization_reference:"comparison-plan",scans:[{...plan,radius:5}]};
-    await expect(tools(repo).invoke("authorize_sab_scan_batch",args)).rejects.toThrow(/Matt approval/);
-    await expect(tools(repo).invoke("authorize_sab_scan_batch",{...args,matt_review:{...approved,reviewed_batch_id:"11111111-1111-4111-8111-111111111111"}})).resolves.toMatchObject({scan_approved:true});
+    await expect(tools(repo).invoke("authorize_sab_scan_batch",args)).resolves.toMatchObject({scan_approved:true});
     expect((await repo.getRunState()).batches.at(-1)?.duplicate_report_checks?.[0]).toMatchObject({scan:{radius:5,center:plan.center},result:"none",evidence_reference:"verified-report-inventory"});
   });
 
@@ -365,7 +360,7 @@ describe("SAB orchestration integration",()=>{
     const five=report(key5,fivePlan,{arp:6,atrp:20,solv:5,businesses:[{place_id:"place",ranked_cells:cells}]});
     vi.mocked(getSabRankedCells).mockResolvedValue(five as never);
     const checkpoint=await tools(repo).invoke("review_sab_completed_batch",{});
-    expect(checkpoint.table[0].result.classification).toBe("comparison_ready");
+    expect(checkpoint.scan_results[0].result.classification).toBe("comparison_ready");
     const row=await repo.getCompany();
     expect(row.report_key).toBe(key3);
     expect(row.decision_state).toMatchObject({centering_status:"validated",routine_recenter_count:0,proposed_center:"35,-80",evidence:{centering_evaluated:false,center_validation:{report_key:key3}}});
@@ -392,7 +387,7 @@ describe("SAB orchestration integration",()=>{
     const cells=Array.from({length:49},(_,i)=>({row:Math.floor(i/7)+1,column:i%7+1,latitude:35+(3-Math.floor(i/7))*.01,longitude:-80+((i%7)-3)*.01,rank:2}));
     vi.mocked(getSabRankedCells).mockResolvedValue(report(key5,fivePlan,{arp:null,solv:80,businesses:[{place_id:"place",ranked_cells:cells}]}) as never);
     const result=await tools(repo).invoke("review_sab_completed_batch",{});
-    expect(result.table[0].result.classification).toBe("evidence_review_required");
+    expect(result.scan_results[0].result.classification).toBe("evidence_review_required");
     expect(await repo.getCompany()).toMatchObject({status:"blocked",blocker:"five_mile_comparison_review_required",report_key:key3,decision_state:{centering_status:"validated",proposed_center:"35,-80",center_type:"weighted_cell_centroid",evidence:{centering_evaluated:false,center_validation:{report_key:key3}}}});
     const writes=repo.saveScanResult.mock.calls.length;
     await expect(tools(repo).invoke("select_sab_canonical_report",{place_id:"place",three_mile_report_key:key3,five_mile_report_key:key5})).rejects.toThrow(/exclusion or evidence/);
@@ -642,8 +637,8 @@ describe("SAB orchestration integration",()=>{
     const args={orchestrator_id:"owner",place_id:"place",report_key:scanKey,evidence_hash:analyzed.evidence_hash,approval:approved};
     await expect(api.invoke("approve_sab_exclusion",args)).rejects.toThrow(/batch checkpoint/);
     const checkpoint=await api.invoke("review_sab_completed_batch",{});
-    expect(checkpoint.exclusion_approval_required).toBe(true);
-    expect(checkpoint.table[0].result).toMatchObject({classification:"high_visibility_exclusion_pending_review",measured_values:{raw_arp:3,all_point_atrp:7,solv:75}});
+    expect(checkpoint.exceptions).toHaveLength(1);
+    expect(checkpoint.scan_results[0].result).toMatchObject({classification:"high_visibility_exclusion_pending_review",measured_values:{raw_arp:3,all_point_atrp:7,solv:75}});
     if(radius===5) {
       const held=await repo.getCompany();
       expect(held).toMatchObject({report_key:key3,scan_center:"35,-80",center_type:"weighted_cell_centroid",decision_state:{centering_status:"validated",proposed_center:"35,-80",center_type:"weighted_cell_centroid",evidence:{centering_evaluated:false,center_validation:{report_key:key3}}}});
@@ -655,10 +650,10 @@ describe("SAB orchestration integration",()=>{
     await expect(api.invoke("approve_sab_exclusion",{...args,evidence_hash:"f".repeat(64)})).rejects.toThrow(/evidence hash/);
     await expect(api.invoke("approve_sab_exclusion",{...args,orchestrator_id:"worker"})).rejects.toThrow(/orchestrator/);
     await expect(api.invoke("approve_sab_exclusion",{...args,approval:{approved_by:"Worker",approval_reference:"not Matt"}})).rejects.toThrow();
-    expect(await api.invoke("approve_sab_exclusion",args)).toMatchObject({exclusion_finalized:true,paid_scans_submitted:0,next_batch_still_requires_approval:true});
+    expect(await api.invoke("approve_sab_exclusion",args)).toMatchObject({exclusion_finalized:true,paid_scans_submitted:0,continue_unaffected_work:true});
     expect(await repo.getCompany()).toMatchObject({qualification_status:"disqualified",status:"complete",qualification_reason:"existing_visibility_too_strong",decision_state:{exclusion_review:{status:"approved",approved_by:"Matt"}}});
     expect(repo.saveCompany.mock.calls.at(-1)?.[3]).toEqual({exclusionReviewApproved:true});
-    expect((await repo.getRunState()).batches.at(-1)?.status).toBe("awaiting_review");
+    expect((await repo.getRunState()).batches.at(-1)?.status).toBe("completed");
     const writes=repo.saveCompany.mock.calls.length;
     await expect(api.invoke("approve_sab_exclusion",args)).resolves.toMatchObject({already_approved:true});
     expect(repo.saveCompany.mock.calls).toHaveLength(writes);
@@ -676,9 +671,9 @@ describe("SAB orchestration integration",()=>{
     const cells=Array.from({length:scan.grid_size**2},(_,i)=>({row:Math.floor(i/scan.grid_size)+1,column:i%scan.grid_size+1,latitude:35+((scan.grid_size-1)/2-Math.floor(i/scan.grid_size))*.01,longitude:-80+((i%scan.grid_size)-(scan.grid_size-1)/2)*.01,rank:2}));
     const scanned=report(scanKey,scan,{arp:3,atrp:7,solv:75,businesses:[{place_id:"place",ranked_cells:cells}]});
     vi.mocked(getSabRankedCells).mockResolvedValue(scanned as never);
-    const api=tools(repo),checkpoint=await api.invoke("review_sab_completed_batch",{}),evidenceHash=checkpoint.table[0]&&((await repo.getCompany()).decision_state.evidence_hash);
+    const api=tools(repo),checkpoint=await api.invoke("review_sab_completed_batch",{}),evidenceHash=checkpoint.scan_results[0]&&((await repo.getCompany()).decision_state.evidence_hash);
     const declined=await api.invoke("decline_sab_exclusion",{orchestrator_id:"owner",place_id:"place",report_key:scanKey,evidence_hash:evidenceHash,decision:approved});
-    expect(declined).toMatchObject({exclusion_declined:true,paid_scans_submitted:0,next_batch_still_requires_approval:true,resumed_action:radius===5?"comparison_ready":"plan_deliverable"});
+    expect(declined).toMatchObject({exclusion_declined:true,paid_scans_submitted:0,continue_unaffected_work:true,resumed_action:radius===5?"comparison_ready":"plan_deliverable"});
     const row=await repo.getCompany();
     expect(row).toMatchObject({qualification_status:null,status:"in_progress",blocker:null,decision_state:{exclusion_review:{status:"declined",declined_by:"Matt"},centering_status:radius===5?"validated":"planned",evidence:{next_action:radius===5?"comparison_ready":"plan_deliverable"}}});
     expect(repo.saveCompany.mock.calls.at(-1)?.[3]).toEqual({exclusionReviewDeclined:true});

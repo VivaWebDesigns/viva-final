@@ -301,7 +301,7 @@ describe("guarded SAB scan submission", () => {
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
-  it("retains receipt access during the mandatory review pause without submitting again", async () => {
+  it("retains receipt access after batch completion without submitting again", async () => {
     const repo = repository();
     const fetchImpl = vi.fn().mockResolvedValue(exactResponse());
     await runSabScanOnce(input, repo as never, "actor", { apiKey: "test", fetchImpl });
@@ -310,7 +310,7 @@ describe("guarded SAB scan submission", () => {
     await expect(runSabScanOnce(input, repo as never, "actor", { apiKey: "test", fetchImpl }))
       .resolves.toMatchObject({ deduplicated: true, scans_executed: false });
     await expect(runSabScanOnce({ ...input, authorization_id: "new-batch" }, repo as never, "actor", { apiKey: "test", fetchImpl }))
-      .rejects.toThrow(/review/);
+      .rejects.toThrow(/authorization|completion|reconciliation/);
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 

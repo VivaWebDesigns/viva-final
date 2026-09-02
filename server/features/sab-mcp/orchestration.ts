@@ -7,7 +7,7 @@ import { getSabRankedCells } from "./localFalconRankedCells";
 import { analyzeSabScanPolicy, exactSabTop20Cells, sabRankedClusters, selectSabCanonicalScan } from "./scanPolicy";
 import { reverseGeocodeSabCenters } from "./reverseGeocode";
 import { buildSabRunManifest } from "./exportManifest";
-import { approveSabTerminalDeferral, createSabRunState, authorizeSabScanBatch, completeSabRunReports, endSabTestingMode, inSabRunStateQueue, pinSabSopRevision, recordSabManifest, reconcileSabAmbiguousSubmission, recordSabRunSubmission, sabScanPlanFingerprint, type SabRunState, type SabScanPlan } from "./runState";
+import { approveSabTerminalDeferral, createSabRunState, authorizeSabScanBatch, completeSabRunReports, inSabRunStateQueue, pinSabSopRevision, recordSabManifest, reconcileSabAmbiguousSubmission, recordSabRunSubmission, sabScanPlanFingerprint, type SabRunState, type SabScanPlan } from "./runState";
 import { SAB_CENTER_TYPES, runSabScanOnceInputSchema, type SabCompanyUpdates, type SabScanResult } from "./schema";
 import { corroborationAllowsAuxiliary, sabAddressCorroborationSchema, type SabAddressCorroboration } from "./addressCorroboration";
 import { evaluateSabAddressCandidate, evaluateSabCoordinatesAgainstCells } from "./addressCandidate";
@@ -210,14 +210,12 @@ export async function analyzeAndRecordSabReport(repository: SabSheetsRepository,
     assertReportPlan(report, ownedScan.plan);
   }
   const recenters = submitted.filter(scan => scan.plan.scan_type === "recenter").length;
-  // Matt approved these definitions for testing only. Structured run state,
-  // never a caller flag or research note, controls their scope.
   const hash = evidenceHash(report);
   const activeCorroboration = previous?.address_corroboration?.source_report_key === report.report_key && previous.address_corroboration.evidence_hash === hash
     ? previous.address_corroboration : undefined;
   const policyCorroboration = corroborationCorrection ? ({status:"rejected"} as SabAddressCorroboration) : activeCorroboration;
   const decision = analyzeSabScanPolicy({stage: input.stage, cells: report.businesses[0].all_point_rank_cells ?? report.businesses[0].ranked_cells, grid: report.grid,
-    rawArp: report.arp, atrp: report.atrp, solv: report.solv, routineRecenterCount: recenters, testingPolicyActive: state.testing_mode,addressCorroboration:policyCorroboration});
+    rawArp: report.arp, atrp: report.atrp, solv: report.solv, routineRecenterCount: recenters,addressCorroboration:policyCorroboration});
   if (corroborationCorrection && (decision.action !== "plan_auxiliary" || decision.center_source !== "master_edge_offset")) {
     throw new Error("Corrected corroboration did not restore the deterministic truncated-master auxiliary route");
   }
@@ -283,7 +281,7 @@ export async function analyzeAndRecordSabReport(repository: SabSheetsRepository,
         city: market.city, state: market.state, zip: market.zip, auxiliary_report_key: report.report_key, auxiliary_report_url: reportUrl(report)}});
   }
   if (pendingExclusion) Object.assign(updates, {status: "blocked", blocker: "high_visibility_exclusion_pending_matt_review"});
-  else if (isFiveMile && ["evidence_review_required","policy_review_required"].includes(decision.action)) Object.assign(updates,{status:"blocked",blocker:"five_mile_comparison_review_required"});
+  else if (isFiveMile && decision.action==="evidence_review_required") Object.assign(updates,{status:"blocked",blocker:"five_mile_comparison_review_required"});
   else if (isFiveMile && decision.action === "comparison_ready" && row.blocker === "five_mile_comparison_review_required") Object.assign(updates,{status:"in_progress",blocker:null});
   if (["address_corroboration_required", "address_corroboration_incomplete"].includes(decision.action)) Object.assign(updates,{status:"blocked",blocker:decision.action});
   else if (typeof row.blocker === "string" && ["address_corroboration_required", "address_corroboration_incomplete"].includes(row.blocker)) Object.assign(updates,{status:"in_progress",blocker:null});
@@ -306,7 +304,7 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
     const definition = {description,inputSchema,securitySchemes,_meta:{securitySchemes}};
     server.registerTool(name,definition,async args=>result(await handler(args)));
   }
-  add("initialize_sab_run","Initialize persistent single-orchestrator state with testing mode ON, an explicit authorized credit ceiling, a pinned governing SOP revision, and optional grouped authorization for exact-phone searches using verified publicly listed business numbers only. Read the SOP once before initialization; compare later Drive metadata to this pin and reread only if its revision changes. Never launches scans.",{
+  add("initialize_sab_run","Initialize persistent single-orchestrator state for autonomous operation with an explicit authorized credit ceiling, a pinned governing SOP revision, a hard maximum of 15 paid scans per execution batch, and optional grouped authorization for exact-phone searches using verified publicly listed business numbers only. Read the SOP once before initialization; compare later Drive metadata to this pin and reread only if its revision changes. Never launches scans.",{
     ...run,orchestrator_id:z.string().min(1),authorization_reference:z.string().min(1),credit_limit:z.number().int().positive(),
     sop_revision:z.object({document_id:z.string().trim().min(1),revision_id:z.string().trim().min(1),title:z.string().trim().min(1)}).strict(),
     public_business_phone_search_authorization:matt.optional(),
@@ -315,7 +313,7 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
     await repo.assertOneActiveRun(args.run_id);
     const state=createSabRunState(args);await repo.saveRunState(state,null,actorEmail);return state;
   }));
-  add("get_sab_run_state","Read authoritative run stages, exact authorizations, committed credits and testing review status. Notes are supporting history.",run,async args=>requireRun(factory(args.workflow_sheet,args.sheet_name),args.run_id));
+  add("get_sab_run_state","Read authoritative run stages, exact authorizations, committed credits and execution-batch status. Notes are supporting history.",run,async args=>requireRun(factory(args.workflow_sheet,args.sheet_name),args.run_id));
   add("pin_sab_sop_revision","Record the exact Google Drive SOP revision after the orchestrator has read it in full. Use for legacy runs without a pin or only after Drive metadata proves the revision changed and the new revision was reread. Performs no paid work.",{
     ...run,sop_revision:z.object({document_id:z.string().trim().min(1),revision_id:z.string().trim().min(1),title:z.string().trim().min(1)}).strict(),
   },async args=>inSabRunStateQueue(async()=>{
@@ -350,10 +348,10 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
       submission_status:"submitted",recovered_existing_claim:true,recovery_source:postProviderReservedClaim?"verified_post_provider_reserved_claim":"ambiguous_response",
       scans_submitted:0,credits_added:0,next_batch_status:next.batches.find(candidate=>candidate.authorization_id===args.authorization_id)?.status};
   }));
-  add("authorize_sab_scan_batch","Record the orchestrator's exact SOP-compliant batch plan. Testing requires Matt's initial approval or review of the completed previous batch, bound to this plan. Preserve exception and credit limits. This does not submit scans.",{
-    ...run,orchestrator_id:z.string().min(1),authorization_id:z.string().uuid(),authorization_reference:z.string().min(1),scans:z.array(plan).min(1).max(100),
-    matt_initial_approval:matt.optional(),matt_review:matt.extend({reviewed_batch_id:z.string().uuid()}).optional(),exception:matt.extend({reason:z.string().min(1)}).optional(),
-    duplicate_report_checks:z.array(z.object({scan:plan,result:z.literal("none"),evidence_reference:z.string().trim().min(1).max(2000),checked_at:z.string().datetime()}).strict()).min(1).max(100)
+  add("authorize_sab_scan_batch","Record the orchestrator's exact SOP-compliant execution batch. Enforces a hard maximum of 15 paid scans while preserving exception and credit limits. This does not submit scans.",{
+    ...run,orchestrator_id:z.string().min(1),authorization_id:z.string().uuid(),authorization_reference:z.string().min(1),scans:z.array(plan).min(1).max(15),
+    exception:matt.extend({reason:z.string().min(1)}).optional(),
+    duplicate_report_checks:z.array(z.object({scan:plan,result:z.literal("none"),evidence_reference:z.string().trim().min(1).max(2000),checked_at:z.string().datetime()}).strict()).min(1).max(15)
       .describe("Plan-bound evidence returned by preflight_sab_local_falcon_batch after an automated read-only search for equivalent pending/completed provider reports. One check is required per exact scan envelope; this remains separate from CRM deduplication."),
   },async args=>inSabRunStateQueue(async()=>{
     const repo=factory(args.workflow_sheet,args.sheet_name),state=await requireRun(repo,args.run_id);
@@ -457,7 +455,7 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
         research_complete:true,evidence_references:args.evidence_references,source_type:args.source_type,identity_method:args.identity_method,fit_rationale:args.fit_rationale});
       const decision=analyzeSabScanPolicy({stage:"master",cells:master.businesses[0].all_point_rank_cells ?? master.businesses[0].ranked_cells,
         grid:master.grid,rawArp:master.arp,atrp:master.atrp,solv:master.solv,routineRecenterCount:scans.filter(scan=>scan.plan.scan_type==="recenter").length,
-        testingPolicyActive:state.testing_mode,addressCorroboration:corroboration});
+        addressCorroboration:corroboration});
       if(decision.action!=="plan_deliverable" || decision.center_source!=="master_centroid" || !decision.proposed_center ||
           (decision.evidence.master as {baseline_centroid_trustworthy?:boolean}|undefined)?.baseline_centroid_trustworthy!==true) {
         throw new Error("The exact master report no longer supports a trustworthy S01 centroid plan");
@@ -546,7 +544,7 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
         !String(previous.rule_id).split(",").includes("S05")) throw new Error("Approval must match the current exact S04/S05 evidence-review report and hash");
     const policy=analyzeSabScanPolicy({stage:"deliverable",cells:report.businesses[0].all_point_rank_cells ?? report.businesses[0].ranked_cells,
       grid:report.grid,rawArp:report.arp,atrp:report.atrp,solv:report.solv,routineRecenterCount:companyScans.filter(scan=>scan.plan.scan_type==="recenter").length,
-      testingPolicyActive:state.testing_mode,addressCorroboration:previous.address_corroboration});
+      addressCorroboration:previous.address_corroboration});
     const peak=policy.evidence.peak as {movement_miles?:unknown;displaced_peak?:unknown;selected_peak?:{row?:unknown;column?:unknown}}|undefined;
     const middle=(report.grid.size+1)/2;
     if(policy.action!=="evidence_review_required" || !policy.rule_ids.includes("S05") ||
@@ -605,7 +603,7 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
       scan_specification:"7x7/3 mi",dominant_cluster_size:clusters[0].length,outlier_cluster_size:clusters[1].length,outlier_rank:clusters[1][0].rank,
       paid_scans_submitted:0,creates_general_policy:false};
   }));
-  add("review_sab_completed_batch","Verify every submitted report and persist structured decisions. In testing mode, return the required full checkpoint and stop. In normal mode, return one concise result row per completed scan plus genuine exceptions, then continue autonomously without requesting routine approval.",run,async args=>inSabRunStateQueue(async()=>{
+  add("review_sab_completed_batch","Verify every submitted report, persist structured decisions, return one concise result row per completed scan plus genuine exceptions, and continue autonomously without requesting routine approval.",run,async args=>inSabRunStateQueue(async()=>{
     const repo=factory(args.workflow_sheet,args.sheet_name),state=await requireRun(repo,args.run_id),batch=state.batches.at(-1);
     if(!batch) throw new Error("No submitted scan batch");
     const table:Array<Record<string,any>>=[];
@@ -634,13 +632,10 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
     const classification_counts=Object.fromEntries([...new Set(table.map(row=>row.result.classification))].sort().map(classification=>[
       classification,table.filter(row=>row.result.classification===classification).length,
     ]));
-    if(!next.testing_mode) return {testing_mode:false,stop_before_further_scans:false,matt_review_required:false,
+    return {stop_before_further_scans:false,matt_review_required:false,
       batch_summary:{report_count:table.length,classification_counts,exception_count:exceptions.length},scan_results:table,exceptions,
       routine_results_persisted:table.length-exceptions.length,full_histories_returned:false,continue_unaffected_work:true,
       next_action:exceptions.length?"resolve_listed_genuine_exceptions; continue_all_unaffected_work":"continue_autonomously"};
-    return {table,testing_mode:true,stop_before_further_scans:true,matt_review_required:true,
-      exclusion_approval_required:table.some(row=>row.result.classification === "high_visibility_exclusion_pending_review"),
-      review_instruction:"Wait for Matt before further scans or finalizing exclusions. If Matt disagrees, distinguish an agent execution error from a flawed general SOP rule. Never promote a case-specific ruling into policy."};
   }));
   add("approve_sab_exclusion","Finalize only Matt's explicitly approved exclusion from a completed batch checkpoint. Bind approval to exact Place ID, report and evidence hash; this never approves further scans or changes general policy.",{
     ...run,orchestrator_id:z.string().min(1),place_id:z.string().min(1),report_key:z.string().regex(/^[a-f0-9]{12,64}$/i),
@@ -662,7 +657,7 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
       qualification_reason:"existing_visibility_too_strong",status:"complete",blocker:null},actorEmail,{exclusionReviewApproved:true});
     const verified=decisionState(await repo.getCompany(args.place_id));
     if(verified?.exclusion_review?.status!=="approved" || verified.evidence_hash!==args.evidence_hash) throw new Error("Exclusion approval readback failed; reconcile before continuing");
-    return {place_id:args.place_id,report_key:args.report_key,exclusion_finalized:true,paid_scans_submitted:0,next_batch_still_requires_approval:state.testing_mode};
+    return {place_id:args.place_id,report_key:args.report_key,exclusion_finalized:true,paid_scans_submitted:0,continue_unaffected_work:true};
   }));
   add("decline_sab_exclusion","Record Matt's explicit decline of an exact pending S02 or S09 high-visibility proposal after its completed batch checkpoint. Resume only the deterministic follow-up already supported by that evidence; never submit a scan, invalidate a validated center or change general policy.",{
     ...run,orchestrator_id:z.string().min(1),place_id:z.string().min(1),report_key:z.string().regex(/^[a-f0-9]{12,64}$/i),
@@ -703,13 +698,7 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
     await repo.saveCompany(args.place_id,{decision_state:resumed,status:"in_progress",blocker:null},actorEmail,{exclusionReviewDeclined:true});
     const verified=decisionState(await repo.getCompany(args.place_id));
     if(verified?.exclusion_review?.status!=="declined" || verified.evidence_hash!==args.evidence_hash) throw new Error("Exclusion decline readback failed; reconcile before continuing");
-    return {place_id:args.place_id,report_key:args.report_key,exclusion_declined:true,resumed_action:resumed.evidence?.next_action,paid_scans_submitted:0,next_batch_still_requires_approval:state.testing_mode};
-  }));
-  add("end_sab_testing_mode","End testing review pauses only on Matt's explicit instruction. Run budgets, exact plans, exceptions and final CRM confirmation remain mandatory.",{
-    ...run,approval:matt,
-  },async args=>inSabRunStateQueue(async()=>{
-    const repo=factory(args.workflow_sheet,args.sheet_name),state=await requireRun(repo,args.run_id),next=endSabTestingMode(state,args.approval);
-    await repo.saveRunState(next,state.version,actorEmail);return next;
+    return {place_id:args.place_id,report_key:args.report_key,exclusion_declined:true,resumed_action:resumed.evidence?.next_action,paid_scans_submitted:0,continue_unaffected_work:true};
   }));
   add("audit_sab_contacts","Validate structured contact completion server-side for selected exact Place IDs or the full qualified population. Returns aggregate counts and only incomplete/conflicting records; it never replaces source inspection or returns full histories.",{
     ...run,place_ids:z.array(z.string().trim().min(1).max(500)).max(500).optional(),

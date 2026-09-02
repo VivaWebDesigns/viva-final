@@ -23,7 +23,7 @@ import {
   sabBusinessProfileIssues,
 } from "@shared/sabCrm";
 import type { VerifiedSabScanHistoryRepair } from "./scanHistoryReconciliation";
-import type { SabRunState } from "./runState";
+import { normalizeSabRunState, type SabRunState } from "./runState";
 
 const SHEETS_SCOPE = "https://www.googleapis.com/auth/spreadsheets";
 const DEFAULT_SHEET_NAME = "SAB Workflow";
@@ -586,7 +586,7 @@ export class SabSheetsRepository {
     const version = Math.max(...rows.map(row => Number(row[1])));
     const chunks = rows.filter(row => Number(row[1]) === version).sort((a,b) => Number(a[2])-Number(b[2]));
     if (chunks.some((row,index) => Number(row[2]) !== index)) throw new Error("Run-state chunks are incomplete; no paid submission permitted");
-    const state = JSON.parse(chunks.map(row => row[3]).join("")) as SabRunState;
+    const state = normalizeSabRunState(JSON.parse(chunks.map(row => row[3]).join("")));
     if (state.run_id !== runId || state.version !== version || state.schema_version !== 1) throw new Error("Run-state identity/version mismatch");
     return state;
   }
