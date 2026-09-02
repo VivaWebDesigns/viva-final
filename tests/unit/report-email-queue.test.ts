@@ -7,7 +7,7 @@ vi.mock("../../server/services/storage", () => ({
   getFileBuffer: vi.fn().mockResolvedValue({ buffer: Buffer.from("image") }),
   uploadPublishedReport: vi.fn().mockResolvedValue({ url: "https://reports.example.com/image.png" }),
 }));
-import { getScanReportEmailPreview, sendScanReportEmail } from "../../server/features/crm/scanReportEmail";
+import { getScanReportEmailPreview, sendOneTimeScanReportTestEmail, sendScanReportEmail } from "../../server/features/crm/scanReportEmail";
 
 function rows(values: unknown[]) {
   const q: any = { then: (resolve: any) => Promise.resolve(values).then(resolve) };
@@ -67,5 +67,22 @@ describe("two-email report queue", () => {
     expect(preview.message).toContain("Following up");
     expect(preview.message).toContain("same report");
     expect(preview.blockedReason).toBeNull();
+  });
+  it("queues an idempotent test without creating an outreach delivery", async () => {
+    mocks.select.mockReturnValueOnce(rows([record]))
+      .mockReturnValueOnce(rows([]))
+      .mockReturnValueOnce(rows([record]));
+    mocks.state.mockResolvedValue({ reportEmailCount: 3, reportOutreachDisposition: "active" });
+
+    const result = await sendOneTimeScanReportTestEmail({
+      leadId: "lead-1",
+      reportId: "report-1",
+      recipient: "owner@example.com",
+      requestId: "one-time-test",
+      actorEmail: "owner@vivawebdesigns.com",
+    });
+
+    expect(result.duplicate).toBe(false);
+    expect(mocks.insert.mock.calls.map(([table]) => getTableName(table))).toEqual(["workflow_jobs"]);
   });
 });

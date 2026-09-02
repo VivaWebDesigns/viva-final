@@ -50,6 +50,14 @@ interface SendScanReportInput {
   actorEmail: string;
 }
 
+interface SendOneTimeScanReportTestInput {
+  leadId: string;
+  reportId: string;
+  recipient: string;
+  requestId: string;
+  actorEmail: string;
+}
+
 function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")
@@ -273,4 +281,56 @@ export async function sendScanReportEmail(input: SendScanReportInput) {
     }).where(eq(crmLeadNotes.id, note.id));
     return { jobId: job.id, noteId: note.id, imageUrl, landingUrl, deliveryId: delivery.id, duplicate: false };
   });
+}
+
+export async function sendOneTimeScanReportTestEmail(input: SendOneTimeScanReportTestInput) {
+  const record = await loadReport(input.leadId, input.reportId);
+  const sourceId = `scan-report-test:${input.requestId}`;
+  const [existingJob] = await db.select({ id: workflowJobs.id })
+    .from(workflowJobs)
+    .where(and(eq(workflowJobs.type, "email_notification"), eq(workflowJobs.sourceId, sourceId)))
+    .limit(1);
+  if (existingJob) return { jobId: existingJob.id, duplicate: true };
+
+  const preview = await getScanReportEmailPreview(input.leadId, input.reportId, input.actorEmail);
+  const file = await getFileBuffer(record.report.snapshotStorageKey!);
+  const sha = crypto.createHash("sha256").update(file.buffer).digest("hex");
+  const publishedKey = `scans/${input.reportId}/${sha}.png`;
+  const published = await uploadPublishedReport(file.buffer, publishedKey, "image/png");
+  const imageUrl = published.url;
+  const landingUrl = record.report.reportUrl || imageUrl;
+  const replyTo = actorReplyTo(input.actorEmail);
+
+  const [job] = await db.insert(workflowJobs).values({
+    type: "email_notification",
+    status: "pending",
+    sourceId,
+    sourceType: "scan_report_test",
+    attempts: 0,
+    maxAttempts: 3,
+    nextRunAt: new Date(),
+    payload: {
+      to: input.recipient,
+      from: scanReportSenderEmail(),
+      replyTo,
+      subject: `[TEST] ${preview.subject}`,
+      html: buildScanReportEmailHtml({
+        message: preview.message,
+        imageUrl,
+        landingUrl,
+        businessName: preview.businessName,
+        replyTo,
+        preheader: preview.preheader,
+        imagePlacement: "after_intro",
+      }),
+      text: `${preview.message}\n\nView the full report: ${landingUrl}`,
+      category: "scan_report_test",
+      reportId: input.reportId,
+      imageUrl,
+      landingUrl,
+      requestId: input.requestId,
+    },
+  }).returning();
+
+  return { jobId: job.id, duplicate: false };
 }
