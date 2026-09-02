@@ -133,7 +133,7 @@ async function recordEngagement(input: {
 
     const labels: Record<CtaType, string> = {
       schedule_call: "Schedule a Call",
-      email_matt: "Email Matt",
+      email_matt: "Send Matt a Message",
       view_results: "See Client Results",
     };
     await tx.update(scanReportDeliveries).set({
@@ -175,7 +175,7 @@ export function buildScanReportLandingPage(input: {
   const ctaEndpoint = `/scan-report/${token}/events/cta`;
   const scheduleEndpoint = `/scan-report/${token}/go/schedule_call`;
   const resultsEndpoint = `/scan-report/${token}/go/view_results`;
-  const emailHref = "mailto:matt@vivawebdesigns.com?subject=Google%20Maps%20visibility%20scan";
+  const contactHref = `${PUBLIC_SITE_URL}/contact?business=${encodeURIComponent(businessName)}#contact-form`;
 
   return `<!doctype html>
 <html lang="en">
@@ -215,7 +215,7 @@ export function buildScanReportLandingPage(input: {
         <p>Matt can walk through the weak areas, explain who Google is ranking ahead of you and outline the most practical next step.</p>
         <div class="actions">
           <form class="tracked-form" method="post" action="${scheduleEndpoint}" data-cta="schedule_call"><input type="hidden" name="eventId"><button class="button button-primary" type="submit">Schedule a Call</button></form>
-          <a class="button tracked-email" href="${emailHref}" data-cta="email_matt">Email Matt</a>
+          <a class="button tracked-email" href="${escapeHtml(contactHref)}" data-cta="email_matt">Send Matt a Message</a>
           <form class="tracked-form" method="post" action="${resultsEndpoint}" data-cta="view_results"><input type="hidden" name="eventId"><button class="button" type="submit">See Client Results</button></form>
         </div>
         <p class="privacy">Engagement with this report may be recorded to help Viva respond to your inquiry. See our <a href="/privacy-policy">Privacy Policy</a>.</p>

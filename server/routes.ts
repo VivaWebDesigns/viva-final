@@ -31,6 +31,10 @@ const scanSubmitSchema = z.object({
   honeypot: z.string().optional(),
 });
 
+const contactSubmitSchema = insertContactSchema.extend({
+  business: z.string().trim().min(1, "Company name is required"),
+});
+
 function smsConsentRecord(consented: boolean, source: string) {
   return {
     smsConsent: consented,
@@ -183,7 +187,7 @@ export async function registerRoutes(
       }
 
       const website = typeof req.body.website === "string" ? req.body.website.trim() : "";
-      const data = insertContactSchema.parse(req.body);
+      const data = contactSubmitSchema.parse(req.body);
       if (website) {
         data.message = [data.message, `Website: ${website}`].filter(Boolean).join("\n\n");
       }
@@ -234,6 +238,7 @@ export async function registerRoutes(
               <h2>New Contact Form Submission</h2>
               <table cellpadding="8" style="border-collapse:collapse;font-family:sans-serif;font-size:15px;">
                 <tr><td><strong>Name</strong></td><td>${escapeHtml(data.name)}</td></tr>
+                <tr><td><strong>Company</strong></td><td>${escapeHtml(data.business)}</td></tr>
                 ${data.phone ? `<tr><td><strong>Phone</strong></td><td>${escapeHtml(data.phone)}</td></tr>` : ""}
                 ${data.email ? `<tr><td><strong>Email</strong></td><td>${escapeHtml(data.email)}</td></tr>` : ""}
                 <tr><td><strong>SMS Consent</strong></td><td>${smsConsented ? "Granted" : "Not granted"}</td></tr>

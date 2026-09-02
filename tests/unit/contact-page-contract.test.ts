@@ -24,6 +24,7 @@ describe("public contact form contract", () => {
   it("keeps the general contact form concise and offers optional SMS consent", () => {
     expect(contactHtml).toContain('action="/contact-submit"');
     expect(contactHtml).toContain('name="name"');
+    expect(contactHtml).toContain('name="business" autocomplete="organization" required');
     expect(contactHtml).toContain('name="email"');
     expect(contactHtml).toContain('name="phone"');
     expect(contactHtml).toContain('name="message"');
@@ -32,7 +33,6 @@ describe("public contact form contract", () => {
     expect(contactHtml).toContain('href="/privacy-policy"');
     expect(contactHtml).not.toMatch(/name="smsConsent"[^>]+required/);
 
-    expect(contactHtml).not.toContain('name="business"');
     expect(contactHtml).not.toContain('name="website"');
     expect(contactHtml).not.toContain('name="city"');
     expect(contactHtml).not.toContain('name="trade"');
@@ -46,6 +46,14 @@ describe("public contact form contract", () => {
     expect(contactHandler).toContain('req.body.smsConsent === "yes"');
     expect(contactHandler).toContain('smsConsentRecord(smsConsented, "contact_form")');
     expect(contactHandler).toContain("Please enter a phone number or uncheck SMS consent.");
+  });
+
+  it("requires a company name for public contact submissions", () => {
+    expect(routesSource).toContain(
+      'business: z.string().trim().min(1, "Company name is required")',
+    );
+    expect(routesSource).toContain("contactSubmitSchema.parse(req.body)");
+    expect(routesSource).toContain("<strong>Company</strong>");
   });
 
   it("redirects general contact submissions to their own confirmation page", () => {
