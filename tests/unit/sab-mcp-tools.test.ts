@@ -25,7 +25,10 @@ describe("SAB MCP tool discovery", () => {
 
     try {
       const { tools } = await client.listTools();
-      expect(tools).toHaveLength(35);
+      expect(tools).toHaveLength(39);
+      for (const name of ["bulk_save_sab_companies", "audit_sab_contacts", "pin_sab_sop_revision", "reconcile_sab_import_batch"]) {
+        expect(tools.map((tool) => tool.name)).toContain(name);
+      }
       expect(tools.map((tool) => tool.name)).toContain("approve_sab_terminal_deferral");
       expect(tools.map((tool) => tool.name)).toContain("record_sab_address_corroboration");
       expect(tools.map((tool) => tool.name)).toContain("reconcile_sab_ambiguous_submission");
@@ -209,5 +212,21 @@ describe("SAB MCP tool discovery", () => {
       await client.close();
       await server.close();
     }
+  });
+
+  it("isolates guarded bulk-write failures without discarding successful companies", async () => {
+    const writes:string[]=[];
+    const server=createSabMcpServer((()=>({saveCompany:async(placeId:string)=>{
+      if(placeId==="bad") throw new Error("stale evidence");writes.push(placeId);return {place_id:placeId,updated_fields:["research_notes"]};
+    }})) as never,{createWorkflow:async()=>{throw new Error("unused");}},"actor");
+    const client=new Client({name:"sab-mcp-test",version:"1.0.0"});
+    const [clientTransport,serverTransport]=InMemoryTransport.createLinkedPair();await server.connect(serverTransport);await client.connect(clientTransport);
+    try {
+      const response=await client.callTool({name:"bulk_save_sab_companies",arguments:{workflow_sheet:"https://docs.google.com/spreadsheets/d/test/edit",sheet_name:"SAB Workflow",
+        updates:[{place_id:"one",updates:{research_notes:"ok"}},{place_id:"bad",updates:{research_notes:"bad"}},{place_id:"two",updates:{research_notes:"ok"}}]}});
+      const body=JSON.parse((response.content as Array<{text:string}>)[0].text);
+      expect(body).toMatchObject({counts:{requested:3,succeeded:2,failed:1},successful_rows_preserved:true,failed:[{place_id:"bad",error:"stale evidence"}]});
+      expect(writes).toEqual(["one","two"]);
+    } finally {await client.close();await server.close();}
   });
 });

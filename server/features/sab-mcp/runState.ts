@@ -60,6 +60,14 @@ export type SabRunState = {
   }) | null;
   testing_mode: boolean;
   testing_ended: SabMattApproval | null;
+  /** Current governing SOP revision. Compare Drive metadata to this pin and
+   * reread the document only when the revision changes. */
+  sop_revision?: {
+    document_id: string;
+    revision_id: string;
+    title: string;
+    pinned_at: string;
+  } | null;
   credit_limit: number;
   committed_credits: number;
   batches: SabRunBatch[];
@@ -68,6 +76,21 @@ export type SabRunState = {
     reason: string;
     approved_at: string;
   }>;
+  /** Compact expectations for the most recently validated manifest. The full
+   * artifact stays outside run state; this enables hash-only import audit. */
+  latest_manifest?: {
+    sha256: string;
+    batch_id: string;
+    built_at: string;
+    prospects: Array<{
+      place_id: string;
+      company_name: string;
+      contact_tag: "Email Ready" | "Needs Email";
+      address: "Service Area Business";
+      outcome: "deliverable" | "no_visibility_core_found";
+      report_key: string | null;
+    }>;
+  } | null;
 };
 
 export interface SabRunStateRepository {
@@ -148,6 +171,7 @@ export function createSabRunState(input: {
   authorization_reference: string;
   credit_limit: number;
   public_business_phone_search_authorization?: SabMattApproval | null;
+  sop_revision?: { document_id: string; revision_id: string; title: string } | null;
 }): SabRunState {
   if (!Number.isSafeInteger(input.credit_limit) || input.credit_limit <= 0) throw new Error("A positive run credit limit is required.");
   return {
@@ -158,9 +182,30 @@ export function createSabRunState(input: {
     public_business_phone_search_authorization: input.public_business_phone_search_authorization
       ? { ...approval(input.public_business_phone_search_authorization), scope: "verified_public_business_phone_exact_search_only" }
       : null,
+    sop_revision: input.sop_revision ? {
+      document_id: required(input.sop_revision.document_id, "SOP document ID"),
+      revision_id: required(input.sop_revision.revision_id, "SOP revision ID"),
+      title: required(input.sop_revision.title, "SOP title"),
+      pinned_at: new Date().toISOString(),
+    } : null,
     credit_limit: input.credit_limit, committed_credits: 0,
-    testing_mode: true, testing_ended: null, batches: [], terminal_deferrals: {},
+    testing_mode: true, testing_ended: null, batches: [], terminal_deferrals: {}, latest_manifest: null,
   };
+}
+
+export function pinSabSopRevision(state: SabRunState, input: {document_id:string;revision_id:string;title:string}): SabRunState {
+  const next=structuredClone(state);
+  next.version++;
+  next.sop_revision={document_id:required(input.document_id,"SOP document ID"),revision_id:required(input.revision_id,"SOP revision ID"),
+    title:required(input.title,"SOP title"),pinned_at:new Date().toISOString()};
+  return next;
+}
+
+export function recordSabManifest(state: SabRunState, manifest: NonNullable<SabRunState["latest_manifest"]>): SabRunState {
+  const next=structuredClone(state);
+  next.version++;
+  next.latest_manifest=structuredClone(manifest);
+  return next;
 }
 
 export function approveSabTerminalDeferral(state: SabRunState, input: {

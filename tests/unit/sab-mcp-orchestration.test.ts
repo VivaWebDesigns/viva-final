@@ -135,6 +135,17 @@ describe("SAB orchestration integration",()=>{
     expect(repo.saveCompany.mock.invocationCallOrder[0]).toBeLessThan(repo.saveRunState.mock.invocationCallOrder[0]);
   });
 
+  it("returns only aggregates and genuine exceptions after testing mode ends",async()=>{
+    const state=submitted();state.testing_mode=false;
+    const repo=repository(state);vi.mocked(getSabRankedCells).mockResolvedValue(report() as never);
+    const response=await tools(repo).invoke("review_sab_completed_batch",{});
+    expect(response).toMatchObject({testing_mode:false,stop_before_further_scans:false,matt_review_required:false,
+      batch_summary:{report_count:1,classification_counts:{center_validated:1},exception_count:0},exceptions:[],
+      routine_results_persisted:1,full_routine_table_returned:false,next_action:"continue_autonomously"});
+    expect(response).not.toHaveProperty("table");
+    expect((await repo.getRunState()).batches[0].status).toBe("completed");
+  });
+
   it("never completes a batch with a wrong provider envelope or failed structured readback",async()=>{
     const repo=repository();vi.mocked(getSabRankedCells).mockResolvedValue(report(key3,{...plan,radius:5}) as never);
     await expect(tools(repo).invoke("review_sab_completed_batch",{})).rejects.toThrow(/envelope/);
@@ -179,7 +190,8 @@ describe("SAB orchestration integration",()=>{
     const repo=repository();
     repo.getRunState.mockResolvedValue(null as never);
     repo.assertOneActiveRun.mockRejectedValue(new Error("Another run already exists"));
-    await expect(tools(repo).invoke("initialize_sab_run",{orchestrator_id:"owner",authorization_reference:"run",credit_limit:500})).rejects.toThrow(/Another run/);
+    await expect(tools(repo).invoke("initialize_sab_run",{orchestrator_id:"owner",authorization_reference:"run",credit_limit:500,
+      sop_revision:{document_id:"doc",revision_id:"rev",title:"SOP"}})).rejects.toThrow(/Another run/);
     expect(repo.saveRunState).not.toHaveBeenCalled();
   });
 

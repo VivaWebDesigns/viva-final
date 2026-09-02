@@ -259,6 +259,7 @@ const sabContactResearchPathSchema = z.object({
 });
 
 export const sabContactResearchSchema = z.object({
+  evidence_version: z.literal(2).optional(),
   exact_name_search: sabContactResearchPathSchema,
   exact_phone_fallback: sabContactResearchPathSchema,
   company_controlled_inspection: sabContactResearchPathSchema,
@@ -266,6 +267,10 @@ export const sabContactResearchSchema = z.object({
     email: z.string().trim().email(),
     verification_gate: z.string().trim().min(1).max(1000),
     sources: z.array(z.string().trim().min(1).max(2000)).min(1).max(20),
+    source_type: z.string().trim().min(1).max(200).optional(),
+    company_identity_match: z.literal(true).optional(),
+    corroborating_phone: z.string().trim().min(1).max(100).nullable().optional(),
+    inspected_at: z.string().datetime().optional(),
   }).strict()).max(10),
   rejected_candidates: z.array(z.object({
     email: z.string().trim().email(),
@@ -288,6 +293,10 @@ export const sabContactResearchSchema = z.object({
     const firstStopped = paths.findIndex(path => path.status === "not_required_verified_earlier");
     if (firstStopped >= 0 && paths.slice(firstStopped).some(path => path.status !== "not_required_verified_earlier")) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Later contact paths cannot resume after verified-email early stop" });
+    }
+    if (value.evidence_version === 2 && value.accepted_evidence.some(evidence =>
+      !evidence.source_type || evidence.company_identity_match !== true || !evidence.inspected_at)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["accepted_evidence"], message: "Version 2 accepted evidence requires source type, confirmed company identity, and inspection time" });
     }
   } else {
     if (paths.some(path => path.status !== "completed")) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Exhaustion requires every contact-research path to be completed" });
@@ -484,6 +493,9 @@ export const getSabBatchInputSchema = {
     .boolean()
     .default(false)
     .describe("Include rows already marked complete, qa_ready, or imported"),
+  view: z.enum(["compact", "contact", "scan", "import", "full"]).default("compact").describe(
+    "Return only stage-relevant fields by default. Use full only for a concrete conflict or targeted exception.",
+  ),
 };
 
 export const getSabCompanyInputSchema = {
@@ -493,6 +505,9 @@ export const getSabCompanyInputSchema = {
     .trim()
     .min(1)
     .describe("Google Place ID from the SAB source sheet"),
+  view: z.enum(["compact", "contact", "scan", "import", "full"]).default("compact").describe(
+    "Return only stage-relevant fields by default. Use full only for a concrete conflict or targeted exception.",
+  ),
 };
 
 export const saveSabCompanyInputSchema = {
@@ -505,6 +520,20 @@ export const saveSabCompanyInputSchema = {
   updates: sabCompanyUpdatesSchema.describe(
     "Only the fields that should change. Scale-First uses structured decisions and eligibility; legacy audit fields are not required.",
   ),
+};
+
+export const bulkSaveSabCompaniesInputSchema = {
+  ...workflowSheetInputSchema,
+  updates: z.array(z.object({
+    place_id: z.string().trim().min(1).max(500),
+    updates: sabCompanyUpdatesSchema,
+  }).strict()).min(1).max(100).superRefine((items, ctx) => {
+    const seen = new Set<string>();
+    items.forEach((item, index) => {
+      if (seen.has(item.place_id)) ctx.addIssue({ code: z.ZodIssueCode.custom, path: [index, "place_id"], message: "Each exact Place ID may appear only once" });
+      seen.add(item.place_id);
+    });
+  }),
 };
 
 export const saveSabScanResultInputSchema = {

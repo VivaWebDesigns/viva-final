@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   authorizeSabScanBatch, claimSabRunScan, completeSabRunReports, createSabRunState,
   endSabTestingMode, reconcileSabAmbiguousSubmission, recordSabRunSubmission, sabScanPlanFingerprint,
+  pinSabSopRevision, recordSabManifest,
   type SabScanPlan, type SabRunState,
 } from "../../server/features/sab-mcp/runState";
 
@@ -37,6 +38,16 @@ describe("structured SAB run authorization", () => {
     expect(authorized.batches[0].initial_approval).toMatchObject({
       ...approved, approved_plan_digest: authorized.batches[0].plan_digest,
     });
+  });
+
+  it("pins the governing SOP revision and a compact hash-bound manifest expectation",()=>{
+    const pinned=pinSabSopRevision(run(),{document_id:"doc",revision_id:"rev-2",title:"SAB SOP"});
+    expect(pinned.sop_revision).toMatchObject({document_id:"doc",revision_id:"rev-2",title:"SAB SOP"});
+    const manifest=recordSabManifest(pinned,{sha256:"a".repeat(64),batch_id:"batch",built_at:"2026-09-01T20:00:00.000Z",prospects:[{
+      place_id:"place",company_name:"Example",contact_tag:"Email Ready",address:"Service Area Business",outcome:"deliverable",report_key:"report",
+    }]});
+    expect(manifest.latest_manifest).toMatchObject({sha256:"a".repeat(64),batch_id:"batch",prospects:[{place_id:"place",report_key:"report"}]});
+    expect(manifest.version).toBe(pinned.version+1);
   });
 
   it("requires explicit exceptions for scan specifications outside the SOP", () => {

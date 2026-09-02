@@ -44,10 +44,12 @@ import {
   SAB_SCALE_FIRST_UPGRADEABLE_HEADERS,
   SAB_STATUSES,
   saveSabCompanyInputSchema,
+  bulkSaveSabCompaniesInputSchema,
   saveSabScanResultInputSchema,
   upgradeSabWorkflowSchemaInputSchema,
   validateSabCrmManifestInputSchema,
 } from "./schema";
+import { projectSabCompany } from "./usageOptimization";
 
 function jsonToolResult(value: unknown) {
   return {
@@ -93,7 +95,7 @@ export function createSabMcpServer(
 ) {
   const server = new McpServer({
     name: "viva-sab-workflow",
-    version: "2.3.2",
+    version: "2.4.0",
   });
 
   server.registerTool(
@@ -281,11 +283,10 @@ export function createSabMcpServer(
         "Read the companies assigned to one batch in the exact SAB Workflow Sheet supplied by the city run. Use this at the start of a chat and after a handoff.",
       inputSchema: getSabBatchInputSchema,
     }),
-    async ({ workflow_sheet, sheet_name, batch_id, include_completed }) => {
+    async ({ workflow_sheet, sheet_name, batch_id, include_completed, view }) => {
       const repository = repositoryFactory(workflow_sheet, sheet_name);
-      return jsonToolResult(
-        await repository.getBatch(batch_id, include_completed),
-      );
+      const rows=await repository.getBatch(batch_id, include_completed);
+      return jsonToolResult(rows.map(row=>projectSabCompany(row,view)));
     },
   );
 
@@ -296,9 +297,9 @@ export function createSabMcpServer(
         "Read the current working record for one company from the exact SAB Workflow Sheet using its stable Google Place ID.",
       inputSchema: getSabCompanyInputSchema,
     }),
-    async ({ workflow_sheet, sheet_name, place_id }) => {
+    async ({ workflow_sheet, sheet_name, place_id, view }) => {
       const repository = repositoryFactory(workflow_sheet, sheet_name);
-      return jsonToolResult(await repository.getCompany(place_id));
+      return jsonToolResult(projectSabCompany(await repository.getCompany(place_id),view));
     },
   );
 
@@ -339,17 +340,36 @@ export function createSabMcpServer(
   );
 
   server.registerTool(
+    "bulk_save_sab_companies",
+    sabTool({
+      description:
+        "Persist independent exact-Place-ID company updates in one connector call. Every row uses the same guarded validation as save_sab_company; one failure does not discard successful rows. Returns aggregate counts, per-row receipts for successes, and only failed rows with compact errors. Use for ordinary stage persistence; use the single-row tool for a targeted exception.",
+      inputSchema: bulkSaveSabCompaniesInputSchema,
+    }),
+    async ({ workflow_sheet, sheet_name, updates }) => {
+      const repository=repositoryFactory(workflow_sheet,sheet_name);
+      const succeeded:unknown[]=[];const failed:Array<{place_id:string;error:string}>=[];
+      for(const item of updates) {
+        try { succeeded.push(await repository.saveCompany(item.place_id,item.updates,actorEmail)); }
+        catch(error) { failed.push({place_id:item.place_id,error:error instanceof Error?error.message:"Unknown guarded write failure"}); }
+      }
+      return jsonToolResult({counts:{requested:updates.length,succeeded:succeeded.length,failed:failed.length},succeeded,failed,
+        stage_end_readback_required:failed.length>0,successful_rows_preserved:true});
+    },
+  );
+
+  server.registerTool(
     "save_sab_scan_result",
     sabTool({
       description:
-        "Save one completed Local Falcon scan result by exact Place ID. Require only scan role, ARP, SoLV, report key, report URL, scan date, and scan keyword. Supply scan center, center type, scan type, and found-in only when already available. Deliverable scans update the current scan columns, while every deliverable or auxiliary scan is retained automatically in append-safe scan history.",
+        "Save one completed Local Falcon scan result by exact Place ID. Require only scan role, ARP, SoLV, report key, report URL, scan date, and scan keyword. Supply scan center, center type, scan type, and found-in only when already available. Deliverable scans update the current scan columns, while every deliverable or auxiliary scan is retained automatically in append-safe scan history. Outside testing mode, continue routine deterministic work without a narrative checkpoint.",
       inputSchema: saveSabScanResultInputSchema,
     }),
     async ({ workflow_sheet, sheet_name, place_id, scan_result }) => {
       const repository = repositoryFactory(workflow_sheet, sheet_name);
       return workflowWriteReceipt(
         await repository.saveScanResult(place_id, scan_result, actorEmail),
-        "analyze_completed_report; review_completed_batch_with_Matt_before_further_scans",
+        "analyze_completed_report; use_run_testing_mode_to_decide_whether_human_review_is_required",
       );
     },
   );
@@ -400,7 +420,7 @@ export function createSabMcpServer(
         result,
         ["ambiguous_response", "location_unverified"].includes(status)
           ? "stop; reconcile_ambiguous_submission_and_run_claim_without_resubmitting"
-          : "finish_only_this_exact_authorized_batch; review_completed_batch_with_Matt",
+          : "finish_only_this_exact_authorized_batch; review_only_if_run_testing_mode_or_a_genuine_exception_requires_it",
       );
     },
   );

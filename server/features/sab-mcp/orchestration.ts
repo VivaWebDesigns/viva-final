@@ -7,10 +7,12 @@ import { getSabRankedCells } from "./localFalconRankedCells";
 import { analyzeSabScanPolicy, selectSabCanonicalScan } from "./scanPolicy";
 import { reverseGeocodeSabCenters } from "./reverseGeocode";
 import { buildSabRunManifest } from "./exportManifest";
-import { approveSabTerminalDeferral, createSabRunState, authorizeSabScanBatch, completeSabRunReports, endSabTestingMode, inSabRunStateQueue, reconcileSabAmbiguousSubmission, recordSabRunSubmission, sabScanPlanFingerprint, type SabRunState, type SabScanPlan } from "./runState";
+import { approveSabTerminalDeferral, createSabRunState, authorizeSabScanBatch, completeSabRunReports, endSabTestingMode, inSabRunStateQueue, pinSabSopRevision, recordSabManifest, reconcileSabAmbiguousSubmission, recordSabRunSubmission, sabScanPlanFingerprint, type SabRunState, type SabScanPlan } from "./runState";
 import { SAB_CENTER_TYPES, runSabScanOnceInputSchema, type SabCompanyUpdates, type SabScanResult } from "./schema";
 import { corroborationAllowsAuxiliary, sabAddressCorroborationSchema, type SabAddressCorroboration } from "./addressCorroboration";
 import { evaluateSabAddressCandidate, evaluateSabCoordinatesAgainstCells } from "./addressCandidate";
+import { auditSabContactRows, isNormalModeException } from "./usageOptimization";
+import { reconcileSabImportBatch } from "./importReconciliation";
 
 const common = {workflow_sheet:z.string().min(1),sheet_name:z.string().min(1).default("SAB Workflow")};
 const run = {...common,run_id:z.string().min(1).max(200)};
@@ -295,8 +297,9 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
     const definition = {description,inputSchema,securitySchemes,_meta:{securitySchemes}};
     server.registerTool(name,definition,async args=>result(await handler(args)));
   }
-  add("initialize_sab_run","Initialize persistent single-orchestrator state with testing mode ON, an explicit authorized credit ceiling, and optional grouped authorization for exact-phone searches using verified publicly listed business numbers only. Absence holds that research fallback without blocking other free paths. Never launches scans.",{
+  add("initialize_sab_run","Initialize persistent single-orchestrator state with testing mode ON, an explicit authorized credit ceiling, a pinned governing SOP revision, and optional grouped authorization for exact-phone searches using verified publicly listed business numbers only. Read the SOP once before initialization; compare later Drive metadata to this pin and reread only if its revision changes. Never launches scans.",{
     ...run,orchestrator_id:z.string().min(1),authorization_reference:z.string().min(1),credit_limit:z.number().int().positive(),
+    sop_revision:z.object({document_id:z.string().trim().min(1),revision_id:z.string().trim().min(1),title:z.string().trim().min(1)}).strict(),
     public_business_phone_search_authorization:matt.optional(),
   },async args=>inSabRunStateQueue(async()=>{
     const repo=factory(args.workflow_sheet,args.sheet_name);if(await repo.getRunState(args.run_id)) throw new Error("Run already exists; read it instead of resetting approvals");
@@ -304,6 +307,13 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
     const state=createSabRunState(args);await repo.saveRunState(state,null,actorEmail);return state;
   }));
   add("get_sab_run_state","Read authoritative run stages, exact authorizations, committed credits and testing review status. Notes are supporting history.",run,async args=>requireRun(factory(args.workflow_sheet,args.sheet_name),args.run_id));
+  add("pin_sab_sop_revision","Record the exact Google Drive SOP revision after the orchestrator has read it in full. Use for legacy runs without a pin or only after Drive metadata proves the revision changed and the new revision was reread. Performs no paid work.",{
+    ...run,sop_revision:z.object({document_id:z.string().trim().min(1),revision_id:z.string().trim().min(1),title:z.string().trim().min(1)}).strict(),
+  },async args=>inSabRunStateQueue(async()=>{
+    const repo=factory(args.workflow_sheet,args.sheet_name),state=await requireRun(repo,args.run_id);
+    const next=pinSabSopRevision(state,args.sop_revision);await repo.saveRunState(next,state.version,actorEmail);
+    return {run_id:args.run_id,sop_revision:next.sop_revision,full_sop_reread_required:false};
+  }));
   add("reconcile_sab_ambiguous_submission","Recover one existing ambiguous paid submission without resubmitting or resetting the run. Verify a supplied provider report against the stored exact Place ID, center, keyword, platform and scan specification, bind it to the original durable claim, and preserve committed credits. Performs no paid call.",{
     ...run,orchestrator_id:z.string().min(1),authorization_id:z.string().uuid(),place_id:z.string().min(1),report_key:z.string().regex(/^[a-f0-9]{12,64}$/i),
   },async args=>inSabRunStateQueue(async()=>{
@@ -509,10 +519,10 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
     const decision=await analyzeAndRecordSabReport(repo,{run_id:args.run_id,report_key:args.report_key,place_id:args.place_id,stage:"master"},actorEmail,{report,state});
     return {...decision,address_corroboration:evidence,paid_scans_submitted:0};
   }));
-  add("review_sab_completed_batch","Verify every submitted report and return the required testing-review table. Show report URLs, measured values, classifications and next steps. STOP until Matt approves further scans or each proposed exclusion. This is a human review handoff, not a separate supervisor.",run,async args=>inSabRunStateQueue(async()=>{
+  add("review_sab_completed_batch","Verify every submitted report and persist structured decisions. In testing mode, return the required full checkpoint and stop. In normal mode, return aggregate counts plus genuine exceptions only and continue autonomously; routine results remain stored without narrative replay.",run,async args=>inSabRunStateQueue(async()=>{
     const repo=factory(args.workflow_sheet,args.sheet_name),state=await requireRun(repo,args.run_id),batch=state.batches.at(-1);
     if(!batch) throw new Error("No submitted scan batch");
-    const table=[];
+    const table:Array<Record<string,any>>=[];
     // Verify all provider envelopes before any completion transition. Fetch each
     // report once and reuse that verified evidence when persisting decisions.
     const reports = await Promise.all(batch.scans.map(async scan => {
@@ -534,7 +544,15 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
         }},proposed_next_step_and_reason:decision.reason,sop_rule:decision.rule_ids.join(", ")});
     }
     const next=completeSabRunReports(state,batch.scans.map(s=>s.report_key!));await repo.saveRunState(next,state.version,actorEmail);
-    return {table,testing_mode:next.testing_mode,stop_before_further_scans:next.testing_mode,matt_review_required:next.testing_mode,
+    const exceptions=table.filter(row=>isNormalModeException(row.result.classification));
+    const classification_counts=Object.fromEntries([...new Set(table.map(row=>row.result.classification))].sort().map(classification=>[
+      classification,table.filter(row=>row.result.classification===classification).length,
+    ]));
+    if(!next.testing_mode) return {testing_mode:false,stop_before_further_scans:false,matt_review_required:false,
+      batch_summary:{report_count:table.length,classification_counts,exception_count:exceptions.length},exceptions,
+      routine_results_persisted:table.length-exceptions.length,full_routine_table_returned:false,
+      next_action:exceptions.length?"resolve_listed_genuine_exceptions; continue_all_unaffected_work":"continue_autonomously"};
+    return {table,testing_mode:true,stop_before_further_scans:true,matt_review_required:true,
       exclusion_approval_required:table.some(row=>row.result.classification === "high_visibility_exclusion_pending_review"),
       review_instruction:"Wait for Matt before further scans or finalizing exclusions. If Matt disagrees, distinguish an agent execution error from a flawed general SOP rule. Never promote a case-specific ruling into policy."};
   }));
@@ -607,6 +625,15 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
     const repo=factory(args.workflow_sheet,args.sheet_name),state=await requireRun(repo,args.run_id),next=endSabTestingMode(state,args.approval);
     await repo.saveRunState(next,state.version,actorEmail);return next;
   }));
+  add("audit_sab_contacts","Validate structured contact completion server-side for selected exact Place IDs or the full qualified population. Returns aggregate counts and only incomplete/conflicting records; it never replaces source inspection or returns full histories.",{
+    ...run,place_ids:z.array(z.string().trim().min(1).max(500)).max(500).optional(),
+  },async args=>{
+    const repo=factory(args.workflow_sheet,args.sheet_name),state=await requireRun(repo,args.run_id);
+    let rows=await repo.getRunCompletionRows();
+    if(args.place_ids?.length){const ids=new Set(args.place_ids);rows=rows.filter(row=>ids.has(row.place_id));}
+    else rows=rows.filter(row=>row.qualification_status==="qualified");
+    return auditSabContactRows(rows,state);
+  });
   add("approve_sab_terminal_deferral","Record Matt's explicit decision to abandon one named unresolved survivor as a terminal deferral. This is the only deferred state that satisfies the run-completion gate. It submits no scan, performs no import and establishes no general policy.",{
     ...run,orchestrator_id:z.string().min(1),place_id:z.string().min(1),reason:z.string().trim().min(1).max(2000),approval:matt,
   },async args=>inSabRunStateQueue(async()=>{
@@ -665,7 +692,31 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
     if (verified.report_key!==selected.report_key || !sameCenter(verified.scan_center,selected.grid.center) || (verified.scan_spec as {radius_miles?:number}|null)?.radius_miles!==selection.selected_radius_miles) throw new Error("Canonical stage readback failed; stop and reconcile before export");
     return {...selection,selected_report_key:selected.report_key,selected_report_url:reportUrl(selected),all_point_atrp:selected.atrp,raw_arp:selected.arp,three_mile_report_key:three.report_key,five_mile_report_key:five.report_key,preserve_both_reports:true,canonical_persisted:true};
   }));
-  add("build_sab_run_manifest","Build exactly one validated batch.json from every qualified complete AND qa_ready row across the run. Fails closed while any survivor remains assigned, in progress, blocked or deferred without Matt's named terminal-deferral approval. Also requires structured verified-email evidence or complete contact-path exhaustion; Needs Email requires the run-wide public-business-phone search authorization. Includes CRM-only no-visibility leads, excludes competitors, and does not import or send outreach.",{
+  add("build_sab_run_manifest","Build exactly one validated batch.json from every qualified complete AND qa_ready row across the run. Fails closed while any survivor remains assigned, in progress, blocked or deferred without Matt's named terminal-deferral approval. Also requires structured verified-email evidence or complete contact-path exhaustion; Needs Email requires the run-wide public-business-phone search authorization. Pins a compact hash-bound import expectation in run state for one-call post-import reconciliation. Includes CRM-only no-visibility leads, excludes competitors, and does not import or send outreach.",{
     ...run,batch:z.object({batch_id:z.string().min(1),market:z.object({city:z.string().min(1),state:z.string().regex(/^[A-Za-z]{2}$/)}),trade:z.string().min(1),keyword:z.string().min(1),export_date:z.string().min(1),scan_spec:z.object({grid_size:z.literal("7x7"),radius_miles:z.literal(3)})}),
-  },async args=>buildSabRunManifest(factory(args.workflow_sheet,args.sheet_name),args.batch,args.run_id));
+  },async args=>inSabRunStateQueue(async()=>{
+    const repo=factory(args.workflow_sheet,args.sheet_name),state=await requireRun(repo,args.run_id);
+    const built=await buildSabRunManifest(repo,args.batch,args.run_id);
+    const manifest=JSON.parse(built.manifest_json) as {batch:{batch_id:string};prospects:Array<Record<string,any>>};
+    const latest={sha256:built.sha256,batch_id:manifest.batch.batch_id,built_at:new Date().toISOString(),prospects:manifest.prospects.map(row=>({
+      place_id:row.place_id,company_name:row.company_name,contact_tag:row.contact_tag,address:row.address,
+      outcome:row.outcome,report_key:row.outcome==="deliverable"?row.report_key:null,
+    }))} as NonNullable<SabRunState["latest_manifest"]>;
+    const next=recordSabManifest(state,latest);await repo.saveRunState(next,state.version,actorEmail);
+    return {...built,manifest_expectation_pinned:true};
+  }));
+  add("reconcile_sab_import_batch","Read-only post-import reconciliation for the latest hash-pinned manifest. Verifies exact Place IDs, batch identity, canonical report keys, Service Area Business addresses, contact-routing tags, prior report-email sends, and workflow imported status in one call. Returns aggregate counts and exceptions only.",{
+    ...run,manifest_sha256:z.string().regex(/^[a-f0-9]{64}$/i),
+  },async args=>{
+    const repo=factory(args.workflow_sheet,args.sheet_name),state=await requireRun(repo,args.run_id),latest=state.latest_manifest;
+    if(!latest || latest.sha256!==args.manifest_sha256) throw new Error("Manifest hash does not match the latest validated run artifact");
+    const crm=await reconcileSabImportBatch(latest.batch_id,latest.prospects);
+    const ids=new Set(latest.prospects.map(row=>row.place_id));
+    const workflow=(await repo.getRunCompletionRows()).filter(row=>ids.has(row.place_id));
+    const workflow_exceptions=workflow.filter(row=>row.status!=="imported").map(row=>({place_id:row.place_id,company:row.company,issues:["workflow_status_not_imported"]}));
+    const missingWorkflow=latest.prospects.filter(item=>!workflow.some(row=>row.place_id===item.place_id)).map(item=>({place_id:item.place_id,company:item.company_name,issues:["workflow_row_missing"]}));
+    const exceptions=[...crm.exceptions,...workflow_exceptions,...missingWorkflow];
+    return {manifest_sha256:latest.sha256,batch_id:latest.batch_id,counts:{...crm.counts,workflow_imported:workflow.filter(row=>row.status==="imported").length,total_exceptions:exceptions.length},
+      exceptions,full_records_returned:false,import_verified:exceptions.length===0};
+  });
 }
