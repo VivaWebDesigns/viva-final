@@ -240,7 +240,7 @@ describe("SAB orchestration integration",()=>{
   it("applies only an exact named canonical exception while preserving failed S05 evidence",async()=>{
     const special=new Map([["4:4",1],["5:4",1],["6:3",1],["7:2",1],["3:4",1],["2:5",1],["1:6",1]]);
     const cells=Array.from({length:49},(_,index)=>{const row=Math.floor(index/7)+1,column=index%7+1;return {
-      row,column,latitude:35+(4-row)*.01,longitude:-80+(column-4)*.01,rank:special.get(`${row}:${column}`)??10,
+      row,column,latitude:35+(4-row)*.01+(row===4&&column===4?1e-13:0),longitude:-80+(column-4)*.01,rank:special.get(`${row}:${column}`)??10,
     }});
     const completed=completeSabRunReports(submitted(),[key3]);
     const value=report(key3,plan,{arp:8,atrp:8,solv:20,found_in:49,businesses:[{place_id:"place",evidence_source:"competitor_roster",
@@ -259,6 +259,28 @@ describe("SAB orchestration integration",()=>{
       decision_state:{centering_status:"validated",proposed_center:"35,-80",center_type:"corroborated_address",evidence:{next_action:"center_validated",
         margin:{failed:true},run_specific_exception:{kind:"canonical_centered_peak_no_movement",evidence_hash:hash,creates_general_policy:false}}}});
     expect(repo.saveCompany.mock.calls.at(-1)?.[3]).toEqual({runSpecificCanonicalExceptionVerified:true});
+  });
+
+  it("corrects a stale same-center recenter action through the named canonical exception without another scan",async()=>{
+    const recenterPlan={...plan,scan_type:"recenter" as const};
+    const special=new Map([["4:4",1],["5:4",1],["6:3",1],["7:2",1],["3:4",1],["2:5",1],["1:6",1]]);
+    const cells=Array.from({length:49},(_,index)=>{const row=Math.floor(index/7)+1,column=index%7+1;return {
+      row,column,latitude:35+(4-row)*.01,longitude:-80+(column-4)*.01,rank:special.get(`${row}:${column}`)??10,
+    }});
+    const completed=completeSabRunReports(submitted(recenterPlan),[key3]);
+    const value=report(key3,recenterPlan,{arp:8,atrp:8,solv:20,found_in:49,businesses:[{place_id:"place",evidence_source:"competitor_roster",
+      ranked_cell_count:49,imprecise_or_unranked_cell_count:0,ranked_cells:cells,all_point_rank_cells:cells}]});
+    const hash=currentEvidenceHash(value);
+    const stale={source_report_key:key3,evidence_hash:hash,rule_id:"S04,S05,S07",centering_status:"planned",routine_recenter_count:1,
+      proposed_center:"35,-80",center_type:"weighted_cell_centroid",evidence:{next_action:"additional_recenter_exception_required",
+        reason:"One routine recenter has already been used; another requires an explicit exception.",margin:{failed:true,reason:"global_best_on_boundary"}}};
+    const repo=repository(completed,{decision_state:stale,scan_center:"35,-80",center_type:"weighted_cell_centroid",status:"blocked",blocker:"additional_recenter_requires_explicit_exception"});
+    vi.mocked(getSabRankedCells).mockResolvedValue(value as never);
+    const result=await tools(repo).invoke("approve_sab_canonical_evidence_exception",{orchestrator_id:"owner",place_id:"place",report_key:key3,evidence_hash:hash,
+      reason:"Accept the centered terminal recenter deliverable without an identical-center scan.",approval:approved});
+    expect(result).toMatchObject({canonical_persisted:true,paid_scans_submitted:0});
+    expect(await repo.getCompany()).toMatchObject({status:"in_progress",blocker:null,decision_state:{centering_status:"validated",
+      evidence:{next_action:"center_validated",run_specific_exception:{original_next_action:"additional_recenter_exception_required"}}}});
   });
 
   it("plans only the exact approved dominant-cluster centroid for a named S01 singleton exception",async()=>{

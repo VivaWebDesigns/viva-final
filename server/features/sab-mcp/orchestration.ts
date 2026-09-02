@@ -534,7 +534,7 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
     const decision=await analyzeAndRecordSabReport(repo,{run_id:args.run_id,report_key:args.report_key,place_id:args.place_id,stage:"master"},actorEmail,{report,state});
     return {...decision,address_corroboration:evidence,paid_scans_submitted:0};
   }));
-  add("approve_sab_canonical_evidence_exception","Apply Matt's named run-specific decision to preserve one completed 7x7/3-mile deliverable as canonical only when current S04/S05 evidence review proves the selected peak is already at the exact scan center and no supported recenter movement exists. Re-verifies the report, run ownership, terminal evidence ordering and approval; preserves the failed-margin evidence and full scan history. Creates no general policy and submits no scan.",{
+  add("approve_sab_canonical_evidence_exception","Apply Matt's named run-specific decision to preserve one completed 7x7/3-mile deliverable as canonical only when current S04/S05 evidence proves the selected peak is already at the exact scan center and no supported recenter movement exists. This includes a terminal standard or recenter deliverable whose stale next action requests another recenter at the same center. Re-verifies the report, run ownership, terminal evidence ordering and approval; preserves the failed-margin evidence and full scan history. Creates no general policy and submits no scan.",{
     ...run,orchestrator_id:z.string().min(1),place_id:z.string().min(1),report_key:z.string().regex(/^[a-f0-9]{12,64}$/i),
     evidence_hash:z.string().regex(/^[a-f0-9]{64}$/i),reason:z.string().trim().min(1).max(2000),approval:matt,
   },async args=>inSabRunStateQueue(async()=>{
@@ -542,30 +542,37 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
     if(args.orchestrator_id!==state.orchestrator_id) throw new Error("Only this run's orchestrator may apply a named canonical evidence exception");
     const previous=decisionState(row),owned=scanForReport(state,args.report_key,args.place_id);
     const companyScans=state.batches.flatMap(batch=>batch.scans).filter(scan=>scan.plan.place_id===args.place_id && scan.submission_status==="submitted");
-    if(!owned || companyScans.at(-1)!==owned || !owned.completion_verified || owned.plan.scan_role!=="deliverable" || owned.plan.scan_type!=="standard" ||
-        owned.plan.grid_size!==7 || owned.plan.radius!==3 || owned.plan.measurement!=="mi") throw new Error("The named exception requires the terminal completed standard 7x7/3-mile deliverable from this run");
+    if(!owned || companyScans.at(-1)!==owned || !owned.completion_verified || owned.plan.scan_role!=="deliverable" ||
+        !["standard","recenter"].includes(owned.plan.scan_type) || owned.plan.grid_size!==7 || owned.plan.radius!==3 || owned.plan.measurement!=="mi") {
+      throw new Error("The named exception requires the terminal completed 7x7/3-mile deliverable from this run");
+    }
     const report=await getSabRankedCells(args.report_key,[args.place_id]);assertReportPlan(report,owned.plan);
     const hash=evidenceHash(report);
-    if(!previous) throw new Error("Approval must match the current exact S04/S05 evidence-review report and hash");
-    if(hash!==args.evidence_hash || previous.source_report_key!==args.report_key || previous.evidence_hash!==hash ||
-        previous.centering_status!=="failed" || previous.evidence?.next_action!=="evidence_review_required" ||
-        !String(previous.rule_id).split(",").includes("S05")) throw new Error("Approval must match the current exact S04/S05 evidence-review report and hash");
+    if(!previous?.evidence) throw new Error("Approval must match the current exact S04/S05 evidence-review report and hash");
+    const previousEvidence=previous.evidence;
+    const priorAction=previousEvidence.next_action;
+    const exceptionReady=(previous.centering_status==="failed" && priorAction==="evidence_review_required") ||
+      (previous.centering_status==="planned" && priorAction==="additional_recenter_exception_required");
+    if(hash!==args.evidence_hash || previous.source_report_key!==args.report_key || previous.evidence_hash!==hash || !exceptionReady ||
+        !String(previous.rule_id).split(",").includes("S05")) throw new Error("Approval must match the current exact S04/S05 centered-peak report and hash");
     const policy=analyzeSabScanPolicy({stage:"deliverable",cells:report.businesses[0].all_point_rank_cells ?? report.businesses[0].ranked_cells,
       grid:report.grid,rawArp:report.arp,atrp:report.atrp,solv:report.solv,routineRecenterCount:companyScans.filter(scan=>scan.plan.scan_type==="recenter").length,
       addressCorroboration:previous.address_corroboration});
     const peak=policy.evidence.peak as {movement_miles?:unknown;displaced_peak?:unknown;selected_peak?:{row?:unknown;column?:unknown}}|undefined;
     const middle=(report.grid.size+1)/2;
-    if(policy.action!=="evidence_review_required" || !policy.rule_ids.includes("S05") ||
-        Number(peak?.movement_miles)!==0 || peak?.displaced_peak!==false || peak?.selected_peak?.row!==middle || peak?.selected_peak?.column!==middle) {
+    const movement=Number(peak?.movement_miles);
+    if(!["evidence_review_required","additional_recenter_exception_required"].includes(policy.action) || !policy.rule_ids.includes("S05") ||
+        !Number.isFinite(movement) || Math.abs(movement)>1e-6 || peak?.displaced_peak!==false ||
+        peak?.selected_peak?.row!==middle || peak?.selected_peak?.column!==middle) {
       throw new Error("The report no longer proves the exact centered-peak/no-movement evidence exception");
     }
     if(!sameCenter(row.scan_center,report.grid.center) || !isDeliverableCenter(row.center_type)) throw new Error("The exception cannot invent or change the existing center derivation");
     const exception={kind:"canonical_centered_peak_no_movement",scope:"named_run_specific",approved_by:"Matt",approval_reference:args.approval.approval_reference,
-      reason:args.reason,report_key:args.report_key,evidence_hash:hash,original_next_action:previous.evidence.next_action,
-      original_reason:previous.evidence.reason,approved_at:new Date().toISOString(),creates_general_policy:false};
+      reason:args.reason,report_key:args.report_key,evidence_hash:hash,original_next_action:previousEvidence.next_action,
+      original_reason:previousEvidence.reason,approved_at:new Date().toISOString(),creates_general_policy:false};
     const center=centerText(report.grid.center),centerType=row.center_type;
     const next:DecisionState={...previous,centering_status:"validated",proposed_center:center,center_type:centerType,outcome:"deliverable",
-      evidence:{...previous.evidence,next_action:"center_validated",reason:args.reason,run_specific_exception:exception,
+      evidence:{...previousEvidence,next_action:"center_validated",reason:args.reason,run_specific_exception:exception,
         center_validation:{report_key:args.report_key,evidence_hash:hash,proposed_center:center,center_type:centerType}}};
     await repo.saveScanResult(args.place_id,reportResult(report,"deliverable",owned.plan.scan_type,centerType),actorEmail);
     await repo.saveCompany(args.place_id,{decision_state:next,outcome:"deliverable",status:"in_progress",blocker:null},actorEmail,{runSpecificCanonicalExceptionVerified:true});

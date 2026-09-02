@@ -262,6 +262,23 @@ describe("SabSheetsRepository", () => {
       {runSpecificCanonicalExceptionVerified:true})).resolves.toMatchObject({status:"in_progress"});
   });
 
+  it("accepts a named canonical correction for a stale additional-recenter action", async () => {
+    const report="aaaaaaaaaaaa",hash="a".repeat(64),reason="The approved peak is already at the current center; prohibit an identical-center scan.";
+    const previous={source_report_key:report,evidence_hash:hash,rule_id:"S04,S05,S07",centering_status:"planned" as const,
+      proposed_center:"35,-80",center_type:"corroborated_address" as const,routine_recenter_count:1,
+      evidence:{next_action:"additional_recenter_exception_required",reason:"One routine recenter has already been used.",margin:{failed:true}}};
+    const exception={kind:"canonical_centered_peak_no_movement",scope:"named_run_specific",approved_by:"Matt",approval_reference:"Matt approved exact report",
+      reason,report_key:report,evidence_hash:hash,original_next_action:previous.evidence.next_action,original_reason:previous.evidence.reason,
+      approved_at:"2026-09-02T14:00:00.000Z",creates_general_policy:false};
+    const next={...previous,centering_status:"validated" as const,outcome:"deliverable" as const,
+      evidence:{...previous.evidence,next_action:"center_validated",reason,run_specific_exception:exception,
+        center_validation:{report_key:report,evidence_hash:hash,proposed_center:"35,-80",center_type:"corroborated_address"}}};
+    const {repository}=buildRepository([row({status:"blocked",blocker:"additional_recenter_requires_explicit_exception",report_key:report,
+      outcome:"deliverable",scan_center:"35,-80",center_type:"corroborated_address",decision_state:JSON.stringify(previous)})]);
+    await expect(repository.saveCompany("place-1",{decision_state:next,status:"in_progress",blocker:null},"actor@example.com",
+      {runSpecificCanonicalExceptionVerified:true})).resolves.toMatchObject({status:"in_progress"});
+  });
+
   it("guards named master-cluster exceptions to the exact approved standard deliverable plan", async () => {
     const report="cccccccccccc",hash="c".repeat(64);
     const corroboration={source_report_key:report,evidence_hash:hash,status:"no_candidate" as const,research_complete:true,
