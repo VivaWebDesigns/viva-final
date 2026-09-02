@@ -315,6 +315,27 @@ function LocalFalconSnapshotCard({
       toast({ title: "Could not send report", description: error.message, variant: "destructive" });
     },
   });
+  const createEmailTestLeads = useMutation({
+    mutationFn: async () => {
+      if (!data) throw new Error("The source lead is still loading.");
+      const response = await apiRequest(
+        "POST",
+        `/api/crm/leads/${encodeURIComponent(data.leadId)}/create-email-test-clones`,
+        {},
+      );
+      return response.json();
+    },
+    onSuccess: (result) => {
+      toast({
+        title: "Email test leads ready",
+        description: `${result.leads.length} test leads now have fresh copies of this report.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/crm/leads"] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Could not create test leads", description: error.message, variant: "destructive" });
+    },
+  });
   if (isLoading) return <Skeleton className="h-64 w-full" />;
   if (!data) return null;
 
@@ -432,6 +453,19 @@ function LocalFalconSnapshotCard({
                     ? <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" />
                     : <Mail className="mr-1.5 h-4 w-4" />}
                   Email report
+                </Button>
+              )}
+              {data.leadId === "73eec4df-4ae9-4357-8842-2c0125c76e54" && (
+                <Button
+                  variant="outline"
+                  onClick={() => createEmailTestLeads.mutate()}
+                  disabled={createEmailTestLeads.isPending}
+                  data-testid="button-create-email-test-leads"
+                >
+                  {createEmailTestLeads.isPending
+                    ? <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" />
+                    : <ClipboardCopy className="mr-1.5 h-4 w-4" />}
+                  {createEmailTestLeads.isPending ? "Creating tests…" : "Create 3 email test leads"}
                 </Button>
               )}
               <Button onClick={copySnapshot}>

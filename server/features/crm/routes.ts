@@ -56,8 +56,8 @@ import {
 } from "@shared/leadClassification";
 import {
   insertCrmCompanySchema, insertCrmContactSchema, insertCrmLeadSchema,
-  insertCrmLeadNoteSchema, insertCrmTagSchema, crmLeads, pipelineOpportunities,
-  followupTasks, scanReportDeliveries,
+  insertCrmLeadNoteSchema, insertCrmTagSchema, crmCompanies, crmContacts, crmLeads,
+  localFalconProspectProfiles, pipelineOpportunities, followupTasks, scanReportDeliveries,
 } from "@shared/schema";
 import { db } from "../../db";
 import { executeStageAutomations } from "../automations/trigger";
@@ -1079,6 +1079,118 @@ router.post("/leads/:id/email-scan-report", requireRole("admin", "developer", "s
       message: result.duplicate ? "This scan report email was already queued" : "Scan report email queued",
       ...result,
     });
+  } catch (error: any) {
+    res.status(error?.statusCode ?? 400).json({ message: error.message });
+  }
+});
+
+const EMAIL_TEST_SOURCE_LEAD_ID = "73eec4df-4ae9-4357-8842-2c0125c76e54";
+const EMAIL_TEST_SOURCE_REPORT_ID = "11e4499a-4e1a-4926-a612-5dc0547c99a2";
+const EMAIL_TEST_COMPANIES = [
+  "Piedmont Smart Systems",
+  "Queen City Automation Group",
+  "Blue Ridge Control Solutions",
+] as const;
+
+router.post("/leads/:id/create-email-test-clones", requireRole("admin"), async (req, res) => {
+  try {
+    const sourceLeadId = req.params.id as string;
+    if (sourceLeadId !== EMAIL_TEST_SOURCE_LEAD_ID) {
+      return res.status(404).json({ message: "Email test cloning is not available for this lead" });
+    }
+
+    const created = await db.transaction(async (tx) => {
+      const [sourceLead] = await tx.select().from(crmLeads)
+        .where(eq(crmLeads.id, EMAIL_TEST_SOURCE_LEAD_ID)).limit(1);
+      const [sourceReport] = await tx.select().from(localFalconProspectProfiles)
+        .where(eq(localFalconProspectProfiles.id, EMAIL_TEST_SOURCE_REPORT_ID)).limit(1);
+      if (!sourceLead || !sourceReport) {
+        throw Object.assign(new Error("Carolina Custom Automation source data was not found"), { statusCode: 404 });
+      }
+
+      const results: Array<{ leadId: string; reportId: string; companyName: string }> = [];
+      for (const [index, companyName] of EMAIL_TEST_COMPANIES.entries()) {
+        const title = `${companyName} – Email Test`;
+        const [existing] = await tx.select({ id: crmLeads.id }).from(crmLeads)
+          .where(and(eq(crmLeads.title, title), eq(crmLeads.sourceLabel, "Email Template Test"))).limit(1);
+        if (existing) {
+          const [existingReport] = await tx.select({ id: localFalconProspectProfiles.id })
+            .from(localFalconProspectProfiles)
+            .where(eq(localFalconProspectProfiles.leadId, existing.id)).limit(1);
+          if (existingReport) results.push({ leadId: existing.id, reportId: existingReport.id, companyName });
+          continue;
+        }
+
+        const [company] = await tx.insert(crmCompanies).values({
+          name: companyName,
+          phone: "9804754924",
+          email: "m.carney.og@gmail.com",
+          address: "2012 SC-160 STE. 106",
+          city: "Fort Mill",
+          state: "SC",
+          zip: "29708",
+          country: "US",
+          industry: "electrical",
+          preferredLanguage: "en",
+          notes: "Email deliverability test record.",
+        }).returning();
+        const [contact] = await tx.insert(crmContacts).values({
+          companyId: company.id,
+          firstName: "Matt",
+          lastName: `Test ${index + 1}`,
+          email: "m.carney.og@gmail.com",
+          phone: "9804754924",
+          preferredLanguage: "en",
+          notes: "Email deliverability test contact.",
+          isPrimary: true,
+        }).returning();
+        const [lead] = await tx.insert(crmLeads).values({
+          companyId: company.id,
+          contactId: contact.id,
+          statusId: sourceLead.statusId,
+          title,
+          source: "manual",
+          sourceLabel: "Email Template Test",
+          assignedTo: sourceLead.assignedTo,
+          notes: "Test lead cloned from Carolina Custom Automation for email deliverability testing.",
+          city: "Fort Mill",
+          state: "SC",
+          timezone: "America/New_York",
+          trade: sourceLead.trade || "electrical",
+        }).returning();
+
+        const {
+          id: _sourceReportId,
+          leadId: _sourceReportLeadId,
+          reportKey: sourceReportKey,
+          companyName: _sourceCompanyName,
+          ownerName: _sourceOwnerName,
+          phone: _sourcePhone,
+          createdAt: _sourceCreatedAt,
+          ...reportData
+        } = sourceReport;
+        const [report] = await tx.insert(localFalconProspectProfiles).values({
+          ...reportData,
+          leadId: lead.id,
+          reportKey: `${sourceReportKey}-email-test-${index + 1}`,
+          companyName,
+          ownerName: `Email Test ${index + 1}`,
+          phone: "9804754924",
+        }).returning();
+        results.push({ leadId: lead.id, reportId: report.id, companyName });
+      }
+      return results;
+    });
+
+    await logAudit({
+      userId: req.authUser!.id,
+      action: "create_email_test_leads",
+      entity: "crm_lead",
+      entityId: sourceLeadId,
+      metadata: { created },
+      ipAddress: req.ip,
+    });
+    res.status(201).json({ leads: created });
   } catch (error: any) {
     res.status(error?.statusCode ?? 400).json({ message: error.message });
   }
