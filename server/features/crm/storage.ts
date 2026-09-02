@@ -11,7 +11,7 @@ import {
   type CrmLead, type CrmLeadNote, type CrmTag,
   type InsertSmsMessage, type SmsMessage,
 } from "@shared/schema";
-import { eq, ilike, or, desc, asc, sql, and, count, inArray } from "drizzle-orm";
+import { eq, ilike, or, desc, asc, sql, and, count, inArray, gt, lt } from "drizzle-orm";
 import { getLocalFalconPrioritiesByLeadIds } from "./localFalconPriority";
 import type { SalesPrioritySnapshot } from "@shared/salesPriority";
 import type { ReportOutreachFilter } from "@shared/reportOutreach";
@@ -105,6 +105,54 @@ export async function getLeads(filters: LeadFilters = {}) {
 export async function getLeadById(id: string): Promise<CrmLead | undefined> {
   const [result] = await db.select().from(crmLeads).where(eq(crmLeads.id, id));
   return result;
+}
+
+export interface LeadNavigationItem {
+  id: string;
+  title: string;
+}
+
+export async function getLeadNavigation(
+  id: string,
+  assignedTo?: string,
+): Promise<{ previous: LeadNavigationItem | null; next: LeadNavigationItem | null } | undefined> {
+  const scope = assignedTo ? eq(crmLeads.assignedTo, assignedTo) : undefined;
+  const [current] = await db
+    .select({ id: crmLeads.id, createdAt: crmLeads.createdAt })
+    .from(crmLeads)
+    .where(scope ? and(eq(crmLeads.id, id), scope) : eq(crmLeads.id, id))
+    .limit(1);
+
+  if (!current) return undefined;
+
+  const previousCondition = or(
+    gt(crmLeads.createdAt, current.createdAt),
+    and(eq(crmLeads.createdAt, current.createdAt), gt(crmLeads.id, current.id)),
+  )!;
+  const nextCondition = or(
+    lt(crmLeads.createdAt, current.createdAt),
+    and(eq(crmLeads.createdAt, current.createdAt), lt(crmLeads.id, current.id)),
+  )!;
+
+  const [previousRows, nextRows] = await Promise.all([
+    db
+      .select({ id: crmLeads.id, title: crmLeads.title })
+      .from(crmLeads)
+      .where(scope ? and(scope, previousCondition) : previousCondition)
+      .orderBy(asc(crmLeads.createdAt), asc(crmLeads.id))
+      .limit(1),
+    db
+      .select({ id: crmLeads.id, title: crmLeads.title })
+      .from(crmLeads)
+      .where(scope ? and(scope, nextCondition) : nextCondition)
+      .orderBy(desc(crmLeads.createdAt), desc(crmLeads.id))
+      .limit(1),
+  ]);
+
+  return {
+    previous: previousRows[0] ?? null,
+    next: nextRows[0] ?? null,
+  };
 }
 
 export async function createLead(data: InsertCrmLead): Promise<CrmLead> {

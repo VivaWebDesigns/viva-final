@@ -9,20 +9,34 @@
  * LeadDetailPage.tsx is kept intact (nondestructive).
  */
 
+import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAdminLang } from "@/i18n/LanguageContext";
 import ProfileShell from "./ProfileShell";
 
+interface LeadNavigationItem {
+  id: string;
+  title: string;
+}
+
+interface LeadNavigationResponse {
+  previous: LeadNavigationItem | null;
+  next: LeadNavigationItem | null;
+}
+
 export default function LeadProfilePage({ id }: { id: string }) {
   const [, navigate] = useLocation();
   const { t } = useAdminLang();
+  const { data: navigation, isLoading: isNavigationLoading } = useQuery<LeadNavigationResponse>({
+    queryKey: [`/api/crm/leads/${id}/navigation`],
+  });
 
   return (
     <div className="h-full flex flex-col overflow-hidden" data-testid={`page-lead-profile-${id}`}>
       {/* Back nav */}
-      <div className="flex items-center gap-2 px-6 pt-4 pb-2 shrink-0">
+      <div className="flex items-center justify-between gap-3 px-6 pt-4 pb-2 shrink-0">
         <Button
           variant="ghost"
           size="sm"
@@ -33,6 +47,33 @@ export default function LeadProfilePage({ id }: { id: string }) {
           <ArrowLeft className="w-4 h-4" />
           {t.pipeline.backToLeads}
         </Button>
+
+        <div className="flex items-center gap-1" aria-label="Lead navigation">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            disabled={isNavigationLoading || !navigation?.previous}
+            onClick={() => navigation?.previous && navigate(`/admin/crm/leads/${navigation.previous.id}`)}
+            title={navigation?.previous?.title ?? t.common.previous}
+            data-testid="button-previous-lead"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            <span className="hidden sm:inline">{t.common.previous}</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            disabled={isNavigationLoading || !navigation?.next}
+            onClick={() => navigation?.next && navigate(`/admin/crm/leads/${navigation.next.id}`)}
+            title={navigation?.next?.title ?? t.common.next}
+            data-testid="button-next-lead"
+          >
+            <span className="hidden sm:inline">{t.common.next}</span>
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+        </div>
       </div>
 
       {/* Unified profile shell — lead context */}

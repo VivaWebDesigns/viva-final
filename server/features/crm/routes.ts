@@ -246,6 +246,19 @@ router.get("/leads", requireRole("admin", "developer", "sales_rep", "lead_gen"),
   }
 });
 
+router.get("/leads/:id/navigation", requireRole("admin", "developer", "sales_rep", "lead_gen"), async (req, res) => {
+  try {
+    const navigation = await crmStorage.getLeadNavigation(
+      req.params.id as string,
+      isRestricted(req) ? req.authUser!.id : undefined,
+    );
+    if (!navigation) return res.status(404).json({ message: "Lead not found" });
+    res.json(navigation);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 router.post("/leads", requireRole("admin", "developer", "lead_gen"), async (req, res) => {
   try {
     const data = insertCrmLeadSchema.parse(req.body);
