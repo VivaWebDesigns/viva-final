@@ -2351,7 +2351,7 @@ html[data-results-case="carolina-custom-automation"] [data-results-case-panel="g
 .results-problem-card li {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 18px;
   padding: 15px;
   border: 1px solid #e1e9ee;
   border-radius: 7px;
@@ -2366,22 +2366,45 @@ html[data-results-case="carolina-custom-automation"] [data-results-case-panel="g
 
 .results-icon {
   display: grid;
-  width: 52px;
-  height: 52px;
+  position: relative;
+  width: 48px;
+  height: 48px;
   flex: 0 0 auto;
   place-items: center;
-  border: 1px solid rgba(0, 169, 223, 0.34);
-  border-radius: 50%;
-  background: var(--results-ink);
-  box-shadow:
-    0 8px 18px rgba(6, 26, 61, 0.2),
-    inset 0 0 0 3px rgba(15, 101, 158, 0.2);
 }
 
 .results-icon img {
-  width: 27px;
-  height: 27px;
-  filter: brightness(0) saturate(100%) invert(57%) sepia(95%) saturate(1457%) hue-rotate(152deg) brightness(94%) contrast(102%);
+  width: 36px;
+  height: 36px;
+  filter: brightness(0) saturate(100%) invert(10%) sepia(32%) saturate(2692%) hue-rotate(187deg) brightness(86%) contrast(108%);
+}
+
+.results-problem-card .results-icon {
+  width: 62px;
+  justify-items: start;
+  border-right: 3px solid var(--results-cyan);
+}
+
+.results-work-card > .results-icon {
+  width: 54px;
+  height: 62px;
+  place-items: start center;
+}
+
+.results-work-card > .results-icon img {
+  width: 38px;
+  height: 38px;
+}
+
+.results-work-card > .results-icon::after {
+  position: absolute;
+  bottom: 4px;
+  left: 0;
+  width: 54px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--results-cyan);
+  content: "";
 }
 
 .results-work {
@@ -2439,7 +2462,7 @@ html[data-results-case="carolina-custom-automation"] [data-results-case-panel="g
 }
 
 .results-work-card h3 {
-  margin: 22px 0 10px;
+  margin: 18px 0 10px;
   font-size: 20px;
   line-height: 1.25;
 }
