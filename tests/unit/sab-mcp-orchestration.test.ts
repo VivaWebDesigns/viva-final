@@ -135,13 +135,15 @@ describe("SAB orchestration integration",()=>{
     expect(repo.saveCompany.mock.invocationCallOrder[0]).toBeLessThan(repo.saveRunState.mock.invocationCallOrder[0]);
   });
 
-  it("returns only aggregates and genuine exceptions after testing mode ends",async()=>{
+  it("returns concise scan results and genuine exceptions without pausing after testing mode ends",async()=>{
     const state=submitted();state.testing_mode=false;
     const repo=repository(state);vi.mocked(getSabRankedCells).mockResolvedValue(report() as never);
     const response=await tools(repo).invoke("review_sab_completed_batch",{});
     expect(response).toMatchObject({testing_mode:false,stop_before_further_scans:false,matt_review_required:false,
       batch_summary:{report_count:1,classification_counts:{center_validated:1},exception_count:0},exceptions:[],
-      routine_results_persisted:1,full_routine_table_returned:false,next_action:"continue_autonomously"});
+      scan_results:[{company:"Test lead",report_url:`https://example.test/public/${key3}`,scan_specification:"7×7/3 mi",
+        result:{classification:"center_validated"},proposed_next_step_and_reason:expect.any(String),sop_rule:"S05, S09"}],
+      routine_results_persisted:1,full_histories_returned:false,continue_unaffected_work:true,next_action:"continue_autonomously"});
     expect(response).not.toHaveProperty("table");
     expect((await repo.getRunState()).batches[0].status).toBe("completed");
   });

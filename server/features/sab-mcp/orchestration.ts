@@ -519,7 +519,7 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
     const decision=await analyzeAndRecordSabReport(repo,{run_id:args.run_id,report_key:args.report_key,place_id:args.place_id,stage:"master"},actorEmail,{report,state});
     return {...decision,address_corroboration:evidence,paid_scans_submitted:0};
   }));
-  add("review_sab_completed_batch","Verify every submitted report and persist structured decisions. In testing mode, return the required full checkpoint and stop. In normal mode, return aggregate counts plus genuine exceptions only and continue autonomously; routine results remain stored without narrative replay.",run,async args=>inSabRunStateQueue(async()=>{
+  add("review_sab_completed_batch","Verify every submitted report and persist structured decisions. In testing mode, return the required full checkpoint and stop. In normal mode, return one concise result row per completed scan plus genuine exceptions, then continue autonomously without requesting routine approval.",run,async args=>inSabRunStateQueue(async()=>{
     const repo=factory(args.workflow_sheet,args.sheet_name),state=await requireRun(repo,args.run_id),batch=state.batches.at(-1);
     if(!batch) throw new Error("No submitted scan batch");
     const table:Array<Record<string,any>>=[];
@@ -549,8 +549,8 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
       classification,table.filter(row=>row.result.classification===classification).length,
     ]));
     if(!next.testing_mode) return {testing_mode:false,stop_before_further_scans:false,matt_review_required:false,
-      batch_summary:{report_count:table.length,classification_counts,exception_count:exceptions.length},exceptions,
-      routine_results_persisted:table.length-exceptions.length,full_routine_table_returned:false,
+      batch_summary:{report_count:table.length,classification_counts,exception_count:exceptions.length},scan_results:table,exceptions,
+      routine_results_persisted:table.length-exceptions.length,full_histories_returned:false,continue_unaffected_work:true,
       next_action:exceptions.length?"resolve_listed_genuine_exceptions; continue_all_unaffected_work":"continue_autonomously"};
     return {table,testing_mode:true,stop_before_further_scans:true,matt_review_required:true,
       exclusion_approval_required:table.some(row=>row.result.classification === "high_visibility_exclusion_pending_review"),
