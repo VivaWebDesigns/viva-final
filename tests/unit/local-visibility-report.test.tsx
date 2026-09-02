@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import LocalVisibilityReportTemplate from "@features/local-visibility-report/LocalVisibilityReportTemplate";
@@ -17,6 +19,17 @@ const report: LocalVisibilityReportData = {
 };
 
 describe("LocalVisibilityReportTemplate", () => {
+  it("uses the same border treatment for the heatmap and summary cards", () => {
+    const css = fs.readFileSync(
+      path.join(process.cwd(), "client/src/features/local-visibility-report/local-visibility-report.css"),
+      "utf8",
+    );
+    const heatmapRule = css.match(/\.lvr-heatmap-card\s*\{([\s\S]*?)\}/)?.[1] ?? "";
+
+    expect(heatmapRule).toContain("border: 1.5px solid var(--lvr-line);");
+    expect(heatmapRule).not.toContain("var(--lvr-navy)");
+  });
+
   it("renders the approved SMS report contract", () => {
     const { container } = render(<LocalVisibilityReportTemplate data={report} />);
 
