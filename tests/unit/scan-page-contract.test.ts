@@ -49,6 +49,8 @@ describe("visibility scan page contract", () => {
         new RegExp(`<(?:input|textarea)[^>]+name="${field}"[^>]+required`),
       );
     }
+    expect(scanHtml).toContain('Business Address <span class="required">*</span>');
+    expect(scanHtml).not.toContain("Business Address or Google Business Profile Link");
   });
 
   it("supports company-name prefilling from personalized scan-report links", () => {
