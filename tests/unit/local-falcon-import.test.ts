@@ -12,7 +12,11 @@ import {
 } from "../../server/features/crm/localFalconImport";
 import {
   LocalFalconImageFetchError,
+  cacheVerifiedHeatmap,
+  localFalconManifestSha256,
   parseLocalFalconPackage,
+  parseSingleLocalFalconHeatmap,
+  resolveVerifiedHeatmap,
 } from "../../server/features/crm/localFalconPackage";
 import {
   LOCAL_FALCON_LEAD_CLASSIFICATIONS,
@@ -495,6 +499,71 @@ describe("parseLocalFalconPackage", () => {
     expect(fetchMap).toHaveBeenCalledTimes(7);
     expect(maxActiveRequests).toBe(3);
     expect(result.heatmapsByPlaceId.size).toBe(7);
+  });
+
+  it("retrieves only one requested map from a consolidated 73-prospect manifest", async () => {
+    const fixture = await readFile("tests/fixtures/local-visibility/carolina-custom-automation-heatmap.png");
+    const officialMap = await sharp(fixture).resize(1000, 1000, { fit: "fill" }).png().toBuffer();
+    const fetchMap = vi.fn(async () => new Response(new Uint8Array(officialMap), {
+      status: 200,
+      headers: { "content-type": "image/png" },
+    }));
+    const prospects = Array.from({ length: 73 }, (_, index) => ({
+      ...prospect,
+      place_id: `ChIJ-large-${index}`,
+      company_name: `Large Batch Prospect ${index}`,
+      report_key: index.toString(16).padStart(15, "0"),
+      heatmap_file: undefined,
+    }));
+    const jsonPayload = { ...payload, prospects };
+
+    const result = await parseSingleLocalFalconHeatmap({
+      buffer: Buffer.from(JSON.stringify(jsonPayload)),
+      originalName: "batch.json",
+      mimeType: "application/json",
+    }, [], prospects[57].place_id, fetchMap);
+
+    expect(fetchMap).toHaveBeenCalledTimes(1);
+    expect(String(fetchMap.mock.calls[0][0])).toContain(prospects[57].report_key);
+    expect(result.payload.prospects).toHaveLength(73);
+    expect(result.heatmap.sha256).toMatch(/^[a-f0-9]{64}$/);
+  });
+
+  it("binds a server-held map to the exact manifest, report key, Place ID, and checksum", async () => {
+    const fixture = await readFile("tests/fixtures/local-visibility/carolina-custom-automation-heatmap.png");
+    const officialMap = await sharp(fixture).resize(1000, 1000, { fit: "fill" }).png().toBuffer();
+    const primary = {
+      buffer: Buffer.from(JSON.stringify(payload)),
+      originalName: "batch.json",
+      mimeType: "application/json",
+    };
+    const result = await parseSingleLocalFalconHeatmap(
+      primary,
+      [],
+      prospect.place_id,
+      vi.fn(async () => new Response(new Uint8Array(officialMap), {
+        status: 200,
+        headers: { "content-type": "image/png" },
+      })),
+    );
+    const manifestSha256 = localFalconManifestSha256(primary);
+    const reference = cacheVerifiedHeatmap(manifestSha256, prospect, result.heatmap);
+
+    expect(resolveVerifiedHeatmap(reference, {
+      manifestSha256,
+      reportKey: prospect.report_key,
+      placeId: prospect.place_id,
+    }).buffer).toEqual(officialMap);
+    expect(() => resolveVerifiedHeatmap(reference, {
+      manifestSha256,
+      reportKey: "different-report",
+      placeId: prospect.place_id,
+    })).toThrow(/does not match/);
+    expect(() => resolveVerifiedHeatmap({ ...reference, heatmapSha256: "0".repeat(64) }, {
+      manifestSha256,
+      reportKey: prospect.report_key,
+      placeId: prospect.place_id,
+    })).toThrow(/missing or expired/);
   });
 
   it("uses a Place ID-named fallback only when an official map cannot be retrieved", async () => {

@@ -1,9 +1,13 @@
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { CsvImportModal } from "@features/crm/CsvImportExportModal";
 import { renderWithProviders } from "../helpers/renderWithProviders";
 import { server } from "../helpers/server";
+
+vi.mock("@features/local-visibility-report/exportReport", () => ({
+  renderLocalVisibilityReportBlob: vi.fn(async () => new Blob(["snapshot"], { type: "image/png" })),
+}));
 
 describe("Local Falcon import clipboard", () => {
   beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
@@ -275,6 +279,11 @@ describe("Local Falcon import clipboard", () => {
           heatmapPreviewDataUrl: "data:image/png;base64,aGVhdG1hcA==",
           heatmapSha256: "a".repeat(64),
           heatmapSourceUrl: "https://lf-static-v2.localfalcon.com/image/279b8ac00c7ec41",
+          verifiedAsset: {
+            manifestSha256: "b".repeat(64),
+            reportKey: "279b8ac00c7ec41",
+            heatmapSha256: "a".repeat(64),
+          },
           mapPresentation: {
             mapZoom: 160,
             mapPosition: { x: 0, y: 0 },
@@ -329,6 +338,154 @@ describe("Local Falcon import clipboard", () => {
     expect(screen.getByTestId("button-confirm-local-falcon-import")).toBeDisabled();
   });
 
+  it("loads a consolidated 73-map preview through independent verified requests", async () => {
+    let mapRequests = 0;
+    const rows = Array.from({ length: 73 }, (_, index) => ({
+      row: index + 1,
+      placeId: `ChIJ-large-${index}`,
+      companyName: `Large Batch Prospect ${index}`,
+      address: "Service Area Business",
+      heatmapFile: "Official Local Falcon image",
+      scanSpec: { grid_size: "7x7", radius_miles: 3 },
+      prospectOutcome: "deliverable" as const,
+      heatmapPreviewDataUrl: null,
+      heatmapSha256: null,
+      heatmapSourceUrl: null,
+      mapPresentation: null,
+      reportData: null,
+      outcome: "new" as const,
+    }));
+    server.use(
+      http.post("/api/crm/leads/import-local-falcon/preview", () => HttpResponse.json({
+        batchId: "CLT-LARGE-73",
+        market: { city: "Charlotte", state: "NC" },
+        trade: "landscaping services",
+        keyword: "landscaper near me",
+        scanSpec: { grid_size: "7x7", radius_miles: 3 },
+        scanSpecs: [{ grid_size: "7x7", radius_miles: 3 }],
+        batchAlreadyImported: false,
+        newCount: 73,
+        variationCount: 0,
+        existingCount: 0,
+        flaggedCount: 0,
+        sourceMode: "local_falcon",
+        rows,
+      })),
+      http.post("/api/crm/leads/import-local-falcon/preview-map", async ({ request }) => {
+        mapRequests += 1;
+        const form = await request.formData();
+        const placeId = String(form.get("placeId"));
+        return HttpResponse.json({
+          placeId,
+          heatmapPreviewDataUrl: "data:image/png;base64,aGVhdG1hcA==",
+          heatmapSha256: "a".repeat(64),
+          heatmapSourceUrl: `https://lf-static-v2.localfalcon.com/image/${placeId}`,
+          mapSourceType: "official",
+          verifiedAsset: {
+            manifestSha256: "b".repeat(64),
+            reportKey: placeId,
+            heatmapSha256: "a".repeat(64),
+          },
+          averagePosition: "12.00",
+          mapPresentation: { mapZoom: 160, mapPosition: { x: 0, y: 0 } },
+        });
+      }),
+    );
+    renderModal();
+    fireEvent.paste(screen.getByTestId("local-falcon-package-dropzone"), {
+      clipboardData: { files: [], getData: () => JSON.stringify({ batch: { batch_id: "CLT-LARGE-73" }, prospects: [] }) },
+    });
+    fireEvent.click(screen.getByTestId("button-start-import"));
+
+    expect(await screen.findByText("Official map verification: 73 / 73", {}, { timeout: 10_000 })).toBeInTheDocument();
+    expect(mapRequests).toBe(73);
+    expect(screen.getByText("All manifest maps passed checksum and image validation.")).toBeInTheDocument();
+  });
+
+  it("labels official-map 404s as fallback requirements inside the preview", async () => {
+    server.use(
+      http.post("/api/crm/leads/import-local-falcon/preview", () => HttpResponse.json({
+        manifestSha256: "b".repeat(64), batchId: "test", market: { city: "Charlotte", state: "NC" },
+        trade: "landscaping", keyword: "landscaper near me", scanSpec: { grid_size: "7x7", radius_miles: 3 },
+        scanSpecs: [{ grid_size: "7x7", radius_miles: 3 }], batchAlreadyImported: false,
+        newCount: 1, variationCount: 0, existingCount: 0, flaggedCount: 0, sourceMode: "local_falcon",
+        rows: [{ row: 1, placeId: "ChIJ-missing", companyName: "Top Gardens Inc.", address: "Service Area Business",
+          heatmapFile: "Official Local Falcon image", scanSpec: { grid_size: "7x7", radius_miles: 3 },
+          prospectOutcome: "deliverable", heatmapPreviewDataUrl: null, heatmapSha256: null, heatmapSourceUrl: null,
+          mapPresentation: null, reportData: null, outcome: "new" }],
+      })),
+      http.post("/api/crm/leads/import-local-falcon/preview-map", () => HttpResponse.json({
+        code: "LOCAL_FALCON_IMAGE_FETCH_FAILED",
+        message: "Local Falcon could not retrieve 1 official map.",
+        failures: [{ placeId: "ChIJ-missing", companyName: "Top Gardens Inc.", reportKey: "7966e386528304d", reason: "Local Falcon returned HTTP 404" }],
+      }, { status: 422 })),
+    );
+    renderModal();
+    fireEvent.paste(screen.getByTestId("local-falcon-package-dropzone"), {
+      clipboardData: { files: [], getData: () => '{"batch":{"batch_id":"test"},"prospects":[]}' },
+    });
+    fireEvent.click(screen.getByTestId("button-start-import"));
+
+    expect((await screen.findByText(/Official-map fallback required — Top Gardens Inc\./)).closest("p")).toHaveTextContent("HTTP 404");
+    expect(screen.getByTestId("button-confirm-local-falcon-import")).toBeDisabled();
+  });
+
+  it("confirms with checksum-bound server references and does not retransmit original map bytes", async () => {
+    let confirmedForm: FormData | undefined;
+    const verifiedAsset = {
+      manifestSha256: "b".repeat(64),
+      reportKey: "279b8ac00c7ec41",
+      heatmapSha256: "a".repeat(64),
+    };
+    server.use(
+      http.get("/api/crm/leads/assignable-users", () => HttpResponse.json([
+        { id: "setter", name: "Test Setter", email: "setter@example.com", role: "sales_rep" },
+      ])),
+      http.post("/api/crm/leads/import-local-falcon/preview", () => HttpResponse.json({
+        manifestSha256: verifiedAsset.manifestSha256,
+        batchId: "test", market: { city: "Monroe", state: "NC" }, trade: "plumbing", keyword: "plumber near me",
+        scanSpec: { grid_size: "7x7", radius_miles: 3 }, scanSpecs: [{ grid_size: "7x7", radius_miles: 3 }],
+        batchAlreadyImported: false, newCount: 1, variationCount: 0, existingCount: 0, flaggedCount: 0,
+        sourceMode: "local_falcon", rows: [{
+          row: 1, placeId: "ChIJ-test-1", companyName: "Acme Plumbing", address: "1 Main St",
+          heatmapFile: "Official Local Falcon image", scanSpec: { grid_size: "7x7", radius_miles: 3 },
+          prospectOutcome: "deliverable", heatmapPreviewDataUrl: "data:image/png;base64,aGVhdG1hcA==",
+          heatmapSha256: verifiedAsset.heatmapSha256,
+          heatmapSourceUrl: "https://lf-static-v2.localfalcon.com/image/279b8ac00c7ec41",
+          mapSourceType: "official", verifiedAsset,
+          mapPresentation: { mapZoom: 160, mapPosition: { x: 0, y: 0 } },
+          reportData: {
+            businessName: "Acme Plumbing", address: "1 Main St, Monroe, NC", rating: "5", reviewCount: "10",
+            searchPhrase: "plumber near me", market: "Monroe, NC", averagePosition: "4.00",
+            gridSize: "7x7", radius: "3", heatmapImageUrl: "data:image/png;base64,aGVhdG1hcA==",
+          },
+          outcome: "new",
+        }],
+      })),
+      http.post("/api/crm/leads/import-local-falcon/confirm", async ({ request }) => {
+        confirmedForm = await request.formData();
+        return HttpResponse.json({ imported: 1, existingCount: 0, flaggedCount: 0, automationErrors: 0 });
+      }),
+    );
+    renderWithProviders(<CsvImportModal open onClose={() => undefined} />);
+    fireEvent.paste(screen.getByTestId("local-falcon-package-dropzone"), {
+      clipboardData: { files: [], getData: () => '{"batch":{"batch_id":"test"},"prospects":[]}' },
+    });
+    fireEvent.click(screen.getByTestId("button-start-import"));
+    await screen.findByText("All manifest maps passed checksum and image validation.");
+    fireEvent.keyDown(screen.getByTestId("select-local-falcon-lead-type"), { key: " " });
+    fireEvent.click(await screen.findByRole("option", { name: "SAB", exact: true }));
+    fireEvent.keyDown(screen.getByTestId("select-local-falcon-assignee"), { key: " " });
+    fireEvent.click(await screen.findByRole("option", { name: /Test Setter/ }));
+    fireEvent.click(screen.getByTestId("checkbox-confirm-local-falcon-preview-1"));
+    fireEvent.click(screen.getByTestId("button-confirm-local-falcon-import"));
+
+    expect(await screen.findByText("Import completed successfully.")).toBeInTheDocument();
+    expect(confirmedForm?.getAll("heatmaps")).toEqual([]);
+    expect(confirmedForm?.get("verifiedMapAssets")).toBe(JSON.stringify({ "ChIJ-test-1": verifiedAsset }));
+    expect(confirmedForm?.getAll("snapshots")).toHaveLength(1);
+  });
+
   it("can confirm or clear every included report at once", async () => {
     const makeRow = (row: number, placeId: string, companyName: string) => ({
       row,
@@ -339,6 +496,11 @@ describe("Local Falcon import clipboard", () => {
       heatmapPreviewDataUrl: "data:image/png;base64,aGVhdG1hcA==",
       heatmapSha256: "a".repeat(64),
       heatmapSourceUrl: `https://lf-static-v2.localfalcon.com/image/${placeId}`,
+      verifiedAsset: {
+        manifestSha256: "b".repeat(64),
+        reportKey: placeId,
+        heatmapSha256: "a".repeat(64),
+      },
       mapPresentation: {
         mapZoom: 160,
         mapPosition: { x: 0, y: 0 },

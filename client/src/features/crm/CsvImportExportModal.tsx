@@ -70,17 +70,35 @@ interface LocalFalconPreviewRow {
   heatmapPreviewDataUrl: string | null;
   heatmapSha256: string | null;
   heatmapSourceUrl: string | null;
+  mapSourceType?: "official" | "fallback";
+  verifiedAsset?: LocalFalconPreviewMap["verifiedAsset"];
   mapPresentation: {
     mapZoom: number;
     mapPosition: { x: number; y: number };
-  };
+  } | null;
   reportData: LocalVisibilityReportData | null;
   outcome: "new" | "variation" | "existing" | "flagged";
   reason?: string;
   matches?: Array<{ companyName: string; reasons: string[] }>;
 }
 
+interface LocalFalconPreviewMap {
+  placeId: string;
+  heatmapPreviewDataUrl: string;
+  heatmapSha256: string;
+  heatmapSourceUrl: string | null;
+  mapSourceType: "official" | "fallback";
+  verifiedAsset: {
+    manifestSha256: string;
+    reportKey: string;
+    heatmapSha256: string;
+  };
+  averagePosition: string;
+  mapPresentation: NonNullable<LocalFalconPreviewRow["mapPresentation"]>;
+}
+
 interface LocalFalconPreview {
+  manifestSha256: string;
   batchId: string;
   market: { city: string; state: string };
   trade: string;
@@ -125,7 +143,7 @@ function FramedReportPreview({
   onInspect,
 }: {
   data: LocalVisibilityReportData;
-  mapPresentation: LocalFalconPreviewRow["mapPresentation"];
+  mapPresentation: NonNullable<LocalFalconPreviewRow["mapPresentation"]>;
   reportRef?: (element: HTMLDivElement | null) => void;
   onInspect: () => void;
 }) {
@@ -222,6 +240,9 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
   const [approvedFlagged, setApprovedFlagged] = useState<Set<string>>(new Set());
   const [confirmedPreviews, setConfirmedPreviews] = useState<Set<string>>(new Set());
   const [imageFailures, setImageFailures] = useState<LocalFalconImageFailure[]>([]);
+  const [verifiedMapAssets, setVerifiedMapAssets] = useState<Map<string, LocalFalconPreviewMap["verifiedAsset"]>>(new Map());
+  const [isLoadingMaps, setIsLoadingMaps] = useState(false);
+  const [loadedMapCount, setLoadedMapCount] = useState(0);
   const [isGeneratingSnapshots, setIsGeneratingSnapshots] = useState(false);
   const [magnifiedRow, setMagnifiedRow] = useState<LocalFalconPreviewRow | null>(null);
 
@@ -243,6 +264,9 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
     setApprovedFlagged(new Set());
     setConfirmedPreviews(new Set());
     setImageFailures([]);
+    setVerifiedMapAssets(new Map());
+    setIsLoadingMaps(false);
+    setLoadedMapCount(0);
     setIsGeneratingSnapshots(false);
     setMagnifiedRow(null);
     reportRefs.current.clear();
@@ -256,6 +280,8 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
     setResult(null);
     setImportError(null);
     setImageFailures([]);
+    setVerifiedMapAssets(new Map());
+    setLoadedMapCount(0);
   };
 
   const setLocalFalconPackageFiles = (files: File[]) => {
@@ -340,12 +366,95 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
     setImportError("Paste JSON text or a copied ZIP/JSON file. Images are requested separately only if Local Falcon retrieval fails.");
   };
 
-  const buildPackageForm = () => {
+  const buildPackageForm = (maps: File[] = heatmapFiles) => {
     if (!file) throw new Error("Choose a package first");
     const form = new FormData();
     form.append("package", file);
-    heatmapFiles.forEach((heatmap) => form.append("heatmaps", heatmap, heatmap.name));
+    maps.forEach((heatmap) => form.append("heatmaps", heatmap, heatmap.name));
     return form;
+  };
+
+  const loadPreviewMaps = async (basePreview: LocalFalconPreview) => {
+    const initialAssets = new Map(basePreview.rows.flatMap((row) =>
+      row.verifiedAsset ? [[row.placeId, row.verifiedAsset] as const] : [],
+    ));
+    setVerifiedMapAssets((current) => new Map([...current, ...initialAssets]));
+    const rows = basePreview.rows.filter((row) =>
+      row.prospectOutcome !== "no_visibility_core_found" && !row.verifiedAsset,
+    );
+    let completed = basePreview.rows.filter((row) =>
+      row.prospectOutcome !== "no_visibility_core_found" && !!row.verifiedAsset,
+    ).length;
+    setLoadedMapCount(completed);
+    if (!rows.length) return;
+    setIsLoadingMaps(true);
+    setImageFailures([]);
+    const failures: LocalFalconImageFailure[] = [];
+    let nextIndex = 0;
+
+    const worker = async () => {
+      while (nextIndex < rows.length) {
+        const row = rows[nextIndex++];
+        try {
+          const form = buildPackageForm();
+          form.append("placeId", row.placeId);
+          const response = await fetch("/api/crm/leads/import-local-falcon/preview-map", {
+            method: "POST",
+            credentials: "include",
+            body: form,
+          });
+          const body = await response.json();
+          if (!response.ok) {
+            if (body.code === "LOCAL_FALCON_IMAGE_FETCH_FAILED" && Array.isArray(body.failures)) {
+              failures.push(...body.failures);
+            } else {
+              failures.push({
+                placeId: row.placeId,
+                companyName: row.companyName,
+                reportKey: "",
+                reason: body.message ?? "Map retrieval failed",
+              });
+            }
+            continue;
+          }
+          const map = body as LocalFalconPreviewMap;
+          setVerifiedMapAssets((current) => new Map(current).set(row.placeId, map.verifiedAsset));
+          setPreview((current) => current ? {
+            ...current,
+            rows: current.rows.map((candidate) => candidate.placeId === row.placeId ? {
+              ...candidate,
+              heatmapPreviewDataUrl: map.heatmapPreviewDataUrl,
+              heatmapSha256: map.heatmapSha256,
+              heatmapSourceUrl: map.heatmapSourceUrl,
+              mapSourceType: map.mapSourceType,
+              verifiedAsset: map.verifiedAsset,
+              mapPresentation: map.mapPresentation,
+              reportData: candidate.reportData ? {
+                ...candidate.reportData,
+                heatmapImageUrl: map.heatmapPreviewDataUrl,
+                averagePosition: map.averagePosition,
+              } : null,
+            } : candidate),
+          } : current);
+          completed += 1;
+          setLoadedMapCount(completed);
+        } catch (error: any) {
+          failures.push({
+            placeId: row.placeId,
+            companyName: row.companyName,
+            reportKey: "",
+            reason: error.message ?? "Map retrieval failed",
+          });
+        }
+      }
+    };
+
+    await Promise.all(Array.from({ length: Math.min(6, rows.length) }, () => worker()));
+    setImageFailures(failures);
+    setIsLoadingMaps(false);
+    if (failures.length) {
+      setImportError(`${failures.length} official map${failures.length === 1 ? "" : "s"} need an original fallback image before import.`);
+    }
   };
 
   const handleImport = async () => {
@@ -371,6 +480,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
         setApprovedFlagged(new Set());
         setConfirmedPreviews(new Set());
         setPhase("preview");
+        void loadPreviewMaps(body);
         return;
       }
 
@@ -403,7 +513,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
     setImportError(null);
     setIsGeneratingSnapshots(true);
     try {
-      const form = buildPackageForm();
+      const form = buildPackageForm([]);
       form.append("reportMetric", "ATRP");
       if (assignedTo) form.append("assignedTo", assignedTo);
       form.append("leadClassification", leadClassification);
@@ -411,6 +521,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
       form.append("previewHeatmapChecksums", JSON.stringify(Object.fromEntries(
         preview.rows.filter((row) => row.prospectOutcome !== "no_visibility_core_found").map((row) => [row.placeId, row.heatmapSha256]),
       )));
+      form.append("verifiedMapAssets", JSON.stringify(Object.fromEntries(verifiedMapAssets)));
       form.append("confirmedCrmOnlyPlaceIds", JSON.stringify(preview.rows
         .filter((row) => row.prospectOutcome === "no_visibility_core_found" && confirmedPreviews.has(row.placeId))
         .map((row) => row.placeId)));
@@ -491,11 +602,21 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
     && !allIncludedPreviewsConfirmed;
   const everyIncludedPreviewConfirmed = includedRows.length > 0
     && allIncludedPreviewsConfirmed;
+  const everyIncludedMapReady = includedRows.every((row) =>
+    row.prospectOutcome === "no_visibility_core_found" || !!row.heatmapSha256,
+  );
+  const everyManifestMapReady = preview?.rows.every((row) =>
+    row.prospectOutcome === "no_visibility_core_found"
+      || (!!row.heatmapSha256 && !!row.verifiedAsset && verifiedMapAssets.has(row.placeId)),
+  ) ?? false;
+  const requiredMapCount = preview?.rows.filter((row) =>
+    row.prospectOutcome !== "no_visibility_core_found",
+  ).length ?? 0;
 
   const setAllIncludedPreviewsConfirmed = (checked: boolean) => {
     setConfirmedPreviews((current) => {
       const next = new Set(current);
-      includedRows.forEach((row) => {
+      includedRows.filter((row) => row.prospectOutcome === "no_visibility_core_found" || !!row.heatmapSha256).forEach((row) => {
         if (checked) next.add(row.placeId);
         else next.delete(row.placeId);
       });
@@ -655,6 +776,9 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
                 <p className="text-sm text-slate-500">
                   {preview.market.city}, {preview.market.state} · {preview.trade} · {(preview.scanSpecs ?? [preview.scanSpec]).map((spec) => `${spec.grid_size} / ${spec.radius_miles} miles`).join("; ")}
                 </p>
+                {preview.manifestSha256 && (
+                  <p className="mt-1 break-all font-mono text-[11px] text-slate-500">Manifest SHA-256: {preview.manifestSha256}</p>
+                )}
               </div>
               <div className="flex gap-2 text-center text-xs">
                 <Badge className="bg-green-100 text-green-700">{preview.newCount} new</Badge>
@@ -668,6 +792,30 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
 
             {includedRows.length > 0 && (
               <div className="space-y-3">
+                <div className="rounded-lg border bg-slate-50 p-3 text-sm" data-testid="local-falcon-map-load-progress">
+                  <p className="font-medium">Official map verification: {loadedMapCount} / {requiredMapCount}</p>
+                  <p className="mt-1 text-xs text-slate-600">
+                    {isLoadingMaps ? "Maps are loading independently while you review the batch metadata." : everyManifestMapReady ? "All manifest maps passed checksum and image validation." : "Add the listed original fallback maps, then retry only the unresolved maps."}
+                  </p>
+                  {imageFailures.length > 0 && (
+                    <div className="mt-3 space-y-2" data-testid="local-falcon-preview-map-failures">
+                      {imageFailures.map((failure) => <p key={failure.placeId} className="text-xs text-amber-900"><span className="font-semibold">Official-map fallback required — {failure.companyName}:</span> {failure.reason}</p>)}
+                      <div className="flex flex-wrap gap-2">
+                        <Button type="button" variant="outline" size="sm" onClick={() => heatmapInputRef.current?.click()}>Choose original fallback maps</Button>
+                        <Button type="button" size="sm" disabled={isLoadingMaps || heatmapFiles.length === 0} onClick={() => preview && void loadPreviewMaps(preview)}>Retry unresolved maps</Button>
+                      </div>
+                      <Input
+                        ref={heatmapInputRef}
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        multiple
+                        className="hidden"
+                        onChange={(event) => addHeatmaps(Array.from(event.target.files ?? []))}
+                        data-testid="input-local-falcon-preview-map-overrides"
+                      />
+                    </div>
+                  )}
+                </div>
                 <div className="grid gap-2 md:grid-cols-[180px_1fr] md:items-center">
                   <Label>Lead type <span className="text-red-500">*</span></Label>
                   <div>
@@ -755,6 +903,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
                           <label className="flex items-start gap-2 rounded-lg bg-blue-50 p-3 text-sm font-medium text-blue-950">
                             <Checkbox
                               checked={confirmedPreviews.has(row.placeId)}
+                              disabled={row.prospectOutcome !== "no_visibility_core_found" && !row.heatmapSha256}
                               onCheckedChange={(value) => toggleSet(setConfirmedPreviews, row.placeId, value === true)}
                               data-testid={`checkbox-confirm-local-falcon-preview-${row.row}`}
                             />
@@ -764,7 +913,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
                           </label>
                         ) : null}
                       </div>
-                      {row.reportData && <FramedReportPreview
+                      {row.reportData && row.heatmapPreviewDataUrl && row.mapPresentation && <FramedReportPreview
                         data={row.reportData}
                         mapPresentation={row.mapPresentation}
                         onInspect={() => setMagnifiedRow(row)}
@@ -773,6 +922,9 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
                           else reportRefs.current.delete(row.placeId);
                         }}
                       />}
+                      {row.mapSourceType === "fallback" && (
+                        <p className="mt-2 text-xs font-semibold text-amber-800">Official source unavailable — exact original fallback verified and held server-side.</p>
+                      )}
                     </div>
                   </div>
                 );
@@ -797,7 +949,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
           {phase === "done" ? (
             <><Button variant="outline" onClick={clearImportState}>Import more</Button><Button onClick={handleClose}>Done</Button></>
           ) : phase === "preview" ? (
-            <><Button variant="outline" onClick={clearImportState} disabled={isGeneratingSnapshots}>Choose another package</Button><Button onClick={handleConfirmLocalFalcon} disabled={preview?.batchAlreadyImported || (includedRows.length > 0 && (!assignedTo || !leadClassification)) || !everyIncludedPreviewConfirmed || isGeneratingSnapshots} data-testid="button-confirm-local-falcon-import">{isGeneratingSnapshots ? "Preparing import…" : "Confirm import"}</Button></>
+            <><Button variant="outline" onClick={clearImportState} disabled={isGeneratingSnapshots}>Choose another package</Button><Button onClick={handleConfirmLocalFalcon} disabled={preview?.batchAlreadyImported || (includedRows.length > 0 && (!assignedTo || !leadClassification)) || !everyIncludedPreviewConfirmed || !everyIncludedMapReady || !everyManifestMapReady || isLoadingMaps || isGeneratingSnapshots} data-testid="button-confirm-local-falcon-import">{isGeneratingSnapshots ? "Preparing import…" : "Confirm import"}</Button></>
           ) : (
             <><Button variant="outline" onClick={handleClose} disabled={phase === "loading"}>Cancel</Button><Button onClick={handleImport} disabled={!file || phase === "loading"} data-testid="button-start-import">{phase === "loading" ? t.crm.importing : imageFailures.length > 0 && heatmapFiles.length === 0 ? "Retry automatic retrieval" : "Review import"}</Button></>
           )}

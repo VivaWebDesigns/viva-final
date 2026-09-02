@@ -30,7 +30,7 @@ export async function hydrateReportAtrp(
   fetchAtrp = fetchReportAtrp,
 ): Promise<void> {
   let index = 0;
-  await Promise.all(Array.from({ length: Math.min(3, prospects.length) }, async () => {
+  await Promise.all(Array.from({ length: Math.min(8, prospects.length) }, async () => {
     while (index < prospects.length) {
       const prospect = prospects[index++];
       prospect.atrp = await fetchAtrp(prospect.report_key, prospect.place_id);

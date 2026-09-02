@@ -17,6 +17,8 @@ const LOCAL_FALCON_IMAGE_TIMEOUT_MS = 30_000;
 const LOCAL_FALCON_IMAGE_MAX_ATTEMPTS = 3;
 const LOCAL_FALCON_IMAGE_CONCURRENCY = 3;
 const LOCAL_FALCON_RETRY_DELAYS_MS = [500, 1_500];
+const VERIFIED_HEATMAP_CACHE_TTL_MS = 2 * 60 * 60 * 1000;
+const VERIFIED_HEATMAP_CACHE_MAX_BYTES = 512 * 1024 * 1024;
 
 type FetchLike = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 
@@ -70,6 +72,124 @@ export interface ParsedLocalFalconPackage {
   heatmapsByPath: Map<string, ValidatedHeatmap>;
   heatmapsByPlaceId: Map<string, ValidatedHeatmap>;
   sourceMode: "local_falcon" | "zip" | "fallback";
+}
+
+export interface VerifiedHeatmapAssetRef {
+  manifestSha256: string;
+  reportKey: string;
+  heatmapSha256: string;
+}
+
+interface VerifiedHeatmapCacheEntry {
+  placeId: string;
+  expiresAt: number;
+  heatmap: ValidatedHeatmap;
+}
+
+const verifiedHeatmapCache = new Map<string, VerifiedHeatmapCacheEntry>();
+let verifiedHeatmapCacheBytes = 0;
+
+function verifiedHeatmapCacheKey(reference: VerifiedHeatmapAssetRef): string {
+  return `${reference.manifestSha256}:${reference.reportKey}:${reference.heatmapSha256}`;
+}
+
+function removeVerifiedHeatmapCacheEntry(key: string): void {
+  const entry = verifiedHeatmapCache.get(key);
+  if (!entry) return;
+  verifiedHeatmapCacheBytes -= entry.heatmap.sizeBytes;
+  verifiedHeatmapCache.delete(key);
+}
+
+function pruneVerifiedHeatmapCache(now = Date.now()): void {
+  for (const [key, entry] of verifiedHeatmapCache) {
+    if (entry.expiresAt <= now) removeVerifiedHeatmapCacheEntry(key);
+  }
+  while (verifiedHeatmapCacheBytes > VERIFIED_HEATMAP_CACHE_MAX_BYTES) {
+    const oldestKey = verifiedHeatmapCache.keys().next().value as string | undefined;
+    if (!oldestKey) break;
+    removeVerifiedHeatmapCacheEntry(oldestKey);
+  }
+}
+
+export function localFalconManifestSha256(primary: IncomingPackageFile): string {
+  const { manifestText } = primary.originalName.toLowerCase().endsWith(".zip")
+    ? readZip(primary)
+    : readDirectJson(primary, []);
+  return crypto.createHash("sha256").update(manifestText).digest("hex");
+}
+
+export function cacheVerifiedHeatmap(
+  manifestSha256: string,
+  prospect: DeliverableProspectInput,
+  heatmap: ValidatedHeatmap,
+): VerifiedHeatmapAssetRef {
+  pruneVerifiedHeatmapCache();
+  const reference = {
+    manifestSha256,
+    reportKey: prospect.report_key,
+    heatmapSha256: heatmap.sha256,
+  };
+  const key = verifiedHeatmapCacheKey(reference);
+  removeVerifiedHeatmapCacheEntry(key);
+  verifiedHeatmapCache.set(key, {
+    placeId: prospect.place_id,
+    expiresAt: Date.now() + VERIFIED_HEATMAP_CACHE_TTL_MS,
+    heatmap,
+  });
+  verifiedHeatmapCacheBytes += heatmap.sizeBytes;
+  pruneVerifiedHeatmapCache();
+  return reference;
+}
+
+export function resolveVerifiedHeatmap(
+  reference: VerifiedHeatmapAssetRef,
+  expected: { manifestSha256: string; reportKey: string; placeId: string },
+): ValidatedHeatmap {
+  pruneVerifiedHeatmapCache();
+  if (reference.manifestSha256 !== expected.manifestSha256 || reference.reportKey !== expected.reportKey) {
+    throw new Error(`The verified map reference does not match ${expected.placeId}. Review the preview again.`);
+  }
+  const entry = verifiedHeatmapCache.get(verifiedHeatmapCacheKey(reference));
+  if (!entry || entry.placeId !== expected.placeId || entry.expiresAt <= Date.now()) {
+    throw new Error(`The verified map for ${expected.placeId} is missing or expired. Review the preview again.`);
+  }
+  const currentSha256 = crypto.createHash("sha256").update(entry.heatmap.buffer).digest("hex");
+  if (currentSha256 !== reference.heatmapSha256 || currentSha256 !== entry.heatmap.sha256) {
+    removeVerifiedHeatmapCacheEntry(verifiedHeatmapCacheKey(reference));
+    throw new Error(`The verified map for ${expected.placeId} no longer matches its checksum. Review the preview again.`);
+  }
+  return entry.heatmap;
+}
+
+export function parseLocalFalconManifest(primary: IncomingPackageFile): LocalFalconPayload {
+  const { manifestText } = primary.originalName.toLowerCase().endsWith(".zip")
+    ? readZip(primary)
+    : readDirectJson(primary, []);
+  return parseLocalFalconPayload(manifestText);
+}
+
+export async function parseSingleLocalFalconHeatmap(
+  primary: IncomingPackageFile,
+  supplementalImages: IncomingPackageFile[],
+  placeId: string,
+  fetchImpl: FetchLike,
+): Promise<{ payload: LocalFalconPayload; heatmap: ValidatedHeatmap }> {
+  const source = primary.originalName.toLowerCase().endsWith(".zip")
+    ? readZip(primary)
+    : readDirectJson(primary, supplementalImages);
+  const payload = parseLocalFalconPayload(source.manifestText);
+  const prospect = payload.prospects.find((candidate) => candidate.place_id === placeId);
+  if (!prospect) throw new Error(`Place ID ${placeId} is not present in batch.json`);
+  if (!isDeliverableProspect(prospect)) throw new Error(`Place ID ${placeId} has no deliverable map`);
+
+  const fallbackPath = fallbackPathForProspect(prospect, source.images);
+  const images = new Map<string, Buffer>();
+  if (fallbackPath) images.set(fallbackPath, source.images.get(fallbackPath)!);
+  const singlePayload = { ...payload, prospects: [prospect] };
+  const parsed = await parseJsonPackage(JSON.stringify(singlePayload), images, fetchImpl);
+  const heatmap = parsed.heatmapsByPlaceId.get(placeId);
+  if (!heatmap) throw new Error(`Heatmap missing for Place ID ${placeId}`);
+  return { payload, heatmap };
 }
 
 function normalizeEntryPath(value: string): string {

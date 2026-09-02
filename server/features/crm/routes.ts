@@ -27,13 +27,21 @@ import {
   getLocalFalconCrmOnlyForLead,
   importLocalFalconPayload,
   previewLocalFalconImport,
+  type DeliverableProspectInput,
+  type LocalFalconPayload,
   type LocalFalconUploadedAsset,
 } from "./localFalconImport";
 import {
   LocalFalconImageFetchError,
   LOCAL_FALCON_PACKAGE_MAX_BYTES,
+  cacheVerifiedHeatmap,
+  localFalconManifestSha256,
+  parseLocalFalconManifest,
   parseLocalFalconPackage,
+  parseSingleLocalFalconHeatmap,
+  resolveVerifiedHeatmap,
   type IncomingPackageFile,
+  type VerifiedHeatmapAssetRef,
 } from "./localFalconPackage";
 import {
   formatLocalVisibilityAveragePosition,
@@ -468,6 +476,37 @@ function sendLocalFalconImportError(res: express.Response, error: any) {
     .json({ message: error.message });
 }
 
+function localFalconReportData(
+  payload: LocalFalconPayload,
+  prospect: DeliverableProspectInput,
+  heatmapImageUrl: string,
+) {
+  return {
+    businessName: prospect.company_name,
+    address: formatLocalVisibilityReportAddress({
+      address: prospect.address,
+      city: prospect.city,
+      state: prospect.state,
+      zip: prospect.zip,
+    }),
+    rating: String(prospect.rating),
+    reviewCount: String(prospect.review_count),
+    searchPhrase: prospect.scan_keyword,
+    market: resolveLocalVisibilityMarket({
+      scanCity: prospect.scan_center?.city,
+      scanState: prospect.scan_center?.state,
+      prospectCity: prospect.city,
+      prospectState: prospect.state,
+      batchCity: payload.batch.market.city,
+      batchState: payload.batch.market.state,
+    }).label,
+    averagePosition: formatLocalVisibilityAveragePosition(prospect.atrp),
+    gridSize: getProspectScanSpec(payload, prospect).grid_size,
+    radius: String(getProspectScanSpec(payload, prospect).radius_miles),
+    heatmapImageUrl,
+  };
+}
+
 router.post(
   "/leads/import-local-falcon/preview",
   requireRole("admin", "developer"),
@@ -475,11 +514,34 @@ router.post(
   async (req, res) => {
     try {
       const { primary, supplemental } = packageFiles(req);
+      if (primary.originalName.toLowerCase().endsWith(".json")) {
+        const payload = parseLocalFalconManifest(primary);
+        const manifestSha256 = localFalconManifestSha256(primary);
+        const preview = await previewLocalFalconImport(payload);
+        return res.json({
+          ...preview,
+          manifestSha256,
+          sourceMode: supplemental.length ? "fallback" : "local_falcon",
+          rows: preview.rows.map((row) => {
+            const prospect = payload.prospects.find((candidate) => candidate.place_id === row.placeId)!;
+            if (isNoVisibilityProspect(prospect)) return {
+              ...row, heatmapPreviewDataUrl: null, heatmapSha256: null, heatmapSourceUrl: null,
+              mapPresentation: null, reportData: null,
+            };
+            return {
+              ...row, heatmapPreviewDataUrl: null, heatmapSha256: null, heatmapSourceUrl: null,
+              mapPresentation: null, reportData: localFalconReportData(payload, prospect, ""),
+            };
+          }),
+        });
+      }
       const parsedPackage = await parseLocalFalconPackage(primary, supplemental, fetch);
+      const manifestSha256 = localFalconManifestSha256(primary);
       await hydrateReportAtrp(parsedPackage.payload.prospects.filter(isDeliverableProspect));
       const preview = await previewLocalFalconImport(parsedPackage.payload);
       res.json({
         ...preview,
+        manifestSha256,
         sourceMode: parsedPackage.sourceMode,
         rows: preview.rows.map((row) => {
           const prospect = parsedPackage.payload.prospects.find((candidate) => candidate.place_id === row.placeId)!;
@@ -488,44 +550,62 @@ router.post(
             mapPresentation: null, reportData: null,
           };
           const heatmap = parsedPackage.heatmapsByPlaceId.get(row.placeId)!;
+          const verifiedAsset = cacheVerifiedHeatmap(manifestSha256, prospect, heatmap);
           return {
             ...row,
             heatmapPreviewDataUrl: heatmap.previewDataUrl,
             heatmapSha256: heatmap.sha256,
             heatmapSourceUrl: heatmap.sourceUrl ?? null,
+            mapSourceType: heatmap.sourceUrl ? "official" : "fallback",
+            verifiedAsset,
             mapPresentation: getLocalFalconMapPresentation(
               !!heatmap.sourceUrl,
               getProspectScanSpec(parsedPackage.payload, prospect).radius_miles,
             ),
-            reportData: {
-              businessName: prospect.company_name,
-              address: formatLocalVisibilityReportAddress({
-                address: prospect.address,
-                city: prospect.city,
-                state: prospect.state,
-                zip: prospect.zip,
-              }),
-              rating: String(prospect.rating),
-              reviewCount: String(prospect.review_count),
-              searchPhrase: prospect.scan_keyword,
-              market: resolveLocalVisibilityMarket({
-                scanCity: prospect.scan_center?.city,
-                scanState: prospect.scan_center?.state,
-                prospectCity: prospect.city,
-                prospectState: prospect.state,
-                batchCity: parsedPackage.payload.batch.market.city,
-                batchState: parsedPackage.payload.batch.market.state,
-              }).label,
-              averagePosition: formatLocalVisibilityAveragePosition(prospect.atrp),
-              gridSize: getProspectScanSpec(parsedPackage.payload, prospect).grid_size,
-              radius: String(getProspectScanSpec(parsedPackage.payload, prospect).radius_miles),
-              heatmapImageUrl: heatmap.previewDataUrl,
-            },
+            reportData: localFalconReportData(parsedPackage.payload, prospect, heatmap.previewDataUrl),
           };
         }),
       });
     } catch (error: any) {
       sendLocalFalconImportError(res, error);
+    }
+  },
+);
+
+router.post(
+  "/leads/import-local-falcon/preview-map",
+  requireRole("admin", "developer"),
+  localFalconPackageFields,
+  async (req, res) => {
+    try {
+      const { primary, supplemental } = packageFiles(req);
+      const placeId = z.string().trim().min(1).parse(req.body.placeId);
+      const { payload, heatmap } = await parseSingleLocalFalconHeatmap(
+        primary,
+        supplemental,
+        placeId,
+        fetch,
+      );
+      const prospect = payload.prospects.find((candidate) => candidate.place_id === placeId);
+      if (!prospect || !isDeliverableProspect(prospect)) throw new Error(`Place ID ${placeId} has no deliverable map`);
+      await hydrateReportAtrp([prospect]);
+      const manifestSha256 = localFalconManifestSha256(primary);
+      const verifiedAsset = cacheVerifiedHeatmap(manifestSha256, prospect, heatmap);
+      return res.json({
+        placeId,
+        heatmapPreviewDataUrl: heatmap.previewDataUrl,
+        heatmapSha256: heatmap.sha256,
+        heatmapSourceUrl: heatmap.sourceUrl ?? null,
+        mapSourceType: heatmap.sourceUrl ? "official" : "fallback",
+        verifiedAsset,
+        averagePosition: formatLocalVisibilityAveragePosition(prospect.atrp),
+        mapPresentation: getLocalFalconMapPresentation(
+          !!heatmap.sourceUrl,
+          getProspectScanSpec(payload, prospect).radius_miles,
+        ),
+      });
+    } catch (error: any) {
+      return sendLocalFalconImportError(res, error);
     }
   },
 );
@@ -549,11 +629,33 @@ router.post(
         z.string(),
         z.string().regex(/^[a-f0-9]{64}$/),
       ).parse(JSON.parse(req.body.previewHeatmapChecksums || "{}"));
+      const verifiedMapAssets = z.record(
+        z.string(),
+        z.object({
+          manifestSha256: z.string().regex(/^[a-f0-9]{64}$/),
+          reportKey: z.string().trim().min(1),
+          heatmapSha256: z.string().regex(/^[a-f0-9]{64}$/),
+        }).strict(),
+      ).parse(JSON.parse(req.body.verifiedMapAssets || "{}")) as Record<string, VerifiedHeatmapAssetRef>;
 
-      const { primary, supplemental } = packageFiles(req);
-      const parsedPackage = await parseLocalFalconPackage(primary, supplemental, fetch);
-      await hydrateReportAtrp(parsedPackage.payload.prospects.filter(isDeliverableProspect));
-      const preview = await previewLocalFalconImport(parsedPackage.payload);
+      const { primary } = packageFiles(req);
+      const payload = parseLocalFalconManifest(primary);
+      const manifestSha256 = localFalconManifestSha256(primary);
+      await hydrateReportAtrp(payload.prospects.filter(isDeliverableProspect));
+      const preview = await previewLocalFalconImport(payload);
+      const heatmapsByPlaceId = new Map();
+      for (const row of preview.rows.filter((candidate) => candidate.prospectOutcome !== "no_visibility_core_found")) {
+        const prospect = payload.prospects.find((candidate) => candidate.place_id === row.placeId);
+        const reference = verifiedMapAssets[row.placeId];
+        if (!prospect || !isDeliverableProspect(prospect) || !reference) {
+          throw new Error(`The verified map for ${row.companyName} is missing or expired. Review the preview again.`);
+        }
+        heatmapsByPlaceId.set(row.placeId, resolveVerifiedHeatmap(reference, {
+          manifestSha256,
+          reportKey: prospect.report_key,
+          placeId: row.placeId,
+        }));
+      }
       const approvedFlaggedSet = new Set(approvedFlagged);
       const confirmedCrmOnly = new Set(z.array(z.string()).parse(JSON.parse(req.body.confirmedCrmOnlyPlaceIds || "[]")));
       const selectedRows = preview.rows.filter(
@@ -582,7 +684,7 @@ router.post(
       );
       for (const row of selectedRows.filter((row) => row.prospectOutcome !== "no_visibility_core_found")) {
         const confirmedChecksum = previewHeatmapChecksums[row.placeId];
-        const currentChecksum = parsedPackage.heatmapsByPlaceId.get(row.placeId)?.sha256;
+        const currentChecksum = heatmapsByPlaceId.get(row.placeId)?.sha256;
         if (!confirmedChecksum || confirmedChecksum !== currentChecksum) {
           throw new Error(`The Local Falcon image changed for ${row.companyName}. Review the framed preview again before importing.`);
         }
@@ -598,7 +700,7 @@ router.post(
 
       const assetsByPlaceId = new Map<string, LocalFalconUploadedAsset>();
       for (const row of selectedRows.filter((row) => row.prospectOutcome !== "no_visibility_core_found")) {
-        const heatmap = parsedPackage.heatmapsByPlaceId.get(row.placeId);
+        const heatmap = heatmapsByPlaceId.get(row.placeId);
         if (!heatmap) throw new Error(`Heatmap missing for ${row.companyName}`);
         const upload = await storageService.uploadFile(
           heatmap.buffer,
@@ -635,7 +737,7 @@ router.post(
 
       const selectedPlaceIds = new Set(selectedRows.map((row) => row.placeId));
       const result = await importLocalFalconPayload(
-        parsedPackage.payload,
+        payload,
         req.authUser!.id,
         assignedTo,
         leadClassification,
@@ -671,7 +773,7 @@ router.post(
         });
         tasksCreated += automation.tasksCreated;
         automationErrors += automation.errors;
-        try { notifyLeadAssignment({ id: imported.leadId, title: parsedPackage.payload.prospects.find((p) => p.place_id === imported.placeId)?.company_name ?? "Local Falcon lead" }, assignedTo); } catch (_) {}
+        try { notifyLeadAssignment({ id: imported.leadId, title: payload.prospects.find((p) => p.place_id === imported.placeId)?.company_name ?? "Local Falcon lead" }, assignedTo); } catch (_) {}
       }
 
       await logAudit({

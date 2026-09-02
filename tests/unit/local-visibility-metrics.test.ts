@@ -26,4 +26,26 @@ describe("all-point report average", () => {
     await hydrateReportAtrp(prospects, vi.fn().mockResolvedValue(20.63));
     expect(prospects[0]).toEqual({ report_key: key, place_id: pid, arp: 3, atrp: 20.63 });
   });
+  it("bounds consolidated-batch ATRP verification at eight concurrent requests", async () => {
+    const prospects = Array.from({ length: 73 }, (_, index) => ({
+      report_key: index.toString(16).padStart(12, "0"),
+      place_id: `place-${index}`,
+      atrp: 3,
+    }));
+    let active = 0;
+    let maximum = 0;
+    const retrieve = vi.fn(async () => {
+      active += 1;
+      maximum = Math.max(maximum, active);
+      await new Promise((resolve) => setTimeout(resolve, 2));
+      active -= 1;
+      return 12;
+    });
+
+    await hydrateReportAtrp(prospects, retrieve);
+
+    expect(retrieve).toHaveBeenCalledTimes(73);
+    expect(maximum).toBe(8);
+    expect(prospects.every((prospect) => prospect.atrp === 12)).toBe(true);
+  });
 });
