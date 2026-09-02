@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { STALE, queryClient, apiRequest } from "@/lib/queryClient";
@@ -78,17 +78,43 @@ export default function LeadListPage() {
   const { role } = useAuth();
   const isAdmin = role === "admin";
   const isRestricted = role === "sales_rep" || role === "lead_gen";
+  const initialParams = new URLSearchParams(window.location.search);
 
-  const [rawSearch, setRawSearch] = useState("");
+  const [rawSearch, setRawSearch] = useState(() => initialParams.get("search") ?? "");
   const search = useDebounce(rawSearch, 300);
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [sourceFilter, setSourceFilter] = useState<string>("all");
-  const [tagFilters, setTagFilters] = useState<string[]>([]);
-  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
-  const [reportOutreachFilter, setReportOutreachFilter] = useState<ReportOutreachFilter | "all">("all");
-  const [page, setPage] = useState(1);
-  useEffect(() => { setPage(1); }, [search]);
+  const [statusFilter, setStatusFilter] = useState<string>(() => initialParams.get("statusId") ?? "all");
+  const [sourceFilter, setSourceFilter] = useState<string>(() => initialParams.get("source") ?? "all");
+  const [tagFilters, setTagFilters] = useState<string[]>(() => initialParams.getAll("tagIds"));
+  const [assigneeFilter, setAssigneeFilter] = useState<string>(() => initialParams.get("assignedTo") ?? "all");
+  const [reportOutreachFilter, setReportOutreachFilter] = useState<ReportOutreachFilter | "all">(
+    () => (initialParams.get("reportOutreach") as ReportOutreachFilter | null) ?? "all",
+  );
+  const [page, setPage] = useState(() => {
+    const restoredPage = Number(initialParams.get("page"));
+    return Number.isInteger(restoredPage) && restoredPage > 0 ? restoredPage : 1;
+  });
+  const isInitialSearch = useRef(true);
+  useEffect(() => {
+    if (isInitialSearch.current) {
+      isInitialSearch.current = false;
+      return;
+    }
+    setPage(1);
+  }, [search]);
   const pageSize = 100;
+
+  const buildLeadContextSearch = () => {
+    const params = new URLSearchParams();
+    if (search) params.set("search", search);
+    if (statusFilter !== "all") params.set("statusId", statusFilter);
+    if (sourceFilter !== "all") params.set("source", sourceFilter);
+    tagFilters.forEach((tagId) => params.append("tagIds", tagId));
+    if (assigneeFilter !== "all") params.set("assignedTo", assigneeFilter);
+    if (reportOutreachFilter !== "all") params.set("reportOutreach", reportOutreachFilter);
+    if (page > 1) params.set("page", String(page));
+    const query = params.toString();
+    return query ? `?${query}` : "";
+  };
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDialog, setBulkDialog] = useState<BulkAction | null>(null);
@@ -612,7 +638,7 @@ export default function LeadListPage() {
                     "hover-elevate cursor-pointer transition-all duration-150",
                     isSelected && "ring-2 ring-teal-500 bg-teal-50/40 dark:bg-teal-950/20"
                   )}
-                  onClick={() => navigate(`/admin/crm/leads/${lead.id}`)}
+                  onClick={() => navigate(`/admin/crm/leads/${lead.id}${buildLeadContextSearch()}`)}
                   data-testid={`card-lead-${lead.id}`}
                 >
                   <div className="flex items-start gap-3 p-4">

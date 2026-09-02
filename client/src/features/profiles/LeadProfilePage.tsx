@@ -29,8 +29,9 @@ interface LeadNavigationResponse {
 export default function LeadProfilePage({ id }: { id: string }) {
   const [, navigate] = useLocation();
   const { t } = useAdminLang();
+  const leadContextSearch = window.location.search;
   const { data: navigation, isLoading: isNavigationLoading } = useQuery<LeadNavigationResponse>({
-    queryKey: [`/api/crm/leads/${id}/navigation`],
+    queryKey: [`/api/crm/leads/${id}/navigation${leadContextSearch}`],
   });
 
   return (
@@ -41,7 +42,7 @@ export default function LeadProfilePage({ id }: { id: string }) {
           variant="ghost"
           size="sm"
           className="gap-1.5 text-gray-500 hover:text-gray-900"
-          onClick={() => navigate("/admin/crm")}
+          onClick={() => navigate(`/admin/crm${leadContextSearch}`)}
           data-testid="button-back-to-leads"
         >
           <ArrowLeft className="w-4 h-4" />
@@ -54,7 +55,7 @@ export default function LeadProfilePage({ id }: { id: string }) {
             size="sm"
             className="gap-1.5"
             disabled={isNavigationLoading || !navigation?.previous}
-            onClick={() => navigation?.previous && navigate(`/admin/crm/leads/${navigation.previous.id}`)}
+            onClick={() => navigation?.previous && navigate(`/admin/crm/leads/${navigation.previous.id}${leadContextSearch}`)}
             title={navigation?.previous?.title ?? t.common.previous}
             data-testid="button-previous-lead"
           >
@@ -66,7 +67,7 @@ export default function LeadProfilePage({ id }: { id: string }) {
             size="sm"
             className="gap-1.5"
             disabled={isNavigationLoading || !navigation?.next}
-            onClick={() => navigation?.next && navigate(`/admin/crm/leads/${navigation.next.id}`)}
+            onClick={() => navigation?.next && navigate(`/admin/crm/leads/${navigation.next.id}${leadContextSearch}`)}
             title={navigation?.next?.title ?? t.common.next}
             data-testid="button-next-lead"
           >

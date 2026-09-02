@@ -256,9 +256,27 @@ router.get("/leads", requireRole("admin", "developer", "sales_rep", "lead_gen"),
 
 router.get("/leads/:id/navigation", requireRole("admin", "developer", "sales_rep", "lead_gen"), async (req, res) => {
   try {
+    const { search, statusId, source, assignedTo, tagId, tagIds, fromWebsiteForm, reportOutreach } = req.query;
+    const parsedTags = z.object({
+      tagId: z.string().min(1).optional(),
+      tagIds: z.union([z.string().min(1), z.array(z.string().min(1)).max(100)]).optional(),
+    }).safeParse({ tagId, tagIds });
+    if (!parsedTags.success) return res.status(400).json({ message: "Invalid tag filters" });
+    const parsedOutreach = z.enum(REPORT_OUTREACH_FILTERS).optional().safeParse(reportOutreach);
+    if (!parsedOutreach.success) return res.status(400).json({ message: "Invalid report outreach filter" });
+
     const navigation = await crmStorage.getLeadNavigation(
       req.params.id as string,
-      isRestricted(req) ? req.authUser!.id : undefined,
+      {
+        search: search as string | undefined,
+        statusId: statusId as string | undefined,
+        source: source as string | undefined,
+        assignedTo: isRestricted(req) ? req.authUser!.id : assignedTo as string | undefined,
+        tagId: parsedTags.data.tagId,
+        tagIds: typeof parsedTags.data.tagIds === "string" ? [parsedTags.data.tagIds] : parsedTags.data.tagIds,
+        fromWebsiteForm: fromWebsiteForm === "true" ? true : fromWebsiteForm === "false" ? false : undefined,
+        reportOutreach: parsedOutreach.data,
+      },
     );
     if (!navigation) return res.status(404).json({ message: "Lead not found" });
     res.json(navigation);

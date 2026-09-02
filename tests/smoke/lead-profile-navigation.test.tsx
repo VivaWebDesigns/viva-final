@@ -15,8 +15,13 @@ describe("LeadProfilePage navigation", () => {
   afterAll(() => server.close());
 
   it("navigates to the previous and next leads", async () => {
+    let requestedSource: string | null = null;
+    let requestedPage: string | null = null;
     server.use(
-      http.get("/api/crm/leads/:id/navigation", ({ params }) => {
+      http.get("/api/crm/leads/:id/navigation", ({ params, request }) => {
+        const searchParams = new URL(request.url).searchParams;
+        requestedSource = searchParams.get("source");
+        requestedPage = searchParams.get("page");
         if (params.id === "lead-2") {
           return HttpResponse.json({
             previous: { id: "lead-1", title: "Newer lead" },
@@ -27,17 +32,27 @@ describe("LeadProfilePage navigation", () => {
       }),
     );
 
-    renderWithProviders(<LeadProfilePage id="lead-2" />, { route: "/admin/crm/leads/lead-2" });
+    renderWithProviders(<LeadProfilePage id="lead-2" />, {
+      route: "/admin/crm/leads/lead-2?source=local_falcon&page=2",
+    });
 
     const previousButton = await screen.findByTestId("button-previous-lead");
     await waitFor(() => expect(previousButton).toHaveAttribute("title", "Newer lead"));
+    expect(requestedSource).toBe("local_falcon");
+    expect(requestedPage).toBe("2");
     expect(screen.getByTestId("button-next-lead")).toHaveAttribute("title", "Older lead");
 
     fireEvent.click(screen.getByTestId("button-next-lead"));
     expect(window.location.pathname).toBe("/admin/crm/leads/lead-3");
+    expect(window.location.search).toBe("?source=local_falcon&page=2");
 
     fireEvent.click(previousButton);
     expect(window.location.pathname).toBe("/admin/crm/leads/lead-1");
+    expect(window.location.search).toBe("?source=local_falcon&page=2");
+
+    fireEvent.click(screen.getByTestId("button-back-to-leads"));
+    expect(window.location.pathname).toBe("/admin/crm");
+    expect(window.location.search).toBe("?source=local_falcon&page=2");
   });
 
   it("disables navigation at the ends of the lead list", async () => {

@@ -11,7 +11,7 @@ import {
   type CrmLead, type CrmLeadNote, type CrmTag,
   type InsertSmsMessage, type SmsMessage,
 } from "@shared/schema";
-import { eq, ilike, or, desc, asc, sql, and, count, inArray, gt, lt } from "drizzle-orm";
+import { eq, ilike, or, desc, asc, sql, and, count, inArray } from "drizzle-orm";
 import { getLocalFalconPrioritiesByLeadIds } from "./localFalconPriority";
 import type { SalesPrioritySnapshot } from "@shared/salesPriority";
 import type { ReportOutreachFilter } from "@shared/reportOutreach";
@@ -31,7 +31,7 @@ interface PaginationParams {
   limit?: number;
 }
 
-interface LeadFilters extends PaginationParams {
+export interface LeadFilters extends PaginationParams {
   search?: string;
   statusId?: string;
   source?: string;
@@ -46,9 +46,10 @@ interface SearchParams extends PaginationParams {
   search?: string;
 }
 
-export async function getLeads(filters: LeadFilters = {}) {
-  const { search, statusId, source, assignedTo, tagId, tagIds = [], fromWebsiteForm, reportOutreach, page = 1, limit = 50 } = filters;
-  const offset = (page - 1) * limit;
+const reportEngaged = sql`EXISTS (SELECT 1 FROM ${scanReportDeliveries} d WHERE d.lead_id = ${crmLeads.id} AND d.sent_at IS NOT NULL AND (d.view_count > 0 OR d.cta_click_count > 0))`;
+
+function buildLeadWhere(filters: LeadFilters) {
+  const { search, statusId, source, assignedTo, tagId, tagIds = [], fromWebsiteForm, reportOutreach } = filters;
   const conditions = [];
 
   if (search) {
@@ -82,14 +83,21 @@ export async function getLeads(filters: LeadFilters = {}) {
   }
   if (fromWebsiteForm !== undefined) conditions.push(eq(crmLeads.fromWebsiteForm, fromWebsiteForm));
 
-  const sentCount = sql`(SELECT count(*) FROM ${scanReportDeliveries} d WHERE d.lead_id = ${crmLeads.id} AND d.sent_at IS NOT NULL)`;
-  const engaged = sql`EXISTS (SELECT 1 FROM ${scanReportDeliveries} d WHERE d.lead_id = ${crmLeads.id} AND d.sent_at IS NOT NULL AND (d.view_count > 0 OR d.cta_click_count > 0))`;
+  return conditions.length > 0 ? and(...conditions) : undefined;
+}
 
-  const where = conditions.length > 0 ? and(...conditions) : undefined;
+function getLeadSort(reportOutreach?: ReportOutreachFilter) {
+  return reportOutreach === "needs_attention"
+    ? [sql`CASE WHEN ${reportEngaged} THEN 0 ELSE 1 END`, desc(crmLeads.createdAt), desc(crmLeads.id)]
+    : [desc(crmLeads.createdAt), desc(crmLeads.id)];
+}
 
-  const sort = reportOutreach === "needs_attention"
-    ? [sql`CASE WHEN ${engaged} THEN 0 ELSE 1 END`, desc(crmLeads.createdAt)]
-    : [desc(crmLeads.createdAt)];
+export async function getLeads(filters: LeadFilters = {}) {
+  const { page = 1, limit = 50 } = filters;
+  const offset = (page - 1) * limit;
+
+  const where = buildLeadWhere(filters);
+  const sort = getLeadSort(filters.reportOutreach);
   const [items, totalResult] = await Promise.all([
     where
       ? db.select().from(crmLeads).where(where).orderBy(...sort).limit(limit).offset(offset)
@@ -114,44 +122,36 @@ export interface LeadNavigationItem {
 
 export async function getLeadNavigation(
   id: string,
-  assignedTo?: string,
+  filters: LeadFilters = {},
 ): Promise<{ previous: LeadNavigationItem | null; next: LeadNavigationItem | null } | undefined> {
-  const scope = assignedTo ? eq(crmLeads.assignedTo, assignedTo) : undefined;
-  const [current] = await db
-    .select({ id: crmLeads.id, createdAt: crmLeads.createdAt })
+  const sort = getLeadSort(filters.reportOutreach);
+  const orderedLeads = db
+    .select({
+      id: crmLeads.id,
+      previousId: sql<string | null>`lag(${crmLeads.id}) over (order by ${sql.join(sort, sql`, `)})`.as("previous_id"),
+      previousTitle: sql<string | null>`lag(${crmLeads.title}) over (order by ${sql.join(sort, sql`, `)})`.as("previous_title"),
+      nextId: sql<string | null>`lead(${crmLeads.id}) over (order by ${sql.join(sort, sql`, `)})`.as("next_id"),
+      nextTitle: sql<string | null>`lead(${crmLeads.title}) over (order by ${sql.join(sort, sql`, `)})`.as("next_title"),
+    })
     .from(crmLeads)
-    .where(scope ? and(eq(crmLeads.id, id), scope) : eq(crmLeads.id, id))
+    .where(buildLeadWhere(filters))
+    .as("ordered_leads");
+
+  const [current] = await db
+    .select()
+    .from(orderedLeads)
+    .where(eq(orderedLeads.id, id))
     .limit(1);
 
   if (!current) return undefined;
 
-  const previousCondition = or(
-    gt(crmLeads.createdAt, current.createdAt),
-    and(eq(crmLeads.createdAt, current.createdAt), gt(crmLeads.id, current.id)),
-  )!;
-  const nextCondition = or(
-    lt(crmLeads.createdAt, current.createdAt),
-    and(eq(crmLeads.createdAt, current.createdAt), lt(crmLeads.id, current.id)),
-  )!;
-
-  const [previousRows, nextRows] = await Promise.all([
-    db
-      .select({ id: crmLeads.id, title: crmLeads.title })
-      .from(crmLeads)
-      .where(scope ? and(scope, previousCondition) : previousCondition)
-      .orderBy(asc(crmLeads.createdAt), asc(crmLeads.id))
-      .limit(1),
-    db
-      .select({ id: crmLeads.id, title: crmLeads.title })
-      .from(crmLeads)
-      .where(scope ? and(scope, nextCondition) : nextCondition)
-      .orderBy(desc(crmLeads.createdAt), desc(crmLeads.id))
-      .limit(1),
-  ]);
-
   return {
-    previous: previousRows[0] ?? null,
-    next: nextRows[0] ?? null,
+    previous: current.previousId
+      ? { id: current.previousId, title: current.previousTitle ?? "Previous lead" }
+      : null,
+    next: current.nextId
+      ? { id: current.nextId, title: current.nextTitle ?? "Next lead" }
+      : null,
   };
 }
 

@@ -132,4 +132,29 @@ describe("CRM LeadListPage smoke", () => {
     fireEvent.click(screen.getByTestId("button-report-needs-attention"));
     await waitFor(() => expect(requestedOutreach).toBe("needs_attention"));
   });
+
+  it("carries the current filters and page into an opened lead", async () => {
+    server.use(
+      http.get("/api/crm/leads/assignable-users", () => HttpResponse.json([])),
+      http.get("/api/crm/tags", () => HttpResponse.json([])),
+      http.get("/api/crm/leads", () => HttpResponse.json({
+        leads: [{
+          id: "lead-context", title: "Context Lead", companyId: null, contactId: null, statusId: null,
+          value: null, source: "manual", fromWebsiteForm: false, assignedTo: null, trade: null,
+          city: null, recycleCount: 0, hungUpCount: 0, createdAt: "2026-08-31T12:00:00Z",
+          company: null, contact: null, status: null, tags: [], lastUnassignedFromUser: null,
+          salesPriority: null,
+        }],
+        total: 101,
+        page: 2,
+        pageSize: 100,
+      })),
+    );
+
+    renderWithProviders(<LeadListPage />, { route: "/admin/crm?source=manual&page=2" });
+    fireEvent.click(await screen.findByTestId("card-lead-lead-context"));
+
+    expect(window.location.pathname).toBe("/admin/crm/leads/lead-context");
+    expect(window.location.search).toBe("?source=manual&page=2");
+  });
 });
