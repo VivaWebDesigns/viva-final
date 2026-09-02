@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { SAB_ADDRESS_LABEL, SCALE_FIRST_WORKFLOW, NO_VISIBILITY_OUTCOME, sabBusinessProfileSchema, sabBusinessProfileIssues } from "@shared/sabCrm";
 import { parseLocalFalconPayload, sabMarketReferenceSchema } from "../crm/localFalconImport";
 import { sabDecisionStateSchema, sabEffectiveScanSpecSchema, sabEligibilityStateSchema, hasSabExclusionReviewHold } from "./schema";
+import { validateSabContactResearchV3 } from "./contactResearch";
 import type { SabSheetsRepository } from "./sheets";
 import type { SabRunState } from "./runState";
 
@@ -28,6 +29,10 @@ function assertContactResearch(row: ExportCandidate, runState: SabRunState) {
   const eligibility = sabEligibilityStateSchema.parse(row.eligibility_state);
   const research = eligibility.contact_research;
   if (!research) throw new Error(`Contact research is incomplete for ${row.place_id}; structured path evidence is required before manifest construction`);
+  if (research.evidence_version === 3) {
+    validateSabContactResearchV3({row,research,contact_tag:row.contact_tag as "Email Ready"|"Needs Email",email:row.email ?? null,
+      public_phone_search_authorized:Boolean(runState.public_business_phone_search_authorization),completed_at:research.completed_at});
+  }
   if (research.exact_phone_fallback.status === "completed" && !runState.public_business_phone_search_authorization) {
     throw new Error(`Exact-phone contact research for ${row.place_id} requires the run-wide verified public-business-phone search authorization`);
   }

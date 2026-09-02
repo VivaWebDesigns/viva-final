@@ -18,6 +18,30 @@ const plan: SabScanPlan = {
 };
 const key3="aaaaaaaaaaaa",key5="bbbbbbbbbbbb";
 const researchedNoCandidate={source_report_key:"cccccccccccc",evidence_hash:"a".repeat(64),status:"no_candidate" as const,research_complete:true,evidence_references:["completed-business-source-search"],source_type:"official website and attributable listing",identity_method:"exact business phone",fit_rationale:"Completed corroboration research produced no address candidate"};
+const verifiedContactResearch={
+  exact_name_search:{status:"completed" as const,sources_inspected:["https://example.test/contact"]},
+  exact_phone_fallback:{status:"not_required_verified_earlier" as const,sources_inspected:[]},
+  company_controlled_inspection:{status:"not_required_verified_earlier" as const,sources_inspected:[]},
+  accepted_evidence:[{email:"verified@example.test",verification_gate:"official website domain",sources:["https://example.test/contact"]}],
+  rejected_candidates:[],result:"verified_email" as const,completed_at:"2026-09-02T20:00:00.000Z",exhaustion_completed_at:null,
+  no_unverified_email_retained:true as const,orchestrator_reconciled:true as const,
+};
+const currentContactResearch={
+  evidence_version:3 as const,
+  exact_name_search:{status:"completed" as const,query:"Test lead email",rendered_results_inspected:true,ai_overview_status:"absent" as const,
+    first_page_snippets_inspected:true,result_source_urls:["https://facebook.com/testlead"],surfaced_official_website_urls:[],
+    surfaced_controlled_profile_urls:["https://facebook.com/testlead"],inspected_at:"2026-09-02T20:00:00.000Z"},
+  exact_phone_fallback:{status:"not_required_verified_earlier" as const,query:null,rendered_results_inspected:false,ai_overview_status:null,
+    first_page_snippets_inspected:false,result_source_urls:[],surfaced_official_website_urls:[],surfaced_controlled_profile_urls:[],inspected_at:null},
+  official_website_inspection:{status:"not_available" as const,website_url:null,pages_inspected:[],result:"not_available" as const,
+    company_identity_match:null,phone_match:null,material_to_contact_resolution:false,inspected_at:null},
+  controlled_profile_inspections:[{source_type:"Facebook",url:"https://facebook.com/testlead",result:"email_found" as const,
+    company_identity_match:true,phone_match:"not_present" as const,material_to_contact_resolution:true,inspected_at:"2026-09-02T20:00:05.000Z"}],
+  independent_source_inspections:[],accepted_evidence:[{email:"verified@example.test",verification_gate:"company_controlled_source" as const,
+    sources:["https://facebook.com/testlead"],source_type:"Facebook",company_identity_match:true as const,corroborating_phone:null,
+    inspected_at:"2026-09-02T20:00:05.000Z"}],rejected_candidates:[],result:"verified_email" as const,
+  completed_at:"2026-09-02T20:00:06.000Z",exhaustion_completed_at:null,no_unverified_email_retained:true as const,orchestrator_reconciled:true as const,
+};
 function initialize() {
   return createSabRunState({run_id:"run",orchestrator_id:"owner",authorization_reference:"run-approval",credit_limit:500});
 }
@@ -47,7 +71,7 @@ function repository(state=submitted(),overrides:Record<string,unknown>={}) {
   let storedState=structuredClone(state);
   let row:Record<string,any>={company:"Test lead",place_id:"place",workflow:"scale_first_v2",address:"Service Area Business",qualification_status:null,rating:4.8,review_count:1,
     email:"verified@example.test",phone:null,contact_tag:"Email Ready",outcome:null,report_key:null,scan_center:"35,-80",center_type:"weighted_cell_centroid",
-    eligibility_state:{sab_confirmed:true,trade_match:true,franchise_excluded:true,crm_dedup_checked:true,contact_verified:true,evidence_references:["verified-evidence"]},
+    eligibility_state:{sab_confirmed:true,trade_match:true,franchise_excluded:true,crm_dedup_checked:true,contact_verified:true,evidence_references:["verified-evidence"],contact_research:verifiedContactResearch},
     decision_state:{source_report_key:"cccccccccccc",evidence_hash:"a".repeat(64),rule_id:"S01",centering_status:"planned",proposed_center:"35,-80",center_type:"weighted_cell_centroid",routine_recenter_count:0,evidence:{next_action:"plan_deliverable",grid:{radius:3}}},...overrides};
   return {
     assertOneActiveRun:vi.fn(async()=>{}),
@@ -185,13 +209,22 @@ describe("SAB orchestration integration",()=>{
 
   it("rejects a Needs Email paid plan that still carries an email and checks one-run-per-sheet on initialization",async()=>{
     const invalid=repository(initialize(),{contact_tag:"Needs Email",email:"existing@example.test",phone:"5555550100"});
-    await expect(tools(invalid).invoke("authorize_sab_scan_batch",{orchestrator_id:"owner",authorization_id:"22222222-2222-4222-8222-222222222222",authorization_reference:"plan",scans:[plan],matt_initial_approval:approved})).rejects.toThrow(/contact tag/);
+    await expect(tools(invalid).invoke("authorize_sab_scan_batch",{orchestrator_id:"owner",authorization_id:"22222222-2222-4222-8222-222222222222",authorization_reference:"plan",scans:[plan],matt_initial_approval:approved})).rejects.toThrow(/matching contact research/);
     const repo=repository();
     repo.getRunState.mockResolvedValue(null as never);
     repo.assertOneActiveRun.mockRejectedValue(new Error("Another run already exists"));
     await expect(tools(repo).invoke("initialize_sab_run",{orchestrator_id:"owner",authorization_reference:"run",credit_limit:500,
       sop_revision:{document_id:"doc",revision_id:"rev",title:"SOP"}})).rejects.toThrow(/Another run/);
     expect(repo.saveRunState).not.toHaveBeenCalled();
+  });
+
+  it("records current contact evidence only through the dedicated exact-company transition",async()=>{
+    const repo=repository(initialize());
+    const result=await tools(repo).invoke("record_sab_contact_research",{orchestrator_id:"owner",place_id:"place",
+      contact_tag:"Email Ready",email:"verified@example.test",contact_research:currentContactResearch});
+    expect(result).toMatchObject({place_id:"place",contact_tag:"Email Ready",email:"verified@example.test",evidence_version:3,
+      paid_scans_submitted:0,outreach_sent:false});
+    expect((await repo.getCompany()).eligibility_state.contact_research).toMatchObject({evidence_version:3,result:"verified_email"});
   });
 
   it("requires Matt and the run orchestrator for a named terminal deferral",async()=>{
@@ -507,7 +540,7 @@ describe("SAB orchestration integration",()=>{
   it("recovers a zero-visibility wrong-center deliverable through the deterministic master-edge route",async()=>{
     const state=completeSabRunReports(submitted(),[key3]);
     const repo=repository(state,{center_type:"corroborated_address",scan_center:"35,-80",report_key:null,
-      eligibility_state:{sab_confirmed:true,trade_match:true,franchise_excluded:true,crm_dedup_checked:true,contact_verified:true,evidence_references:["https://www.localfalcon.com/reports/view/cccccccccccc"]},
+      eligibility_state:{sab_confirmed:true,trade_match:true,franchise_excluded:true,crm_dedup_checked:true,contact_verified:true,evidence_references:["https://www.localfalcon.com/reports/view/cccccccccccc"],contact_research:verifiedContactResearch},
       decision_state:{source_report_key:key3,rule_id:"S05",evidence_hash:"b".repeat(64),centering_status:"failed",routine_recenter_count:0,evidence:{next_action:"evidence_review_required",exact_top20_count:0}}});
     const master={...report("cccccccccccc",plan),grid:{size:21,point_count:441,radius:12,measurement:"mi",center:{latitude:34,longitude:-81}},
       businesses:[{place_id:"place",evidence_source:"competitor_roster",ranked_cell_count:3,imprecise_or_unranked_cell_count:438,

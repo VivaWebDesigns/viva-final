@@ -1,4 +1,5 @@
 import { sabEligibilityStateSchema } from "./schema";
+import { validateSabContactResearchV3 } from "./contactResearch";
 import type { SabRunState } from "./runState";
 
 export type SabCompactView = "compact" | "contact" | "scan" | "import" | "full";
@@ -64,7 +65,7 @@ export function projectSabCompany(row: PublicSabRow, view: SabCompactView) {
 type ContactException = { place_id: string; company: string; issues: string[] };
 
 export function auditSabContactRows(rows: PublicSabRow[], runState: SabRunState) {
-  const counts = { total: rows.length, email_ready: 0, needs_email: 0, valid: 0, legacy_evidence: 0, exceptions: 0 };
+  const counts = { total: rows.length, email_ready: 0, needs_email: 0, valid: 0, legacy_evidence: 0, current_evidence: 0, exceptions: 0 };
   const exceptions: ContactException[] = [];
   for (const row of rows) {
     const issues: string[] = [];
@@ -76,7 +77,17 @@ export function auditSabContactRows(rows: PublicSabRow[], runState: SabRunState)
     if (!eligibility.success) issues.push("eligibility_state_invalid");
     else if (!research) issues.push("contact_research_missing");
     else {
-      if (research.evidence_version !== 2) counts.legacy_evidence++;
+      if (research.evidence_version === 3) {
+        counts.current_evidence++;
+        try {
+          validateSabContactResearchV3({row:{company:String(row.company ?? ""),phone:row.phone ?? null,website:row.website ?? null},research,
+            contact_tag:row.contact_tag as "Email Ready"|"Needs Email",email:row.email ?? null,
+            public_phone_search_authorized:Boolean(runState.public_business_phone_search_authorization),completed_at:research.completed_at});
+        } catch (error) {
+          issues.push(error instanceof Error ? `contact_evidence_invalid: ${error.message}` : "contact_evidence_invalid");
+        }
+      }
+      else counts.legacy_evidence++;
       if (research.exact_phone_fallback.status === "completed" && !runState.public_business_phone_search_authorization) {
         issues.push("exact_phone_search_authorization_missing");
       }
@@ -88,8 +99,14 @@ export function auditSabContactRows(rows: PublicSabRow[], runState: SabRunState)
       } else if (row.contact_tag === "Needs Email") {
         if (row.email) issues.push("needs_email_must_not_retain_email");
         if (!row.phone) issues.push("needs_email_requires_phone");
-        if (research.result !== "exhausted" || research.exact_phone_fallback.status !== "completed" ||
-            research.company_controlled_inspection.status !== "completed") issues.push("contact_paths_not_exhausted");
+        if (research.result !== "exhausted" || research.exact_phone_fallback.status !== "completed") issues.push("contact_paths_not_exhausted");
+        if (research.evidence_version === 3) {
+          if (research.official_website_inspection.status === "not_required_verified_earlier" ||
+              (research.official_website_inspection.status === "technical_failure" && research.official_website_inspection.material_to_contact_resolution) ||
+              [...research.controlled_profile_inspections,...research.independent_source_inspections].some(source=>source.result === "technical_failure" && source.material_to_contact_resolution)) {
+            issues.push("material_contact_source_unresolved");
+          }
+        } else if (research.company_controlled_inspection.status !== "completed") issues.push("contact_paths_not_exhausted");
       }
     }
     if (issues.length) exceptions.push({ place_id: row.place_id, company: row.company, issues });

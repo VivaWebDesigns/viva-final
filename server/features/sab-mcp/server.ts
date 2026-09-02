@@ -95,7 +95,7 @@ export function createSabMcpServer(
 ) {
   const server = new McpServer({
     name: "viva-sab-workflow",
-    version: "2.5.0",
+    version: "2.6.0",
   });
 
   server.registerTool(
@@ -327,10 +327,13 @@ export function createSabMcpServer(
     "save_sab_company",
     sabTool({
       description:
-        "Persist one exact Place-ID record and return an ordinary write receipt. Structured eligibility_state is pre-scan eligibility; qualification_status is a separate final disposition and remains null while scan work is in progress. decision_state, qualification_reason and outcome are authoritative; research_notes are history only. Planned centers require matching structured evidence and do not establish a report or spending authorization. Scale-First requires no website/review audits or sales priority. Qualified complete and qa_ready records require structured verified-email evidence or completed contact-path exhaustion in addition to the full deliverable or CRM-only contract; a Needs Email label alone is insufficient. Deferred/disqualified closure requires a structured reason; a proposed high-visibility exclusion remains blocked until Matt records an exact approval or decline. Read back once at the critical stage end.",
+        "Persist one exact Place-ID record and return an ordinary write receipt. Email, contact tags, and contact-research evidence cannot be created or replaced here; use record_sab_contact_research after the actual per-company browser sequence. Structured eligibility_state is pre-scan eligibility; qualification_status is a separate final disposition and remains null while scan work is in progress. decision_state, qualification_reason and outcome are authoritative; research_notes are history only. Planned centers require matching structured evidence and do not establish a report or spending authorization. Scale-First requires no website/review audits or sales priority. Qualified complete and qa_ready records require structured verified-email evidence or completed contact-path exhaustion in addition to the full deliverable or CRM-only contract; a Needs Email label alone is insufficient. Deferred/disqualified closure requires a structured reason; a proposed high-visibility exclusion remains blocked until Matt records an exact approval or decline. Read back once at the critical stage end.",
       inputSchema: saveSabCompanyInputSchema,
     }),
     async ({ workflow_sheet, sheet_name, place_id, updates }) => {
+      if (Object.hasOwn(updates,"email") || Object.hasOwn(updates,"contact_tag") || updates.eligibility_state?.contact_research !== undefined) {
+        throw new Error("Use record_sab_contact_research for email, contact tag, and per-company browser evidence; generic saves cannot create or replace contact completion");
+      }
       const repository = repositoryFactory(workflow_sheet, sheet_name);
       return workflowWriteReceipt(
         await repository.saveCompany(place_id, updates, actorEmail),
@@ -343,14 +346,17 @@ export function createSabMcpServer(
     "bulk_save_sab_companies",
     sabTool({
       description:
-        "Persist independent exact-Place-ID company updates in one connector call. Every row uses the same guarded validation as save_sab_company; one failure does not discard successful rows. Returns aggregate counts, per-row receipts for successes, and only failed rows with compact errors. Use for ordinary stage persistence; use the single-row tool for a targeted exception.",
+        "Persist independent exact-Place-ID company updates in one connector call. Email, contact tags, and contact-research evidence are prohibited here and must use record_sab_contact_research one company at a time after actual browser inspection. Every other row uses the same guarded validation as save_sab_company; one failure does not discard successful rows. Returns aggregate counts, per-row receipts for successes, and only failed rows with compact errors.",
       inputSchema: bulkSaveSabCompaniesInputSchema,
     }),
     async ({ workflow_sheet, sheet_name, updates }) => {
       const repository=repositoryFactory(workflow_sheet,sheet_name);
       const succeeded:unknown[]=[];const failed:Array<{place_id:string;error:string}>=[];
       for(const item of updates) {
-        try { succeeded.push(await repository.saveCompany(item.place_id,item.updates,actorEmail)); }
+        try {
+          if(Object.hasOwn(item.updates,"email") || Object.hasOwn(item.updates,"contact_tag") || item.updates.eligibility_state?.contact_research !== undefined) throw new Error("Use record_sab_contact_research; bulk writes cannot create or replace email, contact tags, or contact research");
+          succeeded.push(await repository.saveCompany(item.place_id,item.updates,actorEmail));
+        }
         catch(error) { failed.push({place_id:item.place_id,error:error instanceof Error?error.message:"Unknown guarded write failure"}); }
       }
       return jsonToolResult({counts:{requested:updates.length,succeeded:succeeded.length,failed:failed.length},succeeded,failed,

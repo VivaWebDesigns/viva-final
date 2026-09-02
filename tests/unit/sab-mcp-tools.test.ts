@@ -1,6 +1,6 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createSabMcpServer } from "../../server/features/sab-mcp/server";
 
 describe("SAB MCP tool discovery", () => {
@@ -25,8 +25,8 @@ describe("SAB MCP tool discovery", () => {
 
     try {
       const { tools } = await client.listTools();
-      expect(tools).toHaveLength(40);
-      for (const name of ["bulk_save_sab_companies", "audit_sab_contacts", "pin_sab_sop_revision", "reconcile_sab_import_batch",
+      expect(tools).toHaveLength(41);
+      for (const name of ["bulk_save_sab_companies", "audit_sab_contacts", "record_sab_contact_research", "pin_sab_sop_revision", "reconcile_sab_import_batch",
         "approve_sab_canonical_evidence_exception", "approve_sab_master_cluster_exception"]) {
         expect(tools.map((tool) => tool.name)).toContain(name);
       }
@@ -228,6 +228,33 @@ describe("SAB MCP tool discovery", () => {
       const body=JSON.parse((response.content as Array<{text:string}>)[0].text);
       expect(body).toMatchObject({counts:{requested:3,succeeded:2,failed:1},successful_rows_preserved:true,failed:[{place_id:"bad",error:"stale evidence"}]});
       expect(writes).toEqual(["one","two"]);
+    } finally {await client.close();await server.close();}
+  });
+
+  it("rejects contact evidence through generic and bulk company saves", async () => {
+    const saveCompany=vi.fn(async()=>({writes_performed:true}));
+    const server=createSabMcpServer((()=>({saveCompany})) as never,{createWorkflow:async()=>{throw new Error("unused");}},"actor");
+    const client=new Client({name:"sab-mcp-test",version:"1.0.0"});
+    const [clientTransport,serverTransport]=InMemoryTransport.createLinkedPair();await server.connect(serverTransport);await client.connect(clientTransport);
+    const contact_research={exact_name_search:{status:"completed",sources_inspected:["google"]},exact_phone_fallback:{status:"not_required_verified_earlier",sources_inspected:[]},
+      company_controlled_inspection:{status:"not_required_verified_earlier",sources_inspected:[]},accepted_evidence:[{email:"owner@example.com",verification_gate:"website domain",sources:["https://example.com"]}],
+      rejected_candidates:[],result:"verified_email",completed_at:"2026-09-02T20:00:00.000Z",exhaustion_completed_at:null,no_unverified_email_retained:true,orchestrator_reconciled:true};
+    const eligibility_state={sab_confirmed:true,trade_match:true,franchise_excluded:true,crm_dedup_checked:true,contact_verified:true,evidence_references:["receipt"],contact_research};
+    try {
+      for(const [name,arguments_] of [
+        ["save_sab_company",{workflow_sheet:"sheet",sheet_name:"SAB Workflow",place_id:"one",updates:{eligibility_state}}],
+        ["bulk_save_sab_companies",{workflow_sheet:"sheet",sheet_name:"SAB Workflow",updates:[{place_id:"one",updates:{eligibility_state}}]}],
+        ["save_sab_company",{workflow_sheet:"sheet",sheet_name:"SAB Workflow",place_id:"one",updates:{email:"owner@example.com",contact_tag:"Email Ready"}}],
+        ["bulk_save_sab_companies",{workflow_sheet:"sheet",sheet_name:"SAB Workflow",updates:[{place_id:"one",updates:{email:null,contact_tag:"Needs Email"}}]}],
+      ] as const) {
+        const response=await client.callTool({name,arguments:arguments_});
+        if(name==="save_sab_company") expect(response.isError).toBe(true);
+        else {
+          const body=JSON.parse((response.content as Array<{text:string}>)[0].text);
+          expect(body).toMatchObject({counts:{requested:1,succeeded:0,failed:1},failed:[{place_id:"one",error:expect.stringContaining("record_sab_contact_research")}]});
+        }
+      }
+      expect(saveCompany).not.toHaveBeenCalled();
     } finally {await client.close();await server.close();}
   });
 });

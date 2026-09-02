@@ -8,11 +8,12 @@ import { analyzeSabScanPolicy, exactSabTop20Cells, sabRankedClusters, selectSabC
 import { reverseGeocodeSabCenters } from "./reverseGeocode";
 import { buildSabRunManifest } from "./exportManifest";
 import { approveSabTerminalDeferral, createSabRunState, authorizeSabScanBatch, completeSabRunReports, inSabRunStateQueue, pinSabSopRevision, recordSabManifest, reconcileSabAmbiguousSubmission, recordSabRunSubmission, sabScanPlanFingerprint, type SabRunState, type SabScanPlan } from "./runState";
-import { SAB_CENTER_TYPES, runSabScanOnceInputSchema, type SabCompanyUpdates, type SabScanResult } from "./schema";
+import { SAB_CENTER_TYPES, runSabScanOnceInputSchema, sabContactResearchV3Schema, sabEligibilityStateSchema, type SabCompanyUpdates, type SabScanResult } from "./schema";
 import { corroborationAllowsAuxiliary, sabAddressCorroborationSchema, type SabAddressCorroboration } from "./addressCorroboration";
 import { evaluateSabAddressCandidate, evaluateSabCoordinatesAgainstCells } from "./addressCandidate";
 import { auditSabContactRows, isNormalModeException } from "./usageOptimization";
 import { reconcileSabImportBatch } from "./importReconciliation";
+import { validateSabContactResearchV3 } from "./contactResearch";
 
 const common = {workflow_sheet:z.string().min(1),sheet_name:z.string().min(1).default("SAB Workflow")};
 const run = {...common,run_id:z.string().min(1).max(200)};
@@ -116,12 +117,12 @@ function validatedThreeMileCenter(state: SabRunState, row: Company): CenterValid
       !sameCenter(value.proposed_center,scan.plan.center)) throw new Error("A five-mile comparison requires preserved validation of a completed same-center three-mile deliverable");
   return value;
 }
-function assertPaidEligibility(row: Company) {
+function assertPaidEligibility(row: Company, state: SabRunState) {
   if(row.business_profile) {
     const profile=sabBusinessProfileSchema.safeParse(row.business_profile);
     if(!profile.success || sabBusinessProfileIssues(profile.data,row.place_id,typeof row.phone==="string"?row.phone:null).length) throw new Error("Resolve the structured enrichment identity or phone conflict before paid scans");
   }
-  const eligibility = (row as Company & { eligibility_state?: Record<string, unknown> }).eligibility_state;
+  const eligibility = sabEligibilityStateSchema.safeParse(row.eligibility_state);
   const qualificationStatus=row.qualification_status || null;
   if (row.workflow !== SCALE_FIRST_WORKFLOW || row.address !== SAB_ADDRESS_LABEL ||
       ["disqualified", "deferred"].includes(String(qualificationStatus)) ||
@@ -136,14 +137,21 @@ function assertPaidEligibility(row: Company) {
   } else if (qualificationStatus !== null) {
     throw new Error("Keep qualification_status null while scan work is in progress");
   }
-  if (!eligibility || ["sab_confirmed", "trade_match", "franchise_excluded", "crm_dedup_checked", "contact_verified"].some(key => eligibility[key] !== true) ||
-      !Array.isArray(eligibility.evidence_references) || !eligibility.evidence_references.length ||
-      eligibility.evidence_references.some(reference => typeof reference !== "string" || !reference.trim())) throw new Error("Structured SAB, trade, franchise, exact CRM deduplication and contact evidence must be verified before spending");
-  if (!((row.contact_tag === "Email Ready" && typeof row.email === "string" && row.email.includes("@")) ||
-        (row.contact_tag === "Needs Email" && !row.email && typeof row.phone === "string" && row.phone.trim()))) throw new Error("Verified contact and matching contact tag are required before spending");
+  if (!eligibility.success) throw new Error("Structured SAB, trade, franchise, exact CRM deduplication and contact evidence must be verified before spending");
+  const contactResearch=eligibility.data.contact_research;
+  if(!contactResearch) throw new Error("Completed structured contact research is required before spending");
+  if(contactResearch.evidence_version===3) {
+    validateSabContactResearchV3({row,research:contactResearch,contact_tag:row.contact_tag as "Email Ready"|"Needs Email",
+      email:typeof row.email==="string"?row.email:null,public_phone_search_authorized:Boolean(state.public_business_phone_search_authorization),
+      completed_at:contactResearch.completed_at});
+  } else if (contactResearch.exact_phone_fallback.status === "completed" && !state.public_business_phone_search_authorization) {
+    throw new Error("Exact-phone contact research requires the run-wide verified public-business-phone authorization");
+  }
+  if (!((row.contact_tag === "Email Ready" && typeof row.email === "string" && row.email.includes("@") && contactResearch.result==="verified_email") ||
+        (row.contact_tag === "Needs Email" && !row.email && typeof row.phone === "string" && row.phone.trim() && contactResearch.result==="exhausted"))) throw new Error("Verified contact and matching contact research are required before spending");
 }
-function assertDecisionPlan(row: Company, scan: SabScanPlan, hasException: boolean) {
-  assertPaidEligibility(row);
+function assertDecisionPlan(row: Company, scan: SabScanPlan, hasException: boolean, state: SabRunState) {
+  assertPaidEligibility(row,state);
   const decision = decisionState(row), evidence = decision?.evidence;
   if (!decision || !sameCenter(decision.proposed_center, scan.center) || !["planned", "validated"].includes(decision.centering_status)) throw new Error("Scan center must match persisted structured decision evidence");
   const action = evidence?.next_action;
@@ -386,7 +394,7 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
         const three = scanForReport(state,validation.report_key,scan.place_id)!;
         if (!sameCenter(validation.proposed_center,scan.center) || three.plan.keyword!==scan.keyword || three.plan.platform!==scan.platform) throw new Error("Five-mile comparison must preserve the validated three-mile center, keyword and platform");
       }
-      assertDecisionPlan(row, scan, Boolean(args.exception));
+      assertDecisionPlan(row, scan, Boolean(args.exception),state);
     }
     const next=authorizeSabScanBatch(state,args);next.batches[next.batches.length-1].duplicate_report_checks=checks;
     await repo.saveRunState(next,state.version,actorEmail);return {state:next,scan_approved:true,paid_scans_submitted:0};
@@ -709,6 +717,27 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
     else rows=rows.filter(row=>row.qualification_status==="qualified");
     return auditSabContactRows(rows,state);
   });
+  add("record_sab_contact_research","Persist one exact Place ID's completed browser contact research. This is the only connector action that may create or replace contact-research evidence. It validates the exact unquoted GBP-name-plus-email query, the authorized exact-phone-only fallback when used, rendered AI Overview/first-page inspection, bounded official-website and surfaced company-controlled profile coverage, independent-source classification, accepted-email gates, and material technical failures. It writes one compact company record, submits no scan, and sends no outreach.",{
+    ...run,orchestrator_id:z.string().trim().min(1),place_id:z.string().trim().min(1).max(500),
+    contact_tag:z.enum(["Email Ready","Needs Email"]),email:z.string().trim().email().nullable(),
+    contact_research:sabContactResearchV3Schema,
+  },async args=>inSabRunStateQueue(async()=>{
+    const repo=factory(args.workflow_sheet,args.sheet_name),state=await requireRun(repo,args.run_id);
+    if(args.orchestrator_id!==state.orchestrator_id) throw new Error("Only this run's orchestrator may record authoritative contact research");
+    const row=await repo.getCompany(args.place_id);
+    const eligibility=sabEligibilityStateSchema.parse(row.eligibility_state);
+    const contactResearch=validateSabContactResearchV3({row,research:args.contact_research,contact_tag:args.contact_tag,email:args.email,
+      public_phone_search_authorized:Boolean(state.public_business_phone_search_authorization)});
+    await repo.saveCompany(args.place_id,{email:args.email,contact_tag:args.contact_tag,
+      eligibility_state:{...eligibility,contact_verified:true,contact_research:contactResearch}},actorEmail);
+    const verified=await repo.getCompany(args.place_id);
+    const verifiedEligibility=sabEligibilityStateSchema.parse(verified.eligibility_state);
+    if(verified.contact_tag!==args.contact_tag || (verified.email||null)!==(args.email||null) || verifiedEligibility.contact_research?.evidence_version!==3) {
+      throw new Error("Contact-research write readback failed; do not treat the company as contact complete");
+    }
+    return {place_id:args.place_id,company:row.company,contact_tag:args.contact_tag,email:args.email,
+      evidence_version:3,recorded_at:contactResearch.completed_at,paid_scans_submitted:0,outreach_sent:false};
+  }));
   add("approve_sab_terminal_deferral","Record Matt's explicit decision to abandon one named unresolved survivor as a terminal deferral. This is the only deferred state that satisfies the run-completion gate. It submits no scan, performs no import and establishes no general policy.",{
     ...run,orchestrator_id:z.string().min(1),place_id:z.string().min(1),reason:z.string().trim().min(1).max(2000),approval:matt,
   },async args=>inSabRunStateQueue(async()=>{

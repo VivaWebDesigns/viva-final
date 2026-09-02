@@ -258,7 +258,7 @@ const sabContactResearchPathSchema = z.object({
   }
 });
 
-export const sabContactResearchSchema = z.object({
+const sabContactResearchLegacySchema = z.object({
   evidence_version: z.literal(2).optional(),
   exact_name_search: sabContactResearchPathSchema,
   exact_phone_fallback: sabContactResearchPathSchema,
@@ -304,6 +304,98 @@ export const sabContactResearchSchema = z.object({
     if (value.exhaustion_completed_at === null) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["exhaustion_completed_at"], message: "Exhaustion requires its final timestamp" });
   }
 });
+
+const sabRenderedContactSearchSchema = z.object({
+  status: z.enum(["completed", "not_required_verified_earlier"]),
+  query: z.string().trim().min(1).max(1000).nullable(),
+  rendered_results_inspected: z.boolean(),
+  ai_overview_status: z.enum(["present_inspected", "absent"]).nullable(),
+  first_page_snippets_inspected: z.boolean(),
+  result_source_urls: z.array(z.string().url()).max(20),
+  surfaced_official_website_urls: z.array(z.string().url()).max(10),
+  surfaced_controlled_profile_urls: z.array(z.string().url()).max(20),
+  inspected_at: z.string().datetime().nullable(),
+}).strict().superRefine((value, ctx) => {
+  if (value.status === "completed" && (!value.query || !value.rendered_results_inspected ||
+      !value.ai_overview_status || !value.first_page_snippets_inspected || !value.inspected_at)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "A completed Google contact search requires its exact query and rendered visual-inspection evidence" });
+  }
+  if (value.status === "not_required_verified_earlier" && (value.query || value.rendered_results_inspected ||
+      value.ai_overview_status || value.first_page_snippets_inspected || value.result_source_urls.length ||
+      value.surfaced_official_website_urls.length || value.surfaced_controlled_profile_urls.length || value.inspected_at)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "A path stopped after earlier verification cannot claim search or inspection evidence" });
+  }
+});
+
+const sabOfficialWebsiteInspectionSchema = z.object({
+  status: z.enum(["inspected", "not_available", "not_required_verified_earlier", "technical_failure"]),
+  website_url: z.string().url().nullable(),
+  pages_inspected: z.array(z.string().url()).max(20),
+  result: z.enum(["email_found", "no_email_found", "identity_only", "not_available", "not_required_verified_earlier", "technical_failure"]),
+  company_identity_match: z.boolean().nullable(),
+  phone_match: z.enum(["matched", "not_present", "conflicting"]).nullable(),
+  material_to_contact_resolution: z.boolean(),
+  inspected_at: z.string().datetime().nullable(),
+}).strict();
+
+const sabContactSourceInspectionSchema = z.object({
+  source_type: z.string().trim().min(1).max(200),
+  url: z.string().url(),
+  result: z.enum(["email_found", "no_email_found", "identity_only", "rejected_identity", "technical_failure"]),
+  company_identity_match: z.boolean(),
+  phone_match: z.enum(["matched", "not_present", "conflicting"]),
+  material_to_contact_resolution: z.boolean(),
+  inspected_at: z.string().datetime(),
+}).strict();
+
+const sabAcceptedContactEvidenceV3Schema = z.object({
+  email: z.string().trim().email(),
+  verification_gate: z.enum(["official_website_domain", "exact_phone_match", "company_controlled_source", "multiple_independent_sources"]),
+  sources: z.array(z.string().url()).min(1).max(20),
+  source_type: z.string().trim().min(1).max(200),
+  company_identity_match: z.literal(true),
+  corroborating_phone: z.string().trim().min(1).max(100).nullable(),
+  inspected_at: z.string().datetime(),
+}).strict();
+
+export const sabContactResearchV3Schema = z.object({
+  evidence_version: z.literal(3),
+  exact_name_search: sabRenderedContactSearchSchema,
+  exact_phone_fallback: sabRenderedContactSearchSchema,
+  official_website_inspection: sabOfficialWebsiteInspectionSchema,
+  controlled_profile_inspections: z.array(sabContactSourceInspectionSchema).max(30),
+  independent_source_inspections: z.array(sabContactSourceInspectionSchema).max(30),
+  accepted_evidence: z.array(sabAcceptedContactEvidenceV3Schema).max(10),
+  rejected_candidates: z.array(z.object({
+    email: z.string().trim().email(),
+    reason: z.string().trim().min(1).max(2000),
+    sources: z.array(z.string().url()).min(1).max(20),
+  }).strict()).max(50),
+  result: z.enum(["verified_email", "exhausted"]),
+  completed_at: z.string().datetime(),
+  exhaustion_completed_at: z.string().datetime().nullable(),
+  no_unverified_email_retained: z.literal(true),
+  orchestrator_reconciled: z.literal(true),
+}).strict().superRefine((value, ctx) => {
+  if (value.exact_name_search.status !== "completed") {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["exact_name_search"], message: "Exact-name search is always required" });
+  }
+  const urls = [...value.controlled_profile_inspections, ...value.independent_source_inspections].map(source => source.url);
+  if (new Set(urls).size !== urls.length) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Each inspected profile or independent source URL may be recorded only once" });
+  }
+  if (value.result === "verified_email") {
+    if (!value.accepted_evidence.length) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["accepted_evidence"], message: "Verified email requires accepted evidence" });
+    if (value.exhaustion_completed_at !== null) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["exhaustion_completed_at"], message: "Verified email is not an exhaustion result" });
+  } else {
+    if (value.exact_phone_fallback.status !== "completed") ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["exact_phone_fallback"], message: "Exhaustion requires the exact-phone fallback" });
+    if (value.official_website_inspection.status === "not_required_verified_earlier") ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["official_website_inspection"], message: "Exhaustion requires an official-website disposition" });
+    if (value.accepted_evidence.length) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["accepted_evidence"], message: "Exhausted contact research cannot retain accepted email evidence" });
+    if (value.exhaustion_completed_at === null) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["exhaustion_completed_at"], message: "Exhaustion requires its final timestamp" });
+  }
+});
+
+export const sabContactResearchSchema = z.union([sabContactResearchV3Schema, sabContactResearchLegacySchema]);
 
 export const sabEligibilityStateSchema = z.object({
   sab_confirmed: z.literal(true), trade_match: z.literal(true), franchise_excluded: z.literal(true),
