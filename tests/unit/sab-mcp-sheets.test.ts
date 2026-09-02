@@ -244,6 +244,45 @@ describe("SabSheetsRepository", () => {
       { postDeliverableAcceptedCorroborationRecoveryVerified: true })).resolves.toMatchObject({ status: "in_progress" });
   });
 
+  it("guards named canonical evidence exceptions against stale or policy-changing writes", async () => {
+    const report="aaaaaaaaaaaa",hash="a".repeat(64),reason="No supported movement exists; accept this report for the named company only.";
+    const previous={source_report_key:report,evidence_hash:hash,rule_id:"S04,S05",centering_status:"failed" as const,routine_recenter_count:0,
+      evidence:{next_action:"evidence_review_required",reason:"Failed margin with zero movement",margin:{failed:true}}};
+    const exception={kind:"canonical_centered_peak_no_movement",scope:"named_run_specific",approved_by:"Matt",approval_reference:"Matt approved exact report",
+      reason,report_key:report,evidence_hash:hash,original_next_action:"evidence_review_required",original_reason:previous.evidence.reason,
+      approved_at:"2026-09-02T14:00:00.000Z",creates_general_policy:false};
+    const next={...previous,centering_status:"validated" as const,proposed_center:"35,-80",center_type:"corroborated_address" as const,outcome:"deliverable" as const,
+      evidence:{...previous.evidence,next_action:"center_validated",reason,run_specific_exception:exception,
+        center_validation:{report_key:report,evidence_hash:hash,proposed_center:"35,-80",center_type:"corroborated_address"}}};
+    const {repository}=buildRepository([row({status:"blocked",blocker:"evidence_review_required",report_key:report,outcome:"deliverable",scan_center:"35,-80",
+      center_type:"corroborated_address",decision_state:JSON.stringify(previous)})]);
+    await expect(repository.saveCompany("place-1",{decision_state:{...next,evidence:{...next.evidence,run_specific_exception:{...exception,evidence_hash:"b".repeat(64)}}},status:"in_progress",blocker:null},
+      "actor@example.com",{runSpecificCanonicalExceptionVerified:true})).rejects.toThrow(/Named canonical exception/);
+    await expect(repository.saveCompany("place-1",{decision_state:next,status:"in_progress",blocker:null},"actor@example.com",
+      {runSpecificCanonicalExceptionVerified:true})).resolves.toMatchObject({status:"in_progress"});
+  });
+
+  it("guards named master-cluster exceptions to the exact approved standard deliverable plan", async () => {
+    const report="cccccccccccc",hash="c".repeat(64);
+    const corroboration={source_report_key:report,evidence_hash:hash,status:"no_candidate" as const,research_complete:true,
+      evidence_references:["completed-search"],source_type:"verified sources",identity_method:"exact phone",fit_rationale:"No candidate"};
+    const previous={source_report_key:report,evidence_hash:hash,rule_id:"S01",centering_status:"failed" as const,routine_recenter_count:0,
+      address_corroboration:corroboration,evidence:{next_action:"evidence_review_required",reason:"Disconnected clusters"}};
+    const exception={kind:"master_singleton_outlier",scope:"named_run_specific",approved_by:"Matt",approval_reference:"Matt approved exact Birkey plan",
+      reason:"Treat singleton as an outlier for this company only",report_key:report,evidence_hash:hash,dominant_cluster_size:23,outlier_cluster_size:1,
+      outlier_rank:13,approved_center:"34.99,-80.64",approved_at:"2026-09-02T14:00:00.000Z",creates_general_policy:false};
+    const next={...previous,centering_status:"planned" as const,proposed_center:"34.99,-80.64",center_type:"weighted_cell_centroid" as const,
+      evidence:{...previous.evidence,next_action:"plan_deliverable",reason:exception.reason,run_specific_exception:exception,
+        deliverable_scan_spec:{scan_type:"standard",grid_size:7,radius:3,measurement:"mi"}}};
+    const {repository}=buildRepository([row({qualification_status:"",status:"blocked",blocker:"disconnected_master_clusters_evidence_review_required",
+      scan_center:"",center_type:"",decision_state:JSON.stringify(previous)})]);
+    await expect(repository.saveCompany("place-1",{decision_state:{...next,evidence:{...next.evidence,deliverable_scan_spec:{scan_type:"scout",grid_size:9,radius:6,measurement:"mi"}}},
+      scan_center:"34.99,-80.64",center_type:"weighted_cell_centroid",status:"in_progress",blocker:null},"actor@example.com",
+      {runSpecificMasterClusterExceptionVerified:true})).rejects.toThrow(/Named master-cluster exception/);
+    await expect(repository.saveCompany("place-1",{decision_state:next,scan_center:"34.99,-80.64",center_type:"weighted_cell_centroid",status:"in_progress",blocker:null},
+      "actor@example.com",{runSpecificMasterClusterExceptionVerified:true})).resolves.toMatchObject({status:"in_progress"});
+  });
+
   it("allows only verified analysis to invalidate stale corroboration and never invent a replacement", async () => {
     const base = { source_report_key: "abcdef123456", evidence_hash: "a".repeat(64), rule_id: "S01", centering_status: "failed" as const, routine_recenter_count: 0,
       evidence: { next_action: "address_corroboration_incomplete" } };

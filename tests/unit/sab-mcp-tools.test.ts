@@ -25,8 +25,9 @@ describe("SAB MCP tool discovery", () => {
 
     try {
       const { tools } = await client.listTools();
-      expect(tools).toHaveLength(39);
-      for (const name of ["bulk_save_sab_companies", "audit_sab_contacts", "pin_sab_sop_revision", "reconcile_sab_import_batch"]) {
+      expect(tools).toHaveLength(41);
+      for (const name of ["bulk_save_sab_companies", "audit_sab_contacts", "pin_sab_sop_revision", "reconcile_sab_import_batch",
+        "approve_sab_canonical_evidence_exception", "approve_sab_master_cluster_exception"]) {
         expect(tools.map((tool) => tool.name)).toContain(name);
       }
       expect(tools.map((tool) => tool.name)).toContain("approve_sab_terminal_deferral");

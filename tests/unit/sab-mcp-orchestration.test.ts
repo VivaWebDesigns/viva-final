@@ -207,6 +207,54 @@ describe("SAB orchestration integration",()=>{
     expect((await repo.getRunState()).terminal_deferrals.place).toMatchObject({approved_by:"Matt",reason:args.reason});
   });
 
+  it("applies only an exact named canonical exception while preserving failed S05 evidence",async()=>{
+    const special=new Map([["4:4",1],["5:4",1],["6:3",1],["7:2",1],["3:4",1],["2:5",1],["1:6",1]]);
+    const cells=Array.from({length:49},(_,index)=>{const row=Math.floor(index/7)+1,column=index%7+1;return {
+      row,column,latitude:35+(4-row)*.01,longitude:-80+(column-4)*.01,rank:special.get(`${row}:${column}`)??10,
+    }});
+    const completed=completeSabRunReports(submitted(),[key3]);
+    const value=report(key3,plan,{arp:8,atrp:8,solv:20,found_in:49,businesses:[{place_id:"place",evidence_source:"competitor_roster",
+      ranked_cell_count:49,imprecise_or_unranked_cell_count:0,ranked_cells:cells,all_point_rank_cells:cells}]});
+    const hash=currentEvidenceHash(value);
+    const failed={source_report_key:key3,evidence_hash:hash,rule_id:"S04,S05",centering_status:"failed",routine_recenter_count:0,
+      evidence:{next_action:"evidence_review_required",reason:"The failed margin has no verified movement toward the selected peak; do not resubmit an identical center.",
+        margin:{failed:true,reason:"global_best_on_boundary"}}};
+    const repo=repository(completed,{decision_state:failed,scan_center:"35,-80",center_type:"corroborated_address",status:"blocked",blocker:"evidence_review_required"});
+    vi.mocked(getSabRankedCells).mockResolvedValue(value as never);
+    const result=await tools(repo).invoke("approve_sab_canonical_evidence_exception",{orchestrator_id:"owner",place_id:"place",report_key:key3,evidence_hash:hash,
+      reason:"Named run-specific acceptance because the selected peak is already at the current center.",approval:approved});
+    expect(result).toMatchObject({canonical_persisted:true,center_validated_by_named_exception:true,preserved_s05_evidence:true,creates_general_policy:false});
+    const saved=await repo.getCompany();
+    expect(saved).toMatchObject({report_key:key3,outcome:"deliverable",status:"in_progress",blocker:null,
+      decision_state:{centering_status:"validated",proposed_center:"35,-80",center_type:"corroborated_address",evidence:{next_action:"center_validated",
+        margin:{failed:true},run_specific_exception:{kind:"canonical_centered_peak_no_movement",evidence_hash:hash,creates_general_policy:false}}}});
+    expect(repo.saveCompany.mock.calls.at(-1)?.[3]).toEqual({runSpecificCanonicalExceptionVerified:true});
+  });
+
+  it("plans only the exact approved dominant-cluster centroid for a named S01 singleton exception",async()=>{
+    const cluster=Array.from({length:25},(_,index)=>({row:10+Math.floor(index/5),column:10+index%5})).slice(0,23)
+      .map((cell,index)=>({...cell,latitude:35+(12-cell.row)*.01,longitude:-80+(cell.column-12)*.01,rank:index%7+1}));
+    const outlier={row:2,column:2,latitude:35.1,longitude:-80.1,rank:13};
+    const cells=[...cluster,outlier];
+    const masterPlan={...plan,grid_size:21 as const,radius:12,estimated_credits:441};
+    const value=report("cccccccccccc",masterPlan,{report_subject_place_id:"anchor",grid:{size:21,point_count:441,radius:12,measurement:"mi",center:{latitude:35,longitude:-80}},
+      businesses:[{place_id:"place",evidence_source:"competitor_roster",ranked_cell_count:24,imprecise_or_unranked_cell_count:417,ranked_cells:cells,all_point_rank_cells:cells}]});
+    const hash=currentEvidenceHash(value),weight=cluster.reduce((sum,cell)=>sum+1/cell.rank,0);
+    const center={latitude:cluster.reduce((sum,cell)=>sum+cell.latitude/cell.rank,0)/weight,longitude:cluster.reduce((sum,cell)=>sum+cell.longitude/cell.rank,0)/weight};
+    const corroboration={...researchedNoCandidate,source_report_key:"cccccccccccc",evidence_hash:hash};
+    const repo=repository(initialize(),{decision_state:{source_report_key:"cccccccccccc",evidence_hash:hash,rule_id:"S01",centering_status:"failed",routine_recenter_count:0,
+      address_corroboration:corroboration,evidence:{next_action:"evidence_review_required",reason:"Disconnected master clusters require evidence review."}},
+      scan_center:null,center_type:null,status:"blocked",blocker:"disconnected_master_clusters_evidence_review_required"});
+    vi.mocked(getSabRankedCells).mockResolvedValue(value as never);
+    const result=await tools(repo).invoke("approve_sab_master_cluster_exception",{orchestrator_id:"owner",place_id:"place",report_key:"cccccccccccc",evidence_hash:hash,
+      center,dominant_cluster_size:23,outlier_cluster_size:1,outlier_rank:13,reason:"Treat the isolated rank-13 cell as an outlier for this company only.",approval:approved});
+    expect(result).toMatchObject({action:"plan_deliverable",proposed_center:center,dominant_cluster_size:23,outlier_cluster_size:1,outlier_rank:13,creates_general_policy:false});
+    const saved=await repo.getCompany();
+    expect(saved).toMatchObject({status:"in_progress",blocker:null,center_type:"weighted_cell_centroid",
+      decision_state:{centering_status:"planned",evidence:{next_action:"plan_deliverable",run_specific_exception:{kind:"master_singleton_outlier",creates_general_policy:false}}}});
+    expect(repo.saveCompany.mock.calls.at(-1)?.[3]).toEqual({runSpecificMasterClusterExceptionVerified:true});
+  });
+
   it("records no-visibility market context and keyword without inventing a validated center or canonical report",async()=>{
     const scout={...plan,scan_role:"auxiliary" as const,scan_type:"scout" as const,grid_size:9 as const,radius:6,estimated_credits:81};
     const repo=repository(submitted(scout));

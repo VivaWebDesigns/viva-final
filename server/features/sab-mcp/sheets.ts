@@ -898,7 +898,7 @@ export class SabSheetsRepository {
     placeId: string,
     updates: SabCompanyUpdates,
     actorEmail: string,
-    options: {exclusionReviewApproved?: boolean; exclusionReviewDeclined?: boolean; exclusionDecisionContinued?: boolean; corroborationRecorded?: boolean; corroborationAnalysisVerified?: boolean; legacyHashCompatibilityVerified?: boolean; postDeliverableS01RecoveryVerified?: boolean; postDeliverableAcceptedCorroborationRecoveryVerified?: boolean} = {},
+    options: {exclusionReviewApproved?: boolean; exclusionReviewDeclined?: boolean; exclusionDecisionContinued?: boolean; corroborationRecorded?: boolean; corroborationAnalysisVerified?: boolean; legacyHashCompatibilityVerified?: boolean; postDeliverableS01RecoveryVerified?: boolean; postDeliverableAcceptedCorroborationRecoveryVerified?: boolean; runSpecificCanonicalExceptionVerified?: boolean; runSpecificMasterClusterExceptionVerified?: boolean} = {},
   ) {
     const { headerIndex, rows } = await this.readTable();
     const match = rows.find(({ row }) => row.place_id === placeId);
@@ -927,7 +927,38 @@ export class SabSheetsRepository {
     const incompleteCandidateHold = priorCorroboration?.status === "incomplete";
     const corroborationHold = technicalHold || ["address_corroboration_required", "address_corroboration_incomplete"].includes(match.row.blocker) ||
       ["address_corroboration_required", "address_corroboration_incomplete"].includes(previousState?.evidence?.next_action);
-    if (options.postDeliverableAcceptedCorroborationRecoveryVerified) {
+    if (options.runSpecificCanonicalExceptionVerified) {
+      const previous=sabDecisionStateSchema.safeParse(priorDecision),approved=sabDecisionStateSchema.safeParse(nextDecision);
+      const exception=approved.success ? approved.data.evidence?.run_specific_exception as Record<string,unknown>|undefined : undefined;
+      const validation=approved.success ? approved.data.evidence?.center_validation as Record<string,unknown>|undefined : undefined;
+      if(!previous.success || previous.data.centering_status!=="failed" || previous.data.evidence?.next_action!=="evidence_review_required" ||
+          !String(previous.data.rule_id).split(",").includes("S05") || !approved.success || approved.data.source_report_key!==previous.data.source_report_key ||
+          approved.data.evidence_hash!==previous.data.evidence_hash || approved.data.centering_status!=="validated" || approved.data.outcome!=="deliverable" ||
+          approved.data.evidence?.next_action!=="center_validated" || exception?.kind!=="canonical_centered_peak_no_movement" ||
+          exception.scope!=="named_run_specific" || exception.approved_by!=="Matt" || exception.report_key!==previous.data.source_report_key ||
+          exception.evidence_hash!==previous.data.evidence_hash || exception.original_next_action!==previous.data.evidence?.next_action ||
+          exception.original_reason!==previous.data.evidence?.reason || exception.creates_general_policy!==false ||
+          validation?.report_key!==previous.data.source_report_key || validation.evidence_hash!==previous.data.evidence_hash ||
+          validation.proposed_center!==approved.data.proposed_center || validation.center_type!==approved.data.center_type ||
+          merged.report_key!==previous.data.source_report_key || merged.outcome!=="deliverable" || merged.status!=="in_progress" || merged.blocker) {
+        throw new Error("Named canonical exception must preserve the exact failed S05 evidence, Matt approval, report and existing center validation");
+      }
+    } else if (options.runSpecificMasterClusterExceptionVerified) {
+      const previous=sabDecisionStateSchema.safeParse(priorDecision),approved=sabDecisionStateSchema.safeParse(nextDecision);
+      const exception=approved.success ? approved.data.evidence?.run_specific_exception as Record<string,unknown>|undefined : undefined;
+      const scanSpec=approved.success ? approved.data.evidence?.deliverable_scan_spec as Record<string,unknown>|undefined : undefined;
+      if(!previous.success || previous.data.rule_id!=="S01" || previous.data.centering_status!=="failed" ||
+          previous.data.evidence?.next_action!=="evidence_review_required" || previous.data.address_corroboration?.status!=="no_candidate" ||
+          previous.data.address_corroboration.research_complete!==true || !approved.success || approved.data.source_report_key!==previous.data.source_report_key ||
+          approved.data.evidence_hash!==previous.data.evidence_hash || approved.data.centering_status!=="planned" || approved.data.center_type!=="weighted_cell_centroid" ||
+          !approved.data.proposed_center || approved.data.evidence?.next_action!=="plan_deliverable" || exception?.kind!=="master_singleton_outlier" ||
+          exception.scope!=="named_run_specific" || exception.approved_by!=="Matt" || exception.report_key!==previous.data.source_report_key ||
+          exception.evidence_hash!==previous.data.evidence_hash || exception.creates_general_policy!==false || exception.approved_center!==approved.data.proposed_center ||
+          scanSpec?.scan_type!=="standard" || scanSpec.grid_size!==7 || scanSpec.radius!==3 || scanSpec.measurement!=="mi" ||
+          merged.scan_center!==approved.data.proposed_center || merged.center_type!=="weighted_cell_centroid" || merged.status!=="in_progress" || merged.blocker) {
+        throw new Error("Named master-cluster exception must preserve the exact S01 evidence and Matt-approved 7x7/3-mile dominant-cluster plan");
+      }
+    } else if (options.postDeliverableAcceptedCorroborationRecoveryVerified) {
       const recovered = sabDecisionStateSchema.safeParse(nextDecision);
       const audit = recovered.success ? recovered.data.evidence?.post_deliverable_accepted_corroboration_recovery as Record<string, unknown> | undefined : undefined;
       const auxiliary = audit?.auxiliary_scan_spec as Record<string, unknown> | undefined;
