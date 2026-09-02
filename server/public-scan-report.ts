@@ -14,7 +14,7 @@ const PUBLIC_SITE_URL = "https://vivawebdesigns.com";
 const GA4_MEASUREMENT_ID = "G-8NL7JMJ7MT";
 const REPORT_COOKIE = "viva_scan_report";
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
-const CTA_TYPES = ["schedule_call", "email_matt", "view_results"] as const;
+const CTA_TYPES = ["schedule_call", "email_matt", "view_results", "another_scan"] as const;
 type CtaType = typeof CTA_TYPES[number];
 
 const clientEventSchema = z.object({
@@ -135,6 +135,7 @@ async function recordEngagement(input: {
       schedule_call: "Schedule a Call",
       email_matt: "Send Matt a Message",
       view_results: "See Client Results",
+      another_scan: "Check Another Service",
     };
     await tx.update(scanReportDeliveries).set({
       ctaClickCount: sql`${scanReportDeliveries.ctaClickCount} + 1`,
@@ -158,7 +159,7 @@ async function recordEngagement(input: {
   return true;
 }
 
-function reportDestination(ctaType: Exclude<CtaType, "email_matt">): string {
+function reportDestination(ctaType: "schedule_call" | "view_results"): string {
   return ctaType === "schedule_call"
     ? "https://calendly.com/vivawebdesigns/new-meeting"
     : `${PUBLIC_SITE_URL}/results`;
@@ -176,6 +177,7 @@ export function buildScanReportLandingPage(input: {
   const scheduleEndpoint = `/scan-report/${token}/go/schedule_call`;
   const resultsEndpoint = `/scan-report/${token}/go/view_results`;
   const contactHref = `${PUBLIC_SITE_URL}/contact?business=${encodeURIComponent(businessName)}#contact-form`;
+  const scanHref = `${PUBLIC_SITE_URL}/scan?business=${encodeURIComponent(businessName)}#scan-request`;
 
   return `<!doctype html>
 <html lang="en">
@@ -195,7 +197,7 @@ export function buildScanReportLandingPage(input: {
       .report-card{margin-top:28px;padding:12px;border:1px solid var(--line);border-radius:14px;background:#fff;box-shadow:0 20px 55px rgba(6,26,61,.1)}.report-card img{display:block;width:100%;height:auto;border-radius:9px}
       .action-card{margin-top:28px;padding:30px;border:1px solid var(--line);border-radius:14px;background:#fff;text-align:center}.action-card h2{margin:0;color:var(--navy);font-size:clamp(24px,4vw,34px)}.action-card>p{max-width:650px;margin:12px auto 0;color:var(--muted)}
       .actions{display:grid;gap:12px;margin-top:24px}.actions form{margin:0}.button{display:flex;width:100%;min-height:50px;align-items:center;justify-content:center;padding:12px 18px;border:1px solid var(--blue);border-radius:7px;background:#fff;color:var(--blue);cursor:pointer;font:inherit;font-weight:800;text-decoration:none}.button:hover{transform:translateY(-1px);box-shadow:0 8px 22px rgba(6,26,61,.12)}.button-primary{border-color:var(--teal);background:var(--teal);color:#fff}
-      .privacy{margin:18px 0 0;color:#7a8493;font-size:12px}.privacy a{text-decoration:underline}.footer{padding:24px 0;border-top:1px solid var(--line);color:#697486;font-size:13px;text-align:center}
+      .another-scan{margin-top:24px;padding:24px;border:1px solid #cfe2ea;border-radius:10px;background:#f2f9fb}.another-scan h3{margin:0;color:var(--navy);font-size:21px}.another-scan p{max-width:650px;margin:8px auto 0;color:var(--muted)}.another-scan .button{width:auto;max-width:320px;margin:17px auto 0;padding-inline:26px}.privacy{margin:18px 0 0;color:#7a8493;font-size:12px}.privacy a{text-decoration:underline}.footer{padding:24px 0;border-top:1px solid var(--line);color:#697486;font-size:13px;text-align:center}
       @media(min-width:700px){main{padding-top:54px}.actions{grid-template-columns:repeat(3,minmax(0,1fr))}.report-card{padding:18px}.action-card{padding:38px}}
     </style>
   </head>
@@ -215,8 +217,13 @@ export function buildScanReportLandingPage(input: {
         <p>Matt can walk through the weak areas, explain who Google is ranking ahead of you and outline the most practical next step.</p>
         <div class="actions">
           <form class="tracked-form" method="post" action="${scheduleEndpoint}" data-cta="schedule_call"><input type="hidden" name="eventId"><button class="button button-primary" type="submit">Schedule a Call</button></form>
-          <a class="button tracked-email" href="${escapeHtml(contactHref)}" data-cta="email_matt">Send Matt a Message</a>
+          <a class="button tracked-link" href="${escapeHtml(contactHref)}" data-cta="email_matt">Send Matt a Message</a>
           <form class="tracked-form" method="post" action="${resultsEndpoint}" data-cta="view_results"><input type="hidden" name="eventId"><button class="button" type="submit">See Client Results</button></form>
+        </div>
+        <div class="another-scan">
+          <h3>Want to Check Another Service for Free?</h3>
+          <p>See how your company ranks for another service or search phrase. No cost, no obligation, and no sales call required.</p>
+          <a class="button tracked-link" href="${escapeHtml(scanHref)}" data-cta="another_scan">Check Another Service</a>
         </div>
         <p class="privacy">Engagement with this report may be recorded to help Viva respond to your inquiry. See our <a href="/privacy-policy">Privacy Policy</a>.</p>
       </section>
@@ -249,7 +256,7 @@ export function buildScanReportLandingPage(input: {
         document.querySelectorAll(".tracked-form").forEach(function(form){form.addEventListener("submit",function(event){
           if(form.dataset.submitting==="1")return;event.preventDefault();form.dataset.submitting="1";var id=eventId();form.querySelector('[name="eventId"]').value=id;startAnalytics();gtag("event","scan_report_cta_click",{cta_type:form.dataset.cta,report_type:"local_visibility_scan",delivery_channel:"email",transport_type:"beacon"});setTimeout(function(){form.submit();},180);
         });});
-        var email=document.querySelector(".tracked-email");email.addEventListener("click",function(){var id=eventId();beacon(ctaEndpoint,{eventId:id,ctaType:"email_matt"});startAnalytics();gtag("event","scan_report_cta_click",{cta_type:"email_matt",report_type:"local_visibility_scan",delivery_channel:"email",transport_type:"beacon"});});
+        document.querySelectorAll(".tracked-link").forEach(function(link){link.addEventListener("click",function(){var cta=link.dataset.cta;var id=eventId();beacon(ctaEndpoint,{eventId:id,ctaType:cta});startAnalytics();gtag("event","scan_report_cta_click",{cta_type:cta,report_type:"local_visibility_scan",delivery_channel:"email",transport_type:"beacon"});});});
       })();
     </script>
   </body>

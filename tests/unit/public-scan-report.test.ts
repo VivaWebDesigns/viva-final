@@ -46,11 +46,18 @@ describe("public scan report tracking", () => {
     expect(html).toContain('data-cta="schedule_call"');
     expect(html).toContain('data-cta="email_matt"');
     expect(html).toContain('data-cta="view_results"');
+    expect(html).toContain('data-cta="another_scan"');
     expect(html).toContain(
       'href="https://vivawebdesigns.com/contact?business=Acme%20%3CRoofing%3E#contact-form"',
     );
     expect(html).toContain("Send Matt a Message");
     expect(html).not.toContain("mailto:matt@vivawebdesigns.com");
+    expect(html).toContain(
+      'href="https://vivawebdesigns.com/scan?business=Acme%20%3CRoofing%3E#scan-request"',
+    );
+    expect(html).toContain("Want to Check Another Service for Free?");
+    expect(html).toContain("No cost, no obligation, and no sales call required.");
+    expect(html).toContain("Check Another Service");
     expect(html).toContain("Acme &lt;Roofing&gt;");
     expect(html).not.toContain("lead_id");
     expect(html).not.toContain("recipient");

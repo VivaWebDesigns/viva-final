@@ -325,5 +325,14 @@
         <div class="container">&copy; 2026 Viva Web Designs. All rights reserved.</div>
       </div>
     </footer>
+    <script>
+      (function () {
+        var business = new URLSearchParams(window.location.search).get("business");
+        var businessInput = document.getElementById("business");
+        if (business && businessInput && !businessInput.value) {
+          businessInput.value = business;
+        }
+      })();
+    </script>
   </body>
 </html>

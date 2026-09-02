@@ -51,6 +51,12 @@ describe("visibility scan page contract", () => {
     }
   });
 
+  it("supports company-name prefilling from personalized scan-report links", () => {
+    expect(scanHtml).toContain('new URLSearchParams(window.location.search).get("business")');
+    expect(scanHtml).toContain('document.getElementById("business")');
+    expect(scanHtml).toContain('id="scan-request"');
+  });
+
   it("uses one H1 and removes experimental offer language", () => {
     expect(scanHtml.match(/<h1(?:\s|>)/g)).toHaveLength(1);
     expect(scanHtml).toContain("electrician near me");
