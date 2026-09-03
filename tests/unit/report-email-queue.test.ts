@@ -3,6 +3,10 @@ import { getTableName } from "drizzle-orm";
 const mocks = vi.hoisted(() => ({ select: vi.fn(), insert: vi.fn(), update: vi.fn(), transaction: vi.fn(), state: vi.fn() }));
 vi.mock("../../server/db", () => ({ db: mocks }));
 vi.mock("../../server/features/crm/reportOutreach", () => ({ getReportOutreachState: mocks.state }));
+vi.mock("../../server/features/crm/gmailSender", () => ({
+  getGmailSenderStatus: vi.fn().mockResolvedValue({ connected: true, accountEmail: "matt@vivawebdesigns.com", status: "connected", lastError: null }),
+  requireGmailSender: vi.fn().mockResolvedValue({ accountEmail: "matt@vivawebdesigns.com" }),
+}));
 vi.mock("../../server/services/storage", () => ({
   getFileBuffer: vi.fn().mockResolvedValue({ buffer: Buffer.from("image") }),
   uploadPublishedReport: vi.fn().mockResolvedValue({ url: "https://reports.example.com/image.png" }),

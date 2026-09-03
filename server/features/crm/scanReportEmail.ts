@@ -15,6 +15,7 @@ import {
 import { db } from "../../db";
 import { getFileBuffer, uploadPublishedReport } from "../../services/storage";
 import { formatEmailSender } from "../../lib/email-sender";
+import { getGmailSenderStatus, requireGmailSender } from "./gmailSender";
 import {
   createAnonymousScanReportToken,
   createScanReportToken,
@@ -38,6 +39,9 @@ export interface ScanReportEmailPreview {
   snapshotPreviewUrl: string;
   sentCount: number;
   blockedReason: string | null;
+  senderConnected: boolean;
+  senderAccountEmail: string | null;
+  senderError: string | null;
 }
 
 interface SendScanReportInput {
@@ -139,6 +143,7 @@ export async function getScanReportEmailPreview(
 ): Promise<ScanReportEmailPreview> {
   const record = await loadReport(leadId, reportId);
   const outreach = await getReportOutreachState(leadId);
+  const gmail = await getGmailSenderStatus();
   const spanish = (record.contact?.preferredLanguage ?? record.company?.preferredLanguage) === "es";
   const firstName = record.contact?.firstName?.trim();
   const businessName = record.report.companyName || record.company?.name || record.lead.title;
@@ -148,6 +153,9 @@ export async function getScanReportEmailPreview(
     reportId,
     sentCount: outreach.reportEmailCount,
     blockedReason: reportSendBlockedReason(outreach.reportEmailCount, outreach.reportOutreachDisposition),
+    senderConnected: gmail.connected && gmail.accountEmail?.toLowerCase() === scanReportSenderEmail().toLowerCase(),
+    senderAccountEmail: gmail.accountEmail,
+    senderError: gmail.lastError,
     recipient,
     from: formatEmailSender(scanReportSenderEmail()),
     replyTo: actorReplyTo(actorEmail),
@@ -203,6 +211,7 @@ export function buildScanReportEmailHtml(input: {
 }
 
 export async function sendScanReportEmail(input: SendScanReportInput) {
+  await requireGmailSender(scanReportSenderEmail());
   const record = await loadReport(input.leadId, input.reportId);
   const sourceId = `scan-report:${input.requestId}`;
   const [existingJob] = await db.select({ id: workflowJobs.id })
@@ -285,7 +294,9 @@ export async function sendScanReportEmail(input: SendScanReportInput) {
 
     const [job] = await tx.insert(workflowJobs).values({
       type: "email_notification", status: "pending", sourceId, sourceType: "scan_report_email",
-      attempts: 0, maxAttempts: 3, nextRunAt: new Date(), payload: {
+      // Gmail has no idempotency key. A single attempt avoids a duplicate if a
+      // network timeout happens after Google has already accepted the message.
+      attempts: 0, maxAttempts: 1, nextRunAt: new Date(), payload: {
       to: input.recipient,
       from: scanReportSenderEmail(),
       replyTo,

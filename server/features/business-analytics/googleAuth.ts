@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { OAuth2Client } from "google-auth-library";
 
-export const GOOGLE_PROVIDERS = ["analytics", "business_profile"] as const;
+export const GOOGLE_PROVIDERS = ["analytics", "business_profile", "gmail"] as const;
 export type GoogleProvider = typeof GOOGLE_PROVIDERS[number];
 
 const PROVIDER_SCOPES: Record<GoogleProvider, string[]> = {
@@ -14,6 +14,11 @@ const PROVIDER_SCOPES: Record<GoogleProvider, string[]> = {
     "openid",
     "email",
     "https://www.googleapis.com/auth/business.manage",
+  ],
+  gmail: [
+    "openid",
+    "email",
+    "https://www.googleapis.com/auth/gmail.send",
   ],
 };
 

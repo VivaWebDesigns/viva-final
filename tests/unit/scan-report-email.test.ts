@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("../../server/db", () => ({ db: {} }));
+vi.mock("../../server/features/crm/gmailSender", () => ({
+  getGmailSenderStatus: vi.fn().mockResolvedValue({ connected: true, accountEmail: "matt@vivawebdesigns.com", status: "connected", lastError: null }),
+  requireGmailSender: vi.fn().mockResolvedValue({ accountEmail: "matt@vivawebdesigns.com" }),
+}));
 
 import {
   DEFAULT_SCAN_REPORT_PREHEADER,

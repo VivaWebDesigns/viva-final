@@ -86,6 +86,9 @@ interface ScanReportEmailPreview {
   message: string;
   businessName: string;
   snapshotPreviewUrl: string;
+  senderConnected: boolean;
+  senderAccountEmail: string | null;
+  senderError: string | null;
 }
 
 export default function LeadDetailPage({ id }: { id: string }) {
@@ -299,6 +302,21 @@ export default function LeadDetailPage({ id }: { id: string }) {
     },
     onError: (error: Error) => {
       toast({ title: "Could not send report", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const connectGmailMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch("/api/business-analytics/oauth/start/gmail", { credentials: "include" });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.message || "Could not start the Google Workspace connection");
+      }
+      return response.json() as Promise<{ url: string }>;
+    },
+    onSuccess: ({ url }) => window.location.assign(url),
+    onError: (error: Error) => {
+      toast({ title: "Google Workspace connection failed", description: error.message, variant: "destructive" });
     },
   });
 
@@ -1344,7 +1362,37 @@ export default function LeadDetailPage({ id }: { id: string }) {
           </DialogHeader>
 
           {emailReportPreview && (
-            <div className="grid gap-5 sm:grid-cols-[1fr_190px]">
+            <div className="space-y-4">
+              <div className={`rounded-lg border p-3 text-sm ${emailReportPreview.senderConnected ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
+                {emailReportPreview.senderConnected ? (
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4" />
+                    Sending through Google Workspace as {emailReportPreview.senderAccountEmail}.
+                  </div>
+                ) : (
+                  <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+                    <div>
+                      <p className="font-medium">Connect Google Workspace before sending.</p>
+                      <p className="mt-1 text-xs">Only send access for matt@vivawebdesigns.com will be requested. Inbox access is not included.</p>
+                      {emailReportPreview.senderError && <p className="mt-1 text-xs">{emailReportPreview.senderError}</p>}
+                    </div>
+                    {authRole === "admin" && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => connectGmailMutation.mutate()}
+                        disabled={connectGmailMutation.isPending}
+                        className="shrink-0 bg-white"
+                      >
+                        {connectGmailMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ExternalLink className="mr-2 h-4 w-4" />}
+                        Connect Google
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="grid gap-5 sm:grid-cols-[1fr_190px]">
               <div className="space-y-4">
                 <div className="space-y-1.5">
                   <Label htmlFor="scan-report-recipient">To</Label>
@@ -1395,6 +1443,7 @@ export default function LeadDetailPage({ id }: { id: string }) {
                 </a>
                 <p className="mt-2 text-xs text-slate-500">The email includes this image inline plus a fallback link.</p>
               </div>
+              </div>
             </div>
           )}
 
@@ -1408,7 +1457,8 @@ export default function LeadDetailPage({ id }: { id: string }) {
                 sendEmailReportMutation.isPending ||
                 !emailReportRecipient.trim() ||
                 !emailReportSubject.trim() ||
-                !emailReportMessage.trim()
+                !emailReportMessage.trim() ||
+                !emailReportPreview?.senderConnected
               }
               className="gap-2 bg-teal-700 hover:bg-teal-800"
               data-testid="button-confirm-email-scan-report"

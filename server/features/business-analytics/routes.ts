@@ -83,14 +83,16 @@ async function syncBusinessReviews() {
 
 router.get("/status", requireRole("admin", "developer"), async (_req, res) => {
   const businessProfileEnabled = googleBusinessProfileEnabled();
-  const [analytics, businessProfile] = await Promise.all([
+  const [analytics, businessProfile, gmail] = await Promise.all([
     storage.getGoogleConnection("analytics"),
     businessProfileEnabled ? storage.getGoogleConnection("business_profile") : Promise.resolve(null),
+    storage.getGoogleConnection("gmail"),
   ]);
   res.json({
     config: googleIntegrationConfigStatus(),
     analytics: publicConnection(analytics),
     businessProfile: publicConnection(businessProfile),
+    gmail: publicConnection(gmail),
   });
 });
 
@@ -115,7 +117,7 @@ router.get("/oauth/start/:provider", requireRole("admin"), async (req, res) => {
 });
 
 router.get("/oauth/callback", requireRole("admin"), async (req, res) => {
-  const fallback = "/admin/analytics";
+  let fallback = "/admin/analytics";
   try {
     if (typeof req.query.error === "string") throw new Error(req.query.error);
     const code = z.string().min(1).parse(req.query.code);
@@ -125,6 +127,7 @@ router.get("/oauth/callback", requireRole("admin"), async (req, res) => {
       throw new Error("Google authorization expired or could not be verified");
     }
     const provider = providerSchema.parse(savedState.provider);
+    if (provider === "gmail") fallback = "/admin/crm";
     if (provider === "business_profile" && !googleBusinessProfileEnabled()) {
       throw new Error("Google Business Profile integration is disabled");
     }
@@ -140,6 +143,12 @@ router.get("/oauth/callback", requireRole("admin"), async (req, res) => {
     const userInfo = tokens.access_token
       ? await client.request<{ email?: string }>({ url: "https://openidconnect.googleapis.com/v1/userinfo" })
       : null;
+    if (provider === "gmail") {
+      const expectedEmail = (process.env.SCAN_REPORT_EMAIL_FROM || process.env.CONTACT_EMAIL_FROM || "matt@vivawebdesigns.com").trim();
+      if (userInfo?.data.email?.toLowerCase() !== expectedEmail.toLowerCase()) {
+        throw new Error(`Authorize the Google Workspace account ${expectedEmail}, not ${userInfo?.data.email || "an unknown account"}.`);
+      }
+    }
     const connection = await storage.upsertGoogleConnection({
       provider,
       encryptedRefreshToken: encryptGoogleToken(refreshToken),

@@ -5,7 +5,7 @@
  * Throws on failure so the worker can apply retry/backoff logic.
  *
  * Resilience:
- *   - Resend calls are wrapped with a 15s timeout
+ *   - Resend and Gmail calls are wrapped with a 15s timeout
  *   - All calls use structured error classification
  *   - Success/failure recorded in provider snapshot for admin diagnostics
  */
@@ -26,6 +26,7 @@ import {
 } from "../../lib/provider-resilience";
 import { recordSuccess, recordFailure, getSnapshot } from "../../lib/provider-snapshot";
 import { formatEmailSender } from "../../lib/email-sender";
+import { sendScanReportWithGmail } from "../crm/gmailSender";
 
 const RESEND_TIMEOUT_MS = 15_000;
 const CONTACT_EMAIL_FROM =
@@ -147,17 +148,16 @@ async function processCrmIngest(job: WorkflowJob): Promise<void> {
   }
 }
 
-// ── Email Notification handler (Resend) ───────────────────────────────
+// ── Email Notification handler ────────────────────────────────────────
 
 async function processEmailNotification(job: WorkflowJob): Promise<void> {
-  const ctx = { provider: "resend", operation: "send_email", correlationId: job.id };
   const payload = job.payload as unknown as EmailNotificationPayload;
+  const provider = payload.category === "scan_report" ? "gmail" : "resend";
+  const ctx = { provider, operation: "send_email", correlationId: job.id };
 
   if (!payload.to || !payload.subject || !payload.html) {
     throw new Error("email_notification: malformed payload — missing to, subject, or html");
   }
-
-  const resend = new Resend(process.env.RESEND_API_KEY);
 
   if (payload.category === "scan_report" && payload.deliveryId) {
     const [delivery] = await db.select().from(scanReportDeliveries).where(eq(scanReportDeliveries.id, payload.deliveryId));
@@ -179,45 +179,68 @@ async function processEmailNotification(job: WorkflowJob): Promise<void> {
   let providerAccepted = false;
   try {
     const fromEmail = payload.from || CONTACT_EMAIL_FROM;
-    const result = await withTimeout(
-      async (_signal) => resend.emails.send({
-        from: formatEmailSender(fromEmail),
-        to: payload.to,
-        ...(payload.replyTo ? { replyTo: payload.replyTo } : {}),
-        subject: payload.subject,
-        html: payload.html,
-        ...(payload.text ? { text: payload.text } : {}),
-        ...(payload.category === "scan_report" ? {
-          tags: [{ name: "category", value: "scan_report" }],
-        } : {}),
-      }, { idempotencyKey: `workflow-email/${job.id}` }),
-      RESEND_TIMEOUT_MS,
-      ctx,
-    );
-
-    if (result.error) {
-      const errorClass = classifyProviderError(undefined, result.error.message ?? "Resend error");
-      logProviderEvent(ctx, "failure", {
-        errorClass,
-        severity: severityForErrorClass(errorClass),
-        message: result.error.message ?? JSON.stringify(result.error),
-      });
-      recordFailure("resend", "send_email", result.error.message ?? "Resend API error");
-      const snap = getSnapshot("resend", "send_email");
-      if (snap) warnIfThresholdReached(snap.consecutiveFailures, ctx);
-      throw new Error(`Resend error: ${result.error.message ?? JSON.stringify(result.error)}`);
+    let providerMessageId: string | null = null;
+    let providerThreadId: string | null = null;
+    if (payload.category === "scan_report") {
+      if (!payload.text || !payload.imageUrl) {
+        throw new Error("scan_report email is missing its plain text or inline image");
+      }
+      const result = await withTimeout(
+        (signal) => sendScanReportWithGmail({
+          to: payload.to,
+          from: fromEmail,
+          replyTo: payload.replyTo,
+          subject: payload.subject,
+          html: payload.html,
+          text: payload.text!,
+          imageUrl: payload.imageUrl!,
+          messageKey: job.id,
+          signal,
+        }),
+        RESEND_TIMEOUT_MS,
+        ctx,
+      );
+      providerMessageId = result.id;
+      providerThreadId = result.threadId;
+    } else {
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      const result = await withTimeout(
+        async () => resend.emails.send({
+          from: formatEmailSender(fromEmail),
+          to: payload.to,
+          ...(payload.replyTo ? { replyTo: payload.replyTo } : {}),
+          subject: payload.subject,
+          html: payload.html,
+          ...(payload.text ? { text: payload.text } : {}),
+        }, { idempotencyKey: `workflow-email/${job.id}` }),
+        RESEND_TIMEOUT_MS,
+        ctx,
+      );
+      if (result.error) throw new Error(`Resend error: ${result.error.message ?? JSON.stringify(result.error)}`);
+      providerMessageId = result.data?.id ?? null;
     }
 
     providerAccepted = true;
-    logProviderEvent(ctx, "success", { severity: "info", message: `id=${result.data?.id}` });
-    recordSuccess("resend", "send_email");
+    logProviderEvent(ctx, "success", { severity: "info", message: `id=${providerMessageId}` });
+    recordSuccess(provider, "send_email");
+    // Mark the durable delivery first. If later CRM bookkeeping fails, the
+    // accepted Gmail message remains visible as sent and cannot be queued again.
+    if (payload.deliveryId) {
+      await db.update(scanReportDeliveries).set({
+        status: "sent",
+        sentAt: new Date(),
+        updatedAt: new Date(),
+      }).where(eq(scanReportDeliveries.id, payload.deliveryId));
+      await recordReportEmailSent(payload.deliveryId);
+    }
     if (payload.noteId) {
       await db.update(crmLeadNotes).set({
         content: `Scan report email sent to ${payload.to}`,
         metadata: {
           status: "sent",
-          provider: "resend",
-          providerMessageId: result.data?.id ?? null,
+          provider,
+          providerMessageId,
+          providerThreadId,
           reportId: payload.reportId,
           recipient: payload.to,
           subject: payload.subject,
@@ -229,33 +252,23 @@ async function processEmailNotification(job: WorkflowJob): Promise<void> {
         },
       }).where(eq(crmLeadNotes.id, payload.noteId));
     }
-    if (payload.deliveryId) {
-      await db.update(scanReportDeliveries).set({
-        status: "sent",
-        sentAt: new Date(),
-        updatedAt: new Date(),
-      }).where(eq(scanReportDeliveries.id, payload.deliveryId));
-      await recordReportEmailSent(payload.deliveryId);
-    }
   } catch (err: any) {
     // Do not turn an accepted send into a failed delivery if CRM bookkeeping fails.
-    // Retrying uses the provider idempotency key, or skips sending once sentAt exists.
+    // Resend retries use an idempotency key. Gmail report jobs intentionally get
+    // one attempt because Gmail does not expose an equivalent idempotency key.
     if (providerAccepted) throw err;
-    if (!err.message?.startsWith("Resend error:")) {
-      // Catch network/timeout errors not already logged
-      const isTimeout = err.message?.startsWith("PROVIDER_TIMEOUT");
-      const errorClass = isTimeout ? "transient" : classifyProviderError(undefined, err.message);
-      if (!isTimeout) {
-        logProviderEvent(ctx, "failure", {
-          errorClass,
-          severity: severityForErrorClass(errorClass),
-          message: err.message,
-        });
-      }
-      recordFailure("resend", "send_email", err.message);
-      const snap = getSnapshot("resend", "send_email");
-      if (snap) warnIfThresholdReached(snap.consecutiveFailures, ctx);
+    const isTimeout = err.message?.startsWith("PROVIDER_TIMEOUT");
+    const errorClass = isTimeout ? "transient" : classifyProviderError(undefined, err.message);
+    if (!isTimeout) {
+      logProviderEvent(ctx, "failure", {
+        errorClass,
+        severity: severityForErrorClass(errorClass),
+        message: err.message,
+      });
     }
+    recordFailure(provider, "send_email", err.message);
+    const snap = getSnapshot(provider, "send_email");
+    if (snap) warnIfThresholdReached(snap.consecutiveFailures, ctx);
     if (payload.noteId) {
       const exhausted = job.attempts >= job.maxAttempts;
       await db.update(crmLeadNotes).set({
