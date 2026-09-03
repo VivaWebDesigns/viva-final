@@ -168,6 +168,7 @@ interface ManualScanReportPreparation {
   imageUrl: string;
   landingUrl: string;
   body: string;
+  formattedHtml: string;
   gmailComposeUrl: string;
 }
 
@@ -682,37 +683,45 @@ function LocalFalconSnapshotCard({
               <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
                 <h3 className="font-semibold text-blue-950">Finish this email in Gmail</h3>
                 <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-blue-900">
-                  <li>Copy the report image below.</li>
-                  <li>Open the prepared Gmail message.</li>
-                  <li>{emailReportImagePlacement === "after_intro" ? "Click after the introduction" : "Click after the message"} and paste the image.</li>
+                  <li>Copy the formatted email below.</li>
+                  <li>Open Gmail and paste the email into the blank message.</li>
+                  <li>Copy the report image, then {emailReportImagePlacement === "after_intro" ? "paste it after the introduction" : "paste it after the message"}.</li>
                   <li>Review the email, click Send in Gmail, then return here.</li>
                 </ol>
               </div>
               <div className="grid gap-3 sm:grid-cols-3">
-                <Button type="button" variant="outline" onClick={copySnapshot}>
-                  <ClipboardCopy className="mr-2 h-4 w-4" />
-                  Copy image
-                </Button>
                 <Button
                   type="button"
                   variant="outline"
                   onClick={async () => {
                     try {
-                      await navigator.clipboard.writeText(emailPreparation.body);
-                      toast({ title: "Email text copied" });
+                      if (navigator.clipboard?.write && typeof ClipboardItem !== "undefined") {
+                        await navigator.clipboard.write([new ClipboardItem({
+                          "text/html": new Blob([emailPreparation.formattedHtml], { type: "text/html" }),
+                          "text/plain": new Blob([emailPreparation.body], { type: "text/plain" }),
+                        })]);
+                        toast({ title: "Formatted email copied", description: "Paste it into Gmail to keep the clean report link." });
+                      } else {
+                        await navigator.clipboard.writeText(emailPreparation.body);
+                        toast({ title: "Email text copied", description: "Rich-text copying is not available in this browser, so the full report URL will be visible." });
+                      }
                     } catch {
-                      toast({ title: "Could not copy email text", variant: "destructive" });
+                      toast({ title: "Could not copy formatted email", variant: "destructive" });
                     }
                   }}
                 >
                   <ClipboardCopy className="mr-2 h-4 w-4" />
-                  Copy email text
+                  Copy formatted email
                 </Button>
                 <Button type="button" asChild className="bg-blue-700 hover:bg-blue-800">
                   <a href={emailPreparation.gmailComposeUrl} target="_blank" rel="noopener noreferrer">
                     <ExternalLink className="mr-2 h-4 w-4" />
                     Open Gmail
                   </a>
+                </Button>
+                <Button type="button" variant="outline" onClick={copySnapshot}>
+                  <ClipboardCopy className="mr-2 h-4 w-4" />
+                  Copy image
                 </Button>
               </div>
               <div className="rounded-lg border p-3 text-sm text-slate-600">

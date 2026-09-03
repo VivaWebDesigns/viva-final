@@ -6,6 +6,7 @@ import {
   DEFAULT_SCAN_REPORT_PREHEADER,
   buildGmailComposeUrl,
   buildManualGmailBody,
+  buildManualGmailHtml,
   buildScanReportEmailHtml,
   scanReportSenderEmail,
 } from "../../server/features/crm/scanReportEmail";
@@ -110,6 +111,17 @@ describe("scan report email template", () => {
     expect(body).toContain("reply “no thanks.”");
     expect(body).not.toContain("<!doctype html>");
     expect(body).not.toContain("background:");
+  });
+
+  it("builds a formatted Gmail message with a clean linked phrase", () => {
+    const html = buildManualGmailHtml(
+      "I’m Matt with Viva Web Designs.\n\nI ran a scan for Acme Roofing.",
+      "https://vivawebdesigns.com/scan-report/secure-token",
+    );
+
+    expect(html).toContain('<a href="https://vivawebdesigns.com/scan-report/secure-token">View the full report here</a>');
+    expect(html).not.toContain("View the full report here: https://");
+    expect(html).not.toContain("<!doctype html>");
   });
 
   it("opens the prepared message in the real Workspace account", () => {

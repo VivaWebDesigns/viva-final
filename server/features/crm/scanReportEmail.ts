@@ -205,19 +205,26 @@ export function buildManualGmailBody(message: string, landingUrl: string): strin
   return `${message.trim()}\n\nView the full report here: ${landingUrl}\n\nViva Web Designs · ${POSTAL_ADDRESS}\nIf you’d rather not receive another email from me, just reply “no thanks.”`;
 }
 
+export function buildManualGmailHtml(message: string, landingUrl: string): string {
+  const paragraphs = message.trim().split(/\r?\n\s*\r?\n/)
+    .map((paragraph) => `<div>${escapeHtml(paragraph).replace(/\r?\n/g, "<br>")}</div>`)
+    .join("<br>");
+  return `${paragraphs}<br><div><a href="${escapeHtml(landingUrl)}">View the full report here</a></div><br><div>Viva Web Designs · ${POSTAL_ADDRESS}<br>If you’d rather not receive another email from me, just reply “no thanks.”</div>`;
+}
+
 export function buildGmailComposeUrl(input: {
   recipient: string;
   subject: string;
-  body: string;
+  body?: string;
 }): string {
   const params = new URLSearchParams({
     view: "cm",
     fs: "1",
     to: input.recipient,
     su: input.subject,
-    body: input.body,
     authuser: scanReportSenderEmail(),
   });
+  if (input.body) params.set("body", input.body);
   return `https://mail.google.com/mail/?${params.toString()}`;
 }
 
@@ -245,14 +252,15 @@ export async function prepareManualScanReportEmail(input: Omit<ManualScanReportI
   if (blocked) throw Object.assign(new Error(blocked), { statusCode: 409 });
   const shared = await ensurePublishedShare(input.reportId, record.report.snapshotStorageKey!);
   const body = buildManualGmailBody(input.message, shared.landingUrl);
+  const formattedHtml = buildManualGmailHtml(input.message, shared.landingUrl);
   return {
     imageUrl: shared.imageUrl,
     landingUrl: shared.landingUrl,
     body,
+    formattedHtml,
     gmailComposeUrl: buildGmailComposeUrl({
       recipient: input.recipient,
       subject: input.subject,
-      body,
     }),
   };
 }
