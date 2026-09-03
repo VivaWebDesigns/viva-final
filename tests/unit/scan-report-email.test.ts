@@ -1,13 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("../../server/db", () => ({ db: {} }));
-vi.mock("../../server/features/crm/gmailSender", () => ({
-  getGmailSenderStatus: vi.fn().mockResolvedValue({ connected: true, accountEmail: "matt@vivawebdesigns.com", status: "connected", lastError: null }),
-  requireGmailSender: vi.fn().mockResolvedValue({ accountEmail: "matt@vivawebdesigns.com" }),
-}));
 
 import {
   DEFAULT_SCAN_REPORT_PREHEADER,
+  buildGmailComposeUrl,
+  buildManualGmailBody,
   buildScanReportEmailHtml,
   scanReportSenderEmail,
 } from "../../server/features/crm/scanReportEmail";
@@ -98,5 +96,33 @@ describe("scan report email template", () => {
     expect(scanReportSenderEmail()).toBe("reports@vivawebdesigns.com");
     if (previous === undefined) delete process.env.SCAN_REPORT_EMAIL_FROM;
     else process.env.SCAN_REPORT_EMAIL_FROM = previous;
+  });
+
+  it("builds the plain manual Gmail message used for prospect outreach", () => {
+    const body = buildManualGmailBody(
+      "I’m Matt with Viva Web Designs.\n\nI ran a scan for Acme Roofing.",
+      "https://vivawebdesigns.com/scan-report/secure-token",
+    );
+
+    expect(body).toContain("I’m Matt with Viva Web Designs.");
+    expect(body).toContain("View the full report here: https://vivawebdesigns.com/scan-report/secure-token");
+    expect(body).toContain("227 W 4th St, 1st Floor #3127, Charlotte, NC 28202");
+    expect(body).toContain("reply “no thanks.”");
+    expect(body).not.toContain("<!doctype html>");
+    expect(body).not.toContain("background:");
+  });
+
+  it("opens the prepared message in the real Workspace account", () => {
+    const url = new URL(buildGmailComposeUrl({
+      recipient: "prospect@example.com",
+      subject: "Google Maps issues",
+      body: "Plain Gmail message",
+    }));
+
+    expect(url.origin).toBe("https://mail.google.com");
+    expect(url.searchParams.get("authuser")).toBe("matt@vivawebdesigns.com");
+    expect(url.searchParams.get("to")).toBe("prospect@example.com");
+    expect(url.searchParams.get("su")).toBe("Google Maps issues");
+    expect(url.searchParams.get("body")).toBe("Plain Gmail message");
   });
 });

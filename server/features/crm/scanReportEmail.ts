@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { reportSendBlockedReason } from "@shared/reportOutreach";
-import { getReportOutreachState } from "./reportOutreach";
+import { getReportOutreachState, recordReportEmailSent } from "./reportOutreach";
 import {
   crmCompanies,
   crmContacts,
@@ -10,12 +10,10 @@ import {
   localFalconProspectProfiles,
   scanReportDeliveries,
   scanReportShares,
-  workflowJobs,
 } from "@shared/schema";
 import { db } from "../../db";
 import { getFileBuffer, uploadPublishedReport } from "../../services/storage";
 import { formatEmailSender } from "../../lib/email-sender";
-import { getGmailSenderStatus, requireGmailSender } from "./gmailSender";
 import {
   createAnonymousScanReportToken,
   createScanReportToken,
@@ -39,12 +37,9 @@ export interface ScanReportEmailPreview {
   snapshotPreviewUrl: string;
   sentCount: number;
   blockedReason: string | null;
-  senderConnected: boolean;
-  senderAccountEmail: string | null;
-  senderError: string | null;
 }
 
-interface SendScanReportInput {
+interface ManualScanReportInput {
   leadId: string;
   reportId: string;
   recipient: string;
@@ -143,7 +138,6 @@ export async function getScanReportEmailPreview(
 ): Promise<ScanReportEmailPreview> {
   const record = await loadReport(leadId, reportId);
   const outreach = await getReportOutreachState(leadId);
-  const gmail = await getGmailSenderStatus();
   const spanish = (record.contact?.preferredLanguage ?? record.company?.preferredLanguage) === "es";
   const firstName = record.contact?.firstName?.trim();
   const businessName = record.report.companyName || record.company?.name || record.lead.title;
@@ -153,9 +147,6 @@ export async function getScanReportEmailPreview(
     reportId,
     sentCount: outreach.reportEmailCount,
     blockedReason: reportSendBlockedReason(outreach.reportEmailCount, outreach.reportOutreachDisposition),
-    senderConnected: gmail.connected && gmail.accountEmail?.toLowerCase() === scanReportSenderEmail().toLowerCase(),
-    senderAccountEmail: gmail.accountEmail,
-    senderError: gmail.lastError,
     recipient,
     from: formatEmailSender(scanReportSenderEmail()),
     replyTo: actorReplyTo(actorEmail),
@@ -210,52 +201,82 @@ export function buildScanReportEmailHtml(input: {
 </body></html>`;
 }
 
-export async function sendScanReportEmail(input: SendScanReportInput) {
-  await requireGmailSender(scanReportSenderEmail());
-  const record = await loadReport(input.leadId, input.reportId);
-  const sourceId = `scan-report:${input.requestId}`;
-  const [existingJob] = await db.select({ id: workflowJobs.id })
-    .from(workflowJobs)
-    .where(and(eq(workflowJobs.type, "email_notification"), eq(workflowJobs.sourceId, sourceId)))
-    .limit(1);
-  if (existingJob) {
-    return { jobId: existingJob.id, noteId: null, imageUrl: null, duplicate: true };
-  }
-  const beforeUpload = await getReportOutreachState(input.leadId);
-  const preflightBlocked = reportSendBlockedReason(beforeUpload.reportEmailCount, beforeUpload.reportOutreachDisposition);
-  if (preflightBlocked) throw Object.assign(new Error(preflightBlocked), { statusCode: 409 });
-  const shared = await publishScanReportShare(input.reportId, record.report.snapshotStorageKey!);
-  const imageUrl = shared.imageUrl;
-  const deliveryToken = createScanReportToken();
-  const landingUrl = shared.landingUrl;
-  const replyTo = actorReplyTo(input.actorEmail);
-  const businessName = record.report.companyName || record.company?.name || record.lead.title;
+export function buildManualGmailBody(message: string, landingUrl: string): string {
+  return `${message.trim()}\n\nView the full report here: ${landingUrl}\n\nViva Web Designs · ${POSTAL_ADDRESS}\nIf you’d rather not receive another email from me, just reply “no thanks.”`;
+}
 
-  // Reserve a send and its outbox job atomically. Parallel clicks cannot exceed two emails.
-  return db.transaction(async tx => {
+export function buildGmailComposeUrl(input: {
+  recipient: string;
+  subject: string;
+  body: string;
+}): string {
+  const params = new URLSearchParams({
+    view: "cm",
+    fs: "1",
+    to: input.recipient,
+    su: input.subject,
+    body: input.body,
+    authuser: scanReportSenderEmail(),
+  });
+  return `https://mail.google.com/mail/?${params.toString()}`;
+}
+
+async function ensurePublishedShare(reportId: string, snapshotStorageKey: string) {
+  const shared = await publishScanReportShare(reportId, snapshotStorageKey);
+  await db.insert(scanReportShares).values({
+    reportId,
+    publicTokenHash: shared.publicTokenHash,
+    imageUrl: shared.imageUrl,
+  }).onConflictDoUpdate({
+    target: scanReportShares.reportId,
+    set: {
+      publicTokenHash: shared.publicTokenHash,
+      imageUrl: shared.imageUrl,
+      updatedAt: new Date(),
+    },
+  });
+  return shared;
+}
+
+export async function prepareManualScanReportEmail(input: Omit<ManualScanReportInput, "actorId">) {
+  const record = await loadReport(input.leadId, input.reportId);
+  const outreach = await getReportOutreachState(input.leadId);
+  const blocked = reportSendBlockedReason(outreach.reportEmailCount, outreach.reportOutreachDisposition);
+  if (blocked) throw Object.assign(new Error(blocked), { statusCode: 409 });
+  const shared = await ensurePublishedShare(input.reportId, record.report.snapshotStorageKey!);
+  const body = buildManualGmailBody(input.message, shared.landingUrl);
+  return {
+    imageUrl: shared.imageUrl,
+    landingUrl: shared.landingUrl,
+    body,
+    gmailComposeUrl: buildGmailComposeUrl({
+      recipient: input.recipient,
+      subject: input.subject,
+      body,
+    }),
+  };
+}
+
+export async function confirmManualScanReportEmail(input: ManualScanReportInput) {
+  const record = await loadReport(input.leadId, input.reportId);
+  const [existing] = await db.select().from(scanReportDeliveries)
+    .where(eq(scanReportDeliveries.requestId, input.requestId))
+    .limit(1);
+  if (existing) {
+    await recordReportEmailSent(existing.id);
+    return { deliveryId: existing.id, noteId: existing.noteId, duplicate: true };
+  }
+  const shared = await ensurePublishedShare(input.reportId, record.report.snapshotStorageKey!);
+  const deliveryToken = createScanReportToken();
+
+  const confirmed = await db.transaction(async tx => {
     const [lead] = await tx.select().from(crmLeads).where(eq(crmLeads.id, input.leadId)).for("update");
-    const [duplicateJob] = await tx.select({ id: workflowJobs.id }).from(workflowJobs)
-      .where(and(eq(workflowJobs.type, "email_notification"), eq(workflowJobs.sourceId, sourceId))).limit(1);
-    if (duplicateJob) return { jobId: duplicateJob.id, noteId: null, imageUrl: null, duplicate: true };
+    const [duplicate] = await tx.select().from(scanReportDeliveries)
+      .where(eq(scanReportDeliveries.requestId, input.requestId)).limit(1);
+    if (duplicate) return { deliveryId: duplicate.id, noteId: duplicate.noteId, duplicate: true };
     const outreach = await getReportOutreachState(lead.id, tx);
     const blocked = reportSendBlockedReason(outreach.reportEmailCount, outreach.reportOutreachDisposition);
     if (blocked) throw Object.assign(new Error(blocked), { statusCode: 409 });
-    const pending = await tx.select({ id: scanReportDeliveries.id }).from(scanReportDeliveries)
-      .where(and(eq(scanReportDeliveries.leadId, lead.id), inArray(scanReportDeliveries.status, ["queued", "retrying"])));
-    if (pending.length) throw Object.assign(new Error("A report email is already queued. Wait for delivery before sending another."), { statusCode: 409 });
-
-    await tx.insert(scanReportShares).values({
-      reportId: input.reportId,
-      publicTokenHash: shared.publicTokenHash,
-      imageUrl,
-    }).onConflictDoUpdate({
-      target: scanReportShares.reportId,
-      set: {
-        publicTokenHash: shared.publicTokenHash,
-        imageUrl,
-        updatedAt: new Date(),
-      },
-    });
 
     const [delivery] = await tx.insert(scanReportDeliveries).values({
       leadId: input.leadId,
@@ -264,23 +285,25 @@ export async function sendScanReportEmail(input: SendScanReportInput) {
       // Keep an opaque per-delivery identifier for existing delivery records and routes.
       publicTokenHash: hashScanReportToken(deliveryToken),
       recipient: input.recipient,
-      imageUrl,
-      status: "queued",
+      imageUrl: shared.imageUrl,
+      status: "sent",
+      sentAt: new Date(),
     }).returning();
 
     const [note] = await tx.insert(crmLeadNotes).values({
       leadId: input.leadId,
       userId: input.actorId,
       type: "email",
-      content: `Scan report email queued for ${input.recipient}`,
+      content: `Scan report email manually sent to ${input.recipient}`,
       metadata: {
-        status: "queued",
+        status: "sent",
+        provider: "manual_gmail",
         reportId: input.reportId,
         recipient: input.recipient,
         subject: input.subject,
         preheader: input.preheader,
-        imageUrl,
-        landingUrl,
+        imageUrl: shared.imageUrl,
+        landingUrl: shared.landingUrl,
         deliveryId: delivery.id,
         imagePlacement: input.imagePlacement,
         requestId: input.requestId,
@@ -291,40 +314,8 @@ export async function sendScanReportEmail(input: SendScanReportInput) {
       noteId: note.id,
       updatedAt: new Date(),
     }).where(eq(scanReportDeliveries.id, delivery.id));
-
-    const [job] = await tx.insert(workflowJobs).values({
-      type: "email_notification", status: "pending", sourceId, sourceType: "scan_report_email",
-      // Gmail has no idempotency key. A single attempt avoids a duplicate if a
-      // network timeout happens after Google has already accepted the message.
-      attempts: 0, maxAttempts: 1, nextRunAt: new Date(), payload: {
-      to: input.recipient,
-      from: scanReportSenderEmail(),
-      replyTo,
-      subject: input.subject,
-      html: buildScanReportEmailHtml({
-        message: input.message,
-        imageUrl,
-        landingUrl,
-        businessName,
-        replyTo,
-        preheader: input.preheader,
-        imagePlacement: input.imagePlacement,
-      }),
-      // Plain-text-only mail clients cannot display the linked report image.
-      text: `${input.message}\n\nOpen your scan report: ${landingUrl}\n\nThis is a business advertisement from Viva Web Designs.\n${POSTAL_ADDRESS}\nIf you’d rather not receive another email from me, just reply “no thanks.”`,
-      noteId: note.id,
-      deliveryId: delivery.id,
-      category: "scan_report",
-      reportId: input.reportId,
-      imageUrl,
-      landingUrl,
-      preheader: input.preheader,
-      imagePlacement: input.imagePlacement,
-      requestId: input.requestId,
-    }}).returning();
-    await tx.update(crmLeadNotes).set({
-      metadata: { ...(note.metadata as object), jobId: job.id },
-    }).where(eq(crmLeadNotes.id, note.id));
-    return { jobId: job.id, noteId: note.id, imageUrl, landingUrl, deliveryId: delivery.id, duplicate: false };
+    return { deliveryId: delivery.id, noteId: note.id, duplicate: false };
   });
+  await recordReportEmailSent(confirmed.deliveryId);
+  return confirmed;
 }

@@ -162,9 +162,13 @@ interface ScanReportEmailPreview {
   message: string;
   businessName: string;
   snapshotPreviewUrl: string;
-  senderConnected: boolean;
-  senderAccountEmail: string | null;
-  senderError: string | null;
+}
+
+interface ManualScanReportPreparation {
+  imageUrl: string;
+  landingUrl: string;
+  body: string;
+  gmailComposeUrl: string;
 }
 
 function reportSnapshotFileUrl(reportId: string, contextCompanyId: string) {
@@ -191,6 +195,8 @@ function LocalFalconSnapshotCard({
   const [emailReportMessage, setEmailReportMessage] = useState("");
   const [emailReportImagePlacement, setEmailReportImagePlacement] = useState<"after_intro" | "after_message">("after_intro");
   const [emailReportRequestId, setEmailReportRequestId] = useState("");
+  const [emailPreparation, setEmailPreparation] = useState<ManualScanReportPreparation | null>(null);
+  const [emailSentConfirmed, setEmailSentConfirmed] = useState(false);
   const { data, isLoading } = useQuery<LocalFalconSnapshot>({
     queryKey: ["/api/local-visibility/reports", reportId, contextCompanyId],
     queryFn: async () => {
@@ -217,7 +223,7 @@ function LocalFalconSnapshotCard({
         return response.blob();
       });
       await navigator.clipboard.write([new ClipboardItem({ "image/png": blobPromise })]);
-      toast({ title: "Image copied", description: "Paste it directly into your SMS or messaging app." });
+      toast({ title: "Image copied", description: "Paste it directly into the prepared Gmail message." });
     } catch (error) {
       toast({
         title: "Copy failed",
@@ -302,54 +308,70 @@ function LocalFalconSnapshotCard({
       setEmailReportMessage(preview.message);
       setEmailReportImagePlacement("after_intro");
       setEmailReportRequestId(crypto.randomUUID());
+      setEmailPreparation(null);
+      setEmailSentConfirmed(false);
       setEmailReportOpen(true);
     },
     onError: (error: Error) => {
       toast({ title: "Could not prepare email", description: error.message, variant: "destructive" });
     },
   });
-  const sendEmailReport = useMutation({
+  const manualEmailPayload = () => ({
+    reportId: emailReportPreview!.reportId,
+    recipient: emailReportRecipient.trim(),
+    subject: emailReportSubject.trim(),
+    preheader: emailReportPreheader.trim(),
+    message: emailReportMessage.trim(),
+    imagePlacement: emailReportImagePlacement,
+    requestId: emailReportRequestId,
+  });
+  const prepareEmailReport = useMutation({
     mutationFn: async () => {
       if (!data || !emailReportPreview) throw new Error("The scan report email is not ready.");
       const response = await apiRequest(
         "POST",
-        `/api/crm/leads/${encodeURIComponent(data.leadId)}/email-scan-report`,
-        {
-          reportId: emailReportPreview.reportId,
-          recipient: emailReportRecipient.trim(),
-          subject: emailReportSubject.trim(),
-          preheader: emailReportPreheader.trim(),
-          message: emailReportMessage.trim(),
-          imagePlacement: emailReportImagePlacement,
-          requestId: emailReportRequestId,
-        },
+        `/api/crm/leads/${encodeURIComponent(data.leadId)}/prepare-scan-report-email`,
+        manualEmailPayload(),
+      );
+      return response.json() as Promise<ManualScanReportPreparation>;
+    },
+    onSuccess: (result) => {
+      setEmailPreparation(result);
+      setEmailSentConfirmed(false);
+      toast({
+        title: "Gmail email prepared",
+        description: "Copy the report image, open Gmail, paste the image after the introduction, and send.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Could not prepare Gmail email", description: error.message, variant: "destructive" });
+    },
+  });
+  const confirmEmailReport = useMutation({
+    mutationFn: async () => {
+      if (!data || !emailReportPreview || !emailPreparation) throw new Error("Prepare the Gmail email first.");
+      const response = await apiRequest(
+        "POST",
+        `/api/crm/leads/${encodeURIComponent(data.leadId)}/confirm-scan-report-email`,
+        { ...manualEmailPayload(), confirmed: true },
       );
       return response.json();
     },
     onSuccess: (result) => {
       setEmailReportOpen(false);
+      setEmailPreparation(null);
+      setEmailSentConfirmed(false);
       queryClient.invalidateQueries({ queryKey: [`/api/crm/leads/${data?.leadId}/report-outreach`] });
+      queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.all });
       toast({
-        title: result.duplicate ? "Already queued" : "Scan report queued",
+        title: result.duplicate ? "Already recorded" : "Gmail send recorded",
         description: result.duplicate
-          ? "That exact send request was already accepted, so a duplicate was not created."
-          : `The email to ${emailReportRecipient.trim()} is being delivered.`,
+          ? "That Gmail send was already recorded, so a duplicate was not created."
+          : `The email to ${emailReportRecipient.trim()} is now recorded as sent.`,
       });
     },
     onError: (error: Error) => {
-      toast({ title: "Could not send report", description: error.message, variant: "destructive" });
-    },
-  });
-  const connectGmail = useMutation({
-    mutationFn: async () => {
-      const response = await fetch("/api/business-analytics/oauth/start/gmail", { credentials: "include" });
-      const body = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(body.message || "Could not start the Google Workspace connection");
-      return body as { url: string };
-    },
-    onSuccess: ({ url }) => window.location.assign(url),
-    onError: (error: Error) => {
-      toast({ title: "Google Workspace connection failed", description: error.message, variant: "destructive" });
+      toast({ title: "Could not record Gmail send", description: error.message, variant: "destructive" });
     },
   });
   const createEmailTestLeads = useMutation({
@@ -564,46 +586,24 @@ function LocalFalconSnapshotCard({
           </div>
         )}
       </CardContent>
-      <Dialog open={emailReportOpen} onOpenChange={(open) => !sendEmailReport.isPending && setEmailReportOpen(open)}>
+      <Dialog open={emailReportOpen} onOpenChange={(open) => {
+        if (prepareEmailReport.isPending || confirmEmailReport.isPending) return;
+        setEmailReportOpen(open);
+        if (!open) {
+          setEmailPreparation(null);
+          setEmailSentConfirmed(false);
+        }
+      }}>
         <DialogContent className="max-h-[94dvh] overflow-y-auto sm:max-w-2xl" data-testid="modal-email-scan-report">
           <DialogHeader>
             <DialogTitle>Email scan report</DialogTitle>
             <DialogDescription>
-              Review the exact recipient and message before the finished PNG is published and queued for delivery.
+              Review the recipient and message, then finish and send it from your Viva Gmail account.
             </DialogDescription>
           </DialogHeader>
 
-          {emailReportPreview && (
+          {emailReportPreview && !emailPreparation && (
             <div className="space-y-4">
-              <div className={`rounded-lg border p-3 text-sm ${emailReportPreview.senderConnected ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
-                {emailReportPreview.senderConnected ? (
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4" />
-                    Sending through Google Workspace as {emailReportPreview.senderAccountEmail}.
-                  </div>
-                ) : (
-                  <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-                    <div>
-                      <p className="font-medium">Connect Google Workspace before sending.</p>
-                      <p className="mt-1 text-xs">Only send access for matt@vivawebdesigns.com will be requested. Inbox access is not included.</p>
-                      {emailReportPreview.senderError && <p className="mt-1 text-xs">{emailReportPreview.senderError}</p>}
-                    </div>
-                    {role === "admin" && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => connectGmail.mutate()}
-                        disabled={connectGmail.isPending}
-                        className="shrink-0 bg-white"
-                      >
-                        {connectGmail.isPending ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <ExternalLink className="mr-2 h-4 w-4" />}
-                        Connect Google
-                      </Button>
-                    )}
-                  </div>
-                )}
-              </div>
               <div className="grid gap-5 sm:grid-cols-[1fr_190px]">
               <div className="space-y-4">
                 <p className="rounded bg-cyan-50 p-2 text-sm" role="status">
@@ -650,16 +650,6 @@ function LocalFalconSnapshotCard({
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor={`scan-report-preheader-${reportId}`}>Inbox preview</Label>
-                  <Input
-                    id={`scan-report-preheader-${reportId}`}
-                    value={emailReportPreheader}
-                    onChange={(event) => setEmailReportPreheader(event.target.value)}
-                    maxLength={200}
-                    data-testid="input-scan-report-preheader"
-                  />
-                </div>
-                <div className="space-y-1.5">
                   <Label htmlFor={`scan-report-message-${reportId}`}>Message</Label>
                   <Textarea
                     id={`scan-report-message-${reportId}`}
@@ -687,28 +677,108 @@ function LocalFalconSnapshotCard({
             </div>
           )}
 
+          {emailReportPreview && emailPreparation && (
+            <div className="space-y-4">
+              <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+                <h3 className="font-semibold text-blue-950">Finish this email in Gmail</h3>
+                <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-blue-900">
+                  <li>Copy the report image below.</li>
+                  <li>Open the prepared Gmail message.</li>
+                  <li>{emailReportImagePlacement === "after_intro" ? "Click after the introduction" : "Click after the message"} and paste the image.</li>
+                  <li>Review the email, click Send in Gmail, then return here.</li>
+                </ol>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <Button type="button" variant="outline" onClick={copySnapshot}>
+                  <ClipboardCopy className="mr-2 h-4 w-4" />
+                  Copy image
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(emailPreparation.body);
+                      toast({ title: "Email text copied" });
+                    } catch {
+                      toast({ title: "Could not copy email text", variant: "destructive" });
+                    }
+                  }}
+                >
+                  <ClipboardCopy className="mr-2 h-4 w-4" />
+                  Copy email text
+                </Button>
+                <Button type="button" asChild className="bg-blue-700 hover:bg-blue-800">
+                  <a href={emailPreparation.gmailComposeUrl} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    Open Gmail
+                  </a>
+                </Button>
+              </div>
+              <div className="rounded-lg border p-3 text-sm text-slate-600">
+                <div><span className="font-medium text-slate-900">To:</span> {emailReportRecipient}</div>
+                <div className="mt-1"><span className="font-medium text-slate-900">Subject:</span> {emailReportSubject}</div>
+                <div className="mt-1"><span className="font-medium text-slate-900">Report link:</span> {emailPreparation.landingUrl}</div>
+              </div>
+              <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+                <Checkbox
+                  checked={emailSentConfirmed}
+                  onCheckedChange={(checked) => setEmailSentConfirmed(checked === true)}
+                  className="mt-0.5"
+                />
+                <span>I clicked Send in Gmail. Record this email as sent in the CRM.</span>
+              </label>
+            </div>
+          )}
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEmailReportOpen(false)} disabled={sendEmailReport.isPending}>
-              Cancel
-            </Button>
-            <Button
-              onClick={() => sendEmailReport.mutate()}
-              disabled={
-                sendEmailReport.isPending || !!emailReportPreview?.blockedReason ||
-                !emailReportRecipient.trim() ||
-                !emailReportSubject.trim() ||
-                !emailReportPreheader.trim() ||
-                !emailReportMessage.trim() ||
-                !emailReportPreview?.senderConnected
-              }
-              className="bg-teal-700 hover:bg-teal-800"
-              data-testid="button-confirm-email-scan-report"
-            >
-              {sendEmailReport.isPending
-                ? <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" />
-                : <Mail className="mr-1.5 h-4 w-4" />}
-              {sendEmailReport.isPending ? "Queuing..." : "Send report"}
-            </Button>
+            {!emailPreparation ? (
+              <>
+                <Button variant="outline" onClick={() => setEmailReportOpen(false)} disabled={prepareEmailReport.isPending}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => prepareEmailReport.mutate()}
+                  disabled={
+                    prepareEmailReport.isPending || !!emailReportPreview?.blockedReason ||
+                    !emailReportRecipient.trim() ||
+                    !emailReportSubject.trim() ||
+                    !emailReportMessage.trim()
+                  }
+                  className="bg-teal-700 hover:bg-teal-800"
+                  data-testid="button-prepare-gmail-scan-report"
+                >
+                  {prepareEmailReport.isPending
+                    ? <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" />
+                    : <Mail className="mr-1.5 h-4 w-4" />}
+                  {prepareEmailReport.isPending ? "Preparing..." : "Prepare in Gmail"}
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setEmailPreparation(null);
+                    setEmailSentConfirmed(false);
+                  }}
+                  disabled={confirmEmailReport.isPending}
+                >
+                  Cancel preparation
+                </Button>
+                <Button
+                  onClick={() => confirmEmailReport.mutate()}
+                  disabled={!emailSentConfirmed || confirmEmailReport.isPending}
+                  className="bg-teal-700 hover:bg-teal-800"
+                  data-testid="button-confirm-manual-gmail-send"
+                >
+                  {confirmEmailReport.isPending
+                    ? <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" />
+                    : <CheckCircle className="mr-1.5 h-4 w-4" />}
+                  {confirmEmailReport.isPending ? "Recording..." : "Mark as sent"}
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

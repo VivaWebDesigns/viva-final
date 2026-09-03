@@ -58,16 +58,6 @@ describe("Google business analytics integration", () => {
     expect(url.searchParams.get("scope")).not.toContain("analytics.readonly");
   });
 
-  it("requests only send access for the Gmail connection", () => {
-    const url = new URL(googleAuthorizationUrl("gmail", "secure-state"));
-    const scope = url.searchParams.get("scope") || "";
-
-    expect(scope).toContain("gmail.send");
-    expect(scope).not.toContain("gmail.readonly");
-    expect(scope).not.toContain("gmail.modify");
-    expect(scope).not.toContain("mail.google.com");
-  });
-
   it("keeps Business Profile disabled unless explicitly enabled", () => {
     delete process.env.GOOGLE_BUSINESS_PROFILE_ENABLED;
     expect(googleBusinessProfileEnabled()).toBe(false);

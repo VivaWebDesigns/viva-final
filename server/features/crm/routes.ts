@@ -64,9 +64,10 @@ import { executeStageAutomations } from "../automations/trigger";
 import * as storageService from "../../services/storage";
 import {
   DEFAULT_SCAN_REPORT_PREHEADER,
+  confirmManualScanReportEmail,
   getScanReportEmailPreview,
+  prepareManualScanReportEmail,
   prepareScanReportShare,
-  sendScanReportEmail,
 } from "./scanReportEmail";
 
 async function cascadeCompanyNameToTitles(companyId: string, oldName: string, newName: string) {
@@ -184,6 +185,9 @@ const scanReportEmailSchema = z.object({
   imagePlacement: z.enum(["after_intro", "after_message"]).default("after_intro"),
   requestId: z.string().uuid(),
 }).strict();
+const confirmManualScanReportEmailSchema = scanReportEmailSchema.extend({
+  confirmed: z.literal(true),
+});
 
 const router = Router();
 
@@ -1077,12 +1081,36 @@ router.post("/leads/:id/scan-report-share", requireRole("admin", "developer", "s
   }
 });
 
-router.post("/leads/:id/email-scan-report", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
+router.post("/leads/:id/prepare-scan-report-email", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
   try {
     const leadId = req.params.id as string;
     if (!(await assertLeadAccess(req, res, leadId))) return;
     const input = scanReportEmailSchema.parse(req.body);
-    const result = await sendScanReportEmail({
+    const result = await prepareManualScanReportEmail({
+      leadId,
+      ...input,
+      actorEmail: req.authUser!.email,
+    });
+    await logAudit({
+      userId: req.authUser!.id,
+      action: "scan_report_email_prepared_for_gmail",
+      entity: "crm_lead",
+      entityId: leadId,
+      metadata: { reportId: input.reportId, recipient: input.recipient },
+      ipAddress: req.ip,
+    });
+    res.json(result);
+  } catch (error: any) {
+    res.status(error?.statusCode ?? 400).json({ message: error.message });
+  }
+});
+
+router.post("/leads/:id/confirm-scan-report-email", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
+  try {
+    const leadId = req.params.id as string;
+    if (!(await assertLeadAccess(req, res, leadId))) return;
+    const { confirmed: _confirmed, ...input } = confirmManualScanReportEmailSchema.parse(req.body);
+    const result = await confirmManualScanReportEmail({
       leadId,
       ...input,
       actorId: req.authUser!.id,
@@ -1090,19 +1118,23 @@ router.post("/leads/:id/email-scan-report", requireRole("admin", "developer", "s
     });
     await logAudit({
       userId: req.authUser!.id,
-      action: result.duplicate ? "scan_report_email_duplicate_ignored" : "scan_report_email_queued",
+      action: result.duplicate ? "scan_report_manual_send_duplicate_ignored" : "scan_report_manual_send_confirmed",
       entity: "crm_lead",
       entityId: leadId,
-      metadata: { reportId: input.reportId, recipient: input.recipient, jobId: result.jobId },
+      metadata: { reportId: input.reportId, recipient: input.recipient, deliveryId: result.deliveryId },
       ipAddress: req.ip,
     });
-    res.status(202).json({
-      message: result.duplicate ? "This scan report email was already queued" : "Scan report email queued",
+    res.json({
+      message: result.duplicate ? "This Gmail send was already recorded" : "Gmail send recorded",
       ...result,
     });
   } catch (error: any) {
     res.status(error?.statusCode ?? 400).json({ message: error.message });
   }
+});
+
+router.post("/leads/:id/email-scan-report", requireRole("admin", "developer", "sales_rep"), (_req, res) => {
+  res.status(410).json({ message: "Automated prospect delivery is disabled. Prepare the email for Gmail instead." });
 });
 
 const EMAIL_TEST_SOURCE_LEAD_ID = "73eec4df-4ae9-4357-8842-2c0125c76e54";
