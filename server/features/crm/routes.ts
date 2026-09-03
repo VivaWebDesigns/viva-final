@@ -65,6 +65,7 @@ import * as storageService from "../../services/storage";
 import {
   DEFAULT_SCAN_REPORT_PREHEADER,
   getScanReportEmailPreview,
+  prepareScanReportShare,
   sendScanReportEmail,
 } from "./scanReportEmail";
 
@@ -1051,6 +1052,26 @@ router.get("/leads/:id/scan-report-email-preview", requireRole("admin", "develop
     if (!(await assertLeadAccess(req, res, leadId))) return;
     const reportId = z.string().min(1).parse(req.query.reportId);
     res.json(await getScanReportEmailPreview(leadId, reportId, req.authUser!.email));
+  } catch (error: any) {
+    res.status(error?.statusCode ?? 400).json({ message: error.message });
+  }
+});
+
+router.post("/leads/:id/scan-report-share", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
+  try {
+    const leadId = req.params.id as string;
+    if (!(await assertLeadAccess(req, res, leadId))) return;
+    const { reportId } = z.object({ reportId: z.string().min(1) }).parse(req.body);
+    const result = await prepareScanReportShare(leadId, reportId);
+    await logAudit({
+      userId: req.authUser!.id,
+      action: "scan_report_link_prepared",
+      entity: "crm_lead",
+      entityId: leadId,
+      metadata: { reportId },
+      ipAddress: req.ip,
+    });
+    res.json(result);
   } catch (error: any) {
     res.status(error?.statusCode ?? 400).json({ message: error.message });
   }

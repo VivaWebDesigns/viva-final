@@ -26,7 +26,7 @@ import {
   Trash2, Users, CalendarDays, Upload, ExternalLink,
   BarChart3, CheckSquare, History, Star, Edit2,
   ClipboardList, CheckCircle, ChevronDown, ChevronRight, CalendarClock,
-  ClipboardCopy,
+  ClipboardCopy, Link2,
 } from "lucide-react";
 import { format, formatDistanceToNow, isPast } from "date-fns";
 import { es as dateFnsEs } from "date-fns/locale";
@@ -231,6 +231,28 @@ function LocalFalconSnapshotCard({
     link.click();
     link.remove();
   };
+  const copyReportLink = useMutation({
+    mutationFn: async () => {
+      if (!data) throw new Error("The scan report is still loading.");
+      const response = await apiRequest(
+        "POST",
+        `/api/crm/leads/${encodeURIComponent(data.leadId)}/scan-report-share`,
+        { reportId },
+      );
+      const body = await response.json() as { landingUrl: string };
+      await navigator.clipboard.writeText(body.landingUrl);
+      return body;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Report link copied",
+        description: "The secure Viva report page is ready to paste into a personal email.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Could not copy report link", description: error.message, variant: "destructive" });
+    },
+  });
   const saveSnapshot = useMutation({
     mutationFn: async () => {
       const blob = await renderLocalVisibilityReportBlob(reportRef.current);
@@ -471,6 +493,19 @@ function LocalFalconSnapshotCard({
               <Button onClick={copySnapshot}>
                 <ClipboardCopy className="mr-1.5 h-4 w-4" /> Copy image
               </Button>
+              {canEmailSnapshot && (
+                <Button
+                  variant="outline"
+                  onClick={() => copyReportLink.mutate()}
+                  disabled={copyReportLink.isPending}
+                  data-testid="button-copy-scan-report-link"
+                >
+                  {copyReportLink.isPending
+                    ? <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" />
+                    : <Link2 className="mr-1.5 h-4 w-4" />}
+                  {copyReportLink.isPending ? "Preparing link…" : "Copy report link"}
+                </Button>
+              )}
               <Button variant="outline" onClick={downloadSnapshot}>
                 <Download className="mr-1.5 h-4 w-4" /> Download PNG
               </Button>

@@ -101,6 +101,37 @@ async function loadReport(leadId: string, reportId: string) {
   return record;
 }
 
+async function publishScanReportShare(reportId: string, snapshotStorageKey: string) {
+  const file = await getFileBuffer(snapshotStorageKey);
+  const sha = crypto.createHash("sha256").update(file.buffer).digest("hex");
+  const publishedKey = `scans/${reportId}/${sha}.png`;
+  const published = await uploadPublishedReport(file.buffer, publishedKey, "image/png");
+  const publicToken = createAnonymousScanReportToken(reportId);
+  return {
+    imageUrl: published.url,
+    publicTokenHash: hashScanReportToken(publicToken),
+    landingUrl: scanReportLandingUrl(publicToken),
+  };
+}
+
+export async function prepareScanReportShare(leadId: string, reportId: string) {
+  const record = await loadReport(leadId, reportId);
+  const shared = await publishScanReportShare(reportId, record.report.snapshotStorageKey!);
+  await db.insert(scanReportShares).values({
+    reportId,
+    publicTokenHash: shared.publicTokenHash,
+    imageUrl: shared.imageUrl,
+  }).onConflictDoUpdate({
+    target: scanReportShares.reportId,
+    set: {
+      publicTokenHash: shared.publicTokenHash,
+      imageUrl: shared.imageUrl,
+      updatedAt: new Date(),
+    },
+  });
+  return { landingUrl: shared.landingUrl };
+}
+
 export async function getScanReportEmailPreview(
   leadId: string,
   reportId: string,
@@ -184,14 +215,10 @@ export async function sendScanReportEmail(input: SendScanReportInput) {
   const beforeUpload = await getReportOutreachState(input.leadId);
   const preflightBlocked = reportSendBlockedReason(beforeUpload.reportEmailCount, beforeUpload.reportOutreachDisposition);
   if (preflightBlocked) throw Object.assign(new Error(preflightBlocked), { statusCode: 409 });
-  const file = await getFileBuffer(record.report.snapshotStorageKey!);
-  const sha = crypto.createHash("sha256").update(file.buffer).digest("hex");
-  const publishedKey = `scans/${input.reportId}/${sha}.png`;
-  const published = await uploadPublishedReport(file.buffer, publishedKey, "image/png");
-  const imageUrl = published.url;
-  const publicToken = createAnonymousScanReportToken(input.reportId);
+  const shared = await publishScanReportShare(input.reportId, record.report.snapshotStorageKey!);
+  const imageUrl = shared.imageUrl;
   const deliveryToken = createScanReportToken();
-  const landingUrl = scanReportLandingUrl(publicToken);
+  const landingUrl = shared.landingUrl;
   const replyTo = actorReplyTo(input.actorEmail);
   const businessName = record.report.companyName || record.company?.name || record.lead.title;
 
@@ -210,12 +237,12 @@ export async function sendScanReportEmail(input: SendScanReportInput) {
 
     await tx.insert(scanReportShares).values({
       reportId: input.reportId,
-      publicTokenHash: hashScanReportToken(publicToken),
+      publicTokenHash: shared.publicTokenHash,
       imageUrl,
     }).onConflictDoUpdate({
       target: scanReportShares.reportId,
       set: {
-        publicTokenHash: hashScanReportToken(publicToken),
+        publicTokenHash: shared.publicTokenHash,
         imageUrl,
         updatedAt: new Date(),
       },
