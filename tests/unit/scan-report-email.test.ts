@@ -16,7 +16,6 @@ describe("scan report email template", () => {
       landingUrl: "https://vivawebdesigns.com/scan-report/secure-token",
       businessName: "Acme Roofing",
       replyTo: "matt@vivawebdesigns.com",
-      unsubscribeUrl: "https://vivawebdesigns.com/email/unsubscribe/secure-token",
       preheader: DEFAULT_SCAN_REPORT_PREHEADER,
     });
 
@@ -32,8 +31,8 @@ describe("scan report email template", () => {
     expect(html).not.toContain('background:#0f766e;color:#ffffff;padding:22px 28px');
     expect(html).toContain('src="https://reports.vivawebdesigns.com/scans/report/abc.png"');
     expect(html).toContain("227 W 4th St, 1st Floor #3127, Charlotte, NC 28202");
-    expect(html).toContain("Unsubscribe");
-    expect(html).toContain('href="https://vivawebdesigns.com/email/unsubscribe/secure-token"');
+    expect(html).toContain("If you’d rather not receive another email from me, just reply “no thanks.”");
+    expect(html).not.toContain("/email/unsubscribe/");
     expect(html).not.toContain("mailto:");
   });
 
@@ -45,7 +44,6 @@ describe("scan report email template", () => {
       landingUrl: "https://vivawebdesigns.com/scan-report/secure-token",
       businessName: "Inspect-A-Deck",
       replyTo: "matt@vivawebdesigns.com",
-      unsubscribeUrl: "https://vivawebdesigns.com/email/unsubscribe/secure-token",
     });
 
     expect(html.indexOf("I came across Inspect-A-Deck")).toBeLessThan(html.indexOf(imageUrl));
@@ -68,7 +66,6 @@ describe("scan report email template", () => {
       landingUrl: "https://vivawebdesigns.com/scan-report/secure-token",
       businessName: "Inspect-A-Deck",
       replyTo: "matt@vivawebdesigns.com",
-      unsubscribeUrl: "https://vivawebdesigns.com/email/unsubscribe/secure-token",
       imagePlacement: "after_message",
     });
 
@@ -82,7 +79,6 @@ describe("scan report email template", () => {
       landingUrl: "https://vivawebdesigns.com/scan-report/secure-token",
       businessName: 'Acme <Roofing> "LLC"',
       replyTo: "matt@vivawebdesigns.com",
-      unsubscribeUrl: "https://vivawebdesigns.com/email/unsubscribe/secure-token",
       preheader: "Your <scan>",
     });
 
