@@ -50,6 +50,7 @@ import {
   validateSabCrmManifestInputSchema,
 } from "./schema";
 import { projectSabCompany } from "./usageOptimization";
+import { scheduleSabCompletionMonitor } from "./completionMonitorQueue";
 
 function jsonToolResult(value: unknown) {
   return {
@@ -95,7 +96,7 @@ export function createSabMcpServer(
 ) {
   const server = new McpServer({
     name: "viva-sab-workflow",
-    version: "2.6.0",
+    version: "2.7.0",
   });
 
   server.registerTool(
@@ -415,15 +416,38 @@ export function createSabMcpServer(
     "run_sab_scan_once",
     sabTool({
       description:
-        "Execute exactly one run-state-authorized Local Falcon scan owned by the single Codex orchestrator through the Viva connector's guarded path. Requires an exact authorized batch of at most 15 scans, enforces credit limits, and creates a durable idempotency reservation before any paid call, optionally saves the exact Place ID, submits exactly once with no automatic retry, verifies the complete echoed scan envelope, and immediately records the report key. An exact preparing_location claim with no submit_started_at resumes automatically under its existing authorization, idempotency key, envelope, and credit reservation. A lost, mismatched, or post-start response remains an ambiguous durable stop; recovering a submitting claim requires explicit Matt approval and a fresh exact-envelope history check showing no matching report. All other repeated calls remain read-only receipts.",
+        "Execute exactly one run-state-authorized Local Falcon scan owned by the single Codex orchestrator through the Viva connector's guarded path. Requires an exact authorized batch of at most 15 scans, enforces credit limits, and creates a durable idempotency reservation before any paid call, optionally saves the exact Place ID, submits exactly once with no automatic retry, verifies the complete echoed scan envelope, and immediately records the report key. After the final exact submission, the connector automatically schedules durable server-side completion monitoring at five-minute intervals, so Codex must not poll pending reports. An exact preparing_location claim with no submit_started_at resumes automatically under its existing authorization, idempotency key, envelope, and credit reservation. A lost, mismatched, or post-start response remains an ambiguous durable stop; recovering a submitting claim requires explicit Matt approval and a fresh exact-envelope history check showing no matching report. All other repeated calls remain read-only receipts.",
       inputSchema: runSabScanOnceInputSchema,
     }),
     async ({ workflow_sheet, sheet_name, ...input }) => {
       const repository = repositoryFactory(workflow_sheet, sheet_name);
       const result = await runSabScanOnce(input, repository, actorEmail);
       const status = String(result.submission_status ?? "unknown");
+      let completion_monitor: Record<string, unknown> | null = null;
+      if (status === "submitted" && input.run_id) {
+        const state = await repository.getRunState(input.run_id);
+        const batch = state?.batches.at(-1);
+        if (batch?.status === "awaiting_completion") {
+          try {
+            completion_monitor = await scheduleSabCompletionMonitor({
+              workflow_sheet,
+              sheet_name,
+              run_id: input.run_id,
+              authorization_id: batch.authorization_id,
+              repository,
+              actor_email: actorEmail,
+            });
+          } catch (error) {
+            console.error("[sab-mcp] completion monitor enqueue failed:", error);
+            completion_monitor = {
+              status: "enqueue_failed",
+              safe_to_retry_monitor_setup: true,
+            };
+          }
+        }
+      }
       return workflowWriteReceipt(
-        result,
+        { ...result, ...(completion_monitor ? { completion_monitor } : {}) },
         ["ambiguous_response", "location_unverified"].includes(status)
           ? "stop; reconcile_ambiguous_submission_and_run_claim_without_resubmitting"
           : "finish_only_this_exact_authorized_batch; review_only_if_a_genuine_exception_requires_it",

@@ -8,7 +8,7 @@
  * Call stopWorker() for clean shutdown (tests, SIGTERM).
  */
 
-import { claimNextJob, markJobCompleted, markJobFailed } from "./queue";
+import { claimNextJob, markJobCompleted, markJobFailed, rescheduleJob } from "./queue";
 import { processJob } from "./processor";
 
 const POLL_INTERVAL_MS = 5_000;
@@ -42,9 +42,14 @@ async function tick(): Promise<void> {
     console.log(`${TAG} processing job ${job.id} type=${job.type} attempt=${job.attempts}`);
 
     try {
-      await processJob(job);
-      await markJobCompleted(job.id);
-      console.log(`${TAG} job ${job.id} completed`);
+      const result = await processJob(job);
+      if (result.status === "rescheduled") {
+        await rescheduleJob(job.id, result.payload, result.nextRunAt, job.attempts);
+        console.log(`${TAG} job ${job.id} rescheduled for ${result.nextRunAt.toISOString()}`);
+      } else {
+        await markJobCompleted(job.id);
+        console.log(`${TAG} job ${job.id} completed`);
+      }
     } catch (err: any) {
       const msg = err?.message ?? String(err);
       console.error(`${TAG} job ${job.id} failed (attempt ${job.attempts}/${job.maxAttempts}): ${msg}`);

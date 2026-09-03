@@ -37,6 +37,24 @@ export type SabRunBatch = {
   status: "authorized" | "awaiting_completion" | "completed" | "blocked";
   scans: SabRunScan[];
   exception: (SabMattApproval & { reason: string }) | null;
+  /** Server-side completion monitoring replaces repeated model-driven polling.
+   * Only compact aggregate and exception evidence is retained here.
+   */
+  completion_monitor?: {
+    status: "scheduled" | "completed";
+    scheduled_at: string;
+    completed_at?: string;
+    poll_count: number;
+    report_count?: number;
+    classification_counts?: Record<string, number>;
+    exceptions?: Array<{
+      place_id: string;
+      company: string;
+      report_key: string;
+      classification: string;
+      reason: string;
+    }>;
+  };
   /** Required by new guarded authorizations; optional to read legacy receipts. */
   duplicate_report_checks?: Array<{
     scan: SabScanPlan;
@@ -396,5 +414,28 @@ export function completeSabRunReports(state: SabRunState, completedReportKeys: s
   }
   next.version++;
   if (batch.scans.every((scan) => scan.completion_verified)) batch.status = "completed";
+  return next;
+}
+
+export function recordSabCompletionMonitorScheduled(
+  state: SabRunState,
+  authorizationId: string,
+  scheduledAt: string,
+): SabRunState {
+  const next = structuredClone(state);
+  const batch = next.batches.find(candidate => candidate.authorization_id === authorizationId);
+  if (!batch || batch.status !== "awaiting_completion") {
+    throw new Error("Only an awaiting-completion SAB batch can schedule provider monitoring.");
+  }
+  if (batch.completion_monitor?.status === "completed") return next;
+  next.version++;
+  const existing = batch.completion_monitor?.status === "scheduled"
+    ? batch.completion_monitor
+    : null;
+  batch.completion_monitor = {
+    status: "scheduled",
+    scheduled_at: existing?.scheduled_at ?? scheduledAt,
+    poll_count: existing?.poll_count ?? 0,
+  };
   return next;
 }

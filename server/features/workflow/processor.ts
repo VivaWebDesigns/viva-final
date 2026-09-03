@@ -74,14 +74,28 @@ interface EmailNotificationPayload {
   requestId?: string;
 }
 
+export type JobProcessingResult =
+  | { status: "completed" }
+  | {
+      status: "rescheduled";
+      payload: Record<string, unknown>;
+      nextRunAt: Date;
+    };
+
 // ── Processor entry point ─────────────────────────────────────────────
 
-export async function processJob(job: WorkflowJob): Promise<void> {
+export async function processJob(job: WorkflowJob): Promise<JobProcessingResult> {
   switch (job.type) {
     case "crm_ingest":
-      return processCrmIngest(job);
+      await processCrmIngest(job);
+      return { status: "completed" };
     case "email_notification":
-      return processEmailNotification(job);
+      await processEmailNotification(job);
+      return { status: "completed" };
+    case "sab_report_completion": {
+      const { processSabCompletionMonitorJob } = await import("../sab-mcp/completionMonitor");
+      return processSabCompletionMonitorJob(job);
+    }
     default:
       throw new Error(`Unknown job type: ${job.type}`);
   }

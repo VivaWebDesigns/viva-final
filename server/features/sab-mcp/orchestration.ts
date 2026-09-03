@@ -14,6 +14,7 @@ import { evaluateSabAddressCandidate, evaluateSabCoordinatesAgainstCells } from 
 import { auditSabContactRows, isNormalModeException } from "./usageOptimization";
 import { reconcileSabImportBatch } from "./importReconciliation";
 import { validateSabContactResearchV3 } from "./contactResearch";
+import { scheduleSabCompletionMonitor } from "./completionMonitorQueue";
 
 const common = {workflow_sheet:z.string().min(1),sheet_name:z.string().min(1).default("SAB Workflow")};
 const run = {...common,run_id:z.string().min(1).max(200)};
@@ -83,7 +84,7 @@ function assertExactReport(report: RankedReport, key: string, placeId: string, s
   }
   if (stage !== "master" && report.report_subject_place_id !== placeId) throw new Error("Completed report subject does not match exact Place ID");
 }
-function assertReportPlan(report: RankedReport, scan: SabScanPlan) {
+export function assertReportPlan(report: RankedReport, scan: SabScanPlan) {
   assertExactReport(report, report.report_key, scan.place_id, scan.scan_role);
   if (report.grid.size !== scan.grid_size || report.grid.radius !== scan.radius ||
       report.grid.center.latitude !== scan.center.latitude || report.grid.center.longitude !== scan.center.longitude ||
@@ -306,7 +307,13 @@ export async function analyzeAndRecordSabReport(repository: SabSheetsRepository,
     raw_arp: report.arp, all_point_atrp: report.atrp, solv: report.solv, ...decision, evidence_hash: hash};
 }
 
-export function registerSabOrchestrationTools(server:McpServer,factory:SabSheetsRepositoryFactory,actorEmail:string) {
+export function registerSabOrchestrationTools(
+  server:McpServer,
+  factory:SabSheetsRepositoryFactory,
+  actorEmail:string,
+  dependencies: { scheduleCompletionMonitor?: typeof scheduleSabCompletionMonitor } = {},
+) {
+  const scheduleCompletionMonitor = dependencies.scheduleCompletionMonitor ?? scheduleSabCompletionMonitor;
   function add(name:string,description:string,inputSchema:Record<string,z.ZodTypeAny>,handler:(args:any)=>Promise<unknown>) {
     const securitySchemes=[{type:"oauth2",scopes:["sab:read","sab:write"]}];
     const definition = {description,inputSchema,securitySchemes,_meta:{securitySchemes}};
@@ -322,6 +329,17 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
     const state=createSabRunState(args);await repo.saveRunState(state,null,actorEmail);return state;
   }));
   add("get_sab_run_state","Read authoritative run stages, exact authorizations, committed credits and execution-batch status. Notes are supporting history.",run,async args=>requireRun(factory(args.workflow_sheet,args.sheet_name),args.run_id));
+  add("ensure_sab_completion_monitor","Idempotently attach server-side Local Falcon completion monitoring to the current fully submitted batch. Use once for an awaiting-completion legacy batch that predates automatic scheduling. It performs no paid call, never submits or retries a scan, and subsequent unchanged provider checks consume no Codex turns.",run,async args=>{
+    const repo=factory(args.workflow_sheet,args.sheet_name),state=await requireRun(repo,args.run_id),batch=state.batches.at(-1);
+    if(!batch) throw new Error("No SAB scan batch exists to monitor");
+    if(batch.status==="completed") return {run_id:args.run_id,authorization_id:batch.authorization_id,status:"completed",monitor_created:false};
+    if(batch.status!=="awaiting_completion" || batch.scans.some(scan=>scan.submission_status!=="submitted" || !scan.report_key)) {
+      throw new Error("Only an exact fully submitted awaiting-completion batch can be monitored");
+    }
+    const monitor=await scheduleCompletionMonitor({workflow_sheet:args.workflow_sheet,sheet_name:args.sheet_name,run_id:args.run_id,
+      authorization_id:batch.authorization_id,repository:repo,actor_email:actorEmail});
+    return {run_id:args.run_id,authorization_id:batch.authorization_id,status:"scheduled",monitor_created:true,monitor};
+  });
   add("pin_sab_sop_revision","Record the exact Google Drive SOP revision after the orchestrator has read it in full. Use for legacy runs without a pin or only after Drive metadata proves the revision changed and the new revision was reread. Performs no paid work.",{
     ...run,sop_revision:z.object({document_id:z.string().trim().min(1),revision_id:z.string().trim().min(1),title:z.string().trim().min(1)}).strict(),
   },async args=>inSabRunStateQueue(async()=>{
@@ -331,7 +349,8 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
   }));
   add("reconcile_sab_ambiguous_submission","Recover one existing ambiguous paid submission without resubmitting or resetting the run. Verify a supplied provider report against the stored exact Place ID, center, keyword, platform and scan specification, bind it to the original durable claim, and preserve committed credits. Performs no paid call.",{
     ...run,orchestrator_id:z.string().min(1),authorization_id:z.string().uuid(),place_id:z.string().min(1),report_key:z.string().regex(/^[a-f0-9]{12,64}$/i),
-  },async args=>inSabRunStateQueue(async()=>{
+  },async args=>{
+    const recovered=await inSabRunStateQueue(async()=>{
     const repo=factory(args.workflow_sheet,args.sheet_name),state=await requireRun(repo,args.run_id);
     if(args.orchestrator_id!==state.orchestrator_id) throw new Error("Only this run's orchestrator may reconcile an ambiguous submission");
     const batch=state.batches.find(candidate=>candidate.authorization_id===args.authorization_id);
@@ -352,10 +371,23 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
       ? recordSabRunSubmission(state,scan.idempotency_key,{submission_status:"submitted",report_key:args.report_key})
       : reconcileSabAmbiguousSubmission(state,args);
     await repo.saveRunState(next,state.version,actorEmail);
-    return {run_id:args.run_id,authorization_id:args.authorization_id,place_id:args.place_id,report_key:args.report_key,
+    return {repo,next,result:{run_id:args.run_id,authorization_id:args.authorization_id,place_id:args.place_id,report_key:args.report_key,
       submission_status:"submitted",recovered_existing_claim:true,recovery_source:postProviderReservedClaim?"verified_post_provider_reserved_claim":"ambiguous_response",
-      scans_submitted:0,credits_added:0,next_batch_status:next.batches.find(candidate=>candidate.authorization_id===args.authorization_id)?.status};
-  }));
+      scans_submitted:0,credits_added:0,next_batch_status:next.batches.find(candidate=>candidate.authorization_id===args.authorization_id)?.status}};
+    });
+    const recoveredBatch=recovered.next.batches.find(candidate=>candidate.authorization_id===args.authorization_id);
+    if(recoveredBatch?.status==="awaiting_completion") {
+      try {
+        const monitor=await scheduleCompletionMonitor({workflow_sheet:args.workflow_sheet,sheet_name:args.sheet_name,run_id:args.run_id,
+          authorization_id:args.authorization_id,repository:recovered.repo,actor_email:actorEmail});
+        return {...recovered.result,completion_monitor:monitor};
+      } catch(error) {
+        console.error("[sab-mcp] recovered-batch completion monitor enqueue failed:",error);
+        return {...recovered.result,completion_monitor:{status:"enqueue_failed",safe_to_retry_monitor_setup:true}};
+      }
+    }
+    return recovered.result;
+  });
   add("authorize_sab_scan_batch","Record the orchestrator's exact SOP-compliant execution batch. Enforces a hard maximum of 15 paid scans while preserving exception and credit limits. This does not submit scans.",{
     ...run,orchestrator_id:z.string().min(1),authorization_id:z.string().uuid(),authorization_reference:z.string().min(1),scans:z.array(plan).min(1).max(15),
     exception:matt.extend({reason:z.string().min(1)}).optional(),
@@ -621,6 +653,20 @@ export function registerSabOrchestrationTools(server:McpServer,factory:SabSheets
   add("review_sab_completed_batch","Verify every submitted report, persist structured decisions, return one concise result row per completed scan plus genuine exceptions, and continue autonomously without requesting routine approval.",run,async args=>inSabRunStateQueue(async()=>{
     const repo=factory(args.workflow_sheet,args.sheet_name),state=await requireRun(repo,args.run_id),batch=state.batches.at(-1);
     if(!batch) throw new Error("No submitted scan batch");
+    if(batch.completion_monitor?.status==="scheduled" && batch.status==="awaiting_completion") {
+      return {stop_before_further_scans:false,matt_review_required:false,monitoring_server_side:true,
+        batch_summary:{report_count:batch.scans.length,classification_counts:{},exception_count:0},scan_results:[],exceptions:[],
+        routine_results_persisted:0,full_histories_returned:false,continue_unaffected_work:true,
+        next_action:"continue_unaffected_work; provider completion is monitored server-side without further polling"};
+    }
+    if(batch.completion_monitor?.status==="completed" && batch.status==="completed") {
+      const monitor=batch.completion_monitor,exceptions=monitor.exceptions ?? [];
+      return {stop_before_further_scans:false,matt_review_required:exceptions.length>0,monitoring_server_side:false,processed_server_side:true,
+        batch_summary:{report_count:monitor.report_count ?? batch.scans.length,classification_counts:monitor.classification_counts ?? {},exception_count:exceptions.length},
+        scan_results:[],exceptions,routine_results_persisted:(monitor.report_count ?? batch.scans.length)-exceptions.length,
+        full_histories_returned:false,continue_unaffected_work:true,
+        next_action:exceptions.length?"resolve_listed_genuine_exceptions; continue_all_unaffected_work":"continue_autonomously"};
+    }
     const table:Array<Record<string,any>>=[];
     // Verify all provider envelopes before any completion transition. Fetch each
     // report once and reuse that verified evidence when persisting decisions.

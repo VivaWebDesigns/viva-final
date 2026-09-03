@@ -21,7 +21,7 @@ import { workflowJobs } from "@shared/schema";
 import type { WorkflowJob } from "@shared/schema";
 import { eq, and, inArray, lte } from "drizzle-orm";
 
-export type JobType = "crm_ingest" | "email_notification";
+export type JobType = "crm_ingest" | "email_notification" | "sab_report_completion";
 export type JobStatus = "pending" | "processing" | "completed" | "failed" | "retry_scheduled";
 
 const LIVE_STATUSES: JobStatus[] = ["pending", "processing", "retry_scheduled"];
@@ -60,6 +60,7 @@ export async function enqueueJob(
   payload: Record<string, unknown>,
   sourceId?: string,
   sourceType?: string,
+  options: { maxAttempts?: number } = {},
 ): Promise<WorkflowJob> {
   if (sourceId) {
     const [existing] = await db
@@ -86,12 +87,35 @@ export async function enqueueJob(
       sourceId: sourceId ?? null,
       sourceType: sourceType ?? null,
       attempts: 0,
-      maxAttempts: 3,
+      maxAttempts: options.maxAttempts ?? 3,
       nextRunAt: new Date(),
     })
     .returning();
 
   return job;
+}
+
+/**
+ * Return a successfully claimed polling job to the ready queue without
+ * consuming one of its failure attempts. This is not an error/retry path:
+ * unchanged provider state is expected while an async report is processing.
+ */
+export async function rescheduleJob(
+  id: string,
+  payload: Record<string, unknown>,
+  nextRunAt: Date,
+  claimedAttempts: number,
+): Promise<void> {
+  await db
+    .update(workflowJobs)
+    .set({
+      status: "retry_scheduled",
+      payload,
+      attempts: Math.max(0, claimedAttempts - 1),
+      lastError: null,
+      nextRunAt,
+    })
+    .where(eq(workflowJobs.id, id));
 }
 
 // ── Claim (worker-side) ──────────────────────────────────────────────

@@ -92,7 +92,9 @@ function repository(state=submitted(),overrides:Record<string,unknown>={}) {
 function tools(repo:ReturnType<typeof repository>) {
   const handlers:Record<string,{schema:Record<string,z.ZodTypeAny>;handler:(args:any)=>Promise<any>}>={};
   const server={registerTool:(name:string,definition:any,handler:any)=>{handlers[name]={schema:definition.inputSchema,handler};}};
-  registerSabOrchestrationTools(server as never,(()=>repo) as never,"actor");
+  registerSabOrchestrationTools(server as never,(()=>repo) as never,"actor",{
+    scheduleCompletionMonitor: vi.fn(async()=>({job_id:"job",status:"pending",source_id:"source"})) as never,
+  });
   return {invoke:async(name:string,args:Record<string,unknown>)=>{
     const checks=name==="authorize_sab_scan_batch" && !Object.hasOwn(args,"duplicate_report_checks") ? {duplicate_report_checks:(args.scans as SabScanPlan[]).map(scan=>({scan,result:"none",evidence_reference:"verified-report-inventory",checked_at:"2026-08-31T14:00:00.000Z"}))} : {};
     const value=await handlers[name].handler(z.object(handlers[name].schema).parse({...checks,workflow_sheet:"sheet",sheet_name:"SAB Workflow",run_id:"run",...args}));

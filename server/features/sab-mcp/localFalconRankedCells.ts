@@ -36,8 +36,16 @@ const GRID_FIELDMASK = [
   "data_points.*.lat",
   "data_points.*.lng",
 ].join(",");
+const COMPLETION_FIELDMASK = "report_key,status";
 
 export type LocalFalconFetch = typeof fetch;
+
+export class SabReportPendingError extends Error {
+  constructor() {
+    super("Local Falcon report completion is not verified; processing or unknown report status cannot advance the run.");
+    this.name = "SabReportPendingError";
+  }
+}
 
 type LocalFalconDataPoint = {
   lat?: unknown;
@@ -262,7 +270,7 @@ export function extractSabRankedCells(
     const code = optionalNumber(payload.code);
     const status = cleanString(payload.data?.status);
     if ((payload.http_status ?? code) !== 200 || (code !== null && code !== 200) || status) {
-      throw new Error("Local Falcon report completion is not verified; processing or unknown report status cannot advance the run.");
+      throw new SabReportPendingError();
     }
   }
   const competitorKey = cleanString(competitorPayload.data.report_key);
@@ -449,6 +457,7 @@ export async function fetchLocalFalconReport(
       `Local Falcon ${endpoint} request failed with HTTP ${response.status}.`,
     );
   }
+  if (response.status === 202) throw new SabReportPendingError();
   if (response.status !== 200) throw new Error(`Local Falcon ${endpoint} report is not complete (HTTP ${response.status}).`);
   return { ...(await response.json() as LocalFalconResponse), http_status: response.status };
 }
@@ -488,4 +497,35 @@ export async function getSabRankedCells(
     cleanReportKey,
     placeIds,
   );
+}
+
+/** Lightweight provider status probe used by the background monitor. Full
+ * grid and competitor evidence is fetched only once, after every report is
+ * complete and ready for deterministic classification.
+ */
+export async function checkLocalFalconReportCompletion(
+  reportKey: string,
+  options: { apiKey?: string; fetchImpl?: LocalFalconFetch } = {},
+) {
+  const apiKey = options.apiKey?.trim() || localFalconApiKey();
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const cleanReportKey = reportKey.trim();
+  try {
+    const payload = await fetchLocalFalconReport(
+      "reports",
+      cleanReportKey,
+      COMPLETION_FIELDMASK,
+      apiKey,
+      fetchImpl,
+    );
+    if (payload.success !== true || !payload.data) throw new Error(responseMessage(payload));
+    const returnedKey = cleanString(payload.data.report_key);
+    if (returnedKey && returnedKey !== cleanReportKey) throw new Error("Local Falcon completion status returned the wrong report identity.");
+    const code = optionalNumber(payload.code);
+    const status = cleanString(payload.data.status);
+    return (payload.http_status ?? code) === 200 && (code === null || code === 200) && !status;
+  } catch (error) {
+    if (error instanceof SabReportPendingError) return false;
+    throw error;
+  }
 }

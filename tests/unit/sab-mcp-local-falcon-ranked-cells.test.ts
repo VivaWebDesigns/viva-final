@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { getSabRankedCellsInputSchema } from "../../server/features/sab-mcp/schema";
 import {
+  checkLocalFalconReportCompletion,
   extractSabRankedCells,
   getSabRankedCells,
 } from "../../server/features/sab-mcp/localFalconRankedCells";
@@ -223,7 +224,15 @@ describe("SAB Local Falcon ranked-cell extraction", () => {
 
   it("does not accept HTTP202 as a successful completed report", async () => {
     const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ ...gridPayload, code: 202 }), { status: 202 }));
-    await expect(getSabRankedCells("report-123", ["ChIJ-one"], { apiKey: "secret", fetchImpl })).rejects.toThrow("not complete (HTTP 202)");
+    await expect(getSabRankedCells("report-123", ["ChIJ-one"], { apiKey: "secret", fetchImpl })).rejects.toThrow("completion is not verified");
+  });
+
+  it("uses a lightweight completion probe for server-side monitoring", async () => {
+    const pending = vi.fn(async () => new Response(JSON.stringify({ success: true, data: { report_key: "report-123", status: "processing" } }), { status: 202 }));
+    await expect(checkLocalFalconReportCompletion("report-123", { apiKey: "secret", fetchImpl: pending })).resolves.toBe(false);
+    const complete = vi.fn(async () => new Response(JSON.stringify({ success: true, code: 200, data: { report_key: "report-123" } }), { status: 200 }));
+    await expect(checkLocalFalconReportCompletion("report-123", { apiKey: "secret", fetchImpl: complete })).resolves.toBe(true);
+    expect(new URL(String(complete.mock.calls[0][0])).searchParams.get("fieldmask")).toBe("report_key,status");
   });
 
   it("rejects incomplete grid geometry instead of assigning proxy cells", () => {

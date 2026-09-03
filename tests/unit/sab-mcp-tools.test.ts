@@ -25,11 +25,12 @@ describe("SAB MCP tool discovery", () => {
 
     try {
       const { tools } = await client.listTools();
-      expect(tools).toHaveLength(41);
+      expect(tools).toHaveLength(42);
       for (const name of ["bulk_save_sab_companies", "audit_sab_contacts", "record_sab_contact_research", "pin_sab_sop_revision", "reconcile_sab_import_batch",
         "approve_sab_canonical_evidence_exception", "approve_sab_master_cluster_exception"]) {
         expect(tools.map((tool) => tool.name)).toContain(name);
       }
+      expect(tools.map((tool) => tool.name)).toContain("ensure_sab_completion_monitor");
       expect(tools.map((tool) => tool.name)).toContain("approve_sab_terminal_deferral");
       expect(tools.map((tool) => tool.name)).toContain("record_sab_address_corroboration");
       expect(tools.map((tool) => tool.name)).toContain("reconcile_sab_ambiguous_submission");
