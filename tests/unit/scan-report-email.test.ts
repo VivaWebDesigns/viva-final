@@ -9,7 +9,7 @@ import {
 } from "../../server/features/crm/scanReportEmail";
 
 describe("scan report email template", () => {
-  it("uses the report image as the only HTML report link and omits the bottom button", () => {
+  it("uses one plain report link below a non-clickable image and omits the branded banner", () => {
     const html = buildScanReportEmailHtml({
       message: "Hi Ana,\nSee your results.",
       imageUrl: "https://reports.vivawebdesigns.com/scans/report/abc.png",
@@ -27,7 +27,9 @@ describe("scan report email template", () => {
     expect(html).toContain('width="600"');
     expect(html).toContain('href="https://vivawebdesigns.com/scan-report/secure-token"');
     expect(html.match(/https:\/\/vivawebdesigns\.com\/scan-report\/secure-token/g)).toHaveLength(1);
-    expect(html).not.toContain("View the full report");
+    expect(html).toContain(">View the full report here.</a>");
+    expect(html).not.toContain('<a href="https://vivawebdesigns.com/scan-report/secure-token" target="_blank" style="text-decoration:none;">');
+    expect(html).not.toContain('background:#0f766e;color:#ffffff;padding:22px 28px');
     expect(html).toContain('src="https://reports.vivawebdesigns.com/scans/report/abc.png"');
     expect(html).toContain("227 W 4th St<br />1st Floor #3127<br />Charlotte, NC 28202");
     expect(html).toContain("Unsubscribe");
@@ -35,10 +37,10 @@ describe("scan report email template", () => {
     expect(html).not.toContain("mailto:");
   });
 
-  it("places the scan after the first three message paragraphs by default", () => {
+  it("places the scan after the first two message paragraphs by default", () => {
     const imageUrl = "https://reports.vivawebdesigns.com/scans/report/abc.png";
     const html = buildScanReportEmailHtml({
-      message: "Hi Mike,\n\nI’m Matt with Viva Web Designs.\n\nI came across Inspect-A-Deck and ran a scan.\n\nI found some significant visibility gaps.",
+      message: "I’m Matt with Viva Web Designs.\n\nI came across Inspect-A-Deck and ran a scan.\n\nI found some significant visibility gaps.",
       imageUrl,
       landingUrl: "https://vivawebdesigns.com/scan-report/secure-token",
       businessName: "Inspect-A-Deck",
@@ -48,6 +50,12 @@ describe("scan report email template", () => {
 
     expect(html.indexOf("I came across Inspect-A-Deck")).toBeLessThan(html.indexOf(imageUrl));
     expect(html.indexOf(imageUrl)).toBeLessThan(html.indexOf("I found some significant visibility gaps"));
+  });
+
+  it("starts the initial English outreach directly with Matt's introduction", async () => {
+    const source = await import("node:fs/promises").then(fs => fs.readFile("server/features/crm/scanReportEmail.ts", "utf8"));
+    expect(source).toContain(': `I’m Matt with Viva Web Designs here in Charlotte.');
+    expect(source).not.toContain(': `Hi,\\n\\nI’m Matt with Viva Web Designs here in Charlotte.');
   });
 
   it("can place the scan after the full message when explicitly selected", () => {

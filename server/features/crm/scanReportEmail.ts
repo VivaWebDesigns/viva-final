@@ -131,7 +131,7 @@ export async function getScanReportEmailPreview(
         : `Hi${greeting},\n\nFollowing up on the visibility report I sent for ${businessName}. It shows how your business appears across nearby searches for “${record.report.scanKeyword}”.\n\nI’ve included the same report so it’s easy to revisit. Would a quick walkthrough of the results be useful?\n\nMatt`)
       : spanish
       ? `Hola${greeting},\n\nPreparamos este análisis de visibilidad local para mostrar cómo aparece ${businessName} en Google Maps cuando los clientes buscan “${record.report.scanKeyword}”.\n\nSi deseas, puedo explicarte lo que muestran los resultados y las oportunidades que encontramos.`
-      : `Hi,\n\nI’m Matt with Viva Web Designs here in Charlotte.\n\nI came across ${businessName} and ran a scan to see how the company is showing up in Google Maps when people around you search for your services.\n\nI found some pretty significant visibility gaps, so I thought you’d want to see the actual data.\n\nIf you’ve ever wondered why Google isn’t bringing in more calls, the scan below gives you a pretty good idea of what’s happening.\n\nIf it looks like something you’d want to improve, I can dig deeper into what’s behind it and we can jump on a quick video call. I can pull up the interactive scan and show you exactly who Google is ranking ahead of you from each area.\n\nJust reply here or call/text me.\n\nMatt`,
+      : `I’m Matt with Viva Web Designs here in Charlotte.\n\nI came across ${businessName} and ran a scan to see how the company is showing up in Google Maps when people around you search for your services.\n\nI found some pretty significant visibility gaps, so I thought you’d want to see the actual data.\n\nIf you’ve ever wondered why Google isn’t bringing in more calls, the scan below gives you a pretty good idea of what’s happening.\n\nIf it looks like something you’d want to improve, I can dig deeper into what’s behind it and we can jump on a quick video call. I can pull up the interactive scan and show you exactly who Google is ranking ahead of you from each area.\n\nJust reply here or call/text me.\n\nMatt`,
     businessName,
     snapshotPreviewUrl: `/api/local-visibility/reports/${encodeURIComponent(reportId)}/snapshot-file`,
   };
@@ -149,20 +149,18 @@ export function buildScanReportEmailHtml(input: {
 }): string {
   const paragraphs = input.message.trim().split(/\r?\n\s*\r?\n/);
   const paragraphHtml = paragraphs.map((paragraph) => escapeHtml(paragraph).replace(/\r?\n/g, "<br />"));
-  const insertAfterIntro = (input.imagePlacement ?? "after_intro") === "after_intro" && paragraphHtml.length > 3;
-  const introHtml = insertAfterIntro ? paragraphHtml.slice(0, 3).join("<br /><br />") : paragraphHtml.join("<br /><br />");
-  const remainingHtml = insertAfterIntro ? paragraphHtml.slice(3).join("<br /><br />") : "";
+  const insertAfterIntro = (input.imagePlacement ?? "after_intro") === "after_intro" && paragraphHtml.length > 2;
+  const introHtml = insertAfterIntro ? paragraphHtml.slice(0, 2).join("<br /><br />") : paragraphHtml.join("<br /><br />");
+  const remainingHtml = insertAfterIntro ? paragraphHtml.slice(2).join("<br /><br />") : "";
   const imageRow = `<tr><td align="center" style="padding:0 20px 24px;">
-        <a href="${escapeHtml(input.landingUrl)}" target="_blank" style="text-decoration:none;">
-          <img src="${escapeHtml(input.imageUrl)}" alt="Google Maps visibility scan for ${escapeHtml(input.businessName)}" width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0;border-radius:8px;" />
-        </a>
+        <img src="${escapeHtml(input.imageUrl)}" alt="Google Maps visibility scan for ${escapeHtml(input.businessName)}" width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0;border-radius:8px;" />
+        <div style="padding-top:12px;font-size:15px;line-height:1.5;"><a href="${escapeHtml(input.landingUrl)}" target="_blank" style="color:#0f659e;text-decoration:underline;">View the full report here.</a></div>
       </td></tr>`;
   return `<!doctype html>
 <html><body style="margin:0;background:#f5f7fa;color:#172033;font-family:Arial,sans-serif;">
   <div style="display:none!important;max-height:0;max-width:0;overflow:hidden;opacity:0;color:transparent;font-size:1px;line-height:1px;mso-hide:all;">${escapeHtml(input.preheader || DEFAULT_SCAN_REPORT_PREHEADER)}${PREHEADER_PADDING}</div>
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f5f7fa;"><tr><td align="center" style="padding:24px 12px;">
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;background:#ffffff;border-radius:12px;overflow:hidden;">
-      <tr><td style="background:#0f766e;color:#ffffff;padding:22px 28px;font-size:22px;font-weight:700;">Viva Web Designs</td></tr>
       <tr><td style="padding:28px${insertAfterIntro ? " 28px 18px" : ""};font-size:16px;line-height:1.65;">${introHtml}</td></tr>
       ${imageRow}
       ${remainingHtml ? `<tr><td style="padding:0 28px 28px;font-size:16px;line-height:1.65;">${remainingHtml}</td></tr>` : ""}
