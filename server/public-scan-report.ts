@@ -9,7 +9,6 @@ import {
 import { db } from "./db";
 
 const PUBLIC_SITE_URL = "https://vivawebdesigns.com";
-const GA4_MEASUREMENT_ID = "G-8NL7JMJ7MT";
 const REPORT_COOKIE = "viva_scan_report";
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 function escapeHtml(value: unknown): string {
@@ -126,45 +125,19 @@ export function buildScanReportLandingPage(input: {
         <h2>Want to understand what the scan means?</h2>
         <p>Matt can walk through the weak areas, explain who Google is ranking ahead of you and outline the most practical next step.</p>
         <div class="actions">
-          <a class="button button-primary tracked-link" href="${scheduleHref}" data-cta="schedule_call">Schedule a Call</a>
-          <a class="button tracked-link" href="${escapeHtml(contactHref)}" data-cta="email_matt">Send Matt a Message</a>
-          <a class="button tracked-link" href="${resultsHref}" data-cta="view_results">See Client Results</a>
+          <a class="button button-primary" href="${scheduleHref}">Schedule a Call</a>
+          <a class="button" href="${escapeHtml(contactHref)}">Send Matt a Message</a>
+          <a class="button" href="${resultsHref}">See Client Results</a>
         </div>
         <div class="another-scan">
           <h3>Want to Check Another Service for Free?</h3>
           <p>See how your company ranks for another service or search phrase. No cost, no obligation, and no sales call required.</p>
-          <a class="button tracked-link" href="${escapeHtml(scanHref)}" data-cta="another_scan">Check Another Service</a>
+          <a class="button" href="${escapeHtml(scanHref)}">Check Another Service</a>
         </div>
-        <p class="privacy">We measure report-page and call-to-action activity in aggregate without sending lead or report identifiers to Google Analytics. See our <a href="/privacy-policy">Privacy Policy</a>.</p>
+        <p class="privacy">This report page does not load Google Analytics or record report views or action selections in the CRM. See our <a href="/privacy-policy">Privacy Policy</a>.</p>
       </section>
     </main>
     <footer class="footer"><div class="shell">&copy; 2026 Viva Web Designs LLC &middot; Charlotte, North Carolina</div></footer>
-    <script>
-      (function(){
-        var measurementId=${JSON.stringify(GA4_MEASUREMENT_ID)};
-        var analyticsStarted=false;
-        var viewRecorded=false;
-        function gtag(){window.dataLayer=window.dataLayer||[];window.dataLayer.push(arguments);}
-        function startAnalytics(){
-          if(analyticsStarted)return;analyticsStarted=true;window.gtag=gtag;
-          gtag("js",new Date());
-          gtag("config",measurementId,{page_title:"Visibility Scan Report",page_location:location.href});
-          gtag("event","scan_report_view",{report_type:"local_visibility_scan",delivery_channel:"email"});
-          var script=document.createElement("script");script.async=true;script.src="https://www.googletagmanager.com/gtag/js?id="+encodeURIComponent(measurementId);document.head.appendChild(script);
-        }
-        function recordView(){
-          if(document.visibilityState!=="visible"||viewRecorded)return;
-          viewRecorded=true;startAnalytics();
-        }
-        setTimeout(recordView,650);
-        document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible")setTimeout(recordView,250);});
-        document.querySelectorAll(".tracked-link").forEach(function(link){link.addEventListener("click",function(event){
-          if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
-          event.preventDefault();var href=link.href;var navigated=false;var go=function(){if(navigated)return;navigated=true;location.href=href;};
-          startAnalytics();gtag("event","scan_report_cta_click",{cta_type:link.dataset.cta,report_type:"local_visibility_scan",delivery_channel:"email",transport_type:"beacon",event_callback:go,event_timeout:250});setTimeout(go,300);
-        });});
-      })();
-    </script>
   </body>
 </html>`;
 }

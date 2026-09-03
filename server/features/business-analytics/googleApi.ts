@@ -106,7 +106,7 @@ export async function getGoogleAnalyticsDashboard(
   connection: GoogleIntegrationConnection,
   days: number,
 ) {
-  const [summaryReport, channelReport, pageReport, eventReport, leadTypeReport, ctaReport, trendReport] = await Promise.all([
+  const [summaryReport, channelReport, pageReport, eventReport, leadTypeReport, trendReport] = await Promise.all([
     runGaReport(connection, days, {
       metrics: ["activeUsers", "sessions", "screenPageViews", "eventCount", "keyEvents"],
     }),
@@ -127,7 +127,7 @@ export async function getGoogleAnalyticsDashboard(
     runGaReport(connection, days, {
       dimensions: ["eventName"],
       metrics: ["eventCount", "keyEvents"],
-      dimensionFilter: eventFilter(["generate_lead", "form_submit", "scan_report_view", "scan_report_cta_click"]),
+      dimensionFilter: eventFilter(["generate_lead", "form_submit"]),
       orderMetric: "eventCount",
       limit: 20,
     }),
@@ -135,13 +135,6 @@ export async function getGoogleAnalyticsDashboard(
       dimensions: ["customEvent:lead_type"],
       metrics: ["eventCount"],
       dimensionFilter: eventFilter(["generate_lead"]),
-      orderMetric: "eventCount",
-      limit: 10,
-    }),
-    runGaReport(connection, days, {
-      dimensions: ["customEvent:cta_type"],
-      metrics: ["eventCount"],
-      dimensionFilter: eventFilter(["scan_report_cta_click"]),
       orderMetric: "eventCount",
       limit: 10,
     }),
@@ -168,14 +161,11 @@ export async function getGoogleAnalyticsDashboard(
     summary: {
       ...summary,
       confirmedLeads: eventCount("generate_lead"),
-      reportViews: eventCount("scan_report_view"),
-      reportCtaClicks: eventCount("scan_report_cta_click"),
     },
     channels: tableRows(channelReport, ["channel"], ["sessions", "activeUsers", "keyEvents"]),
     landingPages: tableRows(pageReport, ["landingPage"], ["sessions", "activeUsers", "screenPageViews"]),
     events,
     leadTypes: tableRows(leadTypeReport, ["leadType"], ["eventCount"]),
-    reportCtas: tableRows(ctaReport, ["ctaType"], ["eventCount"]),
     trend: tableRows(trendReport, ["date"], ["sessions", "activeUsers", "keyEvents"])
       .sort((left, right) => String(left.date).localeCompare(String(right.date))),
     timeZone: summaryReport.metadata?.timeZone ?? null,

@@ -54,12 +54,8 @@ describe("privacy policy contract", () => {
     expect(policySource).toContain("6. Data Retention");
     expect(policySource).toContain("children under the age of 13");
     expect(policySource).not.toContain("11. Communications");
-    expect(policySource).toContain("Report Usage Data");
-    expect(policySource).toContain("are not written back to individual CRM lead records");
-    expect(policySource).toContain(
-      "We do not use this analytics activity to identify which email recipient",
-    );
-    expect(policySource).toContain("report-access tokens to Google Analytics");
+    expect(policySource).toContain("We do not load Google Analytics on scan-report pages.");
+    expect(policySource).not.toContain("Report Usage Data");
     expect(policySource).not.toContain("Report Engagement Data");
   });
 });

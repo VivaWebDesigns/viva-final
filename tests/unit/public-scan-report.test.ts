@@ -10,7 +10,7 @@ import {
   scanReportLandingUrl,
 } from "../../server/public-scan-report";
 
-describe("public scan report tracking", () => {
+describe("public scan report access", () => {
   it("creates opaque delivery tokens and stores only a one-way hash", () => {
     const token = createScanReportToken();
 
@@ -44,7 +44,7 @@ describe("public scan report tracking", () => {
     expect(url.search).toBe("");
   });
 
-  it("renders a noindex report page with aggregate GA events and direct CTAs", () => {
+  it("renders a noindex report page with direct CTAs and no analytics", () => {
     const html = buildScanReportLandingPage({
       imageUrl: "https://reports.vivawebdesigns.com/scans/report/image.png",
       businessName: "Acme <Roofing>",
@@ -52,13 +52,10 @@ describe("public scan report tracking", () => {
 
     expect(html).toContain('<meta name="robots" content="noindex,nofollow,noarchive">');
     expect(html).toContain('history.replaceState(null,"","/scan-report/view")');
-    expect(html).toContain("G-8NL7JMJ7MT");
-    expect(html).toContain('"scan_report_view"');
-    expect(html).toContain('"scan_report_cta_click"');
-    expect(html).toContain('data-cta="schedule_call"');
-    expect(html).toContain('data-cta="email_matt"');
-    expect(html).toContain('data-cta="view_results"');
-    expect(html).toContain('data-cta="another_scan"');
+    expect(html).not.toContain("G-8NL7JMJ7MT");
+    expect(html).not.toContain("googletagmanager.com");
+    expect(html).not.toContain("gtag(");
+    expect(html).not.toContain("data-cta=");
     expect(html).toContain('href="https://vivawebdesigns.com/contact#contact-form"');
     expect(html).toContain("Send Matt a Message");
     expect(html).not.toContain("mailto:matt@vivawebdesigns.com");
@@ -67,7 +64,7 @@ describe("public scan report tracking", () => {
     expect(html).toContain("No cost, no obligation, and no sales call required.");
     expect(html).toContain("Check Another Service");
     expect(html).toContain("Acme &lt;Roofing&gt;");
-    expect(html).toContain("in aggregate without sending lead or report identifiers");
+    expect(html).toContain("does not load Google Analytics or record report views");
     expect(html).not.toContain("utm_");
     expect(html).not.toContain("/events/view");
     expect(html).not.toContain("/events/cta");

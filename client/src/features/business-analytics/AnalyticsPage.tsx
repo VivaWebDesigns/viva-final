@@ -9,7 +9,6 @@ import {
   Globe2,
   Link2,
   MessageSquareText,
-  MousePointerClick,
   RefreshCw,
   Star,
   Target,
@@ -48,14 +47,11 @@ type GaDashboard = {
     eventCount: number;
     keyEvents: number;
     confirmedLeads: number;
-    reportViews: number;
-    reportCtaClicks: number;
   };
   channels: Array<{ channel: string; sessions: number; activeUsers: number; keyEvents: number }>;
   landingPages: Array<{ landingPage: string; sessions: number; activeUsers: number; screenPageViews: number }>;
   events: Array<{ eventName: string; eventCount: number; keyEvents: number }>;
   leadTypes: Array<{ leadType: string; eventCount: number }>;
-  reportCtas: Array<{ ctaType: string; eventCount: number }>;
   trend: Array<{ date: string; sessions: number; activeUsers: number; keyEvents: number }>;
   generatedAt: string;
 };
@@ -265,7 +261,7 @@ export default function AnalyticsPage() {
       <header className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Analytics</h1>
-          <p className="mt-1 text-sm text-gray-500">Website performance, confirmed leads, scan-report engagement and Google reviews.</p>
+          <p className="mt-1 text-sm text-gray-500">Website performance, confirmed leads and Google reviews.</p>
         </div>
         <div className="flex rounded-lg bg-gray-100 p-1">
           {[7, 30, 90].map((value) => (
@@ -289,7 +285,7 @@ export default function AnalyticsPage() {
       <div className="grid gap-4 xl:grid-cols-2">
         <ConnectionCard
           title="Google Analytics 4"
-          description="Traffic, acquisition, landing pages, leads and report engagement."
+          description="Traffic, acquisition, landing pages and confirmed leads."
           connection={status?.analytics ?? null}
           onConnect={() => connectMutation.mutate("analytics")}
           disabled={!canConnect}
@@ -312,14 +308,12 @@ export default function AnalyticsPage() {
           <EmptyState>Google Analytics could not be loaded: {(gaError as Error).message}</EmptyState>
         ) : gaData ? (
           <>
-            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 xl:grid-cols-8">
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
               <MetricCard label="Active users" value={gaData.summary.activeUsers.toLocaleString()} icon={Users} tone="bg-blue-500" />
               <MetricCard label="Sessions" value={gaData.summary.sessions.toLocaleString()} icon={Activity} tone="bg-indigo-500" />
               <MetricCard label="Page views" value={gaData.summary.screenPageViews.toLocaleString()} icon={Eye} tone="bg-cyan-500" />
               <MetricCard label="Key events" value={gaData.summary.keyEvents.toLocaleString()} icon={Target} tone="bg-emerald-500" />
               <MetricCard label="Confirmed leads" value={gaData.summary.confirmedLeads.toLocaleString()} icon={CheckCircle2} tone="bg-teal-500" />
-              <MetricCard label="Report views" value={gaData.summary.reportViews.toLocaleString()} icon={Globe2} tone="bg-violet-500" />
-              <MetricCard label="Report CTA clicks" value={gaData.summary.reportCtaClicks.toLocaleString()} icon={MousePointerClick} tone="bg-fuchsia-500" />
               <MetricCard label="Events" value={gaData.summary.eventCount.toLocaleString()} icon={BarChart3} tone="bg-slate-500" />
             </div>
 
@@ -365,33 +359,18 @@ export default function AnalyticsPage() {
               </Panel>
             </div>
 
-            <div className="grid gap-6 xl:grid-cols-2">
-              <Panel title="Confirmed leads" subtitle="GA4 generate_lead events by lead type">
-                {gaData.leadTypes.length ? (
-                  <div className="grid grid-cols-2 gap-3">
-                    {gaData.leadTypes.map((row) => (
-                      <div key={row.leadType} className="rounded-lg border border-gray-100 bg-gray-50 p-4">
-                        <p className="text-2xl font-bold text-gray-900">{row.eventCount}</p>
-                        <p className="mt-1 text-sm text-gray-500">{formatLabel(row.leadType)}</p>
-                      </div>
-                    ))}
-                  </div>
-                ) : <EmptyState>Lead-type reporting will populate after new confirmed leads arrive.</EmptyState>}
-              </Panel>
-
-              <Panel title="Scan report CTA activity" subtitle="Selections from personalized report pages">
-                {gaData.reportCtas.length ? (
-                  <div className="space-y-3">
-                    {gaData.reportCtas.map((row) => (
-                      <div key={row.ctaType} className="flex items-center justify-between rounded-lg border border-gray-100 px-4 py-3">
-                        <span className="text-sm font-medium text-gray-700">{formatLabel(row.ctaType)}</span>
-                        <span className="rounded-full bg-violet-50 px-2.5 py-1 text-sm font-semibold text-violet-700">{row.eventCount}</span>
-                      </div>
-                    ))}
-                  </div>
-                ) : <EmptyState>CTA activity will appear after a recipient uses a report action.</EmptyState>}
-              </Panel>
-            </div>
+            <Panel title="Confirmed leads" subtitle="GA4 generate_lead events by lead type">
+              {gaData.leadTypes.length ? (
+                <div className="grid grid-cols-2 gap-3">
+                  {gaData.leadTypes.map((row) => (
+                    <div key={row.leadType} className="rounded-lg border border-gray-100 bg-gray-50 p-4">
+                      <p className="text-2xl font-bold text-gray-900">{row.eventCount}</p>
+                      <p className="mt-1 text-sm text-gray-500">{formatLabel(row.leadType)}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : <EmptyState>Lead-type reporting will populate after new confirmed leads arrive.</EmptyState>}
+            </Panel>
 
             <Panel title="Top landing pages" subtitle="Pages where sessions began">
               {gaData.landingPages.length ? (

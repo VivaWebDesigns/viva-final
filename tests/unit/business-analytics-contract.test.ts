@@ -10,7 +10,8 @@ describe("business analytics admin contract", () => {
     expect(router).toContain('path="/admin/analytics"');
     expect(router).toContain("<AnalyticsPage />");
     expect(page).toContain("Confirmed leads");
-    expect(page).toContain("Scan report CTA activity");
+    expect(page).not.toContain("Scan report CTA activity");
+    expect(page).not.toContain("Report views");
     expect(page).toContain("Top landing pages");
   });
 
@@ -28,4 +29,3 @@ describe("business analytics admin contract", () => {
     expect(serverRoutes).toContain('/business/reviews');
   });
 });
-
