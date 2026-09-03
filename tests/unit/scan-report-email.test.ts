@@ -31,7 +31,7 @@ describe("scan report email template", () => {
     expect(html).not.toContain('<a href="https://vivawebdesigns.com/scan-report/secure-token" target="_blank" style="text-decoration:none;">');
     expect(html).not.toContain('background:#0f766e;color:#ffffff;padding:22px 28px');
     expect(html).toContain('src="https://reports.vivawebdesigns.com/scans/report/abc.png"');
-    expect(html).toContain("227 W 4th St<br />1st Floor #3127<br />Charlotte, NC 28202");
+    expect(html).toContain("227 W 4th St, 1st Floor #3127, Charlotte, NC 28202");
     expect(html).toContain("Unsubscribe");
     expect(html).toContain('href="https://vivawebdesigns.com/email/unsubscribe/secure-token"');
     expect(html).not.toContain("mailto:");

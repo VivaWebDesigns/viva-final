@@ -23,7 +23,7 @@ import {
 } from "../../public-scan-report";
 import { emailUnsubscribeUrl } from "../../public-email-unsubscribe";
 
-const POSTAL_ADDRESS = "227 W 4th St<br />1st Floor #3127<br />Charlotte, NC 28202";
+const POSTAL_ADDRESS = "227 W 4th St, 1st Floor #3127, Charlotte, NC 28202";
 const PREHEADER_PADDING = "&#847; &zwnj; &nbsp; ".repeat(30);
 export const DEFAULT_SCAN_REPORT_PREHEADER = "Your Google Maps scan is ready — see how your business appears across nearby searches.";
 
@@ -277,7 +277,7 @@ export async function sendScanReportEmail(input: SendScanReportInput) {
         imagePlacement: input.imagePlacement,
       }),
       // Plain-text-only mail clients cannot display the linked report image.
-      text: `${input.message}\n\nOpen your scan report: ${landingUrl}\n\nViva Web Designs, ${POSTAL_ADDRESS.replace(/<br \/>/g, ", ")}\nDon’t want further scan-report emails? Unsubscribe: ${unsubscribeUrl}`,
+      text: `${input.message}\n\nOpen your scan report: ${landingUrl}\n\nViva Web Designs, ${POSTAL_ADDRESS}\nDon’t want further scan-report emails? Unsubscribe: ${unsubscribeUrl}`,
       noteId: note.id,
       deliveryId: delivery.id,
       category: "scan_report",
