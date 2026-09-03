@@ -11,6 +11,7 @@ import { registerCleanPublicPageRedirects } from "./public-pages";
 import { registerSabMcpRoutes } from "./features/sab-mcp/routes";
 import { randomUUID } from "node:crypto";
 import { registerPublicScanReportRoutes } from "./public-scan-report";
+import { registerPublicEmailUnsubscribeRoutes } from "./public-email-unsubscribe";
 
 const CONTACT_NOTIFICATION_EMAIL =
   process.env.CONTACT_NOTIFICATION_EMAIL || "matt@vivawebdesigns.com";
@@ -69,6 +70,7 @@ export async function registerRoutes(
   app.use("/api", featureRoutes);
 
   registerCleanPublicPageRedirects(app);
+  registerPublicEmailUnsubscribeRoutes(app);
   registerPublicScanReportRoutes(app);
 
   app.get(/^\/(?:services\.html|packages(?:\.html)?|paquetes(?:\/.*)?)$/, (_req, res) => {

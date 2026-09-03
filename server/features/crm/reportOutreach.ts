@@ -72,6 +72,43 @@ export async function getReportOutreachState(leadId: string, executor: Tx | type
   return (await getReportOutreachStates([leadId], executor)).get(leadId)!;
 }
 
+/** Records a public unsubscribe request without exposing a lead or email address in the URL. */
+export async function optOutReportOutreachByTokenHash(tokenHash: string, now = new Date()) {
+  return db.transaction(async tx => {
+    const [delivery] = await tx.select({ leadId: scanReportDeliveries.leadId })
+      .from(scanReportDeliveries)
+      .where(eq(scanReportDeliveries.publicTokenHash, tokenHash))
+      .limit(1);
+    if (!delivery) return false;
+
+    const [lead] = await tx.select({ id: crmLeads.id }).from(crmLeads)
+      .where(eq(crmLeads.id, delivery.leadId)).for("update");
+    if (!lead) return false;
+
+    const state = await getReportOutreachState(lead.id, tx);
+    if (state.reportOutreachDisposition !== "opted_out") {
+      await tx.insert(crmLeadNotes).values({
+        leadId: lead.id,
+        type: "system",
+        createdAt: sql`clock_timestamp()`,
+        content: "Recipient unsubscribed from report outreach.",
+        metadata: {
+          event: "report_outreach_unsubscribed",
+          reportOutreachDisposition: "opted_out",
+        },
+      });
+    }
+
+    await closeReportTasks(tx, lead.id, now);
+    await tx.update(scanReportDeliveries).set({ status: "cancelled", updatedAt: now })
+      .where(and(
+        eq(scanReportDeliveries.leadId, lead.id),
+        inArray(scanReportDeliveries.status, ["queued", "retrying"]),
+      ));
+    return true;
+  });
+}
+
 export async function ensureReportEmailedStage(tx: Tx) {
   await tx.execute(sql`select pg_advisory_xact_lock(hashtext('report-emailed-stage'))`);
   const [existing] = await tx.select().from(pipelineStages).where(eq(pipelineStages.slug, "report-emailed"));

@@ -4,7 +4,13 @@ import { classifyReportOutreach, reportBusinessDate, reportSendBlockedReason, is
 
 const mockDb = vi.hoisted(() => ({ transaction: vi.fn() }));
 vi.mock("../../server/db", () => ({ db: mockDb }));
-import { recordReportEmailSent, completeReportOutreachTask, ensureReportEmailedStage, getReportOutreachStates } from "../../server/features/crm/reportOutreach";
+import {
+  recordReportEmailSent,
+  completeReportOutreachTask,
+  ensureReportEmailedStage,
+  getReportOutreachStates,
+  optOutReportOutreachByTokenHash,
+} from "../../server/features/crm/reportOutreach";
 import type { FollowupTask } from "@shared/schema";
 
 function database(rows: unknown[][]) {
@@ -197,5 +203,38 @@ describe("outreach outcomes", () => {
     const result = await getReportOutreachStates(["lead-1", "unsent"], tx as any);
     expect(result.get("lead-1")).toMatchObject({ reportEmailCount: 2, reportOutreachDisposition: "no_response" });
     expect(result.get("unsent")?.reportEmailCount).toBe(0);
+  });
+});
+
+describe("public report unsubscribe", () => {
+  it("records the opt-out and closes pending report outreach", async () => {
+    const { writes } = database([
+      [{ leadId: "lead-1" }],
+      [{ id: "lead-1" }],
+      ...history(1, "active"),
+    ]);
+
+    await expect(optOutReportOutreachByTokenHash("hashed-token")).resolves.toBe(true);
+    expect(writes.find(w => w.table === "crm_lead_notes" && w.operation === "insert")?.values.metadata)
+      .toMatchObject({ event: "report_outreach_unsubscribed", reportOutreachDisposition: "opted_out" });
+    expect(writes.some(w => w.table === "followup_tasks" && w.operation === "update")).toBe(true);
+    expect(writes.some(w => w.table === "scan_report_deliveries" && w.operation === "update")).toBe(true);
+  });
+
+  it("is idempotent when the recipient is already opted out", async () => {
+    const { writes } = database([
+      [{ leadId: "lead-1" }],
+      [{ id: "lead-1" }],
+      ...history(1, "opted_out"),
+    ]);
+
+    await expect(optOutReportOutreachByTokenHash("hashed-token")).resolves.toBe(true);
+    expect(writes.some(w => w.table === "crm_lead_notes" && w.operation === "insert")).toBe(false);
+  });
+
+  it("does not disclose whether a random token maps to a lead", async () => {
+    const { writes } = database([[]]);
+    await expect(optOutReportOutreachByTokenHash("unknown-hash")).resolves.toBe(false);
+    expect(writes).toEqual([]);
   });
 });

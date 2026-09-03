@@ -21,6 +21,7 @@ import {
   hashScanReportToken,
   scanReportLandingUrl,
 } from "../../public-scan-report";
+import { emailUnsubscribeUrl } from "../../public-email-unsubscribe";
 
 const POSTAL_ADDRESS = "227 W 4th St<br />1st Floor #3127<br />Charlotte, NC 28202";
 const PREHEADER_PADDING = "&#847; &zwnj; &nbsp; ".repeat(30);
@@ -142,6 +143,7 @@ export function buildScanReportEmailHtml(input: {
   landingUrl: string;
   businessName: string;
   replyTo: string;
+  unsubscribeUrl: string;
   preheader?: string;
   imagePlacement?: "after_intro" | "after_message";
 }): string {
@@ -166,7 +168,7 @@ export function buildScanReportEmailHtml(input: {
       ${remainingHtml ? `<tr><td style="padding:0 28px 28px;font-size:16px;line-height:1.65;">${remainingHtml}</td></tr>` : ""}
       <tr><td style="border-top:1px solid #e5e7eb;padding:20px 28px;color:#6b7280;font-size:12px;line-height:1.55;">
         This is a business advertisement from Viva Web Designs.<br />${POSTAL_ADDRESS}<br />
-        To stop receiving marketing emails, reply to <a href="mailto:${escapeHtml(input.replyTo)}?subject=Unsubscribe">${escapeHtml(input.replyTo)}</a> with “Unsubscribe.”
+        Don’t want further scan-report emails? <a href="${escapeHtml(input.unsubscribeUrl)}">Unsubscribe</a>.
       </td></tr>
     </table>
   </td></tr></table>
@@ -192,7 +194,9 @@ export async function sendScanReportEmail(input: SendScanReportInput) {
   const published = await uploadPublishedReport(file.buffer, publishedKey, "image/png");
   const imageUrl = published.url;
   const publicToken = createAnonymousScanReportToken(input.reportId);
+  const unsubscribeToken = createScanReportToken();
   const landingUrl = scanReportLandingUrl(publicToken);
+  const unsubscribeUrl = emailUnsubscribeUrl(unsubscribeToken);
   const replyTo = actorReplyTo(input.actorEmail);
   const businessName = record.report.companyName || record.company?.name || record.lead.title;
 
@@ -226,8 +230,8 @@ export async function sendScanReportEmail(input: SendScanReportInput) {
       leadId: input.leadId,
       reportId: input.reportId,
       requestId: input.requestId,
-      // Delivery bookkeeping remains lead-specific, but this unused token is never sent.
-      publicTokenHash: hashScanReportToken(createScanReportToken()),
+      // Only a one-way hash is stored; the opaque token is used by the unsubscribe link.
+      publicTokenHash: hashScanReportToken(unsubscribeToken),
       recipient: input.recipient,
       imageUrl,
       status: "queued",
@@ -270,11 +274,12 @@ export async function sendScanReportEmail(input: SendScanReportInput) {
         landingUrl,
         businessName,
         replyTo,
+        unsubscribeUrl,
         preheader: input.preheader,
         imagePlacement: input.imagePlacement,
       }),
       // Plain-text-only mail clients cannot display the linked report image.
-      text: `${input.message}\n\nOpen your scan report: ${landingUrl}\n\nViva Web Designs, ${POSTAL_ADDRESS}\nTo opt out, reply with Unsubscribe.`,
+      text: `${input.message}\n\nOpen your scan report: ${landingUrl}\n\nViva Web Designs, ${POSTAL_ADDRESS.replace(/<br \/>/g, ", ")}\nDon’t want further scan-report emails? Unsubscribe: ${unsubscribeUrl}`,
       noteId: note.id,
       deliveryId: delivery.id,
       category: "scan_report",

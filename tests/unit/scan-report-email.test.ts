@@ -16,6 +16,7 @@ describe("scan report email template", () => {
       landingUrl: "https://vivawebdesigns.com/scan-report/secure-token",
       businessName: "Acme Roofing",
       replyTo: "matt@vivawebdesigns.com",
+      unsubscribeUrl: "https://vivawebdesigns.com/email/unsubscribe/secure-token",
       preheader: DEFAULT_SCAN_REPORT_PREHEADER,
     });
 
@@ -30,6 +31,8 @@ describe("scan report email template", () => {
     expect(html).toContain('src="https://reports.vivawebdesigns.com/scans/report/abc.png"');
     expect(html).toContain("227 W 4th St<br />1st Floor #3127<br />Charlotte, NC 28202");
     expect(html).toContain("Unsubscribe");
+    expect(html).toContain('href="https://vivawebdesigns.com/email/unsubscribe/secure-token"');
+    expect(html).not.toContain("mailto:");
   });
 
   it("places the scan after the first three message paragraphs by default", () => {
@@ -40,6 +43,7 @@ describe("scan report email template", () => {
       landingUrl: "https://vivawebdesigns.com/scan-report/secure-token",
       businessName: "Inspect-A-Deck",
       replyTo: "matt@vivawebdesigns.com",
+      unsubscribeUrl: "https://vivawebdesigns.com/email/unsubscribe/secure-token",
     });
 
     expect(html.indexOf("I came across Inspect-A-Deck")).toBeLessThan(html.indexOf(imageUrl));
@@ -54,6 +58,7 @@ describe("scan report email template", () => {
       landingUrl: "https://vivawebdesigns.com/scan-report/secure-token",
       businessName: "Inspect-A-Deck",
       replyTo: "matt@vivawebdesigns.com",
+      unsubscribeUrl: "https://vivawebdesigns.com/email/unsubscribe/secure-token",
       imagePlacement: "after_message",
     });
 
@@ -67,6 +72,7 @@ describe("scan report email template", () => {
       landingUrl: "https://vivawebdesigns.com/scan-report/secure-token",
       businessName: 'Acme <Roofing> "LLC"',
       replyTo: "matt@vivawebdesigns.com",
+      unsubscribeUrl: "https://vivawebdesigns.com/email/unsubscribe/secure-token",
       preheader: "Your <scan>",
     });
 

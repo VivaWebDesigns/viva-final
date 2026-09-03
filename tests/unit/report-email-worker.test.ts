@@ -29,9 +29,13 @@ describe("report email worker", () => {
   it("advances outreach only after provider acceptance and uses a stable idempotency key", async () => {
     await processJob(job);
     expect(mocks.send).toHaveBeenCalledWith(
-      expect.objectContaining({ from: "Matt Carney <matt@vivawebdesigns.com>" }),
+      expect.objectContaining({
+        from: "Matt Carney <matt@vivawebdesigns.com>",
+        tags: [{ name: "category", value: "scan_report" }],
+      }),
       { idempotencyKey: "workflow-email/job-1" },
     );
+    expect(mocks.send.mock.calls[0][0]).not.toHaveProperty("headers");
     expect(mocks.record).toHaveBeenCalledWith("delivery-1");
     expect(mocks.send.mock.invocationCallOrder[0]).toBeLessThan(mocks.record.mock.invocationCallOrder[0]);
   });

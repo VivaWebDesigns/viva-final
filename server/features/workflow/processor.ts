@@ -188,7 +188,6 @@ async function processEmailNotification(job: WorkflowJob): Promise<void> {
         html: payload.html,
         ...(payload.text ? { text: payload.text } : {}),
         ...(payload.category === "scan_report" ? {
-          headers: { "List-Unsubscribe": `<mailto:${payload.replyTo || CONTACT_EMAIL_FROM}?subject=Unsubscribe>` },
           tags: [{ name: "category", value: "scan_report" }],
         } : {}),
       }, { idempotencyKey: `workflow-email/${job.id}` }),
