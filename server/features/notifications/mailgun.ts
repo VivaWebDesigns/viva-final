@@ -19,6 +19,7 @@ import {
   warnIfThresholdReached,
 } from "../../lib/provider-resilience";
 import { recordSuccess, recordFailure } from "../../lib/provider-snapshot";
+import { emailSenderDisplayName } from "../../lib/email-sender";
 
 const PROVIDER = "mailgun";
 const OPERATION = "send_email";
@@ -43,11 +44,13 @@ function getConfig(): MailgunConfig | null {
   const apiKey = process.env.MAILGUN_API_KEY;
   const domain = process.env.MAILGUN_DOMAIN;
   if (!apiKey || !domain) return null;
+  const fromEmail = process.env.MAILGUN_FROM_EMAIL || `noreply@${domain}`;
+  const configuredName = process.env.MAILGUN_FROM_NAME || "Viva Web Designs";
   return {
     apiKey,
     domain,
-    fromEmail: process.env.MAILGUN_FROM_EMAIL || `noreply@${domain}`,
-    fromName: process.env.MAILGUN_FROM_NAME || "Viva Web Designs",
+    fromEmail,
+    fromName: emailSenderDisplayName(fromEmail, configuredName),
   };
 }
 

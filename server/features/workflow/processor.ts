@@ -25,6 +25,7 @@ import {
   warnIfThresholdReached,
 } from "../../lib/provider-resilience";
 import { recordSuccess, recordFailure, getSnapshot } from "../../lib/provider-snapshot";
+import { formatEmailSender } from "../../lib/email-sender";
 
 const RESEND_TIMEOUT_MS = 15_000;
 const CONTACT_EMAIL_FROM =
@@ -177,9 +178,10 @@ async function processEmailNotification(job: WorkflowJob): Promise<void> {
 
   let providerAccepted = false;
   try {
+    const fromEmail = payload.from || CONTACT_EMAIL_FROM;
     const result = await withTimeout(
       async (_signal) => resend.emails.send({
-        from: `Viva Web Designs <${payload.from || CONTACT_EMAIL_FROM}>`,
+        from: formatEmailSender(fromEmail),
         to: payload.to,
         ...(payload.replyTo ? { replyTo: payload.replyTo } : {}),
         subject: payload.subject,

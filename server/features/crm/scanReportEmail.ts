@@ -14,6 +14,7 @@ import {
 } from "@shared/schema";
 import { db } from "../../db";
 import { getFileBuffer, uploadPublishedReport } from "../../services/storage";
+import { formatEmailSender } from "../../lib/email-sender";
 import {
   createAnonymousScanReportToken,
   createScanReportToken,
@@ -117,7 +118,7 @@ export async function getScanReportEmailPreview(
     sentCount: outreach.reportEmailCount,
     blockedReason: reportSendBlockedReason(outreach.reportEmailCount, outreach.reportOutreachDisposition),
     recipient,
-    from: `Viva Web Designs <${scanReportSenderEmail()}>`,
+    from: formatEmailSender(scanReportSenderEmail()),
     replyTo: actorReplyTo(actorEmail),
     subject: outreach.reportEmailCount === 1 ? (spanish ? `Seguimiento: ${businessName} en Google Maps` : `Your Google Maps visibility report — ${businessName}`) : spanish
       ? `Así aparece ${businessName} en Google Maps`
