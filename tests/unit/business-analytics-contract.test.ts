@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 const page = readFileSync("client/src/features/business-analytics/AnalyticsPage.tsx", "utf8");
 const router = readFileSync("client/src/AdminRouter.tsx", "utf8");
 const serverRoutes = readFileSync("server/features/business-analytics/routes.ts", "utf8");
+const googleAuth = readFileSync("server/features/business-analytics/googleAuth.ts", "utf8");
 
 describe("business analytics admin contract", () => {
   it("provides a dedicated protected Analytics page", () => {
@@ -22,8 +23,11 @@ describe("business analytics admin contract", () => {
     expect(serverRoutes).toContain("encryptGoogleToken");
   });
 
-  it("supports location selection and cached review synchronization", () => {
+  it("keeps Business Profile capability disabled by default behind a feature flag", () => {
     expect(page).toContain("Google Business Profile reviews");
+    expect(page).toContain("businessProfileEnabled &&");
+    expect(serverRoutes).toContain("googleBusinessProfileEnabled");
+    expect(googleAuth).toContain('process.env.GOOGLE_BUSINESS_PROFILE_ENABLED === "true"');
     expect(serverRoutes).toContain('/business/location');
     expect(serverRoutes).toContain('/business/sync');
     expect(serverRoutes).toContain('/business/reviews');

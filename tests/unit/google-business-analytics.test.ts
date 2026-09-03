@@ -3,6 +3,7 @@ import {
   decryptGoogleToken,
   encryptGoogleToken,
   googleAuthorizationUrl,
+  googleBusinessProfileEnabled,
   googleOAuthRedirectUri,
   hashOAuthState,
 } from "../../server/features/business-analytics/googleAuth";
@@ -57,9 +58,16 @@ describe("Google business analytics integration", () => {
     expect(url.searchParams.get("scope")).not.toContain("analytics.readonly");
   });
 
+  it("keeps Business Profile disabled unless explicitly enabled", () => {
+    delete process.env.GOOGLE_BUSINESS_PROFILE_ENABLED;
+    expect(googleBusinessProfileEnabled()).toBe(false);
+
+    process.env.GOOGLE_BUSINESS_PROFILE_ENABLED = "true";
+    expect(googleBusinessProfileEnabled()).toBe(true);
+  });
+
   it("stores only a hash of each one-time OAuth state", () => {
     expect(hashOAuthState("secure-state")).toMatch(/^[a-f0-9]{64}$/);
     expect(hashOAuthState("secure-state")).not.toContain("secure-state");
   });
 });
-

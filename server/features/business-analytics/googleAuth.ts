@@ -104,10 +104,14 @@ export function hashOAuthState(state: string): string {
   return crypto.createHash("sha256").update(state).digest("hex");
 }
 
+export function googleBusinessProfileEnabled(): boolean {
+  return process.env.GOOGLE_BUSINESS_PROFILE_ENABLED === "true";
+}
+
 export function googleIntegrationConfigStatus() {
   return {
     oauthClientConfigured: !!process.env.GOOGLE_INTEGRATIONS_OAUTH_CLIENT_JSON,
     encryptionConfigured: !!process.env.GOOGLE_INTEGRATIONS_ENCRYPTION_KEY,
+    businessProfileEnabled: googleBusinessProfileEnabled(),
   };
 }
-

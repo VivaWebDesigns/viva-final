@@ -32,7 +32,7 @@ type GoogleConnection = {
 };
 
 type IntegrationStatus = {
-  config: { oauthClientConfigured: boolean; encryptionConfigured: boolean };
+  config: { oauthClientConfigured: boolean; encryptionConfigured: boolean; businessProfileEnabled: boolean };
   analytics: GoogleConnection | null;
   businessProfile: GoogleConnection | null;
 };
@@ -188,7 +188,8 @@ export default function AnalyticsPage() {
   });
 
   const analyticsConnected = !!status?.analytics;
-  const businessConnected = !!status?.businessProfile;
+  const businessProfileEnabled = !!status?.config.businessProfileEnabled;
+  const businessConnected = businessProfileEnabled && !!status?.businessProfile;
 
   const { data: gaData, isLoading: gaLoading, error: gaError } = useQuery<GaDashboard>({
     queryKey: [`/api/business-analytics/ga4?days=${days}`],
@@ -261,7 +262,7 @@ export default function AnalyticsPage() {
       <header className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Analytics</h1>
-          <p className="mt-1 text-sm text-gray-500">Website performance, confirmed leads and Google reviews.</p>
+          <p className="mt-1 text-sm text-gray-500">Website performance and confirmed leads.</p>
         </div>
         <div className="flex rounded-lg bg-gray-100 p-1">
           {[7, 30, 90].map((value) => (
@@ -282,7 +283,7 @@ export default function AnalyticsPage() {
         </div>
       )}
 
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className={`grid gap-4 ${businessProfileEnabled ? "xl:grid-cols-2" : ""}`}>
         <ConnectionCard
           title="Google Analytics 4"
           description="Traffic, acquisition, landing pages and confirmed leads."
@@ -291,14 +292,16 @@ export default function AnalyticsPage() {
           disabled={!canConnect}
           icon={BarChart3}
         />
-        <ConnectionCard
-          title="Google Business Profile"
-          description="Live review totals, ratings, review text and reply coverage."
-          connection={status?.businessProfile ?? null}
-          onConnect={() => connectMutation.mutate("business_profile")}
-          disabled={!canConnect}
-          icon={Globe2}
-        />
+        {businessProfileEnabled && (
+          <ConnectionCard
+            title="Google Business Profile"
+            description="Live review totals, ratings, review text and reply coverage."
+            connection={status?.businessProfile ?? null}
+            onConnect={() => connectMutation.mutate("business_profile")}
+            disabled={!canConnect}
+            icon={Globe2}
+          />
+        )}
       </div>
 
       {analyticsConnected ? (
@@ -399,7 +402,7 @@ export default function AnalyticsPage() {
         <EmptyState>Connect Google Analytics to activate website and lead reporting.</EmptyState>
       )}
 
-      <Panel
+      {businessProfileEnabled && <Panel
         title="Google Business Profile reviews"
         subtitle="Synchronized from Google and stored locally for reliable dashboard performance."
         action={businessConnected && status?.businessProfile?.locationId ? (
@@ -502,7 +505,7 @@ export default function AnalyticsPage() {
             )}
           </div>
         )}
-      </Panel>
+      </Panel>}
 
       <p className="flex items-center gap-1.5 text-xs text-gray-400">
         <ExternalLink className="h-3.5 w-3.5" />

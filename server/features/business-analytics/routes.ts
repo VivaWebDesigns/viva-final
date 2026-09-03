@@ -12,6 +12,7 @@ import {
   encryptGoogleToken,
   GOOGLE_PROVIDERS,
   googleAuthorizationUrl,
+  googleBusinessProfileEnabled,
   googleIntegrationConfigStatus,
   hashOAuthState,
 } from "./googleAuth";
@@ -34,7 +35,7 @@ function googleErrorMessage(error: any): string {
     || "Google API request failed";
 }
 
-function publicConnection(connection: Awaited<ReturnType<typeof storage.getGoogleConnection>>) {
+function publicConnection(connection: Awaited<ReturnType<typeof storage.getGoogleConnection>> | null) {
   if (!connection) return null;
   return {
     provider: connection.provider,
@@ -81,9 +82,10 @@ async function syncBusinessReviews() {
 }
 
 router.get("/status", requireRole("admin", "developer"), async (_req, res) => {
+  const businessProfileEnabled = googleBusinessProfileEnabled();
   const [analytics, businessProfile] = await Promise.all([
     storage.getGoogleConnection("analytics"),
-    storage.getGoogleConnection("business_profile"),
+    businessProfileEnabled ? storage.getGoogleConnection("business_profile") : Promise.resolve(null),
   ]);
   res.json({
     config: googleIntegrationConfigStatus(),
@@ -95,6 +97,9 @@ router.get("/status", requireRole("admin", "developer"), async (_req, res) => {
 router.get("/oauth/start/:provider", requireRole("admin"), async (req, res) => {
   try {
     const provider = providerSchema.parse(req.params.provider);
+    if (provider === "business_profile" && !googleBusinessProfileEnabled()) {
+      return res.status(404).json({ message: "Google Business Profile integration is disabled" });
+    }
     const state = createOAuthState();
     await db.delete(googleOAuthStates).where(lt(googleOAuthStates.expiresAt, new Date()));
     await storage.createGoogleOAuthState({
@@ -120,6 +125,9 @@ router.get("/oauth/callback", requireRole("admin"), async (req, res) => {
       throw new Error("Google authorization expired or could not be verified");
     }
     const provider = providerSchema.parse(savedState.provider);
+    if (provider === "business_profile" && !googleBusinessProfileEnabled()) {
+      throw new Error("Google Business Profile integration is disabled");
+    }
     const client = createGoogleOAuthClient();
     const { tokens } = await client.getToken(code);
     let refreshToken = tokens.refresh_token;
@@ -202,6 +210,13 @@ router.get("/ga4", requireRole("admin", "developer"), async (req, res) => {
     await storage.updateGoogleConnection("analytics", { status: "error", lastError: message });
     res.status(502).json({ message });
   }
+});
+
+router.use("/business", (_req, res, next) => {
+  if (!googleBusinessProfileEnabled()) {
+    return res.status(404).json({ message: "Google Business Profile integration is disabled" });
+  }
+  next();
 });
 
 router.get("/business/locations", requireRole("admin", "developer"), async (_req, res) => {
