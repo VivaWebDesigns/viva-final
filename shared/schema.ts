@@ -598,6 +598,17 @@ export const scanReportDeliveries = pgTable("scan_report_deliveries", {
   index("scan_report_delivery_status_idx").on(t.status),
 ]);
 
+export const scanReportShares = pgTable("scan_report_shares", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  reportId: varchar("report_id").notNull().unique().references(() => localFalconProspectProfiles.id, { onDelete: "cascade" }),
+  publicTokenHash: varchar("public_token_hash").notNull().unique(),
+  imageUrl: text("image_url").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (t) => [
+  index("scan_report_share_report_idx").on(t.reportId),
+]);
+
 export const scanReportEngagementEvents = pgTable("scan_report_engagement_events", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   deliveryId: varchar("delivery_id").notNull().references(() => scanReportDeliveries.id, { onDelete: "cascade" }),
@@ -975,6 +986,7 @@ export type InsertCrmLeadNote = z.infer<typeof insertCrmLeadNoteSchema>;
 export type CrmLeadNote = typeof crmLeadNotes.$inferSelect;
 
 export type ScanReportDelivery = typeof scanReportDeliveries.$inferSelect;
+export type ScanReportShare = typeof scanReportShares.$inferSelect;
 export type ScanReportEngagementEvent = typeof scanReportEngagementEvents.$inferSelect;
 
 export const insertClientNoteSchema = createInsertSchema(clientNotes).omit({ id: true, createdAt: true });

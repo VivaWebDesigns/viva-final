@@ -1,12 +1,10 @@
 import crypto from "node:crypto";
 import type { Express, Request, Response } from "express";
-import { eq, sql } from "drizzle-orm";
-import { z } from "zod";
+import { eq } from "drizzle-orm";
 import {
-  crmLeadNotes,
   localFalconProspectProfiles,
   scanReportDeliveries,
-  scanReportEngagementEvents,
+  scanReportShares,
 } from "@shared/schema";
 import { db } from "./db";
 
@@ -14,17 +12,6 @@ const PUBLIC_SITE_URL = "https://vivawebdesigns.com";
 const GA4_MEASUREMENT_ID = "G-8NL7JMJ7MT";
 const REPORT_COOKIE = "viva_scan_report";
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
-const CTA_TYPES = ["schedule_call", "email_matt", "view_results", "another_scan"] as const;
-type CtaType = typeof CTA_TYPES[number];
-
-const clientEventSchema = z.object({
-  eventId: z.string().uuid(),
-});
-
-const ctaEventSchema = clientEventSchema.extend({
-  ctaType: z.enum(CTA_TYPES),
-});
-
 function escapeHtml(value: unknown): string {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -42,18 +29,16 @@ export function createScanReportToken(): string {
   return crypto.randomBytes(32).toString("base64url");
 }
 
-export function scanReportLandingUrl(token: string): string {
-  const params = new URLSearchParams({
-    utm_source: "crm",
-    utm_medium: "email",
-    utm_campaign: "scan_report",
-  });
-  return `${PUBLIC_SITE_URL}/scan-report/${token}?${params.toString()}`;
+export function createAnonymousScanReportToken(reportId: string): string {
+  const secret = process.env.SCAN_REPORT_SHARE_SECRET?.trim() || process.env.SESSION_SECRET?.trim();
+  if (!secret) throw new Error("SCAN_REPORT_SHARE_SECRET or SESSION_SECRET is required");
+  return crypto.createHmac("sha256", secret)
+    .update(`scan-report-share:v1:${reportId}`)
+    .digest("base64url");
 }
 
-export function isLikelyAutomatedUserAgent(userAgent: string | undefined): boolean {
-  if (!userAgent) return false;
-  return /(bot|crawler|spider|preview|scanner|safelink|proofpoint|mimecast|barracuda|urlscan|virustotal|headless|phantomjs)/i.test(userAgent);
+export function scanReportLandingUrl(token: string): string {
+  return `${PUBLIC_SITE_URL}/scan-report/${token}`;
 }
 
 function readCookie(req: Request, name: string): string | undefined {
@@ -65,124 +50,49 @@ function readCookie(req: Request, name: string): string | undefined {
   return undefined;
 }
 
-async function loadDelivery(token: string) {
+async function loadReportAccess(token: string) {
   if (!TOKEN_PATTERN.test(token)) return null;
-  const [record] = await db.select({
-    delivery: scanReportDeliveries,
+  const tokenHash = hashScanReportToken(token);
+  const [shared] = await db.select({
+    imageUrl: scanReportShares.imageUrl,
+    businessName: localFalconProspectProfiles.companyName,
+  }).from(scanReportShares)
+    .innerJoin(
+      localFalconProspectProfiles,
+      eq(scanReportShares.reportId, localFalconProspectProfiles.id),
+    )
+    .where(eq(scanReportShares.publicTokenHash, tokenHash))
+    .limit(1);
+  if (shared) return shared;
+
+  // Preserve already-issued links without continuing recipient-level engagement tracking.
+  const [legacy] = await db.select({
+    imageUrl: scanReportDeliveries.imageUrl,
     businessName: localFalconProspectProfiles.companyName,
   }).from(scanReportDeliveries)
     .innerJoin(
       localFalconProspectProfiles,
       eq(scanReportDeliveries.reportId, localFalconProspectProfiles.id),
     )
-    .where(eq(scanReportDeliveries.publicTokenHash, hashScanReportToken(token)))
+    .where(eq(scanReportDeliveries.publicTokenHash, tokenHash))
     .limit(1);
-  return record ?? null;
-}
-
-async function recordLandingRequest(deliveryId: string) {
-  const now = new Date();
-  await db.update(scanReportDeliveries).set({
-    requestCount: sql`${scanReportDeliveries.requestCount} + 1`,
-    lastRequestedAt: now,
-    updatedAt: now,
-  }).where(eq(scanReportDeliveries.id, deliveryId));
-}
-
-async function recordEngagement(input: {
-  token: string;
-  clientEventId: string;
-  eventType: "report_view" | "cta_click";
-  ctaType?: CtaType;
-  automated: boolean;
-}) {
-  const record = await loadDelivery(input.token);
-  if (!record) return false;
-  const now = new Date();
-
-  await db.transaction(async (tx) => {
-    const [event] = await tx.insert(scanReportEngagementEvents).values({
-      deliveryId: record.delivery.id,
-      clientEventId: input.clientEventId,
-      eventType: input.eventType,
-      ctaType: input.ctaType ?? null,
-      automated: input.automated,
-    }).onConflictDoNothing().returning({ id: scanReportEngagementEvents.id });
-    if (!event || input.automated) return;
-
-    if (input.eventType === "report_view") {
-      await tx.update(scanReportDeliveries).set({
-        viewCount: sql`${scanReportDeliveries.viewCount} + 1`,
-        firstViewedAt: record.delivery.firstViewedAt ?? now,
-        lastViewedAt: now,
-        updatedAt: now,
-      }).where(eq(scanReportDeliveries.id, record.delivery.id));
-      await tx.insert(crmLeadNotes).values({
-        leadId: record.delivery.leadId,
-        userId: null,
-        type: "system",
-        content: record.delivery.viewCount > 0 ? "Scan report viewed again" : "Scan report viewed",
-        metadata: {
-          trackingEvent: "scan_report_view",
-          deliveryId: record.delivery.id,
-          reportId: record.delivery.reportId,
-        },
-      });
-      return;
-    }
-
-    const labels: Record<CtaType, string> = {
-      schedule_call: "Schedule a Call",
-      email_matt: "Send Matt a Message",
-      view_results: "See Client Results",
-      another_scan: "Check Another Service",
-    };
-    await tx.update(scanReportDeliveries).set({
-      ctaClickCount: sql`${scanReportDeliveries.ctaClickCount} + 1`,
-      firstCtaClickedAt: record.delivery.firstCtaClickedAt ?? now,
-      lastCtaClickedAt: now,
-      updatedAt: now,
-    }).where(eq(scanReportDeliveries.id, record.delivery.id));
-    await tx.insert(crmLeadNotes).values({
-      leadId: record.delivery.leadId,
-      userId: null,
-      type: "system",
-      content: `Scan report CTA clicked: ${labels[input.ctaType!]}`,
-      metadata: {
-        trackingEvent: "scan_report_cta_click",
-        ctaType: input.ctaType,
-        deliveryId: record.delivery.id,
-        reportId: record.delivery.reportId,
-      },
-    });
-  });
-  return true;
-}
-
-function reportDestination(ctaType: "schedule_call" | "view_results"): string {
-  return ctaType === "schedule_call"
-    ? "https://calendly.com/vivawebdesigns/new-meeting"
-    : `${PUBLIC_SITE_URL}/results`;
+  return legacy ?? null;
 }
 
 export function buildScanReportLandingPage(input: {
-  token: string;
   imageUrl: string;
   businessName?: string | null;
 }): string {
-  const token = input.token;
   const businessName = input.businessName?.trim() || "your business";
-  const viewEndpoint = `/scan-report/${token}/events/view`;
-  const ctaEndpoint = `/scan-report/${token}/events/cta`;
-  const scheduleEndpoint = `/scan-report/${token}/go/schedule_call`;
-  const resultsEndpoint = `/scan-report/${token}/go/view_results`;
-  const contactHref = `${PUBLIC_SITE_URL}/contact?business=${encodeURIComponent(businessName)}#contact-form`;
-  const scanHref = `${PUBLIC_SITE_URL}/scan?business=${encodeURIComponent(businessName)}#scan-request`;
+  const scheduleHref = "https://calendly.com/vivawebdesigns/new-meeting";
+  const contactHref = `${PUBLIC_SITE_URL}/contact#contact-form`;
+  const resultsHref = `${PUBLIC_SITE_URL}/results`;
+  const scanHref = `${PUBLIC_SITE_URL}/scan#scan-request`;
 
   return `<!doctype html>
 <html lang="en">
   <head>
-    <script>history.replaceState(null,"","/scan-report/view"+location.search);</script>
+    <script>history.replaceState(null,"","/scan-report/view");</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex,nofollow,noarchive">
@@ -216,28 +126,24 @@ export function buildScanReportLandingPage(input: {
         <h2>Want to understand what the scan means?</h2>
         <p>Matt can walk through the weak areas, explain who Google is ranking ahead of you and outline the most practical next step.</p>
         <div class="actions">
-          <form class="tracked-form" method="post" action="${scheduleEndpoint}" data-cta="schedule_call"><input type="hidden" name="eventId"><button class="button button-primary" type="submit">Schedule a Call</button></form>
+          <a class="button button-primary tracked-link" href="${scheduleHref}" data-cta="schedule_call">Schedule a Call</a>
           <a class="button tracked-link" href="${escapeHtml(contactHref)}" data-cta="email_matt">Send Matt a Message</a>
-          <form class="tracked-form" method="post" action="${resultsEndpoint}" data-cta="view_results"><input type="hidden" name="eventId"><button class="button" type="submit">See Client Results</button></form>
+          <a class="button tracked-link" href="${resultsHref}" data-cta="view_results">See Client Results</a>
         </div>
         <div class="another-scan">
           <h3>Want to Check Another Service for Free?</h3>
           <p>See how your company ranks for another service or search phrase. No cost, no obligation, and no sales call required.</p>
           <a class="button tracked-link" href="${escapeHtml(scanHref)}" data-cta="another_scan">Check Another Service</a>
         </div>
-        <p class="privacy">Engagement with this report may be recorded to help Viva respond to your inquiry. See our <a href="/privacy-policy">Privacy Policy</a>.</p>
+        <p class="privacy">We measure report-page and call-to-action activity in aggregate without sending lead or report identifiers to Google Analytics. See our <a href="/privacy-policy">Privacy Policy</a>.</p>
       </section>
     </main>
     <footer class="footer"><div class="shell">&copy; 2026 Viva Web Designs LLC &middot; Charlotte, North Carolina</div></footer>
     <script>
       (function(){
         var measurementId=${JSON.stringify(GA4_MEASUREMENT_ID)};
-        var viewEndpoint=${JSON.stringify(viewEndpoint)};
-        var ctaEndpoint=${JSON.stringify(ctaEndpoint)};
-        var viewKey=${JSON.stringify(`viva_scan_report_view:${token}`)};
         var analyticsStarted=false;
-        function eventId(){return self.crypto&&crypto.randomUUID?crypto.randomUUID():"xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g,function(c){var r=Math.random()*16|0;return(c==="x"?r:(r&3|8)).toString(16)});}
-        function beacon(url,data){var body=new URLSearchParams(data);if(navigator.sendBeacon){navigator.sendBeacon(url,body);return;}fetch(url,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:body.toString(),keepalive:true,credentials:"same-origin"}).catch(function(){});}
+        var viewRecorded=false;
         function gtag(){window.dataLayer=window.dataLayer||[];window.dataLayer.push(arguments);}
         function startAnalytics(){
           if(analyticsStarted)return;analyticsStarted=true;window.gtag=gtag;
@@ -247,16 +153,16 @@ export function buildScanReportLandingPage(input: {
           var script=document.createElement("script");script.async=true;script.src="https://www.googletagmanager.com/gtag/js?id="+encodeURIComponent(measurementId);document.head.appendChild(script);
         }
         function recordView(){
-          if(document.visibilityState!=="visible")return;
-          try{if(sessionStorage.getItem(viewKey))return;sessionStorage.setItem(viewKey,"1");}catch(_){}
-          beacon(viewEndpoint,{eventId:eventId()});startAnalytics();
+          if(document.visibilityState!=="visible"||viewRecorded)return;
+          viewRecorded=true;startAnalytics();
         }
         setTimeout(recordView,650);
         document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible")setTimeout(recordView,250);});
-        document.querySelectorAll(".tracked-form").forEach(function(form){form.addEventListener("submit",function(event){
-          if(form.dataset.submitting==="1")return;event.preventDefault();form.dataset.submitting="1";var id=eventId();form.querySelector('[name="eventId"]').value=id;startAnalytics();gtag("event","scan_report_cta_click",{cta_type:form.dataset.cta,report_type:"local_visibility_scan",delivery_channel:"email",transport_type:"beacon"});setTimeout(function(){form.submit();},180);
+        document.querySelectorAll(".tracked-link").forEach(function(link){link.addEventListener("click",function(event){
+          if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
+          event.preventDefault();var href=link.href;var navigated=false;var go=function(){if(navigated)return;navigated=true;location.href=href;};
+          startAnalytics();gtag("event","scan_report_cta_click",{cta_type:link.dataset.cta,report_type:"local_visibility_scan",delivery_channel:"email",transport_type:"beacon",event_callback:go,event_timeout:250});setTimeout(go,300);
         });});
-        document.querySelectorAll(".tracked-link").forEach(function(link){link.addEventListener("click",function(){var cta=link.dataset.cta;var id=eventId();beacon(ctaEndpoint,{eventId:id,ctaType:cta});startAnalytics();gtag("event","scan_report_cta_click",{cta_type:cta,report_type:"local_visibility_scan",delivery_channel:"email",transport_type:"beacon"});});});
       })();
     </script>
   </body>
@@ -273,9 +179,8 @@ function setReportHeaders(res: Response) {
 
 export function registerPublicScanReportRoutes(app: Express) {
   const renderReport = async (_req: Request, res: Response, token: string) => {
-    const record = await loadDelivery(token);
+    const record = await loadReportAccess(token);
     if (!record) return res.status(404).send("This scan report link is not available.");
-    await recordLandingRequest(record.delivery.id);
     res.cookie(REPORT_COOKIE, token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -285,8 +190,7 @@ export function registerPublicScanReportRoutes(app: Express) {
     });
     setReportHeaders(res);
     return res.type("html").send(buildScanReportLandingPage({
-      token,
-      imageUrl: record.delivery.imageUrl,
+      imageUrl: record.imageUrl,
       businessName: record.businessName,
     }));
   };
@@ -309,52 +213,4 @@ export function registerPublicScanReportRoutes(app: Express) {
     }
   });
 
-  app.post("/scan-report/:token/events/view", async (req, res, next) => {
-    try {
-      const body = clientEventSchema.parse(req.body);
-      const found = await recordEngagement({
-        token: req.params.token,
-        clientEventId: body.eventId,
-        eventType: "report_view",
-        automated: isLikelyAutomatedUserAgent(req.get("user-agent")),
-      });
-      return found ? res.status(204).end() : res.status(404).end();
-    } catch (error) {
-      next(error);
-    }
-  });
-
-  app.post("/scan-report/:token/events/cta", async (req, res, next) => {
-    try {
-      const body = ctaEventSchema.parse(req.body);
-      const found = await recordEngagement({
-        token: req.params.token,
-        clientEventId: body.eventId,
-        eventType: "cta_click",
-        ctaType: body.ctaType,
-        automated: isLikelyAutomatedUserAgent(req.get("user-agent")),
-      });
-      return found ? res.status(204).end() : res.status(404).end();
-    } catch (error) {
-      next(error);
-    }
-  });
-
-  app.post("/scan-report/:token/go/:ctaType", async (req, res, next) => {
-    try {
-      const ctaType = z.enum(["schedule_call", "view_results"]).parse(req.params.ctaType);
-      const eventId = z.string().uuid().catch(() => crypto.randomUUID()).parse(req.body.eventId);
-      const found = await recordEngagement({
-        token: req.params.token,
-        clientEventId: eventId,
-        eventType: "cta_click",
-        ctaType,
-        automated: isLikelyAutomatedUserAgent(req.get("user-agent")),
-      });
-      if (!found) return res.status(404).send("This scan report link is not available.");
-      return res.redirect(303, reportDestination(ctaType));
-    } catch (error) {
-      next(error);
-    }
-  });
 }

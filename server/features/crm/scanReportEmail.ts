@@ -9,11 +9,13 @@ import {
   crmLeads,
   localFalconProspectProfiles,
   scanReportDeliveries,
+  scanReportShares,
   workflowJobs,
 } from "@shared/schema";
 import { db } from "../../db";
 import { getFileBuffer, uploadPublishedReport } from "../../services/storage";
 import {
+  createAnonymousScanReportToken,
   createScanReportToken,
   hashScanReportToken,
   scanReportLandingUrl,
@@ -161,7 +163,6 @@ export function buildScanReportEmailHtml(input: {
       <tr><td style="padding:28px${insertAfterIntro ? " 28px 18px" : ""};font-size:16px;line-height:1.65;">${introHtml}</td></tr>
       ${imageRow}
       ${remainingHtml ? `<tr><td style="padding:0 28px 28px;font-size:16px;line-height:1.65;">${remainingHtml}</td></tr>` : ""}
-      <tr><td align="center" style="padding:0 28px 30px;"><a href="${escapeHtml(input.landingUrl)}" style="display:inline-block;background:#0f766e;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:7px;font-weight:700;">View the full report</a></td></tr>
       <tr><td style="border-top:1px solid #e5e7eb;padding:20px 28px;color:#6b7280;font-size:12px;line-height:1.55;">
         This is a business advertisement from Viva Web Designs.<br />${POSTAL_ADDRESS}<br />
         To stop receiving marketing emails, reply to <a href="mailto:${escapeHtml(input.replyTo)}?subject=Unsubscribe">${escapeHtml(input.replyTo)}</a> with “Unsubscribe.”
@@ -189,7 +190,7 @@ export async function sendScanReportEmail(input: SendScanReportInput) {
   const publishedKey = `scans/${input.reportId}/${sha}.png`;
   const published = await uploadPublishedReport(file.buffer, publishedKey, "image/png");
   const imageUrl = published.url;
-  const publicToken = createScanReportToken();
+  const publicToken = createAnonymousScanReportToken(input.reportId);
   const landingUrl = scanReportLandingUrl(publicToken);
   const replyTo = actorReplyTo(input.actorEmail);
   const businessName = record.report.companyName || record.company?.name || record.lead.title;
@@ -207,11 +208,25 @@ export async function sendScanReportEmail(input: SendScanReportInput) {
       .where(and(eq(scanReportDeliveries.leadId, lead.id), inArray(scanReportDeliveries.status, ["queued", "retrying"])));
     if (pending.length) throw Object.assign(new Error("A report email is already queued. Wait for delivery before sending another."), { statusCode: 409 });
 
+    await tx.insert(scanReportShares).values({
+      reportId: input.reportId,
+      publicTokenHash: hashScanReportToken(publicToken),
+      imageUrl,
+    }).onConflictDoUpdate({
+      target: scanReportShares.reportId,
+      set: {
+        publicTokenHash: hashScanReportToken(publicToken),
+        imageUrl,
+        updatedAt: new Date(),
+      },
+    });
+
     const [delivery] = await tx.insert(scanReportDeliveries).values({
       leadId: input.leadId,
       reportId: input.reportId,
       requestId: input.requestId,
-      publicTokenHash: hashScanReportToken(publicToken),
+      // Delivery bookkeeping remains lead-specific, but this unused token is never sent.
+      publicTokenHash: hashScanReportToken(createScanReportToken()),
       recipient: input.recipient,
       imageUrl,
       status: "queued",
@@ -257,7 +272,8 @@ export async function sendScanReportEmail(input: SendScanReportInput) {
         preheader: input.preheader,
         imagePlacement: input.imagePlacement,
       }),
-      text: `${input.message}\n\nView the full report: ${landingUrl}\n\nViva Web Designs, ${POSTAL_ADDRESS}\nTo opt out, reply with Unsubscribe.`,
+      // Plain-text-only mail clients cannot display the linked report image.
+      text: `${input.message}\n\nOpen your scan report: ${landingUrl}\n\nViva Web Designs, ${POSTAL_ADDRESS}\nTo opt out, reply with Unsubscribe.`,
       noteId: note.id,
       deliveryId: delivery.id,
       category: "scan_report",

@@ -11,7 +11,7 @@ import { getScanReportEmailPreview, sendScanReportEmail } from "../../server/fea
 
 function rows(values: unknown[]) {
   const q: any = { then: (resolve: any) => Promise.resolve(values).then(resolve) };
-  for (const name of ["from", "innerJoin", "leftJoin", "where", "limit", "for", "returning"]) q[name] = () => q;
+  for (const name of ["from", "innerJoin", "leftJoin", "where", "limit", "for", "returning", "onConflictDoUpdate"]) q[name] = () => q;
   return q;
 }
 const record = { lead: { id: "lead-1", title: "Acme" }, company: { name: "Acme" }, contact: { firstName: "Ana", email: "ana@example.com" },
@@ -20,6 +20,7 @@ const input = { leadId: "lead-1", reportId: "report-1", recipient: "ana@example.
   message: "Here is your report", imagePlacement: "after_intro" as const, requestId: "request-1", actorId: "rep-1", actorEmail: "rep@vivawebdesigns.com" };
 beforeEach(() => {
   vi.clearAllMocks();
+  process.env.SCAN_REPORT_SHARE_SECRET = "unit-test-report-sharing-secret";
   mocks.select.mockReset();
   mocks.transaction.mockImplementation(async fn => fn(mocks));
   mocks.state.mockResolvedValue({ reportEmailCount: 0, reportOutreachDisposition: null });
@@ -41,7 +42,7 @@ describe("two-email report queue", () => {
     const result = await sendScanReportEmail(input);
     expect(result.duplicate).toBe(false);
     expect(mocks.transaction).toHaveBeenCalledTimes(1);
-    expect(mocks.insert.mock.calls.map(([table]) => getTableName(table))).toEqual(["scan_report_deliveries", "crm_lead_notes", "workflow_jobs"]);
+    expect(mocks.insert.mock.calls.map(([table]) => getTableName(table))).toEqual(["scan_report_shares", "scan_report_deliveries", "crm_lead_notes", "workflow_jobs"]);
   });
   it("rejects a third email before reserving or queuing anything", async () => {
     sendReads();
