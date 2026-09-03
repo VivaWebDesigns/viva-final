@@ -52,10 +52,12 @@ describe("scan report email template", () => {
     expect(html.indexOf(imageUrl)).toBeLessThan(html.indexOf("I found some significant visibility gaps"));
   });
 
-  it("starts the initial English outreach directly with Matt's introduction", async () => {
+  it("omits a greeting from both English outreach messages", async () => {
     const source = await import("node:fs/promises").then(fs => fs.readFile("server/features/crm/scanReportEmail.ts", "utf8"));
     expect(source).toContain(': `I’m Matt with Viva Web Designs here in Charlotte.');
     expect(source).not.toContain(': `Hi,\\n\\nI’m Matt with Viva Web Designs here in Charlotte.');
+    expect(source).toContain(': `Following up on the visibility report I sent for ${businessName}.');
+    expect(source).not.toContain(': `Hi${greeting},\\n\\nFollowing up on the visibility report');
   });
 
   it("can place the scan after the full message when explicitly selected", () => {
