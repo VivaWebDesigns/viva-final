@@ -268,10 +268,10 @@ export default function AnalyticsPage() {
         <div className="flex flex-wrap items-center gap-3">
           <Link
             href="/admin/analytics/email-outreach"
-            className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#0f659e] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#0c527f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0f659e] focus-visible:ring-offset-2 sm:w-auto"
           >
             <MessageSquareText className="h-4 w-4" />
-            Email outreach
+            View Email Outreach
           </Link>
           <div className="flex rounded-lg bg-gray-100 p-1">
             {[7, 30, 90].map((value) => (

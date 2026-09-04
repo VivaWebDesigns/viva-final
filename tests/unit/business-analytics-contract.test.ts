@@ -22,6 +22,7 @@ describe("business analytics admin contract", () => {
     expect(router).toContain('path="/admin/analytics/email-outreach"');
     expect(router).toContain("<EmailOutreachAnalyticsPage />");
     expect(page).toContain('href="/admin/analytics/email-outreach"');
+    expect(page).toContain("View Email Outreach");
     expect(outreachPage).toContain("Template comparison");
     expect(outreachPage).toContain("Every edited send stays with the template letter you selected.");
     expect(outreachPage).toContain("Appointments");
