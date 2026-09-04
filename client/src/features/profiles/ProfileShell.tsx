@@ -26,7 +26,7 @@ import {
   Trash2, Users, CalendarDays, Upload, ExternalLink,
   BarChart3, CheckSquare, History, Star, Edit2,
   ClipboardList, CheckCircle, ChevronDown, ChevronRight, CalendarClock,
-  ClipboardCopy, Link2,
+  ClipboardCopy, Link2, Save,
 } from "lucide-react";
 import { format, formatDistanceToNow, isPast } from "date-fns";
 import { es as dateFnsEs } from "date-fns/locale";
@@ -162,13 +162,16 @@ interface ScanReportEmailPreview {
   message: string;
   businessName: string;
   snapshotPreviewUrl: string;
+  imagePlacement: "after_intro" | "after_message";
   selectedTemplateKey: string;
+  templateVariant: string;
   templates: Array<{
     key: string;
     name: string;
     subject: string;
     preheader: string;
     message: string;
+    imagePlacement: "after_intro" | "after_message";
   }>;
 }
 
@@ -317,7 +320,7 @@ function LocalFalconSnapshotCard({
       setEmailReportPreheader(preview.preheader);
       setEmailReportMessage(preview.message);
       setEmailReportTemplateKey(preview.selectedTemplateKey);
-      setEmailReportImagePlacement("after_intro");
+      setEmailReportImagePlacement(preview.imagePlacement);
       setEmailReportRequestId(crypto.randomUUID());
       setEmailPreparation(null);
       setEmailSentConfirmed(false);
@@ -336,6 +339,41 @@ function LocalFalconSnapshotCard({
     templateKey: emailReportTemplateKey,
     imagePlacement: emailReportImagePlacement,
     requestId: emailReportRequestId,
+  });
+  const saveEmailReportTemplate = useMutation({
+    mutationFn: async () => {
+      if (!data || !emailReportPreview) throw new Error("The scan report email is not ready.");
+      const response = await apiRequest(
+        "PUT",
+        `/api/crm/leads/${encodeURIComponent(data.leadId)}/scan-report-email-template`,
+        {
+          reportId: emailReportPreview.reportId,
+          templateKey: emailReportTemplateKey,
+          subject: emailReportSubject.trim(),
+          preheader: emailReportPreheader.trim(),
+          message: emailReportMessage.trim(),
+          imagePlacement: emailReportImagePlacement,
+        },
+      );
+      return response.json() as Promise<{ message: string; preview: ScanReportEmailPreview }>;
+    },
+    onSuccess: ({ message, preview }) => {
+      setEmailReportPreview(preview);
+      const savedTemplate = preview.templates.find((template) => template.key === emailReportTemplateKey);
+      if (savedTemplate) {
+        setEmailReportSubject(savedTemplate.subject);
+        setEmailReportPreheader(savedTemplate.preheader);
+        setEmailReportMessage(savedTemplate.message);
+        setEmailReportImagePlacement(savedTemplate.imagePlacement);
+      }
+      toast({
+        title: message,
+        description: "These words are now the default for future leads. Company and search details will still update automatically.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Could not save template", description: error.message, variant: "destructive" });
+    },
   });
   const prepareEmailReport = useMutation({
     mutationFn: async () => {
@@ -647,6 +685,7 @@ function LocalFalconSnapshotCard({
                       setEmailReportSubject(template.subject);
                       setEmailReportPreheader(template.preheader);
                       setEmailReportMessage(template.message);
+                      setEmailReportImagePlacement(template.imagePlacement);
                     }}
                   >
                     <SelectTrigger data-testid="select-scan-report-email-template">
@@ -660,7 +699,7 @@ function LocalFalconSnapshotCard({
                       ))}
                     </SelectContent>
                   </Select>
-                  <p className="text-xs text-slate-500">You can edit the subject or message and keep this template letter.</p>
+                  <p className="text-xs text-slate-500">Edit freely and keep this template letter.</p>
                 </div>
                 <div className="space-y-1.5">
                   <Label>Report placement</Label>
@@ -698,6 +737,21 @@ function LocalFalconSnapshotCard({
                     data-testid="textarea-scan-report-message"
                   />
                 </div>
+                {canManageSnapshot && (
+                  <div className="flex justify-end">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => saveEmailReportTemplate.mutate()}
+                      disabled={saveEmailReportTemplate.isPending || !emailReportSubject.trim() || !emailReportMessage.trim()}
+                      data-testid="button-save-scan-report-email-template"
+                    >
+                      <Save className="mr-2 h-4 w-4" />
+                      {saveEmailReportTemplate.isPending ? "Saving…" : `Save changes to Template ${emailReportTemplateKey}`}
+                    </Button>
+                  </div>
+                )}
               </div>
               <div>
                 <p className="mb-2 text-xs font-medium text-slate-700">Report being sent</p>

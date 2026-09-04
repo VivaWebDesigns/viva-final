@@ -19,6 +19,7 @@ import {
   confirmManualScanReportEmail,
   getScanReportEmailPreview,
   prepareManualScanReportEmail,
+  saveScanReportEmailTemplate,
 } from "../../server/features/crm/scanReportEmail";
 
 function rows(values: unknown[]) {
@@ -130,5 +131,33 @@ describe("manual Gmail report workflow", () => {
     expect(preview.message).toContain("You’ll see a few local companies we’ve turned around from maps that looked a lot like yours");
     expect(preview.message).not.toContain("the scan below");
     expect(preview.message).not.toContain("Just reply here");
+  });
+
+  it("saves permanent edits under the same template letter with dynamic lead details", async () => {
+    mocks.select
+      .mockReturnValueOnce(rows([record]))
+      .mockReturnValueOnce(rows([]))
+      .mockReturnValueOnce(rows([record]))
+      .mockReturnValueOnce(rows([]));
+    const preview = await saveScanReportEmailTemplate({
+      leadId: "lead-1",
+      reportId: "report-1",
+      templateKey: "A",
+      subject: "Visibility for Acme",
+      preheader: "Roofing results for Acme",
+      message: "Acme can improve for roofing.",
+      imagePlacement: "after_message",
+      actorId: "rep-1",
+      actorEmail: "rep@vivawebdesigns.com",
+    });
+    const saved = mocks.insertValues.mock.calls.find(([table]) => getTableName(table) === "scan_report_email_templates")?.[1];
+    expect(saved).toMatchObject({
+      templateKey: "A",
+      variant: "initial_en",
+      subject: "Visibility for {{business_name}}",
+      message: "{{business_name}} can improve for {{search_phrase}}.",
+      imagePlacement: "after_message",
+    });
+    expect(preview.selectedTemplateKey).toBe("A");
   });
 });

@@ -69,6 +69,7 @@ import {
   getScanReportEmailPreview,
   prepareManualScanReportEmail,
   prepareScanReportShare,
+  saveScanReportEmailTemplate,
 } from "./scanReportEmail";
 
 async function cascadeCompanyNameToTitles(companyId: string, oldName: string, newName: string) {
@@ -190,6 +191,14 @@ const scanReportEmailSchema = z.object({
 const confirmManualScanReportEmailSchema = scanReportEmailSchema.extend({
   confirmed: z.literal(true),
 });
+const saveScanReportEmailTemplateSchema = z.object({
+  reportId: z.string().min(1),
+  templateKey: z.string().trim().regex(/^[A-Z]$/),
+  subject: z.string().trim().min(1).max(200),
+  preheader: z.string().trim().min(1).max(200),
+  message: z.string().trim().min(1).max(5_000),
+  imagePlacement: z.enum(["after_intro", "after_message"]),
+}).strict();
 
 const router = Router();
 
@@ -1078,6 +1087,31 @@ router.post("/leads/:id/scan-report-share", requireRole("admin", "developer", "s
       ipAddress: req.ip,
     });
     res.json(result);
+  } catch (error: any) {
+    res.status(error?.statusCode ?? 400).json({ message: error.message });
+  }
+});
+
+router.put("/leads/:id/scan-report-email-template", requireRole("admin", "developer"), async (req, res) => {
+  try {
+    const leadId = req.params.id as string;
+    if (!(await assertLeadAccess(req, res, leadId))) return;
+    const input = saveScanReportEmailTemplateSchema.parse(req.body);
+    const preview = await saveScanReportEmailTemplate({
+      leadId,
+      ...input,
+      actorId: req.authUser!.id,
+      actorEmail: req.authUser!.email,
+    });
+    await logAudit({
+      userId: req.authUser!.id,
+      action: "scan_report_email_template_updated",
+      entity: "scan_report_email_template",
+      entityId: `${input.templateKey}:${preview.templateVariant}`,
+      metadata: { templateKey: input.templateKey, variant: preview.templateVariant },
+      ipAddress: req.ip,
+    });
+    res.json({ message: `Template ${input.templateKey} saved`, preview });
   } catch (error: any) {
     res.status(error?.statusCode ?? 400).json({ message: error.message });
   }

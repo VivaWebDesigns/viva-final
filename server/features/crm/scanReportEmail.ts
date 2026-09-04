@@ -9,6 +9,7 @@ import {
   crmLeads,
   localFalconProspectProfiles,
   scanReportDeliveries,
+  scanReportEmailTemplates,
   scanReportShares,
 } from "@shared/schema";
 import { db } from "../../db";
@@ -32,6 +33,7 @@ export interface ScanReportEmailTemplateOption {
   subject: string;
   preheader: string;
   message: string;
+  imagePlacement: "after_intro" | "after_message";
 }
 
 export interface ScanReportEmailPreview {
@@ -42,12 +44,29 @@ export interface ScanReportEmailPreview {
   subject: string;
   preheader: string;
   message: string;
+  imagePlacement: "after_intro" | "after_message";
   businessName: string;
   snapshotPreviewUrl: string;
   sentCount: number;
   blockedReason: string | null;
   selectedTemplateKey: string;
+  templateVariant: string;
   templates: ScanReportEmailTemplateOption[];
+}
+
+interface ScanReportTemplateContext {
+  businessName: string;
+  searchPhrase: string;
+  greeting: string;
+}
+
+interface ScanReportTemplateSource {
+  key: string;
+  name: string;
+  subject: string;
+  preheader: string;
+  message: string;
+  imagePlacement: "after_intro" | "after_message";
 }
 
 interface ManualScanReportInput {
@@ -81,6 +100,54 @@ export function scanReportSenderEmail(): string {
 
 function actorReplyTo(actorEmail: string): string {
   return /@vivawebdesigns\.com$/i.test(actorEmail) ? actorEmail : scanReportSenderEmail();
+}
+
+function reportEmailTemplateVariant(sentCount: number, spanish: boolean): string {
+  return `${sentCount === 1 ? "followup" : "initial"}_${spanish ? "es" : "en"}`;
+}
+
+function defaultTemplateSource(variant: string): ScanReportTemplateSource {
+  const followup = variant.startsWith("followup_");
+  const spanish = variant.endsWith("_es");
+  const subject = followup
+    ? (spanish ? "Seguimiento: {{business_name}} en Google Maps" : "Your Google Maps visibility report — {{business_name}}")
+    : (spanish ? "Así aparece {{business_name}} en Google Maps" : "Google Maps issues");
+  const preheader = spanish ? "Tu análisis de Google Maps" : DEFAULT_SCAN_REPORT_PREHEADER;
+  const message = followup
+    ? (spanish
+      ? `Hola{{greeting}},\n\nQuería dar seguimiento al análisis de visibilidad de {{business_name}} que te envié. El informe muestra cómo aparece tu negocio en distintas zonas para “{{search_phrase}}”.\n\nIncluyo el mismo informe para que puedas revisarlo. ¿Te gustaría que te explique los resultados en una breve llamada?\n\nMatt`
+      : `Following up on the visibility report I sent for {{business_name}}. It shows how your business appears across nearby searches for “{{search_phrase}}”.\n\nI’ve included the same report so it’s easy to revisit. Would a quick walkthrough of the results be useful?\n\nMatt`)
+    : spanish
+    ? `Hola{{greeting}},\n\nPreparamos este análisis de visibilidad local para mostrar cómo aparece {{business_name}} en Google Maps cuando los clientes buscan “{{search_phrase}}”.\n\nSi deseas, puedo explicarte lo que muestran los resultados y las oportunidades que encontramos.`
+    : `I’m Matt with Viva Web Designs here in Charlotte.\n\nI came across {{business_name}} and ran a scan to see how the company appears on Google when people nearby search for “{{search_phrase}}”.\n\nI found some pretty significant visibility gaps, so I thought you’d want to see the actual data.\n\nIf you’ve ever wondered why Google isn’t bringing in more calls, the scan above gives you a pretty good idea of what’s happening.\n\nIf this looks like something worth fixing, everything’s below. Take a look.\n\nYou’ll see a few local companies we’ve turned around from maps that looked a lot like yours, plus a link to grab a quick call where I can dig into what’s actually behind your visibility.\n\nMatt`;
+  return {
+    key: DEFAULT_SCAN_REPORT_TEMPLATE_KEY,
+    name: "Current outreach",
+    subject,
+    preheader,
+    message,
+    imagePlacement: "after_intro",
+  };
+}
+
+function renderTemplateValue(value: string, context: ScanReportTemplateContext): string {
+  return value
+    .replaceAll("{{business_name}}", context.businessName)
+    .replaceAll("{{search_phrase}}", context.searchPhrase)
+    .replaceAll("{{greeting}}", context.greeting);
+}
+
+function templateSourceValue(value: string, context: ScanReportTemplateContext): string {
+  let source = value;
+  const replacements = [
+    [context.businessName, "{{business_name}}"],
+    [context.searchPhrase, "{{search_phrase}}"],
+    [context.greeting, "{{greeting}}"],
+  ] as const;
+  for (const [rendered, token] of replacements) {
+    if (rendered) source = source.replaceAll(rendered, token);
+  }
+  return source;
 }
 
 async function loadReport(leadId: string, reportId: string) {
@@ -155,24 +222,36 @@ export async function getScanReportEmailPreview(
   const businessName = record.report.companyName || record.company?.name || record.lead.title;
   const recipient = record.contact?.email?.trim() || record.company?.email?.trim() || "";
   const greeting = firstName ? ` ${firstName}` : "";
-  const subject = outreach.reportEmailCount === 1 ? (spanish ? `Seguimiento: ${businessName} en Google Maps` : `Your Google Maps visibility report — ${businessName}`) : spanish
-    ? `Así aparece ${businessName} en Google Maps`
-    : "Google Maps issues";
-  const preheader = spanish ? "Tu análisis de Google Maps" : DEFAULT_SCAN_REPORT_PREHEADER;
-  const message = outreach.reportEmailCount === 1
-    ? (spanish
-      ? `Hola${greeting},\n\nQuería dar seguimiento al análisis de visibilidad de ${businessName} que te envié. El informe muestra cómo aparece tu negocio en distintas zonas para “${record.report.scanKeyword}”.\n\nIncluyo el mismo informe para que puedas revisarlo. ¿Te gustaría que te explique los resultados en una breve llamada?\n\nMatt`
-      : `Following up on the visibility report I sent for ${businessName}. It shows how your business appears across nearby searches for “${record.report.scanKeyword}”.\n\nI’ve included the same report so it’s easy to revisit. Would a quick walkthrough of the results be useful?\n\nMatt`)
-    : spanish
-    ? `Hola${greeting},\n\nPreparamos este análisis de visibilidad local para mostrar cómo aparece ${businessName} en Google Maps cuando los clientes buscan “${record.report.scanKeyword}”.\n\nSi deseas, puedo explicarte lo que muestran los resultados y las oportunidades que encontramos.`
-    : `I’m Matt with Viva Web Designs here in Charlotte.\n\nI came across ${businessName} and ran a scan to see how the company appears on Google when people nearby search for “${record.report.scanKeyword}”.\n\nI found some pretty significant visibility gaps, so I thought you’d want to see the actual data.\n\nIf you’ve ever wondered why Google isn’t bringing in more calls, the scan above gives you a pretty good idea of what’s happening.\n\nIf this looks like something worth fixing, everything’s below. Take a look.\n\nYou’ll see a few local companies we’ve turned around from maps that looked a lot like yours, plus a link to grab a quick call where I can dig into what’s actually behind your visibility.\n\nMatt`;
-  const templates: ScanReportEmailTemplateOption[] = [{
-    key: DEFAULT_SCAN_REPORT_TEMPLATE_KEY,
-    name: "Current outreach",
-    subject,
-    preheader,
-    message,
-  }];
+  const variant = reportEmailTemplateVariant(outreach.reportEmailCount, spanish);
+  const context: ScanReportTemplateContext = {
+    businessName,
+    searchPhrase: record.report.scanKeyword,
+    greeting,
+  };
+  const savedTemplates = await db.select().from(scanReportEmailTemplates)
+    .where(eq(scanReportEmailTemplates.variant, variant));
+  const sources = new Map<string, ScanReportTemplateSource>();
+  const fallback = defaultTemplateSource(variant);
+  sources.set(fallback.key, fallback);
+  for (const saved of savedTemplates) {
+    sources.set(saved.templateKey, {
+      key: saved.templateKey,
+      name: saved.name,
+      subject: saved.subject,
+      preheader: saved.preheader,
+      message: saved.message,
+      imagePlacement: saved.imagePlacement === "after_message" ? "after_message" : "after_intro",
+    });
+  }
+  const templates: ScanReportEmailTemplateOption[] = [...sources.values()]
+    .sort((a, b) => a.key.localeCompare(b.key))
+    .map(template => ({
+      ...template,
+      subject: renderTemplateValue(template.subject, context),
+      preheader: renderTemplateValue(template.preheader, context),
+      message: renderTemplateValue(template.message, context),
+    }));
+  const selected = (templates.find(template => template.key === DEFAULT_SCAN_REPORT_TEMPLATE_KEY) ?? templates[0])!;
   return {
     reportId,
     sentCount: outreach.reportEmailCount,
@@ -180,14 +259,70 @@ export async function getScanReportEmailPreview(
     recipient,
     from: formatEmailSender(scanReportSenderEmail()),
     replyTo: actorReplyTo(actorEmail),
-    subject,
-    preheader,
-    message,
-    selectedTemplateKey: DEFAULT_SCAN_REPORT_TEMPLATE_KEY,
+    subject: selected.subject,
+    preheader: selected.preheader,
+    message: selected.message,
+    imagePlacement: selected.imagePlacement,
+    selectedTemplateKey: selected.key,
+    templateVariant: variant,
     templates,
     businessName,
     snapshotPreviewUrl: `/api/local-visibility/reports/${encodeURIComponent(reportId)}/snapshot-file`,
   };
+}
+
+export async function saveScanReportEmailTemplate(input: {
+  leadId: string;
+  reportId: string;
+  templateKey: string;
+  subject: string;
+  preheader: string;
+  message: string;
+  imagePlacement: "after_intro" | "after_message";
+  actorId: string;
+  actorEmail: string;
+}) {
+  const record = await loadReport(input.leadId, input.reportId);
+  const outreach = await getReportOutreachState(input.leadId);
+  const spanish = (record.contact?.preferredLanguage ?? record.company?.preferredLanguage) === "es";
+  const firstName = record.contact?.firstName?.trim();
+  const businessName = record.report.companyName || record.company?.name || record.lead.title;
+  const variant = reportEmailTemplateVariant(outreach.reportEmailCount, spanish);
+  const context: ScanReportTemplateContext = {
+    businessName,
+    searchPhrase: record.report.scanKeyword,
+    greeting: firstName ? ` ${firstName}` : "",
+  };
+  const fallback = defaultTemplateSource(variant);
+  const [existing] = await db.select().from(scanReportEmailTemplates).where(and(
+    eq(scanReportEmailTemplates.templateKey, input.templateKey),
+    eq(scanReportEmailTemplates.variant, variant),
+  )).limit(1);
+  if (!existing && input.templateKey !== fallback.key) {
+    throw Object.assign(new Error("That email template is no longer available."), { statusCode: 404 });
+  }
+  const name = existing?.name ?? fallback.name;
+  await db.insert(scanReportEmailTemplates).values({
+    templateKey: input.templateKey,
+    variant,
+    name,
+    subject: templateSourceValue(input.subject, context),
+    preheader: templateSourceValue(input.preheader, context),
+    message: templateSourceValue(input.message, context),
+    imagePlacement: input.imagePlacement,
+    updatedBy: input.actorId,
+  }).onConflictDoUpdate({
+    target: [scanReportEmailTemplates.templateKey, scanReportEmailTemplates.variant],
+    set: {
+      subject: templateSourceValue(input.subject, context),
+      preheader: templateSourceValue(input.preheader, context),
+      message: templateSourceValue(input.message, context),
+      imagePlacement: input.imagePlacement,
+      updatedBy: input.actorId,
+      updatedAt: new Date(),
+    },
+  });
+  return getScanReportEmailPreview(input.leadId, input.reportId, input.actorEmail);
 }
 
 export function buildScanReportEmailHtml(input: {

@@ -604,6 +604,22 @@ export const scanReportDeliveries = pgTable("scan_report_deliveries", {
   index("scan_report_delivery_status_idx").on(t.status),
 ]);
 
+export const scanReportEmailTemplates = pgTable("scan_report_email_templates", {
+  templateKey: text("template_key").notNull(),
+  variant: text("variant").notNull(),
+  name: text("name").notNull(),
+  subject: text("subject").notNull(),
+  preheader: text("preheader").notNull(),
+  message: text("message").notNull(),
+  imagePlacement: text("image_placement").notNull().default("after_intro"),
+  updatedBy: text("updated_by").references(() => user.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (t) => [
+  primaryKey({ columns: [t.templateKey, t.variant] }),
+  index("scan_report_email_template_variant_idx").on(t.variant),
+]);
+
 export const scanReportShares = pgTable("scan_report_shares", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   reportId: varchar("report_id").notNull().unique().references(() => localFalconProspectProfiles.id, { onDelete: "cascade" }),

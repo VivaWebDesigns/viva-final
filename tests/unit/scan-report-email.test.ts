@@ -57,7 +57,7 @@ describe("scan report email template", () => {
     const source = await import("node:fs/promises").then(fs => fs.readFile("server/features/crm/scanReportEmail.ts", "utf8"));
     expect(source).toContain(': `I’m Matt with Viva Web Designs here in Charlotte.');
     expect(source).not.toContain(': `Hi,\\n\\nI’m Matt with Viva Web Designs here in Charlotte.');
-    expect(source).toContain(': `Following up on the visibility report I sent for ${businessName}.');
+    expect(source).toContain(': `Following up on the visibility report I sent for {{business_name}}.');
     expect(source).not.toContain(': `Hi${greeting},\\n\\nFollowing up on the visibility report');
   });
 
