@@ -57,5 +57,9 @@ describe("privacy policy contract", () => {
     expect(policySource).toContain("We do not load Google Analytics on scan-report pages.");
     expect(policySource).toContain("Report Engagement Data");
     expect(policySource).toContain("first-party event recording");
+
+    const modalSource = readSource("client/src/components/PrivacyPolicyModal.tsx");
+    expect(modalSource).toContain("Report Engagement Data");
+    expect(modalSource).toContain("first-party event recording");
   });
 });

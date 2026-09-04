@@ -19,7 +19,7 @@ export function PrivacyPolicyContent({ standalone = false }: { standalone?: bool
   const company = "Viva Web Designs LLC";
   const email = "matt@vivawebdesigns.com";
   const phone = "(704) 222-7067";
-  const effective = "August 15, 2026";
+  const effective = "September 4, 2026";
   const Heading = standalone ? "h1" : "h2";
 
   return (
@@ -40,6 +40,7 @@ export function PrivacyPolicyContent({ standalone = false }: { standalone?: bool
           <li><strong>Usage Data:</strong> IP address, browser type, pages visited, and time spent on our website, collected automatically via cookies and analytics tools.</li>
           <li><strong>Communications:</strong> Messages you send us via contact forms, email, or SMS.</li>
           <li><strong>Business Information:</strong> Trade, city, and service interests you share when inquiring about our services.</li>
+          <li><strong>Report Engagement Data:</strong> Whether a personalized scan-report page counted as an engaged view and which report-page action buttons were selected.</li>
         </ul>
       </PolicySection>
 
@@ -78,6 +79,9 @@ export function PrivacyPolicyContent({ standalone = false }: { standalone?: bool
       <PolicySection title="5. Cookies and Tracking Technologies">
         <p>
           Our website uses cookies and similar tracking technologies to enhance your browsing experience, analyze site traffic, and understand how visitors interact with our content. You can instruct your browser to refuse all cookies or to indicate when a cookie is being sent. However, some features of our website may not function properly without cookies.
+        </p>
+        <p>
+          Scan-report pages use first-party event recording to save engaged views and selected report actions in the associated CRM record.
         </p>
       </PolicySection>
 

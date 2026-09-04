@@ -222,7 +222,7 @@ export function buildScanReportLandingPage(input: {
       .report-card{margin-top:28px;padding:12px;border:1px solid var(--line);border-radius:14px;background:#fff;box-shadow:0 20px 55px rgba(6,26,61,.1)}.report-card img{display:block;width:100%;height:auto;border-radius:9px}
       .action-card{margin-top:28px;padding:30px;border:1px solid var(--line);border-radius:14px;background:#fff;text-align:center}.action-card h2{margin:0;color:var(--navy);font-size:clamp(24px,4vw,34px)}.action-card>p{max-width:650px;margin:12px auto 0;color:var(--muted)}
       .actions{display:grid;gap:12px;margin-top:24px}.actions form{margin:0}.button{display:flex;width:100%;min-height:50px;align-items:center;justify-content:center;padding:12px 18px;border:1px solid var(--blue);border-radius:7px;background:#fff;color:var(--blue);cursor:pointer;font:inherit;font-weight:800;text-decoration:none}.button:hover{transform:translateY(-1px);box-shadow:0 8px 22px rgba(6,26,61,.12)}.button-primary{border-color:var(--teal);background:var(--teal);color:#fff}
-      .another-scan{margin-top:24px;padding:24px;border:1px solid #cfe2ea;border-radius:10px;background:#f2f9fb}.another-scan h3{margin:0;color:var(--navy);font-size:21px}.another-scan p{max-width:650px;margin:8px auto 0;color:var(--muted)}.another-scan .button{width:auto;max-width:320px;margin:17px auto 0;padding-inline:26px}.privacy{margin:18px 0 0;color:#7a8493;font-size:12px}.privacy a{text-decoration:underline}.footer{padding:24px 0;border-top:1px solid var(--line);color:#697486;font-size:13px;text-align:center}
+      .another-scan{margin-top:24px;padding:24px;border:1px solid #cfe2ea;border-radius:10px;background:#f2f9fb}.another-scan h3{margin:0;color:var(--navy);font-size:21px}.another-scan p{max-width:650px;margin:8px auto 0;color:var(--muted)}.another-scan .button{width:auto;max-width:320px;margin:17px auto 0;padding-inline:26px}.footer{padding:24px 0;border-top:1px solid var(--line);color:#697486;font-size:13px;text-align:center}.footer a{text-decoration:underline}
       @media(min-width:700px){main{padding-top:54px}.actions{grid-template-columns:repeat(3,minmax(0,1fr))}.report-card{padding:18px}.action-card{padding:38px}}
     </style>
   </head>
@@ -250,10 +250,9 @@ export function buildScanReportLandingPage(input: {
           <p>See how your company ranks for another service or search phrase. No cost, no obligation, and no sales call required.</p>
           <a class="button tracked-link" href="${escapeHtml(scanHref)}" data-cta="another_scan">Check Another Service</a>
         </div>
-        <p class="privacy">Engaged views and action selections may be recorded in our CRM. This page does not load Google Analytics. See our <a href="/privacy-policy">Privacy Policy</a>.</p>
       </section>
     </main>
-    <footer class="footer"><div class="shell">&copy; 2026 Viva Web Designs LLC &middot; Charlotte, North Carolina</div></footer>
+    <footer class="footer"><div class="shell">&copy; 2026 Viva Web Designs LLC &middot; Charlotte, North Carolina &middot; <a href="/privacy-policy">Privacy Policy</a></div></footer>
     <script>
       (function(){
         var viewEndpoint=${JSON.stringify(`${eventPath}/view`)};

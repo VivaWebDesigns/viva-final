@@ -69,8 +69,9 @@ describe("public scan report access", () => {
     expect(html).toContain("No cost, no obligation, and no sales call required.");
     expect(html).toContain("Check Another Service");
     expect(html).toContain("Acme &lt;Roofing&gt;");
-    expect(html).toContain("Engaged views and action selections may be recorded in our CRM");
-    expect(html).toContain("This page does not load Google Analytics");
+    expect(html).not.toContain("Engaged views and action selections may be recorded in our CRM");
+    expect(html).not.toContain("This page does not load Google Analytics");
+    expect(html).toContain('Charlotte, North Carolina &middot; <a href="/privacy-policy">Privacy Policy</a>');
     expect(html).not.toContain("utm_");
     expect(html).toContain(`/scan-report/${"a".repeat(43)}/events/view`);
     expect(html).toContain(`/scan-report/${"a".repeat(43)}/events/cta`);
