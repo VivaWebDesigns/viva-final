@@ -29,7 +29,7 @@ describe("scan report email template", () => {
     expect(html).toContain('width="600"');
     expect(html).toContain('href="https://vivawebdesigns.com/scan-report/secure-token"');
     expect(html.match(/https:\/\/vivawebdesigns\.com\/scan-report\/secure-token/g)).toHaveLength(1);
-    expect(html).toContain(">View the full report here.</a>");
+    expect(html).toContain(">Learn more</a>");
     expect(html).not.toContain('<a href="https://vivawebdesigns.com/scan-report/secure-token" target="_blank" style="text-decoration:none;">');
     expect(html).not.toContain('background:#0f766e;color:#ffffff;padding:22px 28px');
     expect(html).toContain('src="https://reports.vivawebdesigns.com/scans/report/abc.png"');
@@ -106,7 +106,7 @@ describe("scan report email template", () => {
     );
 
     expect(body).toContain("I’m Matt with Viva Web Designs.");
-    expect(body).toContain("View the full report here: https://vivawebdesigns.com/scan-report/secure-token");
+    expect(body).toContain("Learn more: https://vivawebdesigns.com/scan-report/secure-token");
     expect(body).toContain("227 W 4th St, 1st Floor #3127, Charlotte, NC 28202");
     expect(body).toContain("reply “no thanks.”");
     expect(body).not.toContain("<!doctype html>");
@@ -119,8 +119,8 @@ describe("scan report email template", () => {
       "https://vivawebdesigns.com/scan-report/secure-token",
     );
 
-    expect(html).toContain('<a href="https://vivawebdesigns.com/scan-report/secure-token">View the full report here</a>');
-    expect(html).not.toContain("View the full report here: https://");
+    expect(html).toContain('<a href="https://vivawebdesigns.com/scan-report/secure-token">Learn more</a>');
+    expect(html).not.toContain("Learn more: https://");
     expect(html).not.toContain("<!doctype html>");
   });
 

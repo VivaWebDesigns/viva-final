@@ -61,7 +61,7 @@ describe("manual Gmail report workflow", () => {
     const result = await prepareManualScanReportEmail(input);
     expect(result.gmailComposeUrl).toContain("mail.google.com/mail/");
     expect(result.gmailComposeUrl).not.toContain("body=");
-    expect(result.formattedHtml).toContain(">View the full report here</a>");
+    expect(result.formattedHtml).toContain(">Learn more</a>");
     expect(result.landingUrl).toContain("/scan-report/");
     expect(mocks.transaction).not.toHaveBeenCalled();
     expect(mocks.insert.mock.calls.map(([table]) => getTableName(table))).toEqual(["scan_report_shares"]);

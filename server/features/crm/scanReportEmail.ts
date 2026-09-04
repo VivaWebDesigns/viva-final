@@ -341,7 +341,7 @@ export function buildScanReportEmailHtml(input: {
   const remainingHtml = insertAfterIntro ? paragraphHtml.slice(2).join("<br /><br />") : "";
   const imageRow = `<tr><td align="center" style="padding:0 20px 24px;">
         <img src="${escapeHtml(input.imageUrl)}" alt="Google Maps visibility scan for ${escapeHtml(input.businessName)}" width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0;border-radius:8px;" />
-        <div style="padding-top:12px;font-size:15px;line-height:1.5;"><a href="${escapeHtml(input.landingUrl)}" target="_blank" style="color:#0f659e;text-decoration:underline;">View the full report here.</a></div>
+        <div style="padding-top:12px;font-size:15px;line-height:1.5;"><a href="${escapeHtml(input.landingUrl)}" target="_blank" style="color:#0f659e;text-decoration:underline;">Learn more</a></div>
       </td></tr>`;
   return `<!doctype html>
 <html><body style="margin:0;background:#f5f7fa;color:#172033;font-family:Arial,sans-serif;">
@@ -361,14 +361,14 @@ export function buildScanReportEmailHtml(input: {
 }
 
 export function buildManualGmailBody(message: string, landingUrl: string): string {
-  return `${message.trim()}\n\nView the full report here: ${landingUrl}\n\nViva Web Designs · ${POSTAL_ADDRESS}\nIf you’d rather not receive another email from me, just reply “no thanks.”`;
+  return `${message.trim()}\n\nLearn more: ${landingUrl}\n\nViva Web Designs · ${POSTAL_ADDRESS}\nIf you’d rather not receive another email from me, just reply “no thanks.”`;
 }
 
 export function buildManualGmailHtml(message: string, landingUrl: string): string {
   const paragraphs = message.trim().split(/\r?\n\s*\r?\n/)
     .map((paragraph) => `<div>${escapeHtml(paragraph).replace(/\r?\n/g, "<br>")}</div>`)
     .join("<br>");
-  return `${paragraphs}<br><div><a href="${escapeHtml(landingUrl)}">View the full report here</a></div><br><div>Viva Web Designs · ${POSTAL_ADDRESS}<br>If you’d rather not receive another email from me, just reply “no thanks.”</div>`;
+  return `${paragraphs}<br><div><a href="${escapeHtml(landingUrl)}">Learn more</a></div><br><div>Viva Web Designs · ${POSTAL_ADDRESS}<br>If you’d rather not receive another email from me, just reply “no thanks.”</div>`;
 }
 
 export function buildGmailComposeUrl(input: {
