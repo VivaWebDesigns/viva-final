@@ -105,4 +105,12 @@ describe("manual Gmail report workflow", () => {
     expect(preview.message).toContain("same report");
     expect(preview.blockedReason).toBeNull();
   });
+
+  it("includes the scanned search phrase in the initial outreach draft", async () => {
+    mocks.select.mockReturnValueOnce(rows([record]));
+    const preview = await getScanReportEmailPreview("lead-1", "report-1", input.actorEmail);
+    expect(preview.message).toContain(
+      "I came across Acme and ran a scan to see how the company appears on Google when people nearby search for “roofing”.",
+    );
+  });
 });
