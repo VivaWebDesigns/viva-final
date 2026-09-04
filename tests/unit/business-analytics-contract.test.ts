@@ -28,6 +28,7 @@ describe("business analytics admin contract", () => {
     expect(serverRoutes).toContain('router.get("/report-outreach"');
     expect(storage).toContain("getReportOutreachAnalytics");
     expect(storage).toContain("reportOutreachDisposition");
+    expect(storage).toContain("isNotNull(scanReportDeliveries.templateKey)");
   });
 
   it("keeps Google credentials server-side", () => {

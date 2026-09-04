@@ -157,7 +157,11 @@ export async function getReportOutreachAnalytics(days: number) {
   }).from(scanReportDeliveries)
     .innerJoin(crmLeads, eq(scanReportDeliveries.leadId, crmLeads.id))
     .leftJoin(crmCompanies, eq(crmLeads.companyId, crmCompanies.id))
-    .where(and(isNotNull(scanReportDeliveries.sentAt), gte(scanReportDeliveries.sentAt, since)))
+    .where(and(
+      isNotNull(scanReportDeliveries.sentAt),
+      isNotNull(scanReportDeliveries.templateKey),
+      gte(scanReportDeliveries.sentAt, since),
+    ))
     .orderBy(desc(scanReportDeliveries.sentAt), desc(scanReportDeliveries.id));
 
   const deliveryIds = deliveries.map(row => row.id);
