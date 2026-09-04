@@ -3,6 +3,8 @@ import { db } from "../../db";
 import { technicalSeoScans, type TechnicalSeoScan } from "@shared/schema";
 import type { TechnicalSeoScanResult, TechnicalSeoScanStatus } from "@shared/technicalSeo";
 import { SCAN_LIMITS } from "./constants";
+import { publicScanError } from "./errors";
+import { sanitizePostgresJson } from "./sanitize";
 
 const ACTIVE_STATUSES: TechnicalSeoScanStatus[] = ["queued", "validating", "fetching", "rendering", "analyzing"];
 
@@ -101,8 +103,9 @@ export async function updateScanStage(id: string, workerId: string, status: Tech
 }
 
 export async function completeScan(id: string, workerId: string, result: TechnicalSeoScanResult) {
+  const sanitizedResult = sanitizePostgresJson(result);
   const [completed] = await db.update(technicalSeoScans).set({
-    status: "completed", stage: "completed", progress: 100, result, completedAt: new Date(), updatedAt: new Date(), workerId: null, leaseExpiresAt: null,
+    status: "completed", stage: "completed", progress: 100, result: sanitizedResult, completedAt: new Date(), updatedAt: new Date(), workerId: null, leaseExpiresAt: null,
   }).where(and(eq(technicalSeoScans.id, id), eq(technicalSeoScans.workerId, workerId), eq(technicalSeoScans.cancellationRequested, false))).returning({ id: technicalSeoScans.id });
   return !!completed;
 }
@@ -115,12 +118,13 @@ export async function cancelClaimedScan(id: string, workerId: string) {
 export async function failScan(scan: TechnicalSeoScan, workerId: string, error: Error & { code?: string }) {
   const permanent = ["UNSAFE_URL", "RESPONSE_TOO_LARGE", "TOO_MANY_REDIRECTS", "INVALID_REDIRECT"].includes(error.code ?? "");
   const retry = !permanent && scan.attemptCount < scan.maxAttempts;
+  const publicError = publicScanError(error);
   await db.update(technicalSeoScans).set({
     status: retry ? "queued" : "failed",
     stage: retry ? "retry_queued" : "failed",
     progress: retry ? 0 : scan.progress,
-    errorCode: error.code ?? "SCAN_FAILED",
-    errorMessage: error.message.slice(0, 2000),
+    errorCode: publicError.code,
+    errorMessage: publicError.message,
     completedAt: retry ? null : new Date(),
     updatedAt: new Date(), workerId: null, leaseExpiresAt: null,
   }).where(and(eq(technicalSeoScans.id, scan.id), eq(technicalSeoScans.workerId, workerId)));

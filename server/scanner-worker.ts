@@ -1,6 +1,7 @@
 import os from "node:os";
 import { claimNextScan, deleteExpiredScans, failExhaustedStaleScans, failScan } from "./features/technical-seo/repository";
 import { processTechnicalSeoScan } from "./features/technical-seo/scanner";
+import { diagnosticScanError } from "./features/technical-seo/errors";
 
 const workerId = `${os.hostname()}:${process.pid}`;
 const pollMs = Number(process.env.SCANNER_POLL_INTERVAL_MS ?? 2_000);
@@ -27,10 +28,10 @@ async function run() {
       } catch (error) {
         const normalized = error instanceof Error ? error : new Error(String(error));
         await failScan(scan, workerId, normalized);
-        console.error(`[technical-seo-worker] scan=${scan.id} failed: ${normalized.message}`);
+        console.error(`[technical-seo-worker] scan=${scan.id} failed: ${diagnosticScanError(normalized)}`);
       }
     } catch (error) {
-      console.error(`[technical-seo-worker] loop error: ${error instanceof Error ? error.message : error}`);
+      console.error(`[technical-seo-worker] loop error: ${diagnosticScanError(error)}`);
       await new Promise((resolve) => setTimeout(resolve, pollMs));
     }
   }

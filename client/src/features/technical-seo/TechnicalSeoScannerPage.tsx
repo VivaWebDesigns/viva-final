@@ -33,6 +33,12 @@ const AI_PROMPT = "Analyze this technical SEO scan as if you were reviewing evid
 
 function titleCase(value: string) { return value.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase()); }
 function formatDate(value?: string | null) { return value ? new Date(value).toLocaleString() : "—"; }
+function displayScanError(scan: ScanRecord): string {
+  const fallback = "The scan could not be completed. Please retry. If this continues, contact support.";
+  const message = scan.errorMessage?.trim();
+  if (!message || message.startsWith("Failed query:") || message.length > 500) return fallback;
+  return message;
+}
 
 function StatusBadge({ status }: { status: string }) {
   const className = status === "completed" ? "bg-emerald-100 text-emerald-800" : status === "failed" ? "bg-red-100 text-red-800" : status === "cancelled" ? "bg-gray-100 text-gray-700" : "bg-blue-100 text-blue-800";
@@ -127,7 +133,7 @@ export default function TechnicalSeoScannerPage({ scanId }: { scanId?: string })
 
       {scanId && !scan && <Card><CardContent className="flex items-center gap-2 py-10 text-gray-500"><Loader2 className="h-4 w-4 animate-spin" />Loading scan…</CardContent></Card>}
       {scan && ACTIVE.has(scan.status) && <Card><CardHeader><CardTitle className="flex items-center justify-between text-base"><span>Scan in progress</span><StatusBadge status={scan.status} /></CardTitle></CardHeader><CardContent><Progress value={scan.progress} /><div className="mt-3 flex items-center justify-between"><p className="text-sm text-gray-600">{titleCase(scan.stage)}</p><Button size="sm" variant="outline" onClick={() => cancelMutation.mutate()} disabled={cancelMutation.isPending || scan.cancellationRequested}>Cancel</Button></div></CardContent></Card>}
-      {scan?.status === "failed" && <Card className="border-red-200"><CardContent className="pt-6"><div className="flex gap-3"><XCircle className="h-5 w-5 text-red-600" /><div className="flex-1"><p className="font-semibold text-red-900">Scan failed</p><p className="mt-1 text-sm text-red-700">{scan.errorMessage}</p><Button className="mt-4" size="sm" variant="outline" onClick={() => retryMutation.mutate()}><RefreshCw className="mr-2 h-4 w-4" />Retry</Button></div></div></CardContent></Card>}
+      {scan?.status === "failed" && <Card className="border-red-200"><CardContent className="pt-6"><div className="flex gap-3"><XCircle className="h-5 w-5 text-red-600" /><div className="flex-1"><p className="font-semibold text-red-900">Scan failed</p><p className="mt-1 text-sm text-red-700">{displayScanError(scan)}</p><Button className="mt-4" size="sm" variant="outline" onClick={() => retryMutation.mutate()}><RefreshCw className="mr-2 h-4 w-4" />Retry</Button></div></div></CardContent></Card>}
       {scan?.status === "cancelled" && <Card><CardContent className="flex items-center justify-between pt-6"><span className="text-sm text-gray-600">This scan was cancelled.</span><Button size="sm" variant="outline" onClick={() => retryMutation.mutate()}>Retry</Button></CardContent></Card>}
 
       {result && <>
