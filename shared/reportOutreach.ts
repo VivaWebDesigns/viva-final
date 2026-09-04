@@ -42,7 +42,7 @@ export type ReportOutreachSegment = typeof REPORT_OUTREACH_SEGMENTS[number];
 
 export const REPORT_OUTREACH_SEGMENT_LABELS: Record<ReportOutreachSegment, string> = {
   not_started: "Report not sent",
-  send_email_two: "Email 2 scheduled",
+  send_email_two: "Follow-up email due",
   engaged: "Engaged — personal touch",
   awaiting_response: "Awaiting response",
   no_engagement: "No engagement",
