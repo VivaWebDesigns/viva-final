@@ -55,7 +55,7 @@ describe("privacy policy contract", () => {
     expect(policySource).toContain("children under the age of 13");
     expect(policySource).not.toContain("11. Communications");
     expect(policySource).toContain("We do not load Google Analytics on scan-report pages.");
-    expect(policySource).not.toContain("Report Usage Data");
-    expect(policySource).not.toContain("Report Engagement Data");
+    expect(policySource).toContain("Report Engagement Data");
+    expect(policySource).toContain("first-party event recording");
   });
 });

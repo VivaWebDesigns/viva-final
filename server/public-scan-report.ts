@@ -1,9 +1,12 @@
 import crypto from "node:crypto";
 import type { Express, Request, Response } from "express";
-import { eq } from "drizzle-orm";
+import { and, desc, eq, isNotNull, sql } from "drizzle-orm";
+import { z } from "zod";
 import {
+  crmLeadNotes,
   localFalconProspectProfiles,
   scanReportDeliveries,
+  scanReportEngagementEvents,
   scanReportShares,
 } from "@shared/schema";
 import { db } from "./db";
@@ -11,6 +14,16 @@ import { db } from "./db";
 const PUBLIC_SITE_URL = "https://vivawebdesigns.com";
 const REPORT_COOKIE = "viva_scan_report";
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
+const CTA_TYPES = ["schedule_call", "email_matt", "view_results", "another_scan"] as const;
+type CtaType = typeof CTA_TYPES[number];
+
+const clientEventSchema = z.object({
+  eventId: z.string().uuid(),
+});
+
+const ctaEventSchema = clientEventSchema.extend({
+  ctaType: z.enum(CTA_TYPES),
+});
 function escapeHtml(value: unknown): string {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -53,6 +66,7 @@ async function loadReportAccess(token: string) {
   if (!TOKEN_PATTERN.test(token)) return null;
   const tokenHash = hashScanReportToken(token);
   const [shared] = await db.select({
+    reportId: scanReportShares.reportId,
     imageUrl: scanReportShares.imageUrl,
     businessName: localFalconProspectProfiles.companyName,
   }).from(scanReportShares)
@@ -62,10 +76,12 @@ async function loadReportAccess(token: string) {
     )
     .where(eq(scanReportShares.publicTokenHash, tokenHash))
     .limit(1);
-  if (shared) return shared;
+  if (shared) return { ...shared, deliveryId: null as string | null };
 
-  // Preserve already-issued links without continuing recipient-level engagement tracking.
+  // Preserve already-issued delivery links while using the same first-party engagement flow.
   const [legacy] = await db.select({
+    reportId: scanReportDeliveries.reportId,
+    deliveryId: scanReportDeliveries.id,
     imageUrl: scanReportDeliveries.imageUrl,
     businessName: localFalconProspectProfiles.companyName,
   }).from(scanReportDeliveries)
@@ -78,11 +94,111 @@ async function loadReportAccess(token: string) {
   return legacy ?? null;
 }
 
+export function isLikelyAutomatedUserAgent(userAgent: string | undefined): boolean {
+  if (!userAgent) return false;
+  return /(bot|crawler|spider|preview|scanner|safelink|proofpoint|mimecast|barracuda|urlscan|virustotal|headless|phantomjs)/i.test(userAgent);
+}
+
+async function trackingDeliveryForToken(token: string) {
+  const access = await loadReportAccess(token);
+  if (!access) return null;
+  if (access.deliveryId) {
+    const [delivery] = await db.select().from(scanReportDeliveries)
+      .where(eq(scanReportDeliveries.id, access.deliveryId))
+      .limit(1);
+    return { access, delivery: delivery ?? null };
+  }
+  const [delivery] = await db.select().from(scanReportDeliveries)
+    .where(and(
+      eq(scanReportDeliveries.reportId, access.reportId),
+      isNotNull(scanReportDeliveries.sentAt),
+    ))
+    .orderBy(desc(scanReportDeliveries.sentAt), desc(scanReportDeliveries.createdAt))
+    .limit(1);
+  return { access, delivery: delivery ?? null };
+}
+
+async function recordEngagement(input: {
+  token: string;
+  clientEventId: string;
+  eventType: "report_view" | "cta_click";
+  ctaType?: CtaType;
+  automated: boolean;
+}) {
+  const resolved = await trackingDeliveryForToken(input.token);
+  if (!resolved) return false;
+  // A report link can be prepared before the manual send is confirmed. Keep the
+  // page functional, but do not attribute activity until a sent delivery exists.
+  if (!resolved.delivery) return true;
+  const delivery = resolved.delivery;
+  const now = new Date();
+
+  await db.transaction(async tx => {
+    const [event] = await tx.insert(scanReportEngagementEvents).values({
+      deliveryId: delivery.id,
+      clientEventId: input.clientEventId,
+      eventType: input.eventType,
+      ctaType: input.ctaType ?? null,
+      automated: input.automated,
+    }).onConflictDoNothing().returning({ id: scanReportEngagementEvents.id });
+    if (!event || input.automated) return;
+
+    if (input.eventType === "report_view") {
+      await tx.update(scanReportDeliveries).set({
+        viewCount: sql`${scanReportDeliveries.viewCount} + 1`,
+        firstViewedAt: delivery.firstViewedAt ?? now,
+        lastViewedAt: now,
+        updatedAt: now,
+      }).where(eq(scanReportDeliveries.id, delivery.id));
+      await tx.insert(crmLeadNotes).values({
+        leadId: delivery.leadId,
+        userId: null,
+        type: "system",
+        content: delivery.viewCount > 0 ? "Scan report engaged view recorded again" : "Scan report engaged view recorded",
+        metadata: {
+          trackingEvent: "scan_report_engaged_view",
+          deliveryId: delivery.id,
+          reportId: delivery.reportId,
+        },
+      });
+      return;
+    }
+
+    const labels: Record<CtaType, string> = {
+      schedule_call: "Schedule a Call",
+      email_matt: "Send Matt a Message",
+      view_results: "See Client Results",
+      another_scan: "Check Another Service",
+    };
+    await tx.update(scanReportDeliveries).set({
+      ctaClickCount: sql`${scanReportDeliveries.ctaClickCount} + 1`,
+      firstCtaClickedAt: delivery.firstCtaClickedAt ?? now,
+      lastCtaClickedAt: now,
+      updatedAt: now,
+    }).where(eq(scanReportDeliveries.id, delivery.id));
+    await tx.insert(crmLeadNotes).values({
+      leadId: delivery.leadId,
+      userId: null,
+      type: "system",
+      content: `Scan report action clicked: ${labels[input.ctaType!]}`,
+      metadata: {
+        trackingEvent: "scan_report_cta_click",
+        ctaType: input.ctaType,
+        deliveryId: delivery.id,
+        reportId: delivery.reportId,
+      },
+    });
+  });
+  return true;
+}
+
 export function buildScanReportLandingPage(input: {
+  token: string;
   imageUrl: string;
   businessName?: string | null;
 }): string {
   const businessName = input.businessName?.trim() || "your business";
+  const eventPath = `/scan-report/${encodeURIComponent(input.token)}/events`;
   const scheduleHref = "https://calendly.com/vivawebdesigns/new-meeting";
   const contactHref = `${PUBLIC_SITE_URL}/contact#contact-form`;
   const resultsHref = `${PUBLIC_SITE_URL}/results`;
@@ -125,19 +241,52 @@ export function buildScanReportLandingPage(input: {
         <h2>Want to understand what the scan means?</h2>
         <p>Matt can walk through the weak areas, explain who Google is ranking ahead of you and outline the most practical next step.</p>
         <div class="actions">
-          <a class="button button-primary" href="${scheduleHref}">Schedule a Call</a>
-          <a class="button" href="${escapeHtml(contactHref)}">Send Matt a Message</a>
-          <a class="button" href="${resultsHref}">See Client Results</a>
+          <a class="button button-primary tracked-link" href="${scheduleHref}" data-cta="schedule_call">Schedule a Call</a>
+          <a class="button tracked-link" href="${escapeHtml(contactHref)}" data-cta="email_matt">Send Matt a Message</a>
+          <a class="button tracked-link" href="${resultsHref}" data-cta="view_results">See Client Results</a>
         </div>
         <div class="another-scan">
           <h3>Want to Check Another Service for Free?</h3>
           <p>See how your company ranks for another service or search phrase. No cost, no obligation, and no sales call required.</p>
-          <a class="button" href="${escapeHtml(scanHref)}">Check Another Service</a>
+          <a class="button tracked-link" href="${escapeHtml(scanHref)}" data-cta="another_scan">Check Another Service</a>
         </div>
-        <p class="privacy">This report page does not load Google Analytics or record report views or action selections in the CRM. See our <a href="/privacy-policy">Privacy Policy</a>.</p>
+        <p class="privacy">Engaged views and action selections may be recorded in our CRM. This page does not load Google Analytics. See our <a href="/privacy-policy">Privacy Policy</a>.</p>
       </section>
     </main>
     <footer class="footer"><div class="shell">&copy; 2026 Viva Web Designs LLC &middot; Charlotte, North Carolina</div></footer>
+    <script>
+      (function(){
+        var viewEndpoint=${JSON.stringify(`${eventPath}/view`)};
+        var ctaEndpoint=${JSON.stringify(`${eventPath}/cta`)};
+        var viewKey=${JSON.stringify(`viva_scan_report_engaged:${input.token}`)};
+        var viewTimer=null;
+        var viewRecorded=false;
+        function eventId(){return self.crypto&&crypto.randomUUID?crypto.randomUUID():"xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g,function(c){var r=Math.random()*16|0;return(c==="x"?r:(r&3|8)).toString(16)});}
+        function beacon(url,data){
+          var body=new URLSearchParams(data).toString();
+          if(navigator.sendBeacon&&navigator.sendBeacon(url,new Blob([body],{type:"application/x-www-form-urlencoded;charset=UTF-8"})))return;
+          fetch(url,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:body,keepalive:true,credentials:"same-origin"}).catch(function(){});
+        }
+        function alreadyRecorded(){try{return sessionStorage.getItem(viewKey)==="1";}catch(_){return false;}}
+        function recordEngagedView(){
+          viewTimer=null;
+          if(viewRecorded||alreadyRecorded()||document.visibilityState!=="visible")return;
+          viewRecorded=true;
+          try{sessionStorage.setItem(viewKey,"1");}catch(_){}
+          beacon(viewEndpoint,{eventId:eventId()});
+        }
+        function armViewTimer(){
+          if(viewTimer){clearTimeout(viewTimer);viewTimer=null;}
+          if(!viewRecorded&&!alreadyRecorded()&&document.visibilityState==="visible")viewTimer=setTimeout(recordEngagedView,4000);
+        }
+        armViewTimer();
+        document.addEventListener("visibilitychange",armViewTimer);
+        document.querySelectorAll(".tracked-link").forEach(function(link){link.addEventListener("click",function(event){
+          if(!event.isTrusted)return;
+          beacon(ctaEndpoint,{eventId:eventId(),ctaType:link.dataset.cta});
+        });});
+      })();
+    </script>
   </body>
 </html>`;
 }
@@ -163,6 +312,7 @@ export function registerPublicScanReportRoutes(app: Express) {
     });
     setReportHeaders(res);
     return res.type("html").send(buildScanReportLandingPage({
+      token,
       imageUrl: record.imageUrl,
       businessName: record.businessName,
     }));
@@ -181,6 +331,39 @@ export function registerPublicScanReportRoutes(app: Express) {
   app.get("/scan-report/:token", async (req, res, next) => {
     try {
       return await renderReport(req, res, req.params.token);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/scan-report/:token/events/view", async (req, res, next) => {
+    try {
+      if (readCookie(req, REPORT_COOKIE) !== req.params.token) return res.status(404).end();
+      const body = clientEventSchema.parse(req.body);
+      const found = await recordEngagement({
+        token: req.params.token,
+        clientEventId: body.eventId,
+        eventType: "report_view",
+        automated: isLikelyAutomatedUserAgent(req.get("user-agent")),
+      });
+      return found ? res.status(204).end() : res.status(404).end();
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/scan-report/:token/events/cta", async (req, res, next) => {
+    try {
+      if (readCookie(req, REPORT_COOKIE) !== req.params.token) return res.status(404).end();
+      const body = ctaEventSchema.parse(req.body);
+      const found = await recordEngagement({
+        token: req.params.token,
+        clientEventId: body.eventId,
+        eventType: "cta_click",
+        ctaType: body.ctaType,
+        automated: isLikelyAutomatedUserAgent(req.get("user-agent")),
+      });
+      return found ? res.status(204).end() : res.status(404).end();
     } catch (error) {
       next(error);
     }

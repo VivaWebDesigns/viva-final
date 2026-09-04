@@ -7,6 +7,7 @@ import {
   createAnonymousScanReportToken,
   createScanReportToken,
   hashScanReportToken,
+  isLikelyAutomatedUserAgent,
   scanReportLandingUrl,
 } from "../../server/public-scan-report";
 
@@ -44,8 +45,9 @@ describe("public scan report access", () => {
     expect(url.search).toBe("");
   });
 
-  it("renders a noindex report page with direct CTAs and no analytics", () => {
+  it("renders a noindex report page with first-party engaged-view and click tracking", () => {
     const html = buildScanReportLandingPage({
+      token: "a".repeat(43),
       imageUrl: "https://reports.vivawebdesigns.com/scans/report/image.png",
       businessName: "Acme <Roofing>",
     });
@@ -55,7 +57,10 @@ describe("public scan report access", () => {
     expect(html).not.toContain("G-8NL7JMJ7MT");
     expect(html).not.toContain("googletagmanager.com");
     expect(html).not.toContain("gtag(");
-    expect(html).not.toContain("data-cta=");
+    expect(html).toContain('data-cta="schedule_call"');
+    expect(html).toContain('data-cta="email_matt"');
+    expect(html).toContain('data-cta="view_results"');
+    expect(html).toContain('data-cta="another_scan"');
     expect(html).toContain('href="https://vivawebdesigns.com/contact#contact-form"');
     expect(html).toContain("Send Matt a Message");
     expect(html).not.toContain("mailto:matt@vivawebdesigns.com");
@@ -64,13 +69,21 @@ describe("public scan report access", () => {
     expect(html).toContain("No cost, no obligation, and no sales call required.");
     expect(html).toContain("Check Another Service");
     expect(html).toContain("Acme &lt;Roofing&gt;");
-    expect(html).toContain("does not load Google Analytics or record report views");
+    expect(html).toContain("Engaged views and action selections may be recorded in our CRM");
+    expect(html).toContain("This page does not load Google Analytics");
     expect(html).not.toContain("utm_");
-    expect(html).not.toContain("/events/view");
-    expect(html).not.toContain("/events/cta");
+    expect(html).toContain(`/scan-report/${"a".repeat(43)}/events/view`);
+    expect(html).toContain(`/scan-report/${"a".repeat(43)}/events/cta`);
+    expect(html).toContain("setTimeout(recordEngagedView,4000)");
+    expect(html).toContain("event.isTrusted");
     expect(html).not.toContain("/go/");
     expect(html).not.toContain("deliveryId");
     expect(html).not.toContain("lead_id");
     expect(html).not.toContain("recipient");
+  });
+
+  it("recognizes common automated link-scanner user agents", () => {
+    expect(isLikelyAutomatedUserAgent("Proofpoint URL Defense Scanner")).toBe(true);
+    expect(isLikelyAutomatedUserAgent("Mozilla/5.0 Chrome/140 Safari/537.36")).toBe(false);
   });
 });
