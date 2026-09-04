@@ -1,0 +1,87 @@
+.seo-report-shell { background: #eef2f1; margin: -1.5rem; min-height: 100vh; padding: 1.5rem; }
+.seo-report-toolbar { align-items: center; background: #fff; border: 1px solid #dfe7e5; border-radius: 14px; display: grid; gap: 1rem; grid-template-columns: 1fr auto 1fr; margin: 0 auto 1.5rem; max-width: 8.5in; padding: .8rem; position: sticky; top: .75rem; z-index: 20; }
+.seo-report-toolbar > div { text-align: center; }
+.seo-report-toolbar > div strong, .seo-report-toolbar > div span { display: block; }
+.seo-report-toolbar > div span { color: #64748b; font-size: .75rem; }
+.seo-report-toolbar > button:last-child { justify-self: end; }
+.seo-client-report-root { margin: 0 auto; width: min(100%, 8.5in); }
+.seo-report-page { background: #fff; box-shadow: 0 14px 40px rgba(15, 46, 44, .12); box-sizing: border-box; color: #17312f; display: flex; flex-direction: column; height: 11in; margin: 0 auto 1.5rem; overflow: hidden; padding: .58in .62in .42in; position: relative; width: 8.5in; }
+.seo-report-page h1, .seo-report-page h2, .seo-report-page h3, .seo-report-page p { margin-top: 0; }
+.seo-report-page-header { align-items: flex-start; border-bottom: 3px solid #15a89d; display: flex; justify-content: space-between; margin-bottom: .26in; padding-bottom: .15in; }
+.seo-report-page-header span { color: #0f8f87; font-size: 10px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+.seo-report-page-header h2 { color: #17312f; font-size: 24px; line-height: 1.08; margin: 5px 0 0; }
+.seo-report-page-header > b { color: #c8d9d6; font-size: 30px; line-height: 1; }
+.seo-report-page-footer { align-items: center; border-top: 1px solid #dce7e5; display: grid; font-size: 8px; grid-template-columns: 1fr auto 1fr; margin-top: auto; padding-top: .11in; text-transform: uppercase; }
+.seo-report-page-footer img { height: 20px; max-width: 115px; object-fit: contain; object-position: left center; }
+.seo-report-page-footer span { color: #69807d; letter-spacing: .08em; }
+.seo-report-page-footer strong { justify-self: end; }
+.seo-report-cover { background: linear-gradient(145deg, #fff 0%, #f4fbfa 58%, #e3f4f1 100%); }
+.seo-report-cover-mark img { height: auto; width: 195px; }
+.seo-report-cover-copy { margin-top: .62in; max-width: 6.6in; }
+.seo-report-cover-copy > span { color: #0d9488; font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+.seo-report-cover-copy h1 { color: #112f2c; font-size: 45px; letter-spacing: -.04em; margin: 12px 0; overflow-wrap: anywhere; }
+.seo-report-cover-copy p { color: #496360; font-size: 17px; line-height: 1.55; max-width: 5.8in; }
+.seo-report-verdict { border-left: 5px solid #0d9488; border-radius: 0 14px 14px 0; margin-top: .45in; padding: .25in .3in; }
+.seo-report-verdict.is-positive { background: #eaf8f1; border-color: #199268; }
+.seo-report-verdict.is-warning { background: #fff6de; border-color: #d49418; }
+.seo-report-verdict.is-negative { background: #fff0ef; border-color: #cf4d45; }
+.seo-report-verdict small { font-size: 9px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.seo-report-verdict h2 { font-size: 23px; margin: 8px 0; }
+.seo-report-verdict p { font-size: 12px; line-height: 1.55; margin: 0; }
+.seo-report-cover-meta { display: grid; gap: 10px; margin-top: .38in; }
+.seo-report-cover-meta div { border-bottom: 1px solid #cfe0dd; display: grid; font-size: 10px; gap: 12px; grid-template-columns: 1.05in 1fr; padding-bottom: 8px; }
+.seo-report-cover-meta span { color: #6b817f; text-transform: uppercase; }
+.seo-report-cover-meta strong { overflow-wrap: anywhere; }
+.seo-report-lede { color: #536c69; font-size: 12px; line-height: 1.55; margin-bottom: .24in; max-width: 6.5in; }
+.seo-report-status-row, .seo-report-render-grid { display: grid; gap: 10px; grid-template-columns: repeat(4, 1fr); }
+.seo-report-status-row div, .seo-report-render-grid div { background: #f3f8f7; border: 1px solid #dce9e7; border-radius: 10px; padding: 13px; }
+.seo-report-status-row span, .seo-report-render-grid span { color: #687e7b; display: block; font-size: 8px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.seo-report-status-row strong, .seo-report-render-grid strong { display: block; font-size: 15px; margin-top: 5px; text-transform: capitalize; }
+.seo-report-section-title { font-size: 16px; margin: .3in 0 .15in; }
+.seo-report-check-list { display: grid; gap: 10px; list-style: none; margin: 0; padding: 0; }
+.seo-report-check-list li { background: #f5faf9; border-radius: 8px; font-size: 11px; line-height: 1.4; padding: 12px 12px 12px 34px; position: relative; }
+.seo-report-check-list li::before { color: #0d9488; content: "✓"; font-size: 15px; font-weight: 900; left: 12px; position: absolute; top: 9px; }
+.seo-report-callout, .seo-report-note, .seo-report-scope-box { background: #eef7f6; border-radius: 11px; margin-top: .28in; padding: .18in .22in; }
+.seo-report-callout strong, .seo-report-note strong, .seo-report-scope-box strong { font-size: 11px; }
+.seo-report-callout p, .seo-report-note p, .seo-report-scope-box p { color: #496360; font-size: 10px; line-height: 1.55; margin: 7px 0 0; }
+.seo-report-signal-grid { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; }
+.seo-report-signal { border: 1px solid #dbe7e5; border-left: 4px solid #849895; border-radius: 9px; min-height: 74px; padding: 10px 12px; position: relative; }
+.seo-report-signal.is-positive { border-left-color: #199268; }
+.seo-report-signal.is-warning { border-left-color: #d49418; }
+.seo-report-signal.is-negative { border-left-color: #cf4d45; }
+.seo-report-signal span { color: #6c817e; display: block; font-size: 8px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.seo-report-signal strong { display: block; font-size: 11px; line-height: 1.35; margin-top: 5px; overflow-wrap: anywhere; padding-right: 55px; }
+.seo-report-signal small { background: #eef4f3; border-radius: 12px; font-size: 7px; font-weight: 800; padding: 4px 7px; position: absolute; right: 9px; text-transform: uppercase; top: 9px; }
+.seo-report-render-grid { margin-bottom: .25in; }
+.seo-report-pill-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.seo-report-pill-list span { background: #fff3d5; border: 1px solid #f0d594; border-radius: 20px; color: #735515; font-size: 10px; font-weight: 700; padding: 7px 11px; }
+.seo-report-empty { background: #f6f8f8; border-radius: 9px; color: #607572; font-size: 11px; padding: 14px; }
+.seo-report-fine-print { color: #718582; font-size: 9px; line-height: 1.45; margin-top: .2in; }
+.seo-report-priorities { display: grid; gap: .25in; grid-template-columns: 1.18fr 1fr; }
+.seo-report-priorities h3 { font-size: 15px; margin-bottom: 12px; }
+.seo-report-priorities article { border-bottom: 1px solid #e0e8e7; display: grid; gap: 8px; grid-template-columns: .68in 1fr; padding: 8px 0; }
+.seo-report-priorities article .inline-flex { align-self: start; font-size: 7px; justify-content: center; text-transform: uppercase; }
+.seo-report-priorities article strong { font-size: 10px; }
+.seo-report-priorities article p { color: #556d6a; font-size: 8px; line-height: 1.35; margin: 3px 0 0; }
+.seo-report-priorities ol { display: grid; gap: 7px; list-style: none; margin: 0; padding: 0; }
+.seo-report-priorities li { align-items: start; display: grid; gap: 8px; grid-template-columns: 22px 1fr; }
+.seo-report-priorities li > span { align-items: center; background: #0d9488; border-radius: 50%; color: white; display: flex; font-size: 8px; font-weight: 800; height: 20px; justify-content: center; }
+.seo-report-priorities li p { font-size: 8.5px; line-height: 1.35; margin: 1px 0 0; }
+
+@media (max-width: 900px) {
+  .seo-report-shell { margin: -1rem; padding: .75rem; }
+  .seo-report-toolbar { grid-template-columns: 1fr 1fr; position: static; }
+  .seo-report-toolbar > div { display: none; }
+  .seo-report-page { height: auto; min-height: 11in; padding: 1.5rem; width: 100%; }
+}
+
+@media print {
+  @page { margin: 0; size: Letter portrait; }
+  body { background: #fff !important; }
+  body * { visibility: hidden !important; }
+  .seo-client-report-root, .seo-client-report-root * { visibility: visible !important; }
+  .seo-report-toolbar { display: none !important; }
+  .seo-client-report-root { left: 0; margin: 0; position: absolute; top: 0; width: 8.5in; }
+  .seo-report-page { box-shadow: none; break-after: page; height: 11in; margin: 0; page-break-after: always; width: 8.5in; }
+  .seo-report-page:last-child { break-after: auto; page-break-after: auto; }
+}

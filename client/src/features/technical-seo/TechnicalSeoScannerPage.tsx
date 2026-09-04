@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { AlertTriangle, CheckCircle2, Clipboard, Clock3, ExternalLink, Loader2, RefreshCw, SearchCheck, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clipboard, Clock3, ExternalLink, FileText, Loader2, RefreshCw, SearchCheck, XCircle } from "lucide-react";
 import type { TechnicalSeoIssue, TechnicalSeoScanResult, TechnicalSeoSnapshot } from "@shared/technicalSeo";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -149,7 +149,7 @@ export default function TechnicalSeoScannerPage({ scanId }: { scanId?: string })
 
       {result && <>
         <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">{result.disclaimer}</div>
-        <div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => copy(JSON.stringify(result, null, 2), "Full scan JSON")}><Clipboard className="mr-2 h-4 w-4" />Copy Full Scan Data</Button><Button variant="outline" onClick={() => copy(`${AI_PROMPT}\n\n${JSON.stringify(compactAiEvidence(result), null, 2)}`, "AI analysis prompt")}><Clipboard className="mr-2 h-4 w-4" />Copy AI Analysis Prompt</Button><Button variant="ghost" asChild><a href={result.summary.finalUrl} target="_blank" rel="noreferrer">Open final URL <ExternalLink className="ml-2 h-4 w-4" /></a></Button></div>
+        <div className="flex flex-wrap gap-2"><Button onClick={() => navigate(`/admin/tools/technical-seo/${scanId}/report`)}><FileText className="mr-2 h-4 w-4" />Open Client Report</Button><Button variant="outline" onClick={() => copy(JSON.stringify(result, null, 2), "Full scan JSON")}><Clipboard className="mr-2 h-4 w-4" />Copy Full Scan Data</Button><Button variant="outline" onClick={() => copy(`${AI_PROMPT}\n\n${JSON.stringify(compactAiEvidence(result), null, 2)}`, "AI analysis prompt")}><Clipboard className="mr-2 h-4 w-4" />Copy AI Analysis Prompt</Button><Button variant="ghost" asChild><a href={result.summary.finalUrl} target="_blank" rel="noreferrer">Open final URL <ExternalLink className="ml-2 h-4 w-4" /></a></Button></div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <SummaryCard label="HTTP" value={result.summary.httpStatus ?? "Unavailable"} tone={result.summary.httpStatus === 200 ? "good" : "bad"} />
           <SummaryCard label="Crawlable" value={titleCase(result.summary.crawlable)} tone={result.summary.crawlable === "yes" ? "good" : result.summary.crawlable === "no" ? "bad" : "neutral"} />
