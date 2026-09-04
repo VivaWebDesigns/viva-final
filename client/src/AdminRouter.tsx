@@ -31,6 +31,7 @@ const PaymentsPage = lazy(() => import("@features/admin/pages/PaymentsPage"));
 const NotificationCenterPage = lazy(() => import("@features/notifications/NotificationCenterPage"));
 const AdminDemoBuilder = lazy(() => import("@/pages/AdminDemoBuilder"));
 const LocalVisibilityReportPage = lazy(() => import("@features/local-visibility-report/LocalVisibilityReportPage"));
+const TechnicalSeoScannerPage = lazy(() => import("@features/technical-seo/TechnicalSeoScannerPage"));
 
 function AdminPageFallback() {
   return (
@@ -194,6 +195,18 @@ export default function AdminRouter() {
             <Route path="/admin/tools/local-visibility-report">
               <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/pipeline">
                 <LocalVisibilityReportPage />
+              </ProtectedRoute>
+            </Route>
+            <Route path="/admin/tools/technical-seo/:id">
+              {(params) => (
+                <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/pipeline">
+                  <TechnicalSeoScannerPage scanId={params.id} />
+                </ProtectedRoute>
+              )}
+            </Route>
+            <Route path="/admin/tools/technical-seo">
+              <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/pipeline">
+                <TechnicalSeoScannerPage />
               </ProtectedRoute>
             </Route>
             <Route path="/admin/marketplace">

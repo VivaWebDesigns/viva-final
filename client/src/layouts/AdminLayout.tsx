@@ -10,7 +10,7 @@ import {
   CreditCard, Bell, BarChart3, LineChart, Settings, BookOpen,
   LogOut, ChevronLeft, ChevronRight, Menu, Building2, Zap,
   ClipboardList, AlertTriangle, ShoppingBag, Activity, UserCheck,
-  FileImage, MapPinned,
+  FileImage, MapPinned, SearchCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import CrmActivityTracker from "@features/crm-activity/CrmActivityTracker";
@@ -51,6 +51,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { label: t.nav.reports,       path: "/admin/reports",        icon: BarChart3,       color: "text-cyan-500",    roles: ["admin", "developer"] as string[] },
     { label: t.nav.analytics,     path: "/admin/analytics",      icon: LineChart,       color: "text-violet-500",  roles: ["admin", "developer"] as string[] },
     { label: t.nav.visibilityReport, path: "/admin/tools/local-visibility-report", icon: FileImage, color: "text-blue-600", roles: ["admin", "developer"] as string[] },
+    { label: "Technical SEO", path: "/admin/tools/technical-seo", icon: SearchCheck, color: "text-teal-600", roles: ["admin", "developer"] as string[] },
     { label: t.nav.activity,      path: "/admin/activity",       icon: Activity,        color: "text-emerald-500", roles: ["admin", "developer"] as string[] },
     { label: t.nav.leadGen,       path: "/admin/lead-gen",       icon: UserCheck,       color: "text-lime-600",    roles: ["admin", "developer"] as string[] },
     { label: t.nav.leadCoverage,  path: "/admin/lead-coverage",  icon: MapPinned,       color: "text-blue-600",    roles: ["admin", "developer"] as string[] },

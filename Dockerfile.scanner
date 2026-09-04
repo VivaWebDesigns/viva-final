@@ -1,0 +1,18 @@
+FROM node:20-bookworm-slim AS build
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY tsconfig.json ./
+COPY shared ./shared
+COPY server ./server
+COPY script/build-scanner.ts ./script/build-scanner.ts
+RUN npm run build:scanner
+
+FROM mcr.microsoft.com/playwright:v1.62.1-noble
+WORKDIR /app
+ENV NODE_ENV=production
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev && npm cache clean --force
+COPY --from=build /app/dist/scanner-worker.cjs ./dist/scanner-worker.cjs
+USER pwuser
+CMD ["node", "dist/scanner-worker.cjs"]

@@ -1302,6 +1302,41 @@ export const insertWorkflowJobSchema = createInsertSchema(workflowJobs).omit({ i
 export type InsertWorkflowJob = z.infer<typeof insertWorkflowJobSchema>;
 export type WorkflowJob = typeof workflowJobs.$inferSelect;
 
+// ─── Technical SEO Scanner ─────────────────────────────────────────────
+
+export const technicalSeoScans = pgTable("technical_seo_scans", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  requestedUrl: text("requested_url").notNull(),
+  normalizedUrl: text("normalized_url").notNull(),
+  status: text("status").notNull().default("queued"),
+  stage: text("stage").notNull().default("queued"),
+  progress: integer("progress").notNull().default(0),
+  result: jsonb("result").$type<import("./technicalSeo").TechnicalSeoScanResult>(),
+  errorCode: text("error_code"),
+  errorMessage: text("error_message"),
+  cancellationRequested: boolean("cancellation_requested").notNull().default(false),
+  createdBy: varchar("created_by").notNull().references(() => user.id),
+  workerId: text("worker_id"),
+  leaseExpiresAt: timestamp("lease_expires_at"),
+  attemptCount: integer("attempt_count").notNull().default(0),
+  maxAttempts: integer("max_attempts").notNull().default(2),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  expiresAt: timestamp("expires_at").notNull().default(sql`now() + interval '90 days'`),
+}, (t) => [
+  index("technical_seo_scans_status_idx").on(t.status),
+  index("technical_seo_scans_created_by_idx").on(t.createdBy),
+  index("technical_seo_scans_created_at_idx").on(t.createdAt),
+  index("technical_seo_scans_lease_idx").on(t.leaseExpiresAt),
+]);
+
+export const insertTechnicalSeoScanSchema = createInsertSchema(technicalSeoScans).omit({ id: true, createdAt: true, updatedAt: true });
+// @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless
+export type InsertTechnicalSeoScan = z.infer<typeof insertTechnicalSeoScanSchema>;
+export type TechnicalSeoScan = typeof technicalSeoScans.$inferSelect;
+
 // ─── SMS Messages ─────────────────────────────────────────────────────
 
 export const smsMessages = pgTable("sms_messages", {

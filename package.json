@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "NODE_ENV=development tsx server/index.ts",
     "build": "tsx script/build.ts",
+    "build:scanner": "tsx script/build-scanner.ts",
     "start": "NODE_ENV=production node dist/index.cjs",
+    "start:scanner": "NODE_ENV=production node dist/scanner-worker.cjs",
     "check": "tsc",
     "db:push": "drizzle-kit push",
     "test": "vitest run",
@@ -89,6 +91,7 @@
     "passport": "^0.7.0",
     "passport-local": "^1.0.0",
     "pg": "^8.16.3",
+    "playwright": "^1.62.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-helmet-async": "^2.0.5",
