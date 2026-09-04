@@ -104,11 +104,15 @@ export default function TechnicalSeoScannerPage({ scanId }: { scanId?: string })
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { data: historyData } = useQuery<{ scans: ScanRecord[] }>({ queryKey: ["/api/technical-seo/scans"], refetchInterval: 10_000 });
-  const { data: scan } = useQuery<ScanRecord>({
+  const { data: scan, refetch: refetchScan } = useQuery<ScanRecord>({
     queryKey: [`/api/technical-seo/scans/${scanId}`], enabled: !!scanId,
     refetchInterval: (query) => ACTIVE.has((query.state.data as ScanRecord | undefined)?.status ?? "") ? 2_000 : false,
   });
   useEffect(() => { if (scan && !ACTIVE.has(scan.status)) void queryClient.invalidateQueries({ queryKey: ["/api/technical-seo/scans"] }); }, [scan?.status, queryClient]);
+  useEffect(() => {
+    const latest = historyData?.scans.find((item) => item.id === scanId);
+    if (scanId && scan && latest && latest.status !== scan.status) void refetchScan();
+  }, [historyData?.scans, scanId, scan?.status, refetchScan]);
 
   const createMutation = useMutation({
     mutationFn: async () => (await apiRequest("POST", "/api/technical-seo/scans", { url })).json() as Promise<ScanRecord>,
@@ -119,6 +123,13 @@ export default function TechnicalSeoScannerPage({ scanId }: { scanId?: string })
   const retryMutation = useMutation({ mutationFn: () => apiRequest("POST", `/api/technical-seo/scans/${scanId}/retry`), onSuccess: () => void queryClient.invalidateQueries({ queryKey: [`/api/technical-seo/scans/${scanId}`] }) });
 
   const copy = async (text: string, label: string) => { await navigator.clipboard.writeText(text); toast({ title: `${label} copied` }); };
+  const openScan = (id: string) => {
+    if (id === scanId) {
+      void refetchScan();
+      return;
+    }
+    navigate(`/admin/tools/technical-seo/${id}`);
+  };
   const result = scan?.result;
   const sortedIssues = useMemo(() => result?.issues ?? [], [result]);
 
@@ -164,7 +175,7 @@ export default function TechnicalSeoScannerPage({ scanId }: { scanId?: string })
         </Accordion>
       </>}
 
-      <Card><CardHeader><CardTitle className="text-base">Scan history</CardTitle></CardHeader><CardContent>{!historyData?.scans.length ? <p className="text-sm text-gray-500">No scans yet.</p> : <div className="divide-y rounded-lg border">{historyData.scans.map((item) => <button key={item.id} onClick={() => navigate(`/admin/tools/technical-seo/${item.id}`)} className={`flex w-full items-center gap-3 p-3 text-left hover:bg-gray-50 ${item.id === scanId ? "bg-teal-50" : ""}`}><div className="shrink-0">{item.status === "completed" ? <CheckCircle2 className="h-5 w-5 text-emerald-600" /> : item.status === "failed" ? <AlertTriangle className="h-5 w-5 text-red-600" /> : <Clock3 className="h-5 w-5 text-blue-600" />}</div><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-gray-900">{item.normalizedUrl}</p><p className="text-xs text-gray-500">{formatDate(item.createdAt)}</p></div><StatusBadge status={item.status} /></button>)}</div>}</CardContent></Card>
+      <Card><CardHeader><CardTitle className="text-base">Scan history</CardTitle></CardHeader><CardContent>{!historyData?.scans.length ? <p className="text-sm text-gray-500">No scans yet.</p> : <div className="divide-y rounded-lg border">{historyData.scans.map((item) => <button key={item.id} onClick={() => openScan(item.id)} className={`flex w-full items-center gap-3 p-3 text-left hover:bg-gray-50 ${item.id === scanId ? "bg-teal-50" : ""}`}><div className="shrink-0">{item.status === "completed" ? <CheckCircle2 className="h-5 w-5 text-emerald-600" /> : item.status === "failed" ? <AlertTriangle className="h-5 w-5 text-red-600" /> : <Clock3 className="h-5 w-5 text-blue-600" />}</div><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-gray-900">{item.normalizedUrl}</p><p className="text-xs text-gray-500">{formatDate(item.createdAt)}</p></div><StatusBadge status={item.status} /></button>)}</div>}</CardContent></Card>
     </div>
   );
 }
