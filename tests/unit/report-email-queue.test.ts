@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getTableName } from "drizzle-orm";
 
 const mocks = vi.hoisted(() => ({
-  select: vi.fn(), insert: vi.fn(), update: vi.fn(), transaction: vi.fn(), state: vi.fn(), record: vi.fn(),
+  select: vi.fn(), insert: vi.fn(), insertValues: vi.fn(), update: vi.fn(), transaction: vi.fn(), state: vi.fn(), record: vi.fn(),
 }));
 
 vi.mock("../../server/db", () => ({ db: mocks }));
@@ -35,7 +35,7 @@ const record = {
 };
 const input = {
   leadId: "lead-1", reportId: "report-1", recipient: "ana@example.com", subject: "Report", preheader: "Your report",
-  message: "Here is your report", imagePlacement: "after_intro" as const, requestId: "request-1",
+  message: "Here is your report", templateKey: "A", imagePlacement: "after_intro" as const, requestId: "request-1",
   actorId: "rep-1", actorEmail: "rep@vivawebdesigns.com",
 };
 
@@ -47,7 +47,10 @@ beforeEach(() => {
   mocks.state.mockResolvedValue({ reportEmailCount: 0, reportOutreachDisposition: null });
   mocks.record.mockResolvedValue(undefined);
   mocks.select.mockReturnValue(rows([]));
-  mocks.insert.mockImplementation(table => ({ values: (value: any) => rows([{ id: getTableName(table), ...value }]) }));
+  mocks.insert.mockImplementation(table => ({ values: (value: any) => {
+    mocks.insertValues(table, value);
+    return rows([{ id: getTableName(table), ...value }]);
+  } }));
   mocks.update.mockReturnValue({ set: () => ({ where: vi.fn().mockResolvedValue([]) }) });
 });
 
@@ -76,6 +79,14 @@ describe("manual Gmail report workflow", () => {
     expect(mocks.insert.mock.calls.map(([table]) => getTableName(table))).toEqual([
       "scan_report_shares", "scan_report_deliveries", "crm_lead_notes",
     ]);
+    const deliveryValues = mocks.insertValues.mock.calls.find(([table]) => getTableName(table) === "scan_report_deliveries")?.[1];
+    expect(deliveryValues).toMatchObject({
+      templateKey: "A",
+      emailSubject: "Report",
+      emailPreheader: "Your report",
+      emailMessage: "Here is your report",
+      imagePlacement: "after_intro",
+    });
     expect(mocks.record).toHaveBeenCalledWith("scan_report_deliveries");
   });
 
@@ -112,5 +123,12 @@ describe("manual Gmail report workflow", () => {
     expect(preview.message).toContain(
       "I came across Acme and ran a scan to see how the company appears on Google when people nearby search for “roofing”.",
     );
+    expect(preview.selectedTemplateKey).toBe("A");
+    expect(preview.templates).toEqual([expect.objectContaining({ key: "A", name: "Current outreach" })]);
+    expect(preview.message).toContain("the scan above gives you a pretty good idea");
+    expect(preview.message).toContain("If this looks like something worth fixing, everything’s below. Take a look.");
+    expect(preview.message).toContain("You’ll see a few local companies we’ve turned around from maps that looked a lot like yours");
+    expect(preview.message).not.toContain("the scan below");
+    expect(preview.message).not.toContain("Just reply here");
   });
 });

@@ -212,6 +212,15 @@ router.get("/ga4", requireRole("admin", "developer"), async (req, res) => {
   }
 });
 
+router.get("/report-outreach", requireRole("admin", "developer"), async (req, res) => {
+  try {
+    const days = z.coerce.number().int().min(7).max(365).catch(30).parse(req.query.days);
+    res.json(await storage.getReportOutreachAnalytics(days));
+  } catch (error) {
+    res.status(500).json({ message: googleErrorMessage(error) });
+  }
+});
+
 router.use("/business", (_req, res, next) => {
   if (!googleBusinessProfileEnabled()) {
     return res.status(404).json({ message: "Google Business Profile integration is disabled" });

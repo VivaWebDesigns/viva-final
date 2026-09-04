@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
+import { Link } from "wouter";
 import {
   Activity,
   BarChart3,
@@ -264,16 +265,25 @@ export default function AnalyticsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Analytics</h1>
           <p className="mt-1 text-sm text-gray-500">Website performance and confirmed leads.</p>
         </div>
-        <div className="flex rounded-lg bg-gray-100 p-1">
-          {[7, 30, 90].map((value) => (
-            <button
-              key={value}
-              onClick={() => setDays(value)}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium ${days === value ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
-            >
-              {value} days
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-3">
+          <Link
+            href="/admin/analytics/email-outreach"
+            className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            <MessageSquareText className="h-4 w-4" />
+            Email outreach
+          </Link>
+          <div className="flex rounded-lg bg-gray-100 p-1">
+            {[7, 30, 90].map((value) => (
+              <button
+                key={value}
+                onClick={() => setDays(value)}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium ${days === value ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+              >
+                {value} days
+              </button>
+            ))}
+          </div>
         </div>
       </header>
 

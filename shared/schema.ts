@@ -580,6 +580,11 @@ export const scanReportDeliveries = pgTable("scan_report_deliveries", {
   publicTokenHash: varchar("public_token_hash").notNull().unique(),
   recipient: text("recipient").notNull(),
   imageUrl: text("image_url").notNull(),
+  templateKey: text("template_key"),
+  emailSubject: text("email_subject"),
+  emailPreheader: text("email_preheader"),
+  emailMessage: text("email_message"),
+  imagePlacement: text("image_placement"),
   status: text("status").notNull().default("queued"),
   sentAt: timestamp("sent_at"),
   requestCount: integer("request_count").notNull().default(0),
@@ -595,6 +600,7 @@ export const scanReportDeliveries = pgTable("scan_report_deliveries", {
 }, (t) => [
   index("scan_report_delivery_lead_idx").on(t.leadId, t.createdAt),
   index("scan_report_delivery_report_idx").on(t.reportId),
+  index("scan_report_delivery_template_idx").on(t.templateKey, t.sentAt),
   index("scan_report_delivery_status_idx").on(t.status),
 ]);
 

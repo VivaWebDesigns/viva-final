@@ -2,8 +2,10 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const page = readFileSync("client/src/features/business-analytics/AnalyticsPage.tsx", "utf8");
+const outreachPage = readFileSync("client/src/features/business-analytics/EmailOutreachAnalyticsPage.tsx", "utf8");
 const router = readFileSync("client/src/AdminRouter.tsx", "utf8");
 const serverRoutes = readFileSync("server/features/business-analytics/routes.ts", "utf8");
+const storage = readFileSync("server/features/business-analytics/storage.ts", "utf8");
 const googleAuth = readFileSync("server/features/business-analytics/googleAuth.ts", "utf8");
 
 describe("business analytics admin contract", () => {
@@ -14,6 +16,18 @@ describe("business analytics admin contract", () => {
     expect(page).not.toContain("Scan report CTA activity");
     expect(page).not.toContain("Report views");
     expect(page).toContain("Top landing pages");
+  });
+
+  it("provides template-level report outreach analytics without requiring GA4", () => {
+    expect(router).toContain('path="/admin/analytics/email-outreach"');
+    expect(router).toContain("<EmailOutreachAnalyticsPage />");
+    expect(page).toContain('href="/admin/analytics/email-outreach"');
+    expect(outreachPage).toContain("Template comparison");
+    expect(outreachPage).toContain("Every edited send stays with the template letter you selected.");
+    expect(outreachPage).toContain("Appointments");
+    expect(serverRoutes).toContain('router.get("/report-outreach"');
+    expect(storage).toContain("getReportOutreachAnalytics");
+    expect(storage).toContain("reportOutreachDisposition");
   });
 
   it("keeps Google credentials server-side", () => {

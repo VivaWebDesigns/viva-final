@@ -24,6 +24,15 @@ import {
 const POSTAL_ADDRESS = "227 W 4th St, 1st Floor #3127, Charlotte, NC 28202";
 const PREHEADER_PADDING = "&#847; &zwnj; &nbsp; ".repeat(30);
 export const DEFAULT_SCAN_REPORT_PREHEADER = "Your Google Maps scan is ready — see how your business appears across nearby searches.";
+export const DEFAULT_SCAN_REPORT_TEMPLATE_KEY = "A";
+
+export interface ScanReportEmailTemplateOption {
+  key: string;
+  name: string;
+  subject: string;
+  preheader: string;
+  message: string;
+}
 
 export interface ScanReportEmailPreview {
   reportId: string;
@@ -37,6 +46,8 @@ export interface ScanReportEmailPreview {
   snapshotPreviewUrl: string;
   sentCount: number;
   blockedReason: string | null;
+  selectedTemplateKey: string;
+  templates: ScanReportEmailTemplateOption[];
 }
 
 interface ManualScanReportInput {
@@ -46,6 +57,7 @@ interface ManualScanReportInput {
   subject: string;
   preheader: string;
   message: string;
+  templateKey: string;
   imagePlacement: "after_intro" | "after_message";
   requestId: string;
   actorId: string;
@@ -143,6 +155,24 @@ export async function getScanReportEmailPreview(
   const businessName = record.report.companyName || record.company?.name || record.lead.title;
   const recipient = record.contact?.email?.trim() || record.company?.email?.trim() || "";
   const greeting = firstName ? ` ${firstName}` : "";
+  const subject = outreach.reportEmailCount === 1 ? (spanish ? `Seguimiento: ${businessName} en Google Maps` : `Your Google Maps visibility report — ${businessName}`) : spanish
+    ? `Así aparece ${businessName} en Google Maps`
+    : "Google Maps issues";
+  const preheader = spanish ? "Tu análisis de Google Maps" : DEFAULT_SCAN_REPORT_PREHEADER;
+  const message = outreach.reportEmailCount === 1
+    ? (spanish
+      ? `Hola${greeting},\n\nQuería dar seguimiento al análisis de visibilidad de ${businessName} que te envié. El informe muestra cómo aparece tu negocio en distintas zonas para “${record.report.scanKeyword}”.\n\nIncluyo el mismo informe para que puedas revisarlo. ¿Te gustaría que te explique los resultados en una breve llamada?\n\nMatt`
+      : `Following up on the visibility report I sent for ${businessName}. It shows how your business appears across nearby searches for “${record.report.scanKeyword}”.\n\nI’ve included the same report so it’s easy to revisit. Would a quick walkthrough of the results be useful?\n\nMatt`)
+    : spanish
+    ? `Hola${greeting},\n\nPreparamos este análisis de visibilidad local para mostrar cómo aparece ${businessName} en Google Maps cuando los clientes buscan “${record.report.scanKeyword}”.\n\nSi deseas, puedo explicarte lo que muestran los resultados y las oportunidades que encontramos.`
+    : `I’m Matt with Viva Web Designs here in Charlotte.\n\nI came across ${businessName} and ran a scan to see how the company appears on Google when people nearby search for “${record.report.scanKeyword}”.\n\nI found some pretty significant visibility gaps, so I thought you’d want to see the actual data.\n\nIf you’ve ever wondered why Google isn’t bringing in more calls, the scan above gives you a pretty good idea of what’s happening.\n\nIf this looks like something worth fixing, everything’s below. Take a look.\n\nYou’ll see a few local companies we’ve turned around from maps that looked a lot like yours, plus a link to grab a quick call where I can dig into what’s actually behind your visibility.\n\nMatt`;
+  const templates: ScanReportEmailTemplateOption[] = [{
+    key: DEFAULT_SCAN_REPORT_TEMPLATE_KEY,
+    name: "Current outreach",
+    subject,
+    preheader,
+    message,
+  }];
   return {
     reportId,
     sentCount: outreach.reportEmailCount,
@@ -150,17 +180,11 @@ export async function getScanReportEmailPreview(
     recipient,
     from: formatEmailSender(scanReportSenderEmail()),
     replyTo: actorReplyTo(actorEmail),
-    subject: outreach.reportEmailCount === 1 ? (spanish ? `Seguimiento: ${businessName} en Google Maps` : `Your Google Maps visibility report — ${businessName}`) : spanish
-      ? `Así aparece ${businessName} en Google Maps`
-      : "Google Maps issues",
-    preheader: spanish ? "Tu análisis de Google Maps" : DEFAULT_SCAN_REPORT_PREHEADER,
-    message: outreach.reportEmailCount === 1
-      ? (spanish
-        ? `Hola${greeting},\n\nQuería dar seguimiento al análisis de visibilidad de ${businessName} que te envié. El informe muestra cómo aparece tu negocio en distintas zonas para “${record.report.scanKeyword}”.\n\nIncluyo el mismo informe para que puedas revisarlo. ¿Te gustaría que te explique los resultados en una breve llamada?\n\nMatt`
-        : `Following up on the visibility report I sent for ${businessName}. It shows how your business appears across nearby searches for “${record.report.scanKeyword}”.\n\nI’ve included the same report so it’s easy to revisit. Would a quick walkthrough of the results be useful?\n\nMatt`)
-      : spanish
-      ? `Hola${greeting},\n\nPreparamos este análisis de visibilidad local para mostrar cómo aparece ${businessName} en Google Maps cuando los clientes buscan “${record.report.scanKeyword}”.\n\nSi deseas, puedo explicarte lo que muestran los resultados y las oportunidades que encontramos.`
-      : `I’m Matt with Viva Web Designs here in Charlotte.\n\nI came across ${businessName} and ran a scan to see how the company appears on Google when people nearby search for “${record.report.scanKeyword}”.\n\nI found some pretty significant visibility gaps, so I thought you’d want to see the actual data.\n\nIf you’ve ever wondered why Google isn’t bringing in more calls, the scan below gives you a pretty good idea of what’s happening.\n\nIf it looks like something you’d want to improve, I can dig deeper into what’s behind it and we can jump on a quick video call. I can pull up the interactive scan and show you exactly who Google is ranking ahead of you from each area.\n\nJust reply here or call/text me.\n\nMatt`,
+    subject,
+    preheader,
+    message,
+    selectedTemplateKey: DEFAULT_SCAN_REPORT_TEMPLATE_KEY,
+    templates,
     businessName,
     snapshotPreviewUrl: `/api/local-visibility/reports/${encodeURIComponent(reportId)}/snapshot-file`,
   };
@@ -294,6 +318,11 @@ export async function confirmManualScanReportEmail(input: ManualScanReportInput)
       publicTokenHash: hashScanReportToken(deliveryToken),
       recipient: input.recipient,
       imageUrl: shared.imageUrl,
+      templateKey: input.templateKey,
+      emailSubject: input.subject,
+      emailPreheader: input.preheader,
+      emailMessage: input.message,
+      imagePlacement: input.imagePlacement,
       status: "sent",
       sentAt: new Date(),
     }).returning();
@@ -310,6 +339,8 @@ export async function confirmManualScanReportEmail(input: ManualScanReportInput)
         recipient: input.recipient,
         subject: input.subject,
         preheader: input.preheader,
+        templateKey: input.templateKey,
+        message: input.message,
         imageUrl: shared.imageUrl,
         landingUrl: shared.landingUrl,
         deliveryId: delivery.id,

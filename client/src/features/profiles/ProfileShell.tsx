@@ -162,6 +162,14 @@ interface ScanReportEmailPreview {
   message: string;
   businessName: string;
   snapshotPreviewUrl: string;
+  selectedTemplateKey: string;
+  templates: Array<{
+    key: string;
+    name: string;
+    subject: string;
+    preheader: string;
+    message: string;
+  }>;
 }
 
 interface ManualScanReportPreparation {
@@ -194,6 +202,7 @@ function LocalFalconSnapshotCard({
   const [emailReportSubject, setEmailReportSubject] = useState("");
   const [emailReportPreheader, setEmailReportPreheader] = useState("");
   const [emailReportMessage, setEmailReportMessage] = useState("");
+  const [emailReportTemplateKey, setEmailReportTemplateKey] = useState("A");
   const [emailReportImagePlacement, setEmailReportImagePlacement] = useState<"after_intro" | "after_message">("after_intro");
   const [emailReportRequestId, setEmailReportRequestId] = useState("");
   const [emailPreparation, setEmailPreparation] = useState<ManualScanReportPreparation | null>(null);
@@ -307,6 +316,7 @@ function LocalFalconSnapshotCard({
       setEmailReportSubject(preview.subject);
       setEmailReportPreheader(preview.preheader);
       setEmailReportMessage(preview.message);
+      setEmailReportTemplateKey(preview.selectedTemplateKey);
       setEmailReportImagePlacement("after_intro");
       setEmailReportRequestId(crypto.randomUUID());
       setEmailPreparation(null);
@@ -323,6 +333,7 @@ function LocalFalconSnapshotCard({
     subject: emailReportSubject.trim(),
     preheader: emailReportPreheader.trim(),
     message: emailReportMessage.trim(),
+    templateKey: emailReportTemplateKey,
     imagePlacement: emailReportImagePlacement,
     requestId: emailReportRequestId,
   });
@@ -624,6 +635,32 @@ function LocalFalconSnapshotCard({
                 <div className="grid gap-3 rounded-lg border bg-slate-50 p-3 text-xs text-slate-600">
                   <div><span className="font-medium text-slate-800">From:</span> {emailReportPreview.from}</div>
                   <div><span className="font-medium text-slate-800">Replies go to:</span> {emailReportPreview.replyTo}</div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Template</Label>
+                  <Select
+                    value={emailReportTemplateKey}
+                    onValueChange={(value) => {
+                      setEmailReportTemplateKey(value);
+                      const template = emailReportPreview.templates.find((item) => item.key === value);
+                      if (!template) return;
+                      setEmailReportSubject(template.subject);
+                      setEmailReportPreheader(template.preheader);
+                      setEmailReportMessage(template.message);
+                    }}
+                  >
+                    <SelectTrigger data-testid="select-scan-report-email-template">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {emailReportPreview.templates.map((template) => (
+                        <SelectItem key={template.key} value={template.key}>
+                          {template.key} — {template.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-slate-500">You can edit the subject or message and keep this template letter.</p>
                 </div>
                 <div className="space-y-1.5">
                   <Label>Report placement</Label>

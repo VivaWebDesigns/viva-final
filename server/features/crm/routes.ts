@@ -64,6 +64,7 @@ import { executeStageAutomations } from "../automations/trigger";
 import * as storageService from "../../services/storage";
 import {
   DEFAULT_SCAN_REPORT_PREHEADER,
+  DEFAULT_SCAN_REPORT_TEMPLATE_KEY,
   confirmManualScanReportEmail,
   getScanReportEmailPreview,
   prepareManualScanReportEmail,
@@ -182,6 +183,7 @@ const scanReportEmailSchema = z.object({
   subject: z.string().trim().min(1).max(200),
   preheader: z.string().trim().min(1).max(200).default(DEFAULT_SCAN_REPORT_PREHEADER),
   message: z.string().trim().min(1).max(5_000),
+  templateKey: z.string().trim().regex(/^[A-Z]$/).default(DEFAULT_SCAN_REPORT_TEMPLATE_KEY),
   imagePlacement: z.enum(["after_intro", "after_message"]).default("after_intro"),
   requestId: z.string().uuid(),
 }).strict();
