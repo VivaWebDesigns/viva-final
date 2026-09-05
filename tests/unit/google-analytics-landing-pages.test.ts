@@ -25,4 +25,9 @@ describe("Google Analytics landing-page filters", () => {
       },
     });
   });
+
+  it("keeps the dimension filter reusable for traffic-flow reporting", () => {
+    expect(LANDING_PAGE_DIMENSION_FILTER).toHaveProperty("andGroup.expressions");
+    expect(JSON.stringify(LANDING_PAGE_DIMENSION_FILTER)).toContain("landingPagePlusQueryString");
+  });
 });

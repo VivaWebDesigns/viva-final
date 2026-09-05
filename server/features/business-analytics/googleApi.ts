@@ -54,7 +54,7 @@ function numberValue(value: string | undefined): number {
 
 async function runGaReport(
   connection: GoogleIntegrationConnection,
-  days: number,
+  dateRange: GoogleAnalyticsDateRange,
   input: {
     dimensions?: string[];
     metrics: string[];
@@ -69,7 +69,7 @@ async function runGaReport(
     url: `https://analyticsdata.googleapis.com/v1beta/properties/${encodeURIComponent(connection.propertyId || GA4_PROPERTY_ID)}:runReport`,
     method: "POST",
     data: {
-      dateRanges: [{ startDate: `${days - 1}daysAgo`, endDate: "today" }],
+      dateRanges: [{ startDate: dateRange.startDate, endDate: dateRange.endDate }],
       dimensions: input.dimensions?.map((name) => ({ name })) ?? [],
       metrics: input.metrics.map((name) => ({ name })),
       ...(input.dimensionFilter ? { dimensionFilter: input.dimensionFilter } : {}),
@@ -82,6 +82,13 @@ async function runGaReport(
     },
   });
   return response.data;
+}
+
+export interface GoogleAnalyticsDateRange {
+  startDate: string;
+  endDate: string;
+  label: string;
+  days: number;
 }
 
 function tableRows(report: GaReportResponse, dimensions: string[], metrics: string[]) {
@@ -104,49 +111,82 @@ function eventFilter(eventNames: string[]) {
 
 export async function getGoogleAnalyticsDashboard(
   connection: GoogleIntegrationConnection,
-  days: number,
+  dateRange: GoogleAnalyticsDateRange,
 ) {
-  const [summaryReport, channelReport, pageReport, eventReport, leadTypeReport, trendReport] = await Promise.all([
-    runGaReport(connection, days, {
-      metrics: ["activeUsers", "sessions", "screenPageViews", "eventCount", "keyEvents"],
+  const [summaryReport, channelReport, pageReport, eventReport, leadTypeReport, trendReport, deviceReport, geographyReport, flowReport, flowLeadReport] = await Promise.all([
+    runGaReport(connection, dateRange, {
+      metrics: ["activeUsers", "newUsers", "sessions", "engagedSessions", "engagementRate", "averageSessionDuration", "screenPageViews", "eventCount", "keyEvents"],
     }),
-    runGaReport(connection, days, {
+    runGaReport(connection, dateRange, {
       dimensions: ["sessionDefaultChannelGroup"],
-      metrics: ["sessions", "activeUsers", "keyEvents"],
+      metrics: ["sessions", "activeUsers", "engagedSessions", "engagementRate", "keyEvents"],
       orderMetric: "sessions",
       limit: 10,
     }),
-    runGaReport(connection, days, {
+    runGaReport(connection, dateRange, {
       dimensions: ["landingPagePlusQueryString"],
-      metrics: ["sessions", "activeUsers", "screenPageViews"],
+      metrics: ["sessions", "activeUsers", "engagedSessions", "screenPageViews", "keyEvents"],
       dimensionFilter: LANDING_PAGE_DIMENSION_FILTER,
       metricFilter: LANDING_PAGE_METRIC_FILTER,
       orderMetric: "sessions",
       limit: 10,
     }),
-    runGaReport(connection, days, {
+    runGaReport(connection, dateRange, {
       dimensions: ["eventName"],
       metrics: ["eventCount", "keyEvents"],
       dimensionFilter: eventFilter(["generate_lead", "form_submit"]),
       orderMetric: "eventCount",
       limit: 20,
     }),
-    runGaReport(connection, days, {
+    runGaReport(connection, dateRange, {
       dimensions: ["customEvent:lead_type"],
       metrics: ["eventCount"],
       dimensionFilter: eventFilter(["generate_lead"]),
       orderMetric: "eventCount",
       limit: 10,
     }),
-    runGaReport(connection, days, {
+    runGaReport(connection, dateRange, {
       dimensions: ["date"],
-      metrics: ["sessions", "activeUsers", "keyEvents"],
+      metrics: ["sessions", "activeUsers", "engagedSessions", "engagementRate", "keyEvents"],
       limit: 366,
+    }),
+    runGaReport(connection, dateRange, {
+      dimensions: ["deviceCategory"],
+      metrics: ["sessions", "activeUsers", "engagedSessions", "engagementRate", "keyEvents"],
+      orderMetric: "sessions",
+      limit: 10,
+    }),
+    runGaReport(connection, dateRange, {
+      dimensions: ["city", "region", "country"],
+      metrics: ["sessions", "activeUsers", "engagedSessions", "engagementRate"],
+      orderMetric: "sessions",
+      limit: 50,
+    }),
+    runGaReport(connection, dateRange, {
+      dimensions: ["sessionDefaultChannelGroup", "landingPagePlusQueryString"],
+      metrics: ["sessions", "activeUsers", "engagedSessions", "engagementRate", "screenPageViews"],
+      dimensionFilter: LANDING_PAGE_DIMENSION_FILTER,
+      orderMetric: "sessions",
+      limit: 50,
+    }),
+    runGaReport(connection, dateRange, {
+      dimensions: ["sessionDefaultChannelGroup", "landingPagePlusQueryString"],
+      metrics: ["eventCount"],
+      dimensionFilter: {
+        andGroup: {
+          expressions: [
+            LANDING_PAGE_DIMENSION_FILTER,
+            eventFilter(["generate_lead"]),
+          ],
+        },
+      },
+      orderMetric: "eventCount",
+      limit: 50,
     }),
   ]);
 
   const summaryRow = summaryReport.rows?.[0];
-  const summaryMetrics = ["activeUsers", "sessions", "screenPageViews", "eventCount", "keyEvents"];
+  const summaryMetrics = ["activeUsers", "newUsers", "sessions", "engagedSessions", "engagementRate", "averageSessionDuration", "screenPageViews", "eventCount", "keyEvents"];
   const summary = Object.fromEntries(summaryMetrics.map((name, index) => [
     name,
     numberValue(summaryRow?.metricValues?.[index]?.value),
@@ -155,19 +195,37 @@ export async function getGoogleAnalyticsDashboard(
   const events = tableRows(eventReport, ["eventName"], ["eventCount", "keyEvents"]);
   const eventCount = (eventName: string) => Number(events.find((row) => row.eventName === eventName)?.eventCount ?? 0);
 
+  const flowLeadRows = tableRows(flowLeadReport, ["channel", "landingPage"], ["eventCount"]);
+  const leadsByFlow = new Map(flowLeadRows.map(row => [
+    `${row.channel}\u0000${row.landingPage}`,
+    Number(row.eventCount),
+  ]));
+  const flow = tableRows(flowReport, ["channel", "landingPage"], ["sessions", "activeUsers", "engagedSessions", "engagementRate", "screenPageViews"])
+    .map(row => ({
+      ...row,
+      confirmedLeads: leadsByFlow.get(`${row.channel}\u0000${row.landingPage}`) ?? 0,
+    }));
+
   return {
     propertyId: connection.propertyId || GA4_PROPERTY_ID,
-    days,
+    days: dateRange.days,
+    dateRange,
     summary: {
       ...summary,
       confirmedLeads: eventCount("generate_lead"),
+      pagesPerSession: Number(summary.sessions) > 0
+        ? Math.round((Number(summary.screenPageViews) / Number(summary.sessions)) * 100) / 100
+        : 0,
     },
-    channels: tableRows(channelReport, ["channel"], ["sessions", "activeUsers", "keyEvents"]),
-    landingPages: tableRows(pageReport, ["landingPage"], ["sessions", "activeUsers", "screenPageViews"]),
+    channels: tableRows(channelReport, ["channel"], ["sessions", "activeUsers", "engagedSessions", "engagementRate", "keyEvents"]),
+    landingPages: tableRows(pageReport, ["landingPage"], ["sessions", "activeUsers", "engagedSessions", "screenPageViews", "keyEvents"]),
     events,
     leadTypes: tableRows(leadTypeReport, ["leadType"], ["eventCount"]),
-    trend: tableRows(trendReport, ["date"], ["sessions", "activeUsers", "keyEvents"])
+    trend: tableRows(trendReport, ["date"], ["sessions", "activeUsers", "engagedSessions", "engagementRate", "keyEvents"])
       .sort((left, right) => String(left.date).localeCompare(String(right.date))),
+    devices: tableRows(deviceReport, ["device"], ["sessions", "activeUsers", "engagedSessions", "engagementRate", "keyEvents"]),
+    geography: tableRows(geographyReport, ["city", "region", "country"], ["sessions", "activeUsers", "engagedSessions", "engagementRate"]),
+    flow,
     timeZone: summaryReport.metadata?.timeZone ?? null,
     generatedAt: new Date().toISOString(),
   };

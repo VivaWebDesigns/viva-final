@@ -15,7 +15,14 @@ describe("business analytics admin contract", () => {
     expect(page).toContain("Confirmed leads");
     expect(page).not.toContain("Scan report CTA activity");
     expect(page).not.toContain("Report views");
-    expect(page).toContain("Top landing pages");
+    expect(page).toContain("Traffic Flow");
+    expect(page).toContain('value === 1 ? "1 day"');
+    expect(page).toContain('setRangeMode("custom")');
+    expect(page).toContain('activeTab === "engagement"');
+    expect(page).toContain('activeTab === "devices"');
+    expect(page).toContain('activeTab === "geography"');
+    expect(page).toContain('activeTab === "flow"');
+    expect(page).toContain("Channel → landing page → engagement → confirmed lead");
   });
 
   it("provides template-level report outreach analytics without requiring GA4", () => {

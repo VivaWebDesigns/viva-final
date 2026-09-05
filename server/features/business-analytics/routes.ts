@@ -27,6 +27,34 @@ const router = Router();
 const providerSchema = z.enum(GOOGLE_PROVIDERS);
 const GA4_PROPERTY_ID = process.env.GA4_PROPERTY_ID || "543529736";
 const analyticsCache = new Map<string, { expiresAt: number; data: unknown }>();
+const isoDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+
+function googleAnalyticsDateRange(query: Record<string, unknown>) {
+  if (query.startDate !== undefined || query.endDate !== undefined) {
+    const parsed = z.object({
+      startDate: isoDateSchema,
+      endDate: isoDateSchema,
+    }).safeParse(query);
+    if (!parsed.success) {
+      throw Object.assign(new Error("Choose a valid start and end date."), { statusCode: 400 });
+    }
+    const { startDate, endDate } = parsed.data;
+    const start = new Date(`${startDate}T00:00:00Z`);
+    const end = new Date(`${endDate}T00:00:00Z`);
+    const days = Math.floor((end.getTime() - start.getTime()) / 86_400_000) + 1;
+    if (!Number.isFinite(days) || days < 1 || days > 365) {
+      throw Object.assign(new Error("Choose a date range between 1 and 365 days."), { statusCode: 400 });
+    }
+    return { startDate, endDate, days, label: `${startDate} to ${endDate}` };
+  }
+  const days = z.coerce.number().int().min(1).max(365).catch(30).parse(query.days);
+  return {
+    startDate: `${days - 1}daysAgo`,
+    endDate: "today",
+    days,
+    label: days === 1 ? "Today" : `Last ${days} days`,
+  };
+}
 
 function googleErrorMessage(error: any): string {
   return error?.response?.data?.error?.message
@@ -193,20 +221,21 @@ router.get("/oauth/callback", requireRole("admin"), async (req, res) => {
 });
 
 router.get("/ga4", requireRole("admin", "developer"), async (req, res) => {
-  const days = z.coerce.number().int().min(7).max(365).catch(30).parse(req.query.days);
-  const connection = await storage.getGoogleConnection("analytics");
-  if (!connection) return res.status(409).json({ message: "Connect Google Analytics first" });
-  const cacheKey = `${connection.updatedAt.toISOString()}:${days}`;
-  const cached = analyticsCache.get(cacheKey);
-  if (cached && cached.expiresAt > Date.now()) return res.json(cached.data);
   try {
-    const data = await getGoogleAnalyticsDashboard(connection, days);
+    const dateRange = googleAnalyticsDateRange(req.query);
+    const connection = await storage.getGoogleConnection("analytics");
+    if (!connection) return res.status(409).json({ message: "Connect Google Analytics first" });
+    const cacheKey = `${connection.updatedAt.toISOString()}:${dateRange.startDate}:${dateRange.endDate}`;
+    const cached = analyticsCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) return res.json(cached.data);
+    const data = await getGoogleAnalyticsDashboard(connection, dateRange);
     analyticsCache.clear();
     analyticsCache.set(cacheKey, { data, expiresAt: Date.now() + 5 * 60 * 1000 });
     await storage.updateGoogleConnection("analytics", { status: "connected", lastError: null });
     res.json(data);
   } catch (error) {
     const message = googleErrorMessage(error);
+    if ((error as { statusCode?: number })?.statusCode === 400) return res.status(400).json({ message });
     await storage.updateGoogleConnection("analytics", { status: "error", lastError: message });
     res.status(502).json({ message });
   }
