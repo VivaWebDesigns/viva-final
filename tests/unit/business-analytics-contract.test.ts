@@ -19,6 +19,8 @@ describe("business analytics admin contract", () => {
     expect(page).toContain('value === 1 ? "1 day"');
     expect(page).toContain('setRangeMode("custom")');
     expect(page).toContain('activeTab === "engagement"');
+    expect(page).toContain("Average session duration");
+    expect(page).toContain("Today’s engagement data may still be processing in Google Analytics.");
     expect(page).toContain('activeTab === "devices"');
     expect(page).toContain('activeTab === "geography"');
     expect(page).toContain('activeTab === "flow"');

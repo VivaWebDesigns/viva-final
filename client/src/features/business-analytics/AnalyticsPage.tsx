@@ -453,10 +453,15 @@ export default function AnalyticsPage() {
             </>}
 
             {activeTab === "engagement" && <>
+              {rangeMode === "1" && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                  Today’s engagement data may still be processing in Google Analytics.
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
                 <MetricCard label="Engaged sessions" value={gaData.summary.engagedSessions.toLocaleString()} icon={MousePointerClick} tone="bg-blue-500" />
                 <MetricCard label="Engagement rate" value={percentLabel(gaData.summary.engagementRate)} icon={Target} tone="bg-emerald-500" />
-                <MetricCard label="Average engagement" value={secondsLabel(gaData.summary.averageSessionDuration)} icon={Activity} tone="bg-indigo-500" detail="Average session duration" />
+                <MetricCard label="Average session duration" value={secondsLabel(gaData.summary.averageSessionDuration)} icon={Activity} tone="bg-indigo-500" detail="Average across all sessions" />
                 <MetricCard label="Pages per session" value={gaData.summary.pagesPerSession} icon={Eye} tone="bg-cyan-500" />
               </div>
               <Panel title="Engagement trend" subtitle={`Engaged sessions · ${gaData.dateRange.label}`}>
