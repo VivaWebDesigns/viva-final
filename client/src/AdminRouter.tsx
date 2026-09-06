@@ -4,6 +4,7 @@ import AdminLayout from "@/layouts/AdminLayout";
 import ProtectedRoute from "@features/auth/ProtectedRoute";
 
 const DashboardPage = lazy(() => import("@features/admin/pages/DashboardPage"));
+const SubmissionsPage = lazy(() => import("@features/admin/pages/SubmissionsPage"));
 const DocsPage = lazy(() => import("@features/docs/DocsPage"));
 const LeadListPage = lazy(() => import("@features/crm/LeadListPage"));
 const LeadProfilePage = lazy(() => import("@features/profiles/LeadProfilePage"));
@@ -57,6 +58,11 @@ export default function AdminRouter() {
             <Route path="/admin/crm">
               <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/pipeline">
                 <LeadListPage />
+              </ProtectedRoute>
+            </Route>
+            <Route path="/admin/submissions">
+              <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/pipeline">
+                <SubmissionsPage />
               </ProtectedRoute>
             </Route>
             <Route path="/admin/crm/leads/:id">

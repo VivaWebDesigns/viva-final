@@ -10,10 +10,9 @@
  *   - Success/failure recorded in provider snapshot for admin diagnostics
  */
 
-import { crmLeadNotes, type WorkflowJob, type UtmAttribution } from "@shared/schema";
+import { crmLeadNotes, type WorkflowJob } from "@shared/schema";
 import { db } from "../../db";
 import { eq } from "drizzle-orm";
-import { ingestWebsiteFormSubmission } from "../crm/ingest";
 import { Resend } from "resend";
 import {
   withTimeout,
@@ -30,32 +29,6 @@ const CONTACT_EMAIL_FROM =
   process.env.CONTACT_EMAIL_FROM || "matt@vivawebdesigns.com";
 
 // ── Job payload types ─────────────────────────────────────────────────
-
-interface CrmIngestPayload {
-  formData: {
-    name: string;
-    email?: string;
-    phone: string;
-    business?: string;
-    city?: string;
-    trade?: string;
-    service?: string;
-    message?: string;
-    zipCode?: string;
-  };
-  attribution: {
-    honeypot?: string;
-    utmSource?: string | null;
-    utmMedium?: string | null;
-    utmCampaign?: string | null;
-    utmTerm?: string | null;
-    utmContent?: string | null;
-    referrer?: string | null;
-    landingPage?: string | null;
-    formPageUrl?: string | null;
-  };
-  sourceType: "contact_form" | "demo_inquiry";
-}
 
 interface EmailNotificationPayload {
   to: string;
@@ -86,7 +59,8 @@ export type JobProcessingResult =
 export async function processJob(job: WorkflowJob): Promise<JobProcessingResult> {
   switch (job.type) {
     case "crm_ingest":
-      await processCrmIngest(job);
+      // Legacy jobs may still be in the queue from before website submissions
+      // were separated from outbound CRM leads. Complete them without ingesting.
       return { status: "completed" };
     case "email_notification":
       await processEmailNotification(job);
@@ -97,51 +71,6 @@ export async function processJob(job: WorkflowJob): Promise<JobProcessingResult>
     }
     default:
       throw new Error(`Unknown job type: ${job.type}`);
-  }
-}
-
-// ── CRM Ingest handler ────────────────────────────────────────────────
-
-async function processCrmIngest(job: WorkflowJob): Promise<void> {
-  const ctx = { provider: "crm", operation: "ingest", correlationId: job.id };
-  const payload = job.payload as unknown as CrmIngestPayload;
-
-  if (!payload.formData || !payload.attribution || !payload.sourceType) {
-    throw new Error("crm_ingest: malformed payload — missing formData, attribution, or sourceType");
-  }
-
-  // Coerce null → undefined to satisfy UtmAttribution (which uses string | undefined)
-  const attribution: UtmAttribution = {
-    honeypot:     payload.attribution.honeypot     ?? undefined,
-    utmSource:    payload.attribution.utmSource    ?? undefined,
-    utmMedium:    payload.attribution.utmMedium    ?? undefined,
-    utmCampaign:  payload.attribution.utmCampaign  ?? undefined,
-    utmTerm:      payload.attribution.utmTerm      ?? undefined,
-    utmContent:   payload.attribution.utmContent   ?? undefined,
-    referrer:     payload.attribution.referrer     ?? undefined,
-    landingPage:  payload.attribution.landingPage  ?? undefined,
-    formPageUrl:  payload.attribution.formPageUrl  ?? undefined,
-  };
-
-  try {
-    await ingestWebsiteFormSubmission(
-      payload.formData,
-      attribution,
-      payload.sourceType,
-    );
-    logProviderEvent(ctx, "success", { severity: "info" });
-    recordSuccess("crm", "ingest");
-  } catch (err: any) {
-    const errorClass = classifyProviderError(undefined, err.message);
-    logProviderEvent(ctx, "failure", {
-      errorClass,
-      severity: severityForErrorClass(errorClass),
-      message: err.message,
-    });
-    recordFailure("crm", "ingest", err.message);
-    const snap = getSnapshot("crm", "ingest");
-    if (snap) warnIfThresholdReached(snap.consecutiveFailures, ctx);
-    throw err;
   }
 }
 

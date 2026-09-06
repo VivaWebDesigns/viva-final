@@ -102,7 +102,6 @@ export async function registerRoutes(
         return res.status(400).send("Please enter a phone number or uncheck SMS consent.");
       }
 
-      const attribution = utmAttributionSchema.parse(req.body);
       const message = [
         "Free visibility scan request",
         `Business address or Google Maps link: ${data.address}`,
@@ -123,25 +122,6 @@ export async function registerRoutes(
       });
 
       await Promise.all([
-        enqueueJob(
-          "crm_ingest",
-          {
-            formData: {
-              name: data.name,
-              email: data.email,
-              phone: normalizedPhone || undefined,
-              business: data.business,
-              city: data.city,
-              trade: data.service,
-              service: data.service,
-              message,
-            },
-            attribution,
-            sourceType: "visibility_scan",
-          },
-          contact.id,
-          "visibility_scan",
-        ),
         enqueueJob(
           "email_notification",
           {
@@ -204,32 +184,12 @@ export async function registerRoutes(
       if (smsConsented && !data.phone) {
         return res.status(400).send("Please enter a phone number or uncheck SMS consent.");
       }
-      const attribution = utmAttributionSchema.parse(req.body);
-
       const contact = await storage.createContact({
         ...data,
         ...smsConsentRecord(smsConsented, "contact_form"),
       });
 
       await Promise.all([
-        enqueueJob(
-          "crm_ingest",
-          {
-            formData: {
-              name: data.name,
-              email: data.email,
-              phone: data.phone ?? "",
-              business: data.business ?? undefined,
-              city: data.city ?? undefined,
-              trade: data.trade ?? undefined,
-              message: [data.message, smsConsentSummary(smsConsented)].filter(Boolean).join("\n\n"),
-            },
-            attribution,
-            sourceType: "contact_form",
-          },
-          contact.id,
-          "contact_form",
-        ),
         enqueueJob(
           "email_notification",
           {
@@ -271,8 +231,8 @@ export async function registerRoutes(
 
   // ── POST /api/contacts ─────────────────────────────────────────────
   // Public contact form submission.
-  // Primary record is persisted synchronously; CRM ingest + email are
-  // enqueued as durable async jobs so the request path is always fast
+  // Primary submission is persisted synchronously; the notification email is
+  // enqueued as a durable async job so the request path is always fast
   // and the response is never blocked by external providers.
   app.post("/api/contacts", async (req, res) => {
     try {
@@ -293,26 +253,8 @@ export async function registerRoutes(
       // 1. Primary persistence — always completes synchronously
       const contact = await storage.createContact(data);
 
-      // 2. Enqueue durable async jobs (fire-and-forget, zero latency impact)
+      // 2. Notify the team without turning the submission into an outreach lead.
       await Promise.all([
-        enqueueJob(
-          "crm_ingest",
-          {
-            formData: {
-              name: data.name,
-              email: data.email,
-              phone: data.phone ?? "",
-              business: data.business ?? undefined,
-              city: data.city ?? undefined,
-              trade: data.trade ?? undefined,
-              message: data.message ?? undefined,
-            },
-            attribution,
-            sourceType: "contact_form",
-          },
-          contact.id,
-          "contact_form",
-        ),
         enqueueJob(
           "email_notification",
           {
@@ -352,7 +294,7 @@ export async function registerRoutes(
 
   // ── POST /api/inquiries ────────────────────────────────────────────
   // Public demo inquiry form submission.
-  // Same pattern as /api/contacts.
+  // Same submissions-only pattern as /api/contacts.
   app.post("/api/inquiries", async (req, res) => {
     try {
       const data = insertInquirySchema.parse(req.body);
@@ -379,25 +321,8 @@ export async function registerRoutes(
         message: data.message,
       });
 
-      // 2. Enqueue durable async jobs
+      // 2. Notify the team without turning the submission into an outreach lead.
       await Promise.all([
-        enqueueJob(
-          "crm_ingest",
-          {
-            formData: {
-              name: data.name,
-              email: data.email,
-              phone: data.phone,
-              zipCode: data.zipCode,
-              service: data.service,
-              message: data.message,
-            },
-            attribution,
-            sourceType: "demo_inquiry",
-          },
-          contact.id,
-          "demo_inquiry",
-        ),
         enqueueJob(
           "email_notification",
           {

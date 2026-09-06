@@ -51,7 +51,6 @@ async function buildContactApp() {
       const contact = await storage.createContact(data);
 
       await Promise.all([
-        enqueueJob("crm_ingest", {}, contact.id, "contact_form"),
         enqueueJob("email_notification", {}, `email:${contact.id}:contact_form`, "contact_form"),
       ]).catch(() => {});
 
@@ -120,13 +119,13 @@ describe("POST /api/contacts", () => {
     expect(mockCreateContact).toHaveBeenCalledWith(expect.objectContaining({ phone: "" }));
   });
 
-  it("enqueues crm_ingest and email_notification jobs after creating contact", async () => {
+  it("enqueues a notification without creating a CRM lead", async () => {
     const app = await buildContactApp();
     await post(app, "/api/contacts", VALID_PAYLOAD);
-    expect(mockEnqueueJob).toHaveBeenCalledTimes(2);
+    expect(mockEnqueueJob).toHaveBeenCalledTimes(1);
     const jobTypes = mockEnqueueJob.mock.calls.map((c: string[][]) => c[0]);
-    expect(jobTypes).toContain("crm_ingest");
     expect(jobTypes).toContain("email_notification");
+    expect(jobTypes).not.toContain("crm_ingest");
   });
 
   it("returns 400 when required fields are missing", async () => {

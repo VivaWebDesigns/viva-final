@@ -10,7 +10,7 @@ import {
   followupTasks, onboardingRecords, onboardingChecklistItems, onboardingNotes,
   attachments, demoConfigs, marketplacePendingOutreach,
 } from "@shared/schema";
-import { sql, desc, eq, or } from "drizzle-orm";
+import { sql, desc, eq, or, ilike } from "drizzle-orm";
 import { auth } from "../auth/auth";
 import { logAudit } from "../audit/service";
 import * as pipelineStorage from "../pipeline/storage";
@@ -50,6 +50,34 @@ router.get("/stats", requireRole("admin", "developer", "sales_rep"), async (req,
     pipelineStats,
     recentLeads,
   });
+});
+
+router.get("/submissions", requireRole("admin", "developer"), async (req, res) => {
+  const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
+  const limit = Math.min(Math.max(Number(req.query.limit) || 100, 1), 200);
+  const searchFilter = search
+    ? or(
+        ilike(contacts.name, `%${search}%`),
+        ilike(contacts.email, `%${search}%`),
+        ilike(contacts.phone, `%${search}%`),
+        ilike(contacts.business, `%${search}%`),
+        ilike(contacts.city, `%${search}%`),
+        ilike(contacts.trade, `%${search}%`),
+        ilike(contacts.service, `%${search}%`),
+        ilike(contacts.message, `%${search}%`),
+      )
+    : undefined;
+
+  const rowsQuery = db.select().from(contacts);
+  const countQuery = db.select({ count: sql<number>`count(*)::int` }).from(contacts);
+  const [items, countRows] = await Promise.all([
+    searchFilter
+      ? rowsQuery.where(searchFilter).orderBy(desc(contacts.createdAt)).limit(limit)
+      : rowsQuery.orderBy(desc(contacts.createdAt)).limit(limit),
+    searchFilter ? countQuery.where(searchFilter) : countQuery,
+  ]);
+
+  res.json({ items, total: countRows[0]?.count ?? 0 });
 });
 
 router.get("/audit-logs", requireRole("admin", "developer"), async (req, res) => {

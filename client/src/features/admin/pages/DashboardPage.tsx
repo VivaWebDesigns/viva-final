@@ -58,7 +58,7 @@ export default function DashboardPage() {
     { key: "companies" as const,      label: t.dashboard.companies,      icon: Building2,  color: "bg-indigo-500",  href: "/admin/crm" },
     { key: "crmContacts" as const,    label: t.dashboard.crmContacts,    icon: UserCheck,  color: "bg-emerald-500", href: "/admin/crm" },
     { key: "users" as const,          label: t.dashboard.teamMembers,    icon: Users,      color: "bg-blue-500",    href: "/admin/settings" },
-    { key: "contacts" as const,       label: t.dashboard.formSubmissions,icon: Phone,      color: "bg-amber-500",   href: "/admin/crm" },
+    { key: "contacts" as const,       label: t.dashboard.formSubmissions,icon: Phone,      color: "bg-amber-500",   href: "/admin/submissions" },
     { key: "articles" as const,       label: t.dashboard.docArticles,    icon: FileText,   color: "bg-purple-500",  href: "/admin/docs" },
     { key: "integrations" as const,   label: t.dashboard.integrations,   icon: Puzzle,     color: "bg-rose-500",    href: "/admin/settings" },
   ];
