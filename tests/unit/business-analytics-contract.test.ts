@@ -9,6 +9,9 @@ const storage = readFileSync("server/features/business-analytics/storage.ts", "u
 const googleApi = readFileSync("server/features/business-analytics/googleApi.ts", "utf8");
 const googleAuth = readFileSync("server/features/business-analytics/googleAuth.ts", "utf8");
 const publicSiteScript = readFileSync("client/public/js/site.js", "utf8");
+const websiteActivity = readFileSync("server/features/business-analytics/websiteActivity.ts", "utf8");
+const schema = readFileSync("shared/schema.ts", "utf8");
+const serverIndex = readFileSync("server/index.ts", "utf8");
 
 describe("business analytics admin contract", () => {
   it("provides a dedicated protected Analytics page", () => {
@@ -20,12 +23,13 @@ describe("business analytics admin contract", () => {
     expect(page).toContain("Website Monitor");
     expect(page).toContain("Since Sep 4");
     expect(page).toContain('const MONITORING_START_DATE = "2026-09-04"');
-    expect(page).toContain("Credible website traffic is treated as outreach-influenced");
-    expect(page).toContain("Traffic over time");
-    expect(page).toContain("Where visitors are located");
-    expect(page).toContain("How visitors arrived");
-    expect(page).toContain("Pages visitors used");
-    expect(page).toContain("Actions visitors took");
+    expect(page).toContain("Credible traffic is treated as outreach-influenced");
+    expect(page).toContain("One timeline for outreach and website activity");
+    expect(page).toContain("What happened");
+    expect(page).toContain("Email sends and anonymous website journeys in chronological order");
+    expect(page).toContain("Anonymous session · approximately");
+    expect(page).toContain("Historical context from Google Analytics");
+    expect(page).toContain("individual journeys cannot be reconstructed");
     expect(page).toContain('value === 1 ? "1 day"');
     expect(page).toContain('setRangeMode("custom")');
     expect(page).toContain('activeTab === "engagement"');
@@ -44,6 +48,18 @@ describe("business analytics admin contract", () => {
     expect(publicSiteScript).toContain('recordWebsiteAction("schedule_click"');
     expect(publicSiteScript).toContain('recordWebsiteAction("scan_interest"');
     expect(publicSiteScript).toContain('recordWebsiteAction("results_interest"');
+    expect(publicSiteScript).toContain('queueActivity("page_view")');
+    expect(publicSiteScript).toContain('queueActivity("form_submit"');
+    expect(publicSiteScript).toContain('queueActivity("deep_scroll"');
+    expect(publicSiteScript).toContain("window.sessionStorage");
+    expect(publicSiteScript).not.toContain("document.cookie");
+    expect(serverRoutes).toContain('router.post("/website-activity/collect"');
+    expect(serverRoutes).toContain('router.get("/website-activity"');
+    expect(websiteActivity).toContain("WEBSITE_ACTIVITY_RETENTION_DAYS = 90");
+    expect(websiteActivity).not.toContain("ipAddress:");
+    expect(schema).toContain('pgTable("website_activity_sessions"');
+    expect(schema).toContain('pgTable("website_activity_events"');
+    expect(serverIndex).toContain('path === "/api/business-analytics/website-activity/collect"');
   });
 
   it("provides template-level report outreach analytics without requiring GA4", () => {

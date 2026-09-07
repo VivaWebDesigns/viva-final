@@ -1,8 +1,11 @@
-import { Router } from "express";
+import { Router, type Request } from "express";
+import { createHmac, randomBytes } from "node:crypto";
 import { lt } from "drizzle-orm";
 import { z } from "zod";
+import { fromNodeHeaders } from "better-auth/node";
 import { googleOAuthStates } from "@shared/schema";
 import { db } from "../../db";
+import { auth } from "../auth/auth";
 import { requireRole } from "../auth/middleware";
 import { logAudit } from "../audit/service";
 import {
@@ -22,12 +25,59 @@ import {
   getGoogleAnalyticsDashboard,
 } from "./googleApi";
 import * as storage from "./storage";
+import {
+  getWebsiteActivityDashboard,
+  recordWebsiteActivity,
+  websiteActivityBatchSchema,
+} from "./websiteActivity";
 
 const router = Router();
 const providerSchema = z.enum(GOOGLE_PROVIDERS);
 const GA4_PROPERTY_ID = process.env.GA4_PROPERTY_ID || "543529736";
 const analyticsCache = new Map<string, { expiresAt: number; data: unknown }>();
+const activityRateLimits = new Map<string, { count: number; resetAt: number }>();
+const activityRateSalt = randomBytes(32);
 const isoDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+
+function sameSiteActivityRequest(req: Request) {
+  const origin = req.get("origin");
+  if (!origin) return true;
+  try {
+    const hostname = new URL(origin).hostname.toLowerCase().replace(/^www\./, "");
+    return hostname === "vivawebdesigns.com" || hostname === req.hostname.toLowerCase().replace(/^www\./, "");
+  } catch {
+    return false;
+  }
+}
+
+function withinActivityRateLimit(key: string, limit: number) {
+  const now = Date.now();
+  const current = activityRateLimits.get(key);
+  if (!current || current.resetAt <= now) {
+    activityRateLimits.set(key, { count: 1, resetAt: now + 10 * 60 * 1_000 });
+    if (activityRateLimits.size > 5_000) {
+      for (const [key, value] of activityRateLimits) if (value.resetAt <= now) activityRateLimits.delete(key);
+    }
+    return true;
+  }
+  current.count += 1;
+  return current.count <= limit;
+}
+
+function ephemeralNetworkRateKey(req: Request) {
+  const forwarded = req.get("cf-connecting-ip") || req.ip || "unknown";
+  return `network:${createHmac("sha256", activityRateSalt).update(forwarded).digest("hex")}`;
+}
+
+async function isAuthenticatedInternalBrowser(req: Request) {
+  if (!req.headers.cookie || !req.headers.cookie.includes("better-auth.session_token")) return false;
+  try {
+    const session = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) });
+    return session?.user?.role === "admin" || session?.user?.role === "developer";
+  } catch {
+    return false;
+  }
+}
 
 function easternDate(offsetDays = 0) {
   const date = new Date(Date.now() + offsetDays * 86_400_000);
@@ -120,6 +170,40 @@ async function syncBusinessReviews() {
     throw new Error(message);
   }
 }
+
+router.post("/website-activity/collect", async (req, res) => {
+  try {
+    if (!sameSiteActivityRequest(req)) return res.status(403).json({ message: "Forbidden origin" });
+    const input = websiteActivityBatchSchema.parse(req.body);
+    if (input.events.some((event) => event.path.split("?")[0]?.startsWith("/admin"))) {
+      return res.status(204).end();
+    }
+    if (!withinActivityRateLimit(`session:${input.sessionId}`, 60) || !withinActivityRateLimit(ephemeralNetworkRateKey(req), 300)) {
+      return res.status(429).json({ message: "Too many activity updates" });
+    }
+    const result = await recordWebsiteActivity(input, {
+      headers: req.headers,
+      userAgent: req.get("user-agent"),
+      isInternal: await isAuthenticatedInternalBrowser(req),
+    });
+    res.setHeader("Cache-Control", "no-store");
+    res.status(202).json(result);
+  } catch (error) {
+    if (error instanceof z.ZodError) return res.status(400).json({ message: "Invalid activity update" });
+    res.status(500).json({ message: "Activity could not be recorded" });
+  }
+});
+
+router.get("/website-activity", requireRole("admin", "developer"), async (req, res) => {
+  try {
+    const dateRange = googleAnalyticsDateRange(req.query);
+    res.setHeader("Cache-Control", "no-store");
+    res.json(await getWebsiteActivityDashboard(dateRange.startDate, dateRange.endDate));
+  } catch (error) {
+    const status = (error as { statusCode?: number })?.statusCode === 400 ? 400 : 500;
+    res.status(status).json({ message: status === 400 ? (error as Error).message : "Website activity could not be loaded" });
+  }
+});
 
 router.get("/status", requireRole("admin", "developer"), async (_req, res) => {
   const businessProfileEnabled = googleBusinessProfileEnabled();

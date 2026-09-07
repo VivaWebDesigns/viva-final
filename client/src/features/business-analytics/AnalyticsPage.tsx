@@ -74,6 +74,39 @@ type GaDashboard = {
   generatedAt: string;
 };
 
+type WebsiteActivityData = {
+  dateRange: { startDate: string; endDate: string };
+  detailedTrackingStartedAt: string | null;
+  summary: {
+    credibleSessions: number;
+    meaningfulSessions: number;
+    briefSessions: number;
+    filteredSessions: number;
+    automatedSessions: number;
+    internalSessions: number;
+  };
+  sessions: Array<{
+    id: string;
+    startedAt: string;
+    lastSeenAt: string;
+    entryPath: string;
+    referrerHost: string | null;
+    source: string;
+    city: string | null;
+    region: string | null;
+    country: string | null;
+    device: string;
+    pageViewCount: number;
+    activeSeconds: number;
+    actionCount: number;
+    quality: "meaningful" | "brief" | "automated" | "internal";
+    journey: Array<{ type: string; path: string; occurredAt: string }>;
+  }>;
+  emailSends: Array<{ sentAt: string }>;
+  retentionDays: number;
+  generatedAt: string;
+};
+
 type AnalyticsTab = "monitoring" | "overview" | "engagement" | "devices" | "geography" | "flow";
 type RangeMode = "monitoring" | "1" | "7" | "30" | "90" | "custom";
 
@@ -231,6 +264,7 @@ function behaviorLabel(value: string) {
     scan_interest: "Opened or started a scan",
     results_interest: "Opened client results",
     contact_interest: "Opened the contact path",
+    deep_scroll: "Read most of the page",
   };
   return labels[value] ?? formatLabel(value);
 }
@@ -240,6 +274,33 @@ function trafficQuality(row: GaDashboard["geography"][number]) {
     return "Very low activity";
   }
   return "Meaningful activity";
+}
+
+function pageLabel(path: string) {
+  const labels: Record<string, string> = {
+    "/": "Home",
+    "/results": "Results",
+    "/scan": "Free Visibility Scan",
+    "/contact": "Contact",
+    "/thanks": "Scan confirmation",
+    "/contact-thanks": "Contact confirmation",
+    "/privacy-policy": "Privacy Policy",
+  };
+  return labels[path] ?? path;
+}
+
+function easternDateTime(value: string) {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+function activityLocation(session: WebsiteActivityData["sessions"][number]) {
+  return [session.city, session.region, session.country].filter(Boolean).join(", ") || "Location unavailable";
 }
 
 export default function AnalyticsPage() {
@@ -271,6 +332,12 @@ export default function AnalyticsPage() {
     queryKey: [`/api/business-analytics/ga4?${analyticsRangeQuery}`],
     enabled: analyticsConnected && (rangeMode !== "custom" || customRangeValid),
     staleTime: STALE.SLOW,
+  });
+  const { data: activityData, isLoading: activityLoading, error: activityError } = useQuery<WebsiteActivityData>({
+    queryKey: [`/api/business-analytics/website-activity?${analyticsRangeQuery}`],
+    enabled: rangeMode !== "custom" || customRangeValid,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
   });
 
   const { data: locationsData, error: locationsError } = useQuery<{ locations: BusinessLocation[] }>({
@@ -330,6 +397,17 @@ export default function AnalyticsPage() {
   const includesToday = gaData?.dateRange.endDate === dateInputValue(new Date());
   const configReady = !!status?.config.oauthClientConfigured && !!status?.config.encryptionConfigured;
   const canConnect = role === "admin" && configReady && !connectMutation.isPending;
+  const activityFeed = useMemo(() => {
+    const sessions = (activityData?.sessions ?? [])
+      .filter((session) => session.quality === "meaningful" || session.quality === "brief")
+      .map((session) => ({ kind: "session" as const, occurredAt: session.startedAt, session }));
+    const sends = (activityData?.emailSends ?? [])
+      .map((send) => ({ kind: "email" as const, occurredAt: send.sentAt }));
+    return [...sessions, ...sends].sort((left, right) => new Date(right.occurredAt).getTime() - new Date(left.occurredAt).getTime());
+  }, [activityData]);
+  const latestMeaningfulSession = useMemo(() => (activityData?.sessions ?? [])
+    .filter((session) => session.quality === "meaningful")
+    .sort((left, right) => new Date(right.startedAt).getTime() - new Date(left.startedAt).getTime())[0], [activityData]);
 
   const handleLocationChange = (value: string) => {
     setSelectedLocation(value);
@@ -453,98 +531,113 @@ export default function AnalyticsPage() {
 
             {activeTab === "monitoring" && <>
               <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-950">
-                <p className="font-semibold">Outreach monitoring assumption</p>
+                <p className="font-semibold">One timeline for outreach and website activity</p>
                 <p className="mt-1 text-blue-800">
-                  Credible website traffic is treated as outreach-influenced. Direct means someone entered the address; Organic Search can mean someone searched for Viva after seeing an email.
+                  Credible traffic is treated as outreach-influenced. Sessions remain anonymous: timing and approximate location provide context, but never claim that a particular lead visited.
                 </p>
               </div>
 
-              {includesToday && (
-                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                  Today is included and remains preliminary. Google can record visits and actions before it finishes calculating engaged sessions.
-                </div>
-              )}
-
               <div className="grid grid-cols-2 gap-4 xl:grid-cols-5">
-                <MetricCard label="Emails recorded" value={totalOutreachSends.toLocaleString()} icon={MessageSquareText} tone="bg-sky-600" detail="Context, not individual attribution" />
-                <MetricCard label="Website sessions" value={gaData.summary.sessions.toLocaleString()} icon={Activity} tone="bg-indigo-500" detail={gaData.dateRange.label} />
-                <MetricCard label="Engaged sessions" value={gaData.summary.engagedSessions.toLocaleString()} icon={MousePointerClick} tone="bg-blue-500" detail={percentLabel(gaData.summary.engagementRate)} />
-                <MetricCard label="Page views" value={gaData.summary.screenPageViews.toLocaleString()} icon={Eye} tone="bg-cyan-500" detail={`${gaData.summary.pagesPerSession} per session`} />
-                <MetricCard label="Confirmed leads" value={gaData.summary.confirmedLeads.toLocaleString()} icon={CheckCircle2} tone="bg-teal-500" detail={`${gaData.summary.keyEvents.toLocaleString()} total key events`} />
+                <MetricCard label="Emails recorded" value={(activityData?.emailSends.length ?? totalOutreachSends).toLocaleString()} icon={MessageSquareText} tone="bg-sky-600" detail="Shown beside traffic, not attributed" />
+                <MetricCard label="Credible visits" value={activityData?.summary.credibleSessions ?? "—"} icon={Activity} tone="bg-indigo-500" detail="Detailed tracking only" />
+                <MetricCard label="Meaningful visits" value={activityData?.summary.meaningfulSessions ?? "—"} icon={MousePointerClick} tone="bg-emerald-500" detail="10s active, 2+ pages, or an action" />
+                <MetricCard label="Brief visits" value={activityData?.summary.briefSessions ?? "—"} icon={Eye} tone="bg-gray-500" detail="One page with under 10s active" />
+                <MetricCard label="Filtered" value={activityData?.summary.filteredSessions ?? "—"} icon={Target} tone="bg-amber-500" detail="Internal and recognizable automation" />
               </div>
 
               <Panel
-                title="Traffic over time"
-                subtitle={`Email volume beside website activity · ${gaData.dateRange.label}`}
-                action={<span className="whitespace-nowrap text-xs text-gray-500">GA timezone: {gaData.timeZone || "Not reported"}</span>}
+                title="What happened"
+                subtitle="Email sends and anonymous website journeys in chronological order"
+                action={<span className="whitespace-nowrap text-xs text-gray-500">Eastern time · refreshes every minute</span>}
               >
-                {gaData.trend.length ? (
-                  <div>
-                    <div className="mb-4 flex flex-wrap gap-4 text-xs font-medium text-gray-600">
-                      <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-indigo-500" />Sessions</span>
-                      <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-emerald-500" />Engaged</span>
-                      <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-amber-500" />Emails sent</span>
-                    </div>
-                    <div className="overflow-x-auto pb-2">
-                      <div className="flex h-56 min-w-[680px] items-end gap-1.5" style={{ width: `${Math.max(gaData.trend.length * 48, 680)}px` }}>
-                        {gaData.trend.map((point) => {
-                          const sends = sendsByDate.get(String(point.date)) ?? 0;
-                          return (
-                            <div key={point.date} className="group relative flex h-full min-w-10 flex-1 flex-col justify-end">
-                              {sends > 0 && <span className="mb-1 self-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">{sends} sent</span>}
-                              <div className="flex h-44 items-end justify-center gap-1">
-                                <div className="w-3 rounded-t bg-indigo-500" style={{ height: `${Math.max((point.sessions / trendMax) * 100, 2)}%` }} />
-                                <div className="w-3 rounded-t bg-emerald-500" style={{ height: `${Math.max((point.engagedSessions / trendMax) * 100, point.engagedSessions ? 2 : 0)}%` }} />
-                              </div>
-                              <span className="mt-2 text-center text-[10px] text-gray-500">{formatGaDate(String(point.date))}</span>
-                              <div className="absolute bottom-full left-1/2 z-10 mb-1 hidden -translate-x-1/2 whitespace-nowrap rounded bg-gray-900 px-2 py-1 text-xs text-white group-hover:block">
-                                {point.sessions} sessions · {point.engagedSessions} engaged · {sends} emails
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
+                {activityData && activityData.summary.credibleSessions > 0 && (
+                  <div className="mb-4 rounded-xl bg-blue-950 px-4 py-3 text-sm leading-6 text-white">
+                    <strong>{activityData.summary.credibleSessions} credible visit{activityData.summary.credibleSessions === 1 ? "" : "s"}</strong> since detailed tracking began: {activityData.summary.meaningfulSessions} meaningful and {activityData.summary.briefSessions} brief.
+                    {latestMeaningfulSession && <> The latest meaningful visit was approximately {activityLocation(latestMeaningfulSession)}, viewed {latestMeaningfulSession.pageViewCount} page{latestMeaningfulSession.pageViewCount === 1 ? "" : "s"}, and was active for {secondsLabel(latestMeaningfulSession.activeSeconds)}.</>}
                   </div>
-                ) : <EmptyState>No traffic data is available for this range.</EmptyState>}
+                )}
+                {activityLoading ? <div className="h-48 animate-pulse rounded-lg bg-gray-100" /> : activityError ? (
+                  <EmptyState>Detailed website activity could not be loaded: {(activityError as Error).message}</EmptyState>
+                ) : activityFeed.length ? (
+                  <div className="space-y-3">
+                    {activityFeed.map((item, index) => item.kind === "email" ? (
+                      <article key={`email-${item.occurredAt}-${index}`} className="flex gap-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-500"><MessageSquareText className="h-4 w-4 text-white" /></div>
+                        <div><p className="font-semibold text-amber-950">Outreach email recorded</p><p className="mt-1 text-sm text-amber-800">{easternDateTime(item.occurredAt)} · A timing marker only; no visitor identity is inferred.</p></div>
+                      </article>
+                    ) : (() => {
+                      const session = item.session;
+                      const meaningful = session.quality === "meaningful";
+                      const arrival = session.source === "Direct" ? "Arrived directly" : `Arrived from ${session.source}`;
+                      return (
+                        <article key={`session-${session.id}-${item.occurredAt}`} className={`rounded-xl border p-4 ${meaningful ? "border-emerald-200 bg-emerald-50/50" : "border-gray-200 bg-gray-50"}`}>
+                          <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-start">
+                            <div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="font-semibold text-gray-950">Anonymous session · approximately {activityLocation(session)}</p>
+                                <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide ${meaningful ? "bg-emerald-100 text-emerald-800" : "bg-gray-200 text-gray-700"}`}>{meaningful ? "Meaningful" : "Brief"}</span>
+                              </div>
+                              <p className="mt-1 text-sm text-gray-600">{arrival} on {pageLabel(session.entryPath)}.</p>
+                            </div>
+                            <time className="shrink-0 text-xs font-medium text-gray-500">{easternDateTime(session.startedAt)}</time>
+                          </div>
+                          {session.journey.length > 0 && (
+                            <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
+                              {session.journey.slice(0, 12).map((step, stepIndex) => (
+                                <span key={`${step.type}-${step.occurredAt}-${stepIndex}`} className="contents">
+                                  {stepIndex > 0 && <span className="text-gray-300">→</span>}
+                                  <span className={`rounded-lg border px-2.5 py-1.5 ${step.type === "page_view" ? "border-blue-100 bg-white text-gray-800" : "border-emerald-200 bg-emerald-100 text-emerald-900"}`}>
+                                    {step.type === "page_view" ? pageLabel(step.path) : behaviorLabel(step.type)}
+                                  </span>
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          <p className="mt-4 text-xs text-gray-500">{session.pageViewCount} page{session.pageViewCount === 1 ? "" : "s"} · {secondsLabel(session.activeSeconds)} active · {session.actionCount} important action{session.actionCount === 1 ? "" : "s"} · {formatLabel(session.device)} · session {session.id}</p>
+                        </article>
+                      );
+                    })())}
+                  </div>
+                ) : (
+                  <EmptyState>No detailed public visits have been recorded yet. The first anonymous journey will appear here as soon as someone visits after deployment.</EmptyState>
+                )}
+                {activityData && activityData.summary.filteredSessions > 0 && (
+                  <details className="mt-4 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+                    <summary className="cursor-pointer font-semibold text-gray-800">{activityData.summary.filteredSessions} filtered session{activityData.summary.filteredSessions === 1 ? "" : "s"}</summary>
+                    <p className="mt-2">{activityData.summary.internalSessions} internal · {activityData.summary.automatedSessions} recognizable automation. These do not appear in the primary timeline.</p>
+                  </details>
+                )}
+                <p className="mt-4 text-xs leading-5 text-gray-500">Location is approximate and can be affected by mobile networks, VPNs, or corporate routing. Sessions are anonymous, detailed records are retained for {activityData?.retentionDays ?? 90} days, and no full IP address is stored.</p>
               </Panel>
 
-              <div className="grid gap-6 2xl:grid-cols-2">
-                <Panel title="Where visitors are located" subtitle="Location, activity quality, and engagement shown together">
-                  {gaData.geography.length ? <div className="overflow-x-auto"><table className="w-full min-w-[720px] text-left text-sm">
-                    <thead className="border-b border-gray-100 text-xs uppercase tracking-wide text-gray-500"><tr><th className="pb-3 font-medium">Location</th><th className="pb-3 text-right font-medium">Sessions</th><th className="pb-3 text-right font-medium">Engaged</th><th className="pb-3 text-right font-medium">Views</th><th className="pb-3 text-right font-medium">Avg. time</th><th className="pb-3 text-right font-medium">Signal</th></tr></thead>
-                    <tbody className="divide-y divide-gray-100">{gaData.geography.slice(0, 15).map((row, index) => {
-                      const quality = trafficQuality(row);
-                      return <tr key={`${row.city}-${row.region}-${row.country}-${index}`}><td className="py-3 pr-3"><span className="font-semibold text-gray-900">{row.city || "Unknown city"}</span><span className="block text-xs text-gray-500">{row.region}, {row.country}</span></td><td className="py-3 text-right text-gray-700">{row.sessions}</td><td className="py-3 text-right text-gray-700">{row.engagedSessions}</td><td className="py-3 text-right text-gray-700">{row.screenPageViews}</td><td className="py-3 text-right text-gray-700">{secondsLabel(row.averageSessionDuration)}</td><td className={`py-3 text-right text-xs font-semibold ${quality === "Meaningful activity" ? "text-emerald-700" : "text-amber-700"}`}>{quality}</td></tr>;
-                    })}</tbody>
-                  </table></div> : <EmptyState>No geographic data is available for this range.</EmptyState>}
-                </Panel>
-
-                <Panel title="How visitors arrived" subtitle="Return path and first website page—not the original source of awareness">
-                  {gaData.flow.length ? <div className="overflow-x-auto"><table className="w-full min-w-[650px] text-left text-sm">
-                    <thead className="border-b border-gray-100 text-xs uppercase tracking-wide text-gray-500"><tr><th className="pb-3 font-medium">Return path</th><th className="pb-3 font-medium">Entry page</th><th className="pb-3 text-right font-medium">Sessions</th><th className="pb-3 text-right font-medium">Engaged</th><th className="pb-3 text-right font-medium">Views</th></tr></thead>
-                    <tbody className="divide-y divide-gray-100">{gaData.flow.slice(0, 15).map((row, index) => <tr key={`${row.channel}-${row.landingPage}-${index}`}><td className="py-3 pr-3 font-semibold text-gray-900">{row.channel}</td><td className="max-w-xs truncate py-3 pr-3 text-gray-600" title={row.landingPage}>{row.landingPage || "Unknown"}</td><td className="py-3 text-right text-gray-700">{row.sessions}</td><td className="py-3 text-right text-gray-700">{row.engagedSessions}</td><td className="py-3 text-right text-gray-700">{row.screenPageViews}</td></tr>)}</tbody>
-                  </table></div> : <EmptyState>No entry-path data is available for this range.</EmptyState>}
-                </Panel>
-              </div>
-
-              <div className="grid gap-6 2xl:grid-cols-2">
-                <Panel title="Pages visitors used" subtitle="What people viewed after reaching the website">
-                  {gaData.content.length ? <div className="overflow-x-auto"><table className="w-full min-w-[620px] text-left text-sm">
-                    <thead className="border-b border-gray-100 text-xs uppercase tracking-wide text-gray-500"><tr><th className="pb-3 font-medium">Page</th><th className="pb-3 text-right font-medium">Users</th><th className="pb-3 text-right font-medium">Views</th><th className="pb-3 text-right font-medium">Active time / user</th></tr></thead>
-                    <tbody className="divide-y divide-gray-100">{gaData.content.slice(0, 15).map((row) => <tr key={row.pagePath}><td className="max-w-sm truncate py-3 pr-3 font-semibold text-gray-900" title={row.pagePath}>{row.pagePath || "Unknown"}</td><td className="py-3 text-right text-gray-700">{row.activeUsers}</td><td className="py-3 text-right text-gray-700">{row.screenPageViews}</td><td className="py-3 text-right text-gray-700">{secondsLabel(row.activeUsers ? row.userEngagementDuration / row.activeUsers : 0)}</td></tr>)}</tbody>
-                  </table></div> : <EmptyState>No page-use data is available for this range.</EmptyState>}
-                </Panel>
-
-                <Panel title="Actions visitors took" subtitle="Meaningful actions currently recorded by GA4">
-                  {gaData.behavior.length ? <div className="space-y-3">{gaData.behavior.map((row) => (
-                    <div key={row.eventName} className="flex items-center justify-between gap-4 rounded-lg border border-gray-100 px-4 py-3">
-                      <div><p className="font-semibold text-gray-900">{behaviorLabel(row.eventName)}</p><p className="mt-0.5 text-xs text-gray-500">{row.totalUsers} visitor{row.totalUsers === 1 ? "" : "s"}</p></div>
-                      <div className="text-right"><p className="text-xl font-bold text-gray-900">{row.eventCount}</p><p className="text-xs text-gray-500">actions</p></div>
+              <Panel
+                title="Historical context from Google Analytics"
+                subtitle={`Aggregate traffic retained from September 4; individual journeys cannot be reconstructed · ${gaData.dateRange.label}`}
+                action={<span className="whitespace-nowrap text-xs text-gray-500">GA timezone: {gaData.timeZone || "Not reported"}</span>}
+              >
+                <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+                  <div className="rounded-lg bg-gray-50 p-3"><p className="text-xl font-bold text-gray-900">{gaData.summary.sessions}</p><p className="text-xs text-gray-500">aggregate sessions</p></div>
+                  <div className="rounded-lg bg-gray-50 p-3"><p className="text-xl font-bold text-gray-900">{gaData.summary.engagedSessions}</p><p className="text-xs text-gray-500">GA engaged sessions</p></div>
+                  <div className="rounded-lg bg-gray-50 p-3"><p className="text-xl font-bold text-gray-900">{gaData.summary.screenPageViews}</p><p className="text-xs text-gray-500">page views</p></div>
+                  <div className="rounded-lg bg-gray-50 p-3"><p className="text-xl font-bold text-gray-900">{gaData.geography[0]?.city || "—"}</p><p className="text-xs text-gray-500">top reported city</p></div>
+                </div>
+                {includesToday && <p className="mb-4 text-xs text-amber-700">Today remains preliminary while Google finishes processing engagement.</p>}
+                {gaData.trend.length ? (
+                  <div className="overflow-x-auto pb-2">
+                    <div className="flex h-44 min-w-[680px] items-end gap-1.5" style={{ width: `${Math.max(gaData.trend.length * 48, 680)}px` }}>
+                      {gaData.trend.map((point) => {
+                        const sends = sendsByDate.get(String(point.date)) ?? 0;
+                        return <div key={point.date} className="group relative flex h-full min-w-10 flex-1 flex-col justify-end">
+                          {sends > 0 && <span className="mb-1 self-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">{sends} sent</span>}
+                          <div className="flex h-28 items-end justify-center gap-1"><div className="w-4 rounded-t bg-indigo-500" style={{ height: `${Math.max((point.sessions / trendMax) * 100, 2)}%` }} /></div>
+                          <span className="mt-2 text-center text-[10px] text-gray-500">{formatGaDate(String(point.date))}</span>
+                          <div className="absolute bottom-full left-1/2 z-10 mb-1 hidden -translate-x-1/2 whitespace-nowrap rounded bg-gray-900 px-2 py-1 text-xs text-white group-hover:block">{point.sessions} sessions · {point.engagedSessions} engaged · {sends} emails</div>
+                        </div>;
+                      })}
                     </div>
-                  ))}</div> : <EmptyState>No meaningful visitor actions are recorded for this range.</EmptyState>}
-                </Panel>
-              </div>
+                  </div>
+                ) : <EmptyState>No aggregate traffic is available for this range.</EmptyState>}
+              </Panel>
             </>}
 
             {activeTab === "overview" && <>

@@ -89,6 +89,7 @@ app.use((req, res, next) => {
 
   res.on("finish", () => {
     if (!path.startsWith("/api") || path.startsWith("/api/auth")) return;
+    if (path === "/api/business-analytics/website-activity/collect") return;
     const duration = Date.now() - start;
     const status = res.statusCode;
     let logLine = `${req.method} ${path} ${status} in ${duration}ms [${requestId}]`;

@@ -300,6 +300,44 @@ export const googleBusinessReviews = pgTable("google_business_reviews", {
   index("google_business_review_connection_idx").on(t.connectionId, t.reviewCreatedAt),
 ]);
 
+export const websiteActivitySessions = pgTable("website_activity_sessions", {
+  id: varchar("id", { length: 36 }).primaryKey(),
+  startedAt: timestamp("started_at").notNull(),
+  lastSeenAt: timestamp("last_seen_at").notNull(),
+  entryPath: text("entry_path").notNull(),
+  referrerHost: text("referrer_host"),
+  source: text("source").notNull().default("Direct"),
+  city: text("city"),
+  region: text("region"),
+  country: text("country"),
+  device: text("device").notNull().default("unknown"),
+  pageViewCount: integer("page_view_count").notNull().default(0),
+  activeSeconds: integer("active_seconds").notNull().default(0),
+  actionCount: integer("action_count").notNull().default(0),
+  isAutomated: boolean("is_automated").notNull().default(false),
+  isInternal: boolean("is_internal").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (t) => [
+  index("website_activity_started_idx").on(t.startedAt),
+  index("website_activity_last_seen_idx").on(t.lastSeenAt),
+  index("website_activity_quality_idx").on(t.isAutomated, t.isInternal, t.startedAt),
+]);
+
+export const websiteActivityEvents = pgTable("website_activity_events", {
+  id: varchar("id", { length: 36 }).primaryKey(),
+  sessionId: varchar("session_id", { length: 36 }).notNull().references(() => websiteActivitySessions.id, { onDelete: "cascade" }),
+  eventType: text("event_type").notNull(),
+  path: text("path").notNull(),
+  activeSeconds: integer("active_seconds").notNull().default(0),
+  occurredAt: timestamp("occurred_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("website_activity_event_session_idx").on(t.sessionId, t.occurredAt),
+  index("website_activity_event_occurred_idx").on(t.occurredAt),
+  index("website_activity_event_type_idx").on(t.eventType, t.occurredAt),
+]);
+
 // ─── CRM Tables ──────────────────────────────────────────────────────
 
 export const crmCompanies = pgTable("crm_companies", {
@@ -1069,6 +1107,8 @@ export type IntegrationRecord = typeof integrationRecords.$inferSelect;
 
 export type GoogleIntegrationConnection = typeof googleIntegrationConnections.$inferSelect;
 export type GoogleBusinessReview = typeof googleBusinessReviews.$inferSelect;
+export type WebsiteActivitySession = typeof websiteActivitySessions.$inferSelect;
+export type WebsiteActivityEvent = typeof websiteActivityEvents.$inferSelect;
 
 export type User = typeof user.$inferSelect;
 export type Session = typeof session.$inferSelect;

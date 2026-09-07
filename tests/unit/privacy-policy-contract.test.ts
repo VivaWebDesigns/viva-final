@@ -57,9 +57,14 @@ describe("privacy policy contract", () => {
     expect(policySource).toContain("We do not load Google Analytics on scan-report pages.");
     expect(policySource).toContain("Report Engagement Data");
     expect(policySource).toContain("first-party event recording");
+    expect(policySource).toContain("random anonymous browser-session identifier");
+    expect(policySource).toContain("We do not store the visitor&rsquo;s full IP address");
+    expect(policySource).toContain("connect a session to a particular lead or email address");
+    expect(policySource).toContain("automatically deleted after 90 days");
 
     const modalSource = readSource("client/src/components/PrivacyPolicyModal.tsx");
     expect(modalSource).toContain("Report Engagement Data");
     expect(modalSource).toContain("first-party event recording");
+    expect(modalSource).toContain("automatically deleted after 90 days");
   });
 });

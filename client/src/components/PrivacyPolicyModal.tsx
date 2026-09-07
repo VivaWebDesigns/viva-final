@@ -19,7 +19,7 @@ export function PrivacyPolicyContent({ standalone = false }: { standalone?: bool
   const company = "Viva Web Designs LLC";
   const email = "matt@vivawebdesigns.com";
   const phone = "(704) 222-7067";
-  const effective = "September 4, 2026";
+  const effective = "September 7, 2026";
   const Heading = standalone ? "h1" : "h2";
 
   return (
@@ -37,7 +37,7 @@ export function PrivacyPolicyContent({ standalone = false }: { standalone?: bool
         <p>We may collect the following categories of personal information:</p>
         <ul className="list-disc list-inside space-y-1 mt-2 ml-2">
           <li><strong>Contact Information:</strong> Name, email address, phone number, and business name when you fill out a contact form or request a quote.</li>
-          <li><strong>Usage Data:</strong> IP address, browser type, pages visited, and time spent on our website, collected automatically via cookies and analytics tools.</li>
+          <li><strong>Usage Data:</strong> A random anonymous browser-session identifier, device category, pages viewed, approximate city/state/country, referring website, important actions, active time, and visit times.</li>
           <li><strong>Communications:</strong> Messages you send us via contact forms, email, or SMS.</li>
           <li><strong>Business Information:</strong> Trade, city, and service interests you share when inquiring about our services.</li>
           <li><strong>Report Engagement Data:</strong> Whether a personalized scan-report page counted as an engaged view and which report-page action buttons were selected.</li>
@@ -81,29 +81,38 @@ export function PrivacyPolicyContent({ standalone = false }: { standalone?: bool
           Our website uses cookies and similar tracking technologies to enhance your browsing experience, analyze site traffic, and understand how visitors interact with our content. You can instruct your browser to refuse all cookies or to indicate when a cookie is being sent. However, some features of our website may not function properly without cookies.
         </p>
         <p>
+          Our public website uses first-party event recording to describe the anonymous sequence of pages and actions within one browser session. The random session identifier is kept in browser session storage. We do not store a full IP address, form-field contents, keystrokes, mouse recordings, or a persistent fingerprint, and we do not connect these sessions to particular leads or email addresses. Administrative pages are excluded, while authenticated internal activity and recognizable automated traffic are filtered from primary reporting.
+        </p>
+        <p>
           Scan-report pages use first-party event recording to save engaged views and selected report actions in the associated CRM record.
         </p>
       </PolicySection>
 
-      <PolicySection title="6. Data Security">
+      <PolicySection title="6. Data Retention">
+        <p>
+          Detailed anonymous public-website session and event records are automatically deleted after 90 days. Other information is retained only for as long as reasonably necessary for the purpose for which it was collected and applicable business or legal obligations.
+        </p>
+      </PolicySection>
+
+      <PolicySection title="7. Data Security">
         <p>
           We implement appropriate technical and organizational measures to protect your personal information against unauthorized access, alteration, disclosure, or destruction. However, no method of transmission over the internet or electronic storage is 100% secure, and we cannot guarantee absolute security.
         </p>
       </PolicySection>
 
-      <PolicySection title="7. Third-Party Links">
+      <PolicySection title="8. Third-Party Links">
         <p>
           Our website may contain links to third-party websites. We are not responsible for the privacy practices of those sites and encourage you to review their privacy policies before providing any personal information.
         </p>
       </PolicySection>
 
-      <PolicySection title="8. Children's Privacy">
+      <PolicySection title="9. Children's Privacy">
         <p>
           Our services are not directed to individuals under the age of 18. We do not knowingly collect personal information from children. If you believe a child has provided us with personal information, please contact us and we will take steps to delete it.
         </p>
       </PolicySection>
 
-      <PolicySection title="9. Your Rights">
+      <PolicySection title="10. Your Rights">
         <p>Depending on your location, you may have the right to:</p>
         <ul className="list-disc list-inside space-y-1 mt-2 ml-2">
           <li>Access the personal information we hold about you</li>
@@ -114,13 +123,13 @@ export function PrivacyPolicyContent({ standalone = false }: { standalone?: bool
         <p className="mt-3">To exercise any of these rights, contact us at {email}.</p>
       </PolicySection>
 
-      <PolicySection title="10. Changes to This Policy">
+      <PolicySection title="11. Changes to This Policy">
         <p>
           We may update this Privacy Policy from time to time. We will notify you of any significant changes by updating the effective date at the top of this page. Your continued use of our website after changes are posted constitutes your acceptance of the updated policy.
         </p>
       </PolicySection>
 
-      <PolicySection title="11. Communications">
+      <PolicySection title="12. Communications">
         <p>
           If you contact Viva Web Designs LLC through our website, forms, email, phone, or scheduling tools, we may contact you regarding your inquiry, requested services, appointments, project updates, or customer support.
         </p>
@@ -129,7 +138,7 @@ export function PrivacyPolicyContent({ standalone = false }: { standalone?: bool
         </p>
       </PolicySection>
 
-      <PolicySection title="12. Contact Us">
+      <PolicySection title="13. Contact Us">
         <p>If you have questions or concerns about this Privacy Policy, please contact us:</p>
         <div className="mt-2 ml-2 space-y-1">
           <p><strong>{company}</strong></p>
