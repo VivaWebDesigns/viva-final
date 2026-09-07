@@ -29,6 +29,18 @@ const GA4_PROPERTY_ID = process.env.GA4_PROPERTY_ID || "543529736";
 const analyticsCache = new Map<string, { expiresAt: number; data: unknown }>();
 const isoDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
+function easternDate(offsetDays = 0) {
+  const date = new Date(Date.now() + offsetDays * 86_400_000);
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const value = (type: string) => parts.find((part) => part.type === type)!.value;
+  return `${value("year")}-${value("month")}-${value("day")}`;
+}
+
 function googleAnalyticsDateRange(query: Record<string, unknown>) {
   if (query.startDate !== undefined || query.endDate !== undefined) {
     const parsed = z.object({
@@ -42,15 +54,15 @@ function googleAnalyticsDateRange(query: Record<string, unknown>) {
     const start = new Date(`${startDate}T00:00:00Z`);
     const end = new Date(`${endDate}T00:00:00Z`);
     const days = Math.floor((end.getTime() - start.getTime()) / 86_400_000) + 1;
-    if (!Number.isFinite(days) || days < 1 || days > 365) {
-      throw Object.assign(new Error("Choose a date range between 1 and 365 days."), { statusCode: 400 });
+    if (!Number.isFinite(days) || days < 1 || days > 1_825) {
+      throw Object.assign(new Error("Choose a date range between 1 and 1,825 days."), { statusCode: 400 });
     }
     return { startDate, endDate, days, label: `${startDate} to ${endDate}` };
   }
   const days = z.coerce.number().int().min(1).max(365).catch(30).parse(query.days);
   return {
-    startDate: `${days - 1}daysAgo`,
-    endDate: "today",
+    startDate: easternDate(-(days - 1)),
+    endDate: easternDate(),
     days,
     label: days === 1 ? "Today" : `Last ${days} days`,
   };
@@ -228,7 +240,13 @@ router.get("/ga4", requireRole("admin", "developer"), async (req, res) => {
     const cacheKey = `${connection.updatedAt.toISOString()}:${dateRange.startDate}:${dateRange.endDate}`;
     const cached = analyticsCache.get(cacheKey);
     if (cached && cached.expiresAt > Date.now()) return res.json(cached.data);
-    const data = await getGoogleAnalyticsDashboard(connection, dateRange);
+    const gaData = await getGoogleAnalyticsDashboard(connection, dateRange);
+    const outreachTrend = await storage.getReportSendTrend(
+      dateRange.startDate,
+      dateRange.endDate,
+      gaData.timeZone || "America/New_York",
+    );
+    const data = { ...gaData, outreachTrend };
     analyticsCache.clear();
     analyticsCache.set(cacheKey, { data, expiresAt: Date.now() + 5 * 60 * 1000 });
     await storage.updateGoogleConnection("analytics", { status: "connected", lastError: null });

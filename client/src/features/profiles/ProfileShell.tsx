@@ -763,7 +763,7 @@ function LocalFalconSnapshotCard({
                     data-testid="image-scan-report-preview"
                   />
                 </a>
-                <p className="mt-2 text-xs text-slate-500">The email includes this image inline plus a fallback link.</p>
+                <p className="mt-2 text-xs text-slate-500">The email includes this image inline without a report-page link.</p>
               </div>
               </div>
             </div>
@@ -791,10 +791,10 @@ function LocalFalconSnapshotCard({
                           "text/html": new Blob([emailPreparation.formattedHtml], { type: "text/html" }),
                           "text/plain": new Blob([emailPreparation.body], { type: "text/plain" }),
                         })]);
-                        toast({ title: "Formatted email copied", description: "Paste it into Gmail to keep the clean report link." });
+                        toast({ title: "Formatted email copied", description: "Paste it into Gmail, then add the report image." });
                       } else {
                         await navigator.clipboard.writeText(emailPreparation.body);
-                        toast({ title: "Email text copied", description: "Rich-text copying is not available in this browser, so the full report URL will be visible." });
+                        toast({ title: "Email text copied", description: "Rich-text copying is not available in this browser; paste the text, then add the report image." });
                       }
                     } catch {
                       toast({ title: "Could not copy formatted email", variant: "destructive" });
@@ -818,7 +818,7 @@ function LocalFalconSnapshotCard({
               <div className="rounded-lg border p-3 text-sm text-slate-600">
                 <div><span className="font-medium text-slate-900">To:</span> {emailReportRecipient}</div>
                 <div className="mt-1"><span className="font-medium text-slate-900">Subject:</span> {emailReportSubject}</div>
-                <div className="mt-1"><span className="font-medium text-slate-900">Report link:</span> {emailPreparation.landingUrl}</div>
+                <div className="mt-1 text-emerald-700">No report-page link will be included.</div>
               </div>
               <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
                 <Checkbox

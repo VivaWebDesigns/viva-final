@@ -61,7 +61,9 @@ describe("manual Gmail report workflow", () => {
     const result = await prepareManualScanReportEmail(input);
     expect(result.gmailComposeUrl).toContain("mail.google.com/mail/");
     expect(result.gmailComposeUrl).not.toContain("body=");
-    expect(result.formattedHtml).toContain(">Learn more</a>");
+    expect(result.formattedHtml).not.toContain("<a");
+    expect(result.formattedHtml).not.toContain("https://");
+    expect(result.formattedHtml).not.toContain("Learn more");
     expect(result.landingUrl).toContain("/scan-report/");
     expect(mocks.transaction).not.toHaveBeenCalled();
     expect(mocks.insert.mock.calls.map(([table]) => getTableName(table))).toEqual(["scan_report_shares"]);
@@ -122,13 +124,14 @@ describe("manual Gmail report workflow", () => {
     mocks.select.mockReturnValueOnce(rows([record]));
     const preview = await getScanReportEmailPreview("lead-1", "report-1", input.actorEmail);
     expect(preview.message).toContain(
-      "I came across Acme and ran a scan to see how the company appears on Google when people nearby search for “roofing”.",
+      "I came across Acme and ran a scan to see how the company appears on Google when people nearby search for “roofing.”",
     );
     expect(preview.selectedTemplateKey).toBe("A");
     expect(preview.templates).toEqual([expect.objectContaining({ key: "A", name: "Current outreach" })]);
     expect(preview.message).toContain("the scan above gives you a pretty good idea");
-    expect(preview.message).toContain("If this looks like something worth fixing, everything’s below. Take a look.");
-    expect(preview.message).toContain("You’ll see a few local companies we’ve turned around from maps that looked a lot like yours");
+    expect(preview.message).toContain("If this looks like something worth fixing, reply here");
+    expect(preview.message).not.toContain("everything’s below");
+    expect(preview.message).not.toContain("a link to grab a quick call");
     expect(preview.message).not.toContain("the scan below");
     expect(preview.message).not.toContain("Just reply here");
   });

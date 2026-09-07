@@ -65,12 +65,19 @@ type GaDashboard = {
   leadTypes: Array<{ leadType: string; eventCount: number }>;
   trend: Array<{ date: string; sessions: number; activeUsers: number; engagedSessions: number; engagementRate: number; keyEvents: number }>;
   devices: Array<{ device: string; sessions: number; activeUsers: number; engagedSessions: number; engagementRate: number; keyEvents: number }>;
-  geography: Array<{ city: string; region: string; country: string; sessions: number; activeUsers: number; engagedSessions: number; engagementRate: number }>;
+  geography: Array<{ city: string; region: string; country: string; sessions: number; activeUsers: number; engagedSessions: number; engagementRate: number; averageSessionDuration: number; screenPageViews: number }>;
   flow: Array<{ channel: string; landingPage: string; sessions: number; activeUsers: number; engagedSessions: number; engagementRate: number; screenPageViews: number; confirmedLeads: number }>;
+  content: Array<{ pagePath: string; activeUsers: number; screenPageViews: number; userEngagementDuration: number; eventCount: number; keyEvents: number }>;
+  behavior: Array<{ eventName: string; eventCount: number; totalUsers: number; keyEvents: number }>;
+  outreachTrend: Array<{ date: string; sends: number }>;
+  timeZone: string | null;
   generatedAt: string;
 };
 
-type AnalyticsTab = "overview" | "engagement" | "devices" | "geography" | "flow";
+type AnalyticsTab = "monitoring" | "overview" | "engagement" | "devices" | "geography" | "flow";
+type RangeMode = "monitoring" | "1" | "7" | "30" | "90" | "custom";
+
+const MONITORING_START_DATE = "2026-09-04";
 
 type BusinessLocation = {
   accountId: string;
@@ -209,18 +216,40 @@ function percentLabel(value: number) {
   return `${(value * 100).toFixed(1)}%`;
 }
 
+function behaviorLabel(value: string) {
+  const labels: Record<string, string> = {
+    scroll: "Reached 90% of a page",
+    click: "Outbound link click",
+    form_start: "Started a form",
+    form_submit: "Submitted a form",
+    generate_lead: "Confirmed lead",
+    file_download: "Downloaded a file",
+    view_search_results: "Viewed search results",
+    phone_click: "Tapped the phone number",
+    email_click: "Tapped the email address",
+    schedule_click: "Opened scheduling",
+    scan_interest: "Opened or started a scan",
+    results_interest: "Opened client results",
+    contact_interest: "Opened the contact path",
+  };
+  return labels[value] ?? formatLabel(value);
+}
+
+function trafficQuality(row: GaDashboard["geography"][number]) {
+  if (row.engagedSessions === 0 && row.averageSessionDuration < 2 && row.screenPageViews <= row.sessions) {
+    return "Very low activity";
+  }
+  return "Meaningful activity";
+}
+
 export default function AnalyticsPage() {
   const { toast } = useToast();
   const { role } = useAuth();
   const queryClient = useQueryClient();
-  const [rangeMode, setRangeMode] = useState<"1" | "7" | "30" | "90" | "custom">("30");
-  const [customStartDate, setCustomStartDate] = useState(() => {
-    const date = new Date();
-    date.setDate(date.getDate() - 29);
-    return dateInputValue(date);
-  });
+  const [rangeMode, setRangeMode] = useState<RangeMode>("monitoring");
+  const [customStartDate, setCustomStartDate] = useState(MONITORING_START_DATE);
   const [customEndDate, setCustomEndDate] = useState(() => dateInputValue(new Date()));
-  const [activeTab, setActiveTab] = useState<AnalyticsTab>("overview");
+  const [activeTab, setActiveTab] = useState<AnalyticsTab>("monitoring");
   const [selectedLocation, setSelectedLocation] = useState("");
 
   const { data: status, isLoading: statusLoading } = useQuery<IntegrationStatus>({
@@ -233,9 +262,11 @@ export default function AnalyticsPage() {
   const businessConnected = businessProfileEnabled && !!status?.businessProfile;
 
   const customRangeValid = customStartDate !== "" && customEndDate !== "" && customStartDate <= customEndDate;
-  const analyticsRangeQuery = rangeMode === "custom"
-    ? `startDate=${encodeURIComponent(customStartDate)}&endDate=${encodeURIComponent(customEndDate)}`
-    : `days=${rangeMode}`;
+  const analyticsRangeQuery = rangeMode === "monitoring"
+    ? `startDate=${MONITORING_START_DATE}&endDate=${encodeURIComponent(dateInputValue(new Date()))}`
+    : rangeMode === "custom"
+      ? `startDate=${encodeURIComponent(customStartDate)}&endDate=${encodeURIComponent(customEndDate)}`
+      : `days=${rangeMode}`;
   const { data: gaData, isLoading: gaLoading, error: gaError } = useQuery<GaDashboard>({
     queryKey: [`/api/business-analytics/ga4?${analyticsRangeQuery}`],
     enabled: analyticsConnected && (rangeMode !== "custom" || customRangeValid),
@@ -294,6 +325,9 @@ export default function AnalyticsPage() {
   const trendMax = useMemo(() => Math.max(...(gaData?.trend.map((point) => point.sessions) ?? [1]), 1), [gaData]);
   const engagedTrendMax = useMemo(() => Math.max(...(gaData?.trend.map((point) => point.engagedSessions) ?? [1]), 1), [gaData]);
   const channelMax = useMemo(() => Math.max(...(gaData?.channels.map((row) => row.sessions) ?? [1]), 1), [gaData]);
+  const sendsByDate = useMemo(() => new Map((gaData?.outreachTrend ?? []).map((point) => [point.date, point.sends])), [gaData]);
+  const totalOutreachSends = useMemo(() => (gaData?.outreachTrend ?? []).reduce((total, point) => total + point.sends, 0), [gaData]);
+  const includesToday = gaData?.dateRange.endDate === dateInputValue(new Date());
   const configReady = !!status?.config.oauthClientConfigured && !!status?.config.encryptionConfigured;
   const canConnect = role === "admin" && configReady && !connectMutation.isPending;
 
@@ -319,11 +353,18 @@ export default function AnalyticsPage() {
             View Email Outreach
           </Link>
           <div className="flex max-w-full overflow-x-auto rounded-lg bg-gray-100 p-1" aria-label="Analytics date range">
+            <button
+              type="button"
+              onClick={() => setRangeMode("monitoring")}
+              className={`whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ${rangeMode === "monitoring" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+            >
+              Since Sep 4
+            </button>
             {([1, 7, 30, 90] as const).map((value) => (
               <button
                 type="button"
                 key={value}
-                onClick={() => setRangeMode(String(value) as "1" | "7" | "30" | "90")}
+                onClick={() => setRangeMode(String(value) as RangeMode)}
                 className={`whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ${rangeMode === String(value) ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
               >
                 {value === 1 ? "1 day" : `${value} days`}
@@ -389,11 +430,12 @@ export default function AnalyticsPage() {
           <div className="space-y-6">
             <div className="flex max-w-full gap-1 overflow-x-auto rounded-xl border border-gray-200 bg-white p-1.5" role="tablist" aria-label="Analytics views">
               {([
-                ["overview", "Overview", BarChart3],
+                ["monitoring", "Website Monitor", Activity],
+                ["overview", "Acquisition", BarChart3],
                 ["engagement", "Engagement", MousePointerClick],
                 ["devices", "Devices", MonitorSmartphone],
                 ["geography", "Geography", MapPin],
-                ["flow", "Traffic Flow", Route],
+                ["flow", "Entry Paths", Route],
               ] as const).map(([key, label, Icon]) => (
                 <button
                   type="button"
@@ -408,6 +450,102 @@ export default function AnalyticsPage() {
                 </button>
               ))}
             </div>
+
+            {activeTab === "monitoring" && <>
+              <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-950">
+                <p className="font-semibold">Outreach monitoring assumption</p>
+                <p className="mt-1 text-blue-800">
+                  Credible website traffic is treated as outreach-influenced. Direct means someone entered the address; Organic Search can mean someone searched for Viva after seeing an email.
+                </p>
+              </div>
+
+              {includesToday && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                  Today is included and remains preliminary. Google can record visits and actions before it finishes calculating engaged sessions.
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4 xl:grid-cols-5">
+                <MetricCard label="Emails recorded" value={totalOutreachSends.toLocaleString()} icon={MessageSquareText} tone="bg-sky-600" detail="Context, not individual attribution" />
+                <MetricCard label="Website sessions" value={gaData.summary.sessions.toLocaleString()} icon={Activity} tone="bg-indigo-500" detail={gaData.dateRange.label} />
+                <MetricCard label="Engaged sessions" value={gaData.summary.engagedSessions.toLocaleString()} icon={MousePointerClick} tone="bg-blue-500" detail={percentLabel(gaData.summary.engagementRate)} />
+                <MetricCard label="Page views" value={gaData.summary.screenPageViews.toLocaleString()} icon={Eye} tone="bg-cyan-500" detail={`${gaData.summary.pagesPerSession} per session`} />
+                <MetricCard label="Confirmed leads" value={gaData.summary.confirmedLeads.toLocaleString()} icon={CheckCircle2} tone="bg-teal-500" detail={`${gaData.summary.keyEvents.toLocaleString()} total key events`} />
+              </div>
+
+              <Panel
+                title="Traffic over time"
+                subtitle={`Email volume beside website activity · ${gaData.dateRange.label}`}
+                action={<span className="whitespace-nowrap text-xs text-gray-500">GA timezone: {gaData.timeZone || "Not reported"}</span>}
+              >
+                {gaData.trend.length ? (
+                  <div>
+                    <div className="mb-4 flex flex-wrap gap-4 text-xs font-medium text-gray-600">
+                      <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-indigo-500" />Sessions</span>
+                      <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-emerald-500" />Engaged</span>
+                      <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-amber-500" />Emails sent</span>
+                    </div>
+                    <div className="overflow-x-auto pb-2">
+                      <div className="flex h-56 min-w-[680px] items-end gap-1.5" style={{ width: `${Math.max(gaData.trend.length * 48, 680)}px` }}>
+                        {gaData.trend.map((point) => {
+                          const sends = sendsByDate.get(String(point.date)) ?? 0;
+                          return (
+                            <div key={point.date} className="group relative flex h-full min-w-10 flex-1 flex-col justify-end">
+                              {sends > 0 && <span className="mb-1 self-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">{sends} sent</span>}
+                              <div className="flex h-44 items-end justify-center gap-1">
+                                <div className="w-3 rounded-t bg-indigo-500" style={{ height: `${Math.max((point.sessions / trendMax) * 100, 2)}%` }} />
+                                <div className="w-3 rounded-t bg-emerald-500" style={{ height: `${Math.max((point.engagedSessions / trendMax) * 100, point.engagedSessions ? 2 : 0)}%` }} />
+                              </div>
+                              <span className="mt-2 text-center text-[10px] text-gray-500">{formatGaDate(String(point.date))}</span>
+                              <div className="absolute bottom-full left-1/2 z-10 mb-1 hidden -translate-x-1/2 whitespace-nowrap rounded bg-gray-900 px-2 py-1 text-xs text-white group-hover:block">
+                                {point.sessions} sessions · {point.engagedSessions} engaged · {sends} emails
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                ) : <EmptyState>No traffic data is available for this range.</EmptyState>}
+              </Panel>
+
+              <div className="grid gap-6 2xl:grid-cols-2">
+                <Panel title="Where visitors are located" subtitle="Location, activity quality, and engagement shown together">
+                  {gaData.geography.length ? <div className="overflow-x-auto"><table className="w-full min-w-[720px] text-left text-sm">
+                    <thead className="border-b border-gray-100 text-xs uppercase tracking-wide text-gray-500"><tr><th className="pb-3 font-medium">Location</th><th className="pb-3 text-right font-medium">Sessions</th><th className="pb-3 text-right font-medium">Engaged</th><th className="pb-3 text-right font-medium">Views</th><th className="pb-3 text-right font-medium">Avg. time</th><th className="pb-3 text-right font-medium">Signal</th></tr></thead>
+                    <tbody className="divide-y divide-gray-100">{gaData.geography.slice(0, 15).map((row, index) => {
+                      const quality = trafficQuality(row);
+                      return <tr key={`${row.city}-${row.region}-${row.country}-${index}`}><td className="py-3 pr-3"><span className="font-semibold text-gray-900">{row.city || "Unknown city"}</span><span className="block text-xs text-gray-500">{row.region}, {row.country}</span></td><td className="py-3 text-right text-gray-700">{row.sessions}</td><td className="py-3 text-right text-gray-700">{row.engagedSessions}</td><td className="py-3 text-right text-gray-700">{row.screenPageViews}</td><td className="py-3 text-right text-gray-700">{secondsLabel(row.averageSessionDuration)}</td><td className={`py-3 text-right text-xs font-semibold ${quality === "Meaningful activity" ? "text-emerald-700" : "text-amber-700"}`}>{quality}</td></tr>;
+                    })}</tbody>
+                  </table></div> : <EmptyState>No geographic data is available for this range.</EmptyState>}
+                </Panel>
+
+                <Panel title="How visitors arrived" subtitle="Return path and first website page—not the original source of awareness">
+                  {gaData.flow.length ? <div className="overflow-x-auto"><table className="w-full min-w-[650px] text-left text-sm">
+                    <thead className="border-b border-gray-100 text-xs uppercase tracking-wide text-gray-500"><tr><th className="pb-3 font-medium">Return path</th><th className="pb-3 font-medium">Entry page</th><th className="pb-3 text-right font-medium">Sessions</th><th className="pb-3 text-right font-medium">Engaged</th><th className="pb-3 text-right font-medium">Views</th></tr></thead>
+                    <tbody className="divide-y divide-gray-100">{gaData.flow.slice(0, 15).map((row, index) => <tr key={`${row.channel}-${row.landingPage}-${index}`}><td className="py-3 pr-3 font-semibold text-gray-900">{row.channel}</td><td className="max-w-xs truncate py-3 pr-3 text-gray-600" title={row.landingPage}>{row.landingPage || "Unknown"}</td><td className="py-3 text-right text-gray-700">{row.sessions}</td><td className="py-3 text-right text-gray-700">{row.engagedSessions}</td><td className="py-3 text-right text-gray-700">{row.screenPageViews}</td></tr>)}</tbody>
+                  </table></div> : <EmptyState>No entry-path data is available for this range.</EmptyState>}
+                </Panel>
+              </div>
+
+              <div className="grid gap-6 2xl:grid-cols-2">
+                <Panel title="Pages visitors used" subtitle="What people viewed after reaching the website">
+                  {gaData.content.length ? <div className="overflow-x-auto"><table className="w-full min-w-[620px] text-left text-sm">
+                    <thead className="border-b border-gray-100 text-xs uppercase tracking-wide text-gray-500"><tr><th className="pb-3 font-medium">Page</th><th className="pb-3 text-right font-medium">Users</th><th className="pb-3 text-right font-medium">Views</th><th className="pb-3 text-right font-medium">Active time / user</th></tr></thead>
+                    <tbody className="divide-y divide-gray-100">{gaData.content.slice(0, 15).map((row) => <tr key={row.pagePath}><td className="max-w-sm truncate py-3 pr-3 font-semibold text-gray-900" title={row.pagePath}>{row.pagePath || "Unknown"}</td><td className="py-3 text-right text-gray-700">{row.activeUsers}</td><td className="py-3 text-right text-gray-700">{row.screenPageViews}</td><td className="py-3 text-right text-gray-700">{secondsLabel(row.activeUsers ? row.userEngagementDuration / row.activeUsers : 0)}</td></tr>)}</tbody>
+                  </table></div> : <EmptyState>No page-use data is available for this range.</EmptyState>}
+                </Panel>
+
+                <Panel title="Actions visitors took" subtitle="Meaningful actions currently recorded by GA4">
+                  {gaData.behavior.length ? <div className="space-y-3">{gaData.behavior.map((row) => (
+                    <div key={row.eventName} className="flex items-center justify-between gap-4 rounded-lg border border-gray-100 px-4 py-3">
+                      <div><p className="font-semibold text-gray-900">{behaviorLabel(row.eventName)}</p><p className="mt-0.5 text-xs text-gray-500">{row.totalUsers} visitor{row.totalUsers === 1 ? "" : "s"}</p></div>
+                      <div className="text-right"><p className="text-xl font-bold text-gray-900">{row.eventCount}</p><p className="text-xs text-gray-500">actions</p></div>
+                    </div>
+                  ))}</div> : <EmptyState>No meaningful visitor actions are recorded for this range.</EmptyState>}
+                </Panel>
+              </div>
+            </>}
 
             {activeTab === "overview" && <>
               <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -495,12 +633,12 @@ export default function AnalyticsPage() {
               </table></div> : <EmptyState>No geographic data is available for this range.</EmptyState>}
             </Panel>}
 
-            {activeTab === "flow" && <Panel title="Traffic flow" subtitle="Channel → landing page → engagement → confirmed lead">
+            {activeTab === "flow" && <Panel title="Entry paths" subtitle="Return path → first website page → engagement → confirmed lead">
               {gaData.flow.length ? <div className="overflow-x-auto"><table className="w-full min-w-[820px] text-left text-sm">
                 <thead className="border-b border-gray-100 text-xs uppercase tracking-wide text-gray-400"><tr><th className="pb-3 font-medium">Channel</th><th className="pb-3 font-medium">Landing page</th><th className="pb-3 text-right font-medium">Sessions</th><th className="pb-3 text-right font-medium">Engaged</th><th className="pb-3 text-right font-medium">Page views</th><th className="pb-3 text-right font-medium">Leads</th></tr></thead>
                 <tbody className="divide-y divide-gray-100">{gaData.flow.map((row, index) => <tr key={`${row.channel}-${row.landingPage}-${index}`}><td className="py-4 pr-4 font-semibold text-gray-800">{row.channel}</td><td className="max-w-md truncate py-4 pr-4 text-gray-600" title={row.landingPage}>{row.landingPage}</td><td className="py-4 text-right text-gray-700">{row.sessions}</td><td className="py-4 text-right text-gray-700">{row.engagedSessions}</td><td className="py-4 text-right text-gray-700">{row.screenPageViews}</td><td className="py-4 text-right font-semibold text-teal-700">{row.confirmedLeads}</td></tr>)}</tbody>
               </table></div> : <EmptyState>No traffic-flow data is available for this range.</EmptyState>}
-              <p className="mt-4 text-xs text-gray-400">Visitors who type the website address directly usually appear as Direct. Visitors who search for Viva and click Google usually appear as Organic Search.</p>
+              <p className="mt-4 text-xs text-gray-500">For this monitoring model, both Direct and Organic Search can be outreach-influenced. The channel describes how someone returned, not necessarily what first created awareness.</p>
             </Panel>}
           </div>
         ) : null

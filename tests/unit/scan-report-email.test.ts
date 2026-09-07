@@ -105,25 +105,25 @@ describe("scan report email template", () => {
   it("builds the plain manual Gmail message used for prospect outreach", () => {
     const body = buildManualGmailBody(
       "I’m Matt with Viva Web Designs.\n\nI ran a scan for Acme Roofing.",
-      "https://vivawebdesigns.com/scan-report/secure-token",
     );
 
     expect(body).toContain("I’m Matt with Viva Web Designs.");
-    expect(body).toContain("Learn more: https://vivawebdesigns.com/scan-report/secure-token");
+    expect(body).not.toContain("https://");
+    expect(body).not.toContain("Learn more");
     expect(body).toContain("227 W 4th St, 1st Floor #3127, Charlotte, NC 28202");
     expect(body).toContain("reply “no thanks.”");
     expect(body).not.toContain("<!doctype html>");
     expect(body).not.toContain("background:");
   });
 
-  it("builds a formatted Gmail message with a clean linked phrase", () => {
+  it("builds a formatted Gmail message without a report-page link", () => {
     const html = buildManualGmailHtml(
       "I’m Matt with Viva Web Designs.\n\nI ran a scan for Acme Roofing.",
-      "https://vivawebdesigns.com/scan-report/secure-token",
     );
 
-    expect(html).toContain('<a href="https://vivawebdesigns.com/scan-report/secure-token">Learn more</a>');
-    expect(html).not.toContain("Learn more: https://");
+    expect(html).not.toContain("<a ");
+    expect(html).not.toContain("https://");
+    expect(html).not.toContain("Learn more");
     expect(html).not.toContain("<!doctype html>");
   });
 

@@ -119,7 +119,7 @@ function defaultTemplateSource(variant: string): ScanReportTemplateSource {
       : `Following up on the visibility report I sent for {{business_name}}. It shows how your business appears across nearby searches for “{{search_phrase}}”.\n\nI’ve included the same report so it’s easy to revisit. Would a quick walkthrough of the results be useful?\n\nMatt`)
     : spanish
     ? `Hola{{greeting}},\n\nPreparamos este análisis de visibilidad local para mostrar cómo aparece {{business_name}} en Google Maps cuando los clientes buscan “{{search_phrase}}”.\n\nSi deseas, puedo explicarte lo que muestran los resultados y las oportunidades que encontramos.`
-    : `I’m Matt with Viva Web Designs here in Charlotte.\n\nI came across {{business_name}} and ran a scan to see how the company appears on Google when people nearby search for “{{search_phrase}}.”\n\nI found some pretty significant visibility gaps, so I thought you’d want to see the actual data.\n\nIf you’ve ever wondered why Google isn’t bringing in more calls, the scan above gives you a pretty good idea of what’s happening.\n\nIf this looks like something worth fixing, everything’s below. Take a look.\n\nYou’ll see a few local companies we’ve turned around from maps that looked a lot like yours, plus a link to grab a quick call where I can dig into what’s actually behind your visibility.\n\nMatt`;
+    : `I’m Matt with Viva Web Designs here in Charlotte.\n\nI came across {{business_name}} and ran a scan to see how the company appears on Google when people nearby search for “{{search_phrase}}.”\n\nI found some pretty significant visibility gaps, so I thought you’d want to see the actual data.\n\nIf you’ve ever wondered why Google isn’t bringing in more calls, the scan above gives you a pretty good idea of what’s happening.\n\nIf this looks like something worth fixing, reply here and I can walk you through what’s actually behind your visibility.\n\nMatt`;
   return {
     key: DEFAULT_SCAN_REPORT_TEMPLATE_KEY,
     name: "Current outreach",
@@ -360,15 +360,15 @@ export function buildScanReportEmailHtml(input: {
 </body></html>`;
 }
 
-export function buildManualGmailBody(message: string, landingUrl: string): string {
-  return `${message.trim()}\n\nLearn more: ${landingUrl}\n\nViva Web Designs · ${POSTAL_ADDRESS}\nIf you’d rather not receive another email from me, just reply “no thanks.”`;
+export function buildManualGmailBody(message: string): string {
+  return `${message.trim()}\n\nViva Web Designs · ${POSTAL_ADDRESS}\nIf you’d rather not receive another email from me, just reply “no thanks.”`;
 }
 
-export function buildManualGmailHtml(message: string, landingUrl: string): string {
+export function buildManualGmailHtml(message: string): string {
   const paragraphs = message.trim().split(/\r?\n\s*\r?\n/)
     .map((paragraph) => `<div>${escapeHtml(paragraph).replace(/\r?\n/g, "<br>")}</div>`)
     .join("<br>");
-  return `${paragraphs}<br><div><a href="${escapeHtml(landingUrl)}">Learn more</a></div><br><div>Viva Web Designs · ${POSTAL_ADDRESS}<br>If you’d rather not receive another email from me, just reply “no thanks.”</div>`;
+  return `${paragraphs}<br><br><div>Viva Web Designs · ${POSTAL_ADDRESS}<br>If you’d rather not receive another email from me, just reply “no thanks.”</div>`;
 }
 
 export function buildGmailComposeUrl(input: {
@@ -410,8 +410,8 @@ export async function prepareManualScanReportEmail(input: Omit<ManualScanReportI
   const blocked = reportSendBlockedReason(outreach.reportEmailCount, outreach.reportOutreachDisposition);
   if (blocked) throw Object.assign(new Error(blocked), { statusCode: 409 });
   const shared = await ensurePublishedShare(input.reportId, record.report.snapshotStorageKey!);
-  const body = buildManualGmailBody(input.message, shared.landingUrl);
-  const formattedHtml = buildManualGmailHtml(input.message, shared.landingUrl);
+  const body = buildManualGmailBody(input.message);
+  const formattedHtml = buildManualGmailHtml(input.message);
   return {
     imageUrl: shared.imageUrl,
     landingUrl: shared.landingUrl,

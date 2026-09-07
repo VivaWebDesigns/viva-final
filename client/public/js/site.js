@@ -39,4 +39,28 @@
       target.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   });
+
+  function recordWebsiteAction(eventName, link) {
+    window.dataLayer = window.dataLayer || [];
+    window.gtag = window.gtag || function () { window.dataLayer.push(arguments); };
+    window.gtag("event", eventName, {
+      link_url: link.href,
+      link_text: (link.textContent || "").trim().slice(0, 100),
+      page_path: window.location.pathname,
+    });
+  }
+
+  document.addEventListener("click", function (event) {
+    if (!event.isTrusted) return;
+    var target = event.target;
+    var link = target && target.closest ? target.closest("a[href]") : null;
+    if (!link) return;
+    var href = link.getAttribute("href") || "";
+    if (href.indexOf("tel:") === 0) return recordWebsiteAction("phone_click", link);
+    if (href.indexOf("mailto:") === 0) return recordWebsiteAction("email_click", link);
+    if (href.indexOf("calendly.com") !== -1) return recordWebsiteAction("schedule_click", link);
+    if (href === "#scan-request" || href.indexOf("/scan") === 0) return recordWebsiteAction("scan_interest", link);
+    if (href.indexOf("/results") === 0) return recordWebsiteAction("results_interest", link);
+    if (href === "#contact-form" || href.indexOf("/contact") === 0) return recordWebsiteAction("contact_interest", link);
+  });
 })();

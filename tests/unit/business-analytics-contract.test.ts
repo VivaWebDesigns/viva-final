@@ -6,7 +6,9 @@ const outreachPage = readFileSync("client/src/features/business-analytics/EmailO
 const router = readFileSync("client/src/AdminRouter.tsx", "utf8");
 const serverRoutes = readFileSync("server/features/business-analytics/routes.ts", "utf8");
 const storage = readFileSync("server/features/business-analytics/storage.ts", "utf8");
+const googleApi = readFileSync("server/features/business-analytics/googleApi.ts", "utf8");
 const googleAuth = readFileSync("server/features/business-analytics/googleAuth.ts", "utf8");
+const publicSiteScript = readFileSync("client/public/js/site.js", "utf8");
 
 describe("business analytics admin contract", () => {
   it("provides a dedicated protected Analytics page", () => {
@@ -15,7 +17,15 @@ describe("business analytics admin contract", () => {
     expect(page).toContain("Confirmed leads");
     expect(page).not.toContain("Scan report CTA activity");
     expect(page).not.toContain("Report views");
-    expect(page).toContain("Traffic Flow");
+    expect(page).toContain("Website Monitor");
+    expect(page).toContain("Since Sep 4");
+    expect(page).toContain('const MONITORING_START_DATE = "2026-09-04"');
+    expect(page).toContain("Credible website traffic is treated as outreach-influenced");
+    expect(page).toContain("Traffic over time");
+    expect(page).toContain("Where visitors are located");
+    expect(page).toContain("How visitors arrived");
+    expect(page).toContain("Pages visitors used");
+    expect(page).toContain("Actions visitors took");
     expect(page).toContain('value === 1 ? "1 day"');
     expect(page).toContain('setRangeMode("custom")');
     expect(page).toContain('activeTab === "engagement"');
@@ -24,7 +34,16 @@ describe("business analytics admin contract", () => {
     expect(page).toContain('activeTab === "devices"');
     expect(page).toContain('activeTab === "geography"');
     expect(page).toContain('activeTab === "flow"');
-    expect(page).toContain("Channel → landing page → engagement → confirmed lead");
+    expect(page).toContain("Return path → first website page → engagement → confirmed lead");
+    expect(googleApi).toContain('dimensions: ["pagePathPlusQueryString"]');
+    expect(googleApi).toContain('dimensions: ["eventName"]');
+    expect(googleApi).toContain('"userEngagementDuration"');
+    expect(serverRoutes).toContain("getReportSendTrend");
+    expect(storage).toContain("at time zone ${timeZone}");
+    expect(publicSiteScript).toContain('recordWebsiteAction("phone_click"');
+    expect(publicSiteScript).toContain('recordWebsiteAction("schedule_click"');
+    expect(publicSiteScript).toContain('recordWebsiteAction("scan_interest"');
+    expect(publicSiteScript).toContain('recordWebsiteAction("results_interest"');
   });
 
   it("provides template-level report outreach analytics without requiring GA4", () => {

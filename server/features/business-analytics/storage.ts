@@ -338,3 +338,20 @@ export async function getReportOutreachAnalytics(days: number) {
     })),
   };
 }
+
+export async function getReportSendTrend(startDate: string, endDate: string, timeZone: string) {
+  const result = await db.execute(sql`
+    select
+      to_char((sent_at at time zone 'UTC') at time zone ${timeZone}, 'YYYYMMDD') as date,
+      count(*)::int as sends
+    from ${scanReportDeliveries}
+    where sent_at is not null
+      and (((sent_at at time zone 'UTC') at time zone ${timeZone})::date between ${startDate}::date and ${endDate}::date)
+    group by 1
+    order by 1
+  `);
+  return result.rows.map((row) => ({
+    date: String(row.date),
+    sends: Number(row.sends),
+  }));
+}

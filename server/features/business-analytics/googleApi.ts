@@ -113,7 +113,7 @@ export async function getGoogleAnalyticsDashboard(
   connection: GoogleIntegrationConnection,
   dateRange: GoogleAnalyticsDateRange,
 ) {
-  const [summaryReport, channelReport, pageReport, eventReport, leadTypeReport, trendReport, deviceReport, geographyReport, flowReport, flowLeadReport] = await Promise.all([
+  const [summaryReport, channelReport, pageReport, eventReport, leadTypeReport, trendReport, deviceReport, geographyReport, flowReport, flowLeadReport, contentReport, behaviorReport] = await Promise.all([
     runGaReport(connection, dateRange, {
       metrics: ["activeUsers", "newUsers", "sessions", "engagedSessions", "engagementRate", "averageSessionDuration", "screenPageViews", "eventCount", "keyEvents"],
     }),
@@ -148,7 +148,7 @@ export async function getGoogleAnalyticsDashboard(
     runGaReport(connection, dateRange, {
       dimensions: ["date"],
       metrics: ["sessions", "activeUsers", "engagedSessions", "engagementRate", "keyEvents"],
-      limit: 366,
+      limit: 2_000,
     }),
     runGaReport(connection, dateRange, {
       dimensions: ["deviceCategory"],
@@ -158,7 +158,7 @@ export async function getGoogleAnalyticsDashboard(
     }),
     runGaReport(connection, dateRange, {
       dimensions: ["city", "region", "country"],
-      metrics: ["sessions", "activeUsers", "engagedSessions", "engagementRate"],
+      metrics: ["sessions", "activeUsers", "engagedSessions", "engagementRate", "averageSessionDuration", "screenPageViews"],
       orderMetric: "sessions",
       limit: 50,
     }),
@@ -180,6 +180,33 @@ export async function getGoogleAnalyticsDashboard(
           ],
         },
       },
+      orderMetric: "eventCount",
+      limit: 50,
+    }),
+    runGaReport(connection, dateRange, {
+      dimensions: ["pagePathPlusQueryString"],
+      metrics: ["activeUsers", "screenPageViews", "userEngagementDuration", "eventCount", "keyEvents"],
+      orderMetric: "screenPageViews",
+      limit: 50,
+    }),
+    runGaReport(connection, dateRange, {
+      dimensions: ["eventName"],
+      metrics: ["eventCount", "totalUsers", "keyEvents"],
+      dimensionFilter: eventFilter([
+        "scroll",
+        "click",
+        "form_start",
+        "form_submit",
+        "generate_lead",
+        "file_download",
+        "view_search_results",
+        "phone_click",
+        "email_click",
+        "schedule_click",
+        "scan_interest",
+        "results_interest",
+        "contact_interest",
+      ]),
       orderMetric: "eventCount",
       limit: 50,
     }),
@@ -224,8 +251,10 @@ export async function getGoogleAnalyticsDashboard(
     trend: tableRows(trendReport, ["date"], ["sessions", "activeUsers", "engagedSessions", "engagementRate", "keyEvents"])
       .sort((left, right) => String(left.date).localeCompare(String(right.date))),
     devices: tableRows(deviceReport, ["device"], ["sessions", "activeUsers", "engagedSessions", "engagementRate", "keyEvents"]),
-    geography: tableRows(geographyReport, ["city", "region", "country"], ["sessions", "activeUsers", "engagedSessions", "engagementRate"]),
+    geography: tableRows(geographyReport, ["city", "region", "country"], ["sessions", "activeUsers", "engagedSessions", "engagementRate", "averageSessionDuration", "screenPageViews"]),
     flow,
+    content: tableRows(contentReport, ["pagePath"], ["activeUsers", "screenPageViews", "userEngagementDuration", "eventCount", "keyEvents"]),
+    behavior: tableRows(behaviorReport, ["eventName"], ["eventCount", "totalUsers", "keyEvents"]),
     timeZone: summaryReport.metadata?.timeZone ?? null,
     generatedAt: new Date().toISOString(),
   };
