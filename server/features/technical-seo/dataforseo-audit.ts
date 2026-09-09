@@ -1,6 +1,9 @@
 import type { TechnicalSeoAuditContext, TechnicalSeoLocalResult } from "@shared/technicalSeo";
 
 const API = "https://api.dataforseo.com/v3";
+const US_STATES: Record<string, string> = {
+  AL: "Alabama", AK: "Alaska", AZ: "Arizona", AR: "Arkansas", CA: "California", CO: "Colorado", CT: "Connecticut", DE: "Delaware", FL: "Florida", GA: "Georgia", HI: "Hawaii", ID: "Idaho", IL: "Illinois", IN: "Indiana", IA: "Iowa", KS: "Kansas", KY: "Kentucky", LA: "Louisiana", ME: "Maine", MD: "Maryland", MA: "Massachusetts", MI: "Michigan", MN: "Minnesota", MS: "Mississippi", MO: "Missouri", MT: "Montana", NE: "Nebraska", NV: "Nevada", NH: "New Hampshire", NJ: "New Jersey", NM: "New Mexico", NY: "New York", NC: "North Carolina", ND: "North Dakota", OH: "Ohio", OK: "Oklahoma", OR: "Oregon", PA: "Pennsylvania", RI: "Rhode Island", SC: "South Carolina", SD: "South Dakota", TN: "Tennessee", TX: "Texas", UT: "Utah", VT: "Vermont", VA: "Virginia", WA: "Washington", WV: "West Virginia", WI: "Wisconsin", WY: "Wyoming", DC: "District of Columbia",
+};
 function empty(status: "not_assessed" | "provider_error", reason: string): TechnicalSeoLocalResult { return { status, reason, organicRank: null, mapRank: null, competitors: [], receipt: { provider: "DataForSEO", paidRequests: 0, keywords: [] } }; }
 function auth() { return `Basic ${Buffer.from(`${process.env.DATAFORSEO_API_LOGIN}:${process.env.DATAFORSEO_API_PASSWORD}`).toString("base64")}`; }
 async function post(path: string, task: Record<string, unknown>, signal?: AbortSignal) {
@@ -16,7 +19,8 @@ function domain(value: string | null | undefined) { try { return new URL(value ?
 export async function runLocalSearchAudit(siteUrl: string, context: TechnicalSeoAuditContext, signal?: AbortSignal): Promise<TechnicalSeoLocalResult> {
   if (!process.env.DATAFORSEO_API_LOGIN || !process.env.DATAFORSEO_API_PASSWORD) return empty("not_assessed", "Local search credentials are not configured on the scanner worker.");
   if (!context.businessName || !context.trade || !context.city || !context.state) return empty("not_assessed", "Business name, trade, city, and state are required for local search checks.");
-  const locationName = `${context.city},${context.state},United States`;
+  const stateName = US_STATES[context.state.trim().toUpperCase()] ?? context.state.trim();
+  const locationName = `${context.city},${stateName},United States`;
   const query = `${context.trade} ${context.city} ${context.state}`;
   const targetDomain = domain(siteUrl);
   try {
