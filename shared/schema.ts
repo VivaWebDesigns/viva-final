@@ -1370,6 +1370,7 @@ export const technicalSeoScans = pgTable("technical_seo_scans", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   requestedUrl: text("requested_url").notNull(),
   normalizedUrl: text("normalized_url").notNull(),
+  auditContext: jsonb("audit_context").$type<import("./technicalSeo").TechnicalSeoAuditContext>(),
   status: text("status").notNull().default("queued"),
   stage: text("stage").notNull().default("queued"),
   progress: integer("progress").notNull().default(0),

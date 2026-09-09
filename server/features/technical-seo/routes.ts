@@ -10,14 +10,26 @@ router.use(requireRole("admin", "developer"));
 
 router.post("/scans", async (req, res) => {
   try {
-    const { url } = z.object({ url: z.string().trim().min(1).max(2048) }).parse(req.body);
+    const input = z.object({
+      url: z.string().trim().min(1).max(2048),
+      businessName: z.string().trim().min(1).max(160),
+      trade: z.string().trim().min(1).max(160),
+      city: z.string().trim().min(1).max(100),
+      state: z.string().trim().min(1).max(100),
+      address: z.string().trim().max(240).optional().default(""),
+      phone: z.string().trim().max(40).optional().default(""),
+      googleBusinessUrl: z.union([z.string().trim().url().max(2048), z.literal("")]).optional().default(""),
+      targetServices: z.array(z.string().trim().min(1).max(100)).max(12).optional().default([]),
+      serviceAreas: z.array(z.string().trim().min(1).max(100)).max(20).optional().default([]),
+    }).parse(req.body);
+    const { url, ...auditContext } = input;
     const normalizedUrl = normalizePublicUrl(url);
     await assertSafePublicUrl(normalizedUrl);
     const active = await countActiveScans(req.authUser!.id);
     if (active >= SCAN_LIMITS.maxActiveScansPerUser) return res.status(429).json({ message: `You may have at most ${SCAN_LIMITS.maxActiveScansPerUser} active scans.` });
     const recent = await countRecentScans(req.authUser!.id, new Date(Date.now() - 10 * 60 * 1000));
     if (recent >= SCAN_LIMITS.maxScansPerTenMinutes) return res.status(429).json({ message: `You may start at most ${SCAN_LIMITS.maxScansPerTenMinutes} scans every 10 minutes.` });
-    const scan = await createScan(url, normalizedUrl, req.authUser!.id);
+    const scan = await createScan(url, normalizedUrl, req.authUser!.id, auditContext);
     return res.status(202).json(scan);
   } catch (error) {
     if (error instanceof UnsafeUrlError) return res.status(400).json({ message: error.message });

@@ -74,6 +74,7 @@ export async function inspectSitemaps(pageUrl: string, sitemapUrls: string[], si
   const checked: string[] = [];
   const foundIn: string[] = [];
   const errors: string[] = [];
+  const urls = new Set<string>();
   const normalizedPage = new URL(pageUrl).toString();
   for (const sitemapUrl of sitemapUrls.slice(0, SCAN_LIMITS.maxSitemaps)) {
     try {
@@ -82,11 +83,14 @@ export async function inspectSitemaps(pageUrl: string, sitemapUrls: string[], si
       checked.push(sitemapUrl);
       if (result.statusCode < 200 || result.statusCode >= 300) { errors.push(`${sitemapUrl}: HTTP ${result.statusCode}`); continue; }
       const locations = [...result.body.matchAll(/<loc>\s*([^<]+?)\s*<\/loc>/gi)].map((match) => match[1].replace(/&amp;/g, "&").trim());
+      for (const location of locations) {
+        try { if (new URL(location).origin === new URL(pageUrl).origin) urls.add(new URL(location).toString()); } catch { /* ignored */ }
+      }
       if (locations.some((location) => { try { return new URL(location).toString() === normalizedPage; } catch { return false; } })) foundIn.push(sitemapUrl);
     } catch (error) {
       if (signal?.aborted) throw signal.reason;
       errors.push(`${sitemapUrl}: ${error instanceof Error ? error.message : "fetch failed"}`);
     }
   }
-  return { checked, foundIn, errors };
+  return { checked, foundIn, errors, urls: [...urls].slice(0, 500) };
 }

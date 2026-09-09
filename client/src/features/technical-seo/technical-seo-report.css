@@ -21,6 +21,41 @@
 .seo-report-cover-copy > span { color: #0d9488; font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
 .seo-report-cover-copy h1 { color: #112f2c; font-size: 45px; letter-spacing: -.04em; margin: 12px 0; overflow-wrap: anywhere; }
 .seo-report-cover-copy p { color: #496360; font-size: 17px; line-height: 1.55; max-width: 5.8in; }
+.seo-report-grade-grid { display: grid; gap: 9px; grid-template-columns: repeat(5, 1fr); margin-top: .42in; }
+.seo-report-grade-grid div { align-items: center; border: 1px solid #dce7e5; border-radius: 10px; display: flex; flex-direction: column; min-height: 84px; padding: 10px 7px; text-align: center; }
+.seo-report-grade-grid strong { font-size: 27px; line-height: 1; }
+.seo-report-grade-grid span { font-size: 8px; line-height: 1.25; margin-top: 8px; text-transform: uppercase; }
+.grade-good { color: #14785b !important; }
+.grade-warn { color: #9a6810 !important; }
+.grade-bad { color: #b33b35 !important; }
+.seo-report-summary { border-left: 5px solid #b33b35; display: grid; gap: 10px; padding: 5px 0 5px 18px; }
+.seo-report-summary p { color: #3e5653; font-size: 13px; line-height: 1.5; margin: 0; }
+.seo-report-grade-detail { display: grid; gap: 8px; }
+.seo-report-grade-detail article { align-items: center; border-bottom: 1px solid #e1e9e7; display: grid; gap: 12px; grid-template-columns: 46px 1fr; padding: 8px 0; }
+.seo-report-grade-detail article > b { font-size: 24px; text-align: center; }
+.seo-report-grade-detail article strong { font-size: 11px; }
+.seo-report-grade-detail article p { color: #5b706d; font-size: 9px; line-height: 1.4; margin: 3px 0 0; }
+.seo-report-issue-list { display: grid; gap: 8px; }
+.seo-report-issue-list article { border-bottom: 1px solid #e0e8e7; display: grid; gap: 12px; grid-template-columns: 28px 1fr; padding: 6px 0 9px; }
+.seo-report-issue-list article > span { align-items: center; background: #a53b35; border-radius: 50%; color: #fff; display: flex; font-size: 10px; font-weight: 800; height: 25px; justify-content: center; }
+.seo-report-issue-list small, .seo-report-compact-issues small { color: #9b3b36; display: block; font-size: 7px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.seo-report-issue-list h3 { font-size: 12px; margin: 3px 0; }
+.seo-report-issue-list p { color: #516966; font-size: 8.5px; line-height: 1.35; margin: 2px 0; }
+.seo-report-compact-issues { display: grid; gap: 6px; grid-template-columns: 1fr 1fr; }
+.seo-report-compact-issues article { border: 1px solid #e0e8e7; border-radius: 8px; display: grid; gap: 8px; grid-template-columns: 22px 1fr; padding: 9px; }
+.seo-report-compact-issues article > b { color: #a53b35; font-size: 13px; }
+.seo-report-compact-issues strong { display: block; font-size: 9px; margin: 3px 0; }
+.seo-report-compact-issues p { color: #5b706d; font-size: 7.5px; line-height: 1.3; margin: 0; }
+.seo-report-evidence-grid { display: grid; gap: 10px; grid-template-columns: repeat(3, 1fr); }
+.seo-report-evidence-grid article { background: #f3f8f7; border: 1px solid #dce9e7; border-radius: 10px; padding: 14px; }
+.seo-report-evidence-grid h3 { font-size: 13px; margin-bottom: 10px; }
+.seo-report-evidence-grid p { color: #586f6c; font-size: 9px; line-height: 1.35; margin: 6px 0; overflow-wrap: anywhere; }
+.seo-report-coverage { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; }
+.seo-report-coverage > div { border: 1px solid #dce7e5; border-radius: 9px; padding: 12px; }
+.seo-report-coverage strong { font-size: 10px; }
+.seo-report-coverage p { color: #5d716e; font-size: 8px; margin: 6px 0; }
+.seo-report-email-page { height: auto; min-height: 11in; overflow: visible; }
+.seo-report-email-page pre { color: #263e3b; font-family: Arial, sans-serif; font-size: 8px; line-height: 1.42; margin: 0; white-space: pre-wrap; word-break: break-word; }
 .seo-report-verdict { border-left: 5px solid #0d9488; border-radius: 0 14px 14px 0; margin-top: .45in; padding: .25in .3in; }
 .seo-report-verdict.is-positive { background: #eaf8f1; border-color: #199268; }
 .seo-report-verdict.is-warning { background: #fff6de; border-color: #d49418; }
@@ -84,4 +119,5 @@
   .seo-client-report-root { left: 0; margin: 0; position: absolute; top: 0; width: 8.5in; }
   .seo-report-page { box-shadow: none; break-after: page; height: 11in; margin: 0; page-break-after: always; width: 8.5in; }
   .seo-report-page:last-child { break-after: auto; page-break-after: auto; }
+  .seo-report-email-page { height: auto; min-height: 11in; overflow: visible; }
 }

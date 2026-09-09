@@ -1,15 +1,15 @@
 import { and, desc, eq, gt, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { db } from "../../db";
 import { technicalSeoScans, type TechnicalSeoScan } from "@shared/schema";
-import type { TechnicalSeoScanResult, TechnicalSeoScanStatus } from "@shared/technicalSeo";
+import type { TechnicalSeoAuditContext, TechnicalSeoScanResult, TechnicalSeoScanStatus } from "@shared/technicalSeo";
 import { SCAN_LIMITS } from "./constants";
 import { publicScanError } from "./errors";
 import { sanitizePostgresJson } from "./sanitize";
 
 const ACTIVE_STATUSES: TechnicalSeoScanStatus[] = ["queued", "validating", "fetching", "rendering", "analyzing"];
 
-export async function createScan(requestedUrl: string, normalizedUrl: string, createdBy: string) {
-  const [scan] = await db.insert(technicalSeoScans).values({ requestedUrl, normalizedUrl, createdBy }).returning();
+export async function createScan(requestedUrl: string, normalizedUrl: string, createdBy: string, auditContext: TechnicalSeoAuditContext) {
+  const [scan] = await db.insert(technicalSeoScans).values({ requestedUrl, normalizedUrl, createdBy, auditContext }).returning();
   return scan;
 }
 

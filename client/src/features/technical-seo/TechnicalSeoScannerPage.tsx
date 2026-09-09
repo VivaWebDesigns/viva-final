@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { AlertTriangle, CheckCircle2, Clipboard, Clock3, ExternalLink, FileText, Loader2, RefreshCw, SearchCheck, XCircle } from "lucide-react";
-import type { TechnicalSeoIssue, TechnicalSeoScanResult, TechnicalSeoSnapshot } from "@shared/technicalSeo";
+import type { TechnicalSeoAuditContext, TechnicalSeoIssue, TechnicalSeoScanResult, TechnicalSeoSnapshot } from "@shared/technicalSeo";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -25,6 +25,7 @@ interface ScanRecord {
   completedAt?: string | null;
   cancellationRequested?: boolean;
   result?: TechnicalSeoScanResult | null;
+  auditContext?: TechnicalSeoAuditContext | null;
   summary?: TechnicalSeoScanResult["summary"] | null;
 }
 
@@ -100,6 +101,15 @@ function compactAiEvidence(result: TechnicalSeoScanResult) {
 
 export default function TechnicalSeoScannerPage({ scanId }: { scanId?: string }) {
   const [url, setUrl] = useState("");
+  const [businessName, setBusinessName] = useState("");
+  const [trade, setTrade] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [address, setAddress] = useState("");
+  const [phone, setPhone] = useState("");
+  const [googleBusinessUrl, setGoogleBusinessUrl] = useState("");
+  const [targetServices, setTargetServices] = useState("");
+  const [serviceAreas, setServiceAreas] = useState("");
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -115,7 +125,11 @@ export default function TechnicalSeoScannerPage({ scanId }: { scanId?: string })
   }, [historyData?.scans, scanId, scan?.status, refetchScan]);
 
   const createMutation = useMutation({
-    mutationFn: async () => (await apiRequest("POST", "/api/technical-seo/scans", { url })).json() as Promise<ScanRecord>,
+    mutationFn: async () => (await apiRequest("POST", "/api/technical-seo/scans", {
+      url, businessName, trade, city, state, address, phone, googleBusinessUrl,
+      targetServices: targetServices.split(",").map((value) => value.trim()).filter(Boolean),
+      serviceAreas: serviceAreas.split(",").map((value) => value.trim()).filter(Boolean),
+    })).json() as Promise<ScanRecord>,
     onSuccess: (created) => { setUrl(""); void queryClient.invalidateQueries({ queryKey: ["/api/technical-seo/scans"] }); navigate(`/admin/tools/technical-seo/${created.id}`); },
     onError: (error: Error) => toast({ title: "Scan could not be started", description: error.message, variant: "destructive" }),
   });
@@ -138,9 +152,17 @@ export default function TechnicalSeoScannerPage({ scanId }: { scanId?: string })
     <div className="space-y-6" data-testid="technical-seo-scanner-page">
       <div>
         <h1 className="flex items-center gap-2 text-2xl font-bold text-gray-900"><SearchCheck className="h-6 w-6 text-teal-600" />Technical SEO Scanner</h1>
-        <p className="mt-1 text-sm text-gray-500">Compare what a server sends with what a simulated-Googlebot browser profile renders.</p>
+        <p className="mt-1 text-sm text-gray-500">Run a multi-page technical, performance, local visibility, trust, and conversion audit.</p>
       </div>
-      <Card><CardContent className="pt-6"><form onSubmit={submit} className="flex flex-col gap-3 sm:flex-row"><Input type="url" value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://example.com/page" maxLength={2048} required data-testid="input-technical-seo-url" /><Button type="submit" disabled={createMutation.isPending || !url.trim()} data-testid="button-run-technical-seo-scan">{createMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <SearchCheck className="mr-2 h-4 w-4" />}Run Technical Scan</Button></form><p className="mt-3 text-xs text-gray-500">Public HTTP(S) pages only. This is a simulated crawler inspection, not a Google-generated result.</p></CardContent></Card>
+      <Card><CardHeader><CardTitle className="text-base">New local SEO audit</CardTitle></CardHeader><CardContent><form onSubmit={submit} className="space-y-3">
+        <Input type="url" value={url} onChange={(event) => setUrl(event.target.value)} placeholder="Website URL *" maxLength={2048} required data-testid="input-technical-seo-url" />
+        <div className="grid gap-3 md:grid-cols-2"><Input value={businessName} onChange={(e) => setBusinessName(e.target.value)} placeholder="Business name *" required /><Input value={trade} onChange={(e) => setTrade(e.target.value)} placeholder="Primary trade or service *" required /></div>
+        <div className="grid gap-3 md:grid-cols-2"><Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Primary city *" required /><Input value={state} onChange={(e) => setState(e.target.value)} placeholder="State *" required /></div>
+        <div className="grid gap-3 md:grid-cols-2"><Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Business address (optional)" /><Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Business phone (optional)" /></div>
+        <Input type="url" value={googleBusinessUrl} onChange={(e) => setGoogleBusinessUrl(e.target.value)} placeholder="Google Business Profile URL (optional)" />
+        <div className="grid gap-3 md:grid-cols-2"><Input value={targetServices} onChange={(e) => setTargetServices(e.target.value)} placeholder="Target services, comma separated" /><Input value={serviceAreas} onChange={(e) => setServiceAreas(e.target.value)} placeholder="Service areas, comma separated" /></div>
+        <div className="flex items-center justify-between gap-3"><p className="text-xs text-gray-500">Crawls up to 20 pages. Local checks use no more than three paid provider requests.</p><Button type="submit" disabled={createMutation.isPending || !url.trim() || !businessName.trim() || !trade.trim() || !city.trim() || !state.trim()} data-testid="button-run-technical-seo-scan">{createMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <SearchCheck className="mr-2 h-4 w-4" />}Run Full Audit</Button></div>
+      </form></CardContent></Card>
 
       {scanId && !scan && <Card><CardContent className="flex items-center gap-2 py-10 text-gray-500"><Loader2 className="h-4 w-4 animate-spin" />Loading scan…</CardContent></Card>}
       {scan && ACTIVE.has(scan.status) && <Card><CardHeader><CardTitle className="flex items-center justify-between text-base"><span>Scan in progress</span><StatusBadge status={scan.status} /></CardTitle></CardHeader><CardContent><Progress value={scan.progress} /><div className="mt-3 flex items-center justify-between"><p className="text-sm text-gray-600">{titleCase(scan.stage)}</p><Button size="sm" variant="outline" onClick={() => cancelMutation.mutate()} disabled={cancelMutation.isPending || scan.cancellationRequested}>Cancel</Button></div></CardContent></Card>}
