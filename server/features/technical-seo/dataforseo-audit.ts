@@ -74,11 +74,14 @@ export async function runLocalSearchAudit(siteUrl: string, context: TechnicalSeo
   const locationName = `${context.city},${stateName},United States`;
   const query = `${context.trade} ${context.city} ${context.state}`;
   const targetDomain = domain(siteUrl);
+  let paidRequests = 0;
   try {
     const suppliedLookup = await googleBusinessLookup(context, signal);
-    const organicResult = await Promise.allSettled([
-      post("/serp/google/organic/live/advanced", { keyword: query, location_name: locationName, language_code: "en", device: "mobile", depth: 10 }, signal),
-    ]).then(([result]) => result);
+    const organicResult: PromiseSettledResult<any> = suppliedLookup.method === "name_location"
+      ? await Promise.allSettled([
+        post("/serp/google/organic/live/advanced", { keyword: query, location_name: locationName, language_code: "en", device: "mobile", depth: 10 }, signal),
+      ]).then(([result]) => { paidRequests += 1; return result; })
+      : { status: "fulfilled", value: null };
     if (signal?.aborted) throw signal.reason;
     const organic = organicResult.status === "fulfilled" ? organicResult.value : null;
     const allOrganicItems = organic?.items ?? [];
@@ -90,41 +93,28 @@ export async function runLocalSearchAudit(siteUrl: string, context: TechnicalSeo
     const lookup = suppliedLookup.method === "name_location" && localPackCandidate?.cid
       ? { keyword: `cid:${localPackCandidate.cid}`, method: "search_result_identity" as const }
       : suppliedLookup;
-    const [businessResult, mapsResult] = await Promise.allSettled([
+    const [businessResult] = await Promise.allSettled([
       post("/business_data/google/my_business_info/live", { keyword: lookup.keyword, location_name: locationName, language_code: "en" }, signal),
-      post("/serp/google/maps/live/advanced", { keyword: query, location_name: locationName, language_code: "en", device: "mobile", depth: 10, search_places: false }, signal),
     ]);
+    paidRequests += 1;
     if (signal?.aborted) throw signal.reason;
     const business = businessResult.status === "fulfilled" ? businessResult.value : null;
-    const maps = mapsResult.status === "fulfilled" ? mapsResult.value : null;
     const businessItem = business?.items?.[0] ?? business ?? localPackCandidate;
-    const organicItems = allOrganicItems.filter((item: any) => item.type === "organic");
-    const mapItems = (maps?.items ?? maps?.results ?? []).filter((item: any) => item.type === "maps_search" || item.type === "map" || item.title);
-    const matchesDomain = (item: any) => [item.domain, domain(item.url), domain(item.website)].filter(Boolean).includes(targetDomain);
-    const nameMatch = (item: any) => String(item.title ?? item.name ?? "").toLowerCase().includes(context.businessName.toLowerCase());
-    const organicRank = organicItems.find((item: any) => matchesDomain(item))?.rank_group ?? null;
-    const mapRank = mapItems.find((item: any) => matchesDomain(item) || nameMatch(item))?.rank_group ?? null;
-    const competitors = [
-      ...organicItems.filter((item: any) => !matchesDomain(item)).slice(0, 3).map((item: any) => ({ name: item.title ?? item.domain ?? "Competitor", domain: item.domain ?? domain(item.url), rank: item.rank_group ?? item.rank_absolute ?? 0, source: "organic" as const })),
-      ...mapItems.filter((item: any) => !(matchesDomain(item) || nameMatch(item))).slice(0, 3).map((item: any) => ({ name: item.title ?? item.name ?? "Competitor", domain: domain(item.website ?? item.url), rank: item.rank_group ?? item.rank_absolute ?? 0, source: "maps" as const, rating: item.rating?.value ?? item.rating ?? null, reviewCount: item.rating?.votes_count ?? item.reviews_count ?? null })),
-    ];
     const failureMessage = (result: PromiseSettledResult<unknown>) => result.status === "rejected" ? (result.reason instanceof Error ? result.reason.message : "Provider request failed") : null;
     const profileReason = businessResult.status === "rejected" && !localPackCandidate ? failureMessage(businessResult) : null;
-    const rankingReasons = [failureMessage(organicResult), failureMessage(mapsResult)].filter(Boolean);
     const profileStatus = businessResult.status === "fulfilled" || localPackCandidate ? "measured" as const : "provider_error" as const;
-    const rankingsStatus = organicResult.status === "fulfilled" && mapsResult.status === "fulfilled" ? "measured" as const : "provider_error" as const;
     return {
-      status: profileStatus === "measured" || rankingsStatus === "measured" ? "measured" : "provider_error",
-      reason: [...(profileReason ? [`Business Profile: ${profileReason}`] : []), ...rankingReasons.map((reason) => `Rankings: ${reason}`)].join(" ") || undefined,
+      status: profileStatus,
+      reason: profileReason ? `Business Profile: ${profileReason}` : undefined,
       profileStatus, profileReason: profileReason ?? undefined, profileMatchMethod: lookup.method,
-      rankingsStatus, rankingsReason: rankingReasons.join(" ") || undefined, query,
+      rankingsStatus: "not_assessed", rankingsReason: "Local ranking checks are intentionally excluded because dedicated map-pack scans provide more precise visibility measurements.",
       profile: businessItem ? { title: businessItem.title ?? null, address: businessItem.address ?? null, phone: businessItem.phone ?? null, website: businessItem.url ?? businessItem.website ?? null, category: businessItem.category ?? null, additionalCategories: businessItem.additional_categories ?? [], rating: businessItem.rating?.value ?? businessItem.rating ?? null, reviewCount: businessItem.rating?.votes_count ?? businessItem.reviews_count ?? null, claimed: businessItem.is_claimed ?? businessItem.claimed ?? null, services: (businessItem.services ?? []).map((value: any) => typeof value === "string" ? value : value.title).filter(Boolean), hoursPresent: businessItem.work_hours ? true : null } : undefined,
-      organicRank, mapRank, competitors, receipt: { provider: "DataForSEO", paidRequests: 3, keywords: [lookup.keyword, query] },
+      organicRank: null, mapRank: null, competitors: [], receipt: { provider: "DataForSEO", paidRequests, keywords: [lookup.keyword] },
     };
   } catch (error) {
     if (signal?.aborted) throw signal.reason;
     const result = empty("provider_error", error instanceof Error ? error.message : "Local search request failed");
-    result.receipt = { provider: "DataForSEO", paidRequests: 3, keywords: [context.businessName, query] };
+    result.receipt = { provider: "DataForSEO", paidRequests, keywords: [context.businessName] };
     return result;
   }
 }

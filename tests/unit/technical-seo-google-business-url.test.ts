@@ -40,8 +40,7 @@ describe("technical SEO Google Business Profile URL identifiers", () => {
         { type: "local_pack", title: "Lake Wylie Dog Boarding", cid: "4284482761803538580", url: "https://lakewylieboarding.com/", phone: "+18033153578", rating: { value: 5, votes_count: 47 } },
         { type: "organic", title: "Lake Wylie Dog Boarding", domain: "lakewylieboarding.com", rank_group: 3 },
       ] }] }] }))
-      .mockResolvedValueOnce(payload({ tasks: [{ status_code: 40102, status_message: "No Search Results." }] }))
-      .mockResolvedValueOnce(payload({ tasks: [{ status_code: 20000, result: [{ items: [] }] }] }));
+      .mockResolvedValueOnce(payload({ tasks: [{ status_code: 40102, status_message: "No Search Results." }] }));
     vi.stubGlobal("fetch", fetchMock);
 
     const result = await runLocalSearchAudit("https://lakewylieboarding.com/", {
@@ -52,5 +51,10 @@ describe("technical SEO Google Business Profile URL identifiers", () => {
     expect(result.profileMatchMethod).toBe("search_result_identity");
     expect(result.profile).toMatchObject({ title: "Lake Wylie Dog Boarding", phone: "+18033153578", rating: 5, reviewCount: 47 });
     expect(result.receipt.keywords[0]).toBe("cid:4284482761803538580");
+    expect(result.rankingsStatus).toBe("not_assessed");
+    expect(result.mapRank).toBeNull();
+    expect(result.organicRank).toBeNull();
+    expect(result.receipt.paidRequests).toBe(2);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });

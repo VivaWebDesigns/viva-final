@@ -38,6 +38,7 @@ interface ScanCompany {
 }
 
 const ACTIVE = new Set(["queued", "validating", "fetching", "rendering", "analyzing"]);
+const RETIRED_RANKING_ISSUES = new Set(["organic-not-top-ten", "maps-not-top-ten"]);
 const AI_PROMPT = "Analyze this technical SEO scan as if you were reviewing evidence similar to a Google Search Console Live URL Test. Identify anything that could interfere with crawling, rendering, indexing, canonicalization, structured data, internal linking, or Google's interpretation of the page. Separate confirmed problems from possible concerns. Prioritize the issues by impact and provide exact fixes. Do not claim this scan came from Google.";
 
 function titleCase(value: string) { return value.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase()); }
@@ -169,14 +170,14 @@ export default function TechnicalSeoScannerPage({ scanId }: { scanId?: string })
     navigate(`/admin/tools/technical-seo/${id}`);
   };
   const result = scan?.result;
-  const sortedIssues = useMemo(() => result?.issues ?? [], [result]);
+  const sortedIssues = useMemo(() => result?.issues.filter((item) => !RETIRED_RANKING_ISSUES.has(item.id)) ?? [], [result]);
 
   const submit = (event: FormEvent) => { event.preventDefault(); if (url.trim()) createMutation.mutate(); };
   return (
     <div className="space-y-6" data-testid="technical-seo-scanner-page">
       <div>
         <h1 className="flex items-center gap-2 text-2xl font-bold text-gray-900"><SearchCheck className="h-6 w-6 text-teal-600" />Technical SEO Scanner</h1>
-        <p className="mt-1 text-sm text-gray-500">Run a multi-page technical, performance, local visibility, trust, and conversion audit.</p>
+        <p className="mt-1 text-sm text-gray-500">Run a multi-page technical, performance, Business Profile, trust, and conversion audit.</p>
       </div>
       <Card><CardHeader><CardTitle className="text-base">New local SEO audit</CardTitle></CardHeader><CardContent><form onSubmit={submit} className="space-y-3">
         <Input type="url" value={url} onChange={(event) => setUrl(event.target.value)} placeholder="Website URL *" maxLength={2048} required data-testid="input-technical-seo-url" />
@@ -185,7 +186,7 @@ export default function TechnicalSeoScannerPage({ scanId }: { scanId?: string })
         <div className="grid gap-3 md:grid-cols-2"><Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Business address (optional)" /><Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Business phone (optional)" /></div>
         <Input type="url" value={googleBusinessUrl} onChange={(e) => setGoogleBusinessUrl(e.target.value)} placeholder="Google Business Profile URL (optional)" />
         <div className="grid gap-3 md:grid-cols-2"><Input value={targetServices} onChange={(e) => setTargetServices(e.target.value)} placeholder="Target services, comma separated" /><Input value={serviceAreas} onChange={(e) => setServiceAreas(e.target.value)} placeholder="Service areas, comma separated" /></div>
-        <div className="flex items-center justify-between gap-3"><p className="text-xs text-gray-500">Crawls up to 20 pages. Local checks use no more than three paid provider requests.</p><Button type="submit" disabled={createMutation.isPending || !url.trim() || !businessName.trim() || !trade.trim() || !city.trim() || !state.trim()} data-testid="button-run-technical-seo-scan">{createMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <SearchCheck className="mr-2 h-4 w-4" />}Run Full Audit</Button></div>
+        <div className="flex items-center justify-between gap-3"><p className="text-xs text-gray-500">Crawls up to 20 pages. Business Profile matching uses no more than two paid provider requests; rankings stay in the dedicated map-pack scan.</p><Button type="submit" disabled={createMutation.isPending || !url.trim() || !businessName.trim() || !trade.trim() || !city.trim() || !state.trim()} data-testid="button-run-technical-seo-scan">{createMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <SearchCheck className="mr-2 h-4 w-4" />}Run Full Audit</Button></div>
       </form></CardContent></Card>
 
       {scanId && !scan && <Card><CardContent className="flex items-center gap-2 py-10 text-gray-500"><Loader2 className="h-4 w-4 animate-spin" />Loading scan…</CardContent></Card>}
