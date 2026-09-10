@@ -20,22 +20,24 @@ function profile(data: any): TechnicalSeoPerformanceProfile {
 }
 
 export async function runPageSpeedAudit(url: string, signal?: AbortSignal): Promise<TechnicalSeoPerformanceResult> {
+  const apiKey = process.env.PAGESPEED_API_KEY?.trim();
   try {
+    if (!apiKey) throw new Error("PAGESPEED_API_KEY is not configured on the scanner worker");
     const results = await Promise.all(["mobile", "desktop"].map(async (strategy) => {
       const endpoint = new URL("https://www.googleapis.com/pagespeedonline/v5/runPagespeed");
       endpoint.searchParams.set("url", url); endpoint.searchParams.set("strategy", strategy);
       for (const category of ["performance", "accessibility", "seo"]) endpoint.searchParams.append("category", category);
-      if (process.env.PAGESPEED_API_KEY) endpoint.searchParams.set("key", process.env.PAGESPEED_API_KEY);
+      endpoint.searchParams.set("key", apiKey);
       const response = await fetch(endpoint, { signal });
       if (!response.ok) throw new Error(`PageSpeed returned HTTP ${response.status}`);
       return profile(await response.json());
     }));
-    return { status: "measured", mobile: results[0], desktop: results[1] };
+    return { status: "measured", source: "google_pagespeed", mobile: results[0], desktop: results[1] };
   } catch (error) {
     if (signal?.aborted) throw signal.reason;
     try {
       const local = await runLocalPerformance(url, signal);
-      return { status: "measured", reason: `Google PageSpeed was unavailable (${error instanceof Error ? error.message : "request failed"}); values are controlled Chromium lab estimates.`, ...local };
+      return { status: "estimated", source: "local_chromium", reason: `Local Chromium estimate only. Google PageSpeed was unavailable (${error instanceof Error ? error.message : "request failed"}).`, ...local };
     } catch (fallbackError) {
       if (signal?.aborted) throw signal.reason;
       return { status: "provider_error", reason: fallbackError instanceof Error ? fallbackError.message : "Performance measurement failed" };

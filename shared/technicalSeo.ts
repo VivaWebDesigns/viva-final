@@ -98,7 +98,8 @@ export interface TechnicalSeoPageAudit {
 }
 
 export interface TechnicalSeoPerformanceResult {
-  status: "measured" | "not_assessed" | "provider_error";
+  status: "measured" | "estimated" | "not_assessed" | "provider_error";
+  source?: "google_pagespeed" | "local_chromium";
   reason?: string;
   mobile?: TechnicalSeoPerformanceProfile;
   desktop?: TechnicalSeoPerformanceProfile;
@@ -121,6 +122,11 @@ export interface TechnicalSeoPerformanceProfile {
 export interface TechnicalSeoLocalResult {
   status: "measured" | "not_assessed" | "provider_error";
   reason?: string;
+  profileStatus?: "measured" | "not_assessed" | "provider_error";
+  profileReason?: string;
+  profileMatchMethod?: "google_business_url" | "name_location";
+  rankingsStatus?: "measured" | "not_assessed" | "provider_error";
+  rankingsReason?: string;
   query?: string;
   profile?: {
     title: string | null; address: string | null; phone: string | null; website: string | null;

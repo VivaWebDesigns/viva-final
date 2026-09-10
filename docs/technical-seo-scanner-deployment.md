@@ -11,12 +11,12 @@ Keep the existing `VivaWebDesigns.com` service unchanged. Create a second servic
 - Start command: use the image default (`node dist/scanner-worker.cjs`)
 - Replicas: 1 for the MVP
 - Restart policy: on failure
-- Required variable: `DATABASE_URL`
+- Required variables: `DATABASE_URL`, `PAGESPEED_API_KEY`, `DATAFORSEO_API_LOGIN`, and `DATAFORSEO_API_PASSWORD`
 - Optional variable: `SCANNER_POLL_INTERVAL_MS=2000`
 
 The Playwright image and package versions are deliberately pinned to `1.62.1`. Update them together.
 
-Do not set unrelated CRM, email, OpenAI, payment, Google, or storage secrets on the scanner worker. Where Railway/PostgreSQL administration permits it, use a database role restricted to selecting and updating `technical_seo_scans`.
+Use a dedicated Google Cloud API key restricted to the PageSpeed Insights API for `PAGESPEED_API_KEY`; do not reuse or broaden the Geocoding key. Do not set unrelated CRM, email, OpenAI, payment, Google, or storage secrets on the scanner worker. Where Railway/PostgreSQL administration permits it, use a database role restricted to selecting and updating `technical_seo_scans`.
 
 The worker must be deployed as a separate service. Do not change the existing web service start command to `start:scanner`, and do not run the scanner worker from `server/bootstrap.ts`.
 

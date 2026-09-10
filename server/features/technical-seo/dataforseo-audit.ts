@@ -16,6 +16,57 @@ async function post(path: string, task: Record<string, unknown>, signal?: AbortS
 }
 function domain(value: string | null | undefined) { try { return new URL(value ?? "").hostname.replace(/^www\./, ""); } catch { return null; } }
 
+function isGoogleBusinessHost(hostname: string) {
+  const host = hostname.toLowerCase().replace(/\.$/, "");
+  return host === "maps.app.goo.gl" || host === "goo.gl" || host === "g.page" || host === "google.com" || host.endsWith(".google.com");
+}
+
+export function extractGoogleBusinessIdentifier(value: string): string | null {
+  try {
+    const url = new URL(value);
+    if (!isGoogleBusinessHost(url.hostname)) return null;
+    for (const key of ["cid", "ludocid"]) {
+      const candidate = url.searchParams.get(key)?.trim();
+      if (candidate && /^\d+$/.test(candidate)) return `cid:${candidate}`;
+    }
+    for (const key of ["place_id", "query_place_id"]) {
+      const candidate = url.searchParams.get(key)?.trim();
+      if (candidate && /^[A-Za-z0-9_-]+$/.test(candidate)) return `place_id:${candidate}`;
+    }
+    const decoded = decodeURIComponent(url.href);
+    const placeId = decoded.match(/(?:place_id:|!1s)(ChI[A-Za-z0-9_-]+)/i)?.[1];
+    if (placeId) return `place_id:${placeId}`;
+    const hexCid = decoded.match(/0x[0-9a-f]+:0x([0-9a-f]+)/i)?.[1];
+    if (hexCid) return `cid:${BigInt(`0x${hexCid}`).toString(10)}`;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+async function googleBusinessLookup(context: TechnicalSeoAuditContext, signal?: AbortSignal) {
+  const suppliedUrl = context.googleBusinessUrl?.trim();
+  if (!suppliedUrl) return { keyword: context.businessName, method: "name_location" as const };
+  try {
+    let current = new URL(suppliedUrl);
+    if (!isGoogleBusinessHost(current.hostname)) return { keyword: context.businessName, method: "name_location" as const };
+    for (let redirect = 0; redirect < 5; redirect += 1) {
+      const identifier = extractGoogleBusinessIdentifier(current.toString());
+      if (identifier) return { keyword: identifier, method: "google_business_url" as const };
+      if (!["maps.app.goo.gl", "goo.gl", "g.page"].includes(current.hostname.toLowerCase())) break;
+      const response = await fetch(current, { method: "HEAD", redirect: "manual", signal });
+      const location = response.headers.get("location");
+      await response.body?.cancel().catch(() => undefined);
+      if (!location) break;
+      current = new URL(location, current);
+      if (!isGoogleBusinessHost(current.hostname)) break;
+    }
+  } catch (error) {
+    if (signal?.aborted) throw signal.reason;
+  }
+  return { keyword: context.businessName, method: "name_location" as const };
+}
+
 export async function runLocalSearchAudit(siteUrl: string, context: TechnicalSeoAuditContext, signal?: AbortSignal): Promise<TechnicalSeoLocalResult> {
   if (!process.env.DATAFORSEO_API_LOGIN || !process.env.DATAFORSEO_API_PASSWORD) return empty("not_assessed", "Local search credentials are not configured on the scanner worker.");
   if (!context.businessName || !context.trade || !context.city || !context.state) return empty("not_assessed", "Business name, trade, city, and state are required for local search checks.");
@@ -24,11 +75,16 @@ export async function runLocalSearchAudit(siteUrl: string, context: TechnicalSeo
   const query = `${context.trade} ${context.city} ${context.state}`;
   const targetDomain = domain(siteUrl);
   try {
-    const [business, organic, maps] = await Promise.all([
-      post("/business_data/google/my_business_info/live", { keyword: context.businessName, location_name: locationName, language_code: "en" }, signal),
+    const lookup = await googleBusinessLookup(context, signal);
+    const [businessResult, organicResult, mapsResult] = await Promise.allSettled([
+      post("/business_data/google/my_business_info/live", { keyword: lookup.keyword, location_name: locationName, language_code: "en" }, signal),
       post("/serp/google/organic/live/advanced", { keyword: query, location_name: locationName, language_code: "en", device: "mobile", depth: 10 }, signal),
       post("/serp/google/maps/live/advanced", { keyword: query, location_name: locationName, language_code: "en", device: "mobile", depth: 10, search_places: false }, signal),
     ]);
+    if (signal?.aborted) throw signal.reason;
+    const business = businessResult.status === "fulfilled" ? businessResult.value : null;
+    const organic = organicResult.status === "fulfilled" ? organicResult.value : null;
+    const maps = mapsResult.status === "fulfilled" ? mapsResult.value : null;
     const businessItem = business?.items?.[0] ?? business;
     const organicItems = (organic?.items ?? []).filter((item: any) => item.type === "organic");
     const mapItems = (maps?.items ?? maps?.results ?? []).filter((item: any) => item.type === "maps_search" || item.type === "map" || item.title);
@@ -40,10 +96,18 @@ export async function runLocalSearchAudit(siteUrl: string, context: TechnicalSeo
       ...organicItems.filter((item: any) => !matchesDomain(item)).slice(0, 3).map((item: any) => ({ name: item.title ?? item.domain ?? "Competitor", domain: item.domain ?? domain(item.url), rank: item.rank_group ?? item.rank_absolute ?? 0, source: "organic" as const })),
       ...mapItems.filter((item: any) => !(matchesDomain(item) || nameMatch(item))).slice(0, 3).map((item: any) => ({ name: item.title ?? item.name ?? "Competitor", domain: domain(item.website ?? item.url), rank: item.rank_group ?? item.rank_absolute ?? 0, source: "maps" as const, rating: item.rating?.value ?? item.rating ?? null, reviewCount: item.rating?.votes_count ?? item.reviews_count ?? null })),
     ];
+    const failureMessage = (result: PromiseSettledResult<unknown>) => result.status === "rejected" ? (result.reason instanceof Error ? result.reason.message : "Provider request failed") : null;
+    const profileReason = failureMessage(businessResult);
+    const rankingReasons = [failureMessage(organicResult), failureMessage(mapsResult)].filter(Boolean);
+    const profileStatus = businessResult.status === "fulfilled" ? "measured" as const : "provider_error" as const;
+    const rankingsStatus = organicResult.status === "fulfilled" && mapsResult.status === "fulfilled" ? "measured" as const : "provider_error" as const;
     return {
-      status: "measured", query,
+      status: profileStatus === "measured" || rankingsStatus === "measured" ? "measured" : "provider_error",
+      reason: [...(profileReason ? [`Business Profile: ${profileReason}`] : []), ...rankingReasons.map((reason) => `Rankings: ${reason}`)].join(" ") || undefined,
+      profileStatus, profileReason: profileReason ?? undefined, profileMatchMethod: lookup.method,
+      rankingsStatus, rankingsReason: rankingReasons.join(" ") || undefined, query,
       profile: businessItem ? { title: businessItem.title ?? null, address: businessItem.address ?? null, phone: businessItem.phone ?? null, website: businessItem.url ?? businessItem.website ?? null, category: businessItem.category ?? null, additionalCategories: businessItem.additional_categories ?? [], rating: businessItem.rating?.value ?? businessItem.rating ?? null, reviewCount: businessItem.rating?.votes_count ?? businessItem.reviews_count ?? null, claimed: businessItem.is_claimed ?? businessItem.claimed ?? null, services: (businessItem.services ?? []).map((value: any) => typeof value === "string" ? value : value.title).filter(Boolean), hoursPresent: businessItem.work_hours ? true : null } : undefined,
-      organicRank, mapRank, competitors, receipt: { provider: "DataForSEO", paidRequests: 3, keywords: [context.businessName, query] },
+      organicRank, mapRank, competitors, receipt: { provider: "DataForSEO", paidRequests: 3, keywords: [lookup.keyword, query] },
     };
   } catch (error) {
     if (signal?.aborted) throw signal.reason;
