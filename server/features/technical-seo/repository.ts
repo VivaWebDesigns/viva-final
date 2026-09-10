@@ -42,6 +42,33 @@ export async function listScans(limit = 50) {
   }).from(technicalSeoScans).orderBy(desc(technicalSeoScans.createdAt)).limit(Math.min(limit, 100));
 }
 
+const companyNameExpression = sql<string>`trim(coalesce(${technicalSeoScans.auditContext} ->> 'businessName', ''))`;
+const normalizedCompanyNameExpression = sql<string>`lower(${companyNameExpression})`;
+
+export async function listScanCompanies() {
+  return db.select({
+    businessName: sql<string>`(array_agg(${companyNameExpression} order by ${technicalSeoScans.createdAt} desc))[1]`,
+    scanCount: sql<number>`count(*)::int`,
+    activeCount: sql<number>`count(*) filter (where ${technicalSeoScans.status} in ('queued', 'validating', 'fetching', 'rendering', 'analyzing'))::int`,
+    latestScanAt: sql<Date>`max(${technicalSeoScans.createdAt})`,
+  }).from(technicalSeoScans)
+    .where(sql`${companyNameExpression} <> ''`)
+    .groupBy(normalizedCompanyNameExpression)
+    .orderBy(desc(sql`max(${technicalSeoScans.createdAt})`));
+}
+
+export async function deleteCompanyScans(businessName: string) {
+  const normalizedName = businessName.trim().toLowerCase();
+  const companyMatch = sql`${normalizedCompanyNameExpression} = ${normalizedName}`;
+  return db.transaction(async (tx) => {
+    const [active] = await tx.select({ count: sql<number>`count(*)::int` }).from(technicalSeoScans)
+      .where(and(companyMatch, inArray(technicalSeoScans.status, ACTIVE_STATUSES)));
+    if ((active?.count ?? 0) > 0) return { deletedCount: 0, activeCount: active.count };
+    const deleted = await tx.delete(technicalSeoScans).where(companyMatch).returning({ id: technicalSeoScans.id });
+    return { deletedCount: deleted.length, activeCount: 0 };
+  });
+}
+
 export async function getScan(id: string) {
   const [scan] = await db.select().from(technicalSeoScans).where(eq(technicalSeoScans.id, id)).limit(1);
   return scan ?? null;

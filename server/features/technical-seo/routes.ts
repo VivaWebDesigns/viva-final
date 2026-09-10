@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireRole } from "../auth/middleware";
 import { assertSafePublicUrl, normalizePublicUrl, UnsafeUrlError } from "./url-safety";
 import { SCAN_LIMITS } from "./constants";
-import { countActiveScans, countRecentScans, createScan, getScan, listScans, requestCancellation, retryScan } from "./repository";
+import { countActiveScans, countRecentScans, createScan, deleteCompanyScans, getScan, listScanCompanies, listScans, requestCancellation, retryScan } from "./repository";
 
 const router = Router();
 router.use(requireRole("admin", "developer"));
@@ -41,6 +41,23 @@ router.post("/scans", async (req, res) => {
 router.get("/scans", async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 50, 100);
   res.json({ scans: await listScans(limit) });
+});
+
+router.get("/scan-companies", async (_req, res) => {
+  res.json({ companies: await listScanCompanies() });
+});
+
+router.delete("/scan-companies", async (req, res) => {
+  try {
+    const { businessName } = z.object({ businessName: z.string().trim().min(1).max(160) }).parse(req.body);
+    const result = await deleteCompanyScans(businessName);
+    if (result.activeCount > 0) return res.status(409).json({ message: "Wait for this company's active scans to finish or cancel them before deleting its history." });
+    if (result.deletedCount === 0) return res.status(404).json({ message: "No scan history was found for this company." });
+    return res.json({ businessName, deletedCount: result.deletedCount });
+  } catch (error) {
+    if (error instanceof z.ZodError) return res.status(400).json({ message: error.issues[0]?.message ?? "Invalid company name" });
+    return res.status(500).json({ message: error instanceof Error ? error.message : "Unable to delete scan history" });
+  }
 });
 
 router.get("/scans/:id", async (req, res) => {

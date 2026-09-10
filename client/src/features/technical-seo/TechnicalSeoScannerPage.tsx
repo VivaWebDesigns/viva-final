@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { AlertTriangle, CheckCircle2, Clipboard, Clock3, ExternalLink, FileText, Loader2, RefreshCw, SearchCheck, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clipboard, Clock3, ExternalLink, FileText, Loader2, RefreshCw, SearchCheck, Trash2, XCircle } from "lucide-react";
 import type { TechnicalSeoAuditContext, TechnicalSeoIssue, TechnicalSeoScanResult, TechnicalSeoSnapshot } from "@shared/technicalSeo";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 interface ScanRecord {
   id: string;
@@ -27,6 +28,13 @@ interface ScanRecord {
   result?: TechnicalSeoScanResult | null;
   auditContext?: TechnicalSeoAuditContext | null;
   summary?: TechnicalSeoScanResult["summary"] | null;
+}
+
+interface ScanCompany {
+  businessName: string;
+  scanCount: number;
+  activeCount: number;
+  latestScanAt: string;
 }
 
 const ACTIVE = new Set(["queued", "validating", "fetching", "rendering", "analyzing"]);
@@ -110,10 +118,12 @@ export default function TechnicalSeoScannerPage({ scanId }: { scanId?: string })
   const [googleBusinessUrl, setGoogleBusinessUrl] = useState("");
   const [targetServices, setTargetServices] = useState("");
   const [serviceAreas, setServiceAreas] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<ScanCompany | null>(null);
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { data: historyData } = useQuery<{ scans: ScanRecord[] }>({ queryKey: ["/api/technical-seo/scans"], refetchInterval: 10_000 });
+  const { data: companyData } = useQuery<{ companies: ScanCompany[] }>({ queryKey: ["/api/technical-seo/scan-companies"], refetchInterval: 10_000 });
   const { data: scan, refetch: refetchScan } = useQuery<ScanRecord>({
     queryKey: [`/api/technical-seo/scans/${scanId}`], enabled: !!scanId,
     refetchInterval: (query) => ACTIVE.has((query.state.data as ScanRecord | undefined)?.status ?? "") ? 2_000 : false,
@@ -135,6 +145,20 @@ export default function TechnicalSeoScannerPage({ scanId }: { scanId?: string })
   });
   const cancelMutation = useMutation({ mutationFn: () => apiRequest("POST", `/api/technical-seo/scans/${scanId}/cancel`), onSuccess: () => void queryClient.invalidateQueries({ queryKey: [`/api/technical-seo/scans/${scanId}`] }) });
   const retryMutation = useMutation({ mutationFn: () => apiRequest("POST", `/api/technical-seo/scans/${scanId}/retry`), onSuccess: () => void queryClient.invalidateQueries({ queryKey: [`/api/technical-seo/scans/${scanId}`] }) });
+  const deleteCompanyMutation = useMutation({
+    mutationFn: async (company: ScanCompany) => (await apiRequest("DELETE", "/api/technical-seo/scan-companies", { businessName: company.businessName })).json() as Promise<{ businessName: string; deletedCount: number }>,
+    onSuccess: (deleted, company) => {
+      setDeleteTarget(null);
+      void queryClient.invalidateQueries({ queryKey: ["/api/technical-seo/scans"] });
+      void queryClient.invalidateQueries({ queryKey: ["/api/technical-seo/scan-companies"] });
+      if (scan?.auditContext?.businessName.trim().toLowerCase() === company.businessName.trim().toLowerCase()) {
+        queryClient.removeQueries({ queryKey: [`/api/technical-seo/scans/${scanId}`], exact: true });
+        navigate("/admin/tools/technical-seo");
+      }
+      toast({ title: "Company scan history deleted", description: `${deleted.deletedCount} scan${deleted.deletedCount === 1 ? "" : "s"} and associated report data were permanently removed.` });
+    },
+    onError: (error: Error) => toast({ title: "History could not be deleted", description: error.message, variant: "destructive" }),
+  });
 
   const copy = async (text: string, label: string) => { await navigator.clipboard.writeText(text); toast({ title: `${label} copied` }); };
   const openScan = (id: string) => {
@@ -197,7 +221,20 @@ export default function TechnicalSeoScannerPage({ scanId }: { scanId?: string })
         </Accordion>
       </>}
 
-      <Card><CardHeader><CardTitle className="text-base">Scan history</CardTitle></CardHeader><CardContent>{!historyData?.scans.length ? <p className="text-sm text-gray-500">No scans yet.</p> : <div className="divide-y rounded-lg border">{historyData.scans.map((item) => <button key={item.id} onClick={() => openScan(item.id)} className={`flex w-full items-center gap-3 p-3 text-left hover:bg-gray-50 ${item.id === scanId ? "bg-teal-50" : ""}`}><div className="shrink-0">{item.status === "completed" ? <CheckCircle2 className="h-5 w-5 text-emerald-600" /> : item.status === "failed" ? <AlertTriangle className="h-5 w-5 text-red-600" /> : <Clock3 className="h-5 w-5 text-blue-600" />}</div><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-gray-900">{item.normalizedUrl}</p><p className="text-xs text-gray-500">{formatDate(item.createdAt)}</p></div><StatusBadge status={item.status} /></button>)}</div>}</CardContent></Card>
+      <Card><CardHeader><CardTitle className="text-base">Scan history</CardTitle></CardHeader><CardContent className="space-y-5">{!historyData?.scans.length ? <p className="text-sm text-gray-500">No scans yet.</p> : <><div><h3 className="mb-2 text-sm font-semibold text-gray-800">Delete company history</h3><div className="divide-y rounded-lg border">{companyData?.companies.map((company) => <div key={company.businessName.toLowerCase()} className="flex items-center gap-3 p-3"><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-gray-900">{company.businessName}</p><p className="text-xs text-gray-500">{company.scanCount} scan{company.scanCount === 1 ? "" : "s"} with report data · Latest {formatDate(company.latestScanAt)}</p></div><Button type="button" size="sm" variant="outline" className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800" disabled={company.activeCount > 0} onClick={() => setDeleteTarget(company)}><Trash2 className="mr-2 h-4 w-4" />{company.activeCount > 0 ? "Scan active" : "Delete all"}</Button></div>)}</div></div><div><h3 className="mb-2 text-sm font-semibold text-gray-800">Individual scans</h3><div className="divide-y rounded-lg border">{historyData.scans.map((item) => <button key={item.id} onClick={() => openScan(item.id)} className={`flex w-full items-center gap-3 p-3 text-left hover:bg-gray-50 ${item.id === scanId ? "bg-teal-50" : ""}`}><div className="shrink-0">{item.status === "completed" ? <CheckCircle2 className="h-5 w-5 text-emerald-600" /> : item.status === "failed" ? <AlertTriangle className="h-5 w-5 text-red-600" /> : <Clock3 className="h-5 w-5 text-blue-600" />}</div><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-gray-900">{item.normalizedUrl}</p><p className="text-xs text-gray-500">{formatDate(item.createdAt)}</p></div><StatusBadge status={item.status} /></button>)}</div></div></>}</CardContent></Card>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open && !deleteCompanyMutation.isPending) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete all history for {deleteTarget?.businessName}?</AlertDialogTitle>
+            <AlertDialogDescription>This permanently deletes all {deleteTarget?.scanCount ?? 0} stored scans, technical evidence, results, and generated report data for this company. This cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteCompanyMutation.isPending}>Keep history</AlertDialogCancel>
+            <AlertDialogAction className="bg-red-600 text-white hover:bg-red-700" disabled={deleteCompanyMutation.isPending || !deleteTarget} onClick={(event) => { event.preventDefault(); if (deleteTarget) deleteCompanyMutation.mutate(deleteTarget); }}>{deleteCompanyMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}Delete all company data</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
