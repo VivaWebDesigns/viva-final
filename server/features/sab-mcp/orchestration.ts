@@ -398,7 +398,7 @@ export function registerSabOrchestrationTools(
     }
     return recovered.result;
   });
-  add("authorize_sab_scan_batch","Record the orchestrator's exact SOP-compliant execution batch. Enforces a hard maximum of 15 paid scans while preserving exception and credit limits. This does not submit scans.",{
+  add("authorize_sab_scan_batch","Record the orchestrator's exact SOP-compliant execution batch. Enforces a hard maximum of 15 paid scans and the authorized run ceiling. A fresh Matt-approved exception may atomically increase an exhausted ceiling only when its reason begins with the exact marker `Credit ceiling amendment: <old> -> <new> credits.` and <new> equals the resulting total commitment. This does not submit scans.",{
     ...run,orchestrator_id:z.string().min(1),authorization_id:z.string().uuid(),authorization_reference:z.string().min(1),scans:z.array(plan).min(1).max(15),
     exception:matt.extend({reason:z.string().min(1)}).optional(),
     duplicate_report_checks:z.array(z.object({scan:plan,result:z.literal("none"),evidence_reference:z.string().trim().min(1).max(2000),checked_at:z.string().datetime()}).strict()).min(1).max(15)
@@ -438,7 +438,17 @@ export function registerSabOrchestrationTools(
       }
       assertDecisionPlan(row, scan, Boolean(args.exception),state);
     }
-    const next=authorizeSabScanBatch(state,args);next.batches[next.batches.length-1].duplicate_report_checks=checks;
+    const plannedCredits=(args.scans as SabScanPlan[]).reduce((sum,scan)=>sum+scan.estimated_credits,0);
+    let authorizableState=state;
+    if(state.committed_credits+plannedCredits>state.credit_limit) {
+      const match=String(args.exception?.reason ?? "").match(/^Credit ceiling amendment: (\d+) -> (\d+) credits\.\s+([\s\S]+)$/);
+      const previousLimit=Number(match?.[1]),newLimit=Number(match?.[2]);
+      if(!match || previousLimit!==state.credit_limit || newLimit!==state.committed_credits+plannedCredits) {
+        throw new Error("The exact batch plan exceeds the remaining authorized run credits; provide a fresh Matt-approved exact credit ceiling amendment");
+      }
+      authorizableState=amendSabRunCreditLimit(state,{new_credit_limit:newLimit,reason:match[3],approval:args.exception});
+    }
+    const next=authorizeSabScanBatch(authorizableState,args);next.batches[next.batches.length-1].duplicate_report_checks=checks;
     await repo.saveRunState(next,state.version,actorEmail);return {state:next,scan_approved:true,paid_scans_submitted:0};
   }));
   add("analyze_sab_scan","Read exact completed report cells server-side, apply SOP decision precedence and persist structured decision evidence. Returns compact evidence only, not raw cells. Does not authorize or launch scans.",{

@@ -195,6 +195,18 @@ describe("SAB orchestration integration",()=>{
     await expect(tools(premature).invoke("authorize_sab_scan_batch",{...args,scans:[plan]})).rejects.toThrow(/qualification_status cannot authorize spending/);
   });
 
+  it("atomically records an exact approved ceiling amendment with the next batch",async()=>{
+    const other={...plan,place_id:"other"};
+    const initial=createSabRunState({run_id:"run",orchestrator_id:"owner",authorization_reference:"run",credit_limit:49});
+    const prior=completeSabRunReports(submitted(other,key3,initial),[key3]);
+    const repo=repository(prior);
+    const result=await tools(repo).invoke("authorize_sab_scan_batch",{
+      orchestrator_id:"owner",authorization_id:"22222222-2222-4222-8222-222222222222",authorization_reference:"second scan approved",
+      scans:[plan],exception:{...approved,reason:"Credit ceiling amendment: 49 -> 98 credits. Matt approved the second exact 49-credit scan."},
+    });
+    expect(result.state).toMatchObject({credit_limit:98,committed_credits:49,credit_limit_amendments:[{previous_credit_limit:49,new_credit_limit:98,approved_by:"Matt"}],batches:[{status:"completed"},{status:"authorized"}]});
+  });
+
   it("allows only the exact structured routine fine specification and retains OAuth metadata",async()=>{
     const row=repository(initialize());
     const initial=await row.getCompany();
