@@ -137,6 +137,13 @@ function centroid(cells: SabRankedCell[]): SabCoordinate {
     longitude: cells.reduce((sum, cell) => sum + cell.longitude / cell.rank, 0) / weight,
   };
 }
+function gridCentroid(cells: SabRankedCell[]) {
+  const weight = cells.reduce((sum, cell) => sum + 1 / cell.rank, 0);
+  return {
+    row: cells.reduce((sum, cell) => sum + cell.row / cell.rank, 0) / weight,
+    column: cells.reduce((sum, cell) => sum + cell.column / cell.rank, 0) / weight,
+  };
+}
 export function sabRankedClusters(cells: SabRankedCell[]) {
   const remaining = new Map([...cells].sort(order).map(cell => [positionKey(cell), cell]));
   const components: SabRankedCell[][] = [];
@@ -183,6 +190,7 @@ export function selectSabPeakTarget(cellsInput: SabRankedCell[], grid: SabScanGr
   const peak = [...selected.cells].filter(cell => cell.rank === best)
     .sort((a, b) => distance(a, grid.center) - distance(b, grid.center) || order(a, b))[0];
   let target = dominant ? selected.center : centroid(cells);
+  let targetGridPosition = gridCentroid(dominant ? selected.cells : cells);
   let targetingMethod: "peak_cluster_centroid" | "whole_field_centroid" | "selected_peak_pin" = dominant ? "peak_cluster_centroid" : "whole_field_centroid";
   // Target coordinates must remain in/adjacent to the
   // selected cluster on the proposed 7x7/3mi deliverable (one-mile spacing).
@@ -191,10 +199,16 @@ export function selectSabPeakTarget(cellsInput: SabRankedCell[], grid: SabScanGr
   const towardPeak = distance(target, peak) <= distance(grid.center, peak) + 1e-8;
   if (nearestClusterDistance > maxAdjacentDistance || !towardPeak) {
     target = { latitude: peak.latitude, longitude: peak.longitude };
+    targetGridPosition = { row: peak.row, column: peak.column };
     targetingMethod = "selected_peak_pin";
   }
   const movement = distance(grid.center, target);
-  const displaced = Math.max(Math.abs(peak.row - middle), Math.abs(peak.column - middle)) > 1;
+  // A peak is centered only while its derived target remains inside the
+  // actual center cell's half-interval tolerance on both grid axes. Merely
+  // landing elsewhere in the central 3x3 cannot validate the scan center.
+  const centerProximate = Math.abs(targetGridPosition.row - middle) <= 0.5 &&
+    Math.abs(targetGridPosition.column - middle) <= 0.5;
+  const displaced = !centerProximate;
   const centralNeighborhood = threeByThreeNeighborhood(cellsInput, middle, middle, grid.size);
   const candidateNeighborhood = threeByThreeNeighborhood(cellsInput, peak.row, peak.column, grid.size);
   // When the current center has coherent exact top-20 visibility, every
@@ -203,8 +217,11 @@ export function selectSabPeakTarget(cellsInput: SabRankedCell[], grid: SabScanGr
   // not fully observed. Isolated central point sources retain their existing
   // deterministic routes.
   const centralContrast = centralBest === null ? null : centralBest - best;
+  const actualCenterCell = cellsInput.find(cell => cell.row === middle && cell.column === middle);
+  const actualCenterRank = computationalRank(actualCenterCell?.rank);
+  const actualCenterContrast = actualCenterRank - best;
   const neighborhoodSafeguardApplies = displaced && centralCoherentCluster && candidateNeighborhood.complete;
-  const threeRankContrastPasses = centralContrast !== null && centralContrast >= 3;
+  const threeRankContrastPasses = actualCenterContrast >= 3;
   const candidateMedianImproves = candidateNeighborhood.median_rank !== null && centralNeighborhood.median_rank !== null &&
     candidateNeighborhood.median_rank < centralNeighborhood.median_rank;
   const candidateTop20SupportPasses = candidateNeighborhood.exact_top20_count >= centralNeighborhood.exact_top20_count;
@@ -220,10 +237,15 @@ export function selectSabPeakTarget(cellsInput: SabRankedCell[], grid: SabScanGr
     selected_cluster_size: selected.cells.length,
     selected_cluster_weight: selected.weight,
     selected_peak: { row: peak.row, column: peak.column, rank: peak.rank },
+    selected_peak_target_grid_position: targetGridPosition,
+    center_proximate: centerProximate,
+    center_tolerance: "one_half_grid_interval_on_each_axis" as const,
     displaced_peak: displaced,
     statistically_dominant_displaced_peak: dominant && displaced,
     central_3x3_best_rank: centralBest,
     displaced_peak_central_contrast: centralContrast,
+    actual_center_pin_rank: actualCenterRank,
+    displaced_peak_actual_center_contrast: actualCenterContrast,
     central_3x3_coherent_cluster: centralCoherentCluster,
     coherent_cluster_definition: "at_least_two_exact_top20_cells_8_neighbors" as const,
     neighborhood_support: {
@@ -312,7 +334,8 @@ export function summarizeSabMasterEvidence(cellsInput: SabRankedCell[], gridSize
  * boundary pin, or a monotonic outward path of at least three top20 pins
  * starting at a best+2 peak-cluster pin, ending at the boundary, with no worse
  * rank along the path. A path is directional visibility extension rather than
- * centering failure when the global best is unique and in the central 3x3.
+ * centering failure when the global best is unique and on the actual center
+ * pin. A best pin elsewhere in the central 3x3 is still spatially displaced.
  * Two neighboring boundary pins alone are never a path.
  */
 export function evaluateSabCoherentMargin(cellsInput: SabRankedCell[], size: number) {
@@ -323,7 +346,7 @@ export function evaluateSabCoherentMargin(cellsInput: SabRankedCell[], size: num
   const peakBoundary = bestPins.find(cell => boundary(cell, size));
   if (peakBoundary) return { failed: true, reason: "global_best_on_boundary", outward_path: [positionKey(peakBoundary)] };
   const middle = (size + 1) / 2;
-  const uniqueCentralBest = bestPins.length === 1 && Math.abs(bestPins[0].row - middle) <= 1 && Math.abs(bestPins[0].column - middle) <= 1;
+  const uniqueCentralBest = bestPins.length === 1 && bestPins[0].row === middle && bestPins[0].column === middle;
   const map = new Map(cells.map(cell => [positionKey(cell), cell]));
   const edgeDistance = (cell: SabRankedCell) => Math.min(cell.row - 1, cell.column - 1, size - cell.row, size - cell.column);
   const peakCells = sabRankedClusters(cells.filter(cell => cell.rank <= best + 2))
@@ -453,7 +476,7 @@ export function analyzeSabScanPolicy(input: SabScanPolicyInput): SabScanDecision
           : "The off-center peak passes all three neighborhood-support conditions and supports the permitted peak-targeted recenter.";
     return decision("recenter", ["S04", "S05", "S07"], reason, peak!.target, "ranked_peak_recentered");
   }
-  if (unsupportedOffCenterPeak) return decision("center_validated", ["S04", "S05", "S09"], "The off-center peak failed at least one required central-contrast, neighborhood-median or exact top-20 support condition; retain the existing center as unsupported_off_center_peak.", grid.center);
+  if (unsupportedOffCenterPeak) return decision("center_validated", ["S04", "S05", "S09"], "The off-center peak failed at least one required actual-center-pin contrast, neighborhood-median or exact top-20 support condition; retain the existing center as unsupported_off_center_peak.", grid.center);
   return decision("center_validated", ["S05", "S09"], "The footprint has ordinary falloff without coherent outward strength or a supported off-center peak.", grid.center);
 }
 

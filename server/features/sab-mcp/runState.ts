@@ -84,6 +84,12 @@ export type SabRunState = {
   } | null;
   credit_limit: number;
   committed_credits: number;
+  credit_limit_amendments?: Array<SabMattApproval & {
+    previous_credit_limit: number;
+    new_credit_limit: number;
+    reason: string;
+    approved_at: string;
+  }>;
   batches: SabRunBatch[];
   /** A deferred survivor is terminal only when Matt explicitly names it here. */
   terminal_deferrals?: Record<string, SabMattApproval & {
@@ -202,7 +208,7 @@ export function createSabRunState(input: {
       title: required(input.sop_revision.title, "SOP title"),
       pinned_at: new Date().toISOString(),
     } : null,
-    credit_limit: input.credit_limit, committed_credits: 0,
+    credit_limit: input.credit_limit, committed_credits: 0, credit_limit_amendments: [],
     batches: [], terminal_deferrals: {}, latest_manifest: null,
   };
 }
@@ -224,6 +230,7 @@ export function normalizeSabRunState(input: unknown): SabRunState {
     sop_revision: source.sop_revision ?? null,
     credit_limit: source.credit_limit,
     committed_credits: source.committed_credits,
+    credit_limit_amendments: source.credit_limit_amendments ?? [],
     batches: (source.batches ?? []).map(batch => ({
       authorization_id: batch.authorization_id,
       plan_digest: batch.plan_digest,
@@ -236,6 +243,34 @@ export function normalizeSabRunState(input: unknown): SabRunState {
     terminal_deferrals: source.terminal_deferrals ?? {},
     latest_manifest: source.latest_manifest ?? null,
   };
+}
+
+/** Increase an existing run ceiling only from a fresh, explicit Matt approval.
+ * This preserves prior commitments and authorization history; it never resets
+ * a run, reduces its ceiling, authorizes a batch, or submits paid work.
+ */
+export function amendSabRunCreditLimit(state: SabRunState, input: {
+  new_credit_limit: number;
+  reason: string;
+  approval: SabMattApproval;
+}): SabRunState {
+  if (!Number.isSafeInteger(input.new_credit_limit) || input.new_credit_limit <= state.credit_limit) {
+    throw new Error("A run credit-limit amendment must increase the existing ceiling.");
+  }
+  if (input.new_credit_limit < state.committed_credits) throw new Error("The amended credit limit cannot be below committed credits.");
+  const approved = approval(input.approval);
+  const next = structuredClone(state);
+  next.version++;
+  next.credit_limit = input.new_credit_limit;
+  next.credit_limit_amendments ??= [];
+  next.credit_limit_amendments.push({
+    ...approved,
+    previous_credit_limit: state.credit_limit,
+    new_credit_limit: input.new_credit_limit,
+    reason: required(input.reason, "Credit-limit amendment reason"),
+    approved_at: new Date().toISOString(),
+  });
+  return next;
 }
 
 export function pinSabSopRevision(state: SabRunState, input: {document_id:string;revision_id:string;title:string}): SabRunState {

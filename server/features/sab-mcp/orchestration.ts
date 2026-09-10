@@ -7,7 +7,7 @@ import { getSabRankedCells } from "./localFalconRankedCells";
 import { analyzeSabScanPolicy, exactSabTop20Cells, sabRankedClusters, selectSabCanonicalScan } from "./scanPolicy";
 import { reverseGeocodeSabCenters } from "./reverseGeocode";
 import { buildSabRunManifest } from "./exportManifest";
-import { approveSabTerminalDeferral, createSabRunState, authorizeSabScanBatch, completeSabRunReports, inSabRunStateQueue, pinSabSopRevision, recordSabManifest, reconcileSabAmbiguousSubmission, recordSabRunSubmission, sabScanPlanFingerprint, type SabRunState, type SabScanPlan } from "./runState";
+import { amendSabRunCreditLimit, approveSabTerminalDeferral, createSabRunState, authorizeSabScanBatch, completeSabRunReports, inSabRunStateQueue, pinSabSopRevision, recordSabManifest, reconcileSabAmbiguousSubmission, recordSabRunSubmission, sabScanPlanFingerprint, type SabRunState, type SabScanPlan } from "./runState";
 import { SAB_CENTER_TYPES, runSabScanOnceInputSchema, sabContactResearchV3Schema, sabEligibilityStateSchema, type SabCompanyUpdates, type SabScanResult } from "./schema";
 import { corroborationAllowsAuxiliary, sabAddressCorroborationSchema, type SabAddressCorroboration } from "./addressCorroboration";
 import { evaluateSabAddressCandidate, evaluateSabCoordinatesAgainstCells } from "./addressCandidate";
@@ -329,6 +329,16 @@ export function registerSabOrchestrationTools(
     const state=createSabRunState(args);await repo.saveRunState(state,null,actorEmail);return state;
   }));
   add("get_sab_run_state","Read authoritative run stages, exact authorizations, committed credits and execution-batch status. Notes are supporting history.",run,async args=>requireRun(factory(args.workflow_sheet,args.sheet_name),args.run_id));
+  add("amend_sab_run_credit_limit","Increase an existing run's authorized credit ceiling only from fresh explicit Matt approval. Preserves prior commitments and approval history; never resets a run, authorizes a batch, reserves credits, or submits a scan.",{
+    ...run,orchestrator_id:z.string().min(1),new_credit_limit:z.number().int().positive(),reason:z.string().trim().min(1).max(2000),approval:matt,
+  },async args=>inSabRunStateQueue(async()=>{
+    const repo=factory(args.workflow_sheet,args.sheet_name),state=await requireRun(repo,args.run_id);
+    if(args.orchestrator_id!==state.orchestrator_id) throw new Error("Only this run's orchestrator may amend its credit ceiling");
+    const next=amendSabRunCreditLimit(state,{new_credit_limit:args.new_credit_limit,reason:args.reason,approval:args.approval});
+    await repo.saveRunState(next,state.version,actorEmail);
+    return {run_id:args.run_id,previous_credit_limit:state.credit_limit,new_credit_limit:next.credit_limit,
+      committed_credits:next.committed_credits,amendment:next.credit_limit_amendments?.at(-1),paid_scans_submitted:0};
+  }));
   add("ensure_sab_completion_monitor","Idempotently attach server-side Local Falcon completion monitoring to the current fully submitted batch. Use once for an awaiting-completion legacy batch that predates automatic scheduling. It performs no paid call, never submits or retries a scan, and subsequent unchanged provider checks consume no Codex turns.",run,async args=>{
     const repo=factory(args.workflow_sheet,args.sheet_name),state=await requireRun(repo,args.run_id),batch=state.batches.at(-1);
     if(!batch) throw new Error("No SAB scan batch exists to monitor");

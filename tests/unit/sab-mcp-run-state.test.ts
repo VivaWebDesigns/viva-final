@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  authorizeSabScanBatch, claimSabRunScan, completeSabRunReports, createSabRunState,
+  amendSabRunCreditLimit, authorizeSabScanBatch, claimSabRunScan, completeSabRunReports, createSabRunState,
   reconcileSabAmbiguousSubmission, recordSabRunSubmission, sabScanPlanFingerprint,
   pinSabSopRevision, recordSabManifest,
   type SabScanPlan, type SabRunState,
@@ -35,6 +35,14 @@ describe("structured SAB run authorization", () => {
     expect(() => run(0)).toThrow(/credit/);
     const authorized = authorizeSabScanBatch(run(), batch());
     expect(authorized.batches[0]).toMatchObject({ status: "authorized", authorization_reference: "approved-exact-plan" });
+  });
+
+  it("amends a run ceiling only with a fresh explicit increase approval", () => {
+    const state = run(49);
+    expect(() => amendSabRunCreditLimit(state, { new_credit_limit: 98, reason: "second scan", approval: { approved_by: "Matt", approval_reference: "" } })).toThrow(/approval reference/);
+    expect(() => amendSabRunCreditLimit(state, { new_credit_limit: 49, reason: "same", approval: approved })).toThrow(/increase/);
+    const amended = amendSabRunCreditLimit(state, { new_credit_limit: 98, reason: "Explicit second scan", approval: approved });
+    expect(amended).toMatchObject({ credit_limit: 98, committed_credits: 0, credit_limit_amendments: [{ previous_credit_limit: 49, new_credit_limit: 98, approved_by: "Matt", approval_reference: "explicit-user-message", reason: "Explicit second scan" }] });
   });
 
   it("pins the governing SOP revision and a compact hash-bound manifest expectation",()=>{

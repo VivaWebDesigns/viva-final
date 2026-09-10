@@ -115,6 +115,20 @@ describe("SAB deterministic peak targeting and recenter limits", () => {
     expect(result).toMatchObject({action:"center_validated",proposed_center:grid().center});
     expect(result.evidence).toMatchObject({peak:{dominant:false,displaced_peak:true,central_3x3_best_rank:5,displaced_peak_central_contrast:2,central_3x3_coherent_cluster:true,neighborhood_support:{applies:true,three_rank_contrast_passes:false,candidate_median_improves:false,candidate_top20_support_passes:false,all_conditions_pass:false}},weak_off_center_peak:false,unsupported_off_center_peak:true});
   });
+  it("does not treat a dominant peak in a central-3x3 corner as centered",()=>{
+    const cells=[
+      cell(2,2,9),cell(2,3,4),cell(2,4,7),
+      cell(3,2,6),cell(3,3,2),cell(3,4,6),cell(3,5,10),
+      cell(4,2,10),cell(4,3,8),cell(4,4,9),cell(4,5,12),
+      cell(5,3,13),cell(5,4,12),cell(5,5,20),
+    ];
+    const result=analyzeSabScanPolicy({stage:"deliverable",grid:grid(),cells,routineRecenterCount:1,additionalRecenterApproved:true});
+    expect(result).toMatchObject({action:"recenter",proposed_center:selectSabPeakTarget(cells,grid())!.target,evidence:{peak:{
+      center_proximate:false,actual_center_pin_rank:9,displaced_peak_actual_center_contrast:7,
+      neighborhood_support:{three_rank_contrast_passes:true,candidate_median_improves:true,candidate_top20_support_passes:true,all_conditions_pass:true},
+      displaced_peak_has_centering_support:true,
+    }}});
+  });
   it("reproduces the weak Vivid Edge footprint and retains its existing center",()=>{
     const cells=[
       cell(2,3,20),cell(2,6,20),cell(3,2,19),cell(3,3,18),cell(3,4,18),cell(3,5,17),
@@ -123,7 +137,7 @@ describe("SAB deterministic peak targeting and recenter limits", () => {
     ];
     const result=analyzeSabScanPolicy({stage:"deliverable",grid:grid(),cells,rawArp:17.94,atrp:19.88,solv:0});
     expect(result).toMatchObject({action:"center_validated",rule_ids:["S04","S05","S09"],proposed_center:grid().center});
-    expect(result.evidence).toMatchObject({exact_top20_count:18,peak:{best_rank:14,median_rank:18,dominant:true,statistically_dominant_displaced_peak:true,central_3x3_best_rank:16,displaced_peak_central_contrast:2,central_3x3_coherent_cluster:true,neighborhood_support:{applies:true,computational_unranked_sentinel:21,sentinel_persisted_as_observed_rank:false,three_rank_contrast_passes:false,candidate_3x3_median_rank:20,central_3x3_median_rank:18,candidate_median_improves:false,candidate_3x3_exact_top20_count:5,central_3x3_exact_top20_count:9,candidate_top20_support_passes:false,all_conditions_pass:false},displaced_peak_has_centering_support:false,displaced_dominant_peak:false},weak_off_center_peak:false,unsupported_off_center_peak:true});
+    expect(result.evidence).toMatchObject({exact_top20_count:18,peak:{best_rank:14,median_rank:18,dominant:true,statistically_dominant_displaced_peak:true,central_3x3_best_rank:16,displaced_peak_central_contrast:2,actual_center_pin_rank:19,displaced_peak_actual_center_contrast:5,central_3x3_coherent_cluster:true,neighborhood_support:{applies:true,computational_unranked_sentinel:21,sentinel_persisted_as_observed_rank:false,three_rank_contrast_passes:true,candidate_3x3_median_rank:20,central_3x3_median_rank:18,candidate_median_improves:false,candidate_3x3_exact_top20_count:5,central_3x3_exact_top20_count:9,candidate_top20_support_passes:false,all_conditions_pass:false},displaced_peak_has_centering_support:false,displaced_dominant_peak:false},weak_off_center_peak:false,unsupported_off_center_peak:true});
     expect(result.reason).toContain("unsupported_off_center_peak");
   });
   it("recenters only when all three off-center neighborhood conditions pass",()=>{
