@@ -19,19 +19,34 @@ function profile(data: any): TechnicalSeoPerformanceProfile {
   };
 }
 
+export function isRetryablePageSpeedStatus(status: number) {
+  return status === 429 || status === 500 || status === 502 || status === 503 || status === 504;
+}
+
+async function fetchPageSpeedProfile(url: string, strategy: string, apiKey: string, signal?: AbortSignal) {
+  const endpoint = new URL("https://www.googleapis.com/pagespeedonline/v5/runPagespeed");
+  endpoint.searchParams.set("url", url); endpoint.searchParams.set("strategy", strategy);
+  for (const category of ["performance", "accessibility", "seo"]) endpoint.searchParams.append("category", category);
+  endpoint.searchParams.set("key", apiKey);
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const response = await fetch(endpoint, { signal });
+    if (response.ok) return profile(await response.json());
+    if (!isRetryablePageSpeedStatus(response.status) || attempt === 2) throw new Error(`PageSpeed returned HTTP ${response.status} after ${attempt + 1} attempt${attempt ? "s" : ""}`);
+    const retryAfterSeconds = Number(response.headers.get("retry-after"));
+    const delayMs = Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0 ? Math.min(retryAfterSeconds * 1_000, 5_000) : 1_000 * (attempt + 1);
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(resolve, delayMs);
+      signal?.addEventListener("abort", () => { clearTimeout(timer); reject(signal.reason); }, { once: true });
+    });
+  }
+  throw new Error("PageSpeed request failed");
+}
+
 export async function runPageSpeedAudit(url: string, signal?: AbortSignal): Promise<TechnicalSeoPerformanceResult> {
   const apiKey = process.env.PAGESPEED_API_KEY?.trim();
   try {
     if (!apiKey) throw new Error("PAGESPEED_API_KEY is not configured on the scanner worker");
-    const results = await Promise.all(["mobile", "desktop"].map(async (strategy) => {
-      const endpoint = new URL("https://www.googleapis.com/pagespeedonline/v5/runPagespeed");
-      endpoint.searchParams.set("url", url); endpoint.searchParams.set("strategy", strategy);
-      for (const category of ["performance", "accessibility", "seo"]) endpoint.searchParams.append("category", category);
-      endpoint.searchParams.set("key", apiKey);
-      const response = await fetch(endpoint, { signal });
-      if (!response.ok) throw new Error(`PageSpeed returned HTTP ${response.status}`);
-      return profile(await response.json());
-    }));
+    const results = await Promise.all(["mobile", "desktop"].map((strategy) => fetchPageSpeedProfile(url, strategy, apiKey, signal)));
     return { status: "measured", source: "google_pagespeed", mobile: results[0], desktop: results[1] };
   } catch (error) {
     if (signal?.aborted) throw signal.reason;

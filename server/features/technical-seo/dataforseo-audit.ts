@@ -18,7 +18,7 @@ function domain(value: string | null | undefined) { try { return new URL(value ?
 
 function isGoogleBusinessHost(hostname: string) {
   const host = hostname.toLowerCase().replace(/\.$/, "");
-  return host === "maps.app.goo.gl" || host === "goo.gl" || host === "g.page" || host === "google.com" || host.endsWith(".google.com");
+  return host === "maps.app.goo.gl" || host === "goo.gl" || host === "g.page" || host === "share.google" || host === "google.com" || host.endsWith(".google.com");
 }
 
 export function extractGoogleBusinessIdentifier(value: string): string | null {
@@ -53,7 +53,7 @@ async function googleBusinessLookup(context: TechnicalSeoAuditContext, signal?: 
     for (let redirect = 0; redirect < 5; redirect += 1) {
       const identifier = extractGoogleBusinessIdentifier(current.toString());
       if (identifier) return { keyword: identifier, method: "google_business_url" as const };
-      if (!["maps.app.goo.gl", "goo.gl", "g.page"].includes(current.hostname.toLowerCase())) break;
+      if (!["maps.app.goo.gl", "goo.gl", "g.page", "share.google"].includes(current.hostname.toLowerCase())) break;
       const response = await fetch(current, { method: "HEAD", redirect: "manual", signal });
       const location = response.headers.get("location");
       await response.body?.cancel().catch(() => undefined);
@@ -75,18 +75,30 @@ export async function runLocalSearchAudit(siteUrl: string, context: TechnicalSeo
   const query = `${context.trade} ${context.city} ${context.state}`;
   const targetDomain = domain(siteUrl);
   try {
-    const lookup = await googleBusinessLookup(context, signal);
-    const [businessResult, organicResult, mapsResult] = await Promise.allSettled([
-      post("/business_data/google/my_business_info/live", { keyword: lookup.keyword, location_name: locationName, language_code: "en" }, signal),
+    const suppliedLookup = await googleBusinessLookup(context, signal);
+    const organicResult = await Promise.allSettled([
       post("/serp/google/organic/live/advanced", { keyword: query, location_name: locationName, language_code: "en", device: "mobile", depth: 10 }, signal),
+    ]).then(([result]) => result);
+    if (signal?.aborted) throw signal.reason;
+    const organic = organicResult.status === "fulfilled" ? organicResult.value : null;
+    const allOrganicItems = organic?.items ?? [];
+    const normalizedBusinessName = context.businessName.trim().toLowerCase();
+    const localPackCandidate = allOrganicItems.find((item: any) => item.type === "local_pack" && (
+      [item.domain, domain(item.url), domain(item.website)].filter(Boolean).includes(targetDomain)
+      || String(item.title ?? item.name ?? "").trim().toLowerCase() === normalizedBusinessName
+    ));
+    const lookup = suppliedLookup.method === "name_location" && localPackCandidate?.cid
+      ? { keyword: `cid:${localPackCandidate.cid}`, method: "search_result_identity" as const }
+      : suppliedLookup;
+    const [businessResult, mapsResult] = await Promise.allSettled([
+      post("/business_data/google/my_business_info/live", { keyword: lookup.keyword, location_name: locationName, language_code: "en" }, signal),
       post("/serp/google/maps/live/advanced", { keyword: query, location_name: locationName, language_code: "en", device: "mobile", depth: 10, search_places: false }, signal),
     ]);
     if (signal?.aborted) throw signal.reason;
     const business = businessResult.status === "fulfilled" ? businessResult.value : null;
-    const organic = organicResult.status === "fulfilled" ? organicResult.value : null;
     const maps = mapsResult.status === "fulfilled" ? mapsResult.value : null;
-    const businessItem = business?.items?.[0] ?? business;
-    const organicItems = (organic?.items ?? []).filter((item: any) => item.type === "organic");
+    const businessItem = business?.items?.[0] ?? business ?? localPackCandidate;
+    const organicItems = allOrganicItems.filter((item: any) => item.type === "organic");
     const mapItems = (maps?.items ?? maps?.results ?? []).filter((item: any) => item.type === "maps_search" || item.type === "map" || item.title);
     const matchesDomain = (item: any) => [item.domain, domain(item.url), domain(item.website)].filter(Boolean).includes(targetDomain);
     const nameMatch = (item: any) => String(item.title ?? item.name ?? "").toLowerCase().includes(context.businessName.toLowerCase());
@@ -97,9 +109,9 @@ export async function runLocalSearchAudit(siteUrl: string, context: TechnicalSeo
       ...mapItems.filter((item: any) => !(matchesDomain(item) || nameMatch(item))).slice(0, 3).map((item: any) => ({ name: item.title ?? item.name ?? "Competitor", domain: domain(item.website ?? item.url), rank: item.rank_group ?? item.rank_absolute ?? 0, source: "maps" as const, rating: item.rating?.value ?? item.rating ?? null, reviewCount: item.rating?.votes_count ?? item.reviews_count ?? null })),
     ];
     const failureMessage = (result: PromiseSettledResult<unknown>) => result.status === "rejected" ? (result.reason instanceof Error ? result.reason.message : "Provider request failed") : null;
-    const profileReason = failureMessage(businessResult);
+    const profileReason = businessResult.status === "rejected" && !localPackCandidate ? failureMessage(businessResult) : null;
     const rankingReasons = [failureMessage(organicResult), failureMessage(mapsResult)].filter(Boolean);
-    const profileStatus = businessResult.status === "fulfilled" ? "measured" as const : "provider_error" as const;
+    const profileStatus = businessResult.status === "fulfilled" || localPackCandidate ? "measured" as const : "provider_error" as const;
     const rankingsStatus = organicResult.status === "fulfilled" && mapsResult.status === "fulfilled" ? "measured" as const : "provider_error" as const;
     return {
       status: profileStatus === "measured" || rankingsStatus === "measured" ? "measured" : "provider_error",

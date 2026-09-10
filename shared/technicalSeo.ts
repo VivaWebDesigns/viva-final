@@ -124,7 +124,7 @@ export interface TechnicalSeoLocalResult {
   reason?: string;
   profileStatus?: "measured" | "not_assessed" | "provider_error";
   profileReason?: string;
-  profileMatchMethod?: "google_business_url" | "name_location";
+  profileMatchMethod?: "google_business_url" | "search_result_identity" | "name_location";
   rankingsStatus?: "measured" | "not_assessed" | "provider_error";
   rankingsReason?: string;
   query?: string;
