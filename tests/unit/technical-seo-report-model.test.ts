@@ -19,12 +19,14 @@ describe("technical SEO client report model", () => {
     expect(truncateReportText("A".repeat(30), 12)).toBe(`${"A".repeat(11)}…`);
   });
 
-  it("hides retired ranking findings and the local ranking-derived grade from saved scans", () => {
+  it("hides retired ranking findings and rebuilds the content grade without ranking data", () => {
     const result = {
       issues: [issue("maps-not-top-ten", "high"), issue("technical-problem", "medium")],
       summary: { finalUrl: "https://example.com/", issueCounts: {} },
       profiles: { simulatedGooglebotRendered: { capturedAt: "2026-09-10T00:00:00.000Z" } },
       siteAudit: {
+        context: { businessName: "Example", trade: "Dog boarding", city: "Clover", state: "SC", targetServices: [], serviceAreas: [] },
+        pages: [{ statusCode: 200, title: "Dog Boarding in Clover", h1: ["Dog Boarding in Clover"], url: "https://example.com/dog-boarding-clover", metaDescription: "Dog boarding for Clover families.", headings: [], wordCount: 300 }],
         grades: [
           { key: "technical", label: "Technical SEO", grade: "B", score: 85, rationale: "Measured" },
           { key: "local_seo", label: "Local SEO strength", grade: "F", score: 35, rationale: "Old ranking model" },
@@ -35,7 +37,9 @@ describe("technical SEO client report model", () => {
 
     const report = buildTechnicalSeoReportModel(result);
     expect(report.issues.map((item) => item.id)).toEqual(["technical-problem"]);
-    expect(report.grades.map((item) => item.key)).toEqual(["technical"]);
+    expect(report.grades.map((item) => item.key)).toEqual(["technical", "local_seo"]);
+    expect(report.grades[1]).toMatchObject({ label: "SEO content & local targeting", grade: "A", score: 100 });
+    expect(report.grades[1].rationale).toContain("Google rankings are not used");
   });
 
   it("keeps the client PDF to three pages and uses the header logo in every footer", () => {

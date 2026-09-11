@@ -1,5 +1,6 @@
 import { Window } from "happy-dom";
 import type { TechnicalSeoAuditContext, TechnicalSeoIssue, TechnicalSeoPageAudit, TechnicalSeoSiteAudit } from "@shared/technicalSeo";
+import { scoreSeoContentTargeting } from "@shared/technicalSeoContent";
 import { SCAN_LIMITS, SIMULATED_GOOGLEBOT_USER_AGENT } from "./constants";
 import { extractSnapshot } from "./extract";
 import { safeFetchHtml } from "./http-fetch";
@@ -127,15 +128,14 @@ export async function buildSiteAudit(args: { rootUrl: string; homepage: Technica
   const perfScore = performance.status === "measured" ? performance.mobile?.score ?? null : null;
   const profileStatus = local.profileStatus ?? local.status;
   const gbpScore = profileStatus === "measured" ? Math.max(0, 100 - (!local.profile ? 65 : 0) - (local.profile && !local.profile.phone ? 15 : 0) - (local.profile && !local.profile.address ? 10 : 0) - (local.profile && !local.profile.category ? 10 : 0)) : null;
-  const contextTerms = unique([args.context.city, args.context.state, args.context.trade, ...args.context.targetServices]).filter(Boolean);
-  const localMatches = pages.filter((page) => contextTerms.some((term) => `${page.title} ${page.h1.join(" ")} ${page.url}`.toLowerCase().includes(term.toLowerCase()))).length;
-  const localScore = args.context.city && args.context.trade ? Math.min(100, 35 + localMatches * 8) : null;
+  const contentTargeting = args.context.city && args.context.trade ? scoreSeoContentTargeting(pages, args.context) : null;
+  const localScore = contentTargeting?.score ?? null;
   const trustScore = Math.min(100, (pages.some((p) => p.contact.emails.some((e) => !/@(?:gmail|yahoo|hotmail|outlook)\./i.test(e))) ? 25 : 0) + (pages.some((p) => p.contact.phones.length) ? 20 : 0) + (pages.some((p) => p.signals.forms) ? 15 : 0) + (pages.some((p) => p.signals.callsToAction) ? 15 : 0) + (pages.some((p) => p.signals.reviewMentions) ? 15 : 0) + (pages.some((p) => p.signals.socialLinks.length) ? 10 : 0));
   const grades: TechnicalSeoSiteAudit["grades"] = [
     { key: "technical", label: "Technical SEO & source code", grade: grade(technicalScore), score: technicalScore, rationale: `${confirmed.length} confirmed technical findings across ${pages.length} crawled pages.` },
     { key: "performance", label: "Page speed", grade: perfScore === null ? "Not assessed" : grade(perfScore), score: perfScore, rationale: performance.status === "measured" ? "Based on Google PageSpeed Lighthouse lab data." : performance.reason ?? "PageSpeed was not available." },
     { key: "business_profile", label: "Google Business Profile signals", grade: gbpScore === null ? "Not assessed" : grade(gbpScore), score: gbpScore, rationale: profileStatus === "measured" ? `Based on public profile fields matched by ${local.profileMatchMethod === "google_business_url" ? "the supplied Google Business Profile URL" : local.profileMatchMethod === "search_result_identity" ? "the exact business name and website in Google local results" : "business name and location"}.` : local.profileReason ?? "Business profile data was not available." },
-    { key: "local_seo", label: "Local page targeting", grade: localScore === null ? "Not assessed" : grade(localScore), score: localScore, rationale: `${localMatches} crawled pages showed contextual trade or location targeting. Map-pack rankings are covered by the dedicated visibility scan.` },
+    { key: "local_seo", label: "SEO content & local targeting", grade: localScore === null ? "Not assessed" : contentTargeting!.grade, score: localScore, rationale: contentTargeting?.rationale ?? "Service and location targeting could not be assessed." },
     { key: "trust_conversion", label: "Trust & conversion signals", grade: grade(trustScore), score: trustScore, rationale: "Based on visible contact, professional email, forms, calls to action, reviews, and social links." },
   ];
   const summary: string[] = [];
@@ -148,7 +148,7 @@ export async function buildSiteAudit(args: { rootUrl: string; homepage: Technica
     context: args.context, pages,
     crawl: { discovered: queue.length, crawled: pages.length, capped: queue.length > pages.length, sitemapUrlsFound: args.sitemapUrls.length, brokenInternalLinks, duplicateTitles, duplicateDescriptions, thinPages },
     performance, local, grades,
-    coverage: { assessed: ["Technical HTML and crawlability", `Up to ${SCAN_LIMITS.maxCrawlPages} same-origin pages`, "Homepage rendered output", ...(performance.status === "measured" ? ["Google PageSpeed Lighthouse lab data"] : performance.status === "estimated" ? ["Controlled local Chromium performance estimate"] : []), ...(profileStatus === "measured" ? ["Google Business Profile public data via DataForSEO"] : [])], notAssessed: ["Google Search Console account data", "Google Analytics conversion data", "Backlink quality", "Google organic and Maps rankings (covered by the dedicated map-pack scan)", "Review-response behavior without a matched profile", "Reliable AI-authorship detection", ...(performance.status === "estimated" ? ["Google PageSpeed Lighthouse lab data"] : []), ...(profileStatus !== "measured" ? ["Google Business Profile public data"] : [])] },
+    coverage: { assessed: ["Technical HTML and crawlability", `Up to ${SCAN_LIMITS.maxCrawlPages} same-origin pages`, "Homepage rendered output", "On-site SEO content and local targeting", ...(performance.status === "measured" ? ["Google PageSpeed Lighthouse lab data"] : performance.status === "estimated" ? ["Controlled local Chromium performance estimate"] : []), ...(profileStatus === "measured" ? ["Google Business Profile public data via DataForSEO"] : [])], notAssessed: ["Google Search Console account data", "Google Analytics conversion data", "Backlink quality", "Google organic and Maps rankings (covered by the dedicated map-pack scan)", "Review-response behavior without a matched profile", "Reliable AI-authorship detection", ...(performance.status === "estimated" ? ["Google PageSpeed Lighthouse lab data"] : []), ...(profileStatus !== "measured" ? ["Google Business Profile public data"] : [])] },
     plainLanguageSummary: summary,
   };
 }
