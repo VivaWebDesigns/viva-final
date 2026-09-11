@@ -30,6 +30,7 @@ describe("technical SEO client report model", () => {
 
   it("hides retired ranking findings and rebuilds the content grade without ranking data", () => {
     const result = {
+      version: 2,
       issues: [issue("maps-not-top-ten", "high"), issue("technical-problem", "medium")],
       summary: { finalUrl: "https://example.com/", issueCounts: {} },
       profiles: { simulatedGooglebotRendered: { capturedAt: "2026-09-10T00:00:00.000Z" } },
@@ -47,6 +48,7 @@ describe("technical SEO client report model", () => {
     const report = buildTechnicalSeoReportModel(result);
     expect(report.issues.map((item) => item.id)).toEqual(["technical-problem"]);
     expect(report.grades.map((item) => item.key)).toEqual(["technical", "local_seo"]);
+    expect(report.grades[0]).toMatchObject({ grade: "Not assessed", score: null });
     expect(report.grades[1]).toMatchObject({ label: "SEO content & local targeting", grade: "A", score: 100 });
     expect(report.grades[1].rationale).toContain("Google rankings are not used");
   });

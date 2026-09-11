@@ -40,6 +40,7 @@ export function buildTechnicalSeoReportModel(result: TechnicalSeoScanResult) {
   const issues = consolidateReportIssues(result.issues.filter((item) => item.severity !== "informational" && !retiredIssues.has(item.id)), 6);
   const contentTargeting = audit ? scoreSeoContentTargeting(audit.pages, audit.context) : null;
   const grades = (audit?.grades ?? fallbackGrades).map((item) => {
+    if (item.key === "technical" && result.version === 2) return { ...item, grade: "Not assessed" as const, score: null, rationale: "This legacy scan used the retired overlapping score. Rerun the audit for an independent technical grade." };
     if (item.key !== "local_seo" || !audit) return item;
     return { ...item, label: "SEO content & local targeting", score: contentTargeting!.score, grade: contentTargeting!.grade, rationale: contentTargeting!.rationale };
   });
