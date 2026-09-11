@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isRetryablePageSpeedStatus, pageSpeedAuditCategories } from "../../server/features/technical-seo/pagespeed";
+import { isRetryablePageSpeedStatus, pageSpeedAuditCategories, pageSpeedAuditStrategies } from "../../server/features/technical-seo/pagespeed";
 
 describe("technical SEO PageSpeed retries", () => {
   it("retries quota and transient server responses", () => {
@@ -12,5 +12,6 @@ describe("technical SEO PageSpeed retries", () => {
 
   it("requests only the Lighthouse category used by the page-speed grade", () => {
     expect(pageSpeedAuditCategories()).toEqual(["performance"]);
+    expect(pageSpeedAuditStrategies()).toEqual(["mobile"]);
   });
 });

@@ -27,6 +27,10 @@ export function pageSpeedAuditCategories() {
   return ["performance"] as const;
 }
 
+export function pageSpeedAuditStrategies() {
+  return ["mobile"] as const;
+}
+
 async function fetchPageSpeedProfile(url: string, strategy: string, apiKey: string, signal?: AbortSignal) {
   const endpoint = new URL("https://www.googleapis.com/pagespeedonline/v5/runPagespeed");
   endpoint.searchParams.set("url", url); endpoint.searchParams.set("strategy", strategy);
@@ -50,8 +54,9 @@ export async function runPageSpeedAudit(url: string, signal?: AbortSignal): Prom
   const apiKey = process.env.PAGESPEED_API_KEY?.trim();
   try {
     if (!apiKey) throw new Error("PAGESPEED_API_KEY is not configured on the scanner worker");
-    const results = await Promise.all(["mobile", "desktop"].map((strategy) => fetchPageSpeedProfile(url, strategy, apiKey, signal)));
-    return { status: "measured", source: "google_pagespeed", mobile: results[0], desktop: results[1] };
+    const [strategy] = pageSpeedAuditStrategies();
+    const mobile = await fetchPageSpeedProfile(url, strategy, apiKey, signal);
+    return { status: "measured", source: "google_pagespeed", reason: "Official Google PageSpeed mobile Lighthouse lab data.", mobile };
   } catch (error) {
     if (signal?.aborted) throw signal.reason;
     try {
