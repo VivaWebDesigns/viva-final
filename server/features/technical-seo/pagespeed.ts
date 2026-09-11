@@ -23,10 +23,14 @@ export function isRetryablePageSpeedStatus(status: number) {
   return status === 429 || status === 500 || status === 502 || status === 503 || status === 504;
 }
 
+export function pageSpeedAuditCategories() {
+  return ["performance"] as const;
+}
+
 async function fetchPageSpeedProfile(url: string, strategy: string, apiKey: string, signal?: AbortSignal) {
   const endpoint = new URL("https://www.googleapis.com/pagespeedonline/v5/runPagespeed");
   endpoint.searchParams.set("url", url); endpoint.searchParams.set("strategy", strategy);
-  for (const category of ["performance", "accessibility", "seo"]) endpoint.searchParams.append("category", category);
+  for (const category of pageSpeedAuditCategories()) endpoint.searchParams.append("category", category);
   endpoint.searchParams.set("key", apiKey);
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const response = await fetch(endpoint, { signal });

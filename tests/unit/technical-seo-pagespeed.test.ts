@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isRetryablePageSpeedStatus } from "../../server/features/technical-seo/pagespeed";
+import { isRetryablePageSpeedStatus, pageSpeedAuditCategories } from "../../server/features/technical-seo/pagespeed";
 
 describe("technical SEO PageSpeed retries", () => {
   it("retries quota and transient server responses", () => {
@@ -8,5 +8,9 @@ describe("technical SEO PageSpeed retries", () => {
 
   it("does not retry permanent client responses", () => {
     for (const status of [400, 401, 403, 404]) expect(isRetryablePageSpeedStatus(status)).toBe(false);
+  });
+
+  it("requests only the Lighthouse category used by the page-speed grade", () => {
+    expect(pageSpeedAuditCategories()).toEqual(["performance"]);
   });
 });
