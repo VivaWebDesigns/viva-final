@@ -53,6 +53,7 @@ export interface TechnicalSeoSnapshot {
   externalLinks: string[];
   links: { total: number; withoutHref: number; javascript: number; fragments: number; mailto: number; tel: number; nofollow: number };
   structuredData: Array<{ valid: boolean; types: string[]; data?: unknown; error?: string }>;
+  pageEvidence?: TechnicalSeoPageEvidence;
   openGraph: Record<string, string>;
   twitter: Record<string, string>;
   consoleMessages: Array<{ type: string; text: string }>;
@@ -72,8 +73,18 @@ export interface TechnicalSeoIssue {
   interpretation: string;
   recommendedAction: string;
   confidence?: TechnicalSeoConfidence;
+  evidenceStatus?: "confirmed" | "observed" | "manual_verification";
   affectedUrls?: string[];
   rankingImpact?: string;
+}
+
+export interface TechnicalSeoPageEvidence {
+  ctas: Array<{ label: string; destination: string | null; type: "phone" | "email" | "form" | "booking" | "link" | "button"; usable: boolean }>;
+  forms: Array<{ action: string | null; method: string; fields: string[]; requiredFields: number; hasContactField: boolean; submitLabel: string | null }>;
+  schemaEntities: Array<{ types: string[]; properties: string[] }>;
+  contentSignals: { pricing: boolean; faq: boolean; policies: boolean; reviews: boolean; credentials: boolean; about: boolean };
+  images: { total: number; missingAlt: number; emptyAlt: number; genericAlt: number };
+  generator: string | null;
 }
 
 export interface TechnicalSeoPageAudit {
@@ -93,6 +104,7 @@ export interface TechnicalSeoPageAudit {
   images: { total: number; missingAlt: number; emptyAlt: number; missingDimensions: number; lazyLoaded: number; modernFormat: number };
   contact: { phones: string[]; emails: string[]; addresses: string[] };
   signals: { forms: number; callsToAction: number; reviewMentions: number; socialLinks: string[]; analytics: string[] };
+  evidence?: TechnicalSeoPageEvidence;
   platformHints: string[];
   fetchError: string | null;
 }
@@ -162,10 +174,14 @@ export interface TechnicalSeoSiteAudit {
   grades: TechnicalSeoGrade[];
   coverage: { assessed: string[]; notAssessed: string[] };
   plainLanguageSummary: string[];
+  insights?: {
+    themes: Array<{ title: string; summary: string; issueIds: string[] }>;
+    opportunities: Array<{ title: string; rationale: string; evidence: string; priority: "high" | "medium" }>;
+  };
 }
 
 export interface TechnicalSeoScanResult {
-  version: 1 | 2;
+  version: 1 | 2 | 3;
   disclaimer: string;
   limits: Record<string, number | string>;
   profiles: { neutralRaw: TechnicalSeoSnapshot; simulatedGooglebotRaw: TechnicalSeoSnapshot; simulatedGooglebotRendered: TechnicalSeoSnapshot };

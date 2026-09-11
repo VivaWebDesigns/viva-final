@@ -51,25 +51,19 @@ export async function processTechnicalSeoScan(scan: TechnicalSeoScan, workerId: 
     const fallbackContext = { businessName: new URL(normalizedUrl).hostname.replace(/^www\./, ""), trade: "local business", city: "", state: "", targetServices: [], serviceAreas: [] };
     const siteAudit = await buildSiteAudit({
       rootUrl: googleFetch.finalUrl,
-      homepage: pageAuditFromHomepage(googleHtml, simulatedGooglebotRaw),
+      homepage: pageAuditFromHomepage(googleHtml, simulatedGooglebotRendered.renderError ? simulatedGooglebotRaw : simulatedGooglebotRendered),
       sitemapUrls: sitemap.urls ?? [],
       context: scan.auditContext ?? fallbackContext,
       issues: result.issues,
       signal: controller.signal,
     });
     const siteIssues = buildSiteIssues(siteAudit);
-    result.version = 2;
+    result.version = 3;
     result.siteAudit = siteAudit;
     const supersededHomepageIssues = new Set(["missing-title", "missing-description", "missing-h1"]);
     result.issues = result.issues.filter((item) => !supersededHomepageIssues.has(item.id));
     result.issues.push(...siteIssues);
     for (const severity of Object.keys(result.summary.issueCounts) as Array<keyof typeof result.summary.issueCounts>) result.summary.issueCounts[severity] = result.issues.filter((item) => item.severity === severity).length;
-    const technicalGrade = siteAudit.grades.find((item) => item.key === "technical");
-    if (technicalGrade && technicalGrade.score !== null) {
-      technicalGrade.score = Math.max(0, technicalGrade.score - siteIssues.reduce((sum, item) => sum + ({ critical: 22, high: 12, medium: 6, low: 2, informational: 0 }[item.severity]), 0));
-      technicalGrade.grade = technicalGrade.score >= 90 ? "A" : technicalGrade.score >= 80 ? "B" : technicalGrade.score >= 70 ? "C" : technicalGrade.score >= 60 ? "D" : "F";
-      technicalGrade.rationale = `${result.issues.filter((item) => item.severity !== "informational").length} confirmed technical findings across ${siteAudit.pages.length} crawled pages.`;
-    }
     await checkpoint(scan.id, workerId, "analyzing", "building_report", 95);
     const completed = await completeScan(scan.id, workerId, result);
     if (!completed) await cancelClaimedScan(scan.id, workerId);

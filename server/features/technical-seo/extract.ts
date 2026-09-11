@@ -1,5 +1,5 @@
 import { Window } from "happy-dom";
-import type { SeoDirectiveSet, TechnicalSeoSnapshot } from "@shared/technicalSeo";
+import type { SeoDirectiveSet, TechnicalSeoPageEvidence, TechnicalSeoSnapshot } from "@shared/technicalSeo";
 import { SCAN_LIMITS } from "./constants";
 
 export function parseDirectives(...values: Array<string | null | undefined>): SeoDirectiveSet {
@@ -33,8 +33,66 @@ function schemaTypes(value: unknown): string[] {
   return [...new Set([...own.filter((item): item is string => typeof item === "string"), ...graph])];
 }
 
+function schemaEntities(value: unknown): Array<{ types: string[]; properties: string[] }> {
+  if (Array.isArray(value)) return value.flatMap(schemaEntities);
+  if (!value || typeof value !== "object") return [];
+  const record = value as Record<string, unknown>;
+  const types = (Array.isArray(record["@type"]) ? record["@type"] : [record["@type"]]).filter((item): item is string => typeof item === "string");
+  return [
+    ...(types.length ? [{ types, properties: Object.keys(record).filter((key) => !key.startsWith("@")).slice(0, 30) }] : []),
+    ...schemaEntities(record["@graph"]),
+  ];
+}
+
 function absoluteUrl(value: string, baseUrl: string): string | null {
   try { return new URL(value, baseUrl).toString(); } catch { return null; }
+}
+
+function extractPageEvidence(document: Document, baseUrl: string, structuredData: TechnicalSeoSnapshot["structuredData"]): TechnicalSeoPageEvidence {
+  const clean = (value: string | null | undefined) => (value ?? "").replace(/\s+/g, " ").trim();
+  const ctaPattern = /\b(call|contact|get (?:a )?quote|request|schedule|book|reserve|appointment|free estimate|start|email|apply|send|submit)\b/i;
+  const ctas = Array.from(document.querySelectorAll("a,button,input[type=submit]")).map((node) => {
+    const label = clean(node.textContent || node.getAttribute("value") || node.getAttribute("aria-label"));
+    const rawDestination = node.getAttribute("href") || node.getAttribute("formaction") || (node.tagName.toLowerCase() === "button" ? node.closest("form")?.getAttribute("action") : null);
+    const destination = rawDestination ? absoluteUrl(rawDestination, baseUrl) ?? rawDestination : null;
+    const lower = (rawDestination ?? "").toLowerCase();
+    const type = lower.startsWith("tel:") ? "phone" as const : lower.startsWith("mailto:") ? "email" as const : /book|schedul|appoint|reserv/.test(`${label} ${lower}`.toLowerCase()) ? "booking" as const : node.closest("form") ? "form" as const : node.tagName.toLowerCase() === "button" ? "button" as const : "link" as const;
+    const usable = type === "phone" || type === "email" || type === "form" || type === "booking" && !!destination || type === "link" && !!destination && !/^#?$|^javascript:/i.test(rawDestination ?? "");
+    return { label, destination, type, usable };
+  }).filter((item) => item.label && ctaPattern.test(item.label)).slice(0, 30);
+  const forms = Array.from(document.querySelectorAll("form")).slice(0, 12).map((form) => {
+    const controls = Array.from(form.querySelectorAll("input,select,textarea"));
+    const fields = controls.map((control) => clean(control.getAttribute("name") || control.getAttribute("aria-label") || control.getAttribute("placeholder") || control.getAttribute("type"))).filter(Boolean);
+    const submit = form.querySelector('button[type="submit"], input[type="submit"], button:not([type])');
+    return {
+      action: form.getAttribute("action") ? absoluteUrl(form.getAttribute("action")!, baseUrl) ?? form.getAttribute("action") : null,
+      method: (form.getAttribute("method") ?? "get").toUpperCase(), fields,
+      requiredFields: controls.filter((control) => control.hasAttribute("required")).length,
+      hasContactField: controls.some((control) => /email|tel|phone/i.test(`${control.getAttribute("type")} ${control.getAttribute("name")} ${control.getAttribute("placeholder")}`)),
+      submitLabel: clean(submit?.textContent || submit?.getAttribute("value")) || null,
+    };
+  });
+  const structuredEntities = structuredData.filter((block) => block.valid).flatMap((block) => schemaEntities(block.data));
+  const body = clean(document.body?.textContent).toLowerCase();
+  const images = Array.from(document.querySelectorAll("img"));
+  return {
+    ctas, forms, schemaEntities: structuredEntities,
+    contentSignals: {
+      pricing: /\b(price|pricing|rates?|packages?)\b|\$\s?\d/.test(body),
+      faq: /\bfaq\b|frequently asked questions|common questions/.test(body),
+      policies: /\b(policy|policies|vaccin|cancel(?:lation)?|deposit|terms|requirements?)\b/.test(body),
+      reviews: /\b(reviews?|testimonials?|what (?:our )?customers say)\b/.test(body),
+      credentials: /\b(licensed|insured|certified|accredited|years? (?:of )?experience|award)\b/.test(body),
+      about: /\babout us|our story|meet (?:the )?team\b/.test(body),
+    },
+    images: {
+      total: images.length,
+      missingAlt: images.filter((image) => !image.hasAttribute("alt")).length,
+      emptyAlt: images.filter((image) => image.hasAttribute("alt") && !clean(image.getAttribute("alt"))).length,
+      genericAlt: images.filter((image) => /^(image|photo|picture|logo|banner|img|dsc[ _-]?\d+)$/i.test(clean(image.getAttribute("alt")))).length,
+    },
+    generator: clean(document.querySelector('meta[name="generator" i]')?.getAttribute("content")) || null,
+  };
 }
 
 export interface ExtractSnapshotInput {
@@ -112,6 +170,7 @@ export function extractSnapshot(input: ExtractSnapshotInput): TechnicalSeoSnapsh
   );
   const visibleText = cleanText(input.visibleTextOverride ?? document.body?.innerText).slice(0, 20_000);
   const visibleWordCount = visibleText ? visibleText.split(/\s+/).length : 0;
+  const pageEvidence = extractPageEvidence(document as unknown as Document, input.finalUrl, structuredData);
   window.close();
 
   return {
@@ -140,6 +199,7 @@ export function extractSnapshot(input: ExtractSnapshotInput): TechnicalSeoSnapsh
     externalLinks: [...external].slice(0, SCAN_LIMITS.maxLinksPerKind),
     links,
     structuredData,
+    pageEvidence,
     openGraph: collectSocial("og:"),
     twitter: collectSocial("twitter:"),
     consoleMessages: input.consoleMessages ?? [],

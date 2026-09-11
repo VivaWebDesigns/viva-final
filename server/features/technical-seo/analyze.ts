@@ -22,7 +22,7 @@ function buildComparison(raw: TechnicalSeoSnapshot, rendered: TechnicalSeoSnapsh
 }
 
 function issue(id: string, name: string, severity: TechnicalSeoSeverity, category: string, observation: string, evidence: string, interpretation: string, recommendedAction: string): TechnicalSeoIssue {
-  return { id, name, severity, category, observation, evidence, interpretation, recommendedAction };
+  return { id, name, severity, category, observation, evidence, interpretation, recommendedAction, confidence: "confirmed", evidenceStatus: "confirmed" };
 }
 
 export function analyzeScan(

@@ -25,11 +25,17 @@
 .seo-report-grade-grid div { align-items: center; border: 1px solid #dce7e5; border-radius: 10px; display: flex; flex-direction: column; min-height: 84px; padding: 10px 7px; text-align: center; }
 .seo-report-grade-grid strong { font-size: 27px; line-height: 1; }
 .seo-report-grade-grid span { font-size: 8px; line-height: 1.25; margin-top: 8px; text-transform: uppercase; }
+.seo-report-grade-note { color: #607572; font-size: 9px; margin: 10px 0 0; text-align: center; }
 .grade-good { color: #14785b !important; }
 .grade-warn { color: #9a6810 !important; }
 .grade-bad { color: #b33b35 !important; }
 .seo-report-summary { border-left: 5px solid #b33b35; display: grid; gap: 10px; padding: 5px 0 5px 18px; }
 .seo-report-summary p { color: #3e5653; font-size: 13px; line-height: 1.5; margin: 0; }
+.seo-report-theme-list { display: grid; gap: 9px; }
+.seo-report-theme-list article { background: #f3f8f7; border-left: 4px solid #0d9488; border-radius: 0 9px 9px 0; display: grid; gap: 11px; grid-template-columns: 25px 1fr; padding: 10px 12px; }
+.seo-report-theme-list article > span { color: #0d9488; font-size: 17px; font-weight: 800; }
+.seo-report-theme-list h3 { font-size: 11px; margin: 0 0 3px; }
+.seo-report-theme-list p { color: #536b68; font-size: 8.5px; line-height: 1.4; margin: 0; }
 .seo-report-grade-detail { display: grid; gap: 8px; }
 .seo-report-grade-detail article { align-items: center; border-bottom: 1px solid #e1e9e7; display: grid; gap: 12px; grid-template-columns: 46px 1fr; padding: 8px 0; }
 .seo-report-grade-detail article > b { font-size: 24px; text-align: center; }
@@ -41,6 +47,12 @@
 .seo-report-issue-list small, .seo-report-compact-issues small { color: #9b3b36; display: block; font-size: 7px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 .seo-report-issue-list h3 { font-size: 12px; margin: 3px 0; }
 .seo-report-issue-list p { color: #516966; font-size: 8.5px; line-height: 1.35; margin: 2px 0; }
+.seo-report-opportunity-list { display: grid; gap: 9px; grid-template-columns: 1fr 1fr; }
+.seo-report-opportunity-list article { border: 1px solid #dce7e5; border-radius: 10px; display: grid; gap: 10px; grid-template-columns: 28px 1fr; min-height: 1.18in; padding: 12px; }
+.seo-report-opportunity-list article > span { color: #a9bfbb; font-size: 16px; font-weight: 800; }
+.seo-report-opportunity-list small { color: #0d9488; font-size: 7px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.seo-report-opportunity-list h3 { font-size: 11px; margin: 3px 0 5px; }
+.seo-report-opportunity-list p { color: #526966; font-size: 8px; line-height: 1.4; margin: 3px 0; }
 .seo-report-compact-issues { display: grid; gap: 6px; grid-template-columns: 1fr 1fr; }
 .seo-report-compact-issues article { border: 1px solid #e0e8e7; border-radius: 8px; display: grid; gap: 8px; grid-template-columns: 22px 1fr; padding: 9px; }
 .seo-report-compact-issues article > b { color: #a53b35; font-size: 13px; }
