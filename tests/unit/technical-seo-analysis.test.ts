@@ -30,14 +30,14 @@ describe("technical SEO evidence extraction", () => {
   });
 
   it("records CTA destinations, useful form fields, schema properties, and content signals", () => {
-    const result = snapshot("/static", "simulated_googlebot_rendered", `<!doctype html><html><head><title>Evidence</title><meta name="generator" content="GoDaddy Websites + Marketing"><script type="application/ld+json">{"@type":"LocalBusiness","name":"Example","telephone":"555-555-5555","address":{"@type":"PostalAddress"}}</script></head><body><p>Rates start at $50. Read our vaccination and cancellation policies.</p><a href="tel:5555555555">Call now</a><form action="/lead" method="post"><input name="email" type="email" required><button type="submit">Request a quote</button></form><img src="one.jpg"><img src="two.jpg" alt="photo"></body></html>`);
+    const result = snapshot("/static", "simulated_googlebot_rendered", `<!doctype html><html><head><title>Evidence</title><meta name="generator" content="GoDaddy Websites + Marketing"><script type="application/ld+json">{"@type":"LocalBusiness","name":"Example","telephone":"555-555-5555","address":{"@type":"PostalAddress"}}</script></head><body><p>Rates start at $50. Read our vaccination and cancellation policies.</p><a href="tel:5555555555">Call now</a><form action="/lead" method="post"><input name="_app_id" style="display:none"><input type="text" data-aid="CONTACT_FORM_EMAIL" required><button type="submit">Request a quote</button></form><img src="one.jpg"><img src="two.jpg" alt="photo"></body></html>`);
     expect(result.pageEvidence).toMatchObject({
       generator: "GoDaddy Websites + Marketing",
       contentSignals: { pricing: true, policies: true },
       images: { total: 2, missingAlt: 1, genericAlt: 1 },
     });
     expect(result.pageEvidence?.ctas).toEqual(expect.arrayContaining([expect.objectContaining({ label: "Call now", type: "phone", usable: true })]));
-    expect(result.pageEvidence?.forms[0]).toMatchObject({ action: "https://fixture.example/lead", method: "POST", fields: ["email"], requiredFields: 1, hasContactField: true, submitLabel: "Request a quote" });
+    expect(result.pageEvidence?.forms[0]).toMatchObject({ action: "https://fixture.example/lead", method: "POST", fields: ["EMAIL"], requiredFields: 1, hasContactField: true, submitLabel: "Request a quote" });
     expect(result.pageEvidence?.schemaEntities[0]).toMatchObject({ types: ["LocalBusiness"], properties: expect.arrayContaining(["name", "telephone", "address"]) });
   });
 

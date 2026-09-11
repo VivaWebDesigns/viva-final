@@ -61,14 +61,15 @@ function extractPageEvidence(document: Document, baseUrl: string, structuredData
     return { label, destination, type, usable };
   }).filter((item) => item.label && ctaPattern.test(item.label)).slice(0, 30);
   const forms = Array.from(document.querySelectorAll("form")).slice(0, 12).map((form) => {
-    const controls = Array.from(form.querySelectorAll("input,select,textarea"));
-    const fields = controls.map((control) => clean(control.getAttribute("name") || control.getAttribute("aria-label") || control.getAttribute("placeholder") || control.getAttribute("type"))).filter(Boolean);
+    const controls = Array.from(form.querySelectorAll("input,select,textarea")).filter((control) => control.getAttribute("type")?.toLowerCase() !== "hidden" && !/display\s*:\s*none/i.test(control.getAttribute("style") ?? "") && !control.getAttribute("name")?.startsWith("_"));
+    const describe = (control: Element) => clean([control.getAttribute("name"), control.getAttribute("aria-label"), control.getAttribute("placeholder"), control.getAttribute("data-aid"), control.getAttribute("type")].filter(Boolean).join(" "));
+    const fields = controls.map((control) => clean(control.getAttribute("aria-label") || control.getAttribute("placeholder") || control.getAttribute("data-aid")?.replace(/^CONTACT_FORM_/i, "") || control.getAttribute("name") || control.getAttribute("type"))).filter(Boolean);
     const submit = form.querySelector('button[type="submit"], input[type="submit"], button:not([type])');
     return {
       action: form.getAttribute("action") ? absoluteUrl(form.getAttribute("action")!, baseUrl) ?? form.getAttribute("action") : null,
       method: (form.getAttribute("method") ?? "get").toUpperCase(), fields,
       requiredFields: controls.filter((control) => control.hasAttribute("required")).length,
-      hasContactField: controls.some((control) => /email|tel|phone/i.test(`${control.getAttribute("type")} ${control.getAttribute("name")} ${control.getAttribute("placeholder")}`)),
+      hasContactField: controls.some((control) => /email|tel|phone/i.test(describe(control))),
       submitLabel: clean(submit?.textContent || submit?.getAttribute("value")) || null,
     };
   });
