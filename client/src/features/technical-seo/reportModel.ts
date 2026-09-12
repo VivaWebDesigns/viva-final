@@ -44,7 +44,7 @@ export function buildTechnicalSeoReportModel(result: TechnicalSeoScanResult) {
   const grades = (audit?.grades ?? fallbackGrades).map((item) => {
     if (item.key === "technical" && result.version === 2) return { ...item, grade: "Not assessed" as const, score: null, rationale: "This legacy scan used the retired overlapping score. Rerun the audit for an independent technical grade." };
     if (item.key !== "local_seo" || !audit) return item;
-    return { ...item, label: "SEO content & local targeting", score: contentTargeting!.score, grade: contentTargeting!.grade, rationale: contentTargeting!.rationale };
+    return { ...item, label: "On-page SEO, content & local targeting", score: contentTargeting!.score, grade: contentTargeting!.grade, rationale: contentTargeting!.rationale };
   });
   const themeTitle = (summary: string) => /mobile performance/i.test(summary) ? "Mobile speed is creating customer friction" : /services?, locations?|alignment/i.test(summary) ? "The site architecture does not match local search demand" : /trust|contact|credib/i.test(summary) ? "The website is not converting confidence into action" : /business profile|identity/i.test(summary) ? "The website and Business Profile need one consistent identity" : "Technical conditions are limiting the site’s potential";
   const themes = audit?.insights?.themes?.length ? audit.insights.themes : (audit?.plainLanguageSummary ?? []).map((summary) => ({ title: themeTitle(summary), summary, issueIds: [] }));

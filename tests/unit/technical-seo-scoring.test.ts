@@ -7,7 +7,7 @@ function issue(id: string, severity: TechnicalSeoIssue["severity"], category: st
 }
 
 describe("independent technical SEO scoring", () => {
-  it("grades the Lake Wylie evidence as B after all site-wide technical findings exist", () => {
+  it("keeps speed, content, profile, and conversion findings out of the technical grade", () => {
     const findings = [
       issue("multiple-h1", "low", "Headings"),
       issue("site-missing-alt", "medium", "Images"),
@@ -45,6 +45,8 @@ describe("independent technical SEO scoring", () => {
   });
 
   it("corrects a saved v3 result without requiring another crawl", () => {
+    const homepage = { statusCode: 200, url: "https://lakewylieboarding.com/", h1: ["Welcome", "Welcome"], internalLinks: ["https://lakewylieboarding.com/agreement%2Fforms"], platformHints: ["GoDaddy Websites + Marketing"] };
+    const forms = { statusCode: 200, url: "https://lakewylieboarding.com/agreement%2Fforms", h1: ["Agreement forms"], internalLinks: ["https://lakewylieboarding.com/"], platformHints: ["GoDaddy Websites + Marketing"] };
     const result = {
       version: 3,
       issues: [
@@ -52,15 +54,27 @@ describe("independent technical SEO scoring", () => {
         issue("site-missing-alt", "medium", "Images"),
         issue("heading-hierarchy-skips", "medium", "Content structure"),
       ],
+      summary: { finalUrl: homepage.url, issueCounts: { critical: 0, high: 0, medium: 2, low: 1, informational: 0 } },
+      profiles: {
+        simulatedGooglebotRaw: { redirects: [] },
+        simulatedGooglebotRendered: { viewport: "width=device-width, initial-scale=1" },
+      },
       siteAudit: {
-        pages: [{}, {}],
-        grades: [{ key: "technical", label: "Technical SEO & source code", grade: "A", score: 97, rationale: "Old premature score" }],
+        pages: [homepage, forms],
+        crawl: { sitemapUrlsFound: 2 },
+        grades: [
+          { key: "technical", label: "Technical SEO & source code", grade: "A", score: 97, rationale: "Old premature score" },
+          { key: "local_seo", label: "SEO content & local targeting", grade: "F", score: 50, rationale: "Measured" },
+        ],
       },
     } as unknown as TechnicalSeoScanResult;
 
     const corrected = normalizeTechnicalSeoResult(result);
-    expect(corrected.siteAudit?.grades[0]).toMatchObject({ grade: "B", score: 83 });
-    expect(corrected.siteAudit?.grades[0].rationale).toContain("3 confirmed technical findings scored once");
+    expect(corrected.siteAudit?.grades[0]).toMatchObject({ grade: "C", score: 70 });
+    expect(corrected.siteAudit?.grades[0].rationale).toContain("6 confirmed technical findings scored once");
+    expect(corrected.siteAudit?.grades[1].label).toBe("On-page SEO, content & local targeting");
+    expect(corrected.issues.map((finding) => finding.id)).toEqual(expect.arrayContaining(["insufficient-site-architecture", "encoded-url-path", "duplicate-primary-dom-content", "restricted-builder-platform"]));
+    expect(corrected.issues.some((finding) => finding.id === "multiple-h1")).toBe(false);
     expect(corrected.issues.every((finding) => finding.gradeKey === "technical")).toBe(true);
   });
 });

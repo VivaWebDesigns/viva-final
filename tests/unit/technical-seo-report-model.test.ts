@@ -49,7 +49,7 @@ describe("technical SEO client report model", () => {
     expect(report.issues.map((item) => item.id)).toEqual(["technical-problem"]);
     expect(report.grades.map((item) => item.key)).toEqual(["technical", "local_seo"]);
     expect(report.grades[0]).toMatchObject({ grade: "Not assessed", score: null });
-    expect(report.grades[1]).toMatchObject({ label: "SEO content & local targeting", grade: "A", score: 100 });
+    expect(report.grades[1]).toMatchObject({ label: "On-page SEO, content & local targeting", grade: "A", score: 100 });
     expect(report.grades[1].rationale).toContain("Google rankings are not used");
   });
 
