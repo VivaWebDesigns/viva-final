@@ -85,6 +85,12 @@ function extractPageEvidence(document: Document, baseUrl: string, structuredData
       reviews: /\b(reviews?|testimonials?|what (?:our )?customers say)\b/.test(body),
       credentials: /\b(licensed|insured|certified|accredited|years? (?:of )?experience|award)\b/.test(body),
       about: /\babout us|our story|meet (?:the )?team\b/.test(body),
+      privacy: /privacy/i.test(new URL(baseUrl).pathname) || Array.from(document.querySelectorAll("a")).some((link) => {
+        if (!/privacy/i.test(`${link.textContent ?? ""} ${link.getAttribute("href") ?? ""}`)) return false;
+        try { return new URL(link.getAttribute("href") ?? "", baseUrl).origin === new URL(baseUrl).origin; } catch { return false; }
+      }),
+      licensingInsurance: /\b(licensed|insured|bonded|insurance coverage)\b/.test(body),
+      specificCapacity: /\b(?:capacity|limited to|only)\s+(?:of\s+)?\d+\s*(?:-|to)?\s*\d*\s+(?:dogs?|pets?)\b|\b\d+\s*(?:-|to)\s*\d+\s+(?:dogs?|pets?)\b/.test(body),
     },
     images: {
       total: images.length,

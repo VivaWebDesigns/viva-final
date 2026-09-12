@@ -83,7 +83,7 @@ export interface TechnicalSeoPageEvidence {
   ctas: Array<{ label: string; destination: string | null; type: "phone" | "email" | "form" | "booking" | "link" | "button"; usable: boolean }>;
   forms: Array<{ action: string | null; method: string; fields: string[]; requiredFields: number; hasContactField: boolean; submitLabel: string | null }>;
   schemaEntities: Array<{ types: string[]; properties: string[] }>;
-  contentSignals: { pricing: boolean; faq: boolean; policies: boolean; reviews: boolean; credentials: boolean; about: boolean };
+  contentSignals: { pricing: boolean; faq: boolean; policies: boolean; reviews: boolean; credentials: boolean; about: boolean; privacy: boolean; licensingInsurance: boolean; specificCapacity: boolean };
   images: { total: number; missingAlt: number; emptyAlt: number; genericAlt: number };
   generator: string | null;
 }

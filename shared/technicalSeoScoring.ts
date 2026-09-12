@@ -1,4 +1,5 @@
 import type { TechnicalSeoGrade, TechnicalSeoIssue, TechnicalSeoScanResult } from "./technicalSeo";
+import { assessTrustConversion } from "./technicalSeoTrust";
 
 type GradeKey = TechnicalSeoGrade["key"];
 
@@ -221,7 +222,8 @@ function buildTechnicalDeliveryIssues(result: TechnicalSeoScanResult): Technical
 
 export function normalizeTechnicalSeoResult(result: TechnicalSeoScanResult): TechnicalSeoScanResult {
   if (result.version !== 3 || !result.siteAudit) return result;
-  const derived = [...buildTechnicalArchitectureIssues(result.siteAudit), ...buildTechnicalDeliveryIssues(result)];
+  const trust = assessTrustConversion(result);
+  const derived = [...buildTechnicalArchitectureIssues(result.siteAudit), ...buildTechnicalDeliveryIssues(result), ...(trust?.issues ?? [])];
   const replacesGenericMultipleH1 = derived.some((issue) => issue.id === "duplicate-primary-dom-content");
   const storedIssues = replacesGenericMultipleH1 ? result.issues.filter((issue) => issue.id !== "multiple-h1") : result.issues;
   const existingIds = new Set(storedIssues.map((issue) => issue.id));
@@ -230,6 +232,7 @@ export function normalizeTechnicalSeoResult(result: TechnicalSeoScanResult): Tec
   const rationale = `${technical.findingCount} confirmed technical finding${technical.findingCount === 1 ? "" : "s"} scored once with capped deductions across ${result.siteAudit.pages.length} crawled page${result.siteAudit.pages.length === 1 ? "" : "s"}. Performance, business-profile, content, and conversion findings do not affect this grade.`;
   const grades = result.siteAudit.grades.map((item) => item.key === "technical"
     ? { ...item, grade: technical.grade, score: technical.score, rationale }
+    : item.key === "trust_conversion" && trust ? { ...item, grade: trust.grade, score: trust.score, rationale: `Trust evidence ${trust.trustPoints}/60 and conversion readiness ${trust.conversionPoints}/40. ${trust.caps.length ? `Grade cap applied because ${trust.caps.join("; ")}.` : "No limiting evidence gate was triggered."}` }
     : item.key === "local_seo" ? { ...item, label: "On-page SEO, content & local targeting" } : item);
   const technicalTheme = {
     title: "The technical foundation needs a clearer, cleaner structure",
@@ -237,7 +240,13 @@ export function normalizeTechnicalSeoResult(result: TechnicalSeoScanResult): Tec
     issueIds: issues.filter((issue) => issue.gradeKey === "technical").map((issue) => issue.id),
   };
   const existingThemes = result.siteAudit.insights?.themes ?? [];
-  const themes = technical.score < 80 && !existingThemes.some((theme) => theme.title === technicalTheme.title) ? [technicalTheme, ...existingThemes].slice(0, 4) : existingThemes;
+  const trustTheme = {
+    title: "Trust evidence and the inquiry journey do not yet resolve customer risk",
+    summary: "Authentic identity and operational proof matter, but customers also need visible third-party reassurance, clear policies, consistent claims, and a dependable path from interest to inquiry or booking.",
+    issueIds: issues.filter((issue) => issue.gradeKey === "trust_conversion").map((issue) => issue.id),
+  };
+  let themes = technical.score < 80 && !existingThemes.some((theme) => theme.title === technicalTheme.title) ? [technicalTheme, ...existingThemes].slice(0, 4) : existingThemes;
+  if (trust && trust.score < 80 && !themes.some((theme) => theme.title === trustTheme.title)) themes = [trustTheme, ...themes].slice(0, 4);
   const issueCounts = { ...result.summary.issueCounts };
   for (const severity of Object.keys(issueCounts) as Array<keyof typeof issueCounts>) issueCounts[severity] = issues.filter((issue) => issue.severity === severity).length;
   return {

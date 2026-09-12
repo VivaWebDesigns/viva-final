@@ -75,6 +75,7 @@ describe("independent technical SEO scoring", () => {
     expect(corrected.siteAudit?.grades[1].label).toBe("On-page SEO, content & local targeting");
     expect(corrected.issues.map((finding) => finding.id)).toEqual(expect.arrayContaining(["insufficient-site-architecture", "encoded-url-path", "duplicate-primary-dom-content", "restricted-builder-platform"]));
     expect(corrected.issues.some((finding) => finding.id === "multiple-h1")).toBe(false);
-    expect(corrected.issues.every((finding) => finding.gradeKey === "technical")).toBe(true);
+    expect(corrected.issues.every((finding) => !!finding.gradeKey)).toBe(true);
+    expect(corrected.issues.filter((finding) => ["insufficient-site-architecture", "encoded-url-path", "duplicate-primary-dom-content", "restricted-builder-platform"].includes(finding.id)).every((finding) => finding.gradeKey === "technical")).toBe(true);
   });
 });
