@@ -1,4 +1,5 @@
 import type { TechnicalSeoScan } from "@shared/schema";
+import { normalizeTechnicalSeoResult } from "@shared/technicalSeoScoring";
 import { SCAN_LIMITS, SIMULATED_GOOGLEBOT_USER_AGENT, VIVA_SCANNER_USER_AGENT } from "./constants";
 import { analyzeScan } from "./analyze";
 import { renderSimulatedGooglebot } from "./browser-render";
@@ -65,7 +66,7 @@ export async function processTechnicalSeoScan(scan: TechnicalSeoScan, workerId: 
     result.issues.push(...siteIssues);
     for (const severity of Object.keys(result.summary.issueCounts) as Array<keyof typeof result.summary.issueCounts>) result.summary.issueCounts[severity] = result.issues.filter((item) => item.severity === severity).length;
     await checkpoint(scan.id, workerId, "analyzing", "building_report", 95);
-    const completed = await completeScan(scan.id, workerId, result);
+    const completed = await completeScan(scan.id, workerId, normalizeTechnicalSeoResult(result));
     if (!completed) await cancelClaimedScan(scan.id, workerId);
   } catch (error) {
     if (error instanceof ScanCancelledError) {

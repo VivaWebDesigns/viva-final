@@ -4,6 +4,7 @@ import { requireRole } from "../auth/middleware";
 import { assertSafePublicUrl, normalizePublicUrl, UnsafeUrlError } from "./url-safety";
 import { SCAN_LIMITS } from "./constants";
 import { countActiveScans, countRecentScans, createScan, deleteCompanyScans, getScan, listScanCompanies, listScans, requestCancellation, retryScan } from "./repository";
+import { normalizeTechnicalSeoResult } from "@shared/technicalSeoScoring";
 
 const router = Router();
 router.use(requireRole("admin", "developer"));
@@ -63,7 +64,7 @@ router.delete("/scan-companies", async (req, res) => {
 router.get("/scans/:id", async (req, res) => {
   const scan = await getScan(req.params.id);
   if (!scan) return res.status(404).json({ message: "Scan not found" });
-  res.json(scan);
+  res.json(scan.result ? { ...scan, result: normalizeTechnicalSeoResult(scan.result) } : scan);
 });
 
 router.post("/scans/:id/cancel", async (req, res) => {

@@ -1,5 +1,6 @@
 import type { TechnicalSeoGrade, TechnicalSeoIssue, TechnicalSeoScanResult } from "@shared/technicalSeo";
 import { scoreSeoContentTargeting } from "@shared/technicalSeoContent";
+import { normalizeTechnicalSeoResult } from "@shared/technicalSeoScoring";
 
 const ORDER: Record<TechnicalSeoIssue["severity"], number> = { critical: 0, high: 1, medium: 2, low: 3, informational: 4 };
 export function truncateReportText(value: string, limit: number) { const clean = value.replace(/\s+/g, " ").trim(); return clean.length <= limit ? clean : `${clean.slice(0, limit - 1).trimEnd()}…`; }
@@ -33,6 +34,7 @@ export function consolidateReportIssues(issues: TechnicalSeoIssue[], limit = 6) 
 }
 
 export function buildTechnicalSeoReportModel(result: TechnicalSeoScanResult) {
+  result = normalizeTechnicalSeoResult(result);
   const audit = result.siteAudit;
   const domain = new URL(result.summary.finalUrl).hostname;
   const fallbackGrades: TechnicalSeoGrade[] = [{ key: "technical", label: "Technical SEO & source code", grade: result.summary.issueCounts.critical || result.summary.issueCounts.high ? "F" : result.summary.issueCounts.medium ? "C" : "A", score: null, rationale: "Legacy one-page scan; run a new full audit for site-wide grading." }];

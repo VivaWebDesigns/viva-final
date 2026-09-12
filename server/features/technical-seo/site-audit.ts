@@ -1,6 +1,7 @@
 import { Window } from "happy-dom";
 import type { TechnicalSeoAuditContext, TechnicalSeoIssue, TechnicalSeoPageAudit, TechnicalSeoSiteAudit } from "@shared/technicalSeo";
 import { scoreSeoContentTargeting } from "@shared/technicalSeoContent";
+import { assignTechnicalSeoIssueGrades, scoreTechnicalSeoIssues } from "@shared/technicalSeoScoring";
 import { SCAN_LIMITS, SIMULATED_GOOGLEBOT_USER_AGENT } from "./constants";
 import { extractSnapshot } from "./extract";
 import { safeFetchHtml } from "./http-fetch";
@@ -99,19 +100,6 @@ function rootHost(value: string | null | undefined) {
   try { return new URL(value ?? "").hostname.replace(/^www\./, "").toLowerCase(); } catch { return ""; }
 }
 
-function technicalCategoryScore(pages: TechnicalSeoPageAudit[], baseIssues: TechnicalSeoIssue[], brokenLinks: number, duplicateTitles: number, duplicateDescriptions: number) {
-  const technicalCategories = new Set(["HTTP", "Crawlability", "Indexability", "Rendering", "Canonicalization", "JavaScript", "Metadata", "Headings", "Structured data", "Internal linking"]);
-  const applicable = baseIssues.filter((item) => item.severity !== "informational" && technicalCategories.has(item.category));
-  const successful = pages.filter((page) => page.statusCode === 200);
-  let deductions = applicable.reduce((sum, item) => sum + ({ critical: 35, high: 20, medium: 9, low: 3, informational: 0 }[item.severity]), 0);
-  deductions += Math.min(15, brokenLinks * 4) + Math.min(10, duplicateTitles * 5) + Math.min(6, duplicateDescriptions * 3);
-  deductions += Math.min(35, pages.filter((page) => page.robots.noindex).length * 25);
-  deductions += Math.min(10, successful.filter((page) => !page.canonical.length).length * 2);
-  deductions += Math.min(12, successful.filter((page) => !page.title).length * 8);
-  deductions += Math.min(8, successful.filter((page) => !page.h1.length).length * 4);
-  return { score: Math.max(0, 100 - deductions), findingCount: applicable.length };
-}
-
 function trustCategoryScore(pages: TechnicalSeoPageAudit[]) {
   const successful = pages.filter((page) => page.statusCode === 200);
   const allEvidence = successful.flatMap((page) => page.evidence ? [page.evidence] : []);
@@ -164,7 +152,10 @@ export async function buildSiteAudit(args: { rootUrl: string; homepage: Technica
   const duplicateTitles = duplicates(pages, "title");
   const duplicateDescriptions = duplicates(pages, "metaDescription");
   const thinPages = pages.filter((page) => page.statusCode === 200 && page.wordCount < 200).map((page) => page.url);
-  const technical = technicalCategoryScore(pages, args.issues, brokenInternalLinks.length, duplicateTitles.length, duplicateDescriptions.length);
+  const crawl: TechnicalSeoSiteAudit["crawl"] = { discovered: queue.length, crawled: pages.length, capped: queue.length > pages.length, sitemapUrlsFound: args.sitemapUrls.length, brokenInternalLinks, duplicateTitles, duplicateDescriptions, thinPages };
+  const issueEvidence = { context: args.context, pages, crawl, performance, local };
+  const technicalIssues = assignTechnicalSeoIssueGrades([...args.issues, ...buildSiteIssues(issueEvidence)]);
+  const technical = scoreTechnicalSeoIssues(technicalIssues);
   const technicalScore = technical.score;
   const perfScore = performance.status === "measured" ? performance.mobile?.score ?? null : null;
   const profileStatus = local.profileStatus ?? local.status;
@@ -182,7 +173,7 @@ export async function buildSiteAudit(args: { rootUrl: string; homepage: Technica
   const trust = trustCategoryScore(pages);
   const trustScore = trust.score;
   const grades: TechnicalSeoSiteAudit["grades"] = [
-    { key: "technical", label: "Technical SEO & source code", grade: grade(technicalScore), score: technicalScore, rationale: `${technical.findingCount} homepage technical finding(s), plus site-wide metadata, internal-link, and duplication checks across ${pages.length} crawled pages. Other categories do not affect this grade.` },
+    { key: "technical", label: "Technical SEO & source code", grade: technical.grade, score: technicalScore, rationale: `${technical.findingCount} confirmed technical finding${technical.findingCount === 1 ? "" : "s"} scored once with capped deductions across ${pages.length} crawled page${pages.length === 1 ? "" : "s"}. Performance, business-profile, content, and conversion findings do not affect this grade.` },
     { key: "performance", label: "Page speed", grade: perfScore === null ? "Not assessed" : grade(perfScore), score: perfScore, rationale: performance.status === "measured" ? "Based on official Google PageSpeed mobile Lighthouse lab data." : performance.reason ?? "PageSpeed was not available." },
     { key: "business_profile", label: "Google Business Profile consistency", grade: gbpScore === null ? "Not assessed" : grade(gbpScore), score: gbpScore, rationale: profileStatus === "measured" ? `Public profile completeness and website identity were checked after matching by ${local.profileMatchMethod === "google_business_url" ? "the supplied profile URL" : local.profileMatchMethod === "search_result_identity" ? "exact business and website identity" : "business name and location"}. Map rankings are excluded.` : local.profileReason ?? "Business profile data was not available." },
     { key: "local_seo", label: "SEO content & local targeting", grade: localScore === null ? "Not assessed" : contentTargeting!.grade, score: localScore, rationale: contentTargeting?.rationale ?? "Service and location targeting could not be assessed." },
@@ -197,7 +188,7 @@ export async function buildSiteAudit(args: { rootUrl: string; homepage: Technica
   if (!summary.length) summary.push("No category fell below the audit’s material-risk threshold, although the detailed findings and coverage limits still apply.");
   return {
     context: args.context, pages,
-    crawl: { discovered: queue.length, crawled: pages.length, capped: queue.length > pages.length, sitemapUrlsFound: args.sitemapUrls.length, brokenInternalLinks, duplicateTitles, duplicateDescriptions, thinPages },
+    crawl,
     performance, local, grades,
     coverage: { assessed: ["Technical HTML and crawlability", `Up to ${SCAN_LIMITS.maxCrawlPages} same-origin pages`, "Homepage rendered output", "On-site SEO content and local targeting", ...(performance.status === "measured" ? ["Google PageSpeed mobile Lighthouse lab data"] : performance.status === "estimated" ? ["Controlled local Chromium performance estimate"] : []), ...(profileStatus === "measured" ? ["Google Business Profile public data via DataForSEO"] : [])], notAssessed: ["Google Search Console account data", "Google Analytics conversion data", "Backlink quality", "Google organic and Maps rankings (covered by the dedicated map-pack scan)", "Google PageSpeed desktop lab data", "Review-response behavior without a matched profile", "Reliable AI-authorship detection", ...(performance.status === "estimated" ? ["Google PageSpeed Lighthouse lab data"] : []), ...(profileStatus !== "measured" ? ["Google Business Profile public data"] : [])] },
     plainLanguageSummary: summary,
@@ -225,7 +216,7 @@ export function pageAuditFromHomepage(html: string, snapshot: ReturnType<typeof 
   return { ...enrichPage(html, snapshot), fetchError: null };
 }
 
-export function buildSiteIssues(audit: TechnicalSeoSiteAudit): TechnicalSeoIssue[] {
+export function buildSiteIssues(audit: Pick<TechnicalSeoSiteAudit, "context" | "pages" | "crawl" | "performance" | "local">): TechnicalSeoIssue[] {
   const issues: TechnicalSeoIssue[] = [];
   const add = (id: string, name: string, severity: TechnicalSeoIssue["severity"], category: string, observation: string, evidence: string, interpretation: string, affectedUrls: string[] = []) => issues.push({ id, name, severity, category, observation, evidence, interpretation, recommendedAction: "Address the confirmed condition using the evidence and affected URLs shown in the internal audit.", confidence: "confirmed", evidenceStatus: "confirmed", affectedUrls, rankingImpact: interpretation });
   const missingTitles = audit.pages.filter((p) => p.statusCode === 200 && !p.title);

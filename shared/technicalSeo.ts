@@ -76,6 +76,7 @@ export interface TechnicalSeoIssue {
   evidenceStatus?: "confirmed" | "observed" | "manual_verification";
   affectedUrls?: string[];
   rankingImpact?: string;
+  gradeKey?: TechnicalSeoGrade["key"];
 }
 
 export interface TechnicalSeoPageEvidence {
