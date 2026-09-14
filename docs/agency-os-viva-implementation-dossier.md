@@ -1,6 +1,6 @@
 # Agency OS audit and Viva implementation dossier
 
-Captured: 2026-09-14  
+Captured: 2026-09-14
 Purpose: preserve product and workflow learnings before Blueprint access ends, then translate the useful patterns into an original Viva implementation plan.
 
 ## Executive conclusion
