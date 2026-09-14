@@ -1,0 +1,1707 @@
+{
+  "captured_at": "2026-09-14",
+  "endpoint": "https://app.theblueprint.training/mcp",
+  "protocol_version": "2025-03-26",
+  "server_info": {
+    "name": "agency-os",
+    "version": "2.0.0",
+    "title": "Agency OS — The Blueprint Training",
+    "websiteUrl": "https://app.theblueprint.training",
+    "icons": [
+      {
+        "src": "https://app.theblueprint.training/blueprint-mark-512.png",
+        "mimeType": "image/png",
+        "sizes": [
+          "512x512"
+        ]
+      },
+      {
+        "src": "https://app.theblueprint.training/blueprint-mark.svg",
+        "mimeType": "image/svg+xml",
+        "sizes": [
+          "any"
+        ]
+      }
+    ]
+  },
+  "tools": [
+    {
+      "name": "analysis_create",
+      "description": "Start a new analysis run (WQA, Local SEO, Proposal, …) against a subject (client or lead). Returns the analysis record.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "wqa",
+              "local",
+              "proposal"
+            ],
+            "description": "Analysis type"
+          },
+          "subject_kind": {
+            "type": "string",
+            "enum": [
+              "client",
+              "lead"
+            ],
+            "description": "Subject entity kind"
+          },
+          "subject_id": {
+            "type": "string",
+            "description": "Client or lead UUID"
+          },
+          "title": {
+            "type": "string",
+            "description": "Optional human title"
+          },
+          "config": {
+            "type": "object",
+            "description": "Per-type config: providers, taxonomy, templates"
+          },
+          "notes": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "subject_kind",
+          "subject_id"
+        ]
+      }
+    },
+    {
+      "name": "analysis_get",
+      "description": "Get an analysis by id.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "analysis_list",
+      "description": "List analyses, optionally filtered by subject, type, or status.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "subject_id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "wqa",
+              "local",
+              "proposal"
+            ]
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "analysis_set_status",
+      "description": "Update an analysis status (pending|pulling|analyzing|review|completed|failed).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status"
+        ]
+      }
+    },
+    {
+      "name": "clients_report_get",
+      "description": "Read a client's performance report for one channel, plus a brief on how to analyze it. Use this to diagnose performance — what is working, what is not, and WHY — then write the analysis yourself. The returned `analysis_brief` carries channel-specific rules you MUST follow; the Paid Social one constrains which levers are real for a Meta Advantage+ campaign. Serves the cached report when it is fresh, and pulls from the providers when it is stale or missing (that can take a couple of minutes). Pass refresh: true to force a fresh pull. scope: organic (default) | paid_search | paid_social.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "organic",
+              "paid_search",
+              "paid_social"
+            ]
+          },
+          "refresh": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "data_pull",
+      "description": "Fetch data from one provider for a subject, record the pull, and (if analysis_id is given) ingest the normalized observations. Providers: crawl, grid, http, ahrefs, semrush, gsc, ga4, localfalcon, gbp, dataforseo, windsor.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "analysis_id": {
+            "type": "string",
+            "description": "Attach observations to this analysis"
+          },
+          "subject_kind": {
+            "type": "string",
+            "enum": [
+              "client",
+              "lead"
+            ]
+          },
+          "subject_id": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string",
+            "description": "Provider name"
+          },
+          "params": {
+            "type": "object",
+            "description": "Provider-specific params. crawl: csv_content or csv_ref (an uploaded Screaming Frog export). http: urls. grid: a local rank-grid from ANY tracker (gtrack, Places Scout, a manual scan) — csv_content (headers are matched by name: keyword/search term, lat/latitude, lng/longitude, rank/position, sov/share of voice, scan date), or points: [{keyword, lat, lng, rank, share_of_voice?, scan_date?}] when you already have the rows. Optional: source ('gtrack') to label where it came from, place_id/name/address for the client report's location header, keyword and scan_date as defaults for a file that omits them. Use this instead of localfalcon when the agency doesn't use Local Falcon. NOTE: no setup is required — the grid renders in the client report with or without Google Business Profile connected — but the report serves from a cache, so tell the user to hit ↻ Refresh on it to see the import."
+          }
+        },
+        "required": [
+          "provider"
+        ]
+      }
+    },
+    {
+      "name": "data_health",
+      "description": "Report a subject's (client/lead) data health across every provider ever pulled for it: per-provider last attempt, last success, cache validity, and what the latest data contains (observation counts + kinds); per-kind freshness against the SLA (ranking 30d, review 60d, page/backlink/keyword 90d, …); and recent pull history. Use it to answer 'is this client's data in, fresh, and complete?' before running or trusting an analysis.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "subject_kind": {
+            "type": "string",
+            "enum": [
+              "client",
+              "lead"
+            ]
+          },
+          "subject_id": {
+            "type": "string",
+            "description": "Client or lead UUID"
+          }
+        },
+        "required": [
+          "subject_kind",
+          "subject_id"
+        ]
+      }
+    },
+    {
+      "name": "analysis_gather",
+      "description": "Run every provider configured on an analysis (config.providers), reusing fresh cached pulls and retrying transient failures, ingesting all observations in one call. Returns a per-provider summary AND a coverage report (which required observation kinds are present/missing).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "analysis_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "analysis_id"
+        ]
+      }
+    },
+    {
+      "name": "analysis_coverage",
+      "description": "Report data coverage for an analysis: for each required observation kind (per the analysis type), whether enough is present. Use to gate checkpoints or show a data-confirmation checklist. `complete` is true only when all non-optional requirements are met.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "analysis_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "analysis_id"
+        ]
+      }
+    },
+    {
+      "name": "analysis_quality",
+      "description": "Run data-quality expectations for an analysis (§6c): freshness (is each kind's data within its SLA), validity (did sources return usable values, not all-nulls), and cross-source reconciliation (do overlapping providers agree within tolerance). Complements coverage — use it to surface trust signals before the strategist checkpoint. `ok` is true when there are no failures (warnings are allowed).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "analysis_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "analysis_id"
+        ]
+      }
+    },
+    {
+      "name": "observations_ingest",
+      "description": "Add normalized facts to an analysis. Each item is validated against its kind schema (page, keyword, ranking, backlink, review, citation, grid_point, competitor, gbp_profile).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "analysis_id": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "description": "Observations to ingest",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "page",
+                    "page_traffic",
+                    "page_authority",
+                    "metric_history",
+                    "keyword",
+                    "ranking",
+                    "backlink",
+                    "review",
+                    "citation",
+                    "grid_point",
+                    "competitor",
+                    "gbp_profile"
+                  ]
+                },
+                "identifier": {
+                  "type": "string",
+                  "description": "url / keyword / place_id / domain"
+                },
+                "data": {
+                  "type": "object",
+                  "description": "Kind-specific payload (validated)"
+                },
+                "metrics": {
+                  "type": "object"
+                },
+                "source_pull_id": {
+                  "type": "string"
+                },
+                "tags": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "kind",
+                "identifier",
+                "data"
+              ]
+            }
+          }
+        },
+        "required": [
+          "analysis_id",
+          "items"
+        ]
+      }
+    },
+    {
+      "name": "observations_query",
+      "description": "List observations for an analysis, optionally filtered by kind.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "analysis_id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "page",
+              "page_traffic",
+              "page_authority",
+              "metric_history",
+              "keyword",
+              "ranking",
+              "backlink",
+              "review",
+              "citation",
+              "grid_point",
+              "competitor",
+              "gbp_profile"
+            ]
+          }
+        },
+        "required": [
+          "analysis_id"
+        ]
+      }
+    },
+    {
+      "name": "analysis_promote_keywords",
+      "description": "Promote the top keyword observations from an analysis (e.g. a WQA) to its client as the tracked target keywords (max 20, ranked by search volume). This is the WQA → keyword-rankings wiring: after gathering keyword observations, call this to lock the client's tracked keywords. The analysis subject must be a client.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "analysis_id": {
+            "type": "string"
+          },
+          "count": {
+            "type": "number",
+            "description": "How many top keywords to set (default 20, max 20)"
+          }
+        },
+        "required": [
+          "analysis_id"
+        ]
+      }
+    },
+    {
+      "name": "findings_generate",
+      "description": "Run the analysis type's deterministic analyzers over its observations and create proposed findings (idempotent — existing findings are not duplicated). The model then reviews/tailors rather than deriving findings by hand.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "analysis_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "analysis_id"
+        ]
+      }
+    },
+    {
+      "name": "findings_create",
+      "description": "Create a finding (recommendation/action) on an analysis. Starts in status \"proposed\".",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "analysis_id": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "info",
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ]
+          },
+          "impact": {
+            "type": "string"
+          },
+          "effort": {
+            "type": "string",
+            "enum": [
+              "xs",
+              "s",
+              "m",
+              "l",
+              "xl"
+            ]
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "observation_id": {
+                  "type": "string"
+                },
+                "note": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "observation_id"
+              ]
+            }
+          },
+          "recommended_action": {
+            "type": "string"
+          },
+          "sort_order": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "analysis_id",
+          "category",
+          "title"
+        ]
+      }
+    },
+    {
+      "name": "findings_list",
+      "description": "List findings for an analysis, optionally filtered by status.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "analysis_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "analysis_id"
+        ]
+      }
+    },
+    {
+      "name": "findings_set_status",
+      "description": "Move a finding through the strategist approval lifecycle (proposed→approved/edited/deferred/rejected, with allowed reopen paths). Rejects illegal transitions.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "proposed",
+              "approved",
+              "edited",
+              "deferred",
+              "rejected"
+            ]
+          },
+          "strategist_notes": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status"
+        ]
+      }
+    },
+    {
+      "name": "artifact_build",
+      "description": "Request generation of an artifact (workbook/report/deck) for an analysis. Returns a pending artifact; the worker renders it and fills storage_ref (download_url on artifact_get). The workbook is a read-only reference — approvals happen in the web app or via findings_set_status.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "analysis_id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "workbook",
+              "report",
+              "deck"
+            ]
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "xlsx",
+              "html",
+              "csv",
+              "pdf"
+            ]
+          },
+          "template": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "analysis_id",
+          "kind",
+          "format"
+        ]
+      }
+    },
+    {
+      "name": "artifact_get",
+      "description": "Get an artifact (status + signed storage_ref when ready).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "plan_import",
+      "description": "Turn an analysis’s approved findings into a scheduled 12-month engagement plan: the six-sprint frame (kickoff, technical, local, content, links, reporting) with calendar-month deliverables — technical in month 1, content batched monthly, link-production slots, and a monthly check-in cadence. Creates a new project (or extends project_id). Only approved/edited findings are included.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "analysis_id": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string",
+            "description": "Extend this project instead of creating one"
+          },
+          "project_name": {
+            "type": "string",
+            "description": "Name for the new project"
+          },
+          "start_date": {
+            "type": "string",
+            "description": "Engagement start (YYYY-MM-DD, default today)"
+          },
+          "engagement_months": {
+            "type": "number",
+            "description": "Plan length in months (default 12)"
+          },
+          "batch_size": {
+            "type": "number",
+            "description": "Content pages reworked per month (default 8)"
+          },
+          "links_per_month": {
+            "type": "number",
+            "description": "Link placements per month (default 6)"
+          }
+        },
+        "required": [
+          "analysis_id"
+        ]
+      }
+    },
+    {
+      "name": "plan_export",
+      "description": "Export a project plan for a PM tool. Returns CSV content (clickup | asana | monday | csv) built from the project’s sprints and deliverables; rejected items are excluded.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string"
+          },
+          "format": {
+            "type": "string",
+            "description": "clickup | asana | monday | csv"
+          }
+        },
+        "required": [
+          "project_id",
+          "format"
+        ]
+      }
+    },
+    {
+      "name": "integrations_set",
+      "description": "Store (encrypted) the credentials for a provider (e.g. ahrefs, gsc, ga4, localfalcon, gbp, dataforseo). fields is an object of secret key/values. Overwrites any existing entry. Pass verify:true to also probe the credential against the provider (free endpoint) and get a `verification` block back — worth doing, because a stored-but-rejected key otherwise fails silently weeks later.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string"
+          },
+          "fields": {
+            "type": "object",
+            "description": "Secret key/value pairs (e.g. {api_key} or {login, password})"
+          },
+          "verify": {
+            "type": "boolean",
+            "description": "Also check the credential against the provider and return the result. Default false."
+          }
+        },
+        "required": [
+          "provider",
+          "fields"
+        ]
+      }
+    },
+    {
+      "name": "integrations_verify",
+      "description": "Check an already-stored credential against the provider. Returns { status: ok | invalid | unknown | unsupported, detail }. `invalid` means the provider definitively rejected it; `unknown` means we could not reach the provider, NOT that the key is bad. Use this when a report or pull comes back empty before assuming there is no data.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider"
+        ]
+      }
+    },
+    {
+      "name": "integrations_list",
+      "description": "List configured integrations — provider + which field names are set + last updated. Never returns secret values.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "integrations_delete",
+      "description": "Remove a provider’s stored credentials.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider"
+        ]
+      }
+    },
+    {
+      "name": "leads_list",
+      "description": "List leads (filter by status, source, or search text).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "search": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "leads_get",
+      "description": "Get a lead by id.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "leads_create",
+      "description": "Create a lead.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "company_name": {
+            "type": "string"
+          },
+          "contact_name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "website": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "expected_deal_value": {
+            "type": "number",
+            "description": "Whole units — a fractional amount is rounded to the nearest whole number."
+          },
+          "notes": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "company_name",
+          "contact_name",
+          "email"
+        ]
+      }
+    },
+    {
+      "name": "leads_update",
+      "description": "Update lead fields.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "leads_transition",
+      "description": "Move a lead to a new pipeline stage (validated). Stages: awaiting_discovery, awaiting_analysis_proposal, proposal_sent_awaiting_decision, won (auto-converts to live client), stuck_nurturing, lost_followup, lost_closed, not_qualified. Legacy v1 names still accepted.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status"
+        ]
+      }
+    },
+    {
+      "name": "leads_delete",
+      "description": "Permanently delete a lead and its follow-ups, analyses, and cached pulls. Refused if the lead was converted to a client. To archive a live lead instead, transition it to stuck_nurturing or lost_closed.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "pipeline_summary",
+      "description": "Pipeline metrics: counts by stage + open/won value.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "followups_list",
+      "description": "List follow-ups (optionally by status).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "followups_create",
+      "description": "Create a follow-up reminder for a lead or client. assigned_to names the responsible teammate.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "lead_id": {
+            "type": "string"
+          },
+          "client_id": {
+            "type": "string"
+          },
+          "due_date": {
+            "type": "string"
+          },
+          "follow_up_type": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "assigned_to": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "due_date"
+        ]
+      }
+    },
+    {
+      "name": "followups_complete",
+      "description": "Mark a follow-up done.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "outcome": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "clients_list",
+      "description": "List clients.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "service_type": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "clients_get",
+      "description": "Get a client by id.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "clients_create",
+      "description": "Create a client. ALWAYS set `website` when the client has one — it is the key used to match their backlinks in the link workbook and their Search Console/GA4 properties, so a client created without it silently shows no link data and no organic reporting until someone adds it by hand. If you are creating clients in bulk and a website is missing from your source, ask for it rather than omitting it.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "company_name": {
+            "type": "string"
+          },
+          "contact_name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "service_type": {
+            "type": "string"
+          },
+          "website": {
+            "type": "string"
+          },
+          "monthly_retainer": {
+            "type": "number",
+            "description": "Whole units — a fractional amount is rounded to the nearest whole number."
+          },
+          "lead_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "company_name",
+          "contact_name",
+          "email",
+          "service_type"
+        ]
+      }
+    },
+    {
+      "name": "clients_update",
+      "description": "Update client fields.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "clients_onboarding_seed",
+      "description": "Create the onboarding-checklist project (invoice, onboarding email, kickoff call, platform access) for an existing client. Refused if an onboarding project already exists.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "clients_delete",
+      "description": "Permanently delete a client and EVERYTHING attached — its projects, sprints, deliverables (with comments/attachments), content, links, follow-ups, analyses, and cached data. Irreversible; there is no undo. Prefer archiving (clients_update status: inactive) for real clients. Confirm with the user before calling.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "projects_list",
+      "description": "List projects (optionally for a client).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "client_id": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "projects_update",
+      "description": "Update project fields (name, status [planning|active|paused|completed|cancelled], dates, primary_goal, kpis).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "sprints_list",
+      "description": "List sprints for a project.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id"
+        ]
+      }
+    },
+    {
+      "name": "sprints_update",
+      "description": "Update sprint fields (status [pending|active|blocked|completed|skipped] — activating/completing stamps actual dates —, scheduled dates, notes, blockers, client_approved).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "deliverables_list",
+      "description": "List deliverables for a sprint.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "sprint_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sprint_id"
+        ]
+      }
+    },
+    {
+      "name": "deliverables_create",
+      "description": "Add a deliverable (task) to a sprint.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "sprint_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "deliverable_type": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "due_date": {
+            "type": "string"
+          },
+          "assigned_to": {
+            "type": "string"
+          },
+          "estimated_hours": {
+            "type": "number"
+          },
+          "notes": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sprint_id",
+          "name",
+          "deliverable_type"
+        ]
+      }
+    },
+    {
+      "name": "deliverables_update",
+      "description": "Update deliverable fields (status [pending|in_progress|review|completed|blocked] — completing stamps completed_at —, assigned_to, due_date, estimated/actual hours, name, description, notes, blockers, output links, depends_on [array of deliverable ids that must complete first; validated]).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "links_list",
+      "description": "Backlinks acquired for a client, synced from the agency's central link workbook (source URL, anchor, cost, date, status). Returns the rows plus totals (link count, spend, first/last build date). Use `links_sync` first if `synced_at` is stale.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "client_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_id"
+        ]
+      }
+    },
+    {
+      "name": "links_sync",
+      "description": "Re-read the agency's link workbook and refresh stored links. Omit client_id to sync every client (one workbook download for the whole roster). Links are matched to a client by their website domain, so a client with no website set is skipped.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "client_id": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "content_list",
+      "description": "The content calendar for a client — one row per article/page with status, topic, search volume, and draft/published URLs. The app is the source of truth for these.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "client_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_id"
+        ]
+      }
+    },
+    {
+      "name": "clients_set_target_keywords",
+      "description": "Set the tracked target keywords for a client (max 20). These appear in the client report keyword-rankings table with current rank + change. Typically set from the WQA’s top keywords. Pass keywords: string[].",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "keywords": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Up to 20 keyword strings"
+          }
+        },
+        "required": [
+          "id",
+          "keywords"
+        ]
+      }
+    },
+    {
+      "name": "plan_templates_list",
+      "description": "List the reusable project-plan templates per service (onboarding, seo), each with its task list (saved override or built-in default).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "plan_template_set",
+      "description": "Replace the task list for one service template. tasks = array of { name, description?, deliverable_type?, executor?(claude|human), estimated_hours?, offset_days?(due = start+offset), assigned_to? }.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "service": {
+            "type": "string"
+          },
+          "tasks": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "required": [
+          "service",
+          "tasks"
+        ]
+      }
+    },
+    {
+      "name": "plan_apply",
+      "description": "Apply a service template to a client as a new sprint of tasks. Give service (onboarding|seo) plus client_id (or project_id). Optional start_date (YYYY-MM-DD; due dates derive from each task's offset). Use for \"add local seo\", \"add facebook ads plan\", etc.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "service": {
+            "type": "string"
+          },
+          "client_id": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "start_date": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "service"
+        ]
+      }
+    },
+    {
+      "name": "team_list",
+      "description": "List team members (optionally by role).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "team_utilization",
+      "description": "Assignee × month workload rollup: task counts, done counts, estimated/actual hours, and % of each member’s monthly capacity (from weekly_hours). Includes unmatched assignee text and an Unassigned bucket.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "months": {
+            "type": "number",
+            "description": "Window length in months (default 6, from the current month)"
+          }
+        }
+      }
+    },
+    {
+      "name": "team_create",
+      "description": "Add a team member.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "email",
+          "role"
+        ]
+      }
+    },
+    {
+      "name": "team_update",
+      "description": "Update a team member.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "pulse_report",
+      "description": "The attention-first rollup: what needs a human today, grouped by client (overdue/due-soon/blocked tasks, stale or failing data pulls, analyses awaiting review, due follow-ups) and by open-pipeline lead (due follow-ups, stagnant deals, proposals in review), plus over-capacity team members. Clients/leads are ranked by urgency; quiet clients are listed as all_clear. Start here for \"what should I work on\".",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "due_soon_days": {
+            "type": "number",
+            "description": "Due-soon window in days (default 7)"
+          },
+          "stale_lead_days": {
+            "type": "number",
+            "description": "Days without touch before an active-stage lead is stagnant (default 14)"
+          }
+        }
+      }
+    },
+    {
+      "name": "agency_get",
+      "description": "Get the agency profile.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "agency_update",
+      "description": "Update the agency profile (name, contact, branding, services, …).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "finance_pnl_get",
+      "description": "Get the stored Profit & Loss blob for the account (shape: { years: { [year]: { source, updatedAt, months: { [MM]: { income, cogs, opex, totals } } } } }).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "finance_pnl_set",
+      "description": "Replace the stored Profit & Loss blob for the account. Pass the full { years: {...} } object (transformed from the QuickBooks P&L). Overwrites the entire blob.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "pnl": {
+            "type": "object",
+            "description": "Full P&L object: { years: { [year]: { source, updatedAt, months: { [MM]: { income:{line:amt}, cogs:{line:amt}, opex:{line:amt}, totals:{income,cogs,grossProfit,opex,netIncome} } } } } }"
+          }
+        },
+        "required": [
+          "pnl"
+        ]
+      }
+    },
+    {
+      "name": "analysis_run",
+      "description": "Enqueue the durable analysis workflow for an existing analysis: gather (coverage-checked, retried) → generate findings → build artifacts. Runs async when the worker is configured; returns a job to poll with job_get plus a review_url — the strategist approves findings in the web app (or via findings_set_status) before plan_import. Does NOT auto-approve.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "analysis_id": {
+            "type": "string"
+          },
+          "artifacts": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            },
+            "description": "Override artifacts to build (default per type)"
+          }
+        },
+        "required": [
+          "analysis_id"
+        ]
+      }
+    },
+    {
+      "name": "import_workspace",
+      "description": "Migrate an old local-first Agency OS workspace into this account. Zip the AGENCY_ROOT folder (the one containing data/ and clients/), base64-encode the zip, and pass it as zip_b64. Maps leads, clients, follow-ups, projects, sprints, deliverables, team and agency, plus WQA / local-audit / proposal analysis data; raw vendor dumps and files are preserved. Idempotent — safe to re-run (records are matched by an import marker, not duplicated). Returns a job to poll with job_get; the job result is the import summary (per-entity counts + warnings).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "zip_b64": {
+            "type": "string",
+            "description": "Base64-encoded .zip of the AGENCY_ROOT folder."
+          }
+        },
+        "required": [
+          "zip_b64"
+        ]
+      }
+    },
+    {
+      "name": "job_get",
+      "description": "Get a workflow job (status/result/error).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "job_list",
+      "description": "List workflow jobs, optionally filtered by ref_id (analysis/artifact) or status.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "ref_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "data_catalog",
+      "description": "Schema catalog of every table query_run can read: columns, types, keys, relationships, enum vocabularies, and the jsonb payload shapes of observations.data by kind. Call this before writing SQL. Optionally pass `table` for one table.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "table": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "query_run",
+      "description": "Run one read-only Postgres SELECT over this account's data — joins, CTEs, aggregates, window functions, and jsonb operators are all fine. Tenant scoping is automatic (never filter on account_id). Single statement only, default 500-row cap (max_rows up to 1000), ~5s timeout. Use data_catalog first to see what's queryable.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "sql": {
+            "type": "string"
+          },
+          "max_rows": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "sql"
+        ]
+      }
+    },
+    {
+      "name": "google_drive_export",
+      "description": "Export a built artifact to the connected Google Drive. `as: file` saves the PDF/xlsx as-is; `as: google_sheet` converts an xlsx/csv workbook into a native Google Sheet; `as: google_doc` converts an html report into a native Google Doc. Requires the Google account to be connected (Settings → Integrations → Connect Google).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "artifact_id": {
+            "type": "string",
+            "description": "Artifact id from artifact_build / artifact_get"
+          },
+          "as": {
+            "type": "string",
+            "enum": [
+              "file",
+              "google_doc",
+              "google_sheet"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "description": "File name in Drive (defaults to <kind>-<id>)"
+          },
+          "folder_id": {
+            "type": "string",
+            "description": "Destination Drive folder id (optional; defaults to My Drive root)"
+          }
+        },
+        "required": [
+          "artifact_id",
+          "as"
+        ]
+      }
+    },
+    {
+      "name": "clients_drive_setup",
+      "description": "Create (or reuse) the client’s Google Drive folder tree — a root folder named after the client, plus Content and Link Tracker subfolders — and save the folder ids on the client. Idempotent. Requires the Google account to be connected (Settings → Integrations → Connect Google).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "client_id": {
+            "type": "string",
+            "description": "Client id to set up Drive folders for"
+          }
+        },
+        "required": [
+          "client_id"
+        ]
+      }
+    },
+    {
+      "name": "content_push_to_sheet",
+      "description": "Push the client’s content workbook (content_pieces) to a native Google Sheet in their Drive Content folder. One-way: creates the sheet on first push, replaces the same sheet’s content on later pushes (stable URL). Auto-creates the Drive folder tree if needed. Requires Google connected.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "client_id": {
+            "type": "string",
+            "description": "Client id whose content to push"
+          }
+        },
+        "required": [
+          "client_id"
+        ]
+      }
+    },
+    {
+      "name": "artifact_publish_to_drive",
+      "description": "Publish a finished artifact (report/deck/workbook) into the CLIENT-VISIBLE Google Drive Deliverables folder. Explicit, human-confirmed action — the client can see this folder, so only publish reviewed docs. Requires the Google account connected.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "artifact_id": {
+            "type": "string",
+            "description": "Artifact id (must be built/ready) to publish"
+          }
+        },
+        "required": [
+          "artifact_id"
+        ]
+      }
+    },
+    {
+      "name": "support_ticket",
+      "description": "File a support ticket with the Agency OS team. Use this when the user hits a bug, an unexpected error, or is blocked by something you cannot fix — after telling them you're filing it. Put what they were trying to do, what happened instead, and the exact error text in `body`. The ticket automatically carries their workspace, account, recent errors and a trace id, so do NOT ask them for those or include account ids in the body.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "subject": {
+            "type": "string",
+            "description": "One line naming the problem, as a human would say it."
+          },
+          "body": {
+            "type": "string",
+            "description": "What the user was doing, what happened, and the exact error. Include reproduction steps if known."
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "low",
+              "normal",
+              "high"
+            ],
+            "description": "'high' only when the user is blocked from working entirely."
+          }
+        },
+        "required": [
+          "subject",
+          "body"
+        ]
+      }
+    },
+    {
+      "name": "pm_boards_list",
+      "description": "List the boards/projects in a connected project-management tool (asana | clickup) that this workspace's stored credentials can see. Returns each board with its id, name, workspace, team and last-modified date — the input to pm_import. Read-only. Connect the tool first with integrations_set (provider one of asana | clickup, fields {pat}). A board is an Asana project or a ClickUp List; each provider stores its own credential, so both can be connected at once.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string",
+            "description": "Which tool: asana | clickup"
+          },
+          "workspace_id": {
+            "type": "string",
+            "description": "Limit to one workspace/space. Default: every workspace the token can see."
+          }
+        },
+        "required": [
+          "provider"
+        ]
+      }
+    },
+    {
+      "name": "pm_tasks_preview",
+      "description": "Read one board WITHOUT writing anything: its tasks normalized the way pm_import would store them (name, notes, column/section, status, due date, assignee, tags, subtasks), plus `columns` — every section with its task count and the status it will import as. Comments and files are NOT read here unless you pass include_comments:true (two requests per task) — pm_import brings them across either way. Check that mapping before importing: a column whose name is the agency’s own vocabulary (\"Links\", \"With Creative Badges\") means nothing to the word rules and lands as pending, and an archive column like \"Repository\" lands as pending too, i.e. as open work. Anything wrong here is fixed with pm_import’s per-board `status_map`, not by renaming the column in Asana. Also spot which assignees are missing from the team roster before importing.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string",
+            "description": "Which tool: asana | clickup"
+          },
+          "board_id": {
+            "type": "string",
+            "description": "Board/project id from pm_boards_list."
+          },
+          "include_completed": {
+            "type": "boolean",
+            "description": "Include done tasks. Default false."
+          },
+          "include_subtasks": {
+            "type": "boolean",
+            "description": "Read one level of subtasks. Default true."
+          },
+          "include_comments": {
+            "type": "boolean",
+            "description": "Also read each task’s and subtask’s comment thread and files (returned on the tasks, counted in `threads`). Default FALSE here — two extra requests each, and a preview does not need it. pm_import brings them across regardless."
+          },
+          "limit": {
+            "type": "number",
+            "description": "Max tasks to read (default 1000)."
+          }
+        },
+        "required": [
+          "provider",
+          "board_id"
+        ]
+      }
+    },
+    {
+      "name": "pm_import",
+      "description": "Import tasks from one or more boards into this workspace. Each entry in `boards` maps a board to the CLIENT whose work it is: { board_id, client_id, project_name?, project_id?, group_by? }. A board becomes a project under that client, each column/section becomes a sprint, each task becomes a task in that sprint (status inferred from the column, assignee matched against the team roster, subtasks carried across, the comment thread and its files brought across — on subtasks too — with a link back to the original). When a column’s name is the agency’s own vocabulary the word rules can only fall back to pending — pass `status_map` on that board to say where it really belongs, rather than leaving a column of finished work in the queue. Idempotent: re-running matches on the provider id and updates instead of duplicating, so this doubles as a refresh — which also means the PM tool wins on any field edited in both places (pass update_existing:false to leave existing tasks untouched). Pass dry_run:true first to see the counts without writing. Runs as a background job; poll job_get.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string",
+            "description": "Which tool: asana | clickup"
+          },
+          "boards": {
+            "type": "array",
+            "description": "Board → client mappings. Max 20 per run.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "board_id": {
+                  "type": "string"
+                },
+                "client_id": {
+                  "type": "string",
+                  "description": "Existing client id (clients_list) this board’s work belongs to."
+                },
+                "project_id": {
+                  "type": "string",
+                  "description": "Import into this existing project instead of creating one."
+                },
+                "project_name": {
+                  "type": "string",
+                  "description": "Name for the created project. Default: the board’s name."
+                },
+                "project_type": {
+                  "type": "string",
+                  "description": "Project type for a created project (default \"custom\")."
+                },
+                "group_by": {
+                  "type": "string",
+                  "description": "\"column\" (default) = one sprint per section; \"single\" = one sprint for the whole board."
+                },
+                "status_map": {
+                  "type": "object",
+                  "description": "Per-column status overrides: { \"<section name as Asana spells it>\": \"pending\" | \"in_progress\" | \"review\" | \"completed\" | \"blocked\" }. Use it for columns pm_tasks_preview shows landing somewhere wrong — matching is case- and whitespace-insensitive.",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "board_id",
+                "client_id"
+              ]
+            }
+          },
+          "include_completed": {
+            "type": "boolean",
+            "description": "Bring done tasks across too. Default false."
+          },
+          "include_subtasks": {
+            "type": "boolean",
+            "description": "Read one level of subtasks. Default true."
+          },
+          "include_comments": {
+            "type": "boolean",
+            "description": "Bring each task’s and subtask’s comment thread and files across. Default true; budget of 600 tasks+subtasks per board, top-level tasks first."
+          },
+          "limit": {
+            "type": "number",
+            "description": "Max tasks per board (default 1000)."
+          },
+          "update_existing": {
+            "type": "boolean",
+            "description": "Re-runs overwrite previously imported tasks. Default true."
+          },
+          "dry_run": {
+            "type": "boolean",
+            "description": "Report what would happen and write nothing. Returns the summary directly (no job)."
+          }
+        },
+        "required": [
+          "provider",
+          "boards"
+        ]
+      }
+    }
+  ]
+}
