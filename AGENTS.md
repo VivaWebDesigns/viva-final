@@ -11,6 +11,12 @@
 - After committing or pushing, report the commit hash, repository, and branch.
 - Do not leave stale task branches, temporary worktrees, unpushed requested commits, or unrelated staged files behind.
 
+## Post-push deployment boundary
+
+Once the requested changes have been pushed successfully, do not poll Railway, inspect Railway deployment status or logs, wait for a Railway deployment, fetch or curl the production website or API, or run `git pull` to determine whether Railway has deployed the changes.
+
+Only perform post-push deployment monitoring or live-production verification when I explicitly request it in the current task. Otherwise, treat the successful push as the completion boundary and report that the push succeeded and that the Railway deployment was not verified.
+
 ## Database Schema Changes
 
 - This project deploys on Railway. Local shells usually do not have `DATABASE_URL`, and the app service `DATABASE_URL` may point at Railway's private hostname (`postgres.railway.internal`), which is not reachable from this machine.
