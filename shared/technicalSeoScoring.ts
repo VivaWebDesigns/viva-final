@@ -1,4 +1,5 @@
 import type { TechnicalSeoGrade, TechnicalSeoIssue, TechnicalSeoScanResult } from "./technicalSeo";
+import { LOW_ON_PAGE_SUMMARY, LOW_ON_PAGE_THEME, MISSING_LOCATION_OPPORTUNITY, MISSING_SERVICE_OPPORTUNITY, scoreSeoContentTargeting } from "./technicalSeoContent";
 import { assessTrustConversion } from "./technicalSeoTrust";
 
 type GradeKey = TechnicalSeoGrade["key"];
@@ -223,6 +224,8 @@ function buildTechnicalDeliveryIssues(result: TechnicalSeoScanResult): Technical
 export function normalizeTechnicalSeoResult(result: TechnicalSeoScanResult): TechnicalSeoScanResult {
   if (result.version !== 3 || !result.siteAudit) return result;
   const trust = assessTrustConversion(result);
+  const content = result.siteAudit.context?.trade && result.siteAudit.context?.city
+    ? scoreSeoContentTargeting(result.siteAudit.pages, result.siteAudit.context) : null;
   const derived = [...buildTechnicalArchitectureIssues(result.siteAudit), ...buildTechnicalDeliveryIssues(result), ...(trust?.issues ?? [])];
   const replacesGenericMultipleH1 = derived.some((issue) => issue.id === "duplicate-primary-dom-content");
   const storedIssues = replacesGenericMultipleH1 ? result.issues.filter((issue) => issue.id !== "multiple-h1") : result.issues;
@@ -233,13 +236,13 @@ export function normalizeTechnicalSeoResult(result: TechnicalSeoScanResult): Tec
   const grades = result.siteAudit.grades.map((item) => item.key === "technical"
     ? { ...item, grade: technical.grade, score: technical.score, rationale }
     : item.key === "trust_conversion" && trust ? { ...item, grade: trust.grade, score: trust.score, rationale: `Trust evidence ${trust.trustPoints}/60 and conversion readiness ${trust.conversionPoints}/40. ${trust.caps.length ? `Grade cap applied because ${trust.caps.join("; ")}.` : "No limiting evidence gate was triggered."}` }
-    : item.key === "local_seo" ? { ...item, label: "On-page SEO, content & local targeting" } : item);
+    : item.key === "local_seo" ? { ...item, label: "On-page SEO, content & local targeting", grade: content?.grade ?? item.grade, score: content?.score ?? item.score, rationale: content?.rationale ?? item.rationale } : item);
   const technicalTheme = {
     title: "The technical foundation needs a clearer, cleaner structure",
     summary: "Crawl access alone is not enough: page architecture, URLs, delivered source structure, machine-readable markup, and platform controls must work together before the site can scale reliably.",
     issueIds: issues.filter((issue) => issue.gradeKey === "technical").map((issue) => issue.id),
   };
-  const existingThemes = result.siteAudit.insights?.themes ?? [];
+  const existingThemes = (result.siteAudit.insights?.themes ?? []).filter((theme) => !(content && content.score >= 80 && theme.title === LOW_ON_PAGE_THEME));
   const trustTheme = {
     title: "Trust evidence and the inquiry journey do not yet resolve customer risk",
     summary: "Authentic identity and operational proof matter, but customers also need visible third-party reassurance, clear policies, consistent claims, and a dependable path from interest to inquiry or booking.",
@@ -247,12 +250,20 @@ export function normalizeTechnicalSeoResult(result: TechnicalSeoScanResult): Tec
   };
   let themes = technical.score < 80 && !existingThemes.some((theme) => theme.title === technicalTheme.title) ? [technicalTheme, ...existingThemes].slice(0, 4) : existingThemes;
   if (trust && trust.score < 80 && !themes.some((theme) => theme.title === trustTheme.title)) themes = [trustTheme, ...themes].slice(0, 4);
+  const opportunities = (result.siteAudit.insights?.opportunities ?? []).flatMap((opportunity) => {
+    if (content && opportunity.title === MISSING_SERVICE_OPPORTUNITY) return content.serviceMatches < content.serviceTargetCount
+      ? [{ ...opportunity, evidence: `${content.serviceMatches}/${content.serviceTargetCount} supplied service targets appear in meaningful page signals.` }] : [];
+    if (content && opportunity.title === MISSING_LOCATION_OPPORTUNITY) return content.locationMatches < content.locationTargetCount
+      ? [{ ...opportunity, evidence: `${content.locationMatches}/${content.locationTargetCount} supplied location targets appear in meaningful page signals.` }] : [];
+    return [opportunity];
+  });
+  const plainLanguageSummary = (result.siteAudit.plainLanguageSummary ?? []).filter((summary) => !(content && content.score >= 70 && summary === LOW_ON_PAGE_SUMMARY));
   const issueCounts = { ...result.summary.issueCounts };
   for (const severity of Object.keys(issueCounts) as Array<keyof typeof issueCounts>) issueCounts[severity] = issues.filter((issue) => issue.severity === severity).length;
   return {
     ...result,
     issues,
     summary: { ...result.summary, issueCounts },
-    siteAudit: { ...result.siteAudit, grades, insights: result.siteAudit.insights ? { ...result.siteAudit.insights, themes } : { themes, opportunities: [] } },
+    siteAudit: { ...result.siteAudit, grades, plainLanguageSummary, insights: result.siteAudit.insights ? { ...result.siteAudit.insights, themes, opportunities } : { themes, opportunities } },
   };
 }
