@@ -1,4 +1,5 @@
 import { registerSabOrchestrationTools } from "./orchestration";
+import { registerBacklinkTools } from "../backlinks/tools";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
   type SabSheetsRepositoryFactory,
@@ -96,7 +97,7 @@ export function createSabMcpServer(
 ) {
   const server = new McpServer({
     name: "viva-sab-workflow",
-    version: "2.7.0",
+    version: "2.8.0",
   });
 
   server.registerTool(
@@ -485,5 +486,6 @@ export function createSabMcpServer(
   );
 
   registerSabOrchestrationTools(server, repositoryFactory, actorEmail);
+  registerBacklinkTools(server, actorEmail, sabTool);
   return server;
 }

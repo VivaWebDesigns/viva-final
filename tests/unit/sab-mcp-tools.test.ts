@@ -25,7 +25,12 @@ describe("SAB MCP tool discovery", () => {
 
     try {
       const { tools } = await client.listTools();
-      expect(tools).toHaveLength(42);
+      expect(tools).toHaveLength(46);
+      for (const name of ["run_backlink_report", "compare_backlink_competitors", "get_backlink_history"]) {
+        expect(tools.map(tool => tool.name)).toContain(name);
+      }
+      expect(tools.find(tool => tool.name === "get_backlink_history")?.annotations?.readOnlyHint).toBe(true);
+      expect(tools.find(tool => tool.name === "run_backlink_report")?.annotations?.readOnlyHint).toBe(false);
       for (const name of ["bulk_save_sab_companies", "audit_sab_contacts", "record_sab_contact_research", "pin_sab_sop_revision", "reconcile_sab_import_batch",
         "approve_sab_canonical_evidence_exception", "approve_sab_master_cluster_exception"]) {
         expect(tools.map((tool) => tool.name)).toContain(name);

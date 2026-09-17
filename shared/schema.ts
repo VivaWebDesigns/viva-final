@@ -4,6 +4,22 @@ import { pgTable, text, varchar, timestamp, boolean, integer, jsonb, primaryKey,
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Immutable completed DataForSEO snapshots; cacheKey also claims paid work across replicas.
+export const backlinkSnapshots = pgTable("backlink_snapshots", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  cacheKey: text("cache_key").notNull().unique(),
+  fingerprint: text("fingerprint").notNull(),
+  domain: text("domain").notNull(),
+  kind: text("kind").notNull(),
+  status: text("status").notNull().default("running"),
+  requestedBy: text("requested_by").notNull(),
+  request: jsonb("request").notNull(),
+  sections: jsonb("sections").notNull().default(sql`'{}'::jsonb`),
+  report: jsonb("report"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+}, (t) => [index("backlink_snapshots_domain_created_idx").on(t.domain, t.createdAt)]);
+
 export const contacts = pgTable("contacts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
