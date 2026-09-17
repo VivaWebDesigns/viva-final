@@ -59,6 +59,8 @@ describe("technical SEO client report model", () => {
     expect(source).toContain("logo-header-lockup-20260713-v4.png?v=20260910-technical-report-v1");
     expect(source).toContain("Each category is graded independently from A–F");
     expect(source).toContain("Content and conversion opportunities");
+    expect(source).toContain("downloadTechnicalSeoReportPdf");
+    expect(source).not.toContain("window.print()");
     expect(source).not.toContain("Copy email");
     expect(source).not.toContain("EMAIL VERSION");
     expect(source).not.toContain("Measured site, speed, and local evidence");

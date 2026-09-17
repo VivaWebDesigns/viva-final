@@ -1,8 +1,10 @@
+import { useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Download, Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
 import type { TechnicalSeoScanResult } from "@shared/technicalSeo";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 import { buildTechnicalSeoReportModel, truncateReportText } from "./reportModel";
 import "./technical-seo-report.css";
 
@@ -15,13 +17,30 @@ function evidenceLabel(value?: string) { return value === "manual_verification" 
 
 export default function TechnicalSeoReportPage({ scanId }: { scanId: string }) {
   const [, navigate] = useLocation();
+  const { toast } = useToast();
+  const reportRef = useRef<HTMLElement>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const { data: scan, isLoading, error } = useQuery<ScanRecord>({ queryKey: [`/api/technical-seo/scans/${scanId}`] });
   if (isLoading) return <div className="flex min-h-[60vh] items-center justify-center gap-2 text-gray-500"><Loader2 className="h-5 w-5 animate-spin" />Preparing report…</div>;
   if (error || !scan?.result) return <div className="mx-auto max-w-xl rounded-xl border bg-white p-8"><h1 className="text-xl font-semibold">Report unavailable</h1><p className="mt-2 text-sm text-gray-600">This report can be generated after the scan completes.</p></div>;
   const report = buildTechnicalSeoReportModel(scan.result);
   const date = new Date(report.capturedAt || scan.createdAt).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
-  return <div className="seo-report-shell"><div className="seo-report-toolbar"><Button variant="outline" onClick={() => navigate(`/admin/tools/technical-seo/${scanId}`)}><ArrowLeft className="mr-2 h-4 w-4" />Back</Button><div><strong>Client audit</strong><span>Independent grades, business impact, and prioritized opportunities</span></div><div className="flex justify-end gap-2"><Button onClick={() => window.print()}><Download className="mr-2 h-4 w-4" />Save PDF</Button></div></div>
-  <main className="seo-client-report-root">
+  const savePdf = async () => {
+    if (!reportRef.current || isSaving) return;
+    setIsSaving(true);
+    try {
+      const { downloadTechnicalSeoReportPdf } = await import("./exportReportPdf");
+      const business = (report.context?.businessName ?? report.domain).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "client";
+      await downloadTechnicalSeoReportPdf(reportRef.current, `viva-seo-audit-${business}.pdf`);
+      toast({ title: "PDF downloaded", description: "The client report was saved as a four-page PDF." });
+    } catch (error) {
+      toast({ title: "PDF could not be downloaded", description: error instanceof Error ? error.message : "Please try again.", variant: "destructive" });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+  return <div className="seo-report-shell"><div className="seo-report-toolbar"><Button variant="outline" onClick={() => navigate(`/admin/tools/technical-seo/${scanId}`)}><ArrowLeft className="mr-2 h-4 w-4" />Back</Button><div><strong>Client audit</strong><span>Independent grades, business impact, and prioritized opportunities</span></div><div className="flex justify-end gap-2"><Button onClick={savePdf} disabled={isSaving}>{isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}{isSaving ? "Creating PDF…" : "Save PDF"}</Button></div></div>
+  <main ref={reportRef} className="seo-client-report-root">
     <section className="seo-report-page seo-report-cover"><div className="seo-report-cover-mark"><img src={REPORT_LOGO} alt="Viva Web Designs" /></div><div className="seo-report-cover-copy"><span>Local SEO & Technical Audit</span><h1>{report.context?.businessName ?? report.domain}</h1><p>{report.context ? `${report.context.trade} · ${report.context.city}, ${report.context.state}` : report.domain}</p></div><div className="seo-report-grade-grid">{report.grades.map((g) => <div className={`grade-${gradeClass(g.grade)}`} key={g.key}><strong>{g.grade}</strong><span>{g.label}</span></div>)}</div><p className="seo-report-grade-note">Each category is graded independently from A–F. There is no blended overall score.</p><div className="seo-report-cover-meta"><div><span>Website</span><strong>{report.finalUrl}</strong></div><div><span>Audit date</span><strong>{date}</strong></div><div><span>Scope</span><strong>{report.crawl ? `${report.crawl.crawled} pages crawled` : "Legacy one-page scan"}</strong></div></div><Footer domain={report.domain} /></section>
     <section className="seo-report-page"><Header number={2} title="What the evidence means for the business" /><div className="seo-report-theme-list">{report.themes.length ? report.themes.map((theme, index) => <article key={`${theme.title}-${index}`}><span>{index + 1}</span><div><h3>{theme.title}</h3><p>{theme.summary}</p></div></article>) : <p className="seo-report-empty">No material business-impact theme was identified within the completed checks.</p>}</div><h3 className="seo-report-section-title">Independent category grades</h3><div className="seo-report-grade-detail">{report.grades.map((g) => <article key={g.key}><b className={`grade-${gradeClass(g.grade)}`}>{g.grade}</b><div><strong>{g.label}</strong><p>{g.rationale}</p></div></article>)}</div><div className="seo-report-note"><strong>Evidence standard</strong><p>Each grade uses only evidence belonging to that category. Provider failures are labeled Not assessed. Google Maps rankings are excluded because they belong in the dedicated map-pack scan.</p></div><Footer domain={report.domain} /></section>
     <section className="seo-report-page"><Header number={3} title="Highest-priority problems" /><p className="seo-report-lede">These are consolidated, client-relevant problems—not a count of every imperfect element. The internal CRM retains the complete technical evidence.</p><div className="seo-report-issue-list">{report.issues.slice(0, 6).map((issue, i) => <article key={issue.id}><span>{i + 1}</span><div><small>{issue.severity} · {issue.category} · {evidenceLabel(issue.evidenceStatus)}</small><h3>{issue.name}</h3><p>{truncateReportText(issue.observation, 185)}</p><p><b>Evidence:</b> {truncateReportText(issue.evidence, 170)}</p><p><b>Business impact:</b> {truncateReportText(issue.rankingImpact ?? issue.interpretation, 205)}</p></div></article>)}</div><Footer domain={report.domain} /></section>
