@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { STALE } from "@/lib/queryClient";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { useState } from "react";
 import {
   BarChart3, TrendingUp, Target, DollarSign, Users, CheckCircle2,
@@ -33,7 +33,7 @@ function StatCard({ label, value, icon: Icon, color, sub, testId }: {
   label: string; value: string | number; icon: any; color: string; sub?: string; testId: string;
 }) {
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       className="bg-white rounded-xl border border-gray-200 p-5"
@@ -47,7 +47,7 @@ function StatCard({ label, value, icon: Icon, color, sub, testId }: {
       <p className="text-2xl font-bold text-gray-900">{value}</p>
       <p className="text-sm text-gray-500 mt-1">{label}</p>
       {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
-    </motion.div>
+    </m.div>
   );
 }
 

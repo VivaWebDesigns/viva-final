@@ -1,5 +1,5 @@
 import { Star, Quote } from "lucide-react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 
 interface ReviewCardProps {
   name: string;
@@ -10,7 +10,7 @@ interface ReviewCardProps {
 
 export function ReviewCard({ name, location, text, delay }: ReviewCardProps) {
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
@@ -38,6 +38,6 @@ export function ReviewCard({ name, location, text, delay }: ReviewCardProps) {
           <p className="text-muted-foreground text-xs">{location}</p>
         </div>
       </div>
-    </motion.div>
+    </m.div>
   );
 }

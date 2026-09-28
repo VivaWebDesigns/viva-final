@@ -556,7 +556,7 @@ export default function LocalVisibilityReportPage({ initialData }: LocalVisibili
                   </div>
                   <p className="mt-1 text-xs leading-5 text-gray-500">Paste the scan report and heatmap in either order. Fields fill automatically after the second image.</p>
                 </div>
-                <input
+                <input aria-label="Upload screenshots"
                   ref={smartPasteInputRef}
                   id="smart-paste-upload"
                   className="sr-only"

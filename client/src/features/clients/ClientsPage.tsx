@@ -90,7 +90,7 @@ export default function ClientsPage() {
             {clients.map(client => (
               <Link key={client.id} href={`/admin/clients/${client.id}`}>
                 <div
-                  className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md hover:border-gray-300 transition-all cursor-pointer group"
+                  className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md hover:border-gray-300 transition cursor-pointer group"
                   data-testid={`card-client-${client.id}`}
                 >
                   <div className="flex items-start justify-between gap-2 mb-3">

@@ -2,7 +2,7 @@ import { Navigation } from "@crece/components/Navigation";
 import { Footer } from "@crece/components/Footer";
 import { Button } from "@crece/components/ui/button";
 import { useEffect } from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Link } from "wouter";
 import { useLanguage } from "@crece/hooks/use-language";
 import {
@@ -42,7 +42,7 @@ export default function About() {
       <section className="py-12 md:py-24">
         <div className="container mx-auto px-4 md:px-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-center">
-            <motion.div
+            <m.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6 }}
@@ -90,10 +90,10 @@ export default function About() {
                   <ArrowRight className="ml-2" size={18} />
                 </Button>
               </Link>
-            </motion.div>
+            </m.div>
 
 
-            <motion.div
+            <m.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
@@ -119,7 +119,7 @@ export default function About() {
                   <span className="text-muted-foreground text-xs">{t("about.satisfactionDesc")}</span>
                 </div>
               </div>
-            </motion.div>
+            </m.div>
           </div>
         </div>
       </section>

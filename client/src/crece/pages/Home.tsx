@@ -4,7 +4,7 @@ import { ServiceCard } from "@crece/components/ServiceCard";
 import { ReviewCard } from "@crece/components/ReviewCard";
 import { Button } from "@crece/components/ui/button";
 import { useRef, useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Link } from "wouter";
 import { useLanguage } from "@crece/hooks/use-language";
 import {
@@ -48,15 +48,15 @@ export default function Home() {
       if (meta) meta.setAttribute("content", "Charlotte Painting Pro offers professional interior & exterior painting, cabinet painting, and deck staining in Charlotte, NC. Get a free estimate today.");
     }
     if (window.location.hash === "#reviews") {
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         const el = document.querySelector(window.location.hash);
         if (el) {
           el.scrollIntoView({ behavior: "smooth", block: "start" });
         }
       }, 0);
-    } else {
-      window.scrollTo(0, 0);
+      return () => clearTimeout(timer);
     }
+    window.scrollTo(0, 0);
   }, []);
 
   useEffect(() => {
@@ -109,7 +109,7 @@ export default function Home() {
         </div>
 
         <div className="container mx-auto px-4 md:px-6 relative z-10">
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7 }}
@@ -136,7 +136,7 @@ export default function Home() {
                 </Button>
               </Link>
             </div>
-          </motion.div>
+          </m.div>
         </div>
       </section>
 
@@ -157,7 +157,7 @@ export default function Home() {
             {previewServices ? (
               previewServices.map((s: any, i: number) => (
                 <ServiceCard
-                  key={i}
+                  key={s.title}
                   title={s.title}
                   description={s.description}
                   benefits={s.benefits}
@@ -210,8 +210,8 @@ export default function Home() {
               { icon: Clock, title: t("why.ontime"), desc: t("why.ontime.desc") },
               { icon: CheckCircle2, title: t("why.clean"), desc: t("why.clean.desc") },
             ].map(({ icon: Icon, title, desc }, i) => (
-              <motion.div
-                key={i}
+              <m.div
+                key={title}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -223,7 +223,7 @@ export default function Home() {
                 </div>
                 <h3 className="font-bold text-lg mb-2" style={{ fontFamily: 'var(--font-display)' }}>{title}</h3>
                 <p className="text-muted-foreground text-sm">{desc}</p>
-              </motion.div>
+              </m.div>
             ))}
           </div>
         </div>
@@ -242,7 +242,7 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {previewReviews ? (
               previewReviews.map((r: any, i: number) => (
-                <ReviewCard key={i} name={r.name} location={r.location} text={r.text} delay={(i + 1) * 0.1} />
+                <ReviewCard key={`${r.name}-${r.text}`} name={r.name} location={r.location} text={r.text} delay={(i + 1) * 0.1} />
               ))
             ) : (
               <>

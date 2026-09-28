@@ -255,10 +255,8 @@ export default function AdminDemoBuilder() {
     <div className="max-w-2xl mx-auto px-4 pt-24 pb-12">
       <h1 className="text-2xl font-bold text-foreground mb-1">{s.heading}</h1>
       <p className="text-muted-foreground text-sm mb-8">
-        {s.subheading.split("EN / ES").map((part, i, arr) =>
-          i < arr.length - 1
-            ? <span key={i}>{part}<span className="font-semibold text-foreground">EN / ES</span></span>
-            : <span key={i}>{part}</span>
+        {s.subheading.split("EN / ES").flatMap((part, i) =>
+          i === 0 ? [part] : [<span key={`en-es-${part}`} className="font-semibold text-foreground">EN / ES</span>, part]
         )}
       </p>
 
@@ -423,7 +421,7 @@ export default function AdminDemoBuilder() {
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
               <h3 className="font-semibold text-gray-900">{s.leadPickerTitle}</h3>
-              <button onClick={() => setShowLeadPicker(false)} className="text-gray-400 hover:text-gray-600">
+              <button aria-label="Close" onClick={() => setShowLeadPicker(false)} className="text-gray-400 hover:text-gray-600">
                 <X size={18} />
               </button>
             </div>

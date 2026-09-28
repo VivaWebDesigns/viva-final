@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "./useAuth";
 import { useLocation } from "wouter";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Lock, Mail, Eye, EyeOff, AlertCircle, Terminal, Zap, Shield, Users, Code2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -109,7 +109,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 px-4">
-      <motion.div
+      <m.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
@@ -127,15 +127,15 @@ export default function LoginPage() {
           </div>
 
           {error && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
+            <m.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
               className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 mb-6"
               data-testid="text-login-error"
             >
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
               <span className="text-sm">{error}</span>
-            </motion.div>
+            </m.div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -174,7 +174,7 @@ export default function LoginPage() {
                   required
                   data-testid="input-password"
                 />
-                <button
+                <button aria-label={showPassword ? "Hide password" : "Show password"}
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
@@ -205,7 +205,7 @@ export default function LoginPage() {
         </div>
 
         {import.meta.env.DEV && DEV_USERS.length > 0 && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.2 }}
@@ -274,9 +274,9 @@ export default function LoginPage() {
               <Zap className="w-3.5 h-3.5" />
               {t.auth.autoFillAdmin}
             </button>
-          </motion.div>
+          </m.div>
         )}
-      </motion.div>
+      </m.div>
     </div>
   );
 }

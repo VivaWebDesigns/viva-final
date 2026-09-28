@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { apiRequest, queryClient, STALE } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -154,7 +154,7 @@ export default function OnboardingWizardPage() {
     <div className="max-w-3xl mx-auto space-y-6">
       <div className="flex items-center gap-3">
         <Link href="/admin/onboarding">
-          <Button variant="ghost" size="icon" data-testid="button-back-wizard">
+          <Button aria-label="Back to onboarding" variant="ghost" size="icon" data-testid="button-back-wizard">
             <ArrowLeft className="h-4 w-4" />
           </Button>
         </Link>
@@ -167,7 +167,7 @@ export default function OnboardingWizardPage() {
           const isActive = i === step;
           const isDone = i < step;
           return (
-            <div key={i} className="flex items-center gap-2 flex-1">
+            <div key={s.title} className="flex items-center gap-2 flex-1">
               <div
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex-1 ${
                   isActive
@@ -188,7 +188,7 @@ export default function OnboardingWizardPage() {
       </div>
 
       <AnimatePresence mode="wait">
-        <motion.div
+        <m.div
           key={step}
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
@@ -404,7 +404,7 @@ export default function OnboardingWizardPage() {
                         <p className="text-xs text-muted-foreground uppercase tracking-wide">{CATEGORY_LABELS[category] || category}</p>
                         <ul className="ml-4 text-sm">
                           {items.map((item, i) => (
-                            <li key={i} className="flex items-center gap-1">
+                            <li key={item.label} className="flex items-center gap-1">
                               <FileText className="h-3 w-3 text-muted-foreground" />
                               {item.label}
                             </li>
@@ -424,7 +424,7 @@ export default function OnboardingWizardPage() {
               </CardContent>
             </Card>
           )}
-        </motion.div>
+        </m.div>
       </AnimatePresence>
 
       <div className="flex justify-between">

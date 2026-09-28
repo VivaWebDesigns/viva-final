@@ -239,7 +239,7 @@ export default function LeadCoverageMapPage() {
           </div>
           {rangeMode === "custom" && (
             <div className="flex items-center gap-2 text-sm">
-              <input
+              <input aria-label="Start date"
                 type="date"
                 value={customFrom}
                 onChange={(event) => setCustomFrom(event.target.value)}
@@ -247,7 +247,7 @@ export default function LeadCoverageMapPage() {
                 data-testid="input-lead-coverage-from"
               />
               <span className="text-gray-400">to</span>
-              <input
+              <input aria-label="End date"
                 type="date"
                 value={customTo}
                 onChange={(event) => setCustomTo(event.target.value)}

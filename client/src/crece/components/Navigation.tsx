@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { Menu, X, Phone, Languages } from "lucide-react";
 import { Button } from "@crece/components/ui/button";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import { useLanguage } from "@crece/hooks/use-language";
 import logoImg from "@assets/image_1_(5)_1772575534808_1773059817248.png";
 import { SiWhatsapp } from "react-icons/si";
@@ -134,7 +134,7 @@ export function Navigation() {
 
       <AnimatePresence>
         {isOpen && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
@@ -167,12 +167,12 @@ export function Navigation() {
             <a href={`tel:${(window.__PREVIEW__?.phone || "(704) 555-0123").replace(/\D/g, '')}`} className="flex items-center justify-center gap-2 text-muted-foreground font-medium py-3 mt-2" data-testid="link-mobile-phone">
               <Phone size={16} /> {window.__PREVIEW__?.phone || "(704) 555-0123"}
             </a>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
     </nav>
     {!isOpen && (
-      <a
+      <a aria-label="Chat on WhatsApp"
         href={`https://wa.me/${(() => { const d = (window.__PREVIEW__?.phone || "17045550123").replace(/\D/g,''); return d.length === 10 ? '1' + d : d; })()}`}
         target="_blank"
         rel="noopener noreferrer"

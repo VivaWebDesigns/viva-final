@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { Navigation } from "@domina/components/Navigation";
 import { Footer } from "@domina/components/Footer";
 import { Button } from "@domina/components/ui/button";
-import { motion, useScroll, useTransform } from "framer-motion";
+import { m, useScroll, useTransform } from "framer-motion";
 import { Link, useLocation } from "wouter";
 import { ArrowRight, CheckCircle } from "lucide-react";
 import { useRef } from "react";
@@ -55,7 +55,7 @@ export default function InteriorPainting() {
       <Navigation />
 
       <section ref={containerRef} className="relative h-[80vh] min-h-[600px] flex items-center justify-center overflow-hidden" data-testid="hero-interior-painting">
-        <motion.div 
+        <m.div 
           style={{ y }}
           className="absolute inset-0 z-0"
         >
@@ -65,11 +65,11 @@ export default function InteriorPainting() {
             className="w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-black/30" />
-        </motion.div>
+        </m.div>
 
         <div className="container mx-auto px-4 md:px-6 relative z-10 text-center">
           <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_center,_rgba(0,0,0,0.5)_0%,_rgba(0,0,0,0)_70%)] pointer-events-none" />
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
@@ -82,12 +82,12 @@ export default function InteriorPainting() {
               {t.interiorPage.heroSubtitle}
             </p>
             <Link href="/contact">
-              <Button data-testid="button-hero-cta" className="bg-[#3089a8] hover:bg-[#256d86] text-white font-bold px-10 py-4 text-lg rounded-md transition-all flex items-center gap-2 mx-auto">
+              <Button data-testid="button-hero-cta" className="bg-[#3089a8] hover:bg-[#256d86] text-white font-bold px-10 py-4 text-lg rounded-md transition flex items-center gap-2 mx-auto">
                 {t.interiorPage.scheduleFreeEstimate}
                 <ArrowRight size={22} />
               </Button>
             </Link>
-          </motion.div>
+          </m.div>
         </div>
       </section>
 
@@ -133,8 +133,8 @@ export default function InteriorPainting() {
               <>
                 <ol className="hidden md:grid md:grid-cols-4 md:gap-6 list-none p-0" aria-label="Our painting process steps">
                   {steps.map((step, i) => (
-                    <motion.li
-                      key={i}
+                    <m.li
+                      key={step.title}
                       initial={{ opacity: 0, y: 20 }}
                       whileInView={{ opacity: 1, y: 0 }}
                       viewport={{ once: true }}
@@ -152,15 +152,15 @@ export default function InteriorPainting() {
                         {step.title.replace(/^Step \d+:\s*/i, "")}
                       </h3>
                       <p className="text-xs text-muted-foreground leading-relaxed">{step.text}</p>
-                    </motion.li>
+                    </m.li>
                   ))}
                 </ol>
 
                 <ol className="md:hidden relative pl-12 list-none p-0 space-y-8" aria-label="Our painting process steps">
                   <div className="absolute left-[18px] top-2 bottom-2 w-0.5 bg-primary/25" aria-hidden="true" />
                   {steps.map((step, i) => (
-                    <motion.li
-                      key={i}
+                    <m.li
+                      key={step.title}
                       initial={{ opacity: 0, x: -15 }}
                       whileInView={{ opacity: 1, x: 0 }}
                       viewport={{ once: true }}
@@ -175,7 +175,7 @@ export default function InteriorPainting() {
                         {step.title.replace(/^Step \d+:\s*/i, "")}
                       </h3>
                       <p className="text-sm text-muted-foreground leading-relaxed">{step.text}</p>
-                    </motion.li>
+                    </m.li>
                   ))}
                 </ol>
               </>
@@ -189,13 +189,13 @@ export default function InteriorPainting() {
           <h2 className="text-3xl font-bold mb-6" style={{ fontFamily: 'var(--font-display)' }}>{t.interiorPage.typesTitle}</h2>
           <div className="space-y-4">
             {t.interiorPage.types.map((item, i) => (
-              <motion.div key={i} initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="flex items-start gap-3">
+              <m.div key={item.title} initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="flex items-start gap-3">
                 <CheckCircle size={20} className="text-primary flex-shrink-0 mt-0.5" />
                 <div>
                   <h3 className="font-semibold text-foreground">{item.title}</h3>
                   <p className="text-sm text-muted-foreground">{item.desc}</p>
                 </div>
-              </motion.div>
+              </m.div>
             ))}
           </div>
         </div>
@@ -206,7 +206,7 @@ export default function InteriorPainting() {
           <h2 className="text-3xl font-bold mb-6" style={{ fontFamily: 'var(--font-display)' }}>{t.interiorPage.whyChooseTitle}</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {t.interiorPage.whyChooseItems.map((item, i) => (
-              <div key={i} className="flex items-center gap-3">
+              <div key={item} className="flex items-center gap-3">
                 <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />
                 <span className="text-foreground/80 text-sm">{item}</span>
               </div>
@@ -231,7 +231,7 @@ export default function InteriorPainting() {
           <h2 className="text-3xl font-bold mb-8" style={{ fontFamily: 'var(--font-display)' }}>{t.interiorPage.faqTitle}</h2>
           <div className="space-y-6">
             {t.interiorPage.faqs.map((faq, i) => (
-              <div key={i} className="border-b border-border pb-5">
+              <div key={faq.q} className="border-b border-border pb-5">
                 <h3 className="font-semibold text-foreground mb-2">{faq.q}</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">{faq.a}</p>
               </div>

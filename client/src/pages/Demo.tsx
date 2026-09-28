@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { ArrowRight, Zap, Rocket, Crown, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -83,41 +83,41 @@ export default function Demo() {
           <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-[#0D9488] rounded-full blur-[140px] translate-y-1/2 -translate-x-1/4" />
         </div>
         <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <motion.div initial="hidden" animate="visible" variants={stagger}>
-            <motion.h1
+          <m.div initial="hidden" animate="visible" variants={stagger}>
+            <m.h1
               variants={fadeUp}
               className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-tight mb-6"
               data-testid="text-demo-title"
             >
               Explora nuestros{" "}
               <span className="text-teal-300">sitios de demostración</span>
-            </motion.h1>
-            <motion.p
+            </m.h1>
+            <m.p
               variants={fadeUp}
               className="text-lg sm:text-xl text-white/75 leading-relaxed mb-10 max-w-2xl mx-auto"
             >
               Cada demo muestra cómo puede verse el sitio web de tu negocio.
-            </motion.p>
-            <motion.div variants={fadeUp}>
+            </m.p>
+            <m.div variants={fadeUp}>
               <a href="#demos">
                 <Button
                   size="lg"
-                  className="bg-[#0D9488] text-white font-bold text-lg gap-2 rounded-full hover:shadow-lg transition-all duration-200"
+                  className="bg-[#0D9488] text-white font-bold text-lg gap-2 rounded-full hover:shadow-lg transition duration-200"
                   data-testid="button-demo-scroll"
                 >
                   Ver los demos
                   <ArrowRight className="w-5 h-5" />
                 </Button>
               </a>
-            </motion.div>
-          </motion.div>
+            </m.div>
+          </m.div>
         </div>
       </section>
 
       {/* DEMO CARDS */}
       <section id="demos" className="py-24 lg:py-32 bg-[#f5f5f5] dark:bg-[#111]" data-testid="section-demos">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
+          <m.div
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true, margin: "-100px" }}
@@ -125,7 +125,7 @@ export default function Demo() {
             className="grid grid-cols-1 md:grid-cols-3 gap-8"
           >
             {demos.map((demo) => (
-              <motion.div
+              <m.div
                 key={demo.slug}
                 variants={fadeUp}
                 className="relative flex flex-col"
@@ -133,7 +133,7 @@ export default function Demo() {
               >
                 <DemoBadge badge={demo.badge} />
                 <div
-                  className={`rounded-2xl border bg-white dark:bg-[#0d0d0d] flex flex-col flex-1 transition-all duration-300 shadow-sm hover:shadow-xl hover:-translate-y-1 ${
+                  className={`rounded-2xl border bg-white dark:bg-[#0d0d0d] flex flex-col flex-1 transition duration-300 shadow-sm hover:shadow-xl hover:-translate-y-1 ${
                     demo.badge === "popular"
                       ? "border-[#0D9488]/40 shadow-lg shadow-[#0D9488]/5"
                       : "border-gray-200 dark:border-gray-800"
@@ -152,7 +152,7 @@ export default function Demo() {
                     <a href={demo.href}>
                       <Button
                         size="lg"
-                        className={`w-full rounded-full font-bold text-base gap-2 transition-all duration-200 hover:shadow-md ${
+                        className={`w-full rounded-full font-bold text-base gap-2 transition duration-200 hover:shadow-md ${
                           demo.badge === "popular"
                             ? "bg-[#0D9488] text-white hover:bg-[#0F766E]"
                             : "bg-[#111] dark:bg-white text-white dark:text-[#111]"
@@ -165,11 +165,11 @@ export default function Demo() {
                     </a>
                   </div>
                 </div>
-              </motion.div>
+              </m.div>
             ))}
-          </motion.div>
+          </m.div>
 
-          <motion.p
+          <m.p
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
@@ -178,7 +178,7 @@ export default function Demo() {
             data-testid="text-demo-note"
           >
             Cada demo incluye un selector superior para cambiar entre los ejemplos o volver al sitio principal.
-          </motion.p>
+          </m.p>
         </div>
       </section>
     </div>

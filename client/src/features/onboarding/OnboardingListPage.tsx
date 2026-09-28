@@ -3,7 +3,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { useQuery } from "@tanstack/react-query";
 import { STALE } from "@/lib/queryClient";
 import { Link } from "wouter";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -147,7 +147,7 @@ export default function OnboardingListPage() {
             const overdue = isOverdue(record);
 
             return (
-              <motion.div
+              <m.div
                 key={record.id}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -198,7 +198,7 @@ export default function OnboardingListPage() {
                     </CardContent>
                   </Card>
                 </Link>
-              </motion.div>
+              </m.div>
             );
           })}
         </div>

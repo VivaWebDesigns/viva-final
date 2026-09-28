@@ -5,7 +5,7 @@ import { ContactForm } from "@empieza/components/ContactForm";
 import { Button } from "@empieza/components/ui/button";
 import { Link } from "react-scroll";
 import { useRef, useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { useLanguage } from "@empieza/hooks/use-language";
 import logoImg from "@assets/image_1_(5)_1772575534808_1773059817248.png";
 import { SiWhatsapp } from "react-icons/si";
@@ -113,7 +113,7 @@ export default function Home() {
         </div>
 
         <div className="container mx-auto px-4 md:px-6 relative z-10">
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7 }}
@@ -155,7 +155,7 @@ export default function Home() {
                 </Button>
               </Link>
             </div>
-          </motion.div>
+          </m.div>
         </div>
       </section>
 
@@ -163,7 +163,7 @@ export default function Home() {
       <section id="about" className="py-12 md:py-24">
         <div className="container mx-auto px-4 md:px-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-center">
-            <motion.div
+            <m.div
               initial={{ opacity: 0, x: -20 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
@@ -190,9 +190,9 @@ export default function Home() {
                   <span className="text-muted-foreground text-sm font-medium">{t("happyHomes")}</span>
                 </div>
               </div>
-            </motion.div>
+            </m.div>
 
-            <motion.div
+            <m.div
               initial={{ opacity: 0, x: 20 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
@@ -216,7 +216,7 @@ export default function Home() {
                   <span className="text-muted-foreground text-xs">{t("satisfactionSub")}</span>
                 </div>
               </div>
-            </motion.div>
+            </m.div>
           </div>
         </div>
       </section>
@@ -238,7 +238,7 @@ export default function Home() {
             {previewServices ? (
               previewServices.map((s: any, i: number) => (
                 <ServiceCard
-                  key={i}
+                  key={s.title}
                   title={s.title}
                   description={s.description}
                   benefits={s.benefits}
@@ -264,7 +264,7 @@ export default function Home() {
       <section className="py-24">
         <div className="container mx-auto px-4 md:px-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-            <motion.div
+            <m.div
               initial={{ opacity: 0, x: -20 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
@@ -304,9 +304,9 @@ export default function Home() {
                   </Button>
                 </Link>
               </div>
-            </motion.div>
+            </m.div>
 
-            <motion.div
+            <m.div
               initial={{ opacity: 0, x: 20 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
@@ -327,7 +327,7 @@ export default function Home() {
 
                     <div className="grid grid-cols-2 gap-4">
                       {imgs.slice(1, 7).map((img: any, i: number) => (
-                        <div key={i} className="rounded-md overflow-hidden shadow-md cursor-pointer" onClick={() => setLightboxSrc(img.url)}>
+                        <div key={img.url} className="rounded-md overflow-hidden shadow-md cursor-pointer" onClick={() => setLightboxSrc(img.url)}>
                           <img src={img.url} alt={img.alt} loading="lazy" className="w-full h-[160px] object-cover" data-testid={`img-why-us-${i + 2}`} />
                         </div>
                       ))}
@@ -335,7 +335,7 @@ export default function Home() {
                   </>
                 );
               })()}
-            </motion.div>
+            </m.div>
           </div>
         </div>
       </section>
@@ -353,7 +353,7 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {previewReviews ? (
               previewReviews.map((r: any, i: number) => (
-                <ReviewCard key={i} name={r.name} location={r.location} text={r.text} delay={(i + 1) * 0.1} />
+                <ReviewCard key={`${r.name}-${r.text}`} name={r.name} location={r.location} text={r.text} delay={(i + 1) * 0.1} />
               ))
             ) : (
               <>
@@ -501,7 +501,7 @@ export default function Home() {
           onClick={() => setLightboxSrc(null)}
           data-testid="lightbox-overlay"
         >
-          <button
+          <button aria-label="Close image"
             className="absolute top-4 right-4 text-white p-2"
             onClick={() => setLightboxSrc(null)}
             data-testid="button-lightbox-close"

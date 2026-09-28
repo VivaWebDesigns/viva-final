@@ -166,11 +166,11 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
     }, []);
 
     useEffect(() => {
-      if (showLinkPopover) {
-        setTimeout(() => linkInputRef.current?.focus(), 50);
-        const existingUrl = editor?.getAttributes("link").href ?? "";
-        setLinkUrl(existingUrl);
-      }
+      if (!showLinkPopover) return;
+      const timer = setTimeout(() => linkInputRef.current?.focus(), 50);
+      const existingUrl = editor?.getAttributes("link").href ?? "";
+      setLinkUrl(existingUrl);
+      return () => clearTimeout(timer);
     }, [showLinkPopover, editor]);
 
     if (!editor) return null;

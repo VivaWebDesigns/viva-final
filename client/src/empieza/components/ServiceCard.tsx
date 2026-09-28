@@ -1,5 +1,5 @@
 import { LucideIcon, ArrowRight } from "lucide-react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Link } from "react-scroll";
 import { useLanguage } from "@empieza/hooks/use-language";
 
@@ -15,7 +15,7 @@ interface ServiceCardProps {
 export function ServiceCard({ title, description, benefits, icon: Icon, delay }: ServiceCardProps) {
   const { t } = useLanguage();
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
@@ -31,8 +31,8 @@ export function ServiceCard({ title, description, benefits, icon: Icon, delay }:
       <p className="text-muted-foreground text-sm leading-relaxed mb-6 flex-grow">{description}</p>
 
       <ul className="space-y-2 mb-6">
-        {benefits.map((benefit, i) => (
-          <li key={i} className="flex items-center gap-2 text-sm text-foreground/70">
+        {benefits.map((benefit) => (
+          <li key={benefit} className="flex items-center gap-2 text-sm text-foreground/70">
             <span className="w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />
             {benefit}
           </li>
@@ -50,6 +50,6 @@ export function ServiceCard({ title, description, benefits, icon: Icon, delay }:
         {t("getQuote")}
         <ArrowRight size={16} className="group-hover/link:translate-x-1 transition-transform" />
       </Link>
-    </motion.div>
+    </m.div>
   );
 }

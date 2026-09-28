@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { apiRequest, queryClient, STALE } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -153,7 +153,7 @@ export default function OnboardingDetailPage({ id }: { id: string }) {
     <div className="space-y-6">
       <div className="flex items-center gap-3">
         <Link href="/admin/onboarding">
-          <Button variant="ghost" size="icon" data-testid="button-back-onboarding">
+          <Button aria-label="Back to onboarding" variant="ghost" size="icon" data-testid="button-back-onboarding">
             <ArrowLeft className="h-4 w-4" />
           </Button>
         </Link>
@@ -280,7 +280,7 @@ export default function OnboardingDetailPage({ id }: { id: string }) {
                 {(notes || []).map((note) => {
                   const NoteIcon = NOTE_ICONS[note.type] || MessageSquare;
                   return (
-                    <motion.div
+                    <m.div
                       key={note.id}
                       initial={{ opacity: 0, y: 4 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -294,7 +294,7 @@ export default function OnboardingDetailPage({ id }: { id: string }) {
                           {new Date(note.createdAt).toLocaleString()}
                         </p>
                       </div>
-                    </motion.div>
+                    </m.div>
                   );
                 })}
               </div>

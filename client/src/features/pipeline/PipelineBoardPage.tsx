@@ -103,7 +103,7 @@ function CardDisplay({
 
   return (
     <Card
-      className="hover:shadow-md transition-all group cursor-default"
+      className="hover:shadow-md transition group cursor-default"
     >
       <CardContent className="p-3">
         <div className="flex items-start gap-2 mb-1.5">
@@ -292,7 +292,7 @@ function StageColumn({
       )}
 
       <div
-        className="flex-1 overflow-y-auto min-h-[120px] px-1 pb-2 rounded-xl transition-all duration-150 bg-transparent"
+        className="flex-1 overflow-y-auto min-h-[120px] px-1 pb-2 rounded-xl transition duration-150 bg-transparent"
       >
         {opportunities.map((opp) => (
           <OpportunityCard
@@ -308,7 +308,7 @@ function StageColumn({
 
         {opportunities.length === 0 && (
           <div
-            className="flex items-center justify-center h-24 rounded-lg border-2 border-dashed transition-all duration-150 border-gray-200 text-gray-300"
+            className="flex items-center justify-center h-24 rounded-lg border-2 border-dashed transition duration-150 border-gray-200 text-gray-300"
           >
             <span className="text-xs font-medium">
               {t.pipeline.noOpportunities}

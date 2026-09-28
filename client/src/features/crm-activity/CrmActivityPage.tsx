@@ -313,7 +313,7 @@ export default function CrmActivityPage() {
             <div className="flex flex-wrap items-center justify-end gap-2">
               <label className="flex items-center gap-1 text-xs text-gray-500">
                 <CalendarDays className="h-3.5 w-3.5" />
-                <input
+                <input aria-label="Start date"
                   type="date"
                   value={customFrom}
                   onChange={(event) => setCustomFrom(event.target.value)}
@@ -322,7 +322,7 @@ export default function CrmActivityPage() {
                 />
               </label>
               <span className="text-xs text-gray-400">to</span>
-              <input
+              <input aria-label="End date"
                 type="date"
                 value={customTo}
                 onChange={(event) => setCustomTo(event.target.value)}

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence, LazyMotion, domMax } from "framer-motion";
 import { apiRequest, queryClient, STALE } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -120,10 +120,10 @@ export default function StageManagementPage() {
 
       <AnimatePresence>
         {showAdd && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
+          <m.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
             className="mb-4 overflow-hidden"
           >
             <Card>
@@ -137,7 +137,7 @@ export default function StageManagementPage() {
                 <div className="flex items-center gap-2">
                   <p className="text-xs text-gray-400">Color:</p>
                   {COLOR_OPTIONS.map(color => (
-                    <button
+                    <button aria-label={`Use color ${color}`}
                       key={color}
                       className={`w-6 h-6 rounded-full border-2 transition-transform ${
                         newStage.color === color ? "border-gray-800 scale-110" : "border-transparent"
@@ -171,13 +171,14 @@ export default function StageManagementPage() {
                 </div>
               </CardContent>
             </Card>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
 
+      <LazyMotion features={domMax}>
       <div className="space-y-2">
         {(stages || []).map((stage, idx) => (
-          <motion.div
+          <m.div
             key={stage.id}
             layout
             initial={{ opacity: 0, y: 10 }}
@@ -222,9 +223,10 @@ export default function StageManagementPage() {
                 </div>
               </CardContent>
             </Card>
-          </motion.div>
+          </m.div>
         ))}
       </div>
+      </LazyMotion>
 
       {(!stages || stages.length === 0) && (
         <Card>

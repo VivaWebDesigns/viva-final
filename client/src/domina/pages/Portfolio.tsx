@@ -2,7 +2,7 @@ import { useEffect, useMemo } from "react";
 import { Navigation } from "@domina/components/Navigation";
 import { Footer } from "@domina/components/Footer";
 import { Button } from "@domina/components/ui/button";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { Link } from "wouter";
 import { ArrowRight, Camera, Phone } from "lucide-react";
 import {
@@ -77,7 +77,7 @@ export default function Portfolio() {
       <section className="py-10">
         <div className="container mx-auto px-4 md:px-6">
           <AnimatePresence mode="wait">
-            <motion.div
+            <m.div
               key="portfolio-grid"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -89,7 +89,7 @@ export default function Portfolio() {
                 const imgSrc = previewPortfolio ? project.imageUrl : project.coverThumb;
                 const imgAlt = previewPortfolio ? project.imageAlt : project.coverAlt;
                 return (
-                <motion.div
+                <m.div
                   key={project.id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -156,10 +156,10 @@ export default function Portfolio() {
                       </div>
                     </Link>
                   )}
-                </motion.div>
+                </m.div>
                 );
               })}
-            </motion.div>
+            </m.div>
           </AnimatePresence>
 
           {filtered.length === 0 && (

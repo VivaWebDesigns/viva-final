@@ -56,7 +56,7 @@ export default function Navigation() {
 
   return (
     <nav
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 border-b border-gray-200 dark:border-gray-800 ${
+      className={`fixed top-0 left-0 right-0 z-50 transition duration-300 border-b border-gray-200 dark:border-gray-800 ${
         scrolled
           ? "bg-white dark:bg-[#0d0d0d] backdrop-blur-md shadow-sm"
           : "bg-white dark:bg-[#0d0d0d]"
@@ -127,7 +127,7 @@ export default function Navigation() {
             ) : (
               <Link href="/contacto">
                 <Button
-                  className="bg-[#0D9488] hover:bg-[#0F766E] text-white font-bold px-6 rounded-full transition-all duration-200 hover:shadow-lg"
+                  className="bg-[#0D9488] hover:bg-[#0F766E] text-white font-bold px-6 rounded-full transition duration-200 hover:shadow-lg"
                   data-testid="button-cta-nav"
                 >
                   {t("nav.cta")}
@@ -164,7 +164,7 @@ export default function Navigation() {
               </button>
             </div>
           ) : (
-            <button
+            <button aria-label={isOpen ? "Close menu" : "Open menu"}
               className="md:hidden p-2 text-[#111]"
               onClick={() => setIsOpen(!isOpen)}
               data-testid="button-mobile-menu"

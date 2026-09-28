@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Construction } from "lucide-react";
 
 interface PlaceholderPageProps {
@@ -16,7 +16,7 @@ export default function PlaceholderPage({ title, description, icon: Icon = Const
         </h1>
       </div>
 
-      <motion.div
+      <m.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         className="bg-white rounded-xl border border-gray-200 p-12 text-center"
@@ -30,7 +30,7 @@ export default function PlaceholderPage({ title, description, icon: Icon = Const
           <Construction className="w-4 h-4" />
           Coming Soon
         </div>
-      </motion.div>
+      </m.div>
     </div>
   );
 }

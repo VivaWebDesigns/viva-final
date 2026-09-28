@@ -131,7 +131,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               </div>
             )}
           </div>
-          <button
+          <button aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             onClick={() => setCollapsed(!collapsed)}
             className="absolute -right-3 w-6 h-6 bg-white border border-gray-200 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 shadow-sm z-10 transition-colors"
             data-testid="button-toggle-sidebar"
@@ -281,7 +281,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-4 md:px-6 flex-shrink-0">
-          <button
+          <button aria-label="Open menu"
             className="md:hidden text-gray-600"
             onClick={() => setMobileOpen(true)}
             data-testid="button-mobile-menu"
@@ -324,7 +324,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
             {role !== "sales_rep" && (
               <div className="relative">
-                <Button
+                <Button aria-label="Notifications"
                   variant="ghost"
                   size="icon"
                   onClick={() => navigate("/admin/notifications")}

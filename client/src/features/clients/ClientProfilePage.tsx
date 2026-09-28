@@ -477,7 +477,7 @@ export default function ClientProfilePage({ id }: { id: string }) {
       {/* Header */}
       <div className="flex flex-col gap-4">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/admin/clients")} data-testid="button-back">
+          <Button aria-label="Back to clients" variant="ghost" size="icon" onClick={() => navigate("/admin/clients")} data-testid="button-back">
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <div className="flex-1 min-w-0">
@@ -811,7 +811,7 @@ export default function ClientProfilePage({ id }: { id: string }) {
                         </span>
                       </div>
                       <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteNoteMutation.mutate(note.id)}>
+                        <Button aria-label="Delete note" variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteNoteMutation.mutate(note.id)}>
                           <Trash2 className="w-3.5 h-3.5 text-red-500" />
                         </Button>
                       </div>
@@ -885,7 +885,7 @@ export default function ClientProfilePage({ id }: { id: string }) {
                       </div>
                     </div>
                   </div>
-                  <Button
+                  <Button aria-label="Edit contact"
                     variant="ghost"
                     size="icon"
                     className="opacity-0 group-hover:opacity-100 transition-opacity"
@@ -1059,11 +1059,11 @@ export default function ClientProfilePage({ id }: { id: string }) {
                       asChild
                       data-testid={`button-download-${file.id}`}
                     >
-                      <a href={file.url} target="_blank" rel="noreferrer" download={file.originalName}>
+                      <a aria-label="Download file" href={file.url} target="_blank" rel="noreferrer" download={file.originalName}>
                         <Download className="w-4 h-4 text-blue-500" />
                       </a>
                     </Button>
-                    <Button
+                    <Button aria-label="Delete file"
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -1255,7 +1255,7 @@ function TaskRow({ task, onToggle, onDelete, isToggling, renderTitle }: {
 
   return (
     <Card className={`p-3 flex items-start gap-3 group transition-opacity ${isDone ? "opacity-60" : ""}`} data-testid={`task-row-${task.id}`}>
-      <button
+      <button aria-label={isDone ? "Task completed" : "Mark task complete"}
         className="mt-0.5 shrink-0"
         onClick={isDone ? undefined : onToggle}
         disabled={isDone || isToggling}
@@ -1292,7 +1292,7 @@ function TaskRow({ task, onToggle, onDelete, isToggling, renderTitle }: {
           </span>
         </div>
       </div>
-      <Button
+      <Button aria-label="Delete task"
         variant="ghost"
         size="icon"
         className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"

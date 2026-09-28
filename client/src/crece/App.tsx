@@ -1,6 +1,7 @@
 import { Switch, Route } from "wouter";
 import { lazy, Suspense } from "react";
 import { queryClient } from "./lib/queryClient";
+import MotionProvider from "@/components/MotionProvider";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@crece/components/ui/toaster";
 import { TooltipProvider } from "@crece/components/ui/tooltip";
@@ -30,14 +31,16 @@ function AppRouter() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <LanguageProvider>
-        <TooltipProvider>
-          <AppRouter />
-          <Toaster />
-        </TooltipProvider>
-      </LanguageProvider>
-    </QueryClientProvider>
+    <MotionProvider>
+      <QueryClientProvider client={queryClient}>
+        <LanguageProvider>
+          <TooltipProvider>
+            <AppRouter />
+            <Toaster />
+          </TooltipProvider>
+        </LanguageProvider>
+      </QueryClientProvider>
+    </MotionProvider>
   );
 }
 

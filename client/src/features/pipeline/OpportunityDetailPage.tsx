@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { useAuth } from "@/features/auth/useAuth";
 import { apiRequest, queryClient, STALE } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -455,7 +455,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
               <CardTitle className="text-base">{t.pipeline.details}</CardTitle>
-              <button
+              <button aria-label="Edit details"
                 onClick={() => openEdit("details")}
                 className="text-gray-300 hover:text-[#0D9488] transition-colors"
                 data-testid="button-edit-details"
@@ -658,7 +658,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                   const isEditable = !act.isFromCrm && act.type !== "stage_change" && act.type !== "system" && (authRole === "admin" || authRole === "developer" || act.userId === (authUser as any)?.id);
                   const isEditingThis = editingActivityId === act.id;
                   return (
-                    <motion.div
+                    <m.div
                       key={act.id}
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
@@ -690,7 +690,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                               {new Date(act.createdAt).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}
                             </span>
                             {isEditable && !isEditingThis && (
-                              <button
+                              <button aria-label="Edit activity"
                                 onClick={() => { setEditingActivityId(act.id); setEditingActivityContent(act.content); }}
                                 className="text-gray-300 hover:text-[#0D9488] transition-colors"
                                 data-testid={`button-edit-activity-${act.id}`}
@@ -740,7 +740,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                           />
                         )}
                       </div>
-                    </motion.div>
+                    </m.div>
                   );
                 })}
                 {(!activities || activities.length === 0) && (
@@ -794,7 +794,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                       }`}
                       data-testid={`task-row-${task.id}`}
                     >
-                      <button
+                      <button aria-label={task.completed ? "Task completed" : "Complete task"}
                         onClick={() => {
                           if (task.completed) return;
                           if (task.taskType === "payment_followup" || task.title === "Follow up on payment") {
@@ -849,7 +849,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                   <Building2 className="w-4 h-4 text-gray-400" />
                   {t.pipeline.company}
                 </CardTitle>
-                <button onClick={() => openEdit("company")} className="text-gray-300 hover:text-[#0D9488] transition-colors" data-testid="button-edit-company">
+                <button aria-label="Edit company" onClick={() => openEdit("company")} className="text-gray-300 hover:text-[#0D9488] transition-colors" data-testid="button-edit-company">
                   <Pencil className="w-3 h-3" />
                 </button>
               </CardHeader>
@@ -872,7 +872,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                   <UserIcon className="w-4 h-4 text-gray-400" />
                   {t.pipeline.contact}
                 </CardTitle>
-                <button onClick={() => openEdit("contact")} className="text-gray-300 hover:text-[#0D9488] transition-colors" data-testid="button-edit-contact">
+                <button aria-label="Edit contact" onClick={() => openEdit("contact")} className="text-gray-300 hover:text-[#0D9488] transition-colors" data-testid="button-edit-contact">
                   <Pencil className="w-3 h-3" />
                 </button>
               </CardHeader>
@@ -895,7 +895,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                   <Zap className="w-4 h-4 text-gray-400" />
                   {t.pipeline.sourceLeadLabel}
                 </CardTitle>
-                <button onClick={() => openEdit("lead")} className="text-gray-300 hover:text-[#0D9488] transition-colors" data-testid="button-edit-source-lead">
+                <button aria-label="Edit source lead" onClick={() => openEdit("lead")} className="text-gray-300 hover:text-[#0D9488] transition-colors" data-testid="button-edit-source-lead">
                   <Pencil className="w-3 h-3" />
                 </button>
               </CardHeader>

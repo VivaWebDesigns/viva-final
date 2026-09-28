@@ -209,7 +209,7 @@ function TaskRow({
       <div className="flex flex-col items-end gap-2 flex-shrink-0">
         <div className="flex items-center gap-1">
           {onDelete && (
-            <Button
+            <Button aria-label="Delete task"
               size="icon"
               variant="ghost"
               className="h-6 w-6 text-gray-300 hover:text-red-500 hover:bg-red-50"
@@ -346,7 +346,7 @@ function CompletedTaskCard({
           )}
         </div>
         {onDelete && (
-          <Button
+          <Button aria-label="Delete task"
             size="icon"
             variant="ghost"
             className="h-6 w-6 flex-shrink-0 self-start text-gray-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"

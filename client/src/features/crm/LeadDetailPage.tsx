@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import {
   ArrowLeft, Building2, User, Globe, Phone, Mail, MapPin,
   Calendar, Tag, MessageSquare, PhoneCall, MailIcon, ClipboardList,
@@ -422,7 +422,7 @@ export default function LeadDetailPage({ id }: { id: string }) {
   return (
     <div>
       <div className="flex items-center gap-3 mb-6">
-        <Button
+        <Button aria-label="Back to CRM"
           variant="ghost"
           size="icon"
           onClick={() => navigate("/admin/crm")}
@@ -1046,7 +1046,7 @@ export default function LeadDetailPage({ id }: { id: string }) {
                   const NoteIcon = NOTE_TYPE_ICONS[note.type] || MessageSquare;
                   const noteStyle = NOTE_TYPE_BADGE[note.type] ?? NOTE_TYPE_BADGE.system;
                   return (
-                    <motion.div
+                    <m.div
                       key={note.id}
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -1081,7 +1081,7 @@ export default function LeadDetailPage({ id }: { id: string }) {
                           />
                         )}
                       </div>
-                    </motion.div>
+                    </m.div>
                   );
                 })
               )}
@@ -1232,7 +1232,7 @@ export default function LeadDetailPage({ id }: { id: string }) {
                       }`}
                       data-testid={`lead-task-row-${task.id}`}
                     >
-                      <button
+                      <button aria-label={task.completed ? "Task completed" : "Complete task"}
                         onClick={() => !task.completed && setCompletingTask(task)}
                         disabled={task.completed}
                         className="flex-shrink-0 mt-0.5"

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { Menu, X, Phone, ChevronDown } from "lucide-react";
 import { Button } from "@domina/components/ui/button";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import { useLanguage } from "@domina/i18n/LanguageContext";
 import { LanguageToggle } from "@domina/components/LanguageToggle";
 import logoPng from "@assets/image_1_(5)_1772575534808_1773059817248.png";
@@ -143,7 +143,7 @@ export function Navigation() {
             </button>
             <AnimatePresence>
               {servicesOpen && (
-                <motion.div
+                <m.div
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 8 }}
@@ -176,7 +176,7 @@ export function Navigation() {
                     </Link>
                   ))}
                   </div>
-                </motion.div>
+                </m.div>
               )}
             </AnimatePresence>
           </div>
@@ -209,7 +209,7 @@ export function Navigation() {
 
       <AnimatePresence>
         {isOpen && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
@@ -247,10 +247,10 @@ export function Navigation() {
               </button>
               <AnimatePresence>
                 {mobileServicesOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
+                  <m.div
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
                     className="overflow-hidden"
                   >
                     <Link
@@ -274,7 +274,7 @@ export function Navigation() {
                         {service.name}
                       </Link>
                     ))}
-                  </motion.div>
+                  </m.div>
                 )}
               </AnimatePresence>
             </div>
@@ -306,12 +306,12 @@ export function Navigation() {
             <a href={`tel:${(window.__PREVIEW__?.phone || "(704) 555-0123").replace(/\D/g, '')}`} className="flex items-center justify-center gap-2 text-muted-foreground font-medium py-3 mt-2" data-testid="link-mobile-phone">
               <Phone size={16} /> {window.__PREVIEW__?.phone || "(704) 555-0123"}
             </a>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
     </nav>
     {!isOpen && (
-      <a
+      <a aria-label="Chat on WhatsApp"
         href={`https://wa.me/${(() => { const d = (window.__PREVIEW__?.phone || "17045550123").replace(/\D/g,''); return d.length === 10 ? '1' + d : d; })()}`}
         target="_blank"
         rel="noopener noreferrer"

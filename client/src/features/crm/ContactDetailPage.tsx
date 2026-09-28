@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import {
   ArrowLeft, User, Mail, Phone, Building2, MapPin,
   ChevronRight, Calendar, Globe,
@@ -69,7 +69,7 @@ export default function ContactDetailPage({ id }: { id: string }) {
   return (
     <div>
       <div className="flex items-center gap-3 mb-6">
-        <Button
+        <Button aria-label="Back to CRM"
           variant="ghost"
           size="icon"
           onClick={() => navigate("/admin/crm")}
@@ -182,7 +182,7 @@ export default function ContactDetailPage({ id }: { id: string }) {
             ) : (
               <div className="space-y-2">
                 {contact.leads.map((lead, i) => (
-                  <motion.div
+                  <m.div
                     key={lead.id}
                     initial={{ opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -224,7 +224,7 @@ export default function ContactDetailPage({ id }: { id: string }) {
                         <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
                       </div>
                     </Card>
-                  </motion.div>
+                  </m.div>
                 ))}
               </div>
             )}

@@ -2,7 +2,7 @@ import { Navigation } from "@domina/components/Navigation";
 import { Footer } from "@domina/components/Footer";
 import { Button } from "@domina/components/ui/button";
 import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Link } from "wouter";
 import { useLanguage } from "@domina/i18n/LanguageContext";
 import {
@@ -72,7 +72,7 @@ interface ServiceBlockProps {
 function ServiceBlock({ title, description, highlights, process, icon: Icon, delay, image, imageAlt, anchorId, href }: ServiceBlockProps) {
   const { t } = useLanguage();
   return (
-    <motion.div
+    <m.div
       id={anchorId}
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
@@ -95,7 +95,7 @@ function ServiceBlock({ title, description, highlights, process, icon: Icon, del
           <p className="text-muted-foreground leading-relaxed mb-6">{description}</p>
           <ul className="space-y-3 mb-6">
             {highlights.map((item, i) => (
-              <li key={i} className="flex items-start gap-3 text-sm text-foreground/70">
+              <li key={item} className="flex items-start gap-3 text-sm text-foreground/70">
                 <span className="w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0 mt-1.5" />
                 {item}
               </li>
@@ -111,13 +111,21 @@ function ServiceBlock({ title, description, highlights, process, icon: Icon, del
       </Link>
       <div className="px-8 pb-8 pt-0">
         <Link href="/contact">
-          <Button data-testid={`button-estimate-${title.toLowerCase().replace(/\s+/g, '-')}`} className="w-full bg-secondary hover:bg-primary hover:text-primary-foreground text-primary font-semibold border border-primary/20 transition-all">
+          <Button data-testid={`button-estimate-${title.toLowerCase().replace(/\s+/g, '-')}`} className="w-full bg-secondary hover:bg-primary hover:text-primary-foreground text-primary font-semibold border border-primary/20 transition">
             {t.services.getEstimate}
           </Button>
         </Link>
       </div>
-    </motion.div>
+    </m.div>
   );
+}
+
+
+function scrollToHashTarget(hash: string) {
+  try {
+    const el = document.querySelector(hash);
+    if (el) el.scrollIntoView({ behavior: "smooth" });
+  } catch (_) {}
 }
 
 export default function Services() {
@@ -144,22 +152,26 @@ export default function Services() {
         meta.setAttribute("content", "Interior painting, exterior painting, kitchen cabinet painting, and deck & fence staining services in Charlotte, NC. Get a free estimate from Charlotte Painting Pro.");
       }
     }
-    function scrollToHash() {
-      const hash = window.location.hash;
-      if (hash && !hash.includes("/")) {
-        setTimeout(() => {
-          try {
-            const el = document.querySelector(hash);
-            if (el) el.scrollIntoView({ behavior: "smooth" });
-          } catch (_) {}
-        }, 150);
-      } else {
-        window.scrollTo(0, 0);
-      }
+  }, []);
+
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (!hash || hash.includes("/")) {
+      window.scrollTo(0, 0);
+      return;
     }
-    scrollToHash();
-    window.addEventListener("hashchange", scrollToHash);
-    return () => window.removeEventListener("hashchange", scrollToHash);
+    const timer = setTimeout(() => scrollToHashTarget(hash), 150);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    const onHashChange = () => {
+      const hash = window.location.hash;
+      if (hash && !hash.includes("/")) scrollToHashTarget(hash);
+      else window.scrollTo(0, 0);
+    };
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
 
   const galleryImages = previewGalleryImages
@@ -197,7 +209,7 @@ export default function Services() {
               {previewServices.map((svc: any, i: number) => {
                 const Icon = ICON_MAP[svc.iconName] || Building2;
                 return (
-                  <motion.div
+                  <m.div
                     key={svc.title + i}
                     id={slugify(svc.title)}
                     initial={{ opacity: 0, y: 20 }}
@@ -230,7 +242,7 @@ export default function Services() {
                         </Link>
                       </div>
                     </div>
-                  </motion.div>
+                  </m.div>
                 );
               })}
             </div>
@@ -324,8 +336,8 @@ export default function Services() {
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {galleryImages.map((img, i) => (
-              <motion.div
-                key={i}
+              <m.div
+                key={img.src}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -334,7 +346,7 @@ export default function Services() {
                 onClick={() => setLightboxIndex(i)}
               >
                 <img src={img.src} alt={img.alt} className="w-full h-[160px] md:h-[200px] object-cover" loading="lazy" width={1200} height={800} data-testid={`img-gallery-${i}`} />
-              </motion.div>
+              </m.div>
             ))}
           </div>
         </div>
@@ -366,7 +378,7 @@ export default function Services() {
           onClick={() => setLightboxIndex(null)}
           data-testid="lightbox-overlay"
         >
-          <button
+          <button aria-label="Close image"
             className="absolute top-4 right-4 text-white p-2 z-10"
             onClick={() => setLightboxIndex(null)}
             data-testid="button-lightbox-close"
@@ -374,7 +386,7 @@ export default function Services() {
             <X size={32} />
           </button>
           {lightboxIndex > 0 && (
-            <button
+            <button aria-label="Previous image"
               className="absolute left-4 top-1/2 -translate-y-1/2 text-white bg-black/40 hover:bg-black/60 rounded-full p-2 z-10 transition-colors"
               onClick={(e) => { e.stopPropagation(); setLightboxIndex(lightboxIndex - 1); }}
               data-testid="button-lightbox-prev"
@@ -383,7 +395,7 @@ export default function Services() {
             </button>
           )}
           {lightboxIndex < galleryImages.length - 1 && (
-            <button
+            <button aria-label="Next image"
               className="absolute right-4 top-1/2 -translate-y-1/2 text-white bg-black/40 hover:bg-black/60 rounded-full p-2 z-10 transition-colors"
               onClick={(e) => { e.stopPropagation(); setLightboxIndex(lightboxIndex + 1); }}
               data-testid="button-lightbox-next"

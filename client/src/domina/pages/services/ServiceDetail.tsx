@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { Navigation } from "@domina/components/Navigation";
 import { Footer } from "@domina/components/Footer";
 import { Button } from "@domina/components/ui/button";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Link, useLocation, useParams } from "wouter";
 import { ArrowRight, CheckCircle } from "lucide-react";
 import {
@@ -67,7 +67,7 @@ export default function ServiceDetail() {
           style={{ backgroundImage: "radial-gradient(circle at 70% 50%, white 0%, transparent 60%)" }}
         />
         <div className="container mx-auto px-4 md:px-6 text-center relative z-10">
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7 }}
@@ -89,13 +89,13 @@ export default function ServiceDetail() {
             <Link href="/contact">
               <Button
                 data-testid="button-hero-cta"
-                className="bg-white text-primary hover:bg-white/90 font-bold px-10 py-4 text-lg rounded-md transition-all"
+                className="bg-white text-primary hover:bg-white/90 font-bold px-10 py-4 text-lg rounded-md transition"
               >
                 {t.services.getEstimate}
                 <ArrowRight className="ml-2" size={22} />
               </Button>
             </Link>
-          </motion.div>
+          </m.div>
         </div>
       </section>
 
@@ -107,8 +107,8 @@ export default function ServiceDetail() {
             </h2>
             <div className="space-y-4">
               {service.benefits.map((b: string, i: number) => (
-                <motion.div
-                  key={i}
+                <m.div
+                  key={b}
                   initial={{ opacity: 0, x: -15 }}
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }}
@@ -118,7 +118,7 @@ export default function ServiceDetail() {
                 >
                   <CheckCircle size={20} className="text-primary flex-shrink-0 mt-0.5" />
                   <span className="text-foreground/80 leading-relaxed">{b}</span>
-                </motion.div>
+                </m.div>
               ))}
             </div>
           </div>

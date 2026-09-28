@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import {
   BookOpen, Search, Plus, Edit, Trash2, ChevronRight, Clock, FileText,
   Tag, History, FolderPlus, X, ChevronDown, ChevronUp, Archive, Eye, EyeOff,
@@ -81,7 +81,7 @@ function NewCategoryModal({ onClose, onCreated }: NewCategoryModalProps) {
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-bold text-gray-900">New Category</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+          <button aria-label="Close" onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
         </div>
         <div className="space-y-4">
           <div>
@@ -446,7 +446,7 @@ export default function DocsPage() {
 
         <AnimatePresence>
           {selectedArticleSlug && articleDetail && (
-            <motion.div
+            <m.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
@@ -468,7 +468,7 @@ export default function DocsPage() {
                     >
                       <History className="w-4 h-4" />
                     </Button>
-                    <Button
+                    <Button aria-label="Edit article"
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8"
@@ -477,7 +477,7 @@ export default function DocsPage() {
                     >
                       <Edit className="w-4 h-4" />
                     </Button>
-                    <Button
+                    <Button aria-label="Delete article"
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8 text-red-400 hover:text-red-600"
@@ -544,7 +544,7 @@ export default function DocsPage() {
                   dangerouslySetInnerHTML={{ __html: `<p class="mb-2">${renderContent(articleDetail.content)}</p>` }}
                 />
               </div>
-            </motion.div>
+            </m.div>
           )}
         </AnimatePresence>
       </div>

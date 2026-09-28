@@ -3,7 +3,7 @@ import { Footer } from "@crece/components/Footer";
 import { ContactForm } from "@crece/components/ContactForm";
 import { Button } from "@crece/components/ui/button";
 import { useEffect } from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { useLanguage } from "@crece/hooks/use-language";
 import {
   Phone,
@@ -135,7 +135,7 @@ export default function Contact() {
       <section className="py-12 bg-secondary">
         <div className="container mx-auto px-4 md:px-6 max-w-4xl">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 15 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -149,9 +149,9 @@ export default function Contact() {
               <p className="text-muted-foreground text-sm leading-relaxed">
                 {serviceAreaText}
               </p>
-            </motion.div>
+            </m.div>
 
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 15 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -167,9 +167,9 @@ export default function Contact() {
                 8:00 AM - 6:00 PM<br />
                 {t("contact.hours.sunday")}
               </p>
-            </motion.div>
+            </m.div>
 
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 15 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -183,7 +183,7 @@ export default function Contact() {
               <p className="text-muted-foreground text-sm leading-relaxed">
                 {t("contact.promise.desc")}
               </p>
-            </motion.div>
+            </m.div>
           </div>
         </div>
       </section>

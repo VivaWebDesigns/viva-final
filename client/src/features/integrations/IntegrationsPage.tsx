@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import {
   CreditCard, Mail, Brain, Cloud, ExternalLink, CheckCircle2, XCircle,
@@ -435,7 +435,7 @@ export default function IntegrationsPage() {
             const presentSet = new Set(health?.presentVars || []);
 
             return (
-              <motion.div
+              <m.div
                 key={integration.id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -569,10 +569,10 @@ export default function IntegrationsPage() {
 
                 <AnimatePresence>
                   {isExpanded && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
+                    <m.div
+                      initial={{ y: -8, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      exit={{ y: -8, opacity: 0 }}
                       transition={{ duration: 0.2 }}
                       className="overflow-hidden"
                     >
@@ -690,16 +690,16 @@ export default function IntegrationsPage() {
                             <h4 className="text-sm font-semibold text-gray-700 mb-2">Setup Instructions</h4>
                             <ol className="text-sm text-gray-600 space-y-1.5 list-decimal list-inside">
                               {(settings.setupInstructions as string[]).map((step, idx) => (
-                                <li key={idx}>{step}</li>
+                                <li key={step}>{step}</li>
                               ))}
                             </ol>
                           </div>
                         )}
                       </div>
-                    </motion.div>
+                    </m.div>
                   )}
                 </AnimatePresence>
-              </motion.div>
+              </m.div>
             );
           })}
         </div>

@@ -2,7 +2,7 @@ import { Navigation } from "@crece/components/Navigation";
 import { Footer } from "@crece/components/Footer";
 import { Button } from "@crece/components/ui/button";
 import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Link } from "wouter";
 import { useLanguage } from "@crece/hooks/use-language";
 import {
@@ -72,7 +72,7 @@ interface ServiceBlockProps {
 function ServiceBlock({ title, description, highlights, process, icon: Icon, delay, image, imageAlt, anchorId }: ServiceBlockProps) {
   const { t } = useLanguage();
   return (
-    <motion.div
+    <m.div
       id={anchorId}
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
@@ -94,7 +94,7 @@ function ServiceBlock({ title, description, highlights, process, icon: Icon, del
         <p className="text-muted-foreground leading-relaxed mb-6">{description}</p>
         <ul className="space-y-3 mb-6">
           {highlights.map((item, i) => (
-            <li key={i} className="flex items-start gap-3 text-sm text-foreground/70">
+            <li key={item} className="flex items-start gap-3 text-sm text-foreground/70">
               <span className="w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0 mt-1.5" />
               {item}
             </li>
@@ -112,7 +112,7 @@ function ServiceBlock({ title, description, highlights, process, icon: Icon, del
           </Link>
         </div>
       </div>
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -142,15 +142,15 @@ export default function Services() {
     }
     const hash = window.location.hash;
     if (hash && !hash.includes("/")) {
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         try {
           const el = document.querySelector(hash);
           if (el) el.scrollIntoView({ behavior: "smooth" });
         } catch (_) {}
       }, 100);
-    } else {
-      window.scrollTo(0, 0);
+      return () => clearTimeout(timer);
     }
+    window.scrollTo(0, 0);
   }, []);
 
   const galleryImages = previewGalleryImages
@@ -188,7 +188,7 @@ export default function Services() {
               {previewServices.map((svc: any, i: number) => {
                 const Icon = ICON_MAP[svc.iconName] || Building2;
                 return (
-                  <motion.div
+                  <m.div
                     key={svc.title + i}
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
@@ -220,7 +220,7 @@ export default function Services() {
                         </Link>
                       </div>
                     </div>
-                  </motion.div>
+                  </m.div>
                 );
               })}
             </div>
@@ -369,8 +369,8 @@ export default function Services() {
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {galleryImages.map((img, i) => (
-              <motion.div
-                key={i}
+              <m.div
+                key={img.src}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -379,7 +379,7 @@ export default function Services() {
                 onClick={() => setLightboxIndex(i)}
               >
                 <img src={img.src} alt={img.alt} className="w-full h-[160px] md:h-[200px] object-cover" loading="lazy" width={1200} height={800} data-testid={`img-gallery-${i}`} />
-              </motion.div>
+              </m.div>
             ))}
           </div>
         </div>
@@ -411,7 +411,7 @@ export default function Services() {
           onClick={() => setLightboxIndex(null)}
           data-testid="lightbox-overlay"
         >
-          <button
+          <button aria-label="Close image"
             className="absolute top-4 right-4 text-white p-2 z-10"
             onClick={() => setLightboxIndex(null)}
             data-testid="button-lightbox-close"
@@ -419,7 +419,7 @@ export default function Services() {
             <X size={32} />
           </button>
           {lightboxIndex > 0 && (
-            <button
+            <button aria-label="Previous image"
               className="absolute left-4 top-1/2 -translate-y-1/2 text-white bg-black/40 hover:bg-black/60 rounded-full p-2 z-10 transition-colors"
               onClick={(e) => { e.stopPropagation(); setLightboxIndex(lightboxIndex - 1); }}
               data-testid="button-lightbox-prev"
@@ -428,7 +428,7 @@ export default function Services() {
             </button>
           )}
           {lightboxIndex < galleryImages.length - 1 && (
-            <button
+            <button aria-label="Next image"
               className="absolute right-4 top-1/2 -translate-y-1/2 text-white bg-black/40 hover:bg-black/60 rounded-full p-2 z-10 transition-colors"
               onClick={(e) => { e.stopPropagation(); setLightboxIndex(lightboxIndex + 1); }}
               data-testid="button-lightbox-next"

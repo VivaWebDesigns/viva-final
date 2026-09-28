@@ -3,7 +3,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { STALE, queryClient, apiRequest } from "@/lib/queryClient";
 import { useLocation } from "wouter";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import {
   Search, ChevronDown, ChevronLeft, ChevronRight, Globe, Phone, Mail,
   X, Trash2, UserCheck, CircleDot, Tag, Tags, AlertTriangle, Users, Upload, UserPlus, UserCircle, MapPin,
@@ -499,7 +499,7 @@ export default function LeadListPage() {
 
       <AnimatePresence>
         {selectedIds.size > 0 && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
@@ -585,7 +585,7 @@ export default function LeadListPage() {
                 </Button>
               )}
             </div>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
 
@@ -627,7 +627,7 @@ export default function LeadListPage() {
             const leadTrade = getLeadTrade(lead);
             const leadCity = getLeadCity(lead);
             return (
-              <motion.div
+              <m.div
                 key={lead.id}
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -759,7 +759,7 @@ export default function LeadListPage() {
                             {new Date(lead.createdAt).toLocaleDateString()}
                           </span>
                           {isAdmin && (
-                            <button
+                            <button aria-label="Delete lead"
                               onClick={(e) => { e.stopPropagation(); setDeleteConfirmLeadId(lead.id); }}
                               className="p-1 rounded text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
                               data-testid={`button-delete-lead-${lead.id}`}
@@ -773,7 +773,7 @@ export default function LeadListPage() {
                     </div>
                   </div>
                 </Card>
-              </motion.div>
+              </m.div>
             );
           })}
         </div>

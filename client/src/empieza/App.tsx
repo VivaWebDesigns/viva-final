@@ -1,5 +1,6 @@
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
+import MotionProvider from "@/components/MotionProvider";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@empieza/components/ui/toaster";
 import { TooltipProvider } from "@empieza/components/ui/tooltip";
@@ -18,14 +19,16 @@ function AppRouter() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <LanguageProvider>
-        <TooltipProvider>
-          <AppRouter />
-          <Toaster />
-        </TooltipProvider>
-      </LanguageProvider>
-    </QueryClientProvider>
+    <MotionProvider>
+      <QueryClientProvider client={queryClient}>
+        <LanguageProvider>
+          <TooltipProvider>
+            <AppRouter />
+            <Toaster />
+          </TooltipProvider>
+        </LanguageProvider>
+      </QueryClientProvider>
+    </MotionProvider>
   );
 }
 

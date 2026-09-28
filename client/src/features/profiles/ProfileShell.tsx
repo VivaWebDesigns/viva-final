@@ -524,7 +524,7 @@ function LocalFalconSnapshotCard({
                   <h3 className="font-bold">Website analysis</h3>
                 </div>
                 <ul className="list-disc space-y-2 pl-5 text-sm leading-6 text-gray-800">
-                  {data.intelligence.websiteAnalysis.map((item, index) => <li key={index}>{item}</li>)}
+                  {data.intelligence.websiteAnalysis.map((item) => <li key={item}>{item}</li>)}
                 </ul>
               </section>
             )}
@@ -535,7 +535,7 @@ function LocalFalconSnapshotCard({
                   <h3 className="font-bold">Reviews analysis</h3>
                 </div>
                 <ul className="list-disc space-y-2 pl-5 text-sm leading-6 text-gray-800">
-                  {data.intelligence.reviewsAnalysis.map((item, index) => <li key={index}>{item}</li>)}
+                  {data.intelligence.reviewsAnalysis.map((item) => <li key={item}>{item}</li>)}
                 </ul>
               </section>
             )}
@@ -2680,7 +2680,7 @@ function ClientTaskRow({ task, onComplete, onToggle, onReschedule, onDelete, can
 
   return (
     <Card className={`p-3 flex items-start gap-3 group transition-opacity ${isDone ? "opacity-60" : ""}`} data-testid={`task-row-${task.id}`}>
-      <button
+      <button aria-label={isDone ? "Task completed" : "Complete task"}
         className="mt-0.5 shrink-0"
         onClick={isDone ? undefined : onComplete}
         disabled={isDone || isToggling}
@@ -2724,7 +2724,7 @@ function ClientTaskRow({ task, onComplete, onToggle, onReschedule, onDelete, can
       </div>
       <div className="flex items-center gap-1 shrink-0">
         {canDelete && (
-          <Button
+          <Button aria-label="Delete task"
             variant="ghost"
             size="icon"
             className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -3287,7 +3287,7 @@ function ProfileShellInner({
                           <div className="text-sm text-gray-700 chat-message-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(note.content) }} />
                         </div>
                       </div>
-                      <Button
+                      <Button aria-label="Delete note"
                         variant="ghost"
                         size="icon"
                         className="h-7 w-7 opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity shrink-0"
@@ -3349,7 +3349,7 @@ function ProfileShellInner({
                       </div>
                       {c.title && <p className="text-xs text-gray-500 mt-0.5">{c.title}</p>}
                     </div>
-                    <Button
+                    <Button aria-label="Edit contact"
                       variant="ghost"
                       size="icon"
                       className="h-7 w-7"

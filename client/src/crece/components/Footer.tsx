@@ -30,16 +30,16 @@ export function Footer() {
         </div>
 
         <div className="flex items-center gap-5">
-          <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" data-testid="link-footer-facebook" className="transition-opacity hover:opacity-80">
+          <a aria-label="Facebook" href="https://facebook.com" target="_blank" rel="noopener noreferrer" data-testid="link-footer-facebook" className="transition-opacity hover:opacity-80">
             <SiFacebook size={22} color="#1877F2" />
           </a>
-          <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" data-testid="link-footer-instagram" className="transition-opacity hover:opacity-80">
+          <a aria-label="Instagram" href="https://instagram.com" target="_blank" rel="noopener noreferrer" data-testid="link-footer-instagram" className="transition-opacity hover:opacity-80">
             <SiInstagram size={22} color="#E4405F" />
           </a>
-          <a href="https://youtube.com" target="_blank" rel="noopener noreferrer" data-testid="link-footer-youtube" className="transition-opacity hover:opacity-80">
+          <a aria-label="YouTube" href="https://youtube.com" target="_blank" rel="noopener noreferrer" data-testid="link-footer-youtube" className="transition-opacity hover:opacity-80">
             <SiYoutube size={22} color="#FF0000" />
           </a>
-          <a href="https://tiktok.com" target="_blank" rel="noopener noreferrer" data-testid="link-footer-tiktok" className="transition-opacity hover:opacity-80">
+          <a aria-label="TikTok" href="https://tiktok.com" target="_blank" rel="noopener noreferrer" data-testid="link-footer-tiktok" className="transition-opacity hover:opacity-80">
             <SiTiktok size={22} color="#ffffff" />
           </a>
         </div>

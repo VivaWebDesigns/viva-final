@@ -12,7 +12,7 @@ import {
   ScanSearch,
   Star,
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { useState } from "react";
 import SEO from "@/components/SEO";
 import { t, tArr, tObjArr } from "@/content";
@@ -120,22 +120,22 @@ export default function Home() {
         </div>
 
         <div className="relative z-10 mx-auto flex min-h-[648px] max-w-7xl flex-col px-4 py-7 sm:px-6 md:min-h-[586px] md:py-11 lg:px-8">
-          <motion.div initial="hidden" animate="visible" variants={stagger} className="mb-0 mt-[278px] max-w-[355px] drop-shadow-[0_2px_10px_rgba(0,0,0,0.72)] md:mb-5 md:mt-[54px] md:max-w-[460px]" data-testid="card-hero-content">
-            <motion.h1 variants={fadeUp} className="text-[clamp(34px,4.7vw,68px)] font-extrabold uppercase leading-none tracking-[0.01em] text-white" data-testid="text-hero-title">
+          <m.div initial="hidden" animate="visible" variants={stagger} className="mb-0 mt-[278px] max-w-[355px] drop-shadow-[0_2px_10px_rgba(0,0,0,0.72)] md:mb-5 md:mt-[54px] md:max-w-[460px]" data-testid="card-hero-content">
+            <m.h1 variants={fadeUp} className="text-[clamp(34px,4.7vw,68px)] font-extrabold uppercase leading-none tracking-[0.01em] text-white" data-testid="text-hero-title">
               Get found.
               <span className="block text-[#006296]">Get called.</span>
-            </motion.h1>
-            <motion.p variants={fadeUp} className="mt-5 max-w-xs text-2xl font-medium leading-[1.28] text-white/90 md:mt-6 md:max-w-[410px] md:text-[19px] md:leading-[1.55]" data-testid="text-hero-subtitle">
+            </m.h1>
+            <m.p variants={fadeUp} className="mt-5 max-w-xs text-2xl font-medium leading-[1.28] text-white/90 md:mt-6 md:max-w-[410px] md:text-[19px] md:leading-[1.55]" data-testid="text-hero-subtitle">
               We scan your website and Google rankings to show exactly why you're not showing up — and how to fix it.
-            </motion.p>
-            <motion.div variants={fadeUp} className="mt-7">
+            </m.p>
+            <m.div variants={fadeUp} className="mt-7">
               <a href="/scan">
                 <Button size="lg" className={primaryButton} data-testid="button-hero-scan">
                   Get My Free Visibility Scan
                 </Button>
               </a>
-            </motion.div>
-            <motion.div variants={fadeUp} className="mt-10 hidden w-[650px] grid-cols-3 gap-[18px] md:grid" aria-label="What the visibility scan provides">
+            </m.div>
+            <m.div variants={fadeUp} className="mt-10 hidden w-[650px] grid-cols-3 gap-[18px] md:grid" aria-label="What the visibility scan provides">
               {[
                 [ScanSearch, "See exactly where you rank"],
                 [ChartNoAxesCombined, "Get a clear plan to fix it"],
@@ -148,27 +148,27 @@ export default function Home() {
                   <span>{String(label)}</span>
                 </div>
               ))}
-            </motion.div>
-          </motion.div>
+            </m.div>
+          </m.div>
         </div>
         <img src="/img/hero-divider-desktop-20260713.webp?v=20260713-angled-divider" alt="" className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-[38px] w-full md:h-[60px]" aria-hidden="true" />
       </section>
 
       <section className="bg-[#f7f9fc] py-20 lg:py-24" data-testid="section-problem">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={stagger}>
+          <m.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={stagger}>
             <div className="md:grid md:grid-cols-[minmax(0,0.88fr)_minmax(480px,1.12fr)] md:items-center md:gap-[clamp(64px,8vw,118px)]">
               <div className="mx-auto mb-12 max-w-3xl text-center md:mx-0 md:mb-0 md:text-left">
-                <motion.span variants={fadeUp} className="mb-3 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-[#00a9df] md:text-xs">The problem</motion.span>
-                <motion.h2 variants={fadeUp} className={`${sectionTitle} md:text-[clamp(40px,4.1vw,58px)]`} data-testid="text-problem-title">
+                <m.span variants={fadeUp} className="mb-3 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-[#00a9df] md:text-xs">The problem</m.span>
+                <m.h2 variants={fadeUp} className={`${sectionTitle} md:text-[clamp(40px,4.1vw,58px)]`} data-testid="text-problem-title">
                   {t("home.problem.title1")}{" "}
                   <span className="text-[#006296]">{t("home.problem.titleAccent")}</span>
-                </motion.h2>
-                <motion.p variants={fadeUp} className={`${sectionCopy} mt-5 md:max-w-[470px] md:text-lg md:leading-[1.65]`}>
+                </m.h2>
+                <m.p variants={fadeUp} className={`${sectionCopy} mt-5 md:max-w-[470px] md:text-lg md:leading-[1.65]`}>
                   {t("home.problem.subtitle")}
-                </motion.p>
+                </m.p>
               </div>
-              <motion.div variants={fadeUp} className="mx-auto grid max-w-4xl gap-3 md:mx-0 md:max-w-none">
+              <m.div variants={fadeUp} className="mx-auto grid max-w-4xl gap-3 md:mx-0 md:max-w-none">
                 {problemItems.map((item, index) => {
                   const ProblemIcon = problemIcons[index] ?? MapPin;
                   return (
@@ -180,30 +180,30 @@ export default function Home() {
                     </div>
                   );
                 })}
-              </motion.div>
+              </m.div>
             </div>
-            <motion.p variants={fadeUp} className="mx-auto mt-10 max-w-2xl text-center text-2xl font-medium text-[#061a3d]">
+            <m.p variants={fadeUp} className="mx-auto mt-10 max-w-2xl text-center text-2xl font-medium text-[#061a3d]">
               {t("home.problem.conclusion")}
-            </motion.p>
-          </motion.div>
+            </m.p>
+          </m.div>
         </div>
       </section>
 
       <section className="bg-[#061a3d] py-20 text-white md:bg-[#00162f] lg:py-24" data-testid="section-before-after">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={stagger}>
+          <m.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={stagger}>
             <div className="mx-auto mb-12 max-w-3xl text-center">
-              <motion.span variants={fadeUp} className="mb-3 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-[#00a9df] md:text-xs">Real results</motion.span>
-              <motion.h2 variants={fadeUp} className="text-3xl font-medium leading-[1.08] text-white sm:text-4xl lg:text-5xl" data-testid="text-before-after-title">
+              <m.span variants={fadeUp} className="mb-3 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-[#00a9df] md:text-xs">Real results</m.span>
+              <m.h2 variants={fadeUp} className="text-3xl font-medium leading-[1.08] text-white sm:text-4xl lg:text-5xl" data-testid="text-before-after-title">
                 Before vs <span className="text-[#0f659e]">After</span>
-              </motion.h2>
-              <motion.p variants={fadeUp} className="mt-4 text-base text-white/70">
+              </m.h2>
+              <m.p variants={fadeUp} className="mt-4 text-base text-white/70">
                 Real ranking data from a real client. Same business. Same market. Sixty days apart.
-              </motion.p>
+              </m.p>
             </div>
             <div className="grid gap-5 lg:grid-cols-3">
               {proofScans.map((scan) => (
-                <motion.article key={scan.label} variants={fadeUp} className="overflow-hidden rounded-lg bg-[#02152f] shadow-[0_18px_54px_rgba(0,0,0,0.18)] md:border md:border-[#29e0f8]/20 md:bg-[#000818]/80 md:transition md:duration-200 md:hover:-translate-y-2 md:hover:border-[#29e0f8]/50 md:hover:shadow-[0_30px_68px_rgba(0,0,0,0.4)]">
+                <m.article key={scan.label} variants={fadeUp} className="overflow-hidden rounded-lg bg-[#02152f] shadow-[0_18px_54px_rgba(0,0,0,0.18)] md:border md:border-[#29e0f8]/20 md:bg-[#000818]/80 md:transition md:duration-200 md:hover:-translate-y-2 md:hover:border-[#29e0f8]/50 md:hover:shadow-[0_30px_68px_rgba(0,0,0,0.4)]">
                   <img src={scan.image} alt={scan.alt} className="aspect-[1.14] w-full object-cover" loading="lazy" />
                   <div className="p-5">
                     <strong className={`text-xs font-bold uppercase tracking-wide ${scan.tone === "before" ? "text-[#d8b400]" : "text-[#0f659e]"}`}>
@@ -211,46 +211,46 @@ export default function Home() {
                     </strong>
                     <p className="mt-3 text-sm leading-relaxed text-white/80">{scan.caption}</p>
                   </div>
-                </motion.article>
+                </m.article>
               ))}
             </div>
-            <motion.p variants={fadeUp} className="mx-auto mt-7 max-w-3xl text-center text-xs text-white/55">
+            <m.p variants={fadeUp} className="mx-auto mt-7 max-w-3xl text-center text-xs text-white/55">
               Glass and Door Pro, Monroe, NC. Results vary by market, competition, and how established the business is.
-            </motion.p>
-            <motion.div variants={fadeUp} className="mt-8 text-center">
+            </m.p>
+            <m.div variants={fadeUp} className="mt-8 text-center">
               <a href="/scan">
                 <Button size="lg" className={primaryButton} data-testid="button-proof-scan">
                   Get Your Free Visibility Scan
                   <ArrowRight className="h-5 w-5" />
                 </Button>
               </a>
-            </motion.div>
-          </motion.div>
+            </m.div>
+          </m.div>
         </div>
       </section>
 
       <section className="bg-[#061a3d] py-14 text-white md:border-y md:border-[#29e0f8]/15 md:bg-[#000818]" data-testid="section-positioning">
         <div className="mx-auto max-w-5xl px-4 text-center sm:px-6 lg:px-8">
-          <motion.p initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={fadeUp} className="text-2xl font-medium leading-tight text-white sm:text-3xl">
+          <m.p initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={fadeUp} className="text-2xl font-medium leading-tight text-white sm:text-3xl">
             We don't sell websites. We sell visibility. Every project starts with a scan and ends with proof — not promises.
-          </motion.p>
+          </m.p>
         </div>
       </section>
 
       <section id="como-funciona" className="relative scroll-mt-24 overflow-hidden bg-white py-20 before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:z-[1] before:h-[14px] before:bg-[#000818] before:[clip-path:polygon(0_0,100%_0,100%_35%,0_100%)] lg:py-24 lg:before:h-[18px]" data-testid="section-process">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={stagger}>
+          <m.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={stagger}>
             <div className="mx-auto mb-12 max-w-3xl text-center">
-              <motion.span variants={fadeUp} className="mb-3 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-[#00a9df] md:text-xs">How it works</motion.span>
-              <motion.h2 variants={fadeUp} className="text-[27px] font-bold leading-[1.25] text-[#061a3d] md:text-[clamp(26px,2.25vw,32px)]" data-testid="text-process-title">
+              <m.span variants={fadeUp} className="mb-3 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-[#00a9df] md:text-xs">How it works</m.span>
+              <m.h2 variants={fadeUp} className="text-[27px] font-bold leading-[1.25] text-[#061a3d] md:text-[clamp(26px,2.25vw,32px)]" data-testid="text-process-title">
                 {t("home.process.subtitle")}
-              </motion.h2>
+              </m.h2>
             </div>
             <div className="grid gap-5 sm:grid-cols-2 lg:mx-auto lg:max-w-[1120px] lg:grid-cols-4 lg:gap-[42px]">
               {processSteps.map((item, index) => {
                 const ProcessIcon = processIcons[index] ?? ScanSearch;
                 return (
-                  <motion.article key={item.step} variants={fadeUp} className={`${cardClass} group p-6 lg:overflow-visible lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none`}>
+                  <m.article key={item.step} variants={fadeUp} className={`${cardClass} group p-6 lg:overflow-visible lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none`}>
                     <div className="mb-5 flex items-center gap-3.5 text-[32px] font-medium text-[rgba(0,98,150,0.18)] lg:text-[34px]">
                       <span>{item.step}</span>
                       <span className="grid h-[54px] w-[54px] place-items-center rounded-full border border-[#006296]/20 bg-white shadow-[0_12px_26px_rgba(6,26,61,0.1),0_0_0_7px_rgba(0,169,223,0.045)] transition duration-200 group-hover:-translate-y-1 lg:h-[60px] lg:w-[60px]">
@@ -259,11 +259,11 @@ export default function Home() {
                     </div>
                     <h3 className="mb-3 text-xl font-medium text-[#061a3d]">{item.title}</h3>
                     <p className="text-sm leading-relaxed text-[#6b7185]">{item.desc}</p>
-                  </motion.article>
+                  </m.article>
                 );
               })}
             </div>
-          </motion.div>
+          </m.div>
         </div>
       </section>
 
@@ -271,44 +271,44 @@ export default function Home() {
 
       <section className="bg-white py-20 md:bg-[#f7f9fc] lg:py-24" data-testid="section-faq">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={stagger}>
+          <m.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={stagger}>
             <div className="mb-10 text-center">
-              <motion.h2 variants={fadeUp} className={sectionTitle} data-testid="text-faq-title">
+              <m.h2 variants={fadeUp} className={sectionTitle} data-testid="text-faq-title">
                 {t("home.faq.title")}
-              </motion.h2>
+              </m.h2>
             </div>
-            <motion.div variants={fadeUp} className={cardClass}>
+            <m.div variants={fadeUp} className={cardClass}>
               <div className="px-6">
                 {faqs.map((faq) => (
                   <FAQItem key={faq.q} q={faq.q} a={faq.a} />
                 ))}
               </div>
-            </motion.div>
-          </motion.div>
+            </m.div>
+          </m.div>
         </div>
       </section>
 
       <section className="bg-[#061a3d] py-20 text-white md:bg-[#000818] lg:py-24" data-testid="section-cta">
         <div className="mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger}>
-            <motion.div variants={fadeUp} className="mx-auto mb-6 grid h-12 w-12 place-items-center rounded-lg bg-white/10">
+          <m.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger}>
+            <m.div variants={fadeUp} className="mx-auto mb-6 grid h-12 w-12 place-items-center rounded-lg bg-white/10">
               <BarChart3 className="h-6 w-6" />
-            </motion.div>
-            <motion.h2 variants={fadeUp} className="text-3xl font-medium leading-[1.08] text-white sm:text-4xl lg:text-5xl" data-testid="text-cta-title">
+            </m.div>
+            <m.h2 variants={fadeUp} className="text-3xl font-medium leading-[1.08] text-white sm:text-4xl lg:text-5xl" data-testid="text-cta-title">
               {t("home.cta.title")}
-            </motion.h2>
-            <motion.p variants={fadeUp} className="mx-auto mt-5 max-w-2xl text-xl text-white/70">
+            </m.h2>
+            <m.p variants={fadeUp} className="mx-auto mt-5 max-w-2xl text-xl text-white/70">
               {t("home.cta.subtitle")}
-            </motion.p>
-            <motion.div variants={fadeUp} className="mt-9">
+            </m.p>
+            <m.div variants={fadeUp} className="mt-9">
               <a href="/scan">
                 <Button size="lg" className={primaryButton} data-testid="button-cta-bottom">
                   {t("home.cta.button")}
                   <ArrowRight className="h-5 w-5" />
                 </Button>
               </a>
-            </motion.div>
-          </motion.div>
+            </m.div>
+          </m.div>
         </div>
       </section>
     </div>

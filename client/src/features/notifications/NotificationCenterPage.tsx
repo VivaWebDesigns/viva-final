@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence, LazyMotion, domMax } from "framer-motion";
 import {
   Bell, BellRing, Check, CheckCheck, Mail, MailX, MailCheck,
   UserPlus, TrendingUp, Users, ArrowRight, AlertTriangle,
@@ -277,6 +277,7 @@ export default function NotificationCenterPage() {
                 {label}
               </h2>
               <div className="space-y-2">
+                <LazyMotion features={domMax}>
                 <AnimatePresence mode="popLayout">
                   {items.map((notification) => {
                     const typeConf = TYPE_ICONS[notification.type] || TYPE_ICONS.system_alert;
@@ -286,12 +287,12 @@ export default function NotificationCenterPage() {
                     const route = getEntityRoute(notification.relatedEntityType, notification.relatedEntityId);
 
                     return (
-                      <motion.div
+                      <m.div
                         key={notification.id}
                         layout
                         initial={{ opacity: 0, y: 6 }}
                         animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, x: -20, height: 0 }}
+                        exit={{ opacity: 0, x: -20 }}
                       >
                         <Card
                           className={`transition-all group ${
@@ -380,10 +381,11 @@ export default function NotificationCenterPage() {
                             </div>
                           </CardContent>
                         </Card>
-                      </motion.div>
+                      </m.div>
                     );
                   })}
                 </AnimatePresence>
+                </LazyMotion>
               </div>
             </div>
           ))}

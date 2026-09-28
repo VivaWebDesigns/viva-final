@@ -12,7 +12,7 @@ import {
   MessageCircle, Plus, Wifi, WifiOff, Circle, Paperclip, FileText,
   Image as ImageIcon, Loader2,
 } from "lucide-react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import RichTextEditor, { type RichTextEditorHandle, sanitizeHtml } from "./RichTextEditor";
 import { useAdminLang } from "@/i18n/LanguageContext";
 
@@ -105,7 +105,10 @@ interface TypingState {
   userName: string;
   target: string;
   targetType: "channel" | "dm";
+  expiresAt: number;
 }
+
+const TYPING_TIMEOUT_MS = 4000;
 
 const ROLE_COLORS: Record<string, string> = {
   admin: "bg-[#0D9488]/10 text-[#0D9488]",
@@ -164,14 +167,17 @@ function PresenceDot({ isOnline, testId }: { isOnline: boolean; testId?: string 
 
 function HighlightMentions({ text, users }: { text: string; users: TeamUser[] }) {
   const parts = text.split(/(@\S+)/g);
+  let offset = 0;
   return (
     <>
-      {parts.map((part, i) => {
+      {parts.map((part) => {
+        const start = offset;
+        offset += part.length;
         const mentioned = users.find((u) => `@${u.name}` === part || part === `@${u.name.split(" ")[0]}`);
         return mentioned ? (
-          <span key={i} className="bg-[#0D9488]/10 text-[#0D9488] rounded px-0.5 font-medium">{part}</span>
+          <span key={start} className="bg-[#0D9488]/10 text-[#0D9488] rounded px-0.5 font-medium">{part}</span>
         ) : (
-          <span key={i}>{part}</span>
+          <span key={start}>{part}</span>
         );
       })}
     </>
@@ -292,6 +298,17 @@ export default function TeamChatPage() {
     }
   }, [socket, isConnected, activeChannel, isInDm, canUseChannels]);
 
+  // Expire typing indicators that stopped receiving updates
+  useEffect(() => {
+    if (typingUsers.length === 0) return;
+    const nextExpiry = Math.min(...typingUsers.map((t) => t.expiresAt));
+    const timer = setTimeout(() => {
+      const now = Date.now();
+      setTypingUsers((prev) => prev.filter((t) => t.expiresAt > now));
+    }, Math.max(nextExpiry - Date.now(), 0));
+    return () => clearTimeout(timer);
+  }, [typingUsers]);
+
   // ── Socket: incoming messages ──────────────────────────────────────────────
 
   useEffect(() => {
@@ -341,18 +358,13 @@ export default function TeamChatPage() {
       qc.invalidateQueries({ queryKey: ["/api/chat/unread-count"] });
     };
 
-    const onTyping = (data: TypingState & { isTyping: boolean }) => {
+    const onTyping = (data: Omit<TypingState, "expiresAt"> & { isTyping: boolean }) => {
       if (data.userId === currentUserId) return;
       setTypingUsers((prev) => {
         const without = prev.filter((t) => !(t.userId === data.userId && t.target === data.target));
-        if (data.isTyping) return [...without, { userId: data.userId, userName: data.userName, target: data.target, targetType: data.targetType }];
+        if (data.isTyping) return [...without, { userId: data.userId, userName: data.userName, target: data.target, targetType: data.targetType, expiresAt: Date.now() + TYPING_TIMEOUT_MS }];
         return without;
       });
-      if (data.isTyping) {
-        setTimeout(() => {
-          setTypingUsers((prev) => prev.filter((t) => !(t.userId === data.userId && t.target === data.target)));
-        }, 4000);
-      }
     };
 
     socket.on("chat:channel_message", onChannelMessage);
@@ -777,7 +789,7 @@ export default function TeamChatPage() {
             ) : (
               <div className="flex-1" />
             )}
-            <div className="opacity-0 group-hover:opacity-100 transition-all flex items-center gap-0.5 flex-shrink-0 mt-0.5">
+            <div className="opacity-0 group-hover:opacity-100 transition flex items-center gap-0.5 flex-shrink-0 mt-0.5">
               <button
                 onClick={() => setShowEmojiFor(showEmojiFor === msg.id ? null : msg.id)}
                 className="text-gray-300 hover:text-gray-600 p-1 rounded hover:bg-gray-100"
@@ -947,10 +959,10 @@ export default function TeamChatPage() {
             {/* DM user picker */}
             <AnimatePresence>
               {showDmPicker && canUseChannels && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
+                <m.div
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
                   className="mb-2 overflow-hidden"
                   onClick={(e) => e.stopPropagation()}
                 >
@@ -973,7 +985,7 @@ export default function TeamChatPage() {
                       </button>
                     ))}
                   </div>
-                </motion.div>
+                </m.div>
               )}
             </AnimatePresence>
 
@@ -1061,7 +1073,7 @@ export default function TeamChatPage() {
                     <Pin className={`w-4 h-4 ${showPinned ? "text-yellow-500" : "text-gray-400"}`} />
                   </Button>
                 )}
-                <Button
+                <Button aria-label="Search messages"
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8"
@@ -1077,10 +1089,10 @@ export default function TeamChatPage() {
           {/* Pinned messages banner */}
           <AnimatePresence>
             {showPinned && pinnedMessages.length > 0 && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
+              <m.div
+                initial={{ y: -8, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: -8, opacity: 0 }}
                 className="border-b border-yellow-200 bg-yellow-50 overflow-hidden flex-shrink-0"
               >
                 <div className="px-4 py-2">
@@ -1088,7 +1100,7 @@ export default function TeamChatPage() {
                     <span className="text-xs font-semibold text-yellow-700 flex items-center gap-1">
                       <Pin className="w-3 h-3" /> {t.chat.pinnedMessages.replace("{{count}}", String(pinnedMessages.length))}
                     </span>
-                    <button onClick={() => setShowPinned(false)} className="text-yellow-600 hover:text-yellow-800">
+                    <button aria-label="Close pinned messages" onClick={() => setShowPinned(false)} className="text-yellow-600 hover:text-yellow-800">
                       <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -1098,17 +1110,17 @@ export default function TeamChatPage() {
                     </div>
                   ))}
                 </div>
-              </motion.div>
+              </m.div>
             )}
           </AnimatePresence>
 
           {/* Search bar */}
           <AnimatePresence>
             {showSearch && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
+              <m.div
+                initial={{ y: -8, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: -8, opacity: 0 }}
                 className="border-b border-gray-100 overflow-hidden flex-shrink-0"
               >
                 <div className="px-4 py-2 bg-gray-50">
@@ -1140,7 +1152,7 @@ export default function TeamChatPage() {
                     </div>
                   )}
                 </div>
-              </motion.div>
+              </m.div>
             )}
           </AnimatePresence>
 
@@ -1311,7 +1323,7 @@ export default function TeamChatPage() {
                 disabled={chatInputDisabled}
                 data-testid="input-chat-message"
               />
-              <Button
+              <Button aria-label="Send message"
                 onClick={() => {
                   const html = editorRef.current?.getHTML() ?? "";
                   handleEditorSend(html);
@@ -1330,18 +1342,18 @@ export default function TeamChatPage() {
         {/* ── Thread panel ──────────────────────────────────────────────── */}
         <AnimatePresence>
           {threadParentId && (
-            <motion.div
-              initial={{ width: 0, opacity: 0 }}
-              animate={{ width: 300, opacity: 1 }}
-              exit={{ width: 0, opacity: 0 }}
-              className="border-l border-gray-100 flex flex-col bg-gray-50 overflow-hidden flex-shrink-0"
+            <m.div
+              initial={{ x: 24, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: 24, opacity: 0 }}
+              className="w-[300px] border-l border-gray-100 flex flex-col bg-gray-50 overflow-hidden flex-shrink-0"
             >
               <div className="px-3 py-3 border-b border-gray-200 flex items-center justify-between flex-shrink-0 bg-white">
                 <div className="flex items-center gap-2">
                   <MessageSquare className="w-4 h-4 text-gray-500" />
                   <span className="font-semibold text-sm text-gray-900">Hilo</span>
                 </div>
-                <button
+                <button aria-label="Close thread"
                   onClick={() => setThreadParentId(null)}
                   className="text-gray-400 hover:text-gray-600"
                   data-testid="button-close-thread"
@@ -1396,7 +1408,7 @@ export default function TeamChatPage() {
                     style={{ minHeight: "34px", maxHeight: "80px" }}
                     data-testid="input-thread-message"
                   />
-                  <Button
+                  <Button aria-label="Send reply"
                     onClick={() => { if (threadDraft.trim()) { sendThreadMutation.mutate(threadDraft.trim()); setThreadDraft(""); } }}
                     disabled={!threadDraft.trim() || sendThreadMutation.isPending}
                     size="icon"
@@ -1407,7 +1419,7 @@ export default function TeamChatPage() {
                   </Button>
                 </div>
               </div>
-            </motion.div>
+            </m.div>
           )}
         </AnimatePresence>
       </div>

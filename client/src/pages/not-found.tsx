@@ -2,7 +2,7 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 import { SiWhatsapp } from "react-icons/si";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { t } from "@/content";
 
 export default function NotFound() {
@@ -11,7 +11,7 @@ export default function NotFound() {
   return (
     <div className="min-h-screen bg-[#111] flex items-center justify-center px-4" data-testid="page-not-found">
       <div className="max-w-2xl mx-auto text-center">
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: "easeOut" }}
@@ -32,7 +32,7 @@ export default function NotFound() {
             <Link href="/">
               <Button
                 size="lg"
-                className="bg-[#0D9488] hover:bg-[#0F766E] text-white font-bold text-lg gap-2 rounded-full transition-all duration-200 hover:shadow-lg"
+                className="bg-[#0D9488] hover:bg-[#0F766E] text-white font-bold text-lg gap-2 rounded-full transition duration-200 hover:shadow-lg"
                 data-testid="button-go-home"
               >
                 {t("notFound.goHome")}
@@ -47,7 +47,7 @@ export default function NotFound() {
               <Button
                 size="lg"
                 variant="outline"
-                className="text-white border-white/30 font-bold text-lg gap-2 bg-white/5 rounded-full transition-all duration-200 hover:shadow-lg"
+                className="text-white border-white/30 font-bold text-lg gap-2 bg-white/5 rounded-full transition duration-200 hover:shadow-lg"
                 data-testid="button-not-found-whatsapp"
               >
                 <SiWhatsapp className="w-5 h-5" />
@@ -55,7 +55,7 @@ export default function NotFound() {
               </Button>
             </a>
           </div>
-        </motion.div>
+        </m.div>
       </div>
     </div>
   );

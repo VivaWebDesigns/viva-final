@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { STALE } from "@/lib/queryClient";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Users, FileText, BookOpen, Puzzle, Phone, Building2, UserCheck, TrendingUp, ArrowRight, DollarSign, Target, UserPlus } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import type { CrmLead, CrmContact, CrmCompany } from "@shared/schema";
@@ -83,11 +83,11 @@ export default function DashboardPage() {
           const value = stats?.[card.key] ?? 0;
           return (
             <Link key={card.key} href={card.href}>
-              <motion.div
+              <m.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.05 }}
-                className="bg-white rounded-xl border border-gray-200 p-4 cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 hover:border-gray-300"
+                className="bg-white rounded-xl border border-gray-200 p-4 cursor-pointer transition duration-200 hover:shadow-md hover:-translate-y-0.5 hover:border-gray-300"
                 data-testid={`card-stat-${card.key}`}
               >
                 <div className="flex items-center justify-between mb-2">
@@ -101,7 +101,7 @@ export default function DashboardPage() {
                   <p className="text-xl font-bold text-gray-900">{value}</p>
                 )}
                 <p className="text-xs text-gray-500 mt-1">{card.label}</p>
-              </motion.div>
+              </m.div>
             </Link>
           );
         })}

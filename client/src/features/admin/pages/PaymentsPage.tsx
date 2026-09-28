@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest, STALE } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -123,7 +123,7 @@ export default function PaymentsPage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0 }}>
+        <m.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0 }}>
           <Card className="p-5" data-testid="card-billing-status">
             <div className="flex items-center justify-between mb-3">
               <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${status?.configured ? "bg-green-500" : "bg-yellow-500"}`}>
@@ -146,9 +146,9 @@ export default function PaymentsPage() {
               </p>
             )}
           </Card>
-        </motion.div>
+        </m.div>
 
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
+        <m.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
           <Card className="p-5" data-testid="card-webhook-events">
             <div className="w-10 h-10 bg-[#0D9488] rounded-lg flex items-center justify-center mb-3">
               <Webhook className="w-5 h-5 text-white" />
@@ -159,9 +159,9 @@ export default function PaymentsPage() {
               <p className="text-xs text-gray-400 mt-0.5">{processedCount} {t.payments.processed.toLowerCase()} · {pendingCount} {t.payments.pending.toLowerCase()}</p>
             )}
           </Card>
-        </motion.div>
+        </m.div>
 
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+        <m.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
           <Card className="p-5" data-testid="card-stripe-customers">
             <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center mb-3">
               <Users className="w-5 h-5 text-white" />
@@ -169,9 +169,9 @@ export default function PaymentsPage() {
             <p className="text-2xl font-bold text-gray-900">{customersLoading ? "—" : customers.length}</p>
             <p className="text-sm text-gray-500 mt-1">{t.payments.customers}</p>
           </Card>
-        </motion.div>
+        </m.div>
 
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+        <m.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
           <Card className="p-5" data-testid="card-webhook-endpoint">
             <div className="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center mb-3">
               <Activity className="w-5 h-5 text-white" />
@@ -180,7 +180,7 @@ export default function PaymentsPage() {
             <p className="text-sm text-gray-500 mt-1">Webhook Endpoint</p>
             <p className="text-xs text-gray-400 mt-0.5">Configure in Stripe Dashboard</p>
           </Card>
-        </motion.div>
+        </m.div>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">

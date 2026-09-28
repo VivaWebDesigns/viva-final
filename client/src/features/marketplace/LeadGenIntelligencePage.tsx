@@ -312,7 +312,7 @@ export default function LeadGenIntelligencePage() {
           </div>
           {rangeMode === "custom" && (
             <div className="flex items-center gap-2 text-sm">
-              <input
+              <input aria-label="Start date"
                 type="date"
                 value={customFrom}
                 onChange={(event) => setCustomFrom(event.target.value)}
@@ -320,7 +320,7 @@ export default function LeadGenIntelligencePage() {
                 data-testid="input-lead-gen-from"
               />
               <span className="text-gray-400">to</span>
-              <input
+              <input aria-label="End date"
                 type="date"
                 value={customTo}
                 onChange={(event) => setCustomTo(event.target.value)}
@@ -359,7 +359,7 @@ export default function LeadGenIntelligencePage() {
                 <h2 className="text-base font-semibold text-gray-900">Daily Lead Gen Flow</h2>
                 <p className="text-xs text-gray-500">Contacted and converted records by day.</p>
               </div>
-              <select
+              <select aria-label="Worker"
                 value={selectedWorkerId}
                 onChange={(event) => setSelectedWorkerId(event.target.value)}
                 className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700"

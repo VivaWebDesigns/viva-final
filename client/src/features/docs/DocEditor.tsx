@@ -129,7 +129,7 @@ export default function DocEditor({ articleId, categories, onClose, onSaved }: D
   return (
     <div>
       <div className="flex items-center gap-3 mb-6">
-        <Button variant="ghost" size="icon" onClick={onClose} data-testid="button-back">
+        <Button aria-label="Back" variant="ghost" size="icon" onClick={onClose} data-testid="button-back">
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <h1 className="text-2xl font-bold text-gray-900">
@@ -243,7 +243,7 @@ export default function DocEditor({ articleId, categories, onClose, onSaved }: D
                   >
                     Add
                   </button>
-                  <button
+                  <button aria-label="Cancel new tag"
                     type="button"
                     onClick={() => { setShowTagInput(false); setNewTagName(""); }}
                     className="text-xs text-gray-400 hover:text-gray-600"

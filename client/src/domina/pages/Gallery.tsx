@@ -2,7 +2,7 @@ import { Navigation } from "@domina/components/Navigation";
 import { Footer } from "@domina/components/Footer";
 import { Button } from "@domina/components/ui/button";
 import { useEffect, useState, useCallback } from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Link } from "wouter";
 import { ArrowRight, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { allProjects, SERVICE_CATEGORIES, type ServiceCategory } from "@domina/data/projects";
@@ -88,7 +88,7 @@ export default function Gallery() {
         <div className="container mx-auto px-4 md:px-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {filtered.map((img, i) => (
-              <motion.div
+              <m.div
                 key={img.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -117,7 +117,7 @@ export default function Gallery() {
                   </p>
                   <p className="text-muted-foreground text-xs mt-1">{t.gallery.categories[img.category] || img.category}</p>
                 </div>
-              </motion.div>
+              </m.div>
             ))}
           </div>
 
@@ -152,7 +152,7 @@ export default function Gallery() {
           onClick={() => setLightboxIndex(null)}
           data-testid="lightbox-overlay"
         >
-          <button
+          <button aria-label="Close image"
             className="absolute top-4 right-4 text-white p-2 z-10"
             onClick={() => setLightboxIndex(null)}
             data-testid="button-lightbox-close"
@@ -160,7 +160,7 @@ export default function Gallery() {
             <X size={32} />
           </button>
           {lightboxIndex > 0 && (
-            <button
+            <button aria-label="Previous image"
               className="absolute left-4 top-1/2 -translate-y-1/2 text-white bg-black/40 hover:bg-black/60 rounded-full p-2 z-10 transition-colors"
               onClick={(e) => { e.stopPropagation(); setLightboxIndex(lightboxIndex - 1); }}
               data-testid="button-lightbox-prev"
@@ -169,7 +169,7 @@ export default function Gallery() {
             </button>
           )}
           {lightboxIndex < filtered.length - 1 && (
-            <button
+            <button aria-label="Next image"
               className="absolute right-4 top-1/2 -translate-y-1/2 text-white bg-black/40 hover:bg-black/60 rounded-full p-2 z-10 transition-colors"
               onClick={(e) => { e.stopPropagation(); setLightboxIndex(lightboxIndex + 1); }}
               data-testid="button-lightbox-next"
