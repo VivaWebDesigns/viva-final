@@ -4,6 +4,10 @@ import { SCAN_LIMITS, SIMULATED_GOOGLEBOT_USER_AGENT } from "./constants";
 import { assertSafePublicUrl } from "./url-safety";
 import { extractSnapshot } from "./extract";
 
+
+const CAPTURED_RESPONSE_HEADERS = new Set([
+  "content-type", "content-encoding", "cache-control", "etag", "last-modified", "expires", "x-robots-tag", "server", "vary", "content-language",
+]);
 function boundedPush<T>(items: T[], item: T, limit: number) {
   if (items.length < limit) items.push(item);
 }
@@ -59,9 +63,7 @@ export async function renderSimulatedGooglebot(requestedUrl: string, signal?: Ab
     const html = (await page.content()).slice(0, SCAN_LIMITS.maxDomBytes);
     const visibleText = await page.locator("body").innerText({ timeout: 2_000 }).catch(() => "");
     const headers = response ? Object.fromEntries(
-      Object.entries(await response.allHeaders()).filter(([name]) => [
-        "content-type", "content-encoding", "cache-control", "etag", "last-modified", "expires", "x-robots-tag", "server", "vary", "content-language",
-      ].includes(name.toLowerCase())),
+      Object.entries(await response.allHeaders()).filter(([name]) => CAPTURED_RESPONSE_HEADERS.has(name.toLowerCase())),
     ) : {};
     const redirects: TechnicalSeoSnapshot["redirects"] = [];
     let request = response?.request() ?? null;

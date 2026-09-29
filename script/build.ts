@@ -50,7 +50,8 @@ async function buildAll() {
     ...Object.keys(pkg.dependencies || {}),
     ...Object.keys(pkg.devDependencies || {}),
   ];
-  const externals = allDeps.filter((dep) => !allowlist.includes(dep));
+  const bundled = new Set(allowlist);
+  const externals = allDeps.filter((dep) => !bundled.has(dep));
 
   await esbuild({
     entryPoints: ["server/index.ts"],

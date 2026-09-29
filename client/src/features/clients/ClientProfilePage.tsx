@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 import {
   ArrowLeft, Building2, Mail, Phone, MapPin, Globe,
   User, Calendar, Plus, MessageSquare, History,
@@ -759,10 +759,10 @@ export default function ClientProfilePage({ id }: { id: string }) {
                     };
                     const isDone = ob.status === "completed";
                     return (
-                      <div
+                      <Link
                         key={ob.id}
+                        href={`/admin/onboarding/${ob.id}`}
                         className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer hover:opacity-90 transition-opacity ${statusBg[ob.status] || "bg-gray-50 border-gray-200"}`}
-                        onClick={() => navigate(`/admin/onboarding/${ob.id}`)}
                         data-testid={`onboarding-item-${ob.id}`}
                       >
                         <div className="flex items-center gap-3 min-w-0">
@@ -780,7 +780,7 @@ export default function ClientProfilePage({ id }: { id: string }) {
                           )}
                           <ExternalLink className="w-3.5 h-3.5 text-gray-400" />
                         </div>
-                      </div>
+                      </Link>
                     );
                   })}
                 </CardContent>
@@ -1618,6 +1618,7 @@ function NoteForm({ onSubmit, isPending }: { onSubmit: (data: any) => void, isPe
               name="type"
               render={({ field }) => (
                 <FormItem>
+                  <FormLabel className="sr-only">Note type</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>

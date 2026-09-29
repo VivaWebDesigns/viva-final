@@ -26,8 +26,9 @@ export function consolidateReportIssues(issues: TechnicalSeoIssue[], limit = 6) 
     roots.add(root); selected.push(issue);
     if (selected.length === limit) return selected;
   }
+  const selectedIssues = new Set(selected);
   for (const issue of ordered) {
-    if (!selected.includes(issue)) selected.push(issue);
+    if (!selectedIssues.has(issue)) selected.push(issue);
     if (selected.length === limit) break;
   }
   return selected;

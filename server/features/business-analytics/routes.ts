@@ -79,14 +79,16 @@ async function isAuthenticatedInternalBrowser(req: Request) {
   }
 }
 
+const easternDateFormatter = new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/New_York",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
 function easternDate(offsetDays = 0) {
   const date = new Date(Date.now() + offsetDays * 86_400_000);
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(date);
+  const parts = easternDateFormatter.formatToParts(date);
   const value = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
   return `${value("year")}-${value("month")}-${value("day")}`;
 }

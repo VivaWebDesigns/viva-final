@@ -2058,6 +2058,7 @@ function NoteForm({ onSubmit, isPending }: { onSubmit: (data: Record<string, unk
               name="type"
               render={({ field }) => (
                 <FormItem>
+                  <FormLabel className="sr-only">Note type</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger data-testid="select-note-type">
@@ -3825,7 +3826,15 @@ function ProfileShellInner({
                     <div
                       key={evt.id}
                       className={`py-2.5 first:pt-0 last:pb-0 ${isExpandable ? "cursor-pointer" : ""}`}
+                      role={isExpandable ? "button" : undefined}
+                      tabIndex={isExpandable ? 0 : undefined}
+                      aria-expanded={isExpandable ? isExpanded : undefined}
                       onClick={isExpandable ? () => setExpandedActivityId(isExpanded ? null : evt.id) : undefined}
+                      onKeyDown={isExpandable ? (e) => {
+                        if (e.target !== e.currentTarget || (e.key !== "Enter" && e.key !== " ")) return;
+                        e.preventDefault();
+                        setExpandedActivityId(isExpanded ? null : evt.id);
+                      } : undefined}
                       data-testid={`activity-event-${evt.id}`}
                     >
                       <div className="flex items-start gap-3">

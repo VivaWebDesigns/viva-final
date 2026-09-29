@@ -72,6 +72,7 @@ export function ReportOutreachAndTagFilters({
     queryKey: ["/api/crm/tags"],
     staleTime: STALE.SLOW,
   });
+  const selectedTagIds = new Set(tagIds);
 
   return (
     <>
@@ -95,7 +96,7 @@ export function ReportOutreachAndTagFilters({
         <DropdownMenuTrigger asChild>
           <Button variant="outline" className="w-full sm:w-60 justify-between font-normal" data-testid={`${testIdPrefix}-tag-filter`}>
             <span className="truncate">
-              {tagIds.length ? allTags.filter((tag) => tagIds.includes(tag.id)).map((tag) => tag.name).join(" + ") : t.crm.allTags}
+              {tagIds.length ? allTags.filter((tag) => selectedTagIds.has(tag.id)).map((tag) => tag.name).join(" + ") : t.crm.allTags}
             </span>
             <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
@@ -106,7 +107,7 @@ export function ReportOutreachAndTagFilters({
           {allTags.map((tag) => (
             <DropdownMenuCheckboxItem
               key={tag.id}
-              checked={tagIds.includes(tag.id)}
+              checked={selectedTagIds.has(tag.id)}
               onSelect={(event) => event.preventDefault()}
               onCheckedChange={(checked) => onTagIdsChange(
                 checked ? [...new Set([...tagIds, tag.id])].sort() : tagIds.filter((id) => id !== tag.id),

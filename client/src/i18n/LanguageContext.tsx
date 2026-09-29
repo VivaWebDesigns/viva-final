@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useMemo, useState, useEffect, type ReactNode } from "react";
 import { en } from "./locales/en";
 import { es } from "./locales/es";
 import type { AdminTranslations } from "./locales/en";
@@ -30,19 +30,21 @@ export function AdminLangProvider({ children }: { children: ReactNode }) {
     return "en";
   });
 
-  const setLang = (l: Lang) => {
+  const setLang = useCallback((l: Lang) => {
     setLangState(l);
     try {
       localStorage.setItem(STORAGE_KEY, l);
     } catch {}
-  };
+  }, []);
 
   useEffect(() => {
     document.documentElement.lang = lang;
   }, [lang]);
 
+  const value = useMemo(() => ({ lang, setLang, t: LOCALES[lang] }), [lang, setLang]);
+
   return (
-    <AdminLangContext.Provider value={{ lang, setLang, t: LOCALES[lang] }}>
+    <AdminLangContext.Provider value={value}>
       {children}
     </AdminLangContext.Provider>
   );

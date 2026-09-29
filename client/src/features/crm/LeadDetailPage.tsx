@@ -773,8 +773,9 @@ export default function LeadDetailPage({ id }: { id: string }) {
                 {editingLocation ? (
                   <div className="flex flex-wrap items-end gap-2">
                     <div className="flex-1 min-w-[120px]">
-                      <label className="text-xs text-gray-500 mb-1 block">{t.common.city}</label>
+                      <label htmlFor="lead-edit-city" className="text-xs text-gray-500 mb-1 block">{t.common.city}</label>
                       <Input
+                        id="lead-edit-city"
                         value={editCity}
                         onChange={(e) => setEditCity(e.target.value)}
                         placeholder={t.common.city}
@@ -783,9 +784,9 @@ export default function LeadDetailPage({ id }: { id: string }) {
                       />
                     </div>
                     <div className="w-[100px]">
-                      <label className="text-xs text-gray-500 mb-1 block">{t.common.state}</label>
+                      <label htmlFor="lead-edit-state" className="text-xs text-gray-500 mb-1 block">{t.common.state}</label>
                       <Select value={editState} onValueChange={setEditState}>
-                        <SelectTrigger className="h-8 text-sm" data-testid="select-edit-state">
+                        <SelectTrigger id="lead-edit-state" className="h-8 text-sm" data-testid="select-edit-state">
                           <SelectValue placeholder={t.common.state} />
                         </SelectTrigger>
                         <SelectContent>

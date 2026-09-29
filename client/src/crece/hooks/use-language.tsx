@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useCallback, useContext, useMemo, useState, useEffect, ReactNode } from "react";
 
 type Language = "en" | "es";
 
@@ -228,7 +228,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     document.documentElement.lang = language;
   }, [language]);
 
-  const t = (key: string) => {
+  const t = useCallback((key: string) => {
     // Preview override: supports both flat { key: value } and language-aware { en: {...}, es: {...} }.
     // Language-aware format ensures switching to ES returns Spanish override strings.
     const previewOverrides = window.__PREVIEW__?.tOverrides || {};
@@ -238,10 +238,12 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
         : (previewOverrides as Record<string, string>);
     if (langOverrides[key] !== undefined) return langOverrides[key];
     return translations[language][key] || key;
-  };
+  }, [language]);
+
+  const value = useMemo(() => ({ language, setLanguage, t }), [language, t]);
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, t }}>
+    <LanguageContext.Provider value={value}>
       {children}
     </LanguageContext.Provider>
   );

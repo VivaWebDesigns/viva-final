@@ -302,6 +302,16 @@ export default function TeamChatPage() {
     }
   }, [socket, isConnected, activeChannel, isInDm, canUseChannels]);
 
+  // Close the emoji and DM pickers on any click that isn't stopped by the pickers themselves
+  useEffect(() => {
+    const closePopovers = () => {
+      setShowEmojiFor(null);
+      setShowDmPicker(false);
+    };
+    document.addEventListener("click", closePopovers);
+    return () => document.removeEventListener("click", closePopovers);
+  }, []);
+
   // Expire typing indicators that stopped receiving updates
   useEffect(() => {
     if (typingUsers.length === 0) return;
@@ -899,7 +909,6 @@ export default function TeamChatPage() {
     <div
       className="flex h-[calc(100vh-80px)] -mx-4 -mt-4 overflow-hidden"
       data-testid="page-team-chat"
-      onClick={() => { setShowEmojiFor(null); setShowDmPicker(false); }}
     >
       {/* ── Sidebar ───────────────────────────────────────────────────────── */}
       <div className="w-60 flex-shrink-0 bg-gray-900 text-gray-300 flex flex-col">

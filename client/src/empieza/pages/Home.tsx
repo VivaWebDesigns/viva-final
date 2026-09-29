@@ -317,19 +317,19 @@ export default function Home() {
                 const imgs = P?.galleryImages || defaultGallery.map((src, i) => ({ url: src, alt: defaultGalleryAlts[i] }));
                 return (
                   <>
-                    <div className="relative rounded-md overflow-hidden shadow-lg mb-4 cursor-pointer" onClick={() => setLightboxSrc(imgs[0].url)}>
+                    <button type="button" aria-label="View larger image" className="relative block w-full rounded-md overflow-hidden shadow-lg mb-4 cursor-pointer" onClick={() => setLightboxSrc(imgs[0].url)}>
                       <img src={imgs[0].url} alt={imgs[0].alt} loading="lazy" className="w-full h-[280px] object-cover" data-testid="img-why-us-1" />
                       <div className="absolute bottom-0 right-0 z-10 bg-primary text-white px-4 py-2 rounded-tl-md shadow-lg text-center">
                         <span className="block text-2xl font-bold" style={{ fontFamily: 'var(--font-display)' }}>15+</span>
                         <span className="text-[10px] font-medium tracking-wider uppercase">{t("yearsExperience")}</span>
                       </div>
-                    </div>
+                    </button>
 
                     <div className="grid grid-cols-2 gap-4">
                       {imgs.slice(1, 7).map((img: any, i: number) => (
-                        <div key={img.url} className="rounded-md overflow-hidden shadow-md cursor-pointer" onClick={() => setLightboxSrc(img.url)}>
+                        <button type="button" key={img.url} aria-label="View larger image" className="block w-full rounded-md overflow-hidden shadow-md cursor-pointer" onClick={() => setLightboxSrc(img.url)}>
                           <img src={img.url} alt={img.alt} loading="lazy" className="w-full h-[160px] object-cover" data-testid={`img-why-us-${i + 2}`} />
-                        </div>
+                        </button>
                       ))}
                     </div>
                   </>
@@ -510,7 +510,7 @@ export default function Home() {
           </button>
           <img
             src={lightboxSrc}
-            alt="Enlarged gallery image"
+            alt="Enlarged view"
             className="max-w-full max-h-[90vh] object-contain rounded-md"
             onClick={(e) => e.stopPropagation()}
             data-testid="img-lightbox"

@@ -82,10 +82,12 @@ export function classifyReportOutreach(summary: ReportOutreachSummary, now = new
 }
 
 /** Date-only task deadlines in the business's Eastern timezone; skips weekends. */
+const easternDateFormatter = new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit",
+});
+
 export function reportBusinessDate(now: Date, days: number): Date {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit",
-  }).formatToParts(now);
+  const parts = easternDateFormatter.formatToParts(now);
   const part = (type: string) => parts.find(p => p.type === type)?.value ?? "";
   const date = new Date(`${part("year")}-${part("month")}-${part("day")}T00:00:00Z`);
   while (days > 0) {

@@ -85,8 +85,9 @@ function NewCategoryModal({ onClose, onCreated }: NewCategoryModalProps) {
         </div>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+            <label htmlFor="doc-category-name" className="block text-sm font-medium text-gray-700 mb-1">Name</label>
             <Input
+              id="doc-category-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Category name"
@@ -95,8 +96,9 @@ function NewCategoryModal({ onClose, onCreated }: NewCategoryModalProps) {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Description <span className="text-gray-400">(optional)</span></label>
+            <label htmlFor="doc-category-description" className="block text-sm font-medium text-gray-700 mb-1">Description <span className="text-gray-400">(optional)</span></label>
             <Input
+              id="doc-category-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Brief description"

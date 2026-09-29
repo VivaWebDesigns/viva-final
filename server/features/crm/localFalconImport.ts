@@ -654,6 +654,7 @@ export async function importLocalFalconPayload(
     const contactRoutingTagIds = contactRoutingTags.map((tag) => tag.id);
 
     const results: LocalFalconImportResult["importedLeads"] = [];
+    const contactRoutingTagsByName = new Map(contactRoutingTags.map((tag) => [tag.name, tag]));
     for (const prospect of payload.prospects) {
       if (!allowedPlaceIds.has(prospect.place_id)) continue;
       const location = crmLocation(prospect);
@@ -797,7 +798,7 @@ export async function importLocalFalconPayload(
 
       const contactRouting = getScaleFirstContactRouting(prospect);
       if (contactRouting.contactTag) {
-        const contactRoutingTag = contactRoutingTags.find((tag) => tag.name === contactRouting.contactTag);
+        const contactRoutingTag = contactRoutingTagsByName.get(contactRouting.contactTag);
         if (!contactRoutingTag) throw new Error(`CRM tag '${contactRouting.contactTag}' is not configured`);
         await tx.delete(crmLeadTags).where(and(
           eq(crmLeadTags.leadId, lead.id),

@@ -207,6 +207,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
                 <div className="flex gap-1.5">
                   <input
                     ref={linkInputRef}
+                    aria-label="Link URL"
                     value={linkUrl}
                     onChange={(e) => setLinkUrl(e.target.value)}
                     onKeyDown={(e) => {

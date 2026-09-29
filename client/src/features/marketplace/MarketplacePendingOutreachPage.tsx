@@ -842,7 +842,13 @@ export default function MarketplacePendingOutreachPage() {
                   return (
                     <tr
                       key={record.id}
+                      tabIndex={0}
                       onClick={() => handleRowClick(record)}
+                      onKeyDown={(e) => {
+                        if (e.target !== e.currentTarget || (e.key !== "Enter" && e.key !== " ")) return;
+                        e.preventDefault();
+                        handleRowClick(record);
+                      }}
                       data-testid={`row-outreach-${record.id}`}
                       className={cn(
                         "border-b border-border/50 last:border-0 cursor-pointer transition-colors",
@@ -851,10 +857,7 @@ export default function MarketplacePendingOutreachPage() {
                           : "hover:bg-gray-50 dark:hover:bg-gray-800/40"
                       )}
                     >
-                      <td
-                        className="px-3 py-2 w-8"
-                        onClick={(e) => { e.stopPropagation(); toggleSelectRow(record.id); }}
-                      >
+                      <td className="px-3 py-2 w-8">
                         <Checkbox
                           checked={isChecked}
                           aria-label={`Select ${record.sellerFullName}`}

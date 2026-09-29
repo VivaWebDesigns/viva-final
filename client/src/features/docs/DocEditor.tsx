@@ -24,6 +24,7 @@ export default function DocEditor({ articleId, categories, onClose, onSaved }: D
   const [categoryId, setCategoryId] = useState<string>("");
   const [status, setStatus] = useState("draft");
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const selectedTagIdSet = new Set(selectedTagIds);
   const [newTagName, setNewTagName] = useState("");
   const [showTagInput, setShowTagInput] = useState(false);
   const { toast } = useToast();
@@ -202,7 +203,7 @@ export default function DocEditor({ articleId, categories, onClose, onSaved }: D
             </Label>
             <div className="flex flex-wrap gap-2 p-3 border border-gray-200 rounded-lg min-h-[44px] bg-gray-50">
               {allTags.map((tag) => {
-                const selected = selectedTagIds.includes(tag.id);
+                const selected = selectedTagIdSet.has(tag.id);
                 return (
                   <button
                     key={tag.id}

@@ -103,13 +103,15 @@ function Rate({ count, rate }: { count: number; rate: number }) {
   );
 }
 
+const dateTimeFormatter = new Intl.DateTimeFormat(undefined, {
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+});
+
 function formatDate(value: string) {
-  return new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(value));
+  return dateTimeFormatter.format(new Date(value));
 }
 
 function formatCta(value: string) {

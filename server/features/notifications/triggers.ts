@@ -65,16 +65,14 @@ export async function notifyStageChange(
   newStageName: string
 ) {
   try {
-    const recipientIds: string[] = [];
-    if (opportunity.ownerId) recipientIds.push(opportunity.ownerId);
+    const recipientIds = new Set<string>();
+    if (opportunity.ownerId) recipientIds.add(opportunity.ownerId);
 
     const admins = await getUsersByRole("admin");
-    admins.forEach((a) => {
-      if (!recipientIds.includes(a.id)) recipientIds.push(a.id);
-    });
+    admins.forEach((a) => recipientIds.add(a.id));
 
     await Promise.all(
-      recipientIds.map(async (rid) => {
+      [...recipientIds].map(async (rid) => {
         const u = await getUserById(rid);
         if (!u) return;
         return createNotification({
@@ -147,17 +145,15 @@ export async function notifyOnboardingStatusChange(
   newStatus: string
 ) {
   try {
-    const recipientIds: string[] = [];
-    if (onboarding.ownerId) recipientIds.push(onboarding.ownerId);
+    const recipientIds = new Set<string>();
+    if (onboarding.ownerId) recipientIds.add(onboarding.ownerId);
 
     const admins = await getUsersByRole("admin");
-    admins.forEach((a) => {
-      if (!recipientIds.includes(a.id)) recipientIds.push(a.id);
-    });
+    admins.forEach((a) => recipientIds.add(a.id));
 
     const label = onboarding.clientName || "a client";
     await Promise.all(
-      recipientIds.map(async (rid) => {
+      [...recipientIds].map(async (rid) => {
         const u = await getUserById(rid);
         if (!u) return;
         return createNotification({

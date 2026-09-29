@@ -146,14 +146,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             const active = isActive(item.path);
             const badgeCount = item.path === "/admin/chat" ? chatUnreadCount : 0;
             const content = (
-              <Link key={item.path} href={item.path}>
+              <Link key={item.path} href={item.path} onClick={() => setMobileOpen(false)}>
                 <div
                   className={`relative flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors text-sm ${
                     active
                       ? "bg-[#0D9488]/10 text-[#0D9488] font-medium"
                       : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
                   }`}
-                  onClick={() => setMobileOpen(false)}
                   data-testid={`nav-${item.path.split("/").pop()}`}
                 >
                   <Icon className={`w-5 h-5 flex-shrink-0 ${active ? "text-[#0D9488]" : item.color || "text-gray-500"}`} />
@@ -192,8 +191,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         {overdueCount > 0 && (
           <div className="px-3 pb-2">
-            <div
-              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-50 border border-red-200 cursor-pointer hover:bg-red-100 transition-colors"
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 px-3 py-2 rounded-lg bg-red-50 border border-red-200 cursor-pointer hover:bg-red-100 transition-colors text-left"
               onClick={() => navigate("/admin/pipeline")}
               data-testid="nav-overdue-indicator"
             >
@@ -206,7 +206,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               {collapsed && (
                 <span className="text-xs font-bold text-red-600">{overdueCount}</span>
               )}
-            </div>
+            </button>
           </div>
         )}
 
@@ -269,8 +269,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {mobileOpen && (
         <>
-          <div
-            className="fixed inset-0 bg-black/30 z-40 md:hidden animate-in fade-in-0 duration-150"
+          <button
+            type="button"
+            aria-label="Close menu"
+            tabIndex={-1}
+            className="fixed inset-0 bg-black/30 z-40 md:hidden animate-in fade-in-0 duration-150 cursor-default"
             onClick={() => setMobileOpen(false)}
           />
           <aside className="fixed left-0 top-0 bottom-0 w-[280px] bg-white z-50 md:hidden shadow-xl animate-in slide-in-from-left duration-200">

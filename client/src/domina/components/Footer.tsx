@@ -49,7 +49,7 @@ export function Footer() {
           <div className="flex flex-col sm:flex-row gap-8">
             <div>
               <h4 className="text-sm font-semibold text-foreground mb-3" style={{ fontFamily: 'var(--font-display)' }}>{t.footer.pages}</h4>
-              <nav className="flex flex-col gap-2">
+              <nav aria-label="Footer pages" className="flex flex-col gap-2">
                 <Link href="/" className="text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-footer-home">{t.nav.home}</Link>
                 <Link href="/services" className="text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-footer-services">{t.nav.services}</Link>
                 <Link href="/portfolio" className="text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-footer-portfolio">{t.nav.portfolio}</Link>
@@ -61,7 +61,7 @@ export function Footer() {
 
             <div>
               <h4 className="text-sm font-semibold text-foreground mb-3" style={{ fontFamily: 'var(--font-display)' }}>{t.footer.services}</h4>
-              <nav className="flex flex-col gap-2">
+              <nav aria-label="Footer services" className="flex flex-col gap-2">
                 <Link href="/services/interior-painting" className="text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-footer-interior">{t.nav.interiorPainting}</Link>
                 <Link href="/services/exterior-painting" className="text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-footer-exterior">{t.nav.exteriorPainting}</Link>
                 <Link href="/services/kitchen-cabinet-painting" className="text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-footer-cabinets">{t.nav.cabinetPainting}</Link>

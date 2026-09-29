@@ -532,11 +532,11 @@ export default function CreateLeadModal({ open, onClose }: Props) {
             />
 
             <div className="space-y-2">
-              <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+              <label htmlFor="create-lead-assigned-to" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                 Assign To <span className="text-red-500">*</span>
               </label>
               <Select value={assignedToId} onValueChange={(v) => { setAssignedToId(v); setAssignedToError(false); }}>
-                <SelectTrigger data-testid="select-assigned-to">
+                <SelectTrigger id="create-lead-assigned-to" data-testid="select-assigned-to">
                   <SelectValue placeholder="Select a rep..." />
                 </SelectTrigger>
                 <SelectContent>

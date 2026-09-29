@@ -671,8 +671,8 @@ export default function AnalyticsPage() {
           <div className="space-y-6">
             {locations.length > 0 && (
               <div className="max-w-xl">
-                <label className="mb-1.5 block text-sm font-medium text-gray-700">Business location</label>
-                <select aria-label="Business location"
+                <label htmlFor="analytics-business-location" className="mb-1.5 block text-sm font-medium text-gray-700">Business location</label>
+                <select id="analytics-business-location"
                   value={selectedLocation || (status?.businessProfile?.externalAccountId && status.businessProfile.locationId
                     ? `${status.businessProfile.externalAccountId}|${status.businessProfile.locationId}` : "")}
                   onChange={(event) => handleLocationChange(event.target.value)}

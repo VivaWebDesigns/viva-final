@@ -104,9 +104,9 @@ export function TermsAndConditionsModal({ trigger, className }: TermsAndConditio
   return (
     <>
       {trigger ? (
-        <span onClick={() => setOpen(true)} className={className} style={{ cursor: "pointer" }}>
+        <button type="button" onClick={() => setOpen(true)} className={className} style={{ cursor: "pointer" }}>
           {trigger}
-        </span>
+        </button>
       ) : (
         <button
           onClick={() => setOpen(true)}

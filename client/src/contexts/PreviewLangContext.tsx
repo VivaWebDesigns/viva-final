@@ -7,7 +7,7 @@
  * this context so they stay in sync without prop-drilling.
  */
 
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 
 type Lang = "en" | "es";
 
@@ -23,8 +23,9 @@ const PreviewLangContext = createContext<PreviewLangContextType>({
 
 export function PreviewLangProvider({ children }: { children: ReactNode }) {
   const [lang, setLang] = useState<Lang>("en");
+  const value = useMemo(() => ({ lang, setLang }), [lang]);
   return (
-    <PreviewLangContext.Provider value={{ lang, setLang }}>
+    <PreviewLangContext.Provider value={value}>
       {children}
     </PreviewLangContext.Provider>
   );

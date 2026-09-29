@@ -204,6 +204,7 @@ const RichTextEditorField = forwardRef<HTMLDivElement, RichTextEditorFieldProps>
               <div className="absolute top-full left-0 mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-lg p-2 flex gap-1.5 min-w-[220px]">
                 <input
                   ref={linkInputRef}
+                  aria-label="Link URL"
                   type="url"
                   value={linkUrl}
                   onChange={(e) => setLinkUrl(e.target.value)}

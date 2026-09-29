@@ -259,11 +259,12 @@ export default function CompleteTaskModal({
     .filter(([key]) => key !== "noResponse" || task?.taskType === "report_email_review"));
   const baseOutcomeKeys = isReportTask ? Object.keys(reportLabels) : isNewLead ? NEW_LEAD_OUTCOME_KEYS : OUTCOME_KEYS;
   const baseOutcomeLabels = isReportTask ? reportLabels : isNewLead ? NEW_LEAD_OUTCOME_LABELS : OUTCOME_LABELS;
+  const excludedOutcomes = new Set<string>(excludeOutcomes);
   const activeOutcomeKeys = excludeOutcomes.length
-    ? baseOutcomeKeys.filter((k) => !excludeOutcomes.includes(k))
+    ? baseOutcomeKeys.filter((k) => !excludedOutcomes.has(k))
     : baseOutcomeKeys;
   const activeOutcomeLabels = excludeOutcomes.length
-    ? Object.fromEntries(Object.entries(baseOutcomeLabels).filter(([k]) => !excludeOutcomes.includes(k)))
+    ? Object.fromEntries(Object.entries(baseOutcomeLabels).filter(([k]) => !excludedOutcomes.has(k)))
     : baseOutcomeLabels;
   const isSpokeWithLead = isNewLead && outcome === "Spoke with lead";
   const isHungUp = isNewLead && outcome === "Hung up";

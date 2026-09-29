@@ -678,8 +678,9 @@ router.post(
       await hydrateReportAtrp(payload.prospects.filter(isDeliverableProspect));
       const preview = await previewLocalFalconImport(payload);
       const heatmapsByPlaceId = new Map();
+      const prospectsByPlaceId = new Map(payload.prospects.map((candidate) => [candidate.place_id, candidate]));
       for (const row of preview.rows.filter((candidate) => candidate.prospectOutcome !== "no_visibility_core_found")) {
-        const prospect = payload.prospects.find((candidate) => candidate.place_id === row.placeId);
+        const prospect = prospectsByPlaceId.get(row.placeId);
         const reference = verifiedMapAssets[row.placeId];
         if (!prospect || !isDeliverableProspect(prospect) || !reference) {
           throw new Error(`The verified map for ${row.companyName} is missing or expired. Review the preview again.`);
@@ -793,6 +794,7 @@ router.post(
 
       let tasksCreated = 0;
       let automationErrors = 0;
+      const companyNamesByPlaceId = new Map(payload.prospects.map((p) => [p.place_id, p.company_name]));
       for (const imported of result.importedLeads) {
         // CRM-only leads retain manual follow-up but never trigger automatic scan outreach.
         if (!imported.createdNewLead || imported.prospectOutcome === "no_visibility_core_found") continue;
@@ -807,7 +809,7 @@ router.post(
         });
         tasksCreated += automation.tasksCreated;
         automationErrors += automation.errors;
-        try { notifyLeadAssignment({ id: imported.leadId, title: payload.prospects.find((p) => p.place_id === imported.placeId)?.company_name ?? "Local Falcon lead" }, assignedTo); } catch (_) {}
+        try { notifyLeadAssignment({ id: imported.leadId, title: companyNamesByPlaceId.get(imported.placeId) ?? "Local Falcon lead" }, assignedTo); } catch (_) {}
       }
 
       await logAudit({
@@ -1035,9 +1037,11 @@ router.get("/leads/:id", requireRole("admin", "developer", "sales_rep", "lead_ge
   if (isRestricted(req) && lead.assignedTo !== req.authUser!.id) {
     return res.status(403).json({ message: "Access denied" });
   }
-  const [enriched] = await crmStorage.enrichLeads([lead]);
-  const localFalcon = await getLocalFalconProfileForLead(id);
-  const localFalconCrmOnly = await getLocalFalconCrmOnlyForLead(id);
+  const [[enriched], localFalcon, localFalconCrmOnly] = await Promise.all([
+    crmStorage.enrichLeads([lead]),
+    getLocalFalconProfileForLead(id),
+    getLocalFalconCrmOnlyForLead(id),
+  ]);
   res.json({ ...stripSensitiveLeadFields(enriched, req), localFalcon, localFalconCrmOnly });
 });
 

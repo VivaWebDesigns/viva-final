@@ -1,5 +1,5 @@
 export function sanitizeHtml(html: string): string {
-  const allowed = ["p", "br", "strong", "em", "s", "a", "ul", "ol", "li", "code"];
+  const allowed = new Set(["p", "br", "strong", "em", "s", "a", "ul", "ol", "li", "code"]);
   const tmp = document.createElement("div");
   tmp.innerHTML = html;
   const walker = document.createTreeWalker(tmp, NodeFilter.SHOW_ELEMENT);
@@ -8,7 +8,7 @@ export function sanitizeHtml(html: string): string {
   while (node) {
     if (node instanceof Element) {
       const tag = node.tagName.toLowerCase();
-      if (!allowed.includes(tag)) {
+      if (!allowed.has(tag)) {
         toReplace.push(node);
       } else if (tag === "a") {
         const href = node.getAttribute("href") ?? "";

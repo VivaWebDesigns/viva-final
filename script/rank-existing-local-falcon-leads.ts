@@ -189,8 +189,9 @@ async function main() {
     throw new Error(`Missing CRM profiles for: ${missing.map((ranking) => ranking.companyName).join(", ")}`);
   }
 
+  const rankingsByLeadId = new Map(rankings.map((ranking) => [ranking.leadId, ranking]));
   for (const row of rows) {
-    const ranking = rankings.find((candidate) => candidate.leadId === row.leadId)!;
+    const ranking = rankingsByLeadId.get(row.leadId)!;
     if (row.companyName !== ranking.companyName) {
       throw new Error(
         `Company mismatch for ${ranking.leadId}: expected "${ranking.companyName}", found "${row.companyName}"`,

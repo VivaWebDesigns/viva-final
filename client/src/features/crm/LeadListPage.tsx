@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { STALE, queryClient, apiRequest } from "@/lib/queryClient";
@@ -85,6 +85,7 @@ export default function LeadListPage() {
   const [statusFilter, setStatusFilter] = useState<string>(() => initialParams.get("statusId") ?? "all");
   const [sourceFilter, setSourceFilter] = useState<string>(() => initialParams.get("source") ?? "all");
   const [tagFilters, setTagFilters] = useState<string[]>(() => initialParams.getAll("tagIds"));
+  const tagFilterIds = useMemo(() => new Set(tagFilters), [tagFilters]);
   const [assigneeFilter, setAssigneeFilter] = useState<string>(() => initialParams.get("assignedTo") ?? "all");
   const [reportOutreachFilter, setReportOutreachFilter] = useState<ReportOutreachFilter | "all">(
     () => (initialParams.get("reportOutreach") as ReportOutreachFilter | null) ?? "all",
@@ -121,6 +122,7 @@ export default function LeadListPage() {
   const [bulkAssignTo, setBulkAssignTo] = useState<string>("");
   const [bulkStatusId, setBulkStatusId] = useState<string>("");
   const [bulkTagIds, setBulkTagIds] = useState<string[]>([]);
+  const bulkTagIdSet = useMemo(() => new Set(bulkTagIds), [bulkTagIds]);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [deleteConfirmLeadId, setDeleteConfirmLeadId] = useState<string | null>(null);
@@ -468,7 +470,7 @@ export default function LeadListPage() {
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="w-full lg:w-60 justify-between font-normal" data-testid="select-tag-filter">
                 <span className="truncate">
-                  {tagFilters.length ? allTags.filter((tag) => tagFilters.includes(tag.id)).map((tag) => tag.name).join(" + ") : t.crm.allTags}
+                  {tagFilters.length ? allTags.filter((tag) => tagFilterIds.has(tag.id)).map((tag) => tag.name).join(" + ") : t.crm.allTags}
                 </span>
                 <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
               </Button>
@@ -479,7 +481,7 @@ export default function LeadListPage() {
               {allTags.map((tag) => (
                 <DropdownMenuCheckboxItem
                   key={tag.id}
-                  checked={tagFilters.includes(tag.id)}
+                  checked={tagFilterIds.has(tag.id)}
                   onSelect={(event) => event.preventDefault()}
                   onCheckedChange={(checked) => {
                     setTagFilters((current) => checked ? [...new Set([...current, tag.id])].sort() : current.filter((id) => id !== tag.id));
@@ -644,13 +646,13 @@ export default function LeadListPage() {
                   <div className="flex items-start gap-3 p-4">
                     <div
                       className="flex-shrink-0 pt-0.5"
-                      onClick={(e) => toggleSelect(lead.id, e)}
                       data-testid={`checkbox-lead-${lead.id}`}
                     >
                       <Checkbox
                         checked={isSelected}
+                        aria-label="Select lead"
                         onCheckedChange={() => {}}
-                        className="pointer-events-none"
+                        onClick={(e) => toggleSelect(lead.id, e)}
                       />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -897,7 +899,7 @@ export default function LeadListPage() {
                     data-testid={`label-tag-${tag.id}`}
                   >
                     <Checkbox
-                      checked={bulkTagIds.includes(tag.id)}
+                      checked={bulkTagIdSet.has(tag.id)}
                       onCheckedChange={() => toggleTagId(tag.id)}
                       data-testid={`checkbox-tag-${tag.id}`}
                     />
