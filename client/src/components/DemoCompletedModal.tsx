@@ -64,7 +64,7 @@ export default function DemoCompletedModal({
 
   const [outcome, setOutcome] = useState<Outcome | null>(null);
 
-  const [followUpDate, setFollowUpDate] = useState(tomorrowLocalString());
+  const [followUpDate, setFollowUpDate] = useState(() => tomorrowLocalString());
   const [followUpTime, setFollowUpTime] = useState("");
   const [followUpNotes, setFollowUpNotes] = useState("");
 
@@ -81,13 +81,6 @@ export default function DemoCompletedModal({
       setCountdownStarted(false);
     }
   }, [open]);
-
-  useEffect(() => {
-    if (outcome === "not-interested" && !countdownStarted) {
-      setCountdownStarted(true);
-      setCountdown(5);
-    }
-  }, [outcome, countdownStarted]);
 
   useEffect(() => {
     if (!countdownStarted || countdown <= 0) return;
@@ -121,6 +114,10 @@ export default function DemoCompletedModal({
 
   const handleOutcomeSelect = (o: Outcome) => {
     setOutcome(o);
+    if (o === "not-interested" && !countdownStarted) {
+      setCountdownStarted(true);
+      setCountdown(5);
+    }
   };
 
   const handleReadyForPaymentConfirm = () => {

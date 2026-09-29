@@ -45,12 +45,12 @@ export default function Portfolio() {
       ogDesc.setAttribute("content", desc);
     }
     window.scrollTo(0, 0);
-  }, []);
+  }, [payload]);
 
   const filtered = useMemo(() => {
     if (previewPortfolio) return previewPortfolio;
     return [...portfolioProjects].sort((a, b) => b.date.localeCompare(a.date));
-  }, []);
+  }, [previewPortfolio]);
 
   return (
     <div className="min-h-screen bg-background text-foreground">

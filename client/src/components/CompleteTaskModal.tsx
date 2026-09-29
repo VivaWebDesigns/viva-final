@@ -110,7 +110,7 @@ export default function CompleteTaskModal({
   const [outcome, setOutcome] = useState("");
   const [completionNote, setCompletionNote] = useState("");
   const [followUp, setFollowUp] = useState<FollowUpOption>("none");
-  const [customDate, setCustomDate] = useState(todayLocalString());
+  const [customDate, setCustomDate] = useState(() => todayLocalString());
   const [followUpTime, setFollowUpTime] = useState("09:00");
 
   // Demo scheduling fields (Appointment set)

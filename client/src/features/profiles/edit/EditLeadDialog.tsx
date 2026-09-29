@@ -77,7 +77,7 @@ export function EditLeadDialog({
         notes:    "",
       });
     }
-  }, [open, lead]);
+  }, [open, lead, form]);
 
   function onSubmit(values: FormValues) {
     const payload = {

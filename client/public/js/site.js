@@ -33,7 +33,12 @@
     link.addEventListener("click", function (event) {
       var id = link.getAttribute("href");
       if (!id || id === "#") return;
-      var target = document.querySelector(id);
+      var target;
+      try {
+        target = document.querySelector(id);
+      } catch (error) {
+        return;
+      }
       if (!target) return;
       event.preventDefault();
       target.scrollIntoView({ behavior: "smooth", block: "start" });

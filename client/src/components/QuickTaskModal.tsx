@@ -171,7 +171,7 @@ export default function QuickTaskModal({
   const [title, setTitle] = useState(defaultTitle);
   const [notes, setNotes] = useState("");
   const [preset, setPreset] = useState<TaskPreset>("1w");
-  const [dateStr, setDateStr] = useState(calcDueDateString("1w"));
+  const [dateStr, setDateStr] = useState(() => calcDueDateString("1w"));
   const [followUpTime, setFollowUpTime] = useState("09:00");
 
   useEffect(() => {

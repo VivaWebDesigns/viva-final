@@ -74,7 +74,7 @@ export function EditContactDialog({
         notes:             "",
       });
     }
-  }, [open, contact]);
+  }, [open, contact, form]);
 
   function onSubmit(values: FormValues) {
     const payload = {

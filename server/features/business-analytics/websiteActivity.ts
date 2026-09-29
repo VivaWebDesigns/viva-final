@@ -99,7 +99,7 @@ let lastRetentionCleanup = 0;
 async function cleanupExpiredActivity() {
   const now = Date.now();
   if (now - lastRetentionCleanup < 24 * 60 * 60 * 1_000) return;
-  await db.delete(websiteActivitySessions).where(sql`${websiteActivitySessions.lastSeenAt} < now() - interval '${sql.raw(String(WEBSITE_ACTIVITY_RETENTION_DAYS))} days'`);
+  await db.delete(websiteActivitySessions).where(sql`${websiteActivitySessions.lastSeenAt} < now() - make_interval(days => ${WEBSITE_ACTIVITY_RETENTION_DAYS})`);
   lastRetentionCleanup = now;
 }
 

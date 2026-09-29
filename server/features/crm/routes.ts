@@ -1348,8 +1348,11 @@ router.post("/leads/:id/notes", requireRole("admin", "developer", "sales_rep", "
   try {
     const id = req.params.id as string;
     if (!await assertLeadAccess(req, res, id)) return;
+    const { type, content, metadata } = req.body ?? {};
     const data = insertCrmLeadNoteSchema.parse({
-      ...req.body,
+      type,
+      content,
+      metadata,
       leadId: id,
       userId: req.authUser?.id || null,
     });

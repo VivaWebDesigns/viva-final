@@ -88,7 +88,7 @@ export function EditOpportunityDialog({
         notes:             "",
       });
     }
-  }, [open, opportunity]);
+  }, [open, opportunity, form]);
 
   function onSubmit(values: FormValues) {
     const payload = {

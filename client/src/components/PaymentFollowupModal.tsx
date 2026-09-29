@@ -57,7 +57,7 @@ export default function PaymentFollowupModal({
 
   const [path, setPath] = useState<Path>(null);
 
-  const [followUpDate, setFollowUpDate] = useState(todayLocalString());
+  const [followUpDate, setFollowUpDate] = useState(() => todayLocalString());
   const [followUpTime, setFollowUpTime] = useState("");
   const [followUpNotes, setFollowUpNotes] = useState("");
 
@@ -76,13 +76,6 @@ export default function PaymentFollowupModal({
       setCopied(false);
     }
   }, [open]);
-
-  useEffect(() => {
-    if (path === "wont-pay" && !countdownStarted) {
-      setCountdownStarted(true);
-      setCountdown(5);
-    }
-  }, [path, countdownStarted]);
 
   useEffect(() => {
     if (!countdownStarted || countdown <= 0) return;

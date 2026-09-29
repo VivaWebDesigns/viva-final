@@ -449,9 +449,12 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
       }
     };
 
-    await Promise.all(Array.from({ length: Math.min(6, rows.length) }, () => worker()));
+    try {
+      await Promise.all(Array.from({ length: Math.min(6, rows.length) }, () => worker()));
+    } finally {
+      setIsLoadingMaps(false);
+    }
     setImageFailures(failures);
-    setIsLoadingMaps(false);
     if (failures.length) {
       setImportError(`${failures.length} official map${failures.length === 1 ? "" : "s"} need an original fallback image before import.`);
     }

@@ -151,7 +151,7 @@ export default function Services() {
       return () => clearTimeout(timer);
     }
     window.scrollTo(0, 0);
-  }, []);
+  }, [payload]);
 
   const galleryImages = previewGalleryImages
     ? previewGalleryImages.map(g => ({ src: g.url, alt: g.alt }))

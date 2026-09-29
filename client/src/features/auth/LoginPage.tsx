@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "./useAuth";
+import { useSetupStatus } from "./useSetupStatus";
 import { useLocation } from "wouter";
 import { m } from "framer-motion";
 import { Lock, Mail, Eye, EyeOff, AlertCircle, Terminal, Zap, Shield, Users, Code2 } from "lucide-react";
@@ -14,7 +15,7 @@ const logoIcon = "/favicon-admin-20260711-48x48.png";
 // Dev-only credentials are read from environment variables so no plaintext
 // passwords live in source code. The entire dev card is stripped from
 // production builds by Vite (import.meta.env.DEV is false at build time).
-const DEV_USERS = [
+const DEV_USERS = !import.meta.env.DEV ? [] : [
   {
     role: "Admin",
     email: import.meta.env.VITE_DEV_ADMIN_EMAIL || "",
@@ -57,26 +58,17 @@ export default function LoginPage() {
   const { isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
 
-  const [checkingSetup, setCheckingSetup] = useState(true);
+  const setupStatus = useSetupStatus(!isAuthenticated);
+  const redirectToSetup = setupStatus.isError || setupStatus.data?.needsSetup === true;
+  const checkingSetup = !setupStatus.data || setupStatus.data.needsSetup;
 
   useEffect(() => {
     if (isAuthenticated) {
       setLocation("/admin");
       return;
     }
-    fetch("/api/users/setup-status")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.needsSetup) {
-          setLocation("/admin/setup");
-          return;
-        }
-        setCheckingSetup(false);
-      })
-      .catch(() => {
-        setLocation("/admin/setup");
-      });
-  }, [isAuthenticated]);
+    if (redirectToSetup) setLocation("/admin/setup");
+  }, [isAuthenticated, redirectToSetup, setLocation]);
 
   if (isAuthenticated || checkingSetup) return null;
 

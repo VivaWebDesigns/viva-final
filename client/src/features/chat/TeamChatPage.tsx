@@ -246,6 +246,7 @@ export default function TeamChatPage() {
     queryKey: ["/api/chat/dm/messages", activeDmUserId],
     queryFn: async () => {
       const res = await fetch(`/api/chat/dm/messages?userId=${activeDmUserId}`, { credentials: "include" });
+      if (!res.ok) throw new Error(`Request failed (${res.status})`);
       return res.json();
     },
     refetchInterval: 30000,
@@ -256,6 +257,7 @@ export default function TeamChatPage() {
     queryKey: ["/api/chat/messages", activeChannel, "thread", threadParentId],
     queryFn: async () => {
       const res = await fetch(`/api/chat/messages?channel=${activeChannel}&parentId=${threadParentId}`, { credentials: "include" });
+      if (!res.ok) throw new Error(`Request failed (${res.status})`);
       return res.json();
     },
     refetchInterval: 30000,
@@ -266,6 +268,7 @@ export default function TeamChatPage() {
     queryKey: ["/api/chat/pinned", activeChannel],
     queryFn: async () => {
       const res = await fetch(`/api/chat/pinned?channel=${activeChannel}`, { credentials: "include" });
+      if (!res.ok) throw new Error(`Request failed (${res.status})`);
       return res.json();
     },
     staleTime: STALE.MEDIUM,
@@ -276,6 +279,7 @@ export default function TeamChatPage() {
     queryKey: ["/api/chat/search", searchQuery, activeChannel],
     queryFn: async () => {
       const res = await fetch(`/api/chat/search?q=${encodeURIComponent(searchQuery)}&channel=${activeChannel}`, { credentials: "include" });
+      if (!res.ok) throw new Error(`Request failed (${res.status})`);
       return res.json();
     },
     enabled: searchQuery.length >= 2 && canUseChannels,

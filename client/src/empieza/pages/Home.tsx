@@ -58,7 +58,7 @@ export default function Home() {
       const meta = document.querySelector('meta[name="description"]');
       if (meta) meta.setAttribute("content", `${P.businessName} offers professional ${P.tradeNounEN} services in ${P.city}. Get a free estimate today.`);
     }
-  }, []);
+  }, [P]);
 
   const phone     = P?.phone || "(704) 222-7067";
   const email     = P?.email || "quotes@charlottepaintingpro.com";

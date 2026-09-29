@@ -190,6 +190,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
       return res.json();
     },
     onSuccess: (data) => {
+      queryClient.invalidateQueries({ predicate: (query) => (query.queryKey[0] as string)?.startsWith?.("/api/onboarding") });
       toast({ title: t.pipeline.onboardingCreated });
       navigate(`/admin/onboarding/${data.id}`);
     },

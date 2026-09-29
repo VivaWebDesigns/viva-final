@@ -33,6 +33,11 @@ function escapeHtml(value: unknown): string {
     .replace(/'/g, "&#39;");
 }
 
+// JSON embedded in an inline <script>; escaping "<" prevents a value from closing the tag.
+function scriptJson(value: unknown): string {
+  return JSON.stringify(value).replace(/</g, "\\u003c");
+}
+
 export function hashScanReportToken(token: string): string {
   return crypto.createHash("sha256").update(token).digest("hex");
 }
@@ -255,9 +260,9 @@ export function buildScanReportLandingPage(input: {
     <footer class="footer"><div class="shell">&copy; 2026 Viva Web Designs LLC &middot; Charlotte, North Carolina &middot; <a href="/privacy-policy">Privacy Policy</a></div></footer>
     <script>
       (function(){
-        var viewEndpoint=${JSON.stringify(`${eventPath}/view`)};
-        var ctaEndpoint=${JSON.stringify(`${eventPath}/cta`)};
-        var viewKey=${JSON.stringify(`viva_scan_report_engaged:${input.token}`)};
+        var viewEndpoint=${scriptJson(`${eventPath}/view`)};
+        var ctaEndpoint=${scriptJson(`${eventPath}/cta`)};
+        var viewKey=${scriptJson(`viva_scan_report_engaged:${input.token}`)};
         var viewTimer=null;
         var viewRecorded=false;
         function eventId(){return self.crypto&&crypto.randomUUID?crypto.randomUUID():"xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g,function(c){var r=Math.random()*16|0;return(c==="x"?r:(r&3|8)).toString(16)});}

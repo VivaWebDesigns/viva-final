@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
+import { useSetupStatus } from "./useSetupStatus";
+import { queryClient } from "@/lib/queryClient";
 import { m } from "framer-motion";
 import { Shield, Mail, Lock, User, Eye, EyeOff, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,23 +19,14 @@ export default function SetupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isChecking, setIsChecking] = useState(true);
-  const [dbError, setDbError] = useState(false);
+  const setupStatus = useSetupStatus();
+  const isChecking = setupStatus.isPending;
+  const dbError = setupStatus.data?.dbError === true;
+  const setupComplete = setupStatus.data?.needsSetup === false;
 
   useEffect(() => {
-    fetch("/api/users/setup-status")
-      .then((r) => r.json())
-      .then((data) => {
-        if (!data.needsSetup) {
-          setLocation("/login");
-        }
-        if (data.dbError) {
-          setDbError(true);
-        }
-        setIsChecking(false);
-      })
-      .catch(() => setIsChecking(false));
-  }, []);
+    if (setupComplete) setLocation("/login");
+  }, [setupComplete, setLocation]);
 
   if (isChecking) {
     return (
@@ -79,6 +72,7 @@ export default function SetupPage() {
         credentials: "include",
       });
 
+      queryClient.setQueryData(["/api/users/setup-status"], { needsSetup: false });
       if (signInRes.ok) {
         setLocation("/admin");
         window.location.reload();

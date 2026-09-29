@@ -290,8 +290,11 @@ export default function LocalVisibilityReportPage({ initialData }: LocalVisibili
         body: formData,
         credentials: "include",
       });
-      const body = await response.json().catch(() => ({})) as VisibilityScreenshotAnalysis & { message?: string };
-      if (!response.ok) throw new Error(body.message || "Screenshot analysis failed.");
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({})) as { message?: string };
+        throw new Error(error.message || "Screenshot analysis failed.");
+      }
+      const body = await response.json() as VisibilityScreenshotAnalysis;
 
       const heatmapIndex = body.heatmapImageIndex >= 0 && body.heatmapImageIndex < screenshots.length
         ? body.heatmapImageIndex

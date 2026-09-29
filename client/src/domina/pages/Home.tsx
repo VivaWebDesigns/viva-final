@@ -57,7 +57,7 @@ export default function Home() {
       return () => clearTimeout(timer);
     }
     window.scrollTo(0, 0);
-  }, []);
+  }, [P]);
 
   useEffect(() => {
     if (P?.heroImageUrl) return;
@@ -68,7 +68,7 @@ export default function Home() {
       const id = setTimeout(() => setVideoReady(true), 0);
       return () => clearTimeout(id);
     }
-  }, []);
+  }, [P]);
 
   const handleVideoRef = (el: HTMLVideoElement | null) => {
     (videoRef as React.MutableRefObject<HTMLVideoElement | null>).current = el;

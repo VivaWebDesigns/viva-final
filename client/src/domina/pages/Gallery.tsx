@@ -30,7 +30,7 @@ export default function Gallery() {
       }
     }
     window.scrollTo(0, 0);
-  }, []);
+  }, [payload]);
 
   const filtered = previewGalleryImages
     ? previewGalleryImages.map((g, i) => ({ id: i, src: g.url, alt: g.alt, caption: g.alt, category: "Interior" as ServiceCategory, location: "" }))
@@ -40,8 +40,8 @@ export default function Gallery() {
     (e: KeyboardEvent) => {
       if (lightboxIndex === null) return;
       if (e.key === "Escape") setLightboxIndex(null);
-      if (e.key === "ArrowLeft" && lightboxIndex > 0) setLightboxIndex(lightboxIndex - 1);
-      if (e.key === "ArrowRight" && lightboxIndex < filtered.length - 1) setLightboxIndex(lightboxIndex + 1);
+      if (e.key === "ArrowLeft" && lightboxIndex > 0) setLightboxIndex((index) => (index === null ? index : index - 1));
+      if (e.key === "ArrowRight" && lightboxIndex < filtered.length - 1) setLightboxIndex((index) => (index === null ? index : index + 1));
     },
     [lightboxIndex, filtered.length]
   );
@@ -162,7 +162,7 @@ export default function Gallery() {
           {lightboxIndex > 0 && (
             <button aria-label="Previous image"
               className="absolute left-4 top-1/2 -translate-y-1/2 text-white bg-black/40 hover:bg-black/60 rounded-full p-2 z-10 transition-colors"
-              onClick={(e) => { e.stopPropagation(); setLightboxIndex(lightboxIndex - 1); }}
+              onClick={(e) => { e.stopPropagation(); setLightboxIndex((index) => (index === null ? index : index - 1)); }}
               data-testid="button-lightbox-prev"
             >
               <ChevronLeft size={32} />
@@ -171,7 +171,7 @@ export default function Gallery() {
           {lightboxIndex < filtered.length - 1 && (
             <button aria-label="Next image"
               className="absolute right-4 top-1/2 -translate-y-1/2 text-white bg-black/40 hover:bg-black/60 rounded-full p-2 z-10 transition-colors"
-              onClick={(e) => { e.stopPropagation(); setLightboxIndex(lightboxIndex + 1); }}
+              onClick={(e) => { e.stopPropagation(); setLightboxIndex((index) => (index === null ? index : index + 1)); }}
               data-testid="button-lightbox-next"
             >
               <ChevronRight size={32} />

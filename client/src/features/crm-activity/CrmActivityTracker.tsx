@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@features/auth/useAuth";
 
@@ -59,8 +59,9 @@ export default function CrmActivityTracker() {
   const [location] = useLocation();
   const { user, role } = useAuth();
   const context = useMemo(() => getActivityContext(location), [location]);
-  const lastInputAt = useRef(Date.now());
-  const lastTickAt = useRef(Date.now());
+  const [mountedAt] = useState(() => Date.now());
+  const lastInputAt = useRef(mountedAt);
+  const lastTickAt = useRef(mountedAt);
   const pendingActiveMs = useRef(0);
   const currentPayload = useRef<{ path: string; context: ActivityContext } | null>(null);
 

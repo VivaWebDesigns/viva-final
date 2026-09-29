@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
 import { useAuth } from "./useAuth";
+import { useSetupStatus } from "./useSetupStatus";
 import { Redirect } from "wouter";
 import type { Role } from "@shared/schema";
 
@@ -11,16 +11,8 @@ interface ProtectedRouteProps {
 
 export default function ProtectedRoute({ children, roles, redirectTo }: ProtectedRouteProps) {
   const { isAuthenticated, isLoading, role } = useAuth();
-  const [setupNeeded, setSetupNeeded] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      fetch("/api/users/setup-status")
-        .then((r) => r.json())
-        .then((data) => setSetupNeeded(data.needsSetup === true))
-        .catch(() => setSetupNeeded(true));
-    }
-  }, [isLoading, isAuthenticated]);
+  const setupStatus = useSetupStatus(!isLoading && !isAuthenticated);
+  const setupNeeded = setupStatus.isError ? true : setupStatus.data ? setupStatus.data.needsSetup === true : null;
 
   if (isLoading || (!isAuthenticated && setupNeeded === null)) {
     return (

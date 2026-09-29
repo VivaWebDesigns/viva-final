@@ -88,7 +88,7 @@ export function EditCompanyDialog({
         notes:             company.notes ?? "",
       });
     }
-  }, [open, company]);
+  }, [open, company, form]);
 
   function onSubmit(values: FormValues) {
     let website = values.website || null;

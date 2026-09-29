@@ -86,7 +86,7 @@ export function reportBusinessDate(now: Date, days: number): Date {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit",
   }).formatToParts(now);
-  const part = (type: string) => parts.find(p => p.type === type)!.value;
+  const part = (type: string) => parts.find(p => p.type === type)?.value ?? "";
   const date = new Date(`${part("year")}-${part("month")}-${part("day")}T00:00:00Z`);
   while (days > 0) {
     date.setUTCDate(date.getUTCDate() + 1);

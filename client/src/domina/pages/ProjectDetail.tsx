@@ -47,8 +47,8 @@ export default function ProjectDetail() {
     (e: KeyboardEvent) => {
       if (!project || lightboxIndex === null) return;
       if (e.key === "Escape") setLightboxIndex(null);
-      if (e.key === "ArrowLeft" && lightboxIndex > 0) setLightboxIndex(lightboxIndex - 1);
-      if (e.key === "ArrowRight" && lightboxIndex < project.images.length - 1) setLightboxIndex(lightboxIndex + 1);
+      if (e.key === "ArrowLeft" && lightboxIndex > 0) setLightboxIndex((index) => (index === null ? index : index - 1));
+      if (e.key === "ArrowRight" && lightboxIndex < project.images.length - 1) setLightboxIndex((index) => (index === null ? index : index + 1));
     },
     [lightboxIndex, project]
   );
@@ -239,7 +239,7 @@ export default function ProjectDetail() {
                 className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 text-white bg-black/40 hover:bg-black/60 rounded-full p-2 z-10 transition-colors"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setLightboxIndex(lightboxIndex - 1);
+                  setLightboxIndex((index) => (index === null ? index : index - 1));
                 }}
                 aria-label="Previous image"
                 data-testid="button-lightbox-prev"
@@ -253,7 +253,7 @@ export default function ProjectDetail() {
                 className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 text-white bg-black/40 hover:bg-black/60 rounded-full p-2 z-10 transition-colors"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setLightboxIndex(lightboxIndex + 1);
+                  setLightboxIndex((index) => (index === null ? index : index + 1));
                 }}
                 aria-label="Next image"
                 data-testid="button-lightbox-next"

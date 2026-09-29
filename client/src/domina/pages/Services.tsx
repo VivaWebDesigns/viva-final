@@ -152,7 +152,7 @@ export default function Services() {
         meta.setAttribute("content", "Interior painting, exterior painting, kitchen cabinet painting, and deck & fence staining services in Charlotte, NC. Get a free estimate from Charlotte Painting Pro.");
       }
     }
-  }, []);
+  }, [payload]);
 
   useEffect(() => {
     const hash = window.location.hash;

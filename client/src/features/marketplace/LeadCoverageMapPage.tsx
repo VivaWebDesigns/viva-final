@@ -153,7 +153,7 @@ export default function LeadCoverageMapPage() {
   const today = useMemo(() => toDateInputValue(new Date()), []);
   const [rangeMode, setRangeMode] = useState<RangeMode>("all");
   const [leadScope, setLeadScope] = useState<LeadScope>("active");
-  const [customFrom, setCustomFrom] = useState(toDateInputValue(addDays(new Date(), -29)));
+  const [customFrom, setCustomFrom] = useState(() => toDateInputValue(addDays(new Date(), -29)));
   const [customTo, setCustomTo] = useState(today);
   const [selectedMarketId, setSelectedMarketId] = useState("nc-charlotte");
 

@@ -309,9 +309,11 @@ function LocalFalconSnapshotCard({
         `/api/crm/leads/${encodeURIComponent(data.leadId)}/scan-report-email-preview?reportId=${encodeURIComponent(reportId)}`,
         { credentials: "include" },
       );
-      const body = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(body.message || "Could not prepare the scan report email");
-      return body as ScanReportEmailPreview;
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.message || "Could not prepare the scan report email");
+      }
+      return await response.json() as ScanReportEmailPreview;
     },
     onSuccess: (preview) => {
       setEmailReportPreview(preview);
@@ -2786,11 +2788,12 @@ export default function ProfileShell({
   const resolvedTab = urlTab && validTabs.includes(urlTab) ? urlTab : safeDefaultTab;
   const [activeTab, setActiveTab] = useState<string>(resolvedTab);
 
+  const activeTabIsValid = validTabs.includes(activeTab);
   useEffect(() => {
-    if (!validTabs.includes(activeTab)) {
+    if (!activeTabIsValid) {
       setActiveTab(safeDefaultTab);
     }
-  }, [role, activeTab, safeDefaultTab]);
+  }, [activeTabIsValid, safeDefaultTab]);
   const { toast } = useToast();
   const { t } = useAdminLang();
   const [, navigate] = useLocation();

@@ -444,8 +444,11 @@ router.post("/opportunities/:id/activities", requireRole("admin", "developer", "
     if (isRestricted(req) && existing.assignedTo !== req.authUser!.id) {
       return res.status(403).json({ message: "Access denied" });
     }
+    const { type, content, metadata } = req.body ?? {};
     const data = insertPipelineActivitySchema.parse({
-      ...req.body,
+      type,
+      content,
+      metadata,
       opportunityId: id,
       userId: req.authUser?.id || null,
     });
