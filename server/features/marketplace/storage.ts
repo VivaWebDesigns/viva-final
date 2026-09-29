@@ -252,18 +252,19 @@ export async function listPendingOutreach(
 
   const where = conditions.length > 0 ? and(...conditions) : undefined;
 
-  const [totalRow] = await db
-    .select({ count: count() })
-    .from(marketplacePendingOutreach)
-    .where(where);
-
-  const items = await db
-    .select()
-    .from(marketplacePendingOutreach)
-    .where(where)
-    .orderBy(desc(marketplacePendingOutreach.createdAt))
-    .limit(limit)
-    .offset(offset);
+  const [[totalRow], items] = await Promise.all([
+    db
+      .select({ count: count() })
+      .from(marketplacePendingOutreach)
+      .where(where),
+    db
+      .select()
+      .from(marketplacePendingOutreach)
+      .where(where)
+      .orderBy(desc(marketplacePendingOutreach.createdAt))
+      .limit(limit)
+      .offset(offset),
+  ]);
 
   return {
     items,
@@ -450,31 +451,32 @@ export async function listMyLeads(
 
   const where = and(...conditions);
 
-  const [totalRow] = await db
-    .select({ count: count() })
-    .from(marketplacePendingOutreach)
-    .where(where);
-
-  const items = await db
-    .select({
-      id:              marketplacePendingOutreach.id,
-      sellerFullName:  marketplacePendingOutreach.sellerFullName,
-      businessName:    marketplacePendingOutreach.businessName,
-      city:            marketplacePendingOutreach.city,
-      state:           marketplacePendingOutreach.state,
-      tradeGuess:      marketplacePendingOutreach.tradeGuess,
-      messageStatus:   marketplacePendingOutreach.messageStatus,
-      createdAt:       marketplacePendingOutreach.createdAt,
-      updatedAt:       marketplacePendingOutreach.updatedAt,
-      convertedAt:     marketplacePendingOutreach.convertedAt,
-      listingUrl:      marketplacePendingOutreach.listingUrl,
-      sellerProfileUrl: marketplacePendingOutreach.sellerProfileUrl,
-    })
-    .from(marketplacePendingOutreach)
-    .where(where)
-    .orderBy(desc(marketplacePendingOutreach.updatedAt), desc(marketplacePendingOutreach.createdAt))
-    .limit(limit)
-    .offset(offset);
+  const [[totalRow], items] = await Promise.all([
+    db
+      .select({ count: count() })
+      .from(marketplacePendingOutreach)
+      .where(where),
+    db
+      .select({
+        id:              marketplacePendingOutreach.id,
+        sellerFullName:  marketplacePendingOutreach.sellerFullName,
+        businessName:    marketplacePendingOutreach.businessName,
+        city:            marketplacePendingOutreach.city,
+        state:           marketplacePendingOutreach.state,
+        tradeGuess:      marketplacePendingOutreach.tradeGuess,
+        messageStatus:   marketplacePendingOutreach.messageStatus,
+        createdAt:       marketplacePendingOutreach.createdAt,
+        updatedAt:       marketplacePendingOutreach.updatedAt,
+        convertedAt:     marketplacePendingOutreach.convertedAt,
+        listingUrl:      marketplacePendingOutreach.listingUrl,
+        sellerProfileUrl: marketplacePendingOutreach.sellerProfileUrl,
+      })
+      .from(marketplacePendingOutreach)
+      .where(where)
+      .orderBy(desc(marketplacePendingOutreach.updatedAt), desc(marketplacePendingOutreach.createdAt))
+      .limit(limit)
+      .offset(offset),
+  ]);
 
   return {
     items,
@@ -485,19 +487,20 @@ export async function listMyLeads(
 }
 
 export async function getPendingOutreachSummary(): Promise<Record<string, number>> {
-  const rows = await db
-    .select({
-      status: marketplacePendingOutreach.messageStatus,
-      count:  count(),
-    })
-    .from(marketplacePendingOutreach)
-    .where(isNull(marketplacePendingOutreach.deletedAt))
-    .groupBy(marketplacePendingOutreach.messageStatus);
-
-  const [deletedRow] = await db
-    .select({ count: count() })
-    .from(marketplacePendingOutreach)
-    .where(isNotNull(marketplacePendingOutreach.deletedAt));
+  const [rows, [deletedRow]] = await Promise.all([
+    db
+      .select({
+        status: marketplacePendingOutreach.messageStatus,
+        count:  count(),
+      })
+      .from(marketplacePendingOutreach)
+      .where(isNull(marketplacePendingOutreach.deletedAt))
+      .groupBy(marketplacePendingOutreach.messageStatus),
+    db
+      .select({ count: count() })
+      .from(marketplacePendingOutreach)
+      .where(isNotNull(marketplacePendingOutreach.deletedAt)),
+  ]);
 
   const result: Record<string, number> = {};
   for (const row of rows) {

@@ -60,6 +60,7 @@ import {
   localFalconProspectProfiles, pipelineOpportunities, followupTasks, scanReportDeliveries,
 } from "@shared/schema";
 import { db } from "../../db";
+import { cascadeCompanyNameToTitles, cascadeContactNameToTitles } from "./titleCascade";
 import { executeStageAutomations } from "../automations/trigger";
 import * as storageService from "../../services/storage";
 import {
@@ -71,47 +72,6 @@ import {
   prepareScanReportShare,
   saveScanReportEmailTemplate,
 } from "./scanReportEmail";
-
-async function cascadeCompanyNameToTitles(companyId: string, oldName: string, newName: string) {
-  const leads = await db.select({ id: crmLeads.id, title: crmLeads.title })
-    .from(crmLeads).where(eq(crmLeads.companyId, companyId));
-  for (const lead of leads) {
-    if (lead.title && lead.title.includes(oldName)) {
-      await db.update(crmLeads).set({ title: lead.title.replace(oldName, newName) }).where(eq(crmLeads.id, lead.id));
-    }
-  }
-  const opps = await db.select({ id: pipelineOpportunities.id, title: pipelineOpportunities.title, sourceLeadTitle: pipelineOpportunities.sourceLeadTitle })
-    .from(pipelineOpportunities).where(eq(pipelineOpportunities.companyId, companyId));
-  for (const opp of opps) {
-    const updates: Record<string, string> = {};
-    if (opp.title.includes(oldName)) updates.title = opp.title.replace(oldName, newName);
-    if (opp.sourceLeadTitle?.includes(oldName)) updates.sourceLeadTitle = opp.sourceLeadTitle.replace(oldName, newName);
-    if (Object.keys(updates).length > 0) {
-      await db.update(pipelineOpportunities).set(updates).where(eq(pipelineOpportunities.id, opp.id));
-    }
-  }
-}
-
-async function cascadeContactNameToTitles(contactId: string, oldFullName: string, newFullName: string) {
-  if (oldFullName === newFullName) return;
-  const leads = await db.select({ id: crmLeads.id, title: crmLeads.title })
-    .from(crmLeads).where(eq(crmLeads.contactId, contactId));
-  for (const lead of leads) {
-    if (lead.title && lead.title.includes(oldFullName)) {
-      await db.update(crmLeads).set({ title: lead.title.replace(oldFullName, newFullName) }).where(eq(crmLeads.id, lead.id));
-    }
-  }
-  const opps = await db.select({ id: pipelineOpportunities.id, title: pipelineOpportunities.title, sourceLeadTitle: pipelineOpportunities.sourceLeadTitle })
-    .from(pipelineOpportunities).where(eq(pipelineOpportunities.contactId, contactId));
-  for (const opp of opps) {
-    const updates: Record<string, string> = {};
-    if (opp.title.includes(oldFullName)) updates.title = opp.title.replace(oldFullName, newFullName);
-    if (opp.sourceLeadTitle?.includes(oldFullName)) updates.sourceLeadTitle = opp.sourceLeadTitle.replace(oldFullName, newFullName);
-    if (Object.keys(updates).length > 0) {
-      await db.update(pipelineOpportunities).set(updates).where(eq(pipelineOpportunities.id, opp.id));
-    }
-  }
-}
 
 const updateCrmLeadSchema = z.object({
   title: z.string().min(1).optional(),

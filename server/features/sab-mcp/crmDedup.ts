@@ -66,32 +66,33 @@ export async function checkCrmPlaceIds(
   requestedPlaceIds: string[],
 ): Promise<CrmPlaceIdCheckResult> {
   const uniquePlaceIds = [...new Set(requestedPlaceIds)];
-  const rows = await db
-    .select({
-      place_id: localFalconProspectProfiles.placeId,
-      lead_id: localFalconProspectProfiles.leadId,
-      company_name: localFalconProspectProfiles.companyName,
+  const [rows, crmOnlyRows] = await Promise.all([
+    db
+      .select({
+        place_id: localFalconProspectProfiles.placeId,
+        lead_id: localFalconProspectProfiles.leadId,
+        company_name: localFalconProspectProfiles.companyName,
+        batch_id: localFalconImportBatches.batchId,
+        report_key: localFalconProspectProfiles.reportKey,
+        report_url: localFalconProspectProfiles.reportUrl,
+        scan_date: localFalconProspectProfiles.scanDate,
+      })
+      .from(localFalconProspectProfiles)
+      .innerJoin(
+        localFalconImportBatches,
+        eq(localFalconProspectProfiles.batchRecordId, localFalconImportBatches.id),
+      )
+      .where(inArray(localFalconProspectProfiles.placeId, uniquePlaceIds))
+      .orderBy(desc(localFalconProspectProfiles.createdAt)),
+    db.select({
+      place_id: localFalconCrmOnlyProspects.placeId,
+      lead_id: localFalconCrmOnlyProspects.leadId,
+      company_name: localFalconCrmOnlyProspects.companyName,
       batch_id: localFalconImportBatches.batchId,
-      report_key: localFalconProspectProfiles.reportKey,
-      report_url: localFalconProspectProfiles.reportUrl,
-      scan_date: localFalconProspectProfiles.scanDate,
-    })
-    .from(localFalconProspectProfiles)
-    .innerJoin(
-      localFalconImportBatches,
-      eq(localFalconProspectProfiles.batchRecordId, localFalconImportBatches.id),
-    )
-    .where(inArray(localFalconProspectProfiles.placeId, uniquePlaceIds))
-    .orderBy(desc(localFalconProspectProfiles.createdAt));
-
-  const crmOnlyRows = await db.select({
-    place_id: localFalconCrmOnlyProspects.placeId,
-    lead_id: localFalconCrmOnlyProspects.leadId,
-    company_name: localFalconCrmOnlyProspects.companyName,
-    batch_id: localFalconImportBatches.batchId,
-  }).from(localFalconCrmOnlyProspects)
-    .innerJoin(localFalconImportBatches, eq(localFalconCrmOnlyProspects.batchRecordId, localFalconImportBatches.id))
-    .where(inArray(localFalconCrmOnlyProspects.placeId, uniquePlaceIds));
+    }).from(localFalconCrmOnlyProspects)
+      .innerJoin(localFalconImportBatches, eq(localFalconCrmOnlyProspects.batchRecordId, localFalconImportBatches.id))
+      .where(inArray(localFalconCrmOnlyProspects.placeId, uniquePlaceIds)),
+  ]);
   return buildCrmPlaceIdCheckResult(requestedPlaceIds, [...rows, ...crmOnlyRows.map((row) => ({
     ...row, report_key: null, report_url: null, scan_date: null, outcome: "no_visibility_core_found" as const,
   }))]);

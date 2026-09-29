@@ -16,22 +16,24 @@ export type SabImportExpectation = {
 
 export async function reconcileSabImportBatch(batchId:string, expected:SabImportExpectation[]) {
   const placeIds=expected.map(row=>row.place_id);
-  const deliverables=await db.select({
-    place_id:localFalconProspectProfiles.placeId,lead_id:localFalconProspectProfiles.leadId,
-    company_name:localFalconProspectProfiles.companyName,address:localFalconProspectProfiles.address,
-    report_key:localFalconProspectProfiles.reportKey,batch_id:localFalconImportBatches.batchId,
-  }).from(localFalconProspectProfiles)
-    .innerJoin(localFalconImportBatches,eq(localFalconProspectProfiles.batchRecordId,localFalconImportBatches.id))
-    .where(and(inArray(localFalconProspectProfiles.placeId,placeIds),eq(localFalconImportBatches.batchId,batchId)));
-  const crmOnly=await db.select({
-    place_id:localFalconCrmOnlyProspects.placeId,lead_id:localFalconCrmOnlyProspects.leadId,
-    company_name:localFalconCrmOnlyProspects.companyName,address:crmCompanies.address,
-    contact_tag:localFalconCrmOnlyProspects.contactTag,batch_id:localFalconImportBatches.batchId,
-  }).from(localFalconCrmOnlyProspects)
-    .innerJoin(localFalconImportBatches,eq(localFalconCrmOnlyProspects.batchRecordId,localFalconImportBatches.id))
-    .innerJoin(crmLeads,eq(localFalconCrmOnlyProspects.leadId,crmLeads.id))
-    .innerJoin(crmCompanies,eq(crmLeads.companyId,crmCompanies.id))
-    .where(and(inArray(localFalconCrmOnlyProspects.placeId,placeIds),eq(localFalconImportBatches.batchId,batchId)));
+  const [deliverables, crmOnly] = await Promise.all([
+    db.select({
+      place_id:localFalconProspectProfiles.placeId,lead_id:localFalconProspectProfiles.leadId,
+      company_name:localFalconProspectProfiles.companyName,address:localFalconProspectProfiles.address,
+      report_key:localFalconProspectProfiles.reportKey,batch_id:localFalconImportBatches.batchId,
+    }).from(localFalconProspectProfiles)
+      .innerJoin(localFalconImportBatches,eq(localFalconProspectProfiles.batchRecordId,localFalconImportBatches.id))
+      .where(and(inArray(localFalconProspectProfiles.placeId,placeIds),eq(localFalconImportBatches.batchId,batchId))),
+    db.select({
+      place_id:localFalconCrmOnlyProspects.placeId,lead_id:localFalconCrmOnlyProspects.leadId,
+      company_name:localFalconCrmOnlyProspects.companyName,address:crmCompanies.address,
+      contact_tag:localFalconCrmOnlyProspects.contactTag,batch_id:localFalconImportBatches.batchId,
+    }).from(localFalconCrmOnlyProspects)
+      .innerJoin(localFalconImportBatches,eq(localFalconCrmOnlyProspects.batchRecordId,localFalconImportBatches.id))
+      .innerJoin(crmLeads,eq(localFalconCrmOnlyProspects.leadId,crmLeads.id))
+      .innerJoin(crmCompanies,eq(crmLeads.companyId,crmCompanies.id))
+      .where(and(inArray(localFalconCrmOnlyProspects.placeId,placeIds),eq(localFalconImportBatches.batchId,batchId))),
+  ]);
   const leadIds=[...new Set([...deliverables.map(row=>row.lead_id),...crmOnly.map(row=>row.lead_id)])];
   const tags=leadIds.length ? await db.select({lead_id:crmLeadTags.leadId,tag:crmTags.name})
     .from(crmLeadTags).innerJoin(crmTags,eq(crmLeadTags.tagId,crmTags.id))

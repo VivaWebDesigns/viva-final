@@ -95,28 +95,29 @@ const reportSelection = {
 };
 
 export async function getCompanyReportLibrary(companyId: string): Promise<LocalVisibilityReportLibrary> {
-  const ownRows = await db.select(reportSelection)
-    .from(localFalconProspectProfiles)
-    .innerJoin(crmLeads, eq(localFalconProspectProfiles.leadId, crmLeads.id))
-    .innerJoin(
-      localFalconImportBatches,
-      eq(localFalconProspectProfiles.batchRecordId, localFalconImportBatches.id),
-    )
-    .where(eq(crmLeads.companyId, companyId))
-    .orderBy(
-      desc(localFalconProspectProfiles.scanDate),
-      asc(sql`coalesce(${localFalconProspectProfiles.scanRadiusMiles}, ${localFalconImportBatches.radiusMiles})`),
-    );
-
-  const crmOnlyRows = await db.select({
-    leadId: localFalconCrmOnlyProspects.leadId,
-    placeId: localFalconCrmOnlyProspects.placeId,
-    contactTag: localFalconCrmOnlyProspects.contactTag,
-    scanKeyword: localFalconCrmOnlyProspects.scanKeyword,
-    marketReference: localFalconCrmOnlyProspects.marketReference,
-  }).from(localFalconCrmOnlyProspects)
-    .innerJoin(crmLeads, eq(localFalconCrmOnlyProspects.leadId, crmLeads.id))
-    .where(and(eq(crmLeads.companyId, companyId), eq(crmLeads.source, CRM_ONLY_LOCAL_FALCON_SOURCE)));
+  const [ownRows, crmOnlyRows] = await Promise.all([
+    db.select(reportSelection)
+      .from(localFalconProspectProfiles)
+      .innerJoin(crmLeads, eq(localFalconProspectProfiles.leadId, crmLeads.id))
+      .innerJoin(
+        localFalconImportBatches,
+        eq(localFalconProspectProfiles.batchRecordId, localFalconImportBatches.id),
+      )
+      .where(eq(crmLeads.companyId, companyId))
+      .orderBy(
+        desc(localFalconProspectProfiles.scanDate),
+        asc(sql`coalesce(${localFalconProspectProfiles.scanRadiusMiles}, ${localFalconImportBatches.radiusMiles})`),
+      ),
+    db.select({
+      leadId: localFalconCrmOnlyProspects.leadId,
+      placeId: localFalconCrmOnlyProspects.placeId,
+      contactTag: localFalconCrmOnlyProspects.contactTag,
+      scanKeyword: localFalconCrmOnlyProspects.scanKeyword,
+      marketReference: localFalconCrmOnlyProspects.marketReference,
+    }).from(localFalconCrmOnlyProspects)
+      .innerJoin(crmLeads, eq(localFalconCrmOnlyProspects.leadId, crmLeads.id))
+      .where(and(eq(crmLeads.companyId, companyId), eq(crmLeads.source, CRM_ONLY_LOCAL_FALCON_SOURCE))),
+  ]);
   const leadsWithReports = new Set(ownRows.map((row) => row.leadId));
   return {
     ownReports: ownRows.map(summarizeReport),

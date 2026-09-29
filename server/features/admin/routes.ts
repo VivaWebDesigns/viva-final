@@ -20,19 +20,32 @@ import { z } from "zod";
 const router = Router();
 
 router.get("/stats", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
-  const [userCount] = await db.select({ count: sql<number>`count(*)::int` }).from(user);
-  const [contactCount] = await db.select({ count: sql<number>`count(*)::int` }).from(contacts);
-  const [articleCount] = await db.select({ count: sql<number>`count(*)::int` }).from(docArticles);
-  const [categoryCount] = await db.select({ count: sql<number>`count(*)::int` }).from(docCategories);
-  const [integrationCount] = await db.select({ count: sql<number>`count(*)::int` }).from(integrationRecords);
-  const [leadCount] = await db.select({ count: sql<number>`count(*)::int` }).from(crmLeads);
-  const [companyCount] = await db.select({ count: sql<number>`count(*)::int` }).from(crmCompanies);
-  const [crmContactCount] = await db.select({ count: sql<number>`count(*)::int` }).from(crmContactsTable);
-  const [opportunityCount] = await db.select({ count: sql<number>`count(*)::int` }).from(pipelineOpportunities);
-  const pipelineStats = await pipelineStorage.getPipelineStats();
-
-  const rawRecentLeads = await db.select().from(crmLeads).orderBy(desc(crmLeads.createdAt)).limit(5);
-  const enrichedLeads = await crmStorage.enrichLeads(rawRecentLeads);
+  const countRows = { count: sql<number>`count(*)::int` };
+  const [
+    [userCount],
+    [contactCount],
+    [articleCount],
+    [categoryCount],
+    [integrationCount],
+    [leadCount],
+    [companyCount],
+    [crmContactCount],
+    [opportunityCount],
+    pipelineStats,
+    enrichedLeads,
+  ] = await Promise.all([
+    db.select(countRows).from(user),
+    db.select(countRows).from(contacts),
+    db.select(countRows).from(docArticles),
+    db.select(countRows).from(docCategories),
+    db.select(countRows).from(integrationRecords),
+    db.select(countRows).from(crmLeads),
+    db.select(countRows).from(crmCompanies),
+    db.select(countRows).from(crmContactsTable),
+    db.select(countRows).from(pipelineOpportunities),
+    pipelineStorage.getPipelineStats(),
+    db.select().from(crmLeads).orderBy(desc(crmLeads.createdAt)).limit(5).then((rows) => crmStorage.enrichLeads(rows)),
+  ]);
   const recentLeads = req.authUser?.role === "sales_rep"
     ? enrichedLeads.map(l => ({ ...l, sellerProfileUrl: null, adUrl: null }))
     : enrichedLeads;

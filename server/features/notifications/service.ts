@@ -96,18 +96,19 @@ export async function getUserNotifications(
     conditions.push(eq(notifications.isRead, filters.isRead));
   }
 
-  const [countResult] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(notifications)
-    .where(and(...conditions));
-
-  const rows = await db
-    .select()
-    .from(notifications)
-    .where(and(...conditions))
-    .orderBy(desc(notifications.createdAt))
-    .limit(filters?.limit || 50)
-    .offset(filters?.offset || 0);
+  const [[countResult], rows] = await Promise.all([
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(notifications)
+      .where(and(...conditions)),
+    db
+      .select()
+      .from(notifications)
+      .where(and(...conditions))
+      .orderBy(desc(notifications.createdAt))
+      .limit(filters?.limit || 50)
+      .offset(filters?.offset || 0),
+  ]);
 
   return { notifications: rows, total: countResult.count };
 }

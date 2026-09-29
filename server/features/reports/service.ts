@@ -297,23 +297,24 @@ export async function getNotificationSummary(range?: DateRange) {
   const conditions = dateFilter(notifications.createdAt, range);
   const whereClause = conditions.length ? and(...conditions) : undefined;
 
-  const byType = await db
-    .select({
-      type: notifications.type,
-      count: sql<number>`count(*)::int`,
-      unread: sql<number>`count(*) FILTER (WHERE ${notifications.isRead} = false)::int`,
-    })
-    .from(notifications)
-    .where(whereClause)
-    .groupBy(notifications.type);
-
-  const [totals] = await db
-    .select({
-      total: sql<number>`count(*)::int`,
-      unread: sql<number>`count(*) FILTER (WHERE ${notifications.isRead} = false)::int`,
-    })
-    .from(notifications)
-    .where(whereClause);
+  const [byType, [totals]] = await Promise.all([
+    db
+      .select({
+        type: notifications.type,
+        count: sql<number>`count(*)::int`,
+        unread: sql<number>`count(*) FILTER (WHERE ${notifications.isRead} = false)::int`,
+      })
+      .from(notifications)
+      .where(whereClause)
+      .groupBy(notifications.type),
+    db
+      .select({
+        total: sql<number>`count(*)::int`,
+        unread: sql<number>`count(*) FILTER (WHERE ${notifications.isRead} = false)::int`,
+      })
+      .from(notifications)
+      .where(whereClause),
+  ]);
 
   return { byType, total: totals?.total ?? 0, unread: totals?.unread ?? 0 };
 }

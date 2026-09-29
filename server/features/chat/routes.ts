@@ -532,15 +532,16 @@ router.get("/dm/conversations", requireAuth, async (req, res) => {
     const currentUser = await getChatAccessUser(userId);
     if (!currentUser) return res.status(403).json({ message: "Chat access unavailable" });
 
-    const sent = await db
-      .select({ otherId: chatDmMessages.recipientId })
-      .from(chatDmMessages)
-      .where(eq(chatDmMessages.senderId, userId));
-
-    const received = await db
-      .select({ otherId: chatDmMessages.senderId })
-      .from(chatDmMessages)
-      .where(eq(chatDmMessages.recipientId, userId));
+    const [sent, received] = await Promise.all([
+      db
+        .select({ otherId: chatDmMessages.recipientId })
+        .from(chatDmMessages)
+        .where(eq(chatDmMessages.senderId, userId)),
+      db
+        .select({ otherId: chatDmMessages.senderId })
+        .from(chatDmMessages)
+        .where(eq(chatDmMessages.recipientId, userId)),
+    ]);
 
     const otherIdSet = new Set<string>();
     for (const r of sent) otherIdSet.add(r.otherId);
@@ -551,28 +552,29 @@ router.get("/dm/conversations", requireAuth, async (req, res) => {
 
     const conversationData = await Promise.all(
       otherIds.map(async (otherId) => {
-        const [lastMsg] = await db
-          .select()
-          .from(chatDmMessages)
-          .where(
-            or(
-              and(eq(chatDmMessages.senderId, userId), eq(chatDmMessages.recipientId, otherId)),
-              and(eq(chatDmMessages.senderId, otherId), eq(chatDmMessages.recipientId, userId))
+        const [[lastMsg], [{ unreadCount }]] = await Promise.all([
+          db
+            .select()
+            .from(chatDmMessages)
+            .where(
+              or(
+                and(eq(chatDmMessages.senderId, userId), eq(chatDmMessages.recipientId, otherId)),
+                and(eq(chatDmMessages.senderId, otherId), eq(chatDmMessages.recipientId, userId))
+              )
             )
-          )
-          .orderBy(desc(chatDmMessages.createdAt))
-          .limit(1);
-
-        const [{ unreadCount }] = await db
-          .select({ unreadCount: sql<number>`count(*)::int` })
-          .from(chatDmMessages)
-          .where(
-            and(
-              eq(chatDmMessages.recipientId, userId),
-              eq(chatDmMessages.senderId, otherId),
-              sql`${chatDmMessages.readAt} IS NULL`
-            )
-          );
+            .orderBy(desc(chatDmMessages.createdAt))
+            .limit(1),
+          db
+            .select({ unreadCount: sql<number>`count(*)::int` })
+            .from(chatDmMessages)
+            .where(
+              and(
+                eq(chatDmMessages.recipientId, userId),
+                eq(chatDmMessages.senderId, otherId),
+                sql`${chatDmMessages.readAt} IS NULL`
+              )
+            ),
+        ]);
 
         return {
           otherId,

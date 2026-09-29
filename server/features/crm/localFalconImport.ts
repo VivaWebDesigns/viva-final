@@ -439,8 +439,10 @@ function similarBusinessName(left: string, right: string): boolean {
 }
 
 async function existingCompanyMatches(prospect: LocalFalconProspectInput): Promise<FallbackMatch[]> {
-  const companies = await db.select().from(crmCompanies);
-  const leadRows = await db.select({ id: crmLeads.id, companyId: crmLeads.companyId }).from(crmLeads);
+  const [companies, leadRows] = await Promise.all([
+    db.select().from(crmCompanies),
+    db.select({ id: crmLeads.id, companyId: crmLeads.companyId }).from(crmLeads),
+  ]);
   const leadByCompany = new Map(leadRows.filter((row) => row.companyId).map((row) => [row.companyId!, row.id]));
   const phone = normalizePhoneDigits(prospect.phone ?? "");
   const websiteDomain = domain(prospect.website_url);
