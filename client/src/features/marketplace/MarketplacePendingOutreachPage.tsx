@@ -258,9 +258,15 @@ export default function MarketplacePendingOutreachPage() {
   const [showDeleteConfirm, setShowDeleteConfirm]           = useState(false);
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm]   = useState(false);
 
-  useEffect(() => { setPage(1); }, [search, statusFilter, hasPhone, hasCrmLead]);
-  // Clear selection whenever filters or page changes (page-local selection contract)
-  useEffect(() => { setSelectedIds(new Set()); }, [search, statusFilter, hasPhone, hasCrmLead, page]);
+  // Selection is page-local: filter changes reset the page and selection; page changes clear selection.
+  useEffect(() => {
+    setPage(1);
+    setSelectedIds(new Set());
+  }, [search, statusFilter, hasPhone, hasCrmLead]);
+  const changePage = (update: (current: number) => number) => {
+    setPage(update);
+    setSelectedIds(new Set());
+  };
 
   const summaryQueryKey = ["/api/marketplace/pending-outreach/summary"] as const;
 
@@ -918,7 +924,7 @@ export default function MarketplacePendingOutreachPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  onClick={() => changePage((p) => Math.max(1, p - 1))}
                   disabled={page <= 1}
                   data-testid="button-prev-page"
                 >
@@ -927,7 +933,7 @@ export default function MarketplacePendingOutreachPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  onClick={() => changePage((p) => Math.min(totalPages, p + 1))}
                   disabled={page >= totalPages}
                   data-testid="button-next-page"
                 >

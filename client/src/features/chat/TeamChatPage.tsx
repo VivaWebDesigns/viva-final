@@ -201,7 +201,7 @@ export default function TeamChatPage() {
   const [showEmojiFor, setShowEmojiFor] = useState<string | null>(null);
   const [showPinned, setShowPinned] = useState(false);
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
-  const [mentionQueryLen, setMentionQueryLen] = useState(0);
+  const mentionQueryLenRef = useRef(0);
   const [showDmPicker, setShowDmPicker] = useState(false);
   const [typingUsers, setTypingUsers] = useState<TypingState[]>([]);
   const [pendingAttachments, setPendingAttachments] = useState<ChatAttachment[]>([]);
@@ -550,17 +550,17 @@ export default function TeamChatPage() {
     const match = text.match(/@(\w*)$/);
     if (match) {
       setMentionQuery(match[1]);
-      setMentionQueryLen(match[0].length);
+      mentionQueryLenRef.current = match[0].length;
     } else {
       setMentionQuery(null);
-      setMentionQueryLen(0);
+      mentionQueryLenRef.current = 0;
     }
   };
 
   const insertMention = (u: TeamUser) => {
-    editorRef.current?.insertMentionText(mentionQueryLen, u.name);
+    editorRef.current?.insertMentionText(mentionQueryLenRef.current, u.name);
     setMentionQuery(null);
-    setMentionQueryLen(0);
+    mentionQueryLenRef.current = 0;
   };
 
   const uploadChatFiles = useCallback(async (files: File[]) => {

@@ -117,7 +117,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
   });
 
   const [completingTask, setCompletingTask] = useState<FollowupTask | null>(null);
-  const [demoOutcomeTask, setDemoOutcomeTask] = useState<FollowupTask | null>(null);
+  const demoOutcomeTaskRef = useRef<FollowupTask | null>(null);
   const [paymentFollowupTask, setPaymentFollowupTask] = useState<FollowupTask | null>(null);
 
   const stageMutation = useMutation({
@@ -802,7 +802,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
                           if (task.taskType === "payment_followup" || task.title === "Follow up on payment") {
                             setPaymentFollowupTask(task);
                           } else if (task.taskType === "demo_outcome" || task.taskType === "demo_followup" || currentStage?.slug === "demo-completed") {
-                            setDemoOutcomeTask(task);
+                            demoOutcomeTaskRef.current = task;
                             const demoCompletedStage = stages?.find(s => s.slug === "demo-completed");
                             if (demoCompletedStage) setDemoCompletedPendingStageId(demoCompletedStage.id);
                           } else {
@@ -986,7 +986,7 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
         open={demoCompletedPendingStageId !== null}
         onClose={() => {
           setDemoCompletedPendingStageId(null);
-          setDemoOutcomeTask(null);
+          demoOutcomeTaskRef.current = null;
         }}
         opportunityId={id}
         contactName={`${contact?.firstName ?? ""} ${contact?.lastName ?? ""}`.trim() || "there"}
@@ -997,31 +997,34 @@ export default function OpportunityDetailPage({ id }: { id: string }) {
             afterDemoCompletedCallbackRef.current = () =>
               setPaymentSentPendingStageId(paymentSentStage.id);
           }
-          if (demoOutcomeTask) {
-            apiRequest("PUT", `/api/tasks/${demoOutcomeTask.id}/complete`, {}).then(() => {
+          const demoTask = demoOutcomeTaskRef.current;
+          if (demoTask) {
+            apiRequest("PUT", `/api/tasks/${demoTask.id}/complete`, {}).then(() => {
               queryClient.invalidateQueries({ queryKey: ["/api/tasks/for-opportunity", id] });
             }).catch(() => {});
-            setDemoOutcomeTask(null);
+            demoOutcomeTaskRef.current = null;
           }
           if (demoCompletedPendingStageId) stageMutation.mutate(demoCompletedPendingStageId);
           setDemoCompletedPendingStageId(null);
         }}
         onDemoCompleted={() => {
-          if (demoOutcomeTask) {
-            apiRequest("PUT", `/api/tasks/${demoOutcomeTask.id}/complete`, {}).then(() => {
+          const demoTask = demoOutcomeTaskRef.current;
+          if (demoTask) {
+            apiRequest("PUT", `/api/tasks/${demoTask.id}/complete`, {}).then(() => {
               queryClient.invalidateQueries({ queryKey: ["/api/tasks/for-opportunity", id] });
             }).catch(() => {});
-            setDemoOutcomeTask(null);
+            demoOutcomeTaskRef.current = null;
           }
           if (demoCompletedPendingStageId) stageMutation.mutate(demoCompletedPendingStageId);
           setDemoCompletedPendingStageId(null);
         }}
         onClosedLost={() => {
-          if (demoOutcomeTask) {
-            apiRequest("PUT", `/api/tasks/${demoOutcomeTask.id}/complete`, {}).then(() => {
+          const demoTask = demoOutcomeTaskRef.current;
+          if (demoTask) {
+            apiRequest("PUT", `/api/tasks/${demoTask.id}/complete`, {}).then(() => {
               queryClient.invalidateQueries({ queryKey: ["/api/tasks/for-opportunity", id] });
             }).catch(() => {});
-            setDemoOutcomeTask(null);
+            demoOutcomeTaskRef.current = null;
           }
           const closedLostStage = stages?.find((s) => s.slug === "closed-lost");
           if (closedLostStage) stageMutation.mutate(closedLostStage.id);

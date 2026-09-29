@@ -2932,7 +2932,7 @@ function ProfileShellInner({
   const spokeWithLeadTaskIdRef = useRef<string | null>(null);
   const spokeWithLeadNoteRef = useRef<string | undefined>(undefined);
   const afterDemoCompletedCallbackRef = useRef<(() => void) | null>(null);
-  const [demoOutcomeTask, setDemoOutcomeTask] = useState<ClientTask | null>(null);
+  const demoOutcomeTaskRef = useRef<ClientTask | null>(null);
   const [paymentFollowupTask, setPaymentFollowupTask] = useState<ClientTask | null>(null);
 
   const { data: stages } = useQuery<PipelineStage[]>({
@@ -3448,7 +3448,7 @@ function ProfileShellInner({
                         if (task.taskType === "payment_followup" || task.title === "Follow up on payment") {
                           setPaymentFollowupTask(task);
                         } else if (task.taskType === "demo_outcome" || task.taskType === "demo_followup" || activeStageSlug === "demo-completed") {
-                          setDemoOutcomeTask(task);
+                          demoOutcomeTaskRef.current = task;
                           const demoCompletedStage = stages?.find(s => s.slug === "demo-completed");
                           if (demoCompletedStage) setDemoCompletedPendingStageId(demoCompletedStage.id);
                         } else {
@@ -3478,7 +3478,7 @@ function ProfileShellInner({
                         if (task.taskType === "payment_followup" || task.title === "Follow up on payment") {
                           setPaymentFollowupTask(task);
                         } else if (task.taskType === "demo_outcome" || task.taskType === "demo_followup" || activeStageSlug === "demo-completed") {
-                          setDemoOutcomeTask(task);
+                          demoOutcomeTaskRef.current = task;
                           const demoCompletedStage = stages?.find(s => s.slug === "demo-completed");
                           if (demoCompletedStage) setDemoCompletedPendingStageId(demoCompletedStage.id);
                         } else {
@@ -3508,7 +3508,7 @@ function ProfileShellInner({
                         if (task.taskType === "payment_followup" || task.title === "Follow up on payment") {
                           setPaymentFollowupTask(task);
                         } else if (task.taskType === "demo_outcome" || task.taskType === "demo_followup" || activeStageSlug === "demo-completed") {
-                          setDemoOutcomeTask(task);
+                          demoOutcomeTaskRef.current = task;
                           const demoCompletedStage = stages?.find(s => s.slug === "demo-completed");
                           if (demoCompletedStage) setDemoCompletedPendingStageId(demoCompletedStage.id);
                         } else {
@@ -3954,7 +3954,7 @@ function ProfileShellInner({
             open={demoCompletedPendingStageId !== null}
             onClose={() => {
               setDemoCompletedPendingStageId(null);
-              setDemoOutcomeTask(null);
+              demoOutcomeTaskRef.current = null;
             }}
             opportunityId={activeOpp.id}
             contactName={`${contact?.firstName ?? ""} ${contact?.lastName ?? ""}`.trim() || "there"}
@@ -3965,34 +3965,37 @@ function ProfileShellInner({
                 afterDemoCompletedCallbackRef.current = () =>
                   setPaymentSentPendingStageId(paymentSentStage.id);
               }
-              if (demoOutcomeTask) {
-                apiRequest("PUT", `/api/tasks/${demoOutcomeTask.id}/complete`, {}).then(() => {
+              const demoTask = demoOutcomeTaskRef.current;
+              if (demoTask) {
+                apiRequest("PUT", `/api/tasks/${demoTask.id}/complete`, {}).then(() => {
                   queryClient.invalidateQueries({ queryKey: ["/api/profiles/company", companyId, "tasks"] });
                   queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
                 }).catch(() => {});
-                setDemoOutcomeTask(null);
+                demoOutcomeTaskRef.current = null;
               }
               if (demoCompletedPendingStageId) stageMutation.mutate(demoCompletedPendingStageId);
               setDemoCompletedPendingStageId(null);
             }}
             onDemoCompleted={() => {
-              if (demoOutcomeTask) {
-                apiRequest("PUT", `/api/tasks/${demoOutcomeTask.id}/complete`, {}).then(() => {
+              const demoTask = demoOutcomeTaskRef.current;
+              if (demoTask) {
+                apiRequest("PUT", `/api/tasks/${demoTask.id}/complete`, {}).then(() => {
                   queryClient.invalidateQueries({ queryKey: ["/api/profiles/company", companyId, "tasks"] });
                   queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
                 }).catch(() => {});
-                setDemoOutcomeTask(null);
+                demoOutcomeTaskRef.current = null;
               }
               if (demoCompletedPendingStageId) stageMutation.mutate(demoCompletedPendingStageId);
               setDemoCompletedPendingStageId(null);
             }}
             onClosedLost={() => {
-              if (demoOutcomeTask) {
-                apiRequest("PUT", `/api/tasks/${demoOutcomeTask.id}/complete`, {}).then(() => {
+              const demoTask = demoOutcomeTaskRef.current;
+              if (demoTask) {
+                apiRequest("PUT", `/api/tasks/${demoTask.id}/complete`, {}).then(() => {
                   queryClient.invalidateQueries({ queryKey: ["/api/profiles/company", companyId, "tasks"] });
                   queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(entry) });
                 }).catch(() => {});
-                setDemoOutcomeTask(null);
+                demoOutcomeTaskRef.current = null;
               }
               const closedLostStage = stages?.find((s) => s.slug === "closed-lost");
               if (closedLostStage) stageMutation.mutate(closedLostStage.id);
