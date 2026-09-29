@@ -3,7 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAdminLang } from "@/i18n/LanguageContext";
-import { formatTimeSlot, TIME_SLOTS } from "@/components/QuickTaskModal";
+import { formatTimeSlot, TIME_SLOTS } from "@/components/taskScheduling";
 
 function tomorrowLocalString(): string {
   const d = new Date();
@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/select";
 import CallButton from "@/components/CallButton";
 import SMSButton from "@/components/SMSButton";
+import { useOpenSessionKey } from "@/hooks/use-open-session-key";
 
 type Outcome = "ready-for-payment" | "still-thinking" | "not-interested";
 
@@ -48,7 +49,7 @@ interface DemoCompletedModalProps {
   onClosedLost: () => void;
 }
 
-export default function DemoCompletedModal({
+function DemoCompletedModalContent({
   open,
   onClose,
   opportunityId,
@@ -70,17 +71,6 @@ export default function DemoCompletedModal({
 
   const [countdown, setCountdown] = useState(5);
   const [countdownStarted, setCountdownStarted] = useState(false);
-
-  useEffect(() => {
-    if (!open) {
-      setOutcome(null);
-      setFollowUpDate(tomorrowLocalString());
-      setFollowUpTime("");
-      setFollowUpNotes("");
-      setCountdown(5);
-      setCountdownStarted(false);
-    }
-  }, [open]);
 
   useEffect(() => {
     if (!countdownStarted || countdown <= 0) return;
@@ -329,4 +319,9 @@ export default function DemoCompletedModal({
       </DialogContent>
     </Dialog>
   );
+}
+
+export default function DemoCompletedModal(props: DemoCompletedModalProps) {
+  const sessionKey = useOpenSessionKey(props.open);
+  return <DemoCompletedModalContent key={sessionKey} {...props} />;
 }

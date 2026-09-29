@@ -3,7 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { resolveRepTimezone } from "@/lib/timezone";
-import { TIME_SLOTS, formatTimeSlot, todayLocalString } from "@/components/QuickTaskModal";
+import { TIME_SLOTS, formatTimeSlot, todayLocalString } from "@/components/taskScheduling";
 import { useAdminLang } from "@/i18n/LanguageContext";
 import { Copy, Check } from "lucide-react";
 import {
@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useOpenSessionKey } from "@/hooks/use-open-session-key";
 
 const FOLLOW_UP_TITLE = "Follow up on payment";
 const FOLLOW_UP_NOTES =
@@ -41,7 +42,7 @@ interface PaymentFollowupModalProps {
   contactName?: string | null;
 }
 
-export default function PaymentFollowupModal({
+function PaymentFollowupModalContent({
   open,
   onClose,
   opportunityId,
@@ -64,18 +65,6 @@ export default function PaymentFollowupModal({
   const [countdown, setCountdown] = useState(5);
   const [countdownStarted, setCountdownStarted] = useState(false);
   const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    if (!open) {
-      setPath(null);
-      setFollowUpDate(todayLocalString());
-      setFollowUpTime("");
-      setFollowUpNotes("");
-      setCountdown(5);
-      setCountdownStarted(false);
-      setCopied(false);
-    }
-  }, [open]);
 
   useEffect(() => {
     if (!countdownStarted || countdown <= 0) return;
@@ -373,4 +362,9 @@ export default function PaymentFollowupModal({
       </DialogContent>
     </Dialog>
   );
+}
+
+export default function PaymentFollowupModal(props: PaymentFollowupModalProps) {
+  const sessionKey = useOpenSessionKey(props.open);
+  return <PaymentFollowupModalContent key={sessionKey} {...props} />;
 }

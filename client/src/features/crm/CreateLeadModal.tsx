@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { US_STATES } from "@/lib/usStates";
 import { normalizePhoneDigits, formatPhoneDisplay, isValidUSPhone } from "@shared/phone";
 import { CityCombobox } from "@/components/CityCombobox";
+import { BUSINESS_TRADES } from "./businessTrades";
 
 type DuplicateLeadError = Error & { code?: string; match?: DuplicateMatchSummary };
 
@@ -39,33 +40,6 @@ function titleCase(value: string): string {
     })
     .join(" ");
 }
-
-export const BUSINESS_TRADES = [
-  "painting",
-  "plumbing",
-  "roofing",
-  "electrical",
-  "landscaping",
-  "hvac",
-  "general_contractor",
-  "house_cleaning",
-  "pressure_washing",
-  "carpentry",
-  "flooring",
-  "tile_installation",
-  "fence_installation",
-  "deck_building",
-  "shed_building",
-  "concrete_asphalt",
-  "tree_service",
-  "masonry",
-  "siding",
-  "shower_glass",
-  "stonework",
-  "windows",
-  "doors",
-  "handyman",
-] as const;
 
 const baseSchema = z.object({
   firstName:         z.string().min(1),

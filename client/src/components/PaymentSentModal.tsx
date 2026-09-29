@@ -3,7 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { resolveRepTimezone } from "@/lib/timezone";
-import { todayLocalString, formatTimeSlot } from "@/components/QuickTaskModal";
+import { todayLocalString, formatTimeSlot } from "@/components/taskScheduling";
 import { useAdminLang } from "@/i18n/LanguageContext";
 import {
   Dialog,
@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useOpenSessionKey } from "@/hooks/use-open-session-key";
 
 const PAYMENT_METHOD_VALUES = ["Text", "Email", "Both"] as const;
 type PaymentMethod = typeof PAYMENT_METHOD_VALUES[number];
@@ -66,7 +67,7 @@ interface PaymentSentModalProps {
   onSuccess: () => void;
 }
 
-export default function PaymentSentModal({
+function PaymentSentModalContent({
   open,
   onClose,
   opportunityId,
@@ -82,15 +83,6 @@ export default function PaymentSentModal({
   const [method, setMethod] = useState<PaymentMethod | "">("");
   const [notes, setNotes] = useState("");
   const [offsetHours, setOffsetHours] = useState<number>(3);
-
-  useEffect(() => {
-    if (open) {
-      setTimeSent("");
-      setMethod("");
-      setNotes("");
-      setOffsetHours(3);
-    }
-  }, [open]);
 
   const followUpResult = timeSent ? computeFollowUp(timeSent, offsetHours) : null;
 
@@ -275,4 +267,9 @@ export default function PaymentSentModal({
       </DialogContent>
     </Dialog>
   );
+}
+
+export default function PaymentSentModal(props: PaymentSentModalProps) {
+  const sessionKey = useOpenSessionKey(props.open);
+  return <PaymentSentModalContent key={sessionKey} {...props} />;
 }

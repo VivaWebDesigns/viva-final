@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { vivaOrganizationSchema } from "../../client/src/components/JsonLd";
+import { vivaOrganizationSchema } from "../../client/src/components/vivaOrganizationSchema";
 
 const expectedAddress = {
   "@type": "PostalAddress",

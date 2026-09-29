@@ -27,7 +27,8 @@ import type { PipelineStage, PipelineOpportunity, PipelineActivity, CrmCompany, 
 import { WEBSITE_PACKAGES } from "@shared/schema";
 import { formatPhoneDisplay } from "@shared/phone";
 import { renderActivityContent, getActivityTypeLabel, renderTaskTitle } from "@/lib/activityI18n";
-import QuickTaskModal, { formatTaskTimeDisplay } from "@/components/QuickTaskModal";
+import QuickTaskModal from "@/components/QuickTaskModal";
+import { formatTaskTimeDisplay } from "@/components/taskScheduling";
 import CompleteTaskModal from "@/components/CompleteTaskModal";
 import PaymentSentModal from "@/components/PaymentSentModal";
 import DemoCompletedModal from "@/components/DemoCompletedModal";

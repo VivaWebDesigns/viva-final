@@ -65,7 +65,8 @@ import { EditContactDialog } from "./edit/EditContactDialog";
 import { EditLeadDialog } from "./edit/EditLeadDialog";
 import { EditOpportunityDialog } from "./edit/EditOpportunityDialog";
 import CompleteTaskModal from "@/components/CompleteTaskModal";
-import QuickTaskModal, { formatTaskTimeDisplay } from "@/components/QuickTaskModal";
+import QuickTaskModal from "@/components/QuickTaskModal";
+import { formatTaskTimeDisplay } from "@/components/taskScheduling";
 import PaymentSentModal from "@/components/PaymentSentModal";
 import PaymentFollowupModal from "@/components/PaymentFollowupModal";
 import DemoCompletedModal from "@/components/DemoCompletedModal";
@@ -932,22 +933,19 @@ function OriginalCompanyReports({
   reports: LocalVisibilityReportSummary[];
 }) {
   const [selectedReportId, setSelectedReportId] = useState(reports[0]?.id ?? "");
+  const activeReportId = reports.some((report) => report.id === selectedReportId)
+    ? selectedReportId
+    : reports[0]?.id ?? "";
 
-  useEffect(() => {
-    if (!reports.some((report) => report.id === selectedReportId)) {
-      setSelectedReportId(reports[0]?.id ?? "");
-    }
-  }, [reports, selectedReportId]);
-
-  if (!selectedReportId) return null;
+  if (!activeReportId) return null;
   return (
     <section data-testid="original-company-reports">
       <ReportVariantSelector
         reports={reports}
-        value={selectedReportId}
+        value={activeReportId}
         onChange={setSelectedReportId}
       />
-      <LocalFalconSnapshotCard reportId={selectedReportId} contextCompanyId={companyId} />
+      <LocalFalconSnapshotCard reportId={activeReportId} contextCompanyId={companyId} />
     </section>
   );
 }

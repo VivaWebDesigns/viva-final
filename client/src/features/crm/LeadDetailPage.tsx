@@ -31,13 +31,14 @@ import { queryClient, apiRequest, STALE } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { CrmLead, CrmLeadStatus, CrmContact, CrmCompany, CrmLeadNote, CrmTag, PipelineStage, FollowupTask, PipelineOpportunity, DemoConfig, LocalFalconImportBatch, LocalFalconProspectProfile } from "@shared/schema";
 import { formatPhoneDisplay } from "@shared/phone";
-import QuickTaskModal, { formatTaskTimeDisplay } from "@/components/QuickTaskModal";
+import QuickTaskModal from "@/components/QuickTaskModal";
+import { formatTaskTimeDisplay } from "@/components/taskScheduling";
 import CompleteTaskModal from "@/components/CompleteTaskModal";
 import { RecordTimeline } from "@/components/RecordTimeline";
 import { useAdminLang } from "@/i18n/LanguageContext";
 import { renderActivityContent, renderTaskTitle } from "@/lib/activityI18n";
 import { US_STATES } from "@/lib/usStates";
-import { BUSINESS_TRADES } from "@/features/crm/CreateLeadModal";
+import { BUSINESS_TRADES } from "@/features/crm/businessTrades";
 import SalesPriorityBadge from "@/components/SalesPriorityBadge";
 
 type TaskWithContact = FollowupTask & {

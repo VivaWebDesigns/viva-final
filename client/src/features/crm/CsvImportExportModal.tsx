@@ -964,7 +964,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
   );
 }
 
-export async function triggerCsvExport(type: "leads" | "contacts", onError: (msg: string) => void): Promise<void> {
+async function triggerCsvExport(type: "leads" | "contacts", onError: (msg: string) => void): Promise<void> {
   try {
     const response = await fetch(type === "leads" ? "/api/crm/leads/export-csv" : "/api/crm/contacts/export-csv", { credentials: "include" });
     if (!response.ok) {

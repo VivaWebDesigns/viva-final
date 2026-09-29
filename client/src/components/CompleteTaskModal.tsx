@@ -6,12 +6,7 @@ import { useAdminLang } from "@/i18n/LanguageContext";
 import { renderTaskTitle } from "@/lib/activityI18n";
 import { resolveRepTimezone } from "@/lib/timezone";
 import { isReportOutreachTask, REPORT_OUTREACH_OUTCOMES } from "@shared/reportOutreach";
-import {
-  TIME_SLOTS,
-  formatTimeSlot,
-  calcDueDateString,
-  todayLocalString,
-} from "@/components/QuickTaskModal";
+import { TIME_SLOTS, formatTimeSlot, calcDueDateString, todayLocalString } from "@/components/taskScheduling";
 import {
   Dialog,
   DialogContent,
@@ -32,15 +27,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useOpenSessionKey } from "@/hooks/use-open-session-key";
 
-export const OUTCOME_LABELS: Record<string, string> = {
+const OUTCOME_LABELS: Record<string, string> = {
   interested: "Interested",
   uncertain: "Uncertain",
   notInterested: "Not interested",
   appointmentSet: "Appointment set",
 };
 
-export const OUTCOME_KEYS = Object.keys(OUTCOME_LABELS) as readonly string[];
+const OUTCOME_KEYS = Object.keys(OUTCOME_LABELS) as readonly string[];
 
 const NEW_LEAD_OUTCOME_LABELS: Record<string, string> = {
   noAnswer:      "No answer",
@@ -88,7 +84,7 @@ interface CompleteTaskModalProps {
   preventClose?: boolean;
 }
 
-export default function CompleteTaskModal({
+function CompleteTaskModalContent({
   open,
   onClose,
   task,
@@ -128,20 +124,6 @@ export default function CompleteTaskModal({
 
   const isAppointmentSet = outcome === "Appointment set";
   const isReportTask = isReportOutreachTask(task?.taskType);
-
-  useEffect(() => {
-    if (open) {
-      setOutcome("");
-      setCompletionNote("");
-      setFollowUp("none");
-      setCustomDate(todayLocalString());
-      setFollowUpTime("09:00");
-      setDemoDate("");
-      setDemoTime("");
-      setDemoTimezone("");
-      setDemoRep("");
-    }
-  }, [open]);
 
   const buildDemoNote = (): string => {
     const datePart = demoDate
@@ -515,4 +497,9 @@ export default function CompleteTaskModal({
       </DialogContent>
     </Dialog>
   );
+}
+
+export default function CompleteTaskModal(props: CompleteTaskModalProps) {
+  const sessionKey = useOpenSessionKey(props.open);
+  return <CompleteTaskModalContent key={sessionKey} {...props} />;
 }
