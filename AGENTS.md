@@ -2,8 +2,12 @@
 
 ## Git Workflow
 
-- Before editing, run `git fetch --prune`, then check the current repo, branch, remote, and `git status --short --branch`.
+- This repo is worked on from two computers with both Claude and Codex, so local `main` is often behind `origin/main`. At the start of every session, before reading or editing code, run `sh .claude/hooks/git-sync.sh` (Claude Code runs it automatically at startup; run it again if its output is not in context). It fast-forwards clean `main` with `git pull --ff-only` and reports when it skipped.
+- If the sync reports a skip or failure (local changes, another branch, diverged history, offline), stop and explain it to the user before editing. Never resolve divergence by merging, rebasing, resetting, or force-pushing without explicit approval.
+- If the sync reports that `package.json` changed, run `npm install`. If schema files changed, mention it; do not push the schema unless asked.
+- Then run `git fetch --prune` and check the current repo, branch, remote, and `git status --short --branch`.
 - Work from clean `main` unless the user explicitly asks for another branch.
+- Immediately before pushing, run `git pull --rebase` so work pushed from the other computer is included. If the rebase conflicts, run `git rebase --abort` and stop to ask the user; do not resolve conflicts on your own.
 - If local changes already exist, identify them before editing. Do not mix new work into unrelated changes.
 - Stage only files that belong to the user's requested task.
 - After completing a user-requested file change, validate the change, then automatically create a clear, focused commit and push it to the intended branch, usually `main` when Replit or production sync is expected.
