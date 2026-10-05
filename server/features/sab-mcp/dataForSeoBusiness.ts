@@ -122,10 +122,14 @@ function normalizeBusiness(item: DataForSeoBusiness, placeId: string) {
     .map(topicName)
     .filter((value): value is string => Boolean(value))
     .slice(0, 20);
-  const rating =
+  const ratingObject =
     item.rating && typeof item.rating === "object"
-      ? (item.rating as Record<string, unknown>).value
-      : item.rating;
+      ? (item.rating as Record<string, unknown>)
+      : null;
+  const rating = ratingObject ? ratingObject.value : item.rating;
+  // My Business Info reports the review total as rating.votes_count.
+  const reviewCount =
+    ratingObject?.votes_count ?? item.reviews_count ?? item.review_count;
 
   return {
     name: cleanString(item.title ?? item.name),
@@ -134,7 +138,7 @@ function normalizeBusiness(item: DataForSeoBusiness, placeId: string) {
     phone: cleanString(item.phone ?? item.phone_number),
     website: cleanString(item.url ?? item.website),
     rating: cleanNumber(rating),
-    review_count: cleanNumber(item.reviews_count ?? item.review_count),
+    review_count: cleanNumber(reviewCount),
     primary_category: primary,
     categories,
     service_count: allServices.length,

@@ -28,8 +28,7 @@ describe("SAB compact DataForSEO enrichment", () => {
                 cid: "123",
                 phone: "+17045551212",
                 url: "https://example.com",
-                rating: { value: 4.9 },
-                reviews_count: 17,
+                rating: { rating_type: "Max5", value: 4.9, votes_count: 17, rating_max: null },
                 category: "Deck builder",
                 categories: [{ name: "Deck builder", id: "gcid:deck_builder" }],
                 services: Array.from({ length: 25 }, (_, index) => ({
@@ -69,6 +68,8 @@ describe("SAB compact DataForSEO enrichment", () => {
       business: {
         name: "Deck It Pro",
         place_id: "ChIJ-exact",
+        rating: 4.9,
+        review_count: 17,
         service_count: 25,
         omitted_service_count: 5,
       },
