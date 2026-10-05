@@ -34,6 +34,7 @@ const NotificationCenterPage = lazy(() => import("@features/notifications/Notifi
 const AdminDemoBuilder = lazy(() => import("@/pages/AdminDemoBuilder"));
 const LocalVisibilityReportPage = lazy(() => import("@features/local-visibility-report/LocalVisibilityReportPage"));
 const RedrawSnapshotsPage = lazy(() => import("@features/admin/pages/RedrawSnapshotsPage"));
+const InstantlyPage = lazy(() => import("@features/admin/pages/InstantlyPage"));
 const TechnicalSeoScannerPage = lazy(() => import("@features/technical-seo/TechnicalSeoScannerPage"));
 const TechnicalSeoReportPage = lazy(() => import("@features/technical-seo/TechnicalSeoReportPage"));
 
@@ -204,6 +205,11 @@ export default function AdminRouter() {
             <Route path="/admin/demo-builder">
               <ProtectedRoute roles={["admin", "developer"]}>
                 <AdminDemoBuilder />
+              </ProtectedRoute>
+            </Route>
+            <Route path="/admin/tools/instantly">
+              <ProtectedRoute roles={["admin"]} redirectTo="/admin/pipeline">
+                <InstantlyPage />
               </ProtectedRoute>
             </Route>
             <Route path="/admin/tools/redraw-report-pictures">

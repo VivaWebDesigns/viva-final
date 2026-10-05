@@ -1,5 +1,6 @@
 import { db } from "../../db";
 import { stopReportOutreachForStage } from "../crm/reportOutreach";
+import { stopInstantlyEnrollment } from "../instantly/enrollment";
 import {
   pipelineStages, pipelineOpportunities, pipelineActivities,
   crmLeads, crmCompanies, crmContacts, crmLeadNotes, user, followupTasks,
@@ -321,7 +322,12 @@ export async function moveOpportunity(
     },
   });
 
-  if (opportunity.leadId) await stopReportOutreachForStage(opportunity.leadId, newStage.slug);
+  if (opportunity.leadId) {
+    await stopReportOutreachForStage(opportunity.leadId, newStage.slug);
+    if (!["new-lead", "report-emailed"].includes(newStage.slug)) {
+      await stopInstantlyEnrollment(opportunity.leadId, `Pipeline moved to ${newStage.name}`);
+    }
+  }
   return { opportunity, activity };
 }
 

@@ -6,6 +6,7 @@ import { logAudit } from "../audit/service";
 import * as taskStorage from "./storage";
 import { isReportOutreachTask, REPORT_OUTREACH_FILTERS, REPORT_OUTREACH_TASKS } from "@shared/reportOutreach";
 import { completeReportOutreachTask } from "../crm/reportOutreach";
+import { stopInstantlyEnrollment } from "../instantly/enrollment";
 import { addLeadNote } from "../crm/storage";
 import { addActivity, bulkAssignOpportunitiesByLeadIds, getStages, moveOpportunity } from "../pipeline/storage";
 import { db } from "../../db";
@@ -442,6 +443,8 @@ router.put("/:id/complete", requireRole("admin", "developer", "sales_rep"), asyn
         return res.status(403).json({ message: "Access denied" });
       }
       const completed = await completeReportOutreachTask(existingTask, body ?? {}, req.authUser!.id);
+      // Any recorded outcome means a person has taken over; Instantly must not keep emailing.
+      if (existingTask.leadId) await stopInstantlyEnrollment(existingTask.leadId, `Report outcome: ${body?.outcome}`);
       await logAudit({ userId: req.authUser!.id, action: "update", entity: "followup_task", entityId: completed.id,
         metadata: { action: "completed", outcome: body?.outcome }, ipAddress: req.ip });
       return res.json(completed);

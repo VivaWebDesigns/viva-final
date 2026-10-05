@@ -3,12 +3,16 @@ import { getTableName } from "drizzle-orm";
 
 const mocks = vi.hoisted(() => ({
   select: vi.fn(), insert: vi.fn(), insertValues: vi.fn(), update: vi.fn(), transaction: vi.fn(), state: vi.fn(), record: vi.fn(),
+  instantlyStatus: vi.fn(),
 }));
 
 vi.mock("../../server/db", () => ({ db: mocks }));
 vi.mock("../../server/features/crm/reportOutreach", () => ({
   getReportOutreachState: mocks.state,
   recordReportEmailSent: mocks.record,
+}));
+vi.mock("../../server/features/instantly/enrollment", () => ({
+  getInstantlyEnrollmentStatus: mocks.instantlyStatus,
 }));
 vi.mock("../../server/services/storage", () => ({
   getFileBuffer: vi.fn().mockResolvedValue({ buffer: Buffer.from("image") }),
@@ -47,6 +51,7 @@ beforeEach(() => {
   mocks.transaction.mockImplementation(async fn => fn(mocks));
   mocks.state.mockResolvedValue({ reportEmailCount: 0, reportOutreachDisposition: null });
   mocks.record.mockResolvedValue(undefined);
+  mocks.instantlyStatus.mockResolvedValue(null);
   mocks.select.mockReturnValue(rows([]));
   mocks.insert.mockImplementation(table => ({ values: (value: any) => {
     mocks.insertValues(table, value);
@@ -56,6 +61,13 @@ beforeEach(() => {
 });
 
 describe("manual Gmail report workflow", () => {
+  it("refuses a manual send while Instantly owns the lead's emails", async () => {
+    mocks.instantlyStatus.mockResolvedValue("enrolled");
+    await expect(prepareManualScanReportEmail(input)).rejects.toThrow("Instantly campaign");
+    await expect(confirmManualScanReportEmail(input)).rejects.toThrow("Instantly campaign");
+    expect(mocks.insertValues).not.toHaveBeenCalled();
+  });
+
   it("prepares Gmail and publishes the report without counting a send", async () => {
     mocks.select.mockReturnValueOnce(rows([record]));
     const result = await prepareManualScanReportEmail(input);

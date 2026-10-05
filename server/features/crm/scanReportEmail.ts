@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { and, desc, eq } from "drizzle-orm";
 import { reportSendBlockedReason } from "@shared/reportOutreach";
 import { getReportOutreachState, recordReportEmailSent } from "./reportOutreach";
+import { getInstantlyEnrollmentStatus } from "../instantly/enrollment";
 import {
   crmCompanies,
   crmContacts,
@@ -404,7 +405,14 @@ async function ensurePublishedShare(reportId: string, snapshotStorageKey: string
   return shared;
 }
 
+async function assertNotInInstantly(leadId: string) {
+  if (await getInstantlyEnrollmentStatus(leadId) === "enrolled") {
+    throw Object.assign(new Error("This lead is in the Instantly campaign. Instantly sends its report emails."), { statusCode: 409 });
+  }
+}
+
 export async function prepareManualScanReportEmail(input: Omit<ManualScanReportInput, "actorId">) {
+  await assertNotInInstantly(input.leadId);
   const record = await loadReport(input.leadId, input.reportId);
   const outreach = await getReportOutreachState(input.leadId);
   const blocked = reportSendBlockedReason(outreach.reportEmailCount, outreach.reportOutreachDisposition);
@@ -425,6 +433,7 @@ export async function prepareManualScanReportEmail(input: Omit<ManualScanReportI
 }
 
 export async function confirmManualScanReportEmail(input: ManualScanReportInput) {
+  await assertNotInInstantly(input.leadId);
   const record = await loadReport(input.leadId, input.reportId);
   const [existing] = await db.select().from(scanReportDeliveries)
     .where(eq(scanReportDeliveries.requestId, input.requestId))

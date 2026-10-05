@@ -710,6 +710,19 @@ export const instantlyEnrollments = pgTable("instantly_enrollments", {
   index("instantly_enrollment_status_idx").on(t.status),
 ]);
 
+// Each Instantly webhook delivery is processed once; eventKey is derived from the payload.
+export const instantlyWebhookEvents = pgTable("instantly_webhook_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  eventKey: varchar("event_key").notNull().unique(),
+  eventType: text("event_type").notNull(),
+  leadId: varchar("lead_id").references(() => crmLeads.id, { onDelete: "set null" }),
+  payload: jsonb("payload").notNull(),
+  outcome: text("outcome"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("instantly_webhook_event_lead_idx").on(t.leadId, t.createdAt),
+]);
+
 export const scanReportEngagementEvents = pgTable("scan_report_engagement_events", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   deliveryId: varchar("delivery_id").notNull().references(() => scanReportDeliveries.id, { onDelete: "cascade" }),
@@ -1088,6 +1101,7 @@ export type CrmLeadNote = typeof crmLeadNotes.$inferSelect;
 
 export type ScanReportDelivery = typeof scanReportDeliveries.$inferSelect;
 export type ScanReportShare = typeof scanReportShares.$inferSelect;
+export type InstantlyEnrollment = typeof instantlyEnrollments.$inferSelect;
 export type ScanReportEngagementEvent = typeof scanReportEngagementEvents.$inferSelect;
 
 export const insertClientNoteSchema = createInsertSchema(clientNotes).omit({ id: true, createdAt: true });

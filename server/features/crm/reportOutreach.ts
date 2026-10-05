@@ -9,6 +9,9 @@ import { classifyReportOutreach, reportBusinessDate, REPORT_INITIAL_TASK_TITLE, 
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
+/** Deliveries recorded from Instantly webhooks use template keys like "instantly-step-1". */
+export const INSTANTLY_TEMPLATE_PREFIX = "instantly";
+
 export interface ReportOutreachState {
   reportEmailCount: number;
   lastReportEmailedAt: Date | null;
@@ -123,7 +126,7 @@ export async function ensureReportEmailedStage(tx: Tx) {
   return stage;
 }
 
-async function closeReportTasks(tx: Tx, leadId: string, now: Date) {
+export async function closeReportTasks(tx: Tx, leadId: string, now: Date) {
   await tx.update(followupTasks).set({ completed: true, completedAt: now })
     .where(and(eq(followupTasks.leadId, leadId), eq(followupTasks.completed, false),
       inArray(followupTasks.taskType, [...REPORT_OUTREACH_TASKS])));
@@ -205,6 +208,8 @@ export async function recordReportEmailSent(deliveryId: string, now = new Date()
         await tx.update(followupTasks).set({ completed: true, completedAt: now }).where(eq(followupTasks.id, task.id));
       }
     }
+    // Instantly sends email 2 itself; only its final email needs the manual reply check.
+    if (count === 1 && delivery.templateKey?.startsWith(INSTANTLY_TEMPLATE_PREFIX)) return;
     await tx.insert(followupTasks).values({
       title: count === 1 ? "Send second visibility report email" : "Check report reply — close as No Response if unanswered",
       notes: count === 1
