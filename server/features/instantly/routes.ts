@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { requireRole } from "../auth/middleware";
 import { logAudit } from "../audit/service";
-import { prepareInstantlyEnrollment, previewInstantlyEnrollment } from "./enrollment";
+import { listInstantlyRedrawQueue, prepareInstantlyEnrollment, previewInstantlyEnrollment } from "./enrollment";
 
 const router = Router();
 
@@ -9,6 +9,15 @@ const router = Router();
 router.get("/enrollment/preview", requireRole("admin"), async (_req, res) => {
   try {
     res.json(await previewInstantlyEnrollment());
+  } catch (error: any) {
+    res.status(error?.statusCode ?? 500).json({ message: error.message });
+  }
+});
+
+// Read-only: the reports whose snapshots the bulk redraw page regenerates.
+router.get("/enrollment/redraw-queue", requireRole("admin"), async (_req, res) => {
+  try {
+    res.json(await listInstantlyRedrawQueue());
   } catch (error: any) {
     res.status(error?.statusCode ?? 500).json({ message: error.message });
   }

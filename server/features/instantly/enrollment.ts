@@ -108,6 +108,23 @@ export async function previewInstantlyEnrollment() {
   };
 }
 
+/** Reports for the leads that would be staged, so their snapshots can be redrawn before launch. */
+export async function listInstantlyRedrawQueue() {
+  const { eligible } = selectInstantlyCandidates(await loadCandidateRows());
+  if (!eligible.length) return [];
+  const generated = await db.execute(sql`
+    SELECT id, snapshot_generated_at AS "snapshotGeneratedAt" FROM local_falcon_prospect_profiles
+    WHERE id IN (${sql.join(eligible.map(row => sql`${row.reportId}`), sql`, `)})
+  `);
+  const generatedAt = new Map((generated.rows as Array<{ id: string; snapshotGeneratedAt: Date | null }>)
+    .map(row => [row.id, row.snapshotGeneratedAt]));
+  return eligible.map(row => ({
+    reportId: row.reportId,
+    businessName: row.businessName,
+    snapshotGeneratedAt: generatedAt.get(row.reportId) ?? null,
+  }));
+}
+
 /** Copies a report's finished snapshot to the cold-email image domain. Content-hashed, so re-runs are no-ops. */
 async function publishColdEmailImage(reportId: string, snapshotStorageKey: string) {
   const file = await getFileBuffer(snapshotStorageKey);
