@@ -12,6 +12,7 @@ import {
   localFalconProspectProfiles,
 } from "@shared/schema";
 import { deleteFile, getFileBuffer, getSignedDownloadUrl, uploadFile } from "../../services/storage";
+import { refreshInstantlyEnrollmentImage } from "../instantly/enrollment";
 import {
   formatLocalVisibilityAveragePosition,
   formatLocalVisibilityReportAddress,
@@ -282,6 +283,9 @@ router.post(
         await deleteFile(record.previousKey).catch(() => undefined);
       }
       uploadedKey = null;
+      // A staged Instantly lead must never keep pointing at the replaced image.
+      void refreshInstantlyEnrollmentImage(record.id)
+        .catch(error => console.error("[instantly] image refresh failed", record.id, error));
       res.json({
         snapshotImageUrl: await getSignedDownloadUrl(stored.key),
         snapshotGeneratedAt: generatedAt,
@@ -443,6 +447,9 @@ router.post(
         await deleteFile(record.previousKey).catch(() => undefined);
       }
       uploadedKey = null;
+      // A staged Instantly lead must never keep pointing at the replaced image.
+      void refreshInstantlyEnrollmentImage(record.id)
+        .catch(error => console.error("[instantly] image refresh failed", record.id, error));
       res.json({
         snapshotImageUrl: await getSignedDownloadUrl(stored.key),
         snapshotGeneratedAt: generatedAt,

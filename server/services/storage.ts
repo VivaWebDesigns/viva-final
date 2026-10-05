@@ -156,6 +156,22 @@ export async function uploadPublishedReport(
   return { key, url: `${publicUrl}/${key}` };
 }
 
+/**
+ * Cold-email images live in the published reports bucket but are served from a
+ * separate domain (COLD_EMAIL_IMAGE_PUBLIC_URL) so spam reports never touch the
+ * main vivawebdesigns.com domain.
+ */
+export async function uploadColdEmailImage(buffer: Buffer, key: string): Promise<{ key: string; url: string }> {
+  const coldEmailUrl = trimTrailingSlash(firstEnv(["COLD_EMAIL_IMAGE_PUBLIC_URL"]));
+  if (!coldEmailUrl) {
+    const error = new Error("Cold email image domain is not configured. COLD_EMAIL_IMAGE_PUBLIC_URL is required.");
+    (error as Error & { statusCode: number }).statusCode = 503;
+    throw error;
+  }
+  const published = await uploadPublishedReport(buffer, key, "image/png");
+  return { key: published.key, url: `${coldEmailUrl}/${published.key}` };
+}
+
 export async function deleteFile(key: string): Promise<void> {
   const { bucketName, configured } = getConfig();
   if (!configured) {

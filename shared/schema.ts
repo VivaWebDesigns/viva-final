@@ -685,6 +685,31 @@ export const scanReportShares = pgTable("scan_report_shares", {
   index("scan_report_share_report_idx").on(t.reportId),
 ]);
 
+// One row per lead staged for Instantly cold email. "ready" means the image is
+// public and the lead can be pushed; nothing is sent to Instantly until "enrolled".
+export const instantlyEnrollments = pgTable("instantly_enrollments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  leadId: varchar("lead_id").notNull().unique().references(() => crmLeads.id, { onDelete: "cascade" }),
+  reportId: varchar("report_id").notNull().references(() => localFalconProspectProfiles.id, { onDelete: "cascade" }),
+  email: text("email").notNull(),
+  businessName: text("business_name").notNull(),
+  searchPhrase: text("search_phrase").notNull(),
+  imageUrl: text("image_url").notNull(),
+  imageSha256: text("image_sha256").notNull(),
+  status: text("status").notNull().default("ready"),
+  instantlyLeadId: text("instantly_lead_id"),
+  instantlyCampaignId: text("instantly_campaign_id"),
+  // Null while Instantly still holds an older image URL for an enrolled lead.
+  imageSyncedAt: timestamp("image_synced_at"),
+  lastError: text("last_error"),
+  enrolledAt: timestamp("enrolled_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (t) => [
+  index("instantly_enrollment_report_idx").on(t.reportId),
+  index("instantly_enrollment_status_idx").on(t.status),
+]);
+
 export const scanReportEngagementEvents = pgTable("scan_report_engagement_events", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   deliveryId: varchar("delivery_id").notNull().references(() => scanReportDeliveries.id, { onDelete: "cascade" }),

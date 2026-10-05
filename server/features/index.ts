@@ -25,6 +25,7 @@ import marketplaceRoutes from "./marketplace/routes";
 import localVisibilityRoutes from "./local-visibility/routes";
 import { businessAnalyticsRoutes } from "./business-analytics";
 import technicalSeoRoutes from "./technical-seo/routes";
+import instantlyRoutes from "./instantly/routes";
 import { seedDocs } from "./docs/seed";
 import { seedIntegrations } from "./integrations/seed";
 import { seedCrmStatuses } from "./crm/seed";
@@ -58,6 +59,7 @@ router.use("/marketplace", marketplaceRoutes);
 router.use("/local-visibility", localVisibilityRoutes);
 router.use("/business-analytics", businessAnalyticsRoutes);
 router.use("/technical-seo", technicalSeoRoutes);
+router.use("/instantly", instantlyRoutes);
 
 router.post("/admin/seed", requireRole("admin"), async (_req, res) => {
   try {
