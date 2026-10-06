@@ -134,12 +134,41 @@ async function publishColdEmailImage(reportId: string, snapshotStorageKey: strin
   return { imageUrl: published.url, imageSha256: sha };
 }
 
+/** Splits staged leads into those that still qualify and those that no longer do. */
+export function partitionReadyEnrollments<T extends { leadId: string }>(ready: T[], eligibleLeadIds: Set<string>) {
+  return {
+    stillEligible: ready.filter(enrollment => eligibleLeadIds.has(enrollment.leadId)),
+    noLongerEligible: ready.filter(enrollment => !eligibleLeadIds.has(enrollment.leadId)),
+  };
+}
+
+/**
+ * Rechecks every staged lead against the current rules. A lead that was
+ * retagged, emailed by hand or opted out since staging is stopped, never sent.
+ */
+async function recheckReadyEnrollments() {
+  const selection = selectInstantlyCandidates(await loadCandidateRows());
+  const eligibleByLeadId = new Map(selection.eligible.map(row => [row.leadId, row]));
+  const ready = await db.select().from(instantlyEnrollments)
+    .where(eq(instantlyEnrollments.status, "ready"))
+    .orderBy(instantlyEnrollments.createdAt);
+  const { stillEligible, noLongerEligible } = partitionReadyEnrollments(ready, new Set(eligibleByLeadId.keys()));
+  if (noLongerEligible.length) {
+    await db.update(instantlyEnrollments).set({
+      status: "stopped",
+      lastError: "No longer qualifies for Instantly (rechecked before sending).",
+      updatedAt: new Date(),
+    }).where(inArray(instantlyEnrollments.id, noLongerEligible.map(enrollment => enrollment.id)));
+  }
+  return { selection, eligibleByLeadId, stillEligible, retired: noLongerEligible.map(enrollment => enrollment.businessName) };
+}
+
 /**
  * Publishes images and stages eligible leads as "ready". Nothing is sent to
  * Instantly here; enrolled rows are never downgraded.
  */
 export async function prepareInstantlyEnrollment() {
-  const { eligible, excluded } = selectInstantlyCandidates(await loadCandidateRows());
+  const { selection: { eligible, excluded }, retired } = await recheckReadyEnrollments();
   const failed: Array<{ leadId: string; businessName: string; error: string }> = [];
   let prepared = 0;
   for (const row of eligible) {
@@ -166,7 +195,7 @@ export async function prepareInstantlyEnrollment() {
       failed.push({ leadId: row.leadId, businessName: row.businessName, error: error.message });
     }
   }
-  return { prepared, failed, excludedCount: excluded.length };
+  return { prepared, failed, excludedCount: excluded.length, retired };
 }
 
 /**
@@ -237,15 +266,14 @@ const INSTANTLY_BATCH_SIZE = 500;
  * holds anywhere in the workspace are skipped and marked as errors, never re-added.
  */
 export async function pushReadyEnrollmentsToInstantly() {
-  const ready = await db.select().from(instantlyEnrollments)
-    .where(eq(instantlyEnrollments.status, "ready"))
-    .orderBy(instantlyEnrollments.createdAt);
+  const { eligibleByLeadId, stillEligible: ready, retired } = await recheckReadyEnrollments();
   let enrolled = 0;
   const skipped: string[] = [];
   for (let start = 0; start < ready.length; start += INSTANTLY_BATCH_SIZE) {
     const batch = ready.slice(start, start + INSTANTLY_BATCH_SIZE);
     const { campaignId, result } = await addLeadsToCampaign(batch.map(enrollment => ({
-      email: enrollment.email,
+      // The CRM's current address wins over the one captured at staging time.
+      email: eligibleByLeadId.get(enrollment.leadId)!.email!,
       company_name: enrollment.businessName,
       custom_variables: instantlyCustomVariables(enrollment),
     })));
@@ -283,7 +311,7 @@ export async function pushReadyEnrollmentsToInstantly() {
       ));
     }
   }
-  return { attempted: ready.length, enrolled, skipped };
+  return { attempted: ready.length, enrolled, skipped, retired };
 }
 
 /** Removes a lead from the Instantly sequence after the CRM stops its outreach. */

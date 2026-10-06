@@ -72,9 +72,9 @@ export default function InstantlyPage() {
     onError: (error: Error) => toast({ title: "Something went wrong", description: error.message, variant: "destructive" }),
   });
   const prepare = useAction("/api/instantly/enrollment/prepare",
-    body => `${body.prepared} pictures copied${body.failed.length ? `, ${body.failed.length} failed` : ""}`);
+    body => `${body.prepared} pictures copied${body.failed.length ? `, ${body.failed.length} failed` : ""}${body.retired.length ? `, ${body.retired.length} no longer qualify` : ""}`);
   const push = useAction("/api/instantly/enrollment/push",
-    body => `${body.enrolled} leads sent to Instantly${body.skipped.length ? `, ${body.skipped.length} skipped` : ""}`);
+    body => `${body.enrolled} leads sent to Instantly${body.skipped.length ? `, ${body.skipped.length} skipped` : ""}${body.retired.length ? `, ${body.retired.length} no longer qualify` : ""}`);
   const registerHook = useAction("/api/instantly/webhook/register", () => "Instantly will now report back to the CRM");
   const retrySync = useAction("/api/instantly/enrollment/retry-image-sync",
     body => `${body.synced} of ${body.attempted} pictures updated in Instantly`);

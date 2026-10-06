@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("../../server/db", () => ({ db: {} }));
-import { selectInstantlyCandidates, type InstantlyCandidateRow } from "../../server/features/instantly/enrollment";
+import { partitionReadyEnrollments, selectInstantlyCandidates, type InstantlyCandidateRow } from "../../server/features/instantly/enrollment";
 
 function row(overrides: Partial<InstantlyCandidateRow>): InstantlyCandidateRow {
   return {
@@ -50,5 +50,13 @@ describe("Instantly candidate selection", () => {
     ]);
     expect(eligible.map(item => item.leadId)).toEqual(["first"]);
     expect(excluded).toEqual([{ leadId: "second", businessName: "Example Co", reason: "duplicate_email" }]);
+  });
+
+  it("stops staged leads that no longer qualify instead of sending them", () => {
+    const staged = [{ leadId: "still-sab" }, { leadId: "retagged" }];
+    const eligible = selectInstantlyCandidates([row({ leadId: "still-sab", enrollmentStatus: "ready" })]).eligible;
+    const { stillEligible, noLongerEligible } = partitionReadyEnrollments(staged, new Set(eligible.map(item => item.leadId)));
+    expect(stillEligible).toEqual([{ leadId: "still-sab" }]);
+    expect(noLongerEligible).toEqual([{ leadId: "retagged" }]);
   });
 });
