@@ -5,7 +5,9 @@ import { requireRole } from "../auth/middleware";
 import { fetchKeywordIdeas, fetchSearchVolume, KeywordDataError, type KeywordMetrics } from "./dataforseo";
 import { buildKeywordList, cleanKeyword, locationNameFor, serviceDemand, serviceVariants } from "./keywords";
 import { createProject, deleteProject, getProject, listProjects, updateProject } from "./repository";
-import { ServiceSuggestionError, suggestServices } from "./suggestServices";
+import { readWebsite, WebsiteReadError } from "./readWebsite";
+import { ServiceSuggestionError, servicesFromWebsite, suggestServices } from "./suggestServices";
+import { assertSafePublicUrl, UnsafeUrlError } from "../technical-seo/url-safety";
 
 const router = Router();
 router.use(requireRole("admin", "developer"));
@@ -34,7 +36,25 @@ router.get("/projects/:id", async (req, res) => {
   res.json(project);
 });
 
-// Intake: Claude drafts the service list, then each service gets its search demand for the checklist.
+/** Services the client's own website says it offers. A site that cannot be read never blocks the project. */
+async function websiteServices(website: string, trade: string) {
+  if (!website) return { services: [] as Array<{ name: string; url: string | null }>, note: null };
+  try {
+    await assertSafePublicUrl(website);
+    const site = await readWebsite(website);
+    const found = (await servicesFromWebsite(trade, site.pages))
+      .map(service => ({ ...service, name: cleanKeyword(service.name) }))
+      .filter(service => service.name);
+    const pages = `${site.pages.length} page${site.pages.length === 1 ? "" : "s"}`;
+    return { services: found, note: found.length ? `Read ${pages} of the website and found ${found.length} services.` : `Read ${pages} of the website but found no services listed.` };
+  } catch (error) {
+    if (error instanceof ServiceSuggestionError) throw error;
+    const reason = error instanceof UnsafeUrlError || error instanceof WebsiteReadError ? error.message : "The website could not be read.";
+    return { services: [], note: `${reason} Services below are Claude's suggestions for the trade.` };
+  }
+}
+
+// Intake: services come from the client, their website and Claude, then each gets its search demand for the checklist.
 router.post("/projects", async (req, res) => {
   try {
     const input = z.object({
@@ -42,20 +62,35 @@ router.post("/projects", async (req, res) => {
       trade: z.string().trim().min(1).max(80),
       city: z.string().trim().min(1).max(100),
       state: z.string().trim().min(2).max(100),
+      website: z.string().trim().max(2048).optional().default(""),
       services: z.array(serviceName).max(40).optional().default([]),
     }).parse(req.body);
     const locationName = locationNameFor(input.city, input.state);
     const clientServices = [...new Set(input.services.map(cleanKeyword).filter(Boolean))];
-    const suggested = (await suggestServices({ ...input, clientServices })).map(cleanKeyword).filter(Boolean);
-    const names = [...new Set([...clientServices, ...suggested])];
+    const fromWebsite = await websiteServices(input.website, input.trade);
+    const pageUrls = new Map(fromWebsite.services.map(service => [service.name, service.url]));
+    const known = [...new Set([...clientServices, ...pageUrls.keys()])];
+    const suggested = (await suggestServices({ ...input, clientServices: known })).map(cleanKeyword).filter(Boolean);
+    const names = [...new Set([...known, ...suggested])];
     const { volumes, cost } = await volumesFor(names, input.city, locationName);
     const services: KeywordResearchService[] = names.map(name => ({
       name,
-      source: clientServices.includes(name) ? "client" : "suggested",
+      source: clientServices.includes(name) ? "client" : pageUrls.has(name) ? "website" : "suggested",
+      pageUrl: pageUrls.get(name) ?? null,
       demand: serviceDemand(name, input.city, volumes),
-      selected: clientServices.includes(name),
+      selected: known.includes(name),
     }));
-    const project = await createProject({ name: input.name, trade: input.trade, city: input.city, state: input.state, locationName, services, createdBy: req.authUser!.id }, cost);
+    const project = await createProject({
+      name: input.name,
+      trade: input.trade,
+      city: input.city,
+      state: input.state,
+      locationName,
+      website: input.website || null,
+      websiteNote: fromWebsite.note,
+      services,
+      createdBy: req.authUser!.id,
+    }, cost);
     return res.status(201).json(project);
   } catch (error) {
     return sendError(res, error, "Unable to create the project");

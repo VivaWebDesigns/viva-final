@@ -1464,6 +1464,9 @@ export const keywordResearchProjects = pgTable("keyword_research_projects", {
   city: text("city").notNull(),
   state: text("state").notNull(),
   locationName: text("location_name").notNull(),
+  website: text("website"),
+  /** What happened when the client's website was read, shown on the checklist. */
+  websiteNote: text("website_note"),
   status: text("status").notNull().default("choosing_services").$type<import("./keywordResearch").KeywordResearchStatus>(),
   services: jsonb("services").notNull().default(sql`'[]'::jsonb`).$type<import("./keywordResearch").KeywordResearchService[]>(),
   keywords: jsonb("keywords").notNull().default(sql`'[]'::jsonb`).$type<import("./keywordResearch").KeywordResearchKeyword[]>(),

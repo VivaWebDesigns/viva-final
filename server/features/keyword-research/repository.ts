@@ -4,7 +4,7 @@ import { keywordResearchProjects, type KeywordResearchProject } from "@shared/sc
 
 type ProjectChanges = Partial<Pick<KeywordResearchProject, "status" | "services" | "keywords" | "summary" | "researchedAt">>;
 
-export async function createProject(values: Pick<KeywordResearchProject, "name" | "trade" | "city" | "state" | "locationName" | "services" | "createdBy">, cost: number) {
+export async function createProject(values: Pick<KeywordResearchProject, "name" | "trade" | "city" | "state" | "locationName" | "website" | "websiteNote" | "services" | "createdBy">, cost: number) {
   const [project] = await db.insert(keywordResearchProjects).values({ ...values, dataCostUsd: cost.toFixed(4) }).returning();
   return project;
 }

@@ -66,7 +66,7 @@ function IntakeView() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [form, setForm] = useState({ name: "", trade: "", city: "", state: "", services: "" });
+  const [form, setForm] = useState({ name: "", trade: "", city: "", state: "", website: "", services: "" });
   const { data, isLoading } = useQuery<{ projects: ProjectListItem[] }>({ queryKey: LIST_KEY });
 
   const create = useMutation({
@@ -111,12 +111,17 @@ function IntakeView() {
               <div className="space-y-1.5"><Label htmlFor="kr-state">State</Label><Input id="kr-state" required placeholder="FL" {...field("state")} data-testid="input-kr-state" /></div>
             </div>
             <div className="space-y-1.5">
+              <Label htmlFor="kr-website">Client website (optional)</Label>
+              <Input id="kr-website" placeholder="smithplumbing.com" {...field("website")} data-testid="input-kr-website" />
+              <p className="text-xs text-gray-500">Services listed on the site are found and ticked for you.</p>
+            </div>
+            <div className="space-y-1.5">
               <Label htmlFor="kr-services">Services the client mentioned (optional)</Label>
               <Textarea id="kr-services" rows={3} placeholder="One per line or comma separated" {...field("services")} data-testid="input-kr-services" />
             </div>
             <Button type="submit" disabled={create.isPending} data-testid="button-kr-create">
               {create.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
-              {create.isPending ? "Suggesting services…" : "Suggest services"}
+              {create.isPending ? (form.website.trim() ? "Reading the website…" : "Suggesting services…") : "Suggest services"}
             </Button>
           </form>
         </CardContent>
@@ -227,7 +232,7 @@ function ProjectView({ id }: { id: string }) {
             <Link href="/admin/keyword-research"><ArrowLeft className="mr-1 h-4 w-4" />All projects</Link>
           </Button>
           <h1 className="text-2xl font-bold text-gray-900">{project.name}</h1>
-          <p className="text-sm text-gray-600">{project.trade} · {project.city}, {project.state} · data cost ${Number(project.dataCostUsd).toFixed(2)}</p>
+          <p className="text-sm text-gray-600">{project.trade} · {project.city}, {project.state}{project.website ? ` · ${project.website}` : ""} · data cost ${Number(project.dataCostUsd).toFixed(2)}</p>
         </div>
         <Button variant="outline" size="sm" onClick={() => { if (window.confirm("Delete this keyword research project?")) remove.mutate(); }} disabled={remove.isPending} data-testid="button-kr-delete">
           <Trash2 className="mr-2 h-4 w-4" />Delete
@@ -240,6 +245,7 @@ function ProjectView({ id }: { id: string }) {
           <p className="text-sm text-gray-600">Tick only what the client actually does. Demand is monthly searches in {project.city} for the service, "{"<service>"} {project.city.toLowerCase()}" and "{"<service>"} near me".</p>
         </CardHeader>
         <CardContent className="space-y-4">
+          {project.websiteNote && <p className="rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-700" data-testid="text-kr-website-note">{project.websiteNote}</p>}
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={() => setSelection(new Set(services.map(service => service.name)))}>Select all</Button>
             <Button variant="outline" size="sm" onClick={() => setSelection(new Set())}>Clear</Button>
@@ -250,7 +256,12 @@ function ProjectView({ id }: { id: string }) {
                 <label className="flex cursor-pointer items-center gap-3 rounded px-2 py-1.5 hover:bg-gray-50">
                   <Checkbox checked={selected.has(service.name)} onCheckedChange={checked => toggle(service.name, checked === true)} data-testid={`checkbox-kr-service-${service.name}`} />
                   <span className="flex-1 text-sm text-gray-900">{service.name}</span>
-                  {service.source !== "suggested" && <Badge variant="secondary" className="text-xs">{service.source === "client" ? "client" : "added"}</Badge>}
+                  {service.pageUrl && (
+                    <a href={service.pageUrl} target="_blank" rel="noreferrer" onClick={event => event.stopPropagation()} title={service.pageUrl}>
+                      <Badge variant="outline" className="text-xs hover:bg-gray-100">on site</Badge>
+                    </a>
+                  )}
+                  {service.source !== "suggested" && service.source !== "website" && <Badge variant="secondary" className="text-xs">{service.source}</Badge>}
                   <span className="w-16 text-right text-sm tabular-nums text-gray-600">{formatNumber(service.demand)}</span>
                 </label>
               </li>

@@ -1,46 +1,57 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import * as z from "zod/v4";
+import type { WebsitePage } from "./readWebsite";
 
 const MODEL = "claude-opus-5-5";
+
+const SERVICE_WORDING = `- Each service is 1 to 5 plain lowercase words: no city names, no "near me", no brand names, no punctuation.
+- Keep services that would need their own page separate (repair vs installation when people search them separately); do not list near-duplicates or plurals of the same service.`;
+
+const SUGGEST_INSTRUCTIONS = `You help a web agency plan the service pages for a local service business website.
+Given a trade and a US city, list the distinct services a typical business in that trade offers, phrased the way homeowners and businesses type them into Google (for example "drain cleaning", "water heater repair", "slab leak repair").
+Rules:
+- Return 15 to 30 services, most commonly searched first.
+${SERVICE_WORDING}
+- Include every service the client already listed, rewritten into searcher wording if needed.`;
+
+const WEBSITE_INSTRUCTIONS = `You help a web agency plan the service pages for a local service business website.
+You are given text from pages of the business's current website. List only the services the business says it offers, phrased the way people type them into Google (for example "Hydro-Jet Drain Solutions" becomes "hydro jetting").
+Rules:
+${SERVICE_WORDING}
+- Only include services the website actually states; never add services that are merely typical for the trade.
+- Ignore products sold, brands carried, service areas, financing, and company slogans.
+- For each service give the URL of the page that best describes it, copied exactly from the page URLs provided.`;
 
 const suggestionSchema = z.object({
   services: z.array(z.string()),
 });
 
-const INSTRUCTIONS = `You help a web agency plan the service pages for a local service business website.
-Given a trade and a US city, list the distinct services a typical business in that trade offers, phrased the way homeowners and businesses type them into Google (for example "drain cleaning", "water heater repair", "slab leak repair").
-Rules:
-- Return 15 to 30 services, most commonly searched first.
-- Each service is 1 to 5 plain lowercase words: no city names, no "near me", no brand names, no punctuation.
-- Keep services that would need their own page separate (repair vs installation when people search them separately); do not list near-duplicates or plurals of the same service.
-- Include every service the client already listed, rewritten into searcher wording if needed.`;
+const websiteSchema = z.object({
+  services: z.array(z.object({ name: z.string(), url: z.string() })),
+});
 
 export class ServiceSuggestionError extends Error {}
 
-export async function suggestServices(input: { trade: string; city: string; state: string; clientServices: string[] }) {
+async function askClaude<T>(system: string, content: string, schema: z.ZodType<T>, maxTokens: number): Promise<T> {
   if (!process.env.ANTHROPIC_API_KEY?.trim()) {
     throw new ServiceSuggestionError("ANTHROPIC_API_KEY is not set on the server. Add it in Railway to get service suggestions.");
   }
   const client = new Anthropic();
-  const clientList = input.clientServices.length ? input.clientServices.join(", ") : "none given";
   try {
     const response = await client.beta.messages.parse({
       model: MODEL,
-      max_tokens: 4000,
+      max_tokens: maxTokens,
       betas: ["server-side-fallback-2026-07-01"],
       fallbacks: "default",
-      output_config: { effort: "low", format: betaZodOutputFormat(suggestionSchema) },
-      system: INSTRUCTIONS,
-      messages: [{
-        role: "user",
-        content: `Trade: ${input.trade}\nCity: ${input.city}, ${input.state}\nServices the client listed: ${clientList}`,
-      }],
+      output_config: { effort: "low", format: betaZodOutputFormat(schema) },
+      system,
+      messages: [{ role: "user", content }],
     });
     if (response.stop_reason === "refusal" || !response.parsed_output) {
       throw new ServiceSuggestionError("Claude did not return a service list. Try again or type the services in.");
     }
-    return response.parsed_output.services;
+    return response.parsed_output;
   } catch (error) {
     if (error instanceof ServiceSuggestionError) throw error;
     if (error instanceof Anthropic.AuthenticationError) throw new ServiceSuggestionError("The ANTHROPIC_API_KEY on the server was rejected.");
@@ -48,4 +59,28 @@ export async function suggestServices(input: { trade: string; city: string; stat
     if (error instanceof Anthropic.APIError) throw new ServiceSuggestionError(`Claude API error ${error.status ?? ""}: ${error.message}`.trim());
     throw error;
   }
+}
+
+export async function suggestServices(input: { trade: string; city: string; state: string; clientServices: string[] }) {
+  const clientList = input.clientServices.length ? input.clientServices.join(", ") : "none given";
+  const result = await askClaude(
+    SUGGEST_INSTRUCTIONS,
+    `Trade: ${input.trade}\nCity: ${input.city}, ${input.state}\nServices the client listed: ${clientList}`,
+    suggestionSchema,
+    4000,
+  );
+  return result.services;
+}
+
+/** The services a business's own website says it offers, with the page each was found on. */
+export async function servicesFromWebsite(trade: string, pages: WebsitePage[]) {
+  const pageText = pages.map(page => [
+    `URL: ${page.url}`,
+    `Title: ${page.title}`,
+    `Headings: ${page.headings.join(" | ")}`,
+    `Text: ${page.text}`,
+  ].join("\n")).join("\n\n---\n\n");
+  const result = await askClaude(WEBSITE_INSTRUCTIONS, `Trade: ${trade}\n\n${pageText}`, websiteSchema, 6000);
+  const pageUrls = new Set(pages.map(page => page.url));
+  return result.services.map(service => ({ name: service.name, url: pageUrls.has(service.url) ? service.url : null }));
 }
