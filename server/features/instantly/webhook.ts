@@ -24,6 +24,9 @@ export interface InstantlyWebhookPayload {
   lead_email?: string;
   email_id?: string;
   step?: number;
+  variant?: number;
+  campaign_id?: string;
+  campaign_name?: string;
   email_subject?: string;
   email_text?: string;
   reply_text_snippet?: string;
@@ -110,7 +113,8 @@ async function recordSend(enrollment: InstantlyEnrollment, payload: InstantlyWeb
       publicTokenHash: hashScanReportToken(createScanReportToken()),
       recipient,
       imageUrl: enrollment.imageUrl,
-      templateKey: `${INSTANTLY_TEMPLATE_PREFIX}-step-${step}`,
+      // Step and variant identify which copy was sent, for comparing tests.
+      templateKey: `${INSTANTLY_TEMPLATE_PREFIX}-step-${step}${payload.variant ? `-v${payload.variant}` : ""}`,
       emailSubject: payload.email_subject ?? null,
       emailMessage: payload.email_text ?? null,
       status: "sent",
@@ -119,8 +123,11 @@ async function recordSend(enrollment: InstantlyEnrollment, payload: InstantlyWeb
     const [note] = await tx.insert(crmLeadNotes).values({
       leadId: enrollment.leadId,
       type: "email",
-      content: `Instantly email ${step} sent to ${recipient}`,
-      metadata: { status: "sent", provider: "instantly", step, deliveryId: delivery.id, subject: payload.email_subject ?? null },
+      content: `Instantly email ${step} sent to ${recipient}${payload.campaign_name ? ` (${payload.campaign_name})` : ""}`,
+      metadata: {
+        status: "sent", provider: "instantly", step, variant: payload.variant ?? null, deliveryId: delivery.id,
+        subject: payload.email_subject ?? null, campaignId: payload.campaign_id ?? null, campaignName: payload.campaign_name ?? null,
+      },
     }).returning();
     await tx.update(scanReportDeliveries).set({ noteId: note.id }).where(eq(scanReportDeliveries.id, delivery.id));
     return delivery.id;

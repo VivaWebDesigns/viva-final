@@ -265,13 +265,15 @@ const INSTANTLY_BATCH_SIZE = 500;
  * Sends every "ready" lead to the Instantly campaign. Leads Instantly already
  * holds anywhere in the workspace are skipped and marked as errors, never re-added.
  */
-export async function pushReadyEnrollmentsToInstantly() {
-  const { eligibleByLeadId, stillEligible: ready, retired } = await recheckReadyEnrollments();
+export async function pushReadyEnrollmentsToInstantly({ campaignId, limit }: { campaignId: string; limit: number }) {
+  const { eligibleByLeadId, stillEligible, retired } = await recheckReadyEnrollments();
+  // Small batches: oldest staged leads first, the rest stay ready for later tests.
+  const ready = stillEligible.slice(0, limit);
   let enrolled = 0;
   const skipped: string[] = [];
   for (let start = 0; start < ready.length; start += INSTANTLY_BATCH_SIZE) {
     const batch = ready.slice(start, start + INSTANTLY_BATCH_SIZE);
-    const { campaignId, result } = await addLeadsToCampaign(batch.map(enrollment => ({
+    const { result } = await addLeadsToCampaign(campaignId, batch.map(enrollment => ({
       // The CRM's current address wins over the one captured at staging time.
       email: eligibleByLeadId.get(enrollment.leadId)!.email!,
       company_name: enrollment.businessName,
@@ -311,7 +313,7 @@ export async function pushReadyEnrollmentsToInstantly() {
       ));
     }
   }
-  return { attempted: ready.length, enrolled, skipped, retired };
+  return { attempted: ready.length, enrolled, skipped, retired, stillReady: stillEligible.length - enrolled - skipped.length };
 }
 
 /** Removes a lead from the Instantly sequence after the CRM stops its outreach. */
@@ -349,5 +351,21 @@ export async function summarizeInstantlyEnrollments() {
     imageSyncPending: rows.filter(row => row.status === "enrolled" && !row.imageSyncedAt).length,
     problems: rows.filter(row => row.lastError && row.status !== "stopped")
       .map(row => ({ leadId: row.leadId, businessName: row.businessName, status: row.status, error: row.lastError })),
+    campaigns: summarizeCampaigns(rows),
   };
+}
+
+/** Leads sent to each campaign, so copy tests can be compared side by side. */
+export function summarizeCampaigns(rows: Array<Pick<InstantlyEnrollment, "instantlyCampaignId" | "status" | "enrolledAt">>) {
+  const byCampaign = new Map<string, { campaignId: string; sent: number; stopped: number; lastSentAt: Date | null }>();
+  for (const row of rows) {
+    if (!row.instantlyCampaignId) continue;
+    const entry = byCampaign.get(row.instantlyCampaignId)
+      ?? { campaignId: row.instantlyCampaignId, sent: 0, stopped: 0, lastSentAt: null };
+    entry.sent++;
+    if (row.status === "stopped") entry.stopped++;
+    if (row.enrolledAt && (!entry.lastSentAt || row.enrolledAt > entry.lastSentAt)) entry.lastSentAt = row.enrolledAt;
+    byCampaign.set(row.instantlyCampaignId, entry);
+  }
+  return [...byCampaign.values()].sort((a, b) => (b.lastSentAt?.getTime() ?? 0) - (a.lastSentAt?.getTime() ?? 0));
 }

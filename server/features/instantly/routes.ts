@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { z } from "zod";
 import { requireRole } from "../auth/middleware";
 import { logAudit } from "../audit/service";
 import {
@@ -9,11 +10,15 @@ import {
   retryInstantlyImageSyncs,
   summarizeInstantlyEnrollments,
 } from "./enrollment";
-import { instantlyConfig, registerWebhook } from "./client";
+import { instantlyConfig, parseInstantlyCampaignId } from "./client";
 import { handleInstantlyWebhook, isValidInstantlyWebhookSecret } from "./webhook";
 
 const PUBLIC_SITE_URL = (process.env.PUBLIC_SITE_URL || "https://vivawebdesigns.com").replace(/\/$/, "");
-const WEBHOOK_PATH = "/api/instantly/webhook";
+
+const pushSchema = z.object({
+  limit: z.coerce.number().int().min(1).max(500),
+  campaign: z.string().trim().min(1),
+});
 
 const router = Router();
 
@@ -58,7 +63,8 @@ router.get("/status", requireRole("admin"), async (_req, res) => {
     const config = instantlyConfig();
     res.json({
       apiKeySet: !!config.apiKey,
-      campaignIdSet: !!config.campaignId,
+      defaultCampaignId: config.campaignId,
+      webhookUrl: `${PUBLIC_SITE_URL}/api/instantly/webhook`,
       webhookSecretSet: !!config.webhookSecret,
       imageDomainSet: !!process.env.COLD_EMAIL_IMAGE_PUBLIC_URL?.trim(),
       ...(await summarizeInstantlyEnrollments()),
@@ -68,16 +74,20 @@ router.get("/status", requireRole("admin"), async (_req, res) => {
   }
 });
 
-// Sends every "ready" lead to the Instantly campaign. This is the step that starts outreach.
+// Sends a small batch of "ready" leads to one Instantly campaign. This is the step that starts outreach.
 router.post("/enrollment/push", requireRole("admin"), async (req, res) => {
   try {
-    const result = await pushReadyEnrollmentsToInstantly();
+    const parsed = pushSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: "Choose how many leads (1–500) and a campaign." });
+    const campaignId = parseInstantlyCampaignId(parsed.data.campaign);
+    if (!campaignId) return res.status(400).json({ message: "Paste the campaign link or ID from Instantly." });
+    const result = await pushReadyEnrollmentsToInstantly({ campaignId, limit: parsed.data.limit });
     await logAudit({
       userId: req.authUser!.id,
       action: "instantly_enrollment_pushed",
       entity: "instantly_enrollment",
-      entityId: "batch",
-      metadata: { attempted: result.attempted, enrolled: result.enrolled, skipped: result.skipped.length },
+      entityId: campaignId,
+      metadata: { campaignId, limit: parsed.data.limit, enrolled: result.enrolled, skipped: result.skipped.length },
     });
     res.json(result);
   } catch (error: any) {
@@ -88,18 +98,6 @@ router.post("/enrollment/push", requireRole("admin"), async (req, res) => {
 router.post("/enrollment/retry-image-sync", requireRole("admin"), async (_req, res) => {
   try {
     res.json(await retryInstantlyImageSyncs());
-  } catch (error: any) {
-    res.status(error?.statusCode ?? 500).json({ message: error.message });
-  }
-});
-
-router.post("/webhook/register", requireRole("admin"), async (req, res) => {
-  try {
-    const { webhookSecret } = instantlyConfig();
-    if (!webhookSecret) return res.status(503).json({ message: "INSTANTLY_WEBHOOK_SECRET is not configured." });
-    const webhook = await registerWebhook(`${PUBLIC_SITE_URL}${WEBHOOK_PATH}`, webhookSecret);
-    await logAudit({ userId: req.authUser!.id, action: "instantly_webhook_registered", entity: "instantly_webhook", entityId: webhook.id });
-    res.json({ id: webhook.id, url: `${PUBLIC_SITE_URL}${WEBHOOK_PATH}` });
   } catch (error: any) {
     res.status(error?.statusCode ?? 500).json({ message: error.message });
   }

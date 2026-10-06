@@ -1,7 +1,10 @@
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { CheckCircle2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   AlertDialog,
@@ -19,12 +22,14 @@ import { useToast } from "@/hooks/use-toast";
 
 interface InstantlyStatus {
   apiKeySet: boolean;
-  campaignIdSet: boolean;
+  defaultCampaignId: string | null;
+  webhookUrl: string;
   webhookSecretSet: boolean;
   imageDomainSet: boolean;
   counts: Record<string, number>;
   imageSyncPending: number;
   problems: Array<{ leadId: string; businessName: string; status: string; error: string | null }>;
+  campaigns: Array<{ campaignId: string; sent: number; stopped: number; lastSentAt: string | null }>;
 }
 
 interface InstantlyPreview {
@@ -34,6 +39,8 @@ interface InstantlyPreview {
 
 const STATUS_KEY = ["/api/instantly/status"];
 const PREVIEW_KEY = ["/api/instantly/enrollment/preview"];
+
+const CAMPAIGN_ID_PATTERN = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 
 const EXCLUSION_LABELS: Record<string, string> = {
   crm_only: "CRM-only (no scan)",
@@ -60,10 +67,16 @@ export default function InstantlyPage() {
   const { data: status } = useQuery<InstantlyStatus>({ queryKey: STATUS_KEY });
   const { data: preview } = useQuery<InstantlyPreview>({ queryKey: PREVIEW_KEY });
   const counts = status?.counts ?? {};
-  const configured = !!status && status.apiKeySet && status.campaignIdSet;
+  const [batchSize, setBatchSize] = useState("20");
+  const [campaignInput, setCampaignInput] = useState<string | null>(null);
+  // Defaults to the most recent test campaign, then the configured one.
+  const campaign = campaignInput ?? status?.campaigns[0]?.campaignId ?? status?.defaultCampaignId ?? "";
+  const campaignId = campaign.match(CAMPAIGN_ID_PATTERN)?.[0] ?? null;
+  const limit = Math.min(Number.parseInt(batchSize, 10) || 0, counts.ready ?? 0);
+  const canPush = !!status?.apiKeySet && !!campaignId && limit > 0;
 
-  const useAction = (url: string, success: (body: any) => string) => useMutation({
-    mutationFn: async () => (await apiRequest("POST", url)).json(),
+  const useAction = (url: string, success: (body: any) => string, body?: () => unknown) => useMutation({
+    mutationFn: async () => (await apiRequest("POST", url, body?.())).json(),
     onSuccess: (body) => {
       toast({ title: success(body) });
       queryClient.invalidateQueries({ queryKey: STATUS_KEY });
@@ -74,8 +87,8 @@ export default function InstantlyPage() {
   const prepare = useAction("/api/instantly/enrollment/prepare",
     body => `${body.prepared} pictures copied${body.failed.length ? `, ${body.failed.length} failed` : ""}${body.retired.length ? `, ${body.retired.length} no longer qualify` : ""}`);
   const push = useAction("/api/instantly/enrollment/push",
-    body => `${body.enrolled} leads sent to Instantly${body.skipped.length ? `, ${body.skipped.length} skipped` : ""}${body.retired.length ? `, ${body.retired.length} no longer qualify` : ""}`);
-  const registerHook = useAction("/api/instantly/webhook/register", () => "Instantly will now report back to the CRM");
+    body => `${body.enrolled} leads sent to Instantly${body.skipped.length ? `, ${body.skipped.length} skipped` : ""}${body.retired.length ? `, ${body.retired.length} no longer qualify` : ""}`,
+    () => ({ limit, campaign: campaignId }));
   const retrySync = useAction("/api/instantly/enrollment/retry-image-sync",
     body => `${body.synced} of ${body.attempted} pictures updated in Instantly`);
 
@@ -94,7 +107,6 @@ export default function InstantlyPage() {
           <ul className="space-y-2">
             <SetupRow ok={!!status?.imageDomainSet} label="Picture domain (img.vivascans.com)" />
             <SetupRow ok={!!status?.apiKeySet} label="Instantly API key" />
-            <SetupRow ok={!!status?.campaignIdSet} label="Instantly campaign ID" />
             <SetupRow ok={!!status?.webhookSecretSet} label="Webhook secret" />
           </ul>
         </CardContent>
@@ -121,36 +133,73 @@ export default function InstantlyPage() {
       </Card>
 
       <Card>
-        <CardHeader><CardTitle className="text-base">2. Connect and send</CardTitle></CardHeader>
-        <CardContent className="space-y-3 text-sm text-gray-700">
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={() => registerHook.mutate()}
-              disabled={registerHook.isPending || !configured || !status?.webhookSecretSet} data-testid="button-instantly-webhook">
-              {registerHook.isPending ? "Connecting…" : "Connect webhook"}
-            </Button>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button disabled={push.isPending || !configured || !(counts.ready > 0)} data-testid="button-instantly-push">
-                  {push.isPending ? "Sending…" : `Send ${counts.ready ?? 0} leads to Instantly`}
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Send {counts.ready ?? 0} leads to Instantly?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    They are added to the campaign and Instantly starts emailing them on its schedule. Their manual Gmail email tasks are closed.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => push.mutate()}>Send to Instantly</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+        <CardHeader><CardTitle className="text-base">2. Send a small batch</CardTitle></CardHeader>
+        <CardContent className="space-y-4 text-sm text-gray-700">
+          <p>Sends the oldest ready leads to one campaign. The rest stay ready for later batches or other copy tests.</p>
+          <div className="grid gap-3 sm:grid-cols-[8rem_1fr]">
+            <div className="space-y-1">
+              <Label htmlFor="instantly-batch-size">How many</Label>
+              <Input id="instantly-batch-size" type="number" min={1} max={500} value={batchSize}
+                onChange={event => setBatchSize(event.target.value)} data-testid="input-instantly-batch-size" />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="instantly-campaign">Campaign link or ID</Label>
+              <Input id="instantly-campaign" value={campaign} placeholder="Paste the campaign link from Instantly"
+                onChange={event => setCampaignInput(event.target.value)} data-testid="input-instantly-campaign" />
+              {campaign && !campaignId && <p className="text-xs text-red-600">That doesn't look like an Instantly campaign link.</p>}
+            </div>
           </div>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button disabled={push.isPending || !canPush} data-testid="button-instantly-push">
+                {push.isPending ? "Sending…" : `Send ${limit} leads to Instantly`}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Send {limit} leads to Instantly?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  They are added to campaign {campaignId} and Instantly emails them on its schedule once the campaign is active.
+                  Their manual Gmail email tasks are closed.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={() => push.mutate()}>Send to Instantly</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
           <p className="text-gray-500">
-            In Instantly: {counts.enrolled ?? 0} · Stopped: {counts.stopped ?? 0} · Problems: {counts.error ?? 0}
+            Ready: {counts.ready ?? 0} · In Instantly: {counts.enrolled ?? 0} · Stopped: {counts.stopped ?? 0} · Problems: {counts.error ?? 0}
           </p>
+          {!!status?.campaigns.length && (
+            <div className="space-y-1">
+              <p className="font-medium text-gray-900">Campaigns used</p>
+              <ul className="space-y-1">
+                {status.campaigns.map(item => (
+                  <li key={item.campaignId} className="flex flex-wrap items-center gap-x-2">
+                    <a href={`https://app.instantly.ai/app/campaign/${item.campaignId}/analytics`} target="_blank" rel="noopener noreferrer"
+                      className="font-mono text-xs text-blue-700 underline">{item.campaignId.slice(0, 8)}</a>
+                    <span>{item.sent} sent{item.stopped ? `, ${item.stopped} stopped` : ""}</span>
+                    <button type="button" className="text-xs text-gray-500 underline" onClick={() => setCampaignInput(item.campaignId)}>use</button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">Webhook (set up once in Instantly)</CardTitle></CardHeader>
+        <CardContent className="space-y-2 text-sm text-gray-700">
+          <p>In Instantly, go to Settings → Integrations → Webhooks → Add Webhook and enter:</p>
+          <ul className="list-disc space-y-1 pl-5">
+            <li>Webhook URL: <code className="break-all">{status?.webhookUrl ?? "…"}</code></li>
+            <li>Event type: All events</li>
+            <li>Campaign: All campaigns, so every copy test reports back</li>
+            <li>Add header: name <code>x-viva-webhook-secret</code>, value = <code>INSTANTLY_WEBHOOK_SECRET</code> from Railway</li>
+          </ul>
         </CardContent>
       </Card>
 

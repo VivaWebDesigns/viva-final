@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../server/db", () => ({ db: {} }));
-import { addLeadsToCampaign, registerWebhook } from "../../server/features/instantly/client";
-import { instantlyCustomVariables } from "../../server/features/instantly/enrollment";
+import { addLeadsToCampaign, parseInstantlyCampaignId } from "../../server/features/instantly/client";
+import { instantlyCustomVariables, summarizeCampaigns } from "../../server/features/instantly/enrollment";
 import { instantlyEventKey, isValidInstantlyWebhookSecret } from "../../server/features/instantly/webhook";
 
 describe("Instantly webhook guards", () => {
@@ -28,13 +28,12 @@ describe("Instantly API client", () => {
     vi.unstubAllEnvs();
   });
 
-  it("adds leads to the configured campaign with the template's merge fields", async () => {
+  it("adds leads to the chosen campaign with the template's merge fields", async () => {
     vi.stubEnv("INSTANTLY_API_KEY", "key");
-    vi.stubEnv("INSTANTLY_CAMPAIGN_ID", "camp-1");
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ created_leads: [{ id: "il-1", index: 0, email: "a@b.com" }] })));
     vi.stubGlobal("fetch", fetchMock);
     const variables = instantlyCustomVariables({ leadId: "lead-1", searchPhrase: "plumber near me", imageUrl: "https://img.vivascans.com/scans/r/x.png" });
-    const { result } = await addLeadsToCampaign([{ email: "a@b.com", company_name: "Acme", custom_variables: variables }]);
+    const { result } = await addLeadsToCampaign("camp-1", [{ email: "a@b.com", company_name: "Acme", custom_variables: variables }]);
 
     const [url, request] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("https://api.instantly.ai/api/v2/leads/add");
@@ -51,23 +50,27 @@ describe("Instantly API client", () => {
     expect(result.created_leads?.[0].id).toBe("il-1");
   });
 
-  it("registers the webhook with the secret header for the campaign", async () => {
-    vi.stubEnv("INSTANTLY_API_KEY", "key");
-    vi.stubEnv("INSTANTLY_CAMPAIGN_ID", "camp-1");
-    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ id: "wh-1" })));
-    vi.stubGlobal("fetch", fetchMock);
-    await registerWebhook("https://vivawebdesigns.com/api/instantly/webhook", "s3cret");
-    const [, request] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
-    expect(JSON.parse(String(request.body))).toMatchObject({
-      target_hook_url: "https://vivawebdesigns.com/api/instantly/webhook",
-      campaign: "camp-1",
-      event_type: "all_events",
-      headers: { "x-viva-webhook-secret": "s3cret" },
-    });
+  it("refuses to call Instantly without an API key", async () => {
+    vi.stubEnv("INSTANTLY_API_KEY", "");
+    await expect(addLeadsToCampaign("camp-1", [])).rejects.toThrow("INSTANTLY_API_KEY");
   });
 
-  it("refuses to call Instantly without a key and campaign", async () => {
-    vi.stubEnv("INSTANTLY_API_KEY", "");
-    await expect(addLeadsToCampaign([])).rejects.toThrow("INSTANTLY_API_KEY");
+  it("reads the campaign ID from a pasted Instantly link or a bare ID", () => {
+    const id = "e2179cc5-b0e7-4ffb-a4db-3db47f89d5d8";
+    expect(parseInstantlyCampaignId(`https://app.instantly.ai/app/campaign/${id}/editor`)).toBe(id);
+    expect(parseInstantlyCampaignId(id.toUpperCase())).toBe(id);
+    expect(parseInstantlyCampaignId("SAB Visibility Report")).toBeNull();
+  });
+});
+
+describe("Instantly campaign summary", () => {
+  it("counts leads per campaign with the most recent batch first", () => {
+    const summary = summarizeCampaigns([
+      { instantlyCampaignId: "a", status: "enrolled", enrolledAt: new Date("2026-10-01") },
+      { instantlyCampaignId: "a", status: "stopped", enrolledAt: new Date("2026-10-01") },
+      { instantlyCampaignId: "b", status: "enrolled", enrolledAt: new Date("2026-10-05") },
+      { instantlyCampaignId: null, status: "ready", enrolledAt: null },
+    ]);
+    expect(summary.map(item => [item.campaignId, item.sent, item.stopped])).toEqual([["b", 1, 0], ["a", 2, 1]]);
   });
 });

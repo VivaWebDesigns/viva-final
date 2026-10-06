@@ -15,16 +15,23 @@ export function instantlyConfig(): InstantlyConfig {
   };
 }
 
-function requireConfig() {
-  const config = instantlyConfig();
-  if (!config.apiKey || !config.campaignId) {
-    throw Object.assign(new Error("Instantly is not configured. INSTANTLY_API_KEY and INSTANTLY_CAMPAIGN_ID are required."), { statusCode: 503 });
+function requireApiKey() {
+  const { apiKey } = instantlyConfig();
+  if (!apiKey) {
+    throw Object.assign(new Error("Instantly is not configured. INSTANTLY_API_KEY is required."), { statusCode: 503 });
   }
-  return { apiKey: config.apiKey, campaignId: config.campaignId };
+  return apiKey;
+}
+
+const UUID_PATTERN = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+
+/** Accepts a campaign ID or an Instantly campaign link and returns the campaign ID. */
+export function parseInstantlyCampaignId(value: string | null | undefined) {
+  return value?.match(UUID_PATTERN)?.[0].toLowerCase() ?? null;
 }
 
 async function instantlyRequest<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const { apiKey } = requireConfig();
+  const apiKey = requireApiKey();
   const response = await fetch(`${INSTANTLY_BASE}${path}`, {
     method,
     headers: {
@@ -57,9 +64,8 @@ export interface InstantlyBulkAddResult {
   created_leads?: Array<{ id: string; index: number; email: string | null }>;
 }
 
-/** Adds up to 1,000 leads to the configured campaign; leads already in the workspace are skipped. */
-export async function addLeadsToCampaign(leads: InstantlyLeadInput[]) {
-  const { campaignId } = requireConfig();
+/** Adds up to 1,000 leads to a campaign; leads already in the workspace are skipped. */
+export async function addLeadsToCampaign(campaignId: string, leads: InstantlyLeadInput[]) {
   const result = await instantlyRequest<InstantlyBulkAddResult>("POST", "/leads/add", {
     campaign_id: campaignId,
     skip_if_in_workspace: true,
@@ -76,15 +82,4 @@ export function updateLeadVariables(instantlyLeadId: string, customVariables: Re
 /** Removing the lead is the documented way to guarantee no further sequence emails. */
 export function removeLead(instantlyLeadId: string) {
   return instantlyRequest("DELETE", `/leads/${encodeURIComponent(instantlyLeadId)}`);
-}
-
-export function registerWebhook(targetUrl: string, secret: string) {
-  const { campaignId } = requireConfig();
-  return instantlyRequest<{ id: string }>("POST", "/webhooks", {
-    target_hook_url: targetUrl,
-    campaign: campaignId,
-    name: "Viva CRM",
-    event_type: "all_events",
-    headers: { "x-viva-webhook-secret": secret },
-  });
 }
