@@ -1,7 +1,7 @@
 import { FormEvent, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
-import { ArrowLeft, Download, Loader2, Plus, Search, Trash2 } from "lucide-react";
+import { ArrowLeft, Download, Loader2, Plus, Search, Sparkles, Trash2 } from "lucide-react";
 import type { KeywordResearchProject } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import SearchAreaPicker, { areaLabel } from "./SearchAreaPicker";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 interface ProjectListItem {
@@ -66,7 +67,7 @@ function IntakeView() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [form, setForm] = useState({ name: "", trade: "", city: "", state: "", website: "", services: "" });
+  const [form, setForm] = useState({ name: "", trade: "", city: "", state: "", website: "", services: "", locationName: "" });
   const { data, isLoading } = useQuery<{ projects: ProjectListItem[] }>({ queryKey: LIST_KEY });
 
   const create = useMutation({
@@ -109,6 +110,11 @@ function IntakeView() {
               <div className="space-y-1.5"><Label htmlFor="kr-trade">Trade</Label><Input id="kr-trade" required placeholder="plumbing" {...field("trade")} data-testid="input-kr-trade" /></div>
               <div className="space-y-1.5"><Label htmlFor="kr-city">City</Label><Input id="kr-city" required placeholder="Tampa" {...field("city")} data-testid="input-kr-city" /></div>
               <div className="space-y-1.5"><Label htmlFor="kr-state">State</Label><Input id="kr-state" required placeholder="FL" {...field("state")} data-testid="input-kr-state" /></div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Search area (optional)</Label>
+              <SearchAreaPicker value={form.locationName} placeholder="Same as the city" onSelect={locationName => setForm(previous => ({ ...previous, locationName }))} />
+              <p className="text-xs text-gray-500">For a small town, pick the county or metro area the client serves so the volumes are meaningful.</p>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="kr-website">Client website (optional)</Label>
@@ -181,6 +187,22 @@ function ProjectView({ id }: { id: string }) {
     onError: addError => toast({ title: "Could not add the service", description: errorMessage(addError), variant: "destructive" }),
   });
 
+  const changeArea = useMutation({
+    mutationFn: async (locationName: string) => (await apiRequest("PATCH", `/api/keyword-research/projects/${id}/location`, { locationName })).json() as Promise<KeywordResearchProject>,
+    onSuccess: updated => setProject(updated),
+    onError: areaError => toast({ title: "Could not change the search area", description: errorMessage(areaError), variant: "destructive" }),
+  });
+
+  const suggestMore = useMutation({
+    mutationFn: async () => (await apiRequest("POST", `/api/keyword-research/projects/${id}/suggestions`)).json() as Promise<KeywordResearchProject>,
+    onSuccess: updated => {
+      const added = updated.services.length - (project?.services.length ?? 0);
+      toast({ title: added > 0 ? `Added ${added} suggested services` : "No new services to suggest" });
+      setProject(updated);
+    },
+    onError: suggestError => toast({ title: "Could not suggest more services", description: errorMessage(suggestError), variant: "destructive" }),
+  });
+
   const research = useMutation({
     mutationFn: async () => (await apiRequest("POST", `/api/keyword-research/projects/${id}/research`, { selected: [...selected] })).json() as Promise<KeywordResearchProject>,
     onSuccess: updated => {
@@ -242,13 +264,21 @@ function ProjectView({ id }: { id: string }) {
       <Card>
         <CardHeader className="space-y-1">
           <CardTitle className="text-base">1. Confirm the services</CardTitle>
-          <p className="text-sm text-gray-600">Tick only what the client actually does. Demand is monthly searches in {project.city} for the service, "{"<service>"} {project.city.toLowerCase()}" and "{"<service>"} near me".</p>
+          <p className="text-sm text-gray-600">Tick only what the client actually does. Demand is monthly searches in {areaLabel(project.locationName)} for the service, "{"<service>"} {project.city.toLowerCase()}" and "{"<service>"} near me".</p>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-sm font-medium text-gray-700">Search area</span>
+            <SearchAreaPicker value={project.locationName} placeholder="Choose an area" onSelect={locationName => { if (locationName !== project.locationName) changeArea.mutate(locationName); }} disabled={changeArea.isPending || research.isPending} />
+            {changeArea.isPending && <span className="flex items-center text-sm text-gray-500"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Updating demand…</span>}
+          </div>
           {project.websiteNote && <p className="rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-700" data-testid="text-kr-website-note">{project.websiteNote}</p>}
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={() => setSelection(new Set(services.map(service => service.name)))}>Select all</Button>
             <Button variant="outline" size="sm" onClick={() => setSelection(new Set())}>Clear</Button>
+            <Button variant="outline" size="sm" onClick={() => suggestMore.mutate()} disabled={suggestMore.isPending} data-testid="button-kr-suggest-more">
+              {suggestMore.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}Suggest more services
+            </Button>
           </div>
           <ul className="grid gap-x-6 gap-y-1 sm:grid-cols-2">
             {services.map(service => (

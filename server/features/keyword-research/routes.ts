@@ -2,8 +2,8 @@ import { Router } from "express";
 import { z } from "zod";
 import type { KeywordResearchService } from "@shared/keywordResearch";
 import { requireRole } from "../auth/middleware";
-import { fetchKeywordIdeas, fetchSearchVolume, KeywordDataError, type KeywordMetrics } from "./dataforseo";
-import { buildKeywordList, cleanKeyword, locationNameFor, serviceDemand, serviceVariants } from "./keywords";
+import { fetchKeywordIdeas, fetchSearchVolume, KeywordDataError, searchAreas, type KeywordMetrics } from "./dataforseo";
+import { buildKeywordList, cleanKeyword, locationNameFor, matchSearchAreas, serviceDemand, serviceVariants } from "./keywords";
 import { createProject, deleteProject, getProject, listProjects, updateProject } from "./repository";
 import { readWebsite, WebsiteReadError } from "./readWebsite";
 import { ServiceSuggestionError, servicesFromWebsite, suggestServices } from "./suggestServices";
@@ -25,6 +25,18 @@ function sendError(res: import("express").Response, error: unknown, fallback: st
   if (error instanceof ServiceSuggestionError || error instanceof KeywordDataError) return res.status(502).json({ message: error.message });
   return res.status(500).json({ message: error instanceof Error ? error.message : fallback });
 }
+
+async function assertSearchArea(locationName: string) {
+  if (!(await searchAreas()).some(area => area.name === locationName)) throw new KeywordDataError(`"${locationName}" is not a location Google Ads can target.`);
+}
+
+router.get("/locations", async (req, res) => {
+  try {
+    res.json({ areas: matchSearchAreas(await searchAreas(), String(req.query.q ?? "")) });
+  } catch (error) {
+    sendError(res, error, "Unable to load locations");
+  }
+});
 
 router.get("/projects", async (_req, res) => {
   res.json({ projects: await listProjects(50) });
@@ -64,13 +76,15 @@ router.post("/projects", async (req, res) => {
       state: z.string().trim().min(2).max(100),
       website: z.string().trim().max(2048).optional().default(""),
       services: z.array(serviceName).max(40).optional().default([]),
+      locationName: z.string().trim().max(200).optional().default(""),
     }).parse(req.body);
-    const locationName = locationNameFor(input.city, input.state);
+    const locationName = input.locationName || locationNameFor(input.city, input.state);
+    await assertSearchArea(locationName);
     const clientServices = [...new Set(input.services.map(cleanKeyword).filter(Boolean))];
     const fromWebsite = await websiteServices(input.website, input.trade);
     const pageUrls = new Map(fromWebsite.services.map(service => [service.name, service.url]));
     const known = [...new Set([...clientServices, ...pageUrls.keys()])];
-    const suggested = (await suggestServices({ ...input, clientServices: known })).map(cleanKeyword).filter(Boolean);
+    const suggested = (await suggestServices({ ...input, knownServices: known })).map(cleanKeyword).filter(Boolean);
     const names = [...new Set([...known, ...suggested])];
     const { volumes, cost } = await volumesFor(names, input.city, locationName);
     const services: KeywordResearchService[] = names.map(name => ({
@@ -94,6 +108,38 @@ router.post("/projects", async (req, res) => {
     return res.status(201).json(project);
   } catch (error) {
     return sendError(res, error, "Unable to create the project");
+  }
+});
+
+// A wider search area re-pulls service demand; any earlier keyword list was for the old area, so it is cleared.
+router.patch("/projects/:id/location", async (req, res) => {
+  try {
+    const { locationName } = z.object({ locationName: z.string().trim().min(1).max(200) }).parse(req.body);
+    const project = await getProject(req.params.id);
+    if (!project) return res.status(404).json({ message: "Project not found" });
+    await assertSearchArea(locationName);
+    const { volumes, cost } = await volumesFor(project.services.map(service => service.name), project.city, locationName);
+    const services = project.services.map(service => ({ ...service, demand: serviceDemand(service.name, project.city, volumes) }));
+    return res.json(await updateProject(project.id, { locationName, services, keywords: [], summary: null, status: "choosing_services", researchedAt: null }, cost));
+  } catch (error) {
+    return sendError(res, error, "Unable to change the search area");
+  }
+});
+
+// Adds Claude's services for the trade that are not on the list yet, unticked.
+router.post("/projects/:id/suggestions", async (req, res) => {
+  try {
+    const project = await getProject(req.params.id);
+    if (!project) return res.status(404).json({ message: "Project not found" });
+    const known = project.services.map(service => service.name);
+    const added = [...new Set((await suggestServices({ trade: project.trade, city: project.city, state: project.state, knownServices: known })).map(cleanKeyword))]
+      .filter(name => name && !known.includes(name));
+    if (!added.length) return res.json(project);
+    const { volumes, cost } = await volumesFor(added, project.city, project.locationName);
+    const services = [...project.services, ...added.map(name => ({ name, source: "suggested" as const, pageUrl: null, demand: serviceDemand(name, project.city, volumes), selected: false }))];
+    return res.json(await updateProject(project.id, { services }, cost));
+  } catch (error) {
+    return sendError(res, error, "Unable to suggest more services");
   }
 });
 

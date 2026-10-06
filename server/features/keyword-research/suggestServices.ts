@@ -9,11 +9,11 @@ const SERVICE_WORDING = `- Each service is 1 to 5 plain lowercase words: no city
 - Keep services that would need their own page separate (repair vs installation when people search them separately); do not list near-duplicates or plurals of the same service.`;
 
 const SUGGEST_INSTRUCTIONS = `You help a web agency plan the service pages for a local service business website.
-Given a trade and a US city, list the distinct services a typical business in that trade offers, phrased the way homeowners and businesses type them into Google (for example "drain cleaning", "water heater repair", "slab leak repair").
+Given a trade, a US city and the services already known for the business, list other distinct services a typical business in that trade offers that are not already known, phrased the way homeowners and businesses type them into Google (for example "drain cleaning", "water heater repair", "slab leak repair").
 Rules:
-- Return 15 to 30 services, most commonly searched first.
+- Return 10 to 25 services, most commonly searched first.
 ${SERVICE_WORDING}
-- Include every service the client already listed, rewritten into searcher wording if needed.`;
+- Never repeat a known service or a rewording, plural or near-duplicate of one.`;
 
 const WEBSITE_INSTRUCTIONS = `You help a web agency plan the service pages for a local service business website.
 You are given text from pages of the business's current website. List only the services the business says it offers, phrased the way people type them into Google (for example "Hydro-Jet Drain Solutions" becomes "hydro jetting").
@@ -61,11 +61,11 @@ async function askClaude<T>(system: string, content: string, schema: z.ZodType<T
   }
 }
 
-export async function suggestServices(input: { trade: string; city: string; state: string; clientServices: string[] }) {
-  const clientList = input.clientServices.length ? input.clientServices.join(", ") : "none given";
+export async function suggestServices(input: { trade: string; city: string; state: string; knownServices: string[] }) {
+  const knownList = input.knownServices.length ? input.knownServices.join(", ") : "none yet";
   const result = await askClaude(
     SUGGEST_INSTRUCTIONS,
-    `Trade: ${input.trade}\nCity: ${input.city}, ${input.state}\nServices the client listed: ${clientList}`,
+    `Trade: ${input.trade}\nCity: ${input.city}, ${input.state}\nKnown services: ${knownList}`,
     suggestionSchema,
     4000,
   );

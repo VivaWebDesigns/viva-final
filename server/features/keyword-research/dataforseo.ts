@@ -88,3 +88,34 @@ export async function fetchKeywordIdeas(seeds: string[], locationName: string) {
   }
   return { metrics, cost };
 }
+
+export type SearchAreaType = "City" | "County" | "DMA Region" | "State";
+export interface SearchArea {
+  name: string;
+  type: SearchAreaType;
+}
+
+const AREA_TYPES = new Set<string>(["City", "County", "DMA Region", "State"]);
+const LOCATIONS_TTL_MS = 24 * 60 * 60 * 1000;
+let locationsCache: { loadedAt: number; areas: Promise<SearchArea[]> } | null = null;
+
+/** US places Google Ads can target, from DataForSEO's free locations list, cached for a day. */
+export function searchAreas(): Promise<SearchArea[]> {
+  if (locationsCache && Date.now() - locationsCache.loadedAt < LOCATIONS_TTL_MS) return locationsCache.areas;
+  const areas = (async () => {
+    const response = await fetch("https://api.dataforseo.com/v3/keywords_data/google_ads/locations/us", {
+      headers: { Authorization: authHeader() },
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+    if (!response.ok) throw new KeywordDataError(`DataForSEO returned HTTP ${response.status}.`);
+    const body = await response.json() as { tasks?: Array<{ status_code: number; status_message: string; result?: Array<{ location_name: string; location_type: string }> }> };
+    const task = body.tasks?.[0];
+    if (!task || task.status_code !== 20000) throw new KeywordDataError(`DataForSEO: ${task?.status_message ?? "could not load locations"}`);
+    return (task.result ?? [])
+      .filter(row => AREA_TYPES.has(row.location_type))
+      .map(row => ({ name: row.location_name, type: row.location_type as SearchAreaType }));
+  })();
+  locationsCache = { loadedAt: Date.now(), areas };
+  areas.catch(() => { locationsCache = null; });
+  return areas;
+}

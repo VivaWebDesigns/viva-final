@@ -115,3 +115,19 @@ export function buildKeywordList(
   summary.keptKeywords = keywords.length;
   return { keywords, summary };
 }
+
+const AREA_ORDER: Record<string, number> = { "DMA Region": 0, County: 1, City: 2, State: 3 };
+
+/** Search-area matches for the picker: names starting with the query first, metro areas and counties before cities. */
+export function matchSearchAreas<T extends { name: string; type: string }>(areas: T[], query: string, limit = 20) {
+  // Commas are ignored so "union county nc" and "union county, north carolina" both match.
+  const flatten = (value: string) => value.toLowerCase().replace(/[,\s]+/g, " ").trim();
+  const needle = flatten(query);
+  if (needle.length < 2) return [];
+  return areas
+    .filter(area => flatten(area.name).includes(needle))
+    .sort((a, b) => Number(!flatten(a.name).startsWith(needle)) - Number(!flatten(b.name).startsWith(needle))
+      || (AREA_ORDER[a.type] ?? 9) - (AREA_ORDER[b.type] ?? 9)
+      || a.name.length - b.name.length)
+    .slice(0, limit);
+}
