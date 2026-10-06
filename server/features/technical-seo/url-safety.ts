@@ -18,9 +18,11 @@ function blockedIpv4(address: string): boolean {
     (a === 100 && b >= 64 && b <= 127) ||
     (a === 169 && b === 254) ||
     (a === 172 && b >= 16 && b <= 31) ||
-    (a === 192 && b === 0) ||
+    // Only 192.0.0.0/24, 192.0.2.0/24 and 192.88.99.0/24 are reserved; the rest of 192.0.x and 192.88.x is
+    // public (WordPress.com sites resolve to 192.0.78.x).
+    (a === 192 && b === 0 && (parts[2] === 0 || parts[2] === 2)) ||
     (a === 192 && b === 168) ||
-    (a === 192 && b === 88) ||
+    (a === 192 && b === 88 && parts[2] === 99) ||
     (a === 198 && (b === 18 || b === 19)) ||
     (a === 198 && b === 51 && parts[2] === 100) ||
     (a === 203 && b === 0 && parts[2] === 113) ||
