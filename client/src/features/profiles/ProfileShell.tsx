@@ -99,6 +99,7 @@ import type {
 } from "@shared/localVisibility";
 import { useLocation } from "wouter";
 import LocalVisibilityReportTemplate, { type MapPosition } from "@/features/local-visibility-report/LocalVisibilityReportTemplate";
+import { reportSnapshotFileUrl } from "@/features/local-visibility-report/snapshotUrl";
 import { renderLocalVisibilityReportBlob } from "@/features/local-visibility-report/exportReport";
 import type { LocalVisibilityReportData } from "@/features/local-visibility-report/types";
 
@@ -184,10 +185,6 @@ interface ManualScanReportPreparation {
   gmailComposeUrl: string;
 }
 
-function reportSnapshotFileUrl(reportId: string, contextCompanyId: string) {
-  return `/api/local-visibility/reports/${encodeURIComponent(reportId)}/snapshot-file?contextCompanyId=${encodeURIComponent(contextCompanyId)}`;
-}
-
 function LocalFalconSnapshotCard({
   reportId,
   contextCompanyId,
@@ -225,7 +222,7 @@ function LocalFalconSnapshotCard({
       return body;
     },
   });
-  const snapshotFileUrl = reportSnapshotFileUrl(reportId, contextCompanyId);
+  const snapshotFileUrl = reportSnapshotFileUrl(reportId, contextCompanyId, data?.snapshotGeneratedAt);
   const copySnapshot = async () => {
     if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") {
       toast({ title: "Image copying is not available", description: "Use Download PNG instead.", variant: "destructive" });

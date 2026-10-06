@@ -268,7 +268,8 @@ export async function getScanReportEmailPreview(
     templateVariant: variant,
     templates,
     businessName,
-    snapshotPreviewUrl: `/api/local-visibility/reports/${encodeURIComponent(reportId)}/snapshot-file`,
+    // The version changes when the snapshot is regenerated, so browsers never show a cached old picture.
+    snapshotPreviewUrl: `/api/local-visibility/reports/${encodeURIComponent(reportId)}/snapshot-file?v=${encodeURIComponent(record.report.snapshotSha256 ?? "")}`,
   };
 }
 
