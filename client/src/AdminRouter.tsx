@@ -242,14 +242,14 @@ export default function AdminRouter() {
                 <TechnicalSeoScannerPage />
               </ProtectedRoute>
             </Route>
-            <Route path="/admin/tools/keyword-research/:id">
+            <Route path="/admin/keyword-research/:id">
               {(params) => (
                 <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/pipeline">
                   <KeywordResearchPage projectId={params.id} />
                 </ProtectedRoute>
               )}
             </Route>
-            <Route path="/admin/tools/keyword-research">
+            <Route path="/admin/keyword-research">
               <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/pipeline">
                 <KeywordResearchPage />
               </ProtectedRoute>

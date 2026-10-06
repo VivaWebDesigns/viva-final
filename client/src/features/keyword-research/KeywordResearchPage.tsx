@@ -77,7 +77,7 @@ function IntakeView() {
     },
     onSuccess: project => {
       void queryClient.invalidateQueries({ queryKey: LIST_KEY });
-      navigate(`/admin/tools/keyword-research/${project.id}`);
+      navigate(`/admin/keyword-research/${project.id}`);
     },
     onError: error => toast({ title: "Could not start the project", description: errorMessage(error), variant: "destructive" }),
   });
@@ -129,7 +129,7 @@ function IntakeView() {
             <ul className="divide-y">
               {data.projects.map(project => (
                 <li key={project.id}>
-                  <Link href={`/admin/tools/keyword-research/${project.id}`} className="flex items-center justify-between gap-3 py-3 hover:bg-gray-50">
+                  <Link href={`/admin/keyword-research/${project.id}`} className="flex items-center justify-between gap-3 py-3 hover:bg-gray-50">
                     <div>
                       <p className="font-medium text-gray-900">{project.name}</p>
                       <p className="text-sm text-gray-500">{project.trade} · {project.city}, {project.state}</p>
@@ -190,7 +190,7 @@ function ProjectView({ id }: { id: string }) {
     mutationFn: () => apiRequest("DELETE", `/api/keyword-research/projects/${id}`),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: LIST_KEY });
-      navigate("/admin/tools/keyword-research");
+      navigate("/admin/keyword-research");
     },
     onError: removeError => toast({ title: "Could not delete the project", description: errorMessage(removeError), variant: "destructive" }),
   });
@@ -224,7 +224,7 @@ function ProjectView({ id }: { id: string }) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <Button variant="ghost" size="sm" className="-ml-2 mb-1" asChild>
-            <Link href="/admin/tools/keyword-research"><ArrowLeft className="mr-1 h-4 w-4" />All projects</Link>
+            <Link href="/admin/keyword-research"><ArrowLeft className="mr-1 h-4 w-4" />All projects</Link>
           </Button>
           <h1 className="text-2xl font-bold text-gray-900">{project.name}</h1>
           <p className="text-sm text-gray-600">{project.trade} · {project.city}, {project.state} · data cost ${Number(project.dataCostUsd).toFixed(2)}</p>
