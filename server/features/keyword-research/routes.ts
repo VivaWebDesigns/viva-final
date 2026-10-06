@@ -26,8 +26,12 @@ function sendError(res: import("express").Response, error: unknown, fallback: st
   return res.status(500).json({ message: error instanceof Error ? error.message : fallback });
 }
 
-async function assertSearchArea(locationName: string) {
-  if (!(await searchAreas()).some(area => area.name === locationName)) throw new KeywordDataError(`"${locationName}" is not a location Google Ads can target.`);
+/** Google's spelling of a location, matched without regard to capitals ("charlotte" → "Charlotte"). */
+async function resolveSearchArea(locationName: string) {
+  const wanted = locationName.trim().toLowerCase();
+  const match = (await searchAreas()).find(area => area.name.toLowerCase() === wanted);
+  if (!match) throw new KeywordDataError(`Google Ads has no location called "${locationName.replace(/,United States$/, "")}". Check the city and state spelling, or pick the area from the Search area list.`);
+  return match.name;
 }
 
 router.get("/locations", async (req, res) => {
@@ -78,8 +82,7 @@ router.post("/projects", async (req, res) => {
       services: z.array(serviceName).max(40).optional().default([]),
       locationName: z.string().trim().max(200).optional().default(""),
     }).parse(req.body);
-    const locationName = input.locationName || locationNameFor(input.city, input.state);
-    await assertSearchArea(locationName);
+    const locationName = await resolveSearchArea(input.locationName || locationNameFor(input.city, input.state));
     const clientServices = [...new Set(input.services.map(cleanKeyword).filter(Boolean))];
     const fromWebsite = await websiteServices(input.website, input.trade);
     const pageUrls = new Map(fromWebsite.services.map(service => [service.name, service.url]));
@@ -114,10 +117,10 @@ router.post("/projects", async (req, res) => {
 // A wider search area re-pulls service demand; any earlier keyword list was for the old area, so it is cleared.
 router.patch("/projects/:id/location", async (req, res) => {
   try {
-    const { locationName } = z.object({ locationName: z.string().trim().min(1).max(200) }).parse(req.body);
+    const input = z.object({ locationName: z.string().trim().min(1).max(200) }).parse(req.body);
     const project = await getProject(req.params.id);
     if (!project) return res.status(404).json({ message: "Project not found" });
-    await assertSearchArea(locationName);
+    const locationName = await resolveSearchArea(input.locationName);
     const { volumes, cost } = await volumesFor(project.services.map(service => service.name), project.city, locationName);
     const services = project.services.map(service => ({ ...service, demand: serviceDemand(service.name, project.city, volumes) }));
     return res.json(await updateProject(project.id, { locationName, services, keywords: [], summary: null, status: "choosing_services", researchedAt: null }, cost));
