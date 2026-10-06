@@ -37,6 +37,7 @@ const RedrawSnapshotsPage = lazy(() => import("@features/admin/pages/RedrawSnaps
 const InstantlyPage = lazy(() => import("@features/admin/pages/InstantlyPage"));
 const TechnicalSeoScannerPage = lazy(() => import("@features/technical-seo/TechnicalSeoScannerPage"));
 const TechnicalSeoReportPage = lazy(() => import("@features/technical-seo/TechnicalSeoReportPage"));
+const KeywordResearchPage = lazy(() => import("@features/keyword-research/KeywordResearchPage"));
 
 function AdminPageFallback() {
   return (
@@ -239,6 +240,18 @@ export default function AdminRouter() {
             <Route path="/admin/tools/technical-seo">
               <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/pipeline">
                 <TechnicalSeoScannerPage />
+              </ProtectedRoute>
+            </Route>
+            <Route path="/admin/tools/keyword-research/:id">
+              {(params) => (
+                <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/pipeline">
+                  <KeywordResearchPage projectId={params.id} />
+                </ProtectedRoute>
+              )}
+            </Route>
+            <Route path="/admin/tools/keyword-research">
+              <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/pipeline">
+                <KeywordResearchPage />
               </ProtectedRoute>
             </Route>
             <Route path="/admin/marketplace">

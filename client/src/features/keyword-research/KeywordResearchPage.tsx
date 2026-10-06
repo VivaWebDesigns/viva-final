@@ -1,0 +1,332 @@
+import { FormEvent, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link, useLocation } from "wouter";
+import { ArrowLeft, Download, Loader2, Plus, Search, Trash2 } from "lucide-react";
+import type { KeywordResearchProject } from "@shared/schema";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+
+interface ProjectListItem {
+  id: string;
+  name: string;
+  trade: string;
+  city: string;
+  state: string;
+  status: string;
+  keywordCount: number;
+  createdAt: string;
+}
+
+const LIST_KEY = ["/api/keyword-research/projects"];
+const UNSORTED = "__unsorted";
+const ALL = "__all";
+const TABLE_LIMIT = 300;
+
+/** apiRequest errors look like `502: {"message":"..."}`; show just the message. */
+function errorMessage(error: unknown) {
+  const raw = error instanceof Error ? error.message.replace(/^\d+:\s*/, "") : "Something went wrong";
+  try {
+    return (JSON.parse(raw) as { message?: string }).message ?? raw;
+  } catch {
+    return raw;
+  }
+}
+
+function formatNumber(value: number | null) {
+  return value == null ? "—" : value.toLocaleString();
+}
+
+function csvCell(value: string | number | null) {
+  const text = value == null ? "" : String(value);
+  return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+function downloadCsv(project: KeywordResearchProject) {
+  const header = ["Service", "Keyword", "Avg. monthly searches", "CPC", "Competition", "Competition index", "Top of page bid (low)", "Top of page bid (high)"];
+  const rows = project.keywords.map(row => [row.service ?? "Unsorted", row.keyword, row.searchVolume, row.cpc, row.competition, row.competitionIndex, row.lowTopOfPageBid, row.highTopOfPageBid]);
+  const csv = [header, ...rows].map(row => row.map(csvCell).join(",")).join("\n");
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${project.name} ${project.trade} ${project.city} keywords.csv`.replace(/[^\w .-]/g, "");
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function IntakeView() {
+  const [, navigate] = useLocation();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState({ name: "", trade: "", city: "", state: "", services: "" });
+  const { data, isLoading } = useQuery<{ projects: ProjectListItem[] }>({ queryKey: LIST_KEY });
+
+  const create = useMutation({
+    mutationFn: async () => {
+      const services = form.services.split(/[\n,]/).map(value => value.trim()).filter(Boolean);
+      const response = await apiRequest("POST", "/api/keyword-research/projects", { ...form, services });
+      return response.json() as Promise<KeywordResearchProject>;
+    },
+    onSuccess: project => {
+      void queryClient.invalidateQueries({ queryKey: LIST_KEY });
+      navigate(`/admin/tools/keyword-research/${project.id}`);
+    },
+    onError: error => toast({ title: "Could not start the project", description: errorMessage(error), variant: "destructive" }),
+  });
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    create.mutate();
+  };
+  const field = (key: keyof typeof form) => ({
+    value: form[key],
+    onChange: (event: { target: { value: string } }) => setForm(previous => ({ ...previous, [key]: event.target.value })),
+  });
+
+  return (
+    <div className="mx-auto max-w-4xl space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Keyword Research</h1>
+        <p className="mt-1 text-sm text-gray-600">
+          Enter the trade and city. Claude suggests the services, you tick the ones the client offers, and the keyword list comes from Google Ads data.
+        </p>
+      </div>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">New project</CardTitle></CardHeader>
+        <CardContent>
+          <form onSubmit={submit} className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5"><Label htmlFor="kr-name">Client or lead</Label><Input id="kr-name" required placeholder="Smith Plumbing" {...field("name")} data-testid="input-kr-name" /></div>
+              <div className="space-y-1.5"><Label htmlFor="kr-trade">Trade</Label><Input id="kr-trade" required placeholder="plumbing" {...field("trade")} data-testid="input-kr-trade" /></div>
+              <div className="space-y-1.5"><Label htmlFor="kr-city">City</Label><Input id="kr-city" required placeholder="Tampa" {...field("city")} data-testid="input-kr-city" /></div>
+              <div className="space-y-1.5"><Label htmlFor="kr-state">State</Label><Input id="kr-state" required placeholder="FL" {...field("state")} data-testid="input-kr-state" /></div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="kr-services">Services the client mentioned (optional)</Label>
+              <Textarea id="kr-services" rows={3} placeholder="One per line or comma separated" {...field("services")} data-testid="input-kr-services" />
+            </div>
+            <Button type="submit" disabled={create.isPending} data-testid="button-kr-create">
+              {create.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
+              {create.isPending ? "Suggesting services…" : "Suggest services"}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">Recent projects</CardTitle></CardHeader>
+        <CardContent>
+          {isLoading ? <p className="text-sm text-gray-500">Loading…</p> : !data?.projects.length ? <p className="text-sm text-gray-500">No projects yet.</p> : (
+            <ul className="divide-y">
+              {data.projects.map(project => (
+                <li key={project.id}>
+                  <Link href={`/admin/tools/keyword-research/${project.id}`} className="flex items-center justify-between gap-3 py-3 hover:bg-gray-50">
+                    <div>
+                      <p className="font-medium text-gray-900">{project.name}</p>
+                      <p className="text-sm text-gray-500">{project.trade} · {project.city}, {project.state}</p>
+                    </div>
+                    <span className="shrink-0 text-sm text-gray-500">
+                      {project.status === "researched" ? `${project.keywordCount.toLocaleString()} keywords` : "Choosing services"}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function ProjectView({ id }: { id: string }) {
+  const [, navigate] = useLocation();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const projectKey = [`/api/keyword-research/projects/${id}`];
+  const { data: project, isLoading, error } = useQuery<KeywordResearchProject>({ queryKey: projectKey });
+  const [selection, setSelection] = useState<Set<string> | null>(null);
+  const [newService, setNewService] = useState("");
+  const [filter, setFilter] = useState(ALL);
+
+  const selected = selection ?? new Set(project?.services.filter(service => service.selected).map(service => service.name) ?? []);
+  const services = useMemo(() => [...(project?.services ?? [])].sort((a, b) => (b.demand ?? -1) - (a.demand ?? -1)), [project]);
+  const setProject = (updated: KeywordResearchProject) => {
+    queryClient.setQueryData(projectKey, updated);
+    void queryClient.invalidateQueries({ queryKey: LIST_KEY });
+  };
+
+  const addService = useMutation({
+    mutationFn: async () => (await apiRequest("POST", `/api/keyword-research/projects/${id}/services`, { name: newService })).json() as Promise<KeywordResearchProject>,
+    onSuccess: updated => {
+      const added = updated.services[updated.services.length - 1];
+      setSelection(new Set([...selected, added.name]));
+      setNewService("");
+      setProject(updated);
+    },
+    onError: addError => toast({ title: "Could not add the service", description: errorMessage(addError), variant: "destructive" }),
+  });
+
+  const research = useMutation({
+    mutationFn: async () => (await apiRequest("POST", `/api/keyword-research/projects/${id}/research`, { selected: [...selected] })).json() as Promise<KeywordResearchProject>,
+    onSuccess: updated => {
+      setSelection(null);
+      setFilter(ALL);
+      setProject(updated);
+    },
+    onError: researchError => toast({ title: "Keyword research failed", description: errorMessage(researchError), variant: "destructive" }),
+  });
+
+  const remove = useMutation({
+    mutationFn: () => apiRequest("DELETE", `/api/keyword-research/projects/${id}`),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: LIST_KEY });
+      navigate("/admin/tools/keyword-research");
+    },
+    onError: removeError => toast({ title: "Could not delete the project", description: errorMessage(removeError), variant: "destructive" }),
+  });
+
+  const keywords = project?.keywords ?? [];
+  const serviceTotals = useMemo(() => {
+    const totals = new Map<string, { count: number; volume: number }>();
+    for (const row of keywords) {
+      const key = row.service ?? UNSORTED;
+      const total = totals.get(key) ?? { count: 0, volume: 0 };
+      total.count += 1;
+      total.volume += row.searchVolume ?? 0;
+      totals.set(key, total);
+    }
+    return [...totals].sort((a, b) => b[1].volume - a[1].volume);
+  }, [keywords]);
+  const visible = filter === ALL ? keywords : keywords.filter(row => (row.service ?? UNSORTED) === filter);
+
+  if (isLoading) return <div className="flex justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-gray-400" /></div>;
+  if (error || !project) return <p className="text-sm text-red-600">{error ? errorMessage(error) : "Project not found"}</p>;
+
+  const toggle = (name: string, checked: boolean) => {
+    const next = new Set(selected);
+    if (checked) next.add(name); else next.delete(name);
+    setSelection(next);
+  };
+  const changed = selection != null || project.status !== "researched";
+
+  return (
+    <div className="mx-auto max-w-5xl space-y-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <Button variant="ghost" size="sm" className="-ml-2 mb-1" asChild>
+            <Link href="/admin/tools/keyword-research"><ArrowLeft className="mr-1 h-4 w-4" />All projects</Link>
+          </Button>
+          <h1 className="text-2xl font-bold text-gray-900">{project.name}</h1>
+          <p className="text-sm text-gray-600">{project.trade} · {project.city}, {project.state} · data cost ${Number(project.dataCostUsd).toFixed(2)}</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => { if (window.confirm("Delete this keyword research project?")) remove.mutate(); }} disabled={remove.isPending} data-testid="button-kr-delete">
+          <Trash2 className="mr-2 h-4 w-4" />Delete
+        </Button>
+      </div>
+
+      <Card>
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-base">1. Confirm the services</CardTitle>
+          <p className="text-sm text-gray-600">Tick only what the client actually does. Demand is monthly searches in {project.city} for the service, "{"<service>"} {project.city.toLowerCase()}" and "{"<service>"} near me".</p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={() => setSelection(new Set(services.map(service => service.name)))}>Select all</Button>
+            <Button variant="outline" size="sm" onClick={() => setSelection(new Set())}>Clear</Button>
+          </div>
+          <ul className="grid gap-x-6 gap-y-1 sm:grid-cols-2">
+            {services.map(service => (
+              <li key={service.name}>
+                <label className="flex cursor-pointer items-center gap-3 rounded px-2 py-1.5 hover:bg-gray-50">
+                  <Checkbox checked={selected.has(service.name)} onCheckedChange={checked => toggle(service.name, checked === true)} data-testid={`checkbox-kr-service-${service.name}`} />
+                  <span className="flex-1 text-sm text-gray-900">{service.name}</span>
+                  {service.source !== "suggested" && <Badge variant="secondary" className="text-xs">{service.source === "client" ? "client" : "added"}</Badge>}
+                  <span className="w-16 text-right text-sm tabular-nums text-gray-600">{formatNumber(service.demand)}</span>
+                </label>
+              </li>
+            ))}
+          </ul>
+          <form className="flex gap-2" onSubmit={event => { event.preventDefault(); if (newService.trim()) addService.mutate(); }}>
+            <Input value={newService} onChange={event => setNewService(event.target.value)} placeholder="Add a service" className="max-w-xs" data-testid="input-kr-add-service" />
+            <Button type="submit" variant="outline" disabled={addService.isPending || !newService.trim()}>
+              {addService.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}Add
+            </Button>
+          </form>
+          <div className="flex flex-wrap items-center gap-3 border-t pt-4">
+            <Button onClick={() => research.mutate()} disabled={research.isPending || selected.size === 0 || !changed} data-testid="button-kr-research">
+              {research.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
+              {research.isPending ? "Pulling keywords…" : project.status === "researched" ? "Re-run keyword research" : "Run keyword research"}
+            </Button>
+            <span className="text-sm text-gray-500">{selected.size} selected{research.isPending ? " · this can take up to a minute" : ""}</span>
+          </div>
+        </CardContent>
+      </Card>
+
+      {project.status === "researched" && project.summary && (
+        <Card>
+          <CardHeader className="space-y-1">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <CardTitle className="text-base">2. Keywords</CardTitle>
+              <Button size="sm" onClick={() => downloadCsv(project)} data-testid="button-kr-export"><Download className="mr-2 h-4 w-4" />Export CSV</Button>
+            </div>
+            <p className="text-sm text-gray-600">
+              {project.summary.keptKeywords.toLocaleString()} keywords kept from {project.summary.ideasReturned.toLocaleString()} ideas
+              · {project.summary.droppedAsJunk.toLocaleString()} dropped as unrelated or junk · {project.summary.droppedNoVolume.toLocaleString()} with no search volume.
+              Unsorted keywords are related to the trade but did not match one service.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Select value={filter} onValueChange={setFilter}>
+              <SelectTrigger className="w-full sm:w-80" data-testid="select-kr-service-filter"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>All services ({keywords.length.toLocaleString()})</SelectItem>
+                {serviceTotals.map(([key, total]) => (
+                  <SelectItem key={key} value={key}>{key === UNSORTED ? "Unsorted" : key} ({total.count.toLocaleString()} · {total.volume.toLocaleString()}/mo)</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Keyword</TableHead>
+                    <TableHead>Service</TableHead>
+                    <TableHead className="text-right">Searches/mo</TableHead>
+                    <TableHead className="text-right">CPC</TableHead>
+                    <TableHead>Competition</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {visible.slice(0, TABLE_LIMIT).map(row => (
+                    <TableRow key={row.keyword}>
+                      <TableCell className="font-medium">{row.keyword}</TableCell>
+                      <TableCell className="text-gray-600">{row.service ?? "Unsorted"}</TableCell>
+                      <TableCell className="text-right tabular-nums">{formatNumber(row.searchVolume)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{row.cpc == null ? "—" : `$${row.cpc.toFixed(2)}`}</TableCell>
+                      <TableCell className="text-gray-600">{row.competition ?? "—"}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            {visible.length > TABLE_LIMIT && <p className="text-sm text-gray-500">Showing the top {TABLE_LIMIT} of {visible.length.toLocaleString()}. Export the CSV for the full list.</p>}
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+export default function KeywordResearchPage({ projectId }: { projectId?: string }) {
+  return projectId ? <ProjectView key={projectId} id={projectId} /> : <IntakeView />;
+}

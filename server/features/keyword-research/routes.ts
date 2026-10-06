@@ -1,0 +1,114 @@
+import { Router } from "express";
+import { z } from "zod";
+import type { KeywordResearchService } from "@shared/keywordResearch";
+import { requireRole } from "../auth/middleware";
+import { fetchKeywordIdeas, fetchSearchVolume, KeywordDataError, type KeywordMetrics } from "./dataforseo";
+import { buildKeywordList, cleanKeyword, locationNameFor, serviceDemand, serviceVariants } from "./keywords";
+import { createProject, deleteProject, getProject, listProjects, updateProject } from "./repository";
+import { ServiceSuggestionError, suggestServices } from "./suggestServices";
+
+const router = Router();
+router.use(requireRole("admin", "developer"));
+
+const serviceName = z.string().trim().min(1).max(80);
+
+async function volumesFor(services: string[], city: string, locationName: string) {
+  const keywords = [...new Set(services.flatMap(service => serviceVariants(service, city)))];
+  const { metrics, cost } = await fetchSearchVolume(keywords, locationName);
+  return { volumes: new Map(metrics.map(row => [cleanKeyword(row.keyword), row] as [string, KeywordMetrics])), cost };
+}
+
+function sendError(res: import("express").Response, error: unknown, fallback: string) {
+  if (error instanceof z.ZodError) return res.status(400).json({ message: error.issues[0]?.message ?? "Invalid input" });
+  if (error instanceof ServiceSuggestionError || error instanceof KeywordDataError) return res.status(502).json({ message: error.message });
+  return res.status(500).json({ message: error instanceof Error ? error.message : fallback });
+}
+
+router.get("/projects", async (_req, res) => {
+  res.json({ projects: await listProjects(50) });
+});
+
+router.get("/projects/:id", async (req, res) => {
+  const project = await getProject(req.params.id);
+  if (!project) return res.status(404).json({ message: "Project not found" });
+  res.json(project);
+});
+
+// Intake: Claude drafts the service list, then each service gets its search demand for the checklist.
+router.post("/projects", async (req, res) => {
+  try {
+    const input = z.object({
+      name: z.string().trim().min(1).max(160),
+      trade: z.string().trim().min(1).max(80),
+      city: z.string().trim().min(1).max(100),
+      state: z.string().trim().min(2).max(100),
+      services: z.array(serviceName).max(40).optional().default([]),
+    }).parse(req.body);
+    const locationName = locationNameFor(input.city, input.state);
+    const clientServices = [...new Set(input.services.map(cleanKeyword).filter(Boolean))];
+    const suggested = (await suggestServices({ ...input, clientServices })).map(cleanKeyword).filter(Boolean);
+    const names = [...new Set([...clientServices, ...suggested])];
+    const { volumes, cost } = await volumesFor(names, input.city, locationName);
+    const services: KeywordResearchService[] = names.map(name => ({
+      name,
+      source: clientServices.includes(name) ? "client" : "suggested",
+      demand: serviceDemand(name, input.city, volumes),
+      selected: clientServices.includes(name),
+    }));
+    const project = await createProject({ name: input.name, trade: input.trade, city: input.city, state: input.state, locationName, services, createdBy: req.authUser!.id }, cost);
+    return res.status(201).json(project);
+  } catch (error) {
+    return sendError(res, error, "Unable to create the project");
+  }
+});
+
+router.post("/projects/:id/services", async (req, res) => {
+  try {
+    const { name } = z.object({ name: serviceName }).parse(req.body);
+    const project = await getProject(req.params.id);
+    if (!project) return res.status(404).json({ message: "Project not found" });
+    const cleaned = cleanKeyword(name);
+    if (!cleaned) return res.status(400).json({ message: "Enter a service name" });
+    if (project.services.some(service => service.name === cleaned)) return res.status(409).json({ message: "That service is already on the list" });
+    const { volumes, cost } = await volumesFor([cleaned], project.city, project.locationName);
+    const services = [...project.services, { name: cleaned, source: "added" as const, demand: serviceDemand(cleaned, project.city, volumes), selected: true }];
+    return res.json(await updateProject(project.id, { services }, cost));
+  } catch (error) {
+    return sendError(res, error, "Unable to add the service");
+  }
+});
+
+// Saves the confirmed services, expands them into keyword ideas, pulls volumes and filters the list.
+router.post("/projects/:id/research", async (req, res) => {
+  try {
+    const { selected } = z.object({ selected: z.array(z.string()).min(1, "Select at least one service").max(60) }).parse(req.body);
+    const project = await getProject(req.params.id);
+    if (!project) return res.status(404).json({ message: "Project not found" });
+    const chosen = new Set(selected);
+    const services = project.services.map(service => ({ ...service, selected: chosen.has(service.name) }));
+    const selectedNames = services.filter(service => service.selected).map(service => service.name);
+    if (!selectedNames.length) return res.status(400).json({ message: "Select at least one service" });
+
+    const trade = cleanKeyword(project.trade);
+    const exactList = [...new Set([trade, ...selectedNames].flatMap(name => serviceVariants(name, project.city)))];
+    const exact = await fetchSearchVolume(exactList, project.locationName);
+    const ideas = await fetchKeywordIdeas([...new Set([trade, ...selectedNames])], project.locationName);
+    const { keywords, summary } = buildKeywordList([...exact.metrics, ...ideas.metrics], {
+      services: selectedNames,
+      trade: project.trade,
+      city: project.city,
+      state: project.state,
+    });
+    const updated = await updateProject(project.id, { services, keywords, summary, status: "researched", researchedAt: new Date() }, exact.cost + ideas.cost);
+    return res.json(updated);
+  } catch (error) {
+    return sendError(res, error, "Unable to run the keyword research");
+  }
+});
+
+router.delete("/projects/:id", async (req, res) => {
+  if (!(await deleteProject(req.params.id))) return res.status(404).json({ message: "Project not found" });
+  res.status(204).end();
+});
+
+export default router;

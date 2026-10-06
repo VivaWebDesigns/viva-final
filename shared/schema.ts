@@ -1455,6 +1455,30 @@ export const insertTechnicalSeoScanSchema = createInsertSchema(technicalSeoScans
 export type InsertTechnicalSeoScan = z.infer<typeof insertTechnicalSeoScanSchema>;
 export type TechnicalSeoScan = typeof technicalSeoScans.$inferSelect;
 
+// ─── Keyword Research ─────────────────────────────────────────────────
+
+export const keywordResearchProjects = pgTable("keyword_research_projects", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  trade: text("trade").notNull(),
+  city: text("city").notNull(),
+  state: text("state").notNull(),
+  locationName: text("location_name").notNull(),
+  status: text("status").notNull().default("choosing_services").$type<import("./keywordResearch").KeywordResearchStatus>(),
+  services: jsonb("services").notNull().default(sql`'[]'::jsonb`).$type<import("./keywordResearch").KeywordResearchService[]>(),
+  keywords: jsonb("keywords").notNull().default(sql`'[]'::jsonb`).$type<import("./keywordResearch").KeywordResearchKeyword[]>(),
+  summary: jsonb("summary").$type<import("./keywordResearch").KeywordResearchSummary>(),
+  dataCostUsd: numeric("data_cost_usd", { precision: 10, scale: 4 }).notNull().default("0"),
+  createdBy: varchar("created_by").notNull().references(() => user.id),
+  researchedAt: timestamp("researched_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (t) => [
+  index("keyword_research_projects_created_at_idx").on(t.createdAt),
+]);
+
+export type KeywordResearchProject = typeof keywordResearchProjects.$inferSelect;
+
 // ─── SMS Messages ─────────────────────────────────────────────────────
 
 export const smsMessages = pgTable("sms_messages", {
