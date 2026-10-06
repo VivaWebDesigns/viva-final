@@ -43,4 +43,24 @@ describe("RedrawSnapshotsPage", () => {
     await waitFor(() => expect(screen.getByTestId("text-redraw-progress")).toHaveTextContent("2 of 2 done"));
     expect(uploaded).toEqual(["r1", "r2"]);
   });
+
+  it("redraws pictures drawn today when asked", async () => {
+    const uploaded: string[] = [];
+    server.use(
+      http.get("/api/instantly/enrollment/redraw-queue", () => HttpResponse.json([
+        { reportId: "r3", businessName: "Done Today", snapshotGeneratedAt: new Date().toISOString() },
+      ])),
+      http.get("/api/local-visibility/reports/:id", ({ params }) => HttpResponse.json(report(String(params.id)))),
+      http.post("/api/local-visibility/reports/:id/snapshot", ({ params }) => {
+        uploaded.push(String(params.id));
+        return HttpResponse.json({});
+      }),
+    );
+    renderWithProviders(<RedrawSnapshotsPage />, { route: "/admin/tools/redraw-report-pictures" });
+    expect(await screen.findByText("0 of 1 pictures still need redrawing")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("checkbox-redraw-include-today"));
+    expect(await screen.findByText("1 of 1 pictures still need redrawing")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("button-redraw-start"));
+    await waitFor(() => expect(uploaded).toEqual(["r3"]));
+  });
 });

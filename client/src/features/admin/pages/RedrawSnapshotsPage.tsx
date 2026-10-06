@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import LocalVisibilityReportTemplate, { type MapPosition } from "@/features/local-visibility-report/LocalVisibilityReportTemplate";
@@ -37,10 +38,14 @@ export default function RedrawSnapshotsPage() {
   const [done, setDone] = useState(0);
   const [total, setTotal] = useState(0);
   const [failures, setFailures] = useState<Array<{ businessName: string; message: string }>>([]);
+  const [includeToday, setIncludeToday] = useState(false);
 
   const { data: queue = [], isLoading, error } = useQuery<RedrawQueueItem[]>({ queryKey: QUEUE_KEY });
   // Pictures drawn today already carry the new numbers, so a stopped run resumes where it left off.
-  const pending = queue.filter(item => !item.snapshotGeneratedAt || new Date(item.snapshotGeneratedAt) < startOfToday());
+  // "Include pictures drawn today" redraws everything, for report details fixed after an earlier run.
+  const pending = includeToday
+    ? queue
+    : queue.filter(item => !item.snapshotGeneratedAt || new Date(item.snapshotGeneratedAt) < startOfToday());
 
   useEffect(() => {
     if (!current || !renderedRef.current) return;
@@ -120,6 +125,15 @@ export default function RedrawSnapshotsPage() {
               </p>
             </div>
           ) : null}
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <Checkbox
+              checked={includeToday}
+              onCheckedChange={checked => setIncludeToday(checked === true)}
+              disabled={running}
+              data-testid="checkbox-redraw-include-today"
+            />
+            Include pictures drawn today
+          </label>
           <div className="flex gap-2">
             <Button onClick={start} disabled={running || isLoading || pending.length === 0} data-testid="button-redraw-start">
               {running ? "Redrawing…" : "Start"}
