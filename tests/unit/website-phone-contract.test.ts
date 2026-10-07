@@ -25,12 +25,13 @@ describe("public website phone number", () => {
       readFileSync(file, "utf8")
         .split("\n")
         .map((line, index) => ({ file: relative(root, file), line: index + 1, text: line.trim() }))
-        .filter(({ text }) => /980\D{0,15}475\D{0,15}4924/.test(text)),
+        // CRM SMS templates intentionally keep the 704 number; only website copy must change.
+        .filter(({ text }) => /704\D{0,15}222\D{0,15}7067/.test(text) && !text.startsWith("closingSms:")),
     );
     const websiteSource = files.map((file) => readFileSync(file, "utf8")).join("\n");
 
     expect(legacyReferences).toEqual([]);
-    expect(websiteSource).toContain("(704) 222-7067");
-    expect(websiteSource).toContain("tel:+17042227067");
+    expect(websiteSource).toContain("(980) 475-4924");
+    expect(websiteSource).toContain("tel:+19804754924");
   });
 });

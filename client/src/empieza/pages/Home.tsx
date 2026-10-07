@@ -60,7 +60,7 @@ export default function Home() {
     }
   }, [P]);
 
-  const phone     = P?.phone || "(704) 222-7067";
+  const phone     = P?.phone || "(980) 475-4924";
   const email     = P?.email || "quotes@charlottepaintingpro.com";
   const phoneRaw  = phone.replace(/\D/g, "");
   const bizName   = P?.businessName || "Charlotte Painting Pro";
