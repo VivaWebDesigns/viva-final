@@ -1,15 +1,5 @@
 # Agent Instructions
 
-## Project Context
-
-- This repo is Viva Web Designs' public agency website plus its internal CRM/admin platform (pipeline, Demo Builder for bilingual EN/ES preview sites, client profiles, team chat). Viva serves Spanish-speaking home-service contractors.
-- Copy rules: **never** mention "latinos" or "Google Ads" in any copy.
-- The Charlotte Painting Pro logo (`image_1_(5)_1772575534808_1773059817248.png`) must never be replaced with the Viva logo.
-- The brand phone number on the website is **(980) 475-4924**. CRM SMS templates intentionally still use (704) 222-7067.
-- Roles are `admin`, `developer`, `sales_rep`, and `lead_gen`. `admin` has full access across all modules; `sales_rep` and `lead_gen` are limited to entities they own.
-- First-run setup: when no admin user exists, `/admin` and `/login` redirect to `/admin/setup`, where the first admin creates their account (`POST /api/users/setup`, disabled once an admin exists). No `SEED_ADMIN_*` env vars are needed in production.
-- SMS goes through QUO (OpenPhone) via `POST /api/quo/sms` and needs the `QUO_API_KEY` secret. The QUO API cannot start outbound calls, so calling uses `tel:` links to open the dialer.
-
 ## Git Workflow
 
 - This repo is worked on from two computers with both Claude and Codex, so local `main` is often behind `origin/main`. At the start of every session, before reading or editing code, run `sh .claude/hooks/git-sync.sh` (Claude Code runs it automatically at startup; run it again if its output is not in context). It fast-forwards clean `main` with `git pull --ff-only` and reports when it skipped.
