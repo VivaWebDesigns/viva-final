@@ -51,6 +51,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { label: t.nav.notifications, path: "/admin/notifications",  icon: Bell,            color: "text-red-500",     roles: ["admin", "developer"] as string[] },
     { label: t.nav.reports,       path: "/admin/reports",        icon: BarChart3,       color: "text-cyan-500",    roles: ["admin", "developer"] as string[] },
     { label: t.nav.analytics,     path: "/admin/analytics",      icon: LineChart,       color: "text-violet-500",  roles: ["admin", "developer"] as string[] },
+    { label: "Campaign Website", path: "/admin/analytics/campaign", icon: MapPinned, color: "text-teal-600", roles: ["admin", "developer"] as string[] },
     { label: "Keyword Research", path: "/admin/keyword-research", icon: KeyRound, color: "text-indigo-600", roles: ["admin", "developer"] as string[] },
     { label: t.nav.visibilityReport, path: "/admin/tools/local-visibility-report", icon: FileImage, color: "text-blue-600", roles: ["admin", "developer"] as string[] },
     { label: "Technical SEO", path: "/admin/tools/technical-seo", icon: SearchCheck, color: "text-teal-600", roles: ["admin", "developer"] as string[] },
@@ -115,6 +116,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const isActive = (path: string) => {
     if (path === "/admin") return location === "/admin";
+    if (path === "/admin/analytics" && location.startsWith("/admin/analytics/campaign")) return false;
     return location.startsWith(path);
   };
 

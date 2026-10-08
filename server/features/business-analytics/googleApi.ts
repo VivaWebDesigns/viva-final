@@ -52,7 +52,7 @@ function numberValue(value: string | undefined): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-async function runGaReport(
+export async function runGaReport(
   connection: GoogleIntegrationConnection,
   dateRange: GoogleAnalyticsDateRange,
   input: {
@@ -91,7 +91,7 @@ export interface GoogleAnalyticsDateRange {
   days: number;
 }
 
-function tableRows(report: GaReportResponse, dimensions: string[], metrics: string[]) {
+export function tableRows(report: GaReportResponse, dimensions: string[], metrics: string[]) {
   return (report.rows ?? []).map((row) => {
     const result: Record<string, string | number> = {};
     dimensions.forEach((name, index) => { result[name] = row.dimensionValues?.[index]?.value ?? "(not set)"; });

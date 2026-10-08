@@ -25,6 +25,7 @@ import {
   getGoogleAnalyticsDashboard,
 } from "./googleApi";
 import * as storage from "./storage";
+import { askCampaignQuestion, CampaignAskError, getCampaignSnapshot } from "./campaignAnalytics";
 import {
   getWebsiteActivityDashboard,
   recordWebsiteActivity,
@@ -342,6 +343,41 @@ router.get("/ga4", requireRole("admin", "developer"), async (req, res) => {
     if ((error as { statusCode?: number })?.statusCode === 400) return res.status(400).json({ message });
     await storage.updateGoogleConnection("analytics", { status: "error", lastError: message });
     res.status(502).json({ message });
+  }
+});
+
+router.get("/campaign", requireRole("admin", "developer"), async (req, res) => {
+  try {
+    const dateRange = googleAnalyticsDateRange(req.query);
+    const connection = await storage.getGoogleConnection("analytics");
+    if (!connection) return res.status(409).json({ message: "Connect Google Analytics first" });
+    res.json(await getCampaignSnapshot(connection, dateRange));
+  } catch (error) {
+    const message = googleErrorMessage(error);
+    if ((error as { statusCode?: number })?.statusCode === 400) return res.status(400).json({ message });
+    res.status(502).json({ message });
+  }
+});
+
+const campaignAskSchema = z.object({
+  question: z.string().trim().min(1).max(1_000),
+  history: z.array(z.object({
+    role: z.enum(["user", "assistant"]),
+    text: z.string().max(20_000),
+  })).max(20).default([]),
+});
+
+router.post("/campaign/ask", requireRole("admin", "developer"), async (req, res) => {
+  const parsed = campaignAskSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: "Type a question first." });
+  try {
+    const connection = await storage.getGoogleConnection("analytics");
+    if (!connection) return res.status(409).json({ message: "Connect Google Analytics first" });
+    const answer = await askCampaignQuestion(connection, { ...parsed.data, today: easternDate() });
+    res.json({ answer });
+  } catch (error) {
+    if (error instanceof CampaignAskError) return res.status(502).json({ message: error.message });
+    res.status(500).json({ message: googleErrorMessage(error) });
   }
 });
 
