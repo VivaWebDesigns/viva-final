@@ -289,6 +289,8 @@ export async function analyzeAndRecordSabReport(repository: SabSheetsRepository,
       market_reference: {kind: "market_reference_only", source: "auxiliary_scan_reverse_geocode", ...report.grid.center,
         city: market.city, state: market.state, zip: market.zip, auxiliary_report_key: report.report_key, auxiliary_report_url: reportUrl(report)}});
   }
+  if (decision.action === "evidence_review_required" && decision.evidence.manual_center_review) Object.assign(updates, {status: "blocked", blocker: "manual_centroid_review_required"});
+  else if (row.blocker === "manual_centroid_review_required" && validated) Object.assign(updates, {status: "in_progress", blocker: null});
   if (pendingExclusion) Object.assign(updates, {status: "blocked", blocker: "high_visibility_exclusion_pending_matt_review"});
   else if (isFiveMile && decision.action==="evidence_review_required") Object.assign(updates,{status:"blocked",blocker:"five_mile_comparison_review_required"});
   else if (isFiveMile && decision.action === "comparison_ready" && row.blocker === "five_mile_comparison_review_required") Object.assign(updates,{status:"in_progress",blocker:null});

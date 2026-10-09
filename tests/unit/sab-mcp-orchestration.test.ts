@@ -114,6 +114,20 @@ describe("SAB orchestration integration",()=>{
     expect(repo.saveScanResult.mock.calls[0][1].report_url).toBe(`https://example.test/public/${key3}`);
   });
 
+  it("blocks an unsupported displaced peak without saving it as canonical or planning a paid recenter",async()=>{
+    const repo=repository();
+    const cells=Array.from({length:49},(_,i)=>({row:Math.floor(i/7)+1,column:i%7+1,
+      latitude:35+(3-Math.floor(i/7))/69.09,longitude:-80+((i%7)-3)/(69.09*Math.cos(35*Math.PI/180)),
+      rank:Math.floor(i/7)===1 && i%7===5 ? 1 : 5}));
+    vi.mocked(getSabRankedCells).mockResolvedValue(report(key3,plan,{businesses:[{place_id:"place",ranked_cells:cells,all_point_rank_cells:cells}]}) as never);
+    const result=await analyzeAndRecordSabReport(repo as never,{run_id:"run",report_key:key3,place_id:"place",stage:"deliverable"},"actor");
+    expect(result).toMatchObject({action:"evidence_review_required",proposed_center:null});
+    expect(await repo.getCompany()).toMatchObject({status:"blocked",blocker:"manual_centroid_review_required",report_key:null,
+      decision_state:{centering_status:"failed",evidence:{manual_center_review:{required:true}}}});
+    expect(repo.saveScanResult.mock.calls[0][3]).toEqual({historyOnly:true});
+    expect(repo.saveRunState).not.toHaveBeenCalled();
+  });
+
   it("requires a provider public URL and verified completion before persisting deliverables",async()=>{
     for(const overrides of [{public_url:null},{completion_verified:false}]) {
       const repo=repository();

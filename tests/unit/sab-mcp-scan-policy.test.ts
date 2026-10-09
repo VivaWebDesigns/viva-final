@@ -95,7 +95,7 @@ describe("SAB deterministic peak targeting and recenter limits", () => {
     expect(peak.peak_at_or_adjacent_to_proposed_center).toBe(true);
     expect(peak.selected_cluster_size).toBe(2); // diagonal is adjacent
     expect(analyzeSabScanPolicy({ stage: "auxiliary", grid: grid(), cells }).proposed_center).toEqual(peak.target);
-    expect(analyzeSabScanPolicy({ stage: "deliverable", grid: grid(), cells })).toMatchObject({action:"center_validated",proposed_center:grid().center,evidence:{unsupported_off_center_peak:true}});
+    expect(analyzeSabScanPolicy({ stage: "deliverable", grid: grid(), cells })).toMatchObject({action:"evidence_review_required",proposed_center:null,evidence:{unsupported_off_center_peak:true}});
   });
   it("resolves equal peaks independently of input ordering", () => {
     const cells = [cell(2, 2, 1), cell(6, 6, 1), cell(4, 4, 9), cell(4, 5, 9), cell(5, 4, 9)];
@@ -112,7 +112,7 @@ describe("SAB deterministic peak targeting and recenter limits", () => {
   it("requires neighborhood support for a non-dominant off-center peak when the center is coherent",()=>{
     const cells=[cell(2,6,3),cell(4,4,5),cell(4,3,5),cell(5,4,5)];
     const result=analyzeSabScanPolicy({stage:"deliverable",grid:grid(),cells});
-    expect(result).toMatchObject({action:"center_validated",proposed_center:grid().center});
+    expect(result).toMatchObject({action:"evidence_review_required",proposed_center:null});
     expect(result.evidence).toMatchObject({peak:{dominant:false,displaced_peak:true,central_3x3_best_rank:5,displaced_peak_central_contrast:2,central_3x3_coherent_cluster:true,neighborhood_support:{applies:true,three_rank_contrast_passes:false,candidate_median_improves:false,candidate_top20_support_passes:false,all_conditions_pass:false}},weak_off_center_peak:false,unsupported_off_center_peak:true});
   });
   it("does not treat a dominant peak in a central-3x3 corner as centered",()=>{
@@ -129,16 +129,16 @@ describe("SAB deterministic peak targeting and recenter limits", () => {
       displaced_peak_has_centering_support:true,
     }}});
   });
-  it("reproduces the weak Vivid Edge footprint and retains its existing center",()=>{
+  it("flags the weak Vivid Edge footprint for manual centroid review",()=>{
     const cells=[
       cell(2,3,20),cell(2,6,20),cell(3,2,19),cell(3,3,18),cell(3,4,18),cell(3,5,17),
       cell(3,6,14),cell(4,2,20),cell(4,3,16),cell(4,4,19),cell(4,5,18),cell(4,6,16),
       cell(5,3,16),cell(5,4,18),cell(5,5,18),cell(6,4,18),cell(6,5,18),cell(7,6,20),
     ];
     const result=analyzeSabScanPolicy({stage:"deliverable",grid:grid(),cells,rawArp:17.94,atrp:19.88,solv:0});
-    expect(result).toMatchObject({action:"center_validated",rule_ids:["S04","S05","S09"],proposed_center:grid().center});
+    expect(result).toMatchObject({action:"evidence_review_required",rule_ids:["S04","S05"],proposed_center:null});
     expect(result.evidence).toMatchObject({exact_top20_count:18,peak:{best_rank:14,median_rank:18,dominant:true,statistically_dominant_displaced_peak:true,central_3x3_best_rank:16,displaced_peak_central_contrast:2,actual_center_pin_rank:19,displaced_peak_actual_center_contrast:5,central_3x3_coherent_cluster:true,neighborhood_support:{applies:true,computational_unranked_sentinel:21,sentinel_persisted_as_observed_rank:false,three_rank_contrast_passes:true,candidate_3x3_median_rank:20,central_3x3_median_rank:18,candidate_median_improves:false,candidate_3x3_exact_top20_count:5,central_3x3_exact_top20_count:9,candidate_top20_support_passes:false,all_conditions_pass:false},displaced_peak_has_centering_support:false,displaced_dominant_peak:false},weak_off_center_peak:false,unsupported_off_center_peak:true});
-    expect(result.reason).toContain("unsupported_off_center_peak");
+    expect(result.reason).toContain("manual centroid review");
   });
   it("recenters only when all three off-center neighborhood conditions pass",()=>{
     const cells=[
@@ -148,18 +148,18 @@ describe("SAB deterministic peak targeting and recenter limits", () => {
     const result=analyzeSabScanPolicy({stage:"deliverable",grid:grid(),cells});
     expect(result).toMatchObject({action:"recenter",evidence:{peak:{central_3x3_best_rank:5,displaced_peak_central_contrast:4,neighborhood_support:{applies:true,three_rank_contrast_passes:true,candidate_median_improves:true,candidate_top20_support_passes:true,all_conditions_pass:true},displaced_peak_has_centering_support:true}}});
   });
-  it("retains a coherent center when exact contrast passes but the candidate median does not improve",()=>{
+  it("requires manual review when exact contrast passes but the candidate median does not improve",()=>{
     const cells=[cell(6,4,3),cell(6,3,5),cell(5,3,6),cell(5,4,6),cell(4,4,11)];
     const result=analyzeSabScanPolicy({stage:"deliverable",grid:grid(),cells,routineRecenterCount:1});
-    expect(result).toMatchObject({action:"center_validated",evidence:{peak:{best_rank:3,central_3x3_best_rank:6,displaced_peak_central_contrast:3,neighborhood_support:{applies:true,three_rank_contrast_passes:true,candidate_median_improves:false,candidate_top20_support_passes:true,all_conditions_pass:false},displaced_peak_has_centering_support:false,displaced_dominant_peak:false}}});
+    expect(result).toMatchObject({action:"evidence_review_required",evidence:{peak:{best_rank:3,central_3x3_best_rank:6,displaced_peak_central_contrast:3,neighborhood_support:{applies:true,three_rank_contrast_passes:true,candidate_median_improves:false,candidate_top20_support_passes:true,all_conditions_pass:false},displaced_peak_has_centering_support:false,displaced_dominant_peak:false}}});
   });
-  it("retains a coherent center when the candidate has fewer exact top-20 neighbors",()=>{
+  it("requires manual review when the candidate has fewer exact top-20 neighbors",()=>{
     const cells=[
       cell(2,6,1),cell(1,5,2),cell(1,6,2),cell(2,5,2),cell(3,6,2),
       cell(3,3,6),cell(3,4,6),cell(4,3,6),cell(4,4,6),cell(4,5,6),cell(5,4,6),
     ];
     const result=analyzeSabScanPolicy({stage:"deliverable",grid:grid(),cells});
-    expect(result).toMatchObject({action:"center_validated",evidence:{peak:{neighborhood_support:{applies:true,three_rank_contrast_passes:true,candidate_median_improves:true,candidate_3x3_exact_top20_count:5,central_3x3_exact_top20_count:6,candidate_top20_support_passes:false,all_conditions_pass:false}},unsupported_off_center_peak:true}});
+    expect(result).toMatchObject({action:"evidence_review_required",evidence:{peak:{neighborhood_support:{applies:true,three_rank_contrast_passes:true,candidate_median_improves:true,candidate_3x3_exact_top20_count:5,central_3x3_exact_top20_count:6,candidate_top20_support_passes:false,all_conditions_pass:false}},unsupported_off_center_peak:true}});
   });
   it("keeps isolated central point-source routing outside the neighborhood safeguard",()=>{
     const cells=[cell(2,6,3),cell(4,4,5)];
@@ -269,11 +269,17 @@ describe("SAB all-point saturation", () => {
     const result = analyzeSabScanPolicy({ stage: "deliverable", grid: grid(), cells });
     expect(result.evidence.saturation).toMatchObject({ candidate, central_median: 1, outer_median: outerRank });
   });
+  it("does not validate a displaced target solely because saturation metrics pass", () => {
+    const cells = field((r, c) => r >= 2 && r <= 6 && c >= 5 && c <= 6 ? 1 : c === 7 ? 2 : 3);
+    const result = analyzeSabScanPolicy({ stage: "deliverable", grid: grid(), cells });
+    expect(result.evidence).toMatchObject({all_point_median_rank:3, saturation:{candidate:false}, peak:{displaced_peak:true}});
+    expect(result.action).toBe("recenter"); // S05 independently fails; saturation cannot validate the center.
+  });
   it("does not allow a displaced dominant peak to pass saturation", () => {
     const cells = field((r, c) => r === 2 && c === 6 ? 1 : 5);
     const result = analyzeSabScanPolicy({ stage: "deliverable", grid: grid(), cells });
     expect(result.evidence).toMatchObject({ displaced_dominant_peak: false, peak:{statistically_dominant_displaced_peak:true,neighborhood_support:{candidate_median_improves:false}}, unsupported_off_center_peak:true, saturation: { candidate: false } });
-    expect(result.action).toBe("center_validated");
+    expect(result.action).toBe("evidence_review_required");
   });
 });
 

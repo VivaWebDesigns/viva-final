@@ -397,7 +397,7 @@ export function analyzeSabScanPolicy(input: SabScanPolicyInput): SabScanDecision
     input.rawArp! <= (wideScoutSpec ? 4 : 3) && input.solv! >= (wideScoutSpec ? 60 : 75);
   const saturationCandidate = grid.size === 7 && cells.length >= 45 && allPointRanks.all_point_median_rank !== null && allPointRanks.all_point_median_rank <= 3 &&
     allPointRanks.outer_ring_median_rank !== null && allPointRanks.central_3x3_median_rank !== null &&
-    allPointRanks.outer_ring_median_rank <= allPointRanks.central_3x3_median_rank + 2 && !peak?.displaced_peak_has_centering_support;
+    allPointRanks.outer_ring_median_rank <= allPointRanks.central_3x3_median_rank + 2 && !peak?.displaced_peak;
   const evidence: Record<string, unknown> = {
     exact_top20_count: cells.length, point_count: grid.point_count, coverage: cells.length / grid.point_count,
     raw_arp: input.rawArp ?? null, atrp: input.atrp ?? null, solv: input.solv ?? null,
@@ -455,8 +455,8 @@ export function analyzeSabScanPolicy(input: SabScanPolicyInput): SabScanDecision
   }
   if (!cells.length) return decision("evidence_review_required", ["S05"], "A deliverable without exact top20 pins cannot establish a validated visibility center; reconcile with auxiliary evidence.");
   // S06 precedes S05/S07: saturation alone must not consume a recenter.
-  if (saturationCandidate && mileGrid && grid.size === 7 && grid.radius === 3) return decision("same_center_five_mile_comparison", ["S06", "S08"], "At least 45 exact top20 pins, strong all-point median and limited outer falloff establish saturation without a supported off-center peak; compare 7x7/5mi at the same center.", grid.center);
-  if (saturationCandidate) return decision("center_validated", ["S06"], "The saturation definition is satisfied without a supported off-center peak; saturation alone does not require recentering.", grid.center);
+  if (saturationCandidate && mileGrid && grid.size === 7 && grid.radius === 3) return decision("same_center_five_mile_comparison", ["S06", "S08"], "At least 45 exact top20 pins, strong all-point median and limited outer falloff establish saturation without an off-center peak; compare 7x7/5mi at the same center.", grid.center);
+  if (saturationCandidate) return decision("center_validated", ["S06"], "The saturation definition is satisfied without an off-center peak; saturation alone does not require recentering.", grid.center);
   const margin = evaluateSabCoherentMargin(cells, grid.size);
   evidence.margin = margin;
   const unsupportedOffCenterPeak = peak!.displaced_peak && !peak!.displaced_peak_has_centering_support;
@@ -476,7 +476,11 @@ export function analyzeSabScanPolicy(input: SabScanPolicyInput): SabScanDecision
           : "The off-center peak passes all three neighborhood-support conditions and supports the permitted peak-targeted recenter.";
     return decision("recenter", ["S04", "S05", "S07"], reason, peak!.target, "ranked_peak_recentered");
   }
-  if (unsupportedOffCenterPeak) return decision("center_validated", ["S04", "S05", "S09"], "The off-center peak failed at least one required actual-center-pin contrast, neighborhood-median or exact top-20 support condition; retain the existing center as unsupported_off_center_peak.", grid.center);
+  if (unsupportedOffCenterPeak) {
+    // A suggestion for Matt's review is not an authorized recenter plan.
+    evidence.manual_center_review = { required: true, suggested_center: peak!.target, neighborhood_support: peak!.neighborhood_support };
+    return decision("evidence_review_required", ["S04", "S05"], "The selected peak target is outside the actual-center tolerance, but at least one neighborhood-support test fails. Hold for Matt's manual centroid review; the suggested center and failed checks are evidence, not automatic recenter authority.");
+  }
   return decision("center_validated", ["S05", "S09"], "The footprint has ordinary falloff without coherent outward strength or a supported off-center peak.", grid.center);
 }
 
