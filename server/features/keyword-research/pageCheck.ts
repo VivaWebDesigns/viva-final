@@ -56,6 +56,8 @@ export interface SitePage {
   article: boolean;
   /** A page for one place ("/service-areas/monroe-nc"): it only targets keywords naming that place. */
   placePage: boolean;
+  /** The words of the page's title and first heading that name what it is about (no action words or state codes). Empty when unread. */
+  subjectStems: Set<string>;
 }
 
 // Listing pages ("/services", "/service-areas") link to pages that target keywords; they do not target any themselves.
@@ -80,6 +82,7 @@ export function sitePages(urls: string[], headlines: Map<string, string> = new M
     return {
       path, stems: meaningStems(words), aboutCost: COST_WORDS.test(words),
       article: BLOG_PATH.test(path + "/") || QUESTION_TITLE.test(headline), placePage: PLACE_PAGE.test(path),
+      subjectStems: new Set([...meaningStems(headline)].filter(stem => stem.length > 2 && !ACTION_STEMS.has(stem) && !QUESTION_STEMS.has(stem))),
     };
   });
 }
@@ -94,14 +97,17 @@ export function sitePages(urls: string[], headlines: Map<string, string> = new M
 export function coveringPage(
   row: KeywordResearchKeyword,
   pages: SitePage[],
-  context: { servicePages: Map<string, string>; homeStems: Set<string>; cityStems: Set<string> },
+  context: { servicePages: Map<string, string>; homeStems: Set<string>; cityStems: Set<string>; cityNames?: string[] },
 ): string | null {
   // A service's own page targets the service phrase itself; its other phrasings need pages of their own.
   if (row.service && row.keyword === row.service && context.servicePages.has(row.service)) return context.servicePages.get(row.service)!;
   const wanted = new Set([...meaningStems(row.keyword)].filter(stem => !QUESTION_STEMS.has(stem)));
   if (!wanted.size) return null;
   if ([...wanted].every(stem => context.homeStems.has(stem))) return "/";
-  const city = [...wanted].filter(stem => context.cityStems.has(stem));
+  // A city counts only when the keyword names it ("stallings"), not when a word shares its stem ("shower stall").
+  const city = context.cityNames
+    ? [...new Set(context.cityNames.filter(name => new RegExp(`\\b${name.toLowerCase().replace(/[^a-z0-9 ]/g, "")}\\b`).test(row.keyword)).flatMap(name => [...meaningStems(name)]))]
+    : [...wanted].filter(stem => context.cityStems.has(stem));
   // A page must hold every word, except that a keyword of 4+ words may miss one action word ("installation"),
   // never the thing itself: "glass shower door installation" is not the glass door repair page.
   const essential = [...wanted].filter(stem => !ACTION_STEMS.has(stem));
@@ -113,6 +119,9 @@ export function coveringPage(
     if (INDEX_PAGE.test(page.path) || city.some(stem => !page.stems.has(stem))) continue;
     if ((row.pageType === "cost" && !page.aboutCost) || (row.pageType === "blog" && !page.article)) continue;
     if (page.placePage && !city.length) continue;
+    // A page for one place covers searches for its own subject there: "door installation charlotte nc" is not the
+    // Charlotte glass shower door page, though every word of it is on that page. One subject word may be missing.
+    if (page.placePage && [...page.subjectStems].filter(stem => !context.cityStems.has(stem) && !wanted.has(stem)).length > 1) continue;
     if (essential.some(stem => !page.stems.has(stem))) continue;
     const matched = [...wanted].filter(stem => page.stems.has(stem)).length;
     if (matched >= needed && (!best || rank(page.path, matched) > rank(best.path, best.matched))) best = { path: page.path, matched };

@@ -150,17 +150,25 @@ describe("service × city pages (reference case)", () => {
 
   it("finds the existing city page for the target phrase, not the service page", () => {
     const pages = sitePages(
-      ["https://x.com/service-areas/monroe", "https://x.com/service-areas/charlotte", "https://x.com/services/frameless-showers", "https://x.com/service-areas"],
+      ["https://x.com/service-areas/monroe", "https://x.com/service-areas/charlotte", "https://x.com/services/frameless-showers", "https://x.com/service-areas", "https://x.com/service-areas/stallings"],
       new Map([
+        ["https://x.com/service-areas/stallings", "Glass Shower Door Installation in Stallings, NC"],
         ["https://x.com/service-areas/monroe", "Glass Shower Door Installation in Monroe, NC"],
         ["https://x.com/service-areas/charlotte", "Glass Shower Door Installation in Charlotte, NC"],
         ["https://x.com/services/frameless-showers", "Frameless Glass Shower Doors"],
       ]),
     );
-    const context = { servicePages: new Map<string, string>(), homeStems: meaningStems("glass company charlotte nc"), cityStems: new Set([...meaningStems("monroe"), ...meaningStems("charlotte")]) };
+    const cityNames = ["Monroe", "Charlotte", "Stallings"];
+    const context = { servicePages: new Map<string, string>(), homeStems: meaningStems("glass company charlotte nc"), cityStems: new Set(cityNames.flatMap(name => [...meaningStems(name)])), cityNames };
     const covering = (keyword: string) => coveringPage({ ...row(keyword, null, null, "city"), service: "glass shower doors" }, pages, context);
     expect(covering("glass shower door installer monroe nc")).toBe("/service-areas/monroe");
     expect(covering("glass shower door installer charlotte nc")).toBe("/service-areas/charlotte");
+    expect(covering("shower door repair stallings nc")).toBe("/service-areas/stallings");
+    // Another service's words all appear on the page, but it is not the page's subject.
+    expect(covering("door installation charlotte nc")).toBeNull();
+    expect(covering("glass replacement stallings nc")).toBeNull();
+    // "stall" shares a stem with Stallings; it does not name the city.
+    expect(coveringPage({ ...row("glass shower stall", 50, 2), service: "glass shower enclosures" }, pages, context)).toBeNull();
     expect(isPlacePage("/service-areas/charlotte")).toBe(true);
     expect(isPlacePage("/services/frameless-showers")).toBe(false);
   });

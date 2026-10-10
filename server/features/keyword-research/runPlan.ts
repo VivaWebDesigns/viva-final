@@ -50,11 +50,15 @@ async function relevanceFor(project: KeywordResearchProject, rows: KeywordResear
   return checks;
 }
 
-/** The service's metro numbers: its most-searched keyword with a CPC. Shown beside city phrases, never as their own numbers. */
-function referenceMetrics(keywords: KeywordResearchKeyword[], service: string): ReferenceMetrics | null {
-  const best = keywords
-    .filter(row => row.source !== "grid" && row.cpc != null && (row.service === service || row.relevance?.service === service))
-    .sort((a, b) => (keywordDemand(b) ?? -1) - (keywordDemand(a) ?? -1) || (b.cpc ?? 0) - (a.cpc ?? 0))[0];
+/**
+ * The service's metro numbers, shown beside city phrases, never as their own numbers: the service searched with the
+ * metro city ("glass shower door installer charlotte nc"), the profile city pages are built on; else the service's
+ * most-searched keyword with a CPC.
+ */
+function referenceMetrics(rows: KeywordResearchKeyword[], service: string, metroCity: string): ReferenceMetrics | null {
+  const mine = rows.filter(row => row.cpc != null && (row.service === service || row.relevance?.service === service));
+  const byDemand = (a: KeywordResearchKeyword, b: KeywordResearchKeyword) => (keywordDemand(b) ?? -1) - (keywordDemand(a) ?? -1) || (b.cpc ?? 0) - (a.cpc ?? 0);
+  const best = mine.filter(row => row.keyword.includes(metroCity.toLowerCase())).sort(byDemand)[0] ?? mine.filter(row => row.source !== "grid").sort(byDemand)[0];
   return best ? { keyword: best.keyword, cpc: best.cpc!, searchVolume: keywordDemand(best), competition: best.competition, difficulty: best.difficulty ?? null } : null;
 }
 
@@ -113,14 +117,26 @@ export async function runPlan(project: KeywordResearchProject): Promise<{ keywor
   const keywords = project.keywords.filter(row => row.source !== "grid" || grid.has(row.keyword)).map(row => ({ ...row }));
   const listed = new Set(keywords.map(row => row.keyword));
   const fresh = [...grid.keys()].filter(keyword => !listed.has(keyword));
-  const volumes = fresh.length
-    ? await fetchSearchVolume(fresh, project.locationName).catch(error => {
+  // The service with the metro city, for the reference numbers ("glass shower door installer charlotte").
+  const metro = `${project.city} ${project.state}`.toLowerCase();
+  const probes = new Map<string, string>();
+  for (const service of updatedServices.filter(entry => entry.selected)) {
+    for (const phrase of [service.name, ...(service.cityPhrases ?? [])]) {
+      for (const keyword of [`${phrase} ${project.city.toLowerCase()}`, `${phrase} ${metro}`]) if (!listed.has(keyword) && !grid.has(keyword)) probes.set(keyword, service.name);
+    }
+  }
+  const volumes = fresh.length || probes.size
+    ? await fetchSearchVolume([...fresh, ...probes.keys()], project.locationName).catch(error => {
       if (!(error instanceof KeywordDataError)) throw error;
       return { metrics: [], cost: 0 };
     })
     : { metrics: [], cost: 0 };
   cost += volumes.cost;
   const metricsOf = new Map(volumes.metrics.map(row => [row.keyword.toLowerCase(), row]));
+  const probeRows: KeywordResearchKeyword[] = [...probes].flatMap(([keyword, service]) => {
+    const metrics = metricsOf.get(keyword);
+    return metrics ? [{ ...metrics, keyword, service, pageType: "city" as const }] : [];
+  });
   for (const keyword of fresh) {
     const metrics = metricsOf.get(keyword);
     keywords.push({
@@ -155,6 +171,7 @@ export async function runPlan(project: KeywordResearchProject): Promise<{ keywor
   const context = {
     // A page for one place is never a service's own page, whatever the intake matched it to.
     servicePages: new Map(services.filter(service => service.pageUrl).map(service => [service.name, new URL(service.pageUrl!).pathname] as const).filter(([, path]) => !isPlacePage(path))),
+    cityNames: servedCities.map(place => place.city),
     homeStems: meaningStems([project.trade, project.city, project.state, stateName(project.state)].join(" ")),
     cityStems: allCityStems,
   };
@@ -205,12 +222,18 @@ export async function runPlan(project: KeywordResearchProject): Promise<{ keywor
   const clusters = topicClusters(planned.filter(item => item.kind === "blog").map(item => ({ keyword: item.row.keyword, service: item.service })), serviceStems);
   let groups = draftGroups(planned, servicePages, keyword => clusters.get(keyword) ?? keyword);
   // A page holding grid phrases is checked for its own service's target phrase, with that service's metro numbers beside it.
-  const references = new Map(serviceNames.map(service => [service, referenceMetrics(keywords, service)] as const));
+  const references = new Map(serviceNames.map(service => [service, referenceMetrics([...keywords, ...probeRows], service, project.city)] as const));
   for (const group of groups) {
+    // A page for one place is a city page, whatever kind of keyword reached it first.
+    if (group.page.path && isPlacePage(group.page.path)) {
+      group.kind = "city";
+      group.city = group.city ?? group.members.find(member => member.city)?.city ?? null;
+    }
     const cells = group.members.filter(member => grid.has(member.row.keyword));
     if (!cells.length) continue;
-    const target = cells.find(member => grid.get(member.row.keyword)!.primary && member.service === group.service)
-      ?? cells.find(member => grid.get(member.row.keyword)!.primary) ?? cells[0];
+    // The target is the most specific primary phrase on the page: "glass shower door installer", not "door installer".
+    const specificity = (member: PlannedKeyword) => Number(grid.get(member.row.keyword)!.primary) * 100 + meaningStems(member.row.keyword).size;
+    const target = [...cells].sort((a, b) => specificity(b) - specificity(a))[0];
     group.target = target.row.keyword;
     group.service = target.service;
     group.city = grid.get(target.row.keyword)!.city;
