@@ -251,7 +251,10 @@ export async function runPlan(project: KeywordResearchProject): Promise<{ keywor
     group.target = target.row.keyword;
     group.service = target.service;
     group.city = grid.get(target.row.keyword)!.city;
-    group.reference = references.get(target.service) ?? null;
+    // The best metro reference among the services the page serves: a service searched with the metro city beats a median.
+    group.reference = [...new Set(group.members.map(member => member.service))].map(service => references.get(service) ?? null)
+      .filter((ref): ref is ReferenceMetrics => !!ref)
+      .sort((a, b) => Number(a.keyword.startsWith("median of")) - Number(b.keyword.startsWith("median of")) || (b.searchVolume ?? -1) - (a.searchVolume ?? -1))[0] ?? null;
   }
 
   // Claude's split/merge pass over pages that do not exist yet; existing pages keep their keywords.
