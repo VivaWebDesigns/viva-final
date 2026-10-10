@@ -31,6 +31,13 @@ const websiteSchema = z.object({
   services: z.array(z.object({ name: z.string(), url: z.string() })),
 });
 
+const metroSchema = z.object({
+  metro: z.string().nullable(),
+});
+
+const METRO_INSTRUCTIONS = `You match a US city to the Google Ads metro area (Nielsen DMA region) it belongs to.
+Answer with one name copied exactly from the list provided, or null when you are not sure. A metro area often crosses state lines (Fort Mill, SC is in "Charlotte, NC").`;
+
 export class ServiceSuggestionError extends Error {}
 
 async function askClaude<T>(system: string, content: string, schema: z.ZodType<T>, maxTokens: number): Promise<T> {
@@ -83,4 +90,10 @@ export async function servicesFromWebsite(trade: string, pages: WebsitePage[]) {
   const result = await askClaude(WEBSITE_INSTRUCTIONS, `Trade: ${trade}\n\n${pageText}`, websiteSchema, 6000);
   const pageUrls = new Set(pages.map(page => page.url));
   return result.services.map(service => ({ name: service.name, url: pageUrls.has(service.url) ? service.url : null }));
+}
+
+/** The metro area (DMA) a city belongs to, copied from `metros`, or null when Claude is not sure. */
+export async function chooseMetro(city: string, state: string, metros: string[]) {
+  const result = await askClaude(METRO_INSTRUCTIONS, `City: ${city}, ${state}\n\nMetro areas:\n${metros.join("\n")}`, metroSchema, 300);
+  return result.metro;
 }

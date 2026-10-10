@@ -1,4 +1,4 @@
-import type { KeywordResearchKeyword, KeywordResearchSummary } from "@shared/keywordResearch";
+import type { KeywordIntent, KeywordPageType, KeywordResearchKeyword, KeywordResearchSummary } from "@shared/keywordResearch";
 import type { KeywordMetrics } from "./dataforseo";
 import { foldNearMe, mergeCloseVariants, totalDemand } from "./quality";
 
@@ -13,8 +13,17 @@ const STATES: Record<string, string> = {
   VT: "Vermont", VA: "Virginia", WA: "Washington", WV: "West Virginia", WI: "Wisconsin", WY: "Wyoming",
 };
 
-// Searches from job seekers, DIYers and shoppers, which a service business site should not target.
-const JUNK_PATTERN = /\b(jobs?|salary|salaries|careers?|hiring|apprentice(ship)?s?|schools?|courses?|classes|training|certifications?|licen[cs]e|licensing|union|diy|how to|youtube|reddit|home depot|lowes|lowe's|amazon|walmart|wholesale|supply store|tools?|parts store|meaning|definition|games?|lyrics)\b/;
+// Searches from job seekers, platforms and big-box stores, which a service business site should not target.
+// DIY and "how to" questions are kept: they are the blog topics a contractor site wins with.
+const JUNK_PATTERN = /\b(jobs?|salary|salaries|careers?|hiring|apprentice(ship)?s?|schools?|courses?|classes|training|certifications?|licen[cs]e|licensing|union|youtube|reddit|home depot|lowes|lowe's|amazon|walmart|menards|ikea|supply store|tools?|parts store|games?|lyrics)\b/;
+
+const COST_PATTERN = /\b(cost|costs|price|prices|pricing|estimate|estimates|quote|quotes|how much)\b/;
+const QUESTION_PATTERN = /^(how|what|why|when|where|which|who|can|does|do|is|are|should|will)\b|\b(vs|versus|ideas|types|signs|symptoms|diagram|definition|meaning|pros and cons|lifespan|guide|tips|problems|images|pictures|photos|examples|styles)\b/;
+const DIY_PATTERN = /\b(diy|yourself|do it yourself)\b|^how to (fix|repair|install|replace|clean|unclog|remove|change|adjust|reset|seal|measure|build|wire|paint|insulate)\b/;
+const SHOPPING_PATTERN = /\b(buy|for sale|kits?|parts|wholesale|online)\b/;
+// A symptom with no hiring word ("water leaking from ceiling") is a problem post; "leaking shower door repair" is a service.
+const PROBLEM_PATTERN = /\b(leaking|leaks|dripping|not working|stopped working|won't|wont|keeps|broken|cracked|foggy|noisy|making noise|smells?|stuck)\b/;
+const HIRING_PATTERN = /\b(repair|repairs|replacement|replace|installation|install|installer|contractors?|company|companies|services?|near|pros?|experts?|specialists?|fix)\b/;
 
 // Words that describe how someone searches rather than what they need.
 const NOISE_WORDS = new Set([
@@ -58,6 +67,33 @@ export function serviceDemand(service: string, city: string, volumes: Map<string
   // Phrasings Google grouped into one search come back with the same numbers; count that search once.
   const distinct = new Map(found.map(row => [`${row.searchVolume}|${row.cpc}`, row.searchVolume!]));
   return distinct.size ? [...distinct.values()].reduce((sum, volume) => sum + volume, 0) : null;
+}
+
+/**
+ * The page a keyword belongs on and who is searching. Cost wins over question ("how much does it cost" is a
+ * cost page); a keyword naming the client's city or state belongs on a city page.
+ */
+export function classifyKeyword(keyword: string, place: { city: string; state: string }): { pageType: KeywordPageType; intent: KeywordIntent } {
+  const text = cleanKeyword(keyword);
+  const intent: KeywordIntent = DIY_PATTERN.test(text) ? "diy" : SHOPPING_PATTERN.test(text) ? "shopping" : "service";
+  if (COST_PATTERN.test(text)) return { pageType: "cost", intent };
+  if (QUESTION_PATTERN.test(text) || intent === "diy" || (PROBLEM_PATTERN.test(text) && !HIRING_PATTERN.test(text))) return { pageType: "blog", intent };
+  const words = ` ${text} `;
+  const city = cleanKeyword(place.city);
+  const names = [city, cleanKeyword(place.state), cleanKeyword(stateName(place.state))].filter(Boolean);
+  return { pageType: names.some(name => words.includes(` ${name} `)) ? "city" : "service", intent };
+}
+
+/**
+ * Wording alone misses bare topics ("air exchanger", "shower plumbing"). When Google labels one informational and
+ * it names no hiring word or place, it is a blog topic. Checked against 737 Hook client rankings: blog calls go
+ * from 51% to 68% found while staying 90% right. A keyword that names one of the client's services is never moved:
+ * Google calls "frameless shower doors" informational, but it is a money page.
+ */
+export function applySearchIntent(rows: KeywordResearchKeyword[], intent: Map<string, string>) {
+  for (const row of rows) {
+    if (row.pageType === "service" && row.service == null && intent.get(row.keyword) === "informational" && !HIRING_PATTERN.test(row.keyword)) row.pageType = "blog";
+  }
 }
 
 interface ServiceMatcher {
@@ -123,12 +159,23 @@ export function buildKeywordList(
       continue;
     }
     if (unknown) summary.unknownVolume! += 1;
-    keywords.push({ ...row, service: best?.name ?? null });
+    keywords.push({ ...row, service: best?.name ?? null, ...classifyKeyword(row.keyword, input) });
   }
 
   keywords.sort((a, b) => (totalDemand(b) ?? 0) - (totalDemand(a) ?? 0) || a.keyword.localeCompare(b.keyword));
   summary.keptKeywords = keywords.length;
   return { keywords, summary };
+}
+
+/**
+ * Default search area for a new project: the city's metro area, because city-level volumes come back empty for
+ * most towns; the state when no metro was found; the city only if Google has neither.
+ */
+export function pickSearchArea(areas: Array<{ name: string; type: string }>, place: { city: string; state: string }, metro: string | null) {
+  if (metro && areas.some(area => area.type === "DMA Region" && area.name === metro)) return metro;
+  const state = `${stateName(place.state)},United States`;
+  if (areas.some(area => area.type === "State" && area.name === state)) return state;
+  return locationNameFor(place.city, place.state);
 }
 
 const AREA_ORDER: Record<string, number> = { "DMA Region": 0, County: 1, City: 2, State: 3 };

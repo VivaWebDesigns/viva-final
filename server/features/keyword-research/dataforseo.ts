@@ -1,8 +1,11 @@
 const API = "https://api.dataforseo.com/v3/keywords_data/google_ads";
+const LABS_API = "https://api.dataforseo.com/v3/dataforseo_labs/google";
 const TIMEOUT_MS = 120_000;
 // Google Ads limits: 1,000 keywords per search-volume task and 20 seeds per keyword-ideas task.
 const VOLUME_BATCH = 1000;
 const IDEAS_SEED_BATCH = 20;
+// DataForSEO Labs takes up to 1,000 keywords per difficulty or search intent task.
+const DIFFICULTY_BATCH = 1000;
 
 export interface KeywordMetrics {
   keyword: string;
@@ -33,15 +36,15 @@ function authHeader() {
   return `Basic ${Buffer.from(`${login}:${password}`).toString("base64")}`;
 }
 
-async function postTask(endpoint: string, task: Record<string, unknown>) {
-  const response = await fetch(`${API}/${endpoint}/live`, {
+async function postTask<Row = GoogleAdsKeywordRow>(endpoint: string, task: Record<string, unknown>, base = API) {
+  const response = await fetch(`${base}/${endpoint}/live`, {
     method: "POST",
     headers: { Authorization: authHeader(), "Content-Type": "application/json" },
     body: JSON.stringify([task]),
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
   if (!response.ok) throw new KeywordDataError(`DataForSEO returned HTTP ${response.status}.`);
-  const body = await response.json() as { status_message?: string; tasks?: Array<{ status_code: number; status_message: string; cost?: number; result?: GoogleAdsKeywordRow[] | null }> };
+  const body = await response.json() as { status_message?: string; tasks?: Array<{ status_code: number; status_message: string; cost?: number; result?: Row[] | null }> };
   const result = body.tasks?.[0];
   if (!result || result.status_code !== 20000) throw new KeywordDataError(`DataForSEO: ${result?.status_message ?? body.status_message ?? "unknown error"}`);
   return { rows: result.result ?? [], cost: result.cost ?? 0 };
@@ -87,6 +90,40 @@ export async function fetchKeywordIdeas(seeds: string[], locationName: string) {
     metrics.push(...result.rows.map(toMetrics));
   }
   return { metrics, cost };
+}
+
+/**
+ * DataForSEO's 0–100 organic ranking difficulty, scored from the backlinks of the US top 10.
+ * Keywords it has no score for are missing from the map.
+ */
+export async function fetchKeywordDifficulty(keywords: string[]) {
+  let cost = 0;
+  const difficulty = new Map<string, number>();
+  for (const batch of chunk(keywords, DIFFICULTY_BATCH)) {
+    const result = await postTask<{ items?: Array<{ keyword: string; keyword_difficulty: number | null }> | null }>(
+      "bulk_keyword_difficulty", { keywords: batch, location_code: 2840, language_code: "en" }, LABS_API,
+    );
+    cost += result.cost;
+    const rows = result.rows[0]?.items ?? [];
+    for (const row of rows) if (row.keyword_difficulty != null) difficulty.set(row.keyword, row.keyword_difficulty);
+  }
+  return { difficulty, cost };
+}
+
+export type SearchIntentLabel = "informational" | "navigational" | "commercial" | "transactional";
+
+/** Google's main search intent for each keyword, from DataForSEO Labs. Keywords without a label are missing from the map. */
+export async function fetchSearchIntent(keywords: string[]) {
+  let cost = 0;
+  const intent = new Map<string, SearchIntentLabel>();
+  for (const batch of chunk(keywords, DIFFICULTY_BATCH)) {
+    const result = await postTask<{ items?: Array<{ keyword: string; keyword_intent?: { label: SearchIntentLabel } | null }> | null }>(
+      "search_intent", { keywords: batch, language_code: "en" }, LABS_API,
+    );
+    cost += result.cost;
+    for (const row of result.rows[0]?.items ?? []) if (row.keyword_intent?.label) intent.set(row.keyword, row.keyword_intent.label);
+  }
+  return { intent, cost };
 }
 
 export type SearchAreaType = "City" | "County" | "DMA Region" | "State";

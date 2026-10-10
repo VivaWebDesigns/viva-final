@@ -11,6 +11,11 @@ export interface KeywordResearchService {
   selected: boolean;
 }
 
+/** The page a keyword belongs on: a service page, a city page, a cost or quote page, or a blog post. */
+export type KeywordPageType = "service" | "city" | "cost" | "blog";
+/** Who is searching: someone hiring a pro, someone doing it themselves, or someone buying a product. */
+export type KeywordIntent = "service" | "diy" | "shopping";
+
 export interface KeywordResearchKeyword {
   keyword: string;
   /** Selected service the keyword belongs to, or null when it is related but did not match one service. */
@@ -25,6 +30,10 @@ export interface KeywordResearchKeyword {
   nearMeVolume?: number | null;
   /** Phrasings Google reports as the same search, merged into this keyword so demand is counted once. */
   variants?: string[];
+  /** DataForSEO's 0–100 organic ranking difficulty (US). Null when it has no score; missing on lists built before it was added. */
+  difficulty?: number | null;
+  pageType?: KeywordPageType;
+  intent?: KeywordIntent;
 }
 
 export interface KeywordResearchSummary {
@@ -38,4 +47,18 @@ export interface KeywordResearchSummary {
   foldedNearMe?: number;
   /** Service phrases kept with unknown volume because Google returned none for them. */
   unknownVolume?: number;
+  /** False when the difficulty scores could not be pulled; the list is still usable without them. */
+  difficultyAvailable?: boolean;
+}
+
+/** Searches including "near me", which Google answers by location and are counted with the plain phrase. */
+export function keywordDemand(row: Pick<KeywordResearchKeyword, "searchVolume" | "nearMeVolume">) {
+  if (row.searchVolume == null && row.nearMeVolume == null) return null;
+  return (row.searchVolume ?? 0) + (row.nearMeVolume ?? 0);
+}
+
+/** Monthly search value: searches × CPC. Null when either is unknown. */
+export function keywordScore(row: Pick<KeywordResearchKeyword, "searchVolume" | "nearMeVolume" | "cpc">) {
+  const demand = keywordDemand(row);
+  return demand == null || row.cpc == null ? null : Math.round(demand * row.cpc);
 }

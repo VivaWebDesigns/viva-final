@@ -110,7 +110,4 @@ export function foldNearMe(rows: QualityKeyword[]): { rows: QualityKeyword[]; fo
 }
 
 /** Monthly searches for the keyword including its "near me" searches; null when neither is known. */
-export function totalDemand(row: { searchVolume: number | null; nearMeVolume?: number | null }) {
-  if (row.searchVolume == null && row.nearMeVolume == null) return null;
-  return (row.searchVolume ?? 0) + (row.nearMeVolume ?? 0);
-}
+export { keywordDemand as totalDemand } from "@shared/keywordResearch";

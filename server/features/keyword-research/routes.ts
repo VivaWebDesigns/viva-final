@@ -2,11 +2,11 @@ import { Router } from "express";
 import { z } from "zod";
 import type { KeywordResearchService } from "@shared/keywordResearch";
 import { requireRole } from "../auth/middleware";
-import { fetchKeywordIdeas, fetchSearchVolume, KeywordDataError, searchAreas, type KeywordMetrics } from "./dataforseo";
-import { buildKeywordList, cleanKeyword, locationNameFor, matchSearchAreas, serviceDemand, serviceVariants } from "./keywords";
+import { fetchKeywordDifficulty, fetchKeywordIdeas, fetchSearchIntent, fetchSearchVolume, KeywordDataError, searchAreas, type KeywordMetrics } from "./dataforseo";
+import { applySearchIntent, buildKeywordList, cleanKeyword, matchSearchAreas, pickSearchArea, serviceDemand, serviceVariants } from "./keywords";
 import { createProject, deleteProject, getProject, listProjects, updateProject } from "./repository";
 import { readWebsite, WebsiteReadError } from "./readWebsite";
-import { ServiceSuggestionError, servicesFromWebsite, suggestServices } from "./suggestServices";
+import { chooseMetro, ServiceSuggestionError, servicesFromWebsite, suggestServices } from "./suggestServices";
 import { assertSafePublicUrl, UnsafeUrlError } from "../technical-seo/url-safety";
 
 const router = Router();
@@ -32,6 +32,14 @@ async function resolveSearchArea(locationName: string) {
   const match = (await searchAreas()).find(area => area.name.toLowerCase() === wanted);
   if (!match) throw new KeywordDataError(`Google Ads has no location called "${locationName.replace(/,United States$/, "")}". Check the city and state spelling, or pick the area from the Search area list.`);
   return match.name;
+}
+
+/** The city's metro area, falling back to the state when Claude cannot place it. */
+async function defaultSearchArea(city: string, state: string) {
+  const areas = await searchAreas();
+  const metros = areas.filter(area => area.type === "DMA Region").map(area => area.name);
+  const metro = await chooseMetro(city, state, metros).catch(() => null);
+  return pickSearchArea(areas, { city, state }, metro);
 }
 
 router.get("/locations", async (req, res) => {
@@ -82,7 +90,7 @@ router.post("/projects", async (req, res) => {
       services: z.array(serviceName).max(40).optional().default([]),
       locationName: z.string().trim().max(200).optional().default(""),
     }).parse(req.body);
-    const locationName = await resolveSearchArea(input.locationName || locationNameFor(input.city, input.state));
+    const locationName = await resolveSearchArea(input.locationName || await defaultSearchArea(input.city, input.state));
     const clientServices = [...new Set(input.services.map(cleanKeyword).filter(Boolean))];
     const fromWebsite = await websiteServices(input.website, input.trade);
     const pageUrls = new Map(fromWebsite.services.map(service => [service.name, service.url]));
@@ -184,7 +192,23 @@ router.post("/projects/:id/research", async (req, res) => {
       state: project.state,
       exactPhrases: exactList,
     });
-    const updated = await updateProject(project.id, { services, keywords, summary, status: "researched", researchedAt: new Date() }, exact.cost + ideas.cost);
+    // Difficulty and intent refine the list but are not needed for it, so a failed pull never blocks the research.
+    const phrases = keywords.map(row => row.keyword);
+    const [scores, intents] = await Promise.allSettled([fetchKeywordDifficulty(phrases), fetchSearchIntent(phrases)]);
+    for (const outcome of [scores, intents]) {
+      if (outcome.status === "rejected" && !(outcome.reason instanceof KeywordDataError)) throw outcome.reason;
+    }
+    let labsCost = 0;
+    if (scores.status === "fulfilled") {
+      labsCost += scores.value.cost;
+      for (const row of keywords) row.difficulty = scores.value.difficulty.get(row.keyword) ?? null;
+    }
+    if (intents.status === "fulfilled") {
+      labsCost += intents.value.cost;
+      applySearchIntent(keywords, intents.value.intent);
+    }
+    summary.difficultyAvailable = scores.status === "fulfilled";
+    const updated = await updateProject(project.id, { services, keywords, summary, status: "researched", researchedAt: new Date() }, exact.cost + ideas.cost + labsCost);
     return res.json(updated);
   } catch (error) {
     return sendError(res, error, "Unable to run the keyword research");

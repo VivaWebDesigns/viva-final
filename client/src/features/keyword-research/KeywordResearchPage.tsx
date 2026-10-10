@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { ArrowLeft, Download, Loader2, Plus, Search, Sparkles, Trash2 } from "lucide-react";
 import type { KeywordResearchProject } from "@shared/schema";
-import type { KeywordResearchKeyword } from "@shared/keywordResearch";
+import { keywordDemand, keywordScore, type KeywordPageType } from "@shared/keywordResearch";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +32,10 @@ const LIST_KEY = ["/api/keyword-research/projects"];
 const UNSORTED = "__unsorted";
 const ALL = "__all";
 const TABLE_LIMIT = 300;
+// The checklist's ceiling for a new site: keywords at 15+ need links and authority it does not have yet.
+const EASY_DIFFICULTY = 15;
+const PAGE_TYPE_LABELS: Record<KeywordPageType, string> = { service: "Service page", city: "City page", cost: "Cost page", blog: "Blog post" };
+const INTENT_LABELS = { diy: "DIY", shopping: "Shopping" } as const;
 
 /** apiRequest errors look like `502: {"message":"..."}`; show just the message. */
 function errorMessage(error: unknown) {
@@ -47,20 +51,14 @@ function formatNumber(value: number | null) {
   return value == null ? "—" : value.toLocaleString();
 }
 
-/** Searches including "near me", which Google answers by location and are counted with the plain phrase. */
-function demandOf(row: KeywordResearchKeyword) {
-  if (row.searchVolume == null && row.nearMeVolume == null) return null;
-  return (row.searchVolume ?? 0) + (row.nearMeVolume ?? 0);
-}
-
 function csvCell(value: string | number | null) {
   const text = value == null ? "" : String(value);
   return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
 function downloadCsv(project: KeywordResearchProject) {
-  const header = ["Service", "Keyword", "Avg. monthly searches", "Near me searches", "CPC", "Competition", "Competition index", "Top of page bid (low)", "Top of page bid (high)", "Same search as"];
-  const rows = project.keywords.map(row => [row.service ?? "Unsorted", row.keyword, row.searchVolume, row.nearMeVolume ?? null, row.cpc, row.competition, row.competitionIndex, row.lowTopOfPageBid, row.highTopOfPageBid, (row.variants ?? []).join("; ")]);
+  const header = ["Service", "Keyword", "Page type", "Intent", "Avg. monthly searches", "Near me searches", "CPC", "Difficulty", "Score (searches x CPC)", "Competition", "Competition index", "Top of page bid (low)", "Top of page bid (high)", "Same search as"];
+  const rows = project.keywords.map(row => [row.service ?? "Unsorted", row.keyword, row.pageType ? PAGE_TYPE_LABELS[row.pageType] : null, row.intent ?? null, row.searchVolume, row.nearMeVolume ?? null, row.cpc, row.difficulty ?? null, keywordScore(row), row.competition, row.competitionIndex, row.lowTopOfPageBid, row.highTopOfPageBid, (row.variants ?? []).join("; ")]);
   const csv = [header, ...rows].map(row => row.map(csvCell).join(",")).join("\n");
   const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
   const link = document.createElement("a");
@@ -120,7 +118,7 @@ function IntakeView() {
             </div>
             <div className="space-y-1.5">
               <Label>Search area (optional)</Label>
-              <SearchAreaPicker value={form.locationName} placeholder="Same as the city" onSelect={locationName => setForm(previous => ({ ...previous, locationName }))} />
+              <SearchAreaPicker value={form.locationName} placeholder="The city's metro area" onSelect={locationName => setForm(previous => ({ ...previous, locationName }))} />
               <p className="text-xs text-gray-500">For a small town, pick the county or metro area the client serves so the volumes are meaningful.</p>
             </div>
             <div className="space-y-1.5">
@@ -175,6 +173,8 @@ function ProjectView({ id }: { id: string }) {
   const [selection, setSelection] = useState<Set<string> | null>(null);
   const [newService, setNewService] = useState("");
   const [filter, setFilter] = useState(ALL);
+  const [pageTypeFilter, setPageTypeFilter] = useState(ALL);
+  const [easyOnly, setEasyOnly] = useState(false);
 
   const selected = selection ?? new Set(project?.services.filter(service => service.selected).map(service => service.name) ?? []);
   const services = useMemo(() => [...(project?.services ?? [])].sort((a, b) => (b.demand ?? -1) - (a.demand ?? -1)), [project]);
@@ -236,12 +236,17 @@ function ProjectView({ id }: { id: string }) {
       const key = row.service ?? UNSORTED;
       const total = totals.get(key) ?? { count: 0, volume: 0 };
       total.count += 1;
-      total.volume += demandOf(row) ?? 0;
+      total.volume += keywordDemand(row) ?? 0;
       totals.set(key, total);
     }
     return [...totals].sort((a, b) => b[1].volume - a[1].volume);
   }, [keywords]);
-  const visible = filter === ALL ? keywords : keywords.filter(row => (row.service ?? UNSORTED) === filter);
+  // Highest search value first; keywords without a CPC follow, by searches.
+  const visible = keywords
+    .filter(row => filter === ALL || (row.service ?? UNSORTED) === filter)
+    .filter(row => pageTypeFilter === ALL || row.pageType === pageTypeFilter)
+    .filter(row => !easyOnly || (row.difficulty != null && row.difficulty < EASY_DIFFICULTY))
+    .sort((a, b) => (keywordScore(b) ?? -1) - (keywordScore(a) ?? -1) || (keywordDemand(b) ?? 0) - (keywordDemand(a) ?? 0));
 
   if (isLoading) return <div className="flex justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-gray-400" /></div>;
   if (error || !project) return <p className="text-sm text-red-600">{error ? errorMessage(error) : "Project not found"}</p>;
@@ -332,27 +337,44 @@ function ProjectView({ id }: { id: string }) {
               · {project.summary.droppedAsJunk.toLocaleString()} dropped as unrelated or junk · {project.summary.droppedNoVolume.toLocaleString()} with no search volume.
               {project.summary.mergedVariants != null && <> {project.summary.mergedVariants.toLocaleString()} close variants merged · {project.summary.foldedNearMe!.toLocaleString()} "near me" searches folded into their plain phrase.</>}
               Unsorted keywords are related to the trade but did not match one service.
+              {project.summary.difficultyAvailable === false && " Difficulty scores could not be pulled for this list."}
+              {project.summary.difficultyAvailable && " Difficulty is DataForSEO's 0–100 US ranking score; score is searches × CPC."}
             </p>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Select value={filter} onValueChange={setFilter}>
-              <SelectTrigger className="w-full sm:w-80" data-testid="select-kr-service-filter"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL}>All services ({keywords.length.toLocaleString()})</SelectItem>
-                {serviceTotals.map(([key, total]) => (
-                  <SelectItem key={key} value={key}>{key === UNSORTED ? "Unsorted" : key} ({total.count.toLocaleString()} · {total.volume.toLocaleString()}/mo)</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+              <Select value={filter} onValueChange={setFilter}>
+                <SelectTrigger className="w-full sm:w-80" data-testid="select-kr-service-filter"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL}>All services ({keywords.length.toLocaleString()})</SelectItem>
+                  {serviceTotals.map(([key, total]) => (
+                    <SelectItem key={key} value={key}>{key === UNSORTED ? "Unsorted" : key} ({total.count.toLocaleString()} · {total.volume.toLocaleString()}/mo)</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={pageTypeFilter} onValueChange={setPageTypeFilter}>
+                <SelectTrigger className="w-full sm:w-48" data-testid="select-kr-page-type-filter"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL}>All page types</SelectItem>
+                  {(Object.keys(PAGE_TYPE_LABELS) as KeywordPageType[]).map(type => <SelectItem key={type} value={type}>{PAGE_TYPE_LABELS[type]}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <Checkbox checked={easyOnly} onCheckedChange={checked => setEasyOnly(checked === true)} data-testid="checkbox-kr-easy-only" />
+                Difficulty under {EASY_DIFFICULTY}
+              </label>
+            </div>
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Keyword</TableHead>
                     <TableHead>Service</TableHead>
+                    <TableHead>Page type</TableHead>
                     <TableHead className="text-right">Searches/mo</TableHead>
                     <TableHead className="text-right">CPC</TableHead>
-                    <TableHead>Competition</TableHead>
+                    <TableHead className="text-right">Difficulty</TableHead>
+                    <TableHead className="text-right">Score</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -363,12 +385,17 @@ function ProjectView({ id }: { id: string }) {
                         {!!row.variants?.length && <span className="block text-xs font-normal text-gray-500">Same search as: {row.variants.join(", ")}</span>}
                       </TableCell>
                       <TableCell className="text-gray-600">{row.service ?? "Unsorted"}</TableCell>
+                      <TableCell className="text-gray-600">
+                        {row.pageType ? PAGE_TYPE_LABELS[row.pageType] : "—"}
+                        {row.intent && row.intent !== "service" && <span className="block text-xs text-gray-500">{INTENT_LABELS[row.intent]}</span>}
+                      </TableCell>
                       <TableCell className="text-right tabular-nums">
-                        {demandOf(row) == null ? "Unknown" : formatNumber(demandOf(row))}
+                        {keywordDemand(row) == null ? "Unknown" : formatNumber(keywordDemand(row))}
                         {!!row.nearMeVolume && <span className="block text-xs text-gray-500">incl. {row.nearMeVolume.toLocaleString()} near me</span>}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">{row.cpc == null ? "—" : `$${row.cpc.toFixed(2)}`}</TableCell>
-                      <TableCell className="text-gray-600">{row.competition ?? "—"}</TableCell>
+                      <TableCell className="text-right tabular-nums">{formatNumber(row.difficulty ?? null)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{keywordScore(row) == null ? "—" : `$${keywordScore(row)!.toLocaleString()}`}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
