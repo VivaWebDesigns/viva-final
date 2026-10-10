@@ -35,9 +35,19 @@ export async function searchLocations(cities: Array<{ city: string; state: strin
   return [...new Set(names.filter((name): name is string => !!name))];
 }
 
-/** The client's city plus the 2 largest other cities in its metro area, unless the cities were given. */
+/** "Charlotte, NC" → { city, state }; null when it is not in that form. */
+export function parseCity(value: string) {
+  const comma = value.lastIndexOf(",");
+  const city = value.slice(0, comma).trim();
+  const state = value.slice(comma + 1).trim();
+  return comma > 0 && city && state.length >= 2 ? { city, state } : null;
+}
+
+/** The client's city plus the 2 largest other served cities, or the 2 largest in its metro when none are listed. */
 async function defaultCities(project: KeywordResearchProject) {
   const own = { city: project.city, state: project.state };
+  const served = project.serviceCities.map(parseCity).filter((place): place is { city: string; state: string } => !!place && place.city.toLowerCase() !== project.city.toLowerCase());
+  if (served.length) return [own, ...served.slice(0, 2)];
   const others = await chooseSearchCities(project.city, project.state, project.locationName.replace(/,United States$/, "")).catch(() => []);
   return [own, ...others.filter(other => other.city.toLowerCase() !== project.city.toLowerCase()).slice(0, 2)];
 }

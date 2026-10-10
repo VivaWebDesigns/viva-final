@@ -23,31 +23,32 @@ const foggy = serp([
 const traffic = new Map([["binswangerglass.com", 423_407], ["argowindowrepair.com", 11_896], ["thespruce.com", 9_000_000], ["glassanddoorpro.com", 38], ["theshowerglass.com", 219]]);
 
 describe("page 1", () => {
-  it("reads a forum-heavy page 1 as open, with an AI Overview, made of articles", () => {
-    expect(assessPageOne(foggy, traffic, "kkcglass.com")).toEqual({
-      strength: "open", weakSites: 5, mapPack: false, aiOverview: true, articles: 8, clientPosition: null,
+  it("counts what a forum-heavy page 1 holds without calling it a verdict", () => {
+    expect(assessPageOne(foggy, traffic, "kkcglass.com", "Matthews")).toEqual({
+      city: "Matthews", requestedLocation: "Matthews,North Carolina,United States", returnedLocationCode: null,
+      smallSites: 0, forums: 5, unknownSites: 0, mapPack: false, aiOverview: true, articles: 8, clientPosition: null, clientUrl: null,
     });
   });
 
   it("moves a service keyword to the blog when page 1 is mostly articles, and leaves city keywords alone", () => {
-    const check = assessPageOne(foggy, traffic, null);
+    const check = assessPageOne(foggy, traffic, null, "Matthews");
     expect(pageTypeFromPageOne({ pageType: "service" } as KeywordResearchKeyword, check)).toBe("blog");
     expect(pageTypeFromPageOne({ pageType: "city" } as KeywordResearchKeyword, check)).toBe("city");
   });
 
-  it("calls page 1 contested when every site is strong, and finds the client", () => {
+  it("finds the client and its page, and leaves directories out of the counts", () => {
     const strong = serp([
       ["yelp.com", "https://www.yelp.com/search?find_desc=glass"],
       ["argowindowrepair.com", "https://argowindowrepair.com/north-carolina/window-repair-charlotte"],
       ["kkcglass.com", "https://kkcglass.com/"],
       ["binswangerglass.com", "https://www.binswangerglass.com/locations/charlotte"],
     ], { localPack: [{ title: "Glass & Door Pro", domain: "glassanddoorpro.com", rating: 5, reviews: 86 }] });
-    expect(assessPageOne(strong, traffic, "kkcglass.com")).toMatchObject({ strength: "contested", weakSites: 0, mapPack: true, clientPosition: 3 });
+    expect(assessPageOne(strong, traffic, "kkcglass.com", "Matthews")).toMatchObject({ smallSites: 0, unknownSites: 0, mapPack: true, clientPosition: 3, clientUrl: "https://kkcglass.com/" });
   });
 
-  it("counts small local sites as weak", () => {
-    const small = serp([["glassanddoorpro.com", "https://glassanddoorpro.com/"], ["theshowerglass.com", "https://theshowerglass.com/"], ["argowindowrepair.com", "https://argowindowrepair.com/"]]);
-    expect(assessPageOne(small, traffic, null).strength).toBe("beatable");
+  it("counts small sites and unknown sites separately, so unknown never reads as weak", () => {
+    const mixed = serp([["glassanddoorpro.com", "https://glassanddoorpro.com/"], ["theshowerglass.com", "https://theshowerglass.com/"], ["newglassco.com", "https://newglassco.com/"], ["argowindowrepair.com", "https://argowindowrepair.com/"]]);
+    expect(assessPageOne(mixed, traffic, null, "Matthews")).toMatchObject({ smallSites: 2, unknownSites: 1, forums: 0 });
   });
 
   it("recognises articles by path, publisher, forum or question title", () => {

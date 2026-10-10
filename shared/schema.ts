@@ -1465,6 +1465,10 @@ export const keywordResearchProjects = pgTable("keyword_research_projects", {
   state: text("state").notNull(),
   locationName: text("location_name").notNull(),
   website: text("website"),
+  /** The published domain, when `website` is a staging site. Rankings are read from here. */
+  liveDomain: text("live_domain"),
+  /** Cities the client serves, as "City, ST". Drives the service × city assessment and the page-1 check cities. */
+  serviceCities: jsonb("service_cities").notNull().default(sql`'[]'::jsonb`).$type<string[]>(),
   /** What happened when the client's website was read, shown on the checklist. */
   websiteNote: text("website_note"),
   status: text("status").notNull().default("choosing_services").$type<import("./keywordResearch").KeywordResearchStatus>(),

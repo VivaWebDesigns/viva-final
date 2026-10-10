@@ -2,9 +2,9 @@ import { desc, eq, sql } from "drizzle-orm";
 import { db } from "../../db";
 import { keywordResearchProjects, type KeywordResearchProject } from "@shared/schema";
 
-type ProjectChanges = Partial<Pick<KeywordResearchProject, "locationName" | "status" | "services" | "keywords" | "summary" | "researchedAt" | "competitors">>;
+type ProjectChanges = Partial<Pick<KeywordResearchProject, "locationName" | "status" | "services" | "keywords" | "summary" | "researchedAt" | "competitors" | "liveDomain" | "serviceCities">>;
 
-export async function createProject(values: Pick<KeywordResearchProject, "name" | "trade" | "city" | "state" | "locationName" | "website" | "websiteNote" | "services" | "createdBy">, cost: number) {
+export async function createProject(values: Pick<KeywordResearchProject, "name" | "trade" | "city" | "state" | "locationName" | "website" | "liveDomain" | "serviceCities" | "websiteNote" | "services" | "createdBy">, cost: number) {
   const [project] = await db.insert(keywordResearchProjects).values({ ...values, dataCostUsd: cost.toFixed(4) }).returning();
   return project;
 }

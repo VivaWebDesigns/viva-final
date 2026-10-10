@@ -129,7 +129,7 @@ export default function CompetitorsCard({ project, onUpdate }: { project: Keywor
   return (
     <Card>
       <CardHeader className="space-y-1">
-        <CardTitle className="text-base">3. Competitors</CardTitle>
+        <CardTitle className="text-base">4. Competitors</CardTitle>
         <p className="text-sm text-gray-600">
           Searches the top money keywords from the client's city and the 2 largest cities in its metro area, plus the top services in 12 large metros and the top blog topics nationally.
           Claude labels each site, and only contractors are picked as models. Takes about 2 minutes and about $0.60–$0.80 in search data.

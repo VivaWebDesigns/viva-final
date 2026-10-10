@@ -4,10 +4,9 @@ import type { SerpResult } from "./dataforseo";
 import { BLOG_PATH } from "./playbook";
 import { meaningStems } from "./quality";
 
-/** Under this many organic visits a month, a site on page 1 is weak: a newer site with good pages can pass it. */
-export const WEAK_TRAFFIC = 1_000;
-const OPEN_AT = 3;
-// A forum thread on page 1 means nobody has written a good answer yet, however big the forum is.
+/** Under this many estimated organic visits a month a site counts as small. A size, not a verdict on beating it. */
+export const SMALL_TRAFFIC = 1_000;
+// Forum threads are counted separately: often a sign nobody has written a good answer, but only a sign.
 const FORUMS = ["reddit.com", "quora.com", "facebook.com", "diychatroom.com", "contractortalk.com", "hvac-talk.com", "terrylove.com",
   "doityourself.com", "justanswer.com", "stackexchange.com", "nextdoor.com", "houzz.com"];
 const PUBLISHERS = ["thespruce.com", "bobvila.com", "thisoldhouse.com", "familyhandyman.com", "hgtv.com", "forbes.com", "wikihow.com",
@@ -26,19 +25,26 @@ export function isArticle(result: { domain: string; url?: string; title: string 
   return isForum(result.domain) || onDomain(result.domain, PUBLISHERS) || BLOG_PATH.test(result.url ?? "") || QUESTION_TITLE.test(result.title ?? "");
 }
 
-/** Who holds page 1 from the client's city, and how hard they are to pass. */
-export function assessPageOne(serp: SerpResult, traffic: Map<string, number>, clientDomain: string | null): PageOneCheck {
+/** Who holds page 1 from one city: counts of small sites, forum threads and unknowns, the client's position, and what Google showed. */
+export function assessPageOne(serp: SerpResult, traffic: Map<string, number>, clientDomain: string | null, city: string): PageOneCheck {
   const top = serp.organic.filter(row => row.position <= 10);
   const others = top.filter(row => row.domain !== clientDomain);
-  // Directories and big brands are strong; forums are weak whatever their size.
-  const weakSites = others.filter(row => isForum(row.domain) || (!isNotCompetitor(row.domain) && (traffic.get(row.domain) ?? 0) < WEAK_TRAFFIC)).length;
+  // Forum threads are counted first: Reddit and Facebook are also on the never-a-competitor list.
+  const forums = others.filter(row => isForum(row.domain));
+  const rest = others.filter(row => !isForum(row.domain) && !isNotCompetitor(row.domain));
+  const client = serp.organic.find(row => row.position <= 20 && row.domain === clientDomain) ?? null;
   return {
-    strength: weakSites >= OPEN_AT ? "open" : weakSites === 0 ? "contested" : "beatable",
-    weakSites,
+    city,
+    requestedLocation: serp.locationName,
+    returnedLocationCode: serp.locationCode ?? null,
+    smallSites: rest.filter(row => traffic.has(row.domain) && traffic.get(row.domain)! < SMALL_TRAFFIC).length,
+    forums: forums.length,
+    unknownSites: rest.filter(row => !traffic.has(row.domain)).length,
     mapPack: serp.localPack.length > 0,
     aiOverview: serp.aiOverview ?? false,
     articles: top.filter(isArticle).length,
-    clientPosition: top.find(row => row.domain === clientDomain)?.position ?? null,
+    clientPosition: client?.position ?? null,
+    clientUrl: client?.url ?? null,
   };
 }
 
@@ -89,7 +95,7 @@ export function coveringPage(
   row: KeywordResearchKeyword,
   pages: SitePage[],
   context: { servicePages: Map<string, string>; homeStems: Set<string>; cityStems: Set<string> },
-) {
+): string | null {
   // A service's own page targets the service phrase itself; its other phrasings need pages of their own.
   if (row.service && row.keyword === row.service && context.servicePages.has(row.service)) return context.servicePages.get(row.service)!;
   const wanted = new Set([...meaningStems(row.keyword)].filter(stem => !QUESTION_STEMS.has(stem)));

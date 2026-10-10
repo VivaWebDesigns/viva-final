@@ -50,10 +50,10 @@ export default function PlaybookCard({ project, onUpdate }: { project: KeywordRe
   return (
     <Card>
       <CardHeader className="space-y-1">
-        <CardTitle className="text-base">4. Playbook</CardTitle>
+        <CardTitle className="text-base">5. Playbook</CardTitle>
         <p className="text-sm text-gray-600">
-          Pulls everything {scan.picks.join(", ")} rank for, strips their cities, and adds what matches the client's services and is searched in {project.locationName.replace(/,United States$/, "")}.
-          Also marks rising searches and money keywords no picked competitor ranks for. Takes about 2 minutes and about $1 in search data.
+          Pulls a sample of what {scan.picks.join(", ")} rank for (up to 1,000 of each site's top-30 US rankings), strips their cities, and adds what matches the client's services and is searched in {project.locationName.replace(/,United States$/, "")} (metro-level demand).
+          Also marks rising searches and money keywords absent from the competitors' sampled rankings. Takes about 2 minutes and about $1 in search data.
         </p>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -66,7 +66,7 @@ export default function PlaybookCard({ project, onUpdate }: { project: KeywordRe
           <>
             <p className="text-sm text-gray-600">
               Built {new Date(playbook.ranAt).toLocaleDateString()} · {playbook.added.toLocaleString()} keywords added from competitors
-              · {playbook.rising.toLocaleString()} rising searches · {playbook.unclaimed.toLocaleString()} money keywords no picked competitor ranks for
+              · {playbook.rising.toLocaleString()} rising searches · {playbook.unclaimed.toLocaleString()} money keywords not in the competitors' sampled rankings
               · data cost ${playbook.costUsd.toFixed(2)}. Filter the keyword list above to see each group.
             </p>
 
@@ -102,13 +102,14 @@ export default function PlaybookCard({ project, onUpdate }: { project: KeywordRe
 
             <section className="space-y-2">
               <h3 className="text-sm font-semibold text-gray-900">Needs a decision ({playbook.review.length})</h3>
-              <p className="text-xs text-gray-500">Searched locally, but matched none of the client's services. Add one only if the client does this work.</p>
+              <p className="text-xs text-gray-500">Either matched none of the client's services, or Google has no local number for it. Add one only if the client does this work and gets these jobs.</p>
               {playbook.review.length ? (
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead>Keyword</TableHead>
+                        <TableHead>Why</TableHead>
                         <TableHead className="text-right">Searches/mo</TableHead>
                         <TableHead className="text-right">CPC</TableHead>
                         <TableHead>Ranked by</TableHead>
@@ -119,7 +120,8 @@ export default function PlaybookCard({ project, onUpdate }: { project: KeywordRe
                       {playbook.review.map(row => (
                         <TableRow key={row.keyword}>
                           <TableCell className="font-medium">{row.keyword}</TableCell>
-                          <TableCell className="text-right tabular-nums">{row.searchVolume?.toLocaleString() ?? "—"}</TableCell>
+                          <TableCell className="text-gray-600">{row.reason === "no_local_data" ? "No local volume data" : "No matching service"}</TableCell>
+                          <TableCell className="text-right tabular-nums">{row.searchVolume?.toLocaleString() ?? "Unknown"}</TableCell>
                           <TableCell className="text-right tabular-nums">{row.cpc == null ? "—" : `$${row.cpc.toFixed(2)}`}</TableCell>
                           <TableCell className="text-gray-600">{row.competitors.map(entry => `${entry.domain} #${entry.position}`).join(", ")}</TableCell>
                           <TableCell>

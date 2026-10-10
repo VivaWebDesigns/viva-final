@@ -90,6 +90,8 @@ router.post("/projects", async (req, res) => {
       city: z.string().trim().min(1).max(100),
       state: z.string().trim().min(2).max(100),
       website: z.string().trim().max(2048).optional().default(""),
+      liveDomain: z.string().trim().max(253).optional().default(""),
+      serviceCities: z.array(z.string().trim().min(1).max(100)).max(60).optional().default([]),
       services: z.array(serviceName).max(40).optional().default([]),
       locationName: z.string().trim().max(200).optional().default(""),
     }).parse(req.body);
@@ -115,6 +117,8 @@ router.post("/projects", async (req, res) => {
       state: input.state,
       locationName,
       website: input.website || null,
+      liveDomain: input.liveDomain || null,
+      serviceCities: [...new Set([`${input.city}, ${input.state}`, ...input.serviceCities])],
       websiteNote: fromWebsite.note,
       services,
       createdBy: req.authUser!.id,
@@ -170,6 +174,29 @@ router.post("/projects/:id/services", async (req, res) => {
     return res.json(await updateProject(project.id, { services }, cost));
   } catch (error) {
     return sendError(res, error, "Unable to add the service");
+  }
+});
+
+// The client's answers that steer the plan: up to 3 priority services, the cities they serve, and the live domain when the site assessed is staging.
+router.patch("/projects/:id/setup", async (req, res) => {
+  try {
+    const input = z.object({
+      priorities: z.array(serviceName).max(3).optional(),
+      serviceCities: z.array(z.string().trim().min(1).max(100)).max(60).optional(),
+      liveDomain: z.string().trim().max(253).optional(),
+    }).parse(req.body);
+    const project = await getProject(req.params.id);
+    if (!project) return res.status(404).json({ message: "Project not found" });
+    const changes: Parameters<typeof updateProject>[1] = {};
+    if (input.priorities) {
+      const chosen = new Set(input.priorities.map(cleanKeyword));
+      changes.services = project.services.map(service => ({ ...service, priority: chosen.has(service.name) }));
+    }
+    if (input.serviceCities) changes.serviceCities = [...new Set([`${project.city}, ${project.state}`, ...input.serviceCities])];
+    if (input.liveDomain !== undefined) changes.liveDomain = input.liveDomain || null;
+    return res.json(await updateProject(project.id, changes));
+  } catch (error) {
+    return sendError(res, error, "Unable to save the setup");
   }
 });
 

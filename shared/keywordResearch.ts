@@ -9,6 +9,8 @@ export interface KeywordResearchService {
   /** Combined monthly searches for the service, "<service> <city>" and "<service> near me". Null until volumes are pulled. */
   demand: number | null;
   selected: boolean;
+  /** One of the up to 3 services the client most wants more jobs for. Raises a keyword's place in the plan. */
+  priority?: boolean;
 }
 
 /** The page a keyword belongs on: a service page, a city page, a cost or quote page, or a blog post. */
@@ -40,26 +42,53 @@ export interface KeywordResearchKeyword {
   competitors?: Array<{ domain: string; position: number }>;
   /** Change in searches over the last 11 months against the same months a year earlier (0.4 = +40%). Set by the playbook. */
   trend?: number | null;
-  /** What page 1 looks like from the client's city. Set by the page-1 check for the top keywords only. */
-  pageOne?: PageOneCheck;
-  /** Path of the client's page that targets this keyword, null when it has none. Missing until the page-1 check runs. */
-  coveredBy?: string | null;
+  /** What page 1 looks like from each checked city. Set by the page-1 check for the top keywords only. */
+  pageOne?: PageOneCheck[];
+  /** The page on the assessed site that targets this keyword. Missing until the page-1 check runs. */
+  pageMatch?: PageMatch;
+  /** What to do about this keyword and why. Set by the page-1 check. */
+  plan?: KeywordPlan;
 }
 
-/**
- * open: 3 or more weak sites (under 1,000 visits/mo, or forum posts) in the top 10.
- * contested: no weak site in the top 10. beatable: in between.
- */
-export type PageOneStrength = "open" | "beatable" | "contested";
-
+/** Observations about page 1 from one city. Counts are evidence, not a verdict: the plan rules say what they imply. */
 export interface PageOneCheck {
-  strength: PageOneStrength;
-  weakSites: number;
+  city: string;
+  /** The location asked for and the location code Google answered for, so a fallback is visible rather than assumed. */
+  requestedLocation: string;
+  returnedLocationCode: number | null;
+  /** Top-10 sites with under 1,000 estimated monthly visits (directories and big brands excluded). */
+  smallSites: number;
+  /** Top-10 results that are forum threads. */
+  forums: number;
+  /** Top-10 sites whose traffic is unknown; they count as neither small nor strong. */
+  unknownSites: number;
   mapPack: boolean;
   aiOverview: boolean;
   /** Top-10 results that are articles, guides or forum posts. */
   articles: number;
   clientPosition: number | null;
+  clientUrl: string | null;
+}
+
+/** Whether a page exists for the keyword, and where it was found. A staging page is not published or visible in Google. */
+export interface PageMatch {
+  status: "live" | "staging" | "none";
+  path: string | null;
+}
+
+export type PlanAction = "keep" | "improve" | "publish" | "create" | "investigate";
+export type PlanConfidence = "high" | "medium" | "low";
+
+export interface KeywordPlan {
+  action: PlanAction;
+  /** The facts the action rests on, in plain words. */
+  reasons: string[];
+  /** For investigate: the missing evidence and the next useful check, which may be a question for the client. */
+  nextCheck: string | null;
+  /** High: metro demand known and page 1 checked. Medium: one of the two. Low: neither. */
+  confidence: PlanConfidence;
+  /** Ordering tier, 1 first. See keywordPlan.ts for the rules. */
+  tier: number;
 }
 
 export interface KeywordResearchSummary {
@@ -82,6 +111,14 @@ export interface PageCheckSummary {
   ranAt: string;
   /** Where the searches were run from. */
   location: string;
+  /** Every city searched from; cells of other served cities read "not checked". */
+  cities?: string[];
+  /** Whether the assessed site is the live domain or a staging site. */
+  siteKind?: "live" | "staging";
+  /** Pairs of checked cities whose top-10 results were identical for most keywords: an observation, not an explanation. */
+  identicalResults?: Array<[string, string]>;
+  /** Service × served city assessment. */
+  grid?: GridCell[];
   checked: number;
   /** Keywords moved to blog posts because page 1 is mostly articles. */
   movedToBlog: number;
@@ -89,6 +126,18 @@ export interface PageCheckSummary {
   sitePages: number | null;
   siteNote: string | null;
   costUsd: number;
+}
+
+/** One cell of the service × served-city assessment: whether a page exists, whether it ranks there, and what to do. */
+export interface GridCell {
+  service: string;
+  city: string;
+  page: PageMatch;
+  /** Observed from that city for the service's main keyword; null when not checked or not in the top 20. */
+  position: number | null;
+  checked: boolean;
+  action: PlanAction;
+  reasons: string[];
 }
 
 /** Searches including "near me", which Google answers by location and are counted with the plain phrase. */
@@ -176,6 +225,8 @@ export interface PlaybookReviewKeyword {
   searchVolume: number | null;
   cpc: number | null;
   competitors: Array<{ domain: string; position: number }>;
+  /** Why it needs a decision: it matched no client service, or Google has no local volume for it. */
+  reason?: "no_service" | "no_local_data";
 }
 
 export interface KeywordPlaybook {

@@ -5,6 +5,7 @@ import {
   type RankedKeyword,
 } from "./dataforseo";
 import { applySearchIntent, classifyKeyword, cleanKeyword, isJunkKeyword, serviceMatcher } from "./keywords";
+import { NICHE_CPC } from "@shared/keywordPlan";
 import { competitorProfile, competitorSearches, localize, placeIndex, RISING_TREND, yearOverYear, type CompetitorSearch } from "./playbook";
 import { mergeCloseVariants, sameSearch } from "./quality";
 import { assignServices } from "./suggestServices";
@@ -13,7 +14,7 @@ import { assignServices } from "./suggestServices";
 const MAX_CANDIDATES = 900;
 const MAX_CLAUDE_KEYWORDS = 400;
 const MAX_HISTORY_KEYWORDS = 1000;
-const MAX_REVIEW = 50;
+const MAX_REVIEW = 80;
 
 const value = (search: CompetitorSearch) => search.nationalVolume * (search.cpc ?? 0);
 // Google Ads rejects phrases over 10 words or 80 characters.
@@ -82,10 +83,14 @@ export async function buildPlaybook(project: KeywordResearchProject): Promise<{ 
   const review: KeywordPlaybook["review"] = [];
   for (const candidate of candidates) {
     const row = localRows.get(candidate.head);
-    if (!row?.searchVolume) continue;
     const name = service.get(candidate.head) ?? null;
+    if (!row?.searchVolume) {
+      // No local number is not zero: a niche search advertisers pay for stays visible, as a decision rather than a plan item.
+      if (name && (candidate.cpc ?? 0) >= NICHE_CPC) review.push({ keyword: candidate.head, searchVolume: null, cpc: candidate.cpc, competitors: candidate.competitors, reason: "no_local_data" });
+      continue;
+    }
     if (!name) {
-      review.push({ keyword: candidate.head, searchVolume: row.searchVolume, cpc: row.cpc, competitors: candidate.competitors });
+      review.push({ keyword: candidate.head, searchVolume: row.searchVolume, cpc: row.cpc, competitors: candidate.competitors, reason: "no_service" });
       continue;
     }
     const twin = keywords.find(existing => sameSearch(existing, { ...row, keyword: candidate.head }));
@@ -132,7 +137,7 @@ export async function buildPlaybook(project: KeywordResearchProject): Promise<{ 
       ranAt: new Date().toISOString(),
       domains: scan.picks.map(domain => competitorProfile(domain, ranked.get(domain) ?? [])),
       added: added.length,
-      review: review.sort((a, b) => (b.searchVolume ?? 0) * (b.cpc ?? 0) - (a.searchVolume ?? 0) * (a.cpc ?? 0)).slice(0, MAX_REVIEW),
+      review: review.sort((a, b) => Number(a.reason === "no_local_data") - Number(b.reason === "no_local_data") || (b.searchVolume ?? 1) * (b.cpc ?? 0) - (a.searchVolume ?? 1) * (a.cpc ?? 0)).slice(0, MAX_REVIEW),
       rising: all.filter(row => (row.trend ?? 0) >= RISING_TREND && (keywordDemand(row) ?? 0) >= 30).length,
       unclaimed: money.filter(row => !row.competitors?.length).length,
       costUsd: Number(cost.toFixed(4)),
