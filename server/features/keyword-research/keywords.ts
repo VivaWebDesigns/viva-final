@@ -101,6 +101,35 @@ interface ServiceMatcher {
   stems: string[];
 }
 
+/** Searches from job seekers and platforms that no page should target. */
+export function isJunkKeyword(keyword: string) {
+  return JUNK_PATTERN.test(cleanKeyword(keyword));
+}
+
+/**
+ * Finds the most specific selected service whose words a keyword contains. `related` is false when the keyword
+ * shares too little with the services and the trade to belong on the site at all.
+ */
+export function serviceMatcher(input: { services: string[]; trade: string; city: string; state: string }) {
+  const placeWords = new Set([...cleanKeyword(input.city).split(" "), ...cleanKeyword(stateName(input.state)).split(" "), cleanKeyword(input.state)]);
+  const matchers: ServiceMatcher[] = input.services
+    .map(name => ({ name, stems: [...new Set(stems(name, placeWords))] }))
+    .filter(matcher => matcher.stems.length > 0);
+  const tradeStems = new Set(stems(input.trade, placeWords));
+  return (keyword: string) => {
+    const keywordStems = new Set(stems(keyword));
+    let best: ServiceMatcher | null = null;
+    let bestOverlap = 0;
+    for (const matcher of matchers) {
+      const overlap = matcher.stems.filter(value => keywordStems.has(value)).length;
+      if (overlap === matcher.stems.length && (!best || matcher.stems.length > best.stems.length)) best = matcher;
+      bestOverlap = Math.max(bestOverlap, overlap);
+    }
+    const mentionsTrade = [...tradeStems].some(value => keywordStems.has(value));
+    return { service: best?.name ?? null, related: !!best || mentionsTrade || bestOverlap >= 2 };
+  };
+}
+
 /**
  * Puts each keyword under the most specific selected service whose words it contains.
  * Keywords that only partly match stay as unsorted for review; unrelated or junk keywords are dropped.
@@ -111,12 +140,7 @@ export function buildKeywordList(
   rows: KeywordMetrics[],
   input: { services: string[]; trade: string; city: string; state: string; exactPhrases?: string[] },
 ): { keywords: KeywordResearchKeyword[]; summary: KeywordResearchSummary } {
-  const placeWords = new Set([...cleanKeyword(input.city).split(" "), ...cleanKeyword(stateName(input.state)).split(" "), cleanKeyword(input.state)]);
-  const matchers: ServiceMatcher[] = input.services
-    .map(name => ({ name, stems: [...new Set(stems(name, placeWords))] }))
-    .filter(matcher => matcher.stems.length > 0);
-  const tradeStems = new Set(stems(input.trade, placeWords));
-
+  const match = serviceMatcher(input);
   const merged = new Map<string, KeywordMetrics>();
   for (const row of rows) {
     const keyword = cleanKeyword(row.keyword);
@@ -145,21 +169,13 @@ export function buildKeywordList(
       summary.droppedAsJunk += 1;
       continue;
     }
-    const keywordStems = new Set(stems(row.keyword));
-    let best: ServiceMatcher | null = null;
-    let bestOverlap = 0;
-    for (const matcher of matchers) {
-      const overlap = matcher.stems.filter(value => keywordStems.has(value)).length;
-      if (overlap === matcher.stems.length && (!best || matcher.stems.length > best.stems.length)) best = matcher;
-      bestOverlap = Math.max(bestOverlap, overlap);
-    }
-    const mentionsTrade = [...tradeStems].some(value => keywordStems.has(value));
-    if (!best && !mentionsTrade && bestOverlap < 2) {
+    const { service, related } = match(row.keyword);
+    if (!related) {
       summary.droppedAsJunk += 1;
       continue;
     }
     if (unknown) summary.unknownVolume! += 1;
-    keywords.push({ ...row, service: best?.name ?? null, ...classifyKeyword(row.keyword, input) });
+    keywords.push({ ...row, service, ...classifyKeyword(row.keyword, input) });
   }
 
   keywords.sort((a, b) => (totalDemand(b) ?? 0) - (totalDemand(a) ?? 0) || a.keyword.localeCompare(b.keyword));

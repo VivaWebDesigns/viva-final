@@ -26,6 +26,7 @@ interface GoogleAdsKeywordRow {
   competition_index: number | null;
   low_top_of_page_bid: number | null;
   high_top_of_page_bid: number | null;
+  monthly_searches?: Array<{ year: number; month: number; search_volume: number | null }> | null;
 }
 
 export class KeywordDataError extends Error {}
@@ -83,6 +84,75 @@ export async function fetchSearchVolume(keywords: string[], locationName: string
     metrics.push(...result.rows.map(toMetrics));
   }
   return { metrics, cost };
+}
+
+export interface MonthlySearches {
+  year: number;
+  month: number;
+  volume: number;
+}
+
+/** Monthly searches for the last 2 years, so this year can be compared with the same months last year. */
+export async function fetchSearchHistory(keywords: string[], locationName: string) {
+  let cost = 0;
+  const history = new Map<string, MonthlySearches[]>();
+  const start = new Date();
+  start.setUTCDate(1);
+  start.setUTCMonth(start.getUTCMonth() - 24);
+  for (const batch of chunk(keywords, VOLUME_BATCH)) {
+    const result = await postTask("search_volume", { keywords: batch, location_name: locationName, language_code: "en", date_from: start.toISOString().slice(0, 10) });
+    cost += result.cost;
+    for (const row of result.rows) {
+      const months = (row.monthly_searches ?? []).filter(month => month.search_volume != null)
+        .map(month => ({ year: month.year, month: month.month, volume: month.search_volume! }));
+      if (months.length) history.set(row.keyword, months);
+    }
+  }
+  return { history, cost };
+}
+
+export interface RankedKeyword {
+  keyword: string;
+  searchVolume: number | null;
+  cpc: number | null;
+  position: number;
+  url: string;
+}
+
+type RankedItem = {
+  keyword_data: { keyword: string; keyword_info?: { search_volume?: number | null; cpc?: number | null } | null };
+  ranked_serp_element: { serp_item: { rank_group: number; url?: string | null } };
+};
+
+/**
+ * Everything a domain ranks for in the US top 30. Two pulls: by volume, and pages other than the blog by CPC,
+ * because sorting by volume alone buries the low-volume, high-CPC money keywords.
+ */
+export async function fetchRankedKeywords(domain: string) {
+  const base = { target: domain, location_code: 2840, language_code: "en", limit: 700 };
+  const top30 = ["ranked_serp_element.serp_item.rank_group", "<=", 30];
+  const [byVolume, byCpc] = await Promise.all([
+    postTask<{ items?: RankedItem[] | null }>("ranked_keywords", { ...base, filters: top30, order_by: ["keyword_data.keyword_info.search_volume,desc"] }, LABS_API),
+    postTask<{ items?: RankedItem[] | null }>("ranked_keywords", {
+      ...base, limit: 300,
+      filters: [top30, "and", ["ranked_serp_element.serp_item.relative_url", "not_like", "%/blog/%"]],
+      order_by: ["keyword_data.keyword_info.cpc,desc"],
+    }, LABS_API),
+  ]);
+  const rows = new Map<string, RankedKeyword>();
+  for (const item of [...(byVolume.rows[0]?.items ?? []), ...(byCpc.rows[0]?.items ?? [])]) {
+    const keyword = item.keyword_data.keyword;
+    const position = item.ranked_serp_element.serp_item.rank_group;
+    if (rows.has(keyword) && rows.get(keyword)!.position <= position) continue;
+    rows.set(keyword, {
+      keyword,
+      searchVolume: item.keyword_data.keyword_info?.search_volume ?? null,
+      cpc: item.keyword_data.keyword_info?.cpc ?? null,
+      position,
+      url: item.ranked_serp_element.serp_item.url ?? "",
+    });
+  }
+  return { rows: [...rows.values()], cost: byVolume.cost + byCpc.cost };
 }
 
 /** Keyword Planner "Discover new keywords" from seed terms. */

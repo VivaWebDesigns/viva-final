@@ -34,6 +34,12 @@ export interface KeywordResearchKeyword {
   difficulty?: number | null;
   pageType?: KeywordPageType;
   intent?: KeywordIntent;
+  /** "competitor" when the playbook added it from a picked competitor's rankings; missing for research keywords. */
+  source?: "research" | "competitor";
+  /** Picked competitors ranking for this search (their own city stripped), best position first. Set by the playbook. */
+  competitors?: Array<{ domain: string; position: number }>;
+  /** Change in searches over the last 11 months against the same months a year earlier (0.4 = +40%). Set by the playbook. */
+  trend?: number | null;
 }
 
 export interface KeywordResearchSummary {
@@ -115,5 +121,39 @@ export interface KeywordCompetitorScan {
   confirmedAt: string | null;
   /** Page-1 appearances of the client's own site across the local searches. */
   clientAppearances: number;
+  costUsd: number;
+  playbook?: KeywordPlaybook | null;
+}
+
+/** What a picked competitor's rankings look like: how much it ranks for and where its search value sits. */
+export interface CompetitorProfile {
+  domain: string;
+  keywords: number;
+  top10Keywords: number;
+  /** Ranking pages, and the share of top-30 search value (searches × CPC) on blog posts. */
+  pages: number;
+  blogValueShare: number;
+  /** Top-level folders by ranking keywords, e.g. "/maryland" 79. */
+  topFolders: Array<{ folder: string; keywords: number }>;
+}
+
+export interface PlaybookReviewKeyword {
+  keyword: string;
+  searchVolume: number | null;
+  cpc: number | null;
+  competitors: Array<{ domain: string; position: number }>;
+}
+
+export interface KeywordPlaybook {
+  ranAt: string;
+  domains: CompetitorProfile[];
+  /** Competitor keywords matched to a client service and added to the list. */
+  added: number;
+  /** Competitor keywords with local demand that match none of the client's services: shown, never added on their own. */
+  review: PlaybookReviewKeyword[];
+  /** Keywords searched at least 25% more than a year ago. */
+  rising: number;
+  /** Money keywords with local demand that none of the picked competitors rank for. */
+  unclaimed: number;
   costUsd: number;
 }

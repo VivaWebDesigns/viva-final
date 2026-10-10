@@ -65,6 +65,18 @@ Labels:
 Judge from the homepage text when it is given, otherwise from the domain and the result titles. Give a reason of at most 15 words.
 Return every domain you are given, spelled exactly as given.`;
 
+const assignSchema = z.object({
+  keywords: z.array(z.object({ keyword: z.string(), service: z.string().nullable() })),
+});
+
+const ASSIGN_INSTRUCTIONS = `You decide which of a local business's services each Google search belongs to.
+For every keyword, give the one service from the list whose page should answer that search, copied exactly, or null when the business does not offer what the searcher wants.
+Rules:
+- Use null for work outside the listed services, even in the same trade (auto glass or windshields for a home glass company, roofing for a plumber).
+- Use null for searches about another company's brand or name, jobs, and product shopping.
+- Questions and costs about a listed service belong to that service ("how much is a frameless shower door" → the shower door service).
+Return every keyword you are given, spelled exactly as given.`;
+
 export class ServiceSuggestionError extends Error {}
 
 async function askClaude<T>(system: string, content: string, schema: z.ZodType<T>, maxTokens: number): Promise<T> {
@@ -149,4 +161,23 @@ export async function labelSites(trade: string, services: string[], sites: SiteT
   ].join("\n")).join("\n\n---\n\n");
   const result = await askClaude(SITES_INSTRUCTIONS, `Trade: ${trade}\nClient's services: ${services.join(", ")}\n\n${content}`, sitesSchema, 6000);
   return new Map(result.sites.map(site => [site.domain.toLowerCase(), { label: site.label, reason: site.reason }]));
+}
+
+const ASSIGN_BATCH = 200;
+
+/** The client service each keyword belongs to, or null when the client does not offer it. Answers outside the list become null. */
+export async function assignServices(trade: string, services: string[], keywords: string[]) {
+  const allowed = new Set(services);
+  const assigned = new Map<string, string | null>();
+  for (let index = 0; index < keywords.length; index += ASSIGN_BATCH) {
+    const batch = keywords.slice(index, index + ASSIGN_BATCH);
+    const result = await askClaude(
+      ASSIGN_INSTRUCTIONS,
+      `Trade: ${trade}\nServices:\n${services.join("\n")}\n\nKeywords:\n${batch.join("\n")}`,
+      assignSchema,
+      12000,
+    );
+    for (const row of result.keywords) assigned.set(row.keyword, row.service && allowed.has(row.service) ? row.service : null);
+  }
+  return assigned;
 }

@@ -36,8 +36,6 @@ describe("KKC Glass fixture", () => {
   });
 });
 
-describe("KKC Glass reviewed answers", () => {
-  // Phase 2 discovery is replayed against this data in keyword-research-competitors.test.ts.
-  it.todo("phase 3: the playbook adds sliding door repair, sash repairs and window glass replacement");
-  it.todo("phase 3: no windshield or auto glass keyword reaches the plan");
-});
+// Discovery is replayed against this data in keyword-research-competitors.test.ts and the playbook in
+// keyword-research-playbook.test.ts. Claude's service mapping (windshields to review, never the plan) can only be
+// checked live; it held on 2026-10-10.

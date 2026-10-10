@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { ArrowLeft, Download, Loader2, Plus, Search, Sparkles, Trash2 } from "lucide-react";
 import type { KeywordResearchProject } from "@shared/schema";
-import { keywordDemand, keywordScore, type KeywordPageType } from "@shared/keywordResearch";
+import { keywordDemand, keywordScore, type KeywordPageType, type KeywordResearchKeyword } from "@shared/keywordResearch";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import SearchAreaPicker, { areaLabel } from "./SearchAreaPicker";
 import CompetitorsCard from "./CompetitorsCard";
+import PlaybookCard from "./PlaybookCard";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 interface ProjectListItem {
@@ -37,6 +38,17 @@ const TABLE_LIMIT = 300;
 const EASY_DIFFICULTY = 15;
 const PAGE_TYPE_LABELS: Record<KeywordPageType, string> = { service: "Service page", city: "City page", cost: "Cost page", blog: "Blog post" };
 const INTENT_LABELS = { diy: "DIY", shopping: "Shopping" } as const;
+// Matches the playbook's count: at least 25% more searches than the same months last year, on a keyword with real demand.
+const RISING_TREND = 0.25;
+const isRising = (row: KeywordResearchKeyword) => (row.trend ?? 0) >= RISING_TREND && (keywordDemand(row) ?? 0) >= 30;
+const isUnclaimed = (row: KeywordResearchKeyword) => row.competitors != null && !row.competitors.length && row.pageType !== "blog" && (keywordDemand(row) ?? 0) > 0;
+const GROUP_LABELS = { competitor: "Added from competitors", rising: "Rising searches", unclaimed: "No picked competitor ranks" } as const;
+type KeywordGroup = keyof typeof GROUP_LABELS;
+const inGroup: Record<KeywordGroup, (row: KeywordResearchKeyword) => boolean> = {
+  competitor: row => row.source === "competitor",
+  rising: isRising,
+  unclaimed: isUnclaimed,
+};
 
 /** apiRequest errors look like `502: {"message":"..."}`; show just the message. */
 function errorMessage(error: unknown) {
@@ -58,8 +70,8 @@ function csvCell(value: string | number | null) {
 }
 
 function downloadCsv(project: KeywordResearchProject) {
-  const header = ["Service", "Keyword", "Page type", "Intent", "Avg. monthly searches", "Near me searches", "CPC", "Difficulty", "Score (searches x CPC)", "Competition", "Competition index", "Top of page bid (low)", "Top of page bid (high)", "Same search as"];
-  const rows = project.keywords.map(row => [row.service ?? "Unsorted", row.keyword, row.pageType ? PAGE_TYPE_LABELS[row.pageType] : null, row.intent ?? null, row.searchVolume, row.nearMeVolume ?? null, row.cpc, row.difficulty ?? null, keywordScore(row), row.competition, row.competitionIndex, row.lowTopOfPageBid, row.highTopOfPageBid, (row.variants ?? []).join("; ")]);
+  const header = ["Service", "Keyword", "Page type", "Intent", "Avg. monthly searches", "Near me searches", "CPC", "Difficulty", "Score (searches x CPC)", "Change vs last year", "Source", "Competitors ranking", "Competition", "Competition index", "Top of page bid (low)", "Top of page bid (high)", "Same search as"];
+  const rows = project.keywords.map(row => [row.service ?? "Unsorted", row.keyword, row.pageType ? PAGE_TYPE_LABELS[row.pageType] : null, row.intent ?? null, row.searchVolume, row.nearMeVolume ?? null, row.cpc, row.difficulty ?? null, keywordScore(row), row.trend == null ? null : `${Math.round(row.trend * 100)}%`, row.source ?? "research", (row.competitors ?? []).map(entry => `${entry.domain} #${entry.position}`).join("; "), row.competition, row.competitionIndex, row.lowTopOfPageBid, row.highTopOfPageBid, (row.variants ?? []).join("; ")]);
   const csv = [header, ...rows].map(row => row.map(csvCell).join(",")).join("\n");
   const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
   const link = document.createElement("a");
@@ -176,6 +188,7 @@ function ProjectView({ id }: { id: string }) {
   const [filter, setFilter] = useState(ALL);
   const [pageTypeFilter, setPageTypeFilter] = useState(ALL);
   const [easyOnly, setEasyOnly] = useState(false);
+  const [group, setGroup] = useState(ALL);
 
   const selected = selection ?? new Set(project?.services.filter(service => service.selected).map(service => service.name) ?? []);
   const services = useMemo(() => [...(project?.services ?? [])].sort((a, b) => (b.demand ?? -1) - (a.demand ?? -1)), [project]);
@@ -247,6 +260,7 @@ function ProjectView({ id }: { id: string }) {
     .filter(row => filter === ALL || (row.service ?? UNSORTED) === filter)
     .filter(row => pageTypeFilter === ALL || row.pageType === pageTypeFilter)
     .filter(row => !easyOnly || (row.difficulty != null && row.difficulty < EASY_DIFFICULTY))
+    .filter(row => group === ALL || inGroup[group as KeywordGroup](row))
     .sort((a, b) => (keywordScore(b) ?? -1) - (keywordScore(a) ?? -1) || (keywordDemand(b) ?? 0) - (keywordDemand(a) ?? 0));
 
   if (isLoading) return <div className="flex justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-gray-400" /></div>;
@@ -360,6 +374,17 @@ function ProjectView({ id }: { id: string }) {
                   {(Object.keys(PAGE_TYPE_LABELS) as KeywordPageType[]).map(type => <SelectItem key={type} value={type}>{PAGE_TYPE_LABELS[type]}</SelectItem>)}
                 </SelectContent>
               </Select>
+              {project.competitors?.playbook && (
+                <Select value={group} onValueChange={setGroup}>
+                  <SelectTrigger className="w-full sm:w-56" data-testid="select-kr-group-filter"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={ALL}>All keywords</SelectItem>
+                    {(Object.keys(GROUP_LABELS) as KeywordGroup[]).map(key => (
+                      <SelectItem key={key} value={key}>{GROUP_LABELS[key]} ({keywords.filter(inGroup[key]).length.toLocaleString()})</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
               <label className="flex items-center gap-2 text-sm text-gray-700">
                 <Checkbox checked={easyOnly} onCheckedChange={checked => setEasyOnly(checked === true)} data-testid="checkbox-kr-easy-only" />
                 Difficulty under {EASY_DIFFICULTY}
@@ -384,6 +409,9 @@ function ProjectView({ id }: { id: string }) {
                       <TableCell className="font-medium">
                         {row.keyword}
                         {!!row.variants?.length && <span className="block text-xs font-normal text-gray-500">Same search as: {row.variants.join(", ")}</span>}
+                        {!!row.competitors?.length && <span className="block text-xs font-normal text-gray-500">{row.source === "competitor" ? "From" : "Ranked by"} {row.competitors.slice(0, 2).map(entry => `${entry.domain} #${entry.position}`).join(", ")}{row.competitors.length > 2 ? ` +${row.competitors.length - 2}` : ""}</span>}
+                        {isRising(row) && <span className="block text-xs font-normal text-emerald-700">Rising: +{Math.round(row.trend! * 100)}% vs last year</span>}
+                        {isUnclaimed(row) && <span className="block text-xs font-normal text-blue-700">No picked competitor ranks for this</span>}
                       </TableCell>
                       <TableCell className="text-gray-600">{row.service ?? "Unsorted"}</TableCell>
                       <TableCell className="text-gray-600">
@@ -409,6 +437,10 @@ function ProjectView({ id }: { id: string }) {
 
       {project.status === "researched" && project.summary && (
         <CompetitorsCard key={project.competitors?.ranAt ?? "none"} project={project} onUpdate={setProject} />
+      )}
+
+      {project.status === "researched" && !!project.competitors?.picks.length && (
+        <PlaybookCard key={project.competitors.ranAt} project={project} onUpdate={setProject} />
       )}
     </div>
   );

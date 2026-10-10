@@ -3,9 +3,10 @@ import { z } from "zod";
 import type { KeywordResearchService } from "@shared/keywordResearch";
 import { requireRole } from "../auth/middleware";
 import { fetchKeywordDifficulty, fetchKeywordIdeas, fetchSearchIntent, fetchSearchVolume, KeywordDataError, searchAreas, type KeywordMetrics } from "./dataforseo";
-import { applySearchIntent, buildKeywordList, cleanKeyword, matchSearchAreas, pickSearchArea, serviceDemand, serviceVariants } from "./keywords";
+import { applySearchIntent, buildKeywordList, classifyKeyword, cleanKeyword, matchSearchAreas, pickSearchArea, serviceDemand, serviceVariants } from "./keywords";
 import { createProject, deleteProject, getProject, listProjects, updateProject } from "./repository";
 import { discoverCompetitors } from "./discover";
+import { buildPlaybook } from "./runPlaybook";
 import { readWebsite, WebsiteReadError } from "./readWebsite";
 import { chooseMetro, ServiceSuggestionError, servicesFromWebsite, suggestServices } from "./suggestServices";
 import { assertSafePublicUrl, UnsafeUrlError } from "../technical-seo/url-safety";
@@ -254,9 +255,57 @@ router.patch("/projects/:id/competitors/picks", async (req, res) => {
     const listed = new Set([...project.competitors.local, ...project.competitors.national].map(site => site.domain));
     const unknown = picks.find(domain => !listed.has(domain));
     if (unknown) return res.status(400).json({ message: `${unknown} is not in this scan's competitor lists` });
-    return res.json(await updateProject(project.id, { competitors: { ...project.competitors, picks: [...new Set(picks)], confirmedAt: new Date().toISOString() } }));
+    const chosen = [...new Set(picks)];
+    // A playbook built from other competitors no longer describes these picks.
+    const samePicks = chosen.length === project.competitors.picks.length && chosen.every(domain => project.competitors!.picks.includes(domain));
+    return res.json(await updateProject(project.id, {
+      competitors: { ...project.competitors, picks: chosen, confirmedAt: new Date().toISOString(), playbook: samePicks ? project.competitors.playbook : null },
+    }));
   } catch (error) {
     return sendError(res, error, "Unable to save the picks");
+  }
+});
+
+// Pulls the picked competitors' rankings and folds what matches the client's services into the keyword list.
+router.post("/projects/:id/playbook", async (req, res) => {
+  try {
+    const project = await getProject(req.params.id);
+    if (!project) return res.status(404).json({ message: "Project not found" });
+    if (!project.competitors?.picks.length) return res.status(409).json({ message: "Find competitors and pick at least one first." });
+    const { keywords, playbook } = await buildPlaybook(project);
+    const summary = project.summary && { ...project.summary, keptKeywords: keywords.length };
+    return res.json(await updateProject(project.id, { keywords, summary, competitors: { ...project.competitors, playbook } }, playbook.costUsd));
+  } catch (error) {
+    return sendError(res, error, "Unable to build the playbook");
+  }
+});
+
+// Adds a keyword from the playbook's review list, under the service the user chose (or unsorted).
+router.post("/projects/:id/playbook/review", async (req, res) => {
+  try {
+    const input = z.object({ keyword: z.string().trim().min(1), service: serviceName.nullable() }).parse(req.body);
+    const project = await getProject(req.params.id);
+    const playbook = project?.competitors?.playbook;
+    if (!project || !playbook) return res.status(404).json({ message: "No playbook for this project" });
+    const item = playbook.review.find(row => row.keyword === input.keyword);
+    if (!item) return res.status(404).json({ message: "That keyword is not on the review list" });
+    if (input.service && !project.services.some(service => service.name === input.service && service.selected)) {
+      return res.status(400).json({ message: "Pick one of the project's selected services" });
+    }
+    const keyword = {
+      keyword: item.keyword, searchVolume: item.searchVolume, cpc: item.cpc, competition: null, competitionIndex: null,
+      lowTopOfPageBid: null, highTopOfPageBid: null, nearMeVolume: null, variants: [], difficulty: null,
+      service: input.service, source: "competitor" as const, competitors: item.competitors, trend: null,
+      ...classifyKeyword(item.keyword, project),
+    };
+    const review = playbook.review.filter(row => row.keyword !== item.keyword);
+    return res.json(await updateProject(project.id, {
+      keywords: [...project.keywords, keyword],
+      summary: project.summary && { ...project.summary, keptKeywords: project.keywords.length + 1 },
+      competitors: { ...project.competitors!, playbook: { ...playbook, review, added: playbook.added + 1 } },
+    }));
+  } catch (error) {
+    return sendError(res, error, "Unable to add the keyword");
   }
 });
 
