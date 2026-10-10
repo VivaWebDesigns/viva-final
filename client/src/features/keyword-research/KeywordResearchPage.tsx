@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { ArrowLeft, Download, Loader2, Plus, Search, Sparkles, Trash2 } from "lucide-react";
 import type { KeywordResearchProject } from "@shared/schema";
-import { keywordDemand, keywordScore, type KeywordPageType, type KeywordResearchKeyword, type PlanAction } from "@shared/keywordResearch";
+import { keywordDemand, keywordScore, type KeywordPageType, type KeywordResearchKeyword, type PagePlan } from "@shared/keywordResearch";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
@@ -17,9 +17,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import SearchAreaPicker, { areaLabel } from "./SearchAreaPicker";
 import CompetitorsCard from "./CompetitorsCard";
 import PlaybookCard from "./PlaybookCard";
-import PageCheckCard, { ActionBadge, ACTION_LABELS, CONFIDENCE_LABELS } from "./PageCheckCard";
+import PlanCard, { PAGE_ACTION_LABELS } from "./PlanCard";
 import SetupCard from "./SetupCard";
-import { comparePlans } from "@shared/keywordPlan";
+import { anyRunning } from "./runState";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 interface ProjectListItem {
@@ -46,17 +46,13 @@ const RISING_TREND = 0.25;
 const isRising = (row: KeywordResearchKeyword) => (row.trend ?? 0) >= RISING_TREND && (keywordDemand(row) ?? 0) >= 30;
 const isUnclaimed = (row: KeywordResearchKeyword) => row.competitors != null && !row.competitors.length && row.pageType !== "blog" && (keywordDemand(row) ?? 0) > 0;
 const GROUP_LABELS = {
-  improve: "Action: improve", create: "Action: create", publish: "Action: publish", investigate: "Action: investigate", keep: "Action: keep",
+  inPlan: "In the page plan", heldBack: "Not in the page plan",
   competitor: "Added from competitors", rising: "Rising searches", unclaimed: "Not in competitors' sampled rankings", noPage: "No page on the assessed site",
 } as const;
 type KeywordGroup = keyof typeof GROUP_LABELS;
-const byAction = (action: PlanAction) => (row: KeywordResearchKeyword) => row.plan?.action === action;
 const inGroup: Record<KeywordGroup, (row: KeywordResearchKeyword) => boolean> = {
-  improve: byAction("improve"),
-  create: byAction("create"),
-  publish: byAction("publish"),
-  investigate: byAction("investigate"),
-  keep: byAction("keep"),
+  inPlan: row => !!row.pageId,
+  heldBack: row => !row.pageId && !!row.relevance,
   competitor: row => row.source === "competitor",
   rising: isRising,
   unclaimed: isUnclaimed,
@@ -83,8 +79,9 @@ function csvCell(value: string | number | null) {
 }
 
 function downloadCsv(project: KeywordResearchProject) {
-  const header = ["Service", "Keyword", "Page type", "Intent", "Avg. monthly searches", "Near me searches", "CPC", "Difficulty", "Score (searches x CPC)", "Change vs last year", "Source", "Competitors ranking", "Action", "Confidence", "Reasons", "Next check", "Client position", "Page on assessed site", "Page 1 small sites", "Page 1 forum threads", "Map pack", "AI Overview", "Competition", "Competition index", "Top of page bid (low)", "Top of page bid (high)", "Same search as"];
-  const rows = project.keywords.map(row => [row.service ?? "Unsorted", row.keyword, row.pageType ? PAGE_TYPE_LABELS[row.pageType] : null, row.intent ?? null, row.searchVolume, row.nearMeVolume ?? null, row.cpc, row.difficulty ?? null, keywordScore(row), row.trend == null ? null : `${Math.round(row.trend * 100)}%`, row.source ?? "research", (row.competitors ?? []).map(entry => `${entry.domain} #${entry.position}`).join("; "), row.plan ? ACTION_LABELS[row.plan.action] : null, row.plan?.confidence ?? null, row.plan?.reasons.join("; ") ?? null, row.plan?.nextCheck ?? null, (row.pageOne ?? []).map(check => check.clientPosition != null ? `#${check.clientPosition} from ${check.city}` : null).filter(Boolean).join("; ") || null, row.pageMatch ? (row.pageMatch.path ? `${row.pageMatch.status}: ${row.pageMatch.path}` : "none") : null, (row.pageOne ?? []).map(check => `${check.city} ${check.smallSites}`).join("; ") || null, (row.pageOne ?? []).map(check => `${check.city} ${check.forums}`).join("; ") || null, (row.pageOne ?? []).some(check => check.mapPack) ? "yes" : row.pageOne?.length ? "no" : null, (row.pageOne ?? []).some(check => check.aiOverview) ? "yes" : row.pageOne?.length ? "no" : null, row.competition, row.competitionIndex, row.lowTopOfPageBid, row.highTopOfPageBid, (row.variants ?? []).join("; ")]);
+  const pages = new Map((project.summary?.plan?.pages ?? []).map(page => [page.id, page]));
+  const header = ["Service", "Keyword", "Page type", "Intent", "Avg. monthly searches", "Near me searches", "CPC", "Difficulty", "Score (searches x CPC)", "Change vs last year", "Source", "Competitors ranking", "Client's work?", "Why", "Plan page", "Page action", "Page on assessed site", "Competition", "Competition index", "Top of page bid (low)", "Top of page bid (high)", "Same search as"];
+  const rows = project.keywords.map(row => [row.service ?? "Unsorted", row.keyword, row.pageType ? PAGE_TYPE_LABELS[row.pageType] : null, row.intent ?? null, row.searchVolume, row.nearMeVolume ?? null, row.cpc, row.difficulty ?? null, keywordScore(row), row.trend == null ? null : `${Math.round(row.trend * 100)}%`, row.source ?? "research", (row.competitors ?? []).map(entry => `${entry.domain} #${entry.position}`).join("; "), row.relevance?.verdict ?? null, row.relevance?.reason ?? null, row.pageId ? pages.get(row.pageId)?.title ?? null : null, row.pageId && pages.get(row.pageId) ? PAGE_ACTION_LABELS[pages.get(row.pageId)!.action] : null, row.pageMatch ? (row.pageMatch.path ? `${row.pageMatch.status}: ${row.pageMatch.path}` : "none") : null, row.competition, row.competitionIndex, row.lowTopOfPageBid, row.highTopOfPageBid, (row.variants ?? []).join("; ")]);
   const csv = [header, ...rows].map(row => row.map(csvCell).join(",")).join("\n");
   const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
   const link = document.createElement("a");
@@ -92,6 +89,10 @@ function downloadCsv(project: KeywordResearchProject) {
   link.download = `${project.name} ${project.trade} ${project.city} keywords.csv`.replace(/[^\w .-]/g, "");
   link.click();
   URL.revokeObjectURL(url);
+}
+
+function PlanLine({ page }: { page: PagePlan }) {
+  return <span className="mt-1 block text-xs font-normal text-gray-600">Page: {page.title} · {PAGE_ACTION_LABELS[page.action]}</span>;
 }
 
 function IntakeView() {
@@ -206,7 +207,11 @@ function ProjectView({ id }: { id: string }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const projectKey = [`/api/keyword-research/projects/${id}`];
-  const { data: project, isLoading, error } = useQuery<KeywordResearchProject>({ queryKey: projectKey });
+  // While a step runs in the background, the project is re-read every few seconds until it is done.
+  const { data: project, isLoading, error } = useQuery<KeywordResearchProject>({
+    queryKey: projectKey,
+    refetchInterval: query => (anyRunning(query.state.data) ? 4000 : false),
+  });
   const [selection, setSelection] = useState<Set<string> | null>(null);
   const [newService, setNewService] = useState("");
   const [filter, setFilter] = useState(ALL);
@@ -214,6 +219,7 @@ function ProjectView({ id }: { id: string }) {
   const [easyOnly, setEasyOnly] = useState(false);
   const [group, setGroup] = useState(ALL);
   const [sortBy, setSortBy] = useState<"plan" | "score">("plan");
+  const planPages = useMemo(() => new Map((project?.summary?.plan?.pages ?? []).map((page, index) => [page.id, { page, index }] as const)), [project]);
 
   const selected = selection ?? new Set(project?.services.filter(service => service.selected).map(service => service.name) ?? []);
   const services = useMemo(() => [...(project?.services ?? [])].sort((a, b) => (b.demand ?? -1) - (a.demand ?? -1)), [project]);
@@ -280,14 +286,15 @@ function ProjectView({ id }: { id: string }) {
     }
     return [...totals].sort((a, b) => b[1].volume - a[1].volume);
   }, [keywords]);
-  // Plan order (tiers with their reasons) once the page-1 check has run; otherwise highest search value first.
-  const planned = keywords.some(row => row.plan);
+  // Plan order (each keyword under its page, pages in plan order) once the plan exists; otherwise highest search value first.
+  const planned = planPages.size > 0;
+  const planIndex = (row: KeywordResearchKeyword) => (row.pageId ? planPages.get(row.pageId)?.index ?? 9999 : 9999);
   const visible = keywords
     .filter(row => filter === ALL || (row.service ?? UNSORTED) === filter)
     .filter(row => pageTypeFilter === ALL || row.pageType === pageTypeFilter)
     .filter(row => !easyOnly || (row.difficulty != null && row.difficulty < EASY_DIFFICULTY))
     .filter(row => group === ALL || inGroup[group as KeywordGroup](row))
-    .sort(planned && sortBy === "plan" ? comparePlans : (a, b) => (keywordScore(b) ?? -1) - (keywordScore(a) ?? -1) || (keywordDemand(b) ?? 0) - (keywordDemand(a) ?? 0));
+    .sort((a, b) => (planned && sortBy === "plan" ? planIndex(a) - planIndex(b) : 0) || (keywordScore(b) ?? -1) - (keywordScore(a) ?? -1) || (keywordDemand(b) ?? 0) - (keywordDemand(a) ?? 0));
 
   if (isLoading) return <div className="flex justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-gray-400" /></div>;
   if (error || !project) return <p className="text-sm text-red-600">{error ? errorMessage(error) : "Project not found"}</p>;
@@ -366,7 +373,7 @@ function ProjectView({ id }: { id: string }) {
         </CardContent>
       </Card>
 
-      {project.status === "researched" && <SetupCard key={`${project.serviceCities.join("|")}|${project.liveDomain ?? ""}`} project={project} onUpdate={setProject} />}
+      {project.status === "researched" && <SetupCard key={`${project.serviceCities.join("|")}|${project.liveDomain ?? ""}|${project.exclusions.map(item => item.work).join("|")}`} project={project} onUpdate={setProject} />}
 
       {project.status === "researched" && project.summary && (
         <Card>
@@ -449,17 +456,9 @@ function ProjectView({ id }: { id: string }) {
                         {!!row.competitors?.length && <span className="block text-xs font-normal text-gray-500">{row.source === "competitor" ? "From" : "Ranked by"} {row.competitors.slice(0, 2).map(entry => `${entry.domain} #${entry.position}`).join(", ")}{row.competitors.length > 2 ? ` +${row.competitors.length - 2}` : ""}</span>}
                         {isRising(row) && <span className="block text-xs font-normal text-emerald-700">Rising: +{Math.round(row.trend! * 100)}% vs last year</span>}
                         {isUnclaimed(row) && <span className="block text-xs font-normal text-blue-700">Not in the picked competitors' sampled rankings</span>}
-                        {row.plan && (
-                          <span className="mt-1 block text-xs font-normal text-gray-600">
-                            <ActionBadge action={row.plan.action} /> <span className="text-gray-500">{CONFIDENCE_LABELS[row.plan.confidence]} · tier {row.plan.tier}</span>
-                            <span className="block text-gray-500">{row.plan.reasons.join(" · ")}</span>
-                            {row.plan.nextCheck && <span className="block text-gray-700">Next: {row.plan.nextCheck}</span>}
-                          </span>
-                        )}
-                        {!!row.pageOne?.length && (row.pageOne.some(check => check.mapPack) || (row.pageOne.some(check => check.aiOverview) && (row.pageType === "blog" || row.pageType === "cost"))) && (
-                          <span className="block text-xs font-normal text-gray-500">
-                            {[row.pageOne.some(check => check.mapPack) && "Map pack shows", row.pageOne.some(check => check.aiOverview) && (row.pageType === "blog" || row.pageType === "cost") && "AI Overview shows"].filter(Boolean).join(" · ")}
-                          </span>
+                        {row.pageId && planPages.get(row.pageId) && <PlanLine page={planPages.get(row.pageId)!.page} />}
+                        {!row.pageId && row.relevance && row.relevance.verdict !== "yes" && (
+                          <span className="block text-xs font-normal text-amber-700">Not in the plan: {row.relevance.verdict === "no" ? "not the client's work" : "uncertain it is the client's work"} ({row.relevance.reason})</span>
                         )}
                       </TableCell>
                       <TableCell className="text-gray-600">{row.service ?? "Unsorted"}</TableCell>
@@ -492,7 +491,7 @@ function ProjectView({ id }: { id: string }) {
         <PlaybookCard key={project.competitors.ranAt} project={project} onUpdate={setProject} />
       )}
 
-      {project.status === "researched" && project.summary && <PageCheckCard project={project} onUpdate={setProject} />}
+      {project.status === "researched" && project.summary && <PlanCard project={project} onUpdate={setProject} />}
     </div>
   );
 }

@@ -1,13 +1,12 @@
 import type { KeywordCompetitorScan } from "@shared/keywordResearch";
-import { keywordScore } from "@shared/keywordResearch";
 import type { KeywordResearchProject } from "@shared/schema";
 import {
-  assembleScan, candidateDomains, discoveryKeywords, MAP_PACK_SHOWN, mapPackLeaders, NATIONAL_METROS, scoreLocal, scoreNational,
+  assembleScan, candidateDomains, discoveryCandidates, discoveryKeywords, MAP_PACK_SHOWN, mapPackLeaders, NATIONAL_METROS, scoreLocal, scoreNational, serviceWeights,
 } from "./competitors";
 import { fetchDomainStrength, fetchSerp, fetchSerpCompetitors, KeywordDataError, searchAreas, type DomainStrength } from "./dataforseo";
 import { stateName } from "./keywords";
 import { readHomepage } from "./readWebsite";
-import { chooseSearchCities, labelSites } from "./suggestServices";
+import { checkRelevance, chooseSearchCities, labelSites } from "./suggestServices";
 
 const CONCURRENCY = 8;
 
@@ -58,8 +57,17 @@ async function defaultCities(project: KeywordResearchProject) {
  */
 export async function discoverCompetitors(project: KeywordResearchProject, cities?: Array<{ city: string; state: string }>): Promise<KeywordCompetitorScan> {
   let cost = 0;
-  const searches = discoveryKeywords(project.keywords);
-  if (!searches.local.length) throw new KeywordDataError("This keyword list has no service or city keywords to search. Re-run the research first.");
+  const services = project.services.filter(service => service.selected).map(service => service.name);
+  // Every query is checked as the client's work before anything is searched: matching words is not enough.
+  const queryCandidates = discoveryCandidates(project.keywords, services);
+  const relevance = await checkRelevance(project.trade, services, project.exclusions, queryCandidates);
+  const searches = discoveryKeywords(project.keywords, services, relevance);
+  if (!searches.local.length) throw new KeywordDataError("No keyword on this list was judged to be the client's work. Check the services and exclusions, then re-run the research.");
+  const rejectedQueries = queryCandidates
+    .map(keyword => ({ keyword, check: relevance.get(keyword) }))
+    .filter((entry): entry is { keyword: string; check: NonNullable<typeof entry.check> } => !!entry.check && entry.check.verdict !== "yes")
+    .slice(0, 40)
+    .map(entry => ({ keyword: entry.keyword, verdict: entry.check.verdict as "no" | "uncertain", reason: entry.check.reason }));
   const locations = await searchLocations(cities?.length ? cities : await defaultCities(project));
   if (!locations.length) throw new KeywordDataError("Google has none of those cities. Check the spelling, for example \"Charlotte, NC\".");
   const clientDomain = clientDomainOf(project.website);
@@ -78,14 +86,14 @@ export async function discoverCompetitors(project: KeywordResearchProject, citie
   ]);
   cost += content.cost;
 
-  const scores = new Map(project.keywords.map(row => [row.keyword, keywordScore(row) ?? 0]));
-  const local = scoreLocal(localSerps, scores, clientDomain);
-  const national = scoreNational(nationalSerps, content.domains, clientDomain);
+  // Each service pulls equally, so window replacement's search value cannot drown out commercial doors.
+  const weights = serviceWeights(project.keywords, searches.serviceOf);
+  const local = scoreLocal(localSerps, weights, clientDomain, searches.serviceOf);
+  const national = scoreNational(nationalSerps, content.domains, clientDomain, searches.serviceOf);
   const mapPack = mapPackLeaders(localSerps, clientDomain);
   const candidates = candidateDomains(local.standings, national, mapPack);
 
   const homepages = await inBatches(candidates, domain => readHomepage(`https://${domain}`));
-  const services = project.services.filter(service => service.selected).map(service => service.name);
   const labels = await labelSites(project.trade, services, candidates.map((domain, index) => ({
     domain,
     resultTitles: [...(local.standings.get(domain)?.titles ?? []), ...(national.get(domain)?.titles ?? [])],
@@ -117,6 +125,7 @@ export async function discoverCompetitors(project: KeywordResearchProject, citie
     picks: lists.autoPicks,
     confirmedAt: null,
     clientAppearances: local.clientAppearances,
+    rejectedQueries,
     costUsd: Number(cost.toFixed(4)),
   };
 }

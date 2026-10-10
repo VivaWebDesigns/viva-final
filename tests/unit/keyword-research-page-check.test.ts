@@ -3,7 +3,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import type { KeywordResearchKeyword } from "@shared/keywordResearch";
 import type { SerpResult } from "../../server/features/keyword-research/dataforseo";
-import { assessPageOne, coveringPage, isArticle, pageTypeFromPageOne, sitePages } from "../../server/features/keyword-research/pageCheck";
+import { coveringPage, evidenceFrom, isArticle, sitePages } from "../../server/features/keyword-research/pageCheck";
 import { meaningStems } from "../../server/features/keyword-research/quality";
 
 const organic = (rows: Array<[string, string, string?]>) => rows.map(([domain, url, title], index) => ({ position: index + 1, domain, url, title: title ?? null }));
@@ -24,16 +24,10 @@ const traffic = new Map([["binswangerglass.com", 423_407], ["argowindowrepair.co
 
 describe("page 1", () => {
   it("counts what a forum-heavy page 1 holds without calling it a verdict", () => {
-    expect(assessPageOne(foggy, traffic, "kkcglass.com", "Matthews")).toEqual({
-      city: "Matthews", requestedLocation: "Matthews,North Carolina,United States", returnedLocationCode: null,
-      smallSites: 0, forums: 5, unknownSites: 0, mapPack: false, aiOverview: true, articles: 8, clientPosition: null, clientUrl: null,
+    expect(evidenceFrom(foggy, "Matthews", traffic, "kkcglass.com")).toEqual({
+      keyword: "k", city: "Matthews", smallSites: 0, forums: 5, unknownSites: 0, cityPages: 0,
+      mapPack: false, aiOverview: true, clientPosition: null, clientUrl: null,
     });
-  });
-
-  it("moves a service keyword to the blog when page 1 is mostly articles, and leaves city keywords alone", () => {
-    const check = assessPageOne(foggy, traffic, null, "Matthews");
-    expect(pageTypeFromPageOne({ pageType: "service" } as KeywordResearchKeyword, check)).toBe("blog");
-    expect(pageTypeFromPageOne({ pageType: "city" } as KeywordResearchKeyword, check)).toBe("city");
   });
 
   it("finds the client and its page, and leaves directories out of the counts", () => {
@@ -43,12 +37,12 @@ describe("page 1", () => {
       ["kkcglass.com", "https://kkcglass.com/"],
       ["binswangerglass.com", "https://www.binswangerglass.com/locations/charlotte"],
     ], { localPack: [{ title: "Glass & Door Pro", domain: "glassanddoorpro.com", rating: 5, reviews: 86 }] });
-    expect(assessPageOne(strong, traffic, "kkcglass.com", "Matthews")).toMatchObject({ smallSites: 0, unknownSites: 0, mapPack: true, clientPosition: 3, clientUrl: "https://kkcglass.com/" });
+    expect(evidenceFrom(strong, "Charlotte", traffic, "kkcglass.com")).toMatchObject({ smallSites: 0, unknownSites: 0, mapPack: true, clientPosition: 3, clientUrl: "https://kkcglass.com/", cityPages: 2 });
   });
 
   it("counts small sites and unknown sites separately, so unknown never reads as weak", () => {
     const mixed = serp([["glassanddoorpro.com", "https://glassanddoorpro.com/"], ["theshowerglass.com", "https://theshowerglass.com/"], ["newglassco.com", "https://newglassco.com/"], ["argowindowrepair.com", "https://argowindowrepair.com/"]]);
-    expect(assessPageOne(mixed, traffic, null, "Matthews")).toMatchObject({ smallSites: 2, unknownSites: 1, forums: 0 });
+    expect(evidenceFrom(mixed, "Matthews", traffic, null)).toMatchObject({ smallSites: 2, unknownSites: 1, forums: 0 });
   });
 
   it("recognises articles by path, publisher, forum or question title", () => {

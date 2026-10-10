@@ -1,4 +1,4 @@
-import type { KeywordIntent, KeywordPageType, KeywordResearchKeyword, KeywordResearchSummary } from "@shared/keywordResearch";
+import type { Exclusion, KeywordIntent, KeywordPageType, KeywordResearchKeyword, KeywordResearchSummary } from "@shared/keywordResearch";
 import type { KeywordMetrics } from "./dataforseo";
 import { foldNearMe, mergeCloseVariants, totalDemand } from "./quality";
 
@@ -101,6 +101,15 @@ interface ServiceMatcher {
   stems: string[];
 }
 
+/** The excluded work a keyword names, when every word of one of its terms is in the keyword ("repair car window" → auto glass). */
+export function excludedWork(keyword: string, exclusions: Exclusion[]) {
+  const words = new Set(cleanKeyword(keyword).split(" "));
+  return exclusions.find(item => item.terms.some(term => {
+    const termWords = cleanKeyword(term).split(" ").filter(Boolean);
+    return termWords.length > 0 && termWords.every(word => words.has(word));
+  }))?.work ?? null;
+}
+
 /** Searches from job seekers and platforms that no page should target. */
 export function isJunkKeyword(keyword: string) {
   return JUNK_PATTERN.test(cleanKeyword(keyword));
@@ -138,7 +147,7 @@ export function serviceMatcher(input: { services: string[]; trade: string; city:
  */
 export function buildKeywordList(
   rows: KeywordMetrics[],
-  input: { services: string[]; trade: string; city: string; state: string; exactPhrases?: string[] },
+  input: { services: string[]; trade: string; city: string; state: string; exactPhrases?: string[]; exclusions?: Exclusion[] },
 ): { keywords: KeywordResearchKeyword[]; summary: KeywordResearchSummary } {
   const match = serviceMatcher(input);
   const merged = new Map<string, KeywordMetrics>();
@@ -154,7 +163,7 @@ export function buildKeywordList(
   const exact = new Set((input.exactPhrases ?? []).map(cleanKeyword));
   const summary: KeywordResearchSummary = {
     ideasReturned: merged.size, keptKeywords: 0, droppedAsJunk: 0, droppedNoVolume: 0,
-    mergedVariants: variants.merged, foldedNearMe: nearMe.folded, unknownVolume: 0,
+    mergedVariants: variants.merged, foldedNearMe: nearMe.folded, unknownVolume: 0, droppedExcluded: 0,
   };
   const keywords: KeywordResearchKeyword[] = [];
   for (const row of nearMe.rows) {
@@ -167,6 +176,10 @@ export function buildKeywordList(
     }
     if (JUNK_PATTERN.test(row.keyword)) {
       summary.droppedAsJunk += 1;
+      continue;
+    }
+    if (input.exclusions?.length && excludedWork(row.keyword, input.exclusions)) {
+      summary.droppedExcluded! += 1;
       continue;
     }
     const { service, related } = match(row.keyword);

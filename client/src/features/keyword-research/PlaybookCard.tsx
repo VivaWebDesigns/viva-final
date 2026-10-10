@@ -3,6 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 import { Loader2, Plus, Sparkles } from "lucide-react";
 import type { KeywordResearchProject } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
+import { runState } from "./runState";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,6 +29,7 @@ export default function PlaybookCard({ project, onUpdate }: { project: KeywordRe
   const services = project.services.filter(service => service.selected).map(service => service.name);
   const [choices, setChoices] = useState<Record<string, string>>({});
 
+  const run = runState(project, "playbook");
   const build = useMutation({
     mutationFn: async () => (await apiRequest("POST", `/api/keyword-research/projects/${project.id}/playbook`)).json() as Promise<KeywordResearchProject>,
     onSuccess: updated => {
@@ -57,10 +59,11 @@ export default function PlaybookCard({ project, onUpdate }: { project: KeywordRe
         </p>
       </CardHeader>
       <CardContent className="space-y-5">
-        <Button onClick={() => build.mutate()} disabled={build.isPending} data-testid="button-kr-build-playbook">
-          {build.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-          {build.isPending ? "Building… this takes about 2 minutes" : playbook ? "Rebuild playbook" : "Build playbook"}
+        <Button onClick={() => build.mutate()} disabled={build.isPending || run.running} data-testid="button-kr-build-playbook">
+          {build.isPending || run.running ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+          {build.isPending || run.running ? "Building… you can leave this page" : playbook ? "Rebuild playbook" : "Build playbook"}
         </Button>
+        {run.error && <p className="text-sm text-red-600">{run.error}</p>}
 
         {playbook && (
           <>
@@ -102,7 +105,7 @@ export default function PlaybookCard({ project, onUpdate }: { project: KeywordRe
 
             <section className="space-y-2">
               <h3 className="text-sm font-semibold text-gray-900">Needs a decision ({playbook.review.length})</h3>
-              <p className="text-xs text-gray-500">Either matched none of the client's services, or Google has no local number for it. Add one only if the client does this work and gets these jobs.</p>
+              <p className="text-xs text-gray-500">Claude was uncertain it is the client's work, or Google has no local number for it. Add one only if the client does this work and gets these jobs.</p>
               {playbook.review.length ? (
                 <div className="overflow-x-auto">
                   <Table>
@@ -120,7 +123,7 @@ export default function PlaybookCard({ project, onUpdate }: { project: KeywordRe
                       {playbook.review.map(row => (
                         <TableRow key={row.keyword}>
                           <TableCell className="font-medium">{row.keyword}</TableCell>
-                          <TableCell className="text-gray-600">{row.reason === "no_local_data" ? "No local volume data" : "No matching service"}</TableCell>
+                          <TableCell className="text-gray-600">{row.reason === "no_local_data" ? "No local volume data" : row.reason === "uncertain" ? "Uncertain it is the client's work" : "No matching service"}{row.note && <span className="block text-xs text-gray-500">{row.note}</span>}</TableCell>
                           <TableCell className="text-right tabular-nums">{row.searchVolume?.toLocaleString() ?? "Unknown"}</TableCell>
                           <TableCell className="text-right tabular-nums">{row.cpc == null ? "—" : `$${row.cpc.toFixed(2)}`}</TableCell>
                           <TableCell className="text-gray-600">{row.competitors.map(entry => `${entry.domain} #${entry.position}`).join(", ")}</TableCell>

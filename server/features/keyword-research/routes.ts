@@ -7,9 +7,10 @@ import { applySearchIntent, buildKeywordList, classifyKeyword, cleanKeyword, mat
 import { createProject, deleteProject, getProject, listProjects, updateProject } from "./repository";
 import { discoverCompetitors } from "./discover";
 import { buildPlaybook } from "./runPlaybook";
-import { runPageCheck } from "./runPageCheck";
-import { readWebsite, WebsiteReadError } from "./readWebsite";
-import { chooseMetro, ServiceSuggestionError, servicesFromWebsite, suggestServices } from "./suggestServices";
+import { runPlan } from "./runPlan";
+import { startRun, runBusy } from "./backgroundRun";
+import { readWebsite, WebsiteReadError, type WebsitePage } from "./readWebsite";
+import { chooseMetro, inferExclusions, ServiceSuggestionError, servicesFromWebsite, suggestServices } from "./suggestServices";
 import { assertSafePublicUrl, UnsafeUrlError } from "../technical-seo/url-safety";
 
 const router = Router();
@@ -65,7 +66,7 @@ router.get("/projects/:id", async (req, res) => {
 
 /** Services the client's own website says it offers. A site that cannot be read never blocks the project. */
 async function websiteServices(website: string, trade: string) {
-  if (!website) return { services: [] as Array<{ name: string; url: string | null }>, note: null };
+  if (!website) return { services: [] as Array<{ name: string; url: string | null }>, note: null, pages: [] as WebsitePage[] };
   try {
     await assertSafePublicUrl(website);
     const site = await readWebsite(website);
@@ -73,11 +74,11 @@ async function websiteServices(website: string, trade: string) {
       .map(service => ({ ...service, name: cleanKeyword(service.name) }))
       .filter(service => service.name);
     const pages = `${site.pages.length} page${site.pages.length === 1 ? "" : "s"}`;
-    return { services: found, note: found.length ? `Read ${pages} of the website and found ${found.length} services.` : `Read ${pages} of the website but found no services listed.` };
+    return { services: found, pages: site.pages, note: found.length ? `Read ${pages} of the website and found ${found.length} services.` : `Read ${pages} of the website but found no services listed.` };
   } catch (error) {
     if (error instanceof ServiceSuggestionError) throw error;
     const reason = error instanceof UnsafeUrlError || error instanceof WebsiteReadError ? error.message : "The website could not be read.";
-    return { services: [], note: `${reason} Services below are Claude's suggestions for the trade.` };
+    return { services: [], pages: [] as WebsitePage[], note: `${reason} Services below are Claude's suggestions for the trade.` };
   }
 }
 
@@ -119,6 +120,8 @@ router.post("/projects", async (req, res) => {
       website: input.website || null,
       liveDomain: input.liveDomain || null,
       serviceCities: [...new Set([`${input.city}, ${input.state}`, ...input.serviceCities])],
+      // Work the site never mentions is excluded by default; it can be removed on the project.
+      exclusions: fromWebsite.pages.length ? await inferExclusions(input.trade, known, fromWebsite.pages).catch(() => []) : [],
       websiteNote: fromWebsite.note,
       services,
       createdBy: req.authUser!.id,
@@ -184,6 +187,12 @@ router.patch("/projects/:id/setup", async (req, res) => {
       priorities: z.array(serviceName).max(3).optional(),
       serviceCities: z.array(z.string().trim().min(1).max(100)).max(60).optional(),
       liveDomain: z.string().trim().max(253).optional(),
+      exclusions: z.array(z.object({
+        work: z.string().trim().min(1).max(80),
+        terms: z.array(z.string().trim().min(1).max(60)).max(12),
+        reason: z.string().trim().max(200),
+        source: z.enum(["website", "user"]),
+      })).max(30).optional(),
     }).parse(req.body);
     const project = await getProject(req.params.id);
     if (!project) return res.status(404).json({ message: "Project not found" });
@@ -194,9 +203,28 @@ router.patch("/projects/:id/setup", async (req, res) => {
     }
     if (input.serviceCities) changes.serviceCities = [...new Set([`${project.city}, ${project.state}`, ...input.serviceCities])];
     if (input.liveDomain !== undefined) changes.liveDomain = input.liveDomain || null;
+    if (input.exclusions) changes.exclusions = input.exclusions.map(item => ({ ...item, work: item.work.toLowerCase(), terms: item.terms.map(term => term.toLowerCase()) }));
     return res.json(await updateProject(project.id, changes));
   } catch (error) {
     return sendError(res, error, "Unable to save the setup");
+  }
+});
+
+// Re-reads the website and proposes exclusions: work the site never mentions that searchers confuse with the trade.
+router.post("/projects/:id/exclusions/infer", async (req, res) => {
+  try {
+    const project = await getProject(req.params.id);
+    if (!project) return res.status(404).json({ message: "Project not found" });
+    if (!project.website) return res.status(400).json({ message: "Add the client's website first; exclusions are inferred from it." });
+    const site = await readWebsite(project.website);
+    const services = project.services.filter(service => service.selected).map(service => service.name);
+    const inferred = await inferExclusions(project.trade, services, site.pages);
+    const kept = project.exclusions.filter(item => item.source === "user");
+    const known = new Set(kept.map(item => item.work));
+    return res.json(await updateProject(project.id, { exclusions: [...kept, ...inferred.filter(item => !known.has(item.work))] }));
+  } catch (error) {
+    if (error instanceof WebsiteReadError) return res.status(502).json({ message: error.message });
+    return sendError(res, error, "Unable to infer exclusions");
   }
 });
 
@@ -221,6 +249,7 @@ router.post("/projects/:id/research", async (req, res) => {
       city: project.city,
       state: project.state,
       exactPhrases: exactList,
+      exclusions: project.exclusions,
     });
     // Difficulty and intent refine the list but are not needed for it, so a failed pull never blocks the research.
     const phrases = keywords.map(row => row.keyword);
@@ -267,8 +296,11 @@ router.post("/projects/:id/competitors", async (req, res) => {
     if (project.status !== "researched" || !project.keywords.some(row => row.pageType)) {
       return res.status(409).json({ message: "Run the keyword research first; competitors are found from its keywords." });
     }
-    const scan = await discoverCompetitors(project, cities);
-    return res.json(await updateProject(project.id, { competitors: scan }, scan.costUsd));
+    if (runBusy(project)) return res.status(409).json({ message: "Another step is still running for this project." });
+    return res.status(202).json(await startRun(project, "competitors", async () => {
+      const scan = await discoverCompetitors(project, cities);
+      return { changes: { competitors: scan }, cost: scan.costUsd };
+    }));
   } catch (error) {
     return sendError(res, error, "Unable to find competitors");
   }
@@ -300,9 +332,13 @@ router.post("/projects/:id/playbook", async (req, res) => {
     const project = await getProject(req.params.id);
     if (!project) return res.status(404).json({ message: "Project not found" });
     if (!project.competitors?.picks.length) return res.status(409).json({ message: "Find competitors and pick at least one first." });
-    const { keywords, playbook } = await buildPlaybook(project);
-    const summary = project.summary && { ...project.summary, keptKeywords: keywords.length };
-    return res.json(await updateProject(project.id, { keywords, summary, competitors: { ...project.competitors, playbook } }, playbook.costUsd));
+    if (runBusy(project)) return res.status(409).json({ message: "Another step is still running for this project." });
+    const competitors = project.competitors;
+    return res.status(202).json(await startRun(project, "playbook", async () => {
+      const { keywords, playbook } = await buildPlaybook(project);
+      const summary = project.summary && { ...project.summary, keptKeywords: keywords.length };
+      return { changes: { keywords, summary, competitors: { ...competitors, playbook } }, cost: playbook.costUsd };
+    }));
   } catch (error) {
     return sendError(res, error, "Unable to build the playbook");
   }
@@ -337,16 +373,19 @@ router.post("/projects/:id/playbook/review", async (req, res) => {
   }
 });
 
-// Checks page 1 for the top keywords from the client's city and matches keywords to the client's pages.
-router.post("/projects/:id/page-check", async (req, res) => {
+// Groups the keywords into pages, checks page 1 once per page, and decides an action per page. Runs in the background.
+router.post("/projects/:id/plan", async (req, res) => {
   try {
     const project = await getProject(req.params.id);
     if (!project) return res.status(404).json({ message: "Project not found" });
     if (project.status !== "researched") return res.status(409).json({ message: "Run the keyword research first." });
-    const { keywords, summary } = await runPageCheck(project);
-    return res.json(await updateProject(project.id, { keywords, summary }, summary.pageCheck!.costUsd));
+    if (runBusy(project)) return res.status(409).json({ message: "Another step is still running for this project." });
+    return res.status(202).json(await startRun(project, "plan", async () => {
+      const { keywords, summary } = await runPlan(project);
+      return { changes: { keywords, summary }, cost: summary.plan!.costUsd };
+    }));
   } catch (error) {
-    return sendError(res, error, "Unable to check page 1");
+    return sendError(res, error, "Unable to build the plan");
   }
 });
 

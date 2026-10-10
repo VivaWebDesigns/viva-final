@@ -4,6 +4,7 @@ import { Loader2, Users } from "lucide-react";
 import type { KeywordResearchProject } from "@shared/schema";
 import type { CompetitorSite, CompetitorSiteLabel } from "@shared/keywordResearch";
 import { apiRequest } from "@/lib/queryClient";
+import { runState } from "./runState";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -73,6 +74,7 @@ function SiteTable({ sites, scope, picks, onToggle }: {
                 <a href={`https://${site.domain}`} target="_blank" rel="noreferrer" className="font-medium hover:underline">{site.domain}</a>
                 {site.label && <Badge variant={site.label === "contractor" ? "secondary" : "outline"} className="ml-2 text-xs">{LABELS[site.label]}</Badge>}
                 {site.labelReason && <span className="block text-xs text-gray-500">{site.labelReason}</span>}
+                {!!site.services?.length && <span className="block text-xs text-gray-500">Top 10 for: {site.services.join(", ")}</span>}
               </TableCell>
               {scope === "local"
                 ? <TableCell className="text-right tabular-nums">{site.localAppearances}</TableCell>
@@ -95,6 +97,7 @@ export default function CompetitorsCard({ project, onUpdate }: { project: Keywor
   const [cities, setCities] = useState(scan?.searchCities.map(name => name.replace(/,([^,]+)$/, "")).join("\n") ?? "");
   const [picks, setPicks] = useState(new Set(scan?.picks ?? []));
 
+  const run = runState(project, "competitors");
   const discover = useMutation({
     mutationFn: async () => {
       const list = cities.split("\n").map(line => line.trim()).filter(Boolean);
@@ -131,8 +134,8 @@ export default function CompetitorsCard({ project, onUpdate }: { project: Keywor
       <CardHeader className="space-y-1">
         <CardTitle className="text-base">4. Competitors</CardTitle>
         <p className="text-sm text-gray-600">
-          Searches the top money keywords from the client's city and the 2 largest cities in its metro area, plus the top services in 12 large metros and the top blog topics nationally.
-          Claude labels each site, and only contractors are picked as models. Takes about 2 minutes and about $0.60–$0.80 in search data.
+          Every confirmed service gets its own searches: its best money keyword from the client's city and 2 served cities, its best plain keyword in 4 large metros, and its best blog or cost topic nationally.
+          Claude first checks each search is the client's work, so adjacent work (auto glass for a home glass company) never shapes the competitors. Runs in the background; about $1 in search data.
         </p>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -140,10 +143,11 @@ export default function CompetitorsCard({ project, onUpdate }: { project: Keywor
           <Label htmlFor="kr-search-cities">Search from (optional, one "City, ST" per line, up to 3)</Label>
           <Textarea id="kr-search-cities" rows={3} value={cities} onChange={event => setCities(event.target.value)}
             placeholder={`Leave blank for ${project.city} plus the 2 largest cities in its metro area`} data-testid="input-kr-search-cities" />
-          <Button onClick={() => discover.mutate()} disabled={discover.isPending} data-testid="button-kr-find-competitors">
-            {discover.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Users className="mr-2 h-4 w-4" />}
-            {discover.isPending ? "Searching… this takes about 2 minutes" : scan ? "Search again" : "Find competitors"}
+          <Button onClick={() => discover.mutate()} disabled={discover.isPending || run.running} data-testid="button-kr-find-competitors">
+            {discover.isPending || run.running ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Users className="mr-2 h-4 w-4" />}
+            {discover.isPending || run.running ? "Searching… you can leave this page" : scan ? "Search again" : "Find competitors"}
           </Button>
+          {run.error && <p className="text-sm text-red-600">{run.error}</p>}
         </div>
 
         {scan && (
@@ -192,6 +196,12 @@ export default function CompetitorsCard({ project, onUpdate }: { project: Keywor
                 </div>
               ) : <p className="text-sm text-gray-500">No map packs in these searches.</p>}
             </section>
+
+            {!!scan.rejectedQueries?.length && (
+              <p className="text-xs text-gray-500">
+                Not searched (not the client's work, or uncertain): {scan.rejectedQueries.map(item => `${item.keyword} (${item.reason})`).join("; ")}.
+              </p>
+            )}
 
             {scan.excluded.length > 0 && (
               <p className="text-xs text-gray-500">

@@ -4,11 +4,11 @@ import {
   fetchKeywordDifficulty, fetchRankedKeywords, fetchSearchHistory, fetchSearchIntent, fetchSearchVolume, KeywordDataError, searchAreas,
   type RankedKeyword,
 } from "./dataforseo";
-import { applySearchIntent, classifyKeyword, cleanKeyword, isJunkKeyword, serviceMatcher } from "./keywords";
-import { NICHE_CPC } from "@shared/keywordPlan";
+import { applySearchIntent, classifyKeyword, cleanKeyword, excludedWork, isJunkKeyword } from "./keywords";
+import { NICHE_CPC } from "@shared/pagePlan";
 import { competitorProfile, competitorSearches, localize, placeIndex, RISING_TREND, yearOverYear, type CompetitorSearch } from "./playbook";
 import { mergeCloseVariants, sameSearch } from "./quality";
-import { assignServices } from "./suggestServices";
+import { checkRelevance } from "./suggestServices";
 
 // Caps that keep one run near $1: Google Ads takes 1,000 keywords per task.
 const MAX_CANDIDATES = 900;
@@ -59,21 +59,12 @@ export async function buildPlaybook(project: KeywordResearchProject): Promise<{ 
   }
 
   const candidates = [...searches.values()]
-    .filter(search => !known.has(search.head) && askable(search.head) && !isJunkKeyword(search.head))
+    .filter(search => !known.has(search.head) && askable(search.head) && !isJunkKeyword(search.head) && !excludedWork(search.head, project.exclusions))
     .sort((a, b) => value(b) - value(a) || b.nationalVolume - a.nationalVolume)
     .slice(0, MAX_CANDIDATES);
 
-  // Services: exact word matches first, Claude for the rest. No service means review, never the plan.
-  const match = serviceMatcher({ services, trade: project.trade, city: project.city, state: project.state });
-  const service = new Map<string, string | null>();
-  const unmatched: string[] = [];
-  for (const candidate of candidates) {
-    const found = match(candidate.head).service;
-    if (found) service.set(candidate.head, found);
-    else unmatched.push(candidate.head);
-  }
-  const fromClaude = await assignServices(project.trade, services, unmatched.slice(0, MAX_CLAUDE_KEYWORDS));
-  for (const [keyword, name] of fromClaude) service.set(cleanKeyword(keyword), name);
+  // Claude judges every candidate as the client's work or not; matching words is never enough. Only "yes" joins the plan.
+  const relevance = await checkRelevance(project.trade, services, project.exclusions, candidates.slice(0, MAX_CLAUDE_KEYWORDS).map(candidate => candidate.head));
 
   // Local demand decides: a competitor's keyword nobody searches for in the client's area is dropped.
   const local = await fetchSearchVolume(candidates.map(candidate => candidate.head), project.locationName);
@@ -83,14 +74,17 @@ export async function buildPlaybook(project: KeywordResearchProject): Promise<{ 
   const review: KeywordPlaybook["review"] = [];
   for (const candidate of candidates) {
     const row = localRows.get(candidate.head);
-    const name = service.get(candidate.head) ?? null;
+    const check = relevance.get(candidate.head);
+    // Not judged (past the cap) or judged not the client's work: dropped.
+    if (!check || check.verdict === "no") continue;
+    const name = check.verdict === "yes" ? check.service : null;
     if (!row?.searchVolume) {
       // No local number is not zero: a niche search advertisers pay for stays visible, as a decision rather than a plan item.
-      if (name && (candidate.cpc ?? 0) >= NICHE_CPC) review.push({ keyword: candidate.head, searchVolume: null, cpc: candidate.cpc, competitors: candidate.competitors, reason: "no_local_data" });
+      if (name && (candidate.cpc ?? 0) >= NICHE_CPC) review.push({ keyword: candidate.head, searchVolume: null, cpc: candidate.cpc, competitors: candidate.competitors, reason: "no_local_data", note: check.reason });
       continue;
     }
     if (!name) {
-      review.push({ keyword: candidate.head, searchVolume: row.searchVolume, cpc: row.cpc, competitors: candidate.competitors, reason: "no_service" });
+      review.push({ keyword: candidate.head, searchVolume: row.searchVolume, cpc: row.cpc, competitors: candidate.competitors, reason: "uncertain", note: check.reason });
       continue;
     }
     const twin = keywords.find(existing => sameSearch(existing, { ...row, keyword: candidate.head }));
@@ -102,7 +96,7 @@ export async function buildPlaybook(project: KeywordResearchProject): Promise<{ 
     }
     fresh.push({
       ...row, keyword: candidate.head, nearMeVolume: null, variants: [], service: name, source: "competitor",
-      competitors: candidate.competitors, ...classifyKeyword(candidate.head, project),
+      competitors: candidate.competitors, relevance: check, ...classifyKeyword(candidate.head, project),
     });
   }
   const added = mergeCloseVariants(fresh).rows as KeywordResearchKeyword[];

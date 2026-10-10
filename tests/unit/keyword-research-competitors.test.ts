@@ -1,9 +1,9 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import type { CompetitorSiteLabel, KeywordResearchKeyword } from "@shared/keywordResearch";
+import type { CompetitorSite, CompetitorSiteLabel, KeywordResearchKeyword } from "@shared/keywordResearch";
 import {
-  assembleScan, candidateDomains, discoveryKeywords, isNotCompetitor, mapPackLeaders, scoreLocal, scoreNational,
+  assembleScan, candidateDomains, discoveryCandidates, discoveryKeywords, isNotCompetitor, mapPackLeaders, scoreLocal, scoreNational, serviceWeights, spreadPicks,
 } from "../../server/features/keyword-research/competitors";
 import type { DomainStrength, SerpResult } from "../../server/features/keyword-research/dataforseo";
 import { clientDomainOf } from "../../server/features/keyword-research/discover";
@@ -25,35 +25,60 @@ const strength = new Map(Object.entries(load<{ domains: Record<string, DomainStr
 const content = load<{ domains: Array<{ domain: string; keywords: number }> }>("content.json").domains;
 
 describe("discovery keywords", () => {
-  const row = (keyword: string, pageType: KeywordResearchKeyword["pageType"], searchVolume: number, cpc: number, intent: KeywordResearchKeyword["intent"] = "service") =>
-    ({ keyword, pageType, intent, searchVolume, cpc, service: null, competition: null, competitionIndex: null, lowTopOfPageBid: null, highTopOfPageBid: null }) as KeywordResearchKeyword;
+  const row = (keyword: string, service: string | null, pageType: KeywordResearchKeyword["pageType"], searchVolume: number, cpc: number | null, intent: KeywordResearchKeyword["intent"] = "service") =>
+    ({ keyword, service, pageType, intent, searchVolume, cpc, competition: null, competitionIndex: null, lowTopOfPageBid: null, highTopOfPageBid: null }) as KeywordResearchKeyword;
+  const yes = (service: string) => ({ verdict: "yes" as const, service, reason: "" });
   const keywords = [
-    row("frameless shower doors", "service", 1000, 9),
-    row("glass shower doors matthews nc", "city", 40, 12),
-    row("frameless shower door cost", "cost", 900, 6),
-    row("buy shower door kit", "service", 3000, 2, "shopping"),
-    row("how to fix foggy windows", "blog", 1300, 2, "diy"),
+    row("window replacement", "window replacement", "service", 1280, 78),
+    row("window replacement charlotte", "window replacement", "city", 480, 84),
+    row("commercial door repair", "commercial door repair", "service", 70, 66),
+    row("storefront glass repair", "storefront glass repair", "service", 20, null),
+    row("repair car window", "window repair", "service", 900, 30),
+    row("window repair", "window repair", "service", 800, 20),
+    row("window replacement cost", "window replacement", "cost", 300, 12),
   ];
+  const relevance = new Map([
+    ["window replacement", yes("window replacement")], ["window replacement charlotte", yes("window replacement")],
+    ["commercial door repair", yes("commercial door repair")], ["storefront glass repair", yes("storefront glass repair")],
+    ["window repair", yes("window repair")], ["window replacement cost", yes("window replacement")],
+    ["repair car window", { verdict: "no" as const, service: null, reason: "auto glass" }],
+  ]);
+  const services = ["window replacement", "window repair", "commercial door repair", "storefront glass repair"];
 
-  it("searches the best keyword of each service nationally before a second keyword of any one service", () => {
-    const service = (keyword: string, name: string, searchVolume: number) => ({ ...row(keyword, "service", searchVolume, 10), service: name });
-    const lines = [
-      service("window glass replacement", "window glass repair", 5000),
-      service("window glass repair", "window glass repair", 4000),
-      service("foggy window repair", "window glass repair", 3000),
-      service("window repair", "window glass repair", 2500),
-      service("frameless shower doors", "frameless shower doors", 1000),
-      service("glass railings", "glass railings", 500),
-    ];
-    expect(discoveryKeywords(lines).national).toEqual(["window glass replacement", "frameless shower doors", "glass railings", "window glass repair"]);
+  it("gives every confirmed service its own local and national search, however small its value", () => {
+    const searches = discoveryKeywords(keywords, services, relevance);
+    for (const keyword of ["commercial door repair", "storefront glass repair", "window repair", "window replacement"]) expect(searches.local).toContain(keyword);
+    expect(searches.national).toEqual(["window replacement", "window repair", "commercial door repair", "storefront glass repair"]);
+    expect(searches.content).toEqual(["window replacement cost"]);
   });
 
-  it("searches money keywords locally, plain hiring keywords nationally and blog and cost keywords for content", () => {
-    expect(discoveryKeywords(keywords)).toEqual({
-      local: ["frameless shower doors", "buy shower door kit", "glass shower doors matthews nc"],
-      national: ["frameless shower doors"],
-      content: ["frameless shower door cost", "how to fix foggy windows"],
-    });
+  it("never searches a keyword Claude judged not to be the client's work, whatever its words match", () => {
+    const searches = discoveryKeywords(keywords, services, relevance);
+    expect([...searches.local, ...searches.national]).not.toContain("repair car window");
+  });
+
+  it("weights each service equally, and counts unknown value like the service's best rather than zero", () => {
+    const weights = serviceWeights(keywords, discoveryKeywords(keywords, services, relevance).serviceOf);
+    expect(weights.get("window replacement")).toBe(1000);
+    expect(weights.get("commercial door repair")).toBe(1000);
+    expect(weights.get("storefront glass repair")).toBe(1000);
+    expect(weights.get("window replacement charlotte")).toBeGreaterThan(weights.get("window replacement cost")!);
+  });
+
+  it("checks the best few keywords of every service for relevance before choosing", () => {
+    const candidates = discoveryCandidates(keywords, services);
+    expect(candidates).toContain("storefront glass repair");
+    expect(candidates).toContain("repair car window");
+  });
+});
+
+describe("spread picks", () => {
+  const site = (domain: string, services: string[]) => ({ domain, services, label: "contractor" }) as CompetitorSite;
+
+  it("takes the leader, then a site covering a service the leader does not", () => {
+    const ranked = [site("windownation.com", ["window replacement"]), site("windowsource.com", ["window replacement", "window repair"]), site("binswanger.com", ["commercial door repair"])];
+    expect(spreadPicks(ranked, []).map(pick => pick.domain)).toEqual(["windownation.com", "windowsource.com"]);
+    expect(spreadPicks(ranked, ["window replacement", "window repair"]).map(pick => pick.domain)).toEqual(["windownation.com", "binswanger.com"]);
   });
 });
 

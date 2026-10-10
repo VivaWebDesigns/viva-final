@@ -1,4 +1,4 @@
-import type { KeywordResearchKeyword, PageOneCheck } from "@shared/keywordResearch";
+import type { KeywordResearchKeyword, PageEvidence } from "@shared/keywordResearch";
 import { isNotCompetitor } from "./competitors";
 import type { SerpResult } from "./dataforseo";
 import { BLOG_PATH } from "./playbook";
@@ -12,7 +12,6 @@ const FORUMS = ["reddit.com", "quora.com", "facebook.com", "diychatroom.com", "c
 const PUBLISHERS = ["thespruce.com", "bobvila.com", "thisoldhouse.com", "familyhandyman.com", "hgtv.com", "forbes.com", "wikihow.com",
   "homeguide.com", "fixr.com", "bhg.com", "architecturaldigest.com", "consumerreports.org"];
 const QUESTION_TITLE = /^(how|what|why|when|where|which|who|can|does|do|is|are|should)\b|\?/i;
-const MOVE_TO_BLOG_AT = 6;
 
 const onDomain = (domain: string, list: string[]) => list.some(entry => domain === entry || domain.endsWith(`.${entry}`));
 
@@ -25,32 +24,27 @@ export function isArticle(result: { domain: string; url?: string; title: string 
   return isForum(result.domain) || onDomain(result.domain, PUBLISHERS) || BLOG_PATH.test(result.url ?? "") || QUESTION_TITLE.test(result.title ?? "");
 }
 
-/** Who holds page 1 from one city: counts of small sites, forum threads and unknowns, the client's position, and what Google showed. */
-export function assessPageOne(serp: SerpResult, traffic: Map<string, number>, clientDomain: string | null, city: string): PageOneCheck {
+/** What page 1 from one city holds for a page's main keyword. Counts are observations, not a verdict. */
+export function evidenceFrom(serp: SerpResult, city: string, traffic: Map<string, number>, liveHost: string | null): PageEvidence {
   const top = serp.organic.filter(row => row.position <= 10);
-  const others = top.filter(row => row.domain !== clientDomain);
+  const others = top.filter(row => row.domain !== liveHost);
   // Forum threads are counted first: Reddit and Facebook are also on the never-a-competitor list.
-  const forums = others.filter(row => isForum(row.domain));
   const rest = others.filter(row => !isForum(row.domain) && !isNotCompetitor(row.domain));
-  const client = serp.organic.find(row => row.position <= 20 && row.domain === clientDomain) ?? null;
+  const cityText = city.toLowerCase();
+  const citySlug = cityText.replace(/\s+/g, "-");
+  const client = serp.organic.find(row => row.position <= 20 && row.domain === liveHost) ?? null;
   return {
+    keyword: serp.keyword,
     city,
-    requestedLocation: serp.locationName,
-    returnedLocationCode: serp.locationCode ?? null,
     smallSites: rest.filter(row => traffic.has(row.domain) && traffic.get(row.domain)! < SMALL_TRAFFIC).length,
-    forums: forums.length,
+    forums: others.filter(row => isForum(row.domain)).length,
     unknownSites: rest.filter(row => !traffic.has(row.domain)).length,
+    cityPages: top.filter(row => (row.title ?? "").toLowerCase().includes(cityText) || (row.url ?? "").toLowerCase().includes(citySlug)).length,
     mapPack: serp.localPack.length > 0,
     aiOverview: serp.aiOverview ?? false,
-    articles: top.filter(isArticle).length,
     clientPosition: client?.position ?? null,
     clientUrl: client?.url ?? null,
   };
-}
-
-/** A service keyword whose page 1 is mostly articles is a blog topic, whatever its wording suggested. */
-export function pageTypeFromPageOne(row: KeywordResearchKeyword, check: PageOneCheck) {
-  return row.pageType === "service" && check.articles >= MOVE_TO_BLOG_AT ? "blog" as const : row.pageType;
 }
 
 export interface SitePage {

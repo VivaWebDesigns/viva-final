@@ -48,6 +48,10 @@ export interface KeywordResearchKeyword {
   pageMatch?: PageMatch;
   /** What to do about this keyword and why. Set by the page-1 check. */
   plan?: KeywordPlan;
+  /** The page plan this keyword belongs to. */
+  pageId?: string;
+  /** Claude's judgment of whether the search is work the client offers. */
+  relevance?: RelevanceCheck;
 }
 
 /** Observations about page 1 from one city. Counts are evidence, not a verdict: the plan rules say what they imply. */
@@ -104,6 +108,10 @@ export interface KeywordResearchSummary {
   unknownVolume?: number;
   /** False when the difficulty scores could not be pulled; the list is still usable without them. */
   difficultyAvailable?: boolean;
+  /** Keywords dropped because they name excluded work. */
+  droppedExcluded?: number;
+  /** The page plan. Replaces the per-keyword pageCheck output. */
+  plan?: ProjectPlan;
   pageCheck?: PageCheckSummary;
 }
 
@@ -169,6 +177,8 @@ export interface CompetitorSite {
   metros: number;
   /** Blog and cost keywords (of the client's top 15) the site ranks for nationally. Missing on scans before it was added. */
   contentKeywords?: number;
+  /** Client services the site ranks top 10 for in discovery's searches. Missing on scans before it was added. */
+  services?: string[];
   /** Organic keywords, top-10 keywords and estimated monthly traffic value (US), from DataForSEO. Null until pulled. */
   organicKeywords: number | null;
   top10Keywords: number | null;
@@ -206,6 +216,8 @@ export interface KeywordCompetitorScan {
   clientAppearances: number;
   costUsd: number;
   playbook?: KeywordPlaybook | null;
+  /** Discovery queries dropped or held as not the client's work, with Claude's reason. */
+  rejectedQueries?: Array<{ keyword: string; verdict: "no" | "uncertain"; reason: string }>;
 }
 
 /** What a picked competitor's rankings look like: how much it ranks for and where its search value sits. */
@@ -225,8 +237,10 @@ export interface PlaybookReviewKeyword {
   searchVolume: number | null;
   cpc: number | null;
   competitors: Array<{ domain: string; position: number }>;
-  /** Why it needs a decision: it matched no client service, or Google has no local volume for it. */
-  reason?: "no_service" | "no_local_data";
+  /** Why it needs a decision: Claude was uncertain it is the client's work, or Google has no local volume for it. */
+  reason?: "no_service" | "no_local_data" | "uncertain";
+  /** Claude's reason for its relevance verdict. */
+  note?: string;
 }
 
 export interface KeywordPlaybook {
@@ -240,5 +254,91 @@ export interface KeywordPlaybook {
   rising: number;
   /** Money keywords with local demand that none of the picked competitors rank for. */
   unclaimed: number;
+  costUsd: number;
+}
+
+/** Work the client does not do, with the search terms that name it ("auto glass": windshield, car window, safelite). */
+export interface Exclusion {
+  work: string;
+  terms: string[];
+  reason: string;
+  /** "website": Claude inferred it because the site never mentions the work. "user": added by hand. */
+  source: "website" | "user";
+}
+
+export type ProjectRunStep = "competitors" | "playbook" | "plan";
+
+/** A long step running in the background. A step left "running" after a restart reads as interrupted, never resubmitted. */
+export interface ProjectRun {
+  step: ProjectRunStep;
+  status: "running" | "done" | "failed";
+  startedAt: string;
+  finishedAt: string | null;
+  error: string | null;
+}
+
+/** Whether a search describes work the client offers, judged against the confirmed services and exclusions. */
+export interface RelevanceCheck {
+  verdict: "yes" | "no" | "uncertain";
+  service: string | null;
+  reason: string;
+}
+
+export type PageKind = "service" | "city" | "cost" | "blog";
+/** How promising page 1 looked for the page's main keyword from the checked city. Contested means harder, not "don't build". */
+export type Opportunity = "more_room" | "normal" | "contested" | "unchecked";
+export type PageAction = "keep" | "improve" | "staging" | "recommend" | "investigate";
+
+/** The one search that was checked for a proposed page. It supports the page; it does not validate every keyword or city under it. */
+export interface PageEvidence {
+  keyword: string;
+  city: string;
+  smallSites: number;
+  forums: number;
+  unknownSites: number;
+  /** Top-10 results whose title or address names the checked city: how much page 1 rewards city-specific pages. */
+  cityPages: number;
+  mapPack: boolean;
+  aiOverview: boolean;
+  clientPosition: number | null;
+  clientUrl: string | null;
+}
+
+/** A page to keep, improve, publish from staging, build, or look into, with the keywords it serves. */
+export interface PagePlan {
+  id: string;
+  title: string;
+  kind: PageKind;
+  service: string | null;
+  city: string | null;
+  action: PageAction;
+  /** The existing page this plan is about, and whether it is live or only on staging. */
+  page: PageMatch;
+  mainKeyword: string;
+  keywords: string[];
+  /** Searches × CPC summed over keywords with known numbers, and how many keywords have unknown value. */
+  value: number;
+  unknownValue: number;
+  demand: number | null;
+  priorityService: boolean;
+  opportunity: Opportunity;
+  confidence: PlanConfidence;
+  evidence: PageEvidence | null;
+  reasons: string[];
+  /** What is still unknown or needs a decision before acting. */
+  questions: string[];
+  /** Set when the client moved a keyword out to its own page or Claude split or merged the group. */
+  adjusted: string | null;
+}
+
+export interface ProjectPlan {
+  ranAt: string;
+  pages: PagePlan[];
+  /** Keywords held back: relevance uncertain, or no service. */
+  unresolved: Array<{ keyword: string; reason: string }>;
+  checkedCity: string;
+  siteKind: "live" | "staging";
+  sitePages: number | null;
+  siteNote: string | null;
   costUsd: number;
 }

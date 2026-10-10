@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import * as z from "zod/v4";
+import type { Exclusion, RelevanceCheck } from "@shared/keywordResearch";
 import type { WebsitePage } from "./readWebsite";
 
 const MODEL = "claude-opus-5-5";
@@ -76,6 +77,54 @@ Rules:
 - Use null for searches about another company's brand or name, jobs, and product shopping.
 - Questions and costs about a listed service belong to that service ("how much is a frameless shower door" → the shower door service).
 Return every keyword you are given, spelled exactly as given.`;
+
+const exclusionsSchema = z.object({
+  exclusions: z.array(z.object({ work: z.string(), terms: z.array(z.string()), reason: z.string() })),
+});
+
+const EXCLUSIONS_INSTRUCTIONS = `You help a web agency keep a local business's SEO research to work the business actually does.
+You are given the trade, the services the business confirmed, and text from its website. List kinds of work that searchers often confuse with this trade, or that neighbouring businesses offer, which this website never says it does.
+Examples for a glass and door company: auto glass and windshields, garage doors, roofing, window tinting, if the site never mentions them.
+Rules:
+- Only list work the website does not mention. If the site mentions it anywhere, do not list it.
+- Never list anything that overlaps a confirmed service.
+- For each, give 3 to 8 lowercase search terms that name it ("auto glass", "windshield", "car window", "safelite") and a reason of at most 15 words that cites what the site lacks.
+- Return 3 to 10 items, most likely confusions first.`;
+
+const relevanceSchema = z.object({
+  keywords: z.array(z.object({
+    keyword: z.string(),
+    verdict: z.enum(["yes", "no", "uncertain"]),
+    service: z.string().nullable(),
+    reason: z.string(),
+  })),
+});
+
+const RELEVANCE_INSTRUCTIONS = `You check whether Google searches describe work a local business offers. You do not decide what the business offers: the confirmed services and the exclusions are given, and are the only facts.
+For each keyword answer:
+- yes: the searcher wants work covered by one of the confirmed services. Give that service, copied exactly.
+- no: the searcher wants excluded work, a different trade, another company's brand or name, a job, or a product to buy.
+- uncertain: it could go either way, or it names work near a confirmed service that is not clearly the same thing (garage doors when the service is door installation, car windows when the service is window repair).
+Matching words are not enough: "repair car window" shares words with "window repair" but is auto glass.
+Give a reason of at most 12 words. Return every keyword you are given, spelled exactly as given.`;
+
+const reviewSchema = z.object({
+  groups: z.array(z.object({
+    id: z.string(),
+    decision: z.enum(["keep", "merge", "split"]),
+    into: z.string().nullable(),
+    parts: z.array(z.array(z.string())).nullable(),
+    reason: z.string(),
+  })),
+});
+
+const REVIEW_INSTRUCTIONS = `You review a proposed list of web pages for a local business. Each proposed page has an id, a kind (service, city, cost, blog) and the Google searches grouped under it.
+For each page decide:
+- keep: the searches belong on one page.
+- merge: the searches are the same need as another proposed page; give its id in "into". Only merge pages of the same kind and service.
+- split: the searches are different needs that deserve separate pages; give the parts as lists of the searches, copied exactly.
+Prefer fewer pages: merge near-duplicates, and split only when one page could not satisfy both searchers.
+Give a reason of at most 15 words. Return every id you are given.`;
 
 export class ServiceSuggestionError extends Error {}
 
@@ -180,4 +229,58 @@ export async function assignServices(trade: string, services: string[], keywords
     for (const row of result.keywords) assigned.set(row.keyword, row.service && allowed.has(row.service) ? row.service : null);
   }
   return assigned;
+}
+
+/** Work the website never mentions that searchers confuse with the trade. Applied as exclusions until someone removes them. */
+export async function inferExclusions(trade: string, services: string[], pages: WebsitePage[]): Promise<Exclusion[]> {
+  const pageText = pages.map(page => `URL: ${page.url}\nTitle: ${page.title}\nHeadings: ${page.headings.join(" | ")}\nText: ${page.text}`).join("\n\n---\n\n");
+  const result = await askClaude(EXCLUSIONS_INSTRUCTIONS, `Trade: ${trade}\nConfirmed services: ${services.join(", ")}\n\n${pageText}`, exclusionsSchema, 3000);
+  return result.exclusions.map(item => ({
+    work: item.work.toLowerCase().trim(),
+    terms: [...new Set(item.terms.map(term => term.toLowerCase().trim()).filter(Boolean))],
+    reason: item.reason,
+    source: "website" as const,
+  }));
+}
+
+const RELEVANCE_BATCH = 150;
+
+/**
+ * Whether each search is work the client offers. Claude judges against the confirmed services and exclusions only;
+ * a service it names outside the confirmed list is dropped and the verdict becomes uncertain.
+ */
+export async function checkRelevance(trade: string, services: string[], exclusions: Exclusion[], keywords: string[]) {
+  const allowed = new Set(services);
+  const checks = new Map<string, RelevanceCheck>();
+  const excluded = exclusions.length ? exclusions.map(item => `${item.work} (${item.terms.join(", ")})`).join("\n") : "none";
+  for (let index = 0; index < keywords.length; index += RELEVANCE_BATCH) {
+    const batch = keywords.slice(index, index + RELEVANCE_BATCH);
+    const result = await askClaude(
+      RELEVANCE_INSTRUCTIONS,
+      `Trade: ${trade}\nConfirmed services:\n${services.join("\n")}\n\nExcluded work:\n${excluded}\n\nKeywords:\n${batch.join("\n")}`,
+      relevanceSchema,
+      16000,
+    );
+    for (const row of result.keywords) {
+      const service = row.service && allowed.has(row.service) ? row.service : null;
+      const verdict = row.verdict === "yes" && !service ? "uncertain" : row.verdict;
+      checks.set(row.keyword.toLowerCase(), { verdict, service: verdict === "yes" ? service : null, reason: row.reason });
+    }
+  }
+  return checks;
+}
+
+export interface GroupToReview {
+  id: string;
+  kind: string;
+  service: string;
+  keywords: string[];
+}
+
+/** Claude's split/merge pass over proposed pages. Its groups are proposals until the user accepts them. */
+export async function reviewGroups(trade: string, groups: GroupToReview[]) {
+  if (!groups.length) return [];
+  const content = groups.map(group => `id: ${group.id}\nkind: ${group.kind}\nservice: ${group.service}\nsearches: ${group.keywords.slice(0, 15).join(" | ")}`).join("\n\n");
+  const result = await askClaude(REVIEW_INSTRUCTIONS, `Trade: ${trade}\n\n${content}`, reviewSchema, 8000);
+  return result.groups;
 }
