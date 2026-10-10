@@ -139,7 +139,7 @@ export function planPage(group: DraftGroup, input: {
   if (totals.unknownValue) reasons.push(`${totals.unknownValue} keyword${totals.unknownValue === 1 ? "'s" : "s'"} CPC not reported, so value is unknown for ${totals.unknownValue === 1 ? "it" : "them"}`);
   if (group.reference) {
     const ref = group.reference;
-    reasons.push(`metro reference CPC: $${ref.cpc.toFixed(2)} from "${ref.keyword}"${ref.competition ? `, paid-ad competition ${ref.competition.toLowerCase()}` : ""}${ref.difficulty != null ? `, organic difficulty ${ref.difficulty}` : ""}. City-phrase CPC: ${main.cpc != null ? `$${main.cpc.toFixed(2)}` : "not reported"}`);
+    reasons.push(`metro reference CPC: $${ref.cpc.toFixed(2)} from ${ref.keyword.startsWith("median of") ? ref.keyword : `"${ref.keyword}"`}${ref.competition ? `, paid-ad competition ${ref.competition.toLowerCase()}` : ""}${ref.difficulty != null ? `, organic difficulty ${ref.difficulty}` : ""}. City-phrase CPC: ${main.cpc != null ? `$${main.cpc.toFixed(2)}` : "not reported"}`);
   }
   if (evidence) {
     const map = evidence.clientMapPosition != null ? `; client #${evidence.clientMapPosition} in the map pack` : evidence.mapPack ? "; client not in the map pack" : "";

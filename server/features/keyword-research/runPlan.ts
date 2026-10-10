@@ -53,15 +53,19 @@ async function relevanceFor(project: KeywordResearchProject, rows: KeywordResear
 /**
  * The service's metro numbers, shown beside city phrases, never as their own numbers: the service searched with the
  * metro city ("glass shower door installer charlotte nc"), the profile city pages are built on; else the service's
- * highest-CPC hiring search with at least 10 searches a month (not a product or how-to search, which advertisers pay little for).
+ * median CPC across its hiring searches with at least 10 searches a month (not product or how-to searches), so one
+ * brand or outlier keyword does not set it.
  */
 function referenceMetrics(rows: KeywordResearchKeyword[], service: string, metroCity: string): ReferenceMetrics | null {
   const mine = rows.filter(row => row.cpc != null && (row.service === service || row.relevance?.service === service));
   const byDemand = (a: KeywordResearchKeyword, b: KeywordResearchKeyword) => (keywordDemand(b) ?? -1) - (keywordDemand(a) ?? -1) || (b.cpc ?? 0) - (a.cpc ?? 0);
-  const best = mine.filter(row => row.keyword.includes(metroCity.toLowerCase())).sort(byDemand)[0]
-    ?? mine.filter(row => row.source !== "grid" && row.pageType === "service" && row.intent !== "shopping" && row.intent !== "diy" && (keywordDemand(row) ?? 0) >= 10)
-      .sort((a, b) => (b.cpc ?? 0) - (a.cpc ?? 0))[0];
-  return best ? { keyword: best.keyword, cpc: best.cpc!, searchVolume: keywordDemand(best), competition: best.competition, difficulty: best.difficulty ?? null } : null;
+  const best = mine.filter(row => row.keyword.includes(metroCity.toLowerCase())).sort(byDemand)[0];
+  if (best) return { keyword: best.keyword, cpc: best.cpc!, searchVolume: keywordDemand(best), competition: best.competition, difficulty: best.difficulty ?? null };
+  const hiring = mine.filter(row => row.source !== "grid" && row.pageType === "service" && row.intent !== "shopping" && row.intent !== "diy" && (keywordDemand(row) ?? 0) >= 10)
+    .sort((a, b) => a.cpc! - b.cpc!);
+  if (!hiring.length) return null;
+  const middle = hiring[Math.floor((hiring.length - 1) / 2)];
+  return { keyword: `median of ${hiring.length} hiring searches`, cpc: middle.cpc!, searchVolume: null, competition: null, difficulty: null };
 }
 
 /** Blog keywords of one service clustered by shared topic words, so "how to fix foggy windows" and "fix foggy window" share a post. */
@@ -219,6 +223,13 @@ export async function runPlan(project: KeywordResearchProject): Promise<{ keywor
     row.relevance = { verdict: "yes", service: cell.service, reason: "generated from a confirmed service and a served city" };
     row.pageMatch = matchFor(row);
     planned.push({ row, service: cell.service, kind: "city", city: cell.city, match: row.pageMatch });
+  }
+  // A service's phrases for one city share a page: when one of them is on an existing page, the others go there too.
+  const cellPage = new Map<string, PageMatch>();
+  for (const item of planned) if (grid.has(item.row.keyword) && item.match.path) cellPage.set(`${item.service}|${item.city}`, item.match);
+  for (const item of planned) {
+    const page = grid.has(item.row.keyword) && !item.match.path ? cellPage.get(`${item.service}|${item.city}`) : undefined;
+    if (page) item.match = item.row.pageMatch = page;
   }
 
   const serviceStems = new Map(serviceNames.map(service => [service, meaningStems(service)] as const));
