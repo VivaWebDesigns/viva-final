@@ -155,6 +155,7 @@ export default function CompetitorsCard({ project, onUpdate }: { project: Keywor
             <p className="text-sm text-gray-600">
               Searched {scan.localKeywords.length} keywords from {scan.searchCities.join("; ")} on {new Date(scan.ranAt).toLocaleDateString()} · data cost ${scan.costUsd.toFixed(2)}.
               {" "}The client's site is on page 1 for {scan.clientAppearances} of {scan.localKeywords.length * scan.searchCities.length} of these searches.
+              {!!scan.failedSearches && ` ${scan.failedSearches} searches failed at DataForSEO and were skipped.`}
             </p>
 
             <section className="space-y-2">

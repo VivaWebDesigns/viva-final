@@ -6,7 +6,8 @@ import {
   assembleScan, candidateDomains, discoveryCandidates, discoveryKeywords, isNotCompetitor, mapPackLeaders, scoreLocal, scoreNational, serviceWeights, spreadPicks,
 } from "../../server/features/keyword-research/competitors";
 import type { DomainStrength, SerpResult } from "../../server/features/keyword-research/dataforseo";
-import { clientDomainOf } from "../../server/features/keyword-research/discover";
+import { clientDomainOf, tolerantSearches } from "../../server/features/keyword-research/discover";
+import { KeywordDataError } from "../../server/features/keyword-research/dataforseo";
 import { kkcGlass } from "../fixtures/keyword-research/kkcGlass";
 
 const dir = path.resolve(import.meta.dirname, "../fixtures/keyword-research/kkc-glass");
@@ -144,5 +145,23 @@ describe("KKC Glass discovery", () => {
 
   it("lists Shower Doors of Charlotte's 1,100 reviews among the map pack leaders", () => {
     expect(mapPack.find(business => business.domain === "showerdoorsofcharlotte.com")?.reviews).toBe(1100);
+  });
+});
+
+describe("tolerant searches", () => {
+  it("skips a search DataForSEO fails on and keeps the rest", async () => {
+    const { results, failed } = await tolerantSearches([1, 2, 3, 4, 5], async item => {
+      if (item === 3) throw new KeywordDataError("DataForSEO: Internal SE Server Error.");
+      return item * 10;
+    });
+    expect(results).toEqual([10, 20, 40, 50]);
+    expect(failed).toBe(1);
+  });
+
+  it("gives up when more than a quarter of the searches fail", async () => {
+    await expect(tolerantSearches([1, 2, 3, 4], async item => {
+      if (item <= 2) throw new KeywordDataError("down");
+      return item;
+    })).rejects.toThrow(/failed on 2 of 4/);
   });
 });

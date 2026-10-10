@@ -6,7 +6,7 @@ import {
 import type { KeywordResearchProject } from "@shared/schema";
 import { isNotCompetitor } from "./competitors";
 import { fetchSerp, fetchTrafficEstimates } from "./dataforseo";
-import { clientDomainOf, inBatches, parseCity, searchLocations } from "./discover";
+import { clientDomainOf, parseCity, searchLocations, tolerantSearches } from "./discover";
 import { excludedWork, stateName } from "./keywords";
 import { coveringPage, evidenceFrom, isArticle, isForum, sitePages, type SitePage } from "./pageCheck";
 import { meaningStems } from "./quality";
@@ -188,7 +188,7 @@ export async function runPlan(project: KeywordResearchProject): Promise<{ keywor
   const locationFor = new Map<string, string>();
   for (const name of await searchLocations([homeCity, ...servedCities])) locationFor.set(name.split(",")[0].toLowerCase(), name);
   const homeLocation = locationFor.get(homeCity.city.toLowerCase()) ?? project.locationName;
-  const serps = await inBatches(toCheck, async group => {
+  const { results: serps, failed: failedChecks } = await tolerantSearches(toCheck, async group => {
     const main = mainKeyword(group.members.map(m => m.row));
     const city = group.city ?? homeCity.city;
     const result = await fetchSerp(main.keyword, locationFor.get(city.toLowerCase()) ?? homeLocation, 20);
@@ -257,6 +257,7 @@ export async function runPlan(project: KeywordResearchProject): Promise<{ keywor
         sitePages: urls?.length ?? null,
         siteNote,
         costUsd: Number(cost.toFixed(4)),
+        failedChecks,
       },
     },
   };

@@ -126,6 +126,7 @@ export default function PlanCard({ project, onUpdate }: { project: KeywordResear
               {plan.siteKind === "staging" && " A staging page is not published or visible in Google."}
               {plan.siteNote && ` ${plan.siteNote}`}
               {" "}Each page's check covers one keyword from one city, not everything under it.
+              {!!plan.failedChecks && ` ${plan.failedChecks} page-1 checks failed at DataForSEO; those pages read as not checked.`}
             </p>
             <div className="grid gap-3 sm:grid-cols-5">
               {ACTIONS.map(name => (

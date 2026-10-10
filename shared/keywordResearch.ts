@@ -218,6 +218,8 @@ export interface KeywordCompetitorScan {
   playbook?: KeywordPlaybook | null;
   /** Discovery queries dropped or held as not the client's work, with Claude's reason. */
   rejectedQueries?: Array<{ keyword: string; verdict: "no" | "uncertain"; reason: string }>;
+  /** Searches DataForSEO failed on and that were skipped. */
+  failedSearches?: number;
 }
 
 /** What a picked competitor's rankings look like: how much it ranks for and where its search value sits. */
@@ -341,4 +343,6 @@ export interface ProjectPlan {
   sitePages: number | null;
   siteNote: string | null;
   costUsd: number;
+  /** Page-1 checks DataForSEO failed on; those pages read as unchecked. */
+  failedChecks?: number;
 }

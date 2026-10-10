@@ -10,6 +10,30 @@ import { checkRelevance, chooseSearchCities, labelSites } from "./suggestService
 
 const CONCURRENCY = 8;
 
+/** Share of searches allowed to fail (DataForSEO answers some with a server error) before a run gives up. */
+export const MAX_FAILED_SHARE = 0.25;
+
+/**
+ * Runs paid searches, skipping any that DataForSEO fails on instead of throwing the rest away. Throws only when
+ * more than a quarter fail, since the result would then be missing too much to trust.
+ */
+export async function tolerantSearches<T, R>(items: T[], run: (item: T) => Promise<R>) {
+  let failed = 0;
+  const results = await inBatches(items, async item => {
+    try {
+      return await run(item);
+    } catch (error) {
+      if (!(error instanceof KeywordDataError)) throw error;
+      failed += 1;
+      return null;
+    }
+  });
+  if (items.length && failed / items.length > MAX_FAILED_SHARE) {
+    throw new KeywordDataError(`DataForSEO failed on ${failed} of ${items.length} searches. Try again in a few minutes.`);
+  }
+  return { results: results.filter((result): result is Awaited<R> & {} => result != null), failed };
+}
+
 export async function inBatches<T, R>(items: T[], run: (item: T) => Promise<R>) {
   const results: R[] = [];
   for (let index = 0; index < items.length; index += CONCURRENCY) {
@@ -79,11 +103,16 @@ export async function discoverCompetitors(project: KeywordResearchProject, citie
   };
   const localJobs = locations.flatMap(location => searches.local.map(keyword => [keyword, location] as const));
   const nationalJobs = NATIONAL_METROS.filter(metro => !locations.includes(metro)).flatMap(metro => searches.national.map(keyword => [keyword, metro] as const));
-  const [localSerps, nationalSerps, content] = await Promise.all([
-    inBatches(localJobs, ([keyword, location]) => serp(keyword, location)),
-    inBatches(nationalJobs, ([keyword, location]) => serp(keyword, location)),
-    searches.content.length ? fetchSerpCompetitors(searches.content) : Promise.resolve({ domains: [], cost: 0 }),
+  const [localRun, nationalRun, content] = await Promise.all([
+    tolerantSearches(localJobs, ([keyword, location]) => serp(keyword, location)),
+    tolerantSearches(nationalJobs, ([keyword, location]) => serp(keyword, location)),
+    searches.content.length ? fetchSerpCompetitors(searches.content).catch(error => {
+      if (!(error instanceof KeywordDataError)) throw error;
+      return { domains: [], cost: 0 };
+    }) : Promise.resolve({ domains: [], cost: 0 }),
   ]);
+  const localSerps = localRun.results;
+  const nationalSerps = nationalRun.results;
   cost += content.cost;
 
   // Each service pulls equally, so window replacement's search value cannot drown out commercial doors.
@@ -126,6 +155,7 @@ export async function discoverCompetitors(project: KeywordResearchProject, citie
     confirmedAt: null,
     clientAppearances: local.clientAppearances,
     rejectedQueries,
+    failedSearches: localRun.failed + nationalRun.failed,
     costUsd: Number(cost.toFixed(4)),
   };
 }
