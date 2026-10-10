@@ -11,7 +11,7 @@ import { chooseSearchCities, labelSites } from "./suggestServices";
 
 const CONCURRENCY = 8;
 
-async function inBatches<T, R>(items: T[], run: (item: T) => Promise<R>) {
+export async function inBatches<T, R>(items: T[], run: (item: T) => Promise<R>) {
   const results: R[] = [];
   for (let index = 0; index < items.length; index += CONCURRENCY) {
     results.push(...await Promise.all(items.slice(index, index + CONCURRENCY).map(run)));
@@ -29,7 +29,7 @@ export function clientDomainOf(website: string | null) {
 }
 
 /** Google location names for "City, ST" pairs, keeping only places Google can search from. */
-async function searchLocations(cities: Array<{ city: string; state: string }>) {
+export async function searchLocations(cities: Array<{ city: string; state: string }>) {
   const known = new Map((await searchAreas()).filter(area => area.type === "City").map(area => [area.name.toLowerCase(), area.name]));
   const names = cities.map(({ city, state }) => known.get(`${city.trim()},${stateName(state)},United States`.toLowerCase()));
   return [...new Set(names.filter((name): name is string => !!name))];

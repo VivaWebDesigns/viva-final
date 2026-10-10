@@ -204,7 +204,9 @@ export async function fetchSearchIntent(keywords: string[]) {
 export interface SerpResult {
   keyword: string;
   locationName: string;
-  organic: Array<{ position: number; domain: string; title: string | null }>;
+  organic: Array<{ position: number; domain: string; title: string | null; url?: string }>;
+  /** Whether Google showed an AI Overview above the results. */
+  aiOverview?: boolean;
   localPack: Array<{ title: string; domain: string | null; rating: number | null; reviews: number | null }>;
 }
 
@@ -212,6 +214,7 @@ interface SerpItem {
   type: string;
   rank_group: number;
   domain?: string | null;
+  url?: string | null;
   title?: string | null;
   rating?: { value?: number | null; votes_count?: number | null } | null;
 }
@@ -221,14 +224,15 @@ function bareDomain(domain: string) {
 }
 
 /** Google's first two pages for a keyword as seen from one place: organic results and the map pack. */
-export async function fetchSerp(keyword: string, locationName: string) {
-  const result = await postLive<{ items?: SerpItem[] | null }>(`${SERP_API}/live/advanced`, { keyword, location_name: locationName, language_code: "en", depth: 20 });
+export async function fetchSerp(keyword: string, locationName: string, depth = 20) {
+  const result = await postLive<{ items?: SerpItem[] | null }>(`${SERP_API}/live/advanced`, { keyword, location_name: locationName, language_code: "en", depth });
   const items = result.rows[0]?.items ?? [];
   const serp: SerpResult = {
     keyword,
     locationName,
     organic: items.filter(item => item.type === "organic" && item.domain)
-      .map(item => ({ position: item.rank_group, domain: bareDomain(item.domain!), title: item.title ?? null })),
+      .map(item => ({ position: item.rank_group, domain: bareDomain(item.domain!), title: item.title ?? null, url: item.url ?? undefined })),
+    aiOverview: items.some(item => item.type === "ai_overview"),
     localPack: items.filter(item => item.type === "local_pack" && item.title)
       .map(item => ({ title: item.title!, domain: item.domain ? bareDomain(item.domain) : null, rating: item.rating?.value ?? null, reviews: item.rating?.votes_count ?? null })),
   };
@@ -244,6 +248,20 @@ export async function fetchSerpCompetitors(keywords: string[]) {
     domains: (result.rows[0]?.items ?? []).map(item => ({ domain: bareDomain(item.domain), keywords: item.keywords_count ?? 0 })),
     cost: result.cost,
   };
+}
+
+/** Estimated monthly organic visits (US) for many domains in one call. Domains it does not know are missing. */
+export async function fetchTrafficEstimates(domains: string[]) {
+  let cost = 0;
+  const traffic = new Map<string, number>();
+  for (const batch of chunk(domains, DIFFICULTY_BATCH)) {
+    const result = await postTask<{ items?: Array<{ target: string; metrics?: { organic?: { etv?: number | null } | null } | null }> | null }>(
+      "bulk_traffic_estimation", { targets: batch, location_code: 2840, language_code: "en", item_types: ["organic"] }, LABS_API,
+    );
+    cost += result.cost;
+    for (const item of result.rows[0]?.items ?? []) traffic.set(bareDomain(item.target), Math.round(item.metrics?.organic?.etv ?? 0));
+  }
+  return { traffic, cost };
 }
 
 export interface DomainStrength {

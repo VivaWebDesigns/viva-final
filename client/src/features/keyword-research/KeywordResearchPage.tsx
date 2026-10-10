@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import SearchAreaPicker, { areaLabel } from "./SearchAreaPicker";
 import CompetitorsCard from "./CompetitorsCard";
 import PlaybookCard from "./PlaybookCard";
+import PageCheckCard, { STRENGTH_LABELS } from "./PageCheckCard";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 interface ProjectListItem {
@@ -42,12 +43,17 @@ const INTENT_LABELS = { diy: "DIY", shopping: "Shopping" } as const;
 const RISING_TREND = 0.25;
 const isRising = (row: KeywordResearchKeyword) => (row.trend ?? 0) >= RISING_TREND && (keywordDemand(row) ?? 0) >= 30;
 const isUnclaimed = (row: KeywordResearchKeyword) => row.competitors != null && !row.competitors.length && row.pageType !== "blog" && (keywordDemand(row) ?? 0) > 0;
-const GROUP_LABELS = { competitor: "Added from competitors", rising: "Rising searches", unclaimed: "No picked competitor ranks" } as const;
+const GROUP_LABELS = {
+  competitor: "Added from competitors", rising: "Rising searches", unclaimed: "No picked competitor ranks",
+  open: "Open on page 1", noPage: "No page yet",
+} as const;
 type KeywordGroup = keyof typeof GROUP_LABELS;
 const inGroup: Record<KeywordGroup, (row: KeywordResearchKeyword) => boolean> = {
   competitor: row => row.source === "competitor",
   rising: isRising,
   unclaimed: isUnclaimed,
+  open: row => row.pageOne?.strength === "open",
+  noPage: row => row.coveredBy === null,
 };
 
 /** apiRequest errors look like `502: {"message":"..."}`; show just the message. */
@@ -70,8 +76,8 @@ function csvCell(value: string | number | null) {
 }
 
 function downloadCsv(project: KeywordResearchProject) {
-  const header = ["Service", "Keyword", "Page type", "Intent", "Avg. monthly searches", "Near me searches", "CPC", "Difficulty", "Score (searches x CPC)", "Change vs last year", "Source", "Competitors ranking", "Competition", "Competition index", "Top of page bid (low)", "Top of page bid (high)", "Same search as"];
-  const rows = project.keywords.map(row => [row.service ?? "Unsorted", row.keyword, row.pageType ? PAGE_TYPE_LABELS[row.pageType] : null, row.intent ?? null, row.searchVolume, row.nearMeVolume ?? null, row.cpc, row.difficulty ?? null, keywordScore(row), row.trend == null ? null : `${Math.round(row.trend * 100)}%`, row.source ?? "research", (row.competitors ?? []).map(entry => `${entry.domain} #${entry.position}`).join("; "), row.competition, row.competitionIndex, row.lowTopOfPageBid, row.highTopOfPageBid, (row.variants ?? []).join("; ")]);
+  const header = ["Service", "Keyword", "Page type", "Intent", "Avg. monthly searches", "Near me searches", "CPC", "Difficulty", "Score (searches x CPC)", "Change vs last year", "Source", "Competitors ranking", "Page 1", "Map pack", "AI Overview", "Client position", "Client page", "Competition", "Competition index", "Top of page bid (low)", "Top of page bid (high)", "Same search as"];
+  const rows = project.keywords.map(row => [row.service ?? "Unsorted", row.keyword, row.pageType ? PAGE_TYPE_LABELS[row.pageType] : null, row.intent ?? null, row.searchVolume, row.nearMeVolume ?? null, row.cpc, row.difficulty ?? null, keywordScore(row), row.trend == null ? null : `${Math.round(row.trend * 100)}%`, row.source ?? "research", (row.competitors ?? []).map(entry => `${entry.domain} #${entry.position}`).join("; "), row.pageOne ? STRENGTH_LABELS[row.pageOne.strength] : null, row.pageOne ? (row.pageOne.mapPack ? "yes" : "no") : null, row.pageOne ? (row.pageOne.aiOverview ? "yes" : "no") : null, row.pageOne?.clientPosition ?? null, row.coveredBy === undefined ? null : row.coveredBy ?? "none", row.competition, row.competitionIndex, row.lowTopOfPageBid, row.highTopOfPageBid, (row.variants ?? []).join("; ")]);
   const csv = [header, ...rows].map(row => row.map(csvCell).join(",")).join("\n");
   const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
   const link = document.createElement("a");
@@ -374,12 +380,12 @@ function ProjectView({ id }: { id: string }) {
                   {(Object.keys(PAGE_TYPE_LABELS) as KeywordPageType[]).map(type => <SelectItem key={type} value={type}>{PAGE_TYPE_LABELS[type]}</SelectItem>)}
                 </SelectContent>
               </Select>
-              {project.competitors?.playbook && (
+              {(project.competitors?.playbook || project.summary.pageCheck) && (
                 <Select value={group} onValueChange={setGroup}>
                   <SelectTrigger className="w-full sm:w-56" data-testid="select-kr-group-filter"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value={ALL}>All keywords</SelectItem>
-                    {(Object.keys(GROUP_LABELS) as KeywordGroup[]).map(key => (
+                    {(Object.keys(GROUP_LABELS) as KeywordGroup[]).filter(key => keywords.some(inGroup[key])).map(key => (
                       <SelectItem key={key} value={key}>{GROUP_LABELS[key]} ({keywords.filter(inGroup[key]).length.toLocaleString()})</SelectItem>
                     ))}
                   </SelectContent>
@@ -412,6 +418,15 @@ function ProjectView({ id }: { id: string }) {
                         {!!row.competitors?.length && <span className="block text-xs font-normal text-gray-500">{row.source === "competitor" ? "From" : "Ranked by"} {row.competitors.slice(0, 2).map(entry => `${entry.domain} #${entry.position}`).join(", ")}{row.competitors.length > 2 ? ` +${row.competitors.length - 2}` : ""}</span>}
                         {isRising(row) && <span className="block text-xs font-normal text-emerald-700">Rising: +{Math.round(row.trend! * 100)}% vs last year</span>}
                         {isUnclaimed(row) && <span className="block text-xs font-normal text-blue-700">No picked competitor ranks for this</span>}
+                        {row.pageOne && (
+                          <span className="block text-xs font-normal text-gray-500">
+                            Page 1: {STRENGTH_LABELS[row.pageOne.strength]}
+                            {row.pageOne.mapPack && " · map pack"}
+                            {row.pageOne.aiOverview && (row.pageType === "blog" || row.pageType === "cost") && " · AI Overview"}
+                            {row.pageOne.clientPosition != null && ` · client #${row.pageOne.clientPosition}`}
+                          </span>
+                        )}
+                        {row.coveredBy !== undefined && <span className="block text-xs font-normal text-gray-500">{row.coveredBy ? `Page: ${row.coveredBy}` : "No page yet"}</span>}
                       </TableCell>
                       <TableCell className="text-gray-600">{row.service ?? "Unsorted"}</TableCell>
                       <TableCell className="text-gray-600">
@@ -442,6 +457,8 @@ function ProjectView({ id }: { id: string }) {
       {project.status === "researched" && !!project.competitors?.picks.length && (
         <PlaybookCard key={project.competitors.ranAt} project={project} onUpdate={setProject} />
       )}
+
+      {project.status === "researched" && project.summary && <PageCheckCard project={project} onUpdate={setProject} />}
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { applySearchIntent, buildKeywordList, classifyKeyword, cleanKeyword, mat
 import { createProject, deleteProject, getProject, listProjects, updateProject } from "./repository";
 import { discoverCompetitors } from "./discover";
 import { buildPlaybook } from "./runPlaybook";
+import { runPageCheck } from "./runPageCheck";
 import { readWebsite, WebsiteReadError } from "./readWebsite";
 import { chooseMetro, ServiceSuggestionError, servicesFromWebsite, suggestServices } from "./suggestServices";
 import { assertSafePublicUrl, UnsafeUrlError } from "../technical-seo/url-safety";
@@ -306,6 +307,19 @@ router.post("/projects/:id/playbook/review", async (req, res) => {
     }));
   } catch (error) {
     return sendError(res, error, "Unable to add the keyword");
+  }
+});
+
+// Checks page 1 for the top keywords from the client's city and matches keywords to the client's pages.
+router.post("/projects/:id/page-check", async (req, res) => {
+  try {
+    const project = await getProject(req.params.id);
+    if (!project) return res.status(404).json({ message: "Project not found" });
+    if (project.status !== "researched") return res.status(409).json({ message: "Run the keyword research first." });
+    const { keywords, summary } = await runPageCheck(project);
+    return res.json(await updateProject(project.id, { keywords, summary }, summary.pageCheck!.costUsd));
+  } catch (error) {
+    return sendError(res, error, "Unable to check page 1");
   }
 });
 

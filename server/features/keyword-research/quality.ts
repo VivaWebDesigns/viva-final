@@ -31,7 +31,8 @@ function stem(word: string) {
   return singular.length > 5 ? singular.slice(0, 5) : singular;
 }
 
-function meaningStems(keyword: string) {
+/** The words that carry a phrase's meaning, stemmed ("shower doors" and "shower door" match). */
+export function meaningStems(keyword: string) {
   const text = cleanKeyword(keyword).replace(/\ba ?c\b/g, "ac").replace(/-/g, " ");
   return new Set(text.split(" ").filter(word => word && !FILLER.has(word)).map(stem));
 }

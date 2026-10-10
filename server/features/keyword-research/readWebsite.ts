@@ -139,3 +139,28 @@ export async function readHomepage(input: string): Promise<WebsitePage | null> {
     return null;
   }
 }
+
+/** Every page URL the site lists: homepage links plus the sitemap. Null when the homepage cannot be read. */
+export async function listSitePages(input: string): Promise<string[] | null> {
+  const signal = AbortSignal.timeout(CRAWL_TIMEOUT_MS);
+  const home = await fetchPage(normalizePublicUrl(input), signal).catch(() => null);
+  if (!home) return null;
+  const origin = new URL(home.url).origin;
+  const urls = new Set([home.url, ...home.links.map(link => link.url)]);
+  for (const url of await sitemapUrls(origin, signal)) urls.add(url);
+  return [...urls].filter(url => url.startsWith(origin) && !FILE_PATH.test(new URL(url).pathname)).slice(0, 2_000);
+}
+
+/** Title and first heading of each page, for telling what a page targets. Pages that cannot be read keep only their URL. */
+export async function readPageHeadlines(urls: string[]) {
+  const signal = AbortSignal.timeout(CRAWL_TIMEOUT_MS);
+  const headlines = new Map<string, string>();
+  for (let index = 0; index < urls.length; index += CONCURRENCY * 2) {
+    if (signal.aborted) break;
+    const batch = await Promise.all(urls.slice(index, index + CONCURRENCY * 2).map(url => fetchPage(url, signal)));
+    batch.forEach((page, offset) => {
+      if (page) headlines.set(urls[index + offset], `${page.title} ${page.headings[0] ?? ""}`);
+    });
+  }
+  return headlines;
+}

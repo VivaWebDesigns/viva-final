@@ -14,7 +14,8 @@ const STATES: Array<[string, string]> = [
   ["tn", "tennessee"], ["tx", "texas"], ["ut", "utah"], ["vt", "vermont"], ["va", "virginia"], ["wa", "washington"],
   ["wv", "west virginia"], ["wi", "wisconsin"], ["wy", "wyoming"],
 ];
-const BLOG_PATH = /\/(blog|blogs|news|articles?|learn|resources|guides?|educational-blog|question|topics)\//i;
+/** URL paths of articles, guides and blog posts. */
+export const BLOG_PATH = /\/(blog|blogs|news|articles?|learn|resources|guides?|educational-blog|question|topics)\//i;
 
 const WORD_CODES = new Set(["in", "me", "or", "ok", "hi", "oh", "la", "pa", "ma", "co", "de", "id", "al"]);
 

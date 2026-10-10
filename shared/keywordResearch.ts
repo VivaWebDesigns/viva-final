@@ -40,6 +40,26 @@ export interface KeywordResearchKeyword {
   competitors?: Array<{ domain: string; position: number }>;
   /** Change in searches over the last 11 months against the same months a year earlier (0.4 = +40%). Set by the playbook. */
   trend?: number | null;
+  /** What page 1 looks like from the client's city. Set by the page-1 check for the top keywords only. */
+  pageOne?: PageOneCheck;
+  /** Path of the client's page that targets this keyword, null when it has none. Missing until the page-1 check runs. */
+  coveredBy?: string | null;
+}
+
+/**
+ * open: 3 or more weak sites (under 1,000 visits/mo, or forum posts) in the top 10.
+ * contested: no weak site in the top 10. beatable: in between.
+ */
+export type PageOneStrength = "open" | "beatable" | "contested";
+
+export interface PageOneCheck {
+  strength: PageOneStrength;
+  weakSites: number;
+  mapPack: boolean;
+  aiOverview: boolean;
+  /** Top-10 results that are articles, guides or forum posts. */
+  articles: number;
+  clientPosition: number | null;
 }
 
 export interface KeywordResearchSummary {
@@ -55,6 +75,20 @@ export interface KeywordResearchSummary {
   unknownVolume?: number;
   /** False when the difficulty scores could not be pulled; the list is still usable without them. */
   difficultyAvailable?: boolean;
+  pageCheck?: PageCheckSummary;
+}
+
+export interface PageCheckSummary {
+  ranAt: string;
+  /** Where the searches were run from. */
+  location: string;
+  checked: number;
+  /** Keywords moved to blog posts because page 1 is mostly articles. */
+  movedToBlog: number;
+  /** Pages found on the client's site, or null when it could not be read. */
+  sitePages: number | null;
+  siteNote: string | null;
+  costUsd: number;
 }
 
 /** Searches including "near me", which Google answers by location and are counted with the plain phrase. */
