@@ -5,6 +5,7 @@ import { requireRole } from "../auth/middleware";
 import { fetchKeywordDifficulty, fetchKeywordIdeas, fetchSearchIntent, fetchSearchVolume, KeywordDataError, searchAreas, type KeywordMetrics } from "./dataforseo";
 import { applySearchIntent, buildKeywordList, cleanKeyword, matchSearchAreas, pickSearchArea, serviceDemand, serviceVariants } from "./keywords";
 import { createProject, deleteProject, getProject, listProjects, updateProject } from "./repository";
+import { discoverCompetitors } from "./discover";
 import { readWebsite, WebsiteReadError } from "./readWebsite";
 import { chooseMetro, ServiceSuggestionError, servicesFromWebsite, suggestServices } from "./suggestServices";
 import { assertSafePublicUrl, UnsafeUrlError } from "../technical-seo/url-safety";
@@ -131,7 +132,7 @@ router.patch("/projects/:id/location", async (req, res) => {
     const locationName = await resolveSearchArea(input.locationName);
     const { volumes, cost } = await volumesFor(project.services.map(service => service.name), project.city, locationName);
     const services = project.services.map(service => ({ ...service, demand: serviceDemand(service.name, project.city, volumes) }));
-    return res.json(await updateProject(project.id, { locationName, services, keywords: [], summary: null, status: "choosing_services", researchedAt: null }, cost));
+    return res.json(await updateProject(project.id, { locationName, services, keywords: [], summary: null, competitors: null, status: "choosing_services", researchedAt: null }, cost));
   } catch (error) {
     return sendError(res, error, "Unable to change the search area");
   }
@@ -208,10 +209,54 @@ router.post("/projects/:id/research", async (req, res) => {
       applySearchIntent(keywords, intents.value.intent);
     }
     summary.difficultyAvailable = scores.status === "fulfilled";
-    const updated = await updateProject(project.id, { services, keywords, summary, status: "researched", researchedAt: new Date() }, exact.cost + ideas.cost + labsCost);
+    // Competitors were found from the old keyword list, so they are cleared with it.
+    const updated = await updateProject(project.id, { services, keywords, summary, competitors: null, status: "researched", researchedAt: new Date() }, exact.cost + ideas.cost + labsCost);
     return res.json(updated);
   } catch (error) {
     return sendError(res, error, "Unable to run the keyword research");
+  }
+});
+
+/** "Charlotte, NC" → { city: "Charlotte", state: "NC" }. */
+const searchCity = z.string().trim().max(100).transform((value, context) => {
+  const comma = value.lastIndexOf(",");
+  const city = value.slice(0, comma).trim();
+  const state = value.slice(comma + 1).trim();
+  if (comma < 1 || !city || state.length < 2) {
+    context.addIssue({ code: "custom", message: `Write each city as "City, ST", for example "Charlotte, NC".` });
+    return z.NEVER;
+  }
+  return { city, state };
+});
+
+// Finds the strongest local and national competitors from the researched keywords and pre-picks 2 of each.
+router.post("/projects/:id/competitors", async (req, res) => {
+  try {
+    const { cities } = z.object({ cities: z.array(searchCity).max(3).optional() }).parse(req.body ?? {});
+    const project = await getProject(req.params.id);
+    if (!project) return res.status(404).json({ message: "Project not found" });
+    if (project.status !== "researched" || !project.keywords.some(row => row.pageType)) {
+      return res.status(409).json({ message: "Run the keyword research first; competitors are found from its keywords." });
+    }
+    const scan = await discoverCompetitors(project, cities);
+    return res.json(await updateProject(project.id, { competitors: scan }, scan.costUsd));
+  } catch (error) {
+    return sendError(res, error, "Unable to find competitors");
+  }
+});
+
+// Confirms which competitors get the deep keyword pull. Comparing these with the automatic picks shows when picking can run unattended.
+router.patch("/projects/:id/competitors/picks", async (req, res) => {
+  try {
+    const { picks } = z.object({ picks: z.array(z.string().trim().min(1)).min(1, "Pick at least one competitor").max(6) }).parse(req.body);
+    const project = await getProject(req.params.id);
+    if (!project?.competitors) return res.status(404).json({ message: "No competitor scan for this project" });
+    const listed = new Set([...project.competitors.local, ...project.competitors.national].map(site => site.domain));
+    const unknown = picks.find(domain => !listed.has(domain));
+    if (unknown) return res.status(400).json({ message: `${unknown} is not in this scan's competitor lists` });
+    return res.json(await updateProject(project.id, { competitors: { ...project.competitors, picks: [...new Set(picks)], confirmedAt: new Date().toISOString() } }));
+  } catch (error) {
+    return sendError(res, error, "Unable to save the picks");
   }
 });
 

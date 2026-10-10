@@ -1,5 +1,6 @@
 const API = "https://api.dataforseo.com/v3/keywords_data/google_ads";
 const LABS_API = "https://api.dataforseo.com/v3/dataforseo_labs/google";
+const SERP_API = "https://api.dataforseo.com/v3/serp/google/organic";
 const TIMEOUT_MS = 120_000;
 // Google Ads limits: 1,000 keywords per search-volume task and 20 seeds per keyword-ideas task.
 const VOLUME_BATCH = 1000;
@@ -37,7 +38,11 @@ function authHeader() {
 }
 
 async function postTask<Row = GoogleAdsKeywordRow>(endpoint: string, task: Record<string, unknown>, base = API) {
-  const response = await fetch(`${base}/${endpoint}/live`, {
+  return postLive<Row>(`${base}/${endpoint}/live`, task);
+}
+
+async function postLive<Row>(url: string, task: Record<string, unknown>) {
+  const response = await fetch(url, {
     method: "POST",
     headers: { Authorization: authHeader(), "Content-Type": "application/json" },
     body: JSON.stringify([task]),
@@ -124,6 +129,68 @@ export async function fetchSearchIntent(keywords: string[]) {
     for (const row of result.rows[0]?.items ?? []) if (row.keyword_intent?.label) intent.set(row.keyword, row.keyword_intent.label);
   }
   return { intent, cost };
+}
+
+export interface SerpResult {
+  keyword: string;
+  locationName: string;
+  organic: Array<{ position: number; domain: string; title: string | null }>;
+  localPack: Array<{ title: string; domain: string | null; rating: number | null; reviews: number | null }>;
+}
+
+interface SerpItem {
+  type: string;
+  rank_group: number;
+  domain?: string | null;
+  title?: string | null;
+  rating?: { value?: number | null; votes_count?: number | null } | null;
+}
+
+function bareDomain(domain: string) {
+  return domain.toLowerCase().replace(/^www\./, "");
+}
+
+/** Google's first two pages for a keyword as seen from one place: organic results and the map pack. */
+export async function fetchSerp(keyword: string, locationName: string) {
+  const result = await postLive<{ items?: SerpItem[] | null }>(`${SERP_API}/live/advanced`, { keyword, location_name: locationName, language_code: "en", depth: 20 });
+  const items = result.rows[0]?.items ?? [];
+  const serp: SerpResult = {
+    keyword,
+    locationName,
+    organic: items.filter(item => item.type === "organic" && item.domain)
+      .map(item => ({ position: item.rank_group, domain: bareDomain(item.domain!), title: item.title ?? null })),
+    localPack: items.filter(item => item.type === "local_pack" && item.title)
+      .map(item => ({ title: item.title!, domain: item.domain ? bareDomain(item.domain) : null, rating: item.rating?.value ?? null, reviews: item.rating?.votes_count ?? null })),
+  };
+  return { serp, cost: result.cost };
+}
+
+/** Domains that win a set of keywords across the US, from DataForSEO Labs. */
+export async function fetchSerpCompetitors(keywords: string[]) {
+  const result = await postTask<{ items?: Array<{ domain: string; keywords_count?: number | null }> | null }>(
+    "serp_competitors", { keywords: keywords.slice(0, 200), location_code: 2840, language_code: "en", limit: 40, item_types: ["organic"] }, LABS_API,
+  );
+  return {
+    domains: (result.rows[0]?.items ?? []).map(item => ({ domain: bareDomain(item.domain), keywords: item.keywords_count ?? 0 })),
+    cost: result.cost,
+  };
+}
+
+export interface DomainStrength {
+  organicKeywords: number;
+  top10Keywords: number;
+  trafficValue: number;
+}
+
+/** A domain's US organic footprint: keywords ranked, top-10 keywords and estimated monthly traffic value. */
+export async function fetchDomainStrength(domain: string) {
+  const result = await postTask<{ items?: Array<{ metrics?: { organic?: Record<string, number | undefined> } }> | null }>(
+    "domain_rank_overview", { target: domain, location_code: 2840, language_code: "en" }, LABS_API,
+  );
+  const organic = result.rows[0]?.items?.[0]?.metrics?.organic ?? {};
+  const top10 = (organic.pos_1 ?? 0) + (organic.pos_2_3 ?? 0) + (organic.pos_4_10 ?? 0);
+  const strength: DomainStrength = { organicKeywords: organic.count ?? 0, top10Keywords: top10, trafficValue: Math.round(organic.estimated_paid_traffic_cost ?? 0) };
+  return { strength, cost: result.cost };
 }
 
 export type SearchAreaType = "City" | "County" | "DMA Region" | "State";

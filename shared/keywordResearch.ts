@@ -62,3 +62,58 @@ export function keywordScore(row: Pick<KeywordResearchKeyword, "searchVolume" | 
   const demand = keywordDemand(row);
   return demand == null || row.cpc == null ? null : Math.round(demand * row.cpc);
 }
+
+/** What a site in the search results really is. Only contractors are models to copy. */
+export type CompetitorSiteLabel = "contractor" | "franchise" | "manufacturer" | "retailer" | "directory" | "other";
+
+export interface CompetitorSite {
+  domain: string;
+  label: CompetitorSiteLabel | null;
+  /** Claude's one-line reason for the label. */
+  labelReason: string | null;
+  /** Position points across the local searches, weighted by each keyword's score. 0 for national-only sites. */
+  localPoints: number;
+  /** Local searches the site shows on page 1 or 2 for. */
+  localAppearances: number;
+  bestPosition: number | null;
+  /** National metros (of the 12 checked) the site ranks in for the client's top services. */
+  metros: number;
+  /** Blog and cost keywords (of the client's top 15) the site ranks for nationally. Missing on scans before it was added. */
+  contentKeywords?: number;
+  /** Organic keywords, top-10 keywords and estimated monthly traffic value (US), from DataForSEO. Null until pulled. */
+  organicKeywords: number | null;
+  top10Keywords: number | null;
+  trafficValue: number | null;
+}
+
+export interface MapPackBusiness {
+  title: string;
+  domain: string | null;
+  /** Local searches whose map pack showed the business. */
+  appearances: number;
+  rating: number | null;
+  reviews: number | null;
+}
+
+export interface KeywordCompetitorScan {
+  ranAt: string;
+  /** Cities the local searches were run from. */
+  searchCities: string[];
+  localKeywords: string[];
+  nationalKeywords: string[];
+  contentKeywords: string[];
+  /** Strongest local contractors and franchises, best first. */
+  local: CompetitorSite[];
+  /** Strongest contractors found anywhere (this market, the 12 metros or national content), by organic traffic value. */
+  national: CompetitorSite[];
+  mapPack: MapPackBusiness[];
+  /** Sites labelled manufacturer, retailer, directory or other, kept out of the lists above. */
+  excluded: CompetitorSite[];
+  /** Domains picked for the deep keyword pull: what discovery chose, and what was confirmed. */
+  autoPicks: string[];
+  picks: string[];
+  confirmedAt: string | null;
+  /** Page-1 appearances of the client's own site across the local searches. */
+  clientAppearances: number;
+  costUsd: number;
+}

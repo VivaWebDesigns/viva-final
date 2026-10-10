@@ -29,10 +29,13 @@ interface ParsedPage extends WebsitePage {
 
 function parsePage(html: string, pageUrl: string): ParsedPage {
   const origin = new URL(pageUrl).origin;
-  const window = new Window({ settings: { disableJavaScriptEvaluation: true, disableJavaScriptFileLoading: true, disableCSSFileLoading: true } });
+  // The page URL is the base for relative links; without it a <link rel="preload" href="/x"> rejects in the
+  // background and the unhandled rejection takes the whole server down.
+  const window = new Window({ url: pageUrl, settings: { disableJavaScriptEvaluation: true, disableJavaScriptFileLoading: true, disableCSSFileLoading: true } });
   try {
     const document = window.document;
-    document.write(html.slice(0, 2_000_000));
+    // <link> tags (preloads, icons, feeds) are never read here, and parsing them makes happy-dom fetch in the background.
+    document.write(html.slice(0, 2_000_000).replace(/<link\b[^>]*>/gi, ""));
     const links: ParsedPage["links"] = [];
     for (const anchor of document.querySelectorAll("a[href]")) {
       try {
@@ -125,4 +128,14 @@ export async function readWebsite(input: string): Promise<{ url: string; pages: 
     throw new WebsiteReadError("The website returned almost no text. It may be built with JavaScript that this reader cannot run.");
   }
   return { url: home.url, pages: result };
+}
+
+/** The homepage alone, for telling what kind of business a site is. Null when it cannot be read. */
+export async function readHomepage(input: string): Promise<WebsitePage | null> {
+  try {
+    const page = await fetchPage(normalizePublicUrl(input), AbortSignal.timeout(15_000));
+    return page && { url: page.url, title: page.title, headings: page.headings.slice(0, 15), text: page.text.slice(0, 1_200) };
+  } catch {
+    return null;
+  }
 }

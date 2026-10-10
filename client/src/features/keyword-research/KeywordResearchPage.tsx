@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import SearchAreaPicker, { areaLabel } from "./SearchAreaPicker";
+import CompetitorsCard from "./CompetitorsCard";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 interface ProjectListItem {
@@ -404,6 +405,10 @@ function ProjectView({ id }: { id: string }) {
             {visible.length > TABLE_LIMIT && <p className="text-sm text-gray-500">Showing the top {TABLE_LIMIT} of {visible.length.toLocaleString()}. Export the CSV for the full list.</p>}
           </CardContent>
         </Card>
+      )}
+
+      {project.status === "researched" && project.summary && (
+        <CompetitorsCard key={project.competitors?.ranAt ?? "none"} project={project} onUpdate={setProject} />
       )}
     </div>
   );

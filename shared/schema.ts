@@ -1471,6 +1471,7 @@ export const keywordResearchProjects = pgTable("keyword_research_projects", {
   services: jsonb("services").notNull().default(sql`'[]'::jsonb`).$type<import("./keywordResearch").KeywordResearchService[]>(),
   keywords: jsonb("keywords").notNull().default(sql`'[]'::jsonb`).$type<import("./keywordResearch").KeywordResearchKeyword[]>(),
   summary: jsonb("summary").$type<import("./keywordResearch").KeywordResearchSummary>(),
+  competitors: jsonb("competitors").$type<import("./keywordResearch").KeywordCompetitorScan>(),
   dataCostUsd: numeric("data_cost_usd", { precision: 10, scale: 4 }).notNull().default("0"),
   createdBy: varchar("created_by").notNull().references(() => user.id),
   researchedAt: timestamp("researched_at"),

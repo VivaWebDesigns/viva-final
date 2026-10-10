@@ -37,8 +37,7 @@ describe("KKC Glass fixture", () => {
 });
 
 describe("KKC Glass reviewed answers", () => {
-  it.todo("phase 2: discovery labels every site in siteLabels the same way");
-  it.todo("phase 2: discovery suggests argowindowrepair.com and myshowerdoor.com as national benchmarks");
+  // Phase 2 discovery is replayed against this data in keyword-research-competitors.test.ts.
   it.todo("phase 3: the playbook adds sliding door repair, sash repairs and window glass replacement");
   it.todo("phase 3: no windshield or auto glass keyword reaches the plan");
 });

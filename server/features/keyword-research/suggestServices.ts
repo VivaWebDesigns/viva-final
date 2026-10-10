@@ -38,6 +38,33 @@ const metroSchema = z.object({
 const METRO_INSTRUCTIONS = `You match a US city to the Google Ads metro area (Nielsen DMA region) it belongs to.
 Answer with one name copied exactly from the list provided, or null when you are not sure. A metro area often crosses state lines (Fort Mill, SC is in "Charlotte, NC").`;
 
+const citiesSchema = z.object({
+  cities: z.array(z.object({ city: z.string(), state: z.string() })),
+});
+
+const CITIES_INSTRUCTIONS = `You help a web agency check Google results for a local service business.
+Given the business's city and metro area, name the 2 largest other cities in that metro area that the business would serve.
+Use the city's official name and its 2-letter state code. Never repeat the business's own city.`;
+
+const sitesSchema = z.object({
+  sites: z.array(z.object({
+    domain: z.string(),
+    label: z.enum(["contractor", "franchise", "manufacturer", "retailer", "directory", "other"]),
+    reason: z.string(),
+  })),
+});
+
+const SITES_INSTRUCTIONS = `You sort websites found in Google results for a trade into what kind of business each one is.
+Labels:
+- contractor: an independent local or regional company that does the same kind of work as the client's services, at customers' homes or businesses, even with several locations.
+- franchise: a location or the brand site of a national franchise or national service brand (for example Glass Doctor, Mr. Rooter, ARS).
+- manufacturer: makes and sells products under its own brand (for example DreamLine, Vigo).
+- retailer: sells products to buy and install yourself, online or in stores, including cut-to-size and DIY kit sellers.
+- directory: lists or rates many businesses, sells leads, or publishes reviews of companies (Yelp, Angi, HomeAdvisor, BBB).
+- other: anything else, such as magazines, how-to publishers, government, forums, and companies whose work is mainly outside the client's services (an auto glass shop when the client does home glass).
+Judge from the homepage text when it is given, otherwise from the domain and the result titles. Give a reason of at most 15 words.
+Return every domain you are given, spelled exactly as given.`;
+
 export class ServiceSuggestionError extends Error {}
 
 async function askClaude<T>(system: string, content: string, schema: z.ZodType<T>, maxTokens: number): Promise<T> {
@@ -96,4 +123,30 @@ export async function servicesFromWebsite(trade: string, pages: WebsitePage[]) {
 export async function chooseMetro(city: string, state: string, metros: string[]) {
   const result = await askClaude(METRO_INSTRUCTIONS, `City: ${city}, ${state}\n\nMetro areas:\n${metros.join("\n")}`, metroSchema, 300);
   return result.metro;
+}
+
+/** The 2 largest other cities in the client's metro area, to search from alongside the client's own city. */
+export async function chooseSearchCities(city: string, state: string, metro: string) {
+  const result = await askClaude(CITIES_INSTRUCTIONS, `Business city: ${city}, ${state}\nMetro area: ${metro}`, citiesSchema, 300);
+  return result.cities;
+}
+
+export interface SiteToLabel {
+  domain: string;
+  /** Titles of the site's pages seen in the results. */
+  resultTitles: string[];
+  homepage: WebsitePage | null;
+}
+
+/** What kind of business each site is, so only contractors are treated as models to copy. */
+export async function labelSites(trade: string, services: string[], sites: SiteToLabel[]) {
+  const content = sites.map(site => [
+    `Domain: ${site.domain}`,
+    `Result titles: ${site.resultTitles.slice(0, 3).join(" | ") || "none"}`,
+    site.homepage
+      ? `Homepage title: ${site.homepage.title}\nHomepage headings: ${site.homepage.headings.join(" | ")}\nHomepage text: ${site.homepage.text}`
+      : "Homepage: could not be read",
+  ].join("\n")).join("\n\n---\n\n");
+  const result = await askClaude(SITES_INSTRUCTIONS, `Trade: ${trade}\nClient's services: ${services.join(", ")}\n\n${content}`, sitesSchema, 6000);
+  return new Map(result.sites.map(site => [site.domain.toLowerCase(), { label: site.label, reason: site.reason }]));
 }
