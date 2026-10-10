@@ -159,7 +159,8 @@ describe("service × city pages (reference case)", () => {
       ]),
     );
     const cityNames = ["Monroe", "Charlotte", "Stallings"];
-    const context = { servicePages: new Map<string, string>(), homeStems: meaningStems("glass company charlotte nc"), cityStems: new Set(cityNames.flatMap(name => [...meaningStems(name)])), cityNames };
+    const serviceNames = ["glass shower door installation", "frameless shower doors", "sliding glass door repair", "door installation", "window glass replacement", "storefront glass repair"];
+    const context = { servicePages: new Map<string, string>(), homeStems: meaningStems("glass company charlotte nc"), cityStems: new Set(cityNames.flatMap(name => [...meaningStems(name)])), cityNames, serviceNames };
     const covering = (keyword: string) => coveringPage({ ...row(keyword, null, null, "city"), service: "glass shower doors" }, pages, context);
     expect(covering("glass shower door installer monroe nc")).toBe("/service-areas/monroe");
     expect(covering("glass shower door installer charlotte nc")).toBe("/service-areas/charlotte");
@@ -167,6 +168,9 @@ describe("service × city pages (reference case)", () => {
     // Another service's words all appear on the page, but it is not the page's subject.
     expect(covering("door installation charlotte nc")).toBeNull();
     expect(covering("glass replacement stallings nc")).toBeNull();
+    // Variants of the page's subject belong on it; a different service sharing its common words does not.
+    expect(covering("frameless shower doors monroe nc")).toBe("/service-areas/monroe");
+    expect(covering("sliding glass door repair monroe nc")).toBeNull();
     // "stall" shares a stem with Stallings; it does not name the city.
     expect(coveringPage({ ...row("glass shower stall", 50, 2), service: "glass shower enclosures" }, pages, context)).toBeNull();
     expect(isPlacePage("/service-areas/charlotte")).toBe(true);

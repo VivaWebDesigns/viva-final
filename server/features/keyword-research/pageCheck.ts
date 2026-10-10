@@ -97,7 +97,7 @@ export function sitePages(urls: string[], headlines: Map<string, string> = new M
 export function coveringPage(
   row: KeywordResearchKeyword,
   pages: SitePage[],
-  context: { servicePages: Map<string, string>; homeStems: Set<string>; cityStems: Set<string>; cityNames?: string[] },
+  context: { servicePages: Map<string, string>; homeStems: Set<string>; cityStems: Set<string>; cityNames?: string[]; serviceNames?: string[] },
 ): string | null {
   // A service's own page targets the service phrase itself; its other phrasings need pages of their own.
   if (row.service && row.keyword === row.service && context.servicePages.has(row.service)) return context.servicePages.get(row.service)!;
@@ -121,7 +121,19 @@ export function coveringPage(
     if (page.placePage && !city.length) continue;
     // A page for one place covers searches for its own subject there: "door installation charlotte nc" is not the
     // Charlotte glass shower door page, though every word of it is on that page. One subject word may be missing.
-    if (page.placePage && [...page.subjectStems].filter(stem => !context.cityStems.has(stem) && !wanted.has(stem)).length > 1) continue;
+    const subject = [...page.subjectStems].filter(stem => !context.cityStems.has(stem));
+    if (page.placePage && subject.filter(stem => !wanted.has(stem)).length > 1) continue;
+    // Variants of the page's own subject belong on it ("frameless shower doors matthews" on the Matthews shower door
+    // page) when they hold its most distinctive word: the subject word fewest of the client's services share.
+    if (page.placePage && subject.length && context.serviceNames?.length) {
+      const shared = (stem: string) => context.serviceNames!.filter(name => meaningStems(name).has(stem)).length;
+      const rarest = Math.min(...subject.map(shared));
+      if (subject.filter(stem => shared(stem) === rarest).every(stem => wanted.has(stem))) {
+        const matched = [...wanted].filter(stem => page.stems.has(stem)).length;
+        if (!best || rank(page.path, matched) > rank(best.path, best.matched)) best = { path: page.path, matched };
+        continue;
+      }
+    }
     if (essential.some(stem => !page.stems.has(stem))) continue;
     const matched = [...wanted].filter(stem => page.stems.has(stem)).length;
     if (matched >= needed && (!best || rank(page.path, matched) > rank(best.path, best.matched))) best = { path: page.path, matched };

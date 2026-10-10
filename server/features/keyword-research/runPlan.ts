@@ -53,12 +53,14 @@ async function relevanceFor(project: KeywordResearchProject, rows: KeywordResear
 /**
  * The service's metro numbers, shown beside city phrases, never as their own numbers: the service searched with the
  * metro city ("glass shower door installer charlotte nc"), the profile city pages are built on; else the service's
- * most-searched keyword with a CPC.
+ * highest-CPC hiring search with at least 10 searches a month (not a product or how-to search, which advertisers pay little for).
  */
 function referenceMetrics(rows: KeywordResearchKeyword[], service: string, metroCity: string): ReferenceMetrics | null {
   const mine = rows.filter(row => row.cpc != null && (row.service === service || row.relevance?.service === service));
   const byDemand = (a: KeywordResearchKeyword, b: KeywordResearchKeyword) => (keywordDemand(b) ?? -1) - (keywordDemand(a) ?? -1) || (b.cpc ?? 0) - (a.cpc ?? 0);
-  const best = mine.filter(row => row.keyword.includes(metroCity.toLowerCase())).sort(byDemand)[0] ?? mine.filter(row => row.source !== "grid").sort(byDemand)[0];
+  const best = mine.filter(row => row.keyword.includes(metroCity.toLowerCase())).sort(byDemand)[0]
+    ?? mine.filter(row => row.source !== "grid" && row.pageType === "service" && row.intent !== "shopping" && row.intent !== "diy" && (keywordDemand(row) ?? 0) >= 10)
+      .sort((a, b) => (b.cpc ?? 0) - (a.cpc ?? 0))[0];
   return best ? { keyword: best.keyword, cpc: best.cpc!, searchVolume: keywordDemand(best), competition: best.competition, difficulty: best.difficulty ?? null } : null;
 }
 
@@ -172,6 +174,7 @@ export async function runPlan(project: KeywordResearchProject): Promise<{ keywor
     // A page for one place is never a service's own page, whatever the intake matched it to.
     servicePages: new Map(services.filter(service => service.pageUrl).map(service => [service.name, new URL(service.pageUrl!).pathname] as const).filter(([, path]) => !isPlacePage(path))),
     cityNames: servedCities.map(place => place.city),
+    serviceNames,
     homeStems: meaningStems([project.trade, project.city, project.state, stateName(project.state)].join(" ")),
     cityStems: allCityStems,
   };
