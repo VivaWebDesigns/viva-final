@@ -182,6 +182,7 @@ router.post("/projects/:id/research", async (req, res) => {
       trade: project.trade,
       city: project.city,
       state: project.state,
+      exactPhrases: exactList,
     });
     const updated = await updateProject(project.id, { services, keywords, summary, status: "researched", researchedAt: new Date() }, exact.cost + ideas.cost);
     return res.json(updated);

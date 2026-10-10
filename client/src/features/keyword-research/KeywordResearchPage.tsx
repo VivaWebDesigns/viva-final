@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { ArrowLeft, Download, Loader2, Plus, Search, Sparkles, Trash2 } from "lucide-react";
 import type { KeywordResearchProject } from "@shared/schema";
+import type { KeywordResearchKeyword } from "@shared/keywordResearch";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
@@ -46,14 +47,20 @@ function formatNumber(value: number | null) {
   return value == null ? "—" : value.toLocaleString();
 }
 
+/** Searches including "near me", which Google answers by location and are counted with the plain phrase. */
+function demandOf(row: KeywordResearchKeyword) {
+  if (row.searchVolume == null && row.nearMeVolume == null) return null;
+  return (row.searchVolume ?? 0) + (row.nearMeVolume ?? 0);
+}
+
 function csvCell(value: string | number | null) {
   const text = value == null ? "" : String(value);
   return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
 function downloadCsv(project: KeywordResearchProject) {
-  const header = ["Service", "Keyword", "Avg. monthly searches", "CPC", "Competition", "Competition index", "Top of page bid (low)", "Top of page bid (high)"];
-  const rows = project.keywords.map(row => [row.service ?? "Unsorted", row.keyword, row.searchVolume, row.cpc, row.competition, row.competitionIndex, row.lowTopOfPageBid, row.highTopOfPageBid]);
+  const header = ["Service", "Keyword", "Avg. monthly searches", "Near me searches", "CPC", "Competition", "Competition index", "Top of page bid (low)", "Top of page bid (high)", "Same search as"];
+  const rows = project.keywords.map(row => [row.service ?? "Unsorted", row.keyword, row.searchVolume, row.nearMeVolume ?? null, row.cpc, row.competition, row.competitionIndex, row.lowTopOfPageBid, row.highTopOfPageBid, (row.variants ?? []).join("; ")]);
   const csv = [header, ...rows].map(row => row.map(csvCell).join(",")).join("\n");
   const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
   const link = document.createElement("a");
@@ -229,7 +236,7 @@ function ProjectView({ id }: { id: string }) {
       const key = row.service ?? UNSORTED;
       const total = totals.get(key) ?? { count: 0, volume: 0 };
       total.count += 1;
-      total.volume += row.searchVolume ?? 0;
+      total.volume += demandOf(row) ?? 0;
       totals.set(key, total);
     }
     return [...totals].sort((a, b) => b[1].volume - a[1].volume);
@@ -323,6 +330,7 @@ function ProjectView({ id }: { id: string }) {
             <p className="text-sm text-gray-600">
               {project.summary.keptKeywords.toLocaleString()} keywords kept from {project.summary.ideasReturned.toLocaleString()} ideas
               · {project.summary.droppedAsJunk.toLocaleString()} dropped as unrelated or junk · {project.summary.droppedNoVolume.toLocaleString()} with no search volume.
+              {project.summary.mergedVariants != null && <> {project.summary.mergedVariants.toLocaleString()} close variants merged · {project.summary.foldedNearMe!.toLocaleString()} "near me" searches folded into their plain phrase.</>}
               Unsorted keywords are related to the trade but did not match one service.
             </p>
           </CardHeader>
@@ -350,9 +358,15 @@ function ProjectView({ id }: { id: string }) {
                 <TableBody>
                   {visible.slice(0, TABLE_LIMIT).map(row => (
                     <TableRow key={row.keyword}>
-                      <TableCell className="font-medium">{row.keyword}</TableCell>
+                      <TableCell className="font-medium">
+                        {row.keyword}
+                        {!!row.variants?.length && <span className="block text-xs font-normal text-gray-500">Same search as: {row.variants.join(", ")}</span>}
+                      </TableCell>
                       <TableCell className="text-gray-600">{row.service ?? "Unsorted"}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatNumber(row.searchVolume)}</TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {demandOf(row) == null ? "Unknown" : formatNumber(demandOf(row))}
+                        {!!row.nearMeVolume && <span className="block text-xs text-gray-500">incl. {row.nearMeVolume.toLocaleString()} near me</span>}
+                      </TableCell>
                       <TableCell className="text-right tabular-nums">{row.cpc == null ? "—" : `$${row.cpc.toFixed(2)}`}</TableCell>
                       <TableCell className="text-gray-600">{row.competition ?? "—"}</TableCell>
                     </TableRow>

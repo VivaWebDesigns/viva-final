@@ -21,6 +21,10 @@ export interface KeywordResearchKeyword {
   competitionIndex: number | null;
   lowTopOfPageBid: number | null;
   highTopOfPageBid: number | null;
+  /** Monthly searches for the phrase with "near me", folded in because Google answers those by location. Missing on lists built before it was added. */
+  nearMeVolume?: number | null;
+  /** Phrasings Google reports as the same search, merged into this keyword so demand is counted once. */
+  variants?: string[];
 }
 
 export interface KeywordResearchSummary {
@@ -28,4 +32,10 @@ export interface KeywordResearchSummary {
   keptKeywords: number;
   droppedAsJunk: number;
   droppedNoVolume: number;
+  /** Close variants merged into another keyword. Missing on lists built before it was added. */
+  mergedVariants?: number;
+  /** "near me" keywords folded into their plain phrase. */
+  foldedNearMe?: number;
+  /** Service phrases kept with unknown volume because Google returned none for them. */
+  unknownVolume?: number;
 }

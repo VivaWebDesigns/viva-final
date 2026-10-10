@@ -1,5 +1,6 @@
 import type { KeywordResearchKeyword, KeywordResearchSummary } from "@shared/keywordResearch";
 import type { KeywordMetrics } from "./dataforseo";
+import { foldNearMe, mergeCloseVariants, totalDemand } from "./quality";
 
 const STATES: Record<string, string> = {
   AL: "Alabama", AK: "Alaska", AZ: "Arizona", AR: "Arkansas", CA: "California", CO: "Colorado", CT: "Connecticut",
@@ -53,8 +54,10 @@ export function serviceVariants(service: string, city: string) {
 }
 
 export function serviceDemand(service: string, city: string, volumes: Map<string, KeywordMetrics>) {
-  const found = serviceVariants(service, city).map(keyword => volumes.get(keyword)?.searchVolume).filter((volume): volume is number => volume != null);
-  return found.length ? found.reduce((sum, volume) => sum + volume, 0) : null;
+  const found = serviceVariants(service, city).map(keyword => volumes.get(keyword)).filter((row): row is KeywordMetrics => row?.searchVolume != null);
+  // Phrasings Google grouped into one search come back with the same numbers; count that search once.
+  const distinct = new Map(found.map(row => [`${row.searchVolume}|${row.cpc}`, row.searchVolume!]));
+  return distinct.size ? [...distinct.values()].reduce((sum, volume) => sum + volume, 0) : null;
 }
 
 interface ServiceMatcher {
@@ -65,10 +68,12 @@ interface ServiceMatcher {
 /**
  * Puts each keyword under the most specific selected service whose words it contains.
  * Keywords that only partly match stay as unsorted for review; unrelated or junk keywords are dropped.
+ * Close variants are merged and "near me" searches folded into their plain phrase first, so demand is counted once.
+ * `exactPhrases` (the service phrases asked for by name) are kept with unknown volume when Google returns none.
  */
 export function buildKeywordList(
   rows: KeywordMetrics[],
-  input: { services: string[]; trade: string; city: string; state: string },
+  input: { services: string[]; trade: string; city: string; state: string; exactPhrases?: string[] },
 ): { keywords: KeywordResearchKeyword[]; summary: KeywordResearchSummary } {
   const placeWords = new Set([...cleanKeyword(input.city).split(" "), ...cleanKeyword(stateName(input.state)).split(" "), cleanKeyword(input.state)]);
   const matchers: ServiceMatcher[] = input.services
@@ -84,10 +89,19 @@ export function buildKeywordList(
     if (!existing || (existing.searchVolume == null && row.searchVolume != null)) merged.set(keyword, { ...row, keyword });
   }
 
-  const summary: KeywordResearchSummary = { ideasReturned: merged.size, keptKeywords: 0, droppedAsJunk: 0, droppedNoVolume: 0 };
+  const variants = mergeCloseVariants([...merged.values()]);
+  const nearMe = foldNearMe(variants.rows);
+  const exact = new Set((input.exactPhrases ?? []).map(cleanKeyword));
+  const summary: KeywordResearchSummary = {
+    ideasReturned: merged.size, keptKeywords: 0, droppedAsJunk: 0, droppedNoVolume: 0,
+    mergedVariants: variants.merged, foldedNearMe: nearMe.folded, unknownVolume: 0,
+  };
   const keywords: KeywordResearchKeyword[] = [];
-  for (const row of merged.values()) {
-    if (!row.searchVolume) {
+  for (const row of nearMe.rows) {
+    const demand = totalDemand(row);
+    // Unknown is not zero: a service phrase Google has no number for still names a page to build.
+    const unknown = demand == null && exact.has(row.keyword);
+    if (!demand && !unknown) {
       summary.droppedNoVolume += 1;
       continue;
     }
@@ -108,10 +122,11 @@ export function buildKeywordList(
       summary.droppedAsJunk += 1;
       continue;
     }
+    if (unknown) summary.unknownVolume! += 1;
     keywords.push({ ...row, service: best?.name ?? null });
   }
 
-  keywords.sort((a, b) => (b.searchVolume ?? 0) - (a.searchVolume ?? 0) || a.keyword.localeCompare(b.keyword));
+  keywords.sort((a, b) => (totalDemand(b) ?? 0) - (totalDemand(a) ?? 0) || a.keyword.localeCompare(b.keyword));
   summary.keptKeywords = keywords.length;
   return { keywords, summary };
 }

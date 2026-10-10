@@ -1,0 +1,32 @@
+// Real Google Ads numbers (via DataForSEO, US, pulled 2026-10-10) from the Hook Agency client and KKC Glass research.
+// Chosen to exercise the data-quality rules: Google-grouped close variants, unrelated keywords that share
+// numbers by coincidence, and "near me" phrasings with and without their plain phrase.
+export const realRows = [
+  { keyword: "central a c installation cost", searchVolume: 14800, cpc: 9.130000114440918 },
+  { keyword: "central ac installation cost", searchVolume: 14800, cpc: 9.130000114440918 },
+  { keyword: "cost to install central air", searchVolume: 14800, cpc: 9.130000114440918 },
+  { keyword: "cost to install central air conditioning", searchVolume: 14800, cpc: 9.130000114440918 },
+  { keyword: "price for central air installation", searchVolume: 14800, cpc: 9.130000114440918 },
+  { keyword: "ceiling fan repair", searchVolume: 27100, cpc: 11.930000305175781 },
+  { keyword: "fix a ceiling fan", searchVolume: 27100, cpc: 11.930000305175781 },
+  { keyword: "furnace replacement cost", searchVolume: 14800, cpc: 11.760000228881836 },
+  { keyword: "furnace replacement prices", searchVolume: 14800, cpc: 11.760000228881836 },
+  { keyword: "cottage grove mn plumbers", searchVolume: 210, cpc: 19.850000381469727 },
+  { keyword: "plumbers in cottage grove mn", searchVolume: 210, cpc: 19.850000381469727 },
+  { keyword: "glass shower doors images", searchVolume: 210, cpc: 1.9500000476837158 },
+  { keyword: "images of glass shower doors", searchVolume: 210, cpc: 1.9500000476837158 },
+  { keyword: "clogged drain", searchVolume: 9900, cpc: 42.70000076293945 },
+  { keyword: "stopped up drain", searchVolume: 9900, cpc: 42.70000076293945 },
+  { keyword: "ridge shingles", searchVolume: 880, cpc: 0.46000000834465027 },
+  { keyword: "how to turn up water pressure in house", searchVolume: 880, cpc: 0.46000000834465027 },
+  { keyword: "solar maintenance cost", searchVolume: 480, cpc: 4.650000095367432 },
+  { keyword: "how to wire a heat pump thermostat", searchVolume: 480, cpc: 4.650000095367432 },
+  { keyword: "custom shower doors", searchVolume: 22200, cpc: 9.210000038146973 },
+  { keyword: "custom shower doors near me", searchVolume: 2400, cpc: 11.130000114440918 },
+  { keyword: "shower door company", searchVolume: 880, cpc: 10.199999809265137 },
+  { keyword: "shower door company near me", searchVolume: 1600, cpc: 15.539999961853027 },
+  { keyword: "shower door showroom near me", searchVolume: 260, cpc: 5.519999980926514 },
+  { keyword: "shower door showrooms near me", searchVolume: 260, cpc: 5.519999980926514 },
+  { keyword: "shower doors showroom near me", searchVolume: 260, cpc: 5.519999980926514 },
+  { keyword: "custom glass shower enclosures near me", searchVolume: 70, cpc: 44.349998474121094 },
+] as const;
