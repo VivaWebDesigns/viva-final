@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { Router } from "express";
 import { z } from "zod";
 import type { KeywordResearchService } from "@shared/keywordResearch";
@@ -193,6 +194,7 @@ router.patch("/projects/:id/setup", async (req, res) => {
         reason: z.string().trim().max(200),
         source: z.enum(["website", "user"]),
       })).max(30).optional(),
+      cityPhrases: z.record(z.string(), z.array(z.string().trim().min(1).max(80)).max(2)).optional(),
     }).parse(req.body);
     const project = await getProject(req.params.id);
     if (!project) return res.status(404).json({ message: "Project not found" });
@@ -200,6 +202,12 @@ router.patch("/projects/:id/setup", async (req, res) => {
     if (input.priorities) {
       const chosen = new Set(input.priorities.map(cleanKeyword));
       changes.services = project.services.map(service => ({ ...service, priority: chosen.has(service.name) }));
+    }
+    if (input.cityPhrases) {
+      const phrases = input.cityPhrases;
+      changes.services = (changes.services ?? project.services).map(service => service.name in phrases
+        ? { ...service, cityPhrases: [...new Set(phrases[service.name].map(cleanKeyword).filter(Boolean))] }
+        : service);
     }
     if (input.serviceCities) changes.serviceCities = [...new Set([`${project.city}, ${project.state}`, ...input.serviceCities])];
     if (input.liveDomain !== undefined) changes.liveDomain = input.liveDomain || null;
@@ -373,6 +381,43 @@ router.post("/projects/:id/playbook/review", async (req, res) => {
   }
 });
 
+// Evidence about pages from outside the page-1 check: reported leads and captured rankings. Kept across plan rebuilds.
+router.post("/projects/:id/observations", async (req, res) => {
+  try {
+    const input = z.object({
+      kind: z.enum(["city_leads", "page_leads", "captured_ranking"]),
+      surface: z.enum(["organic", "map_pack", "ai_answer"]).nullable().default(null),
+      query: z.string().trim().max(200).nullable().default(null),
+      position: z.number().int().min(1).max(100).nullable().default(null),
+      path: z.string().trim().max(300).nullable().default(null),
+      service: z.string().trim().max(100).nullable().default(null),
+      cities: z.array(z.string().trim().min(1).max(100)).max(60).default([]),
+      observedOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      source: z.string().trim().min(1).max(120),
+      note: z.string().trim().max(500).default(""),
+    }).refine(item => item.kind !== "captured_ranking" || (item.surface && item.position), { message: "A captured ranking needs where it was seen and its position." })
+      .refine(item => item.kind !== "city_leads" || item.cities.length, { message: "Name the cities the leads came from." })
+      .refine(item => item.kind !== "page_leads" || item.path, { message: "Leads attributed to a page need the page." })
+      .parse(req.body);
+    const project = await getProject(req.params.id);
+    if (!project) return res.status(404).json({ message: "Project not found" });
+    const observation = { ...input, query: input.query ? input.query.toLowerCase() : null, id: randomUUID(), recordedAt: new Date().toISOString() };
+    return res.json(await updateProject(project.id, { observations: [...project.observations, observation] }));
+  } catch (error) {
+    return sendError(res, error, "Unable to record the evidence");
+  }
+});
+
+router.delete("/projects/:id/observations/:observationId", async (req, res) => {
+  try {
+    const project = await getProject(req.params.id);
+    if (!project) return res.status(404).json({ message: "Project not found" });
+    return res.json(await updateProject(project.id, { observations: project.observations.filter(item => item.id !== req.params.observationId) }));
+  } catch (error) {
+    return sendError(res, error, "Unable to remove the evidence");
+  }
+});
+
 // Groups the keywords into pages, checks page 1 once per page, and decides an action per page. Runs in the background.
 router.post("/projects/:id/plan", async (req, res) => {
   try {
@@ -381,8 +426,8 @@ router.post("/projects/:id/plan", async (req, res) => {
     if (project.status !== "researched") return res.status(409).json({ message: "Run the keyword research first." });
     if (runBusy(project)) return res.status(409).json({ message: "Another step is still running for this project." });
     return res.status(202).json(await startRun(project, "plan", async () => {
-      const { keywords, summary } = await runPlan(project);
-      return { changes: { keywords, summary }, cost: summary.plan!.costUsd };
+      const { keywords, summary, services } = await runPlan(project);
+      return { changes: { keywords, summary, services }, cost: summary.plan!.costUsd };
     }));
   } catch (error) {
     return sendError(res, error, "Unable to build the plan");

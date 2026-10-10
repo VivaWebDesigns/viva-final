@@ -284,3 +284,25 @@ export async function reviewGroups(trade: string, groups: GroupToReview[]) {
   const result = await askClaude(REVIEW_INSTRUCTIONS, `Trade: ${trade}\n\n${content}`, reviewSchema, 8000);
   return result.groups;
 }
+
+const phrasesSchema = z.object({
+  services: z.array(z.object({ service: z.string(), phrases: z.array(z.string()) })),
+});
+
+const PHRASES_INSTRUCTIONS = `You help a web agency target "service + city" searches for a local service business.
+For each service, give the 1 or 2 phrases a customer types into Google together with a city name, written without the city.
+Rules:
+- Use the wording people actually search for that service. Add a word such as "installer", "installation", "company" or "contractor" only where people search the service that way: "glass shower door installer" is natural, "window repair installer" is not ("window repair").
+- Plain lowercase words, no city, no state, no "near me", no brand names.
+- The first phrase is the one most customers type. Return every service exactly as given.`;
+
+/** How customers search each service with a city ("glass shower door installer", "window repair"). Suggestions; the user can edit them. */
+export async function suggestCityPhrases(trade: string, services: string[]) {
+  if (!services.length) return new Map<string, string[]>();
+  const result = await askClaude(PHRASES_INSTRUCTIONS, `Trade: ${trade}\nServices:\n${services.join("\n")}`, phrasesSchema, 4000);
+  const allowed = new Set(services);
+  return new Map(result.services.filter(row => allowed.has(row.service)).map(row => [
+    row.service,
+    [...new Set(row.phrases.map(phrase => phrase.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim()).filter(Boolean))].slice(0, 2),
+  ] as const));
+}

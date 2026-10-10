@@ -11,6 +11,11 @@ export interface KeywordResearchService {
   selected: boolean;
   /** One of the up to 3 services the client most wants more jobs for. Raises a keyword's place in the plan. */
   priority?: boolean;
+  /**
+   * How customers search for the service with a city, without the city ("glass shower door installer", "window repair").
+   * The first is the target phrase checked on page 1 for each served city. Suggested by Claude, editable.
+   */
+  cityPhrases?: string[];
 }
 
 /** The page a keyword belongs on: a service page, a city page, a cost or quote page, or a blog post. */
@@ -36,8 +41,11 @@ export interface KeywordResearchKeyword {
   difficulty?: number | null;
   pageType?: KeywordPageType;
   intent?: KeywordIntent;
-  /** "competitor" when the playbook added it from a picked competitor's rankings; missing for research keywords. */
-  source?: "research" | "competitor";
+  /**
+   * "competitor" when the playbook added it from a picked competitor's rankings; "grid" when the plan generated it as a
+   * confirmed service × served city phrase; missing for research keywords.
+   */
+  source?: "research" | "competitor" | "grid";
   /** Picked competitors ranking for this search (their own city stripped), best position first. Set by the playbook. */
   competitors?: Array<{ domain: string; position: number }>;
   /** Change in searches over the last 11 months against the same months a year earlier (0.4 = +40%). Set by the playbook. */
@@ -304,6 +312,45 @@ export interface PageEvidence {
   aiOverview: boolean;
   clientPosition: number | null;
   clientUrl: string | null;
+  /** The client's place in the map pack, or null when it is not there. Missing on plans before it was added. */
+  clientMapPosition?: number | null;
+}
+
+/**
+ * Metro numbers of the service a city phrase belongs to, shown beside a city phrase Google reports nothing for. They
+ * describe the service in the metro, not the city phrase: the city phrase's own CPC stays "not reported".
+ */
+export interface ReferenceMetrics {
+  keyword: string;
+  cpc: number;
+  searchVolume: number | null;
+  /** Google Ads paid-ad competition (LOW, MEDIUM, HIGH). Not organic difficulty. */
+  competition: string | null;
+  /** DataForSEO organic ranking difficulty, 0–100. */
+  difficulty: number | null;
+}
+
+/**
+ * Evidence about a page from outside the page-1 check, kept beside it and never overwritten by it:
+ * - city_leads: the client reports leads from these cities (not tied to a page)
+ * - page_leads: leads attributed to this landing page
+ * - captured_ranking: a search someone captured (organic, map pack or an AI answer), with where and when
+ */
+export interface PageObservation {
+  id: string;
+  kind: "city_leads" | "page_leads" | "captured_ranking";
+  surface: "organic" | "map_pack" | "ai_answer" | null;
+  query: string | null;
+  position: number | null;
+  path: string | null;
+  service: string | null;
+  cities: string[];
+  /** The day it was observed, YYYY-MM-DD. */
+  observedOn: string;
+  /** Who reported it and how, e.g. "Matt, screenshots". */
+  source: string;
+  note: string;
+  recordedAt: string;
 }
 
 /** A page to keep, improve, publish from staging, build, or look into, with the keywords it serves. */
@@ -331,6 +378,12 @@ export interface PagePlan {
   questions: string[];
   /** Set when the client moved a keyword out to its own page or Claude split or merged the group. */
   adjusted: string | null;
+  /** Whether page 1 was checked for the main keyword, or the check failed at DataForSEO, or was not run. A failed check is never "not ranking". */
+  checkStatus?: "checked" | "failed" | "not_run";
+  /** For a city phrase Google reports nothing for: the service's metro numbers, labelled as such. */
+  reference?: ReferenceMetrics | null;
+  /** A confirmed service × served city page: kept in the plan whatever Google reports for its phrases. */
+  grid?: boolean;
 }
 
 export interface ProjectPlan {

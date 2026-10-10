@@ -44,6 +44,7 @@ export function evidenceFrom(serp: SerpResult, city: string, traffic: Map<string
     aiOverview: serp.aiOverview ?? false,
     clientPosition: client?.position ?? null,
     clientUrl: client?.url ?? null,
+    clientMapPosition: liveHost ? (serp.localPack.findIndex(row => row.domain === liveHost) + 1 || null) : null,
   };
 }
 
@@ -60,6 +61,11 @@ export interface SitePage {
 // Listing pages ("/services", "/service-areas") link to pages that target keywords; they do not target any themselves.
 const INDEX_PAGE = /^\/(services?|service-areas?|areas?(-we-serve)?|locations?|blog|news|projects|gallery|reviews|about(-us)?|contact(-us)?|faqs?)\/?$/i;
 const PLACE_PAGE = /\/(service-areas?|locations?|areas?(-we-serve)?|cities|showroom-locations)\/[^/]+|-(a[klrz]|c[aot]|d[ce]|fl|ga|hi|i[adln]|k[sy]|la|m[adeinost]|n[cdehjmvy]|o[hkr]|pa|ri|s[cd]|t[nx]|ut|v[at]|w[aivy])\/?$/i;
+/** A page for one place ("/service-areas/charlotte"): never a service's own page, whatever the intake matched. */
+export function isPlacePage(path: string) {
+  return PLACE_PAGE.test(path);
+}
+
 // Question words carry no topic: "how to fix foggy windows" is the page about fixing foggy windows.
 const QUESTION_STEMS = meaningStems("how what why when where which who can does do is are should will vs");
 const ACTION_STEMS = meaningStems("install installation installer repair repairs replace replacement service fix custom professional new");

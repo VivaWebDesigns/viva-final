@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { comparePages, draftGroups, groupValue, opportunityOf, planPage, type DraftGroup, type PlannedKeyword } from "@shared/pagePlan";
-import type { KeywordResearchKeyword, PageEvidence, PageKind, PageMatch, PagePlan } from "@shared/keywordResearch";
+import { comparePages, draftGroups, groupValue, opportunityOf, planPage, withObservations, type DraftGroup, type PlannedKeyword } from "@shared/pagePlan";
+import type { KeywordResearchKeyword, PageEvidence, PageKind, PageMatch, PageObservation, PagePlan } from "@shared/keywordResearch";
 import { excludedWork } from "../../server/features/keyword-research/keywords";
+import { coveringPage, isPlacePage, sitePages } from "../../server/features/keyword-research/pageCheck";
+import { meaningStems } from "../../server/features/keyword-research/quality";
 
 const none: PageMatch = { status: "none", path: null };
 const row = (keyword: string, searchVolume: number | null, cpc: number | null, pageType: KeywordResearchKeyword["pageType"] = "service") =>
@@ -104,7 +106,7 @@ describe("value and order", () => {
     expect(opportunityOf(evidence())).toBe("contested");
   });
 
-  it("orders actions first, then priority services, then service pages, then room, then value", () => {
+  it("orders actions first, then priority services, then service pages, then value, with room only breaking ties", () => {
     const page = (id: string, overrides: Partial<PagePlan>) => ({ id, action: "recommend", priorityService: false, kind: "service", opportunity: "normal", value: 0, unknownValue: 0, ...overrides }) as PagePlan;
     const pages = [
       page("keep", { action: "keep", value: 99999 }),
@@ -114,7 +116,7 @@ describe("value and order", () => {
       page("priority", { priorityService: true, opportunity: "contested", value: 10 }),
       page("investigate", { action: "investigate", value: 8000 }),
     ];
-    expect([...pages].sort(comparePages).map(entry => entry.id)).toEqual(["priority", "room", "contested", "blog", "investigate", "keep"]);
+    expect([...pages].sort(comparePages).map(entry => entry.id)).toEqual(["priority", "contested", "room", "blog", "investigate", "keep"]);
   });
 });
 
@@ -134,5 +136,78 @@ describe("exclusions", () => {
     expect(excludedWork("window repair", exclusions)).toBeNull();
     expect(excludedWork("door installation", exclusions)).toBeNull();
     expect(excludedWork("commercial glass door repair", exclusions)).toBeNull();
+  });
+});
+
+// The reference case: Glass & Door Pro's shower-door city pages, built on "glass shower door installer + city".
+describe("service × city pages (reference case)", () => {
+  const monroe: PageMatch = { status: "live", path: "/service-areas/monroe" };
+  const reference = { keyword: "glass shower doors charlotte nc", cpc: 26.46, searchVolume: 20, competition: "LOW", difficulty: 4 };
+  const gridGroup = (page: PageMatch = monroe): DraftGroup => ({
+    ...group("city", [planned("glass shower door installer monroe nc", "glass shower doors", "city", { volume: null, cpc: null, city: "Monroe", match: page })], page, "Monroe"),
+    target: "glass shower door installer monroe nc", reference,
+  });
+
+  it("finds the existing city page for the target phrase, not the service page", () => {
+    const pages = sitePages(
+      ["https://x.com/service-areas/monroe", "https://x.com/service-areas/charlotte", "https://x.com/services/frameless-showers", "https://x.com/service-areas"],
+      new Map([
+        ["https://x.com/service-areas/monroe", "Glass Shower Door Installation in Monroe, NC"],
+        ["https://x.com/service-areas/charlotte", "Glass Shower Door Installation in Charlotte, NC"],
+        ["https://x.com/services/frameless-showers", "Frameless Glass Shower Doors"],
+      ]),
+    );
+    const context = { servicePages: new Map<string, string>(), homeStems: meaningStems("glass company charlotte nc"), cityStems: new Set([...meaningStems("monroe"), ...meaningStems("charlotte")]) };
+    const covering = (keyword: string) => coveringPage({ ...row(keyword, null, null, "city"), service: "glass shower doors" }, pages, context);
+    expect(covering("glass shower door installer monroe nc")).toBe("/service-areas/monroe");
+    expect(covering("glass shower door installer charlotte nc")).toBe("/service-areas/charlotte");
+    expect(isPlacePage("/service-areas/charlotte")).toBe(true);
+    expect(isPlacePage("/services/frameless-showers")).toBe(false);
+  });
+
+  it("keeps a city phrase Google reports nothing for, labelled not reported, with the metro reference CPC labelled as such", () => {
+    const result = plan(gridGroup(none), { evidence: evidence({ keyword: "glass shower door installer monroe nc", city: "Monroe", cityPages: 6 }) });
+    expect(result.action).toBe("recommend");
+    expect(result.mainKeyword).toBe("glass shower door installer monroe nc");
+    const text = result.reasons.join(" ");
+    expect(text).toMatch(/not reported by Google Ads/);
+    expect(text).toMatch(/metro reference CPC: \$26\.46 from "glass shower doors charlotte nc", paid-ad competition low, organic difficulty 4\. City-phrase CPC: not reported/);
+    expect(text).not.toMatch(/too small/);
+  });
+
+  it("says a failed check is unknown, never not ranking", () => {
+    const result = plan(gridGroup(), { checkStatus: "failed" });
+    expect(result.checkStatus).toBe("failed");
+    expect(result.questions.join(" ")).toMatch(/failed at DataForSEO\. The ranking is unknown, not absent/);
+    expect(result.reasons.join(" ")).not.toMatch(/not in the top 20/);
+  });
+
+  const observation = (overrides: Partial<PageObservation>): PageObservation => ({
+    id: "o1", kind: "captured_ranking", surface: "organic", query: "glass shower door installer monroe nc", position: 1, path: null, service: "glass shower doors",
+    cities: ["Monroe"], observedOn: "2026-10-10", source: "Matt, screenshots", note: "", recordedAt: "2026-10-10T00:00:00Z", ...overrides,
+  });
+
+  it("keeps a live page with recorded success and shows a conflicting check for reconciliation instead of erasing either", () => {
+    const checked = plan(gridGroup(), { evidence: evidence({ keyword: "glass shower door installer monroe nc", city: "Monroe", clientPosition: 13, clientMapPosition: 1 }) });
+    expect(checked.action).toBe("improve");
+    const kept = withObservations(checked, [observation({})], "10/10/2026");
+    expect(kept.action).toBe("keep");
+    expect(kept.reasons.join(" ")).toMatch(/client #13 in regular results; client #1 in the map pack/);
+    expect(kept.questions.join(" ")).toMatch(/Rankings disagree .*captured #1 .*saw #13\. Both are kept/);
+  });
+
+  it("keeps a page on reported city leads while an incomplete check stays visible", () => {
+    const failed = plan(gridGroup(), { checkStatus: "failed" });
+    const kept = withObservations(failed, [observation({ kind: "city_leads", surface: null, query: null, position: null })], "10/10/2026");
+    expect(kept.action).toBe("keep");
+    expect(kept.questions.join(" ")).toMatch(/ranking is unknown, not absent/);
+    expect(kept.questions.join(" ")).toMatch(/measurement is incomplete/);
+  });
+
+  it("never turns a proposed page into a keeper, and ignores evidence for another service in the same city", () => {
+    const proposed = plan(gridGroup(none), { evidence: evidence({ city: "Monroe", cityPages: 6 }) });
+    expect(withObservations(proposed, [observation({ kind: "city_leads", surface: null, query: null, position: null })], "x").action).toBe("recommend");
+    const other = { ...proposed, service: "window repair", keywords: ["window repair monroe nc"] };
+    expect(withObservations(other, [observation({ query: null })], "x")).toBe(other);
   });
 });

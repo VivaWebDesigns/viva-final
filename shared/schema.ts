@@ -1471,6 +1471,8 @@ export const keywordResearchProjects = pgTable("keyword_research_projects", {
   serviceCities: jsonb("service_cities").notNull().default(sql`'[]'::jsonb`).$type<string[]>(),
   /** Work the client does not do. Inferred from the website by default, editable; applied to every later step. */
   exclusions: jsonb("exclusions").notNull().default(sql`'[]'::jsonb`).$type<import("./keywordResearch").Exclusion[]>(),
+  /** Evidence about pages from outside the page-1 check (reported leads, captured rankings). Kept across plan rebuilds. */
+  observations: jsonb("observations").notNull().default(sql`'[]'::jsonb`).$type<import("./keywordResearch").PageObservation[]>(),
   /** The long step running in the background (competitors, playbook, plan), so the page can poll instead of timing out. */
   activeRun: jsonb("active_run").$type<import("./keywordResearch").ProjectRun>(),
   /** What happened when the client's website was read, shown on the checklist. */

@@ -33,6 +33,8 @@ export default function SetupCard({ project, onUpdate }: { project: KeywordResea
   const [exclusions, setExclusions] = useState<Exclusion[]>(project.exclusions);
   const [newWork, setNewWork] = useState("");
   const [newTerms, setNewTerms] = useState("");
+  const [savedPhrases] = useState<Record<string, string>>(() => Object.fromEntries(selected.map(service => [service.name, (service.cityPhrases ?? []).join(", ")])));
+  const [phrases, setPhrases] = useState(savedPhrases);
 
   const save = useMutation({
     mutationFn: async () => (await apiRequest("PATCH", `/api/keyword-research/projects/${project.id}/setup`, {
@@ -40,6 +42,9 @@ export default function SetupCard({ project, onUpdate }: { project: KeywordResea
       serviceCities: cities.split("\n").map(line => line.trim()).filter(Boolean),
       liveDomain,
       exclusions,
+      // Only phrases edited here, so suggestions a plan saved since this card opened are not overwritten.
+      cityPhrases: Object.fromEntries(selected.filter(service => (phrases[service.name] ?? "") !== savedPhrases[service.name])
+        .map(service => [service.name, (phrases[service.name] ?? "").split(",").map(phrase => phrase.trim()).filter(Boolean).slice(0, 2)])),
     })).json() as Promise<KeywordResearchProject>,
     onSuccess: updated => {
       toast({ title: "Setup saved" });
@@ -104,6 +109,21 @@ export default function SetupCard({ project, onUpdate }: { project: KeywordResea
             <Label htmlFor="kr-live-domain">Live domain</Label>
             <Input id="kr-live-domain" value={liveDomain} onChange={event => setLiveDomain(event.target.value)} placeholder="clientsite.com" data-testid="input-kr-live-domain" />
             <p className="text-xs text-gray-500">Rankings are read from here. Fill it in when the website above is a staging site, so a staging page is never mistaken for a published one.</p>
+          </div>
+        </div>
+        <div className="space-y-2">
+          <Label>City search phrases</Label>
+          <p className="text-xs text-gray-500">
+            How customers search each service with a city, without the city: up to 2, comma separated, the target phrase first. The plan pairs each with every
+            city above ("glass shower door installer" becomes "glass shower door installer monroe nc") and keeps them whatever Google reports. Empty ones are suggested on the next plan.
+          </p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {selected.map(service => (
+              <div key={service.name} className="space-y-1">
+                <Label htmlFor={`kr-phrases-${service.name}`} className="text-xs font-normal text-gray-600">{service.name}</Label>
+                <Input id={`kr-phrases-${service.name}`} value={phrases[service.name] ?? ""} onChange={event => setPhrases(previous => ({ ...previous, [service.name]: event.target.value }))} placeholder="Suggested on the next plan" data-testid={`input-kr-phrases-${service.name}`} />
+              </div>
+            ))}
           </div>
         </div>
         <div className="space-y-2">

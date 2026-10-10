@@ -2,7 +2,7 @@ import { desc, eq, sql } from "drizzle-orm";
 import { db } from "../../db";
 import { keywordResearchProjects, type KeywordResearchProject } from "@shared/schema";
 
-type ProjectChanges = Partial<Pick<KeywordResearchProject, "locationName" | "status" | "services" | "keywords" | "summary" | "researchedAt" | "competitors" | "liveDomain" | "serviceCities" | "exclusions" | "activeRun">>;
+type ProjectChanges = Partial<Pick<KeywordResearchProject, "locationName" | "status" | "services" | "keywords" | "summary" | "researchedAt" | "competitors" | "liveDomain" | "serviceCities" | "exclusions" | "activeRun" | "observations">>;
 
 export async function createProject(values: Pick<KeywordResearchProject, "name" | "trade" | "city" | "state" | "locationName" | "website" | "liveDomain" | "serviceCities" | "exclusions" | "websiteNote" | "services" | "createdBy">, cost: number) {
   const [project] = await db.insert(keywordResearchProjects).values({ ...values, dataCostUsd: cost.toFixed(4) }).returning();

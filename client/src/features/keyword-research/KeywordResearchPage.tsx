@@ -373,7 +373,7 @@ function ProjectView({ id }: { id: string }) {
         </CardContent>
       </Card>
 
-      {project.status === "researched" && <SetupCard key={`${project.serviceCities.join("|")}|${project.liveDomain ?? ""}|${project.exclusions.map(item => item.work).join("|")}`} project={project} onUpdate={setProject} />}
+      {project.status === "researched" && <SetupCard key={`${project.serviceCities.join("|")}|${project.liveDomain ?? ""}|${project.exclusions.map(item => item.work).join("|")}|${project.services.map(service => service.cityPhrases?.join(",") ?? "").join("|")}`} project={project} onUpdate={setProject} />}
 
       {project.status === "researched" && project.summary && (
         <Card>

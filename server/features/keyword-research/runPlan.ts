@@ -1,24 +1,28 @@
 import { CITY_PAGES_REWARDED_AT, comparePages, draftGroups, mainKeyword, planPage, type DraftGroup, type PlannedKeyword } from "@shared/pagePlan";
 import {
   keywordDemand, keywordScore,
-  type KeywordResearchKeyword, type KeywordResearchSummary, type PageEvidence, type PageKind, type PageMatch, type PagePlan, type RelevanceCheck,
+  type KeywordResearchKeyword, type KeywordResearchService, type KeywordResearchSummary, type PageEvidence, type PageKind, type PageMatch, type PagePlan,
+  type ReferenceMetrics, type RelevanceCheck,
 } from "@shared/keywordResearch";
 import type { KeywordResearchProject } from "@shared/schema";
 import { isNotCompetitor } from "./competitors";
-import { fetchSerp, fetchTrafficEstimates } from "./dataforseo";
+import { fetchSearchVolume, fetchSerp, fetchTrafficEstimates, KeywordDataError } from "./dataforseo";
 import { clientDomainOf, parseCity, searchLocations, tolerantSearches } from "./discover";
 import { excludedWork, stateName } from "./keywords";
-import { coveringPage, evidenceFrom, isArticle, isForum, sitePages, type SitePage } from "./pageCheck";
+import { coveringPage, evidenceFrom, isArticle, isForum, isPlacePage, sitePages, type SitePage } from "./pageCheck";
 import { meaningStems } from "./quality";
 import { listSitePages, readPageHeadlines } from "./readWebsite";
-import { checkRelevance, reviewGroups } from "./suggestServices";
+import { checkRelevance, reviewGroups, suggestCityPhrases } from "./suggestServices";
 
 // Keywords judged for relevance per run, by value: past this they stay on the list but outside the plan.
 const MAX_RELEVANCE = 900;
 const RELEVANCE_PARALLEL = 3;
 const RELEVANCE_CHUNK = 150;
-// Pages whose main keyword is checked on page 1. About $0.004 each.
-const MAX_CHECKS = 60;
+// Keywords Google Ads reports no searches or CPC for, judged for relevance anyway: not reported is not zero.
+const MAX_NOT_REPORTED = 200;
+// Pages whose main keyword is checked on page 1, existing pages first. About $0.004 each.
+const MAX_CHECKS = 150;
+const CHECK_ATTEMPTS = 3;
 // Proposed pages sent to Claude's split/merge review.
 const MAX_REVIEW = 60;
 const HEADLINE_LIMIT = 150;
@@ -44,6 +48,14 @@ async function relevanceFor(project: KeywordResearchProject, rows: KeywordResear
     for (const result of results) for (const [keyword, check] of result) checks.set(keyword, check);
   }
   return checks;
+}
+
+/** The service's metro numbers: its most-searched keyword with a CPC. Shown beside city phrases, never as their own numbers. */
+function referenceMetrics(keywords: KeywordResearchKeyword[], service: string): ReferenceMetrics | null {
+  const best = keywords
+    .filter(row => row.source !== "grid" && row.cpc != null && (row.service === service || row.relevance?.service === service))
+    .sort((a, b) => (keywordDemand(b) ?? -1) - (keywordDemand(a) ?? -1) || (b.cpc ?? 0) - (a.cpc ?? 0))[0];
+  return best ? { keyword: best.keyword, cpc: best.cpc!, searchVolume: keywordDemand(best), competition: best.competition, difficulty: best.difficulty ?? null } : null;
 }
 
 /** Blog keywords of one service clustered by shared topic words, so "how to fix foggy windows" and "fix foggy window" share a post. */
@@ -73,7 +85,7 @@ function topicClusters(rows: Array<{ keyword: string; service: string }>, servic
  * site, groups them into pages (existing pages first), has Claude propose merges and splits, checks page 1 once per
  * page from the city that page is for, and decides an action per page with its reasons and open questions.
  */
-export async function runPlan(project: KeywordResearchProject): Promise<{ keywords: KeywordResearchKeyword[]; summary: KeywordResearchSummary }> {
+export async function runPlan(project: KeywordResearchProject): Promise<{ keywords: KeywordResearchKeyword[]; summary: KeywordResearchSummary; services: KeywordResearchService[] }> {
   let cost = 0;
   const services = project.services.filter(service => service.selected);
   const serviceNames = services.map(service => service.name);
@@ -81,18 +93,56 @@ export async function runPlan(project: KeywordResearchProject): Promise<{ keywor
   const liveHost = clientDomainOf(project.liveDomain || project.website);
   const siteHost = clientDomainOf(project.website);
   const siteKind: "live" | "staging" = siteHost && liveHost && siteHost !== liveHost ? "staging" : "live";
-  const keywords = project.keywords.map(row => ({ ...row }));
+  const servedCities = (project.serviceCities.length ? project.serviceCities : [`${project.city}, ${project.state}`])
+    .map(parseCity).filter((place): place is { city: string; state: string } => !!place);
+
+  // Confirmed service × served city phrases, generated: keyword ideas never suggest small towns, and Google Ads
+  // usually reports nothing for them. A city phrase stays in the plan whatever Google reports.
+  const missing = services.filter(service => !service.cityPhrases?.length).map(service => service.name);
+  const suggested = missing.length ? await suggestCityPhrases(project.trade, missing) : new Map<string, string[]>();
+  const updatedServices = project.services.map(service => suggested.get(service.name)?.length ? { ...service, cityPhrases: suggested.get(service.name) } : service);
+  const grid = new Map<string, { service: string; city: string; primary: boolean }>();
+  for (const service of updatedServices.filter(entry => entry.selected)) {
+    for (const place of servedCities) {
+      (service.cityPhrases ?? []).forEach((phrase, index) => {
+        const keyword = `${phrase} ${place.city} ${place.state}`.toLowerCase().replace(/\s+/g, " ").trim();
+        if (!excludedWork(keyword, project.exclusions) && !grid.has(keyword)) grid.set(keyword, { service: service.name, city: place.city, primary: index === 0 });
+      });
+    }
+  }
+  const keywords = project.keywords.filter(row => row.source !== "grid" || grid.has(row.keyword)).map(row => ({ ...row }));
+  const listed = new Set(keywords.map(row => row.keyword));
+  const fresh = [...grid.keys()].filter(keyword => !listed.has(keyword));
+  const volumes = fresh.length
+    ? await fetchSearchVolume(fresh, project.locationName).catch(error => {
+      if (!(error instanceof KeywordDataError)) throw error;
+      return { metrics: [], cost: 0 };
+    })
+    : { metrics: [], cost: 0 };
+  cost += volumes.cost;
+  const metricsOf = new Map(volumes.metrics.map(row => [row.keyword.toLowerCase(), row]));
+  for (const keyword of fresh) {
+    const metrics = metricsOf.get(keyword);
+    keywords.push({
+      keyword, service: grid.get(keyword)!.service,
+      searchVolume: metrics?.searchVolume ?? null, cpc: metrics?.cpc ?? null, competition: metrics?.competition ?? null, competitionIndex: metrics?.competitionIndex ?? null,
+      lowTopOfPageBid: metrics?.lowTopOfPageBid ?? null, highTopOfPageBid: metrics?.highTopOfPageBid ?? null,
+      pageType: "city", source: "grid",
+    });
+  }
 
   const unresolved: Array<{ keyword: string; reason: string }> = [];
-  const candidates = keywords
-    .filter(row => (keywordDemand(row) ?? 0) > 0 || (row.cpc ?? 0) > 0)
+  const pool = keywords
+    .filter(row => !grid.has(row.keyword))
     .filter(row => {
       const work = excludedWork(row.keyword, project.exclusions);
       if (work) unresolved.push({ keyword: row.keyword, reason: `names excluded work (${work})` });
       return !work;
-    })
-    .sort(byValue)
-    .slice(0, MAX_RELEVANCE);
+    });
+  // Keywords Google reports nothing for are judged too, beside the top keywords by value.
+  const notReported = pool.filter(row => keywordDemand(row) == null && row.cpc == null).slice(0, MAX_NOT_REPORTED);
+  const reported = pool.filter(row => (keywordDemand(row) ?? 0) > 0 || (row.cpc ?? 0) > 0).sort(byValue);
+  const candidates = [...reported.slice(0, MAX_RELEVANCE - notReported.length), ...notReported];
   const relevance = await relevanceFor(project, candidates, serviceNames);
   for (const row of keywords) row.relevance = relevance.get(row.keyword) ?? row.relevance;
 
@@ -100,12 +150,11 @@ export async function runPlan(project: KeywordResearchProject): Promise<{ keywor
   const urls = project.website ? await listSitePages(project.website) : null;
   let pages: SitePage[] = [];
   if (urls) pages = sitePages(urls, await readPageHeadlines(urls.slice(0, HEADLINE_LIMIT)));
-  const servedCities = (project.serviceCities.length ? project.serviceCities : [`${project.city}, ${project.state}`])
-    .map(parseCity).filter((place): place is { city: string; state: string } => !!place);
   const cityStems = new Map(servedCities.map(place => [place.city, meaningStems(place.city)] as const));
   const allCityStems = new Set([...cityStems.values()].flatMap(stems => [...stems]));
   const context = {
-    servicePages: new Map(services.filter(service => service.pageUrl).map(service => [service.name, new URL(service.pageUrl!).pathname])),
+    // A page for one place is never a service's own page, whatever the intake matched it to.
+    servicePages: new Map(services.filter(service => service.pageUrl).map(service => [service.name, new URL(service.pageUrl!).pathname] as const).filter(([, path]) => !isPlacePage(path))),
     homeStems: meaningStems([project.trade, project.city, project.state, stateName(project.state)].join(" ")),
     cityStems: allCityStems,
   };
@@ -117,7 +166,7 @@ export async function runPlan(project: KeywordResearchProject): Promise<{ keywor
   const servicePages = new Map<string, PageMatch>();
   for (const service of serviceNames) {
     const match = matchFor({ keyword: service, service, pageType: "service" } as KeywordResearchKeyword);
-    if (match.path) servicePages.set(service, match);
+    if (match.path && !isPlacePage(match.path)) servicePages.set(service, match);
   }
 
   const planned: PlannedKeyword[] = [];
@@ -142,14 +191,35 @@ export async function runPlan(project: KeywordResearchProject): Promise<{ keywor
     row.pageMatch = matchFor(row);
     planned.push({ row, service: check.service, kind, city, match: row.pageMatch });
   }
+  for (const row of keywords) {
+    const cell = grid.get(row.keyword);
+    if (!cell) continue;
+    row.pageType = "city";
+    row.service = cell.service;
+    row.relevance = { verdict: "yes", service: cell.service, reason: "generated from a confirmed service and a served city" };
+    row.pageMatch = matchFor(row);
+    planned.push({ row, service: cell.service, kind: "city", city: cell.city, match: row.pageMatch });
+  }
 
   const serviceStems = new Map(serviceNames.map(service => [service, meaningStems(service)] as const));
   const clusters = topicClusters(planned.filter(item => item.kind === "blog").map(item => ({ keyword: item.row.keyword, service: item.service })), serviceStems);
   let groups = draftGroups(planned, servicePages, keyword => clusters.get(keyword) ?? keyword);
+  // A page holding grid phrases is checked for its own service's target phrase, with that service's metro numbers beside it.
+  const references = new Map(serviceNames.map(service => [service, referenceMetrics(keywords, service)] as const));
+  for (const group of groups) {
+    const cells = group.members.filter(member => grid.has(member.row.keyword));
+    if (!cells.length) continue;
+    const target = cells.find(member => grid.get(member.row.keyword)!.primary && member.service === group.service)
+      ?? cells.find(member => grid.get(member.row.keyword)!.primary) ?? cells[0];
+    group.target = target.row.keyword;
+    group.service = target.service;
+    group.city = grid.get(target.row.keyword)!.city;
+    group.reference = references.get(target.service) ?? null;
+  }
 
   // Claude's split/merge pass over pages that do not exist yet; existing pages keep their keywords.
   const adjusted = new Map<string, string>();
-  const reviewable = groups.filter(group => !group.page.path)
+  const reviewable = groups.filter(group => !group.page.path && !group.target)
     .sort((a, b) => (keywordScore(mainKeyword(b.members.map(m => m.row))) ?? -1) - (keywordScore(mainKeyword(a.members.map(m => m.row))) ?? -1))
     .slice(0, MAX_REVIEW);
   const decisions = await reviewGroups(project.trade, reviewable.map(group => ({ id: group.key, kind: group.kind, service: group.service, keywords: group.members.map(m => m.row.keyword) }))).catch(() => []);
@@ -179,21 +249,29 @@ export async function runPlan(project: KeywordResearchProject): Promise<{ keywor
   }
   groups = [...byKey.values()];
 
-  // One page-1 check per page, from the city the page is for, highest value first.
+  // One page-1 check per page, from the city the page is for: existing pages first, then priority services, then value.
   const ordered = [...groups].sort((a, b) =>
-    Number(priorities.has(b.service)) - Number(priorities.has(a.service))
-    || (keywordScore(mainKeyword(b.members.map(m => m.row))) ?? -1) - (keywordScore(mainKeyword(a.members.map(m => m.row))) ?? -1));
+    Number(!!b.page.path) - Number(!!a.page.path)
+    || Number(priorities.has(b.service)) - Number(priorities.has(a.service))
+    || (keywordScore(mainKeyword(b.members.map(m => m.row))) ?? -1) - (keywordScore(mainKeyword(a.members.map(m => m.row))) ?? -1)
+    || (b.reference?.cpc ?? 0) - (a.reference?.cpc ?? 0));
   const toCheck = ordered.slice(0, MAX_CHECKS);
   const homeCity = servedCities.find(place => place.city.toLowerCase() === project.city.toLowerCase()) ?? { city: project.city, state: project.state };
   const locationFor = new Map<string, string>();
   for (const name of await searchLocations([homeCity, ...servedCities])) locationFor.set(name.split(",")[0].toLowerCase(), name);
   const homeLocation = locationFor.get(homeCity.city.toLowerCase()) ?? project.locationName;
   const { results: serps, failed: failedChecks } = await tolerantSearches(toCheck, async group => {
-    const main = mainKeyword(group.members.map(m => m.row));
+    const keyword = group.target ?? mainKeyword(group.members.map(m => m.row)).keyword;
     const city = group.city ?? homeCity.city;
-    const result = await fetchSerp(main.keyword, locationFor.get(city.toLowerCase()) ?? homeLocation, 20);
-    cost += result.cost;
-    return { group, city, serp: result.serp };
+    for (let attempt = 1; ; attempt += 1) {
+      try {
+        const result = await fetchSerp(keyword, locationFor.get(city.toLowerCase()) ?? homeLocation, 20);
+        cost += result.cost;
+        return { group, city, serp: result.serp };
+      } catch (error) {
+        if (!(error instanceof KeywordDataError) || attempt >= CHECK_ATTEMPTS) throw error;
+      }
+    }
   });
   const domains = [...new Set(serps.flatMap(entry => entry.serp.organic.filter(row => row.position <= 10).map(row => row.domain)))]
     .filter(domain => domain !== liveHost && !isForum(domain) && !isNotCompetitor(domain));
@@ -205,7 +283,8 @@ export async function runPlan(project: KeywordResearchProject): Promise<{ keywor
   // A city page is only proposed when page 1 from that city rewards city pages; otherwise its keywords fold into
   // the service's page, which can serve the city.
   for (const group of [...groups]) {
-    if (group.kind !== "city") continue;
+    // Existing pages and confirmed service × served city pages stay pages of their own.
+    if (group.kind !== "city" || group.page.path || group.target) continue;
     const seen = evidence.get(group.key);
     if (!seen || seen.cityPages >= CITY_PAGES_REWARDED_AT) continue;
     const servicePage = servicePages.get(group.service);
@@ -221,6 +300,7 @@ export async function runPlan(project: KeywordResearchProject): Promise<{ keywor
     adjusted.set(target.key, `${group.city} keywords folded in: page 1 from ${group.city} shows ${seen.cityPages} city-specific results, so this page can serve it`);
   }
 
+  const checkedKeys = new Set(toCheck.map(group => group.key));
   // A proposed service page whose page 1 is mostly articles is a blog topic, whatever its wording suggested.
   const plans: PagePlan[] = groups.map((group, index) => {
     const seen = evidence.get(group.key) ?? null;
@@ -235,6 +315,7 @@ export async function runPlan(project: KeywordResearchProject): Promise<{ keywor
       demandArea: project.locationName.replace(/,United States$/, ""),
       siteRead: !!urls,
       adjusted: adjusted.get(group.key) ?? null,
+      checkStatus: seen ? "checked" : checkedKeys.has(group.key) ? "failed" : "not_run",
     });
   }).sort(comparePages);
   plans.forEach((plan, index) => { plan.id = `p${index + 1}`; });
@@ -245,6 +326,7 @@ export async function runPlan(project: KeywordResearchProject): Promise<{ keywor
     : urls ? null : "The website could not be read, so existing pages were not checked.";
   return {
     keywords,
+    services: updatedServices,
     summary: {
       ...(project.summary ?? { ideasReturned: 0, keptKeywords: keywords.length, droppedAsJunk: 0, droppedNoVolume: 0 }),
       pageCheck: undefined,
