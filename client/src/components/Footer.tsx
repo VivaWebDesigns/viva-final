@@ -23,9 +23,6 @@ export default function Footer() {
             <h3 className="text-white font-bold text-sm uppercase tracking-wider mb-6">{t("footer.linksTitle")}</h3>
             <ul className="space-y-3">
               <li><Link href="/" className="text-gray-500 text-sm hover:text-white transition-colors duration-200" data-testid="link-footer-home">{t("footer.links.home")}</Link></li>
-              <li><Link href="/paquetes/empieza" className="text-gray-500 text-sm hover:text-white transition-colors duration-200" data-testid="link-footer-empieza">{t("footer.links.planEmpieza")}</Link></li>
-              <li><Link href="/paquetes/crece" className="text-gray-500 text-sm hover:text-white transition-colors duration-200" data-testid="link-footer-crece">{t("footer.links.planCrece")}</Link></li>
-              <li><Link href="/paquetes/domina" className="text-gray-500 text-sm hover:text-white transition-colors duration-200" data-testid="link-footer-domina">{t("footer.links.planDomina")}</Link></li>
               <li><Link href="/contacto" className="text-gray-500 text-sm hover:text-white transition-colors duration-200" data-testid="link-footer-contact">{t("footer.links.contact")}</Link></li>
             </ul>
           </div>

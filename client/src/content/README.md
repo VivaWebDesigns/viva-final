@@ -51,9 +51,6 @@ The file is organized by page/section:
 | `nav` | Navigation links and CTA button |
 | `footer` | Footer text, links, copyright |
 | `home` | Home page — all sections |
-| `empieza` | Plan Empieza detail page |
-| `crece` | Plan Crece detail page |
-| `domina` | Plan Domina detail page |
 | `contacto` | Contact page — form labels, sidebar |
 
 ---

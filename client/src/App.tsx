@@ -15,9 +15,6 @@ import JsonLd from "@/components/JsonLd";
 import { PreviewLangProvider } from "@/contexts/PreviewLangContext";
 import { AdminLangProvider } from "@/i18n/LanguageContext";
 
-const PaqueteEmpieza = lazy(() => import("@/pages/PaqueteEmpieza"));
-const PaqueteCrece = lazy(() => import("@/pages/PaqueteCrece"));
-const PaqueteDomina = lazy(() => import("@/pages/PaqueteDomina"));
 const Contacto = lazy(() => import("@/pages/Contacto"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 const LoginPage = lazy(() => import("@features/auth/LoginPage"));
@@ -37,9 +34,6 @@ function MarketingRouter() {
     <Suspense fallback={<PageFallback />}>
       <Switch>
         <Route path="/" component={Home} />
-        <Route path="/paquetes/empieza" component={PaqueteEmpieza} />
-        <Route path="/paquetes/crece" component={PaqueteCrece} />
-        <Route path="/paquetes/domina" component={PaqueteDomina} />
         <Route path="/contacto" component={Contacto} />
         <Route component={NotFound} />
       </Switch>
