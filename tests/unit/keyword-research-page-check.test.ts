@@ -153,11 +153,18 @@ describe("matching against the reference site's saved pages", () => {
     "foggy window repair", "storefront glass installation", "storefront glass repair", "emergency board up", "commercial door installation", "commercial door repair",
     "door closer repair", "commercial window replacement", "window glass replacement", "broken window repair", "sliding glass door repair",
     "sliding glass door replacement", "insulated glass replacement", "glass shower enclosures", "shower door repair", "patio door installation", "storm door installation", "glass partitions"];
+  // The intake's service pages, as the reference project saved them.
+  const intake = new Map([
+    ["emergency board up", "/services/commercial-storefront-glass-replacement-repair"], ["storefront glass repair", "/services/commercial-storefront-glass-replacement-repair"],
+    ["door closer repair", "/services/commercial-door-replacement-repair"], ["commercial door repair", "/services/commercial-door-replacement-repair"],
+    ["window installation", "/services/window-installation"], ["window replacement", "/services/window-installation"], ["window repair", "/services/window-repair"],
+  ]);
   const context = {
-    servicePages: new Map<string, string>(), homeStems: meaningStems("glass charlotte nc"),
+    servicePages: intake, homeStems: meaningStems("glass charlotte nc"),
     cityStems: new Set(cityNames.flatMap(name => [...meaningStems(name)])), cityNames, serviceNames,
   };
-  const covering = (keyword: string, pageType: KeywordResearchKeyword["pageType"] = "city") => coveringPage({ keyword, service: null, pageType } as KeywordResearchKeyword, pages, context);
+  const covering = (keyword: string, pageType: KeywordResearchKeyword["pageType"] = "city", service: string | null = null) =>
+    coveringPage({ keyword, service, pageType } as KeywordResearchKeyword, pages, context);
 
   it("leaves the site's repeated link lists out of a page's own sentences", () => {
     const repair = pages.find(page => page.path === "/services/window-repair")!;
@@ -188,8 +195,12 @@ describe("matching against the reference site's saved pages", () => {
   });
 
   it("finds the service a page covers in its own body (board-up and door closers)", () => {
-    expect(covering("emergency board up charlotte nc")).toBe("/services/commercial-storefront-glass-replacement-repair");
-    expect(covering("door closer repair charlotte nc")).toBe("/services/commercial-door-replacement-repair");
+    expect(covering("emergency board up charlotte nc", "city", "emergency board up")).toBe("/services/commercial-storefront-glass-replacement-repair");
+    expect(covering("door closer repair charlotte nc", "city", "door closer repair")).toBe("/services/commercial-door-replacement-repair");
+    // Body text confirms a page matched to the service; it never claims a service for a page that was not.
+    expect(covering("window glass replacement charlotte nc", "city", "window glass replacement")).not.toBe("/services/window-installation");
+    expect(covering("double pane window repair charlotte nc", "city", "insulated glass replacement")).toBeNull();
+    expect(covering("emergency board up charlotte nc", "city", null)).toBeNull();
     // Not on any page's body: no match is claimed.
     expect(covering("glass partitions charlotte nc")).toBeNull();
   });

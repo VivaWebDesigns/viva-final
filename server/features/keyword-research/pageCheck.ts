@@ -226,10 +226,12 @@ export function coveringPage(
       }
     }
     if (essential.some(stem => !page.stems.has(stem))) {
-      // The page's own body covers the search when one of its sentences holds every word of the search other than
-      // the place ("We provide emergency board-up service" on the storefront glass page). Place words still have to be
-      // in the page's address, title or headings, and template blocks never count.
-      if (!page.placePage && row.pageType !== "blog" && row.pageType !== "cost") {
+      // The page's own body confirms a page already matched to the search's service (by the intake or by its title):
+      // one of its sentences holds every word of the search other than the place ("We provide emergency board-up
+      // service" on the storefront glass page). Body text never claims a service for a page not matched to it, so
+      // a passing mention on the homepage, a legal page or another service's page is not coverage. Place words
+      // still have to be in the page's address, title or headings, and template blocks never count.
+      if (!page.placePage && row.pageType !== "blog" && row.pageType !== "cost" && row.service && context.servicePages.get(row.service) === page.path) {
         // Two-letter words ("up", "nc") carry no topic and are left out.
         const core = essential.filter(stem => !city.includes(stem) && stem.length > 2);
         const rest = essential.filter(stem => city.includes(stem));
