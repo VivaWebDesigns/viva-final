@@ -224,6 +224,10 @@ describe("matching against the reference site's saved pages", () => {
     expect(boardUp.strength).toBe("page_body_covers_both");
     expect(boardUp.evidence[0]).toMatch(/board-up/i);
     expect(found.find(item => item.services.includes("door closer repair"))!.strength).toBe("page_body_covers_both");
+    // A repair paired with an installation page whose own statements never offer that repair: still only a guess.
+    const showers = new Map([["frameless shower doors", live("/services/frameless-showers")], ["shower door repair", live("/services/frameless-showers")]]);
+    const showerInventory = [{ path: "/services/frameless-showers", title: "", h1: "", words: 700, textSource: "html" as const, kind: "service" as const, services: ["frameless shower doors"], cities: [] }];
+    expect([...suggestCombinations(showers, showerInventory, [], pages).values()][0].strength).toBe("intake_match");
     // Matched at intake but never mentioned on the page: still only a guess.
     expect(found.find(item => item.services.includes("glass partitions"))!.strength).toBe("intake_match");
   });

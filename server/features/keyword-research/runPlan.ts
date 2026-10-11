@@ -10,7 +10,7 @@ import { isNotCompetitor } from "./competitors";
 import { fetchSearchVolume, fetchSerp, fetchTrafficEstimates, KeywordDataError } from "./dataforseo";
 import { clientDomainOf, parseCity, searchLocations, tolerantSearches } from "./discover";
 import { excludedWork, stateName } from "./keywords";
-import { coveringPage, evidenceFrom, isForum, isPlacePage, sitePages, type SitePage } from "./pageCheck";
+import { coveringPage, coversAction, evidenceFrom, isForum, isPlacePage, sitePages, type SitePage } from "./pageCheck";
 import { meaningStems } from "./quality";
 import { listSitePages, readPageContent } from "./readWebsite";
 import { checkRelevance, reviewGroups, suggestCityPhrases } from "./suggestServices";
@@ -519,10 +519,14 @@ export function refreshPlan(summary: KeywordResearchSummary, observations: PageO
 export function suggestCombinations(servicePages: Map<string, PageMatch>, inventory: InventoryPage[], metroRows: KeywordResearchKeyword[], pages: SitePage[] = []) {
   const suggestions = new Map<string, { services: string[]; evidence: string[]; strength: GroupSuggestion["strength"] }>();
   const STRENGTH = { page_names_both: 0, page_body_covers_both: 1, intake_match: 2, identical_numbers: 3 } as const;
-  // The page's own sentence that covers a service: every subject word of the service in one sentence.
+  // The page's own sentence that covers a service: every subject word of the service in one sentence; and when the
+  // service is named for an action ("shower door repair"), the page's own statements must offer that action too.
   const covers = (path: string, service: string) => {
+    const page = pages.find(item => item.path === path);
+    if (!page) return null;
+    if (/\b(repair|fix|install|installation|replace|replacement)\b/.test(service) && !coversAction(page, service)) return null;
     const words = [...meaningStems(service)].filter(stem => !ACTION_WORDS.has(stem) && stem.length > 2);
-    return pages.find(page => page.path === path)?.bodySentences.find(sentence => words.every(stem => sentence.stems.has(stem)))?.text ?? null;
+    return page.bodySentences.find(sentence => words.every(stem => sentence.stems.has(stem)))?.text ?? null;
   };
   const suggest = (a: string, b: string, evidence: string, strength: GroupSuggestion["strength"]) => {
     const services = [a, b].sort();
