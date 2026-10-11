@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildBlueprint } from "@shared/blueprint";
+import { blogTopicReview, buildBlueprint } from "@shared/blueprint";
 import type { GroupSuggestion, InventoryPage, PagePlan } from "@shared/keywordResearch";
 
 const page = (id: string, overrides: Partial<PagePlan>): PagePlan => ({
@@ -62,5 +62,16 @@ describe("blueprint", () => {
     });
     const separate = buildBlueprint(pages, inventory, [suggestion], { "window installation|window replacement": "separate" }, at);
     expect(entryFor(separate, "replace-matthews").pageIds).toEqual(["replace-matthews"]);
+  });
+});
+
+describe("blog topics for review", () => {
+  it("flags size and spec searches and bare product terms, and leaves real questions and problems alone", () => {
+    expect(blogTopicReview("3 4 glass shower door")[0]).toMatch(/size or spec/);
+    expect(blogTopicReview("1 2 glass shower door")[0]).toMatch(/size or spec/);
+    expect(blogTopicReview("anzzi frameless shower doors")[0]).toMatch(/no question, problem or task/);
+    expect(blogTopicReview("how to fix foggy windows")).toEqual([]);
+    expect(blogTopicReview("replacing cracked window glass")).toEqual([]);
+    expect(blogTopicReview("frameless vs semi frameless shower doors")).toEqual([]);
   });
 });

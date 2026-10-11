@@ -47,6 +47,7 @@ function EntryRow({ entry }: { entry: BlueprintEntry }) {
         <span className="font-medium text-gray-900">{entry.title}</span>
         <Badge variant={entry.action === "keep" ? "secondary" : "outline"} className="text-xs">{PAGE_ACTION_LABELS[entry.action]}</Badge>
         <Badge variant="outline" className={`text-xs ${provisional ? "border-amber-300 text-amber-800" : ""}`}>{EVIDENCE_LABELS[entry.evidenceStatus]}</Badge>
+        {entry.review.length > 0 && <Badge variant="outline" className="border-amber-300 text-xs text-amber-800">review topic</Badge>}
         {entry.grouping && (
           <Badge variant="outline" className="text-xs">
             {entry.grouping.decision === "combine" ? "combined" : entry.grouping.decision === "separate" ? "kept separate" : "combination to review"}
@@ -62,6 +63,7 @@ function EntryRow({ entry }: { entry: BlueprintEntry }) {
         {entry.referenceCpc != null ? ` · metro reference avg CPC $${entry.referenceCpc.toFixed(2)}` : ""}
         {" "}· phase {entry.phase}: {entry.phaseReason}
       </div>
+      {entry.review.map(reason => <div key={reason} className="mt-1 text-xs text-amber-700">Review: {reason}</div>)}
     </li>
   );
 }

@@ -119,12 +119,13 @@ export function sitePages(urls: string[], contents: Map<string, PageContent | st
   const runs = repeated(words.map(list => list.slice(0, -4).map((_, index) => list.slice(index, index + 5).join(" "))));
   // A sentence naming another page's main heading is a link card for that page ("Commercial Storefront Glass
   // Replacement & Repair: emergency board-up…" on the door page), not this page's own content.
-  const mainHeadings = read.map(content => (content?.h1 ?? "").toLowerCase().replace(/\s+/g, " ").trim()).map(h1 => (h1.split(" ").length >= 3 ? h1 : ""));
+  // Short headings ("Window Repair") count only at the start of a sentence, where a link card puts its page's name.
+  const mainHeadings = read.map(content => (content?.h1 ?? "").toLowerCase().replace(/\s+/g, " ").trim()).map(h1 => (h1.split(" ").length >= 2 ? h1 : ""));
   const ownSentences = (text: string, own: number) => text.split(/(?<=[.!?])\s+/).map(sentence => sentence.trim()).filter(sentence => {
     const list = sentence.toLowerCase().split(/\s+/).filter(Boolean);
     if (list.length < 3) return false;
     const lower = list.join(" ");
-    if (mainHeadings.some((h1, index) => h1 && index !== own && h1 !== mainHeadings[own] && lower.includes(h1))) return false;
+    if (mainHeadings.some((h1, index) => h1 && index !== own && h1 !== mainHeadings[own] && (h1.split(" ").length >= 3 ? lower.includes(h1) : lower.startsWith(`${h1} `)))) return false;
     const covered = new Set<number>();
     for (let index = 0; index + 5 <= list.length; index += 1) {
       if (runs.has(list.slice(index, index + 5).join(" "))) for (let offset = 0; offset < 5; offset += 1) covered.add(index + offset);
@@ -151,6 +152,22 @@ export function sitePages(urls: string[], contents: Map<string, PageContent | st
       words: content?.text ? content.text.split(/\s+/).length : 0, textSource: content?.text ? content.textSource : null,
     };
   });
+}
+
+const QUESTION_SENTENCE = /\?\s*$|^(how|what|why|when|where|which|who|can|does|do|is|are|should)\b/i;
+const ACTION_WORD = /^(repair|repairs|repairing|repaired|fix|fixing|fixed|install|installs|installing|installation|installer|installed|replace|replacing|replacement|replaced)$/;
+
+/** Whether a page's own statements (not questions, not link cards) offer the search's action for its subject, twice or more. */
+export function coversAction(page: SitePage, keyword: string, placeStems: Set<string> = new Set()) {
+  const words = keyword.toLowerCase().split(/\s+/);
+  const action = meaningStems(words.filter(word => ACTION_WORD.test(word)).join(" "));
+  // The subject without place words: the city belongs in the page's address and title, not in every statement.
+  const subject = [...meaningStems(words.filter(word => !ACTION_WORD.test(word)).join(" "))].filter(stem => stem.length > 2 && !ACTION_STEMS.has(stem) && !placeStems.has(stem));
+  if (!action.size) return false;
+  const actionRoots = [...action].map(stem => stem.slice(0, 4));
+  return page.bodySentences.filter(sentence => !QUESTION_SENTENCE.test(sentence.text)
+    && subject.every(stem => sentence.stems.has(stem))
+    && actionRoots.some(root => [...sentence.stems].some(stem => stem.startsWith(root)))).length >= 2;
 }
 
 /**
@@ -185,9 +202,10 @@ export function coveringPage(
   const rank = (path: string, matched: number) => matched * 10_000 - (path === "/" ? 5_000 : path.length);
   for (const page of pages) {
     if (INDEX_PAGE.test(page.path) || city.some(stem => !page.stems.has(stem))) continue;
-    // A repair search never belongs on a page about installation or replacement, or the other way round, even
-    // when every other word matches ("window repair monroe nc" is not the Charlotte & Monroe installation page).
-    if (page.headline && actionConflict(row.keyword, page.headline)) continue;
+    // A repair search does not belong on a page about installation or replacement, or the other way round, even
+    // when every other word matches ("window repair monroe nc" is not the Charlotte & Monroe installation page),
+    // unless the page genuinely covers both: two or more of its own statements pair the subject with that action.
+    if (page.headline && actionConflict(row.keyword, page.headline) && !coversAction(page, row.keyword, context.cityStems)) continue;
     if ((row.pageType === "cost" && !page.aboutCost) || (row.pageType === "blog" && !page.article)) continue;
     if (page.placePage && !city.length) continue;
     // A page for one place covers searches for its own subject there: "door installation charlotte nc" is not the

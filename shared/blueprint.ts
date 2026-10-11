@@ -32,6 +32,28 @@ export interface BlueprintEntry {
   valueHigh: number | null;
   /** The service's metro reference average CPC, labelled as a reference, never as this page's own. */
   referenceCpc: number | null;
+  /** For a blog topic: why it needs a person's review before anyone writes it. Empty when nothing stands out. */
+  review: string[];
+}
+
+const QUESTION_START = /^(how|what|why|when|where|which|who|can|does|do|is|are|should|will)\b/;
+const TASK_WORDS = /\b(fix|fixing|repair|install|installing|replace|replacing|clean|cleaning|remove|removing|adjust|adjusting|stop|prevent|choose|cost|costs|price|worth|vs|versus|or|best|ideas|guide|tips|problems?|leak\w*|broken|foggy|cracked|stuck)\b/;
+
+/**
+ * Why a blog topic needs review before anyone writes it: a product size or spec search, or a bare product or term
+ * with no question, problem or task for an article to answer. Flags ask for a person's judgment; they remove nothing.
+ */
+export function blogTopicReview(topic: string) {
+  const text = topic.toLowerCase().trim();
+  const words = text.split(/\s+/);
+  const reasons: string[] = [];
+  if (/^\d/.test(text) || /\b\d+\s*(x|by|inch|in|mm|ft|")\s*\d*/.test(text) || words.filter(word => /^\d+$/.test(word)).length >= 2) {
+    reasons.push("reads as a product size or spec search, not a question an article answers");
+  }
+  if (!QUESTION_START.test(text) && !TASK_WORDS.test(text) && words.length <= 4) {
+    reasons.push("a product or term with no question, problem or task: may be a shopping search");
+  }
+  return reasons;
 }
 
 export interface Blueprint {
@@ -160,6 +182,7 @@ export function buildBlueprint(pages: PagePlan[], inventory: InventoryPage[], su
       value: measured.length ? measured.reduce((sum, member) => sum + member.value, 0) : null,
       valueHigh: measured.length ? measured.reduce((sum, member) => sum + (member.valueHigh ?? member.value), 0) : null,
       referenceCpc: cpc,
+      review: lead.kind === "blog" ? blogTopicReview(lead.mainKeyword) : [],
     });
   }
   entries.sort((a, b) => a.phase - b.phase || (b.referenceCpc ?? -1) - (a.referenceCpc ?? -1) || (a.city ?? "").localeCompare(b.city ?? "") || a.title.localeCompare(b.title));

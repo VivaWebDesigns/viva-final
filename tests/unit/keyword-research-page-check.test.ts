@@ -172,6 +172,21 @@ describe("matching against the reference site's saved pages", () => {
     expect(covering("window replacement charlotte nc")).toBe("/services/window-installation");
   });
 
+  it("lets a page that genuinely covers repair and installation match both, and only then", () => {
+    const both = sitePages(["https://y.com/services/window-installation", "https://y.com/a", "https://y.com/b", "https://y.com/c"], new Map([
+      ["https://y.com/services/window-installation", { title: "Window Installation in Matthews, NC", h1: "Window Installation", headings: [], textSource: "html" as const,
+        text: "We install new windows across Matthews. We also repair windows with broken seals and failed hardware. Our crew can repair window sashes that stick or rattle." }],
+      ["https://y.com/a", { title: "About", h1: "About", headings: [], text: "About us.", textSource: "html" as const }],
+      ["https://y.com/b", { title: "Contact", h1: "Contact", headings: [], text: "Call us.", textSource: "html" as const }],
+      ["https://y.com/c", { title: "Reviews", h1: "Reviews", headings: [], text: "Read reviews.", textSource: "html" as const }],
+    ]));
+    const match = (keyword: string) => coveringPage({ keyword, service: null, pageType: "service" } as KeywordResearchKeyword, both, { ...context, cityNames: ["Matthews"] });
+    expect(match("window repair matthews nc")).toBe("/services/window-installation");
+    expect(match("window installation matthews nc")).toBe("/services/window-installation");
+    // On the saved reference page, repair appears in one statement and one question only: distinct, so no match.
+    expect(covering("window repair monroe nc")).toBeNull();
+  });
+
   it("finds the service a page covers in its own body (board-up and door closers)", () => {
     expect(covering("emergency board up charlotte nc")).toBe("/services/commercial-storefront-glass-replacement-repair");
     expect(covering("door closer repair charlotte nc")).toBe("/services/commercial-door-replacement-repair");
