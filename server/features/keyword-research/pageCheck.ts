@@ -61,6 +61,8 @@ export interface SitePage {
   placePage: boolean;
   /** The words of the page's title and first heading that name what it is about (no action words or state codes). Empty when unread. */
   subjectStems: Set<string>;
+  /** Every word of the page's title (the site's name left out) and main heading, action words included. */
+  headlineStems: Set<string>;
   /** The words of the page's whole main content (menus and footers left out). Empty when the page was not read. */
   textStems: Set<string>;
   title: string;
@@ -115,6 +117,7 @@ export function sitePages(urls: string[], contents: Map<string, PageContent | st
       path, stems: meaningStems(words), aboutCost: COST_WORDS.test(`${path} ${headline}`),
       article: BLOG_PATH.test(path + "/") || QUESTION_TITLE.test(headline), placePage: PLACE_PAGE.test(path),
       subjectStems: new Set([...meaningStems(headline)].filter(stem => stem.length > 2 && !ACTION_STEMS.has(stem) && !QUESTION_STEMS.has(stem))),
+      headlineStems: meaningStems(headline),
       textStems: meaningStems(`${content?.text ?? ""} ${(content?.headings ?? []).join(" ")}`),
       title: content?.title ?? "", h1: content?.h1 ?? "",
       words: content?.text ? content.text.split(/\s+/).length : 0, textSource: content?.text ? content.textSource : null,

@@ -196,14 +196,18 @@ export async function runPlan(project: KeywordResearchProject, options: { retryF
   const cityStems = new Map(servedCities.map(place => [place.city, meaningStems(place.city)] as const));
   // The inventory: each page by the services and served cities it names, and its kind.
   const inventory: InventoryPage[] = pages.map(page => {
-    const named = new Set([...meaningStems(page.path.replace(/[^a-zA-Z0-9]+/g, " ")), ...page.subjectStems]);
+    const named = new Set([...meaningStems(page.path.replace(/[^a-zA-Z0-9]+/g, " ")), ...page.headlineStems]);
     const cities = servedCities.filter(place => [...meaningStems(place.city)].every(stem => named.has(stem))).map(place => place.city);
     const kind: InventoryPage["kind"] = page.article ? "article" : page.aboutCost ? "cost" : page.placePage && cities.length ? "city"
       : serviceNames.some(service => [...meaningStems(service)].every(stem => page.stems.has(stem))) ? "service" : "other";
     return {
       path: page.path, title: page.title, h1: page.h1, words: page.words, textSource: page.textSource, kind, cities,
-      // Services the page is about: named in its own title or main heading (the site's name left out), or its address.
-      services: serviceNames.filter(service => [...meaningStems(service)].filter(stem => !ACTION_WORDS.has(stem)).every(stem => named.has(stem))),
+      // Services the page is about: named in full in its own title or main heading (the site's name left out) or its
+      // address; only when none is named in full, those whose subject words are ("Window Installation" is not window repair).
+      services: (() => {
+        const full = serviceNames.filter(service => [...meaningStems(service)].every(stem => named.has(stem)));
+        return full.length ? full : serviceNames.filter(service => [...meaningStems(service)].filter(stem => !ACTION_WORDS.has(stem)).every(stem => named.has(stem)));
+      })(),
     };
   });
   const allCityStems = new Set([...cityStems.values()].flatMap(stems => [...stems]));
@@ -405,7 +409,8 @@ export async function runPlan(project: KeywordResearchProject, options: { retryF
         if (!(error instanceof KeywordDataError) || attempt >= CHECK_ATTEMPTS) throw error;
       }
     }
-  });
+    // Each failed check is marked on its page and retryable on its own, so the checks that worked are always kept.
+  }, 1);
   const domains = [...new Set(serps.flatMap(entry => entry.serp.organic.filter(row => row.position <= 10).map(row => row.domain)))]
     .filter(domain => domain !== liveHost && !isForum(domain) && !isNotCompetitor(domain));
   const estimates = domains.length ? await fetchTrafficEstimates(domains) : { traffic: new Map<string, number>(), cost: 0 };

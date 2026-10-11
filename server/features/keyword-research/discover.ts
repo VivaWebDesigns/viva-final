@@ -15,9 +15,10 @@ export const MAX_FAILED_SHARE = 0.25;
 
 /**
  * Runs paid searches, skipping any that DataForSEO fails on instead of throwing the rest away. Throws only when
- * more than a quarter fail, since the result would then be missing too much to trust.
+ * more than `maxFailedShare` fail (a quarter by default), since the result would then be missing too much to trust.
+ * A step that marks each failure for retry passes 1: it keeps every search that worked and fails only if none did.
  */
-export async function tolerantSearches<T, R>(items: T[], run: (item: T) => Promise<R>) {
+export async function tolerantSearches<T, R>(items: T[], run: (item: T) => Promise<R>, maxFailedShare = MAX_FAILED_SHARE) {
   let failed = 0;
   const results = await inBatches(items, async item => {
     try {
@@ -28,7 +29,7 @@ export async function tolerantSearches<T, R>(items: T[], run: (item: T) => Promi
       return null;
     }
   });
-  if (items.length && failed / items.length > MAX_FAILED_SHARE) {
+  if (items.length && (failed / items.length > maxFailedShare || failed === items.length)) {
     throw new KeywordDataError(`DataForSEO failed on ${failed} of ${items.length} searches. Try again in a few minutes.`);
   }
   return { results: results.filter((result): result is Awaited<R> & {} => result != null), failed };
