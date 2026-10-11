@@ -646,28 +646,45 @@ export async function reassignByConfirmedService(project: KeywordResearchProject
   };
   const pageOf = new Map(plan.pages.flatMap(page => page.keywords.map(keyword => [keyword, page] as const)));
   const keywords = project.keywords.map(row => ({ ...row }));
-  const moves: Array<{ keyword: string; from: string; to: string; service: string }> = [];
+  const moves: Array<{ keyword: string; from: string; to: string; service: string; previousService: string | null }> = [];
   const leftForRun: Array<{ keyword: string; from: string; service: string; reason: string }> = [];
   const nextPages = plan.pages.map(page => ({ ...page, keywords: [...page.keywords] }));
+  // The distinctive word of a service: the one fewest of the client's services share ("shower").
+  const shared = (stem: string) => context.serviceNames.filter(name => meaningStems(name).has(stem)).length;
+  const distinctive = (service: string) => {
+    const stems = [...meaningStems(service)].filter(stem => stem.length > 2);
+    const rarest = Math.min(...stems.map(shared));
+    return stems.filter(stem => shared(stem) === rarest);
+  };
   for (const row of keywords) {
     const confirmed = row.relevance?.verdict === "yes" ? row.relevance.service : null;
     const current = pageOf.get(row.keyword);
-    if (!confirmed || confirmed === row.service || !current) continue;
+    // Only searches on an existing page, reached through matching under the word matcher's guess.
+    if (!confirmed || confirmed === row.service || !current?.page.path) continue;
+    if (coveringPage(row, pages, context) !== current.page.path) continue;
     const path = coveringPage({ ...row, service: confirmed }, pages, context);
+    if (path === current.page.path) continue;
+    // A page about a related subject (its title or heading holds the confirmed service's distinctive word) stays:
+    // whether it should hold the search is a question for review, not a correction.
+    const site = pages.find(page => page.path === current.page.path);
+    const from = current.page.path;
+    if (site && distinctive(confirmed).some(stem => site.headlineStems.has(stem))) {
+      leftForRun.push({ keyword: row.keyword, from, service: confirmed, reason: "the page is about a related subject: review it with the overlap" });
+      continue;
+    }
     const target = path
       ? nextPages.find(page => page.page.path === path)
-      : nextPages.find(page => page.kind === "service" && !page.page.path && page.service === confirmed);
-    const from = current.page.path ?? current.title;
+      : nextPages.find(page => page.kind === "service" && page.service === confirmed && (!page.page.path || page.page.path !== current.page.path));
     if (!target || target.id === current.id) {
-      if (!target && (path ?? null) !== current.page.path) leftForRun.push({ keyword: row.keyword, from, service: confirmed, reason: "no page for it in this plan yet" });
+      leftForRun.push({ keyword: row.keyword, from, service: confirmed, reason: "no page for it in this plan yet" });
       continue;
     }
     nextPages.find(page => page.id === current.id)!.keywords = nextPages.find(page => page.id === current.id)!.keywords.filter(keyword => keyword !== row.keyword);
     target.keywords.push(row.keyword);
+    moves.push({ keyword: row.keyword, from, to: target.page.path ?? target.title, service: confirmed, previousService: row.service });
     row.service = confirmed;
     row.pageId = target.id;
     row.pageMatch = target.page;
-    moves.push({ keyword: row.keyword, from, to: target.page.path ?? target.title, service: confirmed });
   }
   // The moved pages' totals follow their keywords; their decisions and checks are unchanged.
   const rowOf = new Map(keywords.map(row => [row.keyword, row]));
@@ -682,4 +699,35 @@ export async function reassignByConfirmedService(project: KeywordResearchProject
     keywords, moves, leftForRun,
     summary: refreshPlan({ ...project.summary, plan: { ...plan, pages: pagesOut, corrections: [...(plan.corrections ?? []), { at: correctedAt, kind: "confirmed_service", moves, leftForRun }] } }, project.observations),
   };
+}
+
+/** Reverses the last correction on a saved plan, keyword by keyword, from its recorded moves. No paid calls. */
+export function undoLastCorrection(project: KeywordResearchProject) {
+  const plan = project.summary?.plan;
+  const last = plan?.corrections?.at(-1);
+  if (!project.summary || !plan || !last) throw new Error("There is no correction to undo.");
+  const key = (page: PagePlan) => page.page.path ?? page.title;
+  const pages = plan.pages.map(page => ({ ...page, keywords: [...page.keywords] }));
+  const keywords = project.keywords.map(row => ({ ...row }));
+  const rowOf = new Map(keywords.map(row => [row.keyword, row]));
+  for (const move of last.moves) {
+    const to = pages.find(page => key(page) === move.to);
+    const from = pages.find(page => key(page) === move.from);
+    if (!to || !from) continue;
+    to.keywords = to.keywords.filter(keyword => keyword !== move.keyword);
+    if (!from.keywords.includes(move.keyword)) from.keywords.push(move.keyword);
+    const row = rowOf.get(move.keyword);
+    if (row) {
+      row.pageId = from.id;
+      row.pageMatch = from.page;
+      if ("previousService" in move && move.previousService !== undefined) row.service = move.previousService as string | null;
+    }
+  }
+  const touched = new Set(last.moves.flatMap(move => [move.from, move.to]));
+  const restored = pages.map(page => {
+    if (!touched.has(key(page))) return page;
+    const totals = groupValue(page.keywords.map(keyword => rowOf.get(keyword)).filter((row): row is KeywordResearchKeyword => !!row));
+    return { ...page, value: totals.value, unknownValue: totals.unknownValue, demand: totals.demand, demandHigh: totals.demandHigh, valueHigh: totals.valueHigh, possibleOverlaps: totals.overlaps };
+  });
+  return { keywords, summary: refreshPlan({ ...project.summary, plan: { ...plan, pages: restored, corrections: plan.corrections!.slice(0, -1) } }, project.observations), undone: last.moves.length };
 }

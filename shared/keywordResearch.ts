@@ -567,7 +567,7 @@ export interface ProjectPlan {
   /** Pages whose page-1 check was reused from an earlier run (within 14 days) instead of paid for again. */
   reusedChecks?: number;
   /** Corrections applied to this saved plan without a run, with every keyword moved and those left for the next run. */
-  corrections?: Array<{ at: string; kind: "confirmed_service"; moves: Array<{ keyword: string; from: string; to: string; service: string }>; leftForRun: Array<{ keyword: string; from: string; service: string; reason: string }> }>;
+  corrections?: Array<{ at: string; kind: "confirmed_service"; moves: Array<{ keyword: string; from: string; to: string; service: string; previousService?: string | null }>; leftForRun: Array<{ keyword: string; from: string; service: string; reason: string }> }>;
   /** The last retry of failed checks on this plan: when, how many were tried, how many recovered. */
   retriedAt?: string;
   retried?: { attempted: number; recovered: number; stillFailed: number };

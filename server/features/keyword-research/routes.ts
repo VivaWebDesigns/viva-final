@@ -8,7 +8,7 @@ import { applySearchIntent, buildKeywordList, classifyKeyword, cleanKeyword, mat
 import { createProject, deleteProject, getProject, listProjects, updateProject } from "./repository";
 import { discoverCompetitors } from "./discover";
 import { buildPlaybook } from "./runPlaybook";
-import { reassignByConfirmedService, refreshPlan, retryFailedChecks, runPlan } from "./runPlan";
+import { reassignByConfirmedService, refreshPlan, retryFailedChecks, runPlan, undoLastCorrection } from "./runPlan";
 import { startRun, runBusy } from "./backgroundRun";
 import { readWebsite, WebsiteReadError, type WebsitePage } from "./readWebsite";
 import { chooseMetro, inferExclusions, ServiceSuggestionError, servicesFromWebsite, suggestServices } from "./suggestServices";
@@ -460,6 +460,19 @@ router.post("/projects/:id/plan/reassign", async (req, res) => {
     return res.json({ project: updated, moves, leftForRun });
   } catch (error) {
     return sendError(res, error, "Unable to correct the assignments");
+  }
+});
+
+// Reverses the last correction from its recorded moves. No paid calls.
+router.post("/projects/:id/plan/reassign/undo", async (req, res) => {
+  try {
+    const project = await getProject(req.params.id);
+    if (!project?.summary?.plan?.corrections?.length) return res.status(404).json({ message: "There is no correction to undo." });
+    if (runBusy(project)) return res.status(409).json({ message: "Another step is still running for this project." });
+    const { keywords, summary, undone } = undoLastCorrection(project);
+    return res.json({ project: await updateProject(project.id, { keywords, summary }), undone });
+  } catch (error) {
+    return sendError(res, error, "Unable to undo the correction");
   }
 });
 
