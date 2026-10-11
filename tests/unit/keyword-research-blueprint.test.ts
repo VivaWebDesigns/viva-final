@@ -1,0 +1,66 @@
+import { describe, expect, it } from "vitest";
+import { buildBlueprint } from "@shared/blueprint";
+import type { GroupSuggestion, InventoryPage, PagePlan } from "@shared/keywordResearch";
+
+const page = (id: string, overrides: Partial<PagePlan>): PagePlan => ({
+  id, title: id, kind: "city", service: "window repair", city: null, action: "recommend", page: { status: "none", path: null }, mainKeyword: id, keywords: [id],
+  value: 0, unknownValue: 1, demand: null, priorityService: false, opportunity: "normal", confidence: "medium", evidence: null, reasons: [], questions: [], adjusted: null,
+  checkStatus: "not_run", ...overrides,
+});
+const inv = (path: string, kind: InventoryPage["kind"]): InventoryPage => ({ path, title: "", h1: "", words: 500, textSource: "html", kind, services: [], cities: [] });
+const checked = { keyword: "k", city: "Matthews", smallSites: 0, forums: 0, unknownSites: 0, cityPages: 6, mapPack: false, aiOverview: false, clientPosition: null, clientUrl: null };
+const ref = (avgCpc: number | null) => (avgCpc == null ? null : { keyword: "ref", basis: "metro_phrase" as const, searchVolume: 10, avgCpc, competition: null, difficulty: null });
+
+describe("blueprint", () => {
+  const inventory = [inv("/services/window-repair", "service"), inv("/services/window-installation", "service"), inv("/blog/foggy-windows", "article"), inv("/service-areas/matthews", "city")];
+  const pages = [
+    page("repair-page", { kind: "service", city: null, action: "improve", page: { status: "live", path: "/services/window-repair" }, checkStatus: "checked", reference: ref(21.25) }),
+    page("repair-matthews", { city: "Matthews", evidence: { ...checked }, checkStatus: "checked", reference: ref(21.25) }),
+    page("repair-monroe", { city: "Monroe", reference: ref(21.25) }),
+    page("install-matthews", { service: "window installation", city: "Matthews", evidence: { ...checked }, checkStatus: "checked", reference: ref(84.16) }),
+    page("replace-matthews", { service: "window replacement", city: "Matthews", reference: ref(84.16) }),
+    page("install-page", { kind: "service", service: "window installation", action: "improve", page: { status: "live", path: "/services/window-installation" }, reference: ref(84.16) }),
+    page("closer-matthews", { service: "door closer repair", city: "Matthews", reference: null }),
+    page("glass-service", { kind: "service", service: "window glass replacement", evidence: { ...checked } }),
+    page("repair-cost", { kind: "cost" }),
+    page("foggy-post", { kind: "blog", mainKeyword: "how to fix foggy windows" }),
+  ];
+  const suggestion: GroupSuggestion = { services: ["window installation", "window replacement"], strength: "page_names_both", evidence: ["names both"], pages: [{ city: "Matthews", pageIds: ["install-matthews", "replace-matthews"] }] };
+  const at = "2026-10-11T00:00:00Z";
+  const entryFor = (blueprint: ReturnType<typeof buildBlueprint>, id: string) => blueprint.entries.find(entry => entry.pageIds.includes(id))!;
+
+  it("gives every page an address that follows the site's own pattern, never one the site already uses", () => {
+    const blueprint = buildBlueprint(pages, inventory, [], {}, at);
+    expect(entryFor(blueprint, "repair-page")).toMatchObject({ url: "/services/window-repair", urlStatus: "existing", phase: 1 });
+    expect(entryFor(blueprint, "repair-matthews")).toMatchObject({ url: "/services/window-repair/matthews", urlStatus: "proposed" });
+    expect(entryFor(blueprint, "closer-matthews").url).toBe("/services/door-closer-repair/matthews");
+    expect(entryFor(blueprint, "glass-service")).toMatchObject({ url: "/services/window-glass-replacement", phase: 2 });
+    expect(entryFor(blueprint, "repair-cost")).toMatchObject({ url: "/services/window-repair/cost", phase: 3 });
+    expect(entryFor(blueprint, "foggy-post")).toMatchObject({ url: "/blog/how-to-fix-foggy-windows", phase: 4 });
+    expect(blueprint.urlPattern).toEqual({ services: "/services/{service}/{city}", blog: "/blog/{topic}" });
+  });
+
+  it("orders the build by business value and shows evidence separately: an unchecked page is not ranked lower", () => {
+    const blueprint = buildBlueprint(pages, inventory, [], {}, at);
+    const checkedPage = entryFor(blueprint, "repair-matthews");
+    const uncheckedPage = entryFor(blueprint, "repair-monroe");
+    expect(uncheckedPage.phase).toBe(checkedPage.phase);
+    expect([checkedPage.evidenceStatus, uncheckedPage.evidenceStatus]).toEqual(["supported", "not_checked"]);
+    // Upper half of the services' metro average CPCs goes first; a service with no figures is not ranked lower by default.
+    expect(entryFor(blueprint, "install-matthews").phase).toBe(2);
+    expect(entryFor(blueprint, "closer-matthews").phaseReason).toMatch(/no Google Ads figures.*not ranked lower/);
+  });
+
+  it("combines suggested pages only after the user approves, and says where each decision stands", () => {
+    const pending = buildBlueprint(pages, inventory, [suggestion], {}, at);
+    expect(entryFor(pending, "install-matthews").pageIds).toEqual(["install-matthews"]);
+    expect(entryFor(pending, "install-matthews").grouping).toMatchObject({ decision: "pending", strength: "page_names_both" });
+    const combined = buildBlueprint(pages, inventory, [suggestion], { "window installation|window replacement": "combine" }, at);
+    expect(entryFor(combined, "replace-matthews")).toMatchObject({
+      pageIds: ["install-matthews", "replace-matthews"], title: "window installation & window replacement in Matthews",
+      url: "/services/window-installation/matthews", evidenceStatus: "supported",
+    });
+    const separate = buildBlueprint(pages, inventory, [suggestion], { "window installation|window replacement": "separate" }, at);
+    expect(entryFor(separate, "replace-matthews").pageIds).toEqual(["replace-matthews"]);
+  });
+});

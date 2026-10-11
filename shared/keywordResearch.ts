@@ -164,6 +164,8 @@ export interface KeywordResearchSummary {
   plan?: ProjectPlan;
   /** Where the keywords' Google Ads numbers came from, by measurement id. */
   measurements?: MeasurementContext[];
+  /** The user's decisions on suggested combinations, by services joined with "|". Kept across plan and research runs. */
+  groupDecisions?: Record<string, import("./blueprint").GroupDecision>;
   pageCheck?: PageCheckSummary;
 }
 
@@ -505,6 +507,10 @@ export interface PagePlan {
   previousEvidence?: PageEvidence | null;
   /** A confirmed service × served city page: kept in the plan whatever Google reports for its phrases. */
   grid?: boolean;
+  /** What the page-1 check alone decided, before recorded evidence was applied. `action` is the final, evidence-adjusted one. */
+  base?: { action: PageAction; reasons: string[]; questions: string[] };
+  /** Whether recorded evidence changed the action from the check's own. */
+  evidenceApplied?: boolean;
 }
 
 /** One page of the assessed site as read: what it is about, for which services and places, and how much was read. */
@@ -526,9 +532,10 @@ export interface InventoryPage {
 /** Services that may be one customer need, proposed for review with their evidence. Never applied on its own. */
 export interface GroupSuggestion {
   services: string[];
-  /** page_names_both: an existing page's own title or main heading names both. intake_match: the intake matched both
-   * to one page (a guess). identical_numbers: identical Google Ads numbers for their metro phrases (possible overlap). */
-  strength: "page_names_both" | "intake_match" | "identical_numbers";
+  /** page_names_both: an existing page's own title or main heading names both. page_body_covers_both: the page's own
+   * body text covers the second service (quoted). intake_match: the intake matched both to one page (a guess).
+   * identical_numbers: identical Google Ads numbers for their metro phrases (possible overlap). */
+  strength: "page_names_both" | "page_body_covers_both" | "intake_match" | "identical_numbers";
   evidence: string[];
   /** The separate pages it would combine, per city (or the service pages when there is no city). */
   pages: Array<{ city: string | null; pageIds: string[] }>;
@@ -536,7 +543,10 @@ export interface GroupSuggestion {
 
 export interface ProjectPlan {
   ranAt: string;
+  /** Pages with recorded evidence applied: `action` is final; `base` keeps what the page-1 check alone decided. */
   pages: PagePlan[];
+  /** Addresses, build phases, evidence status and approved combinations, generated from the pages. */
+  blueprint?: import("./blueprint").Blueprint;
   /** Possible combined pages for review. Missing on plans before it was added. */
   groupSuggestions?: GroupSuggestion[];
   /** Every page found on the assessed site, as read. Missing on plans before it was added. */

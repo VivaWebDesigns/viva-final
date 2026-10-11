@@ -280,8 +280,12 @@ const isSuccess = (item: PageObservation) => item.kind !== "captured_ranking"
  * reconciliation, and a failed or missing check is an incomplete measurement, never "not ranking".
  */
 export function withObservations(page: PagePlan, observations: PageObservation[], checkedOn: string): PagePlan {
-  const mine = observationsFor(page, observations);
-  if (!mine.length) return page;
+  // Always start from what the page-1 check decided, so applying evidence again (or after a change) never stacks.
+  const base = page.base ?? { action: page.action, reasons: page.reasons, questions: page.questions };
+  const start = { ...page, action: base.action, reasons: base.reasons, questions: base.questions, base, evidenceApplied: false };
+  const mine = observationsFor(start, observations);
+  if (!mine.length) return start;
+  page = start;
   const questions = [...page.questions];
   const reasons = [...page.reasons];
   let action = page.action;
@@ -301,5 +305,10 @@ export function withObservations(page: PagePlan, observations: PageObservation[]
   if (action === "keep" && page.checkStatus !== "checked" && page.action !== "keep") {
     questions.push("The page-1 measurement is incomplete. The page stays Keep while it is re-checked.");
   }
-  return { ...page, action, reasons, questions };
+  return { ...page, action, reasons, questions, evidenceApplied: action !== base.action };
+}
+
+/** Every page with the recorded evidence applied: the actions the plan's summary and its page cards both show. */
+export function applyEvidence(pages: PagePlan[], observations: PageObservation[], ranAt: string) {
+  return pages.map(page => withObservations(page, observations, new Date(ranAt).toISOString().slice(0, 10)));
 }

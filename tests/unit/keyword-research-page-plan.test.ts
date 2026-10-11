@@ -190,7 +190,9 @@ describe("service × city pages (reference case)", () => {
     const covering = (keyword: string) => coveringPage({ ...row(keyword, null, null, "city"), service: "glass shower doors" }, pages, context);
     expect(covering("glass shower door installer monroe nc")).toBe("/service-areas/monroe");
     expect(covering("glass shower door installer charlotte nc")).toBe("/service-areas/charlotte");
-    expect(covering("shower door repair stallings nc")).toBe("/service-areas/stallings");
+    // A repair search is a different job from the installation the page is about.
+    expect(covering("shower door repair stallings nc")).toBeNull();
+    expect(covering("frameless shower door installer stallings nc")).toBeNull();
     // Another service's words all appear on the page, but it is not the page's subject.
     expect(covering("door installation charlotte nc")).toBeNull();
     expect(covering("glass replacement stallings nc")).toBeNull();
@@ -238,6 +240,17 @@ describe("service × city pages (reference case)", () => {
     expect(kept.questions.join(" ")).toMatch(/Rankings disagree .*captured #1 .*saw #13\. Both are kept/);
   });
 
+  it("applies evidence from the check's own decision every time, so re-applying never stacks", () => {
+    const checked = plan(gridGroup(), { evidence: evidence({ keyword: "glass shower door installer monroe nc", city: "Monroe", clientPosition: 13 }) });
+    const once = withObservations(checked, [observation({})], "d");
+    const twice = withObservations(once, [observation({})], "d");
+    expect(twice).toMatchObject({ action: "keep", evidenceApplied: true, base: { action: "improve" } });
+    expect(twice.reasons).toEqual(once.reasons);
+    expect(twice.questions).toEqual(once.questions);
+    // Removing the evidence returns the page to the check's own decision.
+    expect(withObservations(twice, [], "d")).toMatchObject({ action: "improve", evidenceApplied: false });
+  });
+
   it("keeps a page on reported city leads while an incomplete check stays visible", () => {
     const failed = plan(gridGroup(), { checkStatus: "failed" });
     const kept = withObservations(failed, [observation({ kind: "city_leads", surface: null, query: null, position: null })], "10/10/2026");
@@ -250,7 +263,7 @@ describe("service × city pages (reference case)", () => {
     const proposed = plan(gridGroup(none), { evidence: evidence({ city: "Monroe", cityPages: 6 }) });
     expect(withObservations(proposed, [observation({ kind: "city_leads", surface: null, query: null, position: null })], "x").action).toBe("recommend");
     const other = { ...proposed, service: "window repair", keywords: ["window repair monroe nc"] };
-    expect(withObservations(other, [observation({ query: null })], "x")).toBe(other);
+    expect(withObservations(other, [observation({ query: null })], "x")).toMatchObject({ action: other.action, reasons: other.reasons, evidenceApplied: false });
   });
 });
 

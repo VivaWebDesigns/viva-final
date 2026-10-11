@@ -54,6 +54,15 @@ const BUYING_INTENT = /\b(buy|for sale|sale|store|shop|shops)\b/;
 const REPAIR_INTENT = /\b(repair|repairs|repairing|fix|fixing)\b/;
 const INSTALL_INTENT = /\b(install|installs|installing|installation|installer|installers|replace|replacing|replacement|replacements)\b/;
 
+/** A repair asked of an installation or replacement, or the other way round: the one difference in action that changes the job. */
+export function actionConflict(a: string, b: string) {
+  const left = cleanKeyword(a);
+  const right = cleanKeyword(b);
+  const repairOnly = (text: string) => REPAIR_INTENT.test(text) && !INSTALL_INTENT.test(text);
+  const installOnly = (text: string) => INSTALL_INTENT.test(text) && !REPAIR_INTENT.test(text);
+  return (repairOnly(left) && installOnly(right)) || (installOnly(left) && repairOnly(right));
+}
+
 /**
  * Whether two phrasings ask for different things: a price, a question, a product to buy, or a repair rather than an
  * installation or replacement. Installation and replacement may share a search; Google's identical numbers decide.

@@ -3,7 +3,7 @@ import { isNotCompetitor } from "./competitors";
 import type { SerpResult } from "./dataforseo";
 import type { PageContent } from "./readWebsite";
 import { BLOG_PATH } from "./playbook";
-import { meaningStems } from "./quality";
+import { actionConflict, meaningStems } from "./quality";
 
 /** Under this many estimated organic visits a month a site counts as small. A size, not a verdict on beating it. */
 export const SMALL_TRAFFIC = 1_000;
@@ -67,6 +67,10 @@ export interface SitePage {
   subjectStems: Set<string>;
   /** Every word of the page's title (the site's name left out) and main heading, action words included. */
   headlineStems: Set<string>;
+  /** The page's title (the site's name left out) and main heading, as text. */
+  headline: string;
+  /** The page's own sentences: its main content with the blocks repeated across the site (link lists, menus) left out. */
+  bodySentences: Array<{ text: string; stems: Set<string> }>;
   /** The words of the page's whole main content (menus and footers left out). Empty when the page was not read. */
   textStems: Set<string>;
   title: string;
@@ -109,6 +113,24 @@ export function sitePages(urls: string[], contents: Map<string, PageContent | st
   const segments = (title: string) => title.split(/\s+[|\u2013\u2014-]\s+/).map(part => part.trim().toLowerCase()).filter(Boolean);
   const templateTitles = repeated(read.map(content => (content ? segments(content.title) : [])));
   const templateHeadings = repeated(read.map(content => (content?.headings ?? []).map(heading => heading.toLowerCase())));
+  // Body text repeated across the site (a "Related Links" list, a services block): any run of 5 words that appears on
+  // half or more of the read pages is template, and a sentence made mostly of template runs is not the page's own.
+  const words = read.map(content => (content?.text ?? "").toLowerCase().split(/\s+/).filter(Boolean));
+  const runs = repeated(words.map(list => list.slice(0, -4).map((_, index) => list.slice(index, index + 5).join(" "))));
+  // A sentence naming another page's main heading is a link card for that page ("Commercial Storefront Glass
+  // Replacement & Repair: emergency board-up…" on the door page), not this page's own content.
+  const mainHeadings = read.map(content => (content?.h1 ?? "").toLowerCase().replace(/\s+/g, " ").trim()).map(h1 => (h1.split(" ").length >= 3 ? h1 : ""));
+  const ownSentences = (text: string, own: number) => text.split(/(?<=[.!?])\s+/).map(sentence => sentence.trim()).filter(sentence => {
+    const list = sentence.toLowerCase().split(/\s+/).filter(Boolean);
+    if (list.length < 3) return false;
+    const lower = list.join(" ");
+    if (mainHeadings.some((h1, index) => h1 && index !== own && h1 !== mainHeadings[own] && lower.includes(h1))) return false;
+    const covered = new Set<number>();
+    for (let index = 0; index + 5 <= list.length; index += 1) {
+      if (runs.has(list.slice(index, index + 5).join(" "))) for (let offset = 0; offset < 5; offset += 1) covered.add(index + offset);
+    }
+    return covered.size / list.length < 0.5;
+  });
   return urls.map((url, index) => {
     const path = new URL(url).pathname;
     const content = read[index];
@@ -122,7 +144,9 @@ export function sitePages(urls: string[], contents: Map<string, PageContent | st
       article: BLOG_PATH.test(path + "/") || QUESTION_TITLE.test(headline), placePage: PLACE_PAGE.test(path),
       subjectStems: new Set([...meaningStems(headline)].filter(stem => stem.length > 2 && !ACTION_STEMS.has(stem) && !QUESTION_STEMS.has(stem))),
       headlineStems: meaningStems(headline),
-      textStems: meaningStems(`${content?.text ?? ""} ${(content?.headings ?? []).join(" ")}`),
+      textStems: meaningStems(`${content ? ownSentences(content.text, index).join(" ") : ""} ${(content?.headings ?? []).filter(heading => !templateHeadings.has(heading.toLowerCase())).join(" ")}`),
+      headline,
+      bodySentences: content ? ownSentences(content.text, index).slice(0, 400).map(text => ({ text: text.slice(0, 300), stems: meaningStems(text) })) : [],
       title: content?.title ?? "", h1: content?.h1 ?? "",
       words: content?.text ? content.text.split(/\s+/).length : 0, textSource: content?.text ? content.textSource : null,
     };
@@ -155,10 +179,15 @@ export function coveringPage(
   const essential = [...wanted].filter(stem => !ACTION_STEMS.has(stem));
   const needed = wanted.size >= 4 && essential.length < wanted.size ? wanted.size - 1 : wanted.size;
   let best: { path: string; matched: number } | null = null;
+  // A page whose body covers the search, when no page's title or headings do: see the body rule below.
+  let fromBody: { path: string; matched: number } | null = null;
   // Most words matched wins; on a tie, a specific page beats the homepage, then the shorter path.
   const rank = (path: string, matched: number) => matched * 10_000 - (path === "/" ? 5_000 : path.length);
   for (const page of pages) {
     if (INDEX_PAGE.test(page.path) || city.some(stem => !page.stems.has(stem))) continue;
+    // A repair search never belongs on a page about installation or replacement, or the other way round, even
+    // when every other word matches ("window repair monroe nc" is not the Charlotte & Monroe installation page).
+    if (page.headline && actionConflict(row.keyword, page.headline)) continue;
     if ((row.pageType === "cost" && !page.aboutCost) || (row.pageType === "blog" && !page.article)) continue;
     if (page.placePage && !city.length) continue;
     // A page for one place covers searches for its own subject there: "door installation charlotte nc" is not the
@@ -178,9 +207,22 @@ export function coveringPage(
         continue;
       }
     }
-    if (essential.some(stem => !page.stems.has(stem))) continue;
+    if (essential.some(stem => !page.stems.has(stem))) {
+      // The page's own body covers the search when one of its sentences holds every word of the search other than
+      // the place ("We provide emergency board-up service" on the storefront glass page). Place words still have to be
+      // in the page's address, title or headings, and template blocks never count.
+      if (!page.placePage && row.pageType !== "blog" && row.pageType !== "cost") {
+        // Two-letter words ("up", "nc") carry no topic and are left out.
+        const core = essential.filter(stem => !city.includes(stem) && stem.length > 2);
+        const rest = essential.filter(stem => city.includes(stem));
+        const support = page.bodySentences.filter(sentence => core.every(stem => sentence.stems.has(stem))).length;
+        // The page with the most sentences about it wins.
+        if (core.length && support && rest.every(stem => page.stems.has(stem)) && (!fromBody || support > fromBody.matched)) fromBody = { path: page.path, matched: support };
+      }
+      continue;
+    }
     const matched = [...wanted].filter(stem => page.stems.has(stem)).length;
     if (matched >= needed && (!best || rank(page.path, matched) > rank(best.path, best.matched))) best = { path: page.path, matched };
   }
-  return best?.path ?? null;
+  return best?.path ?? fromBody?.path ?? null;
 }

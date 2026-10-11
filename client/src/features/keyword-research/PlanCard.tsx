@@ -272,20 +272,7 @@ export default function PlanCard({ project, onUpdate }: { project: KeywordResear
               </p>
             )}
             {!!plan.groupSuggestions?.length && (
-              <details className="rounded-md border p-3 text-xs text-gray-600" data-testid="details-kr-group-suggestions">
-                <summary className="cursor-pointer text-sm font-semibold text-gray-900">Possible combined pages, for review ({plan.groupSuggestions.length})</summary>
-                <p className="mt-1">Each service keeps its own pages in the plan. These pairs may be one customer need; nothing is combined until you decide.</p>
-                <ul className="mt-2 space-y-2">
-                  {plan.groupSuggestions.map(item => (
-                    <li key={item.services.join("|")}>
-                      <span className="font-medium text-gray-800">{item.services.join(" + ")}</span>
-                      {" "}· {item.strength === "page_names_both" ? "an existing page names both" : item.strength === "intake_match" ? "matched to one page at intake (a guess)" : "identical Google Ads numbers (possible overlap)"}
-                      {" "}· {item.pages.length} {item.pages.length === 1 ? "place" : "places"}
-                      {item.evidence.map(line => <span key={line} className="block text-gray-500">– {line}</span>)}
-                    </li>
-                  ))}
-                </ul>
-              </details>
+              <p className="text-xs text-gray-500">{plan.groupSuggestions.length} possible combinations of services are waiting for a decision in the site blueprint below.</p>
             )}
             {!!plan.inventory?.length && (
               <details className="rounded-md border p-3 text-xs text-gray-600">

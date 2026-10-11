@@ -8,7 +8,7 @@ import { applySearchIntent, buildKeywordList, classifyKeyword, cleanKeyword, mat
 import { createProject, deleteProject, getProject, listProjects, updateProject } from "./repository";
 import { discoverCompetitors } from "./discover";
 import { buildPlaybook } from "./runPlaybook";
-import { retryFailedChecks, runPlan } from "./runPlan";
+import { refreshPlan, retryFailedChecks, runPlan } from "./runPlan";
 import { startRun, runBusy } from "./backgroundRun";
 import { readWebsite, WebsiteReadError, type WebsitePage } from "./readWebsite";
 import { chooseMetro, inferExclusions, ServiceSuggestionError, servicesFromWebsite, suggestServices } from "./suggestServices";
@@ -280,6 +280,8 @@ router.post("/projects/:id/research", async (req, res) => {
     }
     summary.difficultyAvailable = scores.status === "fulfilled";
     summary.measurements = [exact.measurement, ideas.measurement];
+    // Grouping decisions are the user's and outlive a research re-run.
+    if (project.summary?.groupDecisions) summary.groupDecisions = project.summary.groupDecisions;
     // Competitors were found from the old keyword list, so they are cleared with it.
     const updated = await updateProject(project.id, { services, keywords, summary, competitors: null, status: "researched", researchedAt: new Date() }, exact.cost + ideas.cost + labsCost);
     return res.json(updated);
@@ -410,7 +412,9 @@ router.post("/projects/:id/observations", async (req, res) => {
     const project = await getProject(req.params.id);
     if (!project) return res.status(404).json({ message: "Project not found" });
     const observation = { ...input, query: input.query ? input.query.toLowerCase() : null, id: randomUUID(), recordedAt: new Date().toISOString() };
-    return res.json(await updateProject(project.id, { observations: [...project.observations, observation] }));
+    const observations = [...project.observations, observation];
+    // The saved plan's actions and blueprint follow the evidence right away, so the summary and page cards agree.
+    return res.json(await updateProject(project.id, { observations, ...(project.summary ? { summary: refreshPlan(project.summary, observations) } : {}) }));
   } catch (error) {
     return sendError(res, error, "Unable to record the evidence");
   }
@@ -420,9 +424,39 @@ router.delete("/projects/:id/observations/:observationId", async (req, res) => {
   try {
     const project = await getProject(req.params.id);
     if (!project) return res.status(404).json({ message: "Project not found" });
-    return res.json(await updateProject(project.id, { observations: project.observations.filter(item => item.id !== req.params.observationId) }));
+    const observations = project.observations.filter(item => item.id !== req.params.observationId);
+    return res.json(await updateProject(project.id, { observations, ...(project.summary ? { summary: refreshPlan(project.summary, observations) } : {}) }));
   } catch (error) {
     return sendError(res, error, "Unable to remove the evidence");
+  }
+});
+
+// The user's decision on a suggested combination of services. Rebuilds the blueprint; no paid calls.
+router.post("/projects/:id/plan/groupings", async (req, res) => {
+  try {
+    const input = z.object({ services: z.array(serviceName).min(2).max(6), decision: z.enum(["combine", "separate", "pending"]) }).parse(req.body);
+    const project = await getProject(req.params.id);
+    if (!project?.summary?.plan) return res.status(404).json({ message: "Build the plan first." });
+    const key = [...input.services].sort().join("|");
+    if (!project.summary.plan.groupSuggestions?.some(item => [...item.services].sort().join("|") === key)) return res.status(400).json({ message: "That combination is not one the plan suggested." });
+    const groupDecisions = { ...(project.summary.groupDecisions ?? {}) };
+    if (input.decision === "pending") delete groupDecisions[key];
+    else groupDecisions[key] = input.decision;
+    return res.json(await updateProject(project.id, { summary: refreshPlan({ ...project.summary, groupDecisions }, project.observations) }));
+  } catch (error) {
+    return sendError(res, error, "Unable to save the decision");
+  }
+});
+
+// Rebuilds the blueprint and the evidence-adjusted actions from the saved plan. No paid calls, no regrouping.
+router.post("/projects/:id/plan/blueprint", async (req, res) => {
+  try {
+    const project = await getProject(req.params.id);
+    if (!project?.summary?.plan) return res.status(404).json({ message: "Build the plan first." });
+    if (runBusy(project)) return res.status(409).json({ message: "Another step is still running for this project." });
+    return res.json(await updateProject(project.id, { summary: refreshPlan(project.summary, project.observations) }));
+  } catch (error) {
+    return sendError(res, error, "Unable to rebuild the blueprint");
   }
 });
 

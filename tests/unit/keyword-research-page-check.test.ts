@@ -6,6 +6,7 @@ import type { SerpResult } from "../../server/features/keyword-research/datafors
 import { coveringPage, evidenceFrom, isArticle, sitePages } from "../../server/features/keyword-research/pageCheck";
 import { meaningStems } from "../../server/features/keyword-research/quality";
 import { parsePage } from "../../server/features/keyword-research/readWebsite";
+import { suggestCombinations } from "../../server/features/keyword-research/runPlan";
 
 const organic = (rows: Array<[string, string, string?]>) => rows.map(([domain, url, title], index) => ({ position: index + 1, domain, url, title: title ?? null }));
 const serp = (rows: Array<[string, string, string?]>, extra: Partial<SerpResult> = {}): SerpResult => ({ keyword: "k", locationName: "Matthews,North Carolina,United States", organic: organic(rows), localPack: [], ...extra });
@@ -128,5 +129,83 @@ describe("reading a page in full", () => {
     const page = parsePage(html, "https://x.com/monroe", 60_000);
     expect(page.textSource).toBe("embedded");
     expect(page.text).toBe("Window Repair in Monroe, NC We repair foggy and broken windows across Monroe and Union County.");
+  });
+});
+
+// Saved pages of the reference site (2026-10-11), read the way the plan reads them.
+describe("matching against the reference site's saved pages", () => {
+  const files: Record<string, string> = {
+    "/services/window-installation": "services_window-installation.html",
+    "/services/window-repair": "services_window-repair.html",
+    "/services/commercial-storefront-glass-replacement-repair": "services_commercial-storefront-glass-replacement-repair.html",
+    "/services/commercial-door-replacement-repair": "services_commercial-door-replacement-repair.html",
+    "/services/frameless-showers": "services_frameless-showers.html",
+    "/service-areas/monroe": "service-areas_monroe.html",
+  };
+  const contents = new Map(Object.entries(files).map(([route, file]) => {
+    const url = `https://glassanddoorpro.com${route}`;
+    const page = parsePage(readFileSync(path.join(__dirname, "../fixtures/keyword-research/pages", file), "utf8"), url, 60_000);
+    return [url, { title: page.title, h1: page.h1, headings: page.headings, text: page.text, textSource: page.textSource }] as const;
+  }));
+  const pages = sitePages([...contents.keys()], contents);
+  const cityNames = ["Charlotte", "Matthews", "Monroe", "Pineville", "Weddington", "Indian Trail", "Wesley Chapel", "Stallings", "Waxhaw", "Fort Mill", "Indian Land"];
+  const serviceNames = ["frameless shower doors", "glass shower door installation", "window installation", "window replacement", "door installation", "window repair",
+    "foggy window repair", "storefront glass installation", "storefront glass repair", "emergency board up", "commercial door installation", "commercial door repair",
+    "door closer repair", "commercial window replacement", "window glass replacement", "broken window repair", "sliding glass door repair",
+    "sliding glass door replacement", "insulated glass replacement", "glass shower enclosures", "shower door repair", "patio door installation", "storm door installation", "glass partitions"];
+  const context = {
+    servicePages: new Map<string, string>(), homeStems: meaningStems("glass charlotte nc"),
+    cityStems: new Set(cityNames.flatMap(name => [...meaningStems(name)])), cityNames, serviceNames,
+  };
+  const covering = (keyword: string, pageType: KeywordResearchKeyword["pageType"] = "city") => coveringPage({ keyword, service: null, pageType } as KeywordResearchKeyword, pages, context);
+
+  it("leaves the site's repeated link lists out of a page's own sentences", () => {
+    const repair = pages.find(page => page.path === "/services/window-repair")!;
+    expect(repair.bodySentences.some(sentence => /foggy/i.test(sentence.text))).toBe(true);
+    expect(repair.bodySentences.some(sentence => /Pineville Matthews Weddington/.test(sentence.text))).toBe(false);
+    expect(repair.textStems.has("frameless")).toBe(false);
+  });
+
+  it("never puts a repair search on an installation page (the Monroe case)", () => {
+    expect(covering("window repair monroe nc")).toBeNull();
+    expect(covering("window installation monroe nc")).toBe("/services/window-installation");
+    expect(covering("window replacement charlotte nc")).toBe("/services/window-installation");
+  });
+
+  it("finds the service a page covers in its own body (board-up and door closers)", () => {
+    expect(covering("emergency board up charlotte nc")).toBe("/services/commercial-storefront-glass-replacement-repair");
+    expect(covering("door closer repair charlotte nc")).toBe("/services/commercial-door-replacement-repair");
+    // Not on any page's body: no match is claimed.
+    expect(covering("glass partitions charlotte nc")).toBeNull();
+  });
+
+  it("rates a pairing by what the existing page's own body says, quoting it", () => {
+    const live = (route: string) => ({ status: "live" as const, path: route });
+    const store = "/services/commercial-storefront-glass-replacement-repair";
+    const door = "/services/commercial-door-replacement-repair";
+    const servicePages = new Map([
+      ["storefront glass repair", live(store)], ["emergency board up", live(store)],
+      ["commercial door repair", live(door)], ["door closer repair", live(door)],
+      ["window installation", live("/services/window-installation")], ["glass partitions", live("/services/window-installation")],
+    ]);
+    const inventory = [
+      { path: store, title: "", h1: "", words: 600, textSource: "html" as const, kind: "service" as const, services: ["storefront glass repair"], cities: [] },
+      { path: door, title: "", h1: "", words: 600, textSource: "html" as const, kind: "service" as const, services: ["commercial door repair"], cities: [] },
+      { path: "/services/window-installation", title: "", h1: "", words: 600, textSource: "html" as const, kind: "service" as const, services: ["window installation"], cities: [] },
+    ];
+    const found = [...suggestCombinations(servicePages, inventory, [], pages).values()];
+    const boardUp = found.find(item => item.services.includes("emergency board up"))!;
+    expect(boardUp.strength).toBe("page_body_covers_both");
+    expect(boardUp.evidence[0]).toMatch(/board-up/i);
+    expect(found.find(item => item.services.includes("door closer repair"))!.strength).toBe("page_body_covers_both");
+    // Matched at intake but never mentioned on the page: still only a guess.
+    expect(found.find(item => item.services.includes("glass partitions"))!.strength).toBe("intake_match");
+  });
+
+  it("keeps the earlier correct matches", () => {
+    expect(covering("foggy window repair charlotte nc")).toBe("/services/window-repair");
+    expect(covering("storefront glass repair charlotte nc")).toBe("/services/commercial-storefront-glass-replacement-repair");
+    expect(covering("glass shower door installer monroe nc")).toBe("/service-areas/monroe");
+    expect(covering("frameless shower doors monroe nc")).toBe("/service-areas/monroe");
   });
 });

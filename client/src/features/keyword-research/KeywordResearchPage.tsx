@@ -18,6 +18,7 @@ import SearchAreaPicker, { areaLabel } from "./SearchAreaPicker";
 import CompetitorsCard from "./CompetitorsCard";
 import PlaybookCard from "./PlaybookCard";
 import PlanCard, { PAGE_ACTION_LABELS } from "./PlanCard";
+import BlueprintCard from "./BlueprintCard";
 import SetupCard from "./SetupCard";
 import { anyRunning } from "./runState";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -492,6 +493,7 @@ function ProjectView({ id }: { id: string }) {
       )}
 
       {project.status === "researched" && project.summary && <PlanCard project={project} onUpdate={setProject} />}
+      {project.status === "researched" && project.summary?.plan && <BlueprintCard project={project} onUpdate={setProject} />}
     </div>
   );
 }

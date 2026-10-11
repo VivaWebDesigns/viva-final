@@ -1,8 +1,9 @@
-import { CITY_PAGES_REWARDED_AT, comparePages, draftGroups, mainKeyword, planPage, type DraftGroup, type PlannedKeyword } from "@shared/pagePlan";
+import { applyEvidence, CITY_PAGES_REWARDED_AT, comparePages, draftGroups, mainKeyword, planPage, type DraftGroup, type PlannedKeyword } from "@shared/pagePlan";
+import { buildBlueprint } from "@shared/blueprint";
 import {
   keywordDemand, keywordScore, relevanceBasis, sameSerpSettings,
   type InventoryPage, type KeywordResearchKeyword, type KeywordResearchService, type KeywordResearchSummary, type PageEvidence, type PageKind, type PageMatch, type PagePlan,
-  type GroupSuggestion, type MeasurementContext, type ReferenceMetrics, type RelevanceCheck,
+  type GroupSuggestion, type MeasurementContext, type PageObservation, type ReferenceMetrics, type RelevanceCheck,
 } from "@shared/keywordResearch";
 import type { KeywordResearchProject } from "@shared/schema";
 import { isNotCompetitor } from "./competitors";
@@ -279,7 +280,7 @@ export async function runPlan(project: KeywordResearchProject): Promise<{ keywor
   // identical Google Ads numbers for their metro phrases (a possible overlap Google does not confirm).
   const metroCity = project.city.toLowerCase();
   const metroRows = [...keywords.filter(row => grid.get(row.keyword)?.city.toLowerCase() === metroCity), ...probeRows];
-  const suggestions = suggestCombinations(servicePages, inventory, metroRows);
+  const suggestions = suggestCombinations(servicePages, inventory, metroRows, pages);
 
   const cellPage = new Map<string, PageMatch>();
   for (const item of planned) if (grid.has(item.row.keyword) && item.match.path) cellPage.set(`${item.service}|${item.city}`, item.match);
@@ -461,21 +462,22 @@ export async function runPlan(project: KeywordResearchProject): Promise<{ keywor
     }
     return { ...entry, pages };
   }).filter(entry => entry.pages.length)
-    .sort((a, b) => ({ page_names_both: 0, intake_match: 1, identical_numbers: 2 })[a.strength] - ({ page_names_both: 0, intake_match: 1, identical_numbers: 2 })[b.strength]);
+    .sort((a, b) => ({ page_names_both: 0, page_body_covers_both: 1, intake_match: 2, identical_numbers: 3 })[a.strength] - ({ page_names_both: 0, page_body_covers_both: 1, intake_match: 2, identical_numbers: 3 })[b.strength]);
   const pageOf = new Map(plans.flatMap(plan => plan.keywords.map(keyword => [keyword, plan.id] as const)));
   for (const row of keywords) row.pageId = pageOf.get(row.keyword);
 
   const siteNote = !project.website ? "No website on the project, so existing pages were not checked."
     : urls ? null : "The website could not be read, so existing pages were not checked.";
+  const ranAt = new Date().toISOString();
   return {
     keywords,
     services: updatedServices,
-    summary: {
+    summary: refreshPlan({
       ...(project.summary ?? { ideasReturned: 0, keptKeywords: keywords.length, droppedAsJunk: 0, droppedNoVolume: 0 }),
       pageCheck: undefined,
       measurements: [...measurements.values()],
       plan: {
-        ranAt: new Date().toISOString(),
+        ranAt,
         pages: plans,
         unresolved: unresolved.slice(0, 150),
         checkedCity: homeLocation.replace(/,United States$/, ""),
@@ -490,7 +492,21 @@ export async function runPlan(project: KeywordResearchProject): Promise<{ keywor
         reusedChecks: reused.size,
         notJudged,
       },
-    },
+    }, project.observations),
+  };
+}
+
+/**
+ * A plan with the recorded evidence applied to every page (ids and keywords unchanged) and its blueprint rebuilt.
+ * Makes no paid calls: run after a plan, a retry, a change to recorded evidence or a grouping decision.
+ */
+export function refreshPlan(summary: KeywordResearchSummary, observations: PageObservation[]): KeywordResearchSummary {
+  const plan = summary.plan;
+  if (!plan) return summary;
+  const pages = applyEvidence(plan.pages, observations, plan.ranAt);
+  return {
+    ...summary,
+    plan: { ...plan, pages, blueprint: buildBlueprint(pages, plan.inventory ?? [], plan.groupSuggestions ?? [], summary.groupDecisions ?? {}, new Date().toISOString()) },
   };
 }
 
@@ -500,9 +516,14 @@ export async function runPlan(project: KeywordResearchProject): Promise<{ keywor
  * both; the intake matching both to one page (a guess); identical Google Ads numbers for their metro phrases (a
  * possible overlap Google does not confirm). Phrases that ask for different things never count.
  */
-export function suggestCombinations(servicePages: Map<string, PageMatch>, inventory: InventoryPage[], metroRows: KeywordResearchKeyword[]) {
+export function suggestCombinations(servicePages: Map<string, PageMatch>, inventory: InventoryPage[], metroRows: KeywordResearchKeyword[], pages: SitePage[] = []) {
   const suggestions = new Map<string, { services: string[]; evidence: string[]; strength: GroupSuggestion["strength"] }>();
-  const STRENGTH = { page_names_both: 0, intake_match: 1, identical_numbers: 2 } as const;
+  const STRENGTH = { page_names_both: 0, page_body_covers_both: 1, intake_match: 2, identical_numbers: 3 } as const;
+  // The page's own sentence that covers a service: every subject word of the service in one sentence.
+  const covers = (path: string, service: string) => {
+    const words = [...meaningStems(service)].filter(stem => !ACTION_WORDS.has(stem) && stem.length > 2);
+    return pages.find(page => page.path === path)?.bodySentences.find(sentence => words.every(stem => sentence.stems.has(stem)))?.text ?? null;
+  };
   const suggest = (a: string, b: string, evidence: string, strength: GroupSuggestion["strength"]) => {
     const services = [a, b].sort();
     const key = services.join("|");
@@ -517,7 +538,11 @@ export function suggestCombinations(servicePages: Map<string, PageMatch>, invent
     const named = inventory.find(item => item.path === path)?.services ?? [];
     for (let i = 0; i < shared.length; i += 1) for (let j = i + 1; j < shared.length; j += 1) {
       const both = named.includes(shared[i]) && named.includes(shared[j]);
-      suggest(shared[i], shared[j], both ? `${path} names both in its own title or main heading` : `the intake matched both to ${path}, whose title or main heading does not name both`, both ? "page_names_both" : "intake_match");
+      const [first, second] = named.includes(shared[i]) ? [shared[i], shared[j]] : [shared[j], shared[i]];
+      const sentence = both ? null : covers(path, second);
+      if (both) suggest(shared[i], shared[j], `${path} names both in its own title or main heading`, "page_names_both");
+      else if (sentence) suggest(shared[i], shared[j], `${path} is about "${first}" and its own body covers "${second}": “${sentence}”`, "page_body_covers_both");
+      else suggest(shared[i], shared[j], `the intake matched both to ${path}; neither its title, main heading nor body names both`, "intake_match");
     }
   }
   const measured = metroRows.filter(row => row.searchVolume != null && row.cpc != null && row.service);
@@ -585,9 +610,9 @@ export async function retryFailedChecks(project: KeywordResearchProject): Promis
   const pages = plan.pages.map(page => updated.get(page.id) ?? page);
   return {
     cost,
-    summary: {
+    summary: refreshPlan({
       ...project.summary,
       plan: { ...plan, pages, failedChecks: pages.filter(page => page.checkStatus === "failed").length, costUsd: Number((plan.costUsd + cost).toFixed(4)), retriedAt: new Date().toISOString(), retried: { attempted: failed.length, recovered: updated.size, stillFailed } },
-    },
+    }, project.observations),
   };
 }
