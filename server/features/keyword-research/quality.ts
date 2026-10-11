@@ -1,3 +1,4 @@
+import type { RawKeywordMetrics } from "@shared/keywordResearch";
 import type { KeywordMetrics } from "./dataforseo";
 import { cleanKeyword } from "./keywords";
 
@@ -7,6 +8,13 @@ export interface QualityKeyword extends KeywordMetrics {
   nearMeVolume: number | null;
   /** Phrases Google reports as the same search (identical volume and CPC), merged so demand is counted once. */
   variants: string[];
+  variantMetrics?: RawKeywordMetrics[];
+  nearMeMetrics?: RawKeywordMetrics[];
+}
+
+/** A phrase's own measurement, as Google Ads returned it. */
+export function rawMetrics(row: KeywordMetrics): RawKeywordMetrics {
+  return { keyword: row.keyword, searchVolume: row.searchVolume, cpc: row.cpc, competition: row.competition, lowTopOfPageBid: row.lowTopOfPageBid, highTopOfPageBid: row.highTopOfPageBid };
 }
 
 const NEAR_ME = /\b(near me|nearby|close to me|in my area)\b/g;
@@ -55,8 +63,11 @@ function shortestFirst(a: { keyword: string }, b: { keyword: string }) {
   return a.keyword.length - b.keyword.length || a.keyword.localeCompare(b.keyword);
 }
 
-/** Merges each group of close variants into its shortest phrasing; the others are listed as its variants. */
-export function mergeCloseVariants(rows: KeywordMetrics[]): { rows: QualityKeyword[]; merged: number } {
+/**
+ * Merges each group of close variants into one phrasing: a phrase asked for by name (`preferred`) when the group has
+ * one, otherwise the shortest. The others are listed as its variants with their own measurements kept unchanged.
+ */
+export function mergeCloseVariants(rows: KeywordMetrics[], preferred: Set<string> = new Set()): { rows: QualityKeyword[]; merged: number } {
   const groups = new Map<string, KeywordMetrics[]>();
   for (const row of rows) {
     if (row.searchVolume == null || row.cpc == null) continue;
@@ -67,7 +78,7 @@ export function mergeCloseVariants(rows: KeywordMetrics[]): { rows: QualityKeywo
   const absorbed = new Map<string, string>();
   for (const group of groups.values()) {
     if (group.length < 2) continue;
-    const ordered = [...group].sort(shortestFirst);
+    const ordered = [...group].sort((a, b) => Number(preferred.has(b.keyword)) - Number(preferred.has(a.keyword)) || shortestFirst(a, b));
     for (let index = 0; index < ordered.length; index += 1) {
       const row = ordered[index];
       if (absorbed.has(row.keyword)) continue;
@@ -81,31 +92,46 @@ export function mergeCloseVariants(rows: KeywordMetrics[]): { rows: QualityKeywo
   for (const row of rows) {
     if (!absorbed.has(row.keyword)) kept.set(row.keyword, { ...row, nearMeVolume: null, variants: [] });
   }
-  for (const [variant, keeper] of absorbed) kept.get(keeper)!.variants.push(variant);
-  for (const row of kept.values()) row.variants.sort();
+  const byKeyword = new Map(rows.map(row => [row.keyword, row]));
+  for (const [variant, keeper] of absorbed) {
+    const row = kept.get(keeper)!;
+    row.variants.push(variant);
+    row.variantMetrics = [...(row.variantMetrics ?? []), rawMetrics(byKeyword.get(variant)!)];
+  }
+  for (const row of kept.values()) {
+    row.variants.sort();
+    row.variantMetrics?.sort((a, b) => a.keyword.localeCompare(b.keyword));
+  }
   return { rows: [...kept.values()], merged: absorbed.size };
 }
 
 /**
- * "near me" rows are never targets: their volume moves onto the plain phrase. When the plain phrase is missing,
- * it is added with unknown volume of its own. A "near me" row Google grouped with the plain phrase (same numbers)
- * is the same search and adds nothing.
+ * "near me" rows are never targets: their volume counts toward the plain phrase's demand, and their own measurements
+ * are kept beside it. Nothing else moves: the plain phrase keeps its own CPC, bids and competition, unknown when
+ * Google reported none. The plain phrase is found by name or among merged variants; when it is missing, it is added
+ * with every measurement of its own unknown. A "near me" row Google grouped with the plain phrase (same numbers) is
+ * the same search and adds no volume.
  */
 export function foldNearMe(rows: QualityKeyword[]): { rows: QualityKeyword[]; folded: number } {
   const byKeyword = new Map(rows.filter(row => !isNearMe(row.keyword)).map(row => [row.keyword, row]));
+  const keeperOf = new Map([...byKeyword.values()].flatMap(row => row.variants.map(variant => [variant, row] as const)));
   let folded = 0;
   for (const row of rows.filter(row => isNearMe(row.keyword))) {
     folded += 1;
     const head = headTerm(row.keyword);
     if (!head) continue;
-    const target = byKeyword.get(head);
+    let target = byKeyword.get(head) ?? keeperOf.get(head);
     if (!target) {
-      byKeyword.set(head, { ...row, keyword: head, searchVolume: null, nearMeVolume: row.searchVolume, variants: [] });
-      continue;
+      target = {
+        keyword: head, searchVolume: null, cpc: null, competition: null, competitionIndex: null, lowTopOfPageBid: null, highTopOfPageBid: null,
+        nearMeVolume: null, variants: [],
+      };
+      byKeyword.set(head, target);
     }
+    const near = [rawMetrics(row), ...(row.variantMetrics ?? [])];
+    target.nearMeMetrics = [...(target.nearMeMetrics ?? []), ...near];
     if (row.searchVolume == null || (row.searchVolume === target.searchVolume && row.cpc === target.cpc)) continue;
     target.nearMeVolume = (target.nearMeVolume ?? 0) + row.searchVolume;
-    target.cpc = target.cpc ?? row.cpc;
   }
   return { rows: [...byKeyword.values()], folded };
 }

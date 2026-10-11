@@ -23,6 +23,16 @@ export type KeywordPageType = "service" | "city" | "cost" | "blog";
 /** Who is searching: someone hiring a pro, someone doing it themselves, or someone buying a product. */
 export type KeywordIntent = "service" | "diy" | "shopping";
 
+/** One phrase's own Google Ads measurement, kept as returned when the phrase is grouped under another. */
+export interface RawKeywordMetrics {
+  keyword: string;
+  searchVolume: number | null;
+  cpc: number | null;
+  competition: string | null;
+  lowTopOfPageBid: number | null;
+  highTopOfPageBid: number | null;
+}
+
 export interface KeywordResearchKeyword {
   keyword: string;
   /** Selected service the keyword belongs to, or null when it is related but did not match one service. */
@@ -37,6 +47,10 @@ export interface KeywordResearchKeyword {
   nearMeVolume?: number | null;
   /** Phrasings Google reports as the same search, merged into this keyword so demand is counted once. */
   variants?: string[];
+  /** The merged variants' own measurements, unchanged. This keyword's numbers are always its own. */
+  variantMetrics?: RawKeywordMetrics[];
+  /** The "near me" phrasings folded in, with their own measurements. Only their volume counts toward demand. */
+  nearMeMetrics?: RawKeywordMetrics[];
   /** DataForSEO's 0–100 organic ranking difficulty (US). Null when it has no score; missing on lists built before it was added. */
   difficulty?: number | null;
   pageType?: KeywordPageType;

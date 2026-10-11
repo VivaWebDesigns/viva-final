@@ -85,6 +85,52 @@ describe("near me", () => {
   });
 });
 
+// Raw Google Ads numbers from the 2026-10-10 benchmark (Charlotte NC DMA 200517, Sep 2025 – Aug 2026).
+describe("grouping keeps every phrase's own measurements", () => {
+  const ads = (keyword: string, searchVolume: number | null, cpc: number | null, low: number | null, high: number | null, competition: string | null): KeywordMetrics =>
+    ({ keyword, searchVolume, cpc, competition, competitionIndex: null, lowTopOfPageBid: low, highTopOfPageBid: high });
+  const rows = [
+    ads("glass shower door installation", 30, 32.4, 3.48, 23.22, "HIGH"),
+    ads("installing glass shower doors", 30, 32.4, 3.48, 23.22, "HIGH"),
+    ads("glass shower door installation near me", 10, 134.86, 6.13, 25.09, "HIGH"),
+  ];
+  const input = { services: ["glass shower door installation"], trade: "glass company", city: "Charlotte", state: "NC" };
+
+  it("keeps a phrase asked for by name as the row its numbers belong to, with the near me numbers beside it", () => {
+    const { keywords } = buildKeywordList(rows, { ...input, exactPhrases: ["glass shower door installation"] });
+    const row = find(keywords, "glass shower door installation")!;
+    expect(row).toMatchObject({ searchVolume: 30, cpc: 32.4, lowTopOfPageBid: 3.48, highTopOfPageBid: 23.22, competition: "HIGH", nearMeVolume: 10, variants: ["installing glass shower doors"] });
+    expect(row.variantMetrics).toEqual([expect.objectContaining({ keyword: "installing glass shower doors", searchVolume: 30, cpc: 32.4 })]);
+    expect(row.nearMeMetrics).toEqual([expect.objectContaining({ keyword: "glass shower door installation near me", searchVolume: 10, cpc: 134.86, lowTopOfPageBid: 6.13, highTopOfPageBid: 25.09 })]);
+    expect(find(keywords, "installing glass shower doors")).toBeUndefined();
+  });
+
+  it("folds near me into the phrasing a plain phrase was merged into, instead of recreating it from the near me numbers", () => {
+    const { keywords } = buildKeywordList(rows, input);
+    expect(keywords.map(row => row.keyword)).toEqual(["installing glass shower doors"]);
+    expect(keywords[0]).toMatchObject({ searchVolume: 30, cpc: 32.4, lowTopOfPageBid: 3.48, highTopOfPageBid: 23.22, nearMeVolume: 10 });
+  });
+
+  it("never gives a plain phrase the CPC or bids of its near me phrasing", () => {
+    const alone = foldNearMe(mergeCloseVariants([rows[2]]).rows).rows[0];
+    expect(alone).toMatchObject({ keyword: "glass shower door installation", searchVolume: null, cpc: null, lowTopOfPageBid: null, highTopOfPageBid: null, competition: null, nearMeVolume: 10 });
+    const noCpc = foldNearMe(mergeCloseVariants([ads("shower door repair", 20, null, null, null, null), ads("shower door repair near me", 40, 18.5, 4, 30, "HIGH")]).rows).rows[0];
+    expect(noCpc).toMatchObject({ searchVolume: 20, cpc: null, lowTopOfPageBid: null, nearMeVolume: 40 });
+  });
+
+  it("leaves every kept row with exactly its own raw numbers across a real list", () => {
+    const input2 = { services: ["shower doors", "central air installation", "drain cleaning"], trade: "home services", city: "Charlotte", state: "NC" };
+    const raw = realRows.map(row => ({ ...metrics(row.keyword, row.searchVolume, row.cpc), lowTopOfPageBid: row.cpc == null ? null : row.cpc / 2 }));
+    const own = new Map(raw.map(row => [row.keyword, row]));
+    const { keywords } = buildKeywordList(raw, input2);
+    expect(keywords.filter(row => row.nearMeVolume != null || row.variants?.length).length).toBeGreaterThanOrEqual(5);
+    for (const row of keywords) {
+      const source = own.get(row.keyword);
+      expect([row.searchVolume, row.cpc, row.lowTopOfPageBid]).toEqual(source ? [source.searchVolume, source.cpc, source.lowTopOfPageBid] : [null, null, null]);
+    }
+  });
+});
+
 describe("service demand", () => {
   it("counts a search Google grouped across phrasings once", () => {
     const volumes = new Map(serviceVariants("glass repair", "Matthews").map(keyword => [keyword, metrics(keyword, 590, 12.5)]));

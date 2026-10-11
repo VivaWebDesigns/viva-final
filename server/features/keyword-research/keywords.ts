@@ -158,9 +158,10 @@ export function buildKeywordList(
     if (!existing || (existing.searchVolume == null && row.searchVolume != null)) merged.set(keyword, { ...row, keyword });
   }
 
-  const variants = mergeCloseVariants([...merged.values()]);
-  const nearMe = foldNearMe(variants.rows);
   const exact = new Set((input.exactPhrases ?? []).map(cleanKeyword));
+  // A phrase asked for by name stays the row its own numbers belong to, never a variant of another phrasing.
+  const variants = mergeCloseVariants([...merged.values()], exact);
+  const nearMe = foldNearMe(variants.rows);
   const summary: KeywordResearchSummary = {
     ideasReturned: merged.size, keptKeywords: 0, droppedAsJunk: 0, droppedNoVolume: 0,
     mergedVariants: variants.merged, foldedNearMe: nearMe.folded, unknownVolume: 0, droppedExcluded: 0,
