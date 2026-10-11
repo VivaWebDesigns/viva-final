@@ -649,12 +649,13 @@ export async function reassignByConfirmedService(project: KeywordResearchProject
   const moves: Array<{ keyword: string; from: string; to: string; service: string; previousService: string | null }> = [];
   const leftForRun: Array<{ keyword: string; from: string; service: string; reason: string }> = [];
   const nextPages = plan.pages.map(page => ({ ...page, keywords: [...page.keywords] }));
-  // The distinctive word of a service: the one fewest of the client's services share ("shower").
+  // A service's uncommon words: its rarest word, and any word a quarter or fewer of the client's services share
+  // ("shower" for glass shower enclosures), so a page about a related subject is recognised.
   const shared = (stem: string) => context.serviceNames.filter(name => meaningStems(name).has(stem)).length;
   const distinctive = (service: string) => {
     const stems = [...meaningStems(service)].filter(stem => stem.length > 2);
     const rarest = Math.min(...stems.map(shared));
-    return stems.filter(stem => shared(stem) === rarest);
+    return stems.filter(stem => shared(stem) <= Math.max(rarest, context.serviceNames.length / 4));
   };
   // The word matcher's guess, recomputed (it is deterministic), so an earlier edit to the stored field cannot hide it.
   const guessOf = serviceMatcher({ services: context.serviceNames, trade: project.trade, city: project.city, state: project.state });
