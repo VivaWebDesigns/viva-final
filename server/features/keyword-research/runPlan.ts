@@ -9,7 +9,7 @@ import type { KeywordResearchProject } from "@shared/schema";
 import { isNotCompetitor } from "./competitors";
 import { fetchSearchVolume, fetchSerp, fetchTrafficEstimates, KeywordDataError } from "./dataforseo";
 import { clientDomainOf, parseCity, searchLocations, tolerantSearches } from "./discover";
-import { excludedWork, stateName } from "./keywords";
+import { excludedWork, serviceMatcher, stateName } from "./keywords";
 import { coveringPage, coversAction, evidenceFrom, isForum, isPlacePage, sitePages, type SitePage } from "./pageCheck";
 import { meaningStems } from "./quality";
 import { listSitePages, readPageContent } from "./readWebsite";
@@ -656,12 +656,15 @@ export async function reassignByConfirmedService(project: KeywordResearchProject
     const rarest = Math.min(...stems.map(shared));
     return stems.filter(stem => shared(stem) === rarest);
   };
+  // The word matcher's guess, recomputed (it is deterministic), so an earlier edit to the stored field cannot hide it.
+  const guessOf = serviceMatcher({ services: context.serviceNames, trade: project.trade, city: project.city, state: project.state });
   for (const row of keywords) {
     const confirmed = row.relevance?.verdict === "yes" ? row.relevance.service : null;
     const current = pageOf.get(row.keyword);
+    const guess = guessOf(row.keyword).service;
     // Only searches on an existing page, reached through matching under the word matcher's guess.
-    if (!confirmed || confirmed === row.service || !current?.page.path) continue;
-    if (coveringPage(row, pages, context) !== current.page.path) continue;
+    if (!confirmed || confirmed === guess || !current?.page.path) continue;
+    if (coveringPage({ ...row, service: guess, relevance: undefined }, pages, context) !== current.page.path) continue;
     const path = coveringPage({ ...row, service: confirmed }, pages, context);
     if (path === current.page.path) continue;
     // A page about a related subject (its title or heading holds the confirmed service's distinctive word) stays:
@@ -681,7 +684,7 @@ export async function reassignByConfirmedService(project: KeywordResearchProject
     }
     nextPages.find(page => page.id === current.id)!.keywords = nextPages.find(page => page.id === current.id)!.keywords.filter(keyword => keyword !== row.keyword);
     target.keywords.push(row.keyword);
-    moves.push({ keyword: row.keyword, from, to: target.page.path ?? target.title, service: confirmed, previousService: row.service });
+    moves.push({ keyword: row.keyword, from, to: target.page.path ?? target.title, service: confirmed, previousService: guess });
     row.service = confirmed;
     row.pageId = target.id;
     row.pageMatch = target.page;
@@ -707,6 +710,7 @@ export function undoLastCorrection(project: KeywordResearchProject) {
   const last = plan?.corrections?.at(-1);
   if (!project.summary || !plan || !last) throw new Error("There is no correction to undo.");
   const key = (page: PagePlan) => page.page.path ?? page.title;
+  const guessOf = serviceMatcher({ services: project.services.filter(service => service.selected).map(service => service.name), trade: project.trade, city: project.city, state: project.state });
   const pages = plan.pages.map(page => ({ ...page, keywords: [...page.keywords] }));
   const keywords = project.keywords.map(row => ({ ...row }));
   const rowOf = new Map(keywords.map(row => [row.keyword, row]));
@@ -720,7 +724,7 @@ export function undoLastCorrection(project: KeywordResearchProject) {
     if (row) {
       row.pageId = from.id;
       row.pageMatch = from.page;
-      if ("previousService" in move && move.previousService !== undefined) row.service = move.previousService as string | null;
+      row.service = move.previousService !== undefined ? move.previousService : guessOf(move.keyword).service;
     }
   }
   const touched = new Set(last.moves.flatMap(move => [move.from, move.to]));
