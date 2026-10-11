@@ -1,5 +1,5 @@
 import {
-  keywordDemand, keywordScore,
+  keywordDemand, keywordDemandRange, keywordScore, keywordScoreRange, possibleOverlaps,
   type KeywordResearchKeyword, type Opportunity, type PageAction, type PageEvidence, type PageKind, type PageMatch, type PageObservation, type PagePlan,
   type PlanConfidence, type ReferenceMetrics,
 } from "./keywordResearch";
@@ -31,9 +31,6 @@ export interface DraftGroup {
   /** A confirmed service × served city page: its target phrase is what page 1 is checked for. */
   target?: string;
   reference?: ReferenceMetrics | null;
-  /** Services served together on this page, and why they are one customer need. */
-  services?: string[];
-  familyReason?: string;
 }
 
 const value = (row: KeywordResearchKeyword) => keywordScore(row);
@@ -56,10 +53,14 @@ export function describeReference(ref: ReferenceMetrics, own: KeywordResearchKey
 export function groupValue(rows: KeywordResearchKeyword[]) {
   const known = rows.map(value).filter((score): score is number => score != null);
   const demand = rows.map(row => keywordDemand(row)).filter((searches): searches is number => searches != null);
+  const high = rows.map(row => keywordDemandRange(row).high).filter((searches): searches is number => searches != null);
   return {
     value: known.reduce((sum, score) => sum + score, 0),
     unknownValue: rows.length - known.length,
     demand: demand.length ? demand.reduce((sum, searches) => sum + searches, 0) : null,
+    demandHigh: high.length ? high.reduce((sum, searches) => sum + searches, 0) : null,
+    valueHigh: rows.reduce((sum, row) => sum + (keywordScoreRange(row).high ?? 0), 0),
+    overlaps: rows.reduce((sum, row) => sum + possibleOverlaps(row).length, 0),
   };
 }
 
@@ -69,10 +70,7 @@ export function groupValue(rows: KeywordResearchKeyword[]) {
  * city keywords form a tentative group per served city, decided after page 1 from that city is seen; cost and blog
  * keywords group per service and topic.
  */
-export function draftGroups(
-  keywords: PlannedKeyword[], servicePages: Map<string, PageMatch>, topicKey: (keyword: string, service: string) => string,
-  familyOf: (service: string) => string = service => service,
-): DraftGroup[] {
+export function draftGroups(keywords: PlannedKeyword[], servicePages: Map<string, PageMatch>, topicKey: (keyword: string, service: string) => string): DraftGroup[] {
   const groups = new Map<string, DraftGroup>();
   const add = (key: string, base: Omit<DraftGroup, "key" | "members">, member: PlannedKeyword) => {
     const group = groups.get(key) ?? { key, ...base, members: [] };
@@ -89,7 +87,7 @@ export function draftGroups(
       if (servicePage?.path) add(`page:${servicePage.path}`, { kind: "service", service: item.service, city: null, page: servicePage }, item);
       else add(`service:${item.service}`, { kind: "service", service: item.service, city: null, page: { status: "none", path: null } }, item);
     } else if (item.kind === "city" && item.city) {
-      add(`city:${familyOf(item.service)}:${item.city}`, { kind: "city", service: item.service, city: item.city, page: { status: "none", path: null } }, item);
+      add(`city:${item.service}:${item.city}`, { kind: "city", service: item.service, city: item.city, page: { status: "none", path: null } }, item);
     } else if (item.kind === "cost") {
       add(`cost:${item.service}`, { kind: "cost", service: item.service, city: null, page: { status: "none", path: null } }, item);
     } else {
@@ -155,8 +153,11 @@ export function planPage(group: DraftGroup, input: {
 
   if (input.priorityService) reasons.push("priority service");
   if (grid) reasons.push(`confirmed service × served city: target phrase "${main.keyword}"`);
-  if (group.familyReason) reasons.push(group.familyReason);
-  reasons.push(demandKnown ? `${totals.demand!.toLocaleString()} searches/mo across ${rows.length} keyword${rows.length === 1 ? "" : "s"} (${input.demandArea})` : `searches not reported by Google Ads for these phrases (${input.demandArea})`);
+  const range = totals.demandHigh != null && totals.demandHigh > (totals.demand ?? 0) ? `${(totals.demand ?? 0).toLocaleString()}–${totals.demandHigh.toLocaleString()}` : null;
+  reasons.push(demandKnown || range
+    ? `${range ?? totals.demand!.toLocaleString()} searches/mo across ${rows.length} keyword${rows.length === 1 ? "" : "s"} (${input.demandArea})`
+    : `searches not reported by Google Ads for these phrases (${input.demandArea})`);
+  if (range) reasons.push(`the higher figure counts ${totals.overlaps} phrasing${totals.overlaps === 1 ? "" : "s"} with identical Google Ads numbers separately: identical numbers suggest one search, but Google does not confirm it`);
   if (totals.unknownValue) reasons.push(`${totals.unknownValue} keyword${totals.unknownValue === 1 ? "'s" : "s'"} CPC not reported, so value is unknown for ${totals.unknownValue === 1 ? "it" : "them"}`);
   if (group.reference) reasons.push(describeReference(group.reference, main));
   if (evidence) {
@@ -202,7 +203,7 @@ export function planPage(group: DraftGroup, input: {
 
   const title = group.page.path
     ? `${group.page.path}`
-    : group.kind === "blog" ? main.keyword : KIND_TITLES[group.kind](group.services?.join(" / ") ?? group.service, group.city);
+    : group.kind === "blog" ? main.keyword : KIND_TITLES[group.kind](group.service, group.city);
   return {
     id: input.id,
     title,
@@ -216,6 +217,9 @@ export function planPage(group: DraftGroup, input: {
     value: totals.value,
     unknownValue: totals.unknownValue,
     demand: totals.demand,
+    demandHigh: totals.demandHigh,
+    valueHigh: totals.valueHigh,
+    possibleOverlaps: totals.overlaps,
     priorityService: input.priorityService,
     opportunity,
     confidence,

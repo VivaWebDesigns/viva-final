@@ -128,7 +128,9 @@ function PageRow({ page, observations, projectId, onUpdate }: { page: PagePlan; 
           </span>
           <span className="mt-1 block text-xs text-gray-500">
             {KIND_LABELS[page.kind]} · {page.service}{page.city ? ` · ${page.city}` : ""} · {page.keywords.length} keyword{page.keywords.length === 1 ? "" : "s"}
-            {" "}· {page.value || !page.unknownValue ? `$${page.value.toLocaleString()}/mo (searches × avg CPC)` : "value unknown"}{page.unknownValue ? ` · ${page.unknownValue} keyword${page.unknownValue === 1 ? "" : "s"} not reported` : ""}
+            {" "}· {page.value || !page.unknownValue
+              ? `$${page.value.toLocaleString()}${page.valueHigh && page.valueHigh > page.value ? `–$${page.valueHigh.toLocaleString()}` : ""}/mo (searches × avg CPC${page.valueHigh && page.valueHigh > page.value ? "; range: possible overlaps" : ""})`
+              : "value unknown"}{page.unknownValue ? ` · ${page.unknownValue} keyword${page.unknownValue === 1 ? "" : "s"} not reported` : ""}
             {" "}· {OPPORTUNITY_LABELS[page.opportunity]} · {CONFIDENCE_LABELS[page.confidence]}
           </span>
           {page.evidence && (
@@ -138,6 +140,12 @@ function PageRow({ page, observations, projectId, onUpdate }: { page: PagePlan; 
             </span>
           )}
           {page.checkStatus === "failed" && <span className="block text-xs text-amber-700">The page-1 check failed at DataForSEO: ranking unknown, not absent. Retry failed checks to fill it in.</span>}
+          {page.previousEvidence && (
+            <span className="block text-xs text-gray-400">
+              Earlier check, not used ({page.previousEvidence.settings ? "different search settings" : "search settings not recorded"}): "{page.previousEvidence.keyword}" from {page.previousEvidence.city}
+              {page.previousEvidence.checkedAt ? ` on ${page.previousEvidence.checkedAt.slice(0, 10)}` : ""}, client {page.previousEvidence.clientPosition ? `#${page.previousEvidence.clientPosition}` : "not in the top 20"}.
+            </span>
+          )}
           {page.checkStatus === "not_run" && <span className="block text-xs text-gray-500">Page 1 not checked yet: past this run's check budget. The next run checks it before paying for any repeat.</span>}
           {page.questions.map(question => <span key={question} className="block text-xs text-amber-700">? {question}</span>)}
         </span>
@@ -256,6 +264,27 @@ export default function PlanCard({ project, onUpdate }: { project: KeywordResear
             <ol className="space-y-2">
               {visible.map(page => <PageRow key={page.id} page={page} observations={project.observations} projectId={project.id} onUpdate={onUpdate} />)}
             </ol>
+            {plan.retried && (
+              <p className="text-xs text-gray-500">
+                Last retry of failed checks ({new Date(plan.retriedAt!).toLocaleString()}): {plan.retried.recovered} of {plan.retried.attempted} recovered, {plan.retried.stillFailed} failed again. Pages were not regrouped.
+              </p>
+            )}
+            {!!plan.groupSuggestions?.length && (
+              <details className="rounded-md border p-3 text-xs text-gray-600" data-testid="details-kr-group-suggestions">
+                <summary className="cursor-pointer text-sm font-semibold text-gray-900">Possible combined pages, for review ({plan.groupSuggestions.length})</summary>
+                <p className="mt-1">Each service keeps its own pages in the plan. These pairs may be one customer need; nothing is combined until you decide.</p>
+                <ul className="mt-2 space-y-2">
+                  {plan.groupSuggestions.map(item => (
+                    <li key={item.services.join("|")}>
+                      <span className="font-medium text-gray-800">{item.services.join(" + ")}</span>
+                      {" "}· {item.strength === "page_names_both" ? "an existing page names both" : item.strength === "intake_match" ? "matched to one page at intake (a guess)" : "identical Google Ads numbers (possible overlap)"}
+                      {" "}· {item.pages.length} {item.pages.length === 1 ? "place" : "places"}
+                      {item.evidence.map(line => <span key={line} className="block text-gray-500">– {line}</span>)}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
             {!!plan.inventory?.length && (
               <details className="rounded-md border p-3 text-xs text-gray-600">
                 <summary className="cursor-pointer text-sm font-semibold text-gray-900">

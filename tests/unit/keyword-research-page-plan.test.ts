@@ -3,6 +3,8 @@ import { comparePages, draftGroups, groupValue, opportunityOf, planPage, withObs
 import type { KeywordResearchKeyword, PageEvidence, PageKind, PageMatch, PageObservation, PagePlan } from "@shared/keywordResearch";
 import { excludedWork } from "../../server/features/keyword-research/keywords";
 import { coveringPage, isPlacePage, sitePages } from "../../server/features/keyword-research/pageCheck";
+import { cachedRelevance, suggestCombinations } from "../../server/features/keyword-research/runPlan";
+import { relevanceBasis, sameSerpSettings } from "@shared/keywordResearch";
 import { meaningStems } from "../../server/features/keyword-research/quality";
 
 const none: PageMatch = { status: "none", path: null };
@@ -96,7 +98,24 @@ describe("page actions", () => {
 
 describe("value and order", () => {
   it("keeps unknown value out of the sum and counts it separately", () => {
-    expect(groupValue([row("a", 100, 10), row("b", 50, null), row("c", null, 20)])).toEqual({ value: 1000, unknownValue: 2, demand: 150 });
+    expect(groupValue([row("a", 100, 10), row("b", 50, null), row("c", null, 20)])).toMatchObject({ value: 1000, unknownValue: 2, demand: 150 });
+  });
+
+  it("keeps possible overlaps (identical Google Ads numbers) as a range instead of a single figure", () => {
+    const grouped = {
+      ...row("window replacement", 480, 78.61),
+      variantMetrics: [{ keyword: "replacement windows", searchVolume: 480, cpc: 78.61, competition: null, lowTopOfPageBid: null, highTopOfPageBid: null }],
+      nearMeMetrics: [
+        { keyword: "window replacement near me", searchVolume: 390, cpc: 70, competition: null, lowTopOfPageBid: null, highTopOfPageBid: null, counted: true },
+        { keyword: "window replacement nearby", searchVolume: 480, cpc: 78.61, competition: null, lowTopOfPageBid: null, highTopOfPageBid: null, counted: false },
+      ],
+      nearMeVolume: 390,
+    };
+    expect(groupValue([grouped])).toMatchObject({ demand: 870, demandHigh: 870 + 480 + 480, overlaps: 2 });
+    const result = plan(group("service", [{ ...planned("window replacement", "window replacement", "service"), row: grouped }]));
+    expect(result).toMatchObject({ demand: 870, demandHigh: 1830, possibleOverlaps: 2 });
+    expect(result.reasons.join(" ")).toMatch(/870–1,830 searches\/mo/);
+    expect(result.reasons.join(" ")).toMatch(/identical Google Ads numbers separately: identical numbers suggest one search, but Google does not confirm it/);
   });
 
   it("reads opportunity from small sites and forum threads, with unknown sites never counting as contested", () => {
@@ -235,18 +254,39 @@ describe("service × city pages (reference case)", () => {
   });
 });
 
-describe("one page per customer need", () => {
-  it("puts two services that are one need on one city page, and keeps a distinct service apart", () => {
-    const family = (service: string) => (service === "window replacement" ? "window installation" : service);
+describe("distinct services stay distinct", () => {
+  it("keeps each confirmed service's city candidates on its own page; combining them is a suggestion, not a grouping rule", () => {
     const groups = draftGroups([
       planned("window installation matthews nc", "window installation", "city", { city: "Matthews", volume: null, cpc: null }),
       planned("window replacement matthews nc", "window replacement", "city", { city: "Matthews", volume: null, cpc: null }),
       planned("window repair matthews nc", "window repair", "city", { city: "Matthews", volume: null, cpc: null }),
-    ], new Map(), keyword => keyword, family);
-    expect(groups.map(entry => [entry.key, entry.members.map(member => member.row.keyword)])).toEqual([
-      ["city:window installation:Matthews", ["window installation matthews nc", "window replacement matthews nc"]],
-      ["city:window repair:Matthews", ["window repair matthews nc"]],
+    ], new Map(), keyword => keyword);
+    expect(groups.map(entry => entry.key)).toEqual(["city:window installation:Matthews", "city:window replacement:Matthews", "city:window repair:Matthews"]);
+  });
+});
+
+describe("possible combined pages", () => {
+  const live = (path: string): PageMatch => ({ status: "live", path });
+  const inventoryPage = (path: string, services: string[]) => ({ path, title: "", h1: "", words: 500, textSource: "html" as const, kind: "service" as const, services, cities: [] });
+
+  it("rates a page that names both above an intake match, and identical numbers as a possible overlap only", () => {
+    const pages = new Map([
+      ["window installation", live("/services/window-installation")], ["window replacement", live("/services/window-installation")],
+      ["door installation", live("/services/door-installation")], ["storm door installation", live("/services/door-installation")],
     ]);
+    const inventory = [inventoryPage("/services/window-installation", ["window installation", "window replacement"]), inventoryPage("/services/door-installation", ["door installation"])];
+    const metro = [
+      { ...row("window repair charlotte", 170, 21.25, "city"), service: "window repair" },
+      { ...row("window installation charlotte nc", 480, 84.16, "city"), service: "window installation" },
+      { ...row("replacement windows charlotte nc", 480, 84.16, "city"), service: "window replacement" },
+      { ...row("sliding glass door repair charlotte", 480, 84.16, "city"), service: "sliding glass door repair" },
+    ] as KeywordResearchKeyword[];
+    const found = [...suggestCombinations(pages, inventory, metro).values()];
+    expect(found.find(item => item.services.includes("window replacement"))).toMatchObject({ strength: "page_names_both", services: ["window installation", "window replacement"] });
+    expect(found.find(item => item.services.includes("storm door installation"))).toMatchObject({ strength: "intake_match" });
+    // A repair never pairs with an installation, whatever the numbers.
+    expect(found.some(item => item.services.includes("sliding glass door repair") && item.services.includes("window installation"))).toBe(false);
+    expect(found.find(item => item.services.includes("window replacement"))!.evidence.join(" ")).toMatch(/possible overlap, not confirmed/);
   });
 });
 
@@ -267,5 +307,54 @@ describe("site template", () => {
     expect([...windows.subjectStems].sort()).toEqual([...meaningStems("charlotte window")].sort());
     expect(windows.stems.has("commercial")).toBe(false);
     expect(windows.stems.has("pro")).toBe(false);
+  });
+});
+
+describe("reusing earlier work", () => {
+  const services = ["window repair", "door installation"];
+  const exclusions = [{ work: "garage doors", terms: ["garage door"] }];
+  const judged = (keyword: string, basis?: string) => ({ ...row(keyword, 10, 5), relevance: { verdict: "no" as const, service: null, reason: "", basis } }) as KeywordResearchKeyword;
+
+  it("reuses a relevance verdict only when the services and exclusions are exactly the ones it was judged against", () => {
+    const basis = relevanceBasis(services, exclusions);
+    expect(relevanceBasis([...services].reverse(), exclusions)).toBe(basis);
+    const rows = [judged("window repair matthews", basis), judged("storm door installation", relevanceBasis(services, [])), judged("door closer repair")];
+    const { checks, pending } = cachedRelevance(rows, basis);
+    expect([...checks.keys()]).toEqual(["window repair matthews"]);
+    // Judged before the exclusion was added, and judged with no recorded basis: both judged again.
+    expect(pending).toEqual(["storm door installation", "door closer repair"]);
+    expect(cachedRelevance(rows, relevanceBasis([...services, "storm door installation"], exclusions)).checks.size).toBe(0);
+  });
+
+  it("reuses a page-1 check only when every search setting matches", () => {
+    const wanted = { location: "Matthews,North Carolina,United States", language: "en", device: "desktop", depth: 20, clientDomain: "glassanddoorpro.com" };
+    const done = { ...wanted, locationCode: 1021208 };
+    expect(sameSerpSettings(done, wanted)).toBe(true);
+    expect(sameSerpSettings(undefined, wanted)).toBe(false);
+    expect(sameSerpSettings({ ...done, clientDomain: "staging.example.com" }, wanted)).toBe(false);
+    expect(sameSerpSettings({ ...done, location: "Charlotte,North Carolina,United States" }, wanted)).toBe(false);
+    expect(sameSerpSettings({ ...done, device: "mobile" }, wanted)).toBe(false);
+    expect(sameSerpSettings({ ...done, depth: 10 }, wanted)).toBe(false);
+  });
+});
+
+describe("site template keeps meaningful service words", () => {
+  const page = (title: string, h1: string, headings: string[] = []) => ({ title, h1, headings: [h1, ...headings], text: "", textSource: "html" as const });
+  const urls = ["https://x.com/frameless", "https://x.com/repair", "https://x.com/enclosures", "https://x.com/matthews"];
+
+  it("drops a service named only in the repeated title ending, but keeps each page's own heading as its subject", () => {
+    const pages = sitePages(urls, new Map([
+      [urls[0], page("Frameless Doors | Charlotte Shower Doors", "Frameless Shower Doors", ["Window Repair"])],
+      [urls[1], page("Shower Door Repair | Charlotte Shower Doors", "Shower Door Repair", ["Window Repair"])],
+      [urls[2], page("Enclosures | Charlotte Shower Doors", "Glass Shower Enclosures", ["Window Repair"])],
+      [urls[3], page("Window Repair in Matthews | Charlotte Shower Doors", "Window Repair in Matthews", ["Window Repair"])],
+    ]));
+    // The repeated title ending is template, but each page's own words remain its subject.
+    expect([...pages[0].subjectStems].sort()).toEqual([...meaningStems("frameless shower doors")].sort());
+    expect([...pages[1].subjectStems].sort()).toEqual([...meaningStems("shower door")].sort());
+    // A sidebar heading repeated on every page is not a topic of the pages it repeats on...
+    expect(pages[0].stems.has("windo")).toBe(false);
+    // ...but the page that is about it keeps it in its own title and main heading.
+    expect(pages[3].subjectStems.has("windo")).toBe(true);
   });
 });

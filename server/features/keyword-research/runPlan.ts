@@ -1,8 +1,8 @@
 import { CITY_PAGES_REWARDED_AT, comparePages, draftGroups, mainKeyword, planPage, type DraftGroup, type PlannedKeyword } from "@shared/pagePlan";
 import {
-  keywordDemand, keywordScore,
+  keywordDemand, keywordScore, relevanceBasis, sameSerpSettings,
   type InventoryPage, type KeywordResearchKeyword, type KeywordResearchService, type KeywordResearchSummary, type PageEvidence, type PageKind, type PageMatch, type PagePlan,
-  type MeasurementContext, type ReferenceMetrics, type RelevanceCheck,
+  type GroupSuggestion, type MeasurementContext, type ReferenceMetrics, type RelevanceCheck,
 } from "@shared/keywordResearch";
 import type { KeywordResearchProject } from "@shared/schema";
 import { isNotCompetitor } from "./competitors";
@@ -25,6 +25,7 @@ const MAX_CHECKS = 150;
 const CHECK_ATTEMPTS = 3;
 // A page-1 check stays usable this long: later runs reuse it instead of paying for it again.
 const CHECK_REUSE_DAYS = 14;
+const SERP_DEPTH = 20;
 // Proposed pages sent to Claude's split/merge review.
 const MAX_REVIEW = 60;
 // Pages read in full for the inventory; past this they are matched by their URL alone and listed as not read.
@@ -37,14 +38,24 @@ const ACTION_WORDS = meaningStems("install installation installer repair repairs
 const byValue = (a: KeywordResearchKeyword, b: KeywordResearchKeyword) =>
   (keywordScore(b) ?? -1) - (keywordScore(a) ?? -1) || (keywordDemand(b) ?? 0) - (keywordDemand(a) ?? 0);
 
-/** Relevance for the top keywords, reusing verdicts from earlier steps and running the rest in parallel batches. */
-async function relevanceFor(project: KeywordResearchProject, rows: KeywordResearchKeyword[], services: string[]) {
+/**
+ * Verdicts that can be reused, and keywords that need judging. A verdict is reused only when it was judged against
+ * exactly the current services and exclusions; any change to either re-judges it ("not their work" can become their
+ * work when an exclusion is removed or a service is added), and a verdict with no recorded basis is always re-judged.
+ */
+export function cachedRelevance(rows: KeywordResearchKeyword[], basis: string) {
   const checks = new Map<string, RelevanceCheck>();
   const pending: string[] = [];
   for (const row of rows) {
-    if (row.relevance && (row.relevance.verdict !== "yes" || (row.relevance.service && services.includes(row.relevance.service)))) checks.set(row.keyword, row.relevance);
+    if (row.relevance?.basis === basis) checks.set(row.keyword, row.relevance);
     else pending.push(row.keyword);
   }
+  return { checks, pending };
+}
+
+/** Relevance for the top keywords, reusing verdicts from earlier steps and running the rest in parallel batches. */
+async function relevanceFor(project: KeywordResearchProject, rows: KeywordResearchKeyword[], services: string[]) {
+  const { checks, pending } = cachedRelevance(rows, relevanceBasis(services, project.exclusions));
   const chunks: string[][] = [];
   for (let index = 0; index < pending.length; index += RELEVANCE_CHUNK) chunks.push(pending.slice(index, index + RELEVANCE_CHUNK));
   for (let index = 0; index < chunks.length; index += RELEVANCE_PARALLEL) {
@@ -114,7 +125,7 @@ function topicClusters(rows: Array<{ keyword: string; service: string }>, servic
  * site, groups them into pages (existing pages first), has Claude propose merges and splits, checks page 1 once per
  * page from the city that page is for, and decides an action per page with its reasons and open questions.
  */
-export async function runPlan(project: KeywordResearchProject, options: { retryFailedOnly?: boolean } = {}): Promise<{ keywords: KeywordResearchKeyword[]; summary: KeywordResearchSummary; services: KeywordResearchService[] }> {
+export async function runPlan(project: KeywordResearchProject): Promise<{ keywords: KeywordResearchKeyword[]; summary: KeywordResearchSummary; services: KeywordResearchService[] }> {
   let cost = 0;
   const services = project.services.filter(service => service.selected);
   const serviceNames = services.map(service => service.name);
@@ -262,50 +273,24 @@ export async function runPlan(project: KeywordResearchProject, options: { retryF
     planned.push({ row, service: cell.service, kind: "city", city: cell.city, match: row.pageMatch });
   }
   // A service's phrases for one city share a page: when one of them is on an existing page, the others go there too.
-  // Services that are one customer need share one page per city: the client serves them on the same page, or Google
-  // reports their metro phrases as one search (identical numbers) without a difference in intent. Otherwise each
-  // service keeps its own city pages.
-  const root = new Map(serviceNames.map(service => [service, service]));
-  const familyOf = (service: string): string => {
-    let current = service;
-    while (root.get(current) && root.get(current) !== current) current = root.get(current)!;
-    return current;
-  };
-  const familyReasons = new Map<string, string>();
-  const join = (a: string, b: string, reason: string) => {
-    const [x, y] = [familyOf(a), familyOf(b)];
-    if (x === y) return;
-    root.set(y, x);
-    familyReasons.set(x, [familyReasons.get(x), familyReasons.get(y), reason].filter(Boolean).join("; "));
-  };
-  const onPage = new Map<string, string>();
-  for (const [service, page] of servicePages) {
-    const other = page.path ? onPage.get(page.path) : undefined;
-    if (other) join(other, service, `the client serves "${other}" and "${service}" on ${page.path}`);
-    else if (page.path) onPage.set(page.path, service);
-  }
+  // Possible combined pages: services that may be one customer need. Each service keeps its own candidates and city
+  // pages; a combination is proposed for review with its evidence, never applied on its own. Evidence: an existing
+  // page whose own title or main heading names both, the intake matching both to one page (weaker: a guess), or
+  // identical Google Ads numbers for their metro phrases (a possible overlap Google does not confirm).
   const metroCity = project.city.toLowerCase();
-  const metroRows = [...keywords.filter(row => grid.get(row.keyword)?.city.toLowerCase() === metroCity), ...probeRows]
-    .filter(row => row.searchVolume != null && row.cpc != null && row.service);
-  const bySearch = new Map<string, KeywordResearchKeyword>();
-  for (const row of metroRows) {
-    const key = [row.searchVolume, row.cpc, row.lowTopOfPageBid, row.highTopOfPageBid].join("|");
-    const twin = bySearch.get(key);
-    if (twin && twin.service !== row.service && !differentIntent(twin.keyword, row.keyword)) {
-      join(twin.service!, row.service!, `Google reports "${twin.keyword}" and "${row.keyword}" as one search (${row.searchVolume}/mo, average CPC $${row.cpc!.toFixed(2)})`);
-    } else if (!twin) bySearch.set(key, row);
-  }
+  const metroRows = [...keywords.filter(row => grid.get(row.keyword)?.city.toLowerCase() === metroCity), ...probeRows];
+  const suggestions = suggestCombinations(servicePages, inventory, metroRows);
 
   const cellPage = new Map<string, PageMatch>();
-  for (const item of planned) if (grid.has(item.row.keyword) && item.match.path) cellPage.set(`${familyOf(item.service)}|${item.city}`, item.match);
+  for (const item of planned) if (grid.has(item.row.keyword) && item.match.path) cellPage.set(`${item.service}|${item.city}`, item.match);
   for (const item of planned) {
-    const page = grid.has(item.row.keyword) && !item.match.path ? cellPage.get(`${familyOf(item.service)}|${item.city}`) : undefined;
+    const page = grid.has(item.row.keyword) && !item.match.path ? cellPage.get(`${item.service}|${item.city}`) : undefined;
     if (page) item.match = item.row.pageMatch = page;
   }
 
   const serviceStems = new Map(serviceNames.map(service => [service, meaningStems(service)] as const));
   const clusters = topicClusters(planned.filter(item => item.kind === "blog").map(item => ({ keyword: item.row.keyword, service: item.service })), serviceStems);
-  let groups = draftGroups(planned, servicePages, keyword => clusters.get(keyword) ?? keyword, familyOf);
+  let groups = draftGroups(planned, servicePages, keyword => clusters.get(keyword) ?? keyword);
   // A page holding grid phrases is checked for its own service's target phrase, with that service's metro numbers beside it.
   const references = new Map(serviceNames.map(service => [service, referenceMetrics([...keywords, ...probeRows], service, project.city, measurements)] as const));
   for (const group of groups) {
@@ -323,11 +308,6 @@ export async function runPlan(project: KeywordResearchProject, options: { retryF
     group.service = target.service;
     group.city = grid.get(target.row.keyword)!.city;
     // The best metro reference among the services the page serves: a service searched with the metro city beats a median.
-    const served = [...new Set(group.members.map(member => member.service))];
-    if (served.length > 1 && familyReasons.has(familyOf(target.service))) {
-      group.services = served;
-      group.familyReason = `one page for ${served.map(service => `"${service}"`).join(" and ")}: ${familyReasons.get(familyOf(target.service))}`;
-    }
     group.reference = [...new Set(group.members.map(member => member.service))].map(service => references.get(service) ?? null)
       .filter((ref): ref is ReferenceMetrics => !!ref)
       .sort((a, b) => Number(a.basis === "median") - Number(b.basis === "median") || (b.searchVolume ?? -1) - (a.searchVolume ?? -1) || a.keyword.localeCompare(b.keyword))[0] ?? null;
@@ -369,40 +349,48 @@ export async function runPlan(project: KeywordResearchProject, options: { retryF
   // reused; the budget pays only for new checks: earlier failures first, then existing pages, priority services, value.
   const homeCity = servedCities.find(place => place.city.toLowerCase() === project.city.toLowerCase()) ?? { city: project.city, state: project.state };
   const checkKey = (group: DraftGroup) => `${group.target ?? mainKeyword(group.members.map(m => m.row)).keyword}|${group.city ?? homeCity.city}`;
+  const locationFor = new Map<string, string>();
+  for (const name of await searchLocations([homeCity, ...servedCities])) locationFor.set(name.split(",")[0].toLowerCase(), name);
+  const homeLocation = locationFor.get(homeCity.city.toLowerCase()) ?? project.locationName;
+  const settingsFor = (group: DraftGroup) => ({
+    location: locationFor.get((group.city ?? homeCity.city).toLowerCase()) ?? homeLocation, language: "en", device: "desktop", depth: SERP_DEPTH, clientDomain: liveHost,
+  });
   const previous = project.summary?.plan;
-  const reusable = new Map<string, PageEvidence>();
+  const earlier = new Map<string, PageEvidence>();
   const failedBefore = new Set<string>();
   for (const page of previous?.pages ?? []) {
     const key = `${page.evidence?.keyword ?? page.mainKeyword}|${page.evidence?.city ?? page.city ?? homeCity.city}`;
     if (page.checkStatus === "failed") failedBefore.add(key);
-    const at = page.evidence?.checkedAt ?? previous!.ranAt;
-    if (page.evidence && Date.now() - new Date(at).getTime() < CHECK_REUSE_DAYS * 86_400_000) reusable.set(key, { ...page.evidence, checkedAt: at });
+    const kept = page.evidence ?? page.previousEvidence;
+    if (kept) earlier.set(key, { ...kept, checkedAt: kept.checkedAt ?? previous!.ranAt });
   }
+  // A check is reused only when it is recent and every setting it was fetched with matches this run's; otherwise it
+  // stays on the page as history, never as current evidence.
   const evidence = new Map<string, PageEvidence>();
+  const history = new Map<string, PageEvidence>();
   const reused = new Set<string>();
   for (const group of groups) {
-    const hit = reusable.get(checkKey(group));
-    if (hit) {
+    const hit = earlier.get(checkKey(group));
+    if (!hit) continue;
+    const fresh = Date.now() - new Date(hit.checkedAt!).getTime() < CHECK_REUSE_DAYS * 86_400_000;
+    if (fresh && sameSerpSettings(hit.settings, settingsFor(group))) {
       evidence.set(group.key, hit);
       reused.add(group.key);
-    }
+    } else history.set(group.key, hit);
   }
-  const ordered = groups.filter(group => !reused.has(group.key) && (!options.retryFailedOnly || failedBefore.has(checkKey(group)))).sort((a, b) =>
+  const ordered = groups.filter(group => !reused.has(group.key)).sort((a, b) =>
     Number(failedBefore.has(checkKey(b))) - Number(failedBefore.has(checkKey(a)))
     || Number(!!b.page.path) - Number(!!a.page.path)
     || Number(priorities.has(b.service)) - Number(priorities.has(a.service))
     || (keywordScore(mainKeyword(b.members.map(m => m.row))) ?? -1) - (keywordScore(mainKeyword(a.members.map(m => m.row))) ?? -1)
     || (b.reference?.avgCpc ?? b.reference?.cpc ?? 0) - (a.reference?.avgCpc ?? a.reference?.cpc ?? 0));
   const toCheck = ordered.slice(0, MAX_CHECKS);
-  const locationFor = new Map<string, string>();
-  for (const name of await searchLocations([homeCity, ...servedCities])) locationFor.set(name.split(",")[0].toLowerCase(), name);
-  const homeLocation = locationFor.get(homeCity.city.toLowerCase()) ?? project.locationName;
   const { results: serps, failed: failedChecks } = await tolerantSearches(toCheck, async group => {
     const keyword = group.target ?? mainKeyword(group.members.map(m => m.row)).keyword;
     const city = group.city ?? homeCity.city;
     for (let attempt = 1; ; attempt += 1) {
       try {
-        const result = await fetchSerp(keyword, locationFor.get(city.toLowerCase()) ?? homeLocation, 20);
+        const result = await fetchSerp(keyword, settingsFor(group).location, SERP_DEPTH);
         cost += result.cost;
         return { group, city, serp: result.serp };
       } catch (error) {
@@ -445,7 +433,7 @@ export async function runPlan(project: KeywordResearchProject, options: { retryF
       const articles = seen.articles ?? 0;
       if (articles >= ARTICLES_FOR_BLOG) group.kind = "blog";
     }
-    return planPage(group, {
+    const plan = planPage(group, {
       id: `p${index + 1}`,
       evidence: seen,
       priorityService: priorities.has(group.service),
@@ -454,8 +442,26 @@ export async function runPlan(project: KeywordResearchProject, options: { retryF
       adjusted: adjusted.get(group.key) ?? null,
       checkStatus: reused.has(group.key) ? "reused" : seen ? "checked" : checkedKeys.has(group.key) ? "failed" : "not_run",
     });
+    if (history.has(group.key)) plan.previousEvidence = history.get(group.key)!;
+    return plan;
   }).sort(comparePages);
   plans.forEach((plan, index) => { plan.id = `p${index + 1}`; });
+  const groupSuggestions = [...suggestions.values()].map(entry => {
+    const byCity = new Map<string, string[]>();
+    for (const plan of plans) {
+      if (!plan.service || !entry.services.includes(plan.service) || (plan.kind !== "city" && plan.kind !== "service")) continue;
+      const city = plan.city ?? "";
+      byCity.set(city, [...(byCity.get(city) ?? []), plan.id]);
+    }
+    const pages = [...byCity].filter(([, ids]) => ids.length > 1).map(([city, pageIds]) => ({ city: city || null, pageIds }));
+    for (const { pageIds } of pages) for (const id of pageIds) {
+      const plan = plans.find(item => item.id === id)!;
+      const others = entry.services.filter(service => service !== plan.service).map(service => `"${service}"`).join(", ");
+      plan.questions.push(`Possibly one page with ${others}: ${entry.evidence[0]}. Review the suggested combinations before merging.`);
+    }
+    return { ...entry, pages };
+  }).filter(entry => entry.pages.length)
+    .sort((a, b) => ({ page_names_both: 0, intake_match: 1, identical_numbers: 2 })[a.strength] - ({ page_names_both: 0, intake_match: 1, identical_numbers: 2 })[b.strength]);
   const pageOf = new Map(plans.flatMap(plan => plan.keywords.map(keyword => [keyword, plan.id] as const)));
   for (const row of keywords) row.pageId = pageOf.get(row.keyword);
 
@@ -477,12 +483,111 @@ export async function runPlan(project: KeywordResearchProject, options: { retryF
         sitePages: urls?.length ?? null,
         siteNote,
         inventory,
+        groupSuggestions,
         costUsd: Number(cost.toFixed(4)),
         failedChecks,
         uncheckedPages: groups.filter(group => !evidence.has(group.key) && !checkedKeys.has(group.key)).length,
         reusedChecks: reused.size,
         notJudged,
       },
+    },
+  };
+}
+
+/**
+ * Services that may be one customer need, with their evidence, for review. Each service keeps its own candidates and
+ * pages; nothing is combined here. Evidence, strongest first: an existing page whose own title or main heading names
+ * both; the intake matching both to one page (a guess); identical Google Ads numbers for their metro phrases (a
+ * possible overlap Google does not confirm). Phrases that ask for different things never count.
+ */
+export function suggestCombinations(servicePages: Map<string, PageMatch>, inventory: InventoryPage[], metroRows: KeywordResearchKeyword[]) {
+  const suggestions = new Map<string, { services: string[]; evidence: string[]; strength: GroupSuggestion["strength"] }>();
+  const STRENGTH = { page_names_both: 0, intake_match: 1, identical_numbers: 2 } as const;
+  const suggest = (a: string, b: string, evidence: string, strength: GroupSuggestion["strength"]) => {
+    const services = [a, b].sort();
+    const key = services.join("|");
+    const entry = suggestions.get(key) ?? { services, evidence: [], strength };
+    entry.evidence.push(evidence);
+    if (STRENGTH[strength] < STRENGTH[entry.strength]) entry.strength = strength;
+    suggestions.set(key, entry);
+  };
+  const onPage = new Map<string, string[]>();
+  for (const [service, page] of servicePages) if (page.path) onPage.set(page.path, [...(onPage.get(page.path) ?? []), service]);
+  for (const [path, shared] of onPage) {
+    const named = inventory.find(item => item.path === path)?.services ?? [];
+    for (let i = 0; i < shared.length; i += 1) for (let j = i + 1; j < shared.length; j += 1) {
+      const both = named.includes(shared[i]) && named.includes(shared[j]);
+      suggest(shared[i], shared[j], both ? `${path} names both in its own title or main heading` : `the intake matched both to ${path}, whose title or main heading does not name both`, both ? "page_names_both" : "intake_match");
+    }
+  }
+  const measured = metroRows.filter(row => row.searchVolume != null && row.cpc != null && row.service);
+  for (let i = 0; i < measured.length; i += 1) for (let j = i + 1; j < measured.length; j += 1) {
+    const [a, b] = [measured[i], measured[j]];
+    if (a.service === b.service || differentIntent(a.keyword, b.keyword)) continue;
+    if (a.searchVolume === b.searchVolume && a.cpc === b.cpc && a.lowTopOfPageBid === b.lowTopOfPageBid && a.highTopOfPageBid === b.highTopOfPageBid) {
+      suggest(a.service!, b.service!, `identical Google Ads numbers for "${a.keyword}" and "${b.keyword}" (${a.searchVolume}/mo, average CPC $${a.cpc!.toFixed(2)}): a possible overlap, not confirmed`, "identical_numbers");
+    }
+  }
+  return suggestions;
+}
+
+/**
+ * Retries only the page-1 checks that failed, on the existing plan: same pages, same keywords, same ids and order.
+ * Nothing is regenerated or regrouped; each retried page's action is re-decided from its new evidence. A check that
+ * fails again stays failed, with the attempt counted.
+ */
+export async function retryFailedChecks(project: KeywordResearchProject): Promise<{ summary: KeywordResearchSummary; cost: number }> {
+  const plan = project.summary?.plan;
+  if (!project.summary || !plan) throw new Error("There is no plan to retry checks on.");
+  let cost = 0;
+  const failed = plan.pages.filter(page => page.checkStatus === "failed");
+  const liveHost = clientDomainOf(project.liveDomain || project.website);
+  const servedCities = (project.serviceCities.length ? project.serviceCities : [`${project.city}, ${project.state}`])
+    .map(parseCity).filter((place): place is { city: string; state: string } => !!place);
+  const homeCity = servedCities.find(place => place.city.toLowerCase() === project.city.toLowerCase()) ?? { city: project.city, state: project.state };
+  const locationFor = new Map<string, string>();
+  for (const name of await searchLocations([homeCity, ...servedCities])) locationFor.set(name.split(",")[0].toLowerCase(), name);
+  const homeLocation = locationFor.get(homeCity.city.toLowerCase()) ?? project.locationName;
+  const { results, failed: stillFailed } = await tolerantSearches(failed, async page => {
+    const keyword = page.evidence?.keyword ?? page.mainKeyword;
+    const city = page.city ?? homeCity.city;
+    for (let attempt = 1; ; attempt += 1) {
+      try {
+        const result = await fetchSerp(keyword, locationFor.get(city.toLowerCase()) ?? homeLocation, SERP_DEPTH);
+        cost += result.cost;
+        return { page, city, serp: result.serp };
+      } catch (error) {
+        if (!(error instanceof KeywordDataError) || attempt >= CHECK_ATTEMPTS) throw error;
+      }
+    }
+  }, 1);
+  const domains = [...new Set(results.flatMap(entry => entry.serp.organic.filter(row => row.position <= 10).map(row => row.domain)))]
+    .filter(domain => domain !== liveHost && !isForum(domain) && !isNotCompetitor(domain));
+  const estimates = domains.length ? await fetchTrafficEstimates(domains) : { traffic: new Map<string, number>(), cost: 0 };
+  cost += estimates.cost;
+  const rowsOf = new Map<string, KeywordResearchKeyword[]>();
+  for (const row of project.keywords) if (row.pageId) rowsOf.set(row.pageId, [...(rowsOf.get(row.pageId) ?? []), row]);
+  const updated = new Map<string, PagePlan>();
+  for (const { page, city, serp } of results) {
+    const rows = (rowsOf.get(page.id) ?? []).filter(row => page.keywords.includes(row.keyword));
+    if (!rows.length) continue;
+    const group: DraftGroup = {
+      key: page.id, kind: page.kind, service: page.service ?? rows[0].service ?? "", city: page.city, page: page.page,
+      members: rows.map(row => ({ row, service: page.service ?? row.service ?? "", kind: page.kind, city: page.city, match: page.page })),
+      target: page.grid ? page.mainKeyword : undefined, reference: page.reference ?? null,
+    };
+    const next = planPage(group, {
+      id: page.id, evidence: evidenceFrom(serp, city, estimates.traffic, liveHost), priorityService: page.priorityService,
+      demandArea: project.locationName.replace(/,United States$/, ""), siteRead: plan.sitePages != null, adjusted: page.adjusted, checkStatus: "checked",
+    });
+    updated.set(page.id, { ...next, title: page.title, previousEvidence: page.previousEvidence ?? null });
+  }
+  const pages = plan.pages.map(page => updated.get(page.id) ?? page);
+  return {
+    cost,
+    summary: {
+      ...project.summary,
+      plan: { ...plan, pages, failedChecks: pages.filter(page => page.checkStatus === "failed").length, costUsd: Number((plan.costUsd + cost).toFixed(4)), retriedAt: new Date().toISOString(), retried: { attempted: failed.length, recovered: updated.size, stillFailed } },
     },
   };
 }

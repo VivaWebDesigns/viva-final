@@ -8,7 +8,7 @@ import { applySearchIntent, buildKeywordList, classifyKeyword, cleanKeyword, mat
 import { createProject, deleteProject, getProject, listProjects, updateProject } from "./repository";
 import { discoverCompetitors } from "./discover";
 import { buildPlaybook } from "./runPlaybook";
-import { runPlan } from "./runPlan";
+import { retryFailedChecks, runPlan } from "./runPlan";
 import { startRun, runBusy } from "./backgroundRun";
 import { readWebsite, WebsiteReadError, type WebsitePage } from "./readWebsite";
 import { chooseMetro, inferExclusions, ServiceSuggestionError, servicesFromWebsite, suggestServices } from "./suggestServices";
@@ -435,8 +435,15 @@ router.post("/projects/:id/plan", async (req, res) => {
     if (runBusy(project)) return res.status(409).json({ message: "Another step is still running for this project." });
     const { retry } = z.object({ retry: z.enum(["failed"]).optional() }).parse(req.body ?? {});
     if (retry && !project.summary?.plan?.pages.some(page => page.checkStatus === "failed")) return res.status(409).json({ message: "No failed page-1 checks to retry." });
+    if (retry === "failed") {
+      // Only the failed measurements, on the existing plan: no pages are regenerated or regrouped.
+      return res.status(202).json(await startRun(project, "plan", async () => {
+        const { summary, cost } = await retryFailedChecks(project);
+        return { changes: { summary }, cost };
+      }));
+    }
     return res.status(202).json(await startRun(project, "plan", async () => {
-      const { keywords, summary, services } = await runPlan(project, { retryFailedOnly: retry === "failed" });
+      const { keywords, summary, services } = await runPlan(project);
       return { changes: { keywords, summary, services }, cost: summary.plan!.costUsd };
     }));
   } catch (error) {

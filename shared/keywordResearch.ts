@@ -206,6 +206,30 @@ export function keywordDemand(row: Pick<KeywordResearchKeyword, "searchVolume" |
   return (row.searchVolume ?? 0) + (row.nearMeVolume ?? 0);
 }
 
+/**
+ * Phrasings grouped under a keyword because Google Ads gave them identical numbers: merged variants, and "near me"
+ * phrasings not counted in demand. Identical numbers suggest one search but Google does not confirm it, so these are
+ * possible overlaps: the low demand figure counts them once, the high figure counts them separately.
+ */
+export function possibleOverlaps(row: Pick<KeywordResearchKeyword, "variantMetrics" | "nearMeMetrics">) {
+  return [...(row.variantMetrics ?? []), ...(row.nearMeMetrics ?? []).filter(item => item.counted === false)];
+}
+
+/** Demand with possible overlaps counted once (low) and separately (high). Null when nothing is known. */
+export function keywordDemandRange(row: KeywordResearchKeyword) {
+  const low = keywordDemand(row);
+  const extra = possibleOverlaps(row).map(item => item.searchVolume).filter((volume): volume is number => volume != null);
+  if (low == null && !extra.length) return { low: null, high: null };
+  return { low: low ?? 0, high: (low ?? 0) + extra.reduce((sum, volume) => sum + volume, 0) };
+}
+
+/** Value with possible overlaps counted once (low) and separately (high, each at its own CPC). */
+export function keywordScoreRange(row: KeywordResearchKeyword) {
+  const low = keywordScore(row);
+  const extra = possibleOverlaps(row).filter(item => item.searchVolume != null && item.cpc != null).reduce((sum, item) => sum + Math.round(item.searchVolume! * item.cpc!), 0);
+  return { low, high: low == null ? (extra || null) : low + extra };
+}
+
 /** Monthly search value: searches × CPC. Null when either is unknown. */
 export function keywordScore(row: Pick<KeywordResearchKeyword, "searchVolume" | "nearMeVolume" | "cpc">) {
   const demand = keywordDemand(row);
@@ -336,6 +360,19 @@ export interface RelevanceCheck {
   verdict: "yes" | "no" | "uncertain";
   service: string | null;
   reason: string;
+  /** Fingerprint of the confirmed services and exclusions the verdict was judged against. Reused only on an exact match. */
+  basis?: string;
+}
+
+/** Fingerprint of what a relevance verdict depends on: the confirmed services and the exclusions, order ignored. */
+export function relevanceBasis(services: string[], exclusions: Array<{ work: string; terms: string[] }>) {
+  const text = JSON.stringify([
+    [...services].map(service => service.trim().toLowerCase()).sort(),
+    exclusions.map(item => `${item.work.trim().toLowerCase()}:${[...item.terms].map(term => term.trim().toLowerCase()).sort().join(",")}`).sort(),
+  ]);
+  let hash = 5381;
+  for (let index = 0; index < text.length; index += 1) hash = ((hash * 33) ^ text.charCodeAt(index)) >>> 0;
+  return `${services.length}s${exclusions.length}x-${hash.toString(36)}`;
 }
 
 export type PageKind = "service" | "city" | "cost" | "blog";
@@ -362,6 +399,22 @@ export interface PageEvidence {
   articles?: number;
   /** When page 1 was fetched. A check is reused by later runs for a while instead of being paid for again. */
   checkedAt?: string;
+  /** Exactly how page 1 was fetched. A check is reused only when every setting matches; without them it is history only. */
+  settings?: SerpSettings;
+}
+
+/** The settings a page-1 check was fetched with: the location asked for and answered, language, device, depth, and the client domain looked for. */
+export interface SerpSettings {
+  location: string;
+  locationCode: number | null;
+  language: string;
+  device: string;
+  depth: number;
+  clientDomain: string | null;
+}
+
+export function sameSerpSettings(a: SerpSettings | undefined, b: Omit<SerpSettings, "locationCode">) {
+  return !!a && a.location === b.location && a.language === b.language && a.device === b.device && a.depth === b.depth && a.clientDomain === b.clientDomain;
 }
 
 /**
@@ -427,6 +480,11 @@ export interface PagePlan {
   value: number;
   unknownValue: number;
   demand: number | null;
+  /** Demand and value with possible overlaps (identical Google Ads numbers, grouping not confirmed) counted separately. */
+  demandHigh?: number | null;
+  valueHigh?: number;
+  /** Phrasings counted once in demand because Google Ads gave them identical numbers. */
+  possibleOverlaps?: number;
   priorityService: boolean;
   opportunity: Opportunity;
   confidence: PlanConfidence;
@@ -443,6 +501,8 @@ export interface PagePlan {
   checkStatus?: "checked" | "reused" | "failed" | "not_run";
   /** For a city phrase Google reports nothing for: the service's metro numbers, labelled as such. */
   reference?: ReferenceMetrics | null;
+  /** An earlier page-1 check of this page that was not reused (settings not recorded, or different): history, not evidence. */
+  previousEvidence?: PageEvidence | null;
   /** A confirmed service × served city page: kept in the plan whatever Google reports for its phrases. */
   grid?: boolean;
 }
@@ -463,9 +523,22 @@ export interface InventoryPage {
   cities: string[];
 }
 
+/** Services that may be one customer need, proposed for review with their evidence. Never applied on its own. */
+export interface GroupSuggestion {
+  services: string[];
+  /** page_names_both: an existing page's own title or main heading names both. intake_match: the intake matched both
+   * to one page (a guess). identical_numbers: identical Google Ads numbers for their metro phrases (possible overlap). */
+  strength: "page_names_both" | "intake_match" | "identical_numbers";
+  evidence: string[];
+  /** The separate pages it would combine, per city (or the service pages when there is no city). */
+  pages: Array<{ city: string | null; pageIds: string[] }>;
+}
+
 export interface ProjectPlan {
   ranAt: string;
   pages: PagePlan[];
+  /** Possible combined pages for review. Missing on plans before it was added. */
+  groupSuggestions?: GroupSuggestion[];
   /** Every page found on the assessed site, as read. Missing on plans before it was added. */
   inventory?: InventoryPage[];
   /** Keywords held back: relevance uncertain, or no service. */
@@ -481,6 +554,9 @@ export interface ProjectPlan {
   uncheckedPages?: number;
   /** Pages whose page-1 check was reused from an earlier run (within 14 days) instead of paid for again. */
   reusedChecks?: number;
+  /** The last retry of failed checks on this plan: when, how many were tried, how many recovered. */
+  retriedAt?: string;
+  retried?: { attempted: number; recovered: number; stillFailed: number };
   /** Keywords with no matched service left unjudged this run (past the review budget). Still on the list. */
   notJudged?: number;
 }

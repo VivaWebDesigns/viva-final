@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import * as z from "zod/v4";
-import type { Exclusion, RelevanceCheck } from "@shared/keywordResearch";
+import { relevanceBasis, type Exclusion, type RelevanceCheck } from "@shared/keywordResearch";
 import type { WebsitePage } from "./readWebsite";
 
 const MODEL = "claude-opus-5-5";
@@ -251,6 +251,7 @@ const RELEVANCE_BATCH = 150;
  */
 export async function checkRelevance(trade: string, services: string[], exclusions: Exclusion[], keywords: string[]) {
   const allowed = new Set(services);
+  const basis = relevanceBasis(services, exclusions);
   const checks = new Map<string, RelevanceCheck>();
   const excluded = exclusions.length ? exclusions.map(item => `${item.work} (${item.terms.join(", ")})`).join("\n") : "none";
   for (let index = 0; index < keywords.length; index += RELEVANCE_BATCH) {
@@ -264,7 +265,7 @@ export async function checkRelevance(trade: string, services: string[], exclusio
     for (const row of result.keywords) {
       const service = row.service && allowed.has(row.service) ? row.service : null;
       const verdict = row.verdict === "yes" && !service ? "uncertain" : row.verdict;
-      checks.set(row.keyword.toLowerCase(), { verdict, service: verdict === "yes" ? service : null, reason: row.reason });
+      checks.set(row.keyword.toLowerCase(), { verdict, service: verdict === "yes" ? service : null, reason: row.reason, basis });
     }
   }
   return checks;

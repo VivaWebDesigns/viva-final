@@ -6,7 +6,10 @@ import { cleanKeyword } from "./keywords";
 export interface QualityKeyword extends KeywordMetrics {
   /** Monthly searches for this phrase with "near me". Google answers those by location, so they count as demand here instead of being a target. */
   nearMeVolume: number | null;
-  /** Phrases Google reports as the same search (identical volume and CPC), merged so demand is counted once. */
+  /**
+   * Phrasings with identical Google Ads volume and CPC: a possible overlap (Google does not confirm grouping). They are
+   * listed under this keyword with their own numbers; demand counts them once at the low end and separately at the high end.
+   */
   variants: string[];
   variantMetrics?: RawKeywordMetrics[];
   nearMeMetrics?: RawKeywordMetrics[];
@@ -67,10 +70,10 @@ export function differentIntent(a: string, b: string) {
 }
 
 /**
- * Google Ads reports close variants ("ceiling fan repair" / "fix a ceiling fan") with identical volume and CPC.
- * Two rows are the same search only when both numbers match exactly, the wording overlaps (half the meaning words
- * shared, or one phrase contained in the other), and they ask for the same thing (see differentIntent): unrelated
- * keywords do share numbers by coincidence.
+ * Google Ads often returns close variants ("ceiling fan repair" / "fix a ceiling fan") with identical volume and CPC,
+ * which suggests one search but does not confirm it. Two rows are a possible overlap only when both numbers match
+ * exactly, the wording overlaps (half the meaning words shared, or one phrase contained in the other), and they ask
+ * for the same thing (see differentIntent): unrelated keywords do share numbers by coincidence.
  */
 export function sameSearch(a: KeywordMetrics, b: KeywordMetrics) {
   if (a.searchVolume == null || a.cpc == null || a.searchVolume !== b.searchVolume || a.cpc !== b.cpc) return false;

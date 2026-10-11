@@ -48,6 +48,10 @@ export function evidenceFrom(serp: SerpResult, city: string, traffic: Map<string
     clientMapPosition: liveHost ? (serp.localPack.findIndex(row => row.domain === liveHost) + 1 || null) : null,
     articles: top.filter(row => isArticle(row)).length,
     checkedAt: new Date().toISOString(),
+    settings: {
+      location: serp.locationName, locationCode: serp.locationCode ?? null, language: serp.language ?? "en", device: serp.device ?? "desktop",
+      depth: serp.depth ?? 20, clientDomain: liveHost,
+    },
   };
 }
 

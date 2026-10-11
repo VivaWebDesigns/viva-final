@@ -231,6 +231,9 @@ export interface SerpResult {
   aiOverview?: boolean;
   /** The location code Google answered for, to compare with what was asked. */
   locationCode?: number | null;
+  language?: string;
+  device?: string;
+  depth?: number;
   localPack: Array<{ title: string; domain: string | null; rating: number | null; reviews: number | null }>;
 }
 
@@ -249,7 +252,7 @@ function bareDomain(domain: string) {
 
 /** Google's first two pages for a keyword as seen from one place: organic results and the map pack. */
 export async function fetchSerp(keyword: string, locationName: string, depth = 20) {
-  const result = await postLive<{ items?: SerpItem[] | null; location_code?: number | null }>(`${SERP_API}/live/advanced`, { keyword, location_name: locationName, language_code: "en", depth });
+  const result = await postLive<{ items?: SerpItem[] | null; location_code?: number | null }>(`${SERP_API}/live/advanced`, { keyword, location_name: locationName, language_code: "en", device: "desktop", depth });
   const items = result.rows[0]?.items ?? [];
   const serp: SerpResult = {
     keyword,
@@ -258,6 +261,7 @@ export async function fetchSerp(keyword: string, locationName: string, depth = 2
       .map(item => ({ position: item.rank_group, domain: bareDomain(item.domain!), title: item.title ?? null, url: item.url ?? undefined })),
     aiOverview: items.some(item => item.type === "ai_overview"),
     locationCode: result.rows[0]?.location_code ?? null,
+    language: "en", device: "desktop", depth,
     localPack: items.filter(item => item.type === "local_pack" && item.title)
       .map(item => ({ title: item.title!, domain: item.domain ? bareDomain(item.domain) : null, rating: item.rating?.value ?? null, reviews: item.rating?.votes_count ?? null })),
   };
