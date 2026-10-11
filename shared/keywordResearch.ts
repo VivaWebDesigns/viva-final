@@ -358,6 +358,10 @@ export interface PageEvidence {
   clientUrl: string | null;
   /** The client's place in the map pack, or null when it is not there. Missing on plans before it was added. */
   clientMapPosition?: number | null;
+  /** Top-10 results that are articles, guides or forum posts. */
+  articles?: number;
+  /** When page 1 was fetched. A check is reused by later runs for a while instead of being paid for again. */
+  checkedAt?: string;
 }
 
 /**
@@ -432,8 +436,11 @@ export interface PagePlan {
   questions: string[];
   /** Set when the client moved a keyword out to its own page or Claude split or merged the group. */
   adjusted: string | null;
-  /** Whether page 1 was checked for the main keyword, or the check failed at DataForSEO, or was not run. A failed check is never "not ranking". */
-  checkStatus?: "checked" | "failed" | "not_run";
+  /**
+   * Page 1 for the main keyword: checked this run, reused from an earlier run (see evidence.checkedAt), failed at
+   * DataForSEO, or not checked (past the check budget). A failed or missing check is never "not ranking".
+   */
+  checkStatus?: "checked" | "reused" | "failed" | "not_run";
   /** For a city phrase Google reports nothing for: the service's metro numbers, labelled as such. */
   reference?: ReferenceMetrics | null;
   /** A confirmed service × served city page: kept in the plan whatever Google reports for its phrases. */
@@ -472,6 +479,8 @@ export interface ProjectPlan {
   failedChecks?: number;
   /** Pages past the page-1 check budget: kept in the plan, read as not checked. */
   uncheckedPages?: number;
+  /** Pages whose page-1 check was reused from an earlier run (within 14 days) instead of paid for again. */
+  reusedChecks?: number;
   /** Keywords with no matched service left unjudged this run (past the review budget). Still on the list. */
   notJudged?: number;
 }

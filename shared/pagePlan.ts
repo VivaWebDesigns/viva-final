@@ -31,6 +31,9 @@ export interface DraftGroup {
   /** A confirmed service × served city page: its target phrase is what page 1 is checked for. */
   target?: string;
   reference?: ReferenceMetrics | null;
+  /** Services served together on this page, and why they are one customer need. */
+  services?: string[];
+  familyReason?: string;
 }
 
 const value = (row: KeywordResearchKeyword) => keywordScore(row);
@@ -66,7 +69,10 @@ export function groupValue(rows: KeywordResearchKeyword[]) {
  * city keywords form a tentative group per served city, decided after page 1 from that city is seen; cost and blog
  * keywords group per service and topic.
  */
-export function draftGroups(keywords: PlannedKeyword[], servicePages: Map<string, PageMatch>, topicKey: (keyword: string, service: string) => string): DraftGroup[] {
+export function draftGroups(
+  keywords: PlannedKeyword[], servicePages: Map<string, PageMatch>, topicKey: (keyword: string, service: string) => string,
+  familyOf: (service: string) => string = service => service,
+): DraftGroup[] {
   const groups = new Map<string, DraftGroup>();
   const add = (key: string, base: Omit<DraftGroup, "key" | "members">, member: PlannedKeyword) => {
     const group = groups.get(key) ?? { key, ...base, members: [] };
@@ -83,7 +89,7 @@ export function draftGroups(keywords: PlannedKeyword[], servicePages: Map<string
       if (servicePage?.path) add(`page:${servicePage.path}`, { kind: "service", service: item.service, city: null, page: servicePage }, item);
       else add(`service:${item.service}`, { kind: "service", service: item.service, city: null, page: { status: "none", path: null } }, item);
     } else if (item.kind === "city" && item.city) {
-      add(`city:${item.service}:${item.city}`, { kind: "city", service: item.service, city: item.city, page: { status: "none", path: null } }, item);
+      add(`city:${familyOf(item.service)}:${item.city}`, { kind: "city", service: item.service, city: item.city, page: { status: "none", path: null } }, item);
     } else if (item.kind === "cost") {
       add(`cost:${item.service}`, { kind: "cost", service: item.service, city: null, page: { status: "none", path: null } }, item);
     } else {
@@ -149,12 +155,13 @@ export function planPage(group: DraftGroup, input: {
 
   if (input.priorityService) reasons.push("priority service");
   if (grid) reasons.push(`confirmed service × served city: target phrase "${main.keyword}"`);
+  if (group.familyReason) reasons.push(group.familyReason);
   reasons.push(demandKnown ? `${totals.demand!.toLocaleString()} searches/mo across ${rows.length} keyword${rows.length === 1 ? "" : "s"} (${input.demandArea})` : `searches not reported by Google Ads for these phrases (${input.demandArea})`);
   if (totals.unknownValue) reasons.push(`${totals.unknownValue} keyword${totals.unknownValue === 1 ? "'s" : "s'"} CPC not reported, so value is unknown for ${totals.unknownValue === 1 ? "it" : "them"}`);
   if (group.reference) reasons.push(describeReference(group.reference, main));
   if (evidence) {
     const map = evidence.clientMapPosition != null ? `; client #${evidence.clientMapPosition} in the map pack` : evidence.mapPack ? "; client not in the map pack" : "";
-    reasons.push(`checked "${evidence.keyword}" from ${evidence.city}: ${evidence.smallSites} small sites, ${evidence.forums} forum threads, ${evidence.unknownSites} unknown in the top 10${evidence.clientPosition ? `; client #${evidence.clientPosition} in regular results` : "; client not in the top 20 regular results"}${map}`);
+    reasons.push(`checked "${evidence.keyword}" from ${evidence.city}${evidence.checkedAt ? ` on ${evidence.checkedAt.slice(0, 10)}` : ""}: ${evidence.smallSites} small sites, ${evidence.forums} forum threads, ${evidence.unknownSites} unknown in the top 10${evidence.clientPosition ? `; client #${evidence.clientPosition} in regular results` : "; client not in the top 20 regular results"}${map}`);
     reasons.push("the check supports this page; it does not cover every keyword or city under it");
   } else if (input.checkStatus === "failed") {
     questions.push(`The page-1 check for "${main.keyword}" failed at DataForSEO. The ranking is unknown, not absent; check it again.`);
@@ -195,7 +202,7 @@ export function planPage(group: DraftGroup, input: {
 
   const title = group.page.path
     ? `${group.page.path}`
-    : group.kind === "blog" ? main.keyword : KIND_TITLES[group.kind](group.service, group.city);
+    : group.kind === "blog" ? main.keyword : KIND_TITLES[group.kind](group.services?.join(" / ") ?? group.service, group.city);
   return {
     id: input.id,
     title,

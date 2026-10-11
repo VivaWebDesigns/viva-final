@@ -46,6 +46,8 @@ export function evidenceFrom(serp: SerpResult, city: string, traffic: Map<string
     clientPosition: client?.position ?? null,
     clientUrl: client?.url ?? null,
     clientMapPosition: liveHost ? (serp.localPack.findIndex(row => row.domain === liveHost) + 1 || null) : null,
+    articles: top.filter(row => isArticle(row)).length,
+    checkedAt: new Date().toISOString(),
   };
 }
 
@@ -86,13 +88,28 @@ const COST_WORDS = /\b(cost|costs|price|prices|pricing|estimate|estimates|quote|
  * and main heading; its content is the whole main text. A string stands in for a page known only by its title.
  */
 export function sitePages(urls: string[], contents: Map<string, PageContent | string> = new Map()): SitePage[] {
-  return urls.map(url => {
+  const read = urls.map(url => {
+    const value = contents.get(url);
+    return typeof value === "string" ? { title: value, h1: "", headings: [], text: "", textSource: "html" as const } : value ?? null;
+  });
+  // The site's template: title segments ("| Brand Name") and section headings ("Services", "Service Areas") that
+  // repeat on most read pages say nothing about any one page's topic.
+  const pagesRead = read.filter(Boolean).length;
+  const repeated = (values: string[][]) => {
+    const counts = new Map<string, number>();
+    for (const list of values) for (const value of new Set(list)) counts.set(value, (counts.get(value) ?? 0) + 1);
+    return new Set([...counts].filter(([, count]) => pagesRead >= 4 && count >= pagesRead / 2).map(([value]) => value));
+  };
+  const segments = (title: string) => title.split(/\s+[|\u2013\u2014-]\s+/).map(part => part.trim().toLowerCase()).filter(Boolean);
+  const templateTitles = repeated(read.map(content => (content ? segments(content.title) : [])));
+  const templateHeadings = repeated(read.map(content => (content?.headings ?? []).map(heading => heading.toLowerCase())));
+  return urls.map((url, index) => {
     const path = new URL(url).pathname;
-    const read = contents.get(url);
-    const content: PageContent | null = typeof read === "string" ? { title: read, h1: "", headings: [], text: "", textSource: "html" } : read ?? null;
-    const headline = content ? `${content.title} ${content.h1}` : "";
-    // Section headings name what the page covers; question headings (FAQs) are content, not topic.
-    const sections = (content?.headings ?? []).filter(heading => heading !== content?.h1 && !QUESTION_TITLE.test(heading)).slice(0, 12);
+    const content = read[index];
+    const title = content ? segments(content.title).filter(part => !templateTitles.has(part)).join(" ") : "";
+    const headline = content ? `${title} ${content.h1}` : "";
+    // Section headings name what the page covers; question headings (FAQs) and the site's repeated headings do not.
+    const sections = (content?.headings ?? []).filter(heading => heading !== content?.h1 && !QUESTION_TITLE.test(heading) && !templateHeadings.has(heading.toLowerCase())).slice(0, 12);
     const words = `${decodeURIComponent(path).replace(/[^a-zA-Z0-9]+/g, " ")} ${headline} ${sections.join(" ")}`;
     return {
       path, stems: meaningStems(words), aboutCost: COST_WORDS.test(`${path} ${headline}`),

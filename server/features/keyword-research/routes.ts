@@ -251,7 +251,7 @@ router.post("/projects/:id/research", async (req, res) => {
     const exactList = [...new Set([trade, ...selectedNames].flatMap(name => serviceVariants(name, project.city)))];
     const exact = await fetchSearchVolume(exactList, project.locationName, "research-volume");
     const ideas = await fetchKeywordIdeas([...new Set([trade, ...selectedNames])], project.locationName, "research-ideas");
-    const { keywords, summary } = buildKeywordList([...exact.metrics, ...ideas.metrics], {
+    const built = buildKeywordList([...exact.metrics, ...ideas.metrics], {
       services: selectedNames,
       trade: project.trade,
       city: project.city,
@@ -259,6 +259,10 @@ router.post("/projects/:id/research", async (req, res) => {
       exactPhrases: exactList,
       exclusions: project.exclusions,
     });
+    const { keywords, summary } = built;
+    // Relevance verdicts already paid for carry over; the plan re-judges any whose service is no longer confirmed.
+    const judged = new Map(project.keywords.filter(row => row.relevance).map(row => [row.keyword, row.relevance!]));
+    for (const row of keywords) row.relevance = judged.get(row.keyword) ?? row.relevance;
     // Difficulty and intent refine the list but are not needed for it, so a failed pull never blocks the research.
     const phrases = keywords.map(row => row.keyword);
     const [scores, intents] = await Promise.allSettled([fetchKeywordDifficulty(phrases), fetchSearchIntent(phrases)]);
@@ -429,8 +433,10 @@ router.post("/projects/:id/plan", async (req, res) => {
     if (!project) return res.status(404).json({ message: "Project not found" });
     if (project.status !== "researched") return res.status(409).json({ message: "Run the keyword research first." });
     if (runBusy(project)) return res.status(409).json({ message: "Another step is still running for this project." });
+    const { retry } = z.object({ retry: z.enum(["failed"]).optional() }).parse(req.body ?? {});
+    if (retry && !project.summary?.plan?.pages.some(page => page.checkStatus === "failed")) return res.status(409).json({ message: "No failed page-1 checks to retry." });
     return res.status(202).json(await startRun(project, "plan", async () => {
-      const { keywords, summary, services } = await runPlan(project);
+      const { keywords, summary, services } = await runPlan(project, { retryFailedOnly: retry === "failed" });
       return { changes: { keywords, summary, services }, cost: summary.plan!.costUsd };
     }));
   } catch (error) {

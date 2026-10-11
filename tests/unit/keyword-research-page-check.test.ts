@@ -27,7 +27,7 @@ describe("page 1", () => {
   it("counts what a forum-heavy page 1 holds without calling it a verdict", () => {
     expect(evidenceFrom(foggy, "Matthews", traffic, "kkcglass.com")).toEqual({
       keyword: "k", city: "Matthews", smallSites: 0, forums: 5, unknownSites: 0, cityPages: 0,
-      mapPack: false, aiOverview: true, clientPosition: null, clientMapPosition: null, clientUrl: null,
+      mapPack: false, aiOverview: true, clientPosition: null, clientMapPosition: null, clientUrl: null, articles: 8, checkedAt: expect.any(String),
     });
   });
 

@@ -234,3 +234,38 @@ describe("service × city pages (reference case)", () => {
     expect(withObservations(other, [observation({ query: null })], "x")).toBe(other);
   });
 });
+
+describe("one page per customer need", () => {
+  it("puts two services that are one need on one city page, and keeps a distinct service apart", () => {
+    const family = (service: string) => (service === "window replacement" ? "window installation" : service);
+    const groups = draftGroups([
+      planned("window installation matthews nc", "window installation", "city", { city: "Matthews", volume: null, cpc: null }),
+      planned("window replacement matthews nc", "window replacement", "city", { city: "Matthews", volume: null, cpc: null }),
+      planned("window repair matthews nc", "window repair", "city", { city: "Matthews", volume: null, cpc: null }),
+    ], new Map(), keyword => keyword, family);
+    expect(groups.map(entry => [entry.key, entry.members.map(member => member.row.keyword)])).toEqual([
+      ["city:window installation:Matthews", ["window installation matthews nc", "window replacement matthews nc"]],
+      ["city:window repair:Matthews", ["window repair matthews nc"]],
+    ]);
+  });
+});
+
+describe("site template", () => {
+  it("leaves the site's name and its repeated section headings out of every page's topic", () => {
+    const page = (title: string, h1: string) => ({ title: `${title} | Glass & Door Pro`, h1, headings: [h1, "Related Links", "Services", "Commercial Services", "Service Areas"], text: "", textSource: "html" as const });
+    const pages = sitePages(
+      ["https://x.com/services/window-installation", "https://x.com/services/door-repair", "https://x.com/services/shower-doors", "https://x.com/about"],
+      new Map([
+        ["https://x.com/services/window-installation", page("Window Installation in Charlotte, NC | Replacement Windows", "Window Installation")],
+        ["https://x.com/services/door-repair", page("Door Repair", "Door Repair")],
+        ["https://x.com/services/shower-doors", page("Shower Doors", "Shower Doors")],
+        ["https://x.com/about", page("About", "About Us")],
+      ]),
+    );
+    const windows = pages[0];
+    // Subject: what the page is about, without the site's name or action words.
+    expect([...windows.subjectStems].sort()).toEqual([...meaningStems("charlotte window")].sort());
+    expect(windows.stems.has("commercial")).toBe(false);
+    expect(windows.stems.has("pro")).toBe(false);
+  });
+});

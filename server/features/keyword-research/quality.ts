@@ -45,13 +45,36 @@ export function meaningStems(keyword: string) {
   return new Set(text.split(" ").filter(word => word && !FILLER.has(word)).map(stem));
 }
 
+const COST_INTENT = /\b(cost|costs|price|prices|pricing|quote|quotes|estimate|estimates)\b/;
+const QUESTION_INTENT = /^(how|what|why|when|where|which|who|can|does|do|is|are|should)\b/;
+const BUYING_INTENT = /\b(buy|for sale|sale|store|shop|shops)\b/;
+const REPAIR_INTENT = /\b(repair|repairs|repairing|fix|fixing)\b/;
+const INSTALL_INTENT = /\b(install|installs|installing|installation|installer|installers|replace|replacing|replacement|replacements)\b/;
+
+/**
+ * Whether two phrasings ask for different things: a price, a question, a product to buy, or a repair rather than an
+ * installation or replacement. Installation and replacement may share a search; Google's identical numbers decide.
+ */
+export function differentIntent(a: string, b: string) {
+  const left = cleanKeyword(a);
+  const right = cleanKeyword(b);
+  const repairOnly = (text: string) => REPAIR_INTENT.test(text) && !INSTALL_INTENT.test(text);
+  const installOnly = (text: string) => INSTALL_INTENT.test(text) && !REPAIR_INTENT.test(text);
+  return COST_INTENT.test(left) !== COST_INTENT.test(right)
+    || QUESTION_INTENT.test(left) !== QUESTION_INTENT.test(right)
+    || BUYING_INTENT.test(left) !== BUYING_INTENT.test(right)
+    || (repairOnly(left) && installOnly(right)) || (installOnly(left) && repairOnly(right));
+}
+
 /**
  * Google Ads reports close variants ("ceiling fan repair" / "fix a ceiling fan") with identical volume and CPC.
- * Two rows are the same search only when both numbers match exactly AND the wording overlaps (half the meaning
- * words shared, or one phrase contained in the other): unrelated keywords do share numbers by coincidence.
+ * Two rows are the same search only when both numbers match exactly, the wording overlaps (half the meaning words
+ * shared, or one phrase contained in the other), and they ask for the same thing (see differentIntent): unrelated
+ * keywords do share numbers by coincidence.
  */
 export function sameSearch(a: KeywordMetrics, b: KeywordMetrics) {
   if (a.searchVolume == null || a.cpc == null || a.searchVolume !== b.searchVolume || a.cpc !== b.cpc) return false;
+  if (differentIntent(a.keyword, b.keyword)) return false;
   const left = meaningStems(a.keyword);
   const right = meaningStems(b.keyword);
   if (!left.size || !right.size) return false;

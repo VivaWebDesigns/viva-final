@@ -133,11 +133,12 @@ function PageRow({ page, observations, projectId, onUpdate }: { page: PagePlan; 
           </span>
           {page.evidence && (
             <span className="block text-xs text-gray-500">
-              Checked "{page.evidence.keyword}" from {page.evidence.city}: {page.evidence.clientPosition ? `client #${page.evidence.clientPosition} in regular results` : "client not in the top 20 regular results"}
+              {page.checkStatus === "reused" ? "Reused check of" : "Checked"} "{page.evidence.keyword}" from {page.evidence.city}{page.evidence.checkedAt ? ` on ${page.evidence.checkedAt.slice(0, 10)}` : ""}: {page.evidence.clientPosition ? `client #${page.evidence.clientPosition} in regular results` : "client not in the top 20 regular results"}
               {page.evidence.clientMapPosition ? `, #${page.evidence.clientMapPosition} in the map pack` : page.evidence.mapPack ? ", not in the map pack" : ""}; {page.evidence.cityPages} city-specific results, {page.evidence.smallSites} small sites, {page.evidence.forums} forum threads, {page.evidence.unknownSites} unknown.
             </span>
           )}
-          {page.checkStatus === "failed" && <span className="block text-xs text-amber-700">The page-1 check failed at DataForSEO: ranking unknown, not absent.</span>}
+          {page.checkStatus === "failed" && <span className="block text-xs text-amber-700">The page-1 check failed at DataForSEO: ranking unknown, not absent. Retry failed checks to fill it in.</span>}
+          {page.checkStatus === "not_run" && <span className="block text-xs text-gray-500">Page 1 not checked yet: past this run's check budget. The next run checks it before paying for any repeat.</span>}
           {page.questions.map(question => <span key={question} className="block text-xs text-amber-700">? {question}</span>)}
         </span>
       </button>
@@ -182,7 +183,7 @@ export default function PlanCard({ project, onUpdate }: { project: KeywordResear
   const [action, setAction] = useState(ALL);
 
   const start = useMutation({
-    mutationFn: async () => (await apiRequest("POST", `/api/keyword-research/projects/${project.id}/plan`)).json() as Promise<KeywordResearchProject>,
+    mutationFn: async (retry?: "failed") => (await apiRequest("POST", `/api/keyword-research/projects/${project.id}/plan`, retry ? { retry } : {})).json() as Promise<KeywordResearchProject>,
     onSuccess: updated => onUpdate(updated),
     onError: startError => toast({ title: "Could not start the plan", description: errorMessage(startError), variant: "destructive" }),
   });
@@ -193,6 +194,13 @@ export default function PlanCard({ project, onUpdate }: { project: KeywordResear
     : [], [plan, project.observations]);
   const counts = useMemo(() => Object.fromEntries(ACTIONS.map(name => [name, pages.filter(page => page.action === name).length])) as Record<PageAction, number>, [pages]);
   const visible = pages.filter(page => action === ALL || page.action === action);
+  const statusCounts = useMemo(() => ({
+    checked: pages.filter(page => page.checkStatus === "checked").length,
+    reused: pages.filter(page => page.checkStatus === "reused").length,
+    failed: pages.filter(page => page.checkStatus === "failed").length,
+    notRun: pages.filter(page => (page.checkStatus ?? (page.evidence ? "checked" : "not_run")) === "not_run").length,
+    uncertain: plan?.unresolved.filter(item => item.reason.startsWith("uncertain")).length ?? 0,
+  }), [pages, plan]);
 
   return (
     <Card>
@@ -205,10 +213,15 @@ export default function PlanCard({ project, onUpdate }: { project: KeywordResear
         </p>
       </CardHeader>
       <CardContent className="space-y-5">
-        <Button onClick={() => start.mutate()} disabled={busy} data-testid="button-kr-build-plan">
+        <div className="flex flex-wrap gap-2">
+        <Button onClick={() => start.mutate(undefined)} disabled={busy} data-testid="button-kr-build-plan">
           {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ListChecks className="mr-2 h-4 w-4" />}
           {busy ? "Building the plan… you can leave this page" : plan ? "Rebuild the plan" : "Build the page plan"}
         </Button>
+        {!busy && !!statusCounts.failed && (
+          <Button variant="outline" onClick={() => start.mutate("failed")} data-testid="button-kr-retry-failed">Retry {statusCounts.failed} failed checks</Button>
+        )}
+        </div>
         {run.error && <p className="text-sm text-red-600">{run.error}</p>}
 
         {plan && (
@@ -219,9 +232,11 @@ export default function PlanCard({ project, onUpdate }: { project: KeywordResear
               {plan.siteKind === "staging" && " A staging page is not published or visible in Google."}
               {plan.siteNote && ` ${plan.siteNote}`}
               {" "}Each page's check covers one keyword from one city, not everything under it.
-              {!!plan.failedChecks && ` ${plan.failedChecks} page-1 checks failed at DataForSEO; those pages read as not checked.`}
-              {!!plan.uncheckedPages && ` ${plan.uncheckedPages} pages were past the page-1 check budget; they stay in the plan as not checked.`}
-              {!!plan.notJudged && ` ${plan.notJudged.toLocaleString()} keywords with no matched service were not judged this run; they stay on the keyword list.`}
+            </p>
+            <p className="text-sm text-gray-600" data-testid="text-kr-plan-status">
+              Page 1: {statusCounts.checked} checked this run · {statusCounts.reused} reused from earlier runs (within 14 days) · {statusCounts.failed} failed (ranking unknown)
+              {" "}· {statusCounts.notRun} not checked yet (past the check budget).
+              {" "}Relevance: {statusCounts.uncertain} held as uncertain{plan.notJudged ? ` · ${plan.notJudged.toLocaleString()} with no matched service not judged (still on the keyword list)` : ""}.
             </p>
             <div className="grid gap-3 sm:grid-cols-5">
               {ACTIONS.map(name => (

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { KeywordMetrics } from "../../server/features/keyword-research/dataforseo";
 import { buildKeywordList, serviceDemand, serviceVariants } from "../../server/features/keyword-research/keywords";
-import { foldNearMe, headTerm, isNearMe, mergeCloseVariants, sameSearch, totalDemand } from "../../server/features/keyword-research/quality";
+import { differentIntent, foldNearMe, headTerm, isNearMe, mergeCloseVariants, sameSearch, totalDemand } from "../../server/features/keyword-research/quality";
 import { realRows } from "../fixtures/keyword-research/googleAdsRows";
 
 const metrics = (keyword: string, searchVolume: number | null, cpc: number | null = null): KeywordMetrics => ({
@@ -132,7 +132,8 @@ describe("grouping keeps every phrase's own measurements", () => {
 });
 
 describe("retention", () => {
-  it("keeps a service phrase whose numbers match an excluded phrase, instead of dropping it as that phrase's variant", () => {
+  it("drops excluded work before grouping, so it can never carry a valid phrase out as its variant", () => {
+    // Constructed numbers: the two phrases are given identical numbers to test the rule, not taken from Google.
     const ads = (keyword: string): KeywordMetrics => ({ keyword, searchVolume: 110, cpc: 9.5, competition: null, competitionIndex: null, lowTopOfPageBid: null, highTopOfPageBid: null });
     const { keywords, summary } = buildKeywordList([ads("window screen replacement"), ads("window sash replacement")], {
       services: ["window replacement"], trade: "glass company", city: "Charlotte", state: "NC",
@@ -149,6 +150,29 @@ describe("retention through grouping", () => {
     const ads = (keyword: string): KeywordMetrics => ({ keyword, searchVolume: 110, cpc: 21.51, competition: "HIGH", competitionIndex: null, lowTopOfPageBid: 3.73, highTopOfPageBid: 19.04 });
     const { keywords } = buildKeywordList([ads("sash replacement"), ads("window sash replacement")], { services: ["window replacement"], trade: "glass company", city: "Charlotte", state: "NC" });
     expect(keywords).toEqual([expect.objectContaining({ keyword: "window sash replacement", service: "window replacement", searchVolume: 110, cpc: 21.51, variants: ["sash replacement"] })]);
+  });
+});
+
+describe("distinct intent", () => {
+  // Pairs Google returned with identical numbers in the Charlotte DMA pull of 2026-10-10.
+  const pair = (left: string, right: string, volume: number, cpc: number) => mergeCloseVariants([metrics(left, volume, cpc), metrics(right, volume, cpc)]).rows.length;
+
+  it("never merges a price, a question or a product search into a service search", () => {
+    expect(pair("30 glass shower door", "custom glass shower door cost", 10, 0.48)).toBe(2);
+    expect(pair("floating shower door", "showers doors for sale", 10, 0.21)).toBe(2);
+    expect(differentIntent("window replacement cost", "how much is window replacement")).toBe(true);
+  });
+
+  it("never merges a repair with an installation or replacement", () => {
+    expect(differentIntent("shower door repair", "shower door installation")).toBe(true);
+    expect(differentIntent("window repair", "window replacement")).toBe(true);
+    expect(differentIntent("repair or replace window", "window replacement")).toBe(false);
+  });
+
+  it("lets installation and replacement phrasings Google reports as one search stay together, and keeps true synonyms together", () => {
+    expect(pair("install door threshold", "replace door threshold", 90, 1.08)).toBe(1);
+    expect(pair("storm door installation", "putting in a storm door", 140, 12.56)).toBe(1);
+    expect(pair("shower door installation cost", "cost to replace a shower door", 40, 6.77)).toBe(1);
   });
 });
 

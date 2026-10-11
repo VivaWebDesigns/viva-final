@@ -9,10 +9,11 @@ import { isNotCompetitor } from "./competitors";
 import { fetchSearchVolume, fetchSerp, fetchTrafficEstimates, KeywordDataError } from "./dataforseo";
 import { clientDomainOf, parseCity, searchLocations, tolerantSearches } from "./discover";
 import { excludedWork, stateName } from "./keywords";
-import { coveringPage, evidenceFrom, isArticle, isForum, isPlacePage, sitePages, type SitePage } from "./pageCheck";
+import { coveringPage, evidenceFrom, isForum, isPlacePage, sitePages, type SitePage } from "./pageCheck";
 import { meaningStems } from "./quality";
 import { listSitePages, readPageContent } from "./readWebsite";
 import { checkRelevance, reviewGroups, suggestCityPhrases } from "./suggestServices";
+import { differentIntent } from "./quality";
 
 // Keywords with no matched service judged for relevance per run, by value: past this they stay on the list, counted
 // as not judged. Keywords matched to a confirmed service are always judged, whatever Google reports for them.
@@ -22,6 +23,8 @@ const RELEVANCE_CHUNK = 150;
 // Pages whose main keyword is checked on page 1, existing pages first. About $0.004 each.
 const MAX_CHECKS = 150;
 const CHECK_ATTEMPTS = 3;
+// A page-1 check stays usable this long: later runs reuse it instead of paying for it again.
+const CHECK_REUSE_DAYS = 14;
 // Proposed pages sent to Claude's split/merge review.
 const MAX_REVIEW = 60;
 // Pages read in full for the inventory; past this they are matched by their URL alone and listed as not read.
@@ -111,7 +114,7 @@ function topicClusters(rows: Array<{ keyword: string; service: string }>, servic
  * site, groups them into pages (existing pages first), has Claude propose merges and splits, checks page 1 once per
  * page from the city that page is for, and decides an action per page with its reasons and open questions.
  */
-export async function runPlan(project: KeywordResearchProject): Promise<{ keywords: KeywordResearchKeyword[]; summary: KeywordResearchSummary; services: KeywordResearchService[] }> {
+export async function runPlan(project: KeywordResearchProject, options: { retryFailedOnly?: boolean } = {}): Promise<{ keywords: KeywordResearchKeyword[]; summary: KeywordResearchSummary; services: KeywordResearchService[] }> {
   let cost = 0;
   const services = project.services.filter(service => service.selected);
   const serviceNames = services.map(service => service.name);
@@ -193,13 +196,14 @@ export async function runPlan(project: KeywordResearchProject): Promise<{ keywor
   const cityStems = new Map(servedCities.map(place => [place.city, meaningStems(place.city)] as const));
   // The inventory: each page by the services and served cities it names, and its kind.
   const inventory: InventoryPage[] = pages.map(page => {
-    const named = new Set([...meaningStems(page.path.replace(/[^a-zA-Z0-9]+/g, " ")), ...meaningStems(`${page.title} ${page.h1}`)]);
+    const named = new Set([...meaningStems(page.path.replace(/[^a-zA-Z0-9]+/g, " ")), ...page.subjectStems]);
     const cities = servedCities.filter(place => [...meaningStems(place.city)].every(stem => named.has(stem))).map(place => place.city);
     const kind: InventoryPage["kind"] = page.article ? "article" : page.aboutCost ? "cost" : page.placePage && cities.length ? "city"
       : serviceNames.some(service => [...meaningStems(service)].every(stem => page.stems.has(stem))) ? "service" : "other";
     return {
       path: page.path, title: page.title, h1: page.h1, words: page.words, textSource: page.textSource, kind, cities,
-      services: serviceNames.filter(service => [...meaningStems(service)].filter(stem => !ACTION_WORDS.has(stem)).every(stem => page.stems.has(stem))),
+      // Services the page is about: named in its own title or main heading (the site's name left out), or its address.
+      services: serviceNames.filter(service => [...meaningStems(service)].filter(stem => !ACTION_WORDS.has(stem)).every(stem => named.has(stem))),
     };
   });
   const allCityStems = new Set([...cityStems.values()].flatMap(stems => [...stems]));
@@ -254,16 +258,50 @@ export async function runPlan(project: KeywordResearchProject): Promise<{ keywor
     planned.push({ row, service: cell.service, kind: "city", city: cell.city, match: row.pageMatch });
   }
   // A service's phrases for one city share a page: when one of them is on an existing page, the others go there too.
+  // Services that are one customer need share one page per city: the client serves them on the same page, or Google
+  // reports their metro phrases as one search (identical numbers) without a difference in intent. Otherwise each
+  // service keeps its own city pages.
+  const root = new Map(serviceNames.map(service => [service, service]));
+  const familyOf = (service: string): string => {
+    let current = service;
+    while (root.get(current) && root.get(current) !== current) current = root.get(current)!;
+    return current;
+  };
+  const familyReasons = new Map<string, string>();
+  const join = (a: string, b: string, reason: string) => {
+    const [x, y] = [familyOf(a), familyOf(b)];
+    if (x === y) return;
+    root.set(y, x);
+    familyReasons.set(x, [familyReasons.get(x), familyReasons.get(y), reason].filter(Boolean).join("; "));
+  };
+  const onPage = new Map<string, string>();
+  for (const [service, page] of servicePages) {
+    const other = page.path ? onPage.get(page.path) : undefined;
+    if (other) join(other, service, `the client serves "${other}" and "${service}" on ${page.path}`);
+    else if (page.path) onPage.set(page.path, service);
+  }
+  const metroCity = project.city.toLowerCase();
+  const metroRows = [...keywords.filter(row => grid.get(row.keyword)?.city.toLowerCase() === metroCity), ...probeRows]
+    .filter(row => row.searchVolume != null && row.cpc != null && row.service);
+  const bySearch = new Map<string, KeywordResearchKeyword>();
+  for (const row of metroRows) {
+    const key = [row.searchVolume, row.cpc, row.lowTopOfPageBid, row.highTopOfPageBid].join("|");
+    const twin = bySearch.get(key);
+    if (twin && twin.service !== row.service && !differentIntent(twin.keyword, row.keyword)) {
+      join(twin.service!, row.service!, `Google reports "${twin.keyword}" and "${row.keyword}" as one search (${row.searchVolume}/mo, average CPC $${row.cpc!.toFixed(2)})`);
+    } else if (!twin) bySearch.set(key, row);
+  }
+
   const cellPage = new Map<string, PageMatch>();
-  for (const item of planned) if (grid.has(item.row.keyword) && item.match.path) cellPage.set(`${item.service}|${item.city}`, item.match);
+  for (const item of planned) if (grid.has(item.row.keyword) && item.match.path) cellPage.set(`${familyOf(item.service)}|${item.city}`, item.match);
   for (const item of planned) {
-    const page = grid.has(item.row.keyword) && !item.match.path ? cellPage.get(`${item.service}|${item.city}`) : undefined;
+    const page = grid.has(item.row.keyword) && !item.match.path ? cellPage.get(`${familyOf(item.service)}|${item.city}`) : undefined;
     if (page) item.match = item.row.pageMatch = page;
   }
 
   const serviceStems = new Map(serviceNames.map(service => [service, meaningStems(service)] as const));
   const clusters = topicClusters(planned.filter(item => item.kind === "blog").map(item => ({ keyword: item.row.keyword, service: item.service })), serviceStems);
-  let groups = draftGroups(planned, servicePages, keyword => clusters.get(keyword) ?? keyword);
+  let groups = draftGroups(planned, servicePages, keyword => clusters.get(keyword) ?? keyword, familyOf);
   // A page holding grid phrases is checked for its own service's target phrase, with that service's metro numbers beside it.
   const references = new Map(serviceNames.map(service => [service, referenceMetrics([...keywords, ...probeRows], service, project.city, measurements)] as const));
   for (const group of groups) {
@@ -281,6 +319,11 @@ export async function runPlan(project: KeywordResearchProject): Promise<{ keywor
     group.service = target.service;
     group.city = grid.get(target.row.keyword)!.city;
     // The best metro reference among the services the page serves: a service searched with the metro city beats a median.
+    const served = [...new Set(group.members.map(member => member.service))];
+    if (served.length > 1 && familyReasons.has(familyOf(target.service))) {
+      group.services = served;
+      group.familyReason = `one page for ${served.map(service => `"${service}"`).join(" and ")}: ${familyReasons.get(familyOf(target.service))}`;
+    }
     group.reference = [...new Set(group.members.map(member => member.service))].map(service => references.get(service) ?? null)
       .filter((ref): ref is ReferenceMetrics => !!ref)
       .sort((a, b) => Number(a.basis === "median") - Number(b.basis === "median") || (b.searchVolume ?? -1) - (a.searchVolume ?? -1) || a.keyword.localeCompare(b.keyword))[0] ?? null;
@@ -318,14 +361,35 @@ export async function runPlan(project: KeywordResearchProject): Promise<{ keywor
   }
   groups = [...byKey.values()];
 
-  // One page-1 check per page, from the city the page is for: existing pages first, then priority services, then value.
-  const ordered = [...groups].sort((a, b) =>
-    Number(!!b.page.path) - Number(!!a.page.path)
+  // One page-1 check per page, from the city the page is for. A recent check of the same search from the same city is
+  // reused; the budget pays only for new checks: earlier failures first, then existing pages, priority services, value.
+  const homeCity = servedCities.find(place => place.city.toLowerCase() === project.city.toLowerCase()) ?? { city: project.city, state: project.state };
+  const checkKey = (group: DraftGroup) => `${group.target ?? mainKeyword(group.members.map(m => m.row)).keyword}|${group.city ?? homeCity.city}`;
+  const previous = project.summary?.plan;
+  const reusable = new Map<string, PageEvidence>();
+  const failedBefore = new Set<string>();
+  for (const page of previous?.pages ?? []) {
+    const key = `${page.evidence?.keyword ?? page.mainKeyword}|${page.evidence?.city ?? page.city ?? homeCity.city}`;
+    if (page.checkStatus === "failed") failedBefore.add(key);
+    const at = page.evidence?.checkedAt ?? previous!.ranAt;
+    if (page.evidence && Date.now() - new Date(at).getTime() < CHECK_REUSE_DAYS * 86_400_000) reusable.set(key, { ...page.evidence, checkedAt: at });
+  }
+  const evidence = new Map<string, PageEvidence>();
+  const reused = new Set<string>();
+  for (const group of groups) {
+    const hit = reusable.get(checkKey(group));
+    if (hit) {
+      evidence.set(group.key, hit);
+      reused.add(group.key);
+    }
+  }
+  const ordered = groups.filter(group => !reused.has(group.key) && (!options.retryFailedOnly || failedBefore.has(checkKey(group)))).sort((a, b) =>
+    Number(failedBefore.has(checkKey(b))) - Number(failedBefore.has(checkKey(a)))
+    || Number(!!b.page.path) - Number(!!a.page.path)
     || Number(priorities.has(b.service)) - Number(priorities.has(a.service))
     || (keywordScore(mainKeyword(b.members.map(m => m.row))) ?? -1) - (keywordScore(mainKeyword(a.members.map(m => m.row))) ?? -1)
-    || (b.reference?.cpc ?? 0) - (a.reference?.cpc ?? 0));
+    || (b.reference?.avgCpc ?? b.reference?.cpc ?? 0) - (a.reference?.avgCpc ?? a.reference?.cpc ?? 0));
   const toCheck = ordered.slice(0, MAX_CHECKS);
-  const homeCity = servedCities.find(place => place.city.toLowerCase() === project.city.toLowerCase()) ?? { city: project.city, state: project.state };
   const locationFor = new Map<string, string>();
   for (const name of await searchLocations([homeCity, ...servedCities])) locationFor.set(name.split(",")[0].toLowerCase(), name);
   const homeLocation = locationFor.get(homeCity.city.toLowerCase()) ?? project.locationName;
@@ -346,7 +410,6 @@ export async function runPlan(project: KeywordResearchProject): Promise<{ keywor
     .filter(domain => domain !== liveHost && !isForum(domain) && !isNotCompetitor(domain));
   const estimates = domains.length ? await fetchTrafficEstimates(domains) : { traffic: new Map<string, number>(), cost: 0 };
   cost += estimates.cost;
-  const evidence = new Map<string, PageEvidence>();
   for (const entry of serps) evidence.set(entry.group.key, evidenceFrom(entry.serp, entry.city, estimates.traffic, liveHost));
 
   // A city page is only proposed when page 1 from that city rewards city pages; otherwise its keywords fold into
@@ -374,7 +437,7 @@ export async function runPlan(project: KeywordResearchProject): Promise<{ keywor
   const plans: PagePlan[] = groups.map((group, index) => {
     const seen = evidence.get(group.key) ?? null;
     if (seen && group.kind === "service" && !group.page.path) {
-      const articles = serps.find(entry => entry.group.key === group.key)?.serp.organic.filter(row => row.position <= 10 && isArticle(row)).length ?? 0;
+      const articles = seen.articles ?? 0;
       if (articles >= ARTICLES_FOR_BLOG) group.kind = "blog";
     }
     return planPage(group, {
@@ -384,7 +447,7 @@ export async function runPlan(project: KeywordResearchProject): Promise<{ keywor
       demandArea: project.locationName.replace(/,United States$/, ""),
       siteRead: !!urls,
       adjusted: adjusted.get(group.key) ?? null,
-      checkStatus: seen ? "checked" : checkedKeys.has(group.key) ? "failed" : "not_run",
+      checkStatus: reused.has(group.key) ? "reused" : seen ? "checked" : checkedKeys.has(group.key) ? "failed" : "not_run",
     });
   }).sort(comparePages);
   plans.forEach((plan, index) => { plan.id = `p${index + 1}`; });
@@ -411,7 +474,8 @@ export async function runPlan(project: KeywordResearchProject): Promise<{ keywor
         inventory,
         costUsd: Number(cost.toFixed(4)),
         failedChecks,
-        uncheckedPages: Math.max(0, groups.length - toCheck.length),
+        uncheckedPages: groups.filter(group => !evidence.has(group.key) && !checkedKeys.has(group.key)).length,
+        reusedChecks: reused.size,
         notJudged,
       },
     },

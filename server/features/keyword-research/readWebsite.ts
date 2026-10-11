@@ -15,7 +15,7 @@ const CRAWL_TIMEOUT_MS = 45_000;
 
 // Pages that describe the company or its content rather than what it offers.
 const SKIP_PATH = /\/(blog|news|posts?|articles?|tag|tags|category|categories|author|contact|about|about-us|team|careers?|jobs|reviews?|testimonials?|gallery|photos|faq|privacy|privacy-policy|terms|terms-of-service|accessibility|sitemap|login|account|cart|checkout|feed|wp-json|wp-admin)(\/|$)/i;
-const FILE_PATH = /\.(pdf|jpe?g|png|gif|webp|svg|zip|mp4|xml|css|js)$/i;
+const FILE_PATH = /\.(pdf|jpe?g|png|gif|webp|svg|zip|mp4|xml|css|js)$|^\/cdn-cgi\//i;
 const SERVICE_HINT = /servic|repair|install|replac|clean|inspect|maint|emergenc/i;
 
 export interface WebsitePage {
