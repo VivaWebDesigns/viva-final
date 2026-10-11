@@ -1,6 +1,7 @@
 import type { KeywordResearchKeyword, PageEvidence } from "@shared/keywordResearch";
 import { isNotCompetitor } from "./competitors";
 import type { SerpResult } from "./dataforseo";
+import type { PageContent } from "./readWebsite";
 import { BLOG_PATH } from "./playbook";
 import { meaningStems } from "./quality";
 
@@ -58,6 +59,13 @@ export interface SitePage {
   placePage: boolean;
   /** The words of the page's title and first heading that name what it is about (no action words or state codes). Empty when unread. */
   subjectStems: Set<string>;
+  /** The words of the page's whole main content (menus and footers left out). Empty when the page was not read. */
+  textStems: Set<string>;
+  title: string;
+  h1: string;
+  /** Words of main content read; 0 when the page could not be read. */
+  words: number;
+  textSource: PageContent["textSource"] | null;
 }
 
 // Listing pages ("/services", "/service-areas") link to pages that target keywords; they do not target any themselves.
@@ -73,16 +81,26 @@ const QUESTION_STEMS = meaningStems("how what why when where which who can does 
 const ACTION_STEMS = meaningStems("install installation installer repair repairs replace replacement service fix custom professional new");
 const COST_WORDS = /\b(cost|costs|price|prices|pricing|estimate|estimates|quote|quotes)\b/i;
 
-/** A page's words: its URL path plus its title and first heading when they were read. */
-export function sitePages(urls: string[], headlines: Map<string, string> = new Map()): SitePage[] {
+/**
+ * A page's words. Its topic is its URL path, title, main heading and section headings (h2); its subject is its title
+ * and main heading; its content is the whole main text. A string stands in for a page known only by its title.
+ */
+export function sitePages(urls: string[], contents: Map<string, PageContent | string> = new Map()): SitePage[] {
   return urls.map(url => {
     const path = new URL(url).pathname;
-    const headline = headlines.get(url) ?? "";
-    const words = `${decodeURIComponent(path).replace(/[^a-zA-Z0-9]+/g, " ")} ${headline}`;
+    const read = contents.get(url);
+    const content: PageContent | null = typeof read === "string" ? { title: read, h1: "", headings: [], text: "", textSource: "html" } : read ?? null;
+    const headline = content ? `${content.title} ${content.h1}` : "";
+    // Section headings name what the page covers; question headings (FAQs) are content, not topic.
+    const sections = (content?.headings ?? []).filter(heading => heading !== content?.h1 && !QUESTION_TITLE.test(heading)).slice(0, 12);
+    const words = `${decodeURIComponent(path).replace(/[^a-zA-Z0-9]+/g, " ")} ${headline} ${sections.join(" ")}`;
     return {
-      path, stems: meaningStems(words), aboutCost: COST_WORDS.test(words),
+      path, stems: meaningStems(words), aboutCost: COST_WORDS.test(`${path} ${headline}`),
       article: BLOG_PATH.test(path + "/") || QUESTION_TITLE.test(headline), placePage: PLACE_PAGE.test(path),
       subjectStems: new Set([...meaningStems(headline)].filter(stem => stem.length > 2 && !ACTION_STEMS.has(stem) && !QUESTION_STEMS.has(stem))),
+      textStems: meaningStems(`${content?.text ?? ""} ${(content?.headings ?? []).join(" ")}`),
+      title: content?.title ?? "", h1: content?.h1 ?? "",
+      words: content?.text ? content.text.split(/\s+/).length : 0, textSource: content?.text ? content.textSource : null,
     };
   });
 }
@@ -124,12 +142,14 @@ export function coveringPage(
     const subject = [...page.subjectStems].filter(stem => !context.cityStems.has(stem));
     if (page.placePage && subject.filter(stem => !wanted.has(stem)).length > 1) continue;
     // Variants of the page's own subject belong on it ("frameless shower doors matthews" on the Matthews shower door
-    // page) when they hold its most distinctive word: the subject word fewest of the client's services share.
+    // page) when the search holds the subject's most distinctive word (the one fewest of the client's services
+    // share) and the page's content covers the search's other words.
     if (page.placePage && subject.length && context.serviceNames?.length) {
       const shared = (stem: string) => context.serviceNames!.filter(name => meaningStems(name).has(stem)).length;
       const rarest = Math.min(...subject.map(shared));
-      if (subject.filter(stem => shared(stem) === rarest).every(stem => wanted.has(stem))) {
-        const matched = [...wanted].filter(stem => page.stems.has(stem)).length;
+      const covered = essential.every(stem => page.stems.has(stem) || page.textStems.has(stem));
+      if (covered && subject.filter(stem => shared(stem) === rarest).every(stem => wanted.has(stem))) {
+        const matched = [...wanted].filter(stem => page.stems.has(stem) || page.textStems.has(stem)).length;
         if (!best || rank(page.path, matched) > rank(best.path, best.matched)) best = { path: page.path, matched };
         continue;
       }

@@ -131,6 +131,52 @@ describe("grouping keeps every phrase's own measurements", () => {
   });
 });
 
+describe("retention", () => {
+  it("keeps a service phrase whose numbers match an excluded phrase, instead of dropping it as that phrase's variant", () => {
+    const ads = (keyword: string): KeywordMetrics => ({ keyword, searchVolume: 110, cpc: 9.5, competition: null, competitionIndex: null, lowTopOfPageBid: null, highTopOfPageBid: null });
+    const { keywords, summary } = buildKeywordList([ads("window screen replacement"), ads("window sash replacement")], {
+      services: ["window replacement"], trade: "glass company", city: "Charlotte", state: "NC",
+      exclusions: [{ work: "screen repair", terms: ["screen replacement"], reason: "", source: "user" }],
+    });
+    expect(keywords.map(row => row.keyword)).toEqual(["window sash replacement"]);
+    expect(keywords[0].variants).toEqual([]);
+    expect(summary.droppedExcluded).toBe(1);
+  });
+});
+
+describe("retention through grouping", () => {
+  it("keeps a group under the phrasing that names a confirmed service, so a shorter unmatched phrasing cannot drop it", () => {
+    const ads = (keyword: string): KeywordMetrics => ({ keyword, searchVolume: 110, cpc: 21.51, competition: "HIGH", competitionIndex: null, lowTopOfPageBid: 3.73, highTopOfPageBid: 19.04 });
+    const { keywords } = buildKeywordList([ads("sash replacement"), ads("window sash replacement")], { services: ["window replacement"], trade: "glass company", city: "Charlotte", state: "NC" });
+    expect(keywords).toEqual([expect.objectContaining({ keyword: "window sash replacement", service: "window replacement", searchVolume: 110, cpc: 21.51, variants: ["sash replacement"] })]);
+  });
+});
+
+describe("combined demand", () => {
+  const ads = (keyword: string, searchVolume: number | null, cpc: number | null): KeywordMetrics =>
+    ({ keyword, searchVolume, cpc, competition: null, competitionIndex: null, lowTopOfPageBid: null, highTopOfPageBid: null });
+
+  it("adds each distinct near me search once, never a grouped variant or a phrasing Google counts as the same search", () => {
+    const { rows } = mergeCloseVariants([
+      ads("window repair", 170, 21.25), ads("window repair near me", 590, 18.4), ads("window repairs near me", 590, 18.4),
+      ads("window repair close to me", 40, 25.1), ads("window repair nearby", 170, 21.25),
+    ]);
+    const row = foldNearMe(rows).rows[0];
+    expect(row.nearMeVolume).toBe(590 + 40);
+    expect(totalDemand(row)).toBe(170 + 590 + 40);
+    expect(row.nearMeMetrics?.filter(item => item.counted).map(item => item.keyword).sort()).toEqual(["window repair close to me", "window repair near me"]);
+    expect(row.nearMeMetrics?.filter(item => !item.counted).map(item => item.keyword)).toEqual(["window repairs near me"]);
+    // Same numbers as the plain phrase: Google's same search, merged as a variant and counted once.
+    expect(row.variants).toEqual(["window repair nearby"]);
+  });
+
+  it("never counts a merged variant's volume: Google reports it as the same search", () => {
+    const { keywords } = buildKeywordList([ads("door installation", 30, 51.97), ads("installing doors", 30, 51.97), ads("door installer", 20, 40)], { services: ["door installation"], trade: "glass company", city: "Charlotte", state: "NC", exactPhrases: ["door installation"] });
+    expect(totalDemand(find(keywords, "door installation")!)).toBe(30);
+    expect(totalDemand(find(keywords, "door installer")!)).toBe(20);
+  });
+});
+
 describe("service demand", () => {
   it("counts a search Google grouped across phrasings once", () => {
     const volumes = new Map(serviceVariants("glass repair", "Matthews").map(keyword => [keyword, metrics(keyword, 590, 12.5)]));
@@ -149,12 +195,19 @@ describe("service demand", () => {
 describe("keyword list", () => {
   const input = { services: ["shower door installation"], trade: "glass", city: "Matthews", state: "NC" };
 
-  it("keeps a requested service phrase with unknown volume instead of treating it as zero", () => {
-    const rows = [metrics("shower door installation matthews", null), metrics("shower door installation", 1000, 9), metrics("shower door installation charlotte", null)];
+  it("keeps every candidate for a confirmed service with unknown or zero volume instead of treating it as zero", () => {
+    const rows = [
+      metrics("shower door installation matthews", null), metrics("shower door installation", 1000, 9), metrics("shower door installation charlotte", null),
+      metrics("shower door installation pineville", 0), metrics("bathroom remodel ideas", null),
+    ];
     const { keywords, summary } = buildKeywordList(rows, { ...input, exactPhrases: ["shower door installation matthews"] });
-    expect(keywords.map(row => row.keyword)).toEqual(["shower door installation", "shower door installation matthews"]);
+    expect(keywords.map(row => row.keyword)).toEqual([
+      "shower door installation", "shower door installation charlotte", "shower door installation matthews", "shower door installation pineville",
+    ]);
     expect(find(keywords, "shower door installation matthews")?.searchVolume).toBeNull();
-    expect(summary).toMatchObject({ unknownVolume: 1, droppedNoVolume: 1 });
+    expect(find(keywords, "shower door installation pineville")?.searchVolume).toBe(0);
+    // Only a keyword with no service and no searches is dropped.
+    expect(summary).toMatchObject({ unknownVolume: 2, keptWithoutSearches: 3, droppedNoVolume: 1 });
   });
 
   it("merges variants and folds near me before sorting by total demand", () => {

@@ -5,6 +5,7 @@ import type { KeywordResearchKeyword } from "@shared/keywordResearch";
 import type { SerpResult } from "../../server/features/keyword-research/dataforseo";
 import { coveringPage, evidenceFrom, isArticle, sitePages } from "../../server/features/keyword-research/pageCheck";
 import { meaningStems } from "../../server/features/keyword-research/quality";
+import { parsePage } from "../../server/features/keyword-research/readWebsite";
 
 const organic = (rows: Array<[string, string, string?]>) => rows.map(([domain, url, title], index) => ({ position: index + 1, domain, url, title: title ?? null }));
 const serp = (rows: Array<[string, string, string?]>, extra: Partial<SerpResult> = {}): SerpResult => ({ keyword: "k", locationName: "Matthews,North Carolina,United States", organic: organic(rows), localPack: [], ...extra });
@@ -102,5 +103,30 @@ describe("coverage on the KKC staging site", () => {
 
   it("lets the homepage cover trade-and-place searches", () => {
     expect(page("glass company matthews nc", "city")).toBe("/");
+  });
+});
+
+describe("reading a page in full", () => {
+  it("keeps the whole main content of a real city page, not just its title and first heading", () => {
+    const html = readFileSync(path.join(__dirname, "../fixtures/keyword-research/city-page.html"), "utf8");
+    const page = parsePage(html, "https://glassanddoorpro.com/service-areas/matthews", 60_000);
+    expect(page.textSource).toBe("html");
+    expect(page.h1).toBe("Glass Shower Door Installer in Matthews, NC");
+    expect(page.text.length).toBeGreaterThan(2_500);
+    expect(page.text).toMatch(/frameless/i);
+    expect(page.headings).toContain("Should I choose frameless or semi-frameless?");
+  });
+
+  it("leaves menus and footers out of the content", () => {
+    const page = parsePage("<html><body><nav>Window Repair Door Repair</nav><main><h1>Shower Doors</h1><p>We install shower doors.</p></main><footer>Garage doors</footer></body></html>", "https://x.com/a", 60_000);
+    expect(page.text).toBe("Shower Doors We install shower doors.");
+  });
+
+  it("reads a JavaScript-rendered page from its embedded data, and says so", () => {
+    const data = { page: { title: "Window Repair in Monroe, NC", sections: [{ body: "<p>We repair foggy and broken windows across Monroe and Union County.</p>" }], image: "https://x.com/a.jpg" } };
+    const html = `<html><head><title>Window Repair</title></head><body><div id="root">Loading</div><script type="application/json">${JSON.stringify(data)}</script></body></html>`;
+    const page = parsePage(html, "https://x.com/monroe", 60_000);
+    expect(page.textSource).toBe("embedded");
+    expect(page.text).toBe("Window Repair in Monroe, NC We repair foggy and broken windows across Monroe and Union County.");
   });
 });

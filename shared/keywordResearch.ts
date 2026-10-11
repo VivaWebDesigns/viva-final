@@ -23,18 +23,44 @@ export type KeywordPageType = "service" | "city" | "cost" | "blog";
 /** Who is searching: someone hiring a pro, someone doing it themselves, or someone buying a product. */
 export type KeywordIntent = "service" | "diy" | "shopping";
 
+/**
+ * Where a set of Google Ads numbers came from: the call, the geographic target Google answered for, the months
+ * averaged, the language and the network. Every keyword's numbers point to one of these by id.
+ */
+export interface MeasurementContext {
+  id: string;
+  /** e.g. "Google Ads search volume (DataForSEO)" or "Google Ads keyword ideas (DataForSEO)". */
+  source: string;
+  /** The location asked for and the location code Google answered for. */
+  location: string;
+  locationCode: number | null;
+  /** "en", or "all" when no language was set. */
+  language: string;
+  /** "Google Search" (search partners excluded) or "Google Search and partners". */
+  network: string;
+  /** First and last month averaged, "2025-09" to "2026-08"; null when no keyword had monthly data. */
+  monthsFrom: string | null;
+  monthsTo: string | null;
+  fetchedAt: string;
+}
+
 /** One phrase's own Google Ads measurement, kept as returned when the phrase is grouped under another. */
 export interface RawKeywordMetrics {
+  measurement?: string;
   keyword: string;
   searchVolume: number | null;
   cpc: number | null;
   competition: string | null;
   lowTopOfPageBid: number | null;
   highTopOfPageBid: number | null;
+  /** For a "near me" phrasing: whether its volume is counted in the plain phrase's demand (false when Google grouped it as the same search). */
+  counted?: boolean;
 }
 
 export interface KeywordResearchKeyword {
   keyword: string;
+  /** Id of the measurement (in the summary's measurements) this keyword's volume, CPC, bids and competition came from. */
+  measurement?: string;
   /** Selected service the keyword belongs to, or null when it is related but did not match one service. */
   service: string | null;
   searchVolume: number | null;
@@ -126,14 +152,18 @@ export interface KeywordResearchSummary {
   mergedVariants?: number;
   /** "near me" keywords folded into their plain phrase. */
   foldedNearMe?: number;
-  /** Service phrases kept with unknown volume because Google returned none for them. */
+  /** Keywords kept with unknown volume because Google returned none for them. */
   unknownVolume?: number;
+  /** Keywords for a confirmed service kept although Google reported no searches (none, or zero). */
+  keptWithoutSearches?: number;
   /** False when the difficulty scores could not be pulled; the list is still usable without them. */
   difficultyAvailable?: boolean;
   /** Keywords dropped because they name excluded work. */
   droppedExcluded?: number;
   /** The page plan. Replaces the per-keyword pageCheck output. */
   plan?: ProjectPlan;
+  /** Where the keywords' Google Ads numbers came from, by measurement id. */
+  measurements?: MeasurementContext[];
   pageCheck?: PageCheckSummary;
 }
 
@@ -331,17 +361,27 @@ export interface PageEvidence {
 }
 
 /**
- * Metro numbers of the service a city phrase belongs to, shown beside a city phrase Google reports nothing for. They
- * describe the service in the metro, not the city phrase: the city phrase's own CPC stays "not reported".
+ * Numbers of a related phrase, shown beside a city phrase as a labelled reference. They describe that phrase, never
+ * the city phrase, whose own numbers stay as measured (often not reported). Each metric is its own field.
  */
 export interface ReferenceMetrics {
+  /** The phrase the numbers belong to, or "median of N hiring searches" when basis is "median". */
   keyword: string;
-  cpc: number;
+  /** "metro_phrase": the service searched with the metro city; "median": the median of each field across the service's hiring searches. */
+  basis?: "metro_phrase" | "median";
   searchVolume: number | null;
+  /** Google Ads average CPC. */
+  avgCpc?: number | null;
+  /** Google Ads top-of-page bid range. */
+  lowTopOfPageBid?: number | null;
+  highTopOfPageBid?: number | null;
   /** Google Ads paid-ad competition (LOW, MEDIUM, HIGH). Not organic difficulty. */
   competition: string | null;
-  /** DataForSEO organic ranking difficulty, 0–100. */
+  /** DataForSEO Labs organic ranking difficulty, 0–100, scored for the US. */
   difficulty: number | null;
+  measurement?: MeasurementContext | null;
+  /** Plans before the fields were split: the average CPC. */
+  cpc?: number;
 }
 
 /**
@@ -400,9 +440,27 @@ export interface PagePlan {
   grid?: boolean;
 }
 
+/** One page of the assessed site as read: what it is about, for which services and places, and how much was read. */
+export interface InventoryPage {
+  path: string;
+  title: string;
+  h1: string;
+  /** Words of main content read; 0 when the page was not read (past the read limit or it failed to load). */
+  words: number;
+  textSource: "html" | "embedded" | null;
+  /** service, city (a page for one place), cost, article, or other (home, about, listing pages). */
+  kind: "service" | "city" | "cost" | "article" | "other";
+  /** Confirmed services the page's title, main heading or section headings name. */
+  services: string[];
+  /** Served cities the page's address, title or main heading names. */
+  cities: string[];
+}
+
 export interface ProjectPlan {
   ranAt: string;
   pages: PagePlan[];
+  /** Every page found on the assessed site, as read. Missing on plans before it was added. */
+  inventory?: InventoryPage[];
   /** Keywords held back: relevance uncertain, or no service. */
   unresolved: Array<{ keyword: string; reason: string }>;
   checkedCity: string;
@@ -412,4 +470,8 @@ export interface ProjectPlan {
   costUsd: number;
   /** Page-1 checks DataForSEO failed on; those pages read as unchecked. */
   failedChecks?: number;
+  /** Pages past the page-1 check budget: kept in the plan, read as not checked. */
+  uncheckedPages?: number;
+  /** Keywords with no matched service left unjudged this run (past the review budget). Still on the list. */
+  notJudged?: number;
 }

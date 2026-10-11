@@ -142,7 +142,10 @@ describe("exclusions", () => {
 // The reference case: Glass & Door Pro's shower-door city pages, built on "glass shower door installer + city".
 describe("service × city pages (reference case)", () => {
   const monroe: PageMatch = { status: "live", path: "/service-areas/monroe" };
-  const reference = { keyword: "glass shower doors charlotte nc", cpc: 26.46, searchVolume: 20, competition: "LOW", difficulty: 4 };
+  const reference = {
+    keyword: "glass shower doors charlotte nc", basis: "metro_phrase" as const, searchVolume: 20, avgCpc: 26.46, lowTopOfPageBid: 4, highTopOfPageBid: 27.5, competition: "HIGH", difficulty: null,
+    measurement: { id: "research-volume", source: "Google Ads search volume (DataForSEO)", location: "Charlotte, NC,United States", locationCode: 200517, language: "en", network: "Google Search", monthsFrom: "2025-09", monthsTo: "2026-08", fetchedAt: "2026-10-10T00:00:00Z" },
+  };
   const gridGroup = (page: PageMatch = monroe): DraftGroup => ({
     ...group("city", [planned("glass shower door installer monroe nc", "glass shower doors", "city", { volume: null, cpc: null, city: "Monroe", match: page })], page, "Monroe"),
     target: "glass shower door installer monroe nc", reference,
@@ -153,7 +156,11 @@ describe("service × city pages (reference case)", () => {
       ["https://x.com/service-areas/monroe", "https://x.com/service-areas/charlotte", "https://x.com/services/frameless-showers", "https://x.com/service-areas", "https://x.com/service-areas/stallings"],
       new Map([
         ["https://x.com/service-areas/stallings", "Glass Shower Door Installation in Stallings, NC"],
-        ["https://x.com/service-areas/monroe", "Glass Shower Door Installation in Monroe, NC"],
+        ["https://x.com/service-areas/monroe", {
+          title: "Glass Shower Door Installation in Monroe, NC", h1: "Glass Shower Door Installer in Monroe, NC", textSource: "html" as const,
+          headings: ["Glass Shower Door Installer in Monroe, NC", "Frequently Asked Questions", "Should I choose frameless or semi-frameless?"],
+          text: "Custom glass shower doors in Monroe. We install frameless and semi-frameless shower doors measured to your opening.",
+        }],
         ["https://x.com/service-areas/charlotte", "Glass Shower Door Installation in Charlotte, NC"],
         ["https://x.com/services/frameless-showers", "Frameless Glass Shower Doors"],
       ]),
@@ -170,6 +177,8 @@ describe("service × city pages (reference case)", () => {
     expect(covering("glass replacement stallings nc")).toBeNull();
     // Variants of the page's subject belong on it; a different service sharing its common words does not.
     expect(covering("frameless shower doors monroe nc")).toBe("/service-areas/monroe");
+    // The same search with no content saying the page covers it is not matched to it.
+    expect(covering("frameless shower doors charlotte nc")).toBeNull();
     expect(covering("sliding glass door repair monroe nc")).toBeNull();
     // "stall" shares a stem with Stallings; it does not name the city.
     expect(coveringPage({ ...row("glass shower stall", 50, 2), service: "glass shower enclosures" }, pages, context)).toBeNull();
@@ -183,7 +192,9 @@ describe("service × city pages (reference case)", () => {
     expect(result.mainKeyword).toBe("glass shower door installer monroe nc");
     const text = result.reasons.join(" ");
     expect(text).toMatch(/not reported by Google Ads/);
-    expect(text).toMatch(/metro reference CPC: \$26\.46 from "glass shower doors charlotte nc", paid-ad competition low, organic difficulty 4\. City-phrase CPC: not reported/);
+    // Each metric separate, with the exact phrase, target, months, language and network; never as the city phrase's own.
+    expect(text).toContain('reference, not measured for this phrase: "glass shower doors charlotte nc" (Google Ads search volume (DataForSEO); Charlotte, NC,United States [200517]; 2025-09 to 2026-08; language en; Google Search): average CPC $26.46; top-of-page bid $4.00 to $27.50; paid-ad competition high; organic difficulty (US) not reported.');
+    expect(text).toContain('"glass shower door installer monroe nc" itself: not reported searches, average CPC not reported, top-of-page bid not reported');
     expect(text).not.toMatch(/too small/);
   });
 

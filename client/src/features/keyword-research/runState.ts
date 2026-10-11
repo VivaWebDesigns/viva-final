@@ -2,7 +2,7 @@ import type { KeywordResearchProject } from "@shared/schema";
 import type { ProjectRunStep } from "@shared/keywordResearch";
 
 // Matches the server: a run still "running" after this long was interrupted and is never resubmitted on its own.
-const STALE_RUN_MS = 20 * 60 * 1000;
+const STALE_RUN_MS = 30 * 60 * 1000;
 
 /** Whether a background step is running, failed, or was interrupted, for the card that started it. */
 export function runState(project: KeywordResearchProject, step: ProjectRunStep) {

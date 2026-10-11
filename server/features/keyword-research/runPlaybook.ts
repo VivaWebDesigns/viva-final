@@ -1,13 +1,12 @@
-import { keywordDemand, keywordScore, type KeywordPlaybook, type KeywordResearchKeyword } from "@shared/keywordResearch";
+import { keywordDemand, keywordScore, type KeywordPlaybook, type KeywordResearchKeyword, type MeasurementContext } from "@shared/keywordResearch";
 import type { KeywordResearchProject } from "@shared/schema";
 import {
   fetchKeywordDifficulty, fetchRankedKeywords, fetchSearchHistory, fetchSearchIntent, fetchSearchVolume, KeywordDataError, searchAreas,
   type RankedKeyword,
 } from "./dataforseo";
 import { applySearchIntent, classifyKeyword, cleanKeyword, excludedWork, isJunkKeyword } from "./keywords";
-import { NICHE_CPC } from "@shared/pagePlan";
 import { competitorProfile, competitorSearches, localize, placeIndex, RISING_TREND, yearOverYear, type CompetitorSearch } from "./playbook";
-import { mergeCloseVariants, sameSearch } from "./quality";
+import { mergeCloseVariants, rawMetrics, sameSearch } from "./quality";
 import { checkRelevance } from "./suggestServices";
 
 // Caps that keep one run near $1: Google Ads takes 1,000 keywords per task.
@@ -31,7 +30,7 @@ function bestPerDomain(lists: Array<Array<{ domain: string; position: number }>>
  * stripped, kept only when they match a confirmed service and are searched in the client's area. Also marks which
  * existing keywords competitors rank for, which nobody does, and which are searched more than a year ago.
  */
-export async function buildPlaybook(project: KeywordResearchProject): Promise<{ keywords: KeywordResearchKeyword[]; playbook: KeywordPlaybook }> {
+export async function buildPlaybook(project: KeywordResearchProject): Promise<{ keywords: KeywordResearchKeyword[]; playbook: KeywordPlaybook; measurement: MeasurementContext }> {
   const scan = project.competitors;
   if (!scan?.picks.length) throw new KeywordDataError("Pick at least one competitor first.");
   let cost = 0;
@@ -67,7 +66,7 @@ export async function buildPlaybook(project: KeywordResearchProject): Promise<{ 
   const relevance = await checkRelevance(project.trade, services, project.exclusions, candidates.slice(0, MAX_CLAUDE_KEYWORDS).map(candidate => candidate.head));
 
   // Local demand decides: a competitor's keyword nobody searches for in the client's area is dropped.
-  const local = await fetchSearchVolume(candidates.map(candidate => candidate.head), project.locationName);
+  const local = await fetchSearchVolume(candidates.map(candidate => candidate.head), project.locationName, "playbook-volume");
   cost += local.cost;
   const localRows = new Map(local.metrics.map(row => [cleanKeyword(row.keyword), row]));
   const fresh: KeywordResearchKeyword[] = [];
@@ -78,24 +77,22 @@ export async function buildPlaybook(project: KeywordResearchProject): Promise<{ 
     // Not judged (past the cap) or judged not the client's work: dropped.
     if (!check || check.verdict === "no") continue;
     const name = check.verdict === "yes" ? check.service : null;
-    if (!row?.searchVolume) {
-      // No local number is not zero: a niche search advertisers pay for stays visible, as a decision rather than a plan item.
-      if (name && (candidate.cpc ?? 0) >= NICHE_CPC) review.push({ keyword: candidate.head, searchVolume: null, cpc: candidate.cpc, competitors: candidate.competitors, reason: "no_local_data", note: check.reason });
-      continue;
-    }
     if (!name) {
-      review.push({ keyword: candidate.head, searchVolume: row.searchVolume, cpc: row.cpc, competitors: candidate.competitors, reason: "uncertain", note: check.reason });
+      review.push({ keyword: candidate.head, searchVolume: row?.searchVolume ?? null, cpc: row?.cpc ?? null, competitors: candidate.competitors, reason: "uncertain", note: check.reason });
       continue;
     }
-    const twin = keywords.find(existing => sameSearch(existing, { ...row, keyword: candidate.head }));
+    // No local number is not zero: the client's work stays a candidate, with its local numbers not reported.
+    const local = row ?? { keyword: candidate.head, searchVolume: null, cpc: null, competition: null, competitionIndex: null, lowTopOfPageBid: null, highTopOfPageBid: null, measurement: "playbook-volume" };
+    const twin = row ? keywords.find(existing => sameSearch(existing, { ...local, keyword: candidate.head })) : undefined;
     if (twin) {
-      // Google counts it as the same search as a keyword already on the list.
+      // Google counts it as the same search as a keyword already on the list; its own numbers are kept beside it.
       twin.variants = [...new Set([...(twin.variants ?? []), candidate.head])];
+      twin.variantMetrics = [...(twin.variantMetrics ?? []).filter(item => item.keyword !== candidate.head), rawMetrics({ ...local, keyword: candidate.head })];
       twin.competitors = bestPerDomain([twin.competitors ?? [], candidate.competitors]);
       continue;
     }
     fresh.push({
-      ...row, keyword: candidate.head, nearMeVolume: null, variants: [], service: name, source: "competitor",
+      ...local, keyword: candidate.head, nearMeVolume: null, variants: [], service: name, source: "competitor",
       competitors: candidate.competitors, relevance: check, ...classifyKeyword(candidate.head, project),
     });
   }
@@ -127,6 +124,7 @@ export async function buildPlaybook(project: KeywordResearchProject): Promise<{ 
   const money = all.filter(row => row.pageType !== "blog" && (keywordDemand(row) ?? 0) > 0);
   return {
     keywords: all,
+    measurement: local.measurement,
     playbook: {
       ranAt: new Date().toISOString(),
       domains: scan.picks.map(domain => competitorProfile(domain, ranked.get(domain) ?? [])),

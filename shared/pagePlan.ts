@@ -34,6 +34,20 @@ export interface DraftGroup {
 }
 
 const value = (row: KeywordResearchKeyword) => keywordScore(row);
+const money = (amount: number | null | undefined) => (amount == null ? "not reported" : `$${amount.toFixed(2)}`);
+const bids = (low: number | null | undefined, high: number | null | undefined) => (low == null && high == null ? "not reported" : `${money(low)} to ${money(high)}`);
+
+/** A related phrase's numbers as a labelled reference, each metric separate, with its source; then the city phrase's own. */
+export function describeReference(ref: ReferenceMetrics, own: KeywordResearchKeyword) {
+  const from = ref.basis === "median" ? ref.keyword : `"${ref.keyword}"`;
+  const where = ref.measurement
+    ? ` (${ref.measurement.source}; ${ref.measurement.location}${ref.measurement.locationCode ? ` [${ref.measurement.locationCode}]` : ""}; ${ref.measurement.monthsFrom ?? "?"} to ${ref.measurement.monthsTo ?? "?"}; language ${ref.measurement.language}; ${ref.measurement.network})`
+    : "";
+  const avg = ref.avgCpc ?? ref.cpc ?? null;
+  return `reference, not measured for this phrase: ${from}${where}: average CPC ${money(avg)}; top-of-page bid ${bids(ref.lowTopOfPageBid, ref.highTopOfPageBid)}; `
+    + `paid-ad competition ${ref.competition?.toLowerCase() ?? "not reported"}; organic difficulty (US) ${ref.difficulty ?? "not reported"}. `
+    + `"${own.keyword}" itself: ${own.searchVolume ?? "not reported"} searches, average CPC ${money(own.cpc)}, top-of-page bid ${bids(own.lowTopOfPageBid, own.highTopOfPageBid)}`;
+}
 
 /** Sum of searches × CPC over keywords with known numbers, and how many keywords have unknown value. */
 export function groupValue(rows: KeywordResearchKeyword[]) {
@@ -137,10 +151,7 @@ export function planPage(group: DraftGroup, input: {
   if (grid) reasons.push(`confirmed service × served city: target phrase "${main.keyword}"`);
   reasons.push(demandKnown ? `${totals.demand!.toLocaleString()} searches/mo across ${rows.length} keyword${rows.length === 1 ? "" : "s"} (${input.demandArea})` : `searches not reported by Google Ads for these phrases (${input.demandArea})`);
   if (totals.unknownValue) reasons.push(`${totals.unknownValue} keyword${totals.unknownValue === 1 ? "'s" : "s'"} CPC not reported, so value is unknown for ${totals.unknownValue === 1 ? "it" : "them"}`);
-  if (group.reference) {
-    const ref = group.reference;
-    reasons.push(`metro reference CPC: $${ref.cpc.toFixed(2)} from ${ref.keyword.startsWith("median of") ? ref.keyword : `"${ref.keyword}"`}${ref.competition ? `, paid-ad competition ${ref.competition.toLowerCase()}` : ""}${ref.difficulty != null ? `, organic difficulty ${ref.difficulty}` : ""}. City-phrase CPC: ${main.cpc != null ? `$${main.cpc.toFixed(2)}` : "not reported"}`);
-  }
+  if (group.reference) reasons.push(describeReference(group.reference, main));
   if (evidence) {
     const map = evidence.clientMapPosition != null ? `; client #${evidence.clientMapPosition} in the map pack` : evidence.mapPack ? "; client not in the map pack" : "";
     reasons.push(`checked "${evidence.keyword}" from ${evidence.city}: ${evidence.smallSites} small sites, ${evidence.forums} forum threads, ${evidence.unknownSites} unknown in the top 10${evidence.clientPosition ? `; client #${evidence.clientPosition} in regular results` : "; client not in the top 20 regular results"}${map}`);
@@ -226,7 +237,7 @@ export function comparePages(a: PagePlan, b: PagePlan) {
     || Number(b.priorityService) - Number(a.priorityService)
     || KIND_RANK[a.kind] - KIND_RANK[b.kind]
     || b.value - a.value
-    || (b.reference?.cpc ?? 0) - (a.reference?.cpc ?? 0)
+    || (b.reference?.avgCpc ?? b.reference?.cpc ?? 0) - (a.reference?.avgCpc ?? a.reference?.cpc ?? 0)
     || OPPORTUNITY_RANK[a.opportunity] - OPPORTUNITY_RANK[b.opportunity]
     || a.unknownValue - b.unknownValue;
 }

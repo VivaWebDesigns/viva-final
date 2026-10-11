@@ -128,7 +128,7 @@ function PageRow({ page, observations, projectId, onUpdate }: { page: PagePlan; 
           </span>
           <span className="mt-1 block text-xs text-gray-500">
             {KIND_LABELS[page.kind]} · {page.service}{page.city ? ` · ${page.city}` : ""} · {page.keywords.length} keyword{page.keywords.length === 1 ? "" : "s"}
-            {" "}· ${page.value.toLocaleString()}/mo{page.unknownValue ? ` + ${page.unknownValue} with unknown value` : ""}
+            {" "}· {page.value || !page.unknownValue ? `$${page.value.toLocaleString()}/mo (searches × avg CPC)` : "value unknown"}{page.unknownValue ? ` · ${page.unknownValue} keyword${page.unknownValue === 1 ? "" : "s"} not reported` : ""}
             {" "}· {OPPORTUNITY_LABELS[page.opportunity]} · {CONFIDENCE_LABELS[page.confidence]}
           </span>
           {page.evidence && (
@@ -220,6 +220,8 @@ export default function PlanCard({ project, onUpdate }: { project: KeywordResear
               {plan.siteNote && ` ${plan.siteNote}`}
               {" "}Each page's check covers one keyword from one city, not everything under it.
               {!!plan.failedChecks && ` ${plan.failedChecks} page-1 checks failed at DataForSEO; those pages read as not checked.`}
+              {!!plan.uncheckedPages && ` ${plan.uncheckedPages} pages were past the page-1 check budget; they stay in the plan as not checked.`}
+              {!!plan.notJudged && ` ${plan.notJudged.toLocaleString()} keywords with no matched service were not judged this run; they stay on the keyword list.`}
             </p>
             <div className="grid gap-3 sm:grid-cols-5">
               {ACTIONS.map(name => (
@@ -239,6 +241,22 @@ export default function PlanCard({ project, onUpdate }: { project: KeywordResear
             <ol className="space-y-2">
               {visible.map(page => <PageRow key={page.id} page={page} observations={project.observations} projectId={project.id} onUpdate={onUpdate} />)}
             </ol>
+            {!!plan.inventory?.length && (
+              <details className="rounded-md border p-3 text-xs text-gray-600">
+                <summary className="cursor-pointer text-sm font-semibold text-gray-900">
+                  Site inventory ({plan.inventory.length} pages, {plan.inventory.filter(page => page.words).length} read in full)
+                </summary>
+                <ul className="mt-2 max-h-80 space-y-1 overflow-y-auto">
+                  {plan.inventory.map(page => (
+                    <li key={page.path}>
+                      <span className="font-medium text-gray-800">{page.path}</span> · {page.kind}
+                      {page.services.length ? ` · ${page.services.join(", ")}` : ""}{page.cities.length ? ` · ${page.cities.join(", ")}` : ""}
+                      {" "}· {page.words ? `${page.words.toLocaleString()} words${page.textSource === "embedded" ? " (from embedded data)" : ""}` : "not read"}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
             {plan.unresolved.length > 0 && (
               <section className="space-y-1">
                 <h3 className="text-sm font-semibold text-gray-900">Held back ({plan.unresolved.length})</h3>

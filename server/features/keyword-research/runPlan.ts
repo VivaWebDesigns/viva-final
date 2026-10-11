@@ -1,8 +1,8 @@
 import { CITY_PAGES_REWARDED_AT, comparePages, draftGroups, mainKeyword, planPage, type DraftGroup, type PlannedKeyword } from "@shared/pagePlan";
 import {
   keywordDemand, keywordScore,
-  type KeywordResearchKeyword, type KeywordResearchService, type KeywordResearchSummary, type PageEvidence, type PageKind, type PageMatch, type PagePlan,
-  type ReferenceMetrics, type RelevanceCheck,
+  type InventoryPage, type KeywordResearchKeyword, type KeywordResearchService, type KeywordResearchSummary, type PageEvidence, type PageKind, type PageMatch, type PagePlan,
+  type MeasurementContext, type ReferenceMetrics, type RelevanceCheck,
 } from "@shared/keywordResearch";
 import type { KeywordResearchProject } from "@shared/schema";
 import { isNotCompetitor } from "./competitors";
@@ -11,24 +11,25 @@ import { clientDomainOf, parseCity, searchLocations, tolerantSearches } from "./
 import { excludedWork, stateName } from "./keywords";
 import { coveringPage, evidenceFrom, isArticle, isForum, isPlacePage, sitePages, type SitePage } from "./pageCheck";
 import { meaningStems } from "./quality";
-import { listSitePages, readPageHeadlines } from "./readWebsite";
+import { listSitePages, readPageContent } from "./readWebsite";
 import { checkRelevance, reviewGroups, suggestCityPhrases } from "./suggestServices";
 
-// Keywords judged for relevance per run, by value: past this they stay on the list but outside the plan.
-const MAX_RELEVANCE = 900;
-const RELEVANCE_PARALLEL = 3;
+// Keywords with no matched service judged for relevance per run, by value: past this they stay on the list, counted
+// as not judged. Keywords matched to a confirmed service are always judged, whatever Google reports for them.
+const MAX_UNMATCHED = 600;
+const RELEVANCE_PARALLEL = 5;
 const RELEVANCE_CHUNK = 150;
-// Keywords Google Ads reports no searches or CPC for, judged for relevance anyway: not reported is not zero.
-const MAX_NOT_REPORTED = 200;
 // Pages whose main keyword is checked on page 1, existing pages first. About $0.004 each.
 const MAX_CHECKS = 150;
 const CHECK_ATTEMPTS = 3;
 // Proposed pages sent to Claude's split/merge review.
 const MAX_REVIEW = 60;
-const HEADLINE_LIMIT = 150;
+// Pages read in full for the inventory; past this they are matched by their URL alone and listed as not read.
+const PAGE_READ_LIMIT = 150;
 // A proposed service page whose page 1 holds this many articles, guides or forum threads is a blog topic.
 const ARTICLES_FOR_BLOG = 6;
 const QUESTION_STEMS = meaningStems("how what why when where which who can does do is are should will vs best");
+const ACTION_WORDS = meaningStems("install installation installer repair repairs replace replacement service fix custom professional new");
 
 const byValue = (a: KeywordResearchKeyword, b: KeywordResearchKeyword) =>
   (keywordScore(b) ?? -1) - (keywordScore(a) ?? -1) || (keywordDemand(b) ?? 0) - (keywordDemand(a) ?? 0);
@@ -56,16 +57,31 @@ async function relevanceFor(project: KeywordResearchProject, rows: KeywordResear
  * median CPC across its hiring searches with at least 10 searches a month (not product or how-to searches), so one
  * brand or outlier keyword does not set it.
  */
-function referenceMetrics(rows: KeywordResearchKeyword[], service: string, metroCity: string): ReferenceMetrics | null {
+function referenceMetrics(rows: KeywordResearchKeyword[], service: string, metroCity: string, measurements: Map<string, MeasurementContext>): ReferenceMetrics | null {
   const mine = rows.filter(row => row.cpc != null && (row.service === service || row.relevance?.service === service));
-  const byDemand = (a: KeywordResearchKeyword, b: KeywordResearchKeyword) => (keywordDemand(b) ?? -1) - (keywordDemand(a) ?? -1) || (b.cpc ?? 0) - (a.cpc ?? 0);
+  // The most-searched metro phrase, never the one with the highest number.
+  const byDemand = (a: KeywordResearchKeyword, b: KeywordResearchKeyword) => (keywordDemand(b) ?? -1) - (keywordDemand(a) ?? -1) || a.keyword.localeCompare(b.keyword);
   const best = mine.filter(row => row.keyword.includes(metroCity.toLowerCase())).sort(byDemand)[0];
-  if (best) return { keyword: best.keyword, cpc: best.cpc!, searchVolume: keywordDemand(best), competition: best.competition, difficulty: best.difficulty ?? null };
-  const hiring = mine.filter(row => row.source !== "grid" && row.pageType === "service" && row.intent !== "shopping" && row.intent !== "diy" && (keywordDemand(row) ?? 0) >= 10)
-    .sort((a, b) => a.cpc! - b.cpc!);
+  if (best) {
+    return {
+      keyword: best.keyword, basis: "metro_phrase", searchVolume: best.searchVolume, avgCpc: best.cpc, lowTopOfPageBid: best.lowTopOfPageBid,
+      highTopOfPageBid: best.highTopOfPageBid, competition: best.competition, difficulty: best.difficulty ?? null,
+      measurement: best.measurement ? measurements.get(best.measurement) ?? null : null,
+    };
+  }
+  const hiring = mine.filter(row => row.source !== "grid" && row.pageType === "service" && row.intent !== "shopping" && row.intent !== "diy" && (keywordDemand(row) ?? 0) >= 10);
   if (!hiring.length) return null;
-  const middle = hiring[Math.floor((hiring.length - 1) / 2)];
-  return { keyword: `median of ${hiring.length} hiring searches`, cpc: middle.cpc!, searchVolume: null, competition: null, difficulty: null };
+  const median = (values: Array<number | null | undefined>) => {
+    const known = values.filter((value): value is number => value != null).sort((a, b) => a - b);
+    return known.length ? known[Math.floor((known.length - 1) / 2)] : null;
+  };
+  const ids = [...new Set(hiring.map(row => row.measurement).filter(Boolean))];
+  return {
+    keyword: `median of ${hiring.length} hiring searches`, basis: "median", searchVolume: null,
+    avgCpc: median(hiring.map(row => row.cpc)), lowTopOfPageBid: median(hiring.map(row => row.lowTopOfPageBid)),
+    highTopOfPageBid: median(hiring.map(row => row.highTopOfPageBid)), competition: null, difficulty: null,
+    measurement: ids.length === 1 ? measurements.get(ids[0]!) ?? null : null,
+  };
 }
 
 /** Blog keywords of one service clustered by shared topic words, so "how to fix foggy windows" and "fix foggy window" share a post. */
@@ -132,11 +148,13 @@ export async function runPlan(project: KeywordResearchProject): Promise<{ keywor
     }
   }
   const volumes = fresh.length || probes.size
-    ? await fetchSearchVolume([...fresh, ...probes.keys()], project.locationName).catch(error => {
+    ? await fetchSearchVolume([...fresh, ...probes.keys()], project.locationName, "plan-volume").catch(error => {
       if (!(error instanceof KeywordDataError)) throw error;
-      return { metrics: [], cost: 0 };
+      return { metrics: [], cost: 0, measurement: null };
     })
-    : { metrics: [], cost: 0 };
+    : { metrics: [], cost: 0, measurement: null };
+  const measurements = new Map((project.summary?.measurements ?? []).filter(item => item.id !== "plan-volume").map(item => [item.id, item]));
+  if (volumes.measurement) measurements.set(volumes.measurement.id, volumes.measurement);
   cost += volumes.cost;
   const metricsOf = new Map(volumes.metrics.map(row => [row.keyword.toLowerCase(), row]));
   const probeRows: KeywordResearchKeyword[] = [...probes].flatMap(([keyword, service]) => {
@@ -146,7 +164,7 @@ export async function runPlan(project: KeywordResearchProject): Promise<{ keywor
   for (const keyword of fresh) {
     const metrics = metricsOf.get(keyword);
     keywords.push({
-      keyword, service: grid.get(keyword)!.service,
+      keyword, service: grid.get(keyword)!.service, measurement: metrics ? "plan-volume" : undefined,
       searchVolume: metrics?.searchVolume ?? null, cpc: metrics?.cpc ?? null, competition: metrics?.competition ?? null, competitionIndex: metrics?.competitionIndex ?? null,
       lowTopOfPageBid: metrics?.lowTopOfPageBid ?? null, highTopOfPageBid: metrics?.highTopOfPageBid ?? null,
       pageType: "city", source: "grid",
@@ -161,18 +179,29 @@ export async function runPlan(project: KeywordResearchProject): Promise<{ keywor
       if (work) unresolved.push({ keyword: row.keyword, reason: `names excluded work (${work})` });
       return !work;
     });
-  // Keywords Google reports nothing for are judged too, beside the top keywords by value.
-  const notReported = pool.filter(row => keywordDemand(row) == null && row.cpc == null).slice(0, MAX_NOT_REPORTED);
-  const reported = pool.filter(row => (keywordDemand(row) ?? 0) > 0 || (row.cpc ?? 0) > 0).sort(byValue);
-  const candidates = [...reported.slice(0, MAX_RELEVANCE - notReported.length), ...notReported];
+  // Every candidate for a confirmed service is judged, measured or not; the review budget caps only the rest.
+  const unmatched = pool.filter(row => !row.service).sort(byValue);
+  const candidates = [...pool.filter(row => row.service), ...unmatched.slice(0, MAX_UNMATCHED)];
+  const notJudged = unmatched.length - Math.min(unmatched.length, MAX_UNMATCHED);
   const relevance = await relevanceFor(project, candidates, serviceNames);
   for (const row of keywords) row.relevance = relevance.get(row.keyword) ?? row.relevance;
 
   // Pages on the assessed site. Without a readable site, nothing is claimed to be missing.
   const urls = project.website ? await listSitePages(project.website) : null;
   let pages: SitePage[] = [];
-  if (urls) pages = sitePages(urls, await readPageHeadlines(urls.slice(0, HEADLINE_LIMIT)));
+  if (urls) pages = sitePages(urls, await readPageContent(urls.slice(0, PAGE_READ_LIMIT)));
   const cityStems = new Map(servedCities.map(place => [place.city, meaningStems(place.city)] as const));
+  // The inventory: each page by the services and served cities it names, and its kind.
+  const inventory: InventoryPage[] = pages.map(page => {
+    const named = new Set([...meaningStems(page.path.replace(/[^a-zA-Z0-9]+/g, " ")), ...meaningStems(`${page.title} ${page.h1}`)]);
+    const cities = servedCities.filter(place => [...meaningStems(place.city)].every(stem => named.has(stem))).map(place => place.city);
+    const kind: InventoryPage["kind"] = page.article ? "article" : page.aboutCost ? "cost" : page.placePage && cities.length ? "city"
+      : serviceNames.some(service => [...meaningStems(service)].every(stem => page.stems.has(stem))) ? "service" : "other";
+    return {
+      path: page.path, title: page.title, h1: page.h1, words: page.words, textSource: page.textSource, kind, cities,
+      services: serviceNames.filter(service => [...meaningStems(service)].filter(stem => !ACTION_WORDS.has(stem)).every(stem => page.stems.has(stem))),
+    };
+  });
   const allCityStems = new Set([...cityStems.values()].flatMap(stems => [...stems]));
   const context = {
     // A page for one place is never a service's own page, whatever the intake matched it to.
@@ -236,7 +265,7 @@ export async function runPlan(project: KeywordResearchProject): Promise<{ keywor
   const clusters = topicClusters(planned.filter(item => item.kind === "blog").map(item => ({ keyword: item.row.keyword, service: item.service })), serviceStems);
   let groups = draftGroups(planned, servicePages, keyword => clusters.get(keyword) ?? keyword);
   // A page holding grid phrases is checked for its own service's target phrase, with that service's metro numbers beside it.
-  const references = new Map(serviceNames.map(service => [service, referenceMetrics([...keywords, ...probeRows], service, project.city)] as const));
+  const references = new Map(serviceNames.map(service => [service, referenceMetrics([...keywords, ...probeRows], service, project.city, measurements)] as const));
   for (const group of groups) {
     // A page for one place is a city page, whatever kind of keyword reached it first.
     if (group.page.path && isPlacePage(group.page.path)) {
@@ -254,7 +283,7 @@ export async function runPlan(project: KeywordResearchProject): Promise<{ keywor
     // The best metro reference among the services the page serves: a service searched with the metro city beats a median.
     group.reference = [...new Set(group.members.map(member => member.service))].map(service => references.get(service) ?? null)
       .filter((ref): ref is ReferenceMetrics => !!ref)
-      .sort((a, b) => Number(a.keyword.startsWith("median of")) - Number(b.keyword.startsWith("median of")) || (b.searchVolume ?? -1) - (a.searchVolume ?? -1))[0] ?? null;
+      .sort((a, b) => Number(a.basis === "median") - Number(b.basis === "median") || (b.searchVolume ?? -1) - (a.searchVolume ?? -1) || a.keyword.localeCompare(b.keyword))[0] ?? null;
   }
 
   // Claude's split/merge pass over pages that do not exist yet; existing pages keep their keywords.
@@ -370,6 +399,7 @@ export async function runPlan(project: KeywordResearchProject): Promise<{ keywor
     summary: {
       ...(project.summary ?? { ideasReturned: 0, keptKeywords: keywords.length, droppedAsJunk: 0, droppedNoVolume: 0 }),
       pageCheck: undefined,
+      measurements: [...measurements.values()],
       plan: {
         ranAt: new Date().toISOString(),
         pages: plans,
@@ -378,8 +408,11 @@ export async function runPlan(project: KeywordResearchProject): Promise<{ keywor
         siteKind,
         sitePages: urls?.length ?? null,
         siteNote,
+        inventory,
         costUsd: Number(cost.toFixed(4)),
         failedChecks,
+        uncheckedPages: Math.max(0, groups.length - toCheck.length),
+        notJudged,
       },
     },
   };

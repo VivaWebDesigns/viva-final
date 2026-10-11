@@ -249,8 +249,8 @@ router.post("/projects/:id/research", async (req, res) => {
 
     const trade = cleanKeyword(project.trade);
     const exactList = [...new Set([trade, ...selectedNames].flatMap(name => serviceVariants(name, project.city)))];
-    const exact = await fetchSearchVolume(exactList, project.locationName);
-    const ideas = await fetchKeywordIdeas([...new Set([trade, ...selectedNames])], project.locationName);
+    const exact = await fetchSearchVolume(exactList, project.locationName, "research-volume");
+    const ideas = await fetchKeywordIdeas([...new Set([trade, ...selectedNames])], project.locationName, "research-ideas");
     const { keywords, summary } = buildKeywordList([...exact.metrics, ...ideas.metrics], {
       services: selectedNames,
       trade: project.trade,
@@ -275,6 +275,7 @@ router.post("/projects/:id/research", async (req, res) => {
       applySearchIntent(keywords, intents.value.intent);
     }
     summary.difficultyAvailable = scores.status === "fulfilled";
+    summary.measurements = [exact.measurement, ideas.measurement];
     // Competitors were found from the old keyword list, so they are cleared with it.
     const updated = await updateProject(project.id, { services, keywords, summary, competitors: null, status: "researched", researchedAt: new Date() }, exact.cost + ideas.cost + labsCost);
     return res.json(updated);
@@ -343,8 +344,11 @@ router.post("/projects/:id/playbook", async (req, res) => {
     if (runBusy(project)) return res.status(409).json({ message: "Another step is still running for this project." });
     const competitors = project.competitors;
     return res.status(202).json(await startRun(project, "playbook", async () => {
-      const { keywords, playbook } = await buildPlaybook(project);
-      const summary = project.summary && { ...project.summary, keptKeywords: keywords.length };
+      const { keywords, playbook, measurement } = await buildPlaybook(project);
+      const summary = project.summary && {
+        ...project.summary, keptKeywords: keywords.length,
+        measurements: [...(project.summary.measurements ?? []).filter(item => item.id !== measurement?.id), ...(measurement ? [measurement] : [])],
+      };
       return { changes: { keywords, summary, competitors: { ...competitors, playbook } }, cost: playbook.costUsd };
     }));
   } catch (error) {

@@ -3,7 +3,7 @@ import type { ProjectRunStep } from "@shared/keywordResearch";
 import { updateProject } from "./repository";
 
 /** A run still marked "running" after this long was interrupted (a deploy or restart). It is never resubmitted on its own: the paid work is not repeated without someone asking. */
-export const STALE_RUN_MS = 20 * 60 * 1000;
+export const STALE_RUN_MS = 30 * 60 * 1000;
 
 type Changes = Parameters<typeof updateProject>[1];
 

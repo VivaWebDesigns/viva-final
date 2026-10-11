@@ -14,7 +14,7 @@ export interface QualityKeyword extends KeywordMetrics {
 
 /** A phrase's own measurement, as Google Ads returned it. */
 export function rawMetrics(row: KeywordMetrics): RawKeywordMetrics {
-  return { keyword: row.keyword, searchVolume: row.searchVolume, cpc: row.cpc, competition: row.competition, lowTopOfPageBid: row.lowTopOfPageBid, highTopOfPageBid: row.highTopOfPageBid };
+  return { measurement: row.measurement, keyword: row.keyword, searchVolume: row.searchVolume, cpc: row.cpc, competition: row.competition, lowTopOfPageBid: row.lowTopOfPageBid, highTopOfPageBid: row.highTopOfPageBid };
 }
 
 const NEAR_ME = /\b(near me|nearby|close to me|in my area)\b/g;
@@ -64,10 +64,11 @@ function shortestFirst(a: { keyword: string }, b: { keyword: string }) {
 }
 
 /**
- * Merges each group of close variants into one phrasing: a phrase asked for by name (`preferred`) when the group has
- * one, otherwise the shortest. The others are listed as its variants with their own measurements kept unchanged.
+ * Merges each group of close variants into one phrasing: the one `priority` ranks highest (a phrase asked for by name,
+ * then one naming a confirmed service), otherwise the shortest. The others are listed as its variants with their own
+ * measurements kept unchanged.
  */
-export function mergeCloseVariants(rows: KeywordMetrics[], preferred: Set<string> = new Set()): { rows: QualityKeyword[]; merged: number } {
+export function mergeCloseVariants(rows: KeywordMetrics[], priority: (keyword: string) => number = () => 0): { rows: QualityKeyword[]; merged: number } {
   const groups = new Map<string, KeywordMetrics[]>();
   for (const row of rows) {
     if (row.searchVolume == null || row.cpc == null) continue;
@@ -78,7 +79,7 @@ export function mergeCloseVariants(rows: KeywordMetrics[], preferred: Set<string
   const absorbed = new Map<string, string>();
   for (const group of groups.values()) {
     if (group.length < 2) continue;
-    const ordered = [...group].sort((a, b) => Number(preferred.has(b.keyword)) - Number(preferred.has(a.keyword)) || shortestFirst(a, b));
+    const ordered = [...group].sort((a, b) => priority(b.keyword) - priority(a.keyword) || shortestFirst(a, b));
     for (let index = 0; index < ordered.length; index += 1) {
       const row = ordered[index];
       if (absorbed.has(row.keyword)) continue;
@@ -128,10 +129,12 @@ export function foldNearMe(rows: QualityKeyword[]): { rows: QualityKeyword[]; fo
       };
       byKeyword.set(head, target);
     }
-    const near = [rawMetrics(row), ...(row.variantMetrics ?? [])];
-    target.nearMeMetrics = [...(target.nearMeMetrics ?? []), ...near];
-    if (row.searchVolume == null || (row.searchVolume === target.searchVolume && row.cpc === target.cpc)) continue;
-    target.nearMeVolume = (target.nearMeVolume ?? 0) + row.searchVolume;
+    // Only the near me row's own volume counts; its merged variants are the same search, and a near me row with the
+    // plain phrase's exact numbers is the plain phrase's search.
+    const counted = row.searchVolume != null && !(row.searchVolume === target.searchVolume && row.cpc === target.cpc);
+    target.nearMeMetrics = [...(target.nearMeMetrics ?? []), { ...rawMetrics(row), counted }, ...(row.variantMetrics ?? []).map(item => ({ ...item, counted: false }))];
+    if (!counted) continue;
+    target.nearMeVolume = (target.nearMeVolume ?? 0) + row.searchVolume!;
   }
   return { rows: [...byKeyword.values()], folded };
 }

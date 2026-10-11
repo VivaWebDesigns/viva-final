@@ -1,3 +1,4 @@
+import type { MeasurementContext } from "@shared/keywordResearch";
 const API = "https://api.dataforseo.com/v3/keywords_data/google_ads";
 const LABS_API = "https://api.dataforseo.com/v3/dataforseo_labs/google";
 const SERP_API = "https://api.dataforseo.com/v3/serp/google/organic";
@@ -9,6 +10,8 @@ const IDEAS_SEED_BATCH = 20;
 const DIFFICULTY_BATCH = 1000;
 
 export interface KeywordMetrics {
+  /** Id of the measurement the numbers came from. */
+  measurement?: string;
   keyword: string;
   searchVolume: number | null;
   cpc: number | null;
@@ -20,6 +23,9 @@ export interface KeywordMetrics {
 
 interface GoogleAdsKeywordRow {
   keyword: string;
+  location_code?: number | null;
+  language_code?: string | null;
+  search_partners?: boolean | null;
   search_volume: number | null;
   cpc: number | null;
   competition: string | null;
@@ -56,8 +62,20 @@ async function postLive<Row>(url: string, task: Record<string, unknown>) {
   return { rows: result.result ?? [], cost: result.cost ?? 0 };
 }
 
-function toMetrics(row: GoogleAdsKeywordRow): KeywordMetrics {
+/** Where a call's numbers came from, read from what Google answered rather than what was asked. */
+function measurementOf(id: string, source: string, location: string, rows: GoogleAdsKeywordRow[]): MeasurementContext {
+  const months = rows.flatMap(row => row.monthly_searches ?? []).map(month => `${month.year}-${String(month.month).padStart(2, "0")}`).sort();
+  const first = rows.find(row => row.location_code != null);
   return {
+    id, source, location, locationCode: first?.location_code ?? null, language: first?.language_code ?? "all",
+    network: first?.search_partners ? "Google Search and partners" : "Google Search",
+    monthsFrom: months[0] ?? null, monthsTo: months[months.length - 1] ?? null, fetchedAt: new Date().toISOString(),
+  };
+}
+
+function toMetrics(row: GoogleAdsKeywordRow, measurement?: string): KeywordMetrics {
+  return {
+    measurement,
     keyword: row.keyword,
     searchVolume: row.search_volume ?? null,
     cpc: row.cpc ?? null,
@@ -74,16 +92,18 @@ function chunk<T>(items: T[], size: number) {
   return chunks;
 }
 
-/** Keyword Planner "Get search volume" for an exact list of keywords. */
-export async function fetchSearchVolume(keywords: string[], locationName: string) {
+/** Keyword Planner "Get search volume" for an exact list of keywords. Each row carries the measurement id. */
+export async function fetchSearchVolume(keywords: string[], locationName: string, id = "volume") {
   let cost = 0;
   const metrics: KeywordMetrics[] = [];
+  const raw: GoogleAdsKeywordRow[] = [];
   for (const batch of chunk(keywords, VOLUME_BATCH)) {
-    const result = await postTask("search_volume", { keywords: batch, location_name: locationName, language_code: "en" });
+    const result = await postTask("search_volume", { keywords: batch, location_name: locationName, language_code: "en", search_partners: false });
     cost += result.cost;
-    metrics.push(...result.rows.map(toMetrics));
+    raw.push(...result.rows);
+    metrics.push(...result.rows.map(row => toMetrics(row, id)));
   }
-  return { metrics, cost };
+  return { metrics, cost, measurement: measurementOf(id, "Google Ads search volume (DataForSEO)", locationName, raw) };
 }
 
 export interface MonthlySearches {
@@ -155,16 +175,18 @@ export async function fetchRankedKeywords(domain: string) {
   return { rows: [...rows.values()], cost: byVolume.cost + byCpc.cost };
 }
 
-/** Keyword Planner "Discover new keywords" from seed terms. */
-export async function fetchKeywordIdeas(seeds: string[], locationName: string) {
+/** Keyword Planner "Discover new keywords" from seed terms. Each row carries the measurement id. */
+export async function fetchKeywordIdeas(seeds: string[], locationName: string, id = "ideas") {
   let cost = 0;
   const metrics: KeywordMetrics[] = [];
+  const raw: GoogleAdsKeywordRow[] = [];
   for (const batch of chunk(seeds, IDEAS_SEED_BATCH)) {
-    const result = await postTask("keywords_for_keywords", { keywords: batch, location_name: locationName, language_code: "en", sort_by: "search_volume" });
+    const result = await postTask("keywords_for_keywords", { keywords: batch, location_name: locationName, language_code: "en", search_partners: false, sort_by: "search_volume" });
     cost += result.cost;
-    metrics.push(...result.rows.map(toMetrics));
+    raw.push(...result.rows);
+    metrics.push(...result.rows.map(row => toMetrics(row, id)));
   }
-  return { metrics, cost };
+  return { metrics, cost, measurement: measurementOf(id, "Google Ads keyword ideas (DataForSEO)", locationName, raw) };
 }
 
 /**

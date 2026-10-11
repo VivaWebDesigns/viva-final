@@ -143,7 +143,8 @@ export function serviceMatcher(input: { services: string[]; trade: string; city:
  * Puts each keyword under the most specific selected service whose words it contains.
  * Keywords that only partly match stay as unsorted for review; unrelated or junk keywords are dropped.
  * Close variants are merged and "near me" searches folded into their plain phrase first, so demand is counted once.
- * `exactPhrases` (the service phrases asked for by name) are kept with unknown volume when Google returns none.
+ * A keyword matched to a confirmed service is kept whatever Google reports for it: no number, or zero, is a missing
+ * measurement, not a reason to drop the candidate. Only keywords with no service and no searches are dropped.
  */
 export function buildKeywordList(
   rows: KeywordMetrics[],
@@ -159,36 +160,43 @@ export function buildKeywordList(
   }
 
   const exact = new Set((input.exactPhrases ?? []).map(cleanKeyword));
-  // A phrase asked for by name stays the row its own numbers belong to, never a variant of another phrasing.
-  const variants = mergeCloseVariants([...merged.values()], exact);
-  const nearMe = foldNearMe(variants.rows);
   const summary: KeywordResearchSummary = {
     ideasReturned: merged.size, keptKeywords: 0, droppedAsJunk: 0, droppedNoVolume: 0,
-    mergedVariants: variants.merged, foldedNearMe: nearMe.folded, unknownVolume: 0, droppedExcluded: 0,
+    mergedVariants: 0, foldedNearMe: 0, unknownVolume: 0, droppedExcluded: 0, keptWithoutSearches: 0,
   };
-  const keywords: KeywordResearchKeyword[] = [];
-  for (const row of nearMe.rows) {
-    const demand = totalDemand(row);
-    // Unknown is not zero: a service phrase Google has no number for still names a page to build.
-    const unknown = demand == null && exact.has(row.keyword);
-    if (!demand && !unknown) {
-      summary.droppedNoVolume += 1;
-      continue;
-    }
+  // Junk and excluded work leave before grouping, so they can never carry a valid phrase out with them as a variant.
+  const usable = [...merged.values()].filter(row => {
     if (JUNK_PATTERN.test(row.keyword)) {
       summary.droppedAsJunk += 1;
-      continue;
+      return false;
     }
     if (input.exclusions?.length && excludedWork(row.keyword, input.exclusions)) {
       summary.droppedExcluded! += 1;
+      return false;
+    }
+    return true;
+  });
+  // A phrase asked for by name stays the row its own numbers belong to, never a variant of another phrasing; next, a
+  // phrasing that names a confirmed service, so a group is never dropped as unrelated while one of its phrasings is the client's work.
+  const variants = mergeCloseVariants(usable, keyword => (exact.has(keyword) ? 2 : match(keyword).service ? 1 : 0));
+  const nearMe = foldNearMe(variants.rows);
+  summary.mergedVariants = variants.merged;
+  summary.foldedNearMe = nearMe.folded;
+  const keywords: KeywordResearchKeyword[] = [];
+  for (const row of nearMe.rows) {
+    const demand = totalDemand(row);
+    const { service, related } = match(row.keyword);
+    if (!demand && !service && !exact.has(row.keyword)) {
+      summary.droppedNoVolume += 1;
       continue;
     }
-    const { service, related } = match(row.keyword);
     if (!related) {
       summary.droppedAsJunk += 1;
       continue;
     }
-    if (unknown) summary.unknownVolume! += 1;
+    // Unknown is not zero: a candidate for a confirmed service is kept with no number of its own.
+    if (demand == null) summary.unknownVolume! += 1;
+    if (!demand) summary.keptWithoutSearches! += 1;
     keywords.push({ ...row, service, ...classifyKeyword(row.keyword, input) });
   }
 

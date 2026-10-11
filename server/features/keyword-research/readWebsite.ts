@@ -6,6 +6,10 @@ import { VIVA_SCANNER_USER_AGENT } from "../technical-seo/constants";
 const MAX_PAGES = 15;
 const CONCURRENCY = 4;
 const MAX_TEXT_PER_PAGE = 2_500;
+// A page read for the site inventory keeps its whole main content, up to this much.
+const MAX_FULL_TEXT = 60_000;
+// Under this many words of visible text, a page is probably rendered by JavaScript: its embedded data is read too.
+const THIN_PAGE_WORDS = 100;
 const MIN_SITE_TEXT = 300;
 const CRAWL_TIMEOUT_MS = 45_000;
 
@@ -25,9 +29,32 @@ export class WebsiteReadError extends Error {}
 
 interface ParsedPage extends WebsitePage {
   links: Array<{ url: string; inNav: boolean }>;
+  h1: string;
+  /** "html" when the main content was read from the page, "embedded" when it came from the page's embedded data. */
+  textSource: "html" | "embedded";
 }
 
-function parsePage(html: string, pageUrl: string): ParsedPage {
+/** Plain-language strings (3+ words) inside JSON: the content of a page rendered by JavaScript from embedded data. */
+function embeddedText(document: Window["document"]) {
+  const parts: string[] = [];
+  const walk = (value: unknown) => {
+    if (typeof value === "string") {
+      const clean = value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+      if (clean.split(" ").length >= 3 && !/^https?:\/\//.test(clean)) parts.push(clean);
+    } else if (Array.isArray(value)) value.forEach(walk);
+    else if (value && typeof value === "object") Object.values(value).forEach(walk);
+  };
+  for (const script of document.querySelectorAll('script[type="application/json"], script[type="application/ld+json"]')) {
+    try {
+      walk(JSON.parse(script.textContent));
+    } catch {
+      // Not JSON after all.
+    }
+  }
+  return [...new Set(parts)].join(" ");
+}
+
+export function parsePage(html: string, pageUrl: string, maxText = MAX_TEXT_PER_PAGE): ParsedPage {
   const origin = new URL(pageUrl).origin;
   // The page URL is the base for relative links; without it a <link rel="preload" href="/x"> rejects in the
   // background and the unhandled rejection takes the whole server down.
@@ -35,7 +62,8 @@ function parsePage(html: string, pageUrl: string): ParsedPage {
   try {
     const document = window.document;
     // <link> tags (preloads, icons, feeds) are never read here, and parsing them makes happy-dom fetch in the background.
-    document.write(html.slice(0, 2_000_000).replace(/<link\b[^>]*>/gi, ""));
+    // A space after each closing tag keeps words in adjacent blocks apart ("Shower Doors" + "We install").
+    document.write(html.slice(0, 2_000_000).replace(/<link\b[^>]*>/gi, "").replace(/<\/(?!script|style)[a-z0-9]+>|<br\s*\/?>/gi, "$& "));
     const links: ParsedPage["links"] = [];
     for (const anchor of document.querySelectorAll("a[href]")) {
       try {
@@ -49,20 +77,24 @@ function parsePage(html: string, pageUrl: string): ParsedPage {
       }
     }
     const headings = [...document.querySelectorAll("h1, h2, h3")].map(node => node.textContent.replace(/\s+/g, " ").trim()).filter(Boolean).slice(0, 40);
+    const h1 = document.querySelector("h1")?.textContent.replace(/\s+/g, " ").trim() ?? "";
+    const embedded = embeddedText(document);
     // Menus and footers repeat on every page; the main content says what the page offers.
     for (const node of document.querySelectorAll("script, style, noscript, svg, iframe, nav, header, footer, [role=navigation]")) node.remove();
-    const text = ((document.querySelector("main") ?? document.body)?.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, MAX_TEXT_PER_PAGE);
-    return { url: pageUrl, title: document.title.trim(), headings, text, links };
+    const visible = ((document.querySelector("main") ?? document.body)?.textContent ?? "").replace(/\s+/g, " ").trim();
+    const thin = visible.split(" ").length < THIN_PAGE_WORDS && embedded.split(" ").length > visible.split(" ").length;
+    const text = (thin ? embedded : visible).slice(0, maxText);
+    return { url: pageUrl, title: document.title.trim(), headings, text, links, h1, textSource: thin ? "embedded" : "html" };
   } finally {
     window.close();
   }
 }
 
-async function fetchPage(url: string, signal: AbortSignal) {
+async function fetchPage(url: string, signal: AbortSignal, maxText?: number) {
   try {
     const result = await safeFetchHtml(url, VIVA_SCANNER_USER_AGENT, { signal });
     if (result.statusCode >= 400 || !(result.headers["content-type"] ?? "text/html").includes("html")) return null;
-    return parsePage(result.body, result.finalUrl);
+    return parsePage(result.body, result.finalUrl, maxText);
   } catch {
     return null;
   }
@@ -151,16 +183,27 @@ export async function listSitePages(input: string): Promise<string[] | null> {
   return [...urls].filter(url => url.startsWith(origin) && !FILE_PATH.test(new URL(url).pathname)).slice(0, 2_000);
 }
 
-/** Title and first heading of each page, for telling what a page targets. Pages that cannot be read keep only their URL. */
-export async function readPageHeadlines(urls: string[]) {
-  const signal = AbortSignal.timeout(CRAWL_TIMEOUT_MS);
-  const headlines = new Map<string, string>();
+/** What one page says: its title, main heading, every h1–h3, and its whole main content (menus and footers left out). */
+export interface PageContent {
+  title: string;
+  h1: string;
+  headings: string[];
+  text: string;
+  textSource: "html" | "embedded";
+}
+
+const CONTENT_TIMEOUT_MS = 120_000;
+
+/** Reads each page in full, for the site inventory. Pages that cannot be read are missing from the map, never guessed. */
+export async function readPageContent(urls: string[]) {
+  const signal = AbortSignal.timeout(CONTENT_TIMEOUT_MS);
+  const pages = new Map<string, PageContent>();
   for (let index = 0; index < urls.length; index += CONCURRENCY * 2) {
     if (signal.aborted) break;
-    const batch = await Promise.all(urls.slice(index, index + CONCURRENCY * 2).map(url => fetchPage(url, signal)));
+    const batch = await Promise.all(urls.slice(index, index + CONCURRENCY * 2).map(url => fetchPage(url, signal, MAX_FULL_TEXT)));
     batch.forEach((page, offset) => {
-      if (page) headlines.set(urls[index + offset], `${page.title} ${page.headings[0] ?? ""}`);
+      if (page) pages.set(urls[index + offset], { title: page.title, h1: page.h1, headings: page.headings, text: page.text, textSource: page.textSource });
     });
   }
-  return headlines;
+  return pages;
 }
