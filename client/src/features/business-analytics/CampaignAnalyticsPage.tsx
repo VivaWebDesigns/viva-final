@@ -20,11 +20,25 @@ type CampaignSnapshot = {
 
 type Turn = { role: "user" | "assistant"; text: string };
 
-const RANGES = [
-  { days: 1, label: "Today" },
-  { days: 7, label: "7 days" },
-  { days: 30, label: "30 days" },
+// First Instantly batch went out on this day; "Since launch" covers the whole experiment.
+const CAMPAIGN_LAUNCH_DATE = "2026-10-08";
+
+type RangeMode = "1" | "7" | "30" | "launch" | "custom";
+
+const RANGES: { mode: RangeMode; label: string }[] = [
+  { mode: "1", label: "Today" },
+  { mode: "7", label: "7 days" },
+  { mode: "30", label: "30 days" },
+  { mode: "launch", label: "Since launch" },
+  { mode: "custom", label: "Custom" },
 ];
+
+function dateInputValue(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
 const SUGGESTIONS = [
   "What happened on the website today?",
@@ -190,12 +204,23 @@ function AskPanel() {
 }
 
 export default function CampaignAnalyticsPage() {
-  const [days, setDays] = useState(1);
+  const [rangeMode, setRangeMode] = useState<RangeMode>("1");
+  const [customStartDate, setCustomStartDate] = useState(CAMPAIGN_LAUNCH_DATE);
+  const [customEndDate, setCustomEndDate] = useState(() => dateInputValue(new Date()));
+  const customRangeValid = customStartDate !== "" && customEndDate !== "" && customStartDate <= customEndDate;
+  const rangeQuery = rangeMode === "launch"
+    ? `startDate=${CAMPAIGN_LAUNCH_DATE}&endDate=${encodeURIComponent(dateInputValue(new Date()))}`
+    : rangeMode === "custom"
+      ? `startDate=${encodeURIComponent(customStartDate)}&endDate=${encodeURIComponent(customEndDate)}`
+      : `days=${rangeMode}`;
   const { data, isLoading, error } = useQuery<CampaignSnapshot>({
-    queryKey: [`/api/business-analytics/campaign?days=${days}`],
+    queryKey: [`/api/business-analytics/campaign?${rangeQuery}`],
     staleTime: STALE.MEDIUM,
+    enabled: rangeMode !== "custom" || customRangeValid,
   });
-  const range = RANGES.find((option) => option.days === days)?.label ?? "";
+  const range = rangeMode === "custom"
+    ? `${customStartDate} to ${customEndDate}`
+    : RANGES.find((option) => option.mode === rangeMode)?.label ?? "";
   const replies = data ? Object.entries(data.email.webhookEventTotals) : [];
 
   return (
@@ -205,17 +230,32 @@ export default function CampaignAnalyticsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Campaign website</h1>
           <p className="mt-1 text-sm text-gray-500">How the website performs for visitors from the Charlotte target area (Google Analytics 4).</p>
         </div>
-        <div className="flex w-fit rounded-lg bg-gray-100 p-1">
-          {RANGES.map((option) => (
-            <button
-              type="button"
-              key={option.days}
-              onClick={() => setDays(option.days)}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium ${days === option.days ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
-            >
-              {option.label}
-            </button>
-          ))}
+        <div className="flex flex-col items-stretch gap-2 md:items-end">
+          <div className="flex max-w-full overflow-x-auto rounded-lg bg-gray-100 p-1" aria-label="Campaign date range">
+            {RANGES.map((option) => (
+              <button
+                type="button"
+                key={option.mode}
+                onClick={() => setRangeMode(option.mode)}
+                className={`whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ${rangeMode === option.mode ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          {rangeMode === "custom" && (
+            <div className="flex flex-wrap items-center gap-2 text-sm md:justify-end">
+              <label className="flex items-center gap-2 text-gray-600">
+                From
+                <input type="date" value={customStartDate} max={customEndDate || undefined} onChange={event => setCustomStartDate(event.target.value)} className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-800" />
+              </label>
+              <label className="flex items-center gap-2 text-gray-600">
+                To
+                <input type="date" value={customEndDate} min={customStartDate || undefined} max={dateInputValue(new Date())} onChange={event => setCustomEndDate(event.target.value)} className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-800" />
+              </label>
+              {!customRangeValid && <span className="w-full text-xs text-red-600 md:text-right">Choose a valid start and end date.</span>}
+            </div>
+          )}
         </div>
       </header>
 
