@@ -110,8 +110,9 @@ export function buildBlueprint(pages: PagePlan[], inventory: InventoryPage[], su
     const h1 = words(item.h1);
     const scored = item.services.filter(service => allServices.includes(service)).map(service => {
       const parts = [...words(service)];
-      return { service, inH1: parts.filter(part => h1.has(part)).length / parts.length, inHeading: parts.filter(part => heading.has(part)).length / parts.length };
-    }).sort((a, b) => b.inH1 - a.inH1 || b.inHeading - a.inHeading);
+      return { service, size: parts.length, inH1: parts.filter(part => h1.has(part)).length / parts.length, inHeading: parts.filter(part => heading.has(part)).length / parts.length };
+      // On a tie, the most specific service: "Commercial Window Replacement" is commercial window replacement's page.
+    }).sort((a, b) => b.inH1 - a.inH1 || b.inHeading - a.inHeading || b.size - a.size);
     const own = scored[0];
     if (own && own.inHeading === 1 && !serviceUrl.has(own.service)) serviceUrl.set(own.service, item.path);
   }

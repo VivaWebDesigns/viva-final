@@ -17,6 +17,7 @@ describe("blueprint", () => {
     inv("/services/window-installation", "service", "Window Installation | Replacement Windows", ["window installation", "window replacement"]),
     inv("/blog/foggy-windows", "article"), inv("/service-areas/matthews", "city"),
     inv("/", "service", "Charlotte Glass, Door & Window Services", ["window repair", "window installation"]),
+    inv("/services/commercial-window-replacement", "service", "Commercial Window Replacement", ["window replacement", "commercial window replacement"]),
   ];
   const pages = [
     page("repair-page", { kind: "service", city: null, action: "improve", page: { status: "live", path: "/services/window-repair" }, checkStatus: "checked", reference: ref(21.25) }),
@@ -26,6 +27,7 @@ describe("blueprint", () => {
     page("replace-matthews", { service: "window replacement", city: "Matthews", reference: ref(84.16) }),
     page("install-page", { kind: "service", service: "window installation", action: "improve", page: { status: "live", path: "/services/window-installation" }, reference: ref(84.16) }),
     page("closer-matthews", { service: "door closer repair", city: "Matthews", reference: null }),
+    page("commercial-windows-matthews", { service: "commercial window replacement", city: "Matthews", reference: ref(30.02) }),
     page("glass-service", { kind: "service", service: "window glass replacement", evidence: { ...checked } }),
     page("repair-cost", { kind: "cost" }),
     page("replace-cost", { kind: "cost", service: "window replacement" }),
@@ -49,6 +51,8 @@ describe("blueprint", () => {
     // is never a service's base.
     expect(entryFor(blueprint, "replace-matthews").url).toBe("/services/window-replacement/matthews");
     expect(blueprint.entries.some(entry => entry.url.startsWith("//"))).toBe(false);
+    // The most specific service named on a page is its owner.
+    expect(entryFor(blueprint, "commercial-windows-matthews").url).toBe("/services/commercial-window-replacement/matthews");
   });
 
   it("orders the build by business value and shows evidence separately: an unchecked page is not ranked lower", () => {
