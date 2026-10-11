@@ -207,8 +207,10 @@ export default function PlanCard({ project, onUpdate }: { project: KeywordResear
     reused: pages.filter(page => page.checkStatus === "reused").length,
     failed: pages.filter(page => page.checkStatus === "failed").length,
     notRun: pages.filter(page => (page.checkStatus ?? (page.evidence ? "checked" : "not_run")) === "not_run").length,
-    uncertain: plan?.unresolved.filter(item => item.reason.startsWith("uncertain")).length ?? 0,
-  }), [pages, plan]);
+    // Counted from the verdicts themselves: the plan keeps only a sample of held-back keywords.
+    uncertain: project.keywords.filter(row => row.relevance?.verdict === "uncertain").length,
+    notTheirWork: project.keywords.filter(row => row.relevance?.verdict === "no").length,
+  }), [pages, project.keywords]);
 
   return (
     <Card>
@@ -244,7 +246,7 @@ export default function PlanCard({ project, onUpdate }: { project: KeywordResear
             <p className="text-sm text-gray-600" data-testid="text-kr-plan-status">
               Page 1: {statusCounts.checked} checked this run · {statusCounts.reused} reused from earlier runs (within 14 days) · {statusCounts.failed} failed (ranking unknown)
               {" "}· {statusCounts.notRun} not checked yet (past the check budget).
-              {" "}Relevance: {statusCounts.uncertain} held as uncertain{plan.notJudged ? ` · ${plan.notJudged.toLocaleString()} with no matched service not judged (still on the keyword list)` : ""}.
+              {" "}Relevance: {statusCounts.uncertain.toLocaleString()} held as uncertain (for review) · {statusCounts.notTheirWork.toLocaleString()} judged not the client's work{plan.notJudged ? ` · ${plan.notJudged.toLocaleString()} with no matched service not judged (still on the keyword list)` : ""}.
             </p>
             <div className="grid gap-3 sm:grid-cols-5">
               {ACTIONS.map(name => (
@@ -303,7 +305,7 @@ export default function PlanCard({ project, onUpdate }: { project: KeywordResear
             )}
             {plan.unresolved.length > 0 && (
               <section className="space-y-1">
-                <h3 className="text-sm font-semibold text-gray-900">Held back ({plan.unresolved.length})</h3>
+                <h3 className="text-sm font-semibold text-gray-900">Held back (showing {plan.unresolved.length} examples)</h3>
                 <p className="text-xs text-gray-500">Not in any page: uncertain it is the client's work, excluded work, or a city the client does not list.</p>
                 <ul className="max-h-64 space-y-0.5 overflow-y-auto text-xs text-gray-600">
                   {plan.unresolved.map(item => <li key={item.keyword}><span className="font-medium text-gray-800">{item.keyword}</span>: {item.reason}</li>)}
