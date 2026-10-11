@@ -235,7 +235,9 @@ export function coveringPage(
       // service" on the storefront glass page). Body text never claims a service for a page not matched to it, so
       // a passing mention on the homepage, a legal page or another service's page is not coverage. Place words
       // still have to be in the page's address, title or headings, and template blocks never count.
-      if (!page.placePage && row.pageType !== "blog" && row.pageType !== "cost" && row.service && context.servicePages.get(row.service) === page.path) {
+      // The search's confirmed service (its relevance verdict) decides which page it may confirm, not the word matcher's guess.
+      const service = row.relevance?.verdict === "yes" && row.relevance.service ? row.relevance.service : row.service;
+      if (!page.placePage && row.pageType !== "blog" && row.pageType !== "cost" && service && context.servicePages.get(service) === page.path) {
         // Two-letter words ("up", "nc") carry no topic and are left out.
         const core = essential.filter(stem => !city.includes(stem) && stem.length > 2);
         const rest = essential.filter(stem => city.includes(stem));

@@ -8,7 +8,7 @@ import { applySearchIntent, buildKeywordList, classifyKeyword, cleanKeyword, mat
 import { createProject, deleteProject, getProject, listProjects, updateProject } from "./repository";
 import { discoverCompetitors } from "./discover";
 import { buildPlaybook } from "./runPlaybook";
-import { refreshPlan, retryFailedChecks, runPlan } from "./runPlan";
+import { reassignByConfirmedService, refreshPlan, retryFailedChecks, runPlan } from "./runPlan";
 import { startRun, runBusy } from "./backgroundRun";
 import { readWebsite, WebsiteReadError, type WebsitePage } from "./readWebsite";
 import { chooseMetro, inferExclusions, ServiceSuggestionError, servicesFromWebsite, suggestServices } from "./suggestServices";
@@ -445,6 +445,21 @@ router.post("/projects/:id/plan/groupings", async (req, res) => {
     return res.json(await updateProject(project.id, { summary: refreshPlan({ ...project.summary, groupDecisions }, project.observations) }));
   } catch (error) {
     return sendError(res, error, "Unable to save the decision");
+  }
+});
+
+// Moves searches whose confirmed service differs from the word matcher's guess to the page their confirmed service
+// matches, on the saved plan: existing plan pages only, no regrouping, no paid calls.
+router.post("/projects/:id/plan/reassign", async (req, res) => {
+  try {
+    const project = await getProject(req.params.id);
+    if (!project?.summary?.plan) return res.status(404).json({ message: "Build the plan first." });
+    if (runBusy(project)) return res.status(409).json({ message: "Another step is still running for this project." });
+    const { keywords, summary, moves, leftForRun } = await reassignByConfirmedService(project);
+    const updated = await updateProject(project.id, { keywords, summary });
+    return res.json({ project: updated, moves, leftForRun });
+  } catch (error) {
+    return sendError(res, error, "Unable to correct the assignments");
   }
 });
 

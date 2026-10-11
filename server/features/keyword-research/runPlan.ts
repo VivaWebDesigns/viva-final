@@ -1,4 +1,4 @@
-import { applyEvidence, CITY_PAGES_REWARDED_AT, comparePages, draftGroups, mainKeyword, planPage, type DraftGroup, type PlannedKeyword } from "@shared/pagePlan";
+import { applyEvidence, CITY_PAGES_REWARDED_AT, comparePages, draftGroups, groupValue, mainKeyword, planPage, type DraftGroup, type PlannedKeyword } from "@shared/pagePlan";
 import { buildBlueprint } from "@shared/blueprint";
 import {
   keywordDemand, keywordScore, relevanceBasis, sameSerpSettings,
@@ -619,5 +619,67 @@ export async function retryFailedChecks(project: KeywordResearchProject): Promis
       ...project.summary,
       plan: { ...plan, pages, failedChecks: pages.filter(page => page.checkStatus === "failed").length, costUsd: Number((plan.costUsd + cost).toFixed(4)), retriedAt: new Date().toISOString(), retried: { attempted: failed.length, recovered: updated.size, stillFailed } },
     }, project.observations),
+  };
+}
+
+/**
+ * Corrects page assignments on the saved plan for searches whose confirmed service (relevance verdict) differs from
+ * the word matcher's guess: each is matched again under its confirmed service and moved only when its page changes
+ * and the new page is already in the plan (an existing page, or the confirmed service's own page). No regrouping, no
+ * new pages, no paid calls: the site is read again, which is free. Returns the moves made and those left for a run.
+ */
+export async function reassignByConfirmedService(project: KeywordResearchProject) {
+  const plan = project.summary?.plan;
+  if (!project.summary || !plan) throw new Error("There is no plan to correct.");
+  const services = project.services.filter(service => service.selected);
+  const servedCities = (project.serviceCities.length ? project.serviceCities : [`${project.city}, ${project.state}`])
+    .map(parseCity).filter((place): place is { city: string; state: string } => !!place);
+  const urls = project.website ? await listSitePages(project.website) : null;
+  if (!urls) throw new Error("The website could not be read, so nothing was changed.");
+  const pages = sitePages(urls, await readPageContent(urls.slice(0, PAGE_READ_LIMIT)));
+  const context = {
+    servicePages: new Map(services.filter(service => service.pageUrl).map(service => [service.name, new URL(service.pageUrl!).pathname] as const).filter(([, path]) => !isPlacePage(path))),
+    cityNames: servedCities.map(place => place.city),
+    serviceNames: services.map(service => service.name),
+    homeStems: meaningStems([project.trade, project.city, project.state, stateName(project.state)].join(" ")),
+    cityStems: new Set(servedCities.flatMap(place => [...meaningStems(place.city)])),
+  };
+  const pageOf = new Map(plan.pages.flatMap(page => page.keywords.map(keyword => [keyword, page] as const)));
+  const keywords = project.keywords.map(row => ({ ...row }));
+  const moves: Array<{ keyword: string; from: string; to: string; service: string }> = [];
+  const leftForRun: Array<{ keyword: string; from: string; service: string; reason: string }> = [];
+  const nextPages = plan.pages.map(page => ({ ...page, keywords: [...page.keywords] }));
+  for (const row of keywords) {
+    const confirmed = row.relevance?.verdict === "yes" ? row.relevance.service : null;
+    const current = pageOf.get(row.keyword);
+    if (!confirmed || confirmed === row.service || !current) continue;
+    const path = coveringPage({ ...row, service: confirmed }, pages, context);
+    const target = path
+      ? nextPages.find(page => page.page.path === path)
+      : nextPages.find(page => page.kind === "service" && !page.page.path && page.service === confirmed);
+    const from = current.page.path ?? current.title;
+    if (!target || target.id === current.id) {
+      if (!target && (path ?? null) !== current.page.path) leftForRun.push({ keyword: row.keyword, from, service: confirmed, reason: "no page for it in this plan yet" });
+      continue;
+    }
+    nextPages.find(page => page.id === current.id)!.keywords = nextPages.find(page => page.id === current.id)!.keywords.filter(keyword => keyword !== row.keyword);
+    target.keywords.push(row.keyword);
+    row.service = confirmed;
+    row.pageId = target.id;
+    row.pageMatch = target.page;
+    moves.push({ keyword: row.keyword, from, to: target.page.path ?? target.title, service: confirmed });
+  }
+  // The moved pages' totals follow their keywords; their decisions and checks are unchanged.
+  const rowOf = new Map(keywords.map(row => [row.keyword, row]));
+  const touched = new Set(moves.flatMap(move => [move.from, move.to]));
+  const pagesOut = nextPages.map(page => {
+    if (!touched.has(page.page.path ?? page.title)) return page;
+    const totals = groupValue(page.keywords.map(keyword => rowOf.get(keyword)).filter((row): row is KeywordResearchKeyword => !!row));
+    return { ...page, value: totals.value, unknownValue: totals.unknownValue, demand: totals.demand, demandHigh: totals.demandHigh, valueHigh: totals.valueHigh, possibleOverlaps: totals.overlaps };
+  });
+  const correctedAt = new Date().toISOString();
+  return {
+    keywords, moves, leftForRun,
+    summary: refreshPlan({ ...project.summary, plan: { ...plan, pages: pagesOut, corrections: [...(plan.corrections ?? []), { at: correctedAt, kind: "confirmed_service", moves, leftForRun }] } }, project.observations),
   };
 }

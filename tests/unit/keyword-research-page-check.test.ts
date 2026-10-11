@@ -142,6 +142,7 @@ describe("matching against the reference site's saved pages", () => {
     "/services/frameless-showers": "services_frameless-showers.html",
     "/service-areas/monroe": "service-areas_monroe.html",
     "/": "home.html",
+    "/services/door-installation": "services_door-installation.html",
   };
   const contents = new Map(Object.entries(files).map(([route, file]) => {
     const url = `https://glassanddoorpro.com${route}`;
@@ -242,6 +243,14 @@ describe("matching against the reference site's saved pages", () => {
     expect(covering("door closer repair charlotte", "city", "door closer repair")).toBe("/services/commercial-door-replacement-repair");
     // Trade-and-place searches still belong on the homepage.
     expect(covering("glass charlotte nc", "service")).toBe("/");
+  });
+
+  it("reads a search's confirmed service, not the word matcher's guess, when body text confirms a page", () => {
+    // The word matcher filed this under door installation; the relevance check confirmed glass shower door installation.
+    const row = { keyword: "installing a shower door", service: "door installation", pageType: "service", relevance: { verdict: "yes", service: "glass shower door installation", reason: "" } } as KeywordResearchKeyword;
+    const doorPages = new Map([...intake, ["door installation", "/services/door-installation"]]);
+    // On the live site the matcher's guess let the door page's body confirm it; under the confirmed service it cannot.
+    expect(coveringPage(row, pages, { ...context, servicePages: doorPages })).not.toBe("/services/door-installation");
   });
 
   it("keeps the earlier correct matches", () => {

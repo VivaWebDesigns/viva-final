@@ -11,10 +11,11 @@ export type GroupDecision = "combine" | "separate";
 export type EvidenceStatus = "existing" | "supported" | "not_checked" | "check_failed" | "mixed";
 
 export interface BlueprintEntry {
-  /** The plan pages this entry builds or keeps (two or more when a combination was approved). */
+  /** The plan pages this entry builds or keeps (two or more when a combination was approved); empty for an existing page no search targets. */
   pageIds: string[];
   title: string;
-  kind: PageKind;
+  /** "home" and "supporting" (listing, reviews, legal) are existing pages kept in the architecture whatever searches target them. */
+  kind: PageKind | "home" | "supporting";
   services: string[];
   city: string | null;
   /** The live or staging address, or a proposed one following the site's own URL pattern. */
@@ -213,6 +214,21 @@ export function buildBlueprint(pages: PagePlan[], inventory: InventoryPage[], su
       valueHigh: measured.length ? measured.reduce((sum, member) => sum + (member.valueHigh ?? member.value), 0) : null,
       referenceCpc: cpc,
       review: lead.kind === "blog" ? blogTopicReview(lead.mainKeyword) : [],
+    });
+  }
+  // Every existing page stays in the architecture whatever searches target it: the homepage, listing and supporting pages.
+  const listed = new Set(entries.map(entry => entry.url));
+  for (const item of inventory) {
+    if (listed.has(item.path)) continue;
+    listed.add(item.path);
+    const home = item.path === "/";
+    const supporting = !home && (item.kind === "other" || /^\/(services|service-areas|locations?|areas?)\/?$/.test(item.path));
+    entries.push({
+      pageIds: [], title: item.h1 || item.title || item.path,
+      kind: home ? "home" : supporting ? "supporting" : item.kind === "article" ? "blog" : item.kind === "cost" ? "cost" : item.kind === "city" ? "city" : "service",
+      services: item.services, city: item.cities[0] ?? null, url: item.path, urlStatus: "existing", action: "keep", phase: 1,
+      phaseReason: home ? "the homepage: kept in the architecture whatever searches target it" : supporting ? "supporting page (listing, reviews, legal): no search target" : "existing page: no search in this plan targets it",
+      evidenceStatus: "existing", grouping: null, keywords: 0, value: null, valueHigh: null, referenceCpc: null, review: [],
     });
   }
   entries.sort((a, b) => a.phase - b.phase || (b.referenceCpc ?? -1) - (a.referenceCpc ?? -1) || (a.city ?? "").localeCompare(b.city ?? "") || a.title.localeCompare(b.title));

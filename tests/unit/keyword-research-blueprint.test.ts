@@ -55,6 +55,13 @@ describe("blueprint", () => {
     expect(entryFor(blueprint, "commercial-windows-matthews").url).toBe("/services/commercial-window-replacement/matthews");
   });
 
+  it("keeps every existing page in the architecture whatever searches target it, once each", () => {
+    const blueprint = buildBlueprint(pages, [...inventory, inv("/", "service", "Home"), inv("/privacy-policy", "other", "Privacy Policy"), inv("/services", "service", "Services")], [], {}, at);
+    expect(blueprint.entries.filter(entry => entry.url === "/")).toEqual([expect.objectContaining({ kind: "home", urlStatus: "existing", phase: 1, keywords: 0 })]);
+    expect(blueprint.entries.find(entry => entry.url === "/privacy-policy")).toMatchObject({ kind: "supporting", phase: 1 });
+    expect(blueprint.entries.find(entry => entry.url === "/services")).toMatchObject({ kind: "supporting" });
+  });
+
   it("orders the build by business value and shows evidence separately: an unchecked page is not ranked lower", () => {
     const blueprint = buildBlueprint(pages, inventory, [], {}, at);
     const checkedPage = entryFor(blueprint, "repair-matthews");
