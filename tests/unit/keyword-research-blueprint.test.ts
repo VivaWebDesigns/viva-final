@@ -7,12 +7,17 @@ const page = (id: string, overrides: Partial<PagePlan>): PagePlan => ({
   value: 0, unknownValue: 1, demand: null, priorityService: false, opportunity: "normal", confidence: "medium", evidence: null, reasons: [], questions: [], adjusted: null,
   checkStatus: "not_run", ...overrides,
 });
-const inv = (path: string, kind: InventoryPage["kind"]): InventoryPage => ({ path, title: "", h1: "", words: 500, textSource: "html", kind, services: [], cities: [] });
+const inv = (path: string, kind: InventoryPage["kind"], h1 = "", services: string[] = []): InventoryPage => ({ path, title: h1, h1, words: 500, textSource: "html", kind, services, cities: [] });
 const checked = { keyword: "k", city: "Matthews", smallSites: 0, forums: 0, unknownSites: 0, cityPages: 6, mapPack: false, aiOverview: false, clientPosition: null, clientUrl: null };
 const ref = (avgCpc: number | null) => (avgCpc == null ? null : { keyword: "ref", basis: "metro_phrase" as const, searchVolume: 10, avgCpc, competition: null, difficulty: null });
 
 describe("blueprint", () => {
-  const inventory = [inv("/services/window-repair", "service"), inv("/services/window-installation", "service"), inv("/blog/foggy-windows", "article"), inv("/service-areas/matthews", "city")];
+  const inventory = [
+    inv("/services/window-repair", "service", "Window Repair", ["window repair"]),
+    inv("/services/window-installation", "service", "Window Installation | Replacement Windows", ["window installation", "window replacement"]),
+    inv("/blog/foggy-windows", "article"), inv("/service-areas/matthews", "city"),
+    inv("/", "service", "Charlotte Glass, Door & Window Services", ["window repair", "window installation"]),
+  ];
   const pages = [
     page("repair-page", { kind: "service", city: null, action: "improve", page: { status: "live", path: "/services/window-repair" }, checkStatus: "checked", reference: ref(21.25) }),
     page("repair-matthews", { city: "Matthews", evidence: { ...checked }, checkStatus: "checked", reference: ref(21.25) }),
@@ -23,6 +28,7 @@ describe("blueprint", () => {
     page("closer-matthews", { service: "door closer repair", city: "Matthews", reference: null }),
     page("glass-service", { kind: "service", service: "window glass replacement", evidence: { ...checked } }),
     page("repair-cost", { kind: "cost" }),
+    page("replace-cost", { kind: "cost", service: "window replacement" }),
     page("foggy-post", { kind: "blog", mainKeyword: "how to fix foggy windows" }),
   ];
   const suggestion: GroupSuggestion = { services: ["window installation", "window replacement"], strength: "page_names_both", evidence: ["names both"], pages: [{ city: "Matthews", pageIds: ["install-matthews", "replace-matthews"] }] };
@@ -36,8 +42,13 @@ describe("blueprint", () => {
     expect(entryFor(blueprint, "closer-matthews").url).toBe("/services/door-closer-repair/matthews");
     expect(entryFor(blueprint, "glass-service")).toMatchObject({ url: "/services/window-glass-replacement", phase: 2 });
     expect(entryFor(blueprint, "repair-cost")).toMatchObject({ url: "/services/window-repair/cost", phase: 3 });
+    expect(entryFor(blueprint, "replace-cost").url).toBe("/services/window-replacement/cost");
     expect(entryFor(blueprint, "foggy-post")).toMatchObject({ url: "/blog/how-to-fix-foggy-windows", phase: 4 });
     expect(blueprint.urlPattern).toEqual({ services: "/services/{service}/{city}", blog: "/blog/{topic}" });
+    // One service per existing page: window replacement is not nested under the installation page, and the homepage
+    // is never a service's base.
+    expect(entryFor(blueprint, "replace-matthews").url).toBe("/services/window-replacement/matthews");
+    expect(blueprint.entries.some(entry => entry.url.startsWith("//"))).toBe(false);
   });
 
   it("orders the build by business value and shows evidence separately: an unchecked page is not ranked lower", () => {

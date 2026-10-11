@@ -99,9 +99,22 @@ function evidenceStatusOf(page: PagePlan): EvidenceStatus {
 export function buildBlueprint(pages: PagePlan[], inventory: InventoryPage[], suggestions: GroupSuggestion[], decisions: Record<string, GroupDecision>, generatedAt: string): Blueprint {
   const services = folderOf(inventory.filter(page => page.kind === "service").map(page => page.path), "services");
   const blog = folderOf(inventory.filter(page => page.kind === "article").map(page => page.path), "blog");
-  // A service's own address: its existing page, else a new one under the site's services folder.
+  // A service's own address: the existing page whose main heading names it most fully (one service per page; the
+  // homepage and city pages are never a service's base), else a new one under the site's services folder.
+  const words = (text: string) => new Set(text.toLowerCase().replace(/&/g, " ").split(/[^a-z0-9]+/).filter(Boolean).map(word => (word.length > 3 && word.endsWith("s") && !word.endsWith("ss") ? word.slice(0, -1) : word)));
   const serviceUrl = new Map<string, string>();
-  for (const page of pages) if (page.kind === "service" && page.page.path && page.service && !serviceUrl.has(page.service)) serviceUrl.set(page.service, page.page.path);
+  const allServices = [...new Set(pages.map(page => page.service).filter((name): name is string => !!name))];
+  for (const item of inventory) {
+    if (item.path === "/" || item.kind === "city" || item.kind === "article" || !item.services.length) continue;
+    const heading = words(`${item.h1} ${item.title}`);
+    const h1 = words(item.h1);
+    const scored = item.services.filter(service => allServices.includes(service)).map(service => {
+      const parts = [...words(service)];
+      return { service, inH1: parts.filter(part => h1.has(part)).length / parts.length, inHeading: parts.filter(part => heading.has(part)).length / parts.length };
+    }).sort((a, b) => b.inH1 - a.inH1 || b.inHeading - a.inHeading);
+    const own = scored[0];
+    if (own && own.inHeading === 1 && !serviceUrl.has(own.service)) serviceUrl.set(own.service, item.path);
+  }
   const baseOf = (service: string) => serviceUrl.get(service) ?? `/${services}/${slugify(service)}`;
 
   // Value ranks services for the build order: priority first, then the metro reference average CPC.
