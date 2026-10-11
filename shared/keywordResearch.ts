@@ -527,6 +527,8 @@ export interface InventoryPage {
   services: string[];
   /** Served cities the page's address, title or main heading names. */
   cities: string[];
+  /** The page's own sentences that state prices ("$400–$800 installed"): a cost page for its service is ready to write. */
+  prices?: string[];
 }
 
 /** Services that may be one customer need, proposed for review with their evidence. Never applied on its own. */

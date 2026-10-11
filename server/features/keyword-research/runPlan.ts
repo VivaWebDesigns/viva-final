@@ -214,6 +214,7 @@ export async function runPlan(project: KeywordResearchProject): Promise<{ keywor
       : serviceNames.some(service => [...meaningStems(service)].every(stem => page.stems.has(stem))) ? "service" : "other";
     return {
       path: page.path, title: page.title, h1: page.h1, words: page.words, textSource: page.textSource, kind, cities,
+      prices: page.bodySentences.filter(sentence => /\$\s?\d/.test(sentence.text)).slice(0, 2).map(sentence => sentence.text),
       // Services the page is about: named in full in its own title or main heading (the site's name left out) or its
       // address; only when none is named in full, those whose subject words are ("Window Installation" is not window repair).
       services: (() => {

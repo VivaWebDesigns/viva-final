@@ -13,7 +13,7 @@ const ref = (avgCpc: number | null) => (avgCpc == null ? null : { keyword: "ref"
 
 describe("blueprint", () => {
   const inventory = [
-    inv("/services/window-repair", "service", "Window Repair", ["window repair"]),
+    { ...inv("/services/window-repair", "service", "Window Repair", ["window repair"]), prices: ["IGU replacement typically runs $150–$350 per window."] },
     inv("/services/window-installation", "service", "Window Installation | Replacement Windows", ["window installation", "window replacement"]),
     inv("/blog/foggy-windows", "article"), inv("/service-areas/matthews", "city"),
     inv("/", "service", "Charlotte Glass, Door & Window Services", ["window repair", "window installation"]),
@@ -43,7 +43,7 @@ describe("blueprint", () => {
     expect(entryFor(blueprint, "repair-matthews")).toMatchObject({ url: "/services/window-repair/matthews", urlStatus: "proposed" });
     expect(entryFor(blueprint, "closer-matthews").url).toBe("/services/door-closer-repair/matthews");
     expect(entryFor(blueprint, "glass-service")).toMatchObject({ url: "/services/window-glass-replacement", phase: 2 });
-    expect(entryFor(blueprint, "repair-cost")).toMatchObject({ url: "/services/window-repair/cost", phase: 3 });
+    expect(entryFor(blueprint, "repair-cost").url).toBe("/services/window-repair/cost");
     expect(entryFor(blueprint, "replace-cost").url).toBe("/services/window-replacement/cost");
     expect(entryFor(blueprint, "foggy-post")).toMatchObject({ url: "/blog/how-to-fix-foggy-windows", phase: 4 });
     expect(blueprint.urlPattern).toEqual({ services: "/services/{service}/{city}", blog: "/blog/{topic}" });
@@ -63,7 +63,7 @@ describe("blueprint", () => {
     expect([checkedPage.evidenceStatus, uncheckedPage.evidenceStatus]).toEqual(["supported", "not_checked"]);
     // Upper half of the services' metro average CPCs goes first; a service with no figures is not ranked lower by default.
     expect(entryFor(blueprint, "install-matthews").phase).toBe(2);
-    expect(entryFor(blueprint, "closer-matthews").phaseReason).toMatch(/no Google Ads figures.*not ranked lower/);
+    expect(entryFor(blueprint, "closer-matthews").phaseReason).toMatch(/no Google Ads figures and no page of its own yet: mark it a priority/);
   });
 
   it("combines suggested pages only after the user approves, and says where each decision stands", () => {
@@ -77,6 +77,39 @@ describe("blueprint", () => {
     });
     const separate = buildBlueprint(pages, inventory, [suggestion], { "window installation|window replacement": "separate" }, at);
     expect(entryFor(separate, "replace-matthews").pageIds).toEqual(["replace-matthews"]);
+  });
+});
+
+describe("phases for cost pages and unmeasured services", () => {
+  const inventory = [
+    { ...inv("/services/window-repair", "service", "Window Repair", ["window repair"]), prices: ["IGU replacement typically runs $150–$350 per window."] },
+    inv("/services/window-installation", "service", "Window Installation", ["window installation"]),
+    inv("/services/storefront-glass-installation", "service", "Storefront Glass Installation", ["storefront glass installation"]),
+  ];
+  const pages = [
+    page("repair-page", { kind: "service", action: "improve", page: { status: "live", path: "/services/window-repair" }, reference: ref(84.16), priorityService: true }),
+    page("repair-cost", { kind: "cost", reference: ref(84.16), priorityService: true }),
+    page("install-cost", { kind: "cost", service: "window installation", reference: ref(84.16) }),
+    page("closer-cost", { kind: "cost", service: "door closer repair", reference: ref(4.72) }),
+    page("storefront-city", { service: "storefront glass installation", city: "Matthews", reference: null }),
+    page("board-up-city", { service: "emergency board up", city: "Matthews", reference: null }),
+  ];
+  const blueprint = buildBlueprint(pages, inventory, [], {}, "2026-10-11T00:00:00Z");
+  const entry = (id: string) => blueprint.entries.find(item => item.pageIds.includes(id))!;
+
+  it("brings a core service's cost page into phase 2 when the site already states prices, and says what it is waiting for otherwise", () => {
+    expect(entry("repair-cost")).toMatchObject({ phase: 2 });
+    expect(entry("repair-cost").phaseReason).toMatch(/already states prices: “IGU replacement/);
+    expect(entry("install-cost")).toMatchObject({ phase: 3 });
+    expect(entry("install-cost").phaseReason).toMatch(/waiting for the client's price ranges/);
+    expect(entry("closer-cost").phase).toBe(3);
+  });
+
+  it("lets a service with no Google Ads figures be core when the client already has a page for it", () => {
+    expect(entry("storefront-city")).toMatchObject({ phase: 2 });
+    expect(entry("storefront-city").phaseReason).toMatch(/already has a page/);
+    expect(entry("board-up-city")).toMatchObject({ phase: 3 });
+    expect(entry("board-up-city").phaseReason).toMatch(/mark it a priority/);
   });
 });
 

@@ -137,8 +137,10 @@ export function sitePages(urls: string[], contents: Map<string, PageContent | st
     const content = read[index];
     const title = content ? segments(content.title).filter(part => !templateTitles.has(part)).join(" ") : "";
     const headline = content ? `${title} ${content.h1}` : "";
-    // Section headings name what the page covers; question headings (FAQs) and the site's repeated headings do not.
-    const sections = (content?.headings ?? []).filter(heading => heading !== content?.h1 && !QUESTION_TITLE.test(heading) && !templateHeadings.has(heading.toLowerCase())).slice(0, 12);
+    // Section headings name what the page covers; question headings (FAQs), the site's repeated headings, and
+    // sentences styled as headings (over 10 words) do not.
+    const sections = (content?.headings ?? []).filter(heading => heading !== content?.h1 && !QUESTION_TITLE.test(heading)
+      && !templateHeadings.has(heading.toLowerCase()) && heading.split(/\s+/).length <= 10).slice(0, 12);
     const words = `${decodeURIComponent(path).replace(/[^a-zA-Z0-9]+/g, " ")} ${headline} ${sections.join(" ")}`;
     return {
       path, stems: meaningStems(words), aboutCost: COST_WORDS.test(`${path} ${headline}`),
@@ -201,7 +203,9 @@ export function coveringPage(
   // Most words matched wins; on a tie, a specific page beats the homepage, then the shorter path.
   const rank = (path: string, matched: number) => matched * 10_000 - (path === "/" ? 5_000 : path.length);
   for (const page of pages) {
-    if (INDEX_PAGE.test(page.path) || city.some(stem => !page.stems.has(stem))) continue;
+    // The homepage covers only trade-and-place searches (above); a search for a specific service belongs on that
+    // service's page or a new one, never on the homepage by default.
+    if (page.path === "/" || INDEX_PAGE.test(page.path) || city.some(stem => !page.stems.has(stem))) continue;
     // A repair search does not belong on a page about installation or replacement, or the other way round, even
     // when every other word matches ("window repair monroe nc" is not the Charlotte & Monroe installation page),
     // unless the page genuinely covers both: two or more of its own statements pair the subject with that action.

@@ -66,8 +66,8 @@ export interface Blueprint {
 
 export const PHASES: Blueprint["phases"] = [
   { phase: 1, title: "Fix and keep what exists", rule: "Pages already on the site: keep the ones that work, improve the rest, publish what is on staging.", count: 0 },
-  { phase: 2, title: "Core services and the highest-value city pages", rule: "New service pages, and city pages for the client's priority services or for services whose metro average CPC is in the upper half of the client's services.", count: 0 },
-  { phase: 3, title: "Remaining city pages and cost pages", rule: "Other service × city pages, services with no Google Ads figures (placed by the client's judgment, not ranked lower), and cost and quote pages.", count: 0 },
+  { phase: 2, title: "Core services first", rule: "New service pages; city pages and ready cost pages for core services: the client's priorities, services whose metro average CPC is in the upper half of the client's services, and services with no Google Ads figures that the client already has a page for.", count: 0 },
+  { phase: 3, title: "Remaining services and waiting cost pages", rule: "City and cost pages for the other services, and cost pages waiting for the client's price ranges (they move up once prices are supplied).", count: 0 },
   { phase: 4, title: "Blog library", rule: "Supporting articles, grouped by service.", count: 0 },
 ];
 
@@ -170,16 +170,32 @@ export function buildBlueprint(pages: PagePlan[], inventory: InventoryPage[], su
 
     const cpc = names.map(name => cpcOf.get(name)).filter((value): value is number => value != null).sort((a, b) => b - a)[0] ?? null;
     const priority = members.some(member => member.priorityService);
+    // Whether the service is core: a priority, metro CPC in the upper half, or no figures but a page of its own.
+    const core = (): [boolean, string] => {
+      if (priority) return [true, "a priority service"];
+      if (cpc != null && median != null) {
+        return cpc >= median
+          ? [true, `metro average CPC $${cpc.toFixed(2)}, in the upper half of the client's services (reference, not this page's own)`]
+          : [false, `metro average CPC $${cpc.toFixed(2)}, in the lower half of the client's services (reference, not this page's own)`];
+      }
+      if (names.some(name => serviceUrl.has(name))) return [true, "no Google Ads figures, but the client already has a page for this service"];
+      return [false, "no Google Ads figures and no page of its own yet: mark it a priority to build it sooner"];
+    };
     let phase: BlueprintEntry["phase"];
     let phaseReason: string;
     if (lead.page.path) [phase, phaseReason] = [1, "already on the site"];
     else if (lead.kind === "blog") [phase, phaseReason] = [4, "supporting article"];
-    else if (lead.kind === "cost") [phase, phaseReason] = [3, "cost and quote page"];
     else if (lead.kind === "service") [phase, phaseReason] = [2, "a confirmed service with no page of its own"];
-    else if (priority) [phase, phaseReason] = [2, "a priority service"];
-    else if (cpc != null && median != null && cpc >= median) [phase, phaseReason] = [2, `metro average CPC $${cpc.toFixed(2)}, in the upper half of the client's services (reference, not this page's own)`];
-    else if (cpc == null) [phase, phaseReason] = [3, "no Google Ads figures for this service: placed by the client's judgment, not ranked lower"];
-    else [phase, phaseReason] = [3, `metro average CPC $${cpc.toFixed(2)}, in the lower half of the client's services (reference, not this page's own)`];
+    else if (lead.kind === "cost") {
+      const [isCore, why] = core();
+      const prices = names.map(name => inventory.find(item => item.path === serviceUrl.get(name))?.prices?.[0]).find(Boolean);
+      if (isCore && prices) [phase, phaseReason] = [2, `cost page for a core service (${why}); the site already states prices: “${prices.slice(0, 120)}”`];
+      else if (isCore) [phase, phaseReason] = [3, `cost page for a core service (${why}), waiting for the client's price ranges: it moves to phase 2 once they are supplied`];
+      else [phase, phaseReason] = [3, `cost page; ${why}`];
+    } else {
+      const [isCore, why] = core();
+      [phase, phaseReason] = [isCore ? 2 : 3, why];
+    }
 
     const statuses = members.map(evidenceStatusOf);
     const evidenceStatus: EvidenceStatus = statuses.includes("existing") ? "existing" : statuses.includes("supported") ? "supported"

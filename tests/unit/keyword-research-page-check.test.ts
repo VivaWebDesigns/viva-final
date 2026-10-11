@@ -141,6 +141,7 @@ describe("matching against the reference site's saved pages", () => {
     "/services/commercial-door-replacement-repair": "services_commercial-door-replacement-repair.html",
     "/services/frameless-showers": "services_frameless-showers.html",
     "/service-areas/monroe": "service-areas_monroe.html",
+    "/": "home.html",
   };
   const contents = new Map(Object.entries(files).map(([route, file]) => {
     const url = `https://glassanddoorpro.com${route}`;
@@ -230,6 +231,17 @@ describe("matching against the reference site's saved pages", () => {
     expect([...suggestCombinations(showers, showerInventory, [], pages).values()][0].strength).toBe("intake_match");
     // Matched at intake but never mentioned on the page: still only a guess.
     expect(found.find(item => item.services.includes("glass partitions"))!.strength).toBe("intake_match");
+  });
+
+  it("never lets the homepage catch service searches (sentences styled as headings are not topics)", () => {
+    const home = pages.find(page => page.path === "/")!;
+    expect(home.stems.has("welco")).toBe(false);
+    for (const keyword of ["frameless glass shower doors", "home window repair", "installing a shower door", "glass shower door installation"]) {
+      expect(covering(keyword, "service")).not.toBe("/");
+    }
+    expect(covering("door closer repair charlotte", "city", "door closer repair")).toBe("/services/commercial-door-replacement-repair");
+    // Trade-and-place searches still belong on the homepage.
+    expect(covering("glass charlotte nc", "service")).toBe("/");
   });
 
   it("keeps the earlier correct matches", () => {
