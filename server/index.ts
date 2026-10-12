@@ -11,6 +11,14 @@ import fs from "fs";
 const app = express();
 const httpServer = createServer(app);
 
+// The Railway service URL serves the same app; send visitors to the public domain so
+// there is one public copy. Railway's health check uses its own host, so it is unaffected.
+app.use((req, res, next) => {
+  if (!req.hostname.toLowerCase().endsWith(".up.railway.app")) return next();
+  const status = req.method === "GET" || req.method === "HEAD" ? 301 : 308;
+  res.redirect(status, `https://vivawebdesigns.com${req.originalUrl}`);
+});
+
 declare module "http" {
   interface IncomingMessage {
     rawBody: unknown;
