@@ -15,6 +15,7 @@ import {
 import { db } from "../../db";
 import { createScanReportToken, hashScanReportToken } from "../../public-scan-report";
 import { closeReportTasks, INSTANTLY_TEMPLATE_PREFIX, recordReportEmailSent } from "../crm/reportOutreach";
+import { sendReplyAlert } from "./replyAlert";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -215,6 +216,16 @@ export async function handleInstantlyWebhook(payload: InstantlyWebhookPayload) {
   await db.update(instantlyWebhookEvents)
     .set({ outcome, leadId: enrollment?.leadId ?? null })
     .where(eq(instantlyWebhookEvents.id, claimed.id));
+  // One alert per reply; label events like lead_interested follow the reply and would duplicate it.
+  if (enrollment && eventType === "reply_received") {
+    void sendReplyAlert({
+      leadId: enrollment.leadId,
+      businessName: enrollment.businessName,
+      leadEmail: payload.lead_email ?? enrollment.email,
+      replyText: payload.reply_text ?? payload.reply_text_snippet ?? null,
+      uniboxUrl: payload.unibox_url ?? null,
+    });
+  }
   return { outcome };
 }
 
