@@ -5,7 +5,7 @@ import { getSabRankedCells } from "../../server/features/sab-mcp/localFalconRank
 import { reverseGeocodeSabCenters } from "../../server/features/sab-mcp/reverseGeocode";
 import { buildSabRunManifest } from "../../server/features/sab-mcp/exportManifest";
 import { evaluateSabAddressCandidate } from "../../server/features/sab-mcp/addressCandidate";
-import { authorizeSabScanBatch, claimSabRunScan, completeSabRunReports, createSabRunState, recordSabRunSubmission, type SabRunState, type SabScanPlan } from "../../server/features/sab-mcp/runState";
+import { authorizeSabScanBatch, claimSabRunScan, completeSabRunReports, createSabRunState, recordSabRunSubmission, sabScanPlanFingerprint, type SabRunState, type SabScanPlan } from "../../server/features/sab-mcp/runState";
 import { z } from "zod";
 
 vi.mock("../../server/features/sab-mcp/localFalconRankedCells", () => ({getSabRankedCells: vi.fn()}));
@@ -461,6 +461,37 @@ describe("SAB orchestration integration",()=>{
     await expect(tools(repo).invoke("authorize_sab_scan_batch",args)).rejects.toThrow(/Only one five-mile/);
     await expect(tools(repo).invoke("authorize_sab_scan_batch",{...args,scans:[{...fivePlan,scan_type:"recenter"}]})).rejects.toThrow(/never a recenter/);
     expect(repo.saveRunState).not.toHaveBeenCalled();
+  });
+
+  it("binds an explicitly approved five-mile recenter to its exact plan and current source evidence",async()=>{
+    const scan={...plan,scan_type:"recenter" as const,radius:5,center:{latitude:35.02,longitude:-80.03}};
+    const state=completeSabRunReports(submitted(),[key3]);
+    const named={kind:"recentered_five_mile_manual_review",...approved,requires_manual_review:true,
+      source_report_key:key3,source_evidence_hash:currentEvidenceHash(report()),plan_fingerprint:sabScanPlanFingerprint(scan)};
+    const decision={source_report_key:key3,evidence_hash:currentEvidenceHash(report()),rule_id:"S04,S05,S07",
+      centering_status:"planned",proposed_center:"35.02,-80.03",center_type:"ranked_peak_recentered",
+      evidence:{next_action:"additional_recenter_exception_required",grid:report().grid,named_scan_spec_exception:named}};
+    const args={orchestrator_id:"owner",authorization_id:"22222222-2222-4222-8222-222222222222",
+      authorization_reference:"named scan",scans:[scan],exception:{...approved,reason:"Explicit named center and radius override"}};
+    const repo=repository(state,{report_key:key3,decision_state:decision});
+    await expect(tools(repo).invoke("authorize_sab_scan_batch",args)).resolves.toMatchObject({scan_approved:true});
+    for(const mismatch of [{approval_reference:"different approval"},{source_evidence_hash:"0".repeat(64)},{plan_fingerprint:"0".repeat(64)}]) {
+      const invalid=repository(state,{report_key:key3,decision_state:{...decision,evidence:{...decision.evidence,named_scan_spec_exception:{...named,...mismatch}}}});
+      await expect(tools(invalid).invoke("authorize_sab_scan_batch",args)).rejects.toThrow(/never a recenter/);
+      expect(invalid.saveRunState).not.toHaveBeenCalled();
+    }
+    // The authorized result is retained for manual review, never compared with
+    // the old center or silently promoted into canonical prospect evidence.
+    let next=await repo.getRunState();
+    const version=next.version;
+    next=recordSabRunSubmission(claimSabRunScan(next,args.authorization_id,scan,"manual-five"),"manual-five",{submission_status:"submitted",report_key:key5});
+    await repo.saveRunState(next,version);
+    vi.mocked(getSabRankedCells).mockResolvedValue(report(key5,scan) as never);
+    const result=await analyzeAndRecordSabReport(repo as never,{run_id:"run",report_key:key5,place_id:"place",stage:"deliverable"},"actor");
+    expect(result.action).toBe("evidence_review_required");
+    expect(repo.saveScanResult).toHaveBeenLastCalledWith("place",expect.objectContaining({report_key:key5,scan_type:"recenter",scan_spec:{grid_size:"7x7",radius_miles:5}}),"actor",{historyOnly:true});
+    expect(await repo.getCompany()).toMatchObject({report_key:key3,blocker:"manual_five_mile_recenter_review_required",
+      decision_state:{source_report_key:key5,evidence:{automatic_canonical_selection:false}}});
   });
 
   it("preserves accepted three-mile centering while missing five-mile exclusion metrics require evidence review",async()=>{
