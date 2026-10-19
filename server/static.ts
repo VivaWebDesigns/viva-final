@@ -23,6 +23,10 @@ export function serveStatic(app: Express) {
     }),
   );
 
+  app.use("/assets", (_req, res) => {
+    res.status(404).type("text").set("Cache-Control", "no-cache").send("Not found");
+  });
+
   // All other static files (icons, fonts, manifests, robots.txt) — short-lived.
   // HTML shell files get a strict no-store so the app shell is never served stale
   // after a deploy. Other files use max-age=0 (must-revalidate on each request).

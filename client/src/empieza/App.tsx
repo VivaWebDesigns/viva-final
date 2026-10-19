@@ -1,3 +1,4 @@
+import { RecoveryReady } from "@/components/RecoveryReady";
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import MotionProvider from "@/components/MotionProvider";
@@ -24,6 +25,7 @@ function App() {
         <LanguageProvider>
           <TooltipProvider>
             <AppRouter />
+            <RecoveryReady />
             <Toaster />
           </TooltipProvider>
         </LanguageProvider>

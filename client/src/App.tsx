@@ -1,3 +1,4 @@
+import { RecoveryReady } from "@/components/RecoveryReady";
 import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -37,6 +38,7 @@ function MarketingRouter() {
         <Route path="/contacto" component={Contacto} />
         <Route component={NotFound} />
       </Switch>
+      <RecoveryReady />
     </Suspense>
   );
 }
@@ -54,6 +56,7 @@ function App() {
           <TooltipProvider>
             <Suspense fallback={<PageFallback />}>
               <SetupPage />
+              <RecoveryReady />
             </Suspense>
             <Toaster />
           </TooltipProvider>
@@ -70,6 +73,7 @@ function App() {
             <TooltipProvider>
               <Suspense fallback={<PageFallback />}>
                 <LoginPage />
+                <RecoveryReady />
               </Suspense>
               <Toaster />
             </TooltipProvider>

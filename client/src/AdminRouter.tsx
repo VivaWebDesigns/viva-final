@@ -1,3 +1,4 @@
+import { RecoveryReady } from "@/components/RecoveryReady";
 import { lazy, Suspense } from "react";
 import { Switch, Route, Redirect } from "wouter";
 import AdminLayout from "@/layouts/AdminLayout";
@@ -266,6 +267,7 @@ export default function AdminRouter() {
               </ProtectedRoute>
             </Route>
           </Switch>
+          <RecoveryReady />
         </Suspense>
       </AdminLayout>
     </ProtectedRoute>

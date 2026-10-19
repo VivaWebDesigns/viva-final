@@ -1,3 +1,4 @@
+import { RecoveryReady } from "@/components/RecoveryReady";
 import { Switch, Route } from "wouter";
 import { lazy, Suspense } from "react";
 import { queryClient } from "./lib/queryClient";
@@ -43,6 +44,7 @@ function AppRouter() {
         <Route path="/portfolio/:slug" component={ProjectDetail} />
         <Route component={NotFound} />
       </Switch>
+      <RecoveryReady />
     </Suspense>
   );
 }
