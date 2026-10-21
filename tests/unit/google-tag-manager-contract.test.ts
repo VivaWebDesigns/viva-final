@@ -14,6 +14,7 @@ const publicPages = [
   "thanks.html",
   "contact-thanks.html",
   "privacy-policy.html",
+  "terms.html",
 ];
 
 describe("Google Tag Manager installation", () => {

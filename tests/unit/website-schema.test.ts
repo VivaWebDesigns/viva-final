@@ -26,6 +26,7 @@ const publicPageNames = [
   "contact-thanks.html",
   "thanks.html",
   "privacy-policy.html",
+  "terms.html",
 ];
 
 describe("Viva website schema", () => {
