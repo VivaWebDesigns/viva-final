@@ -19,7 +19,7 @@ export function PrivacyPolicyContent({ standalone = false }: { standalone?: bool
   const company = "Viva Web Designs LLC";
   const email = "matt@vivawebdesigns.com";
   const phone = "(980) 475-4924";
-  const effective = "September 7, 2026";
+  const effective = "October 22, 2026";
   const Heading = standalone ? "h1" : "h2";
 
   return (
@@ -40,6 +40,7 @@ export function PrivacyPolicyContent({ standalone = false }: { standalone?: bool
           <li><strong>Usage Data:</strong> A random anonymous browser-session identifier, device category, pages viewed, approximate city/state/country, referring website, important actions, active time, and visit times.</li>
           <li><strong>Communications:</strong> Messages you send us via contact forms, email, or SMS.</li>
           <li><strong>Business Information:</strong> Trade, city, and service interests you share when inquiring about our services.</li>
+          <li><strong>SMS Consent Information:</strong> Your verbal permission to receive one report text, your confirmed mobile number, and the date and time of consent, recorded in our CRM.</li>
           <li><strong>Report Engagement Data:</strong> Whether a personalized scan-report page counted as an engaged view and which report-page action buttons were selected.</li>
         </ul>
       </PolicySection>
@@ -49,6 +50,7 @@ export function PrivacyPolicyContent({ standalone = false }: { standalone?: bool
         <ul className="list-disc list-inside space-y-1 mt-2 ml-2">
           <li>Respond to your inquiries and provide customer support</li>
           <li>Send service updates, proposals, and communications related to your account</li>
+          <li>After your explicit permission during a phone call, send one text containing an image of your requested free Google Maps ranking report. SMS consent is not a condition of purchase.</li>
           <li>Improve our website, services, and marketing materials</li>
           <li>Comply with legal obligations</li>
           <li>Send email communications you have opted into</li>
@@ -68,12 +70,10 @@ export function PrivacyPolicyContent({ standalone = false }: { standalone?: bool
       </PolicySection>
 
       <PolicySection title="4. Mobile Information and SMS Consent">
-        <p>
-          No Mobile information will be shared with third parties/affiliates for marketing/promotional purposes. All the above categories exclude text messaging originator opt-in data and consent; this information will not be shared with any third parties. You can opt out at any time by replying <strong>STOP</strong>. Message and data rates may apply.
-        </p>
-        <p>
-          Message frequency varies. Reply <strong>HELP</strong> for help.
-        </p>
+        <p>Viva Web Designs LLC offers a One-Time Visibility Report SMS/MMS program. We ask for your permission during a phone call before sending one text containing an image of your requested free Google Maps ranking report. Providing a phone number or submitting a website form does not enroll you in text messages. We record your permission, confirmed mobile number, and consent date and time in our CRM.</p>
+        <p>You receive one report message per request, with no links or promotional offers. This does not sign you up for recurring or promotional texts. Consent is not a condition of purchase. Message and data rates may apply.</p>
+        <p>We do not sell or share your mobile information or SMS opt-in data and consent with third parties or affiliates for marketing or promotional purposes. We share this information only with service providers as necessary to operate our messaging program, or as required by law.</p>
+        <p>You can opt out at any time by replying <strong>STOP</strong>. Reply <strong>HELP</strong> for help, or contact <a href="mailto:matt@vivawebdesigns.com">matt@vivawebdesigns.com</a> or <a href="tel:+19804754924">(980) 475-4924</a>. See our <a href="/terms">Terms of Service</a> for program details.</p>
       </PolicySection>
 
       <PolicySection title="5. Cookies and Tracking Technologies">
