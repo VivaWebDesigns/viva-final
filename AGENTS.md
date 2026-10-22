@@ -24,8 +24,8 @@ Only perform post-push deployment monitoring or live-production verification whe
 ## Database Schema Changes
 
 - This project deploys on Railway. Local shells usually do not have `DATABASE_URL`, and the app service `DATABASE_URL` may point at Railway's private hostname (`postgres.railway.internal`), which is not reachable from this machine.
-- For Drizzle schema pushes, use the Railway database service's public URL by running:
-  `~/.local/bin/railway run -s "Viva Web Designs Database" -e production sh -lc 'DATABASE_URL="$DATABASE_PUBLIC_URL" npm run db:push'`
+- The database has no public address (removed after Railway's October 2026 security incident; do not add it back). Reach it through Railway's private SSH tunnel with `scripts/with-railway-db.sh`, which sets `DATABASE_URL` for one command. For Drizzle schema pushes run:
+  `sh scripts/with-railway-db.sh npm run db:push`
 - After running a schema push, verify important columns or indexes with a read-only query against the same Railway database service.
 - Never print or commit database connection strings or Railway secret values.
 

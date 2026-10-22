@@ -25,7 +25,7 @@ The worker must be deployed as a separate service. Do not change the existing we
 Apply the Drizzle schema before starting the worker:
 
 ```sh
-~/.local/bin/railway run -s "Viva Web Designs Database" -e production sh -lc 'DATABASE_URL="$DATABASE_PUBLIC_URL" npm run db:push'
+sh scripts/with-railway-db.sh npm run db:push
 ```
 
 Verify the table and important lease columns after the push. Never print the connection URL.
