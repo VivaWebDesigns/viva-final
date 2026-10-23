@@ -1359,7 +1359,7 @@ export default function LeadDetailPage({ id }: { id: string }) {
           <DialogHeader>
             <DialogTitle>Email scan report</DialogTitle>
             <DialogDescription>
-              Review the exact recipient and message before the finished PNG is published and queued for delivery.
+              Review the exact recipient and message before the finished scan image is published and queued for delivery.
             </DialogDescription>
           </DialogHeader>
 

@@ -2,6 +2,7 @@ import { Router, type NextFunction, type Request, type Response } from "express"
 import multer from "multer";
 import crypto from "node:crypto";
 import sharp from "sharp";
+import { SNAPSHOT_MIME_TYPE, isSnapshotUpload, snapshotFileName, toSnapshotJpeg } from "./snapshotImage";
 import { and, desc, eq, isNotNull, sql } from "drizzle-orm";
 import { requireRole } from "../auth/middleware";
 import { analyzeVisibilityScreenshots } from "./analysis";
@@ -144,7 +145,7 @@ router.get(
       res.setHeader("Content-Type", file.mimeType);
       res.setHeader("Content-Length", String(file.buffer.byteLength));
       res.setHeader("Cache-Control", "private, max-age=300");
-      res.setHeader("Content-Disposition", `inline; filename="${report.id}-local-visibility-snapshot.png"`);
+      res.setHeader("Content-Disposition", `inline; filename="${report.id}-local-visibility-snapshot.${file.mimeType === "image/png" ? "png" : "jpg"}"`);
       res.send(file.buffer);
     } catch (error: any) {
       res.status(error?.statusCode ?? 500).json({ message: error.message });
@@ -248,8 +249,8 @@ router.post(
         return res.status(409).json({ message: "Reload the report before regenerating its all-point ATRP snapshot." });
       }
       const snapshot = req.file;
-      if (!snapshot || snapshot.mimetype !== "image/png") {
-        return res.status(400).json({ message: "Upload the finished report as a PNG." });
+      if (!snapshot || !isSnapshotUpload(snapshot.mimetype)) {
+        return res.status(400).json({ message: "Upload the finished report as a PNG or JPEG." });
       }
       const metadata = await sharp(snapshot.buffer).metadata();
       if (metadata.width !== 1080 || metadata.height !== 1920) {
@@ -263,10 +264,11 @@ router.post(
         .limit(1);
       if (!record) return res.status(404).json({ message: "Local Falcon report not found" });
 
+      const jpeg = await toSnapshotJpeg(snapshot.buffer);
       const stored = await uploadFile(
-        snapshot.buffer,
-        `${record.id}-local-visibility-snapshot.png`,
-        "image/png",
+        jpeg,
+        snapshotFileName(record.id),
+        SNAPSHOT_MIME_TYPE,
         "local-visibility-snapshots",
       );
       uploadedKey = stored.key;
@@ -276,7 +278,7 @@ router.post(
         snapshotOriginalName: stored.originalName,
         snapshotMimeType: stored.mimeType,
         snapshotSizeBytes: stored.sizeBytes,
-        snapshotSha256: crypto.createHash("sha256").update(snapshot.buffer).digest("hex"),
+        snapshotSha256: crypto.createHash("sha256").update(jpeg).digest("hex"),
         snapshotGeneratedAt: generatedAt,
       }).where(eq(localFalconProspectProfiles.id, record.id));
       if (record.previousKey && record.previousKey !== stored.key) {
@@ -317,7 +319,7 @@ router.get(
       res.setHeader("Content-Type", file.mimeType);
       res.setHeader("Content-Length", String(file.buffer.byteLength));
       res.setHeader("Cache-Control", "private, max-age=300");
-      res.setHeader("Content-Disposition", `inline; filename="${req.params.leadId}-local-visibility-snapshot.png"`);
+      res.setHeader("Content-Disposition", `inline; filename="${req.params.leadId}-local-visibility-snapshot.${file.mimeType === "image/png" ? "png" : "jpg"}"`);
       res.send(file.buffer);
     } catch (error: any) {
       res.status(error?.statusCode ?? 500).json({ message: error.message });
@@ -412,8 +414,8 @@ router.post(
         return res.status(409).json({ message: "Reload the report before regenerating its all-point ATRP snapshot." });
       }
       const snapshot = req.file;
-      if (!snapshot || snapshot.mimetype !== "image/png") {
-        return res.status(400).json({ message: "Upload the finished report as a PNG." });
+      if (!snapshot || !isSnapshotUpload(snapshot.mimetype)) {
+        return res.status(400).json({ message: "Upload the finished report as a PNG or JPEG." });
       }
       const metadata = await sharp(snapshot.buffer).metadata();
       if (metadata.width !== 1080 || metadata.height !== 1920) {
@@ -427,10 +429,11 @@ router.post(
         .limit(1);
       if (!record) return res.status(404).json({ message: "Local Falcon prospect not found" });
 
+      const jpeg = await toSnapshotJpeg(snapshot.buffer);
       const stored = await uploadFile(
-        snapshot.buffer,
-        `${req.params.leadId}-local-visibility-snapshot.png`,
-        "image/png",
+        jpeg,
+        snapshotFileName(req.params.leadId as string),
+        SNAPSHOT_MIME_TYPE,
         "local-visibility-snapshots",
       );
       uploadedKey = stored.key;
@@ -440,7 +443,7 @@ router.post(
         snapshotOriginalName: stored.originalName,
         snapshotMimeType: stored.mimeType,
         snapshotSizeBytes: stored.sizeBytes,
-        snapshotSha256: crypto.createHash("sha256").update(snapshot.buffer).digest("hex"),
+        snapshotSha256: crypto.createHash("sha256").update(jpeg).digest("hex"),
         snapshotGeneratedAt: generatedAt,
       }).where(eq(localFalconProspectProfiles.id, record.id));
       if (record.previousKey && record.previousKey !== stored.key) {

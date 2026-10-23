@@ -4,6 +4,7 @@ import { followupTasks, instantlyEnrollments, type InstantlyEnrollment } from "@
 import { REPORT_INITIAL_TASK_TITLE, reportSendBlockedReason } from "@shared/reportOutreach";
 import { db } from "../../db";
 import { getFileBuffer, uploadColdEmailImage } from "../../services/storage";
+import { publishableSnapshot } from "../local-visibility/snapshotImage";
 import { getReportOutreachStates } from "../crm/reportOutreach";
 import { addLeadsToCampaign, removeLead, updateLeadVariables } from "./client";
 
@@ -128,9 +129,9 @@ export async function listInstantlyRedrawQueue() {
 
 /** Copies a report's finished snapshot to the cold-email image domain. Content-hashed, so re-runs are no-ops. */
 export async function publishColdEmailImage(reportId: string, snapshotStorageKey: string) {
-  const file = await getFileBuffer(snapshotStorageKey);
-  const sha = crypto.createHash("sha256").update(file.buffer).digest("hex");
-  const published = await uploadColdEmailImage(file.buffer, `scans/${reportId}/${sha}.png`);
+  const image = await publishableSnapshot(await getFileBuffer(snapshotStorageKey));
+  const sha = crypto.createHash("sha256").update(image).digest("hex");
+  const published = await uploadColdEmailImage(image, `scans/${reportId}/${sha}.jpg`);
   return { imageUrl: published.url, imageSha256: sha };
 }
 

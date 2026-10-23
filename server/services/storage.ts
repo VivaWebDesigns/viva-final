@@ -142,7 +142,7 @@ export async function uploadPublishedReport(
     (error as Error & { statusCode: number }).statusCode = 503;
     throw error;
   }
-  if (!/^scans\/[a-zA-Z0-9-]+\/[a-f0-9]{64}\.png$/.test(key)) {
+  if (!/^scans\/[a-zA-Z0-9-]+\/[a-f0-9]{64}\.(png|jpg)$/.test(key)) {
     throw new Error("Invalid published report key.");
   }
   await getReportsS3Client()!.send(new PutObjectCommand({
@@ -168,7 +168,7 @@ export async function uploadColdEmailImage(buffer: Buffer, key: string): Promise
     (error as Error & { statusCode: number }).statusCode = 503;
     throw error;
   }
-  const published = await uploadPublishedReport(buffer, key, "image/png");
+  const published = await uploadPublishedReport(buffer, key, key.endsWith(".jpg") ? "image/jpeg" : "image/png");
   return { key: published.key, url: `${coldEmailUrl}/${published.key}` };
 }
 

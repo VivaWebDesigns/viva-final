@@ -122,7 +122,7 @@ export async function sendScanText(input: {
   }
 
   const { report } = await loadLeadReport(input.leadId, input.reportId);
-  if (!report.snapshotStorageKey) throw httpError("Generate the finished PNG snapshot before texting this report.", 409);
+  if (!report.snapshotStorageKey) throw httpError("Generate the finished snapshot before texting this report.", 409);
 
   // Only admins may change the approved wording.
   const edited = input.actor.role === "admin" && !!input.message?.trim() && input.message.trim() !== SCAN_TEXT_MESSAGE;

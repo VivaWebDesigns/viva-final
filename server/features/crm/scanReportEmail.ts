@@ -15,6 +15,7 @@ import {
 } from "@shared/schema";
 import { db } from "../../db";
 import { getFileBuffer, uploadPublishedReport } from "../../services/storage";
+import { SNAPSHOT_MIME_TYPE, publishableSnapshot } from "../local-visibility/snapshotImage";
 import { formatEmailSender } from "../../lib/email-sender";
 import {
   createAnonymousScanReportToken,
@@ -168,7 +169,7 @@ async function loadReport(leadId: string, reportId: string) {
     .limit(1);
   if (!record) throw Object.assign(new Error("Scan report not found for this lead."), { statusCode: 404 });
   if (!record.report.snapshotStorageKey) {
-    throw Object.assign(new Error("Generate the finished PNG snapshot before emailing this report."), { statusCode: 409 });
+    throw Object.assign(new Error("Generate the finished snapshot before emailing this report."), { statusCode: 409 });
   }
   if (!record.contact?.email?.trim() && record.lead.companyId) {
     const [primaryCompanyContact] = await db.select().from(crmContacts)
@@ -181,10 +182,10 @@ async function loadReport(leadId: string, reportId: string) {
 }
 
 async function publishScanReportShare(reportId: string, snapshotStorageKey: string) {
-  const file = await getFileBuffer(snapshotStorageKey);
-  const sha = crypto.createHash("sha256").update(file.buffer).digest("hex");
-  const publishedKey = `scans/${reportId}/${sha}.png`;
-  const published = await uploadPublishedReport(file.buffer, publishedKey, "image/png");
+  const image = await publishableSnapshot(await getFileBuffer(snapshotStorageKey));
+  const sha = crypto.createHash("sha256").update(image).digest("hex");
+  const publishedKey = `scans/${reportId}/${sha}.jpg`;
+  const published = await uploadPublishedReport(image, publishedKey, SNAPSHOT_MIME_TYPE);
   const publicToken = createAnonymousScanReportToken(reportId);
   return {
     imageUrl: published.url,

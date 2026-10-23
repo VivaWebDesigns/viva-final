@@ -101,7 +101,7 @@ import type {
 import { useLocation } from "wouter";
 import LocalVisibilityReportTemplate, { type MapPosition } from "@/features/local-visibility-report/LocalVisibilityReportTemplate";
 import { reportSnapshotFileUrl } from "@/features/local-visibility-report/snapshotUrl";
-import { renderLocalVisibilityReportBlob } from "@/features/local-visibility-report/exportReport";
+import { convertImageBlob, renderLocalVisibilityReportBlob } from "@/features/local-visibility-report/exportReport";
 import type { LocalVisibilityReportData } from "@/features/local-visibility-report/types";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -227,20 +227,20 @@ function LocalFalconSnapshotCard({
   const snapshotFileUrl = reportSnapshotFileUrl(reportId, contextCompanyId, data?.snapshotGeneratedAt);
   const copySnapshot = async () => {
     if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") {
-      toast({ title: "Image copying is not available", description: "Use Download PNG instead.", variant: "destructive" });
+      toast({ title: "Image copying is not available", description: "Use Download JPEG instead.", variant: "destructive" });
       return;
     }
     try {
       const blobPromise = fetch(snapshotFileUrl, { credentials: "include" }).then(async (response) => {
         if (!response.ok) throw new Error("Could not load the stored snapshot.");
-        return response.blob();
+        return convertImageBlob(await response.blob(), "image/png");
       });
       await navigator.clipboard.write([new ClipboardItem({ "image/png": blobPromise })]);
       toast({ title: "Image copied", description: "Paste it directly into the prepared Gmail message." });
     } catch (error) {
       toast({
         title: "Copy failed",
-        description: error instanceof Error ? error.message : "Use Download PNG instead.",
+        description: error instanceof Error ? error.message : "Use Download JPEG instead.",
         variant: "destructive",
       });
     }
@@ -248,7 +248,7 @@ function LocalFalconSnapshotCard({
   const downloadSnapshot = () => {
     const link = document.createElement("a");
     link.href = snapshotFileUrl;
-    link.download = `${data?.data.businessName || "local-visibility"}-snapshot.png`;
+    link.download = `${data?.data.businessName || "local-visibility"}-snapshot.jpg`;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -606,7 +606,7 @@ function LocalFalconSnapshotCard({
                 </Button>
               )}
               <Button variant="outline" onClick={downloadSnapshot}>
-                <Download className="mr-1.5 h-4 w-4" /> Download PNG
+                <Download className="mr-1.5 h-4 w-4" /> Download JPEG
               </Button>
               {canManageSnapshot && (
                 <Button

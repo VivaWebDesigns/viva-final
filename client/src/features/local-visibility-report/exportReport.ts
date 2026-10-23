@@ -26,3 +26,21 @@ export async function renderLocalVisibilityReportBlob(element: HTMLDivElement | 
   if (!blob) throw new Error("The report image could not be created.");
   return blob;
 }
+
+/** Re-encodes an image blob. Snapshots are stored as JPEG, but the clipboard only accepts PNG. */
+export async function convertImageBlob(blob: Blob, type: "image/png" | "image/jpeg", quality = 0.82): Promise<Blob> {
+  if (blob.type === type) return blob;
+  const bitmap = await createImageBitmap(blob);
+  const canvas = document.createElement("canvas");
+  canvas.width = bitmap.width;
+  canvas.height = bitmap.height;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("The image could not be converted.");
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.drawImage(bitmap, 0, 0);
+  bitmap.close();
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((converted) => converted ? resolve(converted) : reject(new Error("The image could not be converted.")), type, quality);
+  });
+}

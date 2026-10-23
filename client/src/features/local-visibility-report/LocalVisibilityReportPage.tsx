@@ -22,7 +22,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@features/auth/useAuth";
 import LocalVisibilityReportTemplate, { type MapPosition } from "./LocalVisibilityReportTemplate";
-import { renderLocalVisibilityReportBlob } from "./exportReport";
+import { convertImageBlob, renderLocalVisibilityReportBlob } from "./exportReport";
 import {
   DEFAULT_LOCAL_VISIBILITY_REPORT,
   getLocalVisibilityReportHeight,
@@ -413,7 +413,7 @@ export default function LocalVisibilityReportPage({ initialData }: LocalVisibili
       return;
     }
     setPreviewReady(true);
-    toast({ title: "Preview ready", description: "Review the snapshot, then copy or download the PNG." });
+    toast({ title: "Preview ready", description: "Review the snapshot, then copy or download the image." });
   };
 
   const renderReportBlob = async () => {
@@ -425,7 +425,7 @@ export default function LocalVisibilityReportPage({ initialData }: LocalVisibili
     if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") {
       toast({
         title: "Image copying is not available",
-        description: "Use Download PNG instead, or open the generator over HTTPS in a supported browser.",
+        description: "Use Download JPEG instead, or open the generator over HTTPS in a supported browser.",
         variant: "destructive",
       });
       return;
@@ -439,7 +439,7 @@ export default function LocalVisibilityReportPage({ initialData }: LocalVisibili
     } catch (error) {
       toast({
         title: "Copy failed",
-        description: error instanceof Error ? error.message : "Use Download PNG and attach the saved image instead.",
+        description: error instanceof Error ? error.message : "Use Download JPEG and attach the saved image instead.",
         variant: "destructive",
       });
     } finally {
@@ -451,14 +451,14 @@ export default function LocalVisibilityReportPage({ initialData }: LocalVisibili
     if (!validate() || !reportRef.current) return;
     setActiveExport("download");
     try {
-      const image = await renderReportBlob();
+      const image = await convertImageBlob(await renderReportBlob(), "image/jpeg");
       const imageUrl = URL.createObjectURL(image);
       const link = document.createElement("a");
-      link.download = `${slugify(data.businessName)}-local-visibility-snapshot.png`;
+      link.download = `${slugify(data.businessName)}-local-visibility-snapshot.jpg`;
       link.href = imageUrl;
       link.click();
       URL.revokeObjectURL(imageUrl);
-      toast({ title: "PNG downloaded", description: `The report was exported at 1080 × ${reportHeight}.` });
+      toast({ title: "JPEG downloaded", description: `The report was exported at 1080 × ${reportHeight}.` });
     } catch (error) {
       toast({
         title: "Export failed",
@@ -518,7 +518,7 @@ export default function LocalVisibilityReportPage({ initialData }: LocalVisibili
               className="bg-[#061a3d] text-white hover:bg-[#0b2b59]"
               data-testid="button-download-report"
             >
-              <Download /> {activeExport === "download" ? "Exporting…" : "Download PNG"}
+              <Download /> {activeExport === "download" ? "Exporting…" : "Download JPEG"}
             </Button>
           </div>
         </div>
@@ -752,7 +752,7 @@ export default function LocalVisibilityReportPage({ initialData }: LocalVisibili
             <div className="mb-3 flex items-center justify-between gap-4">
               <div>
                 <h2 className="text-sm font-semibold text-[#061a3d]">Report preview</h2>
-                <p className="text-xs text-gray-500">Exports at 1080 × {reportHeight} PNG</p>
+                <p className="text-xs text-gray-500">Exports at 1080 × {reportHeight} JPEG</p>
               </div>
               <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${previewReady ? "bg-emerald-100 text-emerald-700" : "bg-white text-gray-500"}`}>
                 {previewReady ? "Ready to download" : "Draft"}

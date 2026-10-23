@@ -2,6 +2,7 @@ import express, { Router } from "express";
 import multer from "multer";
 import crypto from "node:crypto";
 import sharp from "sharp";
+import { SNAPSHOT_MIME_TYPE, isSnapshotUpload, snapshotFileName, toSnapshotJpeg } from "../local-visibility/snapshotImage";
 import { z } from "zod";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { REPORT_OUTREACH_TASKS, reportSendBlockedReason } from "@shared/reportOutreach";
@@ -674,7 +675,7 @@ router.post(
       const requestFiles = (req.files ?? {}) as Record<string, Express.Multer.File[]>;
       const snapshotsByPlaceId = new Map(
         (requestFiles.snapshots ?? []).map((snapshot) => [
-          snapshot.originalname.replace(/\.png$/i, ""),
+          snapshot.originalname.replace(/\.(png|jpe?g)$/i, ""),
           snapshot,
         ]),
       );
@@ -685,7 +686,7 @@ router.post(
           throw new Error(`The Local Falcon image changed for ${row.companyName}. Review the framed preview again before importing.`);
         }
         const snapshot = snapshotsByPlaceId.get(row.placeId);
-        if (!snapshot || snapshot.mimetype !== "image/png") {
+        if (!snapshot || !isSnapshotUpload(snapshot.mimetype)) {
           throw new Error(`The finished snapshot is missing for ${row.companyName}. Review the preview and try again.`);
         }
         const metadata = await sharp(snapshot.buffer).metadata();
@@ -705,11 +706,11 @@ router.post(
           "local-falcon",
         );
         uploadedKeys.push(upload.key);
-        const snapshotFile = snapshotsByPlaceId.get(row.placeId)!;
+        const snapshotJpeg = await toSnapshotJpeg(snapshotsByPlaceId.get(row.placeId)!.buffer);
         const snapshotUpload = await storageService.uploadFile(
-          snapshotFile.buffer,
-          `${row.placeId}-local-visibility-snapshot.png`,
-          "image/png",
+          snapshotJpeg,
+          snapshotFileName(row.placeId),
+          SNAPSHOT_MIME_TYPE,
           "local-visibility-snapshots",
         );
         uploadedKeys.push(snapshotUpload.key);
@@ -726,7 +727,7 @@ router.post(
             originalName: snapshotUpload.originalName,
             mimeType: snapshotUpload.mimeType,
             sizeBytes: snapshotUpload.sizeBytes,
-            sha256: crypto.createHash("sha256").update(snapshotFile.buffer).digest("hex"),
+            sha256: crypto.createHash("sha256").update(snapshotJpeg).digest("hex"),
           },
         });
       }

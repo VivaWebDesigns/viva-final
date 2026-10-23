@@ -15,8 +15,8 @@ vi.mock("../../server/features/instantly/enrollment", () => ({
   getInstantlyEnrollmentStatus: mocks.instantlyStatus,
 }));
 vi.mock("../../server/services/storage", () => ({
-  getFileBuffer: vi.fn().mockResolvedValue({ buffer: Buffer.from("image") }),
-  uploadPublishedReport: vi.fn().mockResolvedValue({ url: "https://reports.example.com/image.png" }),
+  getFileBuffer: vi.fn().mockResolvedValue({ buffer: Buffer.from("image"), mimeType: "image/jpeg" }),
+  uploadPublishedReport: vi.fn().mockResolvedValue({ url: "https://reports.example.com/image.jpg" }),
 }));
 
 import {
