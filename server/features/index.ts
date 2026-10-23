@@ -26,6 +26,7 @@ import localVisibilityRoutes from "./local-visibility/routes";
 import { businessAnalyticsRoutes } from "./business-analytics";
 import technicalSeoRoutes from "./technical-seo/routes";
 import instantlyRoutes from "./instantly/routes";
+import twilioRoutes from "./sms/routes";
 import keywordResearchRoutes from "./keyword-research/routes";
 import { seedDocs } from "./docs/seed";
 import { seedIntegrations } from "./integrations/seed";
@@ -61,6 +62,7 @@ router.use("/local-visibility", localVisibilityRoutes);
 router.use("/business-analytics", businessAnalyticsRoutes);
 router.use("/technical-seo", technicalSeoRoutes);
 router.use("/instantly", instantlyRoutes);
+router.use("/twilio", twilioRoutes);
 router.use("/keyword-research", keywordResearchRoutes);
 
 router.post("/admin/seed", requireRole("admin"), async (_req, res) => {

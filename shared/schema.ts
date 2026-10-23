@@ -1497,20 +1497,57 @@ export type KeywordResearchProject = typeof keywordResearchProjects.$inferSelect
 
 export const smsMessages = pgTable("sms_messages", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  leadId: varchar("lead_id").notNull().references(() => crmLeads.id),
+  // Null for inbound texts from numbers the CRM can't match to a lead.
+  leadId: varchar("lead_id").references(() => crmLeads.id),
   direction: text("direction").notNull(), // "inbound" | "outbound"
   fromNumber: text("from_number").notNull(),
   toNumber: text("to_number").notNull(),
   content: text("content").notNull(),
   senderName: text("sender_name"),
   openPhoneMessageId: text("openphone_message_id").unique(),
+  twilioMessageSid: text("twilio_message_sid").unique(),
+  status: text("status"), // Twilio delivery status for outbound texts
   sentAt: timestamp("sent_at").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (t) => [
   index("sms_messages_lead_idx").on(t.leadId),
   index("sms_messages_sent_at_idx").on(t.sentAt),
   index("sms_messages_openphone_id_idx").on(t.openPhoneMessageId),
+  index("sms_messages_from_idx").on(t.fromNumber),
 ]);
+
+// One scan picture text per lead, with the verbal consent the 10DLC campaign requires.
+export const smsScanSends = pgTable("sms_scan_sends", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  leadId: varchar("lead_id").notNull().references(() => crmLeads.id, { onDelete: "cascade" }),
+  reportId: varchar("report_id").notNull(),
+  toNumber: text("to_number").notNull(), // E.164, read back to the lead on the call
+  consentAt: timestamp("consent_at").notNull(),
+  consentByUserId: text("consent_by_user_id").references(() => user.id),
+  consentScript: text("consent_script").notNull(),
+  content: text("content").notNull(),
+  contentEdited: boolean("content_edited").notNull().default(false),
+  imageUrl: text("image_url").notNull(),
+  twilioMessageSid: text("twilio_message_sid").unique(),
+  status: text("status").notNull(), // sending | queued | sent | delivered | undelivered | failed
+  errorCode: text("error_code"),
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (t) => [
+  index("sms_scan_sends_lead_idx").on(t.leadId),
+  index("sms_scan_sends_to_idx").on(t.toNumber),
+]);
+
+export type SmsScanSend = typeof smsScanSends.$inferSelect;
+
+// Numbers that replied STOP (or Twilio reported as unsubscribed). Never texted again.
+export const smsOptOuts = pgTable("sms_opt_outs", {
+  phone: text("phone").primaryKey(), // E.164
+  keyword: text("keyword"),
+  source: text("source").notNull(), // "inbound_keyword" | "twilio_error"
+  optedOutAt: timestamp("opted_out_at").defaultNow().notNull(),
+});
 
 export const insertSmsMessageSchema = createInsertSchema(smsMessages).omit({ id: true, createdAt: true });
 // @ts-ignore -- drizzle-zod v0.8 uses zod/v4 types; z.infer constraint mismatch with zod v3 is harmless

@@ -73,6 +73,7 @@ import DemoCompletedModal from "@/components/DemoCompletedModal";
 import CallButton from "@/components/CallButton";
 import SMSButton from "@/components/SMSButton";
 import SMSConversationsTab from "./SMSConversationsTab";
+import { TextScanDialog } from "./TextScanDialog";
 import type {
   ProfileEntry,
   ProfileHealth,
@@ -208,6 +209,7 @@ function LocalFalconSnapshotCard({
   const [emailReportRequestId, setEmailReportRequestId] = useState("");
   const [emailPreparation, setEmailPreparation] = useState<ManualScanReportPreparation | null>(null);
   const [emailSentConfirmed, setEmailSentConfirmed] = useState(false);
+  const [textScanOpen, setTextScanOpen] = useState(false);
   const { data, isLoading } = useQuery<LocalFalconSnapshot>({
     queryKey: ["/api/local-visibility/reports", reportId, contextCompanyId],
     queryFn: async () => {
@@ -564,6 +566,16 @@ function LocalFalconSnapshotCard({
                   Email report
                 </Button>
               )}
+              {canEmailSnapshot && data.leadId && (
+                <Button
+                  onClick={() => setTextScanOpen(true)}
+                  className="bg-violet-600 hover:bg-violet-700"
+                  data-testid="button-text-scan"
+                >
+                  <MessageSquare className="mr-1.5 h-4 w-4" />
+                  Text scan
+                </Button>
+              )}
               {data.leadId === "73eec4df-4ae9-4357-8842-2c0125c76e54" && (
                 <Button
                   variant="outline"
@@ -636,6 +648,15 @@ function LocalFalconSnapshotCard({
           </div>
         )}
       </CardContent>
+      {canEmailSnapshot && data.leadId && (
+        <TextScanDialog
+          leadId={data.leadId}
+          reportId={reportId}
+          snapshotUrl={snapshotFileUrl}
+          open={textScanOpen}
+          onOpenChange={setTextScanOpen}
+        />
+      )}
       <Dialog open={emailReportOpen} onOpenChange={(open) => {
         if (prepareEmailReport.isPending || confirmEmailReport.isPending) return;
         setEmailReportOpen(open);

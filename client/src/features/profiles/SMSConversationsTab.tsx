@@ -31,6 +31,9 @@ export default function SMSConversationsTab({ leadId, leadPhone, leadName }: SMS
   });
 
   const messages = data?.data ?? [];
+  // Twilio replies only continue a conversation the lead started.
+  const lastInbound = [...messages].reverse().find((msg) => msg.direction === "inbound");
+  const canReply = !!lastInbound;
 
   useEffect(() => {
     if (bottomRef.current) {
@@ -40,11 +43,7 @@ export default function SMSConversationsTab({ leadId, leadPhone, leadName }: SMS
 
   const sendMutation = useMutation({
     mutationFn: async (content: string) => {
-      return apiRequest("POST", "/api/quo/sms", {
-        to: leadPhone,
-        content,
-        leadId,
-      });
+      return apiRequest("POST", `/api/crm/leads/${encodeURIComponent(leadId)}/sms-reply`, { content });
     },
     onSuccess: () => {
       setMessage("");
@@ -61,7 +60,7 @@ export default function SMSConversationsTab({ leadId, leadPhone, leadName }: SMS
 
   function handleSend() {
     const trimmed = message.trim();
-    if (!trimmed || !leadPhone) return;
+    if (!trimmed || !canReply) return;
     sendMutation.mutate(trimmed);
   }
 
@@ -72,21 +71,6 @@ export default function SMSConversationsTab({ leadId, leadPhone, leadName }: SMS
     }
   }
 
-  if (!leadPhone) {
-    return (
-      <div
-        className="flex flex-col items-center justify-center py-16 text-center"
-        data-testid="sms-no-phone"
-      >
-        <MessageSquare className="w-10 h-10 text-gray-200 mb-3" />
-        <p className="text-sm font-medium text-gray-600">No phone number on file</p>
-        <p className="text-xs text-gray-400 mt-1">
-          Add a phone number to this lead&apos;s contact to enable SMS conversations.
-        </p>
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col h-full" data-testid="sms-conversations-tab">
       {/* Thread header */}
@@ -94,7 +78,7 @@ export default function SMSConversationsTab({ leadId, leadPhone, leadName }: SMS
         <div className="flex items-center gap-2">
           <MessageSquare className="w-4 h-4 text-violet-600" />
           <span className="text-sm font-medium text-gray-700">
-            SMS con <span className="font-semibold">{leadPhone}</span>
+            SMS con <span className="font-semibold">{lastInbound?.fromNumber ?? leadPhone ?? leadName ?? "lead"}</span>
           </span>
         </div>
         <Button
@@ -128,7 +112,7 @@ export default function SMSConversationsTab({ leadId, leadPhone, leadName }: SMS
           <div className="flex flex-col items-center justify-center py-12 text-center" data-testid="sms-empty">
             <MessageSquare className="w-8 h-8 text-gray-200 mb-2" />
             <p className="text-sm text-gray-400">No messages yet</p>
-            <p className="text-xs text-gray-300 mt-0.5">Send the first message below</p>
+            <p className="text-xs text-gray-300 mt-0.5">Usa "Text scan" en el reporte para enviar el escaneo</p>
           </div>
         ) : (
           <>
@@ -176,21 +160,23 @@ export default function SMSConversationsTab({ leadId, leadPhone, leadName }: SMS
       {/* Compose box */}
       <div className="pt-3 border-t border-gray-100 space-y-2" data-testid="sms-compose-area">
         <Textarea
-          placeholder="Escribe tu mensaje… (Ctrl+Enter para enviar)"
+          placeholder={canReply
+            ? "Escribe tu respuesta… (Ctrl+Enter para enviar)"
+            : "Podrás responder cuando el lead te escriba"}
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={handleKeyDown}
           rows={3}
           maxLength={1600}
           className="resize-none text-sm"
-          disabled={sendMutation.isPending}
+          disabled={sendMutation.isPending || !canReply}
           data-testid="textarea-sms-compose"
         />
         <div className="flex items-center justify-between">
           <span className="text-xs text-gray-400">{message.length}/1600</span>
           <Button
             onClick={handleSend}
-            disabled={!message.trim() || sendMutation.isPending}
+            disabled={!message.trim() || sendMutation.isPending || !canReply}
             className="gap-1.5 bg-violet-600 hover:bg-violet-700 text-white h-8 px-4 text-sm"
             data-testid="button-send-sms-thread"
           >

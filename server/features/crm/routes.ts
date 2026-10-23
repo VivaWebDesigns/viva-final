@@ -9,6 +9,7 @@ import { REPORT_OUTREACH_FILTERS } from "@shared/reportOutreach";
 import { getReportOutreachState, getReportOutreachStates } from "./reportOutreach";
 import { requireRole } from "../auth/middleware";
 import { logAudit } from "../audit/service";
+import { getScanTextPreview, sendScanText, sendSmsReply } from "../sms/scanText";
 import { notifyLeadAssignment } from "../notifications/triggers";
 import { appendHistorySafe } from "../history/service";
 import * as crmStorage from "./storage";
@@ -1051,6 +1052,53 @@ router.post("/leads/:id/scan-report-share", requireRole("admin", "developer", "s
       ipAddress: req.ip,
     });
     res.json(result);
+  } catch (error: any) {
+    res.status(error?.statusCode ?? 400).json({ message: error.message });
+  }
+});
+
+router.get("/leads/:id/scan-text", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
+  try {
+    const leadId = req.params.id as string;
+    if (!(await assertLeadAccess(req, res, leadId))) return;
+    const reportId = z.string().min(1).parse(req.query.reportId);
+    res.json(await getScanTextPreview(leadId, reportId, req.authUser!));
+  } catch (error: any) {
+    res.status(error?.statusCode ?? 400).json({ message: error.message });
+  }
+});
+
+router.post("/leads/:id/scan-text", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
+  try {
+    const leadId = req.params.id as string;
+    if (!(await assertLeadAccess(req, res, leadId))) return;
+    const input = z.object({
+      reportId: z.string().min(1),
+      toNumber: z.string().min(7),
+      consent: z.literal(true, { errorMap: () => ({ message: "Confirm the lead said yes before sending." }) }),
+      message: z.string().max(1600).optional(),
+    }).parse(req.body);
+    const result = await sendScanText({ leadId, ...input, actor: req.authUser! });
+    await logAudit({
+      userId: req.authUser!.id,
+      action: "scan_text_sent",
+      entity: "crm_lead",
+      entityId: leadId,
+      metadata: { reportId: input.reportId, sendId: result.sendId, to: result.toNumber },
+      ipAddress: req.ip,
+    });
+    res.json(result);
+  } catch (error: any) {
+    res.status(error?.statusCode ?? 400).json({ message: error.message });
+  }
+});
+
+router.post("/leads/:id/sms-reply", requireRole("admin", "developer", "sales_rep"), async (req, res) => {
+  try {
+    const leadId = req.params.id as string;
+    if (!(await assertLeadAccess(req, res, leadId))) return;
+    const { content } = z.object({ content: z.string().trim().min(1, "Message cannot be empty").max(1600) }).parse(req.body);
+    res.json(await sendSmsReply({ leadId, content, actor: req.authUser! }));
   } catch (error: any) {
     res.status(error?.statusCode ?? 400).json({ message: error.message });
   }
