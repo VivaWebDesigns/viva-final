@@ -51,8 +51,8 @@ export default function SMSConversationsTab({ leadId, leadPhone, leadName }: SMS
     },
     onError: (err: any) => {
       toast({
-        title: "Error al enviar SMS",
-        description: err?.message ?? "No se pudo enviar el mensaje. Intenta de nuevo.",
+        title: "SMS not sent",
+        description: err?.message ?? "The message couldn't be sent. Try again.",
         variant: "destructive",
       });
     },
@@ -78,7 +78,7 @@ export default function SMSConversationsTab({ leadId, leadPhone, leadName }: SMS
         <div className="flex items-center gap-2">
           <MessageSquare className="w-4 h-4 text-violet-600" />
           <span className="text-sm font-medium text-gray-700">
-            SMS con <span className="font-semibold">{lastInbound?.fromNumber ?? leadPhone ?? leadName ?? "lead"}</span>
+            SMS with <span className="font-semibold">{lastInbound?.fromNumber ?? leadPhone ?? leadName ?? "lead"}</span>
           </span>
         </div>
         <Button
@@ -112,7 +112,7 @@ export default function SMSConversationsTab({ leadId, leadPhone, leadName }: SMS
           <div className="flex flex-col items-center justify-center py-12 text-center" data-testid="sms-empty">
             <MessageSquare className="w-8 h-8 text-gray-200 mb-2" />
             <p className="text-sm text-gray-400">No messages yet</p>
-            <p className="text-xs text-gray-300 mt-0.5">Usa "Text scan" en el reporte para enviar el escaneo</p>
+            <p className="text-xs text-gray-300 mt-0.5">Use "Text scan" on the scan report to send the scan</p>
           </div>
         ) : (
           <>
@@ -146,7 +146,7 @@ export default function SMSConversationsTab({ leadId, leadPhone, leadName }: SMS
                       }`}
                       data-testid={`sms-direction-${msg.id}`}
                     >
-                      {isOutbound ? "enviado" : "recibido"}
+                      {isOutbound ? "sent" : "received"}
                     </span>
                   </div>
                 </div>
@@ -161,8 +161,8 @@ export default function SMSConversationsTab({ leadId, leadPhone, leadName }: SMS
       <div className="pt-3 border-t border-gray-100 space-y-2" data-testid="sms-compose-area">
         <Textarea
           placeholder={canReply
-            ? "Escribe tu respuesta… (Ctrl+Enter para enviar)"
-            : "Podrás responder cuando el lead te escriba"}
+            ? "Type your reply… (Ctrl+Enter to send)"
+            : "You can reply once the lead texts back"}
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -181,7 +181,7 @@ export default function SMSConversationsTab({ leadId, leadPhone, leadName }: SMS
             data-testid="button-send-sms-thread"
           >
             <Send className="w-3.5 h-3.5" />
-            {sendMutation.isPending ? "Enviando…" : "Enviar"}
+            {sendMutation.isPending ? "Sending…" : "Send"}
           </Button>
         </div>
       </div>
