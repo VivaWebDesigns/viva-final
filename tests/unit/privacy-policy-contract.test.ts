@@ -34,16 +34,14 @@ describe("privacy policy contract", () => {
 
     expect(policySource).toContain("4. Mobile Information and SMS Consent");
     expect(policySource).toContain(
-      "No Mobile information will be shared with third parties/affiliates for marketing/promotional purposes.",
+      "We do not sell or share your mobile information or SMS opt-in data and consent with third parties or affiliates for marketing or promotional purposes.",
     );
-    expect(policySource).toContain(
-      "All the above categories exclude text messaging originator opt-in data and consent; this information will not be shared with any third parties.",
-    );
-    expect(policySource).toContain("Message frequency varies.");
+    expect(policySource).toContain("We ask for your permission during a phone call before sending one text");
+    expect(policySource).toContain("Providing a phone number or submitting a website form does not enroll you in text messages.");
+    expect(policySource).toContain("Consent is not a condition of purchase.");
     expect(policySource).toContain("Message and data rates may apply.");
-    expect(policySource).toContain(
-      "Providing a phone number or submitting a form does not by itself enroll you in text messages.",
-    );
+    expect(policySource).toContain("<strong>STOP</strong>");
+    expect(policySource).toContain('href="/terms"');
   });
 
   it("accurately covers analytics, retention, collected scan data, and children", () => {

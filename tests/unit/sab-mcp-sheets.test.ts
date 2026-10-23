@@ -1685,7 +1685,7 @@ const initialStoredRun = () => ({
   schema_version: 1 as const, version: 1, run_id: "run-1", orchestrator_id: "codex-orchestrator",
   authorization_reference: "User approved this bounded run",
   public_business_phone_search_authorization:null,sop_revision:null,
-  credit_limit: 200, committed_credits: 0, batches: [],terminal_deferrals:{},latest_manifest:null,
+  credit_limit: 200, committed_credits: 0, credit_limit_amendments: [], batches: [],terminal_deferrals:{},latest_manifest:null,
 });
 function runStorage() {
   const client = new FakeRunStateSheetsClient([Array.from(SAB_HEADERS)]);

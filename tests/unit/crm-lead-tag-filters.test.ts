@@ -15,8 +15,7 @@ describe("CRM lead tag filters", () => {
     await getLeads({ tagIds: ["sab", "ready"], source: "local_falcon", statusId: "new", assignedTo: "rep", page: 2, limit: 100 });
     expect(query).toHaveBeenCalledTimes(2);
     for (const [config, params] of query.mock.calls as any[]) {
-      expect(config.text.match(/"crm_lead_tags"\."tag_id" =/g)).toHaveLength(2);
-      expect(config.text).toContain(') and "crm_leads"."id" in (');
+      expect(config.text.match(/lt\.tag_id = \$/g)).toHaveLength(2);
       expect(params).toEqual(expect.arrayContaining(["sab", "ready", "local_falcon", "new", "rep"]));
     }
     const resultsQuery = (query.mock.calls as any[]).find(([config]) => config.text.includes("order by"));
@@ -26,7 +25,7 @@ describe("CRM lead tag filters", () => {
   it("preserves legacy tagId and deduplicates repeated selections", async () => {
     await getLeads({ tagId: "sab", tagIds: ["sab", "ready", "ready"] });
     for (const [config, params] of query.mock.calls as any[]) {
-      expect(config.text.match(/"crm_lead_tags"\."tag_id" =/g)).toHaveLength(2);
+      expect(config.text.match(/lt\.tag_id = \$/g)).toHaveLength(2);
       expect(params.filter((value: string) => value === "sab")).toHaveLength(1);
       expect(params.filter((value: string) => value === "ready")).toHaveLength(1);
     }

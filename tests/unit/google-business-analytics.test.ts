@@ -35,8 +35,11 @@ describe("Google business analytics integration", () => {
   });
 
   it("rejects a tampered encrypted token", () => {
-    const encrypted = encryptGoogleToken("refresh-token-value");
-    const tampered = `${encrypted.slice(0, -1)}${encrypted.endsWith("A") ? "B" : "A"}`;
+    const [version, iv, tag, ciphertext] = encryptGoogleToken("refresh-token-value").split(":");
+    // Flip a real ciphertext byte: editing the last base64url character can land on unused padding bits.
+    const bytes = Buffer.from(ciphertext, "base64url");
+    bytes[0] ^= 0xff;
+    const tampered = [version, iv, tag, bytes.toString("base64url")].join(":");
 
     expect(() => decryptGoogleToken(tampered)).toThrow();
   });

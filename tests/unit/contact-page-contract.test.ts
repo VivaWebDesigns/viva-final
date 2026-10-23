@@ -21,17 +21,16 @@ const routesSource = fs.readFileSync(
 );
 
 describe("public contact form contract", () => {
-  it("keeps the general contact form concise and offers optional SMS consent", () => {
+  it("keeps the general contact form concise without an SMS opt-in", () => {
     expect(contactHtml).toContain('action="/contact-submit"');
     expect(contactHtml).toContain('name="name"');
     expect(contactHtml).toContain('name="business" autocomplete="organization" required');
     expect(contactHtml).toContain('name="email"');
     expect(contactHtml).toContain('name="phone"');
     expect(contactHtml).toContain('name="message"');
-    expect(contactHtml).toContain('name="smsConsent" type="checkbox" value="yes"');
-    expect(contactHtml).toContain("Consent is not a condition of purchase.");
+    // SMS consent is collected verbally on calls (one-time report campaign), not on website forms.
+    expect(contactHtml).not.toContain('name="smsConsent"');
     expect(contactHtml).toContain('href="/privacy-policy"');
-    expect(contactHtml).not.toMatch(/name="smsConsent"[^>]+required/);
 
     expect(contactHtml).not.toContain('name="website"');
     expect(contactHtml).not.toContain('name="city"');
