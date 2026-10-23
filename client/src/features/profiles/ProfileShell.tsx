@@ -198,6 +198,8 @@ function LocalFalconSnapshotCard({
   const { role } = useAuth();
   const canManageSnapshot = role === "admin" || role === "developer";
   const canEmailSnapshot = role === "admin" || role === "developer" || role === "sales_rep";
+  // Appointment setters only get Text scan from the report actions.
+  const showReportShareActions = role !== "sales_rep";
   const [emailReportOpen, setEmailReportOpen] = useState(false);
   const [emailReportPreview, setEmailReportPreview] = useState<ScanReportEmailPreview | null>(null);
   const [emailReportRecipient, setEmailReportRecipient] = useState("");
@@ -553,7 +555,7 @@ function LocalFalconSnapshotCard({
               />
             </a>
             <div className="flex flex-wrap gap-2">
-              {canEmailSnapshot && (
+              {canEmailSnapshot && showReportShareActions && (
                 <Button
                   onClick={() => loadEmailReportPreview.mutate()}
                   disabled={loadEmailReportPreview.isPending}
@@ -589,10 +591,12 @@ function LocalFalconSnapshotCard({
                   {createEmailTestLeads.isPending ? "Creating tests…" : "Create 3 email test leads"}
                 </Button>
               )}
-              <Button onClick={copySnapshot}>
-                <ClipboardCopy className="mr-1.5 h-4 w-4" /> Copy image
-              </Button>
-              {canEmailSnapshot && (
+              {showReportShareActions && (
+                <Button onClick={copySnapshot}>
+                  <ClipboardCopy className="mr-1.5 h-4 w-4" /> Copy image
+                </Button>
+              )}
+              {canEmailSnapshot && showReportShareActions && (
                 <Button
                   variant="outline"
                   onClick={() => copyReportLink.mutate()}
@@ -605,9 +609,11 @@ function LocalFalconSnapshotCard({
                   {copyReportLink.isPending ? "Preparing link…" : "Copy report link"}
                 </Button>
               )}
-              <Button variant="outline" onClick={downloadSnapshot}>
-                <Download className="mr-1.5 h-4 w-4" /> Download JPEG
-              </Button>
+              {showReportShareActions && (
+                <Button variant="outline" onClick={downloadSnapshot}>
+                  <Download className="mr-1.5 h-4 w-4" /> Download JPEG
+                </Button>
+              )}
               {canManageSnapshot && (
                 <Button
                   variant="outline"
@@ -618,7 +624,7 @@ function LocalFalconSnapshotCard({
                   {saveSnapshot.isPending ? "Regenerating…" : "Regenerate snapshot"}
                 </Button>
               )}
-              {data.reportUrl && (
+              {data.reportUrl && showReportShareActions && (
                 <Button variant="outline" asChild>
                   <a href={data.reportUrl} target="_blank" rel="noopener noreferrer">
                     Local Falcon report <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
