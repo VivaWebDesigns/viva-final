@@ -12,6 +12,7 @@ import {
 } from "@shared/schema";
 import { sql, desc, eq, or, ilike } from "drizzle-orm";
 import { auth } from "../auth/auth";
+import { fromNodeHeaders } from "better-auth/node";
 import { logAudit } from "../audit/service";
 import * as pipelineStorage from "../pipeline/storage";
 import * as crmStorage from "../crm/storage";
@@ -317,6 +318,31 @@ router.put("/users/:id", requireRole("admin"), async (req, res) => {
       createdAt: user.createdAt,
     }).from(user).where(eq(user.id, targetId));
     res.json(updated);
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+router.post("/users/:id/password", requireRole("admin"), async (req, res) => {
+  try {
+    const { password } = z.object({ password: z.string().min(8) }).parse(req.body);
+    const targetId = req.params.id as string;
+
+    await auth.api.setUserPassword({
+      body: { userId: targetId, newPassword: password },
+      headers: fromNodeHeaders(req.headers),
+    });
+    // Sign the user out everywhere so the old password's sessions end.
+    await db.delete(session).where(eq(session.userId, targetId));
+
+    await logAudit({
+      userId: req.authUser?.id,
+      action: "reset_user_password",
+      entity: "user",
+      entityId: targetId,
+      ipAddress: req.ip,
+    });
+    res.json({ ok: true });
   } catch (err: any) {
     res.status(400).json({ message: err.message });
   }

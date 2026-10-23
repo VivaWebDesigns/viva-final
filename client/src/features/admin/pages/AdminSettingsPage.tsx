@@ -67,6 +67,7 @@ export default function AdminSettingsPage() {
   const [newUser, setNewUser] = useState({ name: "", email: "", password: "", role: "sales_rep" });
   const [editRole, setEditRole] = useState("");
   const [editIncludeInActivityIntelligence, setEditIncludeInActivityIntelligence] = useState(true);
+  const [resetPassword, setResetPassword] = useState("");
 
   const { data: users = [], isLoading: usersLoading } = useQuery<AdminUser[]>({
     queryKey: ["/api/admin/users"],
@@ -102,6 +103,18 @@ export default function AdminSettingsPage() {
       qc.invalidateQueries({ queryKey: ["/api/admin/users"] });
       setEditingUser(null);
       toast({ title: t.settings.userUpdatedTitle });
+    },
+    onError: (err: Error) => toast({ title: t.common.error, description: err.message, variant: "destructive" }),
+  });
+
+  const resetPasswordMutation = useMutation({
+    mutationFn: async ({ id, password }: { id: string; password: string }) => {
+      const res = await apiRequest("POST", `/api/admin/users/${id}/password`, { password });
+      return res.json();
+    },
+    onSuccess: () => {
+      setResetPassword("");
+      toast({ title: t.settings.passwordResetTitle, description: t.settings.passwordResetDescription });
     },
     onError: (err: Error) => toast({ title: t.common.error, description: err.message, variant: "destructive" }),
   });
@@ -260,6 +273,7 @@ export default function AdminSettingsPage() {
                               setEditingUser(u);
                               setEditRole(u.role);
                               setEditIncludeInActivityIntelligence(u.includeInActivityIntelligence);
+                              setResetPassword("");
                             }}
                             className="text-gray-400 hover:text-gray-700"
                             data-testid={`button-edit-user-${u.id}`}
@@ -445,6 +459,28 @@ export default function AdminSettingsPage() {
                 disabled={editRole !== "sales_rep"}
                 data-testid="toggle-activity-intelligence"
               />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="reset-user-password">{t.settings.resetPasswordLabel}</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="reset-user-password"
+                  type="password"
+                  autoComplete="new-password"
+                  value={resetPassword}
+                  onChange={e => setResetPassword(e.target.value)}
+                  placeholder={t.settings.passwordPlaceholder}
+                  data-testid="input-reset-user-password"
+                />
+                <Button
+                  variant="outline"
+                  onClick={() => resetPasswordMutation.mutate({ id: editingUser!.id, password: resetPassword })}
+                  disabled={resetPasswordMutation.isPending || resetPassword.length < 8}
+                  data-testid="button-reset-user-password"
+                >
+                  {t.settings.resetPasswordButton}
+                </Button>
+              </div>
             </div>
             <Separator />
             <div className="flex items-center justify-between">
