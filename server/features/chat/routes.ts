@@ -18,7 +18,7 @@ import {
 const router = Router();
 
 router.use(requireAuth, (req, res, next) => {
-  if (req.authUser?.role === "extension_worker") {
+  if (req.authUser?.role === "extension_worker" || req.authUser?.role === "sales_rep") {
     return res.status(403).json({ message: "Forbidden" });
   }
   next();

@@ -56,54 +56,54 @@ export default function AdminRouter() {
         <Suspense fallback={<AdminPageFallback />}>
           <Switch>
             <Route path="/admin">
-              <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/pipeline">
+              <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/crm">
                 <DashboardPage />
               </ProtectedRoute>
             </Route>
             <Route path="/admin/crm">
-              <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/pipeline">
+              <ProtectedRoute roles={["admin", "developer", "sales_rep"]}>
                 <LeadListPage />
               </ProtectedRoute>
             </Route>
             <Route path="/admin/submissions">
-              <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/pipeline">
+              <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/crm">
                 <SubmissionsPage />
               </ProtectedRoute>
             </Route>
             <Route path="/admin/crm/leads/:id">
               {(params) => (
-                <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/pipeline">
+                <ProtectedRoute roles={["admin", "developer", "sales_rep"]} redirectTo="/admin/crm">
                   <LeadProfilePage id={params.id} />
                 </ProtectedRoute>
               )}
             </Route>
             <Route path="/admin/crm/companies/:id">
               {(params) => (
-                <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/pipeline">
+                <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/crm">
                   <CompanyDetailPage id={params.id} />
                 </ProtectedRoute>
               )}
             </Route>
             <Route path="/admin/crm/contacts/:id">
               {(params) => (
-                <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/pipeline">
+                <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/crm">
                   <ContactDetailPage id={params.id} />
                 </ProtectedRoute>
               )}
             </Route>
             <Route path="/admin/pipeline">
-              <ProtectedRoute roles={["admin", "developer", "sales_rep"]}>
+              <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/crm">
                 <PipelineBoardPage />
               </ProtectedRoute>
             </Route>
             <Route path="/admin/pipeline/list">
-              <ProtectedRoute roles={["admin", "developer", "sales_rep"]}>
+              <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/crm">
                 <PipelineListPage />
               </ProtectedRoute>
             </Route>
             <Route path="/admin/pipeline/opportunities/:id">
               {(params) => (
-                <ProtectedRoute roles={["admin", "developer", "sales_rep"]}>
+                <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/crm">
                   <OpportunityProfilePage id={params.id} />
                 </ProtectedRoute>
               )}
@@ -131,24 +131,24 @@ export default function AdminRouter() {
               )}
             </Route>
             <Route path="/admin/tasks">
-              <ProtectedRoute roles={["admin", "developer", "sales_rep"]}>
+              <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/crm">
                 <TasksDueTodayPage />
               </ProtectedRoute>
             </Route>
             <Route path="/admin/chat">
-              <ProtectedRoute roles={["admin", "developer", "sales_rep"]}>
+              <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/crm">
                 <TeamChatPage />
               </ProtectedRoute>
             </Route>
             <Route path="/admin/clients/:id">
               {(params) => (
-                <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/pipeline">
+                <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/crm">
                   <ClientProfilePage id={params.id} />
                 </ProtectedRoute>
               )}
             </Route>
             <Route path="/admin/clients">
-              <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/pipeline">
+              <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/crm">
                 <ClientsPage />
               </ProtectedRoute>
             </Route>
@@ -158,7 +158,7 @@ export default function AdminRouter() {
               </ProtectedRoute>
             </Route>
             <Route path="/admin/notifications">
-              <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/pipeline">
+              <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/crm">
                 <NotificationCenterPage />
               </ProtectedRoute>
             </Route>
@@ -216,48 +216,48 @@ export default function AdminRouter() {
               </ProtectedRoute>
             </Route>
             <Route path="/admin/tools/instantly">
-              <ProtectedRoute roles={["admin"]} redirectTo="/admin/pipeline">
+              <ProtectedRoute roles={["admin"]} redirectTo="/admin/crm">
                 <InstantlyPage />
               </ProtectedRoute>
             </Route>
             <Route path="/admin/tools/redraw-report-pictures">
-              <ProtectedRoute roles={["admin"]} redirectTo="/admin/pipeline">
+              <ProtectedRoute roles={["admin"]} redirectTo="/admin/crm">
                 <RedrawSnapshotsPage />
               </ProtectedRoute>
             </Route>
             <Route path="/admin/tools/local-visibility-report">
-              <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/pipeline">
+              <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/crm">
                 <LocalVisibilityReportPage />
               </ProtectedRoute>
             </Route>
             <Route path="/admin/tools/technical-seo/:id/report">
               {(params) => (
-                <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/pipeline">
+                <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/crm">
                   <TechnicalSeoReportPage scanId={params.id} />
                 </ProtectedRoute>
               )}
             </Route>
             <Route path="/admin/tools/technical-seo/:id">
               {(params) => (
-                <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/pipeline">
+                <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/crm">
                   <TechnicalSeoScannerPage scanId={params.id} />
                 </ProtectedRoute>
               )}
             </Route>
             <Route path="/admin/tools/technical-seo">
-              <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/pipeline">
+              <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/crm">
                 <TechnicalSeoScannerPage />
               </ProtectedRoute>
             </Route>
             <Route path="/admin/keyword-research/:id">
               {(params) => (
-                <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/pipeline">
+                <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/crm">
                   <KeywordResearchPage projectId={params.id} />
                 </ProtectedRoute>
               )}
             </Route>
             <Route path="/admin/keyword-research">
-              <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/pipeline">
+              <ProtectedRoute roles={["admin", "developer"]} redirectTo="/admin/crm">
                 <KeywordResearchPage />
               </ProtectedRoute>
             </Route>
