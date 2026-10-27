@@ -7,7 +7,6 @@ vi.mock("../../server/db", () => ({ db: mockDb }));
 import {
   recordReportEmailSent,
   completeReportOutreachTask,
-  ensureReportEmailedStage,
   getReportOutreachStates,
   optOutReportOutreachByTokenHash,
 } from "../../server/features/crm/reportOutreach";
@@ -102,18 +101,18 @@ describe("report outreach dates and safeguards", () => {
 });
 
 describe("successful report delivery workflow", () => {
-  it("moves New Lead to Report Emailed and schedules email two", async () => {
-    const { writes } = database([[delivery], [lead], [delivery], [], ...history(), [opp], stages, [stages[1]], [{ id: "old", title: "Contact lead" }, { id: "custom", title: "Custom work" }]]);
+  it("schedules email two without moving the call pipeline", async () => {
+    const { writes } = database([[delivery], [lead], [delivery], [], ...history(), [opp], stages, [{ id: "old", title: "Contact lead" }, { id: "custom", title: "Custom work" }]]);
     await recordReportEmailSent(delivery.id, new Date("2026-08-31T15:00:00Z"));
     expect(writes.find(w => w.table === "crm_lead_notes")?.values.metadata).toMatchObject({ event: "report_email_counted", reportOutreachDisposition: "active" });
-    expect(writes.find(w => w.table === "pipeline_opportunities")?.values.stageId).toBe("emailed");
+    expect(writes.some(w => w.table === "pipeline_opportunities")).toBe(false);
     expect(writes.filter(w => w.table === "followup_tasks" && w.operation === "update")).toHaveLength(1);
     expect(writes.find(w => w.table === "followup_tasks" && w.operation === "insert")?.values).toMatchObject({
       taskType: "report_email_followup", dueDate: new Date("2026-09-09T00:00:00Z"), assignedTo: "rep-1",
     });
   });
   it("keeps the stage after email two and schedules the five-business-day review", async () => {
-    const { writes } = database([[delivery], [lead], [delivery], [], ...history(2), [{ ...opp, stageId: "emailed" }], stages, [stages[1]], []]);
+    const { writes } = database([[delivery], [lead], [delivery], [], ...history(2), [{ ...opp, stageId: "emailed" }], stages, []]);
     await recordReportEmailSent(delivery.id, new Date("2026-09-03T15:00:00Z"));
     expect(writes.filter(w => w.table === "pipeline_opportunities")).toHaveLength(0);
     expect(writes.find(w => w.table === "followup_tasks" && w.operation === "insert")?.values).toMatchObject({
@@ -136,10 +135,11 @@ describe("successful report delivery workflow", () => {
     expect(writes.find(w => w.table === "crm_lead_notes")?.values.metadata.reportOutreachDisposition).toBe("opted_out");
     expect(writes.some(w => w.table === "followup_tasks")).toBe(false);
   });
-  it("creates the pipeline opportunity if the lead did not have one", async () => {
-    const { writes } = database([[delivery], [lead], [delivery], [], ...history(), [], stages, [stages[1]], []]);
+  it("schedules outreach for a lead without a deal and does not create one", async () => {
+    const { writes } = database([[delivery], [lead], [delivery], [], ...history(), [], stages, []]);
     await recordReportEmailSent(delivery.id);
-    expect(writes.find(w => w.table === "pipeline_opportunities")?.values).toMatchObject({ leadId: "lead-1", stageId: "emailed" });
+    expect(writes.some(w => w.table === "pipeline_opportunities")).toBe(false);
+    expect(writes.find(w => w.table === "followup_tasks" && w.operation === "insert")?.values).toMatchObject({ opportunityId: null });
   });
 });
 
@@ -155,44 +155,28 @@ describe("outreach outcomes", () => {
     expect(writes.find(w => w.table === "crm_lead_notes")?.values.metadata.reportOutreachDisposition).toBe("no_response");
     expect(writes.some(w => w.table === "pipeline_opportunities")).toBe(false);
   });
-  it.each(["Interested", "Uncertain"])("moves a %s reply to Contacted and creates a demo follow-up", async outcome => {
-    const { writes } = database([[lead], [task], ...history(), [{ ...opp, stageId: "emailed" }], stages]);
+  it.each(["Interested", "Uncertain", "Appointment set"])("records a %s reply without moving the call pipeline", async outcome => {
+    const { writes } = database([[lead], [task], ...history()]);
     await completeReportOutreachTask(task, { outcome }, "rep-1");
-    expect(writes.find(w => w.table === "pipeline_opportunities")?.values.stageId).toBe("contacted");
-    expect(writes.find(w => w.table === "followup_tasks" && w.operation === "insert")?.values.title).toBe("Schedule demo");
-  });
-  it("allows direct demo booking", async () => {
-    const { writes } = database([[lead], [task], ...history(), [{ ...opp, stageId: "emailed" }], stages]);
-    await completeReportOutreachTask(task, { outcome: "Appointment set", demoDate: "2026-09-10" }, "rep-1");
-    expect(writes.find(w => w.table === "pipeline_opportunities")?.values.stageId).toBe("demo");
-    expect(writes.find(w => w.table === "followup_tasks" && w.operation === "insert")?.values.taskType).toBe("demo_outcome");
+    expect(writes.find(w => w.table === "crm_lead_notes")?.values.metadata.reportOutreachDisposition).toBe("replied");
+    expect(writes.some(w => w.table === "pipeline_opportunities")).toBe(false);
+    expect(writes.some(w => w.table === "followup_tasks" && w.operation === "insert")).toBe(false);
   });
   it.each(["Opted out", "Email bounced"])("stops for %s without a follow-up", async outcome => {
     const { writes } = database([[lead], [task], ...history()]);
     await completeReportOutreachTask(task, { outcome }, "rep-1");
     expect(writes.some(w => w.table === "followup_tasks" && w.operation === "insert")).toBe(false);
   });
-  it("keeps stage creation idempotent", async () => {
-    const { tx, writes } = database([[stages[1]]]);
-    await ensureReportEmailedStage(tx as any);
-    expect(writes).toEqual([]);
-  });
-  it("inserts the new stage immediately before Contacted", async () => {
-    const { tx, writes } = database([[], [{ id: "contacted", slug: "contacted", sortOrder: 1 }]]);
-    await ensureReportEmailedStage(tx as any);
-    expect(writes.find(w => w.table === "pipeline_stages" && w.operation === "insert")?.values)
-      .toMatchObject({ name: "Report Emailed", slug: "report-emailed", sortOrder: 1 });
-    expect(writes.filter(w => w.table === "pipeline_stages" && w.operation === "update")).toHaveLength(1);
-  });
   it("can record a late reply after No Response", async () => {
-    const { writes } = database([[lead], [{ ...task, completed: true }], ...history(2, "no_response"), [{ ...opp, stageId: "emailed" }], stages]);
+    const { writes } = database([[lead], [{ ...task, completed: true }], ...history(2, "no_response")]);
     await completeReportOutreachTask(task, { outcome: "Interested" }, "rep-1");
-    expect(writes.find(w => w.table === "pipeline_opportunities")?.values.stageId).toBe("contacted");
+    expect(writes.find(w => w.table === "crm_lead_notes")?.values.metadata.reportOutreachDisposition).toBe("replied");
   });
-  it("uses Closed Lost only for an explicit Not interested outcome", async () => {
-    const { writes } = database([[lead], [task], ...history(), [{ ...opp, stageId: "emailed" }], stages]);
+  it("records Not interested as a stopped sequence without closing the deal", async () => {
+    const { writes } = database([[lead], [task], ...history()]);
     await completeReportOutreachTask(task, { outcome: "Not interested" }, "rep-1");
-    expect(writes.find(w => w.table === "pipeline_opportunities")?.values).toMatchObject({ stageId: "lost", status: "lost" });
+    expect(writes.find(w => w.table === "crm_lead_notes")?.values.metadata.reportOutreachDisposition).toBe("not_interested");
+    expect(writes.some(w => w.table === "pipeline_opportunities")).toBe(false);
     expect(writes.some(w => w.table === "followup_tasks" && w.operation === "insert")).toBe(false);
   });
   it("derives historical send counts and keeps the latest recorded disposition", async () => {

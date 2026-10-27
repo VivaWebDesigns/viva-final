@@ -12,6 +12,7 @@ import { z } from "zod";
 import { executeStageAutomations } from "../automations/trigger";
 import { REPORT_OUTREACH_FILTERS } from "@shared/reportOutreach";
 import { getReportOutreachStates } from "../crm/reportOutreach";
+import { canSetterMoveStage, HIDDEN_STAGE_SLUGS } from "@shared/callPipeline";
 
 const updateStageSchema = z.object({
   name: z.string().min(1).optional(),
@@ -49,7 +50,7 @@ function isRestricted(req: { authUser?: { role?: string } }): boolean {
 
 router.get("/stages", requireRole("admin", "developer", "sales_rep"), async (_req, res) => {
   const stages = await pipelineStorage.getStages();
-  res.json(stages);
+  res.json(stages.filter(stage => !(HIDDEN_STAGE_SLUGS as readonly string[]).includes(stage.slug)));
 });
 
 router.post("/stages", requireRole("admin", "developer"), async (req, res) => {
@@ -242,6 +243,9 @@ router.put("/opportunities/:id", requireRole("admin", "developer", "sales_rep", 
     const { assignedTo: _stripAssigned, ...restBody } = req.body;
     const bodyToParse = isRestricted(req) ? restBody : req.body;
     const validated = updateOpportunitySchema.parse(bodyToParse);
+    if (isRestricted(req) && ((validated.status !== undefined && validated.status !== existing.status) || (validated.stageId && validated.stageId !== existing.stageId))) {
+      return res.status(403).json({ message: "Use the stage controls or a call task to move this lead." });
+    }
     const opp = await pipelineStorage.updateOpportunity(id, validated as Partial<InsertPipelineOpportunity>);
     await logAudit({
       userId: req.authUser?.id,
@@ -304,6 +308,15 @@ router.put("/opportunities/:id/stage", requireRole("admin", "developer", "sales_
     if (!existing) return res.status(404).json({ message: "Opportunity not found" });
     if (isRestricted(req) && existing.assignedTo !== req.authUser!.id) {
       return res.status(403).json({ message: "Access denied" });
+    }
+    if (isRestricted(req)) {
+      const [fromStage, toStage] = await Promise.all([
+        existing.stageId ? pipelineStorage.getStageById(existing.stageId) : Promise.resolve(undefined),
+        pipelineStorage.getStageById(stageId),
+      ]);
+      if (!toStage || !canSetterMoveStage(fromStage?.slug, toStage.slug)) {
+        return res.status(403).json({ message: "Only an admin can move a lead to or past Call Scheduled." });
+      }
     }
     const result = await pipelineStorage.moveOpportunity(id, stageId, req.authUser?.id);
     await logAudit({

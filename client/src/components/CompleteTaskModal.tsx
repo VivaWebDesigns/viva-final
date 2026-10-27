@@ -1,12 +1,15 @@
 import { useState, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAdminLang } from "@/i18n/LanguageContext";
 import { renderTaskTitle } from "@/lib/activityI18n";
 import { resolveRepTimezone } from "@/lib/timezone";
 import { isReportOutreachTask, REPORT_OUTREACH_OUTCOMES } from "@shared/reportOutreach";
 import { TIME_SLOTS, formatTimeSlot, calcDueDateString, todayLocalString } from "@/components/taskScheduling";
+import { invalidateTaskQueriesFor } from "@/components/taskQueryInvalidation";
+import CallTaskModal from "@/components/CallTaskModal";
+import { isCallTask } from "@shared/callPipeline";
 import {
   Dialog,
   DialogContent,
@@ -137,36 +140,9 @@ function CompleteTaskModalContent({
     ].filter(Boolean).join(" · ");
   };
 
-  const invalidateTaskQueries = () => {
-    queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-    queryClient.invalidateQueries({ queryKey: ["/api/tasks/due-today"] });
-    queryClient.invalidateQueries({ queryKey: ["/api/tasks/completed-history"] });
-    if (isReportTask) {
-      queryClient.invalidateQueries({ predicate: q => String(q.queryKey[0]).startsWith("/api/profiles") || String(q.queryKey[0]).endsWith("/report-outreach") });
-    }
-    queryClient.invalidateQueries({
-      predicate: (query) =>
-        Array.isArray(query.queryKey) &&
-        query.queryKey[0] === "/api/clients" &&
-        query.queryKey[2] === "tasks",
-    });
-    if (effOppId) {
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks/for-opportunity", effOppId] });
-      queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities/board"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities", effOppId] });
-    }
-    queryClient.invalidateQueries({ queryKey: ["/api/crm/leads"] });
-    queryClient.invalidateQueries({ queryKey: ["/api/pipeline/opportunities/board"] });
-    if (effLeadId) {
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks/for-lead", effLeadId] });
-      queryClient.invalidateQueries({ queryKey: ["/api/crm/leads", effLeadId] });
-    }
-    if (effContactId) queryClient.invalidateQueries({ queryKey: ["/api/tasks/for-contact", effContactId] });
-    if (effCompanyId) {
-      queryClient.invalidateQueries({ queryKey: ["/api/profiles/company", effCompanyId, "notes"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/history/client", effCompanyId] });
-    }
-  };
+  const invalidateTaskQueries = () => invalidateTaskQueriesFor({
+    opportunityId: effOppId, leadId: effLeadId, contactId: effContactId, companyId: effCompanyId, isReportTask,
+  });
 
   const submitMutation = useMutation({
     mutationFn: async () => {
@@ -501,5 +477,9 @@ function CompleteTaskModalContent({
 
 export default function CompleteTaskModal(props: CompleteTaskModalProps) {
   const sessionKey = useOpenSessionKey(props.open);
+  // Call tasks use the step-by-step call prompt, which also moves the call pipeline.
+  if (props.task && isCallTask(props.task.taskType)) {
+    return <CallTaskModal open={props.open} onClose={props.onClose} task={props.task} onSuccess={props.onSuccess} />;
+  }
   return <CompleteTaskModalContent key={sessionKey} {...props} />;
 }

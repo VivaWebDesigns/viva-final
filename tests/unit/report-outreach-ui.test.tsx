@@ -25,9 +25,16 @@ describe("report outreach completion form", () => {
     openTask("report_email_review");
     expect(await screen.findByTestId("option-outcome-noResponse")).toHaveTextContent("pause outreach");
   });
-  it("keeps the existing first-call workflow for ordinary tasks", async () => {
-    openTask("call");
-    expect(await screen.findByTestId("option-outcome-noAnswer")).toBeInTheDocument();
-    expect(screen.queryByTestId("option-outcome-optedOut")).not.toBeInTheDocument();
+  it("walks a call task through the step-by-step call prompt", async () => {
+    renderWithProviders(<CompleteTaskModal open onClose={vi.fn()}
+      task={{ id: "task-1", title: "Call lead", leadId: "lead-1", opportunityId: "opp-1", taskType: "call" }} />);
+    expect(screen.queryByTestId("select-outcome")).not.toBeInTheDocument();
+    fireEvent.click(await screen.findByTestId("call-answered"));
+    fireEvent.click(screen.getByTestId("answered-sent-sms"));
+    fireEvent.click(screen.getByTestId("after-sms-call-back"));
+    expect(screen.getByTestId("input-call-date")).toBeInTheDocument();
+    expect(screen.getByTestId("button-call-save")).toBeDisabled();
+    fireEvent.click(screen.getByTestId("button-call-back-step"));
+    expect(screen.getByTestId("after-sms-interested")).toBeInTheDocument();
   });
 });

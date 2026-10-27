@@ -10,7 +10,8 @@ import { stopInstantlyEnrollment } from "../instantly/enrollment";
 import { addLeadNote } from "../crm/storage";
 import { addActivity, bulkAssignOpportunitiesByLeadIds, getStages, moveOpportunity } from "../pipeline/storage";
 import { db } from "../../db";
-import { crmLeads, pipelineOpportunities, followupTasks, automationExecutionLogs, clientNotes, type FollowupTask } from "@shared/schema";
+import { crmLeads, pipelineOpportunities, followupTasks, automationExecutionLogs, clientNotes, user, type FollowupTask } from "@shared/schema";
+import { CALL_BACK_TASK_TITLE, CALL_OUTCOME_STAGE, CALL_TASK_TYPE, DISCOVERY_CALL_TASK_TITLE, isCallTask, isSetterWorkingStage } from "@shared/callPipeline";
 
 const router = Router();
 
@@ -218,7 +219,7 @@ const HUNG_UP_OUTCOME = "Hung up";
 const ALLOWED_OUTCOMES = [
   "No answer", "Left voicemail", "Spoke with lead", HUNG_UP_OUTCOME,
   "Interested", "Uncertain", "Not interested",
-  "Bad number", "Appointment set",
+  "Bad number", "Wrong number", "Appointment set", "Call back",
   "Payment received", "Still waiting", "Won't pay",
   "No response", "Opted out", "Email bounced",
 ] as const;
@@ -232,6 +233,8 @@ const OUTCOME_VALUE_TO_KEY: Record<string, string> = {
   "Uncertain":        "uncertain",
   "Not interested":   "notInterested",
   "Bad number":       "badNumber",
+  "Wrong number":     "wrongNumber",
+  "Call back":        "callBack",
   "Appointment set":  "appointmentSet",
   "Payment received": "paymentReceived",
   "Still waiting":    "stillWaiting",
@@ -241,6 +244,7 @@ const OUTCOME_VALUE_TO_KEY: Record<string, string> = {
 const OUTCOME_STAGE_SLUG: Partial<Record<string, string>> = {
   "Not interested": "closed-lost",
   "Bad number":     "closed-lost",
+  "Wrong number":   "closed-lost",
   "Appointment set":"demo-scheduled",
 };
 
@@ -254,7 +258,29 @@ const completeTaskSchema = z.object({
   outcome: z.enum(ALLOWED_OUTCOMES).optional(),
   completionNote: z.string().optional(),
   demoDate: z.string().optional(),
+  demoTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  demoTimezone: z.string().optional(),
+  callBackDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  callBackTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  callBackTimezone: z.string().optional(),
 }).optional();
+
+/** The task's deal, falling back to the lead's open deal for tasks created without one. */
+async function resolveTaskOpportunity(task: Pick<FollowupTask, "leadId" | "opportunityId">) {
+  const condition = task.opportunityId
+    ? eq(pipelineOpportunities.id, task.opportunityId)
+    : task.leadId ? and(eq(pipelineOpportunities.leadId, task.leadId), eq(pipelineOpportunities.status, "open")) : null;
+  if (!condition) return null;
+  const [opportunity] = await db.select({ id: pipelineOpportunities.id, stageId: pipelineOpportunities.stageId })
+    .from(pipelineOpportunities).where(condition).limit(1);
+  return opportunity ?? null;
+}
+
+/** Discovery calls go to the admin who runs them (the earliest admin account). */
+async function discoveryCallOwnerId(): Promise<string | null> {
+  const [admin] = await db.select({ id: user.id }).from(user).where(eq(user.role, "admin")).orderBy(user.createdAt).limit(1);
+  return admin?.id ?? null;
+}
 
 type LeadContactOutcomeResult = {
   leadId: string | null;
@@ -454,6 +480,23 @@ router.put("/:id/complete", requireRole("admin", "developer", "sales_rep"), asyn
     }
     if (existingTask.completed) return res.json(existingTask);
 
+    const callTask = isCallTask(existingTask.taskType);
+    const taskOpportunity = await resolveTaskOpportunity(existingTask);
+    const stages = taskOpportunity ? await getStages() : [];
+    const currentStageSlug = stages.find(s => s.id === taskOpportunity?.stageId)?.slug ?? null;
+    if (req.authUser?.role === "sales_rep" && taskOpportunity && !isSetterWorkingStage(currentStageSlug)) {
+      return res.status(403).json({ message: "This lead is past Call Scheduled. Only an admin can update it now." });
+    }
+    if (callTask) {
+      if (!body?.outcome || !CALL_OUTCOME_STAGE[body.outcome]) return res.status(400).json({ message: "Choose what happened on the call." });
+      if (body.outcome === "Appointment set" && !(body.demoDate && /^\d{4}-\d{2}-\d{2}$/.test(body.demoDate) && body.demoTime)) {
+        return res.status(400).json({ message: "Pick the date and time of the discovery call." });
+      }
+      if (body.outcome === "Call back" && !(body.callBackDate && body.callBackTime)) {
+        return res.status(400).json({ message: "Pick when to call back." });
+      }
+    }
+
     const task = await taskStorage.completeTask(req.params.id as string, body ?? undefined);
     await logAudit({
       userId: req.authUser?.id,
@@ -498,12 +541,36 @@ router.put("/:id/complete", requireRole("admin", "developer", "sales_rep"), asyn
 
     const leadOutcomeResult = await applyLeadContactOutcome(task, body?.outcome, actorId, req.ip);
 
-    if (body?.outcome && task.opportunityId) {
-      const targetSlug = OUTCOME_STAGE_SLUG[body.outcome];
-      if (targetSlug) {
-        const stages = await getStages();
-        const stage = stages.find(s => s.slug === targetSlug);
-        if (stage) await moveOpportunity(task.opportunityId!, stage.id, actorId ?? undefined).catch(() => {});
+    if (body?.outcome && taskOpportunity) {
+      const targetSlug = callTask ? CALL_OUTCOME_STAGE[body.outcome] : OUTCOME_STAGE_SLUG[body.outcome];
+      const stage = targetSlug ? stages.find(s => s.slug === targetSlug) : undefined;
+      if (stage && stage.id !== taskOpportunity.stageId) {
+        await moveOpportunity(taskOpportunity.id, stage.id, actorId ?? undefined).catch(() => {});
+      }
+
+      if (body.outcome === "Call back" && body.callBackDate) {
+        try {
+          const callBackTask = await taskStorage.createTask({
+            title: CALL_BACK_TASK_TITLE,
+            taskType: CALL_TASK_TYPE,
+            dueDate: new Date(body.callBackDate + "T00:00:00Z"),
+            followUpTime: body.callBackTime ?? null,
+            followUpTimezone: body.callBackTimezone ?? null,
+            completed: false,
+            assignedTo: task.assignedTo,
+            opportunityId: taskOpportunity.id,
+            leadId: task.leadId,
+            contactId: task.contactId,
+            companyId: task.companyId,
+            createdBy: actorId,
+          });
+          const callBackContent = `Follow-up scheduled: ${callBackTask.title}`;
+          const callBackMeta = { event: "follow_up_scheduled", taskTitle: callBackTask.title };
+          if (callBackTask.leadId) addLeadNote({ leadId: callBackTask.leadId, userId: actorId, type: "task", content: callBackContent, metadata: callBackMeta }).catch(() => {});
+          else addActivity({ opportunityId: taskOpportunity.id, userId: actorId, type: "task", content: callBackContent, metadata: callBackMeta }).catch(() => {});
+        } catch (err: unknown) {
+          console.error("[tasks/complete] call-back task creation failed:", err);
+        }
       }
 
       if (body.outcome === "Appointment set") {
@@ -516,19 +583,22 @@ router.put("/:id/complete", requireRole("admin", "developer", "sales_rep"), asyn
           demoTaskDue.setUTCHours(0, 0, 0, 0);
         }
         try {
+          // The admin runs the discovery call; its demo_outcome type opens the call-completed prompt.
           const demoTask = await taskStorage.createTask({
-            title: "Record demo outcome",
+            title: DISCOVERY_CALL_TASK_TITLE,
             taskType: "demo_outcome",
             dueDate: demoTaskDue,
+            followUpTime: body.demoTime ?? null,
+            followUpTimezone: body.demoTimezone ?? null,
             completed: false,
-            assignedTo: task.assignedTo,
-            opportunityId: task.opportunityId,
+            assignedTo: (await discoveryCallOwnerId()) ?? task.assignedTo,
+            opportunityId: taskOpportunity.id,
             leadId: task.leadId,
             contactId: task.contactId,
             companyId: task.companyId,
             createdBy: actorId,
           });
-          const demoTaskContent = `Demo outcome task created: ${demoTask.title}`;
+          const demoTaskContent = `Discovery call scheduled: ${demoTask.title}`;
           const demoTaskMeta = { event: "demo_outcome_task_created", taskTitle: demoTask.title };
           if (demoTask.leadId) addLeadNote({ leadId: demoTask.leadId, userId: actorId, type: "task", content: demoTaskContent, metadata: demoTaskMeta }).catch(() => {});
           else if (demoTask.opportunityId) addActivity({ opportunityId: demoTask.opportunityId, userId: actorId, type: "task", content: demoTaskContent, metadata: demoTaskMeta }).catch(() => {});
@@ -539,7 +609,8 @@ router.put("/:id/complete", requireRole("admin", "developer", "sales_rep"), asyn
     }
 
     if (body?.outcome && AUTO_FOLLOWUP_OUTCOMES.has(body.outcome)) {
-      const hasExisting = await taskStorage.getActiveTaskForContext(task.leadId, task.opportunityId);
+      // Leftover email tasks must not block the next call.
+      const hasExisting = await taskStorage.getActiveTaskForContext(task.leadId, task.opportunityId, callTask ? CALL_TASK_TYPE : undefined);
       if (!hasExisting) {
         const tomorrow = new Date();
         tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);

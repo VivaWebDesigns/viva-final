@@ -2,8 +2,9 @@ import { and, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { db } from "../../db";
 import {
   crmLeads, crmLeadNotes, followupTasks, pipelineOpportunities, pipelineStages,
-  pipelineActivities, scanReportDeliveries, type FollowupTask,
+  scanReportDeliveries, type FollowupTask,
 } from "@shared/schema";
+import { isSetterWorkingStage } from "@shared/callPipeline";
 import { classifyReportOutreach, reportBusinessDate, REPORT_INITIAL_TASK_TITLE, REPORT_OUTREACH_TASKS, REPORT_OUTREACH_OUTCOMES,
   type ReportOutreachSegment } from "@shared/reportOutreach";
 
@@ -112,29 +113,15 @@ export async function optOutReportOutreachByTokenHash(tokenHash: string, now = n
   });
 }
 
-export async function ensureReportEmailedStage(tx: Tx) {
-  await tx.execute(sql`select pg_advisory_xact_lock(hashtext('report-emailed-stage'))`);
-  const [existing] = await tx.select().from(pipelineStages).where(eq(pipelineStages.slug, "report-emailed"));
-  if (existing) return existing;
-  const [contacted] = await tx.select().from(pipelineStages).where(eq(pipelineStages.slug, "contacted"));
-  const order = contacted?.sortOrder ?? 1;
-  await tx.update(pipelineStages).set({ sortOrder: sql`${pipelineStages.sortOrder} + 1` })
-    .where(sql`${pipelineStages.sortOrder} >= ${order}`);
-  const [stage] = await tx.insert(pipelineStages).values({
-    name: "Report Emailed", slug: "report-emailed", color: "#0891B2", sortOrder: order,
-  }).returning();
-  return stage;
-}
-
 export async function closeReportTasks(tx: Tx, leadId: string, now: Date) {
   await tx.update(followupTasks).set({ completed: true, completedAt: now })
     .where(and(eq(followupTasks.leadId, leadId), eq(followupTasks.completed, false),
       inArray(followupTasks.taskType, [...REPORT_OUTREACH_TASKS])));
 }
 
-/** Other CRM paths (e.g. a booked demo) also stop the pending email sequence. */
+/** Booking or closing a lead stops the pending email sequence; calling stages do not. */
 export async function stopReportOutreachForStage(leadId: string, stageSlug: string) {
-  if (["new-lead", "report-emailed"].includes(stageSlug)) return;
+  if (isSetterWorkingStage(stageSlug)) return;
   await db.transaction(async tx => {
     const [lead] = await tx.select().from(crmLeads).where(eq(crmLeads.id, leadId)).for("update");
     if (!lead) return;
@@ -175,30 +162,13 @@ export async function recordReportEmailSent(deliveryId: string, now = new Date()
     });
     // A response recorded while the job was sending must never be undone.
     if (state.reportOutreachDisposition && state.reportOutreachDisposition !== "active") return;
+    // Emails are counted, never staged: the stage strip belongs to call tasks.
     const opportunities = await tx.select().from(pipelineOpportunities)
-      .where(eq(pipelineOpportunities.leadId, lead.id)).for("update");
+      .where(eq(pipelineOpportunities.leadId, lead.id));
     const stages = await tx.select().from(pipelineStages);
-    const eligible = opportunities.filter(o => o.status === "open" &&
-      ["new-lead", "report-emailed"].includes(stages.find(s => s.id === o.stageId)?.slug ?? ""));
-    // Do not move an advanced or closed deal backward, or replace its tasks.
-    if (opportunities.length && !eligible.length) return;
-    const stage = await ensureReportEmailedStage(tx);
-    let opportunity = eligible[0];
-    if (!opportunity) {
-      [opportunity] = await tx.insert(pipelineOpportunities).values({
-        title: lead.title, leadId: lead.id, companyId: lead.companyId, contactId: lead.contactId,
-        assignedTo: lead.assignedTo, stageId: stage.id, sourceLeadTitle: lead.title,
-      }).returning();
-    }
-    for (const opp of eligible) {
-      if (opp.stageId === stage.id) continue;
-      await tx.update(pipelineOpportunities).set({ stageId: stage.id, stageEnteredAt: now, updatedAt: now })
-        .where(eq(pipelineOpportunities.id, opp.id));
-      await tx.insert(pipelineActivities).values({
-        opportunityId: opp.id, type: "stage_change", content: "Report email sent: New Lead → Report Emailed",
-        metadata: { event: "stage_change", fromStageSlug: "new-lead", toStageSlug: "report-emailed", deliveryId },
-      });
-    }
+    const opportunity = opportunities.find(o => o.status === "open" && isSetterWorkingStage(stages.find(s => s.id === o.stageId)?.slug));
+    // Leave an advanced or closed deal's tasks alone.
+    if (opportunities.length && !opportunity) return;
     // Retire initial outreach tasks only; leave unrelated custom work intact.
     const oldTasks = await tx.select().from(followupTasks).where(and(
       eq(followupTasks.leadId, lead.id), eq(followupTasks.completed, false),
@@ -217,8 +187,8 @@ export async function recordReportEmailSent(deliveryId: string, now = new Date()
         : "Check your inbox before completing. If unanswered after five business days, choose No response to pause outreach. Do not send a third email.",
       taskType: count === 1 ? "report_email_followup" : "report_email_review",
       dueDate: reportBusinessDate(now, count === 1 ? 7 : 5),
-      leadId: lead.id, opportunityId: opportunity.id, companyId: lead.companyId,
-      contactId: lead.contactId, assignedTo: opportunity.assignedTo ?? lead.assignedTo,
+      leadId: lead.id, opportunityId: opportunity?.id ?? null, companyId: lead.companyId,
+      contactId: lead.contactId, assignedTo: opportunity?.assignedTo ?? lead.assignedTo,
     });
   });
 }
@@ -240,9 +210,6 @@ export async function completeReportOutreachTask(task: FollowupTask, input: {
       !state.lastReportEmailedAt || reportBusinessDate(now, 0) < reportBusinessDate(state.lastReportEmailedAt, 5))) {
       throw new Error("Wait five business days after the second report email before marking No Response.");
     }
-    if (outcome === "Appointment set" && (!input.demoDate || !/^\d{4}-\d{2}-\d{2}$/.test(input.demoDate))) {
-      throw new Error("A demo date is required.");
-    }
     const disposition = outcome === "No response" ? "no_response" : outcome === "Opted out" ? "opted_out"
       : outcome === "Email bounced" ? "bounced" : outcome === "Not interested" ? "not_interested" : "replied";
     await closeReportTasks(tx, lead.id, now);
@@ -252,30 +219,6 @@ export async function completeReportOutreachTask(task: FollowupTask, input: {
       content: `Report outreach: ${outcome}${input.completionNote ? ` — ${input.completionNote}` : ""}`,
       metadata: { event: "task_completed", outcome, taskId: task.id, reportOutreachDisposition: disposition },
     });
-    const targetSlug = outcome === "Appointment set" ? "demo-scheduled" : outcome === "Not interested" ? "closed-lost"
-      : disposition === "replied" ? "contacted" : null;
-    if (targetSlug && task.opportunityId) {
-      const [opp] = await tx.select().from(pipelineOpportunities).where(eq(pipelineOpportunities.id, task.opportunityId)).for("update");
-      const stages = await tx.select().from(pipelineStages);
-      const oldSlug = stages.find(s => s.id === opp?.stageId)?.slug;
-      const target = stages.find(s => s.slug === targetSlug);
-      if (!target) throw new Error(`Missing pipeline stage: ${targetSlug}`);
-      if (opp?.status === "open" && ["new-lead", "report-emailed"].includes(oldSlug ?? "")) {
-        await tx.update(pipelineOpportunities).set({ stageId: target.id, stageEnteredAt: now, updatedAt: now,
-          status: targetSlug === "closed-lost" ? "lost" : "open" }).where(eq(pipelineOpportunities.id, opp.id));
-        await tx.insert(pipelineActivities).values({ opportunityId: opp.id, userId: actorId, type: "stage_change",
-          content: `Report reply: ${oldSlug} → ${target.name}`, metadata: { event: "stage_change", fromStageSlug: oldSlug, toStageSlug: targetSlug } });
-        if (targetSlug !== "closed-lost") {
-          await tx.insert(followupTasks).values({
-            title: targetSlug === "demo-scheduled" ? "Record demo outcome" : "Schedule demo",
-            taskType: targetSlug === "demo-scheduled" ? "demo_outcome" : "follow_up",
-            dueDate: targetSlug === "demo-scheduled" ? new Date(`${input.demoDate}T00:00:00Z`) : reportBusinessDate(now, 1),
-            leadId: lead.id, opportunityId: opp.id, companyId: lead.companyId, contactId: lead.contactId,
-            assignedTo: opp.assignedTo, createdBy: actorId,
-          });
-        }
-      }
-    }
     return completed;
   });
 }

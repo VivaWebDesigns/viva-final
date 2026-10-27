@@ -27,7 +27,7 @@ import { seedIntegrations } from "./features/integrations/seed";
 import { seedDocs } from "./features/docs/seed";
 import { seedAutomationTemplates } from "./features/automations/seed";
 import { startWorker } from "./features/workflow/worker";
-import { backfillTaskCompanyIds, reconcileEmailFirstOutreach } from "./features/tasks/backfill";
+import { backfillTaskCompanyIds, reconcileCallFirstOutreach } from "./features/tasks/backfill";
 import { backfillSellerUrlProductId } from "./features/marketplace/backfill";
 import { loadAdminNameAdditions } from "./features/marketplace/nameScore";
 
@@ -132,8 +132,8 @@ export async function runBootstrap(): Promise<void> {
     console.error(`${TAG} task companyId backfill error:`, err.message),
   );
 
-  await reconcileEmailFirstOutreach().catch((err) =>
-    console.error(`${TAG} email-first outreach reconciliation error:`, err.message),
+  await reconcileCallFirstOutreach().catch((err) =>
+    console.error(`${TAG} call-first outreach reconciliation error:`, err.message),
   );
 
   await backfillSellerUrlProductId().catch((err) =>

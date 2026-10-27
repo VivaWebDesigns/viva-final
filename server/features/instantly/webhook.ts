@@ -1,14 +1,11 @@
 import crypto from "node:crypto";
-import { and, eq, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import {
   crmLeadNotes,
   crmLeads,
   followupTasks,
   instantlyEnrollments,
   instantlyWebhookEvents,
-  pipelineActivities,
-  pipelineOpportunities,
-  pipelineStages,
   scanReportDeliveries,
   type InstantlyEnrollment,
 } from "@shared/schema";
@@ -16,8 +13,6 @@ import { db } from "../../db";
 import { createScanReportToken, hashScanReportToken } from "../../public-scan-report";
 import { closeReportTasks, INSTANTLY_TEMPLATE_PREFIX, recordReportEmailSent } from "../crm/reportOutreach";
 import { sendReplyAlert } from "./replyAlert";
-
-type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 export interface InstantlyWebhookPayload {
   event_type?: string;
@@ -42,12 +37,12 @@ export function instantlyEventKey(payload: InstantlyWebhookPayload): string {
   return `sha256:${crypto.createHash("sha256").update(JSON.stringify(payload)).digest("hex")}`;
 }
 
-/** Reply-type events: the disposition, the pipeline stage to move to, and the follow-up task. */
-const RESPONSE_EVENTS: Record<string, { disposition: string; stageSlug: string; label: string; task: string | null }> = {
-  reply_received: { disposition: "replied", stageSlug: "contacted", label: "Reply received", task: "Respond to Instantly reply" },
-  lead_interested: { disposition: "replied", stageSlug: "contacted", label: "Marked interested", task: "Follow up — interested in Instantly" },
-  lead_meeting_booked: { disposition: "replied", stageSlug: "demo-scheduled", label: "Meeting booked", task: "Confirm meeting booked in Instantly" },
-  lead_not_interested: { disposition: "not_interested", stageSlug: "closed-lost", label: "Marked not interested", task: null },
+/** Reply-type events: the disposition and the follow-up task. Email replies never move the call pipeline. */
+const RESPONSE_EVENTS: Record<string, { disposition: string; label: string; task: string | null }> = {
+  reply_received: { disposition: "replied", label: "Reply received", task: "Respond to Instantly reply" },
+  lead_interested: { disposition: "replied", label: "Marked interested", task: "Follow up — interested in Instantly" },
+  lead_meeting_booked: { disposition: "replied", label: "Meeting booked", task: "Confirm meeting booked in Instantly" },
+  lead_not_interested: { disposition: "not_interested", label: "Marked not interested", task: null },
 };
 
 const STOP_EVENTS: Record<string, { disposition: string; label: string }> = {
@@ -66,31 +61,6 @@ async function findEnrollment(payload: InstantlyWebhookPayload) {
   const [byEmail] = await db.select().from(instantlyEnrollments)
     .where(eq(instantlyEnrollments.email, email)).limit(1);
   return byEmail ?? null;
-}
-
-/** Moves an open deal that is still at the start of the pipeline; advanced deals are never moved back. */
-async function moveEarlyOpportunities(tx: Tx, leadId: string, targetSlug: string, label: string, now: Date) {
-  const stages = await tx.select().from(pipelineStages);
-  const target = stages.find(stage => stage.slug === targetSlug);
-  if (!target) return;
-  const opportunities = await tx.select().from(pipelineOpportunities)
-    .where(and(eq(pipelineOpportunities.leadId, leadId), eq(pipelineOpportunities.status, "open"))).for("update");
-  for (const opportunity of opportunities) {
-    const fromSlug = stages.find(stage => stage.id === opportunity.stageId)?.slug ?? "";
-    if (!["new-lead", "report-emailed"].includes(fromSlug)) continue;
-    await tx.update(pipelineOpportunities).set({
-      stageId: target.id,
-      stageEnteredAt: now,
-      updatedAt: now,
-      status: targetSlug === "closed-lost" ? "lost" : "open",
-    }).where(eq(pipelineOpportunities.id, opportunity.id));
-    await tx.insert(pipelineActivities).values({
-      opportunityId: opportunity.id,
-      type: "stage_change",
-      content: `Instantly ${label.toLowerCase()}: ${fromSlug} → ${target.name}`,
-      metadata: { event: "stage_change", fromStageSlug: fromSlug, toStageSlug: targetSlug, source: "instantly" },
-    });
-  }
 }
 
 async function recordSend(enrollment: InstantlyEnrollment, payload: InstantlyWebhookPayload, eventKey: string) {
@@ -157,7 +127,6 @@ async function recordResponse(enrollment: InstantlyEnrollment, payload: Instantl
       },
     });
     await closeReportTasks(tx, lead.id, now);
-    await moveEarlyOpportunities(tx, lead.id, rule.stageSlug, rule.label, now);
     if (rule.task) {
       await tx.insert(followupTasks).values({
         title: rule.task,

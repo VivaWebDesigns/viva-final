@@ -14,6 +14,7 @@ import type { SalesPrioritySnapshot } from "@shared/salesPriority";
 import type { ReportOutreachFilter } from "@shared/reportOutreach";
 import { buildSharedLeadFilterCondition } from "../crm/leadFilters";
 import { getReportOutreachStates, type ReportOutreachState } from "../crm/reportOutreach";
+import { isSetterWorkingStage } from "@shared/callPipeline";
 
 interface PaginationParams {
   page?: number;
@@ -324,7 +325,8 @@ export async function moveOpportunity(
 
   if (opportunity.leadId) {
     await stopReportOutreachForStage(opportunity.leadId, newStage.slug);
-    if (!["new-lead", "report-emailed"].includes(newStage.slug)) {
+    // Calling stages leave email history alone; only booking or closing a lead stops Instantly.
+    if (!isSetterWorkingStage(newStage.slug)) {
       await stopInstantlyEnrollment(opportunity.leadId, `Pipeline moved to ${newStage.name}`);
     }
   }

@@ -1,25 +1,16 @@
 import { db } from "../../db";
 import { stageAutomationTemplates } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
-import { REPORT_INITIAL_TASK_NOTES, REPORT_INITIAL_TASK_TITLE } from "@shared/reportOutreach";
+import { CALL_TASK_TITLE, CALL_TASK_TYPE } from "@shared/callPipeline";
 
 const DEFAULT_TEMPLATES = [
   {
     triggerStageSlug: "new-lead",
-    title: REPORT_INITIAL_TASK_TITLE,
-    description: REPORT_INITIAL_TASK_NOTES,
+    title: CALL_TASK_TITLE,
+    description: "Call the lead and record what happened.",
     dueOffsetDays: 0,
     priority: "high" as const,
-    taskType: "email",
-    sortOrder: 0,
-  },
-  {
-    triggerStageSlug: "contacted",
-    title: "Schedule demo",
-    description: "Follow up with contacted lead to schedule a demo of Viva Web Designs services.",
-    dueOffsetDays: 1,
-    priority: "medium" as const,
-    taskType: "follow_up",
+    taskType: CALL_TASK_TYPE,
     sortOrder: 0,
   },
 ];
