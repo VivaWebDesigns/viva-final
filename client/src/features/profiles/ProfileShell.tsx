@@ -2804,9 +2804,7 @@ export default function ProfileShell({
     "overview", "notes",
     "contacts", "tasks", "files", "billing", "activity",
     ...(entry.type === "lead" ? ["sms"] : []),
-  ].filter(
-    (tab) => !(tab === "notes" && role === "sales_rep")
-  );
+  ];
   const safeDefaultTab = validTabs.includes(defaultTab) ? defaultTab : "overview";
   const resolvedTab = urlTab && validTabs.includes(urlTab) ? urlTab : safeDefaultTab;
   const [activeTab, setActiveTab] = useState<string>(resolvedTab);
@@ -2972,7 +2970,7 @@ function ProfileShellInner({
 
   const { data: notes = [], isLoading: notesLoading } = useQuery<(ClientNote & { user?: Pick<DbUser, "id" | "name"> })[]>({
     queryKey: ["/api/profiles/company", companyId, "notes"],
-    enabled: activeTab === "notes" && !isSalesRep,
+    enabled: activeTab === "notes",
   });
 
   const { data: clientTasks = [], isLoading: tasksLoading } = useQuery<ClientTask[]>({
@@ -3234,7 +3232,7 @@ function ProfileShellInner({
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="w-full justify-start overflow-x-auto" data-testid="tabs-profile">
           <TabsTrigger value="overview" data-testid="tab-overview">{t.profileShell.overview}</TabsTrigger>
-          {!isSalesRep && <TabsTrigger value="notes" data-testid="tab-notes">{t.profileShell.notes}</TabsTrigger>}
+          <TabsTrigger value="notes" data-testid="tab-notes">{t.profileShell.notes}</TabsTrigger>
           <TabsTrigger value="contacts" data-testid="tab-contacts">
             {t.profileShell.contacts}
           </TabsTrigger>
@@ -3273,7 +3271,7 @@ function ProfileShellInner({
         </TabsContent>
 
         {/* ── Notes Tab ────────────────────────────────────────────────────── */}
-        {!isSalesRep && <TabsContent value="notes" className="mt-4 space-y-4">
+        <TabsContent value="notes" className="mt-4 space-y-4">
           <NoteForm onSubmit={(data) => addNoteMutation.mutate(data)} isPending={addNoteMutation.isPending} />
 
           {notesLoading ? (
@@ -3313,22 +3311,24 @@ function ProfileShellInner({
                           <div className="text-sm text-gray-700 chat-message-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(note.content) }} />
                         </div>
                       </div>
-                      <Button aria-label="Delete note"
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity shrink-0"
-                        onClick={() => deleteNoteMutation.mutate(note.id)}
-                        data-testid={`button-delete-note-${note.id}`}
-                      >
-                        <Trash2 className="w-3.5 h-3.5 text-red-400" />
-                      </Button>
+                      {!isSalesRep && (
+                        <Button aria-label="Delete note"
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity shrink-0"
+                          onClick={() => deleteNoteMutation.mutate(note.id)}
+                          data-testid={`button-delete-note-${note.id}`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                        </Button>
+                      )}
                     </div>
                   </Card>
                 );
               })}
             </div>
           )}
-        </TabsContent>}
+        </TabsContent>
 
         {/* ── Contacts Tab ─────────────────────────────────────────────────── */}
         <TabsContent value="contacts" className="mt-4 space-y-4">

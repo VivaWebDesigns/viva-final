@@ -139,6 +139,19 @@ function actorId(req: Request): string {
   return req.authUser!.id;
 }
 
+/** Setters only reach companies with a lead assigned to them; sends 403 otherwise. */
+async function assertCompanyAccess(req: Request, res: Response, companyId: string): Promise<boolean> {
+  if (!isRestricted(req)) return true;
+  const [ownedLead] = await db
+    .select({ id: crmLeads.id })
+    .from(crmLeads)
+    .where(and(eq(crmLeads.companyId, companyId), eq(crmLeads.assignedTo, actorId(req))))
+    .limit(1);
+  if (ownedLead) return true;
+  res.status(403).json({ message: "Access denied" });
+  return false;
+}
+
 
 // ── GET /api/profiles/company/:id ─────────────────────────────────────────────
 
@@ -426,6 +439,7 @@ router.get(
   async (req: Request, res: Response) => {
     try {
       const companyId  = req.params.id as string;
+      if (!await assertCompanyAccess(req, res, companyId)) return;
       const notes = await db
         .select({
           id: clientNotes.id,
@@ -611,6 +625,7 @@ router.post(
   async (req: Request, res: Response) => {
     try {
       const companyId  = req.params.id as string;
+      if (!await assertCompanyAccess(req, res, companyId)) return;
       const validated = createNoteSchema.parse(req.body);
 
       const [note] = await db.insert(clientNotes).values({
