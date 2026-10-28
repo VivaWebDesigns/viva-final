@@ -32,6 +32,11 @@ import {
   type SabBusinessProfile,
   type ScaleFirstContactTag,
 } from "@shared/sabCrm";
+import {
+  formatLocalVisibilityAveragePosition,
+  formatLocalVisibilityReportAddress,
+  resolveLocalVisibilityMarket,
+} from "@shared/localVisibility";
 
 const nullableText = z.string().trim().min(1).nullable();
 const nullableUrl = z.string().trim().url().nullable();
@@ -314,6 +319,38 @@ export function getProspectScanSpec(
   return "scan_spec" in prospect && prospect.scan_spec
     ? prospect.scan_spec
     : payload.batch.scan_spec;
+}
+
+/** The fields drawn on the 1080×1920 report image, shared by the Import window and import:competitors. */
+export function localFalconReportData(
+  payload: LocalFalconPayload,
+  prospect: MappedScanInput,
+  heatmapImageUrl: string,
+) {
+  return {
+    businessName: prospect.company_name,
+    address: formatLocalVisibilityReportAddress({
+      address: prospect.address,
+      city: prospect.city,
+      state: prospect.state,
+      zip: prospect.zip,
+    }),
+    rating: String(prospect.rating),
+    reviewCount: String(prospect.review_count),
+    searchPhrase: prospect.scan_keyword,
+    market: resolveLocalVisibilityMarket({
+      scanCity: prospect.scan_center?.city,
+      scanState: prospect.scan_center?.state,
+      prospectCity: prospect.city,
+      prospectState: prospect.state,
+      batchCity: payload.batch.market.city,
+      batchState: payload.batch.market.state,
+    }).label,
+    averagePosition: formatLocalVisibilityAveragePosition(prospect.atrp),
+    gridSize: getProspectScanSpec(payload, prospect).grid_size,
+    radius: String(getProspectScanSpec(payload, prospect).radius_miles),
+    heatmapImageUrl,
+  };
 }
 
 export interface ScaleFirstContactRouting {

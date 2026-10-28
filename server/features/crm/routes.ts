@@ -28,6 +28,7 @@ import {
   isDeliverableProspect,
   isNoVisibilityProspect,
   isSelectedPreviewRow,
+  localFalconReportData,
   mappedScans,
   previewRowNeedsMap,
   getLocalFalconProfileForLead,
@@ -475,37 +476,6 @@ function sendLocalFalconImportError(res: express.Response, error: any) {
   }
   return res.status(error?.code === "LIMIT_FILE_SIZE" ? 413 : error?.statusCode ?? 400)
     .json({ message: error.message });
-}
-
-function localFalconReportData(
-  payload: LocalFalconPayload,
-  prospect: MappedScanInput,
-  heatmapImageUrl: string,
-) {
-  return {
-    businessName: prospect.company_name,
-    address: formatLocalVisibilityReportAddress({
-      address: prospect.address,
-      city: prospect.city,
-      state: prospect.state,
-      zip: prospect.zip,
-    }),
-    rating: String(prospect.rating),
-    reviewCount: String(prospect.review_count),
-    searchPhrase: prospect.scan_keyword,
-    market: resolveLocalVisibilityMarket({
-      scanCity: prospect.scan_center?.city,
-      scanState: prospect.scan_center?.state,
-      prospectCity: prospect.city,
-      prospectState: prospect.state,
-      batchCity: payload.batch.market.city,
-      batchState: payload.batch.market.state,
-    }).label,
-    averagePosition: formatLocalVisibilityAveragePosition(prospect.atrp),
-    gridSize: getProspectScanSpec(payload, prospect).grid_size,
-    radius: String(getProspectScanSpec(payload, prospect).radius_miles),
-    heatmapImageUrl,
-  };
 }
 
 router.post(
