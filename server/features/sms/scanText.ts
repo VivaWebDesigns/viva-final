@@ -58,6 +58,15 @@ async function loadLeadReport(leadId: string, reportId: string) {
   return record;
 }
 
+/** The nearby competitor's report linked to a lead's report, if any. */
+async function loadCompetitorReport(competitorReportId: string | null) {
+  if (!competitorReportId) return null;
+  const [competitor] = await db.select().from(localFalconProspectProfiles)
+    .where(and(eq(localFalconProspectProfiles.id, competitorReportId), eq(localFalconProspectProfiles.scanRole, "competitor")))
+    .limit(1);
+  return competitor ?? null;
+}
+
 /** The latest send that may have reached the lead. Failed sends don't block a retry. */
 async function activeScanSend(leadId: string) {
   const [row] = await db.select({ send: smsScanSends, senderName: user.name })
@@ -85,6 +94,7 @@ function describeSend(row: NonNullable<Awaited<ReturnType<typeof activeScanSend>
 
 export async function getScanTextPreview(leadId: string, reportId: string, actor: Actor) {
   const { report, contact, company } = await loadLeadReport(leadId, reportId);
+  const competitor = await loadCompetitorReport(report.competitorReportId);
   const existing = await activeScanSend(leadId);
   const suggested = contact?.phone || company?.phone || "";
   const suggestedE164 = toUsE164(suggested);
@@ -96,6 +106,10 @@ export async function getScanTextPreview(leadId: string, reportId: string, actor
     suggestedNumberOptedOut: suggestedE164 ? await isOptedOut(suggestedE164) : false,
     script: SCAN_TEXT_CONSENT_SCRIPT,
     message: SCAN_TEXT_MESSAGE,
+    competitor: competitor ? {
+      businessName: competitor.companyName || "Nearby competitor",
+      hasSnapshot: !!competitor.snapshotStorageKey,
+    } : null,
     canEditMessage: actor.role === "admin",
     existingSend: existing ? describeSend(existing) : null,
   };
@@ -106,6 +120,8 @@ export async function sendScanText(input: {
   reportId: string;
   toNumber: string;
   message?: string;
+  /** Also attach the linked competitor's report to the same one text. */
+  includeCompetitor?: boolean;
   actor: Actor;
 }) {
   const to = toUsE164(input.toNumber);
@@ -123,11 +139,18 @@ export async function sendScanText(input: {
 
   const { report } = await loadLeadReport(input.leadId, input.reportId);
   if (!report.snapshotStorageKey) throw httpError("Generate the finished snapshot before texting this report.", 409);
+  const competitor = input.includeCompetitor ? await loadCompetitorReport(report.competitorReportId) : null;
+  if (input.includeCompetitor && !competitor?.snapshotStorageKey) {
+    throw httpError("This lead has no competitor report with a finished snapshot.", 409);
+  }
 
-  // Only admins may change the approved wording.
+  // Both pictures go out under the same approved script and message. Only admins may change the wording.
   const edited = input.actor.role === "admin" && !!input.message?.trim() && input.message.trim() !== SCAN_TEXT_MESSAGE;
   const content = edited ? input.message!.trim() : SCAN_TEXT_MESSAGE;
   const { imageUrl } = await publishColdEmailImage(report.id, report.snapshotStorageKey);
+  const competitorImageUrl = competitor
+    ? (await publishColdEmailImage(competitor.id, competitor.snapshotStorageKey!)).imageUrl
+    : null;
 
   // Consent is recorded before anything is sent.
   const [send] = await db.insert(smsScanSends).values({
@@ -145,7 +168,7 @@ export async function sendScanText(input: {
 
   let result;
   try {
-    result = await sendTwilioMessage({ to, body: content, mediaUrl: imageUrl });
+    result = await sendTwilioMessage({ to, body: content, mediaUrl: competitorImageUrl ? [imageUrl, competitorImageUrl] : imageUrl });
   } catch (error) {
     const code = error instanceof TwilioSendError ? error.code : null;
     await db.update(smsScanSends).set({
@@ -165,7 +188,7 @@ export async function sendScanText(input: {
     direction: "outbound",
     fromNumber: "twilio",
     toNumber: to,
-    content: `${content}\n[Scan image attached]`,
+    content: `${content}\n${competitor ? `[Scan images attached: their report and ${competitor.companyName ?? "a nearby competitor"}'s]` : "[Scan image attached]"}`,
     senderName: input.actor.name,
     twilioMessageSid: result.sid,
     status: result.status,
@@ -175,8 +198,11 @@ export async function sendScanText(input: {
     leadId: input.leadId,
     userId: input.actor.id,
     type: "sms",
-    content: `Scan texted to ${formatPhoneDisplay(to)} after verbal consent on the call.${edited ? " Message was edited." : ""}`,
-    metadata: { via: "twilio", scanSendId: send.id, reportId: report.id, to, imageUrl, contentEdited: edited },
+    content: `${competitor ? `Scan and ${competitor.companyName ?? "competitor"}'s scan` : "Scan"} texted to ${formatPhoneDisplay(to)} after verbal consent on the call.${edited ? " Message was edited." : ""}`,
+    metadata: {
+      via: "twilio", scanSendId: send.id, reportId: report.id, to, imageUrl, contentEdited: edited,
+      ...(competitor ? { competitorReportId: competitor.id, competitorImageUrl } : {}),
+    },
   });
   return { sendId: send.id, toNumber: formatPhoneDisplay(to), status: result.status };
 }

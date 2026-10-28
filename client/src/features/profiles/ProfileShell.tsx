@@ -137,6 +137,7 @@ interface LocalFalconSnapshot {
   reportUrl: string | null;
   snapshotImageUrl: string | null;
   snapshotGeneratedAt: string | null;
+  competitor: { reportId: string; businessName: string; snapshotImageUrl: string } | null;
   qualification: {
     hasWebsite: boolean | null;
     websitePlatform: string | null;
@@ -212,6 +213,7 @@ function LocalFalconSnapshotCard({
   const [emailPreparation, setEmailPreparation] = useState<ManualScanReportPreparation | null>(null);
   const [emailSentConfirmed, setEmailSentConfirmed] = useState(false);
   const [textScanOpen, setTextScanOpen] = useState(false);
+  const [textScanIncludesCompetitor, setTextScanIncludesCompetitor] = useState(false);
   const { data, isLoading } = useQuery<LocalFalconSnapshot>({
     queryKey: ["/api/local-visibility/reports", reportId, contextCompanyId],
     queryFn: async () => {
@@ -547,13 +549,33 @@ function LocalFalconSnapshotCard({
         )}
         {data.snapshotImageUrl ? (
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-            <a href={snapshotFileUrl} target="_blank" rel="noopener noreferrer" className="shrink-0">
-              <img
-                src={snapshotFileUrl}
-                alt={`${data.data.businessName} Local Visibility Snapshot`}
-                className="h-[280px] w-[158px] rounded-lg border object-cover shadow-sm"
-              />
-            </a>
+            <div className="flex shrink-0 gap-3">
+              <a href={snapshotFileUrl} target="_blank" rel="noopener noreferrer">
+                <img
+                  src={snapshotFileUrl}
+                  alt={`${data.data.businessName} Local Visibility Snapshot`}
+                  className="h-[280px] w-[158px] rounded-lg border object-cover shadow-sm"
+                />
+              </a>
+              {data.competitor && (
+                <a
+                  href={data.competitor.snapshotImageUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-[158px]"
+                  data-testid="link-competitor-snapshot"
+                >
+                  <img
+                    src={data.competitor.snapshotImageUrl}
+                    alt={`${data.competitor.businessName} Local Visibility Snapshot`}
+                    className="h-[280px] w-[158px] rounded-lg border object-cover shadow-sm"
+                  />
+                  <span className="mt-1 block text-xs leading-4 text-gray-600">
+                    Competitor: <span className="font-medium text-gray-900">{data.competitor.businessName}</span>
+                  </span>
+                </a>
+              )}
+            </div>
             <div className="flex flex-wrap gap-2">
               {canEmailSnapshot && showReportShareActions && (
                 <Button
@@ -570,12 +592,22 @@ function LocalFalconSnapshotCard({
               )}
               {canEmailSnapshot && data.leadId && (
                 <Button
-                  onClick={() => setTextScanOpen(true)}
+                  onClick={() => { setTextScanIncludesCompetitor(false); setTextScanOpen(true); }}
                   className="bg-violet-600 hover:bg-violet-700"
                   data-testid="button-text-scan"
                 >
                   <MessageSquare className="mr-1.5 h-4 w-4" />
                   Text scan
+                </Button>
+              )}
+              {canEmailSnapshot && data.leadId && data.competitor && (
+                <Button
+                  onClick={() => { setTextScanIncludesCompetitor(true); setTextScanOpen(true); }}
+                  className="bg-violet-600 hover:bg-violet-700"
+                  data-testid="button-text-both-scans"
+                >
+                  <MessageSquare className="mr-1.5 h-4 w-4" />
+                  Text both
                 </Button>
               )}
               {data.leadId === "73eec4df-4ae9-4357-8842-2c0125c76e54" && (
@@ -659,6 +691,7 @@ function LocalFalconSnapshotCard({
           leadId={data.leadId}
           reportId={reportId}
           snapshotUrl={snapshotFileUrl}
+          competitorSnapshotUrl={textScanIncludesCompetitor ? data.competitor?.snapshotImageUrl : undefined}
           open={textScanOpen}
           onOpenChange={setTextScanOpen}
         />

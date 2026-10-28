@@ -27,21 +27,27 @@ interface ScanTextPreview {
   suggestedNumberOptedOut: boolean;
   script: string;
   message: string;
+  competitor: { businessName: string; hasSnapshot: boolean } | null;
   canEditMessage: boolean;
   existingSend: { status: string; toNumber: string; sentAt: string; sentBy: string | null } | null;
 }
 
-/** Texts the lead their scan picture after they agree on the call, following the approved 10DLC script. */
+/**
+ * Texts the lead their scan picture after they agree on the call, following the approved 10DLC script.
+ * With competitorSnapshotUrl, the same one text also carries the linked competitor's report.
+ */
 export function TextScanDialog({
   leadId,
   reportId,
   snapshotUrl,
+  competitorSnapshotUrl,
   open,
   onOpenChange,
 }: {
   leadId: string;
   reportId: string;
   snapshotUrl: string;
+  competitorSnapshotUrl?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -65,12 +71,17 @@ export function TextScanDialog({
     enabled: open,
   });
 
+  const includeCompetitor = !!competitorSnapshotUrl;
+  const competitor = includeCompetitor ? preview?.competitor ?? null : null;
+  const script = preview?.script ?? "";
+  const approvedMessage = preview?.message ?? "";
+
   useEffect(() => {
     if (!open || !preview) return;
     setToNumber(preview.suggestedNumber);
-    setMessage(preview.message);
+    setMessage(approvedMessage);
     setConsent(false);
-  }, [open, preview]);
+  }, [open, preview, approvedMessage]);
 
   const send = useMutation({
     mutationFn: async () => {
@@ -78,6 +89,7 @@ export function TextScanDialog({
         reportId,
         toNumber,
         consent: true,
+        includeCompetitor,
         ...(preview?.canEditMessage ? { message } : {}),
       });
       return response.json() as Promise<{ toNumber: string }>;
@@ -86,7 +98,10 @@ export function TextScanDialog({
       queryClient.invalidateQueries({ queryKey: previewKey });
       queryClient.invalidateQueries({ queryKey: ["/api/quo/conversations", leadId] });
       queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.all });
-      toast({ title: "Scan texted", description: `The scan picture is on its way to ${result.toNumber}.` });
+      toast({
+        title: includeCompetitor ? "Both scans texted" : "Scan texted",
+        description: `The ${includeCompetitor ? "scan pictures are" : "scan picture is"} on its way to ${result.toNumber}.`,
+      });
       onOpenChange(false);
     },
     onError: (err: Error) => {
@@ -95,14 +110,15 @@ export function TextScanDialog({
   });
 
   const digits = toNumber.replace(/\D/g, "").replace(/^1(?=\d{10}$)/, "");
-  const blocked = !preview?.configured || !preview.hasSnapshot || !!preview.existingSend;
+  const missingCompetitor = includeCompetitor && !preview?.competitor?.hasSnapshot;
+  const blocked = !preview?.configured || !preview.hasSnapshot || !!preview.existingSend || missingCompetitor;
   const canSend = !blocked && consent && digits.length === 10 && !!message.trim() && !send.isPending;
 
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!send.isPending) onOpenChange(next); }}>
       <DialogContent className="max-h-[94dvh] overflow-y-auto sm:max-w-xl" data-testid="modal-text-scan">
         <DialogHeader>
-          <DialogTitle>Text scan</DialogTitle>
+          <DialogTitle>{includeCompetitor ? "Text both scans" : "Text scan"}</DialogTitle>
           <DialogDescription>
             Read the script to the lead, wait for a clear yes, then read their mobile number back.
           </DialogDescription>
@@ -126,6 +142,11 @@ export function TextScanDialog({
                 Texting isn't connected to Twilio yet, so nothing can be sent.
               </p>
             )}
+            {missingCompetitor && (
+              <p className="rounded bg-amber-50 p-2 text-sm text-amber-900" role="status">
+                This lead's competitor report has no finished snapshot, so both scans can't be sent.
+              </p>
+            )}
             {!preview.hasSnapshot && (
               <p className="rounded bg-amber-50 p-2 text-sm text-amber-900" role="status">
                 Generate the finished snapshot before texting this report.
@@ -135,7 +156,7 @@ export function TextScanDialog({
             <div className="space-y-1.5">
               <Label>1. Read this to {preview.businessName}</Label>
               <blockquote className="rounded-lg border bg-slate-50 p-3 text-sm leading-6 text-slate-800" data-testid="text-scan-script">
-                “{preview.script}”
+                “{script}”
               </blockquote>
             </div>
 
@@ -167,10 +188,13 @@ export function TextScanDialog({
                 disabled={blocked}
                 data-testid="checkbox-text-scan-consent"
               />
-              <span>3. The lead said yes to one text with their scan, and I read the number back to them.</span>
+              <span>
+                3. The lead said yes to one text with {competitor ? `their scan and ${competitor.businessName}'s` : "their scan"}, and I read
+                the number back to them.
+              </span>
             </label>
 
-            <div className="grid gap-3 sm:grid-cols-[1fr_96px]">
+            <div className={`grid gap-3 ${includeCompetitor ? "sm:grid-cols-[1fr_96px_96px]" : "sm:grid-cols-[1fr_96px]"}`}>
               <div className="space-y-1.5">
                 <Label htmlFor={`text-scan-message-${reportId}`}>Message</Label>
                 {preview.canEditMessage ? (
@@ -185,15 +209,22 @@ export function TextScanDialog({
                     data-testid="textarea-text-scan-message"
                   />
                 ) : (
-                  <p className="rounded-lg border bg-slate-50 p-3 text-sm" data-testid="text-scan-message">{preview.message}</p>
+                  <p className="rounded-lg border bg-slate-50 p-3 text-sm" data-testid="text-scan-message">{approvedMessage}</p>
                 )}
-                {preview.canEditMessage && message.trim() !== preview.message && (
+                {preview.canEditMessage && message.trim() !== approvedMessage && (
                   <p className="text-xs text-amber-700">
                     Edited from the approved wording. The approved campaign covers the original text.
                   </p>
                 )}
               </div>
               <img src={snapshotUrl} alt="Scan picture that will be attached" className="h-[170px] w-[96px] rounded border object-cover" />
+              {competitorSnapshotUrl && (
+                <img
+                  src={competitorSnapshotUrl}
+                  alt="Competitor scan picture that will be attached"
+                  className="h-[170px] w-[96px] rounded border object-cover"
+                />
+              )}
             </div>
           </div>
         )}
@@ -207,7 +238,7 @@ export function TextScanDialog({
             data-testid="button-send-text-scan"
           >
             {send.isPending ? <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" /> : <MessageSquare className="mr-1.5 h-4 w-4" />}
-            {send.isPending ? "Sending…" : "Send scan text"}
+            {send.isPending ? "Sending…" : includeCompetitor ? "Send both scans" : "Send scan text"}
           </Button>
         </DialogFooter>
       </DialogContent>

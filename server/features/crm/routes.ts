@@ -1052,6 +1052,7 @@ router.post("/leads/:id/scan-text", requireRole("admin", "developer", "sales_rep
       toNumber: z.string().min(7),
       consent: z.literal(true, { errorMap: () => ({ message: "Confirm the lead said yes before sending." }) }),
       message: z.string().max(1600).optional(),
+      includeCompetitor: z.boolean().optional(),
     }).parse(req.body);
     const result = await sendScanText({ leadId, ...input, actor: req.authUser! });
     await logAudit({
@@ -1059,7 +1060,7 @@ router.post("/leads/:id/scan-text", requireRole("admin", "developer", "sales_rep
       action: "scan_text_sent",
       entity: "crm_lead",
       entityId: leadId,
-      metadata: { reportId: input.reportId, sendId: result.sendId, to: result.toNumber },
+      metadata: { reportId: input.reportId, sendId: result.sendId, to: result.toNumber, includeCompetitor: !!input.includeCompetitor },
       ipAddress: req.ip,
     });
     res.json(result);

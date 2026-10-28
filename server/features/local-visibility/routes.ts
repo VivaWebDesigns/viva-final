@@ -185,6 +185,15 @@ router.get(
       const snapshotImageUrl = record.profile.snapshotStorageKey
         ? await getSignedDownloadUrl(record.profile.snapshotStorageKey)
         : null;
+      const [competitor] = record.profile.competitorReportId
+        ? await db.select({
+          reportId: localFalconProspectProfiles.id,
+          businessName: localFalconProspectProfiles.companyName,
+          snapshotStorageKey: localFalconProspectProfiles.snapshotStorageKey,
+        }).from(localFalconProspectProfiles)
+          .where(eq(localFalconProspectProfiles.id, record.profile.competitorReportId))
+          .limit(1)
+        : [];
       const address = formatLocalVisibilityReportAddress({
         address: record.profile.address,
         city: record.profile.scanCity ?? record.profile.city,
@@ -199,6 +208,11 @@ router.get(
         reportUrl: record.profile.reportUrl,
         snapshotImageUrl,
         snapshotGeneratedAt: record.profile.snapshotGeneratedAt,
+        competitor: competitor?.snapshotStorageKey ? {
+          reportId: competitor.reportId,
+          businessName: competitor.businessName ?? "Nearby competitor",
+          snapshotImageUrl: await getSignedDownloadUrl(competitor.snapshotStorageKey),
+        } : null,
         qualification: {
           hasWebsite: record.profile.hasWebsite,
           websitePlatform: record.profile.websitePlatform,

@@ -28,7 +28,7 @@ export interface TwilioSendResult {
 }
 
 /** Sends through the messaging service, so it uses (980) 446-3350 and the approved campaign. */
-export async function sendTwilioMessage(input: { to: string; body: string; mediaUrl?: string }): Promise<TwilioSendResult> {
+export async function sendTwilioMessage(input: { to: string; body: string; mediaUrl?: string | string[] }): Promise<TwilioSendResult> {
   const config = twilioConfig();
   if (!config) {
     throw new TwilioSendError(
@@ -41,7 +41,8 @@ export async function sendTwilioMessage(input: { to: string; body: string; media
   form.set("MessagingServiceSid", config.messagingServiceSid);
   form.set("To", input.to);
   form.set("Body", input.body);
-  if (input.mediaUrl) form.set("MediaUrl", input.mediaUrl);
+  // Twilio keeps repeated MediaUrl fields in order; some phones still show them as separate bubbles.
+  for (const mediaUrl of [input.mediaUrl ?? []].flat()) form.append("MediaUrl", mediaUrl);
   form.set("StatusCallback", TWILIO_STATUS_CALLBACK_URL);
 
   const response = await fetch(`${TWILIO_API}/Accounts/${config.accountSid}/Messages.json`, {
